@@ -54,6 +54,8 @@ const TENANT: &str = "10000000-0000-4000-8000-000000000001";
 const OTHER_TENANT: &str = "10000000-0000-4000-8000-000000000002";
 const EVENT: &str = "20000000-0000-4000-8000-000000000001";
 const OTHER_EVENT: &str = "20000000-0000-4000-8000-000000000002";
+// OTHER_TENANT's own event: a keys ceremony needs an event of its tenant.
+const OTHER_TENANT_EVENT: &str = "20000000-0000-4000-8000-000000000003";
 const ELECTION: &str = "30000000-0000-4000-8000-000000000001";
 const OTHER_ELECTION: &str = "30000000-0000-4000-8000-000000000002";
 const CONTEST: &str = "40000000-0000-4000-8000-000000000001";
@@ -155,8 +157,8 @@ async fn results_event(tx: &Transaction<'_>, tenant: &str, event: &str, id: &str
     .unwrap();
 }
 
-/// The elections, contest, areas, tally sessions and results events the
-/// constants name, in the given tenant and election event.
+/// The elections, contest, areas and results events the constants name, in
+/// the given tenant and election event.
 async fn world(tx: &Transaction<'_>, tenant: &str, event: &str) {
     let (tenant_id, event_id) = (uuid(tenant), uuid(event));
     for id in [ELECTION, OTHER_ELECTION] {
@@ -184,6 +186,16 @@ async fn world(tx: &Transaction<'_>, tenant: &str, event: &str) {
         .await
         .unwrap();
     }
+    for id in [RESULTS, OTHER_RESULTS] {
+        results_event(tx, tenant, event, id).await;
+    }
+}
+
+/// The keys ceremony and tally sessions the constants name, in the given
+/// tenant and one of its election events: a keys ceremony is refused in an
+/// event of another tenant.
+async fn sessions(tx: &Transaction<'_>, tenant: &str, event: &str) {
+    let (tenant_id, event_id) = (uuid(tenant), uuid(event));
     tx.execute(
         "INSERT INTO sequent_backend.keys_ceremony
              (id, tenant_id, election_event_id, trustee_ids, threshold)
@@ -208,9 +220,6 @@ async fn world(tx: &Transaction<'_>, tenant: &str, event: &str) {
         .await
         .unwrap();
     }
-    for id in [RESULTS, OTHER_RESULTS] {
-        results_event(tx, tenant, event, id).await;
-    }
 }
 
 /// TENANT's EVENT, which every test builds first.
@@ -218,18 +227,29 @@ async fn home(tx: &Transaction<'_>) {
     tenant(tx, TENANT).await;
     election_event(tx, TENANT, EVENT).await;
     world(tx, TENANT, EVENT).await;
+    sessions(tx, TENANT, EVENT).await;
 }
 
 /// The same identifiers in TENANT's OTHER_EVENT.
 async fn away(tx: &Transaction<'_>) {
     election_event(tx, TENANT, OTHER_EVENT).await;
     world(tx, TENANT, OTHER_EVENT).await;
+    sessions(tx, TENANT, OTHER_EVENT).await;
 }
 
-/// The same identifiers recorded under OTHER_TENANT for EVENT.
+/// The same identifiers recorded under OTHER_TENANT for EVENT, but for the
+/// tally sessions, which OTHER_TENANT has only in its own event
+/// ([`stranger_sessions`]).
 async fn stranger(tx: &Transaction<'_>) {
     tenant(tx, OTHER_TENANT).await;
     world(tx, OTHER_TENANT, EVENT).await;
+}
+
+/// The same identifiers, tally sessions included, in OTHER_TENANT_EVENT.
+async fn stranger_sessions(tx: &Transaction<'_>) {
+    election_event(tx, OTHER_TENANT, OTHER_TENANT_EVENT).await;
+    world(tx, OTHER_TENANT, OTHER_TENANT_EVENT).await;
+    sessions(tx, OTHER_TENANT, OTHER_TENANT_EVENT).await;
 }
 
 /// A stored election or election area result row.
@@ -1621,6 +1641,7 @@ async fn the_pending_resolutions_of_a_session_are_listed_oldest_first() {
     home(&transaction).await;
     away(&transaction).await;
     stranger(&transaction).await;
+    stranger_sessions(&transaction).await;
     for resolution in [
         Resolution {
             created_at: "2026-01-02T00:00:00Z",
@@ -1648,6 +1669,7 @@ async fn the_pending_resolutions_of_a_session_are_listed_oldest_first() {
         Resolution {
             id: "90000000-0000-4000-8000-000000000006",
             tenant: OTHER_TENANT,
+            event: OTHER_TENANT_EVENT,
             ..PENDING
         },
     ] {
@@ -2069,19 +2091,22 @@ async fn a_resolution_of_another_tenant_cannot_be_updated() {
     let transaction = client.transaction().await.unwrap();
     home(&transaction).await;
     stranger(&transaction).await;
+    stranger_sessions(&transaction).await;
     store_resolution(
         &transaction,
         Resolution {
             tenant: OTHER_TENANT,
+            event: OTHER_TENANT_EVENT,
             ..PENDING
         },
     )
     .await;
 
+    // Named by its event, it is still another tenant's.
     let error = update_resolution(
         &transaction,
         TENANT,
-        EVENT,
+        OTHER_TENANT_EVENT,
         ROW_1,
         tie_break(Some(CANDIDATE_B)),
         USER,
@@ -2093,8 +2118,9 @@ async fn a_resolution_of_another_tenant_cannot_be_updated() {
     transaction.rollback().await.unwrap();
 }
 
-/// Every identifier `world` creates, mapped to itself: `away` holds the same
-/// ones in OTHER_EVENT, so an export of EVENT imports there unchanged.
+/// Every identifier `world` and `sessions` create, mapped to itself: `away`
+/// holds the same ones in OTHER_EVENT, so an export of EVENT imports there
+/// unchanged.
 fn same_ids() -> HashMap<String, String> {
     [
         ELECTION,

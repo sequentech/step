@@ -8,7 +8,7 @@ use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::ballot::ElectionPresentation;
-use sequent_core::election_config::package_verify::ConfigurationSigningPolicy;
+use sequent_core::election_config::package_verify::signatures_required;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
@@ -63,9 +63,7 @@ pub async fn create_election(
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    if signing.is_some_and(|signing| {
-        signing.policy == ConfigurationSigningPolicy::Required
-    }) {
+    if signatures_required(signing.as_ref()) {
         return Err((
             Status::Forbidden,
             "Elections are created only by the signed import".into(),

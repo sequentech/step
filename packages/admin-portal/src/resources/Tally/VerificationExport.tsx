@@ -10,6 +10,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {ETallyType} from "@/types/ceremonies"
 import {loadBrowserTrustee} from "@/services/BrowserTrustee"
+import {hasGraphQLActionErrorCode} from "@/services/graphqlActionError"
 import {
     ProtocolBoardRecord,
     VerificationBoard,
@@ -29,7 +30,7 @@ const VERIFICATION_BOARDS = gql`
             tally_session_id
             batch
             name
-            manager_message
+            public_manager_message
         }
     }
 `
@@ -42,6 +43,8 @@ const EXPORT_VERIFICATION_TRANSCRIPT = gql`
     }
 `
 const context = {headers: {"x-hasura-role": IPermissions.ADMIN_CEREMONY}}
+/** How the server refuses verification data before post-processing. */
+const BEFORE_POST_PROCESSING = "requires electoral phase PostProcessing"
 interface ExportResponse {
     export_verification_transcript?: {document_id: string; url: string} | null
 }
@@ -81,7 +84,10 @@ export function VerificationExport({
     const [exportTranscript] = useMutation<ExportResponse>(EXPORT_VERIFICATION_TRANSCRIPT)
     const [prepared, setPrepared] = useState<{scope: string; boards: VerificationBoard[]}>()
     const [failedScope, setFailedScope] = useState<string>()
-    const [downloadError, setDownloadError] = useState<string>()
+    const [downloadError, setDownloadError] = useState<{
+        scope: string
+        beforePostProcessing: boolean
+    }>()
     const [busy, setBusy] = useState<string>()
     useEffect(() => {
         setBusy(undefined)
@@ -135,14 +141,18 @@ export function VerificationExport({
             })
             const result = exported?.export_verification_transcript
             if (errors?.length || !result?.document_id || !result.url)
-                throw new Error("Export failed")
+                throw Object.assign(new Error("Export failed"), {graphQLErrors: errors})
             const url = new URL(result.url)
             if (url.protocol !== "https:" || url.username || url.password)
                 throw new Error("Invalid download URL")
             if (activeScope.current !== scope) return
             await downloadUrl(result.url, `verification-${board.id}.json`)
-        } catch {
-            if (activeScope.current === scope) setDownloadError(scope)
+        } catch (caught) {
+            if (activeScope.current === scope)
+                setDownloadError({
+                    scope,
+                    beforePostProcessing: hasGraphQLActionErrorCode(caught, BEFORE_POST_PROCESSING),
+                })
         } finally {
             if (activeScope.current === scope) setBusy(undefined)
         }
@@ -191,11 +201,16 @@ export function VerificationExport({
                     </Button>
                 </Box>
             ))}
-            {downloadError === scope && (
+            {downloadError?.scope === scope && (
                 <Alert severity="error">
-                    {t("verificationExport.downloadError", {
-                        defaultValue: "Verification data could not be downloaded.",
-                    })}
+                    {downloadError.beforePostProcessing
+                        ? t("verificationExport.postProcessingRequired", {
+                              defaultValue:
+                                  "Verification data can be downloaded once post-processing has started.",
+                          })
+                        : t("verificationExport.downloadError", {
+                              defaultValue: "Verification data could not be downloaded.",
+                          })}
                 </Alert>
             )}
         </Box>

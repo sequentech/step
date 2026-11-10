@@ -74,11 +74,18 @@ it.each(["", "synthetic archive password"])(
         const {result} = renderHook(useCreateElectionEventStore, {
             wrapper: CreateElectionEventProvider,
         })
+        await act(async () => result.current.setAuthorizationEventId("approval-event"))
         await act(async () =>
             result.current.handleImportElectionEvent("document-a", CHECKSUM, password)
         )
         expect(mockImport).toHaveBeenCalledWith({
-            variables: {tenantId: "tenant-a", documentId: "document-a", sha256: CHECKSUM, password},
+            variables: {
+                tenantId: "tenant-a",
+                authorizationEventId: "approval-event",
+                documentId: "document-a",
+                sha256: CHECKSUM,
+                password,
+            },
         })
         expect(mockTask).toHaveBeenCalledWith("widget-a", "task-a", expect.any(Function))
         expect(mockCreated).toHaveBeenCalledWith({
@@ -101,7 +108,13 @@ it("keeps a confirmed empty checksum optional and reports a backend integrity fa
     const {result} = renderHook(useCreateElectionEventStore, {wrapper: CreateElectionEventProvider})
     await act(async () => result.current.handleImportElectionEvent("document-a", "", ""))
     expect(mockImport).toHaveBeenCalledWith({
-        variables: {tenantId: "tenant-a", documentId: "document-a", sha256: "", password: ""},
+        variables: {
+            tenantId: "tenant-a",
+            authorizationEventId: "",
+            documentId: "document-a",
+            sha256: "",
+            password: "",
+        },
     })
     expect(result.current.errors).toBe("Checksum mismatch")
     // The refused task is followed, not just marked, so the widget can load the

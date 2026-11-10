@@ -5,6 +5,46 @@ import englishTranslation, {TranslationType} from "./en"
 
 const basqueTranslation: TranslationType = {
     translations: {
+        electionRevoting: {
+            title: "Berriro bozkatzea",
+            description:
+                "Prestaketan, hauteskunde-gertaera honetako kanalen batean bozketa hasi aurretik, hauteskunde baten berriro bozkatzea desgai dezakezu: hautesle bakoitzak boto bakarra eman ahal izango du orduan. Berriro bozkatzea ezin da berriro gaitu, eta hauteskunde-erregistroak jasotzen du nork desgaitu zuen. Hauteskunde-batzordeak konfigurazio eguneratua onartu behar du bozketa hasi aurretik.",
+            loading: "Berriro bozkatzearen ezarpenak kargatzen",
+            readFailed:
+                "Ezin izan dira hauteskundeen berriro bozkatzearen ezarpenak irakurri. Kargatu berriro orria aldaketak egin aurretik.",
+            empty: "Hauteskunde-gertaera honek ez du hauteskunderik.",
+            election: "Hauteskundea",
+            state: "Berriro bozkatzea",
+            unlimited: "Baimenduta, boto mugagabeak",
+            upTo: "Baimenduta, gehienez {{votes}} boto",
+            single: "Desgaituta, boto bat",
+            disable: "Desgaitu berriro bozkatzea",
+            disableFor: "Desgaitu {{name}} hauteskundearen berriro bozkatzea",
+            confirmTitle: "Berriro bozkatzea desgaitu?",
+            confirm:
+                "{{name}} hauteskundeko hautesle bakoitzak boto bakarra eman ahal izango du. Berriro bozkatzea ezin da berriro gaitu.",
+            disabled:
+                "{{name}} hauteskundearen berriro bozkatzea desgaitu da. Hauteskunde-batzordeak konfigurazio eguneratua onartu behar du bozketa hasi aurretik.",
+            failed: "Ez da {{name}} hauteskundearen berriro bozkatzea desgaitu: {{reason}}",
+            failedNoReason:
+                "Ez da {{name}} hauteskundearen berriro bozkatzea desgaitu. Kargatu berriro orria eta egiaztatu hauteskundearen fasea.",
+        },
+        refusals: {
+            documentName:
+                "Dokumentu baten izenak ezin du / \\ ; # % ? edo kontrol-karaktererik izan. Aldatu izena eta saiatu berriro.",
+            documentWaitsForPostProcessing:
+                "Dokumentu honek deskodetutako boto-txartelak izan ditzake. Postprozesatzea hasi ondoren deskarga daiteke.",
+            resultsWaitForPostProcessing:
+                "Zenbaketa honen emaitzen datu-baseak deskodetutako boto-txartelak izan ditzake. Emaitzak hemen erakutsi ahal izango dira postprozesatzea hasi ondoren.",
+            ballotImagesWaitForPostProcessing:
+                "Boto-txartelen irudiak postprozesatzea hasi ondoren sor daitezke.",
+            phaseChanging:
+                "Hauteskunde-gertaeraren fasea edo segurtasun-egoera aldatzen ari da. Saiatu berriro une batean.",
+            resultsAlreadyCounted:
+                "{{election}} hauteskundearen emaitzak zenbatuta daude jada, eta ezin da berriro zenbatu.",
+            resultsTallyUnfinished:
+                "{{election}} hauteskundearen emaitzen zenbaketa bat ez da amaitu. Itxaron amaitu arte, edo utzi bertan behera.",
+        },
         copyableFingerprint: {
             copy: "Kopiatu SHA-256 osoa",
             copied: "SHA-256 osoa kopiatu da",
@@ -1658,12 +1698,30 @@ const basqueTranslation: TranslationType = {
                 },
             },
             permissions: {
-                "sign-start-tally": englishTranslation.translations.usersAndRolesScreen.permissions["sign-start-tally"],
-                "sign-import-election-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-import-election-data"],
-                "sign-export-execution-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-export-execution-data"],
-                "sign-delete-execution-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-delete-execution-data"],
-                "sign-read-voters-register": englishTranslation.translations.usersAndRolesScreen.permissions["sign-read-voters-register"],
-                "election-execution-export": englishTranslation.translations.usersAndRolesScreen.permissions["election-execution-export"],
+                "sign-start-tally":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-start-tally"
+                    ],
+                "sign-import-election-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-import-election-data"
+                    ],
+                "sign-export-execution-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-export-execution-data"
+                    ],
+                "sign-delete-execution-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-delete-execution-data"
+                    ],
+                "sign-read-voters-register":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-read-voters-register"
+                    ],
+                "election-execution-export":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "election-execution-export"
+                    ],
                 "voter-information-letter": "Bozkatzailearen informazio-gutuna sortu",
                 "admin-user": "Admin Erabiltzailea",
                 "admin-dashboard-view": "Admin Panela Ikusi",
@@ -2455,6 +2513,12 @@ const basqueTranslation: TranslationType = {
                     entry: "Sarrera",
                 },
                 emptyLogs: "Ez dago egunkaririk oraindik.",
+                managerKey: {
+                    title: "Protokolo-kudeatzailearen giltza (SHA-256)",
+                    help: "Fideikomisario-zerbitzari bakoitzak hatz-marka hau erregistratzen du {{board}} taularako, giltzen zeremoniaren konfigurazioa onartzen duenean. Konparatu biak beste kanal batetik, ez atari honetatik.",
+                    readError:
+                        "Ezin izan da giltzen zeremonia honen protokolo-kudeatzailearen giltza irakurri.",
+                },
             },
         },
         miruExport: {
@@ -3830,7 +3894,8 @@ const basqueTranslation: TranslationType = {
             },
             notices: {
                 ATTACK_REQUEST_ACTIVITY_UNAVAILABLE:
-                    englishTranslation.translations.monitoring.notices.ATTACK_REQUEST_ACTIVITY_UNAVAILABLE,
+                    englishTranslation.translations.monitoring.notices
+                        .ATTACK_REQUEST_ACTIVITY_UNAVAILABLE,
                 UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
                     "Erregistratu gabeko erabiltzaile-izenen saiakerak ez dira inongo posturenak, eta, beraz, gertaera osorako soilik zenbatzen dira.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
@@ -4340,6 +4405,8 @@ const basqueTranslation: TranslationType = {
                     "Ekitaldi honek gakoen zeremonia automatikoak erabiltzen ditu. Zaindariek ez dituzte urrats hauek egiten; beraz, ezin dira haien sinadurak eskatu. Zaindarien sinadurak eskatzeko, erabili eskuzko gakoen zeremoniak.",
                 forbidden: "Ez duzu aldaketa hau egiteko baimenik.",
                 invalid: "Zerbitzariak balio hauek baztertu ditu. Egiaztatu eta saiatu berriro.",
+                signaturesFixed:
+                    "Ekintza honen sinadura kopurua gordeta dago jada eta ezin da aldatu. Kargatu berriro orria ikusteko.",
                 conflict:
                     "Beste norbaitek aldatu du bitartean. Kargatu berriro orria eta saiatu berriro.",
                 lockedDown:
@@ -4359,11 +4426,15 @@ const basqueTranslation: TranslationType = {
                 "configuration-and-keys": "Konfigurazioa eta giltzak",
             },
             actions: {
-                "import-election-data": englishTranslation.translations.signing.actions["import-election-data"],
+                "import-election-data":
+                    englishTranslation.translations.signing.actions["import-election-data"],
                 "start-tally": englishTranslation.translations.signing.actions["start-tally"],
-                "export-execution-data": englishTranslation.translations.signing.actions["export-execution-data"],
-                "delete-execution-data": englishTranslation.translations.signing.actions["delete-execution-data"],
-                "read-voters-register": englishTranslation.translations.signing.actions["read-voters-register"],
+                "export-execution-data":
+                    englishTranslation.translations.signing.actions["export-execution-data"],
+                "delete-execution-data":
+                    englishTranslation.translations.signing.actions["delete-execution-data"],
+                "read-voters-register":
+                    englishTranslation.translations.signing.actions["read-voters-register"],
                 "initialize-voting": {
                     label: "Bozketa hasieratu",
                     short: "Hasieratzea",
@@ -4502,6 +4573,7 @@ const basqueTranslation: TranslationType = {
                     "Sinatzaile bakoitzak bere ziurtagiri digitala erabiltzen du; $t(signing.terms.post) bakoitzak gutxienez sina dezaketen {{n}} pertsona ditu.",
                 signaturesNeededShortHelp:
                     "Sinatzaile bakoitzak bere ziurtagiri digitala erabiltzen du.",
+                signaturesFixed: "Gorde ondoren, kopuru hau ezin da aldatu.",
                 requesterSigning: "Hasten duen pertsonak ere sina dezake",
                 expiresAfter: "Eskaera bat iraungitzen da denbora hau igarotakoan:",
                 trusteesSign: "Fideikomisarioek sinatzen dute urrats hau",
@@ -6241,7 +6313,7 @@ const basqueTranslation: TranslationType = {
         electoralLogConsole: {
             title: "Hauteskunde Erregistroa",
             subtitle:
-                "Arakatu hauteskunde-gertaera baten hauteskunde-erregistroa eta hautetontzia, edo kontsultatu haren hauteskunde-erregistroaren datu-basea. Orri honetan ez da daturik aldatzen.",
+                "Arakatu hauteskunde-gertaera baten hauteskunde-erregistroa, edo kontsultatu haren hauteskunde-erregistroaren datu-basea. Orri honetan ez da daturik aldatzen.",
             notAllowed:
                 "electoral-log-console-read baimena behar duzu hauteskunde-erregistroa irekitzeko.",
             tabs: {
@@ -6253,9 +6325,6 @@ const basqueTranslation: TranslationType = {
             table: "Taula",
             tables: {
                 records: "Sarrerak",
-                ballots: "Botoak",
-                voters: "Hautesleak",
-                queue: "Sekuentziadorearen Ilara",
             },
             order: {
                 "label": "Ordena",
@@ -6265,22 +6334,14 @@ const basqueTranslation: TranslationType = {
             filters: {
                 statement_kind: "Mota",
                 election_id: "Hauteskundea",
-                area_id: "Eremuaren IDa",
                 user_id: "Erabiltzaile edo Hautesle IDa",
                 ballot_id: "Botoaren IDa",
-                status: "Egoera",
                 created_after: "Noiztik",
                 created_before: "Noiz arte",
                 any: "Edozein",
                 apply: "Aplikatu Iragazkiak",
                 clear: "Garbitu",
-                invalid:
-                    "Berrikusi markatutako iragazkiak: datek baliozkoak izan behar dute eta hautetontziaren eremu IDek UUIDak izan behar dute.",
-            },
-            statuses: {
-                valid: "Baliozkoa",
-                pending: "Zain",
-                rejected: "Baztertua",
+                invalid: "Berrikusi markatutako iragazkiak: datek baliozkoak izan behar dute.",
             },
             estimatedRows: "{{rows}} errenkada inguru taula honetan iragazi aurretik.",
             personalDataHidden:

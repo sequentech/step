@@ -71,7 +71,9 @@ pub async fn insert_election_event(
                 &election_event.description,
                 &election_event.presentation,
                 &election_event.bulletin_board_reference,
-                &election_event.is_archived,
+                // A new election event is never archived: only the board's
+                // archive action archives one.
+                &false,
                 &election_event.voting_channels,
                 &election_event.status,
                 &election_event.user_boards,
@@ -502,6 +504,9 @@ pub async fn delete_election_event(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<()> {
+    // Malformed ids are refused before the authorisation query reads them.
+    parse_uuid_v4(tenant_id)?;
+    parse_uuid_v4(election_event_id)?;
     anyhow::ensure!(
         crate::services::board_operations::is_authorized_deletion(
             hasura_transaction,

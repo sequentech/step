@@ -185,6 +185,15 @@ impl SignedConfiguration {
         &self.hash
     }
 
+    /// The fingerprint of the protocol manager key this Configuration names,
+    /// by which the election board and each trustee compare it
+    /// ([`crate::encoding::manager_key_fingerprint`]).
+    pub fn manager_key_fingerprint(&self) -> Result<String> {
+        crate::encoding::manager_key_fingerprint(
+            &self.message.verify_configuration()?.protocol_manager,
+        )
+    }
+
     pub(crate) fn message(&self) -> &ProtocolMessage<Ctx> {
         &self.message
     }
@@ -208,6 +217,70 @@ mod tests {
 
     fn configuration(signed: &SignedConfiguration) -> Configuration<Ctx> {
         signed.message().verify_configuration().unwrap()
+    }
+
+    /// A stored Configuration, as the database keeps it and the admin
+    /// portal reads it, for two fixture trustees, signed by the protocol
+    /// manager whose key is the one of RFC 8032, section 7.1, TEST 1. The
+    /// admin portal's ceremony view is tested with the same bytes.
+    const STORED_CONFIGURATION: &str = concat!(
+        "000000000000001050726f746f636f6c204d616e61676572d75a980182b10ab7",
+        "d54bfed3c964073a0ee172f3daa62325af021a68f707511a50deb02caf09af35",
+        "92fbe3aa2871a43d1519856f1a579a706d945ad2ad62300ca575fc03d2baa04d",
+        "01178a90bb375728674bfc0940b3463356c61ac23d2a83030000000000000000",
+        "08000000006af2f44a0100000000000000d0d9792af071b849528aac94bc0fea",
+        "d5f7d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707",
+        "511a0000000000000002edb168a860525fc3610c3c6b3a30d741a82777444881",
+        "9e92173728decf04a1d45a172ed7b87adf305edb912438d04ceddf0b632c7bcf",
+        "2e83bf6277e7bb78d09400000000000000020000000000000001000000000000",
+        "0002c4d0e2cd2acc8a42d2b4d7df2aff8deea2695055e40b190b988f79c011d5",
+        "fa604071c2f14dd9ab7fb34b8114e91df691e8336cc9ea037d84cd53f86de356",
+        "d506",
+    );
+
+    /// SHA-256 of that key's 32 bytes, d75a9801…f707511a.
+    const MANAGER_KEY_FINGERPRINT: &str =
+        "21:FE:31:DF:A1:54:A2:61:62:6B:F8:54:04:6F:D2:27:\
+         1B:7B:ED:4B:6A:BE:45:AA:58:87:7E:F4:7F:97:21:B9";
+
+    #[test]
+    fn the_manager_key_fingerprint_is_read_from_the_stored_configuration() {
+        let stored = SignedConfiguration::parse(
+            &hex::decode(STORED_CONFIGURATION).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            stored.manager_key_fingerprint().unwrap(),
+            MANAGER_KEY_FINGERPRINT
+        );
+    }
+
+    #[test]
+    fn a_new_board_names_its_manager_by_the_fingerprint_of_its_key() {
+        let manager = crate::encoding::parse_manager_key(
+            "nWGxne/9WmC6hEr0kuwsxERJxWl7MmkZcDusAxyuf2A=",
+        )
+        .unwrap();
+        let board = DkgBoard::new(
+            &Uuid::new_v4(),
+            &manager,
+            &committee_of(&trustees(3)),
+            2,
+        )
+        .unwrap();
+        assert_eq!(
+            board.configuration.manager_key_fingerprint().unwrap(),
+            MANAGER_KEY_FINGERPRINT
+        );
+        // Another manager, another fingerprint.
+        assert_ne!(
+            dkg_board(3, 2)
+                .unwrap()
+                .configuration
+                .manager_key_fingerprint()
+                .unwrap(),
+            MANAGER_KEY_FINGERPRINT
+        );
     }
 
     #[test]

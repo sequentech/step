@@ -115,7 +115,9 @@ use crate::services::electoral_log_transfer::import_electoral_log;
 use crate::services::import::import_bulletin_boards::*;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::services::signing::certificates::parse_chain;
-use crate::services::signing::configuration::{import_bundle_signing, import_bundle_staff_issuers};
+use crate::services::signing::configuration::{
+    import_bundle_signing, import_bundle_staff_issuers, map_area_thresholds, AreaThresholdMapping,
+};
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
 use electoral_log::ports::ElectoralLogStore;
@@ -142,7 +144,7 @@ use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 use super::configuration_package;
 use super::rejection::reject;
 use sequent_core::election_config;
-use sequent_core::election_config::package_verify::VerifiedPackage;
+use sequent_core::election_config::package_verify::{signatures_required, VerifiedPackage};
 use sequent_core::election_config::report::{parse_copies, parse_output_formats};
 pub use sequent_core::election_config::ImportElectionEventSchema;
 use sequent_core::election_config::{import_problems, Rejected};
@@ -751,18 +753,162 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
     Ok(realm_copy)
 }
 
-#[instrument(err, skip(keycloak_event_realm))]
+/// The note of an import whose bundle's realm gave only its display settings.
+pub const REALM_DISPLAY_SETTINGS_ONLY: &str = "Of the bundle's election event realm, only its \
+     display settings were imported (names, themes, texts and locales); the rest of the realm is \
+     the platform's election event template";
+
+/// The note of an import that left out the bundle's signing rules.
+pub const SIGNING_RULES_NOT_IMPORTED: &str = "The bundle's signing rules were not imported: the \
+     election event starts with the default ones, and the administrator sets the numbers of \
+     signatures in Preparation";
+
+/// The note of an import that left out the bundle's certificate checks.
+pub const SIGNING_CHECKS_NOT_IMPORTED: &str = "The bundle's certificate checks were not \
+     imported: the election event starts with the default ones";
+
+/// The note of an import that left out the bundle's approval matrix.
+pub const APPROVAL_MATRIX_NOT_IMPORTED: &str = "The bundle's approval matrix was not imported: \
+     the election event uses the built-in one";
+
+/// The note of an import that left out the bundle's staff issuers.
+pub const STAFF_ISSUERS_NOT_IMPORTED: &str = "The bundle's staff issuers were not imported: the \
+     administrator imports them in the election event's Certificates settings";
+
+/// Whether an import into the tenant takes the security settings a bundle
+/// carries: its signing rules, certificate checks, approval matrix and staff
+/// issuers. Not where only signed packages import: there the new election
+/// event starts with the defaults, as one created without a package does,
+/// and its administrator sets them in Preparation.
+pub async fn imports_security_settings(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+) -> Result<bool> {
+    Ok(!signatures_required(
+        configuration_package::tenant_setting(hasura_transaction, tenant_id)
+            .await?
+            .as_ref(),
+    ))
+}
+
+/// Saves the signing rules, certificate checks and approval matrix that
+/// `data` carries on its new election event, after its areas (whose
+/// `miru:area-threshold` may imply the transmit-results rule), logged for
+/// `importer`. Where the tenant's imports don't take them (see
+/// [`imports_security_settings`]), saves none and returns the notes of
+/// those `data` carries, for the task's log.
+#[instrument(err, skip_all)]
+pub async fn import_bundle_security_settings(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    data: &ImportElectionEventSchema,
+    importer: Option<&crate::services::electoral_log::ElectoralLogAdminContext>,
+) -> Result<Vec<String>> {
+    if !imports_security_settings(hasura_transaction, tenant_id).await? {
+        let rules = data
+            .signing_rules
+            .as_ref()
+            .is_some_and(|rules| !rules.is_empty())
+            || matches!(
+                map_area_thresholds(data.signing_rules.as_deref(), &data.areas),
+                AreaThresholdMapping::Rule(_)
+            );
+        return Ok([
+            (rules, SIGNING_RULES_NOT_IMPORTED),
+            (data.signing_checks.is_some(), SIGNING_CHECKS_NOT_IMPORTED),
+            (data.approval_matrix.is_some(), APPROVAL_MATRIX_NOT_IMPORTED),
+        ]
+        .into_iter()
+        .filter(|(carried, _)| *carried)
+        .map(|(_, note)| note.to_string())
+        .collect());
+    }
+    import_bundle_signing(
+        hasura_transaction,
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing the tenant id")?,
+        Uuid::parse_str(election_event_id)
+            .with_context(|| "Error parsing the election event id")?,
+        data,
+        importer,
+    )
+    .await
+    .with_context(|| "Error importing the signing configuration")?;
+    if let Some(matrix) = data.approval_matrix.as_ref() {
+        import_approval_matrix(hasura_transaction, tenant_id, election_event_id, matrix)
+            .await
+            .with_context(|| "Error importing the approval matrix")?;
+    }
+    Ok(vec![])
+}
+
+/// What a new election event's realm is built from.
+#[derive(Debug, Clone)]
+pub enum EventRealm {
+    /// The deployment's election event realm template.
+    Template,
+    /// The template with the display settings of a package's realm: its
+    /// names, themes, texts and locales.
+    TemplateWithDisplayOf(Box<RealmRepresentation>),
+    /// A package's realm, its token-claim authority aligned with the template.
+    Package(Box<RealmRepresentation>),
+}
+
+/// `realm`, a template, with the display settings `package` gives: its
+/// names, themes, texts and locales. Its texts add to the template's, key by
+/// key.
+fn with_display_settings(
+    mut realm: RealmRepresentation,
+    package: &RealmRepresentation,
+) -> RealmRepresentation {
+    realm.display_name = package.display_name.clone().or(realm.display_name.take());
+    realm.display_name_html = package
+        .display_name_html
+        .clone()
+        .or(realm.display_name_html.take());
+    realm.login_theme = package.login_theme.clone().or(realm.login_theme.take());
+    realm.account_theme = package.account_theme.clone().or(realm.account_theme.take());
+    realm.email_theme = package.email_theme.clone().or(realm.email_theme.take());
+    realm.internationalization_enabled = package
+        .internationalization_enabled
+        .or(realm.internationalization_enabled);
+    realm.supported_locales = package
+        .supported_locales
+        .clone()
+        .or(realm.supported_locales.take());
+    realm.default_locale = package
+        .default_locale
+        .clone()
+        .or(realm.default_locale.take());
+    for (locale, texts) in package.localization_texts.iter().flatten() {
+        realm
+            .localization_texts
+            .get_or_insert_with(HashMap::new)
+            .entry(locale.clone())
+            .or_default()
+            .extend(texts.clone());
+    }
+    realm
+}
+
+#[instrument(err, skip(source))]
 pub async fn upsert_keycloak_realm(
     tenant_id: &str,
     election_event_id: &str,
-    keycloak_event_realm: Option<RealmRepresentation>,
+    source: EventRealm,
     default_locale: Option<String>,
 ) -> Result<()> {
-    let mut realm = if let Some(uploaded) = keycloak_event_realm.clone() {
-        let template = read_default_election_event_realm().await?;
-        sanitize_imported_event_realm(&uploaded, &template, ImportedRealmReconciliation::default())?
-    } else {
-        read_default_election_event_realm().await?
+    let template = read_default_election_event_realm().await?;
+    // A realm built from the template carries its placeholder ids.
+    let from_template = !matches!(source, EventRealm::Package(_));
+    let mut realm = match source {
+        EventRealm::Template => template,
+        EventRealm::TemplateWithDisplayOf(package) => with_display_settings(template, &package),
+        EventRealm::Package(uploaded) => sanitize_imported_event_realm(
+            &uploaded,
+            &template,
+            ImportedRealmReconciliation::default(),
+        )?,
     };
 
     if let Some(default_language) = default_locale {
@@ -814,7 +960,7 @@ pub async fn upsert_keycloak_realm(
             realm_name.as_str(),
             &realm_config,
             tenant_id,
-            keycloak_event_realm.is_none(),
+            from_template,
             None,
             Some(election_event_id.to_string()),
         )
@@ -895,7 +1041,8 @@ pub async fn insert_election_event_db(
         annotations: object.annotations.clone(),
         presentation: object.presentation.clone(),
         bulletin_board_reference: object.bulletin_board_reference.clone(),
-        is_archived: object.is_archived.unwrap_or(false),
+        // A new election event is never archived.
+        is_archived: false,
         voting_channels: object.voting_channels.clone(),
         user_boards: object.user_boards.clone(),
         encryption_protocol: object
@@ -1254,6 +1401,27 @@ fn check_bundle(data: &ImportElectionEventSchema) -> Result<()> {
     Ok(())
 }
 
+/// An imported election event starts afresh whatever the file says: without a
+/// public key, with empty statistics and status, and not archived, since only
+/// the board's archive action archives an election event.
+fn start_imported_event(election_event: &mut ElectionEvent) -> Result<()> {
+    election_event.public_key = None;
+    election_event.is_archived = false;
+    election_event.statistics = Some(
+        serde_json::to_value(ElectionEventStatistics::default())
+            .with_context(|| "Error serializing election event statistics")?,
+    );
+    election_event.status = Some(
+        serde_json::to_value(ElectionEventStatus::default())
+            .with_context(|| "Error serializing election event status")?,
+    );
+    Ok(())
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "The import's existing inputs, and the verified package its checks need."
+)]
 #[instrument(err, skip_all)]
 pub async fn process_election_event_file(
     hasura_transaction: &Transaction<'_>,
@@ -1263,6 +1431,7 @@ pub async fn process_election_event_file(
     election_event_id: String,
     tenant_id: String,
     is_importing_keys: bool,
+    package: Option<&VerifiedPackage>,
 ) -> Result<(
     ImportElectionEventSchema,
     HashMap<String, String>,
@@ -1276,6 +1445,15 @@ pub async fn process_election_event_file(
     )
     .await
     .map_err(|err| anyhow!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}: {err}"))?;
+    if let Some(package) = package {
+        configuration_package::check_allowed_votes(
+            hasura_transaction,
+            &tenant_id,
+            package,
+            &data.elections,
+        )
+        .await?;
+    }
 
     let election_ids: Vec<String> = data
         .elections
@@ -1284,16 +1462,7 @@ pub async fn process_election_event_file(
         .map(|election| election.id.clone())
         .collect();
 
-    data.election_event.public_key = None;
-    data.election_event.statistics = Some(
-        serde_json::to_value(ElectionEventStatistics::default())
-            .with_context(|| "Error serializing election event statistics")?,
-    );
-
-    data.election_event.status = Some(
-        serde_json::to_value(ElectionEventStatus::default())
-            .with_context(|| "Error serializing election event status")?,
-    );
+    start_imported_event(&mut data.election_event)?;
 
     // Process elections
     data.elections = data
@@ -1349,6 +1518,18 @@ pub async fn process_election_event_file(
         .map(deserialize_value)
         .transpose()
         .with_context(|| "Error deserializing keycloak_event_realm")?;
+    // Where only signed packages import, the event's realm is the template's,
+    // as for an event created without a package, with the bundle's display
+    // settings.
+    let display_settings_only = !imports_security_settings(hasura_transaction, &tenant_id).await?;
+    let event_realm = match keycloak_event_realm {
+        None => EventRealm::Template,
+        Some(package) if display_settings_only => {
+            notes.push(REALM_DISPLAY_SETTINGS_ONLY.to_string());
+            EventRealm::TemplateWithDisplayOf(Box::new(package))
+        }
+        Some(package) => EventRealm::Package(Box::new(package)),
+    };
 
     crate::postgres::scheduled_event::lock_scheduling_event(
         hasura_transaction,
@@ -1362,7 +1543,7 @@ pub async fn process_election_event_file(
     upsert_keycloak_realm(
         tenant_id.as_str(),
         &election_event_id,
-        keycloak_event_realm,
+        event_realm,
         default_language
     )
     .await
@@ -1467,22 +1648,16 @@ pub async fn process_election_event_file(
 
     // After the areas, whose `miru:area-threshold` may imply the
     // transmit-results rule.
-    import_bundle_signing(
-        hasura_transaction,
-        Uuid::parse_str(&tenant_id).with_context(|| "Error parsing the tenant id")?,
-        Uuid::parse_str(&election_event_id)
-            .with_context(|| "Error parsing the election event id")?,
-        &data,
-        object.importer.as_ref(),
-    )
-    .await
-    .with_context(|| "Error importing the signing configuration")?;
-
-    if let Some(matrix) = data.approval_matrix.as_ref() {
-        import_approval_matrix(hasura_transaction, &tenant_id, &election_event_id, matrix)
-            .await
-            .with_context(|| "Error importing the approval matrix")?;
-    }
+    notes.extend(
+        import_bundle_security_settings(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &data,
+            object.importer.as_ref(),
+        )
+        .await?,
+    );
 
     // Only as `update_event_messaging_config` would store it: with the
     // importer's messaging-config-write and once it validates against this
@@ -2022,7 +2197,7 @@ pub async fn process_document(
     let may_write_secret_attributes = object.may_write_secret_attributes;
     let secret_write_initiator = object.secret_write_initiator.clone();
     let privileges = object.privileges;
-    let (election_event_schema, replacement_map, notes) = process_election_event_file(
+    let (election_event_schema, replacement_map, mut notes) = process_election_event_file(
         hasura_transaction,
         &document_type,
         &file_election_event_schema,
@@ -2030,6 +2205,7 @@ pub async fn process_document(
         election_event_id.clone(),
         tenant_id.clone(),
         is_importing_keys,
+        package.as_deref(),
     )
     .await
     .map_err(|err| {
@@ -2059,6 +2235,7 @@ pub async fn process_document(
         (None, Some(_)) => bail!("The export has the electoral-log records but not their manifest"),
     };
 
+    let takes_security_settings = imports_security_settings(hasura_transaction, &tenant_id).await?;
     let mut publication_entries = Vec::new();
     // Zip file processing
     if document_type == "application/ezip" || matches_mime("zip", &document_type) {
@@ -2309,6 +2486,12 @@ pub async fn process_document(
             }
 
             let staff_issuers = file_name.contains(EDocuments::STAFF_ISSUERS.to_file_name());
+            // Where only signed packages import, the administrator imports them
+            // (see `imports_security_settings`).
+            if staff_issuers && !takes_security_settings {
+                notes.push(STAFF_ISSUERS_NOT_IMPORTED.to_string());
+                continue;
+            }
             if staff_issuers || file_name.contains(EDocuments::CERTIFICATES.to_file_name()) {
                 let pem_content = String::from_utf8(file_contents.clone())
                     .context("Failed to decode certificates PEM as UTF-8")?;
@@ -2833,6 +3016,28 @@ mod tests {
         assert!(!ids.is_empty());
     }
 
+    /// An archived election event in the file is imported unarchived.
+    #[tokio::test]
+    async fn an_imported_election_event_is_never_archived() -> Result<()> {
+        std::env::set_var(ENV_VAR_APP_VERSION, DEV_APP_VERSION);
+
+        let mut bundle: serde_json::Value =
+            serde_json::from_str(&a_bundle_with_a_dangling_election())?;
+        bundle["contests"][0]["election_id"] =
+            serde_json::json!("e1000000-0000-5000-8000-000000000000");
+        bundle["election_event"]["is_archived"] = serde_json::json!(true);
+        bundle["election_event"]["public_key"] = serde_json::json!("public-key");
+
+        let (mut schema, _ids) =
+            get_election_event_schema(&bundle.to_string(), None, TENANT.to_string()).await?;
+        assert!(schema.election_event.is_archived);
+        start_imported_event(&mut schema.election_event)?;
+
+        assert!(!schema.election_event.is_archived);
+        assert_eq!(schema.election_event.public_key, None);
+        Ok(())
+    }
+
     fn problem_id(error: &anyhow::Error) -> Option<String> {
         crate::services::import::rejection::problems_of(error)
             .and_then(|problems| problems.first().and_then(|problem| problem.id.clone()))
@@ -2970,11 +3175,17 @@ mod tests {
         }
         drop((first, second));
         assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
-        // A real encrypted control with a wrong password must clean up partial plaintext too.
-        let error = decrypt_document(Some("wrong password".into()), encrypted(b"native manager"))
-            .await
-            .unwrap_err();
-        assert_eq!(problem_id(&error).as_deref(), Some("file.cannot-decrypt"));
+        // A real encrypted control with a wrong password. Only the padding
+        // tells a wrong password, so about once in 256 tries for each of the
+        // two derivations it decrypts to something other than the plaintext.
+        // Refused or not, no plaintext is left once the request's file is dropped.
+        match decrypt_document(Some("wrong password".into()), encrypted(b"native manager")).await {
+            Err(error) => assert_eq!(problem_id(&error).as_deref(), Some("file.cannot-decrypt")),
+            Ok(garbled) => {
+                assert_eq!(garbled.path().parent().unwrap(), directory.path());
+                assert_ne!(fs::read(garbled.path()).unwrap(), b"native manager");
+            }
+        }
         assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
     }
 
@@ -3659,5 +3870,97 @@ mod imported_realm_sanitization_tests {
             .as_deref()
             .unwrap_or_default()
             .is_empty());
+    }
+
+    fn without_display_settings(mut realm: RealmRepresentation) -> RealmRepresentation {
+        realm.display_name = None;
+        realm.display_name_html = None;
+        realm.login_theme = None;
+        realm.account_theme = None;
+        realm.email_theme = None;
+        realm.internationalization_enabled = None;
+        realm.supported_locales = None;
+        realm.default_locale = None;
+        realm.localization_texts = None;
+        realm
+    }
+
+    fn texts(entries: &[(&str, &str)]) -> HashMap<String, String> {
+        entries
+            .iter()
+            .map(|(key, text)| (key.to_string(), text.to_string()))
+            .collect()
+    }
+
+    #[test]
+    fn a_package_realm_gives_only_its_display_settings() {
+        use ::keycloak::types::IdentityProviderRepresentation;
+
+        let mut package = realm_with_injected_claims();
+        package.display_name = Some("Synthetic Election".to_string());
+        package.display_name_html = Some("<b>Synthetic Election</b>".to_string());
+        package.login_theme = Some("synthetic-theme".to_string());
+        package.account_theme = Some("synthetic-theme".to_string());
+        package.email_theme = Some("synthetic-theme".to_string());
+        package.internationalization_enabled = Some(true);
+        package.supported_locales = Some(vec!["en".to_string(), "es".to_string()]);
+        package.default_locale = Some("es".to_string());
+        package.localization_texts = Some(HashMap::from([
+            ("en".to_string(), texts(&[("loginAccountTitle", "Sign in")])),
+            ("es".to_string(), texts(&[("loginAccountTitle", "Entrar")])),
+        ]));
+        package.brute_force_protected = Some(false);
+        package.registration_allowed = Some(true);
+        package.browser_flow = Some("synthetic-flow".to_string());
+        package.events_listeners = Some(vec![]);
+        package.sso_session_max_lifespan = Some(1);
+        package.identity_providers = Some(vec![IdentityProviderRepresentation {
+            alias: Some("synthetic-idp".to_string()),
+            ..Default::default()
+        }]);
+
+        let template = template_realm();
+        let built = with_display_settings(template.clone(), &package);
+
+        assert_eq!(built.display_name, package.display_name);
+        assert_eq!(built.display_name_html, package.display_name_html);
+        assert_eq!(built.login_theme, package.login_theme);
+        assert_eq!(built.account_theme, package.account_theme);
+        assert_eq!(built.email_theme, package.email_theme);
+        assert_eq!(built.internationalization_enabled, Some(true));
+        assert_eq!(built.supported_locales, package.supported_locales);
+        assert_eq!(built.default_locale, package.default_locale);
+        // The package's texts add to the template's.
+        let mut expected_texts = template.localization_texts.clone().unwrap_or_default();
+        for (locale, package_texts) in package.localization_texts.iter().flatten() {
+            expected_texts
+                .entry(locale.clone())
+                .or_default()
+                .extend(package_texts.clone());
+        }
+        assert_eq!(built.localization_texts, Some(expected_texts));
+        let english = built
+            .localization_texts
+            .as_ref()
+            .and_then(|texts| texts.get("en"))
+            .expect("English texts");
+        assert_eq!(
+            english.get("loginAccountTitle").map(String::as_str),
+            Some("Sign in")
+        );
+        // Everything else is the template's.
+        assert_eq!(
+            without_display_settings(built),
+            without_display_settings(template)
+        );
+    }
+
+    #[test]
+    fn a_package_realm_without_display_settings_leaves_the_template() {
+        let template = template_realm();
+        assert_eq!(
+            with_display_settings(template.clone(), &RealmRepresentation::default()),
+            template
+        );
     }
 }

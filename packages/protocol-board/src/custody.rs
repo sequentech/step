@@ -8,6 +8,7 @@ use crate::TrusteeSecrets;
 use anyhow::{ensure, Result};
 use serde::{Deserialize, Serialize};
 use voting_crypto::signing::{Signature, SigningKey, VerificationKey};
+use zeroize::Zeroizing;
 
 /// A platform-scoped request to confirm a trustee's local keys.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -46,10 +47,12 @@ impl CustodyRequest {
                     == self.share_encryption_public_key,
             "local trustee keys do not match the custody request"
         );
+        // Every copy of the signing key made here is overwritten with zero
+        // when it is dropped, the encoded one included.
         let (signer, _) = secrets.clone().into_parts();
-        let sk = SigningKey::from_b64_string(
-            &crate::encoding::encode_signing_key(&signer)?,
-        )?;
+        let encoded =
+            Zeroizing::new(crate::encoding::encode_signing_key(&signer)?);
+        let sk = SigningKey::from_b64_string(&encoded)?;
         let proof = CustodyProof {
             request: self.clone(),
             signature: sk.sign(&self.signing_bytes()?)?.to_b64_string()?,

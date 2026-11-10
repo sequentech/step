@@ -49,7 +49,7 @@ import {useTranslation} from "react-i18next"
 import {ApolloContext} from "./providers/ApolloContextProvider"
 import {StyledAppAtom} from "@/components/StyledAppAtom"
 import ListScheduledEvents from "./resources/ScheduledEvents/ListScheduledEvent"
-import Notifications from "./resources/Notifications/Notifications"
+import {EditNotifications} from "./resources/Notifications/EditNotifications"
 import {TemplateEdit} from "./resources/Template/TemplateEdit"
 import {TemplateList} from "./resources/Template/TemplateList"
 import {TemplateCreate} from "./resources/Template/TemplateCreate"
@@ -58,7 +58,7 @@ import {SelectTenant} from "./screens/SelectTenant"
 import {AuthContext} from "./providers/AuthContextProvider"
 import {customSortData} from "./lib/helpers"
 import {UpsertArea} from "./resources/Area/UpsertArea"
-import {TrusteeDashboard} from "./screens/TrusteeDashboard"
+import {TrusteeDashboardRoute} from "./screens/TrusteeDashboardRoute"
 import {rethrowTrustedWriteError} from "./services/trustedWriteError"
 
 interface AppProps {}
@@ -132,7 +132,7 @@ const App: React.FC<AppProps> = () => {
                     />
                     <Route path="/tenant" element={<SelectTenant />} />
                     <Route path="/user-roles" element={<UserAndRoles />} />
-                    <Route path="/trustee" element={<TrusteeDashboard />} />
+                    <Route path="/trustee" element={<TrusteeDashboardRoute />} />
                     <Route path="/messages" element={<Messages />} />
                     <Route path="/electoral-log-console" element={<ElectoralLogConsole />} />
                     <Route path="/task-queues" element={<TaskQueues />} />
@@ -228,8 +228,8 @@ const App: React.FC<AppProps> = () => {
                 />
                 <Resource
                     name="sequent_backend_notification"
-                    edit={Notifications}
-                    list={Notifications}
+                    edit={EditNotifications}
+                    list={EditNotifications}
                     options={{label: "Notifications"}}
                 />
                 <Resource

@@ -32,6 +32,7 @@ import {
 import type {IScheduleImportPreview, IScheduleImportRow} from "@/types/lifecycle"
 import {IPermissions} from "@/types/keycloak"
 import {getGraphQLActionErrorReason} from "@/services/graphqlActionError"
+import {documentNameRefusal} from "@/services/serverRefusals"
 import {formatWallTime, useTimeZoneService} from "@/components/timezones/timeZoneService"
 
 /** The CSV columns (design §6); the template has the header and two example rows. */
@@ -192,9 +193,12 @@ export const ImportScheduleDrawer: React.FC<{
             setFile({name: chosen.name, documentId: target.document_id})
             setPreview(checked.preview_schedule_import)
         } catch (error) {
-            notify(getGraphQLActionErrorReason(error) ?? t("lifecycle.import.uploadError"), {
-                type: "error",
-            })
+            notify(
+                documentNameRefusal(t, error) ??
+                    getGraphQLActionErrorReason(error) ??
+                    t("lifecycle.import.uploadError"),
+                {type: "error"}
+            )
         } finally {
             setBusy(false)
         }

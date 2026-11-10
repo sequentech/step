@@ -87,6 +87,7 @@ import {
     ETallySheetImportSourceFormat,
     ETallySheetImportStatus,
 } from "@/types/TallySheets"
+import {documentNameRefusal} from "@/services/serverRefusals"
 
 type GetUploadUrlData = GetUploadUrlMutation
 type GetUploadUrlVariables = GetUploadUrlMutationVariables
@@ -421,6 +422,9 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
                 is_public: false,
                 election_event_id: electionEvent.id,
             },
+        }).catch((error: unknown) => {
+            const refusal = documentNameRefusal(t, error)
+            throw refusal ? new Error(refusal) : error
         })
         const upload = data?.get_upload_url
         if (!upload?.url || !upload.document_id) {

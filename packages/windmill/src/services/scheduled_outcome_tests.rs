@@ -517,13 +517,22 @@ fn rule_and_policy_saves_say_how_they_apply() {
         }
         rule
     };
+    let with = |action, required, signatures| {
+        let mut rule = rule_of(action, required);
+        rule.signatures = signatures;
+        rule
+    };
+    // These actions always need signatures: a rule's first save only sets how
+    // many, which tightens, and saying they need none changes nothing.
     assert_eq!(
-        rule_change_applies(&rule_of(OPEN, false), &rule_of(OPEN, true)),
+        rule_change_applies(&rule_of(OPEN, false), &with(OPEN, true, 2)),
         Some(ChangeApplies::Tightens)
     );
+    let mut switched_off = with(CLOSE, true, 2);
+    switched_off.requirement = SigningRequirement::NotRequired;
     assert_eq!(
-        rule_change_applies(&rule_of(CLOSE, true), &rule_of(CLOSE, false)),
-        Some(ChangeApplies::Loosens)
+        rule_change_applies(&with(CLOSE, true, 2), &switched_off),
+        None
     );
     assert_eq!(
         rule_change_applies(&rule_of(OPEN, true), &rule_of(OPEN, true)),
@@ -536,11 +545,6 @@ fn rule_and_policy_saves_say_how_they_apply() {
         ),
         None
     );
-    let with = |action, required, signatures| {
-        let mut rule = rule_of(action, required);
-        rule.signatures = signatures;
-        rule
-    };
     // More signatures tighten, fewer loosen.
     assert_eq!(
         rule_change_applies(&with(CLOSE, true, 2), &with(CLOSE, true, 3)),
@@ -553,11 +557,11 @@ fn rule_and_policy_saves_say_how_they_apply() {
     // Approve configuration decides what can cover a schedule.
     let approve = SigningAction::ApproveConfiguration;
     assert_eq!(
-        rule_change_applies(&rule_of(approve, false), &rule_of(approve, true)),
+        rule_change_applies(&with(approve, true, 1), &with(approve, true, 2)),
         Some(ChangeApplies::Tightens)
     );
     assert_eq!(
-        rule_change_applies(&rule_of(approve, true), &rule_of(approve, false)),
+        rule_change_applies(&with(approve, true, 2), &with(approve, true, 1)),
         Some(ChangeApplies::Loosens)
     );
     let policies = |scope, close| LifecyclePolicies {

@@ -161,14 +161,93 @@ fn get_keycloak_login_config() -> KeycloakLoginConfig {
     KeycloakLoginConfig::new(client_id, client_secret, tenant_id)
 }
 
-fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
-    let client_id = env::var("KEYCLOAK_ADMIN_CLIENT_ID")
-        .expect(&format!("KEYCLOAK_ADMIN_CLIENT_ID must be set"));
-    let client_secret = env::var("KEYCLOAK_ADMIN_CLIENT_SECRET")
-        .expect(&format!("KEYCLOAK_ADMIN_CLIENT_SECRET must be set"));
-    let tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
-        .expect(&format!("SUPER_ADMIN_TENANT_ID must be set"));
-    KeycloakLoginConfig::new(client_id, client_secret, tenant_id)
+/// Environment name of the administration API client ID.
+const ADMIN_API_CLIENT_ID: &str = "KEYCLOAK_ADMIN_API_CLIENT_ID";
+/// Environment name of the administration API client secret.
+const ADMIN_API_CLIENT_SECRET: &str = "KEYCLOAK_ADMIN_API_CLIENT_SECRET";
+/// Environment name of the master realm user for the password grant.
+const ADMIN_USER: &str = "KEYCLOAK_ADMIN_CLIENT_ID";
+/// Environment name of that user's password.
+const ADMIN_PASSWORD: &str = "KEYCLOAK_ADMIN_CLIENT_SECRET";
+/// Realm that issues the administration API tokens.
+const ADMIN_REALM: &str = "master";
+
+/// How the service authenticates to the Keycloak administration API.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AdminGrant {
+    /// Client credentials of a confidential client in the master realm,
+    /// acting as the client's service account.
+    ClientCredentials,
+    /// Password of a master realm user, through the `admin-cli` client.
+    Password,
+}
+
+/// Reads the administration API login from the environment.
+fn get_keycloak_login_admin_config() -> Result<(KeycloakLoginConfig, AdminGrant)>
+{
+    admin_login_config(|name| env::var(name).ok())
+}
+
+/// Selects the administration API login. `lookup` returns the value of an
+/// environment variable; empty values count as unset. The dedicated client is
+/// used when both of its variables are set; without them, the master realm
+/// user variables are used.
+fn admin_login_config(
+    lookup: impl Fn(&str) -> Option<String>,
+) -> Result<(KeycloakLoginConfig, AdminGrant)> {
+    let value = |name: &str| lookup(name).filter(|value| !value.is_empty());
+    let url = value("KEYCLOAK_URL")
+        .ok_or_else(|| anyhow!("KEYCLOAK_URL must be set"))?;
+    let (client_id, client_secret, grant) =
+        match (value(ADMIN_API_CLIENT_ID), value(ADMIN_API_CLIENT_SECRET)) {
+            (Some(client_id), Some(client_secret)) => {
+                (client_id, client_secret, AdminGrant::ClientCredentials)
+            }
+            (None, None) => (
+                value(ADMIN_USER)
+                    .ok_or_else(|| anyhow!("{ADMIN_USER} must be set"))?,
+                value(ADMIN_PASSWORD)
+                    .ok_or_else(|| anyhow!("{ADMIN_PASSWORD} must be set"))?,
+                AdminGrant::Password,
+            ),
+            _ => {
+                return Err(anyhow!(
+                    "{ADMIN_API_CLIENT_ID} and {ADMIN_API_CLIENT_SECRET} must be set together"
+                ))
+            }
+        };
+    Ok((
+        KeycloakLoginConfig {
+            url,
+            client_id,
+            client_secret,
+            realm: ADMIN_REALM.to_string(),
+        },
+        grant,
+    ))
+}
+
+/// Requests an administration API token with the selected grant.
+#[instrument(err, skip_all)]
+async fn acquire_admin_token(
+    login_config: KeycloakLoginConfig,
+    grant: AdminGrant,
+    client: &reqwest::Client,
+) -> Result<KeycloakAdminToken> {
+    match grant {
+        AdminGrant::Password => KeycloakAdminToken::acquire(
+            &login_config.url,
+            &login_config.client_id,
+            &login_config.client_secret,
+            client,
+        )
+        .await
+        .map_err(credential_request_error),
+        AdminGrant::ClientCredentials => {
+            let text = get_credentials_inner(login_config).await?;
+            decode_token_response(&text)
+        }
+    }
 }
 
 #[instrument(err, skip_all)]
@@ -344,33 +423,24 @@ impl KeycloakAdminClient {
                 Self::new_with(token_resp.try_into()?, &url).await
             }
             None => {
-                let login_config = get_keycloak_login_admin_config();
+                let (login_config, grant) = get_keycloak_login_admin_config()?;
+                let url = login_config.url.clone();
                 let timestamp: Instant = Instant::now(); // Capture the stamp before sending the request
                 let client = reqwest::Client::new();
-                let admin_token = KeycloakAdminToken::acquire(
-                    &login_config.url,
-                    &login_config.client_id,
-                    &login_config.client_secret,
-                    &client,
-                )
-                .await
-                .map_err(credential_request_error)?;
+                let admin_token =
+                    acquire_admin_token(login_config, grant, &client).await?;
                 info!("Successfully acquired credentials");
                 let token_resp: PubKeycloakAdminToken =
                     admin_token.clone().try_into()?;
-                write_access_token(
-                    token_resp,
-                    login_config.url.clone(),
-                    timestamp,
-                )
-                .await
-                .map_err(|err| {
-                    anyhow!(
+                write_access_token(token_resp, url.clone(), timestamp)
+                    .await
+                    .map_err(|err| {
+                        anyhow!(
                         "KeycloakAdminClient: write_access_token error {err:?}"
                     )
-                })?;
+                    })?;
                 let keycloak_admin =
-                    KeycloakAdmin::new(&login_config.url, admin_token, client);
+                    KeycloakAdmin::new(&url, admin_token, client);
                 Ok(KeycloakAdminClient {
                     client: keycloak_admin,
                 })
@@ -381,18 +451,13 @@ impl KeycloakAdminClient {
     /// Creates a KeycloakAdminClient via fresh token requesting to Keycloak
     #[instrument(err)]
     pub async fn new_requested() -> Result<KeycloakAdminClient> {
-        let login_config = get_keycloak_login_admin_config();
+        let (login_config, grant) = get_keycloak_login_admin_config()?;
+        let url = login_config.url.clone();
         let client = reqwest::Client::new();
-        let admin_token = KeycloakAdminToken::acquire(
-            &login_config.url,
-            &login_config.client_id,
-            &login_config.client_secret,
-            &client,
-        )
-        .await
-        .map_err(credential_request_error)?;
+        let admin_token =
+            acquire_admin_token(login_config, grant, &client).await?;
         info!("Successfully acquired credentials");
-        let client = KeycloakAdmin::new(&login_config.url, admin_token, client);
+        let client = KeycloakAdmin::new(&url, admin_token, client);
         Ok(KeycloakAdminClient { client })
     }
 
@@ -408,19 +473,14 @@ impl KeycloakAdminClient {
 
     #[instrument(err)]
     pub async fn pub_new() -> Result<PubKeycloakAdmin> {
-        let login_config = get_keycloak_login_admin_config();
+        let (login_config, grant) = get_keycloak_login_admin_config()?;
+        let url = login_config.url.clone();
         let client = reqwest::Client::new();
-        let admin_token = KeycloakAdminToken::acquire(
-            &login_config.url,
-            &login_config.client_id,
-            &login_config.client_secret,
-            &client,
-        )
-        .await
-        .map_err(credential_request_error)?;
+        let admin_token =
+            acquire_admin_token(login_config, grant, &client).await?;
         event!(Level::INFO, "Successfully acquired credentials");
         Ok(PubKeycloakAdmin {
-            url: login_config.url,
+            url,
             client: client,
             token_supplier: admin_token,
         })
@@ -496,6 +556,86 @@ mod tests {
         assert!(debug.contains("client_id"), "{debug}");
         assert!(!debug.contains(CLIENT_SECRET), "{debug}");
     }
+
+    const URL: (&str, &str) = ("KEYCLOAK_URL", "http://keycloak");
+    const API_ID: (&str, &str) = ("KEYCLOAK_ADMIN_API_CLIENT_ID", "admin-api");
+    const API_SECRET: (&str, &str) =
+        ("KEYCLOAK_ADMIN_API_CLIENT_SECRET", "ApiSecretValue3b7d");
+    const USER: (&str, &str) = ("KEYCLOAK_ADMIN_CLIENT_ID", "admin");
+    const PASSWORD: (&str, &str) =
+        ("KEYCLOAK_ADMIN_CLIENT_SECRET", "AdminPasswordValue9e1f");
+
+    fn login(
+        values: &[(&str, &str)],
+    ) -> Result<(KeycloakLoginConfig, AdminGrant)> {
+        admin_login_config(|name| {
+            values
+                .iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| value.to_string())
+        })
+    }
+
+    #[test]
+    fn admin_login_uses_the_dedicated_client_when_both_values_are_set() {
+        let (config, grant) =
+            login(&[URL, API_ID, API_SECRET, USER, PASSWORD]).unwrap();
+
+        assert_eq!(grant, AdminGrant::ClientCredentials);
+        assert_eq!(config.url, "http://keycloak");
+        assert_eq!(config.client_id, "admin-api");
+        assert_eq!(config.client_secret, "ApiSecretValue3b7d");
+        assert_eq!(config.realm, "master");
+    }
+
+    #[test]
+    fn admin_login_uses_the_master_user_without_the_dedicated_client() {
+        let empty = [
+            ("KEYCLOAK_ADMIN_API_CLIENT_ID", ""),
+            ("KEYCLOAK_ADMIN_API_CLIENT_SECRET", ""),
+        ];
+        for dedicated in [&[][..], &empty[..]] {
+            let values: Vec<_> = [URL, USER, PASSWORD]
+                .into_iter()
+                .chain(dedicated.iter().copied())
+                .collect();
+            let (config, grant) = login(&values).unwrap();
+
+            assert_eq!(grant, AdminGrant::Password);
+            assert_eq!(config.client_id, "admin");
+            assert_eq!(config.client_secret, "AdminPasswordValue9e1f");
+            assert_eq!(config.realm, "master");
+        }
+    }
+
+    #[test]
+    fn admin_login_rejects_one_dedicated_client_value_without_echoing_it() {
+        for partial in [API_ID, API_SECRET] {
+            let error = login(&[URL, partial, USER, PASSWORD]).unwrap_err();
+
+            assert_eq!(
+                error.to_string(),
+                "KEYCLOAK_ADMIN_API_CLIENT_ID and KEYCLOAK_ADMIN_API_CLIENT_SECRET must be set together"
+            );
+            let debug = format!("{error:?}");
+            assert!(!debug.contains("ApiSecretValue3b7d"), "{debug}");
+            assert!(!debug.contains("AdminPasswordValue9e1f"), "{debug}");
+        }
+    }
+
+    #[test]
+    fn admin_login_reports_the_first_missing_value() {
+        for (values, missing) in [
+            (&[API_ID, API_SECRET][..], "KEYCLOAK_URL"),
+            (&[URL][..], "KEYCLOAK_ADMIN_CLIENT_ID"),
+            (&[URL, USER][..], "KEYCLOAK_ADMIN_CLIENT_SECRET"),
+        ] {
+            assert_eq!(
+                login(values).unwrap_err().to_string(),
+                format!("{missing} must be set")
+            );
+        }
+    }
 }
 
 #[cfg(all(test, feature = "log"))]
@@ -560,6 +700,84 @@ mod credential_contract_tests {
         );
         let diagnostic = format!("{:?}", result.unwrap_err());
         assert!(diagnostic.contains("401"));
+        assert!(!diagnostic.contains(SECRET));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn admin_grants_post_their_own_fields_to_the_master_realm() {
+        let body = serde_json::to_string(&token()).unwrap();
+        for (grant, grant_type, expected) in [
+            (
+                AdminGrant::ClientCredentials,
+                "client_credentials",
+                [
+                    ("client_id", "synthetic-admin-api"),
+                    ("client_secret", SECRET),
+                ],
+            ),
+            (
+                AdminGrant::Password,
+                "password",
+                [
+                    ("client_id", "admin-cli"),
+                    ("username", "synthetic-admin-api"),
+                ],
+            ),
+        ] {
+            let service = server("200 OK", &body).await;
+            let config = KeycloakLoginConfig {
+                url: service.url,
+                client_id: "synthetic-admin-api".into(),
+                client_secret: SECRET.into(),
+                realm: ADMIN_REALM.into(),
+            };
+            let acquired =
+                acquire_admin_token(config, grant, &reqwest::Client::new())
+                    .await
+                    .unwrap();
+            let restored: PubKeycloakAdminToken = acquired.try_into().unwrap();
+            assert_eq!(restored, token());
+            let observed = service.request.await.unwrap();
+            assert_eq!(
+                observed.request_line,
+                "POST /realms/master/protocol/openid-connect/token HTTP/1.1\r\n"
+            );
+            let fields: HashMap<String, String> =
+                serde_urlencoded::from_bytes(&observed.body).unwrap();
+            assert_eq!(
+                fields.get("grant_type").map(String::as_str),
+                Some(grant_type)
+            );
+            for (name, value) in expected {
+                assert_eq!(fields.get(name).map(String::as_str), Some(value));
+            }
+            if grant == AdminGrant::ClientCredentials {
+                assert!(!fields.contains_key("username"));
+                assert!(!fields.contains_key("password"));
+            } else {
+                assert!(!fields.contains_key("client_secret"));
+            }
+        }
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn rejected_admin_client_credentials_do_not_echo_the_response() {
+        let service = server("401 Unauthorized", SECRET).await;
+        let config = KeycloakLoginConfig {
+            url: service.url,
+            client_id: "synthetic-admin-api".into(),
+            client_secret: SECRET.into(),
+            realm: ADMIN_REALM.into(),
+        };
+        let result = acquire_admin_token(
+            config,
+            AdminGrant::ClientCredentials,
+            &reqwest::Client::new(),
+        )
+        .await;
+        service.request.await.unwrap();
+        let diagnostic = format!("{:?}", result.unwrap_err());
+        assert!(diagnostic.contains("401"), "{diagnostic}");
         assert!(!diagnostic.contains(SECRET));
     }
 

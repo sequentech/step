@@ -11,7 +11,8 @@ export interface ProtocolBoardRecord {
     tally_session_id: string | null
     batch: number | null
     name: string
-    manager_message: string
+    /** A DKG board's Configuration; a tally board's is null before post-processing. */
+    public_manager_message: string | null
 }
 export interface TranscriptVerifier {
     configurationHash(message: string): string
@@ -25,9 +26,10 @@ export interface VerificationBoard {
 }
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
-function publicMessageBase64(value: string): string {
+function publicMessageBase64(value: string | null): string {
     // Hasura serializes PostgreSQL bytea as its lossless hexadecimal form.
-    if (!/^\\x(?:[0-9a-fA-F]{2})+$/.test(value)) throw new Error("Invalid public configuration")
+    if (typeof value !== "string" || !/^\\x(?:[0-9a-fA-F]{2})+$/.test(value))
+        throw new Error("Invalid public configuration")
     let bytes = ""
     for (let index = 2; index < value.length; index += 2) {
         bytes += String.fromCharCode(parseInt(value.slice(index, index + 2), 16))
@@ -72,7 +74,7 @@ export function verificationBoards(
                 throw new Error("Invalid tally board relationship")
             }
             const configurationHash = verifier.configurationHash(
-                publicMessageBase64(parent.manager_message)
+                publicMessageBase64(parent.public_manager_message)
             )
             if (!/^[0-9a-f]{128}$/.test(configurationHash))
                 throw new Error("Invalid configuration hash")

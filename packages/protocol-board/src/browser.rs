@@ -15,6 +15,7 @@ use wbraid::messages::predicate::Predicate;
 use wbraid::wasm::{
     persistence::IndexedDbPersistence, transport::WasmHttpTransport,
 };
+use zeroize::Zeroize;
 
 struct BrowserBoards {
     url: String,
@@ -46,9 +47,16 @@ struct StoreBackup {
 #[serde(deny_unknown_fields)]
 struct Backup {
     version: u32,
+    /// The keys file's text, overwritten with zero when the backup is dropped.
     keys: String,
     board_url: String,
     stores: Vec<StoreBackup>,
+}
+
+impl Drop for Backup {
+    fn drop(&mut self) {
+        self.keys.zeroize();
+    }
 }
 
 fn js_error(error: impl std::fmt::Display) -> JsValue {

@@ -119,8 +119,13 @@ class AirgapBundleTest(unittest.TestCase):
             ],
             capture_output=True,
             text=True,
-            # Only the bundle's own values.
-            env={"PATH": os.environ.get("PATH", "")},
+            # Only the bundle's own values, and the Vault credentials that each
+            # installation provisions itself (README.md, "Deployment credentials").
+            env={
+                "PATH": os.environ.get("PATH", ""),
+                "VAULT_TOKEN": "test",
+                "VAULT_UNSEAL_KEY": "test",
+            },
         )
         if "Cannot connect" in result.stderr or "permission denied" in result.stderr:
             self.skipTest(result.stderr.strip())

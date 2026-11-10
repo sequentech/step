@@ -30,16 +30,19 @@ impl<const CHUNK: usize, const BYTES: usize, const ELEMENTS: usize> Codec<CHUNK,
 
     /// Split an array into chunks, filling each sequentially up to `CHUNK`.
     ///
-    /// A trailing partial chunk is zero-padded; [`join`](Self::join) discards
-    /// that padding, so the round trip is exact.
-    pub(crate) fn split(input: &[u8; BYTES]) -> [[u8; CHUNK]; ELEMENTS] {
+    /// The chunks are written into `out`, a buffer the caller owns, so that a
+    /// caller holding a secret can keep them in a buffer that is overwritten
+    /// when dropped. A trailing partial chunk is zero-padded;
+    /// [`join_into`](Self::join_into) discards that padding, so the round trip
+    /// is exact.
+    pub(crate) fn split_into(input: &[u8; BYTES], out: &mut [[u8; CHUNK]; ELEMENTS]) {
         #[allow(path_statements)]
         Self::CHECK;
 
-        let mut result = [[0u8; CHUNK]; ELEMENTS];
         let mut input_pos = 0;
 
-        for chunk in &mut result {
+        for chunk in out {
+            chunk.fill(0);
             let remaining = BYTES.checked_sub(input_pos).expect("input_pos <= BYTES");
             let to_copy = remaining.min(CHUNK);
             let upper = input_pos
@@ -50,17 +53,17 @@ impl<const CHUNK: usize, const BYTES: usize, const ELEMENTS: usize> Codec<CHUNK,
                 .checked_add(to_copy)
                 .expect("ELEMENTS * CHUNK <= usize::MAX");
         }
-
-        result
     }
 
     /// Join chunks back into the original byte array, taking data sequentially
     /// from each and dropping any padding in the final chunk.
-    pub(crate) fn join(chunks: &[[u8; CHUNK]; ELEMENTS]) -> [u8; BYTES] {
+    ///
+    /// The bytes are written into `out`, a buffer the caller owns, for the same
+    /// reason as in [`split_into`](Self::split_into).
+    pub(crate) fn join_into(chunks: &[[u8; CHUNK]; ELEMENTS], out: &mut [u8; BYTES]) {
         #[allow(path_statements)]
         Self::CHECK;
 
-        let mut result = [0u8; BYTES];
         let mut output_pos = 0;
 
         for chunk in chunks {
@@ -69,12 +72,32 @@ impl<const CHUNK: usize, const BYTES: usize, const ELEMENTS: usize> Codec<CHUNK,
             let upper = output_pos
                 .checked_add(to_copy)
                 .expect("ELEMENTS * CHUNK <= usize::MAX");
-            result[output_pos..upper].copy_from_slice(&chunk[0..to_copy]);
+            out[output_pos..upper].copy_from_slice(&chunk[0..to_copy]);
             output_pos = output_pos
                 .checked_add(to_copy)
                 .expect("ELEMENTS * CHUNK <= usize::MAX");
         }
+    }
+}
 
-        result
+/// Tests of the chunking.
+#[cfg(test)]
+mod tests {
+    use super::Codec;
+
+    /// `split_into` writes every byte of its output, padding included, and
+    /// `join_into` restores the input.
+    #[test]
+    fn test_split_into_join_into_round_trip() {
+        let input = [7u8; 31];
+        let mut chunks = [[0xaau8; 30]; 2];
+        Codec::<30, 31, 2>::split_into(&input, &mut chunks);
+        assert_eq!(chunks[0], [7u8; 30]);
+        assert_eq!(chunks[1][0], 7);
+        assert!(chunks[1][1..].iter().all(|&b| b == 0));
+
+        let mut output = [0u8; 31];
+        Codec::<30, 31, 2>::join_into(&chunks, &mut output);
+        assert_eq!(output, input);
     }
 }

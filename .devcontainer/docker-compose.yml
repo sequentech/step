@@ -28,6 +28,8 @@ services:
     build:
       context: ../packages
       dockerfile: Dockerfile.keycloak
+      args:
+        - FEATURES=sign-in-links
       additional_contexts:
         beyond: ../beyond
         scripts: ../scripts

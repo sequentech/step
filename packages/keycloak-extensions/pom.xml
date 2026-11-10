@@ -55,6 +55,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<module>scanovate-authenticator</module>
 			</modules>
 		</profile>
+		<!-- Sign-in link handlers. Dockerfile.keycloak disables this profile unless
+		     its FEATURES build argument names sign-in-links. -->
+		<profile>
+			<id>sign-in-link-handlers</id>
+			<activation>
+				<file>
+					<exists>sign-in-link-handlers/pom.xml</exists>
+				</file>
+			</activation>
+			<modules>
+				<module>sign-in-link-handlers</module>
+			</modules>
+		</profile>
 	</profiles>
 
 	<properties>
@@ -184,6 +197,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <include>action-token-login-bridge/pom.xml</include>
                 <include>message-otp-authenticator/pom.xml</include>
                 <include>scanovate-authenticator/pom.xml</include>
+                <include>sign-in-link-handlers/pom.xml</include>
               </includes>
               <goals>
                 <goal>com.diffplug.spotless:spotless-maven-plugin:check</goal>
@@ -203,6 +217,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <include>action-token-login-bridge/pom.xml</include>
                 <include>message-otp-authenticator/pom.xml</include>
                 <include>scanovate-authenticator/pom.xml</include>
+                <include>sign-in-link-handlers/pom.xml</include>
               </includes>
               <goals>
                 <goal>com.diffplug.spotless:spotless-maven-plugin:apply</goal>

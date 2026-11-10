@@ -466,7 +466,7 @@ function TreeMenuItem({
                     alt={name}
                     width={24}
                     height={24}
-                    src={`${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${imageDocumentId}/${imageData?.name}`}
+                    src={`${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${imageDocumentId}/${encodeURIComponent(String(imageData?.name))}`}
                 />
                 <MenuStyles.SpanContainer>{name}</MenuStyles.SpanContainer>
             </MenuStyles.ItemContainer>

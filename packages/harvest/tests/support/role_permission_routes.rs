@@ -21,8 +21,19 @@ const EDITOR_ID: &str = "role-editor";
 const EDITOR: &str = "role.editor";
 const ROLE_ID: &str = "group-1";
 
-fn editor(event: &Event) -> Claims {
-    Claims::new(&event.tenant_id, EDITOR_ID)
+/// The editor's account in the tenant's realm, in none of the roles changed
+/// here: a role is changed by an account it does not affect. Returns its id.
+async fn account(services: &Services, event: &Event) -> String {
+    let realm = rows::keycloak_realm(
+        &services.hasura,
+        &get_tenant_realm(&event.tenant_id),
+    )
+    .await;
+    rows::keycloak_user(&services.hasura, &realm, EDITOR, true).await
+}
+
+fn editor(event: &Event, account: &str) -> Claims {
+    Claims::new(&event.tenant_id, account)
         .username(EDITOR)
         .roles([Permissions::USER_PERMISSION_WRITE, Permissions::ROLE_WRITE])
 }
@@ -171,6 +182,7 @@ async fn a_sign_permission_change_is_logged_once_keycloak_makes_it() {
         let base = Services::on_test_database().await;
         let event = rows::event(&base.hasura).await;
         rule(&base, &event, action).await;
+        let editor_id = account(&base, &event).await;
         let name = action.sign_permission().to_string();
         let holding: &[&str] = if holds { &[name.as_str()] } else { &[] };
         let peer = HttpServer::start(vec![
@@ -183,7 +195,13 @@ async fn a_sign_permission_change_is_logged_once_keycloak_makes_it() {
         let client = services.client().await;
 
         let (status, answer) = json(
-            post(&client, path, &editor(&event), &body(&event, &name)).await,
+            post(
+                &client,
+                path,
+                &editor(&event, &editor_id),
+                &body(&event, &name),
+            )
+            .await,
         )
         .await;
         assert_eq!(status, Status::Ok, "{path}: {answer}");
@@ -205,6 +223,7 @@ async fn a_sign_permission_change_keycloak_refuses_is_not_logged() {
     let base = Services::on_test_database().await;
     let event = rows::event(&base.hasura).await;
     rule(&base, &event, SigningAction::OpenVoting).await;
+    let editor_id = account(&base, &event).await;
     let name = Permissions::SIGN_OPEN_VOTING.to_string();
     let peer = HttpServer::start(vec![
         held(&event, &[]),
@@ -219,7 +238,7 @@ async fn a_sign_permission_change_keycloak_refuses_is_not_logged() {
         post(
             &client,
             "/set-role-permission",
-            &editor(&event),
+            &editor(&event, &editor_id),
             &body(&event, &name),
         )
         .await,
@@ -237,6 +256,7 @@ async fn other_permission_changes_are_not_signing_log_entries() {
     let base = Services::on_test_database().await;
     let event = rows::event(&base.hasura).await;
     rule(&base, &event, SigningAction::CloseVoting).await;
+    let editor_id = account(&base, &event).await;
     let name = Permissions::SIGNING_RULES_WRITE.to_string();
     let peer = HttpServer::start(vec![
         permission(&event, &name),
@@ -249,7 +269,7 @@ async fn other_permission_changes_are_not_signing_log_entries() {
         post(
             &client,
             "/set-role-permission",
-            &editor(&event),
+            &editor(&event, &editor_id),
             &body(&event, &name),
         )
         .await,
@@ -328,6 +348,7 @@ async fn deleting_a_role_logs_the_sign_permissions_it_held() {
         let base = Services::on_test_database().await;
         let event = rows::event(&base.hasura).await;
         rule(&base, &event, SigningAction::ApproveVoter).await;
+        let editor_id = account(&base, &event).await;
         let mut exchanges = vec![held(&event, holding)];
         if !expected.is_empty() {
             // Read again under the events' locks.
@@ -343,7 +364,7 @@ async fn deleting_a_role_logs_the_sign_permissions_it_held() {
         let peer = HttpServer::start(exchanges);
         let services = base.with_identity(keycloak(&peer));
         let client = services.client().await;
-        let deleter = Claims::new(&event.tenant_id, EDITOR_ID)
+        let deleter = Claims::new(&event.tenant_id, &editor_id)
             .username(EDITOR)
             .roles([Permissions::ROLE_WRITE]);
 
@@ -378,6 +399,7 @@ async fn a_role_deletion_keycloak_refuses_is_not_logged() {
     let base = Services::on_test_database().await;
     let event = rows::event(&base.hasura).await;
     rule(&base, &event, SigningAction::ApproveVoter).await;
+    let editor_id = account(&base, &event).await;
     let peer = HttpServer::start(vec![
         held(&event, &["sign-approve-voter"]),
         held(&event, &["sign-approve-voter"]),
@@ -391,7 +413,7 @@ async fn a_role_deletion_keycloak_refuses_is_not_logged() {
     ]);
     let services = base.with_identity(keycloak(&peer));
     let client = services.client().await;
-    let deleter = Claims::new(&event.tenant_id, EDITOR_ID)
+    let deleter = Claims::new(&event.tenant_id, &editor_id)
         .roles([Permissions::ROLE_WRITE]);
 
     let (status, _) = text(
@@ -420,6 +442,7 @@ async fn a_change_that_changes_nothing_is_not_logged() {
         let base = Services::on_test_database().await;
         let event = rows::event(&base.hasura).await;
         rule(&base, &event, SigningAction::OpenVoting).await;
+        let editor_id = account(&base, &event).await;
         let name = Permissions::SIGN_OPEN_VOTING.to_string();
         let holds: &[&str] = if holding { &[name.as_str()] } else { &[] };
         let peer = HttpServer::start(vec![
@@ -431,7 +454,13 @@ async fn a_change_that_changes_nothing_is_not_logged() {
         let client = services.client().await;
 
         let (status, answer) = json(
-            post(&client, path, &editor(&event), &body(&event, &name)).await,
+            post(
+                &client,
+                path,
+                &editor(&event, &editor_id),
+                &body(&event, &name),
+            )
+            .await,
         )
         .await;
         assert_eq!(status, Status::Ok, "{path}: {answer}");
@@ -448,6 +477,7 @@ async fn role_write_alone_changes_only_sign_permissions() {
     let base = Services::on_test_database().await;
     let event = rows::event(&base.hasura).await;
     rule(&base, &event, SigningAction::CloseVoting).await;
+    let editor_id = account(&base, &event).await;
     let name = Permissions::SIGN_CLOSE_VOTING.to_string();
     let peer = HttpServer::start(vec![
         held(&event, &[]),
@@ -457,7 +487,7 @@ async fn role_write_alone_changes_only_sign_permissions() {
     ]);
     let services = base.with_identity(keycloak(&peer));
     let client = services.client().await;
-    let security_officer = Claims::new(&event.tenant_id, EDITOR_ID)
+    let security_officer = Claims::new(&event.tenant_id, &editor_id)
         .username(EDITOR)
         .roles([Permissions::ROLE_WRITE, Permissions::USER_PERMISSION_READ]);
 
@@ -534,6 +564,74 @@ async fn role_changes_without_their_permissions_are_refused() {
     )
     .await;
     assert_eq!(status, Status::Unauthorized);
+}
+
+/// A role that affects the editor's own account is left to another
+/// administrator: one they are a member of, a parent of it, and any role for
+/// an account the realm does not know. Keycloak is never asked.
+#[rocket::async_test]
+async fn a_role_that_affects_the_editor_is_refused_before_keycloak() {
+    let peer = HttpServer::start(vec![]);
+    let services = Services::on_test_database()
+        .await
+        .with_identity(keycloak(&peer));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let realm = rows::keycloak_realm(
+        &services.hasura,
+        &get_tenant_realm(&event.tenant_id),
+    )
+    .await;
+    let member =
+        rows::keycloak_user(&services.hasura, &realm, EDITOR, true).await;
+    let parent = uuid::Uuid::new_v4().to_string();
+    let direct = uuid::Uuid::new_v4().to_string();
+    for (id, parent_group) in [(&parent, None), (&direct, Some(&parent))] {
+        rows::execute(
+            &services.hasura,
+            "INSERT INTO keycloak_group (id, parent_group, realm_id)
+             VALUES ($1, $2, $3)",
+            &[id, &parent_group, &realm],
+        )
+        .await;
+    }
+    rows::execute(
+        &services.hasura,
+        "INSERT INTO user_group_membership (group_id, user_id)
+         VALUES ($1, $2)",
+        &[&direct, &member],
+    )
+    .await;
+
+    for (caller, role) in [
+        (member.as_str(), direct.as_str()),
+        (member.as_str(), parent.as_str()),
+        ("not-an-account-of-the-realm", ROLE_ID),
+    ] {
+        let caller = editor(&event, caller);
+        let change = json!({
+            "tenant_id": event.tenant_id,
+            "role_id": role,
+            "permission_name": "role-read",
+        });
+        let deletion = json!({"tenant_id": event.tenant_id, "role_id": role});
+        for (path, request) in [
+            ("/set-role-permission", &change),
+            ("/delete-role-permission", &change),
+            ("/delete-role", &deletion),
+        ] {
+            let (status, message) =
+                text(post(&client, path, &caller, request).await).await;
+
+            assert_eq!(status, Status::Forbidden, "{path}: {message}");
+            assert_eq!(
+                message,
+                "Another administrator must change or delete roles that affect your own account",
+                "{path}"
+            );
+        }
+    }
+    assert!(peer.finish().is_empty(), "the change reached Keycloak");
 }
 
 /// The platform's own permissions can't be deleted, even with
@@ -632,7 +730,9 @@ async fn reserved_permission_names_are_refused_before_keycloak() {
 /// Other names are still assigned to a role and set on a new one.
 #[rocket::async_test]
 async fn ordinary_permission_names_are_still_accepted() {
-    let event = tenant_event();
+    let base = Services::on_test_database().await;
+    let event = rows::event(&base.hasura).await;
+    let editor_id = account(&base, &event).await;
     let peer = HttpServer::start(vec![
         permission(&event, "election-event-read"),
         mapping(&event, "POST", 204),
@@ -646,7 +746,7 @@ async fn ordinary_permission_names_are_still_accepted() {
         permission(&event, "role-read"),
         mapping(&event, "POST", 204),
     ]);
-    let services = Services::without_database().with_identity(keycloak(&peer));
+    let services = base.with_identity(keycloak(&peer));
     let client = services.client().await;
     let cases = [
         (
@@ -663,7 +763,7 @@ async fn ordinary_permission_names_are_still_accepted() {
         ),
     ];
     for (path, roles, request) in cases {
-        let caller = Claims::new(&event.tenant_id, EDITOR_ID).roles(roles);
+        let caller = Claims::new(&event.tenant_id, &editor_id).roles(roles);
 
         let (status, answer) =
             json(post(&client, path, &caller, &request).await).await;
@@ -676,14 +776,16 @@ async fn ordinary_permission_names_are_still_accepted() {
 /// A reserved permission a role already holds can still be taken off it.
 #[rocket::async_test]
 async fn a_reserved_permission_can_still_be_removed_from_a_role() {
-    let event = tenant_event();
+    let base = Services::on_test_database().await;
+    let event = rows::event(&base.hasura).await;
+    let editor_id = account(&base, &event).await;
     let peer = HttpServer::start(vec![
         permission(&event, "service-account"),
         mapping(&event, "DELETE", 204),
     ]);
-    let services = Services::without_database().with_identity(keycloak(&peer));
+    let services = base.with_identity(keycloak(&peer));
     let client = services.client().await;
-    let caller = Claims::new(&event.tenant_id, EDITOR_ID)
+    let caller = Claims::new(&event.tenant_id, &editor_id)
         .roles([Permissions::USER_PERMISSION_WRITE, Permissions::ROLE_WRITE]);
 
     let (status, answer) = json(

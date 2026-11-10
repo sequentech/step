@@ -13,6 +13,50 @@ use crate::traits::groups::{DistGroupOps, ReplGroupOps};
 use crate::traits::groups::{DistScalarOps, ReplScalarOps};
 
 #[test]
+fn test_scalar_zeroize_ristretto() {
+    test_scalar_zeroize::<RCtx>();
+}
+
+#[test]
+fn test_scalar_zeroize_p256() {
+    test_scalar_zeroize::<PCtx>();
+}
+
+fn test_scalar_zeroize<C: Context>() {
+    use zeroize::Zeroize;
+    const W: usize = 3;
+    let mut rng = C::get_rng();
+    let mut val = <[C::Scalar; W]>::random(&mut rng);
+    assert_ne!(val, <[C::Scalar; W]>::zero());
+
+    val.zeroize();
+    assert_eq!(val, <[C::Scalar; W]>::zero());
+}
+
+#[test]
+fn test_element_zeroize_ristretto() {
+    test_element_zeroize::<RCtx>();
+}
+
+#[test]
+fn test_element_zeroize_p256() {
+    test_element_zeroize::<PCtx>();
+}
+
+/// Elements of every group overwrite with the identity element, here through
+/// the `GroupElement` bound alone.
+fn test_element_zeroize<C: Context>() {
+    use zeroize::Zeroize;
+    const W: usize = 3;
+    let mut rng = C::get_rng();
+    let mut val = <[C::Element; W]>::random(&mut rng);
+    assert_ne!(val, <[C::Element; W]>::one());
+
+    val.zeroize();
+    assert_eq!(val, <[C::Element; W]>::one());
+}
+
+#[test]
 fn test_element_inv_ristretto() {
     test_element_inv::<RCtx>();
 }

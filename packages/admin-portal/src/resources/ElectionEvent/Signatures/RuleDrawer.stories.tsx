@@ -29,6 +29,8 @@ interface Scenario {
     organization: Organization
     role: SigningRole
     action: SigningAction
+    /** Whether the action has no saved rule yet. */
+    unsaved?: boolean
     /** Whether saving fails. */
     failWrites: boolean
     /** The typed error the save is refused with (`extensions`), if any. */
@@ -70,14 +72,14 @@ const meta = {
         data = signingRecords(organization)
         return applyOverrides(organization)
     },
-    render: ({organization: name, role, action, onClose, onSaved}) => {
+    render: ({organization: name, role, action, unsaved, onClose, onSaved}) => {
         const organization = organizationOf(name)
         const roles = new Set<string>(SIGNING_ROLES[role])
         return (
             <SignaturesStory boundary={graphql} data={data} role={role}>
                 <RuleDrawer
                     electionEventId={EVENT_ID}
-                    rule={ruleOf(action, organization.rules)}
+                    rule={ruleOf(action, unsaved ? [] : organization.rules)}
                     capacity={capacityOf(organization, action)}
                     access={signaturesAccess((permission) => roles.has(permission))}
                     onClose={onClose}
@@ -129,11 +131,11 @@ export const Editable: Story = {
             )
         ).toBeVisible()
         expect(panel.queryByRole("combobox", {name: label("rule.whoCanSign")})).toBeNull()
-        await expect(panel.getByText(label("rule.signaturesNeededHelp", {n: 3}))).toBeVisible()
+        // The saved number stays; the rest still changes.
+        await expect(signaturesField(panel)).toBeDisabled()
+        await expect(panel.getByText(label("rule.signaturesFixed"))).toBeVisible()
         await expect(saveButton(panel)).toBeDisabled()
 
-        await userEvent.clear(signaturesField(panel))
-        await userEvent.type(signaturesField(panel), "2")
         await userEvent.click(panel.getByRole("combobox", {name: label("rule.expiresAfter")}))
         await userEvent.click(
             await within(document.body).findByRole("option", {name: label("expiry.none")})
@@ -150,7 +152,7 @@ export const Editable: Story = {
                     election_event_id: EVENT_ID,
                     action: SigningAction.GenerateElectionReturns,
                     requirement: SigningRequirement.Required,
-                    signatures: 2,
+                    signatures: 3,
                     requester_signing: RequesterSigning.Allowed,
                     expires_minutes: null,
                     expected_revision: 3,
@@ -185,9 +187,10 @@ export const RolesEditableWithRoleWrite: Story = {
 }
 
 export const CapacityWarning: Story = {
-    args: {action: SigningAction.TransmitResults},
+    args: {action: SigningAction.TransmitResults, unsaved: true},
     play: async () => {
         const panel = await drawer()
+        await userEvent.click(panel.getByLabelText(label("rule.needsSignatures")))
         await userEvent.clear(signaturesField(panel))
         await userEvent.type(signaturesField(panel), "3")
         // The Posts come from the capacity, grouped by how many can sign there.
@@ -235,9 +238,10 @@ export const RequesterWarning: Story = {
 }
 
 export const MoreThanAnyPostRefused: Story = {
-    args: {action: SigningAction.TransmitResults},
+    args: {action: SigningAction.TransmitResults, unsaved: true},
     play: async () => {
         const panel = await drawer()
+        await userEvent.click(panel.getByLabelText(label("rule.needsSignatures")))
         await userEvent.clear(signaturesField(panel))
         await userEvent.type(signaturesField(panel), "4")
         await expect(
@@ -289,6 +293,7 @@ export const TrusteeActionOn: Story = {
     play: async () => {
         const panel = await drawer()
         await expect(panel.getByLabelText(label("rule.trusteesSign"))).toBeChecked()
+        await expect(panel.getByLabelText(label("rule.trusteesSign"))).toBeDisabled()
         await expect(saveButton(panel)).toBeDisabled()
     },
 }
@@ -321,7 +326,7 @@ export const SaveFailure: Story = {
 }
 
 export const SecondOrganization: Story = {
-    args: {organization: Organization.StudentCouncil},
+    args: {organization: Organization.StudentCouncil, unsaved: true},
     play: async () => {
         const action = SigningAction.GenerateElectionReturns
         const {posts, roles} = capacityOf(organizationOf(Organization.StudentCouncil), action)
@@ -330,6 +335,7 @@ export const SecondOrganization: Story = {
         await expect(
             panel.getByRole("heading", {name: councilText(`signing.actions.${action}.label`)})
         ).toBeVisible()
+        await userEvent.click(panel.getByLabelText(label("rule.needsSignatures")))
         for (const {name} of roles) await expect(panel.getByText(name)).toBeVisible()
         const fewest = Math.min(...posts.map(({count}) => count))
         const short = posts.filter(({count}) => count === fewest).map(({name}) => name)
@@ -430,8 +436,23 @@ export const SavedWithShortPosts: Story = {
     },
 }
 
-export const EventWideTooMany: Story = {
+/** An action keeps the number of signatures it was saved with; the rest still changes. */
+export const FixedOnceSaved: Story = {
     args: {action: SigningAction.ApproveConfiguration},
+    play: async () => {
+        const panel = await drawer()
+        await expect(panel.getByLabelText(label("rule.needsSignatures"))).toBeDisabled()
+        await expect(signaturesField(panel)).toBeDisabled()
+        await expect(signaturesField(panel)).toHaveValue(2)
+        await expect(panel.getByText(label("rule.signaturesFixed"))).toBeVisible()
+        await userEvent.click(panel.getByLabelText(label("rule.requesterSigning")))
+        await expect(saveButton(panel)).toBeEnabled()
+    },
+}
+
+/** Until it is saved, a mandatory action's number is checked like any other. */
+export const EventWideTooMany: Story = {
+    args: {action: SigningAction.ApproveConfiguration, unsaved: true},
     play: async () => {
         const {max} = capacityOf(
             organizationOf(Organization.Overseas),
@@ -482,6 +503,14 @@ export const RefusedStaleRevision: Story = {
 export const RefusedLockedDown: Story = {
     args: {refuse: {code: "locked-down"}},
     play: refusedSave(label("errors.lockedDown")),
+}
+
+export const RefusedFixedSignatures: Story = {
+    args: {
+        action: SigningAction.ApproveConfiguration,
+        refuse: {code: "invalid", reason: "out-of-range"},
+    },
+    play: refusedSave(label("errors.signaturesFixed")),
 }
 
 const automatedCeremoniesRefusal: Story["play"] = async ({args}) => {

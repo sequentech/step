@@ -55,3 +55,28 @@ fn signed_application_records_keep_raw_borsh_and_hex_json() {
     extended.push(0);
     assert!(VerificationKey::record_deserialize(&extended).is_err());
 }
+
+#[test]
+fn a_signing_key_reads_back_from_each_of_its_encodings() {
+    let sk = SigningKey::generate().unwrap();
+    let from_b64 = SigningKey::from_b64_string(&sk.to_b64_string().unwrap()).unwrap();
+    assert_eq!(from_b64.to_bytes(), sk.to_bytes());
+    let from_der = SigningKey::from_b64_string(&STANDARD.encode(sk.to_der().unwrap())).unwrap();
+    assert_eq!(from_der.to_bytes(), sk.to_bytes());
+    let from_json: SigningKey = serde_json::from_str(&serde_json::to_string(&sk).unwrap()).unwrap();
+    assert_eq!(from_json.to_bytes(), sk.to_bytes());
+    assert!(serde_json::from_str::<SigningKey>("\"0707\"").is_err());
+    assert!(SigningKey::from_b64_string(&STANDARD.encode([7u8; 31])).is_err());
+}
+
+#[test]
+fn a_signing_key_is_overwritten_with_zero_when_dropped() {
+    fn zeroized_on_drop<T: zeroize::ZeroizeOnDrop>() {}
+    zeroized_on_drop::<SigningKey>();
+
+    let mut sk = SigningKey::from_b64_string(&STANDARD.encode([7u8; 32])).unwrap();
+    assert_eq!(sk.to_bytes(), [7u8; 32]);
+    // What `Drop` runs.
+    zeroize::Zeroize::zeroize(&mut sk);
+    assert_eq!(sk.to_bytes(), [0u8; 32]);
+}

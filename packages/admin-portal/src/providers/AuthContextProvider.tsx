@@ -15,8 +15,6 @@ import {
 } from "@sequentech/ui-core"
 import {IPermissions} from "@/types/keycloak"
 import {SettingsContext} from "./SettingsContextProvider"
-import {ExecutionResult} from "graphql"
-import {GetAllTenantsQuery} from "@/gql/graphql"
 import SelectTenant from "@/screens/SelectTenant"
 import {Dialog, IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
@@ -206,30 +204,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const navigate = useNavigate()
     const location = useLocation()
 
-    const fetchGraphQL = async (
-        operationsDoc: string,
-        operationName: string,
-        variables: Record<string, any>
-    ): Promise<ExecutionResult<GetAllTenantsQuery>> => {
-        let result = await fetch(globalSettings.HASURA_URL, {
-            method: "POST",
-            body: JSON.stringify({
-                query: operationsDoc,
-                variables,
-            }),
-        })
-        return result.json()
-    }
-
-    const operation = `
-        query GetAllTenants {
-            sequent_backend_tenant {
-                id
-                slug
-            }
-        }
-    `
-
     useEffect(() => {
         if (location.pathname.endsWith("/tenant")) {
             if (readTokenStorage()) {
@@ -323,10 +297,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             navigate("/tenant") // Redirect back on failure
             return false
         }
-    }
-
-    const fetchGetTenant = async (): Promise<ExecutionResult<GetAllTenantsQuery>> => {
-        return fetchGraphQL(operation, "GetTenant", {})
     }
 
     /**

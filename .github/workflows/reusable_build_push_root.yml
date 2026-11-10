@@ -36,6 +36,8 @@ jobs:
           - service: keycloak
             context: packages
             file: packages/Dockerfile.keycloak
+            # With the sign-in link handlers, which the Dockerfile leaves out by default.
+            features: sign-in-links
             build_contexts: |
               beyond=./beyond
               scripts=./scripts
@@ -63,6 +65,8 @@ jobs:
           - service: harvest
             context: packages
             file: packages/harvest/Dockerfile.prod
+            # With the WebAssembly plugins, which the Dockerfile leaves out by default.
+            features: plugins
 
           - service: b4v6
             context: packages/wbraid
@@ -75,6 +79,8 @@ jobs:
           - service: windmill
             context: packages
             file: packages/windmill/Dockerfile.prod
+            # With the WebAssembly plugins, which the Dockerfile leaves out by default.
+            features: plugins
 
           - service: hasura
             # Build context is the hasura project dir (migrations/metadata live here),

@@ -33,7 +33,8 @@ use crate::postgres::signing_actions::{
     signing_rules_before,
 };
 use crate::services::ballot_styles::ballot_publication::{
-    get_ballot_publication_diff, update_publish_ballot, BallotPublicationValidationError,
+    get_ballot_publication_diff, update_publish_ballot, validate_published_ballot_styles,
+    BallotPublicationValidationError,
 };
 use crate::services::scheduled_outcome::{
     lifecycle_snapshot, post_channels_of, PublicationLifecycle,
@@ -42,6 +43,7 @@ use crate::services::signing::guard::{GuardOutcome, GuardRequest, RequestScope};
 use crate::services::signing::requests::cancel_request;
 use crate::services::signing::{SigningCaller, SigningError, SigningResult};
 use anyhow::{Context, Result};
+use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use futures::TryStreamExt;
 use sequent_core::ballot::{EInitializeReportPolicy, LifecyclePolicies};
@@ -263,19 +265,74 @@ pub fn rule_change(rule: &SigningRule, before: Option<&SigningRule>) -> String {
     }
 }
 
+/// What preparing a configuration version for signing reaches beyond the
+/// event's rows: the realm configuration it materializes first, and the
+/// self-test baseline the version signs.
+#[async_trait]
+pub trait ApprovalPreparation: Send + Sync {
+    /// Materializes the event realm's projections before they are signed.
+    async fn prepare_realm(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+        tenant_id: Uuid,
+        election_event_id: Uuid,
+    ) -> Result<()>;
+
+    /// The self-test baseline of the event's configuration as it is now.
+    async fn self_test_baseline(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+        tenant_id: Uuid,
+        election_event_id: Uuid,
+    ) -> Result<Value>;
+}
+
+/// Today's services: Keycloak and the self-test snapshot.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct KeycloakApprovalPreparation;
+
+#[async_trait]
+impl ApprovalPreparation for KeycloakApprovalPreparation {
+    async fn prepare_realm(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+        tenant_id: Uuid,
+        election_event_id: Uuid,
+    ) -> Result<()> {
+        crate::services::ballot_styles::ballot_publication::prepare_approval_realm(
+            hasura_transaction,
+            &tenant_id.to_string(),
+            &election_event_id.to_string(),
+        )
+        .await
+    }
+
+    async fn self_test_baseline(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+        tenant_id: Uuid,
+        election_event_id: Uuid,
+    ) -> Result<Value> {
+        crate::services::self_tests::snapshot::capture(
+            hasura_transaction,
+            &tenant_id.to_string(),
+            &election_event_id.to_string(),
+        )
+        .await
+    }
+}
+
 /// The subject of publishing `publication`.
 pub async fn configuration_subject(
     hasura_transaction: &Transaction<'_>,
+    preparation: &dyn ApprovalPreparation,
     tenant_id: Uuid,
     election_event_id: Uuid,
     publication: &BallotPublication,
 ) -> Result<ConfigurationSubject> {
-    crate::services::ballot_styles::ballot_publication::prepare_approval_realm(
-        hasura_transaction,
-        &tenant_id.to_string(),
-        &election_event_id.to_string(),
-    )
-    .await?;
+    preparation
+        .prepare_realm(hasura_transaction, tenant_id, election_event_id)
+        .await?;
     let publication_id = Uuid::parse_str(&publication.id)?;
     let diff = serde_json::to_value(
         get_ballot_publication_diff(
@@ -313,12 +370,9 @@ pub async fn configuration_subject(
         lifecycle_snapshot(hasura_transaction, tenant_id, election_event_id, target).await?;
     Ok(ConfigurationSubject {
         self_test_baseline: Some(
-            crate::services::self_tests::snapshot::capture(
-                hasura_transaction,
-                &tenant_id.to_string(),
-                &election_event_id.to_string(),
-            )
-            .await?,
+            preparation
+                .self_test_baseline(hasura_transaction, tenant_id, election_event_id)
+                .await?,
         ),
         ballot_publication_id: publication.id.clone(),
         digest: publication_digest(
@@ -354,6 +408,26 @@ pub async fn configuration_subject(
 /// Whether publishing a ballot publication runs now; see [`super::gate`].
 pub async fn gate_publication(
     hasura_transaction: &Transaction<'_>,
+    caller: &SigningCaller,
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication_id: &str,
+) -> SigningResult<GuardOutcome> {
+    gate_publication_with(
+        hasura_transaction,
+        &KeycloakApprovalPreparation,
+        caller,
+        tenant_id,
+        election_event_id,
+        ballot_publication_id,
+    )
+    .await
+}
+
+/// [`gate_publication`], preparing the approval with `preparation`.
+pub async fn gate_publication_with(
+    hasura_transaction: &Transaction<'_>,
+    preparation: &dyn ApprovalPreparation,
     caller: &SigningCaller,
     tenant_id: &str,
     election_event_id: &str,
@@ -400,8 +474,26 @@ pub async fn gate_publication(
                     "Only a generated, current ballot publication can be published.",
                 ));
             }
+            // What publishing checks first, before anyone is asked to sign.
+            validate_published_ballot_styles(
+                hasura_transaction,
+                &tenant_id.to_string(),
+                &election_event_id.to_string(),
+                &publication,
+            )
+            .await
+            .map_err(|error| {
+                match error.downcast_ref::<BallotPublicationValidationError>() {
+                    Some(invalid) => SigningError::invalid(
+                        crate::services::signing::InvalidReason::Transition,
+                        invalid.to_string(),
+                    ),
+                    None => SigningError::from(error),
+                }
+            })?;
             let subject = configuration_subject(
                 hasura_transaction,
+                preparation,
                 tenant_id,
                 election_event_id,
                 &publication,

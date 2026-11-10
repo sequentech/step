@@ -66,7 +66,6 @@ impl Vault for HashiCorpVault {
         .error_for_status()?;
         info!("info: {:?}", unwrapped);
         let text = unwrapped.text().await?;
-        info!("text: {}", text);
         let read: VaultRead = deserialize_str(&text)?;
         let value = if let Some(v) = read.data.data {
             Some(v)

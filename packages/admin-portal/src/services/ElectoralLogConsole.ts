@@ -5,8 +5,9 @@
 // Requests and results of the electoral-log console, which Harvest serves through
 // the electoral_log_console_* actions.
 
-export type ConsoleTable = "records" | "ballots" | "voters" | "queue"
-export const CONSOLE_TABLES: ConsoleTable[] = ["records", "ballots", "voters", "queue"]
+// Pages show the electoral log's records: the ballot box's tables are not browsed.
+export type ConsoleTable = "records"
+export const CONSOLE_TABLES: ConsoleTable[] = ["records"]
 
 export type PageOrder = "newest-first" | "oldest-first"
 export const PAGE_ORDERS: PageOrder[] = ["newest-first", "oldest-first"]
@@ -16,10 +17,8 @@ export type PersonalData = "shown" | "hidden"
 export type FilterField =
     | "statement_kind"
     | "election_id"
-    | "area_id"
     | "user_id"
     | "ballot_id"
-    | "status"
     | "created_after"
     | "created_before"
 
@@ -33,35 +32,17 @@ export const FILTERS_BY_TABLE: Record<ConsoleTable, FilterField[]> = {
         "created_after",
         "created_before",
     ],
-    ballots: [
-        "election_id",
-        "area_id",
-        "user_id",
-        "ballot_id",
-        "status",
-        "created_after",
-        "created_before",
-    ],
-    voters: ["election_id", "area_id", "user_id"],
-    queue: ["election_id", "area_id"],
 }
 
-export const BALLOT_STATUSES = ["valid", "pending", "rejected"]
-
 const DATE_FIELDS: FilterField[] = ["created_after", "created_before"]
-// The ballot box keys elections and areas by UUID; records keep them as text.
-const UUID_FIELDS: FilterField[] = ["election_id", "area_id"]
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export type FilterValues = Partial<Record<FilterField, string>>
 
 export interface ConsoleFilters {
     statement_kind?: string
     election_id?: string
-    area_id?: string
     user_id?: string
     ballot_id?: string
-    status?: string
     // Seconds since the epoch.
     created_after?: number
     created_before?: number
@@ -76,13 +57,7 @@ const filled = (values: FilterValues, field: FilterField): string | undefined =>
 export const invalidFilters = (table: ConsoleTable, values: FilterValues): FilterField[] =>
     FILTERS_BY_TABLE[table].filter((field) => {
         const value = filled(values, field)
-        if (value === undefined) {
-            return false
-        }
-        if (DATE_FIELDS.includes(field)) {
-            return Number.isNaN(Date.parse(value))
-        }
-        return table !== "records" && UUID_FIELDS.includes(field) && !UUID_PATTERN.test(value)
+        return value !== undefined && DATE_FIELDS.includes(field) && Number.isNaN(Date.parse(value))
     })
 
 /** The filters of a page request: the table's filled values, dates in seconds. */

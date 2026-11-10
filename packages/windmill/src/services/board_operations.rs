@@ -37,13 +37,50 @@ impl BindingKind {
             Self::VoterExport => SigningAction::ReadVotersRegister,
         }
     }
-    fn phase(self) -> ElectoralPhase {
+    /// The electoral phase the operation needs. The execution data of an
+    /// archived event is exported and deleted in preparation; an archived
+    /// event takes no other operation.
+    async fn require_phase(self, tx: &Transaction<'_>, tenant: &str, event: &str) -> Result<()> {
+        use crate::services::election_lifecycle::require_execution_data_phase;
         match self {
-            Self::Import => ElectoralPhase::Preparation,
-            Self::Tally => ElectoralPhase::Evaluation,
-            _ => ElectoralPhase::PostProcessing,
+            Self::Import => {
+                require_unarchived_phase(tx, tenant, event, ElectoralPhase::Preparation).await
+            }
+            Self::Tally => {
+                require_unarchived_phase(tx, tenant, event, ElectoralPhase::Evaluation).await
+            }
+            Self::Export | Self::Deletion => require_execution_data_phase(tx, tenant, event).await,
+            Self::VoterExport => {
+                require_unarchived_phase(tx, tenant, event, ElectoralPhase::PostProcessing).await
+            }
         }
     }
+}
+
+/// The electoral phase a board operation other than the export and the
+/// deletion of the execution data needs, in an event that is not archived:
+/// an archived event is finished.
+pub async fn require_unarchived_phase(
+    tx: &Transaction<'_>,
+    tenant: &str,
+    event: &str,
+    expected: ElectoralPhase,
+) -> Result<()> {
+    crate::services::election_lifecycle::require_phase(tx, tenant, event, expected).await?;
+    let archived: bool = tx
+        .query_opt(
+            "SELECT COALESCE(is_archived, false) FROM sequent_backend.election_event
+             WHERE tenant_id = $1::text::uuid AND id = $2::text::uuid",
+            &[&tenant, &event],
+        )
+        .await?
+        .context("Election event does not exist")?
+        .try_get(0)?;
+    ensure!(
+        !archived,
+        "The election event is archived: only the export and deletion of its data remain possible"
+    );
+    Ok(())
 }
 
 pub async fn source_revision(tx: &Transaction<'_>, tenant: &str, event: &str) -> Result<i64> {
@@ -67,7 +104,7 @@ pub async fn bind(
         subject["lifecycle_generation"].as_i64() == Some(current.generation),
         "Board authorisation belongs to an earlier lifecycle state"
     );
-    crate::services::election_lifecycle::require_phase(tx, tenant, event, kind.phase()).await?;
+    kind.require_phase(tx, tenant, event).await?;
     tx.execute("INSERT INTO sequent_backend.board_operation_binding(tenant_id,election_event_id,request_id,binding_kind,binding_id) VALUES($1::text::uuid,$2::text::uuid,$3,$4,$5::text::uuid) ON CONFLICT(tenant_id,election_event_id,binding_kind,binding_id) DO UPDATE SET request_id=EXCLUDED.request_id,created_at=clock_timestamp()", &[&tenant,&event,&request,&kind.as_str(),&id]).await?;
     Ok(())
 }
@@ -82,7 +119,7 @@ pub async fn validate(
     id: &str,
     parameters: Option<&Value>,
 ) -> Result<Value> {
-    crate::services::election_lifecycle::require_phase(tx, tenant, event, kind.phase()).await?;
+    kind.require_phase(tx, tenant, event).await?;
     let row=tx.query_opt("SELECT r.subject FROM sequent_backend.board_operation_binding b JOIN sequent_backend.signing_request r ON r.id=b.request_id AND r.tenant_id=b.tenant_id AND r.election_event_id=b.election_event_id WHERE b.tenant_id=$1::text::uuid AND b.election_event_id=$2::text::uuid AND b.binding_kind=$3 AND b.binding_id=$4::text::uuid AND r.action=$5 AND r.status='executed' AND EXISTS(SELECT 1 FROM sequent_backend.signing_rule rule WHERE rule.tenant_id=r.tenant_id AND rule.election_event_id=r.election_event_id AND rule.action=r.action AND rule.revision=r.rule_revision AND rule.requirement='required')", &[&tenant,&event,&kind.as_str(),&id,&kind.action().to_string()]).await?.context("A durable election-board authorisation is required")?;
     let subject: Value = row.try_get(0)?;
     let authorized:bool=tx.query_one("SELECT EXISTS(SELECT 1 FROM sequent_backend.board_operation_binding b JOIN sequent_backend.signing_request r ON r.id=b.request_id WHERE b.tenant_id=$1::text::uuid AND b.election_event_id=$2::text::uuid AND b.binding_kind=$3 AND b.binding_id=$4::text::uuid AND r.required>0 AND (SELECT count(DISTINCT a.user_id) FROM sequent_backend.signing_approval a JOIN sequent_backend.staff_certificate c ON c.id=a.certificate_id AND c.tenant_id=a.tenant_id AND c.election_event_id=a.election_event_id WHERE a.request_id=r.id AND c.status='active' AND c.not_before<=clock_timestamp() AND c.not_after>clock_timestamp())>=r.required)", &[&tenant,&event,&kind.as_str(),&id]).await?.try_get(0)?;
@@ -111,7 +148,7 @@ pub async fn validate(
 }
 
 pub async fn require_export(tx: &Transaction<'_>, tenant: &str, event: &str) -> Result<()> {
-    let row=tx.query_one("SELECT EXISTS(SELECT 1 FROM sequent_backend.execution_export x JOIN sequent_backend.election_execution_revision v ON v.tenant_id=x.tenant_id AND v.election_event_id=x.election_event_id JOIN sequent_backend.election_lifecycle l ON l.tenant_id=x.tenant_id AND l.election_event_id=x.election_event_id WHERE x.tenant_id=$1::text::uuid AND x.election_event_id=$2::text::uuid AND l.phase='post_processing' AND l.generation=x.lifecycle_generation AND v.revision=x.source_revision)", &[&tenant,&event]).await?;
+    let row=tx.query_one("SELECT EXISTS(SELECT 1 FROM sequent_backend.execution_export x JOIN sequent_backend.election_execution_revision v ON v.tenant_id=x.tenant_id AND v.election_event_id=x.election_event_id JOIN sequent_backend.election_lifecycle l ON l.tenant_id=x.tenant_id AND l.election_event_id=x.election_event_id JOIN sequent_backend.election_event e ON e.tenant_id=x.tenant_id AND e.id=x.election_event_id WHERE x.tenant_id=$1::text::uuid AND x.election_event_id=$2::text::uuid AND (l.phase='post_processing' OR (l.phase='preparation' AND e.is_archived IS TRUE)) AND l.generation=x.lifecycle_generation AND v.revision=x.source_revision)", &[&tenant,&event]).await?;
     ensure!(
         row.try_get::<_, bool>(0)?,
         "Export the complete, current election execution data before requesting deletion"

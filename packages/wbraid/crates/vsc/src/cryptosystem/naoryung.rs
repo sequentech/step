@@ -14,6 +14,7 @@ use crate::traits::groups::ReplGroupOps;
 use crate::utils::error::Error;
 use crate::zkp::pleq::PlEqProof;
 use canonical_derive::Canonical;
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 /**
  * A Naor-Yung key pair.
@@ -25,6 +26,8 @@ use canonical_derive::Canonical;
  *
  * In the Naor-Yung encryption scheme, ciphertexts include a proof of
  * well-formedness. This proof must be verified before decryption.
+ *
+ * The secret key is overwritten with zero when the key pair is dropped.
  *
  * See `EVS`: Definition 11.31
  *
@@ -57,6 +60,21 @@ pub struct KeyPair<C: Context> {
     /// The value w is never constructed, z is derived from a random oracle.
     pub pkey: PublicKey<C>,
 }
+
+impl<C: Context> Zeroize for KeyPair<C> {
+    /// Overwrite the secret key with zero; the public key is left unchanged.
+    fn zeroize(&mut self) {
+        self.sk_b.zeroize();
+    }
+}
+
+impl<C: Context> Drop for KeyPair<C> {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl<C: Context> ZeroizeOnDrop for KeyPair<C> {}
 
 impl<C: Context> KeyPair<C> {
     /// Construct a new key pair from an `ElGamal` key pair and a public key element.
@@ -437,7 +455,8 @@ impl<C: Context> PublicKey<C> {
         context: &[u8],
     ) -> Result<Ciphertext<C, W>, Error> {
         let mut rng = C::get_rng();
-        let r = <[C::Scalar; W]>::random(&mut rng);
+        // The randomness is overwritten with zero when dropped.
+        let r = Zeroizing::new(<[C::Scalar; W]>::random(&mut rng));
 
         self.encrypt_with_r(message, &r, context)
     }
@@ -490,8 +509,9 @@ impl<C: Context> PublicKey<C> {
         let g = C::generator();
 
         let u_b = g.repl_exp(r);
-        let v_b = self.pk_b.repl_exp(r);
-        let v_b = message.mul(&v_b);
+        // The mask y^r reveals the message: it is overwritten when dropped.
+        let mask = Zeroizing::new(self.pk_b.repl_exp(r));
+        let v_b = message.mul(&mask);
         let u_a = self.pk_a.repl_exp(r);
 
         let proof = PlEqProof::<C, W>::prove(&self.pk_b, &self.pk_a, &u_b, &v_b, &u_a, r, context)?;
@@ -634,6 +654,27 @@ mod tests {
     use crate::cryptosystem::naoryung::KeyPair as NYKeyPair;
     use crate::cryptosystem::naoryung::PublicKey as NYPublicKey;
     use crate::utils::serialization::{Deserializable, Serializable};
+
+    #[test]
+    fn test_keypair_zeroize_ristretto() {
+        test_keypair_zeroize::<RCtx>();
+    }
+
+    #[test]
+    fn test_keypair_zeroize_p256() {
+        test_keypair_zeroize::<PCtx>();
+    }
+
+    /// The method the key pair's `Drop` calls clears the secret key only.
+    fn test_keypair_zeroize<C: Context>() {
+        let mut keypair = NYKeyPair::<C>::generate(b"zeroize test").unwrap();
+        let pkey = keypair.pkey.clone();
+        assert_ne!(keypair.sk_b, C::Scalar::zero());
+
+        keypair.zeroize();
+        assert_eq!(keypair.sk_b, C::Scalar::zero());
+        assert_eq!(keypair.pkey, pkey);
+    }
 
     #[test]
     fn test_naoryung_from_elgamal_ristretto() {

@@ -34,6 +34,12 @@ RUN command -v find >/dev/null 2>&1 || { dnf install -y findutils && dnf clean a
 # one. With SOURCE_DATE_EPOCH (a BuildKit built-in argument) the jars are the
 # same on every build; without it nothing changes.
 ARG SOURCE_DATE_EPOCH
+# Optional image features, separated by spaces or commas. With sign-in-links the
+# image includes the sign-in link handlers (the manual verification link, the
+# one-time link and the login bridge link) and the providers that issue the
+# manual verification link and the smart link; without it their profile is
+# disabled and the provider assembly fails if any of them is present.
+ARG FEATURES=
 COPY --from=maven-repository / /root/.m2/repository/
 COPY ./keycloak-extensions/ /build/context/packages/keycloak-extensions/
 # OTP contract tests compare Java values with the shared Rust definitions.
@@ -57,7 +63,9 @@ RUN --mount=from=beyond,source=.,target=/build/beyond-context,readonly \
     if [ -d "${beyond_keycloak_extensions_dir}" ]; then \
         find "${beyond_keycloak_extensions_dir}" -name target -type d -prune -exec rm -rf {} +; \
     fi; \
-    mvn -B ${offline} ${reproducible} -P '!beyond-keycloak-extensions' -f "${keycloak_extensions_dir}/pom.xml" clean package; \
+    sign_in_links='-P !sign-in-link-handlers'; \
+    case " $(echo "${FEATURES}" | tr ',' ' ') " in *" sign-in-links "*) sign_in_links= ;; esac; \
+    mvn -B ${offline} ${reproducible} -P '!beyond-keycloak-extensions' ${sign_in_links} -f "${keycloak_extensions_dir}/pom.xml" clean package; \
     mkdir -p /build/keycloak-provider-jars /build/keycloak-provider-conf; \
     cp "${keycloak_extensions_dir}/quarkus.properties" /build/keycloak-provider-conf/quarkus.properties; \
     provider_dirs="${keycloak_extensions_dir}"; \
@@ -69,7 +77,11 @@ RUN --mount=from=beyond,source=.,target=/build/beyond-context,readonly \
         ! -name 'original-*.jar' \
         ! -name '*-tests.jar' \
         -exec cp -t /build/keycloak-provider-jars/ {} +; \
-    test -z "$(find /build/keycloak-provider-jars -maxdepth 1 -iname '*smart-link-hmac*' -print -quit)"
+    test -z "$(find /build/keycloak-provider-jars -maxdepth 1 -iname '*smart-link-hmac*' -print -quit)"; \
+    if [ -n "${sign_in_links}" ]; then \
+        test -z "$(find /build/keycloak-provider-jars -maxdepth 1 -iname '*sign-in-link-handlers*' -print -quit)"; \
+        test -z "$(grep -l -a -E 'ManualVerificationTokenHandler|OTLActionTokenHandler|LoginBridgeActionTokenHandler|ManualVerificationProvider|SmartLinkAuthenticator' /build/keycloak-provider-jars/*.jar)"; \
+    fi
 
 # The source archive of the oid4vp extension. The controlled production build supplies it
 # from the accepted external inputs with `--build-context oid4vp-src=<directory holding

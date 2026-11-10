@@ -12,16 +12,19 @@ import time
 
 import os
 import subprocess
+import uuid
 from pathlib import Path
 
 from .client import (
     ENV,
+    HASURA_URL,
     OUTPUT,
     ROOT,
     S3_URL,
     TENANT_ID,
     TENANT_REALM,
     Hasura,
+    Http,
     Keycloak,
     StepCli,
     http_get,
@@ -57,6 +60,34 @@ def tenant_row():
         {"id": TENANT_ID},
     )["sequent_backend_tenant"]
     return rows[0] if rows else None
+
+
+# A tenant without a `configuration_signing` setting refuses unsigned election
+# event files, and the database takes no setting other than the required
+# policy from the API. The stack's tenants import unsigned files, so they get
+# the optional policy written as the database owner, past that check; a tenant
+# that has a setting keeps it.
+ALLOW_UNSIGNED_IMPORTS = (
+    "SET LOCAL session_replication_role = replica; "
+    "UPDATE sequent_backend.tenant SET settings = COALESCE(settings, '{{}}'::jsonb) "
+    "|| '{{\"configuration_signing\": {{\"policy\": \"optional\"}}}}'::jsonb "
+    "WHERE id = '{tenant_id}' AND settings -> 'configuration_signing' IS NULL"
+)
+
+
+def allow_unsigned_imports(tenant_id=TENANT_ID):
+    """Let a tenant of the stack import unsigned election event files."""
+    sql = ALLOW_UNSIGNED_IMPORTS.format(tenant_id=uuid.UUID(tenant_id))
+    response = Http().post(
+        HASURA_URL.replace("/v1/graphql", "/v2/query"),
+        json_body={"type": "run_sql", "args": {"sql": sql}},
+        headers={"x-hasura-admin-secret": ENV["HASURA_ADMIN_SECRET"]},
+    )
+    if response.status != 200:
+        raise AssertionError(
+            f"Hasura answered HTTP {response.status}: {response.text[:500]}"
+        )
+    return True
 
 
 def email_otp_config(keycloak):
@@ -262,6 +293,10 @@ def main():
     keycloak = Keycloak()
     wait_until("the super tenant row", tenant_row, timeout=600, interval=3)
     mark("tenant row")
+    wait_until(
+        "unsigned imports in the super tenant", allow_unsigned_imports, timeout=60
+    )
+    mark("unsigned imports allowed")
     kids = wait_until("the tenant realm signing keys", realm_signing_kids, timeout=300)
     wait_until(
         "the tenant realm keys in the published JWKS",

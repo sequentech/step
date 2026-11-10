@@ -28,7 +28,12 @@
             "name": "Electoral Commission",
             "permissions": [
                 "sign-approve-voter",
-                "sign-approve-configuration"
+                "sign-approve-configuration",
+                "sign-import-election-data",
+                "sign-start-tally",
+                "sign-export-execution-data",
+                "sign-delete-execution-data",
+                "sign-read-voters-register"
             ]
         }
     ],
@@ -117,6 +122,41 @@
         },
         {
             "action": "approve-configuration",
+            "requirement": "required",
+            "signatures": 1,
+            "requester_signing": "not-allowed",
+            "expires_minutes": 1440
+        },
+        {
+            "action": "import-election-data",
+            "requirement": "required",
+            "signatures": 1,
+            "requester_signing": "not-allowed",
+            "expires_minutes": 1440
+        },
+        {
+            "action": "start-tally",
+            "requirement": "required",
+            "signatures": 1,
+            "requester_signing": "not-allowed",
+            "expires_minutes": 1440
+        },
+        {
+            "action": "export-execution-data",
+            "requirement": "required",
+            "signatures": 1,
+            "requester_signing": "not-allowed",
+            "expires_minutes": 1440
+        },
+        {
+            "action": "delete-execution-data",
+            "requirement": "required",
+            "signatures": 1,
+            "requester_signing": "not-allowed",
+            "expires_minutes": 1440
+        },
+        {
+            "action": "read-voters-register",
             "requirement": "required",
             "signatures": 1,
             "requester_signing": "not-allowed",

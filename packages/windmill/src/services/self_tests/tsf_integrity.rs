@@ -18,12 +18,16 @@ const IMAGE_STATUS: &str = "/run/sequent-images/status.json";
 const MAX_STATUS_BYTES: u64 = 1024 * 1024;
 const FRESHNESS_SECONDS: i64 = 180;
 const AUDIT_SECONDS: u64 = 60;
-const PARTS: [&str; 6] = [
+const PARTS: [&str; 10] = [
+    "admin-portal",
     "b4",
     "ballot-verifier",
     "braid",
+    "graphql-engine",
     "harvest",
     "keycloak",
+    "tls-endpoint",
+    "voting-portal",
     "windmill",
 ];
 const DIFFERENT_REASON: &str = "TOE software differs from the accepted delivery";
@@ -149,7 +153,7 @@ fn judge(part: &str, facts: &PartFacts, containers: &[ContainerFacts]) -> PartRe
         .as_ref()
         .map(|digest| format!("sequentech.local/{part}@{digest}"));
     let config = facts.expected_config.as_ref();
-    let required = if matches!(part, "braid" | "windmill") {
+    let required = if matches!(part, "braid" | "harvest" | "windmill") {
         2
     } else {
         1
@@ -247,7 +251,7 @@ pub fn compare(observation: &Observation, now: i64) -> Comparison {
             .iter()
             .any(|c| !PARTS.contains(&c.part.as_str()))
     {
-        Some("The host image observation does not cover exactly the six TOE parts")
+        Some("The host image observation does not cover exactly the ten TOE parts")
     } else {
         None
     };
@@ -294,7 +298,13 @@ fn read_observation(path: &Path) -> Result<Observation> {
     Ok(serde_json::from_slice(&bytes)?)
 }
 
-/// Queuing never waits for the comparison; each event has one check at a time.
+/// The result of a check whose start could not be recorded: it is never queued.
+const START_REASON: &str = "The start of this check could not be recorded in the electoral log";
+/// How long one sweep spends closing abandoned checks; the rest wait for the next sweep.
+const SWEEP_SECONDS: u64 = 15;
+
+/// Queuing never waits for the comparison; each event has one check at a time. A new
+/// check is queued only once its start record is in the electoral log.
 pub async fn enqueue(tenant: &str, event: &str, requested_by: &str) -> Result<String> {
     AuditDeadline::database()
         .run(enqueue_inner(tenant, event, requested_by))
@@ -316,6 +326,19 @@ async fn enqueue_inner(tenant: &str, event: &str, requested_by: &str) -> Result<
     tx.execute("INSERT INTO sequent_backend.tsf_integrity_check(id,tenant_id,election_event_id,requested_by) VALUES($1::text::uuid,$2::text::uuid,$3::text::uuid,$4)",&[&id,&tenant,&event,&requested_by]).await?;
     tx.commit().await?;
     drop(c);
+    let started = checks::audit_record(
+        tenant,
+        event,
+        &format!("{id}:tsf-integrity"),
+        "started",
+        &json!({"check":"tsf-integrity","check_id":id,"requested_by":requested_by}),
+    )
+    .await;
+    if let Err(error) = started {
+        tracing::warn!(%event, check_id = %id, "Integrity check start record not verified: {error:#}");
+        finish_abandoned(tenant, event, &id, &Comparison::unverifiable(START_REASON)).await?;
+        anyhow::bail!("Unable to start the integrity check; no match was recorded");
+    }
     let sent = crate::services::celery_app::get_celery_app()
         .await
         .send_task(crate::tasks::self_tests::run_tsf_integrity_check::new(
@@ -325,7 +348,7 @@ async fn enqueue_inner(tenant: &str, event: &str, requested_by: &str) -> Result<
         ))
         .await;
     if sent.is_err() {
-        finish(
+        finish_abandoned(
             tenant,
             event,
             &id,
@@ -345,6 +368,67 @@ async fn finish(tenant: &str, event: &str, id: &str, comparison: &Comparison) ->
     let c = get_hasura_pool().await.get().await?;
     let closed=c.execute("UPDATE sequent_backend.tsf_integrity_check SET finished_at=now(),outcome=$4,result=$5,safety_pending=$6 WHERE id=$1::text::uuid AND tenant_id=$2::text::uuid AND election_event_id=$3::text::uuid AND finished_at IS NULL",&[&id,&tenant,&event,&outcome,&result,&safety_pending]).await?;
     Ok(closed == 1)
+}
+
+/// Closes a check no worker finished, with the result record its worker would have
+/// written: the requester's process closes one it could not start or queue, the sweep
+/// one whose worker is gone. A check its worker still holds is left to that worker.
+/// The check is closed even when its record cannot be written.
+async fn finish_abandoned(
+    tenant: &str,
+    event: &str,
+    id: &str,
+    comparison: &Comparison,
+) -> Result<bool> {
+    let setup = AuditDeadline::database();
+    let mut c = setup
+        .run(async { get_hasura_pool().await.get().await })
+        .await??;
+    let lock = setup.run(c.transaction()).await??;
+    let Some(requested_by) = setup.run(hold(&lock, tenant, event, id)).await?? else {
+        return Ok(false);
+    };
+    let written = AuditDeadline::database()
+        .run(checks::audit_record(
+            tenant,
+            event,
+            id,
+            "tsf-integrity",
+            &json!({"check_id":id,"requested_by":requested_by,"result":comparison}),
+        ))
+        .await;
+    if !matches!(written, Ok(Ok(()))) {
+        tracing::warn!(%event, check_id = id, "Integrity check result record could not be written");
+    }
+    let closed = AuditDeadline::database()
+        .run(finish(tenant, event, id, comparison))
+        .await??;
+    lock.commit().await?;
+    Ok(closed)
+}
+
+/// Takes the event's check lock in `lock`'s transaction and reads who requested the
+/// unfinished check `id`; `None` when another process holds the lock or the check is
+/// closed. The worker and every process that closes an abandoned check take it, so
+/// only one of them writes the check's result record.
+async fn hold(
+    lock: &Transaction<'_>,
+    tenant: &str,
+    event: &str,
+    id: &str,
+) -> Result<Option<String>> {
+    let acquired: bool = lock
+        .query_one(
+            "SELECT pg_try_advisory_xact_lock(hashtextextended($1,0))",
+            &[&format!("tsf-integrity:execute:{event}")],
+        )
+        .await?
+        .try_get(0)?;
+    if !acquired {
+        return Ok(None);
+    }
+    let row=lock.query_opt("SELECT requested_by FROM sequent_backend.tsf_integrity_check WHERE id=$1::text::uuid AND tenant_id=$2::text::uuid AND election_event_id=$3::text::uuid AND finished_at IS NULL",&[&id,&tenant,&event]).await?;
+    Ok(row.map(|found| found.try_get(0)).transpose()?)
 }
 
 async fn enter_maintenance(tenant: &str, event: &str, id: &str) -> Result<()> {
@@ -376,18 +460,9 @@ pub async fn execute(tenant: &str, event: &str, id: &str) -> Result<()> {
         .run(async { get_hasura_pool().await.get().await })
         .await??;
     let lock = setup.run(c.transaction()).await??;
-    let acquired: bool = setup
-        .run(lock.query_one(
-            "SELECT pg_try_advisory_xact_lock(hashtextextended($1,0))",
-            &[&format!("tsf-integrity:execute:{event}")],
-        ))
-        .await??
-        .try_get(0)?;
-    if !acquired {
+    let Some(requested_by) = setup.run(hold(&lock, tenant, event, id)).await?? else {
         return Ok(());
-    }
-    let Some(row)=setup.run(lock.query_opt("SELECT requested_by FROM sequent_backend.tsf_integrity_check WHERE id=$1::text::uuid AND tenant_id=$2::text::uuid AND election_event_id=$3::text::uuid AND finished_at IS NULL",&[&id,&tenant,&event])).await?? else{return Ok(())};
-    let requested_by: String = row.try_get(0)?;
+    };
     let mut comparison = match read_observation(Path::new(IMAGE_STATUS)) {
         Ok(observation) => compare(&observation, Utc::now().timestamp()),
         Err(error) => {
@@ -425,13 +500,34 @@ pub async fn execute(tenant: &str, event: &str, id: &str) -> Result<()> {
     Ok(())
 }
 
-/// Close checks whose worker is gone and retry deferred maintenance entries.
+/// Close checks whose worker is gone, each with a result record, and retry deferred
+/// maintenance entries. A check its worker still holds, and any left when the sweep's
+/// time is up, wait for the next sweep.
 pub async fn sweep() -> Result<()> {
-    let abandoned = serde_json::to_value(Comparison::unverifiable("The check did not complete"))?;
     let c = get_hasura_pool().await.get().await?;
-    c.execute("UPDATE sequent_backend.tsf_integrity_check SET finished_at=now(),outcome='unverifiable',result=$1 WHERE finished_at IS NULL AND started_at<now()-interval '300 seconds'",&[&abandoned]).await?;
+    let overdue=c.query("SELECT tenant_id::text,election_event_id::text,id::text FROM sequent_backend.tsf_integrity_check WHERE finished_at IS NULL AND started_at<now()-interval '300 seconds' ORDER BY started_at LIMIT 100",&[]).await?;
     let pending=c.query("SELECT tenant_id::text,election_event_id::text,id::text FROM sequent_backend.tsf_integrity_check WHERE safety_pending ORDER BY started_at LIMIT 100",&[]).await?;
     drop(c);
+    let abandoned = Comparison::unverifiable("The check did not complete");
+    let budget = AuditDeadline::after(Duration::from_secs(SWEEP_SECONDS));
+    for row in overdue {
+        let event: String = row.try_get(1)?;
+        let id: String = row.try_get(2)?;
+        let tenant: String = row.try_get(0)?;
+        match budget
+            .run(finish_abandoned(&tenant, &event, &id, &abandoned))
+            .await
+        {
+            Ok(Ok(_)) => {}
+            Ok(Err(error)) => {
+                tracing::warn!(%event, check_id = id, "Unfinished integrity check not closed: {error:#}");
+            }
+            Err(_) => {
+                tracing::warn!("Integrity check sweep stopped at its time limit");
+                break;
+            }
+        }
+    }
     for row in pending {
         let event: String = row.try_get(1)?;
         let id: String = row.try_get(2)?;
@@ -502,12 +598,20 @@ mod tests {
                 })
                 .collect(),
             containers: vec![
+                container("admin-portal", "admin-portal"),
                 container("b4", "b4"),
                 container("ballot-verifier", "ballot-verifier"),
                 container("braid", "trustee1"),
                 container("braid", "trustee2"),
+                container("graphql-engine", "hasura"),
                 container("harvest", "harvest"),
+                ContainerFacts {
+                    pod: "harvest-2".into(),
+                    ..container("harvest", "harvest")
+                },
                 container("keycloak", "keycloak"),
+                container("tls-endpoint", "tls-endpoint"),
+                container("voting-portal", "voting-portal"),
                 container("windmill", "windmill"),
                 container("windmill", "beat"),
             ],
@@ -564,11 +668,15 @@ mod tests {
                 .map(|p| (p.part.as_str(), p.running, p.required, p.outcome))
                 .collect::<Vec<_>>(),
             vec![
+                ("admin-portal", 1, 1, Outcome::Verified),
                 ("b4", 1, 1, Outcome::Verified),
                 ("ballot-verifier", 1, 1, Outcome::Verified),
                 ("braid", 2, 2, Outcome::Verified),
-                ("harvest", 1, 1, Outcome::Verified),
+                ("graphql-engine", 1, 1, Outcome::Verified),
+                ("harvest", 2, 2, Outcome::Verified),
                 ("keycloak", 1, 1, Outcome::Verified),
+                ("tls-endpoint", 1, 1, Outcome::Verified),
+                ("voting-portal", 1, 1, Outcome::Verified),
                 ("windmill", 2, 2, Outcome::Verified),
             ]
         );
@@ -577,7 +685,7 @@ mod tests {
         assert_eq!(stored["toe_reference"], "Sequent Voting Platform");
         assert_eq!(stored["digest_list_sha256"], "a".repeat(64));
         assert_eq!(stored["parts"][0]["outcome"], "verified");
-        assert_eq!(stored["parts"][0]["containers"][0]["pod"], "b4-1");
+        assert_eq!(stored["parts"][0]["containers"][0]["pod"], "admin-portal-1");
     }
 
     #[test]
@@ -618,8 +726,8 @@ mod tests {
     }
 
     #[test]
-    fn exactly_the_six_parts_must_be_present() {
-        let coverage = "The host image observation does not cover exactly the six TOE parts";
+    fn exactly_the_ten_parts_must_be_present() {
+        let coverage = "The host image observation does not cover exactly the ten TOE parts";
         let mut missing = matching();
         missing.parts.remove("braid");
         assert_unverifiable(&missing, coverage);
@@ -681,13 +789,17 @@ mod tests {
     #[test]
     fn missing_ready_containers_are_not_different_software() {
         for (part, detail) in [
+            ("admin-portal", "0 of the 1 required containers are ready"),
             ("b4", "0 of the 1 required containers are ready"),
             (
                 "ballot-verifier",
                 "0 of the 1 required containers are ready",
             ),
-            ("harvest", "0 of the 1 required containers are ready"),
+            ("graphql-engine", "0 of the 1 required containers are ready"),
+            ("harvest", "0 of the 2 required containers are ready"),
             ("keycloak", "0 of the 1 required containers are ready"),
+            ("tls-endpoint", "0 of the 1 required containers are ready"),
+            ("voting-portal", "0 of the 1 required containers are ready"),
             ("braid", "0 of the 2 required containers are ready"),
             ("windmill", "0 of the 2 required containers are ready"),
         ] {
@@ -695,7 +807,7 @@ mod tests {
             absent.containers.retain(|c| c.part != part);
             assert_part_unverifiable(&absent, part, detail);
         }
-        for part in ["braid", "windmill"] {
+        for part in ["braid", "harvest", "windmill"] {
             let mut short = matching();
             let position = short
                 .containers
@@ -712,7 +824,7 @@ mod tests {
         assert_part_unverifiable(
             &with("harvest", |c| c.ready = false),
             "harvest",
-            "0 of the 1 required containers are ready",
+            "0 of the 2 required containers are ready",
         );
         let comparison = compare(&with("harvest", |c| c.ready = false), NOW);
         let harvest = comparison
@@ -720,7 +832,7 @@ mod tests {
             .iter()
             .find(|p| p.part == "harvest")
             .unwrap();
-        assert_eq!(harvest.running, 1);
+        assert_eq!(harvest.running, 2);
     }
 
     #[test]

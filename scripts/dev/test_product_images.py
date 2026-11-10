@@ -21,13 +21,31 @@ def runtime_stage(dockerfile: str) -> str:
     return dockerfile.rsplit("\nFROM ", 1)[1]
 
 
+def named_stage(dockerfile: str, name: str) -> str:
+    return dockerfile.split(f" AS {name}\n", 1)[1].split("\nFROM ", 1)[0]
+
+
 class ProductImageTests(unittest.TestCase):
     def test_account_creating_layers_see_source_date_epoch(self):
         for path in ACCOUNT_CREATING_IMAGES:
             with self.subTest(path=path):
-                stage = runtime_stage((ROOT / path).read_text())
-                install = stage.index("apt-get install")
-                self.assertIn("chromium", stage[install:].split("\n", 1)[0])
+                dockerfile = (ROOT / path).read_text()
+                # The runtime stage installs, from /tmp/debs, the packages that
+                # debs-runtime-download fetched, Chromium among them.
+                self.assertRegex(
+                    named_stage(dockerfile, "debs-runtime-download"),
+                    r"(?m)^\s+chromium \\$",
+                )
+                self.assertIn(
+                    "COPY --from=debs-runtime-download /debs/*.deb /\n",
+                    named_stage(dockerfile, "debs-runtime"),
+                )
+                stage = runtime_stage(dockerfile)
+                install = stage.index(" --no-download install ")
+                self.assertIn(
+                    "COPY --from=debs-runtime / /tmp/debs/\n", stage[:install]
+                )
+                self.assertIn("/tmp/debs/*.deb", stage[install:].split("\n", 1)[0])
                 self.assertIn("ARG SOURCE_DATE_EPOCH\n", stage[:install])
 
 

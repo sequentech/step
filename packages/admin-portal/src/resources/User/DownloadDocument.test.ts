@@ -28,6 +28,8 @@ jest.mock("@/providers/AuthContextProvider", () => ({
     AuthContext: require("react").createContext({isAuthorized: () => true}),
 }))
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
+const mockNotify = jest.fn()
+jest.mock("react-admin", () => ({useNotify: () => mockNotify}))
 jest.mock(
     "@sequentech/ui-essentials",
     () => ({
@@ -60,12 +62,15 @@ jest.mock("@/components/election-event/export-data/PasswordDialog", () => ({
 
 let document: GetDocumentQuery["sequent_backend_document"][number] | undefined
 let requestedOperations: string[]
+// When set, the server refuses the download with this message.
+let fetchDocumentRefusal: string | undefined
 let client: ApolloClient<NormalizedCacheObject>
 
 beforeEach(() => {
     jest.clearAllMocks()
     mockTenantId = "tenant"
     requestedOperations = []
+    fetchDocumentRefusal = undefined
     document = {name: "report.epdf", annotations: {access: {password_secret_id: "vault-id"}}}
     client = new ApolloClient({
         cache: new InMemoryCache({addTypename: false}),
@@ -73,6 +78,18 @@ beforeEach(() => {
             (operation) =>
                 new Observable((observer) => {
                     requestedOperations.push(operation.operationName)
+                    if (operation.operationName === "FetchDocument" && fetchDocumentRefusal) {
+                        observer.next({
+                            errors: [
+                                {
+                                    message: fetchDocumentRefusal,
+                                    extensions: {code: "InternalServerError"},
+                                },
+                            ],
+                        } as never)
+                        observer.complete()
+                        return
+                    }
                     const responses: Record<string, object> = {
                         GetDocument: {sequent_backend_document: document ? [document] : []},
                         FetchDocument: {
@@ -160,4 +177,30 @@ it("waits for committed metadata and preserves instructions for a legacy encrypt
     expect(done).not.toHaveBeenCalled()
     fireEvent.click(screen.getByText("Close"))
     expect(done).toHaveBeenCalledTimes(1)
+})
+
+it("explains that a document with decoded ballots waits for post-processing and ends the download", async () => {
+    fetchDocumentRefusal =
+        "This operation requires electoral phase PostProcessing; current phase is Evaluation"
+    const done = jest.fn()
+    renderDownload(done)
+    await waitFor(() => expect(done).toHaveBeenCalledTimes(1))
+    expect(mockNotify).toHaveBeenCalledTimes(1)
+    expect(mockNotify).toHaveBeenCalledWith("refusals.documentWaitsForPostProcessing", {
+        type: "error",
+    })
+    expect(downloadUrl).not.toHaveBeenCalled()
+})
+
+it("keeps waiting while the phase is changing, for the next poll to ask again", async () => {
+    fetchDocumentRefusal = "Election safety state is changing; retry the operation"
+    const done = jest.fn()
+    renderDownload(done)
+    await waitFor(() => expect(requestedOperations).toContain("FetchDocument"))
+    await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+    })
+    expect(mockNotify).not.toHaveBeenCalled()
+    expect(done).not.toHaveBeenCalled()
+    expect(downloadUrl).not.toHaveBeenCalled()
 })

@@ -5,6 +5,46 @@ import englishTranslation, {TranslationType} from "./en"
 
 const galegoTranslation: TranslationType = {
     translations: {
+        electionRevoting: {
+            title: "Renovación do voto",
+            description:
+                "Durante a preparación, antes de que comece a votación en calquera canle deste evento electoral, pode desactivar a renovación do voto dunha elección: cada votante poderá entón emitir un só voto. A renovación do voto non se pode volver activar, e no rexistro electoral queda constancia de quen a desactivou. A xunta electoral debe aprobar a configuración actualizada antes de que comece a votación.",
+            loading: "Cargando a configuración da renovación do voto",
+            readFailed:
+                "Non se puido ler a configuración da renovación do voto das eleccións. Recargue a páxina antes de facer cambios.",
+            empty: "Este evento electoral non ten eleccións.",
+            election: "Elección",
+            state: "Renovación do voto",
+            unlimited: "Permitida, votos ilimitados",
+            upTo: "Permitida, ata {{votes}} votos",
+            single: "Desactivada, un voto",
+            disable: "Desactivar a renovación do voto",
+            disableFor: "Desactivar a renovación do voto de {{name}}",
+            confirmTitle: "Desactivar a renovación do voto?",
+            confirm:
+                "Cada votante de {{name}} poderá emitir un só voto. A renovación do voto non se pode volver activar.",
+            disabled:
+                "Renovación do voto desactivada para {{name}}. A xunta electoral debe aprobar a configuración actualizada antes de que comece a votación.",
+            failed: "Non se desactivou a renovación do voto de {{name}}: {{reason}}",
+            failedNoReason:
+                "Non se desactivou a renovación do voto de {{name}}. Recargue a páxina e comprobe a fase da elección.",
+        },
+        refusals: {
+            documentName:
+                "O nome dun documento non pode conter / \\ ; # % ? nin caracteres de control. Cambie o nome e ténteo de novo.",
+            documentWaitsForPostProcessing:
+                "Este documento pode conter papeletas descodificadas. Poderase descargar cando comece o posprocesamento.",
+            resultsWaitForPostProcessing:
+                "A base de datos de resultados deste escrutinio pode conter papeletas descodificadas. Os resultados poderanse mostrar aquí cando comece o posprocesamento.",
+            ballotImagesWaitForPostProcessing:
+                "As imaxes das papeletas poderanse xerar cando comece o posprocesamento.",
+            phaseChanging:
+                "A fase ou o estado de seguridade do evento electoral está a cambiar. Ténteo de novo nun momento.",
+            resultsAlreadyCounted:
+                "Os resultados de {{election}} xa están contados e non se pode facer un novo escrutinio.",
+            resultsTallyUnfinished:
+                "Un escrutinio de resultados de {{election}} non rematou. Agarde a que remate ou cancéleo.",
+        },
         copyableFingerprint: {
             copy: "Copiar o SHA-256 completo",
             copied: "Copiouse o SHA-256 completo",
@@ -1667,12 +1707,30 @@ const galegoTranslation: TranslationType = {
                 },
             },
             permissions: {
-                "sign-start-tally": englishTranslation.translations.usersAndRolesScreen.permissions["sign-start-tally"],
-                "sign-import-election-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-import-election-data"],
-                "sign-export-execution-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-export-execution-data"],
-                "sign-delete-execution-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-delete-execution-data"],
-                "sign-read-voters-register": englishTranslation.translations.usersAndRolesScreen.permissions["sign-read-voters-register"],
-                "election-execution-export": englishTranslation.translations.usersAndRolesScreen.permissions["election-execution-export"],
+                "sign-start-tally":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-start-tally"
+                    ],
+                "sign-import-election-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-import-election-data"
+                    ],
+                "sign-export-execution-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-export-execution-data"
+                    ],
+                "sign-delete-execution-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-delete-execution-data"
+                    ],
+                "sign-read-voters-register":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-read-voters-register"
+                    ],
+                "election-execution-export":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "election-execution-export"
+                    ],
                 "voter-information-letter": "Xerar Carta de información para o votante",
                 "admin-user": "Administración",
                 "admin-dashboard-view": "Vista del Panel de Administración",
@@ -2464,6 +2522,12 @@ const galegoTranslation: TranslationType = {
                     entry: "Entrada",
                 },
                 emptyLogs: "Aínda non hai rexistros.",
+                managerKey: {
+                    title: "Chave do xestor do protocolo (SHA-256)",
+                    help: "Cada servidor de fiduciario rexistra esta pegada para o taboleiro {{board}} cando acepta a configuración da cerimonia de chaves. Compáreas por unha canle independente, non a través deste portal.",
+                    readError:
+                        "Non se puido ler a chave do xestor do protocolo desta cerimonia de chaves.",
+                },
             },
         },
         miruExport: {
@@ -3836,7 +3900,8 @@ const galegoTranslation: TranslationType = {
             },
             notices: {
                 ATTACK_REQUEST_ACTIVITY_UNAVAILABLE:
-                    englishTranslation.translations.monitoring.notices.ATTACK_REQUEST_ACTIVITY_UNAVAILABLE,
+                    englishTranslation.translations.monitoring.notices
+                        .ATTACK_REQUEST_ACTIVITY_UNAVAILABLE,
                 UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
                     "Os intentos con nomes de usuario non rexistrados non pertencen a ningún posto, polo que só se contan para todo o evento.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
@@ -4344,6 +4409,8 @@ const galegoTranslation: TranslationType = {
                     "Este evento utiliza cerimonias de claves automáticas. Os custodios non realizan estes pasos, polo que non se poden esixir as súas sinaturas. Para esixir as sinaturas dos custodios, utiliza cerimonias de claves manuais.",
                 forbidden: "Non ten permiso para este cambio.",
                 invalid: "O servidor rexeitou estes valores. Revíseos e ténteo de novo.",
+                signaturesFixed:
+                    "O número de sinaturas desta acción xa está gardado e non se pode cambiar. Recargue a páxina para velo.",
                 conflict:
                     "Outra persoa cambiouno mentres tanto. Recargue a páxina e ténteo de novo.",
                 lockedDown:
@@ -4363,11 +4430,15 @@ const galegoTranslation: TranslationType = {
                 "configuration-and-keys": "Configuración e chaves",
             },
             actions: {
-                "import-election-data": englishTranslation.translations.signing.actions["import-election-data"],
+                "import-election-data":
+                    englishTranslation.translations.signing.actions["import-election-data"],
                 "start-tally": englishTranslation.translations.signing.actions["start-tally"],
-                "export-execution-data": englishTranslation.translations.signing.actions["export-execution-data"],
-                "delete-execution-data": englishTranslation.translations.signing.actions["delete-execution-data"],
-                "read-voters-register": englishTranslation.translations.signing.actions["read-voters-register"],
+                "export-execution-data":
+                    englishTranslation.translations.signing.actions["export-execution-data"],
+                "delete-execution-data":
+                    englishTranslation.translations.signing.actions["delete-execution-data"],
+                "read-voters-register":
+                    englishTranslation.translations.signing.actions["read-voters-register"],
                 "initialize-voting": {
                     label: "Inicializar a votación",
                     short: "Inicialización",
@@ -4504,6 +4575,7 @@ const galegoTranslation: TranslationType = {
                 signaturesNeededHelp:
                     "Cada asinante usa o seu certificado dixital. Cada $t(signing.terms.post) ten polo menos {{n}} persoas que poden asinar.",
                 signaturesNeededShortHelp: "Cada asinante usa o seu certificado dixital.",
+                signaturesFixed: "Este número queda fixo unha vez gardado.",
                 requesterSigning: "A persoa que a inicia tamén pode asinar",
                 expiresAfter: "Unha solicitude caduca despois de",
                 trusteesSign: "Os fiduciarios asinan este paso",
@@ -6218,7 +6290,7 @@ const galegoTranslation: TranslationType = {
         electoralLogConsole: {
             title: "Rexistro Electoral",
             subtitle:
-                "Explore o rexistro electoral e a urna dun evento electoral, ou consulte a súa base de datos do rexistro electoral. Nada nesta páxina modifica datos.",
+                "Explore o rexistro electoral dun evento electoral, ou consulte a súa base de datos do rexistro electoral. Nada nesta páxina modifica datos.",
             notAllowed:
                 "Precisa o permiso electoral-log-console-read para abrir o rexistro electoral.",
             tabs: {
@@ -6230,9 +6302,6 @@ const galegoTranslation: TranslationType = {
             table: "Táboa",
             tables: {
                 records: "Entradas",
-                ballots: "Papeletas",
-                voters: "Votantes",
-                queue: "Cola do Secuenciador",
             },
             order: {
                 "label": "Orde",
@@ -6242,22 +6311,14 @@ const galegoTranslation: TranslationType = {
             filters: {
                 statement_kind: "Tipo",
                 election_id: "Elección",
-                area_id: "ID de Área",
                 user_id: "ID de Usuario ou Votante",
                 ballot_id: "ID de Papeleta",
-                status: "Estado",
                 created_after: "Desde",
                 created_before: "Ata",
                 any: "Calquera",
                 apply: "Aplicar Filtros",
                 clear: "Limpar",
-                invalid:
-                    "Revise os filtros marcados: as datas deben ser válidas e os ID de área da urna deben ser UUID.",
-            },
-            statuses: {
-                valid: "Válida",
-                pending: "Pendente",
-                rejected: "Rexeitada",
+                invalid: "Revise os filtros marcados: as datas deben ser válidas.",
             },
             estimatedRows: "Unhas {{rows}} filas nesta táboa antes de filtrar.",
             personalDataHidden:

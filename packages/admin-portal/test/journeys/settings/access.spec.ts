@@ -19,15 +19,15 @@ const PREVIEW_DOCUMENT_ID = "50000000-0000-4000-8000-000000000002"
 const PREVIEW_URL = "https://voting.synthetic.example/preview/50000000"
 const TABS = [
     "ELECTION TYPES",
-    "VOTING CHANELS",
+    "VOTING CHANNELS",
+    "Configuration packages",
+    "Attack detection",
     "LANGUAGES",
     "LOCALIZATION",
     "Integrations",
     "Look & Feel",
     "TRUSTEES",
     "Countries",
-    "Backup / Restore",
-    "Previews",
 ]
 
 for (const [missing, roles] of [
@@ -82,8 +82,8 @@ test.describe("with settings access", () => {
 
     test("hides previews without the preview-read permission", async ({page, portal}) => {
         mockElectionTypes(portal)
-        await openSettings(page, portal, "Previews")
-        await expect(page.getByText("No Previews found", {exact: true})).toBeVisible()
+        await openSettings(page, portal)
+        await expect(page.getByRole("tab", {name: "Previews"})).toHaveCount(0)
         expect(portal.graphql.callsTo("sequent_backend_preview")).toEqual([])
     })
 })
@@ -156,7 +156,7 @@ test.describe("with messaging account access", () => {
         mockTenant(portal)
     })
 
-    test("shows the messaging tab after the voting channels", async ({page, portal}) => {
+    test("shows the messaging tab after attack detection", async ({page, portal}) => {
         mockElectionTypes(portal)
         portal.graphql.on("GetMessagingAccounts", () => ({
             data: {sequent_backend_messaging_account: []},
@@ -169,9 +169,9 @@ test.describe("with messaging account access", () => {
         }))
         await openSettings(page, portal, "MESSAGING")
         await expect(page.getByRole("tab")).toHaveText([
-            ...TABS.slice(0, 2),
+            ...TABS.slice(0, 4),
             "MESSAGING",
-            ...TABS.slice(2),
+            ...TABS.slice(4),
         ])
         await expect(page.getByText("No sending accounts yet.", {exact: true})).toBeVisible()
         expect(portal.graphql.callsTo("GetMessagingAccounts")[0].variables).toEqual({

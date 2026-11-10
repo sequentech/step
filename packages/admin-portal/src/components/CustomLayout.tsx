@@ -11,7 +11,8 @@ import {Sequent_Backend_Tenant} from "@/gql/graphql"
 import {useGetOne} from "react-admin"
 import cssInputLookAndFeel from "@/atoms/css-input-look-and-feel"
 import {useAtomValue, useSetAtom} from "jotai"
-import {applyConfigurationLanguagePolicy, ITenantSettings, ITenantTheme} from "@sequentech/ui-core"
+import {applyConfigurationLanguagePolicy, ITenantSettings} from "@sequentech/ui-core"
+import {adminPortalCustomCss} from "@/services/tenantLookAndFeel"
 import {ImportDataDrawer} from "./election-event/import-data/ImportDataDrawer"
 import {CreateElectionEventProvider} from "@/providers/CreateElectionEventContextProvider"
 import {CreateDataDrawer} from "./election-event/create/CreateElectionEventDrawer"
@@ -47,12 +48,13 @@ export const CustomCssReader: React.FC = () => {
 
     const setAtomValue = useSetAtom(cssInputLookAndFeel)
     const css = useAtomValue(cssInputLookAndFeel)
+    // None where the tenant requires signed configuration packages (see the helper).
+    const customCss = adminPortalCustomCss(tenantData)
     useEffect(() => {
-        const customCss = (tenantData?.annotations as ITenantTheme | undefined)?.css ?? ""
         if (css !== customCss) {
             setAtomValue(customCss)
         }
-    }, [tenantData?.annotations?.css, setAtomValue, css])
+    }, [customCss, setAtomValue, css])
 
     useEffect(() => {
         const settings = tenantData?.settings

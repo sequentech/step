@@ -14,6 +14,7 @@ use crate::traits::groups::ReplScalarOps;
 use crate::utils::error::Error;
 use crate::utils::serialization::Serializable;
 use canonical_derive::Canonical;
+use zeroize::Zeroizing;
 
 /**
  * Proof of equality plaintexts.
@@ -116,8 +117,10 @@ impl<C: Context, const W: usize> PlEqProof<C, W> {
     ) -> Result<PlEqProof<C, W>, Error> {
         let g = C::generator();
         let mut rng = C::get_rng();
-        let a_prime = <[C::Scalar; W]>::random(&mut rng);
-        let a = a_prime.mul(r);
+        // The nonces, and the product v * r below, reveal the randomness r
+        // (given the response): they are overwritten when dropped.
+        let a_prime = Zeroizing::new(<[C::Scalar; W]>::random(&mut rng));
+        let a = Zeroizing::new(a_prime.mul(r));
         let big_a_g = g.repl_exp(&a);
         let big_a_z = z.repl_exp(&a);
 
@@ -127,7 +130,7 @@ impl<C: Context, const W: usize> PlEqProof<C, W> {
         let input: Vec<&[u8]> = input.iter().map(Vec::as_slice).collect();
         let v = C::G::hash_to_scalar(&input, &dsts)?;
 
-        let vr = v.repl_mul(r);
+        let vr = Zeroizing::new(v.repl_mul(r));
         let k = vr.add(&a);
 
         Ok(PlEqProof::new(big_a, k))

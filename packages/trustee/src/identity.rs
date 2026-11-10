@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! The trustee's keys file: written by `trustee generate`, read by `trustee
-//! start`. Its content is never logged; its public keys are.
+//! start`. Its content is never logged; its public keys are. The copies of its
+//! text this module holds are overwritten with zero when they are dropped.
 
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
@@ -13,6 +14,7 @@ use std::path::Path;
 use anyhow::{Context as _, Result};
 use protocol_board::{TrusteePublicKeys, TrusteeSecrets};
 use tracing::info;
+use zeroize::Zeroizing;
 
 /// Readable and writable by its owner only.
 const KEYS_FILE_MODE: u32 = 0o600;
@@ -23,7 +25,7 @@ const KEYS_FILE_MODE: u32 = 0o600;
 /// error, so that the output can be stored as it is.
 pub(crate) fn generate(path: Option<&Path>) -> Result<()> {
     let secrets = TrusteeSecrets::generate();
-    let keys_file = secrets.to_toml()?;
+    let keys_file = Zeroizing::new(secrets.to_toml()?);
     let public_keys = secrets.public_keys()?;
     match path {
         Some(path) => {
@@ -44,8 +46,10 @@ pub(crate) fn generate(path: Option<&Path>) -> Result<()> {
 /// The secrets of the keys file at `path`, which must exist: a trustee never
 /// runs on secrets it made up at start.
 pub(crate) fn load(path: &Path) -> Result<TrusteeSecrets> {
-    let contents = fs::read_to_string(path)
-        .with_context(|| format!("reading the keys file {}", path.display()))?;
+    let contents =
+        Zeroizing::new(fs::read_to_string(path).with_context(|| {
+            format!("reading the keys file {}", path.display())
+        })?);
     let secrets = TrusteeSecrets::parse(&contents)
         .with_context(|| format!("the keys file {}", path.display()))?;
     let public_keys = secrets.public_keys()?;
@@ -74,7 +78,7 @@ pub(crate) fn write_new(path: &Path, contents: &str) -> Result<()> {
 }
 
 /// The public keys under the names of the `trustee` columns that store them.
-fn print_public_keys(
+pub(crate) fn print_public_keys(
     out: &mut impl Write,
     public_keys: &TrusteePublicKeys,
 ) -> io::Result<()> {

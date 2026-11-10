@@ -22,17 +22,23 @@ test("voter ballot reads require a live published style within every JWT scope",
     )
     assert.deepEqual(permission.filter, {
         _and: [
-            {election_event_id: {_eq: "X-Hasura-Election-Event-Id"}},
-            {tenant_id: {_eq: "X-Hasura-Tenant-Id"}},
-            {area_id: {_eq: "X-Hasura-Area-Id"}},
-            {election_id: {_in: "X-Hasura-Authorized-Election-Ids"}},
-            {deleted_at: {_is_null: true}},
             {
-                ballot_publication: {
-                    published_at: {_is_null: false},
-                    deleted_at: {_is_null: true},
-                },
+                _and: [
+                    {election_event_id: {_eq: "X-Hasura-Election-Event-Id"}},
+                    {tenant_id: {_eq: "X-Hasura-Tenant-Id"}},
+                    {area_id: {_eq: "X-Hasura-Area-Id"}},
+                    {election_id: {_in: "X-Hasura-Authorized-Election-Ids"}},
+                    {deleted_at: {_is_null: true}},
+                    {
+                        ballot_publication: {
+                            published_at: {_is_null: false},
+                            deleted_at: {_is_null: true},
+                        },
+                    },
+                ],
             },
+            {election_event_id: {_eq: "X-Hasura-Election-Event-Id"}},
+            {lifecycle_access: {voter_allowed: {_eq: true}}},
         ],
     })
     // The verifier still needs the signed payload for eligible published ballots.
@@ -55,7 +61,10 @@ test("publication eligibility cannot be borrowed from another tenant or event", 
 })
 
 test("publication managers keep drafts and deleted styles within their labels", () => {
-    for (const role of ["admin-user", "publish-read", "publish-write"]) {
+    assert.ok(
+        !metadata.select_permissions.some(({role}) => role === "admin-user")
+    )
+    for (const role of ["publish-read", "publish-write"]) {
         const {permission} = metadata.select_permissions.find(
             (item) => item.role === role
         )

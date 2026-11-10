@@ -262,6 +262,8 @@ const frenchTranslation: TranslationType = {
                     "Le style du bulletin de vote n'est pas disponible. Veuillez contacter le support.",
                 NO_AUDITABLE_BALLOT:
                     "Aucun bulletin de vote vérifiable n'est disponible. Veuillez contacter le support.",
+                AUDIT_BALLOT:
+                    "L'urne n'a pas pu confirmer la vérification de ce bulletin. Veuillez réessayer plus tard ou contacter le support.",
                 INCONSISTENT_HASH:
                     "Une erreur est survenue lors du calcul du hachage du bulletin. L'identifiant du bulletin ({{ballotId}}) ne correspond pas au hachage du bulletin vérifiable ({{auditableBallotHash}}). Veuillez signaler ce problème au service d'aide.",
                 ELECTION_EVENT_NOT_OPEN:

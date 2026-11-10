@@ -225,6 +225,25 @@ it("reports an upload URL request failure without issuing a PUT", async () => {
     expect(screen.getByLabelText("electionEventScreen.import.sha")).toBeEnabled()
 })
 
+it("explains a refused file name in the admin's language, without the server's words", async () => {
+    const callbacks = renderImport()
+    const text =
+        "A document name cannot contain / \\ ; # % ? or a control character. Rename it and try again."
+    mockGetUploadUrl.mockRejectedValueOnce(
+        Object.assign(new Error(text), {
+            graphQLErrors: [{message: text, extensions: {code: "invalid-document-name"}}],
+        })
+    )
+    uploadFile()
+    await waitFor(() =>
+        expect(mockNotify).toHaveBeenCalledWith("refusals.documentName", {type: "error"})
+    )
+    expect(mockNotify).not.toHaveBeenCalledWith(text, expect.anything())
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(callbacks.uploadCallback).not.toHaveBeenCalled()
+    expect(screen.getByRole("button", {name: "electionEventScreen.import.import"})).toBeDisabled()
+})
+
 it.each([
     [
         "missing URL",

@@ -3,11 +3,14 @@
 
 //! The routes of protected actions on the migrated test database: with the
 //! action's rule on they answer `signing_request` and change nothing else;
-//! with it off they run as before. Generating a publication cancels the
-//! one waiting to be published.
+//! with no rule to sign under they are refused. Generating a publication
+//! cancels the one waiting to be published.
 
+use crate::request_boundaries::{
+    is_isolated_child, run_isolated_with_postgres,
+};
 use crate::route_services::rows::{self, Event};
-use crate::route_services::{json, post, Services};
+use crate::route_services::{http, json, post, Services};
 use crate::test_claims::Claims;
 use chrono::Utc;
 use deadpool_postgres::Pool;
@@ -239,15 +242,16 @@ async fn closing_a_post_answers_its_signing_request_and_changes_nothing() {
 }
 
 #[rocket::async_test]
-async fn opening_a_post_with_the_rule_off_runs_the_status_change_as_before() {
+async fn opening_a_post_without_a_rule_is_refused_and_changes_nothing() {
     let services = Services::on_test_database().await;
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
-    let election = post_of(&services.hasura, &event, "rule-off").await;
+    let election = post_of(&services.hasura, &event, "no-rule").await;
+    let before = election_status(&services.hasura, &election).await;
     let response = post(
         &client,
         "/update-election-voting-status",
-        &gold(&event, &[Permissions::ELECTION_STATE_WRITE], "rule-off"),
+        &gold(&event, &[Permissions::ELECTION_STATE_WRITE], "no-rule"),
         &json!({
             "election_event_id": event.election_event_id,
             "election_id": election,
@@ -256,11 +260,11 @@ async fn opening_a_post_with_the_rule_off_runs_the_status_change_as_before() {
         }),
     )
     .await;
-    // The status service ran: this event has no bulletin board to post to.
     let (status, body) = json(response).await;
-    assert_eq!(status, Status::InternalServerError);
-    assert_eq!(body["message"], "Could not update voting status.");
-    assert_eq!(body["extensions"]["code"], "InternalServerError");
+    assert_eq!(status, Status::BadRequest, "{body}");
+    assert_eq!(body["message"], "a rule needs at least one signature");
+    assert_eq!(body["extensions"]["code"], "invalid");
+    assert_eq!(election_status(&services.hasura, &election).await, before);
     assert_eq!(
         rows::query(
             &services.hasura,
@@ -275,8 +279,7 @@ async fn opening_a_post_with_the_rule_off_runs_the_status_change_as_before() {
 }
 
 #[rocket::async_test]
-async fn closing_a_closed_post_with_the_rule_off_answers_ok_and_changes_nothing(
-) {
+async fn closing_a_closed_post_is_refused_and_changes_nothing() {
     let services = Services::on_test_database().await;
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
@@ -291,8 +294,6 @@ async fn closing_a_closed_post_with_the_rule_off_answers_ok_and_changes_nothing(
     )
     .await;
     let before = election_status(&services.hasura, &election).await;
-    // The close is a no-op: no channel changes, so nothing goes to the
-    // bulletin board, and the route still asks the sealer to run.
     let (status, body) = json(
         post(
             &client,
@@ -308,8 +309,14 @@ async fn closing_a_closed_post_with_the_rule_off_answers_ok_and_changes_nothing(
         .await,
     )
     .await;
-    assert_eq!(status, Status::Ok, "{body}");
-    assert_eq!(body, json!({"election_id": election}));
+    assert_eq!(status, Status::BadRequest, "{body}");
+    assert_eq!(
+        body,
+        json!({
+            "message": "The ONLINE channel is already CLOSED.",
+            "extensions": {"reason": "transition", "code": "invalid"},
+        })
+    );
     assert_eq!(election_status(&services.hasura, &election).await, before);
 }
 
@@ -355,10 +362,41 @@ async fn initializing_a_post_answers_its_signing_request_without_a_tally() {
 #[rocket::async_test]
 async fn publishing_waits_for_signatures_and_a_new_publication_cancels_the_request(
 ) {
-    let services = Services::on_test_database().await;
+    const TEST: &str = "signing_action_routes::publishing_waits_for_signatures_and_a_new_publication_cancels_the_request";
+    // The configuration snapshot reads the process-wide Keycloak pool.
+    if !is_isolated_child() {
+        run_isolated_with_postgres(TEST, "http://127.0.0.1:9", true);
+        return;
+    }
+    let services = Services::on_global_test_database().await;
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
     event.election(&services.hasura).await;
+    event.configuration_package(&services.hasura).await;
+    // What the approval materializes in the event's realm before it is signed.
+    let realm = event.realm();
+    let realm_path = format!("/admin/realms/{realm}");
+    let token_path = "/realms/master/protocol/openid-connect/token";
+    let peer = http::HttpServer::start(vec![
+        http::Exchange::json("POST", token_path, 200, http::token_json()),
+        http::Exchange::json("POST", token_path, 200, http::token_json()),
+        http::Exchange::json(
+            "GET",
+            &format!("{realm_path}/localization"),
+            200,
+            json!([]),
+        ),
+        http::Exchange::json(
+            "GET",
+            &format!("{realm_path}/users/profile"),
+            200,
+            json!({}),
+        ),
+        http::Exchange::json("GET", &realm_path, 200, json!({"realm": realm})),
+        http::Exchange::json("PUT", &realm_path, 204, json!({})),
+    ]);
+    std::env::set_var("KEYCLOAK_URL", &peer.url);
+    std::env::set_var("WINDMILL_SELF_TEST_TLS_ENDPOINTS", "synthetic");
     rule(
         &services.hasura,
         &event,
@@ -420,6 +458,7 @@ async fn publishing_waits_for_signatures_and_a_new_publication_cancels_the_reque
     assert_eq!(status, Status::Ok, "{body}");
     let (_, state, ..) = request(&services.hasura, &id).await;
     assert_eq!(state, "cancelled");
+    peer.finish();
 }
 
 #[rocket::async_test]
@@ -430,24 +469,39 @@ async fn the_whole_event_does_not_open_or_close_while_a_post_needs_signatures()
     let event = rows::event(&services.hasura).await;
     rule(&services.hasura, &event, SigningAction::CloseVoting, 2).await;
     let claims = gold(&event, &[Permissions::ELECTION_STATE_WRITE], "any");
-    let closing = json!({
-        "election_event_id": event.election_event_id,
-        "voting_status": "CLOSED",
-    });
-    let (status, body) = json(
-        post(&client, "/update-event-voting-status", &claims, &closing).await,
-    )
-    .await;
-    assert_eq!(status, Status::Conflict);
-    assert_eq!(body["extensions"]["code"], json!("signing-required"));
-    // Opening needs no signatures here, so the event-level change runs (and
+    // Opening and closing always need signatures, with or without a rule.
+    for voting_status in ["CLOSED", "OPEN"] {
+        let (status, body) = json(
+            post(
+                &client,
+                "/update-event-voting-status",
+                &claims,
+                &json!({
+                    "election_event_id": event.election_event_id,
+                    "voting_status": voting_status,
+                }),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(status, Status::Conflict, "{body}");
+        assert_eq!(body["extensions"]["code"], json!("signing-required"));
+        assert!(
+            body["message"]
+                .as_str()
+                .unwrap()
+                .ends_with("needs signatures: start it for each Post."),
+            "{body}"
+        );
+    }
+    // Pausing is not a signing action, so the event-level change runs (and
     // fails only for want of a bulletin board).
-    let opening = json!({
+    let pausing = json!({
         "election_event_id": event.election_event_id,
-        "voting_status": "OPEN",
+        "voting_status": "PAUSED",
     });
     let response =
-        post(&client, "/update-event-voting-status", &claims, &opening).await;
+        post(&client, "/update-event-voting-status", &claims, &pausing).await;
     assert_ne!(response.status(), Status::Conflict);
 }
 
@@ -551,6 +605,7 @@ async fn approving_a_voter_answers_its_signing_request() {
 /// contract's error shape, `signing-required` while signing applies and
 /// `signatures-short` when a package without signing has too few uploaded
 /// signatures.
+#[cfg(feature = "plugins")]
 #[test]
 fn a_refused_send_answers_its_code() {
     use crate::routes::miru_plugin::transmission_failure;
@@ -637,15 +692,26 @@ async fn a_key_step_commits_its_outcome_and_answers_the_request_to_sign() {
     }
 }
 
-/// Hasura must receive a JSON action error and retain the initialization
-/// refusal, rather than replacing a plain-text webhook failure with a generic
-/// invalid-JSON message. Neither route may open the uninitialized Post.
+/// Hasura must receive a JSON action error and retain the refusal, rather
+/// than replacing a plain-text webhook failure with a generic invalid-JSON
+/// message. Neither route may open the uninitialized Post: the Post's says
+/// why, and the whole event's asks for each Post to be started.
 #[rocket::async_test]
 async fn initialization_refusals_are_readable_json_for_post_and_event_opening()
 {
-    for route in [
-        "/update-election-voting-status",
-        "/update-event-voting-status",
+    for (route, answer, code, says) in [
+        (
+            "/update-election-voting-status",
+            Status::BadRequest,
+            "invalid",
+            "initializ",
+        ),
+        (
+            "/update-event-voting-status",
+            Status::Conflict,
+            "signing-required",
+            "needs signatures",
+        ),
     ] {
         let services = Services::on_test_database().await;
         let client = services.client().await;
@@ -680,14 +746,14 @@ async fn initialization_refusals_are_readable_json_for_post_and_event_opening()
         )
         .await;
         let (status, body) = json(response).await;
-        assert_eq!(status, Status::BadRequest, "{body}");
+        assert_eq!(status, answer, "{body}");
         let message = body["message"]
             .as_str()
             .expect("Hasura action error message");
-        assert!(message.contains("initializ"), "{route}: {body}");
+        assert!(message.contains(says), "{route}: {body}");
         assert!(!message.contains("Stack backtrace"), "{body}");
         assert!(!message.contains("/packages/"), "{body}");
-        assert_eq!(body["extensions"]["code"], "VotingStatusValidation");
+        assert_eq!(body["extensions"]["code"], code);
         assert_eq!(election_status(&services.hasura, &election).await, before);
     }
 }

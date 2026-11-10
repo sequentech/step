@@ -28,7 +28,6 @@ const tagalogTranslation = {
             dragDropOption: "O i-drag at i-drop ito dito",
             importErrorDescription:
                 "Nagkaroon ng problema sa pag-import ng sinisiyasat na balota. Tama ba ang napili mong file?",
-            importErrorMoreInfo: "Karagdagang impormasyon",
             importErrorTitle: "Error",
             ciphertextErrorTitle: "Nabigo ang pagberipika ng balota",
             ciphertextErrorDescription:

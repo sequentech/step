@@ -5,6 +5,8 @@
 //! an event counts as, the 15-minute bucket it falls in, and that a delivery
 //! counts once however often it is delivered.
 
+#[path = "support/deletion.rs"]
+mod deletion;
 #[path = "support/schema.rs"]
 mod schema;
 
@@ -210,6 +212,7 @@ async fn event(pool: &Pool, seed: u32) -> (Uuid, Uuid) {
 async fn remove(pool: &Pool, (tenant, election_event): (Uuid, Uuid)) {
     let mut client = pool.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
+    deletion::authorize_deletion(&tx, tenant, election_event).await;
     delete_election_event(&tx, &tenant.to_string(), &election_event.to_string())
         .await
         .unwrap();

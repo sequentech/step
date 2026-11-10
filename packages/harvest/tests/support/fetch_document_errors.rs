@@ -44,6 +44,19 @@ fn a_refused_permission_keeps_its_status_and_message() {
 }
 
 #[test]
+fn a_document_waiting_for_its_phase_keeps_its_status_and_message() {
+    let message = "This operation requires electoral phase PostProcessing; \
+                   current phase is Evaluation";
+    assert_eq!(
+        body(Status::Conflict, message),
+        (
+            Status::Conflict,
+            json!({"message": message, "extensions": {"code": "InternalServerError"}})
+        )
+    );
+}
+
+#[test]
 fn other_failures_keep_their_status_without_internal_details() {
     let (status, value) = body(
         Status::InternalServerError,

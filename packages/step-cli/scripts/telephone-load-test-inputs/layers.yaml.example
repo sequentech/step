@@ -69,9 +69,9 @@ setup:
   # run — see cleanup_telephone_load_test.py's tenants.json, whose entries
   # you can copy straight in here) to ALSO provision this election event
   # into, alongside tenant_id itself / the new_tenants brand-new tenants
-  # above. Unlike new_tenants, these are never created or cloned — only
+  # above. Unlike new_tenants, these are never created — only
   # authenticated into and provisioned directly — so each one must already
-  # have its own registered trustees and Keycloak/roles config in place
+  # have its own registered trustees in place
   # (true for any tenant new_tenants itself created previously). A YAML
   # block list, one tenant ID per line, e.g.:
   #   use_existing_tenants:
@@ -114,6 +114,12 @@ setup:
   # which is scoped to one tenant's own realm.
   keycloak_admin_user: "****"  # Mandatory (if new_tenants > 0 or use_existing_tenants is set), defaults to $KEYCLOAK_ADMIN
   keycloak_admin_password: "****"  # Mandatory (if new_tenants > 0 or use_existing_tenants is set), defaults to $KEYCLOAK_ADMIN_PASSWORD
+
+  # Hasura's admin secret. The election event file is unsigned, and a tenant
+  # without a configuration_signing setting refuses unsigned files: when this
+  # is set, every target tenant without a setting gets one that takes them
+  # (a tenant with a setting keeps it).
+  hasura_admin_secret: "****"  # Mandatory (if new_tenants > 0), defaults to $HASURA_ADMIN_SECRET, then $KEYCLOAK_ADMIN_CLIENT_SECRET (the devcontainer's)
 
   # Needs "gold" acr for publish/voting-status; the devcontainer's
   # $KEYCLOAK_CLI_CLIENT_ID is a lower tier and will 403 on those two steps.

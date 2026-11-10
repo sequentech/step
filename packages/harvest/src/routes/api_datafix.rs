@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::routes::election_dates::refuse_data_under_signed_import;
 use crate::services::authorization::authorize;
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
+use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::connection::DatafixClaims;
 use sequent_core::services::keycloak::get_event_realm;
@@ -21,6 +23,23 @@ use windmill::services::external::api_datafix::{
 };
 use windmill::services::external::datafix_types::*;
 use windmill::services::external::utils::get_event_id_and_datafix_annotations;
+
+/// Where the tenant takes election data only through the signed import, the
+/// voters' register changes only by that import.
+async fn refuse_register_change(
+    tenant_id: &str,
+) -> Result<(), JsonErrorResponse> {
+    refuse_data_under_signed_import(tenant_id).await.map_err(
+        |(status, message)| {
+            error!("Refusing the register change: {message}");
+            DatafixResponse::error(if status == Status::Forbidden {
+                DatafixErrorCode::Forbidden
+            } else {
+                DatafixErrorCode::InternalError
+            })
+        },
+    )
+}
 
 #[instrument(skip_all)]
 #[post("/add-voter", format = "json", data = "<body>")]
@@ -41,6 +60,7 @@ pub async fn add_voter(
         error!("Error authorizing {e:?}");
         DatafixResponse::error(DatafixErrorCode::Forbidden)
     })?;
+    refuse_register_change(&claims.tenant_id).await?;
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
@@ -101,6 +121,7 @@ pub async fn update_voter(
         error!("Error authorizing {e:?}");
         DatafixResponse::error(DatafixErrorCode::Forbidden)
     })?;
+    refuse_register_change(&claims.tenant_id).await?;
 
     let mut keycloak_db_client: DbClient =
         get_keycloak_pool().await.get().await.map_err(|e| {
@@ -261,6 +282,7 @@ pub async fn delete_voter(
         error!("Error authorizing {e:?}");
         DatafixResponse::error(DatafixErrorCode::Forbidden)
     })?;
+    refuse_register_change(&claims.tenant_id).await?;
 
     let mut keycloak_db_client: DbClient =
         get_keycloak_pool().await.get().await.map_err(|e| {

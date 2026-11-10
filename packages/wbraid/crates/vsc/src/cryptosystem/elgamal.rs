@@ -11,12 +11,15 @@ use crate::traits::groups::GroupScalar;
 use crate::traits::groups::ReplGroupOps;
 use crate::utils::Error;
 use canonical_derive::Canonical;
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 /**
  * An `ElGamal` key pair.
  *
  * This struct represents a key pair in the `ElGamal` encryption scheme,
  * including the secret scalar value and public group element.
+ *
+ * The secret key is overwritten with zero when the key pair is dropped.
  *
  * See `EVS`: Definition 11.15
  *
@@ -55,6 +58,21 @@ impl<C: Context> KeyPair<C> {
         KeyPair { skey, pkey }
     }
 }
+
+impl<C: Context> Zeroize for KeyPair<C> {
+    /// Overwrite the secret key with zero; the public key is left unchanged.
+    fn zeroize(&mut self) {
+        self.skey.zeroize();
+    }
+}
+
+impl<C: Context> Drop for KeyPair<C> {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl<C: Context> ZeroizeOnDrop for KeyPair<C> {}
 
 impl<C: Context> KeyPair<C> {
     /// Construct a new key pair, generating fresh key material.
@@ -190,7 +208,7 @@ impl<C: Context> KeyPair<C> {
  * use cryptography::context::RistrettoCtx as RCtx;
  *
  * let keypair: KeyPair<RCtx> = KeyPair::generate();
- * let public_key: PublicKey<RCtx> = keypair.pkey;
+ * let public_key: PublicKey<RCtx> = keypair.pkey.clone();
  * let message = [RCtx::random_element(); 2];
  * let ciphertext = public_key.encrypt(&message);
  *
@@ -231,7 +249,8 @@ impl<C: Context> PublicKey<C> {
     /// ```
     pub fn encrypt<const W: usize>(&self, message: &[C::Element; W]) -> Ciphertext<C, W> {
         let mut rng = C::get_rng();
-        let r = <[C::Scalar; W]>::random(&mut rng);
+        // The randomness is overwritten with zero when dropped.
+        let r = Zeroizing::new(<[C::Scalar; W]>::random(&mut rng));
 
         self.encrypt_with_r(message, &r)
     }
@@ -263,8 +282,9 @@ impl<C: Context> PublicKey<C> {
         let g = C::generator();
 
         let u = g.repl_exp(r);
-        let v = self.y.repl_exp(r);
-        let v = message.mul(&v);
+        // The mask y^r reveals the message: it is overwritten when dropped.
+        let mask = Zeroizing::new(self.y.repl_exp(r));
+        let v = message.mul(&mask);
 
         Ciphertext([u, v])
     }
@@ -308,8 +328,10 @@ impl<C: Context> PublicKey<C> {
             ));
         }
 
-        let v = self.y.repl_exp(r);
-        let div = v.inv();
+        // The mask y^r and its inverse reveal the message: they are
+        // overwritten when dropped.
+        let mask = Zeroizing::new(self.y.repl_exp(r));
+        let div = Zeroizing::new(mask.inv());
 
         Ok(ciphertext.0[1].mul(&div))
     }
@@ -328,7 +350,9 @@ pub fn decrypt<C: Context, const W: usize>(
     v: &[C::Element; W],
     sk: &C::Scalar,
 ) -> [C::Element; W] {
-    let u_pow_neg_x = u.dist_exp(&sk.neg());
+    let neg_sk = Zeroizing::new(sk.neg());
+    // u^-x reveals the plaintext: it is overwritten when dropped.
+    let u_pow_neg_x = Zeroizing::new(u.dist_exp(&neg_sk));
 
     v.mul(&u_pow_neg_x)
 }
@@ -364,6 +388,14 @@ pub fn decrypt<C: Context, const W: usize>(
  */
 #[derive(Debug, PartialEq, Clone, Canonical)]
 pub struct Ciphertext<C: Context, const W: usize>(pub [[C::Element; W]; 2]);
+
+/// Zeroizing a ciphertext overwrites both parts with the identity element.
+impl<C: Context, const W: usize> Zeroize for Ciphertext<C, W> {
+    fn zeroize(&mut self) {
+        self.0.zeroize();
+    }
+}
+
 impl<C: Context, const W: usize> Ciphertext<C, W> {
     /// Construct a ciphertext with given values `u` and `v`.
     ///
@@ -393,9 +425,10 @@ impl<C: Context, const W: usize> Ciphertext<C, W> {
     #[must_use]
     pub fn re_encrypt(&self, r_n: &[C::Scalar; W], pk: &C::Element) -> Self {
         let g = C::generator();
-        // (g, y)^r
-        let one = [g, pk.clone()].map(|v| v.repl_exp(r_n));
-        let re_encrypted = self.0.mul(&one);
+        // (g, y)^r. These factors link the result to this ciphertext: they
+        // are overwritten when dropped.
+        let factors = Zeroizing::new([g, pk.clone()].map(|v| v.repl_exp(r_n)));
+        let re_encrypted = self.0.mul(&factors);
 
         Self(re_encrypted)
     }
@@ -472,6 +505,28 @@ mod tests {
     use crate::utils::serialization::{Deserializable, Serializable};
 
     #[test]
+    fn test_keypair_zeroize_ristretto() {
+        test_keypair_zeroize::<RCtx>();
+    }
+
+    #[test]
+    fn test_keypair_zeroize_p256() {
+        test_keypair_zeroize::<PCtx>();
+    }
+
+    /// The method the key pair's `Drop` calls clears the secret key only.
+    fn test_keypair_zeroize<C: Context>() {
+        use zeroize::Zeroize;
+        let mut keypair = KeyPair::<C>::generate();
+        let pkey = keypair.pkey.clone();
+        assert_ne!(keypair.skey, C::Scalar::zero());
+
+        keypair.zeroize();
+        assert_eq!(keypair.skey, C::Scalar::zero());
+        assert_eq!(keypair.pkey, pkey);
+    }
+
+    #[test]
     fn test_keypair_serialization_ristretto() {
         test_keypair_serialization::<RCtx>();
     }
@@ -505,6 +560,30 @@ mod tests {
     #[test]
     fn test_elgamal_serialization_and_decryption_p256() {
         test_elgamal_serialization_and_decryption::<PCtx>();
+    }
+
+    #[test]
+    fn test_re_encrypt_ristretto() {
+        test_re_encrypt::<RCtx>();
+    }
+
+    #[test]
+    fn test_re_encrypt_p256() {
+        test_re_encrypt::<PCtx>();
+    }
+
+    /// Re-encryption changes both parts of the ciphertext and keeps the message.
+    fn test_re_encrypt<Ctx: Context>() {
+        let keypair = KeyPair::<Ctx>::generate();
+        let message = [Ctx::random_element(), Ctx::random_element()];
+        let ciphertext: Ciphertext<Ctx, 2> = keypair.encrypt(&message);
+
+        let r = [Ctx::random_scalar(), Ctx::random_scalar()];
+        let re_encrypted = ciphertext.re_encrypt(&r, &keypair.pkey.y);
+
+        assert_ne!(re_encrypted.u(), ciphertext.u());
+        assert_ne!(re_encrypted.v(), ciphertext.v());
+        assert_eq!(keypair.decrypt(&re_encrypted), message);
     }
 
     fn test_keypair_serialization<Ctx: Context>() {

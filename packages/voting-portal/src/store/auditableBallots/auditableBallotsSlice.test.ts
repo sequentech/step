@@ -6,7 +6,9 @@ import type {IAuditableBallot} from "@sequentech/ui-core"
 import type {RootState} from "../store"
 import reducer, {
     AuditableBallotsState,
+    confirmBallotAudited,
     markBallotAudited,
+    selectIsBallotAuditConfirmed,
     selectIsBallotAudited,
     setAuditableBallot,
 } from "./auditableBallotsSlice"
@@ -15,6 +17,9 @@ const ballot = (ballotHash: string) => ({ballot_hash: ballotHash}) as IAuditable
 
 const isAudited = (state: AuditableBallotsState, electionId = "election") =>
     selectIsBallotAudited(electionId)({auditableBallots: state} as unknown as RootState)
+
+const isAuditConfirmed = (state: AuditableBallotsState, electionId = "election") =>
+    selectIsBallotAuditConfirmed(electionId)({auditableBallots: state} as unknown as RootState)
 
 const encrypted = (ballotHash: string, state?: AuditableBallotsState) =>
     reducer(
@@ -49,5 +54,17 @@ describe("auditableBallotsSlice", () => {
 
     it("marks nothing when there is no ballot", () => {
         expect(reducer(undefined, markBallotAudited("election"))).toEqual({})
+    })
+
+    it("keeps the ballot box's confirmation of an audit for that ballot only", () => {
+        expect(isAuditConfirmed(encrypted("first"))).toBe(false)
+
+        const confirmed = reducer(encrypted("first"), confirmBallotAudited("election"))
+        expect(isAuditConfirmed(confirmed)).toBe(true)
+        expect(isAudited(confirmed)).toBe(false)
+        expect(isAuditConfirmed(confirmed, "other")).toBe(false)
+
+        expect(isAuditConfirmed(encrypted("second", confirmed))).toBe(false)
+        expect(reducer(undefined, confirmBallotAudited("election"))).toEqual({})
     })
 })

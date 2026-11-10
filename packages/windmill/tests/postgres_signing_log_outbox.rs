@@ -529,6 +529,9 @@ static COMMITTED: Mutex<()> = Mutex::const_new(());
 async fn remove(pool: &Pool, scopes: &[Scope]) {
     let mut client = pool.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
+    // The lifecycle row of an event goes with it only in the server's own
+    // transaction.
+    windmill::postgres::trusted_write(&tx).await.unwrap();
     for s in scopes {
         tx.execute(
             "DELETE FROM sequent_backend.election_event WHERE id = $1",

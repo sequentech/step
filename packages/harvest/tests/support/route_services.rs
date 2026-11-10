@@ -110,6 +110,23 @@ impl Services {
         Self::with_pool(Arc::new(schema::pool().await))
     }
 
+    /// Both pools on the migrated test database, which the process-wide pools
+    /// the board gate uses open too. Only for a test in a child process of its
+    /// own, before anything opens those pools.
+    pub async fn on_global_test_database() -> Self {
+        let services = Self::on_test_database().await;
+        let database: String = rows::query(
+            &services.hasura,
+            "SELECT current_database() AS name",
+            &[],
+        )
+        .await[0]
+            .get("name");
+        std::env::set_var("HASURA_DB__DBNAME", &database);
+        std::env::set_var("KEYCLOAK_DB__DBNAME", &database);
+        services
+    }
+
     /// Pools whose connections are refused.
     pub fn without_database() -> Self {
         Self::with_pool(Arc::new(unreachable_pool()))

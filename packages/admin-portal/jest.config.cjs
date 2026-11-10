@@ -19,6 +19,8 @@ module.exports = {
         "^@/(.*)$": "<rootDir>/src/$1",
         "^@sequentech/ui-core$": "<rootDir>/../ui-core/src/types/VotingChannel.ts",
     },
+    // In jsdom the `browser` export condition applies, and yaml's browser build is ESM.
+    transformIgnorePatterns: ["/node_modules/(?!yaml/browser/)"],
     transform: {
         "^.+\\.[jt]sx?$": [
             "babel-jest",

@@ -262,6 +262,8 @@ const spanishTranslation: TranslationType = {
                     "El estilo de la papeleta no está disponible. Por favor, contacte con el soporte.",
                 NO_AUDITABLE_BALLOT:
                     "No hay una papeleta verificable disponible. Por favor, contacte con el soporte.",
+                AUDIT_BALLOT:
+                    "La urna no ha podido confirmar la auditoría de esta papeleta. Por favor, inténtelo más tarde o contacte con el soporte.",
                 INCONSISTENT_HASH:
                     "Hubo un error relacionado con el proceso de hash de la papeleta. El BallotId: {{ballotId}} no es coherente con el Hash de la Papeleta Verificable: {{auditableBallotHash}}. Por favor, informe de este problema al soporte.",
                 ELECTION_EVENT_NOT_OPEN:

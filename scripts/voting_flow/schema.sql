@@ -82,3 +82,31 @@ CREATE TABLE sequent_backend.lifecycle_fired (
 -- exercised with the complete migrations in the backend regression suite.
 CREATE FUNCTION sequent_backend.live_voting_close_allowed(uuid, uuid, uuid)
 RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT true $$;
+
+-- The election safety state that every voter operation reads first. The voter
+-- predicate keeps the phase, safety and service-lease terms of the production
+-- view; its self-test, audit-storage and attack-activity terms are exercised
+-- with the complete migrations in the Hasura database tests. A test that votes
+-- sets the lifecycle row and the service leases it relies on.
+CREATE TABLE sequent_backend.election_lifecycle (
+    tenant_id uuid NOT NULL,
+    election_event_id uuid PRIMARY KEY,
+    phase text NOT NULL DEFAULT 'preparation'
+        CHECK (phase IN ('preparation', 'execution', 'evaluation', 'post_processing')),
+    safety text NOT NULL DEFAULT 'recoverable'
+        CHECK (safety IN ('operational', 'recoverable', 'unrecoverable')),
+    generation bigint NOT NULL DEFAULT 0 CHECK (generation >= 0),
+    reason text,
+    UNIQUE (tenant_id, election_event_id)
+);
+CREATE TABLE sequent_backend.lifecycle_service_lease (
+    component text PRIMARY KEY CHECK (component IN ('harvest', 'windmill')),
+    expires_at timestamptz NOT NULL
+);
+CREATE VIEW sequent_backend.election_lifecycle_access AS
+SELECT l.tenant_id, l.election_event_id, l.phase, l.safety, l.generation,
+    (l.phase = 'execution' AND l.safety = 'operational'
+     AND (SELECT count(*) FROM sequent_backend.lifecycle_service_lease
+          WHERE component IN ('harvest', 'windmill') AND expires_at > clock_timestamp()) = 2
+    ) AS voter_allowed
+FROM sequent_backend.election_lifecycle l;

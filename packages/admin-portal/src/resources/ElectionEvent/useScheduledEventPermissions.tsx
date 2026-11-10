@@ -7,6 +7,7 @@ import {useContext} from "react"
 import {useGetOne} from "react-admin"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import {signedPackagesRequired} from "@/services/configurationSigningPolicy"
 
 export function useScheduledEventPermissions() {
     const [tenantId] = useTenantStore()
@@ -46,7 +47,8 @@ export function useScheduledEventPermissions() {
         {id: tenantId},
         {enabled: !!tenantId}
     )
-    const onlyLockdownPeriod = tenant?.settings?.configuration_signing?.policy === "required"
+    // A tenant without the setting requires them too, and so does one still loading.
+    const onlyLockdownPeriod = signedPackagesRequired(tenant)
 
     return {
         canWriteScheduledEvent,

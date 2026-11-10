@@ -8,12 +8,14 @@ use anyhow::{anyhow, ensure, Context, Result};
 use deadpool_postgres::Transaction;
 use protocol_board::BoardName;
 use rocket::{http::Status, serde::json::Json, State};
+use sequent_core::election_lifecycle::ElectoralPhase;
 use sequent_core::services::jwt::{decode_permission_labels, JwtClaims};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use uuid::Uuid;
+use windmill::services::election_lifecycle;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -27,6 +29,16 @@ pub struct ExportVerificationTranscriptOutput {
     document_id: String,
     url: String,
 }
+
+/// The event is not in post-processing: the refusal its caller reads.
+#[derive(Debug)]
+struct NotInPostProcessing(String);
+impl std::fmt::Display for NotInPostProcessing {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+impl std::error::Error for NotInPostProcessing {}
 
 fn failure(status: Status, message: &str) -> JsonError {
     ErrorResponse::new(
@@ -45,7 +57,8 @@ fn failure(status: Status, message: &str) -> JsonError {
 /// The caller chooses an existing board, never an address or object path.
 /// Public evidence is returned as a new private event document. Its retrieval
 /// is not a cryptographic verification verdict; independent anchors remain
-/// necessary when the verifier consumes the downloaded transcript.
+/// necessary when the verifier consumes the downloaded transcript. Exports
+/// start in post-processing, and the electoral log records each one.
 #[post("/export-verification-transcript", format = "json", data = "<body>")]
 pub async fn export_verification_transcript(
     claims: JwtClaims,
@@ -75,11 +88,15 @@ pub async fn export_verification_transcript(
         event,
         board,
         &decode_permission_labels(&claims),
+        &claims.hasura_claims.user_id,
     )
     .await;
     match result {
         Ok(Some(output)) => Ok(Json(output)),
         Ok(None) => Err(failure(Status::NotFound, "Protocol board not found")),
+        Err(error) if error.is::<NotInPostProcessing>() => {
+            Err(failure(Status::Conflict, &error.to_string()))
+        }
         Err(_) => {
             // Transport errors can contain presigned object URLs. Never log or
             // return their raw details, nor the transcript/document contents.
@@ -200,6 +217,7 @@ async fn export(
     event: Uuid,
     board: Uuid,
     labels: &[String],
+    user: &str,
 ) -> Result<Option<ExportVerificationTranscriptOutput>> {
     let mut client = services.databases.hasura().await.get().await?;
     let tx = client.transaction().await?;
@@ -208,6 +226,17 @@ async fn export(
     else {
         return Ok(None);
     };
+    // Post-processing is final: nothing moves the event back once checked.
+    election_lifecycle::require_phase(
+        &tx,
+        &tenant.to_string(),
+        &event.to_string(),
+        ElectoralPhase::PostProcessing,
+    )
+    .await
+    .map_err(|error| {
+        anyhow::Error::new(NotInPostProcessing(error.to_string()))
+    })?;
     // Read transaction ends before network I/O; board rows cannot be edited by
     // the board role. Re-check exactly the selected names before saving.
     tx.commit().await?;
@@ -239,8 +268,57 @@ async fn export(
     })
     .await
     .context("export storage timed out")??;
+    election_lifecycle::notice(
+        &tx,
+        &tenant,
+        &event,
+        "VerificationDataExported",
+        serde_json::json!({
+            "exported_by": user,
+            "protocol_board_id": board,
+            "document_id": output.document_id,
+            "sha256": hex::encode(voting_crypto::hash::hash_sha256(&bytes)?),
+        }),
+    )
+    .await?;
     tx.commit().await?;
     Ok(Some(output))
+}
+
+/// Records a download of exported verification data in `tx`, as its export
+/// is recorded. The export's own record says whether `document_id` is one;
+/// any other document records nothing.
+pub(crate) async fn record_download(
+    tx: &Transaction<'_>,
+    tenant: &str,
+    event: &str,
+    document_id: &str,
+    user: &str,
+) -> Result<()> {
+    let board = tx
+        .query_opt(
+            "SELECT details->'protocol_board_id' FROM sequent_backend.lifecycle_notice
+             WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid
+               AND kind='VerificationDataExported' AND details->>'document_id'=$3
+             LIMIT 1",
+            &[&tenant, &event, &document_id],
+        )
+        .await?;
+    if let Some(board) = board {
+        election_lifecycle::notice(
+            tx,
+            tenant,
+            event,
+            "VerificationDataDownloaded",
+            serde_json::json!({
+                "downloaded_by": user,
+                "protocol_board_id": board.get::<_, serde_json::Value>(0),
+                "document_id": document_id,
+            }),
+        )
+        .await?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

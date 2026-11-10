@@ -18,6 +18,7 @@ const settingsColumns = new Set([
     "is_archived",
     "administration_settings",
     "presentation",
+    "num_allowed_revotes",
 ])
 const settingsFields = new Set([
     ...Array.from(settingsColumns),

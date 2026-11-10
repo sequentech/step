@@ -15,35 +15,29 @@ import {
     toGridRows,
 } from "./ElectoralLogConsole"
 
-const ELECTION = "0499c208-1c9b-4a49-9a51-0d8f0bba2f5e"
-
 describe("electoral-log console filters", () => {
-    it("keep only the table's filled filters, with dates in seconds", () => {
+    it("keep only the filled filters, with dates in seconds", () => {
         const values = {
             statement_kind: " CastVote ",
-            area_id: "area",
-            status: "",
+            user_id: "",
             created_after: "2026-10-05T20:00:00Z",
         }
         expect(toConsoleFilters("records", values)).toEqual({
             statement_kind: "CastVote",
             created_after: 1791230400,
         })
-        expect(toConsoleFilters("queue", values)).toEqual({area_id: "area"})
-        expect(toConsoleFilters("voters", {})).toEqual({})
+        expect(toConsoleFilters("records", {})).toEqual({})
     })
 
-    it("refuse dates that do not parse and ballot-box IDs that are not UUIDs", () => {
+    it("refuse dates that do not parse", () => {
         expect(
-            invalidFilters("ballots", {
-                election_id: ELECTION,
-                area_id: "north",
+            invalidFilters("records", {
+                election_id: "not-a-uuid",
                 created_before: "yesterday",
                 user_id: "anything",
             })
-        ).toEqual(["area_id", "created_before"])
-        expect(invalidFilters("records", {election_id: "not-a-uuid"})).toEqual([])
-        expect(invalidFilters("queue", {created_before: "yesterday"})).toEqual([])
+        ).toEqual(["created_before"])
+        expect(invalidFilters("records", {created_after: "2026-10-05T20:00:00Z"})).toEqual([])
     })
 })
 

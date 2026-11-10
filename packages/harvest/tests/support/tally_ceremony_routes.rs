@@ -5,6 +5,9 @@
 //! the executions a recount records and the tasks it sends.
 
 use crate::adapters::memory::task_queue::MemoryTaskQueue;
+use crate::request_boundaries::{
+    is_isolated_child, run_isolated_with_postgres,
+};
 use crate::route_services::rows::{self, Event};
 use crate::route_services::{json, post, text, Services};
 use crate::test_claims::Claims;
@@ -21,6 +24,21 @@ fn admin(event: &Event, permission: Permissions) -> Claims {
     Claims::new(&event.tenant_id, USER_ID).roles([permission])
 }
 
+/// Runs the named test in a child process, the only place where the
+/// process-wide pool the board gate reads can be the test's database. True in
+/// the parent, which has nothing else to do.
+fn ran_in_child(test: &str) -> bool {
+    if is_isolated_child() {
+        return false;
+    }
+    run_isolated_with_postgres(
+        &format!("routes::tally_ceremony::route_tests::{test}"),
+        "http://127.0.0.1:9",
+        true,
+    );
+    true
+}
+
 async fn recount<'c>(
     client: &'c Client,
     event: &Event,
@@ -29,7 +47,10 @@ async fn recount<'c>(
     post(
         client,
         "/recount-tally-session",
-        &admin(event, Permissions::TALLY_RECOUNT_EXECUTE),
+        &Claims::new(&event.tenant_id, USER_ID).roles([
+            Permissions::TALLY_RECOUNT_EXECUTE,
+            Permissions::SIGNING_REQUESTS_CANCEL,
+        ]),
         &json!({
             "election_event_id": event.election_event_id,
             "tally_session_id": tally_session_id,
@@ -48,13 +69,43 @@ async fn tallied(services: &Services, status: &str) -> (Event, String, String) {
     (event, election_id, tally_session_id)
 }
 
+/// The event reaches Evaluation and the recount of `tally_session_id` waits
+/// for the board, which signs it: the same request passes the gate once.
+async fn board_signs_recount(
+    services: &Services,
+    client: &Client,
+    event: &Event,
+    tally_session_id: &str,
+) {
+    event
+        .board_rule(&services.hasura, SigningAction::StartTally)
+        .await;
+    event.enter_phase(&services.hasura, "evaluation").await;
+    let (status, body) =
+        text(recount(client, event, tally_session_id).await).await;
+    assert_eq!(status, Status::Conflict, "{body}");
+    assert!(services.tasks.sent().is_empty());
+    let answer: Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(answer["extensions"]["code"], "signing-required");
+    let request = answer["extensions"]["signing_request"]["id"]
+        .as_str()
+        .unwrap()
+        .parse()
+        .unwrap();
+    event.board_signs(&services.hasura, request).await;
+}
+
 #[rocket::async_test]
 async fn recounting_a_completed_tally_records_an_execution_and_sends_the_tally_task(
 ) {
-    let services = Services::on_test_database().await;
+    if ran_in_child("recounting_a_completed_tally_records_an_execution_and_sends_the_tally_task") {
+        return;
+    }
+    let services = Services::on_global_test_database().await;
     let client = services.client().await;
     let (event, election_id, tally_session_id) =
         tallied(&services, "SUCCESS").await;
+    board_signs_recount(&services, &client, &event, &tally_session_id).await;
 
     let (status, body) =
         json(recount(&client, &event, &tally_session_id).await).await;
@@ -84,11 +135,17 @@ async fn recounting_a_completed_tally_records_an_execution_and_sends_the_tally_t
 
 #[rocket::async_test]
 async fn a_recount_whose_task_cannot_be_sent_is_accepted_for_later_delivery() {
-    let services = Services::on_test_database()
+    if ran_in_child(
+        "a_recount_whose_task_cannot_be_sent_is_accepted_for_later_delivery",
+    ) {
+        return;
+    }
+    let services = Services::on_global_test_database()
         .await
         .with_tasks(MemoryTaskQueue::refusing());
     let client = services.client().await;
     let (event, _, tally_session_id) = tallied(&services, "SUCCESS").await;
+    board_signs_recount(&services, &client, &event, &tally_session_id).await;
 
     let (status, _) =
         json(recount(&client, &event, &tally_session_id).await).await;
@@ -104,11 +161,15 @@ async fn a_recount_whose_task_cannot_be_sent_is_accepted_for_later_delivery() {
 #[rocket::async_test]
 async fn a_recount_is_accepted_for_later_delivery_when_the_task_queues_are_unreachable(
 ) {
-    let services = Services::on_test_database()
+    if ran_in_child("a_recount_is_accepted_for_later_delivery_when_the_task_queues_are_unreachable") {
+        return;
+    }
+    let services = Services::on_global_test_database()
         .await
         .with_tasks(MemoryTaskQueue::unreachable());
     let client = services.client().await;
     let (event, _, tally_session_id) = tallied(&services, "SUCCESS").await;
+    board_signs_recount(&services, &client, &event, &tally_session_id).await;
 
     let (status, _) =
         json(recount(&client, &event, &tally_session_id).await).await;
@@ -123,9 +184,13 @@ async fn a_recount_is_accepted_for_later_delivery_when_the_task_queues_are_unrea
 
 #[rocket::async_test]
 async fn only_a_completed_tally_can_be_recounted() {
-    let services = Services::on_test_database().await;
+    if ran_in_child("only_a_completed_tally_can_be_recounted") {
+        return;
+    }
+    let services = Services::on_global_test_database().await;
     let client = services.client().await;
     let (event, _, tally_session_id) = tallied(&services, "IN_PROGRESS").await;
+    board_signs_recount(&services, &client, &event, &tally_session_id).await;
 
     assert_eq!(
         text(recount(&client, &event, &tally_session_id).await).await,
@@ -139,9 +204,15 @@ async fn only_a_completed_tally_can_be_recounted() {
 
 #[rocket::async_test]
 async fn a_completed_tally_without_execution_history_cannot_be_recounted() {
-    let services = Services::on_test_database().await;
+    if ran_in_child(
+        "a_completed_tally_without_execution_history_cannot_be_recounted",
+    ) {
+        return;
+    }
+    let services = Services::on_global_test_database().await;
     let client = services.client().await;
     let (event, _, tally_session_id) = tallied(&services, "SUCCESS").await;
+    board_signs_recount(&services, &client, &event, &tally_session_id).await;
     rows::execute(
         &services.hasura,
         "DELETE FROM sequent_backend.tally_session_execution
@@ -162,10 +233,14 @@ async fn a_completed_tally_without_execution_history_cannot_be_recounted() {
 
 #[rocket::async_test]
 async fn recounting_an_unknown_tally_session_is_not_found() {
-    let services = Services::on_test_database().await;
+    if ran_in_child("recounting_an_unknown_tally_session_is_not_found") {
+        return;
+    }
+    let services = Services::on_global_test_database().await;
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
     let missing = uuid::Uuid::new_v4().to_string();
+    board_signs_recount(&services, &client, &event, &missing).await;
 
     assert_eq!(
         text(recount(&client, &event, &missing).await).await,
@@ -222,8 +297,10 @@ async fn a_tally_ceremony_needs_at_least_one_election() {
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
 
+    // An initialization report needs no board approval, and the check is the
+    // same for every tally type.
     assert_eq!(
-        json(create(&client, &event, &[], "ELECTORAL_RESULTS").await).await,
+        json(create(&client, &event, &[], "INITIALIZATION_REPORT").await).await,
         tally_validation("Select at least one election to tally.")
     );
     let sessions = rows::query(
@@ -234,6 +311,64 @@ async fn a_tally_ceremony_needs_at_least_one_election() {
     )
     .await;
     assert!(sessions.is_empty());
+}
+
+/// A results tally of an election that a results tally counted, or that one
+/// has not finished, is refused before the board is asked to sign it.
+#[rocket::async_test]
+async fn a_second_results_tally_is_refused_before_the_board_is_asked() {
+    if ran_in_child(
+        "a_second_results_tally_is_refused_before_the_board_is_asked",
+    ) {
+        return;
+    }
+    let services = Services::on_global_test_database().await;
+    let client = services.client().await;
+    for (status, refusal) in [
+        (
+            "SUCCESS",
+            "its results are already counted, and a recount is not available.",
+        ),
+        (
+            "IN_PROGRESS",
+            "a results tally of it has not finished. Wait until it finishes, \
+             or cancel it.",
+        ),
+    ] {
+        let (event, election_id, _) = tallied(&services, status).await;
+        event
+            .board_rule(&services.hasura, SigningAction::StartTally)
+            .await;
+        event.enter_phase(&services.hasura, "evaluation").await;
+
+        let response = post(
+            &client,
+            "/create-tally-ceremony",
+            &Claims::new(&event.tenant_id, USER_ID).roles([
+                Permissions::ADMIN_CEREMONY,
+                Permissions::SIGNING_REQUESTS_CANCEL,
+            ]),
+            &json!({
+                "election_event_id": event.election_event_id,
+                "election_ids": [election_id],
+                "tally_type": "ELECTORAL_RESULTS",
+            }),
+        )
+        .await;
+        assert_eq!(
+            json(response).await,
+            tally_validation(&format!("Election {election_id}: {refusal}")),
+            "{status}"
+        );
+        let requests = rows::query(
+            &services.hasura,
+            "SELECT id FROM sequent_backend.signing_request
+             WHERE election_event_id = $1",
+            &[&uuid::Uuid::parse_str(&event.election_event_id).unwrap()],
+        )
+        .await;
+        assert!(requests.is_empty(), "{status}");
+    }
 }
 
 #[rocket::async_test]
@@ -377,7 +512,7 @@ async fn tally_ceremony_routes_answer_500_when_the_database_is_unreachable() {
             "/create-tally-ceremony",
             Permissions::ADMIN_CEREMONY,
             json!({"election_event_id": event.election_event_id,
-                "election_ids": [], "tally_type": "ELECTORAL_RESULTS"}),
+                "election_ids": [], "tally_type": "INITIALIZATION_REPORT"}),
         ),
         (
             "/update-tally-ceremony",
@@ -398,12 +533,6 @@ async fn tally_ceremony_routes_answer_500_when_the_database_is_unreachable() {
         );
     }
     for (path, permission, body) in [
-        (
-            "/recount-tally-session",
-            Permissions::TALLY_RECOUNT_EXECUTE,
-            json!({"election_event_id": event.election_event_id,
-                "tally_session_id": session}),
-        ),
         (
             "/authorize-tally-custody",
             Permissions::TRUSTEE_CEREMONY,
@@ -427,6 +556,26 @@ async fn tally_ceremony_routes_answer_500_when_the_database_is_unreachable() {
             "{path}: {message}"
         );
     }
+}
+
+/// The board gate opens the process-wide pool itself; the catcher answers.
+#[rocket::async_test]
+async fn a_recount_answers_500_when_the_database_is_unreachable() {
+    if ran_in_child("a_recount_answers_500_when_the_database_is_unreachable") {
+        return;
+    }
+    std::env::set_var("HASURA_DB__PORT", "1");
+    let services = Services::without_database();
+    let client = services.client().await;
+    let event = rows::Event {
+        tenant_id: uuid::Uuid::new_v4().to_string(),
+        election_event_id: uuid::Uuid::new_v4().to_string(),
+    };
+    let session = uuid::Uuid::new_v4().to_string();
+
+    let (status, body) = json(recount(&client, &event, &session).await).await;
+    assert_eq!(status, Status::InternalServerError);
+    assert_eq!(body["message"], "Internal error");
 }
 
 /// A trustee's token: the admin claims plus the `trustee` claim, which the

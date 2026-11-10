@@ -10,6 +10,7 @@ import {
     ETranslationScope,
     IElectionEventPresentation,
     overwriteTranslations,
+    sanitizePresentationCss,
     setCookie,
     USER_LANGUAGE_COOKIE_NAME,
     getValueFromCookie,
@@ -161,12 +162,18 @@ const App = () => {
         }
     }, [presentation])
 
+    const css =
+        confirmationBallot?.election_config?.election_event_presentation?.css ??
+        ballotStyle?.ballot_eml?.election_event_presentation?.css ??
+        ""
+    // The event's CSS, cleaned as the voting portal cleans it.
     const customCss = useMemo(
         () =>
-            confirmationBallot?.election_config?.election_event_presentation?.css ??
-            ballotStyle?.ballot_eml?.election_event_presentation?.css ??
-            "",
-        [confirmationBallot, ballotStyle]
+            sanitizePresentationCss(css, {
+                baseUrl: document.baseURI,
+                publicBucketUrl: globalSettings.PUBLIC_BUCKET_URL,
+            }),
+        [css, globalSettings.PUBLIC_BUCKET_URL]
     )
 
     return (

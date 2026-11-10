@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::routes::election_dates::refuse_data_under_signed_import;
 use crate::services::authorization::authorize;
 use anyhow::Result;
 use rocket::http::Status;
@@ -45,6 +46,13 @@ pub async fn import_candidates_route(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::CANDIDATE_CREATE],
+    )?;
+    refuse_data_under_signed_import(&tenant_id).await?;
     let request =
         crate::services::board_authorization::authorize_import_document(
             &claims,
@@ -69,13 +77,6 @@ pub async fn import_candidates_route(
             format!("Failed to insert task execution record: {error:?}"),
         )
     })?;
-
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::CANDIDATE_CREATE],
-    )?;
 
     crate::services::board_authorization::bind_operation(
         &claims,

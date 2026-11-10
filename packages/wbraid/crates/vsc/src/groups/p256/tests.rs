@@ -23,6 +23,26 @@ fn test_p256_scalar_from_u32() {
 }
 
 #[test]
+fn test_p256_scalar_zeroize() {
+    use zeroize::Zeroize;
+    let mut s = Ctx::random_scalar();
+    assert_ne!(s, P256Scalar::zero());
+
+    s.zeroize();
+    assert_eq!(s, P256Scalar::zero());
+}
+
+#[test]
+fn test_p256_element_zeroize() {
+    use zeroize::Zeroize;
+    let mut e = Ctx::random_element();
+    assert_ne!(e, P256Element::one());
+
+    e.zeroize();
+    assert_eq!(e, P256Element::one());
+}
+
+#[test]
 fn test_p256_scalar_negation() {
     let s1 = Ctx::random_scalar();
     let s_neg = s1.neg();
@@ -372,6 +392,15 @@ mod encoding {
 
             assert_eq!(scalar, recovered, "DKG share must survive encryption");
         }
+    }
+
+    /// The identity element carries no payload and is refused.
+    #[test]
+    fn identity_does_not_decode() {
+        use crate::groups::p256::element::P256Element;
+        let identity = P256Element::one();
+        assert!(P256Group::decode_30_bytes(&identity).is_err());
+        assert!(P256Group::decode_bytes::<1, 30>(&[identity]).is_err());
     }
 
     #[test]

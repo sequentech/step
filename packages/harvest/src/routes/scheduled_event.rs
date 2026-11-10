@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::routes::upload_document::invalid_document_name;
 use crate::services::authorization::authorize;
 
 use sequent_core::services::connection;
@@ -20,6 +21,7 @@ use tracing::instrument;
 use uuid::Uuid;
 use windmill::postgres::messaging::record_bulk_send;
 use windmill::services::database::get_hasura_pool;
+use windmill::services::documents;
 use windmill::services::electoral_log::{
     post_voter_secret_attribute_audit, ElectoralLogAdminContext,
     VoterSecretAttributeAction, VoterSecretAttributeAudit,
@@ -173,6 +175,12 @@ pub async fn create_scheduled_event(
         }
         EventProcessors::CREATE_REPORT => {
             authorize_create_report(&claims, &input)?;
+            // The report is stored under the name it is given.
+            if let Some(name) = input.event_payload["name"].as_str() {
+                if !documents::is_document_name(name) {
+                    return Err(invalid_document_name());
+                }
+            }
         }
         _ => {}
     };

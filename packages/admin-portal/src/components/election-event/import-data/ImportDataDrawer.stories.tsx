@@ -4,7 +4,8 @@
 import React, {useEffect, useState} from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
-import {AdminStoryProvider, TENANT_ID} from "@/__stories__/AdminStoryProvider"
+import {AdminStoryProvider, EVENT_ID, TENANT_ID} from "@/__stories__/AdminStoryProvider"
+import {eventRecord} from "@/__stories__/fixtures"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
 import {ImportDataDrawer} from "./ImportDataDrawer"
@@ -44,7 +45,7 @@ function OpenFromProvider() {
     return null
 }
 
-/** A page with its own import drawer state, such as the backup restore settings. */
+/** A page with its own import drawer state, such as the template list. */
 function PageDrawer({errors, doImport, closeDrawer}: Scenario) {
     const [open, setOpen] = useState(true)
     return (
@@ -54,9 +55,9 @@ function PageDrawer({errors, doImport, closeDrawer}: Scenario) {
                 closeDrawer()
                 setOpen(false)
             }}
-            title="settings.backupRestore.restore.title"
-            subtitle="settings.backupRestore.restore.subtitle"
-            paragraph="settings.backupRestore.restore.paragraph"
+            title="template.import.title"
+            subtitle="template.import.subtitle"
+            paragraph="template.import.paragraph"
             doImport={doImport}
             errors={errors}
         />
@@ -103,7 +104,11 @@ const meta = {
     argTypes: {mode: {control: "inline-radio", options: ["provider", "props"]}},
     parameters: drawerDefects,
     beforeEach: async ({args}) => {
-        flow = createFlow({importError: args.importError, importProblems: args.importProblems})
+        flow = createFlow({
+            events: [eventRecord()],
+            importError: args.importError,
+            importProblems: args.importProblems,
+        })
         await flow.graphql.ready
     },
     render: (args, {globals}) => <Fixture key={JSON.stringify(globals)} {...args} />,
@@ -131,6 +136,8 @@ export const ElectionEventImport: Story = {
             screen.getByRole("textbox", {name: "Integrity Check (SHA-256)"}),
             CHECKSUM
         )
+        await userEvent.click(screen.getByRole("combobox", {name: "Board approval for import"}))
+        await userEvent.click(await within(document.body).findByRole("option", {name: EVENT_ID}))
         await chooseImportFile(root)
         // The provider checks the uploaded file before it can be imported.
         await waitFor(() => expect(screen.getByRole("button", {name: "Import"})).toBeEnabled())
@@ -148,7 +155,12 @@ export const ElectionEventImport: Story = {
         await waitFor(() =>
             expect(flow.graphql.calls.at(-1)).toMatchObject({
                 name: "ImportElectionEvent",
-                variables: {tenantId: TENANT_ID, documentId: DOCUMENT_ID, sha256: CHECKSUM},
+                variables: {
+                    tenantId: TENANT_ID,
+                    authorizationEventId: EVENT_ID,
+                    documentId: DOCUMENT_ID,
+                    sha256: CHECKSUM,
+                },
             })
         )
         await waitFor(() =>
@@ -230,7 +242,7 @@ export const CancelClosesTheProviderDrawer: Story = {
 export const PageImport: Story = {
     args: {mode: "props"},
     play: async ({args}) => {
-        const root = await drawer("Import Tenant Configurations")
+        const root = await drawer("Import Templates")
         const screen = within(root)
         await userEvent.type(
             screen.getByRole("textbox", {name: "Integrity Check (SHA-256)"}),
@@ -248,10 +260,10 @@ export const PageImport: Story = {
 }
 
 export const PageError: Story = {
-    args: {mode: "props", errors: "The backup could not be restored"},
+    args: {mode: "props", errors: "The templates could not be imported"},
     play: async () => {
-        const root = await drawer("Import Tenant Configurations")
-        await expect(within(root).getByText("The backup could not be restored")).toBeVisible()
+        const root = await drawer("Import Templates")
+        await expect(within(root).getByText("The templates could not be imported")).toBeVisible()
         expect(flow.graphql.calls).toEqual([])
     },
 }
@@ -260,11 +272,11 @@ export const PageCancel: Story = {
     args: {mode: "props"},
     parameters: {expectedFailure: null},
     play: async ({args}) => {
-        const root = await drawer("Import Tenant Configurations")
+        const root = await drawer("Import Templates")
         await userEvent.click(within(root).getByRole("button", {name: "Cancel"}))
         await waitFor(() => expect(args.closeDrawer).toHaveBeenCalledTimes(1))
         await waitFor(() =>
-            expect(within(document.body).queryByText("Import Tenant Configurations")).toBeNull()
+            expect(within(document.body).queryByText("Import Templates")).toBeNull()
         )
         expect(args.doImport).not.toHaveBeenCalled()
     },

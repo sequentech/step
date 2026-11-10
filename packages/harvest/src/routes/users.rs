@@ -9,6 +9,7 @@ use crate::adapters::user_tasks::{
 };
 use crate::ports::database::DatabasePools;
 use crate::ports::identity::IdentityAdmin;
+use crate::routes::election_dates::refuse_data_under_signed_import;
 use crate::services::access::{
     create_user_permissions, delete_permission, edit_user_access,
     read_permission, writes_secret_attributes, UserEdit, UserEditAccess,
@@ -375,6 +376,7 @@ pub async fn delete_user(
         ))],
     )?;
     if let Some(election_event_id) = input.election_event_id.as_deref() {
+        refuse_data_under_signed_import(&input.tenant_id).await?;
         ensure_election_event_not_locked(&input.tenant_id, election_event_id)
             .await?;
         ensure_voter_has_no_active_ballot(
@@ -489,6 +491,7 @@ pub async fn delete_users(
         ));
     }
     if let Some(election_event_id) = input.election_event_id.as_deref() {
+        refuse_data_under_signed_import(&input.tenant_id).await?;
         ensure_election_event_not_locked(&input.tenant_id, election_event_id)
             .await?;
     }
@@ -1078,6 +1081,19 @@ pub async fn create_user(
             };
             ErrorResponse::new(status, &message, code)
         })?;
+    // The voters' register of an election event is election data.
+    if input.election_event_id.is_some() {
+        refuse_data_under_signed_import(&input.tenant_id)
+            .await
+            .map_err(|(status, message)| {
+                let code = if status == Status::InternalServerError {
+                    ErrorCode::InternalServerError
+                } else {
+                    ErrorCode::Unauthorized
+                };
+                ErrorResponse::new(status, &message, code)
+            })?;
+    }
     reject_tenant_id_attribute(&input.user).map_err(|message| {
         ErrorResponse::new(
             Status::BadRequest,
@@ -1568,6 +1584,10 @@ pub async fn edit_user(
     };
 
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
+    // A new password changes a voter's credentials, not the register.
+    if input.election_event_id.is_some() && !password_only {
+        refuse_data_under_signed_import(&input.tenant_id).await?;
+    }
     let mut lifecycle_db = get_hasura_pool()
         .await
         .get()
@@ -1997,6 +2017,11 @@ pub async fn get_user(
     body: Json<GetUserBody>,
 ) -> Result<Json<User>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .map_err(|error| (Status::BadRequest, error.to_string()))?;
     if let Some(event) = input.election_event_id.as_deref() {
         crate::services::board_authorization::authorize_operation(
             &claims,
@@ -2008,11 +2033,6 @@ pub async fn get_user(
         )
         .await?;
     }
-    validate_keycloak_scope(
-        &input.tenant_id,
-        input.election_event_id.as_deref(),
-    )
-    .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
@@ -2068,15 +2088,6 @@ pub async fn reveal_voter_secret_attribute(
     body: Json<RevealSecretAttributeBody>,
 ) -> Result<Json<RevealSecretAttributeOutput>, (Status, String)> {
     let input = body.into_inner();
-    crate::services::board_authorization::authorize_operation(
-        &claims,
-        &input.election_event_id,
-        sequent_core::signing::SigningAction::ReadVotersRegister,
-        "read-voter-secret-field",
-        serde_json::to_value(&input)
-            .map_err(|e| (Status::BadRequest, e.to_string()))?,
-    )
-    .await?;
     validate_keycloak_scope(
         &input.tenant_id,
         Some(input.election_event_id.as_str()),
@@ -2091,6 +2102,15 @@ pub async fn reveal_voter_secret_attribute(
             Permissions::VOTER_SECRET_ATTRIBUTE_READ,
         ],
     )?;
+    crate::services::board_authorization::authorize_operation(
+        &claims,
+        &input.election_event_id,
+        sequent_core::signing::SigningAction::ReadVotersRegister,
+        "read-voter-secret-field",
+        serde_json::to_value(&input)
+            .map_err(|e| (Status::BadRequest, e.to_string()))?,
+    )
+    .await?;
     let secret_names = get_event_validated_secret_names(
         &input.tenant_id,
         &input.election_event_id,
@@ -2167,6 +2187,13 @@ pub async fn import_users_f(
 ) -> Result<Json<ImportUsersOutput>, (Status, String)> {
     let input = body.into_inner();
     let request_id = if let Some(event) = input.election_event_id.as_deref() {
+        authorize(
+            &claims,
+            true,
+            Some(input.tenant_id.clone()),
+            vec![Permissions::VOTER_CREATE],
+        )?;
+        refuse_data_under_signed_import(&input.tenant_id).await?;
         Some(crate::services::board_authorization::authorize_import_document(&claims,event,
             "import-voters",&input.document_id,serde_json::json!({"tenant_id":input.tenant_id,"election_event_id":event})).await?)
     } else {
@@ -2196,6 +2223,14 @@ pub async fn export_users_f(
 ) -> Result<Json<ExportUsersOutput>, (Status, String)> {
     let body = input.into_inner();
     let request_id = if let Some(event) = body.election_event_id.as_deref() {
+        if body.include_secret_attributes {
+            authorize(
+                &claims,
+                true,
+                Some(body.tenant_id.clone()),
+                vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
+            )?;
+        }
         crate::services::board_authorization::authorize_operation(
             &claims,
             event,
@@ -2257,7 +2292,7 @@ pub async fn export_tenant_users_f(
             return Ok(Json(ExportUsersOutput {
                 document_id,
                 error_msg: Some(format!(
-                    "Error sending Export Users task: ${err}"
+                    "Error sending Export Users task: {err}"
                 )),
                 task_execution: None,
             }));

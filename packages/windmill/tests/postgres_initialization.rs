@@ -8,6 +8,10 @@
 
 #![recursion_limit = "256"]
 
+#[path = "support/event_database.rs"]
+mod event_database;
+#[path = "support/opening.rs"]
+mod opening;
 #[path = "support/schema.rs"]
 mod schema;
 
@@ -740,82 +744,95 @@ async fn a_scheduled_opening_waits_for_the_countries_and_logs_it_once() {
     );
 }
 
-#[tokio::test]
-async fn an_event_wide_opening_keeps_waiting_for_the_posts_that_cant_open() {
-    use sequent_core::ballot::VotingStatusChannel;
-    use windmill::services::initialization_schedule::open_event_on_schedule;
-    let mut client = schema::pool().await.get().await.unwrap();
-    let tx = client.transaction().await.unwrap();
-    let world = World::new(&tx, "event").await;
-    tx.execute(
-        "UPDATE sequent_backend.election SET voting_channels = '{\"online\": true}'
-         WHERE election_event_id = $1",
-        &[&world.event],
-    )
-    .await
-    .unwrap();
-    let (session, _) = world
-        .report(&tx, world.p1, &[world.a, world.b], false, "hash-1")
+#[test]
+fn an_event_wide_opening_keeps_waiting_for_the_posts_that_cant_open() {
+    event_database::run(async {
+        use sequent_core::ballot::VotingStatusChannel;
+        use sequent_core::self_tests::SelfTestTrigger;
+        use windmill::services::initialization_schedule::open_event_on_schedule;
+        let mut client = schema::pool().await.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let world = World::new(&tx, "event").await;
+        tx.execute(
+            "UPDATE sequent_backend.election SET voting_channels = '{\"online\": true}'
+             WHERE election_event_id = $1",
+            &[&world.event],
+        )
+        .await
+        .unwrap();
+        // The first opening checks that the event's ballot boxes are empty.
+        let database = event_database::EventDatabase::create(world.tenant, world.event).await;
+        let (session, _) = world
+            .report(&tx, world.p1, &[world.a, world.b], false, "hash-1")
+            .await;
+        world.store(&tx, session, world.p1).await;
+        let start = scheduled(
+            &tx,
+            &world,
+            "START_VOTING_PERIOD",
+            None,
+            "2028-04-08T20:00:00Z",
+        )
         .await;
-    world.store(&tx, session, world.p1).await;
-    let start = scheduled(
-        &tx,
-        &world,
-        "START_VOTING_PERIOD",
-        None,
-        "2028-04-08T20:00:00Z",
-    )
-    .await;
-    let id = Uuid::parse_str(&start.id).unwrap();
-    let run = || {
-        let (tx, world) = (&tx, &world);
-        async move {
-            let start = find(tx, world, id).await;
-            open_event_on_schedule(
-                tx,
-                &world.tenant.to_string(),
-                &world.event.to_string(),
-                &start,
-                &Some(vec![VotingStatusChannel::ONLINE]),
-                &std::collections::HashSet::new(),
-            )
-            .await
-            .unwrap()
-        }
-    };
-    // Neither Post opens: p2 isn't initialized, so p1 waits for it.
-    assert!(!run().await);
-    assert!(!run().await);
-    let log = opening_log(&tx, &world).await;
-    assert_eq!(log.len(), 2, "one per Post, once: {log:?}");
-    assert!(log
-        .iter()
-        .any(|entry| entry.contains("Post Dubai PCG waits")
-            && entry.contains("Not initialized yet: Madrid.")));
-    assert!(log.iter().any(|entry| entry.contains("Post Madrid waits")));
-    let pending =
-        find(&tx, &world, id).await.annotations.unwrap()["initialization_pending"].clone();
-    let mut pending: Vec<String> = serde_json::from_value(pending).unwrap();
-    pending.sort();
-    let mut expected = vec![world.p1.to_string(), world.p2.to_string()];
-    expected.sort();
-    assert_eq!(pending, expected);
+        let id = Uuid::parse_str(&start.id).unwrap();
+        let run = || {
+            let (tx, world) = (&tx, &world);
+            async move {
+                let start = find(tx, world, id).await;
+                open_event_on_schedule(
+                    tx,
+                    &world.tenant.to_string(),
+                    &world.event.to_string(),
+                    &start,
+                    &Some(vec![VotingStatusChannel::ONLINE]),
+                    &std::collections::HashSet::new(),
+                )
+                .await
+                .unwrap()
+            }
+        };
+        opening::ready_to_open(
+            &tx,
+            world.tenant,
+            world.event,
+            SelfTestTrigger::ElectionStartTime,
+        )
+        .await;
+        // Neither Post opens: p2 isn't initialized, so p1 waits for it.
+        assert!(!run().await);
+        assert!(!run().await);
+        let log = opening_log(&tx, &world).await;
+        assert_eq!(log.len(), 2, "one per Post, once: {log:?}");
+        assert!(log
+            .iter()
+            .any(|entry| entry.contains("Post Dubai PCG waits")
+                && entry.contains("Not initialized yet: Madrid.")));
+        assert!(log.iter().any(|entry| entry.contains("Post Madrid waits")));
+        let pending =
+            find(&tx, &world, id).await.annotations.unwrap()["initialization_pending"].clone();
+        let mut pending: Vec<String> = serde_json::from_value(pending).unwrap();
+        pending.sort();
+        let mut expected = vec![world.p1.to_string(), world.p2.to_string()];
+        expected.sort();
+        assert_eq!(pending, expected);
 
-    // Once the event-wide close has passed, the opening stops and says so.
-    scheduled(
-        &tx,
-        &world,
-        "END_VOTING_PERIOD",
-        None,
-        "2000-01-01T00:00:00Z",
-    )
-    .await;
-    assert!(run().await);
-    let log = opening_log(&tx, &world).await;
-    assert_eq!(log.len(), 4);
-    assert!(log[2..]
-        .iter()
-        .all(|entry| entry.contains("not run: its voting period closed")));
+        // Once the event-wide close has passed, the opening stops and says so.
+        scheduled(
+            &tx,
+            &world,
+            "END_VOTING_PERIOD",
+            None,
+            "2000-01-01T00:00:00Z",
+        )
+        .await;
+        assert!(run().await);
+        let log = opening_log(&tx, &world).await;
+        assert_eq!(log.len(), 4);
+        assert!(log[2..]
+            .iter()
+            .all(|entry| entry.contains("not run: its voting period closed")));
+        database.drop().await;
+    })
 }
 
 #[tokio::test]
@@ -876,7 +893,12 @@ async fn published_country_requirements_survive_live_loosening_and_are_per_targe
 #[tokio::test]
 async fn initialization_completion_changes_waiting_prediction_once() {
     use sequent_core::types::scheduled_outcome::ScheduledOutcomeKind;
-    use windmill::services::scheduled_outcome::{recompute_predictions, scheduled_outcomes};
+    use windmill::services::scheduled_outcome::{
+        lifecycle_snapshot, post_channels_of, recompute_predictions, scheduled_outcomes,
+    };
+    use windmill::services::signing::actions::configuration::{
+        target_scope_key, ConfigurationSubject, FIRST_VERSION,
+    };
     use windmill::services::signing::log::Actor;
     let pool = schema::pool().await;
     let mut client = pool.get().await.unwrap();
@@ -888,6 +910,44 @@ async fn initialization_completion_changes_waiting_prediction_once() {
         "START_VOTING_PERIOD",
         Some(w.p1),
         "2099-04-09T00:00:00Z",
+    )
+    .await;
+    // The board approved the configuration with this opening: only the
+    // Post's initialization holds it back.
+    let lifecycle = lifecycle_snapshot(&tx, w.tenant, w.event, None)
+        .await
+        .unwrap();
+    let subject = ConfigurationSubject {
+        ballot_publication_id: w.event.to_string(),
+        digest: "0".repeat(64),
+        self_test_baseline: None,
+        signing_rules: vec![],
+        scheduled_events: 1,
+        ballots_and_contests: FIRST_VERSION.into(),
+        policies: lifecycle.policies,
+        open_voting: lifecycle.open_voting,
+        close_voting: lifecycle.close_voting,
+        schedule: lifecycle.schedule,
+        post_channels: post_channels_of(&tx, w.tenant, w.event, None)
+            .await
+            .unwrap(),
+        initialization_report_policies: lifecycle.initialization_report_policies,
+        initialization_countries: lifecycle.initialization_countries,
+    };
+    execute(
+        &tx,
+        "INSERT INTO sequent_backend.signing_request
+             (tenant_id, election_event_id, action, scope_key, subject, canonical_payload,
+              payload_sha256, code, rule_revision, rule_snapshot, required, status,
+              requested_by, requested_by_username, completed_at, executed_at)
+         VALUES ($1, $2, 'approve-configuration', $3, $4, '{}', repeat('0', 64), 'CODE',
+                 1, '{}', 1, 'executed', 'operator', 'operator', now(), now())",
+        &[
+            &w.tenant,
+            &w.event,
+            &target_scope_key(None),
+            &serde_json::to_value(subject).unwrap(),
+        ],
     )
     .await;
     let actor = Actor {
@@ -1219,11 +1279,37 @@ async fn late_initialization_cannot_escape_a_common_close_via_dummy_or_kiosk_row
 #[tokio::test]
 async fn invalid_initialization_topology_cannot_block_closing() {
     use sequent_core::types::scheduled_outcome::ScheduledOutcomeKind;
-    use windmill::services::scheduled_outcome::{fire_time_state, EventState};
+    use windmill::services::scheduled_outcome::{
+        fire_time_state, lifecycle_snapshot, write_publication_snapshot, EventState,
+    };
     let pool = schema::pool().await;
     let mut client = pool.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, "post").await;
+    // A close nobody signed runs as the system, in the current settings and
+    // in the published copy.
+    tx.execute(
+        "UPDATE sequent_backend.election_event SET presentation = jsonb_set(presentation,
+             '{lifecycle_policies,unsigned_scheduled_close}', '\"run-as-system\"')
+         WHERE id = $1",
+        &[&w.event],
+    )
+    .await
+    .unwrap();
+    let published = lifecycle_snapshot(&tx, w.tenant, w.event, None)
+        .await
+        .unwrap();
+    write_publication_snapshot(
+        &tx,
+        w.tenant,
+        w.event,
+        Uuid::new_v4(),
+        None,
+        None,
+        &published,
+    )
+    .await
+    .unwrap();
     tx.execute(
         "UPDATE sequent_backend.area SET parent_id=id WHERE id=$1",
         &[&w.a],
@@ -1252,7 +1338,7 @@ async fn invalid_initialization_topology_cannot_block_closing() {
                 windmill::services::scheduled_outcome::Moment::FireTime
             )
             .outcome,
-        ScheduledOutcomeKind::Runs
+        ScheduledOutcomeKind::RunsUnsigned
     );
     assert!(EventState::read_for_closes(&tx, w.tenant, w.event)
         .await

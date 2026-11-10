@@ -10,12 +10,12 @@ const englishTranslation = {
         homeScreen: {
             step1: "Step 1: Import your ballot",
             description1:
-                "To continue, please import the encrypted ballot data  provided in the Voting Portal:",
+                "To continue, please import the encrypted ballot data provided in the Voting Portal:",
             importBallotHelpDialog: {
                 title: "Information: Import your ballot",
                 ok: "OK",
                 content:
-                    "To continue, please import the encrypted ballot data  provided in the Voting Portal.",
+                    "To continue, please import the encrypted ballot data provided in the Voting Portal.",
             },
             step2: "Step 2: Insert your ballot ID",
             description2: "Please type in the ballot ID provided in the Voting Portal:",
@@ -27,8 +27,7 @@ const englishTranslation = {
             startButton: "Browse file",
             dragDropOption: "Or drag and drop it here",
             importErrorDescription:
-                "There was a problem importing the auditable ballot. Did you choose  the right file?",
-            importErrorMoreInfo: "More info",
+                "There was a problem importing the auditable ballot. Did you choose the right file?",
             importErrorTitle: "Error",
             ciphertextErrorTitle: "Ballot verification failed",
             ciphertextErrorDescription:
@@ -74,12 +73,12 @@ const englishTranslation = {
             finishButton: "Verified",
             verifySelectionsTitle: "Verify your ballot selections",
             verifySelectionsDescription:
-                "The following ballot selections have been decoded from the ballot you imported. Please review them and ensure that they match the selections you made in the Voting Portal.  If your selections don't match, please contact the election authorities...",
+                "The following ballot selections have been decoded from the ballot you imported. Please review them and ensure that they match the selections you made in the Voting Portal. If your selections don't match, please contact the election authorities...",
             verifySelectionsHelpDialog: {
                 title: "Information: Verify your ballot selections",
                 ok: "OK",
                 content:
-                    "The following ballot selections have been decoded from the ballot you imported. Please review them and ensure that they match the selections you made in the Voting Portal.  If your selections don't match, please contact the election authorities...",
+                    "The following ballot selections have been decoded from the ballot you imported. Please review them and ensure that they match the selections you made in the Voting Portal. If your selections don't match, please contact the election authorities...",
             },
             markedInvalid: "Ballot explicitly marked invalid",
             points_one: "({{count}} Point)",

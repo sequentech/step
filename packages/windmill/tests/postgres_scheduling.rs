@@ -972,6 +972,44 @@ async fn archived_event_cannot_execute_queued_lifecycle_tasks() {
 }
 
 #[tokio::test]
+async fn archived_event_still_ends_the_lockdown_it_was_archived_in() {
+    use windmill::tasks::manage_election_event_lockdown::manage_election_event_lockdown_wrapped;
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let e = event(&tx, "UTC", &["UTC"]).await;
+    let end = schedule(
+        &tx,
+        e,
+        None,
+        EventProcessors::END_LOCKDOWN_PERIOD,
+        json!({}),
+        json!({"scheduled_date": "2000-01-01T00:00:00Z"}),
+    )
+    .await;
+    windmill::postgres::trusted_write::trusted_write(&tx)
+        .await
+        .unwrap();
+    tx.execute(
+        r#"UPDATE sequent_backend.election_event
+           SET is_archived = true, presentation = presentation || '{"locked_down": "locked-down"}'
+           WHERE id = $1"#,
+        &[&e.event],
+    )
+    .await
+    .unwrap();
+
+    manage_election_event_lockdown_wrapped(&tx, e.t(), e.e(), end.to_string())
+        .await
+        .unwrap();
+
+    assert_eq!(
+        row(&tx, "election_event", e.event).await["presentation"]["locked_down"],
+        json!("not-locked-down")
+    );
+    assert!(row(&tx, "scheduled_event", end).await["stopped_at"].is_string());
+}
+
+#[tokio::test]
 async fn queued_lifecycle_tasks_recheck_direct_schedule_edits_before_deciding_to_fire() {
     use std::time::Duration;
     let pool = schema::pool().await;

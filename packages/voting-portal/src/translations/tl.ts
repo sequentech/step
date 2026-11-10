@@ -261,6 +261,8 @@ const tagalogTranslation: TranslationType = {
                     "Walang estado ng pagpili para sa halalan na ito. Pakitiyak na tama ang iyong pagpili o makipag-ugnayan sa helpdesk.",
                 NO_BALLOT_STYLE: "Walang estilo ng balota. Pakikontak ang helpdesk.",
                 NO_AUDITABLE_BALLOT: "Walang balota na maaring suriin. Pakikontak ang helpdesk.",
+                AUDIT_BALLOT:
+                    "Hindi makumpirma ng ballot box ang pagsusuri ng balotang ito. Pakisubukang muli mamaya o pakikontak ang helpdesk.",
                 INCONSISTENT_HASH:
                     "Nagkaroon ng error kaugnay sa proseso ng pag-hash ng balota. BallotId: {{ballotId}} ay hindi tugma sa sinusuring Hash ng Balota: {{auditableBallotHash}}. Pakireport itong isyu sa helpdesk.",
                 ELECTION_EVENT_NOT_OPEN:

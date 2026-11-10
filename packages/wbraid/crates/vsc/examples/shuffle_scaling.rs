@@ -125,7 +125,7 @@ fn run<C: Context, const W: usize>(count: usize) -> (f64, f64, usize, usize) {
         messages.par_iter().map(|m| keypair.encrypt(m)).collect();
 
     let generators = C::G::ind_generators(count, &vec![]).expect("ind_generators failed");
-    let shuffler = Shuffler::<C, W>::new(generators, keypair.pkey);
+    let shuffler = Shuffler::<C, W>::new(generators, keypair.pkey.clone());
 
     let prove_start = Instant::now();
     let (permuted_ciphertexts, proof) = shuffler

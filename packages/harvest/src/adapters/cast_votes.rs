@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ports::cast_votes::{CastVoter, CastVotes};
+use windmill::services::audit_ballot::{
+    try_audit_ballot, AuditBallotInput, AuditBallotOutput,
+};
 use windmill::services::cast_ballot::{
     try_cast_ballot, CastBallotInput, CastBallotResult,
 };
@@ -60,6 +63,25 @@ impl CastVotes for WindmillCastVotes {
         voter: CastVoter<'_>,
     ) -> Result<CastBallotResult, CastVoteError> {
         try_cast_ballot(
+            input,
+            voter.tenant_id,
+            voter.voter_id,
+            voter.area_id,
+            voter.voting_channel,
+            voter.auth_time,
+            voter.voter_ip,
+            voter.voter_country,
+            voter.username,
+        )
+        .await
+    }
+
+    async fn try_audit(
+        &self,
+        input: AuditBallotInput,
+        voter: CastVoter<'_>,
+    ) -> Result<AuditBallotOutput, CastVoteError> {
+        try_audit_ballot(
             input,
             voter.tenant_id,
             voter.voter_id,

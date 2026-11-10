@@ -22,7 +22,6 @@ import {SettingsLookAndFeel} from "@/resources/Settings/SettingsLookAndFeel"
 import {SettingsIntegrations} from "@/resources/Settings/SettingsIntegrations"
 import {SettingsCountries} from "@/resources/Settings/SettingsCountries"
 import SettingsLocalization from "@/resources/Settings/SettingsLocalization"
-import {SettingsBackupRestore} from "@/resources/Settings/SettingsBackupRestore"
 import {SettingsConfigurationSigning} from "@/resources/Settings/SettingsConfigurationSigning"
 import {SettingsPreviews} from "@/resources/Settings/SettingsPreviews"
 import {SettingsAttackDetection} from "@/resources/Settings/SettingsAttackDetection"
@@ -86,10 +85,12 @@ export const SettingsScreen: React.FC = () => {
                         component: () => <SettingsConfigurationSigning />,
                     },
                     ...(authContext.isAuthorized(true, tenantId, IPermissions.ADMIN_USER)
-                        ? [{
-                              label: t("attackDetection.title", "Attack detection"),
-                              component: () => <SettingsAttackDetection key={tenantId} />,
-                          }]
+                        ? [
+                              {
+                                  label: t("attackDetection.title", "Attack detection"),
+                                  component: () => <SettingsAttackDetection key={tenantId} />,
+                              },
+                          ]
                         : []),
                     ...(showMessaging
                         ? [
@@ -135,18 +136,19 @@ export const SettingsScreen: React.FC = () => {
                             <Resource name="sequent_backend_tenant" list={SettingsCountries} />
                         ),
                     },
-                    {
-                        label: t("electionTypeScreen.tabs.BackupRestore"),
-                        component: () => (
-                            <Resource name="sequent_backend_tenant" list={SettingsBackupRestore} />
-                        ),
-                    },
-                    {
-                        label: t("settings.previewScreen.label"),
-                        component: () => (
-                            <Resource name="sequent_backend_preview" list={SettingsPreviews} />
-                        ),
-                    },
+                    ...(authContext.isAuthorized(true, tenantId, IPermissions.PREVIEW_READ)
+                        ? [
+                              {
+                                  label: t("settings.previewScreen.label"),
+                                  component: () => (
+                                      <Resource
+                                          name="sequent_backend_preview"
+                                          list={SettingsPreviews}
+                                      />
+                                  ),
+                              },
+                          ]
+                        : []),
                 ]}
             />
         </Box>

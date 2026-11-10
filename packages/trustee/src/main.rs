@@ -7,16 +7,19 @@
 //! `trustee generate` makes the trustee's keys file; `trustee start` runs the
 //! trustee. It asks harvest which boards are its own, runs braid's session
 //! over each of them against the board service, and reports to harvest a
-//! session that halted.
+//! session that halted. `trustee destroy` overwrites the keys file and the
+//! session stores with zeros and removes them once the election is over.
 
 mod config;
 mod daemon;
+mod destroy;
 mod identity;
 mod login;
 mod platform;
 mod verify;
 
 use std::env;
+use std::io;
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context as _, Result};
@@ -81,6 +84,19 @@ enum Command {
         #[arg(long)]
         trustee_config: Option<PathBuf>,
     },
+    /// Overwrite with zeros and remove the keys file and the session stores.
+    ///
+    /// Run once the election is over and the trustee is stopped, in the
+    /// directory `trustee start` ran in: the keys file and every file of the
+    /// session stores (message_store under the working directory) are
+    /// overwritten with zeros, flushed to the disk and removed. Nothing is
+    /// removed unless the keys file reads as a trustee keys file and every
+    /// one of these files can be overwritten.
+    Destroy {
+        /// The keys file; TRUSTEE_CONFIG_PATH when absent.
+        #[arg(long)]
+        trustee_config: Option<PathBuf>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -131,14 +147,25 @@ fn main() -> Result<()> {
                 .context("building the runtime")?
                 .block_on(start(config))
         }
+        Command::Destroy { trustee_config } => destroy::run(
+            &config::resolve_keys_file(trustee_config)?,
+            &store_directory()?,
+            &mut io::stdout(),
+        ),
     }
+}
+
+/// Where the sessions' stores are: `STORE_DIRECTORY` under the working
+/// directory.
+fn store_directory() -> Result<PathBuf> {
+    Ok(env::current_dir()
+        .context("reading the working directory")?
+        .join(STORE_DIRECTORY))
 }
 
 async fn start(config: Config) -> Result<()> {
     let secrets = identity::load(&config.keys_file)?;
-    let store_directory = env::current_dir()
-        .context("reading the working directory")?
-        .join(STORE_DIRECTORY);
+    let store_directory = store_directory()?;
     info!(
         trustee = %config.trustee_name,
         board_service = %config.b4_url,

@@ -10,6 +10,7 @@ use crate::utils::rng;
 use curve25519_dalek::scalar::Scalar as DalekScalar;
 use sha3::digest::Digest;
 use sha3::digest::typenum::U64;
+use zeroize::{Zeroize, Zeroizing};
 
 /**
  * A [`GroupScalar`] implementation for the [Ristretto](https://docs.rs/curve25519-dalek/latest/curve25519_dalek/ristretto/index.html) group.
@@ -23,6 +24,13 @@ impl RistrettoScalar {
     /// See [`DalekScalar::from_hash`](https://docs.rs/curve25519-dalek/latest/curve25519_dalek/scalar/struct.Scalar.html#method.from_hash) for details.
     pub fn from_hash<D: Digest<OutputSize = U64>>(hasher: D) -> Self {
         RistrettoScalar(DalekScalar::from_hash::<D>(hasher))
+    }
+}
+
+impl Zeroize for RistrettoScalar {
+    /// Overwrite the value with zero (volatile writes, see [`Zeroize`]).
+    fn zeroize(&mut self) {
+        self.0.zeroize();
     }
 }
 
@@ -106,15 +114,17 @@ use crate::utils::serialization::{Deserializable, Serializable, take};
 
 impl Serializable for RistrettoScalar {
     fn write(&self, out: &mut Vec<u8>) {
-        out.extend_from_slice(&self.0.to_bytes());
+        out.extend_from_slice(self.0.as_bytes());
     }
 }
 
 impl Deserializable for RistrettoScalar {
     fn read(input: &mut &[u8]) -> Result<Self, CryptographyError> {
         let bytes = take(input, 32)?;
-        let array: [u8; 32] = bytes.try_into().expect("take returns exactly 32 bytes");
-        let opt: Option<RistrettoScalar> = DalekScalar::from_canonical_bytes(array)
+        // A secret scalar is read through here: this copy is overwritten on return.
+        let array: Zeroizing<[u8; 32]> =
+            Zeroizing::new(bytes.try_into().expect("take returns exactly 32 bytes"));
+        let opt: Option<RistrettoScalar> = DalekScalar::from_canonical_bytes(*array)
             .map(RistrettoScalar)
             .into();
         opt.ok_or(CryptographyError::DeserializationError(

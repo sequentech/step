@@ -45,7 +45,9 @@ use windmill::services::scheduled_outcome::{
     save_lifecycle_policies, scheduled_outcomes, snapshot_publication, write_publication_snapshot,
     ChangeApplies, LockedDown, PublicationLifecycle, ScheduledOutcome, FIRED_OUTCOME,
 };
-use windmill::services::signing::actions::configuration::{gate_publication, ConfigurationSubject};
+use windmill::services::signing::actions::configuration::{
+    gate_publication_with, ApprovalPreparation, ConfigurationSubject,
+};
 use windmill::services::signing::actions::voting::{
     enforce_signed_closes, event_wide_decision, scheduled_change_for_posts,
     scheduled_change_needs_signatures, PostCloser,
@@ -56,6 +58,7 @@ use windmill::services::signing::actions::{
 use windmill::services::signing::guard::GuardOutcome;
 use windmill::services::signing::log::Actor;
 use windmill::services::signing::rules::{save_rule, SaveRuleInput};
+use windmill::services::signing::{InvalidReason, SigningError, SigningResult};
 
 use UnsignedScheduledClosePolicy::{REFUSE, RUN_AS_SYSTEM};
 
@@ -326,6 +329,31 @@ impl SignedActionEffects for PublishingEffects {
     }
 }
 
+/// The realm configuration and the self-test baseline of an approval, as a
+/// fake: these tests have no Keycloak.
+struct FakePreparation;
+
+#[async_trait]
+impl ApprovalPreparation for FakePreparation {
+    async fn prepare_realm(
+        &self,
+        _hasura_transaction: &Transaction<'_>,
+        _tenant_id: Uuid,
+        _election_event_id: Uuid,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    async fn self_test_baseline(
+        &self,
+        _hasura_transaction: &Transaction<'_>,
+        _tenant_id: Uuid,
+        _election_event_id: Uuid,
+    ) -> anyhow::Result<Value> {
+        Ok(json!({"baseline": "synthetic"}))
+    }
+}
+
 /// Publishes the event (or the Post) with a signed configuration approval
 /// of `signers` people named `prefix-i`: its request id and code.
 async fn approve(
@@ -338,8 +366,9 @@ async fn approve(
     let who = caller("configuration-manager", &[Permissions::PUBLISH_WRITE], &[]);
     let mut client = w.pool.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
-    let outcome = gate_publication(
+    let outcome = gate_publication_with(
         &tx,
+        &FakePreparation,
         &who,
         &w.tenant.to_string(),
         &w.event.to_string(),
@@ -815,7 +844,8 @@ async fn before_the_first_publication_the_defaults_apply() {
 async fn save_open_rule(
     w: &World,
     requirement: SigningRequirement,
-) -> (Option<ChangeApplies>, usize) {
+    signatures: u16,
+) -> SigningResult<(Option<ChangeApplies>, usize)> {
     let mut hasura = w.pool.get().await.unwrap();
     let htx = hasura.transaction().await.unwrap();
     let mut keycloak = w.pool.get().await.unwrap();
@@ -856,24 +886,26 @@ async fn save_open_rule(
         &SaveRuleInput {
             action: SigningAction::OpenVoting,
             requirement,
-            signatures: 2,
+            signatures,
             requester_signing: RequesterSigning::Allowed,
             expires_minutes: None,
             roles: None,
             expected_revision: revision,
         },
     )
-    .await
-    .unwrap();
-    htx.commit().await.unwrap();
+    .await;
+    if saved.is_ok() {
+        htx.commit().await.unwrap();
+    } else {
+        htx.rollback().await.unwrap();
+    }
     ktx.rollback().await.unwrap();
-    (saved.outcome.applies, saved.outcome.outcome_changes.len())
+    saved.map(|saved| (saved.outcome.applies, saved.outcome.outcome_changes.len()))
 }
 
 #[tokio::test]
-async fn a_loosened_rule_waits_for_the_next_publication_and_says_so() {
+async fn an_open_voting_rule_applies_at_once_and_is_never_loosened() {
     let w = world("rule-copies").await;
-    require(&w, SigningAction::OpenVoting, 2).await;
     let opens = create_row(&w, OPENS, Some(w.post), "2028-04-09T00:00", "ofov.admin").await;
     publish(&w, None).await;
     assert_eq!(
@@ -882,15 +914,33 @@ async fn a_loosened_rule_waits_for_the_next_publication_and_says_so() {
     );
     assert_eq!(changes(&w).await.len(), 1);
 
-    // Open voting no longer needs signatures: manual openings at once, the
-    // scheduled one after the next publication.
-    let (applies, changed) = save_open_rule(&w, SigningRequirement::NotRequired).await;
-    assert_eq!(applies, Some(ChangeApplies::Loosens));
+    // Setting how many sign applies at once to manual and scheduled
+    // openings; the scheduled one needed signatures before and still does.
+    let (applies, changed) = save_open_rule(&w, SigningRequirement::Required, 2)
+        .await
+        .unwrap();
+    assert_eq!(applies, Some(ChangeApplies::Tightens));
     assert_eq!(changed, 0);
-    let predicted = outcome_of(&w, opens).await;
-    assert_eq!(kind(&predicted), ScheduledOutcomeKind::Refused);
-    assert_eq!(predicted.explanation.deciding, CheckId::StricterCopy);
-    assert_eq!(changes(&w).await.len(), 1);
+
+    // Open voting always needs signatures, and how many, once set, stays.
+    for (requirement, signatures) in [
+        (SigningRequirement::NotRequired, 2),
+        (SigningRequirement::Required, 1),
+    ] {
+        let refused = save_open_rule(&w, requirement, signatures)
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(
+                refused,
+                SigningError::Invalid {
+                    reason: InvalidReason::OutOfRange,
+                    ..
+                }
+            ),
+            "{refused:?}"
+        );
+    }
     let rule_changed: String = w
         .pool
         .get()
@@ -906,29 +956,18 @@ async fn a_loosened_rule_waits_for_the_next_publication_and_says_so() {
         .unwrap()
         .get(0);
     assert!(
-        rule_changed.ends_with(
-            "Applies now to manual actions; to scheduled openings and closings after the next approved publication."
-        ),
+        rule_changed.ends_with("Applies now to manual and scheduled actions."),
         "{rule_changed}"
     );
+    let predicted = outcome_of(&w, opens).await;
+    assert_eq!(kind(&predicted), ScheduledOutcomeKind::Refused);
+    assert_eq!(predicted.explanation.deciding, CheckId::Covered);
     publish(&w, None).await;
-    assert_eq!(
-        kind(&outcome_of(&w, opens).await),
-        ScheduledOutcomeKind::Runs
-    );
-    assert_eq!(changes(&w).await.len(), 2);
-
-    // Requiring signatures again applies at once and logs the change once.
-    let (applies, changed) = save_open_rule(&w, SigningRequirement::Required).await;
-    assert_eq!(applies, Some(ChangeApplies::Tightens));
-    assert_eq!(changed, 1);
     assert_eq!(
         kind(&outcome_of(&w, opens).await),
         ScheduledOutcomeKind::Refused
     );
-    let logged = changes(&w).await;
-    assert_eq!(logged.len(), 3);
-    assert_eq!(logged[2].0, "ofov.admin");
+    assert_eq!(changes(&w).await.len(), 1);
 }
 
 #[tokio::test]
@@ -973,14 +1012,22 @@ async fn a_post_approval_covers_the_event_wide_close_at_that_post() {
 }
 
 #[tokio::test]
-async fn a_rule_that_needs_no_signatures_runs_and_logs_nothing() {
-    let w = world("no-signatures").await;
+async fn with_no_rule_saved_a_scheduled_opening_still_needs_signatures() {
+    let w = world("no-rule").await;
     let opens = add_row(&w, OPENS, Some(w.post), "2028-04-09T00:00").await;
     let predicted = outcome_of(&w, opens).await;
-    assert_eq!(kind(&predicted), ScheduledOutcomeKind::Runs);
-    assert_eq!(predicted.explanation.deciding, CheckId::NeedsSignatures);
-    assert!(!fire(&w, opens, VotingStatus::OPEN).await);
-    assert!(entries(&w, "SigningActionExecuted").await.is_empty());
+    assert_eq!(kind(&predicted), ScheduledOutcomeKind::Refused);
+    let needs = &predicted.explanation.checks[0];
+    assert_eq!(needs.id, CheckId::NeedsSignatures);
+    assert!(!needs.allows);
+    assert_eq!(predicted.explanation.deciding, CheckId::Covered);
+    assert!(fire(&w, opens, VotingStatus::OPEN).await);
+    let executed = entries(&w, "SigningActionExecuted").await;
+    assert_eq!(executed.len(), 1);
+    assert_eq!(
+        executed[0].3["reason"],
+        json!("not-in-signed-configuration")
+    );
 }
 
 /// Another Post of the world's event.
@@ -1864,8 +1911,9 @@ async fn an_approval_of_a_publication_published_meanwhile_fails() {
     let who = caller("configuration-manager", &[Permissions::PUBLISH_WRITE], &[]);
     let mut client = w.pool.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
-    let outcome = gate_publication(
+    let outcome = gate_publication_with(
         &tx,
+        &FakePreparation,
         &who,
         &w.tenant.to_string(),
         &w.event.to_string(),
@@ -2348,14 +2396,15 @@ async fn an_offline_only_opening_effect_cannot_erase_the_online_signed_deadline(
     )
     .await;
     close_due(&w, 60).await;
-    approve(&w, None, 2, "officer").await;
-    // Opening requires no individual signatures in this configuration. A
-    // disabled ONLINE channel does not change, while the KIOSK can open.
+    // The approval covers the opening only with the Post's channels as it
+    // signs them, so ONLINE is disabled before it. A disabled ONLINE
+    // channel does not change, while the KIOSK can open.
     w.execute(
         "UPDATE sequent_backend.election SET voting_channels='{\"online\":false,\"kiosk\":true}' WHERE id=$1",
         &[&w.post],
     )
     .await;
+    approve(&w, None, 2, "officer").await;
     assert!(!fire(&w, opening, VotingStatus::OPEN).await);
     assert_eq!(
         fired_outcome(&w, opening).await["channels"],

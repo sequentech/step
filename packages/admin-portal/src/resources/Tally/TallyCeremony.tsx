@@ -100,6 +100,7 @@ import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {getTallyDisabledReason} from "@/services/tallyEligibility"
 import {useBallotBoxesReadiness} from "./useBallotBoxesReadiness"
 import {getGraphQLActionErrorReason} from "@/services/graphqlActionError"
+import {secondTallyMessage} from "@/services/serverRefusals"
 
 const WizardSteps = {
     Start: 0,
@@ -578,6 +579,13 @@ export const TallyCeremony: React.FC = () => {
         }
     }
 
+    // How a refusal that names an election by its ID shows it to the admin.
+    const electionName = (electionId: string): string | undefined => {
+        const election = elections?.find((item) => item.id === electionId)
+        const alias = election ? aliasRenderer(election) : "-"
+        return alias === "-" ? undefined : alias
+    }
+
     const confirmStartAction = async () => {
         try {
             setIsCreating(true)
@@ -594,7 +602,8 @@ export const TallyCeremony: React.FC = () => {
 
             if (errors || !data?.create_tally_ceremony) {
                 notify(
-                    getGraphQLActionErrorReason({graphQLErrors: errors}) ??
+                    secondTallyMessage(t, {graphQLErrors: errors}, electionName) ??
+                        getGraphQLActionErrorReason({graphQLErrors: errors}) ??
                         t("tally.createTallyError"),
                     {type: "error"}
                 )
@@ -611,9 +620,12 @@ export const TallyCeremony: React.FC = () => {
                 setTallyId(data.create_tally_ceremony.tally_session_id)
             }
         } catch (error) {
-            notify(getGraphQLActionErrorReason(error) ?? t("tally.startTallyCeremonyError"), {
-                type: "error",
-            })
+            notify(
+                secondTallyMessage(t, error, electionName) ??
+                    getGraphQLActionErrorReason(error) ??
+                    t("tally.startTallyCeremonyError"),
+                {type: "error"}
+            )
         } finally {
             allowTallyCeremonyCreation.current = true
             setIsTallyElectionListDisabled(false)

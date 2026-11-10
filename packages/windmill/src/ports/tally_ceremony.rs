@@ -100,6 +100,40 @@ pub trait TallyCreationReader: Sync {
         election_event_id: &str,
         election_ids: &[String],
     ) -> impl Future<Output = anyhow::Result<Vec<BallotBoxSealState>>> + Send;
+
+    /// Whether the tenant takes election data only through the signed import.
+    fn signed_import_required(
+        &self,
+        tenant_id: &str,
+    ) -> impl Future<Output = anyhow::Result<bool>> + Send;
+
+    /// Of the given elections, those an electoral results tally session
+    /// counted: its execution completed successfully.
+    fn counted_elections(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+    ) -> impl Future<Output = anyhow::Result<Vec<String>>> + Send;
+
+    /// Locks the results tallies of the given elections until the
+    /// transaction ends: of two creations of a results tally of one election,
+    /// the second waits for the first and then sees its session.
+    fn lock_results_tallies(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+    ) -> impl Future<Output = anyhow::Result<()>> + Send;
+
+    /// Of the given elections, those an electoral results tally session has
+    /// not finished: it has neither counted them, failed nor been cancelled.
+    fn unfinished_results_tallies(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+    ) -> impl Future<Output = anyhow::Result<Vec<String>>> + Send;
 }
 
 /// Tally sessions and their execution history. Each execution is a snapshot

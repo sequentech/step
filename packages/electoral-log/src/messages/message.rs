@@ -246,6 +246,44 @@ impl Message {
         )
     }
 
+    /// The record of a voter auditing a ballot the ballot box received at
+    /// review. It names the ballot as its cast-vote record would, so that a
+    /// search by ballot finds both.
+    pub fn ballot_audited_message(audit: BallotAudit, sd: &SigningData) -> Result<Self> {
+        let BallotAudit {
+            event,
+            election,
+            pseudonym_h,
+            vote_h,
+            received_ballot_id,
+            ip,
+            country,
+            voting_channel,
+            voter_id,
+            voter_username,
+            area_id,
+        } = audit;
+        let body = StatementBody::BallotAudited(
+            election.clone(),
+            pseudonym_h,
+            vote_h.clone(),
+            received_ballot_id,
+            ip,
+            country,
+            voting_channel,
+        );
+        Self::cast_vote_message_from_body(
+            event,
+            election,
+            vote_h,
+            body,
+            sd,
+            voter_id,
+            voter_username,
+            area_id,
+        )
+    }
+
     fn cast_vote_message_from_body(
         event: EventIdString,
         election: ElectionIdString,
@@ -1012,6 +1050,33 @@ impl TryFrom<&Message> for ElectoralLogMessage {
             ballot_id: message.ballot_id.clone(),
         })
     }
+}
+
+/// What the record of a voter's audit of a received ballot names: the ballot,
+/// as its cast-vote record would, and where the request came from.
+pub struct BallotAudit {
+    /// The election event.
+    pub event: EventIdString,
+    /// The election the ballot was received in.
+    pub election: ElectionIdString,
+    /// The voter's pseudonym hash.
+    pub pseudonym_h: PseudonymHash,
+    /// The ballot's hash.
+    pub vote_h: CastVoteHash,
+    /// The Ballot ID of the ballot's receipt.
+    pub received_ballot_id: String,
+    /// The voter's IP address.
+    pub ip: VoterIpString,
+    /// The voter's country.
+    pub country: VoterCountryString,
+    /// The voting channel of the request.
+    pub voting_channel: VotingChannelString,
+    /// The voter's ID.
+    pub voter_id: Option<String>,
+    /// The voter's username.
+    pub voter_username: Option<String>,
+    /// The voter's area.
+    pub area_id: String,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, std::fmt::Debug)]

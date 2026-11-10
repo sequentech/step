@@ -16,6 +16,10 @@ use electoral_log::messages::newtypes::{
 };
 use electoral_log::ports::ElectoralLogStore;
 use electoral_log::{ElectoralLogMessage, LogEntry};
+use sequent_core::signing::{
+    RequesterSigning, RevocationStatus, SignatureAlgorithm, SigningAction,
+    SigningRequirement, SigningRule, StaffCertificateRegistration,
+};
 use serde_json::json;
 use std::future::Future;
 use std::sync::OnceLock;
@@ -23,6 +27,11 @@ use tokio::runtime::Runtime;
 use tokio_postgres::types::ToSql;
 use uuid::Uuid;
 use voting_crypto::signing::SigningKey;
+use windmill::postgres::signing::{
+    insert_signing_approval, insert_staff_certificate,
+    update_signing_request_status, upsert_signing_rule, NewSigningApproval,
+    NewStaffCertificate, SigningRequestTransition,
+};
 use windmill::services::ballot_box::BallotFormat;
 use windmill::services::electoral_log_board::get_event_databases;
 
@@ -383,7 +392,7 @@ impl Event {
                 format: &format,
                 content: "ballot",
                 voter_signature: None,
-                admission_record: &format!(r#"{{"payload":{{"accepted_at":"2026-10-27T12:00:00.000Z","sequence":{}}},"signature":""}}"#, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() as i64).into_bytes(),
+                admission_record: &format!(r#"{{"payload":{{"accepted_at":"{}","sequence":{}}},"signature":""}}"#, chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() as i64).into_bytes(),
                 pseudonym_hash: &[0; 64],
                 ballot_hash: &[0; 64],
                 voting_channel: "ONLINE",
@@ -541,6 +550,188 @@ impl Event {
         )
         .await
         .len()
+    }
+
+    /// The authenticated configuration package the event was imported from.
+    pub async fn configuration_package(&self, pool: &Pool) {
+        let (tenant_id, election_event_id) = self.ids();
+        // A tenant that imports packages has settings.
+        execute(
+            pool,
+            "UPDATE sequent_backend.tenant SET settings = '{}' WHERE id = $1",
+            &[&tenant_id],
+        )
+        .await;
+        execute(
+            pool,
+            "INSERT INTO sequent_backend.configuration_package
+                 (tenant_id, election_event_id, external_id, revision,
+                  manifest_sha256, manifest, signer_subject, signer_serial,
+                  signer_fingerprint, approvers)
+             VALUES ($1, $2, 'synthetic', 1, repeat('0', 64), $3, 'CN=synthetic',
+                     '1', repeat('0', 64), '[]')",
+            &[
+                &tenant_id,
+                &election_event_id,
+                &json!({
+                    "format": "sequent.configuration-manifest/1",
+                    "configuration": {
+                        "external_id": "synthetic",
+                        "name": "synthetic",
+                        "revision": 1,
+                        "previous": null,
+                    },
+                    "content_sha256": "0".repeat(64),
+                    "content": {"files": [], "ballot_designs": [], "reports": []},
+                    "approvals": [],
+                    "produced": {
+                        "at": "2026-01-01T00:00:00Z",
+                        "custodian": "synthetic",
+                        "key_label": "synthetic",
+                        "producer": {},
+                    },
+                }),
+            ],
+        )
+        .await;
+    }
+
+    /// The completed export of the event's current execution data.
+    pub async fn current_export(&self, pool: &Pool) {
+        let (tenant_id, election_event_id) = self.ids();
+        execute(
+            pool,
+            "INSERT INTO sequent_backend.execution_export
+                 (tenant_id, election_event_id, document_id, request_id,
+                  source_revision, lifecycle_generation, manifest_sha256,
+                  archive_sha256, signing_public_key)
+             SELECT l.tenant_id, l.election_event_id, gen_random_uuid(),
+                    gen_random_uuid(), v.revision, l.generation, repeat('0', 64),
+                    repeat('0', 64), 'synthetic'
+             FROM sequent_backend.election_lifecycle l
+             JOIN sequent_backend.election_execution_revision v
+               ON v.election_event_id = l.election_event_id
+             WHERE l.tenant_id = $1 AND l.election_event_id = $2
+               AND set_config('sequent.trusted_write', 'on', true) = 'on'",
+            &[&tenant_id, &election_event_id],
+        )
+        .await;
+    }
+
+    /// The event's electoral phase becomes `phase`, as the server's workflow
+    /// moves it.
+    pub async fn enter_phase(&self, pool: &Pool, phase: &str) {
+        let (tenant_id, election_event_id) = self.ids();
+        execute(
+            pool,
+            "UPDATE sequent_backend.election_lifecycle SET phase = $3
+             WHERE tenant_id = $1 AND election_event_id = $2
+               AND set_config('sequent.trusted_write', 'on', true) = 'on'",
+            &[&tenant_id, &election_event_id, &phase],
+        )
+        .await;
+    }
+
+    /// The rule that makes `action` wait for two board signatures.
+    pub async fn board_rule(&self, pool: &Pool, action: SigningAction) {
+        let (tenant_id, election_event_id) = self.ids();
+        let mut client = pool.get().await.expect("test database connection");
+        let tx = client.transaction().await.unwrap();
+        upsert_signing_rule(
+            &tx,
+            tenant_id,
+            election_event_id,
+            &SigningRule {
+                action,
+                requirement: SigningRequirement::Required,
+                signatures: 2,
+                requester_signing: RequesterSigning::NotAllowed,
+                expires_minutes: Some(60),
+                revision: 0,
+            },
+            0,
+            "manager",
+            None,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        tx.commit().await.unwrap();
+    }
+
+    /// Two board members, each with a certificate valid now, sign the waiting
+    /// signing request `request`, which completes it.
+    pub async fn board_signs(&self, pool: &Pool, request: Uuid) {
+        let (tenant_id, election_event_id) = self.ids();
+        let mut client = pool.get().await.expect("test database connection");
+        let tx = client.transaction().await.unwrap();
+        let now = chrono::Utc::now();
+        for member in ["board-member-1", "board-member-2"] {
+            let digest = || format!("{:064x}", Uuid::new_v4().as_u128());
+            let certificate = insert_staff_certificate(
+                &tx,
+                &NewStaffCertificate {
+                    tenant_id,
+                    election_event_id,
+                    user_id: member.to_string(),
+                    username: member.to_string(),
+                    user_display_name: None,
+                    election_id: None,
+                    fingerprint_sha256: digest(),
+                    spki_sha256: digest(),
+                    holder_sha256: digest(),
+                    serial: member.to_string(),
+                    subject: format!("CN={member}"),
+                    issuer: "CN=synthetic".to_string(),
+                    not_before: now - chrono::Duration::days(1),
+                    not_after: now + chrono::Duration::days(1),
+                    pem: "synthetic".to_string(),
+                    registration: StaffCertificateRegistration::FirstUse,
+                    linked_to: None,
+                    registered_by: member.to_string(),
+                    registered_by_name: None,
+                },
+            )
+            .await
+            .unwrap();
+            insert_signing_approval(
+                &tx,
+                &NewSigningApproval {
+                    tenant_id,
+                    election_event_id,
+                    request_id: request,
+                    user_id: certificate.user_id.clone(),
+                    username: certificate.username.clone(),
+                    display_name: None,
+                    auth_time: None,
+                    certificate_id: certificate.id,
+                    certificate_pem: certificate.pem.clone(),
+                    chain_pem: certificate.pem.clone(),
+                    fingerprint_sha256: certificate.fingerprint_sha256.clone(),
+                    spki_sha256: certificate.spki_sha256.clone(),
+                    holder_sha256: certificate.holder_sha256.clone(),
+                    algorithm: SignatureAlgorithm::RsaPkcs1Sha256,
+                    payload_signature: vec![1],
+                    document_signature: None,
+                    pdf_cms: None,
+                    revocation_status: RevocationStatus::Checked,
+                },
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        }
+        update_signing_request_status(
+            &tx,
+            tenant_id,
+            election_event_id,
+            request,
+            &SigningRequestTransition::Complete,
+        )
+        .await
+        .unwrap()
+        .expect("the request waits for its signatures");
+        tx.commit().await.unwrap();
     }
 }
 

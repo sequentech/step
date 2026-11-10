@@ -5,6 +5,46 @@ import englishTranslation, {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        electionRevoting: {
+            title: "Muling pagboto",
+            description:
+                "Habang naghahanda, bago magsimula ang pagboto sa anumang channel ng kaganapan ng halalan na ito, maaari mong i-disable ang muling pagboto para sa isang halalan: isang boto na lang ang maibibigay ng bawat botante. Hindi na maaaring i-enable muli ang muling pagboto, at itinatala ng log ng halalan kung sino ang nag-disable nito. Dapat aprubahan ng lupon ng halalan ang na-update na configuration bago magsimula ang pagboto.",
+            loading: "Nilo-load ang mga setting ng muling pagboto",
+            readFailed:
+                "Hindi mabasa ang mga setting ng muling pagboto ng mga halalan. Mag-reload bago gumawa ng mga pagbabago.",
+            empty: "Walang halalan ang kaganapan ng halalan na ito.",
+            election: "Halalan",
+            state: "Muling pagboto",
+            unlimited: "Pinapayagan, walang limitasyong boto",
+            upTo: "Pinapayagan, hanggang {{votes}} boto",
+            single: "Naka-disable, isang boto",
+            disable: "I-disable ang muling pagboto",
+            disableFor: "I-disable ang muling pagboto para sa {{name}}",
+            confirmTitle: "I-disable ang muling pagboto?",
+            confirm:
+                "Isang boto lang ang maibibigay ng bawat botante ng {{name}}. Hindi na maaaring i-enable muli ang muling pagboto.",
+            disabled:
+                "Na-disable ang muling pagboto para sa {{name}}. Dapat aprubahan ng lupon ng halalan ang na-update na configuration bago magsimula ang pagboto.",
+            failed: "Hindi na-disable ang muling pagboto para sa {{name}}: {{reason}}",
+            failedNoReason:
+                "Hindi na-disable ang muling pagboto para sa {{name}}. Mag-reload at tingnan ang yugto ng halalan.",
+        },
+        refusals: {
+            documentName:
+                "Hindi maaaring maglaman ang pangalan ng dokumento ng / \\ ; # % ? o ng control character. Palitan ang pangalan nito at subukang muli.",
+            documentWaitsForPostProcessing:
+                "Maaaring naglalaman ang dokumentong ito ng mga na-decode na balota. Maaari itong i-download kapag nagsimula na ang post-processing.",
+            resultsWaitForPostProcessing:
+                "Maaaring naglalaman ang database ng mga resulta ng pagbibilang na ito ng mga na-decode na balota. Maipapakita rito ang mga resulta kapag nagsimula na ang post-processing.",
+            ballotImagesWaitForPostProcessing:
+                "Maaaring gumawa ng mga larawan ng balota kapag nagsimula na ang post-processing.",
+            phaseChanging:
+                "Nagbabago ang yugto o ang kalagayan ng seguridad ng kaganapan ng halalan. Subukang muli maya-maya.",
+            resultsAlreadyCounted:
+                "Nabilang na ang mga resulta ng {{election}}, at hindi na maaaring magsagawa ng muling pagbibilang.",
+            resultsTallyUnfinished:
+                "Hindi pa tapos ang isang pagbibilang ng mga resulta ng {{election}}. Hintaying matapos ito, o kanselahin ito.",
+        },
         copyableFingerprint: {
             copy: "Kopyahin ang kumpletong SHA-256",
             copied: "Nakopya na ang kumpletong SHA-256",
@@ -1674,12 +1714,30 @@ const tagalogTranslation: TranslationType = {
                 },
             },
             permissions: {
-                "sign-start-tally": englishTranslation.translations.usersAndRolesScreen.permissions["sign-start-tally"],
-                "sign-import-election-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-import-election-data"],
-                "sign-export-execution-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-export-execution-data"],
-                "sign-delete-execution-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-delete-execution-data"],
-                "sign-read-voters-register": englishTranslation.translations.usersAndRolesScreen.permissions["sign-read-voters-register"],
-                "election-execution-export": englishTranslation.translations.usersAndRolesScreen.permissions["election-execution-export"],
+                "sign-start-tally":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-start-tally"
+                    ],
+                "sign-import-election-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-import-election-data"
+                    ],
+                "sign-export-execution-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-export-execution-data"
+                    ],
+                "sign-delete-execution-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-delete-execution-data"
+                    ],
+                "sign-read-voters-register":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-read-voters-register"
+                    ],
+                "election-execution-export":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "election-execution-export"
+                    ],
                 "voter-information-letter": "Bumuo ng Liham ng impormasyon para sa botante",
                 "admin-user": "Admin na Tagagamit",
                 "admin-dashboard-view": "Tingnan ang Dashboard ng Admin",
@@ -2478,6 +2536,12 @@ const tagalogTranslation: TranslationType = {
                     entry: "Entry",
                 },
                 emptyLogs: "Wala pang tala.",
+                managerKey: {
+                    title: "Susi ng tagapamahala ng protokol (SHA-256)",
+                    help: "Itinatala ng bawat trustee server ang fingerprint na ito para sa board na {{board}} kapag tinanggap nito ang Configuration ng seremonya ng mga susi. Paghambingin ang dalawa sa hiwalay na daluyan, hindi sa portal na ito.",
+                    readError:
+                        "Hindi mabasa ang susi ng tagapamahala ng protokol ng seremonyang ito ng mga susi.",
+                },
             },
         },
         miruExport: {
@@ -3865,7 +3929,8 @@ const tagalogTranslation: TranslationType = {
             },
             notices: {
                 ATTACK_REQUEST_ACTIVITY_UNAVAILABLE:
-                    englishTranslation.translations.monitoring.notices.ATTACK_REQUEST_ACTIVITY_UNAVAILABLE,
+                    englishTranslation.translations.monitoring.notices
+                        .ATTACK_REQUEST_ACTIVITY_UNAVAILABLE,
                 UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
                     "Ang mga pagtatangka gamit ang hindi rehistradong username ay hindi kabilang sa anumang Post, kaya binibilang lamang ang mga ito para sa buong event.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
@@ -4379,6 +4444,8 @@ const tagalogTranslation: TranslationType = {
                 forbidden: "Wala kang pahintulot para sa pagbabagong ito.",
                 invalid:
                     "Tinanggihan ng server ang mga value na ito. Suriin ang mga ito at subukang muli.",
+                signaturesFixed:
+                    "Naka-save na ang bilang ng pirma ng aksyong ito at hindi na ito mababago. I-reload ang pahina para makita ito.",
                 conflict:
                     "May ibang nagbago nito habang ginagawa mo ito. I-reload ang pahina at subukang muli.",
                 lockedDown:
@@ -4398,11 +4465,15 @@ const tagalogTranslation: TranslationType = {
                 "configuration-and-keys": "Configuration at mga susi",
             },
             actions: {
-                "import-election-data": englishTranslation.translations.signing.actions["import-election-data"],
+                "import-election-data":
+                    englishTranslation.translations.signing.actions["import-election-data"],
                 "start-tally": englishTranslation.translations.signing.actions["start-tally"],
-                "export-execution-data": englishTranslation.translations.signing.actions["export-execution-data"],
-                "delete-execution-data": englishTranslation.translations.signing.actions["delete-execution-data"],
-                "read-voters-register": englishTranslation.translations.signing.actions["read-voters-register"],
+                "export-execution-data":
+                    englishTranslation.translations.signing.actions["export-execution-data"],
+                "delete-execution-data":
+                    englishTranslation.translations.signing.actions["delete-execution-data"],
+                "read-voters-register":
+                    englishTranslation.translations.signing.actions["read-voters-register"],
                 "initialize-voting": {
                     label: "I-initialize ang pagboto",
                     short: "Initialization",
@@ -4541,6 +4612,7 @@ const tagalogTranslation: TranslationType = {
                     "Ginagamit ng bawat pumipirma ang kanyang digital na sertipiko. May hindi bababa sa {{n}} taong maaaring pumirma ang bawat $t(signing.terms.post).",
                 signaturesNeededShortHelp:
                     "Ginagamit ng bawat pumipirma ang kanyang digital na sertipiko.",
+                signaturesFixed: "Hindi na mababago ang bilang na ito kapag na-save na.",
                 requesterSigning: "Maaari ring pumirma ang taong nagsimula nito",
                 expiresAfter: "Mag-e-expire ang kahilingan pagkalipas ng",
                 trusteesSign: "Pumipirma ang mga trustee sa hakbang na ito",
@@ -6292,7 +6364,7 @@ const tagalogTranslation: TranslationType = {
         electoralLogConsole: {
             title: "Log ng Halalan",
             subtitle:
-                "I-browse ang log ng halalan at ballot box ng isang kaganapan ng halalan, o i-query ang database ng log ng halalan nito. Walang binabagong datos ang pahinang ito.",
+                "I-browse ang log ng halalan ng isang kaganapan ng halalan, o i-query ang database ng log ng halalan nito. Walang binabagong datos ang pahinang ito.",
             notAllowed:
                 "Kailangan mo ang pahintulot na electoral-log-console-read para buksan ang log ng halalan.",
             tabs: {
@@ -6304,9 +6376,6 @@ const tagalogTranslation: TranslationType = {
             table: "Talahanayan",
             tables: {
                 records: "Mga Record",
-                ballots: "Mga Balota",
-                voters: "Mga Botante",
-                queue: "Pila ng Sequencer",
             },
             order: {
                 "label": "Pagkakasunod",
@@ -6316,22 +6385,14 @@ const tagalogTranslation: TranslationType = {
             filters: {
                 statement_kind: "Uri",
                 election_id: "Halalan",
-                area_id: "ID ng Lugar",
                 user_id: "ID ng User o Botante",
                 ballot_id: "ID ng Balota",
-                status: "Katayuan",
                 created_after: "Mula",
                 created_before: "Hanggang",
                 any: "Kahit ano",
                 apply: "Ilapat ang mga Filter",
                 clear: "I-clear",
-                invalid:
-                    "Suriin ang mga minarkahang filter: dapat wasto ang mga petsa at dapat UUID ang mga ID ng lugar ng ballot box.",
-            },
-            statuses: {
-                valid: "Wasto",
-                pending: "Nakabinbin",
-                rejected: "Tinanggihan",
+                invalid: "Suriin ang mga minarkahang filter: dapat wasto ang mga petsa.",
             },
             estimatedRows: "Mga {{rows}} hilera sa talahanayang ito bago i-filter.",
             personalDataHidden:

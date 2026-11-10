@@ -90,7 +90,7 @@ pub async fn import_application_route(
         Err(err) => {
             return Ok(Json(ImportApplicationsOutput {
                 error_msg: Some(format!(
-                    "Error sending import_applications task: ${err}"
+                    "Error sending import_applications task: {err}"
                 )),
                 document_id: body.document_id,
                 task_execution: Some(task_execution),

@@ -7,7 +7,10 @@ mod protocol;
 pub mod snapshot;
 pub mod tsf_integrity;
 use crate::services::{
-    database::get_hasura_pool, election_lifecycle, electoral_log_audit_deadline::AuditDeadline,
+    database::get_hasura_pool,
+    election_lifecycle,
+    electoral_log_audit::{run_electoral_log_audit, AuditResult, AUDIT_ALREADY_RUNNING},
+    electoral_log_audit_deadline::AuditDeadline,
 };
 use anyhow::{ensure, Context, Result};
 use chrono::Utc;
@@ -24,6 +27,11 @@ const DEADLINE_EXCEEDED: &str = "The configured suite deadline was exceeded";
 /// Polls every two seconds outlast the longest configurable run, its sweep margin
 /// and a sweep tick. A run still open by then no longer holds up the next event.
 const STARTUP_RUN_POLLS: u16 = 330;
+/// Tries, a second apart, for the lock of an event's previous run to be released.
+const EXECUTE_LOCK_TRIES: u8 = 5;
+/// A run repeated this often keeps ending its processes: it then fails, as any
+/// run nobody finished.
+const MAX_RUN_REPEATS: i16 = 2;
 
 pub async fn settings(tx: &Transaction<'_>, tenant: &str, event: &str) -> Result<SelfTestSettings> {
     let row=tx.query_opt("SELECT settings FROM sequent_backend.self_test_settings WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid",&[&tenant,&event]).await?;
@@ -95,7 +103,7 @@ async fn enqueue_inner(
     if sent.is_err() {
         let mut failure = run;
         failure.finished_at = Some(Utc::now().to_rfc3339());
-        finish_abandoned(tenant, event, &failure).await?;
+        finish_abandoned(tenant, event, &task.id, &failure).await?;
         anyhow::bail!("Unable to queue self-test; no successful result was recorded");
     }
     Ok(task)
@@ -103,12 +111,12 @@ async fn enqueue_inner(
 
 /// A run no worker finished. Its failure is persisted whether or not the
 /// completion record can be written.
-async fn finish_abandoned(tenant: &str, event: &str, run: &SelfTestRun) -> Result<()> {
+async fn finish_abandoned(tenant: &str, event: &str, scope: &str, run: &SelfTestRun) -> Result<()> {
     let written = AuditDeadline::database()
         .run(checks::audit_record(
             tenant,
             event,
-            &run.run_id,
+            scope,
             "completed",
             &serde_json::to_value(run)?,
         ))
@@ -224,6 +232,19 @@ fn classify(check: SelfTestCheck, result: Result<Option<String>>) -> (SelfTestOu
     }
 }
 
+/// Another audit of the event holds its lock for a while, and that says nothing
+/// about this run. The suite's deadline bounds the wait.
+pub async fn audit_when_free(tenant: &str, event: &str) -> Result<AuditResult> {
+    loop {
+        match run_electoral_log_audit(tenant, event).await {
+            Err(error) if error.to_string() == AUDIT_ALREADY_RUNNING => {
+                tokio::time::sleep(Duration::from_secs(2)).await
+            }
+            result => return result,
+        }
+    }
+}
+
 /// An incomplete run never passes, and keeps an unrecoverable result it found.
 fn unfinished_outcome(run: &SelfTestRun) -> SelfTestOutcome {
     if run
@@ -246,22 +267,47 @@ fn completion_record_failed(run: &mut SelfTestRun) {
     }
 }
 
+/// Take the run for this process, outside the caller's lock so a sweep sees it. A
+/// message delivered again finds the run taken: a run begins again only after
+/// `reset_interrupted_runs` found its process gone. A run the stale sweep took is
+/// never claimed.
+pub async fn claim_run(tenant: &str, event: &str, id: &str, instance: &str) -> Result<bool> {
+    let db = get_hasura_pool().await.get().await?;
+    let claimed=db.execute("UPDATE sequent_backend.self_test_run SET executing_instance=$4::text::uuid WHERE id=$1::text::uuid AND tenant_id=$2::text::uuid AND election_event_id=$3::text::uuid AND finished_at IS NULL AND executing_instance IS NULL",&[&id,&tenant,&event,&instance]).await?;
+    Ok(claimed == 1)
+}
+
 pub async fn execute(tenant: &str, event: &str, id: &str) -> Result<()> {
     let setup = AuditDeadline::database();
     let mut c = setup
         .run(async { get_hasura_pool().await.get().await })
         .await??;
     let lock = setup.run(c.transaction()).await??;
-    let acquired: bool = setup
-        .run(lock.query_one(
-            "SELECT pg_try_advisory_xact_lock(hashtextextended($1,0))",
-            &[&format!("self-tests:execute:{event}")],
-        ))
-        .await??
-        .try_get(0)?;
+    // Another consumer holds the previous run's lock for a moment after finishing
+    // it, and giving up at once would lose this run's only message.
+    let mut acquired = false;
+    for _ in 0..EXECUTE_LOCK_TRIES {
+        acquired = setup
+            .run(lock.query_one(
+                "SELECT pg_try_advisory_xact_lock(hashtextextended($1,0))",
+                &[&format!("self-tests:execute:{event}")],
+            ))
+            .await??
+            .try_get(0)?;
+        if acquired {
+            break;
+        }
+        tokio::time::sleep(Duration::from_secs(1)).await;
+    }
     if !acquired {
         return Ok(());
     }
+    let instance = election_lifecycle::process_instance();
+    if !setup.run(claim_run(tenant, event, id, instance)).await?? {
+        return Ok(());
+    }
+    // A repeated run writes its own records: a record's name is written only once.
+    let scope = format!("{id}:{instance}");
     let Some(row)=lock.query_opt("SELECT result FROM sequent_backend.self_test_run WHERE id=$1::text::uuid AND tenant_id=$2::text::uuid AND election_event_id=$3::text::uuid AND finished_at IS NULL",&[&id,&tenant,&event]).await? else{return Ok(())};
     let mut run: SelfTestRun = serde_json::from_value(row.try_get(0)?)?;
     let config = settings(&lock, tenant, event).await?;
@@ -276,7 +322,7 @@ pub async fn execute(tenant: &str, event: &str, id: &str) -> Result<()> {
         .run(checks::audit_record(
             tenant,
             event,
-            id,
+            &scope,
             "started",
             &json!({"run_id":id,"trigger":run.trigger}),
         ))
@@ -350,15 +396,12 @@ pub async fn execute(tenant: &str, event: &str, id: &str) -> Result<()> {
                         checks::audit_record(
                             tenant,
                             event,
-                            id,
+                            &scope,
                             "probe",
                             &json!({"run_id":id,"nonce":uuid::Uuid::new_v4().to_string()}),
                         )
                         .await?;
-                        let result = crate::services::electoral_log_audit::run_electoral_log_audit(
-                            tenant, event,
-                        )
-                        .await?;
+                        let result = audit_when_free(tenant, event).await?;
                         audit_verdict(&result)
                     }
                     SelfTestCheck::TrustedChannel => {
@@ -421,7 +464,7 @@ pub async fn execute(tenant: &str, event: &str, id: &str) -> Result<()> {
         .run(checks::audit_record(
             tenant,
             event,
-            id,
+            &scope,
             "completed",
             &serde_json::to_value(&run)?,
         ))
@@ -437,29 +480,107 @@ pub async fn execute(tenant: &str, event: &str, id: &str) -> Result<()> {
     Ok(())
 }
 
+/// A run whose process ended says nothing about the system, and finishing it as
+/// failed would enter failure or block a scheduled start. It starts over under the
+/// same id, so whoever waits for it keeps waiting. An unrecoverable result it found
+/// stays, for the stale sweep to finish, as does a run repeated too often. A run
+/// that cannot be reset is logged and left as it is; the others still start over.
+pub async fn reset_interrupted_runs() -> Result<Vec<(String, String, String)>> {
+    let db = get_hasura_pool().await.get().await?;
+    let rows=db.query("SELECT r.tenant_id::text,r.election_event_id::text,r.result,r.executing_instance::text FROM sequent_backend.self_test_run r WHERE r.finished_at IS NULL AND r.executing_instance IS NOT NULL AND r.repeats<$1 AND NOT EXISTS(SELECT 1 FROM sequent_backend.lifecycle_service_instance i WHERE i.component='windmill' AND i.instance=r.executing_instance AND i.renewed_at>clock_timestamp()-($2::bigint*interval '1 second'))",&[&MAX_RUN_REPEATS,&election_lifecycle::INSTANCE_LIVE_SECONDS]).await?;
+    let mut reset = vec![];
+    for row in rows {
+        let entry = async {
+            let mut run: SelfTestRun = serde_json::from_value(row.try_get(2)?)?;
+            if unfinished_outcome(&run) == SelfTestOutcome::UnrecoverableFailure {
+                return Ok(None);
+            }
+            run.checks.clear();
+            run.started_at = Utc::now().to_rfc3339();
+            let instance: String = row.try_get(3)?;
+            let changed=db.execute("UPDATE sequent_backend.self_test_run SET started_at=now(),executing_instance=NULL,repeats=repeats+1,result=$2 WHERE id=$1::text::uuid AND finished_at IS NULL AND executing_instance=$3::text::uuid",&[&run.run_id,&serde_json::to_value(&run)?,&instance]).await?;
+            Ok::<_, anyhow::Error>(if changed == 1 {
+                Some((row.try_get(0)?, row.try_get(1)?, run.run_id))
+            } else {
+                None
+            })
+        }
+        .await;
+        match entry {
+            Ok(Some(entry)) => reset.push(entry),
+            Ok(None) => {}
+            Err(error) => {
+                tracing::error!("An interrupted self-test could not be reset: {error:#}");
+            }
+        }
+    }
+    Ok(reset)
+}
+
+/// A run whose message cannot be sent is logged and left for the stale sweep, which
+/// fails it at its deadline; the other runs are still repeated.
+async fn repeat_interrupted_runs() -> Result<()> {
+    for (tenant, event, id) in reset_interrupted_runs().await? {
+        tracing::warn!(%event, run_id = %id, "Repeating a self-test whose process ended");
+        let sent = crate::services::celery_app::get_celery_app()
+            .await
+            .send_task(crate::tasks::self_tests::run_self_tests::new(
+                tenant,
+                event.clone(),
+                id.clone(),
+            ))
+            .await;
+        if let Err(error) = sent {
+            tracing::error!(%event, run_id = %id, "Repeated self-test could not be queued: {error:#}");
+        }
+    }
+    Ok(())
+}
+
+/// Takes the runs past their deadline, for the caller to finish as abandoned, in one
+/// statement that rechecks each row: a run that started over meanwhile is no longer
+/// overdue, and no process can claim a taken run. A run keeps the process that
+/// holds it, and its result record is written under that process's name, so a late
+/// worker adds no second result; a run nobody holds is taken under this process.
+/// Returns tenant, event, run and that process.
+pub async fn take_overdue_runs(
+    tx: &Transaction<'_>,
+) -> Result<Vec<(String, String, SelfTestRun, String)>> {
+    let rows=tx.query("UPDATE sequent_backend.self_test_run r SET executing_instance=COALESCE(r.executing_instance,$1::text::uuid) WHERE r.finished_at IS NULL AND r.started_at<now()-make_interval(secs=>COALESCE((SELECT (s.settings->>'timeout_seconds')::int FROM sequent_backend.self_test_settings s WHERE s.tenant_id=r.tenant_id AND s.election_event_id=r.election_event_id),60)+30) RETURNING r.tenant_id::text,r.election_event_id::text,r.result,r.executing_instance::text",&[&election_lifecycle::process_instance()]).await?;
+    rows.iter()
+        .map(|row| {
+            Ok::<_, anyhow::Error>((
+                row.try_get(0)?,
+                row.try_get(1)?,
+                serde_json::from_value(row.try_get(2)?)?,
+                row.try_get(3)?,
+            ))
+        })
+        .collect()
+}
+
 pub async fn periodic() -> Result<()> {
     election_lifecycle::tick().await?;
     if let Err(error) = tsf_integrity::sweep().await {
         tracing::error!("TSF integrity sweep deferred: {error:#}");
+    }
+    if let Err(error) = repeat_interrupted_runs().await {
+        tracing::error!("Interrupted self-tests could not be repeated: {error:#}");
     }
     let mut c = get_hasura_pool().await.get().await?;
     let tx = c.transaction().await?;
     tx.batch_execute("SET LOCAL statement_timeout='10000ms'")
         .await?;
     let events=tx.query("SELECT e.tenant_id::text,e.id::text FROM sequent_backend.election_event e JOIN sequent_backend.election_lifecycle l ON l.tenant_id=e.tenant_id AND l.election_event_id=e.id LEFT JOIN sequent_backend.self_test_settings s ON s.tenant_id=e.tenant_id AND s.election_event_id=e.id WHERE l.phase='execution' AND l.safety='operational' AND NOT EXISTS(SELECT 1 FROM sequent_backend.self_test_run r WHERE r.tenant_id=e.tenant_id AND r.election_event_id=e.id AND (r.finished_at IS NULL OR (r.generation=l.generation AND r.finished_at>now()-make_interval(secs=>GREATEST(0,COALESCE((s.settings->>'interval_minutes')::int,15)*60-COALESCE((s.settings->>'timeout_seconds')::int,60)-30))))) ORDER BY e.id LIMIT 100",&[]).await?;
-    let stale=tx.query("SELECT r.tenant_id::text,r.election_event_id::text,r.result FROM sequent_backend.self_test_run r LEFT JOIN sequent_backend.self_test_settings s USING(tenant_id,election_event_id) WHERE r.finished_at IS NULL AND r.started_at<now()-make_interval(secs=>COALESCE((s.settings->>'timeout_seconds')::int,60)+30)",&[]).await?;
+    let stale = take_overdue_runs(&tx).await?;
     tx.commit().await?;
     drop(c);
-    for row in stale {
-        let mut run: SelfTestRun = serde_json::from_value(row.try_get(2)?)?;
+    for (tenant, event, mut run, instance) in stale {
         run.outcome = unfinished_outcome(&run);
         run.finished_at = Some(Utc::now().to_rfc3339());
-        finish_abandoned(
-            &row.try_get::<_, String>(0)?,
-            &row.try_get::<_, String>(1)?,
-            &run,
-        )
-        .await?;
+        // The name its process uses, so a late worker adds no second result.
+        let scope = format!("{}:{instance}", run.run_id);
+        finish_abandoned(&tenant, &event, &scope, &run).await?;
     }
     for row in events {
         let tenant: String = row.try_get(0)?;
@@ -518,7 +639,8 @@ pub async fn update_settings(
     Ok(())
 }
 
-/// A process restart invalidates old operational evidence before new tasks run.
+/// A restart of the component invalidates old operational evidence before new
+/// tasks run. A process starting beside a running one changes nothing but its tests.
 pub async fn startup() -> Result<()> {
     election_lifecycle::register_startup("windmill").await?;
     startup_runs();

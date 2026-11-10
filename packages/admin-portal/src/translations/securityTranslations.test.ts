@@ -53,5 +53,16 @@ it.each(Object.entries({cat, es, eu, fr, gl, nl, tl}))(
                 en.translations.tsfIntegrity[group].different
             )
         }
+        const revoting = locale.translations.electionRevoting
+        expect(Object.keys(revoting).sort()).toEqual(
+            Object.keys(en.translations.electionRevoting).sort()
+        )
+        expect(revoting.disable).not.toEqual(en.translations.electionRevoting.disable)
+        const placeholders = (text: string) => (text.match(/{{\w+}}/g) ?? []).sort()
+        for (const key of Object.keys(revoting) as Array<keyof typeof revoting>) {
+            expect(placeholders(revoting[key])).toEqual(
+                placeholders(en.translations.electionRevoting[key])
+            )
+        }
     }
 )

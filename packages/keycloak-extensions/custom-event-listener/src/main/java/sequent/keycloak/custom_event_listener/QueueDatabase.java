@@ -82,9 +82,10 @@ final class QueueDatabase implements QueueSender {
   boolean auditStorageAvailable() throws SQLException {
     try (Connection connection = dataSource.getConnection()) {
       verify(connection);
-      try (PreparedStatement statement = connection.prepareStatement(
-          "SELECT EXISTS(SELECT 1 FROM step_queue.audit_storage_health WHERE singleton "
-              + "AND state='available' AND observed_at BETWEEN clock_timestamp()-interval '90 seconds' AND clock_timestamp())")) {
+      try (PreparedStatement statement =
+          connection.prepareStatement(
+              "SELECT EXISTS(SELECT 1 FROM step_queue.audit_storage_health WHERE singleton "
+                  + "AND state='available' AND observed_at BETWEEN clock_timestamp()-interval '90 seconds' AND clock_timestamp())")) {
         statement.setQueryTimeout(3);
         try (ResultSet result = statement.executeQuery()) {
           return result.next() && result.getBoolean(1);

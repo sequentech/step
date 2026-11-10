@@ -60,14 +60,6 @@ pub async fn manage_election_event_lockdown_wrapped(
         &scheduled_event_id,
     )
     .await?;
-    if get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id)
-        .await?
-        .is_archived
-    {
-        info!("Skipping scheduled transition {scheduled_event_id}: the event is archived");
-        return Ok(());
-    }
-
     let scheduled_event = find_scheduled_event_by_id(
         hasura_transaction,
         Some(tenant_id.clone()),
@@ -94,6 +86,13 @@ pub async fn manage_election_event_lockdown_wrapped(
 
     let election_event =
         get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await?;
+
+    // An archived event never locks down, but a lockdown it was archived in still
+    // ends: the export of its data is offered only then.
+    if election_event.is_archived && locked_down {
+        info!("Skipping scheduled transition {scheduled_event_id}: the event is archived");
+        return Ok(());
+    }
 
     // An event without a presentation is not locked down.
     let presentation: ElectionEventPresentation = match election_event.presentation.clone() {

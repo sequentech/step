@@ -263,6 +263,8 @@ const catalanTranslation: TranslationType = {
                     "L'estil de la papereta no està disponible. Si us plau, contacteu amb el servei d'assistència.",
                 NO_AUDITABLE_BALLOT:
                     "No hi ha cap papereta auditable disponible. Si us plau, contacteu amb el servei d'assistència.",
+                AUDIT_BALLOT:
+                    "L'urna no ha pogut confirmar l'auditoria d'aquesta papereta. Si us plau, torneu-ho a provar més tard o contacteu amb el servei d'assistència.",
                 INCONSISTENT_HASH:
                     "Hi ha hagut un error relacionat amb el procés de hashing de la papereta. El BallotId: {{ballotId}} no és consistent amb el Hash de la Papereta Auditable: {{auditableBallotHash}}. Si us plau, informeu d'aquest problema al servei d'assistència.",
                 ELECTION_EVENT_NOT_OPEN:

@@ -38,52 +38,27 @@ for (const operation of ["update", "delete"]) {
     test(`${operation} cannot strip or replace classified document metadata`, () => {
         const permissions = metadata[`${operation}_permissions`]
         assert.deepEqual(permissions.map(({role}) => role).sort(), [
-            "admin-user",
             "document-write",
             "service-account",
         ])
         for (const {role, permission} of permissions) {
             assert.deepEqual(
                 permission.filter,
-                role === "service-account"
-                    ? {}
-                    : role === "admin-user"
-                      ? {
-                            _and: [
-                                ...protectedFilter._and,
-                                {election_event_id: {_is_null: true}},
-                            ],
-                        }
-                      : protectedFilter
+                role === "service-account" ? {} : protectedFilter
             )
         }
     })
 }
 
-const tenantDocumentScope = {
-    tenant_id: {_eq: "X-Hasura-Tenant-Id"},
-    election_event_id: {_is_null: true},
-}
-
-test("the default admin role sees and inserts only tenant-level documents", () => {
-    assert.deepEqual(
-        metadata.select_permissions.find(({role}) => role === "admin-user")
-            .permission.filter,
-        tenantDocumentScope
-    )
-    assert.deepEqual(
-        metadata.insert_permissions.find(({role}) => role === "admin-user")
-            .permission.check,
-        tenantDocumentScope
-    )
-})
-
-test("the admin update cannot move a tenant backup into an election", () => {
-    assert.deepEqual(
-        metadata.update_permissions.find(({role}) => role === "admin-user")
-            .permission.check,
-        tenantDocumentScope
-    )
+test("the default admin role neither reads nor writes documents", () => {
+    for (const operation of ["select", "insert", "update", "delete"]) {
+        assert.ok(
+            !(metadata[`${operation}_permissions`] ?? []).some(
+                ({role}) => role === "admin-user"
+            ),
+            operation
+        )
+    }
 })
 
 test("board document roles retain their existing event scope", () => {

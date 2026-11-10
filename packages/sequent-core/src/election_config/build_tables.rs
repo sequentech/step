@@ -933,7 +933,7 @@ impl Builder<'_> {
 
     /// Transpose the permission matrix into the platform's own shape.
     ///
-    /// `export_tenant_config.rs` writes `role,permissions` with permissions
+    /// The platform's permissions file is `role,permissions` with permissions
     /// joined by `|`; the source holds the transpose, one row per permission and
     /// one column per role, marked with any non-empty cell. A matrix is what a
     /// human can check at a glance, which is why the conversion lives here.

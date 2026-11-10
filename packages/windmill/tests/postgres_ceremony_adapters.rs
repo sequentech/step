@@ -334,6 +334,15 @@ async fn insert_keys_ceremony_returns_and_stores_every_supplied_column() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
+    // The settings name an automatic ceremony, which the event must allow.
+    tx.execute(
+        "UPDATE sequent_backend.election_event
+         SET presentation = '{\"ceremonies_policy\": \"automated-ceremonies\"}'
+         WHERE id = $1::text::uuid",
+        &[&w.event],
+    )
+    .await
+    .unwrap();
     let (ceremony, trustee_a, trustee_b) = (w.id(10), w.id(11), w.id(12));
     let status = json!({"stop_date": null, "public_key": null, "logs": [], "trustees": []});
 
@@ -583,6 +592,9 @@ async fn lock_keys_ceremony_by_id_makes_another_transaction_wait_until_it_ends()
     retry.rollback().await.unwrap();
 
     let cleanup = setup.transaction().await.unwrap();
+    // The event's lifecycle row goes with it only in the server's own
+    // transaction.
+    windmill::postgres::trusted_write(&cleanup).await.unwrap();
     cleanup
         .batch_execute(&format!(
             "DELETE FROM sequent_backend.keys_ceremony WHERE tenant_id = '{tenant_id}';
@@ -1526,6 +1538,9 @@ async fn lock_tally_session_for_update_makes_another_transaction_wait_until_it_e
     retry.rollback().await.unwrap();
 
     let cleanup = setup.transaction().await.unwrap();
+    // The event's lifecycle row goes with it only in the server's own
+    // transaction.
+    windmill::postgres::trusted_write(&cleanup).await.unwrap();
     cleanup
         .batch_execute(&format!(
             "DELETE FROM sequent_backend.tally_session WHERE tenant_id = '{tenant_id}';

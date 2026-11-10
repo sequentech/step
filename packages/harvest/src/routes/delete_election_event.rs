@@ -101,7 +101,7 @@ pub async fn delete_election_event_f(
             return Ok(Json(DeleteElectionEventOutput {
                 id: input.election_event_id,
                 error_msg: Some(format!(
-                    "Error sending Delete Election Event task: ${error}"
+                    "Error sending Delete Election Event task: {error}"
                 )),
                 task_execution: task_execution.clone(),
             }));

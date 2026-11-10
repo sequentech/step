@@ -4,6 +4,8 @@
 //! The tables behind the configurable monitoring dashboards: what they
 //! refuse, and that they go with their election event.
 
+#[path = "support/deletion.rs"]
+mod deletion;
 #[path = "support/schema.rs"]
 mod schema;
 
@@ -1332,6 +1334,7 @@ async fn of_two_saves_from_one_revision_the_second_moves_nothing() {
 
     // Deleting the event removes the committed rows, deferred checks included.
     let cleanup = first.transaction().await.unwrap();
+    deletion::authorize_deletion(&cleanup, s.tenant, s.event).await;
     delete_election_event(&cleanup, &s.tenant.to_string(), &s.event.to_string())
         .await
         .unwrap();
@@ -2028,6 +2031,7 @@ async fn a_pass_that_fell_behind_a_later_one_can_no_longer_complete() {
     );
 
     let cleanup = stale_client.transaction().await.unwrap();
+    deletion::authorize_deletion(&cleanup, s.tenant, s.event).await;
     delete_election_event(&cleanup, &s.tenant.to_string(), &s.event.to_string())
         .await
         .unwrap();
@@ -2249,6 +2253,7 @@ async fn only_the_transaction_that_finishes_a_run_writes_what_it_counted() {
     check.rollback().await.unwrap();
 
     let cleanup = worker_client.transaction().await.unwrap();
+    deletion::authorize_deletion(&cleanup, s.tenant, s.event).await;
     delete_election_event(&cleanup, &s.tenant.to_string(), &s.event.to_string())
         .await
         .unwrap();
@@ -2819,6 +2824,7 @@ async fn of_two_passes_opening_one_scope_the_second_is_refused() {
     b.rollback().await.unwrap();
 
     let cleanup = first.transaction().await.unwrap();
+    deletion::authorize_deletion(&cleanup, s.tenant, s.event).await;
     delete_election_event(&cleanup, &s.tenant.to_string(), &s.event.to_string())
         .await
         .unwrap();
@@ -2918,6 +2924,7 @@ async fn a_reader_of_a_run_sees_all_its_figures_or_none_while_it_is_pruned() {
     late.rollback().await.unwrap();
 
     let cleanup = pruner.transaction().await.unwrap();
+    deletion::authorize_deletion(&cleanup, s.tenant, s.event).await;
     delete_election_event(&cleanup, &s.tenant.to_string(), &s.event.to_string())
         .await
         .unwrap();
@@ -3239,6 +3246,7 @@ async fn pruning_out_of_order_fails_at_commit_unless_checked_at_once() {
     both.commit().await.unwrap();
 
     let cleanup = client.transaction().await.unwrap();
+    deletion::authorize_deletion(&cleanup, s.tenant, s.event).await;
     delete_election_event(&cleanup, &s.tenant.to_string(), &s.event.to_string())
         .await
         .unwrap();
@@ -3355,6 +3363,7 @@ async fn a_hash_names_one_content_whoever_stores_it_again() {
     assert_eq!(shown(second, "region=east").await, payload_text("east"));
 
     let cleanup = pass_client.transaction().await.unwrap();
+    deletion::authorize_deletion(&cleanup, s.tenant, s.event).await;
     delete_election_event(&cleanup, &s.tenant.to_string(), &s.event.to_string())
         .await
         .unwrap();
@@ -3961,6 +3970,7 @@ async fn a_snapshot_pass_and_a_save_never_wait_for_one_another() {
     check.rollback().await.unwrap();
 
     let cleanup = jobs.transaction().await.unwrap();
+    deletion::authorize_deletion(&cleanup, s.tenant, s.event).await;
     delete_election_event(&cleanup, &s.tenant.to_string(), &s.event.to_string())
         .await
         .unwrap();
@@ -4031,6 +4041,7 @@ async fn every_monitoring_row_goes_with_its_event() {
             "{table} is empty, so its deletion would prove nothing"
         );
     }
+    deletion::authorize_deletion(&tx, s.tenant, s.event).await;
     delete_election_event(&tx, &s.tenant.to_string(), &s.event.to_string())
         .await
         .unwrap();

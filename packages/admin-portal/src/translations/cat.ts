@@ -5,6 +5,46 @@ import englishTranslation, {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        electionRevoting: {
+            title: "Revot",
+            description:
+                "Durant la preparació, abans que comenci la votació en qualsevol canal d'aquest esdeveniment electoral, podeu desactivar el revot d'una elecció: cada votant podrà emetre aleshores un sol vot. El revot no es pot tornar a activar, i el registre electoral deixa constància de qui el va desactivar. La junta electoral ha d'aprovar la configuració actualitzada abans que comenci la votació.",
+            loading: "S'està carregant la configuració del revot",
+            readFailed:
+                "No s'ha pogut llegir la configuració del revot de les eleccions. Torneu a carregar la pàgina abans de fer canvis.",
+            empty: "Aquest esdeveniment electoral no té eleccions.",
+            election: "Elecció",
+            state: "Revot",
+            unlimited: "Permès, vots il·limitats",
+            upTo: "Permès, fins a {{votes}} vots",
+            single: "Desactivat, un vot",
+            disable: "Desactiva el revot",
+            disableFor: "Desactiva el revot de {{name}}",
+            confirmTitle: "Voleu desactivar el revot?",
+            confirm:
+                "Cada votant de {{name}} podrà emetre un sol vot. El revot no es pot tornar a activar.",
+            disabled:
+                "S'ha desactivat el revot de {{name}}. La junta electoral ha d'aprovar la configuració actualitzada abans que comenci la votació.",
+            failed: "No s'ha desactivat el revot de {{name}}: {{reason}}",
+            failedNoReason:
+                "No s'ha desactivat el revot de {{name}}. Torneu a carregar la pàgina i comproveu la fase de l'elecció.",
+        },
+        refusals: {
+            documentName:
+                "El nom d'un document no pot contenir / \\ ; # % ? ni caràcters de control. Canvieu-ne el nom i torneu-ho a provar.",
+            documentWaitsForPostProcessing:
+                "Aquest document pot contenir paperetes descodificades. Es podrà descarregar quan hagi començat el postprocessament.",
+            resultsWaitForPostProcessing:
+                "La base de dades de resultats d'aquest recompte pot contenir paperetes descodificades. Els resultats es podran mostrar aquí quan hagi començat el postprocessament.",
+            ballotImagesWaitForPostProcessing:
+                "Les imatges de les paperetes es podran generar quan hagi començat el postprocessament.",
+            phaseChanging:
+                "La fase o l'estat de seguretat de l'esdeveniment electoral està canviant. Torneu-ho a provar d'aquí a un moment.",
+            resultsAlreadyCounted:
+                "Els resultats de {{election}} ja s'han comptat i no es pot fer un nou recompte.",
+            resultsTallyUnfinished:
+                "Un recompte de resultats de {{election}} no ha acabat. Espereu que acabi o cancel·leu-lo.",
+        },
         copyableFingerprint: {
             copy: "Copia el SHA-256 complet",
             copied: "S'ha copiat el SHA-256 complet",
@@ -1672,12 +1712,30 @@ const catalanTranslation: TranslationType = {
                 },
             },
             permissions: {
-                "sign-start-tally": englishTranslation.translations.usersAndRolesScreen.permissions["sign-start-tally"],
-                "sign-import-election-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-import-election-data"],
-                "sign-export-execution-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-export-execution-data"],
-                "sign-delete-execution-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-delete-execution-data"],
-                "sign-read-voters-register": englishTranslation.translations.usersAndRolesScreen.permissions["sign-read-voters-register"],
-                "election-execution-export": englishTranslation.translations.usersAndRolesScreen.permissions["election-execution-export"],
+                "sign-start-tally":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-start-tally"
+                    ],
+                "sign-import-election-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-import-election-data"
+                    ],
+                "sign-export-execution-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-export-execution-data"
+                    ],
+                "sign-delete-execution-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-delete-execution-data"
+                    ],
+                "sign-read-voters-register":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-read-voters-register"
+                    ],
+                "election-execution-export":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "election-execution-export"
+                    ],
                 "voter-information-letter": "Genera una Carta d'informació per al votant",
                 "admin-user": "Administració",
                 "admin-dashboard-view": "Vista del Tauler d'Administració",
@@ -2477,6 +2535,12 @@ const catalanTranslation: TranslationType = {
                     entry: "Entrada",
                 },
                 emptyLogs: "Sense logs encara.",
+                managerKey: {
+                    title: "Clau del gestor del protocol (SHA-256)",
+                    help: "Cada servidor d'autoritat registra aquesta empremta per al tauler {{board}} quan accepta la configuració de la cerimònia de claus. Compareu-les per un canal independent, no a través d'aquest portal.",
+                    readError:
+                        "No s'ha pogut llegir la clau del gestor del protocol d'aquesta cerimònia de claus.",
+                },
             },
         },
         miruExport: {
@@ -3855,7 +3919,8 @@ const catalanTranslation: TranslationType = {
             },
             notices: {
                 ATTACK_REQUEST_ACTIVITY_UNAVAILABLE:
-                    englishTranslation.translations.monitoring.notices.ATTACK_REQUEST_ACTIVITY_UNAVAILABLE,
+                    englishTranslation.translations.monitoring.notices
+                        .ATTACK_REQUEST_ACTIVITY_UNAVAILABLE,
                 UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
                     "Els intents amb noms d'usuari no registrats no pertanyen a cap lloc, de manera que només es compten per a tot l'esdeveniment.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
@@ -4365,6 +4430,8 @@ const catalanTranslation: TranslationType = {
                 forbidden: "No teniu permís per fer aquest canvi.",
                 invalid:
                     "El servidor ha rebutjat aquests valors. Reviseu-los i torneu-ho a provar.",
+                signaturesFixed:
+                    "El nombre de signatures d'aquesta acció ja està desat i no es pot canviar. Recarregueu la pàgina per veure'l.",
                 conflict:
                     "Una altra persona ho ha canviat mentrestant. Recarregueu la pàgina i torneu-ho a provar.",
                 lockedDown:
@@ -4384,11 +4451,15 @@ const catalanTranslation: TranslationType = {
                 "configuration-and-keys": "Configuració i claus",
             },
             actions: {
-                "import-election-data": englishTranslation.translations.signing.actions["import-election-data"],
+                "import-election-data":
+                    englishTranslation.translations.signing.actions["import-election-data"],
                 "start-tally": englishTranslation.translations.signing.actions["start-tally"],
-                "export-execution-data": englishTranslation.translations.signing.actions["export-execution-data"],
-                "delete-execution-data": englishTranslation.translations.signing.actions["delete-execution-data"],
-                "read-voters-register": englishTranslation.translations.signing.actions["read-voters-register"],
+                "export-execution-data":
+                    englishTranslation.translations.signing.actions["export-execution-data"],
+                "delete-execution-data":
+                    englishTranslation.translations.signing.actions["delete-execution-data"],
+                "read-voters-register":
+                    englishTranslation.translations.signing.actions["read-voters-register"],
                 "initialize-voting": {
                     label: "Inicialitzar la votació",
                     short: "Inicialització",
@@ -4525,6 +4596,7 @@ const catalanTranslation: TranslationType = {
                 signaturesNeededHelp:
                     "Cada signant fa servir el seu certificat digital. Cada $t(signing.terms.post) té almenys {{n}} persones que poden signar.",
                 signaturesNeededShortHelp: "Cada signant fa servir el seu certificat digital.",
+                signaturesFixed: "Aquest nombre queda fix un cop desat.",
                 requesterSigning: "La persona que la inicia també pot signar",
                 expiresAfter: "Una sol·licitud caduca al cap de",
                 trusteesSign: "Les autoritats signen aquest pas",
@@ -6263,7 +6335,7 @@ const catalanTranslation: TranslationType = {
         electoralLogConsole: {
             title: "Registre Electoral",
             subtitle:
-                "Exploreu el registre electoral i l'urna d'un esdeveniment electoral, o consulteu-ne la base de dades del registre electoral. Res d'aquesta pàgina modifica dades.",
+                "Exploreu el registre electoral d'un esdeveniment electoral, o consulteu-ne la base de dades del registre electoral. Res d'aquesta pàgina modifica dades.",
             notAllowed:
                 "Necessiteu el permís electoral-log-console-read per obrir el registre electoral.",
             tabs: {
@@ -6275,9 +6347,6 @@ const catalanTranslation: TranslationType = {
             table: "Taula",
             tables: {
                 records: "Entrades",
-                ballots: "Paperetes",
-                voters: "Votants",
-                queue: "Cua del Seqüenciador",
             },
             order: {
                 "label": "Ordre",
@@ -6287,22 +6356,14 @@ const catalanTranslation: TranslationType = {
             filters: {
                 statement_kind: "Tipus",
                 election_id: "Elecció",
-                area_id: "ID d'Àrea",
                 user_id: "ID d'Usuari o Votant",
                 ballot_id: "ID de Papereta",
-                status: "Estat",
                 created_after: "Des de",
                 created_before: "Fins a",
                 any: "Qualsevol",
                 apply: "Aplicar Filtres",
                 clear: "Netejar",
-                invalid:
-                    "Reviseu els filtres marcats: les dates han de ser vàlides i els ID d'àrea de l'urna han de ser UUID.",
-            },
-            statuses: {
-                valid: "Vàlida",
-                pending: "Pendent",
-                rejected: "Rebutjada",
+                invalid: "Reviseu els filtres marcats: les dates han de ser vàlides.",
             },
             estimatedRows: "Unes {{rows}} files en aquesta taula abans de filtrar.",
             personalDataHidden:

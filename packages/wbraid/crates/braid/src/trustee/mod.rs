@@ -63,6 +63,10 @@ const WIRE_DATE: Timestamp = 0;
 /// the derived self-scoped `configuration_valid` fact (§9.7). The board state
 /// lives in the board client; [`step`](Self::step) reads it through the board
 /// client's [`MessageStore`] and returns messages with no side effect (§6 loop-back).
+///
+/// Both secrets are overwritten with zero when the trustee is dropped: the
+/// signing key by `ed25519_dalek::SigningKey` (its `zeroize` feature) and the
+/// share-encryption secret by [`KeyPair`].
 pub struct Trustee<C: Context> {
     /// Human-readable sender name, stamped into every posted message.
     name: String,

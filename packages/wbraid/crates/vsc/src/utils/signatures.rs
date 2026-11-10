@@ -25,6 +25,7 @@ use std::marker::PhantomData;
 
 pub use ed25519::signature::{Error, Signer, Verifier};
 use ed25519_dalek::{Signature, SigningKey, VerifyingKey, ed25519};
+use zeroize::Zeroizing;
 
 use crate::utils::Error as CryptoError;
 use crate::utils::{
@@ -84,6 +85,9 @@ pub trait SignatureScheme<R: CRng> {
     ///
     /// This is useful when reading/writing signing keys to/from configuration files
     /// in a generic context.
+    ///
+    /// The returned string encodes the secret key: callers keep it in a
+    /// container that overwrites it when dropped, such as `zeroize::Zeroizing`.
     ///
     /// # Errors
     ///
@@ -163,21 +167,25 @@ impl<R: CRng> SignatureScheme<R> for Ed25519<R> {
     fn signer_to_base64_string(signer: &Self::Signer) -> Result<String, CryptoError> {
         use base64::{Engine as _, engine::general_purpose};
 
-        // Ed25519 secret keys are 32 bytes
-        let bytes = signer.to_bytes();
-        Ok(general_purpose::STANDARD.encode(bytes))
+        // Ed25519 secret keys are 32 bytes; the copy is overwritten on return
+        let bytes = Zeroizing::new(signer.to_bytes());
+        Ok(general_purpose::STANDARD.encode(bytes.as_slice()))
     }
 
     fn signer_from_base64_string(s: &str) -> Result<Self::Signer, CryptoError> {
         use base64::{Engine as _, engine::general_purpose};
 
-        let bytes = general_purpose::STANDARD.decode(s).map_err(|e| {
+        // The decoded copies of the secret key are overwritten on return
+        let decoded = Zeroizing::new(general_purpose::STANDARD.decode(s).map_err(|e| {
             CryptoError::DeserializationError(format!("Failed to decode base64: {e:?}"))
-        })?;
+        })?);
 
-        let bytes: [u8; 32] = bytes.try_into().map_err(|_| {
-            CryptoError::DeserializationError("Invalid key length: expected 32 bytes".to_string())
-        })?;
+        let bytes: Zeroizing<[u8; 32]> =
+            Zeroizing::new(decoded.as_slice().try_into().map_err(|_| {
+                CryptoError::DeserializationError(
+                    "Invalid key length: expected 32 bytes".to_string(),
+                )
+            })?);
 
         Ok(SigningKey::from_bytes(&bytes))
     }
@@ -191,9 +199,11 @@ impl Serializable for SigningKey {
 impl Deserializable for SigningKey {
     fn read(input: &mut &[u8]) -> Result<Self, CryptoError> {
         let bytes = take(input, ed25519_dalek::SECRET_KEY_LENGTH)?;
-        let array: [u8; ed25519_dalek::SECRET_KEY_LENGTH] = bytes
-            .try_into()
-            .expect("take returns exactly the requested bytes");
+        let array: Zeroizing<[u8; ed25519_dalek::SECRET_KEY_LENGTH]> = Zeroizing::new(
+            bytes
+                .try_into()
+                .expect("take returns exactly the requested bytes"),
+        );
         Ok(SigningKey::from_bytes(&array))
     }
 }

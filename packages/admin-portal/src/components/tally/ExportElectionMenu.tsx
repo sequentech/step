@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, CircularProgress, Menu, MenuItem} from "@mui/material"
-import React, {useCallback, useContext, useState} from "react"
+import React, {useCallback, useContext, useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {EXPORT_FORMATS} from "./constants"
 import {FetchDocumentQuery} from "@/gql/graphql"
@@ -25,6 +25,8 @@ import {GenerateResultsXlsx} from "./GenerateResultsXlsx"
 import {ExportMenuItem} from "./ExportMenuItem"
 import {ReportRequestLinks} from "@/resources/Reports/ReportSigning"
 import {getExportDocumentId} from "./exportDocuments"
+import {useNotify} from "react-admin"
+import {phaseRefusalKey} from "@/services/serverRefusals"
 
 interface PerformDownloadProps {
     onDownload: () => void
@@ -35,18 +37,29 @@ interface PerformDownloadProps {
 
 let downloading = false
 
-const PerformDownload: React.FC<PerformDownloadProps> = ({
+export const PerformDownload: React.FC<PerformDownloadProps> = ({
     onDownload,
     fileName,
     documentId,
     electionEventId,
 }) => {
+    const {t} = useTranslation()
+    const notify = useNotify()
     const {loading, error, data} = useQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
         variables: {
             electionEventId,
             documentId,
         },
     })
+    // A document that holds decoded ballots waits for post-processing.
+    const refusal = phaseRefusalKey(error, "refusals.documentWaitsForPostProcessing")
+
+    useEffect(() => {
+        if (refusal) {
+            notify(t(refusal), {type: "error"})
+            onDownload()
+        }
+    }, [refusal])
 
     if (!loading && !error && data?.fetchDocument?.url && !downloading) {
         downloading = true

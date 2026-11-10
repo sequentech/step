@@ -12,9 +12,10 @@ export function useGetPublicDocumentUrl() {
     const {globalSettings} = useContext(SettingsContext)
 
     function getDocumentUrl(documentId: string, documentName: string): string {
-        return encodeURI(
-            `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${documentName}`
-        )
+        // The name is encoded segment by segment: characters such as "#", "?" and ";"
+        // stay part of the name, while "/" still separates its segments.
+        const path = documentName.split("/").map(encodeURIComponent).join("/")
+        return `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${path}`
     }
 
     return {

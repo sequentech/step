@@ -475,6 +475,92 @@ async fn the_selected_elections_are_validated_before_anything_is_written() {
     assert_nothing_written(&ceremony);
 }
 
+/// A tally session of `ELECTION` of `tally_type` that ended with
+/// `execution_status`.
+fn finished_session(id: &str, tally_type: &str, execution_status: &str) -> TallySession {
+    serde_json::from_value(json!({
+        "id": id, "tenant_id": TENANT, "election_event_id": EVENT,
+        "election_ids": [ELECTION], "is_execution_completed": true,
+        "keys_ceremony_id": KEYS_CEREMONY, "execution_status": execution_status,
+        "threshold": 2, "tally_type": tally_type,
+    }))
+    .unwrap()
+}
+
+#[tokio::test]
+async fn a_counted_election_is_not_tallied_again_where_only_signed_packages_import() {
+    let ceremony = closed_event(json!({}));
+    ceremony.add_session(finished_session("counted", ELECTORAL_RESULTS, "SUCCESS"));
+    let error = create(&ceremony).await.unwrap_err();
+    assert_eq!(
+        validation_message(error),
+        format!(
+            "Election {ELECTION}: its results are already counted, and a recount is not available."
+        )
+    );
+    assert_eq!(ceremony.sessions().len(), 1);
+    assert_eq!(ceremony.session_contests(FIRST_ID), vec![]);
+    assert_eq!(ceremony.audit_entries(), vec![]);
+}
+
+#[tokio::test]
+async fn a_results_tally_that_failed_or_was_cancelled_counted_nothing() {
+    let ceremony = closed_event(json!({}));
+    ceremony.add_session(finished_session("failed", ELECTORAL_RESULTS, "FAILED"));
+    let mut cancelled = finished_session("cancelled", ELECTORAL_RESULTS, "CANCELLED");
+    cancelled.is_execution_completed = false;
+    ceremony.add_session(cancelled);
+    ceremony.add_session(finished_session(
+        "report",
+        "INITIALIZATION_REPORT",
+        "SUCCESS",
+    ));
+    assert_eq!(create(&ceremony).await.unwrap(), FIRST_ID);
+}
+
+#[tokio::test]
+async fn a_counted_election_can_be_tallied_again_where_unsigned_packages_import() {
+    let ceremony = closed_event(json!({}));
+    ceremony.allow_unsigned_import();
+    ceremony.add_session(finished_session("counted", ELECTORAL_RESULTS, "SUCCESS"));
+    assert_eq!(create(&ceremony).await.unwrap(), FIRST_ID);
+}
+
+/// A results tally session of `ELECTION` that has `execution_status` and has
+/// not completed.
+fn running_session(execution_status: &str) -> TallySession {
+    let mut session = finished_session("running", ELECTORAL_RESULTS, execution_status);
+    session.is_execution_completed = false;
+    session
+}
+
+#[tokio::test]
+async fn an_unfinished_results_tally_holds_its_election_where_only_signed_packages_import() {
+    for execution_status in ["STARTED", "CONNECTED", "IN_PROGRESS", "AWAITING_INPUT"] {
+        let ceremony = closed_event(json!({}));
+        ceremony.add_session(running_session(execution_status));
+        let error = create(&ceremony).await.unwrap_err();
+        assert_eq!(
+            validation_message(error),
+            format!(
+                "Election {ELECTION}: a results tally of it has not finished. Wait until it \
+                 finishes, or cancel it."
+            ),
+            "{execution_status}"
+        );
+        assert_eq!(ceremony.sessions().len(), 1);
+        assert_eq!(ceremony.audit_entries(), vec![]);
+    }
+}
+
+#[tokio::test]
+async fn an_unfinished_results_tally_holds_nothing_where_unsigned_packages_import() {
+    let ceremony = closed_event(json!({}));
+    ceremony.allow_unsigned_import();
+    ceremony.add_session(running_session("IN_PROGRESS"));
+    assert_eq!(create(&ceremony).await.unwrap(), FIRST_ID);
+}
+
 #[tokio::test]
 async fn every_voter_weighted_voting_refusal_stops_the_creation() {
     let delegated = closed_event(json!({

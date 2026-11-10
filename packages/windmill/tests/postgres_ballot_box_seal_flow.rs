@@ -19,6 +19,8 @@
 
 #[path = "support/event_database.rs"]
 mod event_database;
+#[path = "support/opening.rs"]
+mod opening;
 #[path = "support/schema.rs"]
 mod schema;
 
@@ -39,6 +41,7 @@ use sequent_core::ballot::{
     EGracePeriodPolicy, ElectionEventStatus, ElectionPresentation, ElectionStatus,
     SignedHashableBallot, VotingPeriodEnd, VotingStatus, VotingStatusChannel, TYPES_VERSION,
 };
+use sequent_core::self_tests::SelfTestTrigger;
 use serde_json::{json, Value};
 use std::collections::{BTreeSet, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -59,8 +62,8 @@ use windmill::services::ballot_box_seal::seal::{
 };
 use windmill::services::ballot_box_seal::sink::{closing_ballot_boxes, PendingSealSink};
 use windmill::services::ballot_box_seal::{
-    is_ballot_box_sealed, on_close, Census, CloseProvenance, ProductionSealEnvironment,
-    SealEnvironment,
+    is_ballot_box_sealed, on_close, refuse_sealed_event_delete, Census, CloseProvenance,
+    ProductionSealEnvironment, SealEnvironment,
 };
 use windmill::services::election_event_status::{
     scheduled_change_applies, update_event_voting_status, update_scheduled_event_voting_status,
@@ -222,6 +225,32 @@ impl World {
             .unwrap()
             .get(0);
         serde_json::from_value(value).unwrap()
+    }
+
+    /// Puts the event in execution, operational, as the opening of voting
+    /// leaves it: ballots are admitted only then.
+    async fn in_execution(&self) {
+        let mut client = self.client().await;
+        let tx = client.transaction().await.unwrap();
+        trusted_write(&tx).await.unwrap();
+        tx.execute(
+            "UPDATE sequent_backend.election_lifecycle
+             SET phase = 'execution', safety = 'operational', reason = NULL
+             WHERE tenant_id = $1 AND election_event_id = $2",
+            &[&self.tenant, &self.event],
+        )
+        .await
+        .unwrap();
+        tx.commit().await.unwrap();
+    }
+
+    /// What an opening needs besides the event's configuration, with the
+    /// self-test `trigger` names ([`opening::ready_to_open`]).
+    async fn ready_to_open(&self, trigger: SelfTestTrigger) {
+        let mut client = self.client().await;
+        let tx = client.transaction().await.unwrap();
+        opening::ready_to_open(&tx, self.tenant, self.event, trigger).await;
+        tx.commit().await.unwrap();
     }
 
     /// Drops the event's electoral-log database.
@@ -727,11 +756,15 @@ fn a_signed_close_records_its_request_and_signers() {
 #[test]
 fn policy_off_creates_no_seal_and_lets_voting_reopen() {
     event_database::run(async {
+        // The other election keeps the event in execution: once every
+        // election has closed, voting doesn't open again.
         let w = world(Options {
             policy: "do-not-seal",
+            elections: 2,
             ..Default::default()
         })
         .await;
+        w.in_execution().await;
         cast(
             &w,
             w.election(),
@@ -743,6 +776,7 @@ fn policy_off_creates_no_seal_and_lets_voting_reopen() {
         .await;
         close_election(&w, w.election(), Some(&w.user)).await;
         assert!(w.seals(w.election()).await.is_empty());
+        w.ready_to_open(SelfTestTrigger::BeforeResume).await;
         let mut client = w.client().await;
         let tx = client.transaction().await.unwrap();
         update_election_status(
@@ -868,6 +902,7 @@ fn an_event_opening_leaves_closed_posts_closed() {
             ..Default::default()
         })
         .await;
+        w.in_execution().await;
         let [closed, paused] = [w.elections[0], w.elections[1]];
         cast(&w, closed, w.areas[0], "voter-a", BallotStatus::Valid, "a").await;
         close_election(&w, closed, Some(&w.user)).await;
@@ -881,6 +916,10 @@ fn an_event_opening_leaves_closed_posts_closed() {
         .unwrap();
         let mut skipped = vec![];
         for status in [VotingStatus::PAUSED, VotingStatus::OPEN] {
+            if status == VotingStatus::OPEN {
+                // After the pauses, of a new generation of the lifecycle.
+                w.ready_to_open(SelfTestTrigger::BeforeResume).await;
+            }
             let mut client = w.client().await;
             let tx = client.transaction().await.unwrap();
             skipped = update_event_voting_status(
@@ -939,7 +978,17 @@ fn an_election_or_event_with_seals_cannot_be_deleted() {
 
         let mut client = w.client().await;
         let tx = client.transaction().await.unwrap();
+        // The board's authorisation comes first: without it nothing is
+        // deleted, sealed or not.
         let error = delete_election_event(&tx, &w.tenant.to_string(), &w.event.to_string())
+            .await
+            .unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Deleting election execution data requires its current export and board authorisation"
+        );
+        // The deletion task refuses the event's seals before the delete.
+        let error = refuse_sealed_event_delete(&tx, &w.tenant.to_string(), &w.event.to_string())
             .await
             .unwrap_err();
         assert_eq!(error.to_string(), SEALED_EVENT_DELETE_REFUSAL);
@@ -1607,6 +1656,7 @@ fn an_event_start_opens_only_the_channels_a_post_enables() {
             ],
         )
         .await;
+        w.ready_to_open(SelfTestTrigger::BeforeStart).await;
         let mut client = w.client().await;
         let tx = client.transaction().await.unwrap();
         let (_, skipped) = update_event_voting_status(
@@ -1698,6 +1748,7 @@ fn policy_off_an_event_start_still_opens_every_post() {
             ],
         )
         .await;
+        w.ready_to_open(SelfTestTrigger::BeforeStart).await;
         let mut client = w.client().await;
         let tx = client.transaction().await.unwrap();
         update_event_voting_status(
@@ -1778,8 +1829,15 @@ fn an_event_start_is_not_refused_for_a_post_it_leaves_alone() {
                 result.map(|_| ())
             }
         };
+        w.ready_to_open(SelfTestTrigger::BeforeStart).await;
         // The Post would open Online: its initialization refuses the Start.
-        assert!(start(VotingStatusChannel::ONLINE).await.is_err());
+        let refused = start(VotingStatusChannel::ONLINE).await.unwrap_err();
+        assert!(
+            refused
+                .to_string()
+                .contains("initialization report must be generated"),
+            "{refused}"
+        );
         // It doesn't offer Kiosk, so the Kiosk Start leaves it alone.
         start(VotingStatusChannel::KIOSK).await.unwrap();
         assert_eq!(
@@ -1838,6 +1896,7 @@ fn an_event_online_start_leaves_early_voting_open_at_a_post_without_online() {
             &[&w.event, &serde_json::to_value(&event_status).unwrap()],
         )
         .await;
+        w.ready_to_open(SelfTestTrigger::BeforeStart).await;
         let mut client = w.client().await;
         let tx = client.transaction().await.unwrap();
         update_event_voting_status(
@@ -2258,6 +2317,7 @@ fn a_scheduled_event_opening_leaves_sealed_posts_closed() {
         })
         .await;
         let [sealed, open] = [w.elections[0], w.elections[1]];
+        w.in_execution().await;
         cast(&w, sealed, w.areas[0], "voter-a", BallotStatus::Valid, "a").await;
         // ONLINE closed, KIOSK never started; seals made earlier (e.g. under the
         // earlier rule, or before KIOSK was enabled).
@@ -2281,6 +2341,7 @@ fn a_scheduled_event_opening_leaves_sealed_posts_closed() {
         .unwrap();
         tx.commit().await.unwrap();
         assert_eq!(w.seals(sealed).await.len(), 1);
+        w.ready_to_open(SelfTestTrigger::ElectionStartTime).await;
         let tx = client.transaction().await.unwrap();
         let skipped = update_scheduled_event_voting_status_for(
             &tx,
@@ -2560,6 +2621,7 @@ fn early_voting_end_leaves_online_to_open_and_seal_later() {
         )
         .await
         .unwrap();
+        w.in_execution().await;
         cast(
             &w,
             w.election(),
@@ -2609,6 +2671,7 @@ fn early_voting_end_leaves_online_to_open_and_seal_later() {
             "ONLINE holds the seal"
         );
         // Election day: ONLINE opens and closes; then the box is due.
+        w.ready_to_open(SelfTestTrigger::BeforeResume).await;
         change_election(
             &w,
             w.election(),

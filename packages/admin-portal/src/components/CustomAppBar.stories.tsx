@@ -34,6 +34,8 @@ interface Scenario {
     requests?: "empty" | "waiting"
     /** The tenant's own logo, when it has one. */
     logoUrl?: string
+    /** The tenant's policy for signed configuration packages, when it has one. */
+    signingPolicy?: "optional" | "required"
     signedIn: boolean
     logout: () => void
 }
@@ -54,13 +56,17 @@ const nestedBanners = (...more: string[]) => ({
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
 
-const tenant = (logoUrl?: string) =>
+const tenant = (logoUrl?: string, signingPolicy?: Scenario["signingPolicy"]) =>
     ({
         ...tenantRecord,
         annotations: logoUrl ? {logo_url: logoUrl} : {},
+        settings: {
+            ...tenantRecord.settings,
+            ...(signingPolicy ? {configuration_signing: {policy: signingPolicy}} : {}),
+        },
     }) as Sequent_Backend_Tenant
 
-function Fixture({logoUrl, signedIn, logout, roles}: Scenario) {
+function Fixture({logoUrl, signingPolicy, signedIn, logout, roles}: Scenario) {
     const {permissions} = useStoryGlobals()
     return (
         <AdminStoryProvider
@@ -68,7 +74,7 @@ function Fixture({logoUrl, signedIn, logout, roles}: Scenario) {
             dataProvider={data.provider}
             role={permissions}
             roles={roles}
-            tenantRecord={tenant(logoUrl)}
+            tenantRecord={tenant(logoUrl, signingPolicy)}
             auth={{
                 isAuthenticated: signedIn,
                 email: "admin@example.invalid",
@@ -96,7 +102,9 @@ const meta = {
         const organization = organizationOf(Organization.Overseas)
         data = resourceBoundary(
             {
-                sequent_backend_tenant: [tenant(args.logoUrl) as typeof tenantRecord],
+                sequent_backend_tenant: [
+                    tenant(args.logoUrl, args.signingPolicy) as typeof tenantRecord,
+                ],
                 sequent_backend_election: organization.posts.map(({id, name}) => ({id, name})),
                 sequent_backend_area: organization.countries.map(({id, name}) => ({id, name})),
             },
@@ -151,9 +159,18 @@ export const Populated: Story = {
 }
 
 export const TenantLogo: Story = {
-    args: {logoUrl: TENANT_LOGO},
+    args: {logoUrl: TENANT_LOGO, signingPolicy: "optional"},
     play: async ({canvasElement}) => {
         await waitFor(() => expect(logo(canvasElement)).toHaveAttribute("src", TENANT_LOGO))
+        expect(tenantReads()).toHaveLength(1)
+    },
+}
+
+export const BuiltInLogoWithSignedPackages: Story = {
+    args: {logoUrl: TENANT_LOGO, signingPolicy: "required"},
+    play: async ({canvasElement}) => {
+        // A tenant that requires signed configuration packages keeps the built-in logo.
+        await waitFor(() => expect(logo(canvasElement)).toHaveAttribute("src", SequentLogo))
         expect(tenantReads()).toHaveLength(1)
     },
 }

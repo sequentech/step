@@ -10,15 +10,18 @@ mod ballot_box;
 #[path = "support/schema.rs"]
 mod schema;
 
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, SubsecRound, TimeZone, Utc};
 use deadpool_postgres::{Object, Transaction};
 use electoral_log::adapters::ballot_box::{
     AcceptBallot, AcceptOutcome, AcceptReceived, BallotStatus,
 };
 use electoral_log::adapters::ballot_box_received::{
-    ReceiveBallot, ReceiveOutcome, ReceivedSignature,
+    AuditOutcome, ReceiveBallot, ReceiveOutcome, ReceivedSignature,
 };
 use electoral_log::adapters::postgres::PostgresStore;
+use electoral_log::messages::newtypes::{CastVoteHash, PseudonymHash};
+use electoral_log::ports::ElectoralLogStore;
+use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::ballot_receipt::{
     sign_cast_statement, sign_received_ballot, verify_cast_receipt, ReceivedBallot,
     ReceivedStatement,
@@ -26,6 +29,8 @@ use sequent_core::ballot_receipt::{
 use uuid::Uuid;
 use voting_crypto::signing::{SigningKey, VerificationKey};
 use windmill::postgres::ballot_style::get_published_ballot_eml;
+use windmill::services::audit_ballot::{audit_record, AuditRequest};
+use windmill::services::ballot_admission;
 use windmill::services::ballot_box::BallotFormat;
 use windmill::services::ballot_box_key::published_key;
 use windmill::services::ballot_checks::{locate_ballot, LocateBallotStatus};
@@ -75,7 +80,7 @@ impl Election {
             &[
                 &fixture.event,
                 &fixture.tenant,
-                &ballot_box::board_reference(&format!("board-{}", fixture.event.simple())),
+                &ballot_box::board_reference(&fixture.board()),
             ],
         )
         .await
@@ -103,6 +108,11 @@ impl Election {
 
     async fn ballot_box(&self) -> PostgresStore {
         ballot_box::ballot_box(&self.tenant, &self.event).await
+    }
+
+    /// The board the election event names for its records.
+    fn board(&self) -> String {
+        format!("board-{}", self.event.simple())
     }
 
     /// A ballot style of `area` in a publication with the given dates.
@@ -327,7 +337,8 @@ async fn find(
 }
 
 /// Cast the voter's received ballot with the hash and content it was received
-/// with, as the cast path does.
+/// with, as the cast path does: the vote is admitted at `cast_at`, the time
+/// its receipt names, under the ballot box's next sequence number.
 async fn cast(
     store: &PostgresStore,
     f: &Election,
@@ -343,26 +354,45 @@ async fn cast(
         f.area.to_string(),
     );
     let format = BallotFormat::HashableBallot.to_string();
+    let accept = AcceptBallot {
+        election_event_id: &event,
+        election_id: &election,
+        area_id: &area,
+        voter_id,
+        ballot_id: &received.statement.ballot_hash,
+        format: &format,
+        content: "ciphertext",
+        voter_signature: None,
+        admission_record: &[],
+        pseudonym_hash: &[0; 64],
+        ballot_hash: &[0; 64],
+        voting_channel: "ONLINE",
+        status: BallotStatus::Valid,
+        voter_ip: None,
+        voter_country: None,
+        username: None,
+        allowed_votes: 0,
+    };
+    let sequence: i64 = store
+        .client()
+        .await
+        .unwrap()
+        .query_one("SELECT nextval('ballot_box_seq')", &[])
+        .await
+        .unwrap()
+        .get(0);
+    let admission = ballot_admission::sign(
+        &accept,
+        &SigningKey::generate().unwrap(),
+        &cast_at,
+        sequence,
+    )
+    .unwrap();
     store
         .accept_received_ballot(
             &AcceptBallot {
-                election_event_id: &event,
-                election_id: &election,
-                area_id: &area,
-                voter_id,
-                ballot_id: &received.statement.ballot_hash,
-                format: &format,
-                content: "ciphertext",
-                voter_signature: None,
-                admission_record: &format!(r#"{{"payload":{{"accepted_at":"2026-10-27T12:00:00.000Z","sequence":{}}},"signature":""}}"#, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() as i64).into_bytes(),
-                pseudonym_hash: &[0; 64],
-                ballot_hash: &[0; 64],
-                voting_channel: "ONLINE",
-                status: BallotStatus::Valid,
-                voter_ip: None,
-                voter_country: None,
-                username: None,
-                allowed_votes: 0,
+                admission_record: &admission,
+                ..accept
             },
             &AcceptReceived {
                 ballot_id: &received.ballot_id,
@@ -535,7 +565,8 @@ async fn an_audited_ballot_and_a_ballot_cast_with_another_signature_are_refused(
             &f,
             "voter",
             &cast_ballot.received,
-            Utc::now(),
+            // A receipt's time is signed in milliseconds.
+            Utc::now().trunc_subsecs(3),
             "another-signature",
             "another-receipt",
         )
@@ -547,21 +578,59 @@ async fn an_audited_ballot_and_a_ballot_cast_with_another_signature_are_refused(
         Err(CastVoteError::BallotAlreadyCast)
     ));
 
-    store
-        .client()
-        .await
-        .unwrap()
-        .execute(
-            "UPDATE ballot_box_received SET status = 'audited'
-             WHERE election_event_id = $1::text::uuid AND ballot_id = $2",
-            &[&f.event.to_string(), &audited.received.ballot_id],
+    // The voter audits the other ballot: the ballot box marks it audited and
+    // records that on the event's board, as the audit path does.
+    let board = f.board();
+    store.create_board(&board).await.unwrap();
+    let stored = store
+        .received_ballot_by_id(
+            &f.event.to_string(),
+            &f.election.to_string(),
+            "voter",
+            &audited.received.ballot_id,
         )
         .await
-        .unwrap();
+        .unwrap()
+        .expect("the received ballot");
+    let record = audit_record(
+        &board,
+        &stored,
+        PseudonymHash::new([1; 64]),
+        CastVoteHash::new([2; 64]),
+        &AuditRequest {
+            voting_channel: VotingStatusChannel::ONLINE,
+            voter_ip: &None,
+            voter_country: &None,
+            username: &None,
+        },
+        &SigningKey::generate().unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        store
+            .audit_received_ballot(&stored, &board, &record)
+            .await
+            .unwrap(),
+        AuditOutcome::Audited
+    );
     assert!(matches!(
         find(&store, &f, "voter", &audited.cast_request(&f)).await,
         Err(CastVoteError::BallotAudited)
     ));
+    // The ballot box does not cast it either.
+    assert_eq!(
+        cast(
+            &store,
+            &f,
+            "voter",
+            &audited.received,
+            Utc::now().trunc_subsecs(3),
+            &audited.cast_request(&f).cast_signature,
+            "receipt",
+        )
+        .await,
+        AcceptOutcome::NotReceivable
+    );
 }
 
 #[tokio::test]

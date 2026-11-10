@@ -13,6 +13,7 @@ export const REALM_CONFIGURATION_URL = `${String(STORY_SETTINGS.KEYCLOAK_URL)}re
 
 /** The default tenant's look and feel. */
 export const DEFAULT_TENANT_CSS = "h1 { letter-spacing: 3px; }"
+export const DEFAULT_TENANT_LOGO = "https://assets.admin-story.invalid/default-tenant.svg"
 
 interface TenantQuery {
     variables: {id?: string; slug?: string}
@@ -25,18 +26,19 @@ export function tenantLookup(found: boolean) {
         if (variables.id) {
             return json(200, {
                 data: {
-                    sequent_backend_tenant: [
-                        {id: variables.id, slug: "default", annotations: {css: DEFAULT_TENANT_CSS}},
+                    sequent_backend_tenant_for_sign_in: [
+                        {
+                            id: variables.id,
+                            annotations: {logo_url: DEFAULT_TENANT_LOGO, css: DEFAULT_TENANT_CSS},
+                        },
                     ],
                 },
             })
         }
         return json(200, {
             data: {
-                sequent_backend_tenant:
-                    found && variables.slug === TENANT_SLUG
-                        ? [{id: TENANT_ID, slug: TENANT_SLUG}]
-                        : [],
+                sequent_backend_tenant_for_sign_in:
+                    found && variables.slug === TENANT_SLUG ? [{id: TENANT_ID}] : [],
             },
         })
     }

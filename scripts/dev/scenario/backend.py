@@ -402,6 +402,14 @@ class StackBackend:
                 raise ScenarioError(
                     f"tenant {self.organization.slug}: {error}"
                 ) from error
+        # The scenarios import unsigned election event files; a tenant with a
+        # signing policy of its own keeps it.
+        try:
+            bootstrap.allow_unsigned_imports(self.tenant_id)
+        except (OSError, AssertionError) as error:
+            raise ScenarioError(
+                f"tenant {self.tenant_id} does not take unsigned imports ({error})"
+            ) from error
 
     def _prepare_organization(self, organization: tenants.Organization) -> None:
         """Creates the organization's tenant if it is missing, as the super

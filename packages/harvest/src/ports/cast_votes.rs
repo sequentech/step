@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use sequent_core::ballot::VotingStatusChannel;
+use windmill::services::audit_ballot::{AuditBallotInput, AuditBallotOutput};
 use windmill::services::cast_ballot::{CastBallotInput, CastBallotResult};
 use windmill::services::insert_cast_vote::{
     CastVoteError, InsertCastVoteInput, InsertCastVoteResult,
@@ -47,4 +48,12 @@ pub trait CastVotes: Send + Sync {
         input: CastBallotInput,
         voter: CastVoter<'_>,
     ) -> Result<CastBallotResult, CastVoteError>;
+
+    /// Marks a ballot received at review audited, so that it is never cast,
+    /// before the voter is shown its secret values.
+    async fn try_audit(
+        &self,
+        input: AuditBallotInput,
+        voter: CastVoter<'_>,
+    ) -> Result<AuditBallotOutput, CastVoteError>;
 }

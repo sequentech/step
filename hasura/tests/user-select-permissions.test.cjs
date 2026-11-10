@@ -64,22 +64,25 @@ test("user selects on tenant tables cannot have an empty row filter", () => {
     )
 })
 
-test("user role can select only public documents in its own tenant", () => {
+test("user role can select only public documents of its own tenant and event", () => {
     const permission = documentSelect("user")
     assert.deepEqual(permission.filter, {
-        tenant_id: {_eq: "X-Hasura-Tenant-Id"},
-        is_public: {_eq: true},
+        _and: [
+            {
+                tenant_id: {_eq: "X-Hasura-Tenant-Id"},
+                is_public: {_eq: true},
+            },
+            {election_event_id: {_eq: "X-Hasura-Election-Event-Id"}},
+            {lifecycle_access: {voter_allowed: {_eq: true}}},
+        ],
     })
     assert.equal(permission.allow_aggregations, false)
-    // Keep public tenant-level documents available: no mandatory event filter.
-    assert.equal(Object.hasOwn(permission.filter, "election_event_id"), false)
 })
 
-test("board document access remains tenant scoped and default admin stays outside events", () => {
-    assert.deepEqual(documentSelect("admin-user").filter, {
-        tenant_id: {_eq: "X-Hasura-Tenant-Id"},
-        election_event_id: {_is_null: true},
-    })
+test("board document access remains tenant scoped and the default admin has none", () => {
+    assert.ok(
+        !document.select_permissions.some(({role}) => role === "admin-user")
+    )
     for (const role of ["document-read", "document-write"]) {
         const permission = documentSelect(role)
         assert.deepEqual(permission.filter, {

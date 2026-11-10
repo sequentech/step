@@ -19,6 +19,7 @@ use crate::utils::rng;
 use curve25519_dalek::ristretto::CompressedRistretto;
 use curve25519_dalek::{RistrettoPoint, Scalar as DalekScalar, constants as dalek_constants};
 use sha3::Digest;
+use zeroize::Zeroizing;
 
 use rayon::prelude::*;
 
@@ -84,8 +85,10 @@ impl CryptographicGroup for Ristretto255Group {
     fn encode_bytes<const I: usize, const O: usize>(
         bytes: &[u8; I],
     ) -> Result<[RistrettoElement; O], Error> {
-        let split_arrays = Codec::<I, O>::split(bytes);
-        Self::encode_array(&split_arrays)
+        // The input may be secret (a key share): the chunks are overwritten on return.
+        let mut chunks = Zeroizing::new([[0u8; CHUNK_SIZE]; O]);
+        Codec::<I, O>::split_into(bytes, &mut chunks);
+        Self::encode_array(&chunks)
     }
 
     /// Decode bytes from the given number of Ristretto elements
@@ -96,9 +99,9 @@ impl CryptographicGroup for Ristretto255Group {
     fn decode_bytes<const I: usize, const O: usize>(
         element: &[RistrettoElement; I],
     ) -> Result<[u8; O], Error> {
-        let decoded_arrays = Self::decode_array(element)?;
-        let joined = Codec::<O, I>::join(&decoded_arrays);
-        Ok(joined)
+        let mut bytes = [0u8; O];
+        Self::decode_bytes_into(element, &mut bytes);
+        Ok(bytes)
     }
 
     /// Generate independent generators by hashing the label and index
@@ -141,8 +144,8 @@ impl CryptographicGroup for Ristretto255Group {
         use crate::cryptosystem::elgamal::{Ciphertext, PublicKey};
         use crate::utils::serialization::Serializable;
 
-        // Encode scalar into 2 elements
-        let elements = Self::encode_scalar(scalar)?;
+        // Encode scalar into 2 elements, overwritten when dropped
+        let elements = Zeroizing::new(Self::encode_scalar(scalar)?);
 
         // Create public key and encrypt
         let pk = PublicKey::new(*public_key);
@@ -160,8 +163,7 @@ impl CryptographicGroup for Ristretto255Group {
     /// - `ScalarDecodeError` if the decrypted elements cannot be decoded
     fn decrypt_scalar(ciphertext: &[u8], secret_key: &Self::Scalar) -> Result<Self::Scalar, Error> {
         use crate::context::RistrettoCtx;
-        use crate::cryptosystem::elgamal::{Ciphertext, KeyPair, PublicKey};
-        use crate::traits::groups::GroupElement;
+        use crate::cryptosystem::elgamal::{self, Ciphertext};
         use crate::utils::serialization::Deserializable;
 
         // Deserialize ciphertext
@@ -169,16 +171,13 @@ impl CryptographicGroup for Ristretto255Group {
             Error::DeserializationError(format!("Failed to deserialize ciphertext: {e:?}"))
         })?;
 
-        // Create keypair (we need public key for KeyPair structure)
-        let public_element = Self::generator().exp(secret_key);
-        let pk = PublicKey::new(public_element);
-        let keypair = KeyPair {
-            skey: *secret_key,
-            pkey: pk,
-        };
-
-        // Decrypt to get elements
-        let elements = keypair.decrypt(&ct);
+        // Decrypt to get elements, overwritten when dropped. The secret key is
+        // used by reference, not copied.
+        let elements = Zeroizing::new(elgamal::decrypt::<RistrettoCtx, 2>(
+            ct.u(),
+            ct.v(),
+            secret_key,
+        ));
 
         // Decode elements back to scalar
         Self::decode_scalar(&elements)
@@ -186,33 +185,51 @@ impl CryptographicGroup for Ristretto255Group {
 }
 
 impl Ristretto255Group {
+    /// Encode an array of 30-byte chunks into an array of `Element`s.
+    ///
+    /// The elements carry the input, so they are built in a buffer that is
+    /// overwritten on return, also when an encoding fails.
+    ///
     /// # Errors
     ///
     /// - `EncodingError` if any point was not found for the input, with negligible probability
-    ///
-    /// # Panics
-    ///
-    /// - Panics if the length of the resulting Vec does not match W, which should not happen
     pub fn encode_array<const W: usize>(p: &[[u8; 30]; W]) -> Result<[RistrettoElement; W], Error> {
-        // Collect into Vec first, then convert to array - consistent with productgroup pattern
-        let results: Result<Vec<RistrettoElement>, Error> =
-            p.iter().map(Self::encode_30_bytes).collect();
-        let vec = results?;
-        Ok(vec.try_into().expect("vec.len() == W"))
+        let mut elements = Zeroizing::new([RistrettoElement::default(); W]);
+        for (element, chunk) in elements.iter_mut().zip(p) {
+            *element = Self::encode_30_bytes(chunk)?;
+        }
+        Ok(*elements)
     }
 
     /// Decode an array of 'Plaintext' types from an array of 'Message' types.
     ///
+    /// The elements are read by reference, not copied.
+    ///
     /// # Errors
     ///
     /// Infallible
-    ///
-    /// # Panics
-    ///
-    /// - `decode_30_bytes` panics if a slice length is not 30, which should not happen
     pub fn decode_array<const W: usize>(p: &[RistrettoElement; W]) -> Result<[[u8; 30]; W], Error> {
-        // Since decode is infallible, we can use array::map directly
-        Ok(p.map(|message| Self::decode_30_bytes(&message).expect("decode is infallible")))
+        let mut chunks = [[0u8; 30]; W];
+        for (chunk, message) in chunks.iter_mut().zip(p) {
+            Self::decode_30_bytes_into(message, chunk);
+        }
+        Ok(chunks)
+    }
+
+    /// Decode bytes from the given number of Ristretto elements into `out`.
+    ///
+    /// The chunks are held in a buffer that is overwritten on return, and the
+    /// bytes go into a buffer the caller owns, so that a secret (a key share)
+    /// is not left in a value this function returns.
+    pub(crate) fn decode_bytes_into<const I: usize, const O: usize>(
+        element: &[RistrettoElement; I],
+        out: &mut [u8; O],
+    ) {
+        let mut chunks = Zeroizing::new([[0u8; CHUNK_SIZE]; I]);
+        for (chunk, message) in chunks.iter_mut().zip(element) {
+            Self::decode_30_bytes_into(message, chunk);
+        }
+        Codec::<O, I>::join_into(&chunks, out);
     }
 
     // see https://github.com/dalek-cryptography/curve25519-dalek/issues/322
@@ -223,16 +240,19 @@ impl Ristretto255Group {
     ///
     /// - `EncodingError` if a point was not found for the input, with negligible probability
     pub fn encode_30_bytes(input: &[u8; 30]) -> Result<RistrettoElement, Error> {
-        let mut bytes = [0u8; 32];
-        bytes[1..=input.len()].copy_from_slice(input);
+        // The input may be secret (part of a key share): the candidate encoding
+        // is built in place, in a buffer that is overwritten on return.
+        let mut buffer = Zeroizing::new(CompressedRistretto([0u8; 32]));
+        let candidate: &mut CompressedRistretto = &mut buffer;
+        candidate.0[1..=input.len()].copy_from_slice(input);
         for j in 0..64u8 {
-            bytes[31] = j;
+            candidate.0[31] = j;
             for i in 0..128u8 {
                 // cannot overflow, 127 * 2 < u8::MAX
                 #[allow(clippy::arithmetic_side_effects)]
                 let byte = 2 * i;
-                bytes[0] = byte;
-                if let Some(point) = CompressedRistretto(bytes).decompress() {
+                candidate.0[0] = byte;
+                if let Some(point) = candidate.decompress() {
                     return Ok(RistrettoElement(point));
                 }
             }
@@ -252,12 +272,21 @@ impl Ristretto255Group {
     ///
     /// - Panics if the slice length is not 30, which should not happen
     pub fn decode_30_bytes(message: &RistrettoElement) -> Result<[u8; 30], Error> {
-        let compressed = message.0.compress();
-        // the 30 bytes of data are placed in the range 1-30
-        let slice = &compressed.as_bytes()[1..31];
-        let ret: [u8; 30] = slice.try_into().expect("slice.len() == 30");
+        let mut ret = [0u8; 30];
+        Self::decode_30_bytes_into(message, &mut ret);
 
         Ok(ret)
+    }
+
+    /// Decode 30 bytes from an `Element` into `out`.
+    ///
+    /// The compressed point is held in a buffer that is overwritten on return,
+    /// and the bytes go into a buffer the caller owns, so that a secret (part
+    /// of a key share) is not left in a value this function returns.
+    pub(crate) fn decode_30_bytes_into(message: &RistrettoElement, out: &mut [u8; 30]) {
+        let compressed = Zeroizing::new(message.0.compress());
+        // the 30 bytes of data are placed in the range 1-30
+        out.copy_from_slice(&compressed.as_bytes()[1..31]);
     }
 
     /// Encode a 'Scalar' into two 'Element's.
@@ -266,9 +295,9 @@ impl Ristretto255Group {
     ///
     /// - `EncodingError` if a point was not found for the input, with negligible probability
     pub fn encode_scalar(scalar: &RistrettoScalar) -> Result<[RistrettoElement; 2], Error> {
-        let bytes = scalar.0.to_bytes();
-
-        Self::encode_bytes(&bytes)
+        // The scalar may be secret (a key share): it is encoded from a reference
+        // to its bytes, not from a copy.
+        Self::encode_bytes(scalar.0.as_bytes())
     }
 
     /// Decode a 'Scalar' from two 'Element's.
@@ -277,8 +306,11 @@ impl Ristretto255Group {
     ///
     /// - `ScalarDecodeError` if the bytes could not be parsed into a Ristretto scalar
     pub fn decode_scalar(element: &[RistrettoElement; 2]) -> Result<RistrettoScalar, Error> {
-        let bytes = Self::decode_bytes(element)?;
-        let opt: Option<RistrettoScalar> = DalekScalar::from_canonical_bytes(bytes)
+        // The scalar may be secret (a key share): its bytes are decoded into a
+        // buffer that is overwritten on return.
+        let mut bytes = Zeroizing::new([0u8; 32]);
+        Self::decode_bytes_into::<2, 32>(element, &mut bytes);
+        let opt: Option<RistrettoScalar> = DalekScalar::from_canonical_bytes(*bytes)
             .map(RistrettoScalar)
             .into();
 

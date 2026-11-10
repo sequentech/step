@@ -67,6 +67,7 @@ import {useSigningRequest} from "@/components/signing/SigningProvider"
 import {SigningAction, SigningRequestStatus} from "@/lib/signing/types"
 import {useActionNeedsSignatures} from "@/components/signing/useSigningRule"
 import {createSigningApi} from "@/lib/signing/api"
+import {documentNameRefusal} from "@/services/serverRefusals"
 
 interface IMiruExportWizardProps {}
 
@@ -220,7 +221,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
         } catch (error) {
             console.log(error)
             setUploading(false)
-            setErrors(t("keysGeneration.checkStep.errorUploading"))
+            setErrors(documentNameRefusal(t, error) ?? t("keysGeneration.checkStep.errorUploading"))
         }
     }
 

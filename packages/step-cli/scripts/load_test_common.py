@@ -19,6 +19,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -260,6 +261,41 @@ def lookup_client_secret(keycloak_url: str, admin_user: str, admin_password: str
     if not secret:
         die(f"could not look up {client_id}'s secret in tenant-{tenant_id}")
     return secret  # type: ignore[return-value]
+
+
+# The tenant's settings only take a signing policy through the API, so the
+# statement runs with triggers off, as Hasura's database superuser (true in
+# the devcontainer). A tenant that has a setting keeps it.
+_ALLOW_UNSIGNED_IMPORTS = (
+    "SET LOCAL session_replication_role = replica; "
+    "UPDATE sequent_backend.tenant SET settings = COALESCE(settings, '{{}}'::jsonb) "
+    "|| '{{\"configuration_signing\": {{\"policy\": \"optional\"}}}}'::jsonb "
+    "WHERE id = '{tenant_id}' AND settings -> 'configuration_signing' IS NULL"
+)
+
+
+def allow_unsigned_imports(endpoint_url: str, admin_secret: str, tenant_id: str) -> None:
+    """Lets tenant_id import unsigned election event files, unless it has a
+    configuration_signing setting of its own, through Hasura's run_sql API."""
+    try:
+        tenant = uuid.UUID(tenant_id)
+    except ValueError:
+        die(f"tenant id {tenant_id!r} is not a UUID")
+        raise AssertionError("unreachable")  # die() exits, but satisfies type checkers
+    url = endpoint_url.rstrip("/").removesuffix("/v1/graphql") + "/v2/query"
+    body = {"type": "run_sql", "args": {"sql": _ALLOW_UNSIGNED_IMPORTS.format(tenant_id=tenant)}}
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(body).encode(),
+        headers={"User-Agent": _USER_AGENT, "Content-Type": "application/json", "x-hasura-admin-secret": admin_secret},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as resp:  # noqa: S310
+            resp.read()
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode("utf-8", "replace")[:500]
+        die(f"Hasura refused the configuration_signing setting of tenant {tenant_id} (HTTP {error.code}): {detail}")
+    log(f"    tenant {tenant_id} takes unsigned election event files unless its setting says otherwise")
 
 
 def write_json(path: Path, data: Any) -> None:

@@ -11,7 +11,5 @@ pub mod export_tally;
 pub mod export_tally_results;
 pub mod export_tasks_execution;
 pub mod export_template;
-pub mod export_tenant;
-pub mod export_tenant_config;
 pub mod export_trustees;
 pub mod export_users;

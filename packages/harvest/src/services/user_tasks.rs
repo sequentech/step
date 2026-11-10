@@ -222,7 +222,7 @@ pub async fn export_users_with(
             return Ok(ExportUsersOutput {
                 document_id,
                 error_msg: Some(format!(
-                    "Error sending Export Users task: ${}",
+                    "Error sending Export Users task: {}",
                     err.display
                 )),
                 task_execution: task_execution.clone(),

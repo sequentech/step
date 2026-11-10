@@ -8,6 +8,7 @@ use crate::services::jwt_verification::{
 use crate::services::keycloak::{
     get_third_party_client_access_token, PubKeycloakAdminToken,
 };
+use crate::types::permissions::Permissions;
 use anyhow::{anyhow, Result as AnyhowResult};
 use rocket::http::HeaderMap;
 use rocket::http::Status;
@@ -71,6 +72,8 @@ pub struct BearerIssuers {
 pub enum VoterAccessFailure {
     ElectionUnavailable,
     AuditStorageUnavailable,
+    /// A tenant-realm account refused while the audit storage is checked.
+    StaffAuditStorageUnavailable,
 }
 
 #[rocket::async_trait]
@@ -80,6 +83,29 @@ pub trait VoterAccessPolicy: Send + Sync {
         tenant: &str,
         event: &str,
     ) -> Result<(), VoterAccessFailure>;
+
+    /// Admission of a tenant-realm account that is neither an administrator
+    /// nor an election board member, who keep access to restore the audit
+    /// storage.
+    async fn check_staff(
+        &self,
+        _tenant: &str,
+    ) -> Result<(), VoterAccessFailure> {
+        Ok(())
+    }
+}
+
+/// Whether a tenant-realm token is an administrator's (`tenant-write`) or an
+/// election board member's (`election-state-write`).
+fn restores_audit_storage(jwt: &JwtClaims) -> bool {
+    let restoring = [
+        Permissions::TENANT_WRITE.to_string(),
+        Permissions::ELECTION_STATE_WRITE.to_string(),
+    ];
+    jwt.hasura_claims
+        .allowed_roles
+        .iter()
+        .any(|role| restoring.contains(role))
 }
 
 pub struct VoterAccessGuard(pub Arc<dyn VoterAccessPolicy>);
@@ -104,7 +130,15 @@ async fn voter_admission(
         .map(|(_, realm)| realm)
         .ok_or(VoterAccessFailure::ElectionUnavailable)?;
     if realm == format!("tenant-{tenant}") {
-        return Ok(());
+        if restores_audit_storage(jwt) {
+            return Ok(());
+        }
+        return tokio::time::timeout(
+            Duration::from_secs(5),
+            policy.0.check_staff(tenant),
+        )
+        .await
+        .unwrap_or(Err(VoterAccessFailure::StaffAuditStorageUnavailable));
     }
     let prefix = format!("tenant-{tenant}-event-");
     let event = realm

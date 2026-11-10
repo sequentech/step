@@ -9,7 +9,7 @@ import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.RealmModel;
 
 public class Utils {
-  static Optional<AuthenticatorConfigModel> getConfig(RealmModel realm, String providerId) {
+  public static Optional<AuthenticatorConfigModel> getConfig(RealmModel realm, String providerId) {
     // Using streams to find the first matching configuration
     // TODO: We're assuming there's only one instance in this realm of this
     // authenticator

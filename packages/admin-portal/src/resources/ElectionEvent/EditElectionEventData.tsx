@@ -6,6 +6,7 @@ import React, {useContext} from "react"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {AdministratorSecuritySettings} from "./AdministratorSecuritySettings"
+import {ElectionRevotingSettings} from "./ElectionRevotingSettings"
 import {EditBase, Identifier, RaRecord, useUpdate, useRefresh} from "react-admin"
 import {
     EditElectionEventDataForm,
@@ -97,7 +98,13 @@ export const EditElectionEventData: React.FC = () => {
 
     const onSuccess = () => refresh()
 
-    if (hasRole(IPermissions.ADMIN_USER)) return <AdministratorSecuritySettings />
+    if (hasRole(IPermissions.ADMIN_USER))
+        return (
+            <>
+                <AdministratorSecuritySettings />
+                <ElectionRevotingSettings />
+            </>
+        )
 
     return (
         <EditBase

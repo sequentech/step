@@ -31,7 +31,6 @@ const galegoTranslation: TranslationType = {
             dragDropOption: "Ou arrástrao e déixao aquí",
             importErrorDescription:
                 "Houbo un problema ao importar a papeleta auditábel. Escolléchelo arquivo correcto?",
-            importErrorMoreInfo: "Máis información",
             importErrorTitle: "Erro",
             ciphertextErrorTitle: "A verificación da papeleta fallou",
             ciphertextErrorDescription:

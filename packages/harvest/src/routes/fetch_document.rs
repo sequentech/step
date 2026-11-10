@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::routes::election_dates::signed_import_required;
+use crate::routes::export_verification_transcript::record_download;
 use crate::services::access::document_extra_permissions;
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
@@ -11,15 +13,15 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
+use sequent_core::ballot::DecodedBallotsInclusionPolicy;
+use sequent_core::election_lifecycle::ElectoralPhase;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::DocumentAnnotations;
-use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::postgres::document::get_document;
-use windmill::types::tasks::ETasksExecution;
+use windmill::services::election_lifecycle;
 
 #[derive(Deserialize, Debug)]
 pub struct GetDocumentUrlBody {
@@ -50,6 +52,9 @@ pub(crate) fn fetch_document_error(
         )
     } else if status == Status::Unauthorized || status == Status::Forbidden {
         ErrorResponse::new(status, &message, ErrorCode::Unauthorized)
+    } else if status == Status::Conflict {
+        // The electoral phase the document waits for.
+        ErrorResponse::new(status, &message, ErrorCode::InternalServerError)
     } else {
         tracing::error!("fetchDocument failed: {message}");
         ErrorResponse::new(
@@ -78,26 +83,12 @@ async fn fetch_document_url(
     services: &HarvestServices,
 ) -> Result<Json<GetDocumentUrlResponse>, (Status, String)> {
     let input = body.into_inner();
-    let document_access = authorize(
+    authorize(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::DOCUMENT_DOWNLOAD],
-    );
-    if let Err(ref denied) = document_access {
-        // Exporting tenant configuration already requires TENANT_READ. This
-        // alternative never permits an election-scoped or arbitrary document.
-        if input.election_event_id.is_some() {
-            return Err(denied.clone());
-        }
-        authorize(
-            &claims,
-            true,
-            Some(claims.hasura_claims.tenant_id.clone()),
-            vec![Permissions::TENANT_READ],
-        )
-        .map_err(|_| denied.clone())?;
-    }
+    )?;
 
     let mut hasura_db_client: DbClient = services
         .databases
@@ -120,24 +111,6 @@ async fn fetch_document_url(
             )
         },
     )?;
-
-    if let Err(denied) = document_access {
-        let backup = lock_completed_tenant_backup(
-            &hasura_transaction,
-            &claims.hasura_claims.tenant_id,
-            &input.document_id,
-        )
-        .await
-        .map_err(|error| {
-            (
-                Status::InternalServerError,
-                format!("Error checking tenant backup: {error}"),
-            )
-        })?;
-        if !backup {
-            return Err(denied);
-        }
-    }
 
     let document = get_document(
         &hasura_transaction,
@@ -172,6 +145,48 @@ async fn fetch_document_url(
             extra_permissions,
         )?;
     }
+    if let Some(event) = document.election_event_id.as_deref() {
+        let tenant = &claims.hasura_claims.tenant_id;
+        let gated = served_from_post_processing(
+            &hasura_transaction,
+            tenant,
+            event,
+            &document.id,
+        )
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error reading the document's tally: {error:?}"),
+            )
+        })?;
+        if gated {
+            election_lifecycle::require_phase(
+                &hasura_transaction,
+                tenant,
+                event,
+                ElectoralPhase::PostProcessing,
+            )
+            .await
+            .map_err(|error| (Status::Conflict, error.to_string()))?;
+        }
+        // A download of exported verification data is recorded, as its
+        // export.
+        record_download(
+            &hasura_transaction,
+            &claims.hasura_claims.tenant_id,
+            event,
+            &document.id,
+            &claims.hasura_claims.user_id,
+        )
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error recording the download: {error:?}"),
+            )
+        })?;
+    }
 
     let url = services
         .documents
@@ -195,39 +210,42 @@ async fn fetch_document_url(
     Ok(Json(GetDocumentUrlResponse { url }))
 }
 
-/// Only the worker's successful tenant-export result grants the narrower
-/// download. Document metadata is mutable through Hasura, so require its
-/// exact private ZIP key shape and lock the row until the URL is generated.
-/// The storage adapter re-reads this row in the same transaction.
-async fn lock_completed_tenant_backup(
-    transaction: &Transaction<'_>,
+/// Whether `document_id` is served from post-processing on: where only signed
+/// packages import, the event's tally documents that hold decoded ballots
+/// are. Those are the archives of the tally's folder, whose input holds the
+/// decrypted ballots, and the results database and its spreadsheet unless
+/// their tally session names the policy that leaves the ballots out.
+async fn served_from_post_processing(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
+    election_event_id: &str,
     document_id: &str,
 ) -> Result<bool> {
-    let tenant_uuid = parse_uuid_v4(tenant_id)?;
-    let document_uuid = parse_uuid_v4(document_id)?;
-    // This is the filename written by process_export_zip, not a caller hint.
-    let name = format!("export-tenant-config-{tenant_id}.zip");
-    let task_type = ETasksExecution::EXPORT_TENANT_CONFIG.to_string();
-    let status = TasksExecutionStatus::SUCCESS.to_string();
-    let row = transaction
-        .query_opt(
-            "SELECT d.id FROM sequent_backend.document d
-         WHERE d.tenant_id = $1 AND d.id = $2
-           AND d.election_event_id IS NULL
-           AND d.name = $3 AND d.media_type = 'application/zip'
-           AND d.is_public IS FALSE
-           AND EXISTS (
-               SELECT 1 FROM sequent_backend.tasks_execution t
-               WHERE t.tenant_id = d.tenant_id
-                 AND t.election_event_id IS NULL
-                 AND t.type = $4 AND t.execution_status = $5
-                 AND t.annotations->>'document_id' = d.id::text)
-         FOR SHARE OF d",
-            &[&tenant_uuid, &document_uuid, &name, &task_type, &status],
+    let not_included =
+        serde_json::to_value(DecodedBallotsInclusionPolicy::NOT_INCLUDED)?;
+    let holds_decoded_ballots: bool = hasura_transaction
+        .query_one(
+            "SELECT EXISTS (
+                 SELECT 1 FROM sequent_backend.results_event
+                 WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid
+                   AND $3 IN (documents->>'tar_gz', documents->>'tar_gz_original',
+                              documents->>'tar_gz_pdfs')
+             ) OR EXISTS (
+                 SELECT 1 FROM sequent_backend.tally_session_execution x
+                 JOIN sequent_backend.tally_session s
+                   ON s.tenant_id=x.tenant_id AND s.election_event_id=x.election_event_id
+                  AND s.id=x.tally_session_id
+                 WHERE x.tenant_id=$1::text::uuid AND x.election_event_id=$2::text::uuid
+                   AND $3 IN (x.documents->>'sqlite', x.documents->>'xlsx')
+                   AND s.configuration->'decoded_ballots_inclusion_policy'
+                       IS DISTINCT FROM $4
+             )",
+            &[&tenant_id, &election_event_id, &document_id, &not_included],
         )
-        .await?;
-    Ok(row.is_some())
+        .await?
+        .try_get(0)?;
+    Ok(holds_decoded_ballots
+        && signed_import_required(hasura_transaction, tenant_id).await?)
 }
 
 #[cfg(test)]

@@ -3,6 +3,7 @@
 import type {Page} from "@playwright/test"
 import {FIXED_TIME} from "@sequentech/ui-test-kit/fixtures"
 import {test, expect, TENANT_ID} from "../fixtures"
+import {BUILT_IN_LOGO} from "../settings/data"
 import {expectRole, taskExecution, taskRow} from "./data"
 
 const NEW_TENANT_ID = "13131313-1313-4313-8313-131313131301"
@@ -110,7 +111,10 @@ async function tryTenant(page: Page, name: string) {
 }
 
 test.describe("tenant selection", () => {
-    test("shows the default tenant's logo before sign-in", async ({page, portal}) => {
+    test("shows the built-in logo before sign-in, not the default tenant's", async ({
+        page,
+        portal,
+    }) => {
         const logo = portal.s3.putBytes(
             "public",
             "tenant/logo.svg",
@@ -119,14 +123,20 @@ test.describe("tenant selection", () => {
         )
         portal.graphql.on("GetTenantById", () => ({
             data: {
-                sequent_backend_tenant: [
-                    {id: TENANT_ID, slug: "synthetic", annotations: {logo_url: logo}},
+                sequent_backend_tenant_for_sign_in: [
+                    {id: TENANT_ID, annotations: {logo_url: logo}},
                 ],
             },
         }))
         await openTenantSelection(page, portal.origin)
-        await expect(page.getByRole("img", {name: "Logo Image"})).toHaveAttribute("src", logo)
+        // Before sign-in the tenant's policy for configuration packages is unknown, which
+        // counts as requiring them: the page keeps the built-in logo.
+        await expect(page.getByRole("img", {name: "Logo Image"})).toHaveAttribute(
+            "src",
+            BUILT_IN_LOGO
+        )
         expect(portal.graphql.callsTo("GetTenantById")[0].variables).toEqual({id: TENANT_ID})
+        expect(portal.s3.requestsFor("tenant/logo.svg")).toEqual([])
     })
 
     test("rejects an unknown tenant name", async ({page, portal}) => {
@@ -140,7 +150,7 @@ test.describe("tenant selection", () => {
     test("rejects a tenant whose sign-in realm does not exist", async ({page, portal}) => {
         const orphanId = "14141414-1414-4414-8414-141414141401"
         portal.graphql.on("GetTenantBySlug", () => ({
-            data: {sequent_backend_tenant: [{id: orphanId, slug: "orphan"}]},
+            data: {sequent_backend_tenant_for_sign_in: [{id: orphanId, annotations: {}}]},
         }))
         // The identity provider answers an unknown realm's discovery document with a 404.
         await page.route(`**/realms/tenant-${orphanId}/.well-known/openid-configuration`, (route) =>

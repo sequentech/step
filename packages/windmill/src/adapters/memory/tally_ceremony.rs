@@ -126,6 +126,8 @@ struct State {
     elections: Vec<Election>,
     election_events: Vec<ElectionEvent>,
     env_slug: String,
+    /// The tenant's setting allows unsigned packages.
+    unsigned_import_allowed: bool,
     audit: Vec<TallyAuditEntry>,
     failures: HashMap<TallyCall, String>,
     on_lock: Option<LockHook>,
@@ -327,6 +329,11 @@ impl InMemoryTallyCeremony {
 
     pub fn set_env_slug(&self, slug: &str) {
         self.state().env_slug = slug.to_string();
+    }
+
+    /// Lets the tenant import unsigned packages, as its setting can.
+    pub fn allow_unsigned_import(&self) {
+        self.state().unsigned_import_allowed = true;
     }
 
     pub fn fail(&self, call: TallyCall, message: &str) {
@@ -743,6 +750,75 @@ impl TallyCreationReader for InMemoryTallyCeremony {
                     && election_ids.contains(&seal.election_id)
             })
             .map(|(_, _, seal)| seal.clone())
+            .collect())
+    }
+
+    async fn signed_import_required(&self, _tenant_id: &str) -> Result<bool> {
+        Ok(!self.state().unsigned_import_allowed)
+    }
+
+    async fn counted_elections(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+    ) -> Result<Vec<String>> {
+        let state = self.state();
+        Ok(election_ids
+            .iter()
+            .filter(|election_id| {
+                state.sessions.iter().any(|session| {
+                    session.tenant_id == tenant_id
+                        && session.election_event_id == election_event_id
+                        && session.tally_type.as_deref() == Some("ELECTORAL_RESULTS")
+                        && session.execution_status.as_deref()
+                            == Some(TallyExecutionStatus::SUCCESS.to_string().as_str())
+                        && session.is_execution_completed
+                        && session
+                            .election_ids
+                            .as_ref()
+                            .is_some_and(|ids| ids.contains(election_id))
+                })
+            })
+            .cloned()
+            .collect())
+    }
+
+    async fn lock_results_tallies(
+        &self,
+        _tenant_id: &str,
+        _election_event_id: &str,
+        _election_ids: &[String],
+    ) -> Result<()> {
+        Ok(())
+    }
+
+    async fn unfinished_results_tallies(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+    ) -> Result<Vec<String>> {
+        let state = self.state();
+        let status = |status: TallyExecutionStatus| Some(status.to_string());
+        Ok(election_ids
+            .iter()
+            .filter(|election_id| {
+                state.sessions.iter().any(|session| {
+                    session.tenant_id == tenant_id
+                        && session.election_event_id == election_event_id
+                        && session.tally_type.as_deref() == Some("ELECTORAL_RESULTS")
+                        && session.execution_status != status(TallyExecutionStatus::FAILED)
+                        && session.execution_status != status(TallyExecutionStatus::CANCELLED)
+                        && !(session.execution_status == status(TallyExecutionStatus::SUCCESS)
+                            && session.is_execution_completed)
+                        && session
+                            .election_ids
+                            .as_ref()
+                            .is_some_and(|ids| ids.contains(election_id))
+                })
+            })
+            .cloned()
             .collect())
     }
 }

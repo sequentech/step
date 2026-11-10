@@ -39,6 +39,7 @@ import {CREATE_EXTERNAL_RECONCILIATION_IMPORT} from "@/queries/CreateExternalRec
 import {APPLY_EXTERNAL_RECONCILIATION_CHANGES} from "@/queries/ApplyExternalReconciliationChanges"
 import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
+import {documentNameRefusal} from "@/services/serverRefusals"
 
 type WizardStep = "drop" | "processing" | "review" | "applying" | "done"
 
@@ -530,9 +531,10 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
             setWidgetTaskId(widget.identifier, created.task_execution.id)
         } catch (error) {
             setErrorMessage(
-                error instanceof Error
-                    ? error.message
-                    : t("reconciliation.wizard.notifications.uploadError")
+                documentNameRefusal(t, error) ??
+                    (error instanceof Error
+                        ? error.message
+                        : t("reconciliation.wizard.notifications.uploadError"))
             )
             setStep("drop")
         }

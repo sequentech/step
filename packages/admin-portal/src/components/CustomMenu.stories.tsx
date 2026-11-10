@@ -25,6 +25,11 @@ interface Scenario {
     sidebarOpen: boolean
     /** A role group other than the permissions global's. */
     group?: EStoryPermissions
+    /**
+     * The tenant's policy for configuration packages, optional by default. A tenant
+     * without the setting ("unset") requires signed packages as well.
+     */
+    signingPolicy?: "required" | "optional" | "unset"
 }
 
 let services: TreeServices
@@ -43,20 +48,23 @@ const settings: ITenantSettings = {
     ],
 }
 
-const tenant = (helpLinks: boolean) =>
+const tenant = (helpLinks: boolean, signingPolicy: Scenario["signingPolicy"] = "optional") =>
     ({
         ...tenantRecord,
-        settings: helpLinks ? settings : tenantRecord.settings,
+        settings: {
+            ...(helpLinks ? settings : tenantRecord.settings),
+            ...(signingPolicy === "unset" ? {} : {configuration_signing: {policy: signingPolicy}}),
+        },
     }) as Sequent_Backend_Tenant
 
-function Fixture({tenantLoaded, helpLinks, sidebarOpen, group}: Scenario) {
+function Fixture({tenantLoaded, helpLinks, sidebarOpen, group, signingPolicy}: Scenario) {
     const {permissions} = useStoryGlobals()
     return (
         <TreeStory
             services={services}
             role={group ?? permissions}
             sidebarOpen={sidebarOpen}
-            tenant={tenantLoaded ? tenant(helpLinks) : undefined}
+            tenant={tenantLoaded ? tenant(helpLinks, signingPolicy) : undefined}
         >
             <CustomMenu />
         </TreeStory>
@@ -141,6 +149,16 @@ export const WithoutHelpLinks: Story = {
     },
 }
 
+export const HelpLinksWithSignedConfiguration: Story = {
+    args: {signingPolicy: "required"},
+    play: async ({canvasElement}) => {
+        // Where signed configuration packages are required, the tenant's links are not offered.
+        await expect(await within(canvasElement).findByText("example-council")).toBeVisible()
+        expect(entry(canvasElement, "Settings")).toHaveAttribute("href", "/settings")
+        expect(within(canvasElement).queryByRole("button", {name: "Help"})).toBeNull()
+    },
+}
+
 export const TenantNotLoaded: Story = {
     args: {tenantLoaded: false},
     play: async ({canvasElement}) => {
@@ -162,6 +180,25 @@ export const Trustee: Story = {
         expect(entry(canvasElement, "Users and Roles")).toBeNull()
         expect(entry(canvasElement, "Settings")).toBeNull()
         expect(entry(canvasElement, "Templates")).toBeNull()
+    },
+}
+
+export const TrusteeWithSignedConfiguration: Story = {
+    args: {group: EStoryPermissions.TRUSTEE, signingPolicy: "required"},
+    play: async ({canvasElement}) => {
+        // Where signed configuration packages are required, trustees use the offline tool.
+        await expect(await within(canvasElement).findByText("example-council")).toBeVisible()
+        expect(entry(canvasElement, "Trustee Dashboard")).toBeNull()
+        expect(entry(canvasElement, "Users and Roles")).toBeNull()
+    },
+}
+
+export const TrusteeWithoutSigningSetting: Story = {
+    args: {group: EStoryPermissions.TRUSTEE, signingPolicy: "unset"},
+    play: async ({canvasElement}) => {
+        // A tenant without the setting requires signed configuration packages too.
+        await expect(await within(canvasElement).findByText("example-council")).toBeVisible()
+        expect(entry(canvasElement, "Trustee Dashboard")).toBeNull()
     },
 }
 

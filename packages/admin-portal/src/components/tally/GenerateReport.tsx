@@ -13,6 +13,8 @@ import {DownloadDocument} from "@/resources/User/DownloadDocument"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {WidgetProps} from "../Widget"
+import {useNotify} from "react-admin"
+import {phaseRefusalKey} from "@/services/serverRefusals"
 
 interface GenerateReportProps {
     electionEventId: string
@@ -30,6 +32,7 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
     handleClose,
 }) => {
     const {t} = useTranslation()
+    const notify = useNotify()
     const [documentId, setDocumentId] = useState<string | null>(null)
 
     const [generateTemplate] = useMutation<GenerateTemplateMutation>(GENERATE_TEMPLATE, {
@@ -69,6 +72,9 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
             setWidgetTaskId(currWidget.identifier, taskId)
         } catch (e) {
             updateWidgetFail(currWidget.identifier)
+            // Ballot images show the decoded ballots: they wait for post-processing.
+            const refusal = phaseRefusalKey(e, "refusals.ballotImagesWaitForPostProcessing")
+            if (refusal) notify(t(refusal), {type: "error"})
         }
     }
 

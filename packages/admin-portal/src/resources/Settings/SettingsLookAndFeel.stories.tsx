@@ -20,6 +20,11 @@ interface Scenario {
     roles: string[]
     /** The tenant's saved display name, if any. */
     displayName?: string
+    /**
+     * The tenant's policy for configuration packages, optional by default. A tenant
+     * without the setting ("unset") requires signed packages as well.
+     */
+    signingPolicy?: "required" | "optional" | "unset"
 }
 
 const Tab = settingsTab(SettingsLookAndFeel)
@@ -34,7 +39,12 @@ const meta = {
     argTypes: {reads: {control: "inline-radio", options: ["records", "loading", "error"]}},
     beforeEach: async ({args}) => {
         const saved = args.displayName === undefined ? {} : {display_name: args.displayName}
-        data = resourceBoundary({[TENANT_RESOURCE]: [settingsTenant(saved)]}, {reads: args.reads})
+        const policy = args.signingPolicy ?? "optional"
+        const signing = policy === "unset" ? {} : {configuration_signing: {policy}}
+        data = resourceBoundary(
+            {[TENANT_RESOURCE]: [settingsTenant({...saved, ...signing})]},
+            {reads: args.reads}
+        )
         graphql = graphqlBoundary({}, {schema: true})
         await graphql.ready
     },
@@ -98,6 +108,35 @@ export const SaveTheLogo: Story = {
         )
         // Saved changes disable the button until the next edit.
         await expect(within(canvasElement).getByRole("button", {name: "Save"})).toBeDisabled()
+    },
+}
+
+export const SignedConfiguration: Story = {
+    args: {signingPolicy: "required"},
+    play: async ({canvasElement}) => {
+        // Where signed configuration packages are required, the staff screens keep their
+        // logo and style and offer no outside links: only the display name remains.
+        const displayName = await input(canvasElement, "displayName")
+        expect(within(canvasElement).getAllByRole("textbox")).toEqual([displayName])
+        await userEvent.type(displayName, "Example Council")
+        await userEvent.tab()
+        await userEvent.click(within(canvasElement).getByRole("button", {name: "Save"}))
+        await within(document.body).findByText("Element updated")
+        await userEvent.keyboard("{Escape}")
+        await waitFor(() => expect(data.writes).toHaveLength(1))
+        // The saved logo address and CSS stay as they were.
+        expect(data.writes[0].params).toEqual(
+            expect.objectContaining({
+                data: {
+                    annotations: {logo_url: "https://assets.admin-story.invalid/logo.svg", css: ""},
+                    settings: expect.objectContaining({
+                        display_name: "Example Council",
+                        help_links: [],
+                        configuration_signing: {policy: "required"},
+                    }),
+                },
+            })
+        )
     },
 }
 

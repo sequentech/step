@@ -5,7 +5,6 @@ import {SettingsContext} from "../providers/SettingsContextProvider"
 import React, {useState, useEffect, useContext, useMemo} from "react"
 import Typography from "@mui/material/Typography"
 import Button from "@mui/material/Button"
-import {Link as RouterLink} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import Alert from "@mui/material/Alert"
 import AlertTitle from "@mui/material/AlertTitle"
@@ -404,13 +403,6 @@ export const HomeScreen: React.FC<IProps> = ({
             >
                 <AlertTitle>{t("homeScreen.importErrorTitle")}</AlertTitle>
                 <Typography variant="body2">{t("homeScreen.importErrorDescription")}</Typography>
-                <RouterLink
-                    to="//sequentech.github.io/documentation/docs/general/reference/ballot-encoding"
-                    target="_blank"
-                    rel="nofollow"
-                >
-                    {t("homeScreen.importErrorMoreInfo")}
-                </RouterLink>
             </Alert>
             <Alert
                 severity="error"

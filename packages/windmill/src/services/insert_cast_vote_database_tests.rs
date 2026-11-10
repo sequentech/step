@@ -39,6 +39,30 @@ impl ElectionFixture {
         fixture
     }
 
+    /// Puts the election event in its execution phase, operational, with both
+    /// services live: the state every voter operation checks first.
+    async fn open_to_voters(&self, transaction: &Transaction<'_>) {
+        transaction
+            .execute(
+                "INSERT INTO sequent_backend.election_lifecycle \
+                     (tenant_id, election_event_id, phase, safety) \
+                 VALUES ($1, $2, 'execution', 'operational')",
+                &[&self.tenant, &self.event],
+            )
+            .await
+            .unwrap();
+        transaction
+            .execute(
+                "INSERT INTO sequent_backend.lifecycle_service_lease (component, expires_at) \
+                 VALUES ('harvest', clock_timestamp() + interval '1 hour'), \
+                     ('windmill', clock_timestamp() + interval '1 hour') \
+                 ON CONFLICT (component) DO UPDATE SET expires_at = EXCLUDED.expires_at",
+                &[],
+            )
+            .await
+            .unwrap();
+    }
+
     async fn load(&self, transaction: &Transaction<'_>) -> CastVoteConfiguration {
         get_cast_vote_configuration(
             transaction,
@@ -217,6 +241,25 @@ async fn channel_enablement_and_pause_are_rechecked_from_the_writer() {
     let fixture = ElectionFixture::create(&transaction).await;
     let event = super::election_event(None);
     let auth_time = Some(ISO8601::now().timestamp());
+    // Without the election event's lifecycle, no voter gets further.
+    let refused = check_status(
+        &fixture.tenant.to_string(),
+        &fixture.event.to_string(),
+        &fixture.election.to_string(),
+        &fixture.area,
+        &transaction,
+        &event,
+        &auth_time,
+        VotingStatusChannel::ONLINE,
+        false,
+    )
+    .await;
+    assert!(matches!(
+        refused,
+        Err(CastVoteError::CheckStatusFailed(message))
+            if message == "Election lifecycle is not initialized"
+    ));
+    fixture.open_to_voters(&transaction).await;
     for (channel, key, status_key) in [
         (VotingStatusChannel::ONLINE, "online", "voting_status"),
         (VotingStatusChannel::KIOSK, "kiosk", "kiosk_voting_status"),

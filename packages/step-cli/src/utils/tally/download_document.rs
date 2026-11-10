@@ -22,7 +22,7 @@ pub struct FetchDocumentOutput {
 }
 
 /// Like `fetch_document`, but for a document not tied to any election event
-/// (e.g. a tenant config export) — `election_event_id` is optional in the
+/// (e.g. a tenant-level document) — `election_event_id` is optional in the
 /// underlying query.
 pub fn fetch_document_url(
     document_id: &str,

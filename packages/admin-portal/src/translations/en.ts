@@ -4,6 +4,46 @@
 
 const englishTranslation = {
     translations: {
+        electionRevoting: {
+            title: "Re-voting",
+            description:
+                "During Preparation, before voting starts on any channel of this election event, you can disable re-voting for an election: each voter can then cast one vote. Re-voting can't be enabled again, and the electoral log records who disabled it. The election board must approve the updated configuration before voting starts.",
+            loading: "Loading the re-voting settings",
+            readFailed:
+                "The re-voting settings of the elections could not be read. Reload before making changes.",
+            empty: "This election event has no elections.",
+            election: "Election",
+            state: "Re-voting",
+            unlimited: "Allowed, unlimited votes",
+            upTo: "Allowed, up to {{votes}} votes",
+            single: "Disabled, one vote",
+            disable: "Disable re-voting",
+            disableFor: "Disable re-voting for {{name}}",
+            confirmTitle: "Disable re-voting?",
+            confirm:
+                "Each voter of {{name}} will be able to cast one vote. Re-voting can't be enabled again.",
+            disabled:
+                "Re-voting disabled for {{name}}. The election board must approve the updated configuration before voting starts.",
+            failed: "Re-voting was not disabled for {{name}}: {{reason}}",
+            failedNoReason:
+                "Re-voting was not disabled for {{name}}. Reload and check the election phase.",
+        },
+        refusals: {
+            documentName:
+                "A document name cannot contain / \\ ; # % ? or a control character. Rename it and try again.",
+            documentWaitsForPostProcessing:
+                "This document may contain decoded ballots. It can be downloaded once post-processing has started.",
+            resultsWaitForPostProcessing:
+                "The results database of this tally may contain decoded ballots. The results can be shown here once post-processing has started.",
+            ballotImagesWaitForPostProcessing:
+                "Ballot images can be generated once post-processing has started.",
+            phaseChanging:
+                "The phase or safety state of the election event is changing. Try again in a moment.",
+            resultsAlreadyCounted:
+                "The results of {{election}} are already counted, and a recount is not available.",
+            resultsTallyUnfinished:
+                "A results tally of {{election}} has not finished. Wait until it finishes, or cancel it.",
+        },
         copyableFingerprint: {
             copy: "Copy the complete SHA-256",
             copied: "The complete SHA-256 was copied",
@@ -74,7 +114,7 @@ const englishTranslation = {
             startPostProcessing: "Start post-processing",
             postProcessingStarted: "Post-processing started.",
             postProcessingHelp:
-                "Start post-processing after determining the election result. This phase change is irreversible. It enables the board-authorized export and subsequent deletion procedures. If fresh external authentication is required, sign in again and confirm this action afterwards.",
+                'Start post-processing once each election has its result, or can never get one because the seal of one of its ballot boxes failed and none of its seals is still in progress. In the safety state "Unrecoverable failure", post-processing starts without a result, and the electoral log records that the failure needs an investigation. This phase change is irreversible. It enables the board-authorized export and subsequent deletion procedures. If fresh external authentication is required, sign in again and confirm this action afterwards.',
             cancel: "Cancel",
             confirm: "Confirm phase change",
             phase: {
@@ -161,6 +201,8 @@ const englishTranslation = {
             empty: "No verification boards are available for this tally.",
             anchorError: "Verification anchors could not be loaded.",
             downloadError: "Verification data could not be downloaded.",
+            postProcessingRequired:
+                "Verification data can be downloaded once post-processing has started.",
         },
         philippinePassport: "Passport",
         seamanBook: "Seafarer's Book",
@@ -2536,6 +2578,11 @@ const englishTranslation = {
                     entry: "Entry",
                 },
                 emptyLogs: "No logs yet.",
+                managerKey: {
+                    title: "Protocol manager key (SHA-256)",
+                    help: "Each trustee server logs this fingerprint for the board {{board}} when it accepts the key ceremony's Configuration. Compare the two over a separate channel, not through this portal.",
+                    readError: "The protocol manager key of this key ceremony could not be read.",
+                },
             },
             startStep: {
                 title: "Trustee Key Ceremony",
@@ -4440,6 +4487,8 @@ const englishTranslation = {
                     "This event uses automatic key ceremonies. Trustees do not perform these steps, so their signatures cannot be required. To require trustee signatures, use manual key ceremonies.",
                 forbidden: "You don't have the permission for this change.",
                 invalid: "The server refused these values. Check them and try again.",
+                signaturesFixed:
+                    "The number of signatures of this action is already saved and can't change. Reload the page to see it.",
                 conflict: "Someone else changed this meanwhile. Reload the page and try again.",
                 lockedDown:
                     "The election event is locked down: signing rules change only through a new configuration version.",
@@ -4639,6 +4688,7 @@ const englishTranslation = {
                 signaturesNeededHelp:
                     "Each signer uses their digital certificate. Every $t(signing.terms.post) has at least {{n}} people who can sign.",
                 signaturesNeededShortHelp: "Each signer uses their digital certificate.",
+                signaturesFixed: "This number is fixed once saved.",
                 requesterSigning: "The person who starts it can also sign",
                 expiresAfter: "A request expires after",
                 trusteesSign: "Trustees sign this step",
@@ -6343,7 +6393,7 @@ const englishTranslation = {
         electoralLogConsole: {
             title: "Electoral Log",
             subtitle:
-                "Browse an election event's electoral log and ballot box, or query its electoral-log database. Nothing on this page changes any data.",
+                "Browse an election event's electoral log, or query its electoral-log database. Nothing on this page changes any data.",
             notAllowed:
                 "You need the electoral-log-console-read permission to open the electoral log.",
             tabs: {
@@ -6355,9 +6405,6 @@ const englishTranslation = {
             table: "Table",
             tables: {
                 records: "Records",
-                ballots: "Ballots",
-                voters: "Voters",
-                queue: "Sequencer Queue",
             },
             order: {
                 "label": "Order",
@@ -6367,22 +6414,14 @@ const englishTranslation = {
             filters: {
                 statement_kind: "Kind",
                 election_id: "Election",
-                area_id: "Area ID",
                 user_id: "User or Voter ID",
                 ballot_id: "Ballot ID",
-                status: "Status",
                 created_after: "From",
                 created_before: "Until",
                 any: "Any",
                 apply: "Apply Filters",
                 clear: "Clear",
-                invalid:
-                    "Check the highlighted filters: dates must be valid, and the ballot box's area IDs must be UUIDs.",
-            },
-            statuses: {
-                valid: "Valid",
-                pending: "Pending",
-                rejected: "Rejected",
+                invalid: "Check the highlighted filters: dates must be valid.",
             },
             estimatedRows: "About {{rows}} rows in this table before filters.",
             personalDataHidden:

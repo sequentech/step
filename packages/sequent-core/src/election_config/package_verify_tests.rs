@@ -926,17 +926,20 @@ fn the_setting_reads_from_the_tenants_json() {
     assert_eq!(read.staff_roots, "");
     let empty: ConfigurationSigning =
         serde_json::from_value(serde_json::json!({})).unwrap();
-    assert_eq!(empty.policy, ConfigurationSigningPolicy::Optional);
+    assert_eq!(empty.policy, ConfigurationSigningPolicy::Required);
+    let optional: ConfigurationSigning =
+        serde_json::from_value(serde_json::json!({"policy": "optional"}))
+            .unwrap();
+    assert_eq!(optional.policy, ConfigurationSigningPolicy::Optional);
 }
 
 #[test]
-fn an_unsigned_file_imports_as_before_unless_signatures_are_required() {
+fn an_unsigned_file_imports_only_where_the_setting_allows_it() {
     let world = world();
     let plain = zip(&members()).unwrap();
-    assert!(matches!(
-        admit(&plain, None, Vec::new()),
-        Ok(Admission::Unsigned)
-    ));
+    assert!(signatures_required(None));
+    let report = admit(&plain, None, Vec::new()).unwrap_err();
+    assert_eq!(ids(&report), vec!["package.unsigned"]);
     assert!(matches!(
         admit(
             &plain,

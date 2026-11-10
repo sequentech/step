@@ -48,12 +48,7 @@ impl Config {
             Some(url) if !url.is_empty() => url,
             Some(_) | None => fallback(B4_URL_FLAG, B4_URL)?,
         };
-        let keys_file: PathBuf = match keys_file {
-            Some(path) if !path.as_os_str().is_empty() => path,
-            Some(_) | None => {
-                fallback(TRUSTEE_CONFIG_FLAG, TRUSTEE_CONFIG_PATH)?.into()
-            }
-        };
+        let keys_file = resolve_keys_file(keys_file)?;
         let trustee_name = required(TRUSTEE_NAME)?;
         Ok(Config {
             b4_url,
@@ -69,6 +64,17 @@ impl Config {
             },
             trustee_name,
         })
+    }
+}
+
+/// The keys file `--trustee-config` names, or `TRUSTEE_CONFIG_PATH` when the
+/// flag is absent or empty: the same file for every command that takes it.
+pub(crate) fn resolve_keys_file(flag: Option<PathBuf>) -> Result<PathBuf> {
+    match flag {
+        Some(path) if !path.as_os_str().is_empty() => Ok(path),
+        Some(_) | None => {
+            Ok(fallback(TRUSTEE_CONFIG_FLAG, TRUSTEE_CONFIG_PATH)?.into())
+        }
     }
 }
 

@@ -28,11 +28,8 @@ actions:
     - name: export_verification_transcript
       definition:
           kind: synchronous
-          handler: 'http://{{HARVEST_DOMAIN}}/export-verification-transcript'
+          handler: "http://{{HARVEST_DOMAIN}}/export-verification-transcript"
           forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value_from_env: ACTIONS_ADMIN_SECRET
           timeout: 120
           request_transform:
               body:
@@ -107,9 +104,6 @@ actions:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/change-application-status
           forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value: ACTIONS_ADMIN_SECRET
           request_transform:
               body:
                   action: transform
@@ -126,9 +120,6 @@ actions:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/verify-application
           forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value: ACTIONS_ADMIN_SECRET
           request_transform:
               body:
                   action: transform
@@ -356,9 +347,6 @@ actions:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/confirm-key-custody
           forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value_from_env: ACTIONS_ADMIN_SECRET
           request_transform:
               body:
                   action: transform
@@ -404,9 +392,6 @@ actions:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/configure-results-website-policy
           forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value_from_env: ACTIONS_ADMIN_SECRET
           request_transform:
               body:
                   action: transform
@@ -422,9 +407,6 @@ actions:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/scheduled-event
           forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value_from_env: ACTIONS_ADMIN_SECRET
           request_transform:
               body:
                   action: transform
@@ -496,9 +478,6 @@ actions:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/create-keys-ceremony
           forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value_from_env: ACTIONS_ADMIN_SECRET
           request_transform:
               body:
                   action: transform
@@ -595,9 +574,6 @@ actions:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/delete-election-event
           forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value_from_env: ACTIONS_ADMIN_SECRET
           request_transform:
               body:
                   action: transform
@@ -612,9 +588,6 @@ actions:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/archive-election-event
           forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value_from_env: ACTIONS_ADMIN_SECRET
           request_transform:
               body:
                   action: transform
@@ -623,14 +596,24 @@ actions:
               version: 2
       permissions:
           - role: election-event-archive
+    - name: disable_election_revoting
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/disable-election-revoting
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
     - name: delete_tenant
       definition:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/delete-tenant
           forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value_from_env: ACTIONS_ADMIN_SECRET
           request_transform:
               body:
                   action: transform
@@ -1230,9 +1213,6 @@ actions:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/publish-results-website
           forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value_from_env: ACTIONS_ADMIN_SECRET
           request_transform:
               body:
                   action: transform
@@ -1263,9 +1243,6 @@ actions:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/revoke-results-publication
           forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value_from_env: ACTIONS_ADMIN_SECRET
           request_transform:
               body:
                   action: transform
@@ -1281,9 +1258,6 @@ actions:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/refresh-results-publication-index
           forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value_from_env: ACTIONS_ADMIN_SECRET
           request_transform:
               body:
                   action: transform
@@ -1308,20 +1282,6 @@ actions:
               version: 2
       permissions:
           - role: communication-template-write
-          - role: admin-user
-    - name: export_tenant_config
-      definition:
-          kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/export-tenant-config
-          forward_client_headers: true
-          request_transform:
-              body:
-                  action: transform
-                  template: "{{$body.input}}"
-              template_engine: Kriti
-              version: 2
-      permissions:
-          - role: tenant-read
           - role: admin-user
     - name: export_tenant_users
       definition:
@@ -1372,9 +1332,6 @@ actions:
           kind: ""
           handler: http://{{HARVEST_DOMAIN}}/fetch-document
           forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value_from_env: ACTIONS_ADMIN_SECRET
           request_transform:
               body:
                   action: transform
@@ -1614,9 +1571,6 @@ actions:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/get-custody-request
           forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value_from_env: ACTIONS_ADMIN_SECRET
           request_transform:
               body:
                   action: transform
@@ -1819,20 +1773,6 @@ actions:
       permissions:
           - role: communication-template-write
           - role: admin-user
-    - name: import_tenant_config
-      definition:
-          kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/import-tenant-config
-          forward_client_headers: true
-          request_transform:
-              body:
-                  action: transform
-                  template: "{{$body.input}}"
-              template_engine: Kriti
-              version: 2
-      permissions:
-          - role: tenant-write
-          - role: admin-user
     - name: import_users
       definition:
           kind: synchronous
@@ -1855,9 +1795,6 @@ actions:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/insert-election-event
           forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value_from_env: ACTIONS_ADMIN_SECRET
           request_transform:
               body:
                   action: transform
@@ -1871,9 +1808,6 @@ actions:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/insert-tenant
           forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value: ACTIONS_ADMIN_SECRET
           request_transform:
               body:
                   action: transform
@@ -1925,6 +1859,20 @@ actions:
       permissions:
           - role: user
       comment: cast_ballot
+    - name: audit_ballot
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/audit-ballot
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: audit_ballot
     - name: limit_access_by_countries
       definition:
           kind: synchronous
@@ -2308,9 +2256,6 @@ actions:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/import-certificate-authority
           forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value_from_env: ACTIONS_ADMIN_SECRET
           request_transform:
               body:
                   action: transform
@@ -2326,9 +2271,6 @@ actions:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/delete-certificate-authority
           forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value_from_env: ACTIONS_ADMIN_SECRET
           request_transform:
               body:
                   action: transform
@@ -2344,9 +2286,6 @@ actions:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/export-certificate-authority
           forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value_from_env: ACTIONS_ADMIN_SECRET
           request_transform:
               body:
                   action: transform
@@ -3103,46 +3042,46 @@ actions:
       comment: Read trusted lifecycle snapshots per Post and event
     - name: get_attack_detection_settings
       definition:
-        kind: synchronous
-        handler: "http://{{HARVEST_DOMAIN}}/attack-detection/settings/get"
-        forward_client_headers: true
-        type: query
-        request_transform:
-          body:
-            action: transform
-            template: "{{$body.input}}"
-          template_engine: Kriti
-          version: 2
+          kind: synchronous
+          handler: "http://{{HARVEST_DOMAIN}}/attack-detection/settings/get"
+          forward_client_headers: true
+          type: query
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
       permissions:
-        - role: tenant-write
+          - role: tenant-write
     - name: update_attack_detection_settings
       definition:
-        kind: synchronous
-        handler: "http://{{HARVEST_DOMAIN}}/attack-detection/settings/update"
-        forward_client_headers: true
-        type: mutation
-        request_transform:
-          body:
-            action: transform
-            template: "{{$body.input}}"
-          template_engine: Kriti
-          version: 2
+          kind: synchronous
+          handler: "http://{{HARVEST_DOMAIN}}/attack-detection/settings/update"
+          forward_client_headers: true
+          type: mutation
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
       permissions:
-        - role: tenant-write
+          - role: tenant-write
     - name: get_attack_detections
       definition:
-        kind: synchronous
-        handler: "http://{{HARVEST_DOMAIN}}/attack-detection/get"
-        forward_client_headers: true
-        type: query
-        request_transform:
-          body:
-            action: transform
-            template: "{{$body.input}}"
-          template_engine: Kriti
-          version: 2
+          kind: synchronous
+          handler: "http://{{HARVEST_DOMAIN}}/attack-detection/get"
+          forward_client_headers: true
+          type: query
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
       permissions:
-        - role: monitoring-view
+          - role: monitoring-view
 
 custom_types:
     enums:
@@ -3229,7 +3168,6 @@ custom_types:
         - name: ExportOptions
         - name: ApplicationVerifyBody
         - name: ApplicationChangeStatusBody
-        - name: ImportOptions
         - name: CountUsersInput
         - name: SigningRoleChangesInput
     objects:
@@ -3322,6 +3260,7 @@ custom_types:
         - name: InsertCastVoteOutput
         - name: ReceiveBallotOutput
         - name: CastBallotOutput
+        - name: AuditBallotOutput
         - name: createBallotReceiptOutput
         - name: OptionalImportEvent
         - name: ManageElectionDatesOutput
@@ -3342,6 +3281,7 @@ custom_types:
         - name: SetCustomUrlsOutput
         - name: DeleteElectionEvent
         - name: ArchiveElectionEvent
+        - name: DisableElectionRevotingOutput
         - name: ExportTasksExecutionOutput
         - name: createTransmissionPackageOutput
         - name: GetEventListOutput
@@ -3366,7 +3306,6 @@ custom_types:
         - name: applicationOutput
         - name: ExportTrusteesOutput
         - name: SetVoterAuthenticationOutput
-        - name: ImportTenantOutput
         - name: ExportElectionEventOutput
         - name: GenerateTemplateOutput
         - name: ApplicationChangeStatusOutput

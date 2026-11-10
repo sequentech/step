@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::routes::election_dates::signed_import_required;
 use crate::services::access::import_users_privileges;
 use crate::services::authorization::authorize;
 use anyhow::Result;
@@ -22,7 +23,9 @@ use windmill::services;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::electoral_log::ElectoralLogAdminContext;
-use windmill::services::import::configuration_package::typed_checksum;
+use windmill::services::import::configuration_package::{
+    check_allowed_votes, typed_checksum,
+};
 use windmill::services::import::import_election_event::{
     get_document, get_zip_entries,
 };
@@ -57,6 +60,24 @@ fn authorize_insert_election_event(
     )
 }
 
+/// Whether the tenant takes election data only through the signed import.
+async fn signed_import_required_for(
+    tenant_id: &str,
+) -> Result<bool, (Status, String)> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    signed_import_required(&hasura_transaction, tenant_id)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))
+}
+
 #[instrument(skip(claims))]
 #[post("/insert-election-event", format = "json", data = "<body>")]
 pub async fn insert_election_event_f(
@@ -65,6 +86,13 @@ pub async fn insert_election_event_f(
 ) -> Result<Json<CreateElectionEventOutput>, (Status, String)> {
     let object = body.into_inner();
     authorize_insert_election_event(&claims, &object)?;
+    // Where election data arrives only through the signed import, the new
+    // election event takes only its texts from the caller.
+    let object = if signed_import_required_for(&object.tenant_id).await? {
+        object.texts_only()
+    } else {
+        object
+    };
 
     let tenant_id = object.tenant_id.clone();
     let executer_name = claims
@@ -112,7 +140,7 @@ pub async fn insert_election_event_f(
                 id: Some(id),
                 message: None,
                 error: Some(format!(
-                    "Error sending Insert Election Event task: ${err}"
+                    "Error sending Insert Election Event task: {err}"
                 )),
                 task_execution: Some(task_execution.clone()),
             }));
@@ -383,6 +411,21 @@ pub async fn import_election_event_f(
         }
     };
 
+    // As the import itself does: a new revision keeps or lowers each
+    // election's number of allowed votes.
+    if let Some(package) = package.as_deref() {
+        if let Err(err) = check_allowed_votes(
+            &hasura_transaction,
+            &input.tenant_id,
+            package,
+            &election_event_schema.elections,
+        )
+        .await
+        {
+            return Ok(refuse(task_execution, Refusal::of_check(&err)).await);
+        }
+    }
+
     let id = election_event_schema.election_event.id.clone();
 
     let check_only = input.check_only.unwrap_or(false);
@@ -446,7 +489,7 @@ pub async fn import_election_event_f(
             return Ok(Json(ImportElectionEventOutput {
                 id: Some(id),
                 message: Some(format!(
-                    "Error sending Import Election Event task: ${err}"
+                    "Error sending Import Election Event task: {err}"
                 )),
                 error: Some(format!("Failed to verify the integrity: {err:?}")),
                 task_execution: Some(task_execution),

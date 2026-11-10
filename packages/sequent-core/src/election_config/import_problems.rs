@@ -182,6 +182,55 @@ pub fn unreadable_row(row: usize, reason: impl std::fmt::Display) -> Problem {
     .detail("reason", reason)
 }
 
+/// The votes per voter a number of allowed votes, as an election holds it,
+/// gives: unset is one and zero is unlimited.
+fn votes_per_voter(allowed: Option<i64>) -> String {
+    match allowed.unwrap_or(1) {
+        0 => "unlimited".to_string(),
+        allowed => allowed.to_string(),
+    }
+}
+
+/// Whether the number of allowed votes `proposed` gives a voter more votes
+/// than `current`, each as an election holds it: unset is one and zero is
+/// unlimited.
+pub fn allows_more_votes(proposed: Option<i64>, current: Option<i64>) -> bool {
+    let limit = |allowed: Option<i64>| match allowed.unwrap_or(1) {
+        0 => None,
+        allowed => Some(allowed),
+    };
+    match (limit(proposed), limit(current)) {
+        (None, Some(_)) => true,
+        (Some(proposed), Some(current)) => proposed > current,
+        (_, None) => false,
+    }
+}
+
+/// An election that a configuration's new revision gives more votes per
+/// voter than it has now: a new revision may keep or lower that number.
+pub fn allowed_votes_raised(
+    index: usize,
+    election: &str,
+    proposed: Option<i64>,
+    current: Option<i64>,
+) -> Problem {
+    let (proposed, current) =
+        (votes_per_voter(proposed), votes_per_voter(current));
+    Problem::error(
+        Code::InvalidValue,
+        format!("elections[{index}].num_allowed_revotes"),
+        format!(
+            "the election '{election}' would allow {proposed} votes per \
+             voter, more than the {current} it allows now; a new revision of \
+             the configuration may keep or lower that number"
+        ),
+    )
+    .id("election.allowed-votes-raised")
+    .detail("value", proposed)
+    .detail("current", current)
+    .about(Some(election))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -201,6 +250,7 @@ mod tests {
             vote_weight_misspelled("vote_weight", "vote-weight"),
             duplicate_column("email"),
             unreadable_row(7, "wrong number of fields"),
+            allowed_votes_raised(0, "president", Some(2), None),
         ];
         for problem in &all {
             assert_eq!(problem.severity, Severity::Error, "{problem}");
@@ -224,5 +274,35 @@ mod tests {
         let version = incompatible_version("8.1.0", "9.2.0");
         assert_eq!(version.code, Code::IncompatibleVersion);
         assert_eq!(version.details["found"], "8.1.0");
+    }
+
+    #[test]
+    fn unset_allows_one_vote_and_zero_unlimited_votes() {
+        // Keeping or lowering.
+        assert!(!allows_more_votes(None, None));
+        assert!(!allows_more_votes(Some(1), None));
+        assert!(!allows_more_votes(None, Some(2)));
+        assert!(!allows_more_votes(Some(2), Some(3)));
+        assert!(!allows_more_votes(Some(1), Some(0)));
+        assert!(!allows_more_votes(Some(0), Some(0)));
+        // Raising.
+        assert!(allows_more_votes(Some(2), None));
+        assert!(allows_more_votes(Some(3), Some(2)));
+        assert!(allows_more_votes(Some(0), Some(5)));
+        assert!(allows_more_votes(Some(0), None));
+    }
+
+    #[test]
+    fn a_raised_number_of_votes_names_both_numbers() {
+        let problem = allowed_votes_raised(1, "president", Some(0), None);
+        assert_eq!(problem.path, "elections[1].num_allowed_revotes");
+        assert_eq!(problem.details["value"], "unlimited");
+        assert_eq!(problem.details["current"], "1");
+        assert_eq!(
+            problem.message,
+            "the election 'president' would allow unlimited votes per voter, \
+             more than the 1 it allows now; a new revision of the \
+             configuration may keep or lower that number"
+        );
     }
 }

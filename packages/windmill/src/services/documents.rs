@@ -14,6 +14,33 @@ use crate::postgres;
 use crate::types::error::Result;
 use sequent_core::services::s3;
 
+/// The answer to a document name that [`is_document_name`] refuses.
+pub const DOCUMENT_NAME_REFUSAL: &str = "A document name cannot contain / \\ ; # % ? or a control \
+     character. Rename it and try again.";
+
+/// Whether a document can be named `name`, as a user names it. The name
+/// becomes part of the document's storage key and of the paths it is
+/// uploaded and downloaded through.
+pub fn is_document_name(name: &str) -> bool {
+    name.chars().all(|ch| ch != '/' && fits_document_name(ch))
+}
+
+/// `name` with `_` in place of each character a document name cannot hold,
+/// except `/`: a generated name can separate the parts of its path with it.
+pub fn document_name(name: &str) -> String {
+    name.chars()
+        .map(|ch| match ch {
+            '/' => ch,
+            ch if fits_document_name(ch) => ch,
+            _ => '_',
+        })
+        .collect()
+}
+
+fn fits_document_name(ch: char) -> bool {
+    !ch.is_control() && !matches!(ch, '\\' | ';' | '#' | '%' | '?')
+}
+
 #[expect(
     clippy::too_many_arguments,
     reason = "Keep document identity, storage metadata and visibility explicit across the existing upload callers."
@@ -93,6 +120,8 @@ async fn upload_and_return_document_inner(
     is_public: bool,
     annotations: Option<&DocumentAnnotations>,
 ) -> AnyhowResult<Document> {
+    // Generated names can carry other text, such as an election's name.
+    let name = &document_name(name);
     let document = insert_document_with_annotations(
         hasura_transaction,
         tenant_id,
@@ -158,6 +187,7 @@ pub async fn upload_and_return_public_event_document(
     name: &str,
     document_id: Option<String>,
 ) -> AnyhowResult<Document> {
+    let name = &document_name(name);
     let document = insert_document(
         hasura_transaction,
         tenant_id,

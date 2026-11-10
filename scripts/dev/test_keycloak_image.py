@@ -10,6 +10,8 @@ import shlex
 import subprocess
 import tempfile
 import unittest
+import xml.etree.ElementTree as ElementTree
+import zipfile
 from pathlib import Path
 
 from scripts.dev.keycloak import PACKAGE, THEMES
@@ -153,6 +155,114 @@ class KeycloakEvaluatedProviderTests(unittest.TestCase):
             self.assertEqual(subprocess.run(["sh", "-c", command]).returncode, 0)
             (root / "sequent.smart-link-hmac-authenticator.jar").write_bytes(b"forbidden provider")
             self.assertNotEqual(subprocess.run(["sh", "-c", command]).returncode, 0)
+
+    def test_only_the_sign_in_links_feature_builds_the_sign_in_link_handlers(self):
+        # Run the Dockerfile's own selection of the Maven profile for several
+        # FEATURES values.
+        lines = [line.strip().rstrip("; \\")
+                 for line in DOCKERFILE.read_text().splitlines()]
+        selection = [line for line in lines if line.startswith("sign_in_links=")
+                     or (line.startswith("case ") and "sign-in-links" in line)]
+        self.assertEqual(len(selection), 2)
+        script = ('FEATURES="$1"; ' + "; ".join(selection)
+                  + '; printf %s "${sign_in_links}"')
+        disabled = "-P !sign-in-link-handlers"
+        expected = {"": disabled, "plugins": disabled, "sign-in-links-extra": disabled,
+                    "sign-in-links": "", "plugins,sign-in-links": "",
+                    "plugins sign-in-links": ""}
+        for features, profile in expected.items():
+            with self.subTest(features=features):
+                result = subprocess.run(["sh", "-c", script, "sh", features],
+                                        capture_output=True, text=True, check=True)
+                self.assertEqual(result.stdout, profile)
+
+    def test_provider_assembly_rejects_sign_in_link_handlers_without_the_feature(self):
+        guards = [line.strip().rstrip("; \\")
+                  for line in DOCKERFILE.read_text().splitlines()
+                  if line.strip().startswith("test -z")
+                  and ("sign-in-link-handlers" in line
+                       or "OTLActionTokenHandler" in line)]
+        self.assertEqual(len(guards), 2,
+                         "The provider set needs fail-closed sign-in link guards")
+        handlers = "sequent/keycloak/sign_in_links/"
+        forbidden = {"sequent.sign-in-link-handlers.jar": None,
+                     "sequent.renamed.jar": handlers + "OTLActionTokenHandler.class",
+                     "sequent.other.jar":
+                         handlers + "ManualVerificationTokenHandler.class",
+                     "sequent.bridge.jar":
+                         handlers + "LoginBridgeActionTokenHandler.class",
+                     "sequent.legacy.jar":
+                         "sequent/keycloak/login_bridge/LoginBridgeActionTokenHandlerFactory.class",
+                     "sequent.issuer.jar":
+                         handlers + "ManualVerificationProvider.class",
+                     "sequent.verification.jar":
+                         "sequent/keycloak/conditional_authenticators/ManualVerificationProviderFactory.class",
+                     "sequent.smart.jar":
+                         "sequent/keycloak/authenticator/smart_link/SmartLinkAuthenticatorFactory.class"}
+        for name, entry in forbidden.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                command = " && ".join(
+                    guard.replace("/build/keycloak-provider-jars", str(root))
+                    for guard in guards)
+                # The token classes and the manual verification settings stay in
+                # every build.
+                with zipfile.ZipFile(root / "sequent.conditional-authenticators.jar",
+                                     "w", zipfile.ZIP_DEFLATED) as jar:
+                    for entry_name in ("ManualVerificationToken.class",
+                                       "ManualVerificationConfigAuthenticator.class"):
+                        jar.writestr(
+                            "sequent/keycloak/conditional_authenticators/" + entry_name,
+                            b"retained provider")
+                with zipfile.ZipFile(root / "sequent.message-otp-authenticator.jar",
+                                     "w", zipfile.ZIP_DEFLATED) as jar:
+                    jar.writestr("sequent/keycloak/authenticator/otl/OTLActionToken.class",
+                                 b"retained provider")
+                with zipfile.ZipFile(root / "sequent.action-token-login-bridge.jar",
+                                     "w", zipfile.ZIP_DEFLATED) as jar:
+                    for entry_name in ("LoginBridgeActionToken.class",
+                                       "LoginBridge.class"):
+                        jar.writestr("sequent/keycloak/login_bridge/" + entry_name,
+                                     b"retained provider")
+                self.assertEqual(subprocess.run(["sh", "-c", command]).returncode, 0)
+                with zipfile.ZipFile(root / name, "w", zipfile.ZIP_DEFLATED) as jar:
+                    jar.writestr(entry or "META-INF/MANIFEST.MF", b"forbidden provider")
+                self.assertNotEqual(subprocess.run(["sh", "-c", command]).returncode, 0)
+
+    def test_the_sign_in_link_handlers_are_a_separate_profile_module(self):
+        extensions = ROOT / "packages/keycloak-extensions"
+        for name in ("ManualVerificationTokenHandler.java",
+                     "OTLActionTokenHandler.java",
+                     "LoginBridgeActionTokenHandler.java",
+                     "LoginBridgeActionTokenHandlerFactory.java",
+                     "ManualVerificationProvider.java",
+                     "ManualVerificationProviderFactory.java",
+                     "SmartLinkAuthenticator.java",
+                     "SmartLinkAuthenticatorFactory.java",
+                     "SmartLinkResource.java"):
+            with self.subTest(name=name):
+                found = [path.relative_to(extensions).parts[0]
+                         for path in extensions.glob("*/src/main/java/**/" + name)]
+                self.assertEqual(found, ["sign-in-link-handlers"])
+        pom = ElementTree.parse(extensions / "pom.xml")
+        maven = {"m": "http://maven.apache.org/POM/4.0.0"}
+        self.assertNotIn("sign-in-link-handlers",
+                         [module.text
+                          for module in pom.findall("m:modules/m:module", maven)])
+        profile = next(profile for profile in pom.findall("m:profiles/m:profile", maven)
+                       if profile.findtext("m:id", namespaces=maven)
+                       == "sign-in-link-handlers")
+        self.assertEqual([module.text
+                          for module in profile.findall("m:modules/m:module", maven)],
+                         ["sign-in-link-handlers"])
+
+    def test_development_and_ci_builds_include_the_sign_in_link_handlers(self):
+        # Only the evaluated build, which passes no FEATURES, leaves them out.
+        for path in IMAGE_BUILDS:
+            with self.subTest(path=path):
+                text = (ROOT / path).read_text()
+                self.assertTrue("FEATURES=sign-in-links" in text
+                                or "features: sign-in-links" in text)
 
 
 if __name__ == "__main__":

@@ -3,16 +3,24 @@
 
 use super::*;
 use chrono::Duration;
+use electoral_log::adapters::ballot_box_received::ReceivedStatus;
+use sequent_core::ballot::{LEGACY_TYPES_VERSION, SHA512_TYPES_VERSION, TYPES_VERSION};
 use sequent_core::ballot_receipt::verify_received_ballot;
 use voting_crypto::signing::VerificationKey;
 
 fn envelope(public_key: Option<&str>, signature: Option<&str>) -> BallotEnvelope {
     BallotEnvelope {
+        version: TYPES_VERSION,
         config: "style".into(),
         ballot_style_hash: "published-hash".into(),
         voter_signing_pk: public_key.map(str::to_owned),
         voter_ballot_signature: signature.map(str::to_owned),
     }
+}
+
+/// What a stored ballot of `version` holds, as far as its receipt reads it.
+fn stored_content(version: u32) -> String {
+    format!(r#"{{"version":{version},"config":"style","ballot_style_hash":"hash"}}"#)
 }
 
 #[test]
@@ -79,6 +87,7 @@ fn the_envelope_reads_single_and_multi_contest_ballots() {
         );
         let envelope: BallotEnvelope = deserialize_str(&content).unwrap();
 
+        assert_eq!(envelope.version, 1);
         assert_eq!(envelope.config, "style");
         assert_eq!(envelope.ballot_style_hash, "hash");
         assert_eq!(envelope.voter_signing_pk.as_deref(), Some("key"));
@@ -125,37 +134,78 @@ fn a_stored_ballot_reads_back_as_the_receipt_the_ballot_box_signed() {
         ballot_hash: "ballot-hash",
     };
     let received_at = truncate_to_milliseconds(Utc::now()).unwrap();
-    let received = sign_received(
-        &signing_key,
-        &scope,
-        &voter_signing_pk,
-        &voter_ballot_signature,
-        &received_at,
-    )
-    .unwrap();
-    let stored = StoredReceivedBallot {
+    // The ballot's own format says which scheme its receipt was signed with.
+    for (version, tracker_version) in [
+        (TYPES_VERSION, Some(2)),
+        (SHA512_TYPES_VERSION, None),
+        (LEGACY_TYPES_VERSION, None),
+    ] {
+        let received = sign_received(
+            &signing_key,
+            &scope,
+            &voter_signing_pk,
+            &voter_ballot_signature,
+            &received_at,
+            version,
+        )
+        .unwrap();
+        let stored = StoredReceivedBallot {
+            id: Uuid::new_v4().to_string(),
+            election_event_id: event.to_string(),
+            election_id: election.to_string(),
+            area_id: Uuid::new_v4().to_string(),
+            voter_id: "voter".into(),
+            ballot_id: received.ballot_id.clone(),
+            ballot_hash: "ballot-hash".into(),
+            content: stored_content(version),
+            voter_signing_pk: voter_signing_pk.clone(),
+            voter_ballot_signature: voter_ballot_signature.clone(),
+            received_at,
+            key_id: received.statement.key_id.clone(),
+            received_signature: received.received_signature.clone(),
+            status: ReceivedStatus::Received,
+            cast_at: None,
+            cast_signature: None,
+            cast_receipt_signature: None,
+        };
+
+        let read_back = stored_receipt(&tenant, stored).unwrap();
+        assert_eq!(read_back, received);
+        assert_eq!(read_back.statement.tracker_version, tracker_version);
+        verify_received_ballot(&published_key(&signing_key).unwrap(), &read_back).unwrap();
+    }
+}
+
+#[test]
+fn a_stored_ballot_whose_format_does_not_read_has_no_receipt() {
+    let stored = |content: String| StoredReceivedBallot {
         id: Uuid::new_v4().to_string(),
-        election_event_id: event.to_string(),
-        election_id: election.to_string(),
+        election_event_id: Uuid::new_v4().to_string(),
+        election_id: Uuid::new_v4().to_string(),
         area_id: Uuid::new_v4().to_string(),
         voter_id: "voter".into(),
-        ballot_id: received.ballot_id.clone(),
+        ballot_id: "ballot-id".into(),
         ballot_hash: "ballot-hash".into(),
-        content: "ciphertext".into(),
-        voter_signing_pk,
-        voter_ballot_signature,
-        received_at,
-        key_id: received.statement.key_id.clone(),
-        received_signature: received.received_signature.clone(),
-        status: electoral_log::adapters::ballot_box_received::ReceivedStatus::Received,
+        content,
+        voter_signing_pk: "key".into(),
+        voter_ballot_signature: "signature".into(),
+        received_at: Utc::now(),
+        key_id: "key-id".into(),
+        received_signature: "received-signature".into(),
+        status: ReceivedStatus::Received,
         cast_at: None,
         cast_signature: None,
         cast_receipt_signature: None,
     };
 
-    let read_back = stored_receipt(&tenant, stored);
-    assert_eq!(read_back, received);
-    verify_received_ballot(&published_key(&signing_key).unwrap(), &read_back).unwrap();
+    assert!(matches!(
+        stored_receipt(&Uuid::new_v4(), stored("ciphertext".into())),
+        Err(CastVoteError::DeserializeBallotFailed(_))
+    ));
+    assert!(matches!(
+        stored_receipt(&Uuid::new_v4(), stored(stored_content(1))),
+        Err(CastVoteError::BallotSignFailed(_))
+    ));
 }
 
 #[test]
@@ -182,6 +232,7 @@ fn the_ballot_box_signs_a_receipt_voters_can_check_with_its_published_key() {
         &voter_signing_pk,
         &voter_ballot_signature,
         &received_at,
+        TYPES_VERSION,
     )
     .unwrap();
     let later = sign_received(
@@ -190,6 +241,7 @@ fn the_ballot_box_signs_a_receipt_voters_can_check_with_its_published_key() {
         &voter_signing_pk,
         &voter_ballot_signature,
         &(received_at + Duration::milliseconds(1)),
+        TYPES_VERSION,
     )
     .unwrap();
 
@@ -203,6 +255,7 @@ fn the_ballot_box_signs_a_receipt_voters_can_check_with_its_published_key() {
     assert_eq!(received.statement.election_id, election.to_string());
     assert_eq!(received.statement.ballot_hash, "ballot-hash");
     assert_eq!(received.statement.key_id, key.key_id);
+    assert_eq!(received.statement.tracker_version, Some(2));
     assert_ne!(received.ballot_id, later.ballot_id);
 }
 
@@ -223,7 +276,38 @@ fn a_malformed_voter_key_cannot_be_signed_for() {
             &scope,
             "not a key",
             "not a signature",
-            &Utc::now()
+            &Utc::now(),
+            TYPES_VERSION
+        ),
+        Err(CastVoteError::BallotSignFailed(_))
+    ));
+}
+
+#[test]
+fn a_ballot_of_an_unknown_format_cannot_be_signed_for() {
+    let signing_key = SigningKey::generate().unwrap();
+    let voter_key = SigningKey::generate().unwrap();
+    let voter_signing_pk = VerificationKey::from_sk(&voter_key)
+        .unwrap()
+        .to_b64_string()
+        .unwrap();
+    let voter_ballot_signature = voter_key.sign(b"ballot").unwrap().to_b64_string().unwrap();
+    let (tenant, event, election) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
+    let scope = ReceivedBallotScope {
+        tenant_id: &tenant,
+        election_event_id: &event,
+        election_id: &election,
+        ballot_hash: "ballot-hash",
+    };
+
+    assert!(matches!(
+        sign_received(
+            &signing_key,
+            &scope,
+            &voter_signing_pk,
+            &voter_ballot_signature,
+            &Utc::now(),
+            1
         ),
         Err(CastVoteError::BallotSignFailed(_))
     ));

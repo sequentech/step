@@ -39,6 +39,7 @@ use wbraid::native::persistence::SqlitePersistence;
 use wbraid::session::Session;
 use wbraid::trustee::Trustee;
 
+use crate::encoding::manager_key_fingerprint;
 use crate::trustee_transport::{classify, OutageTagged, Verdict};
 
 #[cfg(all(test, feature = "native"))]
@@ -126,6 +127,13 @@ type BoardSession<A> = Session<
     OutageTagged<<A as BoardAccess>::Transport>,
     <A as BoardAccess>::Persistence,
 >;
+
+/// A session the trustee has joined, with the fingerprint of the protocol
+/// manager key named by the Configuration it accepted.
+struct Joined<A: BoardAccess> {
+    session: BoardSession<A>,
+    manager_key: String,
+}
 
 /// What the trustee knows about one board.
 enum BoardEntry<A: BoardAccess> {
@@ -281,8 +289,17 @@ impl<A: BoardAccess> SessionSet<A> {
             }
         };
         match connected {
-            Ok(Some(session)) => {
-                info!(board = %name, "session opened");
+            Ok(Some(Joined {
+                session,
+                manager_key,
+            })) => {
+                // What the operator of the trustee compares with the value
+                // the election board gives for this ceremony.
+                info!(
+                    board = %name,
+                    "session opened: Configuration accepted, protocol manager \
+                     key SHA-256 {manager_key}"
+                );
                 BoardEntry::Open {
                     session: Box::new(session),
                     outage: None,
@@ -318,10 +335,7 @@ impl<A: BoardAccess> SessionSet<A> {
 
     /// The session over a DKG board, or `None` when the board's Configuration
     /// does not name this trustee.
-    async fn connect(
-        &self,
-        name: &BoardName,
-    ) -> Result<Option<BoardSession<A>>> {
+    async fn connect(&self, name: &BoardName) -> Result<Option<Joined<A>>> {
         let store = self.access.store(name).await?;
         let transport = OutageTagged::new(self.access.transport(name));
         let client = BoardClient::<Ctx, _, _>::connect(transport, store)
@@ -337,7 +351,7 @@ impl<A: BoardAccess> SessionSet<A> {
         &self,
         name: &BoardName,
         parent: Option<&BoardName>,
-    ) -> Result<Option<BoardSession<A>>> {
+    ) -> Result<Option<Joined<A>>> {
         let parent = parent.with_context(|| {
             format!("tally board {name} is listed without its parent board")
         })?;
@@ -374,12 +388,13 @@ impl<A: BoardAccess> SessionSet<A> {
         Ok(seed)
     }
 
-    /// This trustee's session over a connected board, or `None` when the
-    /// board's Configuration does not name this trustee.
+    /// This trustee's session over a connected board, with the fingerprint of
+    /// the protocol manager key the board's Configuration names, or `None`
+    /// when that Configuration does not name this trustee.
     fn join(
         &self,
         client: BoardClient<Ctx, OutageTagged<A::Transport>, A::Persistence>,
-    ) -> Result<Option<BoardSession<A>>> {
+    ) -> Result<Option<Joined<A>>> {
         if !self.secrets.is_listed_in(client.configuration()) {
             return Ok(None);
         }
@@ -391,7 +406,12 @@ impl<A: BoardAccess> SessionSet<A> {
             client.configuration(),
         )
         .context("taking part in the board's Configuration")?;
-        Ok(Some(Session::new(trustee, client)))
+        let manager_key =
+            manager_key_fingerprint(&client.configuration().protocol_manager)?;
+        Ok(Some(Joined {
+            session: Session::new(trustee, client),
+            manager_key,
+        }))
     }
 }
 

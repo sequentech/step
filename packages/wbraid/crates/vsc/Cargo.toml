@@ -34,6 +34,9 @@ base64 = "0.22"
 thiserror = "1.0.50"
 rayon = "1.10.0"
 
+# overwriting secret values in memory when they are no longer needed
+zeroize = "1.8"
+
 # serialization
 canonical_derive = { path = "./macros/canonical_derive" }
 

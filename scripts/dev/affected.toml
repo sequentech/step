@@ -208,7 +208,7 @@ globs = ["packages/graphql.schema.json"]
 units = ["graphql-schema"]
 
 [[paths]]
-globs = ["docs/**", "**/*.md", ".agents/**"]
+globs = ["docs/**", "**/*.md", ".agents/**", ".claude/skills"]
 units = ["docs"]
 
 [[paths]]
@@ -255,6 +255,9 @@ globs = [
     "packages/init.sh",
     "packages/nginx-entrypoint.sh",
     "packages/patches/**",
+    # Directories that hold only an image's files.
+    "packages/election-verifier/**",
+    "packages/tls-endpoint/**",
 ]
 units = ["docker-images"]
 
@@ -280,6 +283,7 @@ globs = [
     "scripts/assurance/**",
     "scripts/tasks/**",
     "scripts/build-airgapped.sh",
+    "scripts/check-unsafe.py",
     "scripts/generate_voters.py",
     "scripts/loc.sh",
     "scripts/replacements.sh",

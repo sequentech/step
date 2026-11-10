@@ -335,8 +335,8 @@ def main() -> None:
     # Already-existing tenants (e.g. left over from a previous new_tenants
     # run) to ALSO provision this election event into, alongside tenant_id
     # itself / the new_tenants brand-new tenants above. Unlike new_tenants,
-    # these are never created or cloned — only used directly — so they must
-    # already have their own trustees and Keycloak/roles config in place.
+    # these are never created — only used directly — so they must already
+    # have their own trustees in place.
     use_existing_tenants = cfg.get("use_existing_tenants") or []
     if not isinstance(use_existing_tenants, list) or not all(isinstance(t, str) for t in use_existing_tenants):
         common.die("setup.use_existing_tenants must be a list of tenant ID strings")
@@ -399,6 +399,17 @@ def main() -> None:
         keycloak_admin_user = common.req_str(cfg, "keycloak_admin_user", env="KEYCLOAK_ADMIN")
         keycloak_admin_password = common.req_str(cfg, "keycloak_admin_password", env="KEYCLOAK_ADMIN_PASSWORD")
 
+    # The election event file is unsigned, and a tenant without a
+    # configuration_signing setting refuses unsigned files. With Hasura's
+    # admin secret (the devcontainer's is $KEYCLOAK_ADMIN_CLIENT_SECRET),
+    # every target tenant without a setting gets one that takes them; a
+    # tenant with a setting keeps it. Needed for new tenants, which have none.
+    hasura_admin_secret = common.opt_str(cfg, "hasura_admin_secret", env="HASURA_ADMIN_SECRET") or common.opt_str(
+        cfg, "hasura_admin_secret", env="KEYCLOAK_ADMIN_CLIENT_SECRET"
+    )
+    if new_tenants > 0 and not hasura_admin_secret:
+        common.die("layers.yaml's 'hasura_admin_secret' (or $HASURA_ADMIN_SECRET) is required when new_tenants > 0")
+
     # Only needed for ceremony_policy: MANUAL — an AUTOMATIC ceremony never
     # calls complete-key-ceremony, so no trustee Keycloak login is required.
     trustee1_user = trustee1_password = trustee2_user = trustee2_password = None
@@ -447,20 +458,7 @@ def main() -> None:
     configure_as(admin_portal_user, admin_portal_password, tenant_id)
 
     if new_tenants > 0:
-        common.log(f"Creating {new_tenants} new tenant(s), cloned from tenant {tenant_id}")
-
-        common.log(f"Exporting tenant {tenant_id}'s Keycloak/roles config")
-        out = common.run_step(step_cli_bin, "export-tenant-config", "--tenant-id", tenant_id)
-        export_document_id = common.extract_id(out)
-        common.log(f"    document_id={export_document_id}")
-        # Documents are tenant-owned records — a document exported under
-        # tenant_id's ownership isn't visible to import-tenant-config once
-        # it's targeting a different tenant. Download the export once here
-        # (still authenticated as tenant_id, the owner) and re-upload it
-        # per new tenant below, once authenticated as that tenant, so each
-        # import references a document that tenant actually owns.
-        export_zip_path = out_dir / "tenant-config-export.zip"
-        common.run_step(step_cli_bin, "download-document", "--document-id", export_document_id, "--output", str(export_zip_path))
+        common.log(f"Creating {new_tenants} new tenant(s)")
 
         common.log(f"Reading tenant {tenant_id}'s registered trustees to replicate")
         out = common.run_step(step_cli_bin, "list-trustees")
@@ -488,37 +486,15 @@ def main() -> None:
             client_secrets[new_tenant_id] = common.lookup_client_secret(
                 keycloak_url, keycloak_admin_user, keycloak_admin_password, new_tenant_id, keycloak_client_id
             )
-            # import-tenant-config's task_execution row is tagged with the
-            # TARGET tenant (new_tenant_id), not the caller's own session
-            # tenant — polling for its completion only works from a session
-            # already authenticated as new_tenant_id, so switch before
-            # calling it (not after, as the earlier trustee-seeding-only
-            # version of this loop did).
             configure_as(admin_portal_user, admin_portal_password, new_tenant_id)
 
-            common.log(f"    importing tenant {tenant_id}'s Keycloak/roles config into {new_tenant_id}")
+            common.log(f"    seeding {len(trustees_to_seed)} trustee(s) into {new_tenant_id}")
             # A freshly created (or freshly re-authenticated-into) tenant's
             # realm JWKS may not have propagated to every backend instance
             # yet, which manifests as a JWT signature verification failure on
             # an otherwise-valid token — and this can persist across more
             # than just the first call, so retry every authenticated call in
             # this block rather than just the first one.
-            out = common.retry_step(step_cli_bin, 10, 3, "upload-document", "--file-path", str(export_zip_path), "--is-local")
-            tenant_scoped_document_id = common.extract_id(out)
-            common.retry_step(
-                step_cli_bin, 10, 3, "import-tenant-config",
-                "--tenant-id", new_tenant_id, "--document-id", tenant_scoped_document_id,
-            )
-            # The import may have regenerated api-key-client's secret again
-            # (same per-realm randomization as tenant creation) or replaced
-            # the client outright — refresh the secret and re-authenticate
-            # rather than assume the pre-import session is still valid.
-            client_secrets[new_tenant_id] = common.lookup_client_secret(
-                keycloak_url, keycloak_admin_user, keycloak_admin_password, new_tenant_id, keycloak_client_id
-            )
-            configure_as(admin_portal_user, admin_portal_password, new_tenant_id)
-
-            common.log(f"    seeding {len(trustees_to_seed)} trustee(s) into {new_tenant_id}")
             for name, public_key in trustees_to_seed:
                 common.retry_step(step_cli_bin, 10, 3, "create-trustee", "--name", name, "--public-key", public_key)
             configure_as(admin_portal_user, admin_portal_password, tenant_id)
@@ -554,6 +530,8 @@ def main() -> None:
     summaries = []
     for i, target_tenant_id in enumerate(target_tenant_ids):
         common.log(f"=== Provisioning tenant {i + 1}/{len(target_tenant_ids)}: {target_tenant_id} ===")
+        if hasura_admin_secret:
+            common.allow_unsigned_imports(endpoint_url, hasura_admin_secret, target_tenant_id)
         configure_as(admin_portal_user, admin_portal_password, target_tenant_id)
         summary = provision_tenant(
             step_cli_bin=step_cli_bin,

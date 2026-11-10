@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! What the protected actions the existing routes start sign, and when they
-//! wait: with the rule off every route runs as today; with it on the gate
-//! refuses what can't happen now (a change the Post doesn't allow, reopening
-//! voting closed under signatures, initializing without a publication, an
-//! ambiguous Post)
+//! wait: opening, closing and approving a configuration always need
+//! signatures, so without a rule the gate refuses them; with its rule off
+//! any other route runs as today; with a rule the gate refuses what can't
+//! happen now (a change the Post doesn't allow, reopening voting closed
+//! under signatures, initializing without a publication, an ambiguous Post)
 //! and otherwise starts the request for what it will do. A new publication,
 //! another registry match or a rejection cancels what waits. The effects
 //! check what was signed before they act. Scheduled dates leave opening and
@@ -38,7 +39,8 @@ use uuid::Uuid;
 use windmill::postgres::signing::{get_signing_rule, upsert_signing_rule};
 use windmill::services::scheduled_outcome::rule_snapshot;
 use windmill::services::signing::actions::configuration::{
-    cancel_for_new_publication, gate_publication, publication_digest, publish, NO_CHANGES,
+    cancel_for_new_publication, gate_publication, gate_publication_with, publication_digest,
+    publish, ApprovalPreparation, NO_CHANGES,
 };
 use windmill::services::signing::actions::initialize::{create_report_tally, gate_tally_creation};
 use windmill::services::signing::actions::voter::{
@@ -110,22 +112,90 @@ async fn tally_gate(
     outcome
 }
 
-async fn publication_gate(w: &World, who: &SigningCaller, id: &str) -> SigningResult<GuardOutcome> {
+/// The realm configuration and the self-test baseline of an approval, as a
+/// fake (these tests have no Keycloak): what it was asked, in order.
+#[derive(Default)]
+struct FakePreparation {
+    calls: Mutex<Vec<&'static str>>,
+}
+
+#[async_trait]
+impl ApprovalPreparation for FakePreparation {
+    async fn prepare_realm(
+        &self,
+        _hasura_transaction: &Transaction<'_>,
+        _tenant_id: Uuid,
+        _election_event_id: Uuid,
+    ) -> anyhow::Result<()> {
+        self.calls.lock().unwrap().push("prepare-realm");
+        Ok(())
+    }
+
+    async fn self_test_baseline(
+        &self,
+        _hasura_transaction: &Transaction<'_>,
+        _tenant_id: Uuid,
+        _election_event_id: Uuid,
+    ) -> anyhow::Result<serde_json::Value> {
+        self.calls.lock().unwrap().push("self-test-baseline");
+        Ok(json!({"baseline": "synthetic"}))
+    }
+}
+
+async fn prepared_publication_gate(
+    w: &World,
+    who: &SigningCaller,
+    id: &str,
+    preparation: &FakePreparation,
+) -> SigningResult<GuardOutcome> {
     let mut client = w.pool.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
-    let outcome = gate_publication(&tx, who, &w.tenant.to_string(), &w.event.to_string(), id).await;
+    let outcome = gate_publication_with(
+        &tx,
+        preparation,
+        who,
+        &w.tenant.to_string(),
+        &w.event.to_string(),
+        id,
+    )
+    .await;
     tx.commit().await.unwrap();
     outcome
 }
 
+async fn publication_gate(w: &World, who: &SigningCaller, id: &str) -> SigningResult<GuardOutcome> {
+    prepared_publication_gate(w, who, id, &FakePreparation::default()).await
+}
+
+/// Asserts the gate refused because no rule sets how many sign.
+fn assert_no_rule<T: std::fmt::Debug>(result: SigningResult<T>) {
+    match result {
+        Err(SigningError::Invalid { reason, message }) => {
+            assert_eq!(reason, InvalidReason::Input);
+            assert_eq!(message, "a rule needs at least one signature");
+        }
+        other => panic!("expected an invalid input, got {other:?}"),
+    }
+}
+
 #[tokio::test]
-async fn with_the_rules_off_every_action_runs_as_today() {
+async fn without_a_rule_mandatory_actions_are_refused_and_the_rest_run_as_today() {
     let w = world("rules-off").await;
     let who = starter(&w);
-    for status in [VotingStatus::OPEN, VotingStatus::CLOSED] {
+    // Opening and closing always need signatures: until a rule sets how
+    // many, the gate refuses them.
+    for (from, status) in [
+        ("NOT_STARTED", VotingStatus::OPEN),
+        ("OPEN", VotingStatus::CLOSED),
+    ] {
+        set_post_status(&w, json!({"voting_status": from})).await;
         let outcome = status_gate(&w, &who, status, Some(vec![VotingStatusChannel::ONLINE])).await;
-        assert_eq!(outcome.unwrap(), GuardOutcome::Proceed);
+        assert_no_rule(outcome);
     }
+    // So is publishing a configuration version.
+    let current = publication(&w, false, true, None).await;
+    assert_no_rule(publication_gate(&w, &who, &current.to_string()).await);
+    // Initializing a Post runs as today.
     let post = vec![w.post.to_string()];
     assert_eq!(
         tally_gate(&w, &who, "INITIALIZATION_REPORT", post, false)
@@ -301,29 +371,33 @@ async fn while_closing_needs_signatures_voting_closed_under_signatures_is_not_re
             Some(vec![VotingStatusChannel::ONLINE]),
         )
     };
-    // Opening needs no signatures and closing neither: reopening runs.
-    assert_eq!(reopen().await.unwrap(), GuardOutcome::Proceed);
-    w.rule(
-        SigningAction::CloseVoting,
-        2,
-        RequesterSigning::NotAllowed,
-        Some(60),
-    )
-    .await;
-    match reopen().await {
-        Err(SigningError::Invalid { reason, message }) => {
-            assert_eq!(reason, InvalidReason::ClosedUnderSignatures);
-            // The wire value the portal reads in `extensions.reason`.
-            assert_eq!(
-                serde_json::to_value(reason).unwrap(),
-                json!("closed-under-signatures")
-            );
-            assert_eq!(
-                message,
-                "The ONLINE channel was closed under signatures: it can't be reopened through signing."
-            );
+    // Closing always needs signatures: reopening is refused before a rule
+    // sets how many and after.
+    for signatures in [None, Some(2)] {
+        if let Some(signatures) = signatures {
+            w.rule(
+                SigningAction::CloseVoting,
+                signatures,
+                RequesterSigning::NotAllowed,
+                Some(60),
+            )
+            .await;
         }
-        other => panic!("expected an invalid input, got {other:?}"),
+        match reopen().await {
+            Err(SigningError::Invalid { reason, message }) => {
+                assert_eq!(reason, InvalidReason::ClosedUnderSignatures);
+                // The wire value the portal reads in `extensions.reason`.
+                assert_eq!(
+                    serde_json::to_value(reason).unwrap(),
+                    json!("closed-under-signatures")
+                );
+                assert_eq!(
+                    message,
+                    "The ONLINE channel was closed under signatures: it can't be reopened through signing."
+                );
+            }
+            other => panic!("expected an invalid input, got {other:?}"),
+        }
     }
     assert_eq!(request_count(&w).await, 0);
 }
@@ -426,12 +500,20 @@ async fn a_configuration_version_signs_what_publishing_writes() {
         // The event is locked down: that doesn't change what publishing needs.
         w.execute(
             "UPDATE sequent_backend.election_event
-             SET presentation = '{\"locked_down\": \"LOCKED_DOWN\"}' WHERE id = $1 AND set_config('sequent.trusted_write', 'on', true) = 'on'",
+             SET presentation = '{\"locked_down\": \"locked-down\"}' WHERE id = $1 AND set_config('sequent.trusted_write', 'on', true) = 'on'",
             &[&w.event],
         )
         .await;
 
-        let id = waiting_id(publication_gate(&w, &who, &current.to_string()).await);
+        let preparation = FakePreparation::default();
+        let id = waiting_id(
+            prepared_publication_gate(&w, &who, &current.to_string(), &preparation).await,
+        );
+        // The realm is prepared before the baseline it signs is read.
+        assert_eq!(
+            *preparation.calls.lock().unwrap(),
+            ["prepare-realm", "self-test-baseline"]
+        );
         let request = w.request(id).await;
         assert_eq!(request.election_id, None);
         // Two versions were published (one deleted later): this publishes the third.
@@ -447,6 +529,8 @@ async fn a_configuration_version_signs_what_publishing_writes() {
             json!({
                 "ballot_publication_id": current.to_string(),
                 "digest": digest,
+                // The baseline as the fake reads it.
+                "self_test_baseline": {"baseline": "synthetic"},
                 // Saved without a change log: what it needs now only.
                 "signing_rules": [format!("approve-configuration={required}")],
                 "scheduled_events": 0,
@@ -547,15 +631,16 @@ async fn save_rule(w: &World, action: SigningAction, signatures: Option<u16>) {
 /// A configuration version signs each signing rule saved since the last
 /// publication with what it needs now and what it needed then, from the
 /// first change logged since (`ACTION=BEFORE>AFTER`, `off` or the
-/// signatures); the version it publishes is the next one, or, for a Post's
-/// publication, the one in force.
+/// signatures, `0` while a mandatory action's are not set); the version it
+/// publishes is the next one, or, for a Post's publication, the one in
+/// force.
 #[tokio::test]
 async fn a_configuration_version_signs_each_rule_before_and_after() {
     for (label, required) in PRESETS {
         let w = world(label).await;
         let who = caller("configuration-manager", &[Permissions::PUBLISH_WRITE], &[]);
-        // Changed before the last publication: not part of this version.
-        save_rule(&w, SigningAction::OpenVoting, Some(5)).await;
+        // Saved before the last publication: what it needed then.
+        save_rule(&w, SigningAction::InitializeVoting, Some(5)).await;
         w.execute(
             "UPDATE sequent_backend.signing_log_outbox SET occurred_at = now() - interval '2 hours'
              WHERE tenant_id = $1 AND election_event_id = $2",
@@ -563,12 +648,12 @@ async fn a_configuration_version_signs_each_rule_before_and_after() {
         )
         .await;
         publication(&w, true, true, None).await;
-        // Since then.
+        // Since then: two mandatory actions set their signatures, and an
+        // optional one changes and goes off.
         save_rule(&w, SigningAction::ApproveConfiguration, Some(required)).await;
-        save_rule(&w, SigningAction::CloseVoting, Some(1)).await;
         save_rule(&w, SigningAction::CloseVoting, Some(required)).await;
-        save_rule(&w, SigningAction::OpenVoting, Some(2)).await;
-        save_rule(&w, SigningAction::OpenVoting, None).await;
+        save_rule(&w, SigningAction::InitializeVoting, Some(2)).await;
+        save_rule(&w, SigningAction::InitializeVoting, None).await;
         // Saved without a change log (e.g. imported).
         w.rule(
             SigningAction::TransmitResults,
@@ -591,9 +676,9 @@ async fn a_configuration_version_signs_each_rule_before_and_after() {
         assert_eq!(
             rules,
             [
-                format!("approve-configuration=off>{required}"),
-                format!("close-voting=off>{required}"),
-                "open-voting=5>off".to_string(),
+                format!("approve-configuration=0>{required}"),
+                format!("close-voting=0>{required}"),
+                "initialize-voting=5>off".to_string(),
                 "transmit-results=2".to_string(),
             ]
         );
@@ -1131,7 +1216,9 @@ async fn scheduled_dates_leave_protected_changes_to_people() {
             skipped
         }
     };
-    assert!(!scheduled(VotingStatus::OPEN).await);
+    // Opening and closing always need signatures, before a rule sets how
+    // many and after: a date alone doesn't open or close voting.
+    assert!(scheduled(VotingStatus::OPEN).await);
     w.rule(
         SigningAction::OpenVoting,
         2,
@@ -1140,14 +1227,233 @@ async fn scheduled_dates_leave_protected_changes_to_people() {
     )
     .await;
     assert!(scheduled(VotingStatus::OPEN).await);
-    assert!(!scheduled(VotingStatus::CLOSED).await);
+    assert!(scheduled(VotingStatus::CLOSED).await);
+    // Pausing is not protected.
     assert!(!scheduled(VotingStatus::PAUSED).await);
     let rows = w.outbox().await;
-    assert_eq!(rows.len(), 2);
-    assert_eq!(rows[0].4.as_deref(), Some("scheduled-event"));
-    let (_, kind, event_type, log_type, _, description) = &rows[1];
-    assert_eq!(kind, "SigningActionExecuted");
-    assert_eq!(event_type, "SYSTEM");
-    assert_eq!(log_type, "ERROR");
-    assert!(description.contains("open voting"), "{description}");
+    let logged: Vec<_> = rows
+        .iter()
+        .map(|(_, kind, event_type, log_type, user, description)| {
+            (
+                kind.as_str(),
+                event_type.as_str(),
+                log_type.as_str(),
+                user.as_deref(),
+                description.as_str(),
+            )
+        })
+        .collect();
+    let open = "Did not open voting on schedule: it needs signatures";
+    let close = "Did not close voting on schedule: it needs signatures";
+    // Each refusal is one step: the scheduler's entry and a system error.
+    let expected: Vec<_> = [open, open, close]
+        .into_iter()
+        .flat_map(|description| {
+            [
+                (
+                    "SigningActionExecuted",
+                    "USER",
+                    "INFO",
+                    Some("scheduled-event"),
+                    description,
+                ),
+                (
+                    "SigningActionExecuted",
+                    "SYSTEM",
+                    "ERROR",
+                    None,
+                    description,
+                ),
+            ]
+        })
+        .collect();
+    assert_eq!(logged, expected);
+    assert!(rows.chunks(2).all(|step| step[0].0 == step[1].0));
+}
+
+/// A keys ceremony of the world's event at `execution_status` whose verified
+/// joint public key is `joint-key`.
+async fn keys_ceremony(w: &World, execution_status: &str) -> Uuid {
+    let id = Uuid::new_v4();
+    publication_fixture_write(
+        w,
+        "INSERT INTO sequent_backend.keys_ceremony
+             (id, tenant_id, election_event_id, trustee_ids, threshold, execution_status, status)
+         VALUES ($1, $2, $3, '{}', 2, $4, $5)",
+        &[
+            &id,
+            &w.tenant,
+            &w.event,
+            &execution_status,
+            &json!({
+                "public_key": "joint-key",
+                "public_key_hash": "verified-hash",
+                "logs": [],
+                "trustees": [],
+            }),
+        ],
+    )
+    .await;
+    id
+}
+
+/// A generated event-level publication, its files ready, whose one ballot
+/// style (the world's Post and country) holds the joint key of `ceremony`
+/// and a contest where voters choose up to `max_votes` candidates.
+async fn keyed_publication(w: &World, published: bool, ceremony: Uuid, max_votes: i64) -> Uuid {
+    use windmill::domain::publication_files::{publication_root, FILES_ANNOTATION};
+    let id = Uuid::new_v4();
+    let files =
+        json!({ FILES_ANNOTATION: publication_root(w.tenant, w.event, id, Uuid::new_v4()) });
+    publication_fixture_write(
+        w,
+        "INSERT INTO sequent_backend.ballot_publication
+             (id, tenant_id, election_event_id, is_generated, election_ids, annotations,
+              published_at, created_at)
+         VALUES ($1, $2, $3, true, ARRAY[$4::uuid], $5,
+                 CASE WHEN $6 THEN now() - interval '1 hour' END,
+                 now() - CASE WHEN $6 THEN interval '2 hours' ELSE interval '0' END)",
+        &[&id, &w.tenant, &w.event, &w.post, &files, &published],
+    )
+    .await;
+    let (tenant, event, post) = (
+        w.tenant.to_string(),
+        w.event.to_string(),
+        w.post.to_string(),
+    );
+    let style = json!({
+        "id": Uuid::new_v4().to_string(),
+        "tenant_id": tenant,
+        "election_event_id": event,
+        "election_id": post,
+        "area_id": w.area.to_string(),
+        "public_key": {
+            "public_key": "joint-key",
+            "is_demo": false,
+            "keys_ceremony_id": ceremony.to_string(),
+        },
+        "contests": [{
+            "id": "contest-1",
+            "tenant_id": tenant,
+            "election_event_id": event,
+            "election_id": post,
+            "name": "Mayor",
+            "max_votes": max_votes,
+            "min_votes": 0,
+            "winning_candidates_num": 1,
+            "counting_algorithm": "plurality-at-large",
+            "is_encrypted": true,
+            "candidates": [],
+        }],
+    });
+    publication_fixture_write(
+        w,
+        "INSERT INTO sequent_backend.ballot_style
+             (id, tenant_id, election_event_id, election_id, area_id, ballot_publication_id,
+              ballot_eml, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'generated')",
+        &[
+            &Uuid::new_v4(),
+            &w.tenant,
+            &w.event,
+            &w.post,
+            &w.area,
+            &id,
+            &style.to_string(),
+        ],
+    )
+    .await;
+    id
+}
+
+/// The message of a refused transition.
+fn refused_transition(result: SigningResult<GuardOutcome>) -> String {
+    match result {
+        Err(SigningError::Invalid {
+            reason: InvalidReason::Transition,
+            message,
+        }) => message,
+        other => panic!("expected a refused transition, got {other:?}"),
+    }
+}
+
+/// Publishing `id` as the route does when no signatures are needed: why it
+/// was refused. Nothing it did is kept.
+async fn publishing_refusal(w: &World, id: Uuid) -> String {
+    use windmill::services::ballot_styles::ballot_publication::{
+        update_publish_ballot, BallotPublicationValidationError,
+    };
+    let mut client = w.pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let error = update_publish_ballot(
+        &tx,
+        "publisher".into(),
+        "publisher-name".into(),
+        w.tenant.to_string(),
+        w.event.to_string(),
+        id.to_string(),
+        &windmill::services::scheduled_outcome::PublicationLifecycle::Current,
+    )
+    .await
+    .expect_err("publishing must be refused");
+    tx.rollback().await.unwrap();
+    assert!(error.is::<BallotPublicationValidationError>(), "{error:#}");
+    error.to_string()
+}
+
+#[tokio::test]
+async fn a_publication_needs_completed_custody_and_unchanged_started_ballots() {
+    let w = world("custody-post").await;
+    let who = caller("configuration-manager", &[Permissions::PUBLISH_WRITE], &[]);
+    w.rule(
+        SigningAction::ApproveConfiguration,
+        2,
+        RequesterSigning::Allowed,
+        None,
+    )
+    .await;
+
+    // Not every trustee has confirmed custody: neither a request for
+    // signatures nor publishing without them takes the key.
+    let in_progress = keys_ceremony(&w, "IN_PROGRESS").await;
+    let draft = keyed_publication(&w, false, in_progress, 1).await;
+    let custody = format!(
+        "Ballot publication validation failed:\n- Keys ceremony {in_progress} must complete \
+         before ballot publication with its verified joint public key."
+    );
+    assert_eq!(
+        refused_transition(publication_gate(&w, &who, &draft.to_string()).await),
+        custody
+    );
+    assert_eq!(publishing_refusal(&w, draft).await, custody);
+    assert_eq!(request_count(&w).await, 0);
+
+    // Voting has started on a channel of the Post with the version in force:
+    // a contest can't change how its ballots decode.
+    let completed = keys_ceremony(&w, "SUCCESS").await;
+    keyed_publication(&w, true, completed, 1).await;
+    set_post_status(
+        &w,
+        json!({
+            "kiosk_voting_status": "OPEN",
+            "kiosk_voting_period_dates": {"first_started_at": "2026-01-01T00:00:00Z"},
+        }),
+    )
+    .await;
+    let changed = keyed_publication(&w, false, completed, 2).await;
+    let decoding = "Ballot publication validation failed:\n- Contest \"Mayor\" (contest-1) \
+         changed max_votes after voting started for its election. Restore the published values \
+         before publishing again.";
+    assert_eq!(
+        refused_transition(publication_gate(&w, &who, &changed.to_string()).await),
+        decoding
+    );
+    assert_eq!(publishing_refusal(&w, changed).await, decoding);
+    assert_eq!(request_count(&w).await, 0);
+
+    // Custody confirmed and the started ballots unchanged: it waits for
+    // its signatures.
+    let current = keyed_publication(&w, false, completed, 1).await;
+    waiting_id(publication_gate(&w, &who, &current.to_string()).await);
+    assert_eq!(request_count(&w).await, 1);
 }

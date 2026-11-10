@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {readFileSync} from "node:fs"
+import {createRequire} from "node:module"
 import {expect, type Page} from "@playwright/test"
 import type {GraphQLHandler} from "@sequentech/ui-test-kit/mocks/graphql"
 import {FIXED_TIME, IDS} from "@sequentech/ui-test-kit/fixtures"
@@ -11,6 +13,31 @@ type Row = Record<string, unknown>
 export const SETTINGS_ROLES = ["admin-user", "tenant-write", "settings-menu"]
 export const TENANT_WHERE = {id: {_eq: TENANT_ID}}
 export const LANGUAGE_CONF = {enabled_language_codes: ["en"], default_language_code: "en"}
+/** The settings of a tenant whose signed configuration packages are optional. */
+export const OPTIONAL_SIGNING_SETTINGS = {
+    language_conf: LANGUAGE_CONF,
+    configuration_signing: {policy: "optional"},
+}
+
+/** The built-in logo, as the portal's build inlines its SVG. */
+export const BUILT_IN_LOGO = `data:image/svg+xml;base64,${readFileSync(
+    createRequire(import.meta.url).resolve("@sequentech/ui-essentials/public/Sequent_logo.svg")
+).toString("base64")}`
+
+/** The text of the page's style rules, as the browser holds them. */
+export const pageStyles = (page: Page) =>
+    page.evaluate(() =>
+        Array.from(document.styleSheets)
+            .flatMap((sheet) => {
+                try {
+                    return Array.from(sheet.cssRules).map((rule) => rule.cssText)
+                } catch {
+                    // Another origin's style sheet does not expose its rules.
+                    return []
+                }
+            })
+            .join("\n")
+    )
 
 /** A list, getOne or getMany reply for a react-admin (ra-data-hasura) resource. */
 function listReply(resource: string, rows: Row[]) {

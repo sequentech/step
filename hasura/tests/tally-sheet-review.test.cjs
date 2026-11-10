@@ -23,30 +23,14 @@ const SERVER_ASSIGNED_COLUMNS = [
     "reviewed_by_user_id",
     "status",
 ]
-const pendingTenantFilter = {
-    _and: [
-        {status: {_eq: "PENDING"}},
-        {tenant_id: {_eq: "X-Hasura-Tenant-Id"}},
-        {
-            election: {
-                _or: [
-                    {permission_label: {_is_null: true}},
-                    {permission_label: {_in: "X-Hasura-Permission-Labels"}},
-                ],
-            },
-        },
-    ],
-}
-
 const clientPermissions = (operation) =>
-    metadata[`${operation}_permissions`].filter(
+    (metadata[`${operation}_permissions`] ?? []).filter(
         ({role}) => role !== SERVICE_ROLE
     )
 
 test("client roles cannot insert row ids or review columns", () => {
     const permissions = clientPermissions("insert")
     assert.deepEqual(permissions.map(({role}) => role).sort(), [
-        "admin-user",
         "tally-sheet-create",
     ])
     for (const {role, permission} of permissions) {
@@ -67,13 +51,6 @@ test("only the service role updates tally sheet rows in place", () => {
     )
 })
 
-test("client roles delete only pending tally sheets", () => {
-    const permissions = clientPermissions("delete")
-    assert.deepEqual(permissions.map(({role}) => role).sort(), [
-        "admin-user",
-        "tally-sheet-create",
-    ])
-    for (const {role, permission} of permissions) {
-        assert.deepEqual(permission.filter, pendingTenantFilter, role)
-    }
+test("no client role deletes tally sheets", () => {
+    assert.deepEqual(clientPermissions("delete"), [])
 })

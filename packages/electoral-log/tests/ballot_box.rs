@@ -15,7 +15,7 @@ use electoral_log::adapters::ballot_box_reads::{
     IpBallotsFilter, Participation, SEQUENCE_SETTLED_SECS,
 };
 use electoral_log::adapters::ballot_box_received::{
-    ReceiveBallot, ReceiveOutcome, ReceivedSignature, ReceivedStatus,
+    AuditOutcome, ReceiveBallot, ReceiveOutcome, ReceivedBallot, ReceivedSignature, ReceivedStatus,
 };
 use electoral_log::adapters::ballot_box_seal::{
     box_ballots, insert_seal, is_ballot_box_sealed, is_sealed_refusal, try_lock_ballot_box,
@@ -66,7 +66,14 @@ struct Vote {
 }
 
 impl Vote {
+    /// A vote accepted now: reads that compare the acceptance time with the
+    /// database's clock (the review age, the settled sequence, the day
+    /// buckets) see it as just accepted. Its sequence number comes from the
+    /// same instant.
     fn new(event: &str, election: &str, area: &str, voter: &str, allowed: i32) -> Self {
+        let accepted = std::time::SystemTime::now();
+        let accepted_at =
+            DateTime::<Utc>::from(accepted).to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
         Self {
             event: event.into(),
             election: election.into(),
@@ -79,7 +86,7 @@ impl Vote {
             country: Some("ES"),
             status: BallotStatus::Valid,
             content: "ciphertext",
-            admission: serde_json::to_vec(&serde_json::json!({"payload":{"accepted_at":"2026-10-27T12:00:00.000Z","sequence":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() as i64},"signature":""})).unwrap(),
+            admission: serde_json::to_vec(&serde_json::json!({"payload":{"accepted_at":accepted_at,"sequence":sequence_at(accepted)},"signature":""})).unwrap(),
         }
     }
 
@@ -137,6 +144,14 @@ impl Vote {
             allowed_votes: self.allowed,
         }
     }
+}
+
+/// The sequence number of a vote accepted at `time`, as the fixtures number
+/// votes: a later vote has a higher number.
+fn sequence_at(time: std::time::SystemTime) -> i64 {
+    time.duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos() as i64
 }
 
 fn ids() -> (String, String, String, String) {
@@ -1718,6 +1733,112 @@ async fn a_received_ballot_of_a_sealed_box_stays_received() -> Result<()> {
     store.delete_board(&board).await
 }
 
+/// How many records of `delivery_id` `board` holds.
+async fn records_of(store: &PostgresStore, board: &str, delivery_id: &str) -> Result<i64> {
+    Ok(store
+        .client()
+        .await?
+        .query_one(
+            "SELECT count(*) FROM electoral_log_messages WHERE board_name=$1 AND delivery_id=$2",
+            &[&board, &delivery_id],
+        )
+        .await?
+        .get(0))
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn audited_received_ballots_are_not_cast_and_cast_ones_are_not_audited() -> Result<()> {
+    let store = store().await?;
+    let (event, election, area, _) = ids();
+    store.create_ballot_box(&event).await?;
+    let board = format!("audittest{}", Uuid::new_v4().simple());
+    store.create_board(&board).await?;
+
+    // A received ballot is marked audited once, with one record.
+    let audited = Received::new(&event, &election, &area, "voter-a");
+    let audited_id = audited.receive(&store, &short_ballot_id()).await?;
+    let received = store
+        .received_ballot_by_id(&event, &election, "voter-a", &audited_id)
+        .await?
+        .unwrap();
+    let record = cast_vote_record(&event, 1);
+    assert_eq!(
+        store
+            .audit_received_ballot(&received, &board, &record)
+            .await?,
+        AuditOutcome::Audited
+    );
+    assert_eq!(
+        store
+            .audit_received_ballot(&received, &board, &record)
+            .await?,
+        AuditOutcome::AlreadyAudited
+    );
+    assert_eq!(
+        store
+            .received_ballot_by_id(&event, &election, "voter-a", &audited_id)
+            .await?
+            .unwrap()
+            .status,
+        ReceivedStatus::Audited
+    );
+    assert_eq!(records_of(&store, &board, &record.delivery_id).await?, 1);
+
+    // The audited ballot is not cast.
+    assert_eq!(
+        store
+            .accept_received_ballot(&audited.vote(1).request(), &cast(&audited_id))
+            .await?,
+        AcceptOutcome::NotReceivable
+    );
+    assert!(store.voter_ballots(&event, "voter-a").await?.is_empty());
+
+    // A cast ballot stays cast and gets no record.
+    let ballot = Received::new(&event, &election, &area, "voter-b");
+    let ballot_id = ballot.receive(&store, &short_ballot_id()).await?;
+    assert!(matches!(
+        store
+            .accept_received_ballot(&ballot.vote(1).request(), &cast(&ballot_id))
+            .await?,
+        AcceptOutcome::Accepted { .. }
+    ));
+    let cast_ballot = store
+        .received_ballot_by_id(&event, &election, "voter-b", &ballot_id)
+        .await?
+        .unwrap();
+    let unused = cast_vote_record(&event, 2);
+    assert_eq!(
+        store
+            .audit_received_ballot(&cast_ballot, &board, &unused)
+            .await?,
+        AuditOutcome::Cast
+    );
+    assert_eq!(
+        store
+            .received_ballot_by_id(&event, &election, "voter-b", &ballot_id)
+            .await?
+            .unwrap()
+            .status,
+        ReceivedStatus::Cast
+    );
+
+    // A ballot the box does not hold is not audited.
+    let unknown = ReceivedBallot {
+        id: Uuid::new_v4().to_string(),
+        ..cast_ballot
+    };
+    assert_eq!(
+        store
+            .audit_received_ballot(&unknown, &board, &unused)
+            .await?,
+        AuditOutcome::NotReceived
+    );
+    assert_eq!(records_of(&store, &board, &unused.delivery_id).await?, 0);
+    store.delete_board(&board).await?;
+    drop_ballot_box(&store, &event).await
+}
+
 #[tokio::test]
 #[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
 async fn first_valid_votes_are_read_up_to_the_sequencer() -> Result<()> {
@@ -1799,16 +1920,17 @@ async fn first_valid_votes_are_read_again_while_a_vote_may_be_in_progress() -> R
     store.remove_pending(&event, &[first]).await?;
     settle(&store, &event).await?;
 
-    // A vote in progress: it took its sequence number, but neither its ballot nor
-    // its place in the sequencer's queue is visible until it commits.
+    // A vote in progress: it took its sequence number, between the votes accepted
+    // before and after it, but neither its ballot nor its place in the sequencer's
+    // queue is visible until it commits.
     let in_progress = store.client().await?;
     in_progress.batch_execute("BEGIN").await?;
     let held: i64 = in_progress
         .query_one(
-            "INSERT INTO ballot_box_ballot (election_event_id, ballot_id, election_id, \
+            "INSERT INTO ballot_box_ballot (election_event_id, seq, ballot_id, election_id, \
                  area_id, voter_id, format, content, pseudonym_hash, ballot_hash, \
                  voting_channel, status) \
-             VALUES ($1::text::uuid, $2, $3::text::uuid, $4::text::uuid, 'v2', 'test', \
+             VALUES ($1::text::uuid, $6, $2, $3::text::uuid, $4::text::uuid, 'v2', 'test', \
                  'ciphertext', $5, $5, 'ONLINE', 'valid') \
              RETURNING seq",
             &[
@@ -1817,6 +1939,7 @@ async fn first_valid_votes_are_read_again_while_a_vote_may_be_in_progress() -> R
                 &election,
                 &area,
                 &vec![3u8; 64],
+                &sequence_at(std::time::SystemTime::now()),
             ],
         )
         .await?

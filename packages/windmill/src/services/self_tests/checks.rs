@@ -14,11 +14,12 @@ use electoral_log::LogEntry;
 use futures::TryStreamExt;
 use voting_crypto::{signing::VerificationKey, RecordDeserialize};
 
-/// Write signed records through the real board and verify their exact durable readback.
+/// Write signed records through the real board and verify their exact durable
+/// readback. `scope` and `stage` name the record: writing one twice fails the readback.
 pub async fn audit_record(
     tenant: &str,
     event: &str,
-    run_id: &str,
+    scope: &str,
     stage: &str,
     details: &serde_json::Value,
 ) -> Result<()> {
@@ -35,7 +36,7 @@ pub async fn audit_record(
         &log.sd,
     )?;
     let wire: electoral_log::ElectoralLogMessage = (&message).try_into()?;
-    let delivery = format!("self-test:{run_id}:{stage}");
+    let delivery = format!("self-test:{scope}:{stage}");
     tx.commit().await?;
     drop(c);
     get_board_client()

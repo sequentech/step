@@ -238,6 +238,8 @@ async fn ballot_images_are_generated_by_a_task_for_their_event() {
     let services = Services::on_test_database().await;
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
+    event.enter_phase(&services.hasura, "evaluation").await;
+    event.enter_phase(&services.hasura, "post_processing").await;
 
     let (status, body) = json(
         post(
@@ -271,6 +273,8 @@ async fn ballot_images_that_cannot_be_enqueued_are_a_server_error() {
         .with_tasks(MemoryTaskQueue::refusing());
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
+    event.enter_phase(&services.hasura, "evaluation").await;
+    event.enter_phase(&services.hasura, "post_processing").await;
 
     let response = post(
         &client,
@@ -286,6 +290,37 @@ async fn ballot_images_that_cannot_be_enqueued_are_a_server_error() {
             "Error generating template: ForcedShutdown".into()
         )
     );
+}
+
+/// Where only signed packages import, the images of the decoded ballots are
+/// generated from post-processing on.
+#[rocket::async_test]
+async fn ballot_images_wait_for_post_processing() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+
+    for (phase, name) in
+        [("preparation", "Preparation"), ("evaluation", "Evaluation")]
+    {
+        event.enter_phase(&services.hasura, phase).await;
+        let response = post(
+            &client,
+            "/generate-template",
+            &reader(&event, &[Permissions::REPORT_READ]),
+            &ballot_images(&event),
+        )
+        .await;
+        assert_eq!(
+            text(response).await,
+            (
+                Status::Conflict,
+                format!("This operation requires electoral phase PostProcessing; current phase is {name}")
+            )
+        );
+    }
+    assert!(services.ledger.tasks().is_empty());
+    assert!(services.tasks.sent().is_empty());
 }
 
 fn report_request(tenant_id: &str, report_id: &str) -> Value {

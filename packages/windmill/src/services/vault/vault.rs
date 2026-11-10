@@ -38,6 +38,9 @@ pub enum VaultManagerType {
 
 static MASTER_SECRET: OnceCell<SymmetricKey> = OnceCell::const_new();
 
+/// Harvest and Windmill's workers do not start when this fails, and their readiness
+/// probes report it. With the environment backend it fails when `MASTER_SECRET` is
+/// missing or empty.
 #[instrument]
 pub async fn check_master_secret() -> Result<()> {
     let vault = get_vault()?;
@@ -55,6 +58,8 @@ fn decode_master_secret(secret: &str) -> Result<SymmetricKey> {
     sk_from_bytes(&bytes).map_err(|_| anyhow!("Invalid master secret length"))
 }
 
+/// A backend that stores secrets gets a generated master secret on first use. The
+/// environment backend never does: without `MASTER_SECRET` its read fails.
 #[instrument]
 async fn initialize_master_secret() -> Result<SymmetricKey> {
     let vault = get_vault().with_context(|| "Failed to initialize vault")?;

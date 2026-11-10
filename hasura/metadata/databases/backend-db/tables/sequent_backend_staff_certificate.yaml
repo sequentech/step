@@ -112,6 +112,131 @@ select_permissions:
                         _eq: X-Hasura-Tenant-Id
                   - user_id:
                         _eq: X-Hasura-User-Id
+      role: sign-import-election-data
+    - comment: ""
+      permission:
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - user_id
+              - username
+              - election_id
+              - fingerprint_sha256
+              - serial
+              - subject
+              - issuer
+              - not_before
+              - not_after
+              - status
+              - registration
+              - registered_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - user_id:
+                        _eq: X-Hasura-User-Id
+      role: sign-start-tally
+    - comment: ""
+      permission:
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - user_id
+              - username
+              - election_id
+              - fingerprint_sha256
+              - serial
+              - subject
+              - issuer
+              - not_before
+              - not_after
+              - status
+              - registration
+              - registered_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - user_id:
+                        _eq: X-Hasura-User-Id
+      role: sign-export-execution-data
+    - comment: ""
+      permission:
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - user_id
+              - username
+              - election_id
+              - fingerprint_sha256
+              - serial
+              - subject
+              - issuer
+              - not_before
+              - not_after
+              - status
+              - registration
+              - registered_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - user_id:
+                        _eq: X-Hasura-User-Id
+      role: sign-delete-execution-data
+    - comment: ""
+      permission:
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - user_id
+              - username
+              - election_id
+              - fingerprint_sha256
+              - serial
+              - subject
+              - issuer
+              - not_before
+              - not_after
+              - status
+              - registration
+              - registered_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - user_id:
+                        _eq: X-Hasura-User-Id
+      role: sign-read-voters-register
+    - comment: ""
+      permission:
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - user_id
+              - username
+              - election_id
+              - fingerprint_sha256
+              - serial
+              - subject
+              - issuer
+              - not_before
+              - not_after
+              - status
+              - registration
+              - registered_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - user_id:
+                        _eq: X-Hasura-User-Id
       role: sign-generate-election-returns
     - comment: ""
       permission:

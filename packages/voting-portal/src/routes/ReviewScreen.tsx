@@ -4,6 +4,7 @@
 import React, {useEffect, useState, useContext, useMemo, useRef} from "react"
 import {castVoteErrorMessage} from "../services/CastVoteErrors"
 import {EReceiveBallotStatus, useReceiveBallot} from "../hooks/useReceiveBallot"
+import {isAuditedByBallotBox, useAuditReceivedBallot} from "../hooks/useAuditReceivedBallot"
 import {
     IReceivedCast,
     signReceivedCast,
@@ -262,6 +263,12 @@ interface ActionButtonProps {
     isAwaitingReceipt: boolean
     // The audit screen showed this ballot's secret values.
     isAudited: boolean
+    // The ballot box can be asked to mark this ballot audited, if it must be.
+    canAudit: boolean
+    // The ballot box is marking this ballot audited.
+    isAuditing: boolean
+    // Shows the audit screen once the voter confirmed the audit.
+    onConfirmAudit: () => void
     receivedBallotId?: string
     unfilledContests: Array<IUnfilledContest>
 }
@@ -281,10 +288,13 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     hasInconsistentHash,
     isAwaitingReceipt,
     isAudited,
+    canAudit,
+    isAuditing,
+    onConfirmAudit,
     receivedBallotId,
     unfilledContests,
 }) => {
-    const castRefused = hasInconsistentHash || isAwaitingReceipt || isAudited
+    const castRefused = hasInconsistentHash || isAwaitingReceipt || isAudited || isAuditing
     const {t} = useTranslation()
     const navigate = useNavigate()
     const location = useLocation()
@@ -312,9 +322,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const handleClose = (value: boolean) => {
         setAuditBallotHelp(false)
         if (value) {
-            navigate(
-                `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/audit${location.search}`
-            )
+            onConfirmAudit()
         }
     }
 
@@ -497,11 +505,17 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 backComponent={RouterLink}
                 backTo={backNavigateTo}
                 // Auditing shows the ballot's secret values, so it waits while
-                // that ballot is being cast.
-                onAudit={isCasting ? undefined : () => setAuditBallotHelp(true)}
+                // that ballot is being cast, and while the ballot box that must
+                // mark it audited has not received it.
+                onAudit={
+                    isCasting || isAuditing || !canAudit
+                        ? undefined
+                        : () => setAuditBallotHelp(true)
+                }
                 // A detected hash mismatch refuses the cast, and so does a ballot
-                // the ballot box has not received or one that was audited;
-                // leaving the handler out is what disables the button.
+                // the ballot box has not received, one that was audited or one
+                // being audited; leaving the handler out is what disables the
+                // button.
                 onCast={castRefused ? undefined : onCast}
             />
             <UnfilledContestsDialog
@@ -726,12 +740,50 @@ export const ReviewScreen: React.FC = () => {
     const shownBallotId = isReceiptRequired ? receipt.ballotId : ballotId || ""
     const displayedErrorMsg = hashErrorMsg ?? receipt.errorMsg ?? errorMsg
 
+    // With receipts on, the ballot box has the ballot: it marks it audited, so
+    // that it is never cast, before the audit screen shows its secret values.
+    const needsAuditConfirmation =
+        isReceiptRequired || isAuditedByBallotBox(auditableBallot, globalSettings.DISABLE_AUTH)
+    const canAudit = !needsAuditConfirmation || receipt.status === EReceiveBallotStatus.RECEIVED
+    const tryAuditReceivedBallot = useAuditReceivedBallot()
+    const auditingRef = useRef<boolean>(false)
+    const [isAuditing, setIsAuditing] = useState<boolean>(false)
+    const auditPath = `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle?.election_id}/audit${location.search}`
+
+    const showAudit = async () => {
+        if (!needsAuditConfirmation) {
+            navigate(auditPath)
+            return
+        }
+        if (auditingRef.current || !ballotStyle || !receipt.ballotId || !ballotId) {
+            return
+        }
+        auditingRef.current = true
+        setIsAuditing(true)
+        setErrorMsg(undefined)
+        let confirmed = false
+        try {
+            confirmed = await tryAuditReceivedBallot(
+                {
+                    electionId: ballotStyle.election_id,
+                    ballotId: receipt.ballotId,
+                    ballotHash: ballotId,
+                },
+                setErrorMsg
+            )
+        } finally {
+            auditingRef.current = false
+            setIsAuditing(false)
+        }
+        if (confirmed) {
+            navigate(auditPath)
+        }
+    }
+
     const handleCloseDialogAuditHelp = (value: boolean) => {
         setAuditBallotHelp(false)
         if (value) {
-            navigate(
-                `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle?.election_id}/audit${location.search}`
-            )
+            showAudit()
         }
     }
 
@@ -965,6 +1017,9 @@ export const ReviewScreen: React.FC = () => {
                             hasInconsistentHash={hasInconsistentHash}
                             isAwaitingReceipt={isAwaitingReceipt}
                             isAudited={isAudited}
+                            canAudit={canAudit}
+                            isAuditing={isAuditing}
+                            onConfirmAudit={showAudit}
                             receivedBallotId={receipt.ballotId}
                             isGoldenPolicy={isGoldenPolicy ?? false}
                             isMultiContest={isMultiContest}
@@ -983,7 +1038,9 @@ export const ReviewScreen: React.FC = () => {
                     title={t("reviewScreen.ballotIdHelpDialog.title")}
                     maxWidth="md"
                     middleActions={
-                        auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
+                        auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP &&
+                        canAudit &&
+                        !isAuditing
                             ? [
                                   <AuditButton
                                       key={"audit-button"}

@@ -1,6 +1,11 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! The Miru transmission routes (`/miru/*`), which only builds with the
+//! `plugins` feature have.
+#![cfg(feature = "plugins")]
+
 use crate::services::authorization::authorize;
 use crate::services::signing_gate::Guarded;
 use crate::services::signing_http::{
@@ -54,6 +59,12 @@ pub async fn create_transmission_package(
     input: Json<CreateTransmissionPackageInput>,
 ) -> Result<Json<CreateTransmissionPackageOutput>, (Status, String)> {
     let body = input.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::MIRU_CREATE],
+    )?;
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let election_event_id = body.election_event_id.clone();
     let executer_name = claims
@@ -76,12 +87,6 @@ pub async fn create_transmission_package(
         )
     })?;
 
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::MIRU_CREATE],
-    )?;
     let celery_app = get_celery_app().await;
     let celery_task = match celery_app
         .send_task(create_transmission_package_task::new(
@@ -99,7 +104,7 @@ pub async fn create_transmission_package(
         Err(err) => {
             return Ok(Json(CreateTransmissionPackageOutput {
                     error_msg: Some(format!(
-                        "Error sending create_transmission_package_task task: ${err}"
+                        "Error sending create_transmission_package_task task: {err}"
                     )),
                     task_execution: Some(task_execution.clone()),
                 }));

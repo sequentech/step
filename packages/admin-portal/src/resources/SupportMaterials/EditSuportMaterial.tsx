@@ -40,6 +40,7 @@ import ImageIcon from "@mui/icons-material/Image"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {MaterialLanguageFields} from "./MaterialLanguageFields"
 import {AudioInstructionsFields, withAudioInstructions} from "./AudioInstructionsFields"
+import {documentNameRefusal} from "@/services/serverRefusals"
 
 export type Sequent_Backend_Support_Material_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -80,7 +81,8 @@ const GetPublicURL: React.FC<GetPublicURLProps> = ({electionEventId}) => {
         return null
     }
 
-    const url = `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${record?.document_id}/${data[0]?.name}`
+    // The name is one part of the address, whatever characters it has.
+    const url = `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${record?.document_id}/${encodeURIComponent(String(data[0]?.name))}`
 
     return (
         <>
@@ -190,14 +192,21 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
         setImageType(theFile.type)
 
         const uploadPromise = (async (): Promise<string | undefined> => {
-            let {data, errors} = await getUploadUrl({
+            const answer = await getUploadUrl({
                 variables: {
                     name: theFile.name,
                     media_type: theFile.type,
                     size: theFile.size,
                     election_event_id: electionEventId,
                 },
+            }).catch((error: unknown) => {
+                notify(documentNameRefusal(t, error) ?? t("electionScreen.error.fileError"), {
+                    type: "error",
+                })
+                return null
             })
+            if (!answer) return undefined
+            let {data, errors} = answer
             if (!data?.get_upload_url?.document_id) {
                 console.log("error :>> ", errors)
                 notify(t("electionScreen.error.fileError"), {type: "error"})

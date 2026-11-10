@@ -95,7 +95,7 @@ pub async fn prepare_ballot_publication_preview(
             let _ = update_fail(&task_execution, &err.to_string()).await;
             return Ok(Json(PreparePublPreviewOutput {
                 error_msg: Some(format!(
-                    "Error sending prepare_publication_preview task: ${err}"
+                    "Error sending prepare_publication_preview task: {err}"
                 )),
                 document_id,
                 task_execution: Some(task_execution),

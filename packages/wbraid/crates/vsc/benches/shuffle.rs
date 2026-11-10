@@ -80,7 +80,7 @@ fn bench_shuffle_prove<C: Context>(b: &mut Bencher) {
     let ciphertexts: Vec<Ciphertext<C, W>> = messages.iter().map(|m| keypair.encrypt(m)).collect();
 
     let generators = C::G::ind_generators(count, &vec![]).unwrap();
-    let shuffler = Shuffler::<C, W>::new(generators, keypair.pkey);
+    let shuffler = Shuffler::<C, W>::new(generators, keypair.pkey.clone());
 
     b.iter(|| {
         let (_pciphertexts, _proof) = black_box(shuffler.shuffle(&ciphertexts, &vec![]).unwrap());
@@ -98,7 +98,7 @@ fn bench_shuffle_verify<C: Context>(b: &mut Bencher) {
     let ciphertexts: Vec<Ciphertext<C, W>> = messages.iter().map(|m| keypair.encrypt(m)).collect();
 
     let generators = C::G::ind_generators(count, &vec![]).unwrap();
-    let shuffler = Shuffler::<C, W>::new(generators, keypair.pkey);
+    let shuffler = Shuffler::<C, W>::new(generators, keypair.pkey.clone());
 
     let (pciphertexts, proof) = shuffler.shuffle(&ciphertexts, &vec![]).unwrap();
 

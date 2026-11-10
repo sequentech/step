@@ -1037,6 +1037,8 @@ async fn the_code_a_referral_releases_through_an_account_that_isnt_ready_is_neve
 /// message through a deleted account.
 #[tokio::test]
 async fn a_deleted_configured_account_never_falls_back_to_the_deployment_sender() {
+    // A delivery reads the tenant's key from the vault.
+    std::env::set_var("MASTER_SECRET", MASTER_SECRET);
     let pool = schema::pool().await;
     let (tenant, event) = (id(0x7b0c_000d, 1), id(0x7b0c_000d, 2));
     let mut client = pool.get().await.unwrap();

@@ -5,6 +5,46 @@ import englishTranslation, {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        electionRevoting: {
+            title: "Revote",
+            description:
+                "Pendant la préparation, avant que le vote ne commence sur un canal de cet événement électoral, vous pouvez désactiver le revote d'une élection : chaque électeur ne pourra alors voter qu'une fois. Le revote ne peut pas être réactivé, et le journal électoral enregistre qui l'a désactivé. La commission électorale doit approuver la configuration mise à jour avant le début du vote.",
+            loading: "Chargement des paramètres de revote",
+            readFailed:
+                "Les paramètres de revote des élections n'ont pas pu être lus. Rechargez la page avant d'apporter des modifications.",
+            empty: "Cet événement électoral n'a aucune élection.",
+            election: "Élection",
+            state: "Revote",
+            unlimited: "Autorisé, votes illimités",
+            upTo: "Autorisé, jusqu'à {{votes}} votes",
+            single: "Désactivé, un seul vote",
+            disable: "Désactiver le revote",
+            disableFor: "Désactiver le revote de {{name}}",
+            confirmTitle: "Désactiver le revote ?",
+            confirm:
+                "Chaque électeur de {{name}} ne pourra voter qu'une fois. Le revote ne peut pas être réactivé.",
+            disabled:
+                "Revote désactivé pour {{name}}. La commission électorale doit approuver la configuration mise à jour avant le début du vote.",
+            failed: "Le revote de {{name}} n'a pas été désactivé : {{reason}}",
+            failedNoReason:
+                "Le revote de {{name}} n'a pas été désactivé. Rechargez la page et vérifiez la phase de l'élection.",
+        },
+        refusals: {
+            documentName:
+                "Le nom d'un document ne peut pas contenir / \\ ; # % ? ni de caractère de contrôle. Renommez-le et réessayez.",
+            documentWaitsForPostProcessing:
+                "Ce document peut contenir des bulletins décodés. Il pourra être téléchargé une fois le post-traitement commencé.",
+            resultsWaitForPostProcessing:
+                "La base de données de résultats de ce comptage peut contenir des bulletins décodés. Les résultats pourront être affichés ici une fois le post-traitement commencé.",
+            ballotImagesWaitForPostProcessing:
+                "Les images des bulletins pourront être générées une fois le post-traitement commencé.",
+            phaseChanging:
+                "La phase ou l'état de sécurité de l'événement électoral est en train de changer. Réessayez dans un instant.",
+            resultsAlreadyCounted:
+                "Les résultats de {{election}} sont déjà comptés, et un recomptage n'est pas possible.",
+            resultsTallyUnfinished:
+                "Un comptage des résultats de {{election}} n'est pas terminé. Attendez qu'il se termine ou annulez-le.",
+        },
         copyableFingerprint: {
             copy: "Copier le SHA-256 complet",
             copied: "Le SHA-256 complet a été copié",
@@ -1680,12 +1720,30 @@ const frenchTranslation: TranslationType = {
                 },
             },
             permissions: {
-                "sign-start-tally": englishTranslation.translations.usersAndRolesScreen.permissions["sign-start-tally"],
-                "sign-import-election-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-import-election-data"],
-                "sign-export-execution-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-export-execution-data"],
-                "sign-delete-execution-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-delete-execution-data"],
-                "sign-read-voters-register": englishTranslation.translations.usersAndRolesScreen.permissions["sign-read-voters-register"],
-                "election-execution-export": englishTranslation.translations.usersAndRolesScreen.permissions["election-execution-export"],
+                "sign-start-tally":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-start-tally"
+                    ],
+                "sign-import-election-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-import-election-data"
+                    ],
+                "sign-export-execution-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-export-execution-data"
+                    ],
+                "sign-delete-execution-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-delete-execution-data"
+                    ],
+                "sign-read-voters-register":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-read-voters-register"
+                    ],
+                "election-execution-export":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "election-execution-export"
+                    ],
                 "voter-information-letter": "Générer une Lettre d'information de l'électeur",
                 "admin-user": "Administration",
                 "admin-dashboard-view": "Vue du Tableau de Bord d'Administration",
@@ -2489,6 +2547,12 @@ const frenchTranslation: TranslationType = {
                     entry: "Entrée",
                 },
                 emptyLogs: "Pas de journaux pour l'instant.",
+                managerKey: {
+                    title: "Clé du gestionnaire de protocole (SHA-256)",
+                    help: "Chaque serveur d'autorité journalise cette empreinte pour le tableau {{board}} lorsqu'il accepte la configuration de la cérémonie de clés. Comparez-les par un canal distinct, pas par ce portail.",
+                    readError:
+                        "La clé du gestionnaire de protocole de cette cérémonie de clés n'a pas pu être lue.",
+                },
             },
         },
         miruExport: {
@@ -3879,7 +3943,8 @@ const frenchTranslation: TranslationType = {
             },
             notices: {
                 ATTACK_REQUEST_ACTIVITY_UNAVAILABLE:
-                    englishTranslation.translations.monitoring.notices.ATTACK_REQUEST_ACTIVITY_UNAVAILABLE,
+                    englishTranslation.translations.monitoring.notices
+                        .ATTACK_REQUEST_ACTIVITY_UNAVAILABLE,
                 UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
                     "Les tentatives avec des noms d'utilisateur non enregistrés n'appartiennent à aucun poste ; elles ne sont donc comptées que pour l'ensemble de l'événement.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
@@ -4393,6 +4458,8 @@ const frenchTranslation: TranslationType = {
                     "Cet événement utilise des cérémonies de clés automatiques. Les dépositaires ne réalisent pas ces étapes, leurs signatures ne peuvent donc pas être exigées. Pour exiger leurs signatures, utilisez des cérémonies de clés manuelles.",
                 forbidden: "Vous n'avez pas l'autorisation d'effectuer cette modification.",
                 invalid: "Le serveur a refusé ces valeurs. Vérifiez-les et réessayez.",
+                signaturesFixed:
+                    "Le nombre de signatures de cette action est déjà enregistré et ne peut plus être modifié. Rechargez la page pour le voir.",
                 conflict:
                     "Quelqu'un d'autre l'a modifié entre-temps. Rechargez la page et réessayez.",
                 lockedDown:
@@ -4412,11 +4479,15 @@ const frenchTranslation: TranslationType = {
                 "configuration-and-keys": "Configuration et clés",
             },
             actions: {
-                "import-election-data": englishTranslation.translations.signing.actions["import-election-data"],
+                "import-election-data":
+                    englishTranslation.translations.signing.actions["import-election-data"],
                 "start-tally": englishTranslation.translations.signing.actions["start-tally"],
-                "export-execution-data": englishTranslation.translations.signing.actions["export-execution-data"],
-                "delete-execution-data": englishTranslation.translations.signing.actions["delete-execution-data"],
-                "read-voters-register": englishTranslation.translations.signing.actions["read-voters-register"],
+                "export-execution-data":
+                    englishTranslation.translations.signing.actions["export-execution-data"],
+                "delete-execution-data":
+                    englishTranslation.translations.signing.actions["delete-execution-data"],
+                "read-voters-register":
+                    englishTranslation.translations.signing.actions["read-voters-register"],
                 "initialize-voting": {
                     label: "Initialiser le vote",
                     short: "Initialisation",
@@ -4553,6 +4624,7 @@ const frenchTranslation: TranslationType = {
                 signaturesNeededHelp:
                     "Chaque signataire utilise son certificat numérique. Chaque $t(signing.terms.post) compte au moins {{n}} personnes pouvant signer.",
                 signaturesNeededShortHelp: "Chaque signataire utilise son certificat numérique.",
+                signaturesFixed: "Ce nombre est fixé une fois enregistré.",
                 requesterSigning: "La personne qui la lance peut aussi signer",
                 expiresAfter: "Une demande expire après",
                 trusteesSign: "Les autorités signent cette étape",
@@ -6296,7 +6368,7 @@ const frenchTranslation: TranslationType = {
         electoralLogConsole: {
             title: "Journal Électoral",
             subtitle:
-                "Parcourez le journal électoral et l'urne d'un événement électoral, ou interrogez la base de données de son journal électoral. Rien sur cette page ne modifie les données.",
+                "Parcourez le journal électoral d'un événement électoral, ou interrogez la base de données de son journal électoral. Rien sur cette page ne modifie les données.",
             notAllowed:
                 "Vous avez besoin de la permission electoral-log-console-read pour ouvrir le journal électoral.",
             tabs: {
@@ -6308,9 +6380,6 @@ const frenchTranslation: TranslationType = {
             table: "Table",
             tables: {
                 records: "Entrées",
-                ballots: "Bulletins",
-                voters: "Électeurs",
-                queue: "File du Séquenceur",
             },
             order: {
                 "label": "Ordre",
@@ -6320,22 +6389,14 @@ const frenchTranslation: TranslationType = {
             filters: {
                 statement_kind: "Type",
                 election_id: "Élection",
-                area_id: "ID de Zone",
                 user_id: "ID d'Utilisateur ou d'Électeur",
                 ballot_id: "ID de Bulletin",
-                status: "Statut",
                 created_after: "Du",
                 created_before: "Au",
                 any: "Tous",
                 apply: "Appliquer les Filtres",
                 clear: "Effacer",
-                invalid:
-                    "Vérifiez les filtres signalés : les dates doivent être valides et les ID de zone de l'urne doivent être des UUID.",
-            },
-            statuses: {
-                valid: "Valide",
-                pending: "En attente",
-                rejected: "Rejeté",
+                invalid: "Vérifiez les filtres signalés : les dates doivent être valides.",
             },
             estimatedRows: "Environ {{rows}} lignes dans cette table avant filtrage.",
             personalDataHidden:

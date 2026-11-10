@@ -1699,8 +1699,8 @@ fn admin_passwords_are_flagged_once_however_many_rows_carry_them() {
 
 #[test]
 fn the_permission_matrix_is_transposed_into_the_platform_shape() {
-    // A matrix is what a human can check at a glance; role,permissions is what
-    // export_tenant_config.rs writes.
+    // A matrix is what a human can check at a glance; role,permissions is the
+    // platform's permissions file.
     let bundle = built(&with_sheet(
         "Permissions",
         vec![

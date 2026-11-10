@@ -15,7 +15,7 @@ const parent: ProtocolBoardRecord = {
     keys_ceremony_id: keys,
     tally_session_id: null,
     batch: null,
-    manager_message: "\\x0102ff",
+    public_manager_message: "\\x0102ff",
 }
 const child: ProtocolBoardRecord = {
     ...parent,
@@ -24,7 +24,8 @@ const child: ProtocolBoardRecord = {
     parent_id: parent.id,
     tally_session_id: session,
     batch: 0,
-    manager_message: "\\x0304",
+    // Tally boards' Ballots messages are withheld before post-processing.
+    public_manager_message: null,
 }
 const hash = "ab".repeat(64)
 const verifier = () => ({
@@ -67,13 +68,31 @@ it.each([
 it("refuses an ambiguous parent or malformed public configuration", () => {
     expect(() => verificationBoards([parent, parent, child], scope, verifier())).toThrow()
     expect(() =>
-        verificationBoards([{...parent, manager_message: "\\x012"}, child], scope, verifier())
+        verificationBoards(
+            [{...parent, public_manager_message: "\\x012"}, child],
+            scope,
+            verifier()
+        )
+    ).toThrow()
+    expect(() =>
+        verificationBoards([{...parent, public_manager_message: null}, child], scope, verifier())
     ).toThrow()
     const wasm = verifier()
     wasm.configurationHash.mockImplementation(() => {
         throw new Error("invalid signature")
     })
     expect(() => verificationBoards([parent, child], scope, wasm)).toThrow()
+})
+
+it("takes anchors from the parent configuration whether or not a tally message is released", () => {
+    const withheld = verificationBoards([parent, child], scope, verifier())
+    const released = verificationBoards(
+        [parent, {...child, public_manager_message: "\\x0304"}],
+        scope,
+        verifier()
+    )
+    expect(released).toEqual(withheld)
+    expect(withheld[0].configurationHash).toBe(hash)
 })
 
 it("never substitutes another tally session when the selected session has no boards", () => {

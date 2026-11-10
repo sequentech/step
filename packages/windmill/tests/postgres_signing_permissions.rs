@@ -53,7 +53,11 @@ async fn event(tx: &Transaction<'_>, tenant: Uuid, event: Uuid, actions: &[Signi
             tx,
             tenant,
             event,
-            &SigningRule::default_for(*action),
+            // A mandatory action's rule is saved with its signatures set.
+            &SigningRule {
+                signatures: 1,
+                ..SigningRule::default_for(*action)
+            },
             0,
             "configuration-manager-1",
             None,

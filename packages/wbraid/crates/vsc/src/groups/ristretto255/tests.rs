@@ -24,6 +24,26 @@ fn test_ristretto_scalar_from_u32() {
 }
 
 #[test]
+fn test_ristretto_scalar_zeroize() {
+    use zeroize::Zeroize;
+    let mut s = Ctx::random_scalar();
+    assert_ne!(s, RistrettoScalar::zero());
+
+    s.zeroize();
+    assert_eq!(s, RistrettoScalar::zero());
+}
+
+#[test]
+fn test_ristretto_element_zeroize() {
+    use zeroize::Zeroize;
+    let mut e = Ctx::random_element();
+    assert_ne!(e, RistrettoElement::one());
+
+    e.zeroize();
+    assert_eq!(e, RistrettoElement::one());
+}
+
+#[test]
 fn test_ristretto_scalar_negation() {
     let s1 = Ctx::random_scalar();
     let s_neg = s1.neg();

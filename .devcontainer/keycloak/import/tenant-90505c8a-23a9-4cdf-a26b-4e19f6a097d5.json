@@ -1015,19 +1015,19 @@
       },
       {
         "name": "self-test-run",
-        "description": "Run security self-tests",
+        "description": "Self-tests: run checks",
         "composite": false,
         "clientRole": false
       },
       {
         "name": "self-test-read",
-        "description": "Read security self-tests",
+        "description": "Self-tests: read results",
         "composite": false,
         "clientRole": false
       },
       {
         "name": "self-test-settings-write",
-        "description": "Configure security self-tests",
+        "description": "Self-tests: edit settings",
         "composite": false,
         "clientRole": false
       },
@@ -1039,25 +1039,25 @@
       },
       {
         "name": "sign-start-tally",
-        "description": "Sign: start tally",
+        "description": "Sign: start counting votes",
         "composite": false,
         "clientRole": false
       },
       {
         "name": "sign-export-execution-data",
-        "description": "Sign: export execution data",
+        "description": "Sign: export election execution data",
         "composite": false,
         "clientRole": false
       },
       {
         "name": "sign-delete-execution-data",
-        "description": "Sign: delete execution data",
+        "description": "Sign: delete election execution data",
         "composite": false,
         "clientRole": false
       },
       {
         "name": "sign-read-voters-register",
-        "description": "Sign: read voters register",
+        "description": "Sign: read the voters' register in post-processing",
         "composite": false,
         "clientRole": false
       },
@@ -2348,7 +2348,7 @@
       {
         "id": "6d44ec97-33ea-4a03-b155-76cb191fc610",
         "name": "sign-key-ceremony",
-        "description": "Sign: confirm a key share",
+        "description": "Sign: confirm custody",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -2357,7 +2357,7 @@
       {
         "id": "e004425b-71da-4e36-9b24-6ff783c24716",
         "name": "sign-tally-key",
-        "description": "Sign: contribute a key share",
+        "description": "Sign: authorize tally custody",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",

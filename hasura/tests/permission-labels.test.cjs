@@ -172,8 +172,6 @@ test("admin roles cannot set the elections a ballot publication covers", () => {
 })
 
 test("admin-user cannot change an application's status directly", () => {
-    const update = loadTable("applications").update_permissions.find(
-        ({role}) => role === "admin-user"
-    )
-    assert.ok(!update.permission.columns.includes("status"))
+    const updates = loadTable("applications").update_permissions ?? []
+    assert.ok(!updates.some(({role}) => role === "admin-user"))
 })

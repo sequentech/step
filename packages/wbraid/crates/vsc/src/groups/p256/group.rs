@@ -17,6 +17,7 @@ use p256::hash2curve::{ExpandMsgXmd, GroupDigest, hash_to_scalar};
 
 use crate::utils::error::Error;
 use crate::utils::rng;
+use zeroize::Zeroizing;
 
 /// P-256 implementation of [`CryptographicGroup`]
 pub struct P256Group;
@@ -80,10 +81,15 @@ impl CryptographicGroup for P256Group {
     fn encode_bytes<const I: usize, const O: usize>(
         bytes: &[u8; I],
     ) -> Result<[Self::Element; O], Error> {
-        let chunks = Codec::<I, O>::split(bytes);
-        let elements: Result<Vec<P256Element>, Error> =
-            chunks.iter().map(Self::encode_30_bytes).collect();
-        Ok(elements?.try_into().expect("elements.len() == O"))
+        // The input may be secret (a key share): the chunks, and the elements
+        // that carry them, are built in buffers that are overwritten on return.
+        let mut chunks = Zeroizing::new([[0u8; CHUNK_SIZE]; O]);
+        Codec::<I, O>::split_into(bytes, &mut chunks);
+        let mut elements = Zeroizing::new([P256Element(ProjectivePoint::IDENTITY); O]);
+        for (element, chunk) in elements.iter_mut().zip(chunks.iter()) {
+            *element = Self::encode_30_bytes(chunk)?;
+        }
+        Ok(*elements)
     }
 
     /// Decode bytes from the given number of P-256 elements. Inverse of
@@ -95,10 +101,9 @@ impl CryptographicGroup for P256Group {
     fn decode_bytes<const I: usize, const O: usize>(
         element: &[Self::Element; I],
     ) -> Result<[u8; O], Error> {
-        let chunks: Result<Vec<[u8; CHUNK_SIZE]>, Error> =
-            element.iter().map(Self::decode_30_bytes).collect();
-        let chunks: [[u8; CHUNK_SIZE]; I] = chunks?.try_into().expect("chunks.len() == I");
-        Ok(Codec::<O, I>::join(&chunks))
+        let mut bytes = [0u8; O];
+        Self::decode_bytes_into(element, &mut bytes)?;
+        Ok(bytes)
     }
 
     /// # Errors
@@ -135,7 +140,7 @@ impl CryptographicGroup for P256Group {
         use crate::cryptosystem::elgamal::{Ciphertext, PublicKey};
         use crate::utils::serialization::Serializable;
 
-        let elements = Self::encode_scalar(scalar)?;
+        let elements = Zeroizing::new(Self::encode_scalar(scalar)?);
         let pk = PublicKey::new(*public_key);
         let ciphertext: Ciphertext<P256Ctx, 2> = pk.encrypt(&elements);
 
@@ -150,16 +155,16 @@ impl CryptographicGroup for P256Group {
     /// - `ScalarDecodeError` if the decrypted elements cannot be decoded
     fn decrypt_scalar(ciphertext: &[u8], secret_key: &Self::Scalar) -> Result<Self::Scalar, Error> {
         use crate::context::P256Ctx;
-        use crate::cryptosystem::elgamal::{Ciphertext, KeyPair, PublicKey};
+        use crate::cryptosystem::elgamal::{self, Ciphertext};
         use crate::utils::serialization::Deserializable;
 
         let ciphertext = Ciphertext::<P256Ctx, 2>::deser(ciphertext)?;
-        let pk = PublicKey::new(Self::generator().exp(secret_key));
-        let keypair = KeyPair {
-            skey: *secret_key,
-            pkey: pk,
-        };
-        let elements = keypair.decrypt(&ciphertext);
+        // The secret key is used by reference, not copied.
+        let elements = Zeroizing::new(elgamal::decrypt::<P256Ctx, 2>(
+            ciphertext.u(),
+            ciphertext.v(),
+            secret_key,
+        ));
 
         Self::decode_scalar(&elements)
     }
@@ -204,12 +209,17 @@ impl P256Group {
         use p256::elliptic_curve::point::DecompressPoint;
         use p256::elliptic_curve::subtle::Choice;
 
-        let mut x = [0u8; 32];
+        // The input may be secret (part of a key share): the candidate
+        // x-coordinate is built in place, in a buffer that is overwritten on
+        // return.
+        let mut buffer = Zeroizing::new([0u8; 32]);
+        let x: &mut [u8; 32] = &mut buffer;
         x[1..=CHUNK_SIZE].copy_from_slice(input);
 
         for counter in 0..=u8::MAX {
             x[31] = counter;
-            let candidate = p256::AffinePoint::decompress(&x.into(), Choice::from(0));
+            let x_bytes: &p256::FieldBytes = (&*x).into();
+            let candidate = p256::AffinePoint::decompress(x_bytes, Choice::from(0));
             if bool::from(candidate.is_some()) {
                 let affine = candidate.expect("candidate.is_some() == true");
                 return Ok(P256Element(ProjectivePoint::from(affine)));
@@ -227,12 +237,59 @@ impl P256Group {
     ///
     /// - `EncodingError` if the element is the identity, which carries no data
     pub fn decode_30_bytes(element: &P256Element) -> Result<[u8; CHUNK_SIZE], Error> {
-        let (x, _y) = element.to_affine_xy().ok_or_else(|| {
-            Error::EncodingError("cannot decode the identity element".to_string())
-        })?;
         let mut out = [0u8; CHUNK_SIZE];
-        out.copy_from_slice(&x[1..=CHUNK_SIZE]);
+        Self::decode_30_bytes_into(element, &mut out)?;
         Ok(out)
+    }
+
+    /// Recover the 30 payload bytes embedded by [`Self::encode_30_bytes`] into
+    /// `out`.
+    ///
+    /// The affine point and its x-coordinate are held in buffers that are
+    /// overwritten on return, and the bytes go into a buffer the caller owns,
+    /// so that a secret (part of a key share) is not left in a value this
+    /// function returns.
+    ///
+    /// # Errors
+    ///
+    /// - `EncodingError` if the element is the identity, which carries no data
+    pub(crate) fn decode_30_bytes_into(
+        element: &P256Element,
+        out: &mut [u8; CHUNK_SIZE],
+    ) -> Result<(), Error> {
+        use p256::elliptic_curve::point::AffineCoordinates;
+
+        if element.is_identity() {
+            return Err(Error::EncodingError(
+                "cannot decode the identity element".to_string(),
+            ));
+        }
+        let affine = Zeroizing::new(element.0.to_affine());
+        let x_bytes = Zeroizing::new(affine.x());
+        let x: &[u8; 32] = (&*x_bytes).into();
+        out.copy_from_slice(&x[1..=CHUNK_SIZE]);
+        Ok(())
+    }
+
+    /// Decode bytes from the given number of P-256 elements into `out`.
+    ///
+    /// The chunks are held in a buffer that is overwritten on return, and the
+    /// bytes go into a buffer the caller owns, so that a secret (a key share)
+    /// is not left in a value this function returns.
+    ///
+    /// # Errors
+    ///
+    /// - `EncodingError` if an element is the identity, which encodes no data
+    pub(crate) fn decode_bytes_into<const I: usize, const O: usize>(
+        element: &[P256Element; I],
+        out: &mut [u8; O],
+    ) -> Result<(), Error> {
+        let mut chunks = Zeroizing::new([[0u8; CHUNK_SIZE]; I]);
+        for (chunk, message) in chunks.iter_mut().zip(element) {
+            Self::decode_30_bytes_into(message, chunk)?;
+        }
+        Codec::<O, I>::join_into(&chunks, out);
+        Ok(())
     }
 
     /// Encode a scalar into two elements.
@@ -242,11 +299,14 @@ impl P256Group {
     /// - `EncodingError` if a point was not found, with negligible probability
     pub fn encode_scalar(scalar: &P256Scalar) -> Result<[P256Element; 2], Error> {
         use crate::utils::serialization::Serializable;
-        let mut bytes = Vec::with_capacity(32);
-        scalar.write(&mut bytes);
-        let bytes: [u8; 32] = bytes
-            .try_into()
-            .map_err(|_| Error::EncodingError("scalar is not 32 bytes".to_string()))?;
+        // The scalar may be secret (a key share): its byte copies are cleared on return.
+        let mut serialized = Zeroizing::new(Vec::with_capacity(32));
+        scalar.write(&mut serialized);
+        let mut bytes = Zeroizing::new([0u8; 32]);
+        if serialized.len() != bytes.len() {
+            return Err(Error::EncodingError("scalar is not 32 bytes".to_string()));
+        }
+        bytes.copy_from_slice(&serialized);
 
         Self::encode_bytes(&bytes)
     }
@@ -258,7 +318,10 @@ impl P256Group {
     /// - `ScalarDecodeError` if the bytes are not a canonical P-256 scalar
     pub fn decode_scalar(element: &[P256Element; 2]) -> Result<P256Scalar, Error> {
         use crate::utils::serialization::Deserializable;
-        let bytes = Self::decode_bytes::<2, 32>(element)?;
-        P256Scalar::deser(&bytes)
+        // The scalar may be secret (a key share): its bytes are decoded into a
+        // buffer that is overwritten on return.
+        let mut bytes = Zeroizing::new([0u8; 32]);
+        Self::decode_bytes_into::<2, 32>(element, &mut bytes)?;
+        P256Scalar::deser(&*bytes)
     }
 }

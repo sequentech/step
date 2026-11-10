@@ -966,6 +966,7 @@ dependencies = [
  "wasm-bindgen-rayon",
  "wasm-bindgen-test",
  "web-sys",
+ "zeroize",
 ]
 
 [[package]]
@@ -5192,6 +5193,7 @@ dependencies = [
  "sha3",
  "thiserror 1.0.69",
  "wasm-bindgen-test",
+ "zeroize",
 ]
 
 [[package]]

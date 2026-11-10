@@ -32,7 +32,6 @@ const spanishTranslation: TranslationType = {
             dragDropOption: "O arrastre el fichero aquí",
             importErrorDescription:
                 "Hubo un problema al importar el voto auditable. ¿Eligió el archivo correcto?",
-            importErrorMoreInfo: "Más información",
             importErrorTitle: "Error",
             ciphertextErrorTitle: "La verificación del voto ha fallado",
             ciphertextErrorDescription:

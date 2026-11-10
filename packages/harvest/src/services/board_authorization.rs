@@ -9,6 +9,8 @@ use sequent_core::signing::SigningAction;
 use sequent_core::types::permissions::Permissions;
 use serde_json::Value;
 use uuid::Uuid;
+use windmill::services::ceremonies::tally_ceremony::check_second_count;
+use windmill::services::ceremonies::tally_validation::TallyValidationError;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::election_lifecycle;
 use windmill::services::signing::board_gate::{self, BoardGateOutcome};
@@ -92,7 +94,8 @@ mod prerequisite_tests {
     fn missing_export_remains_a_readable_action_error() {
         let message = "Export the complete, current election execution data before requesting deletion";
         let body: serde_json::Value =
-            serde_json::from_str(&operation_prerequisite(message.into())).unwrap();
+            serde_json::from_str(&operation_prerequisite(message.into()))
+                .unwrap();
         assert_eq!(body["message"], message);
         assert_eq!(body["extensions"]["code"], "operation-prerequisite");
         assert!(body["extensions"].get("signing_request").is_none());
@@ -100,23 +103,22 @@ mod prerequisite_tests {
 
     #[test]
     fn action_error_escapes_quotes_and_preserves_its_reason() {
-        let message = "The \"before-counting\" check is required.\nRun it again.";
+        let message =
+            "The \"before-counting\" check is required.\nRun it again.";
         let body: serde_json::Value =
-            serde_json::from_str(&operation_prerequisite(message.into())).unwrap();
+            serde_json::from_str(&operation_prerequisite(message.into()))
+                .unwrap();
         assert_eq!(body["message"], message);
     }
 }
 
-/// An authenticated caller repeats the same request after the board approves
-/// it. A waiting request commits its audit record but releases no protected
-/// data. The returned id is persisted with asynchronous work for worker checks.
-pub async fn authorize_operation(
+/// The caller's permission for the operation and membership of the election
+/// board, checked before anything is read for the operation.
+fn authorize_caller(
     claims: &JwtClaims,
-    event: &str,
     action: SigningAction,
     operation: &str,
-    subject: Value,
-) -> RouteResult<Option<Uuid>> {
+) -> RouteResult<SigningCaller> {
     let permission = match action {
         SigningAction::ImportElectionData => match operation {
             "import-voters" => Permissions::VOTER_CREATE,
@@ -153,6 +155,20 @@ pub async fn authorize_operation(
     let caller = SigningCaller::from_claims(claims);
     board_gate::require_board(&caller)
         .map_err(|error| (Status::Forbidden, error.to_string()))?;
+    Ok(caller)
+}
+
+/// An authenticated caller repeats the same request after the board approves
+/// it. A waiting request commits its audit record but releases no protected
+/// data. The returned id is persisted with asynchronous work for worker checks.
+pub async fn authorize_operation(
+    claims: &JwtClaims,
+    event: &str,
+    action: SigningAction,
+    operation: &str,
+    subject: Value,
+) -> RouteResult<Option<Uuid>> {
+    let caller = authorize_caller(claims, action, operation)?;
     let tenant = &claims.hasura_claims.tenant_id;
     let tenant_id = Uuid::parse_str(tenant).map_err(|_| {
         (Status::BadRequest, "Invalid tenant identifier".into())
@@ -194,15 +210,45 @@ pub async fn authorize_operation(
     } else {
         ElectoralPhase::PostProcessing
     };
-    election_lifecycle::require_phase(&tx, tenant, event, required_phase)
+    let in_phase = if matches!(
+        action,
+        SigningAction::ExportExecutionData | SigningAction::DeleteExecutionData
+    ) {
+        election_lifecycle::require_execution_data_phase(&tx, tenant, event)
+            .await
+    } else {
+        windmill::services::board_operations::require_unarchived_phase(
+            &tx,
+            tenant,
+            event,
+            required_phase,
+        )
         .await
-        .map_err(|e| (Status::Conflict, operation_prerequisite(e.to_string())))?;
+    };
+    in_phase.map_err(|e| {
+        (Status::Conflict, operation_prerequisite(e.to_string()))
+    })?;
     if action == SigningAction::DeleteExecutionData {
         windmill::services::board_operations::require_export(
             &tx, tenant, event,
         )
         .await
-        .map_err(|e| (Status::Conflict, operation_prerequisite(e.to_string())))?;
+        .map_err(|e| {
+            (Status::Conflict, operation_prerequisite(e.to_string()))
+        })?;
+    }
+    if action == SigningAction::StartTally && operation == "create-tally" {
+        // A results tally that its creation would refuse is refused before
+        // the board is asked to sign it.
+        let election_ids: Vec<String> =
+            serde_json::from_value(subject["election_ids"].clone())
+                .map_err(|e| (Status::BadRequest, e.to_string()))?;
+        check_second_count(&tx, tenant, event, &election_ids)
+            .await
+            .map_err(|e| match e.downcast_ref::<TallyValidationError>() {
+                Some(refusal) => (Status::BadRequest, refusal.to_string()),
+                None => (Status::InternalServerError, e.to_string()),
+            })?;
     }
     let source_revision =
         windmill::services::board_operations::source_revision(
@@ -318,6 +364,7 @@ pub async fn authorize_import_document(
     document_id: &str,
     parameters: Value,
 ) -> RouteResult<Uuid> {
+    authorize_caller(claims, SigningAction::ImportElectionData, operation)?;
     let mut client = get_hasura_pool()
         .await
         .get()

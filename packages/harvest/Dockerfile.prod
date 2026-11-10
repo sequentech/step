@@ -115,9 +115,13 @@ WORKDIR /app/harvest
 # directory fails instead of reaching for crates.io.
 ARG TEMENOS_CARGO_CACHE_ID=standalone
 ARG TARGETARCH
+# Cargo features. The default, none, builds the evaluated TOE, without the WebAssembly
+# plugins: the controlled production build and the installation kit pass no FEATURES.
+# Other deployments pass FEATURES=plugins.
+ARG FEATURES=
 RUN --mount=type=cache,id=${TEMENOS_CARGO_CACHE_ID}-${TARGETARCH},target=/app/target,sharing=locked set -eu; \
     offline=; [ -z "$(ls -A /app/vendor)" ] || offline=--offline; \
-    cargo build --release --locked $offline; \
+    cargo build --release --locked $offline --no-default-features --features "$FEATURES"; \
     mkdir -p /opt/temenos-build; \
     cp /app/target/release/harvest /opt/temenos-build/
 

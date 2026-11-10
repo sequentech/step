@@ -137,10 +137,8 @@ fn the_console_refuses_admins_whose_labels_leave_out_an_election() {
         let event = &fixture.event;
         let north = reader(&event.tenant_id).permission_labels(&["north"]);
 
-        for table in ["records", "ballots", "voters", "queue"] {
-            let (status, body) = page(&client, &north, event, table).await;
-            assert_refused(status, &body);
-        }
+        let (status, body) = page(&client, &north, event, "records").await;
+        assert_refused(status, &body);
         let (status, body) = record(&client, &north, &fixture).await;
         assert_refused(status, &body);
     })
@@ -158,9 +156,6 @@ fn the_console_answers_admins_whose_labels_allow_every_election() {
         let both =
             reader(&event.tenant_id).permission_labels(&["north", "south"]);
 
-        let (status, body) = page(&client, &both, event, "ballots").await;
-        assert_eq!(status, Status::Ok, "{body}");
-        assert_eq!(row_count(&body), 2, "{body}");
         let (status, body) = page(&client, &both, event, "records").await;
         assert_eq!(status, Status::Ok, "{body}");
         assert_eq!(row_count(&body), 1, "{body}");
@@ -168,6 +163,34 @@ fn the_console_answers_admins_whose_labels_allow_every_election() {
         assert_eq!(status, Status::Ok, "{body}");
         assert_eq!(body["position"], fixture.record, "{body}");
         assert_eq!(body["kind"], "CastVote", "{body}");
+    })
+}
+
+#[test]
+fn the_console_shows_no_table_of_the_ballot_box() {
+    rows::run(async {
+        let services = Services::on_test_database().await;
+        let client = services.client().await;
+        let fixture =
+            labelled_event(&services, rows::event(&services.hasura).await)
+                .await;
+        let event = &fixture.event;
+        let both =
+            reader(&event.tenant_id).permission_labels(&["north", "south"]);
+
+        for table in ["ballots", "voters", "queue"] {
+            let (status, body) = page(&client, &both, event, table).await;
+            assert_eq!(status, Status::BadRequest, "{body}");
+            assert_eq!(
+                body["extensions"]["code"], "InvalidElectoralLogConsoleRequest",
+                "{body}"
+            );
+            assert_eq!(
+                body["message"], "Unknown table: give records",
+                "{body}"
+            );
+            assert_eq!(row_count(&body), 0, "{body}");
+        }
     })
 }
 
@@ -185,9 +208,9 @@ fn super_admins_browse_other_tenants_events_whatever_their_labels() {
         let super_admin = reader(SUPER_ADMIN_TENANT_ID);
 
         let (status, body) =
-            page(&client, &super_admin, &fixture.event, "ballots").await;
+            page(&client, &super_admin, &fixture.event, "records").await;
         assert_eq!(status, Status::Ok, "{body}");
-        assert_eq!(row_count(&body), 2, "{body}");
+        assert_eq!(row_count(&body), 1, "{body}");
         let (status, body) =
             query(&client, &querier(&[]), &fixture.event).await;
         assert_eq!(status, Status::Ok, "{body}");

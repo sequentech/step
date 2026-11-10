@@ -19,7 +19,10 @@ use windmill::services::monitoring::snapshot::ScopeRead;
 fn viewer(event: &Event) -> Claims {
     Claims::new(&event.tenant_id, "monitor")
         .username("monitor")
-        .roles([Permissions::MONITORING_VIEW])
+        .roles([
+            Permissions::MONITORING_VIEW,
+            Permissions::SIGNING_REQUESTS_CANCEL,
+        ])
 }
 
 fn configurator(event: &Event) -> Claims {

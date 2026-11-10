@@ -122,14 +122,16 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                 {t("electionEventScreen.export.subtitle")}
 
                 <Alert severity="info" sx={{mt: 2, mb: 2}}>
-                    Export is available in Post-processing and requires the configured
-                    election-board approvals. The complete archive is encrypted and signed. Save the
-                    generated password separately.
+                    Export is available in Post-processing, or in Preparation for an archived
+                    election event, and requires the configured election-board approvals. The
+                    complete archive is encrypted and signed. Save the generated password
+                    separately.
                 </Alert>
                 <Typography component="div" variant="body2">
-                    The archive includes the voter register, electoral log, ballot boxes,
-                    publications, election rules and dates, tally evidence, reports, applications
-                    and public certificates. Trustee and protocol-manager private keys are excluded.
+                    The archive includes the voter register, electoral log, publications, election
+                    rules and dates, tally evidence with the counted ballots, each ballot box that
+                    no tally counted with all its ballots, reports, applications and public
+                    certificates. Trustee and protocol-manager private keys are excluded.
                 </Typography>
             </Dialog>
             {openPasswordDialog && password && (

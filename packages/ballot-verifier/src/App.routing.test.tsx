@@ -58,7 +58,7 @@ const voterEvent = eventPath(IDS.tenant, IDS.event)
 /** Answers the verifier's HTTP requests as the journeys' S3 and Hasura mocks do. */
 function serve(
     overrides: Partial<GlobalSettings> = {},
-    {eventConfig = true, eventPresentation = {}} = {}
+    {eventConfig = true, eventPresentation = {}, stylePresentation = {}} = {}
 ) {
     const served = {...settings, ...overrides}
     const unexpected: string[] = []
@@ -93,7 +93,9 @@ function serve(
             const {operationName} = JSON.parse(String(init.body))
             const headers = init.headers as Record<string, string>
             graphql.push({operationName, authorization: headers.authorization})
-            if (operationName === "GetBallotStyles") return reply({data: publishedBallotStyles()})
+            if (operationName === "GetBallotStyles") {
+                return reply({data: publishedBallotStyles(stylePresentation)})
+            }
         }
         unexpected.push(`${init?.method ?? "GET"} ${url}`)
         throw new Error(`Unexpected request: ${url}`)
@@ -101,24 +103,36 @@ function serve(
     return {unexpected, graphql}
 }
 
-const publishedBallotStyles = () => ({
-    sequent_backend_ballot_publication: [
-        {
-            __typename: "sequent_backend_ballot_publication",
-            id: "publication",
-            published_at: FIXED_TIME,
-        },
-    ],
-    sequent_backend_ballot_style: [
-        {
-            __typename: "sequent_backend_ballot_style",
-            ...electionFixture().style,
-            ballot_publication_id: "publication",
-            status: null,
-            deleted_at: null,
-        },
-    ],
-})
+/** The published ballot style, with `presentation` over its event presentation. */
+const publishedBallotStyles = (presentation: Record<string, unknown> = {}) => {
+    const {style} = electionFixture()
+    const ballot = JSON.parse(style.ballot_eml)
+    return {
+        sequent_backend_ballot_publication: [
+            {
+                __typename: "sequent_backend_ballot_publication",
+                id: "publication",
+                published_at: FIXED_TIME,
+            },
+        ],
+        sequent_backend_ballot_style: [
+            {
+                __typename: "sequent_backend_ballot_style",
+                ...style,
+                ballot_eml: JSON.stringify({
+                    ...ballot,
+                    election_event_presentation: {
+                        ...ballot.election_event_presentation,
+                        ...presentation,
+                    },
+                }),
+                ballot_publication_id: "publication",
+                status: null,
+                deleted_at: null,
+            },
+        ],
+    }
+}
 
 const CurrentLocation = () => {
     const navigate = useNavigate()
@@ -323,6 +337,38 @@ describe("the header", () => {
         await importStep()
 
         expect(screen.getByRole("banner")).not.toHaveTextContent("Hash:")
+    })
+})
+
+describe("the event's presentation CSS", () => {
+    /** The style rules on the page, as the browser holds them. */
+    const styles = () =>
+        Array.from(document.styleSheets)
+            .flatMap((sheet) => Array.from(sheet.cssRules).map((rule) => rule.cssText))
+            .join("\n")
+
+    it("is cleaned as the voting portal cleans it", async () => {
+        services = serve(
+            {},
+            {
+                stylePresentation: {
+                    css: [
+                        ".app-root { color: rgb(1, 2, 3); }",
+                        ".app-root header { background-image: url(https://s3.test/public/banner.png); }",
+                        ".app-root footer { background-image: url(https://tracker.example.test/a.png); }",
+                        '.app-root h1::after { content: "Verified"; }',
+                    ].join("\n"),
+                },
+            }
+        )
+        launch(`${voterEvent}/start`)
+        await importStep()
+
+        // Styling and the public bucket's files stay; other origins and added text do not.
+        await waitFor(() => expect(styles()).toMatch(/rgb\(1, 2, 3\)/))
+        expect(styles()).toContain("https://s3.test/public/banner.png")
+        expect(styles()).not.toContain("tracker.example.test")
+        expect(styles()).not.toContain("Verified")
     })
 })
 

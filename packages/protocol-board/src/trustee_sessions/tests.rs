@@ -888,3 +888,107 @@ async fn a_board_whose_configuration_does_not_name_the_trustee_is_skipped() {
     outsider.reconcile(&[]).await;
     assert!(kept(&outsider).is_empty());
 }
+
+/// The board and the message of every event logged while it is the current
+/// thread's subscriber.
+#[derive(Clone, Default)]
+struct EventLog(Arc<std::sync::Mutex<Vec<(String, String)>>>);
+
+impl EventLog {
+    /// The events that say a session was opened.
+    fn opened(&self) -> Vec<(String, String)> {
+        self.0
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(_, message)| message.starts_with("session opened"))
+            .cloned()
+            .collect()
+    }
+}
+
+#[derive(Default)]
+struct EventFields {
+    board: String,
+    message: String,
+}
+
+impl tracing::field::Visit for EventFields {
+    fn record_debug(
+        &mut self,
+        field: &tracing::field::Field,
+        value: &dyn std::fmt::Debug,
+    ) {
+        match field.name() {
+            "board" => self.board = format!("{value:?}"),
+            "message" => self.message = format!("{value:?}"),
+            _ => {}
+        }
+    }
+}
+
+impl tracing::Subscriber for EventLog {
+    fn enabled(&self, _: &tracing::Metadata<'_>) -> bool {
+        true
+    }
+    fn new_span(&self, _: &tracing::span::Attributes<'_>) -> tracing::span::Id {
+        tracing::span::Id::from_u64(1)
+    }
+    fn record(&self, _: &tracing::span::Id, _: &tracing::span::Record<'_>) {}
+    fn record_follows_from(
+        &self,
+        _: &tracing::span::Id,
+        _: &tracing::span::Id,
+    ) {
+    }
+    fn event(&self, event: &tracing::Event<'_>) {
+        let mut fields = EventFields::default();
+        event.record(&mut fields);
+        self.0.lock().unwrap().push((fields.board, fields.message));
+    }
+    fn enter(&self, _: &tracing::span::Id) {}
+    fn exit(&self, _: &tracing::span::Id) {}
+}
+
+/// Beyond braid: when a session is opened, the log names the fingerprint of
+/// the protocol manager key of the Configuration the trustee accepted, which
+/// is the fingerprint of the stored Configuration the admin portal shows; a
+/// tally board's session names its parent's.
+#[tokio::test]
+async fn a_session_is_opened_with_the_fingerprint_of_its_manager_key() {
+    let harness = Harness::new(3);
+    let parent = harness.board(1, &[0, 1, 2]);
+    let stored = harness.dkgs.borrow()[&parent]
+        .board
+        .configuration
+        .to_bytes();
+    let fingerprint = crate::SignedConfiguration::parse(&stored)
+        .unwrap()
+        .manager_key_fingerprint()
+        .unwrap();
+    let log = EventLog::default();
+    let _subscriber = tracing::subscriber::set_default(log.clone());
+    let mut sets = harness.start_all();
+
+    generate_key(&harness, &mut sets, &parent).await;
+    let board = harness.tally_board(&parent, &[0, 1], &[payload(b"opened")]);
+    round(&mut sets, &[tally(&board, &parent)]).await;
+
+    let line = format!(
+        "session opened: Configuration accepted, protocol manager key \
+         SHA-256 {fingerprint}"
+    );
+    let opened = log.opened();
+    assert!(
+        opened.iter().all(|(_, message)| *message == line),
+        "{opened:?}"
+    );
+    for name in [&parent, &board] {
+        let times = opened
+            .iter()
+            .filter(|(board, _)| *board == name.to_string())
+            .count();
+        assert_eq!(times, 3, "{name}: {opened:?}");
+    }
+    assert_nothing_halted(&sets);
+}

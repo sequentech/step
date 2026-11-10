@@ -42,6 +42,7 @@ pub fn service_unavailable(req: &Request) -> Json<serde_json::Value> {
     let (code, message) = match failure.0 {
         VoterAccessFailure::AuditStorageUnavailable => ("AuditStorageUnavailable", "Voting is temporarily unavailable while audit storage is checked. Please try again later."),
         VoterAccessFailure::ElectionUnavailable => ("ElectionUnavailable", "Voting is temporarily unavailable. Please try again after the election board confirms that voting has resumed."),
+        VoterAccessFailure::StaffAuditStorageUnavailable => ("AuditStorageUnavailable", "This service is temporarily unavailable while audit storage is checked. Please try again later."),
     };
     Json(serde_json::json!({"message":message,"extensions":{"code":code}}))
 }

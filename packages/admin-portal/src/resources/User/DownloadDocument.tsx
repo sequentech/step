@@ -12,6 +12,11 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {downloadUrl} from "@sequentech/ui-core"
 import {GET_DOCUMENT} from "@/queries/GetDocument"
 import {ReportDocumentAccess, ReportPasswordDialog} from "../Reports/ReportPasswordDialog"
+import {useTranslation} from "react-i18next"
+import {useNotify} from "react-admin"
+import {phaseRefusalKey} from "@/services/serverRefusals"
+
+const WAITS_FOR_POST_PROCESSING = "refusals.documentWaitsForPostProcessing"
 
 export interface DownloadDocumentProps {
     onDownload: () => void
@@ -38,6 +43,8 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
         access?: ReportDocumentAccess
     }>()
     const downloadStarted = useRef(false)
+    const {t} = useTranslation()
+    const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
     const [tenantId] = useTenantStore()
     const documentScope = JSON.stringify([tenantId, documentId])
@@ -83,6 +90,19 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
     })
 
     let document = documents?.sequent_backend_document?.[0]
+
+    // A document that holds decoded ballots is kept until post-processing:
+    // say so and end the download. While the phase is changing, the next poll
+    // asks again.
+    const waitsForPostProcessing =
+        phaseRefusalKey(error, WAITS_FOR_POST_PROCESSING) === WAITS_FOR_POST_PROCESSING
+
+    useEffect(() => {
+        if (!waitsForPostProcessing || downloaded || downloadStarted.current) return
+        notify(t(WAITS_FOR_POST_PROCESSING), {type: "error"})
+        setDownloaded(true)
+        onDownload()
+    }, [waitsForPostProcessing, downloaded])
 
     useEffect(() => {
         if (

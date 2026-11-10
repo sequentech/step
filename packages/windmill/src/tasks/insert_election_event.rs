@@ -11,6 +11,7 @@ use crate::services::import::import_election_event::ensure_election_audit_boards
 use crate::services::import::import_election_event::ensure_new_election_event;
 use crate::services::import::import_election_event::insert_election_event_db;
 use crate::services::import::import_election_event::upsert_keycloak_realm;
+use crate::services::import::import_election_event::EventRealm;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
@@ -23,7 +24,7 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
 use sequent_core::types::hasura::core::{TasksExecution, VotingChannels};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use std::env;
 use std::fs;
 use tokio_postgres::row::Row;
@@ -90,7 +91,7 @@ pub async fn insert_election_event_anyhow(
 
     crate::postgres::scheduled_event::lock_scheduling_event(&hasura_transaction, &tenant_id, &id)
         .await?;
-    match upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None, None).await {
+    match upsert_keycloak_realm(tenant_id.as_str(), &id, EventRealm::Template, None).await {
         Ok(realm) => Some(realm),
         Err(err) => {
             update_fail(
@@ -178,6 +179,73 @@ pub struct CreateElectionEventInput {
     pub statistics: Option<Value>,
 }
 
+impl CreateElectionEventInput {
+    /// The new election event as the caller may describe it where election
+    /// data arrives only through the signed import: its tenant, name,
+    /// description and alias. Every other attribute, the id included, takes
+    /// its default.
+    pub fn texts_only(&self) -> Self {
+        Self {
+            id: None,
+            created_at: None,
+            updated_at: None,
+            labels: None,
+            annotations: None,
+            tenant_id: self.tenant_id.clone(),
+            name: self.name.clone(),
+            description: self.description.clone(),
+            presentation: Some(json!({ "i18n": self.texts() })),
+            bulletin_board_reference: None,
+            is_archived: None,
+            voting_channels: None,
+            status: None,
+            user_boards: None,
+            encryption_protocol: None,
+            is_audit: None,
+            audit_election_event_id: None,
+            public_key: None,
+            alias: self.alias.clone(),
+            statistics: None,
+        }
+    }
+
+    /// The name, description and alias per language: those `presentation.i18n`
+    /// gives, or else the top-level ones, in English.
+    fn texts(&self) -> Map<String, Value> {
+        /// The texts of a language that the caller gives.
+        const TEXTS: [&str; 3] = ["name", "description", "alias"];
+        let given: Map<String, Value> = self
+            .presentation
+            .as_ref()
+            .and_then(|presentation| presentation.get("i18n"))
+            .and_then(Value::as_object)
+            .into_iter()
+            .flatten()
+            .filter_map(|(language, texts)| {
+                let texts: Map<String, Value> = texts
+                    .as_object()?
+                    .iter()
+                    .filter(|(key, text)| TEXTS.contains(&key.as_str()) && text.is_string())
+                    .map(|(key, text)| (key.clone(), text.clone()))
+                    .collect();
+                (!texts.is_empty()).then(|| (language.clone(), Value::Object(texts)))
+            })
+            .collect();
+        if !given.is_empty() {
+            return given;
+        }
+        let mut texts = Map::new();
+        texts.insert("name".to_string(), json!(self.name));
+        if let Some(description) = &self.description {
+            texts.insert("description".to_string(), json!(description));
+        }
+        if let Some(alias) = &self.alias {
+            texts.insert("alias".to_string(), json!(alias));
+        }
+        Map::from_iter([("en".to_string(), Value::Object(texts))])
+    }
+}
+
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
@@ -193,4 +261,86 @@ pub async fn insert_election_event_t(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn input(value: Value) -> CreateElectionEventInput {
+        serde_json::from_value(value).unwrap()
+    }
+
+    #[test]
+    fn only_the_texts_of_a_new_event_come_from_the_caller() {
+        let given = input(json!({
+            "id": "4b1c9c33-5bb0-4d8e-9a59-8c3a4f8f9a01",
+            "tenant_id": "tenant",
+            "name": "Event",
+            "description": "About",
+            "alias": "Short",
+            "is_archived": true,
+            "is_audit": true,
+            "public_key": "key",
+            "encryption_protocol": "OTHER",
+            "status": {"voting_status": "OPEN"},
+            "voting_channels": {"online": true},
+            "labels": {"a": "b"},
+            "annotations": {"c": "d"},
+            "user_boards": "boards",
+            "audit_election_event_id": "4b1c9c33-5bb0-4d8e-9a59-8c3a4f8f9a02",
+            "presentation": {
+                "i18n": {
+                    "en": {"name": "Event", "description": "About", "css": "x"},
+                    "es": {"name": "Evento", "alias": 3},
+                    "fr": {"other": "x"}
+                },
+                "language_conf": {"enabled_language_codes": ["en", "es"]},
+                "keys_ceremony_policy": "AUTOMATED_CEREMONY"
+            }
+        }));
+        let kept = given.texts_only();
+        assert_eq!(
+            serde_json::to_value(&kept).unwrap(),
+            json!({
+                "id": null,
+                "created_at": null,
+                "updated_at": null,
+                "labels": null,
+                "annotations": null,
+                "tenant_id": "tenant",
+                "name": "Event",
+                "description": "About",
+                "presentation": {"i18n": {
+                    "en": {"name": "Event", "description": "About"},
+                    "es": {"name": "Evento"}
+                }},
+                "bulletin_board_reference": null,
+                "is_archived": null,
+                "voting_channels": null,
+                "status": null,
+                "user_boards": null,
+                "encryption_protocol": null,
+                "is_audit": null,
+                "audit_election_event_id": null,
+                "public_key": null,
+                "alias": "Short",
+                "statistics": null
+            })
+        );
+    }
+
+    #[test]
+    fn without_translations_the_texts_are_the_english_ones() {
+        let given = input(json!({
+            "tenant_id": "tenant",
+            "name": "Event",
+            "alias": "Short",
+            "presentation": {"css": "x"}
+        }));
+        assert_eq!(
+            given.texts_only().presentation,
+            Some(json!({"i18n": {"en": {"name": "Event", "alias": "Short"}}}))
+        );
+    }
 }

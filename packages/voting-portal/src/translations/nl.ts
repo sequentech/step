@@ -262,6 +262,8 @@ const dutchTranslation: TranslationType = {
                     "De stembiljetstijl is niet beschikbaar. Neem contact op met ondersteuning.",
                 NO_AUDITABLE_BALLOT:
                     "Er is geen auditeerbaar stembiljet beschikbaar. Neem contact op met ondersteuning.",
+                AUDIT_BALLOT:
+                    "De stembus kon de controle van dit stembiljet niet bevestigen. Probeer het later opnieuw of neem contact op met ondersteuning.",
                 INCONSISTENT_HASH:
                     "Er was een fout met het hash-proces van het stembiljet. BallotId: {{ballotId}} is niet consistent met de auditeerbare Ballot Hash: {{auditableBallotHash}}. Meld dit probleem bij de ondersteuning.",
                 ELECTION_EVENT_NOT_OPEN:

@@ -305,17 +305,18 @@ fn an_import_is_logged_for_its_importer_or_the_system() {
 
 // -- presets and fixtures ---------------------------------------------------------
 
-/// Every action once, every rule valid.
-fn assert_complete(name: &str, rules: &[SigningRule]) {
+/// Every action `carries` takes once and no other, every rule valid.
+fn assert_complete(name: &str, rules: &[SigningRule], carries: fn(&SigningAction) -> bool) {
     let actions: Vec<SigningAction> = rules.iter().map(|rule| rule.action).collect();
     let unique: BTreeSet<String> = actions.iter().map(ToString::to_string).collect();
     assert_eq!(unique.len(), actions.len(), "{name}: an action twice");
     assert_eq!(
         unique,
         SigningAction::iter()
+            .filter(carries)
             .map(|action| action.to_string())
             .collect(),
-        "{name}: every action has a rule"
+        "{name}: every action it carries has a rule"
     );
     for rule in rules {
         assert_eq!(rule.validate(), Ok(()), "{name}: {}", rule.action);
@@ -330,7 +331,11 @@ fn find(rules: &[SigningRule], action: SigningAction) -> &SigningRule {
 #[test]
 fn the_janitor_template_carries_the_sample_preset() {
     let preset: Preset = serde_json::from_str(JANITOR_PRESET).unwrap();
-    assert_complete("janitor preset", &preset.signing_rules);
+    // No group of the client realm signs the board's operations, so the
+    // preset leaves their numbers for the tenant to set.
+    assert_complete("janitor preset", &preset.signing_rules, |action| {
+        !action.is_board_gate()
+    });
     let needs = |action| {
         let rule = find(&preset.signing_rules, action);
         assert_eq!(rule.requirement, SigningRequirement::Required, "{action}");
@@ -396,7 +401,7 @@ fn the_janitor_tenant_template_takes_the_display_name_as_a_parameter() {
 fn the_student_council_has_a_configuration_of_its_own() {
     let council: Preset = serde_json::from_str(STUDENT_COUNCIL).unwrap();
     let preset: Preset = serde_json::from_str(JANITOR_PRESET).unwrap();
-    assert_complete("student council", &council.signing_rules);
+    assert_complete("student council", &council.signing_rules, |_| true);
     assert_ne!(council.signing_rules, preset.signing_rules);
     assert_ne!(council.signing_checks, preset.signing_checks);
 }

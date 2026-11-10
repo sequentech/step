@@ -355,37 +355,48 @@ async fn a_publication_that_cannot_be_published_fails_its_task_with_the_reason()
     let services = Services::on_test_database().await;
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
+    let publication = uuid::Uuid::new_v4().to_string();
+    let reason = "Can't find ballot publication";
+
+    let response = publish(&client, &event, &publication).await;
+    let task = services.ledger.tasks()[0].clone();
+    assert_eq!(
+        json(response).await,
+        failure(&format!("Publish task {} failed: {reason}", task.id))
+    );
+    assert_eq!(task.execution_status, "FAILED");
+    assert_eq!(task.logs, Some(json!([format!("Error: {reason}")])));
+    assert_eq!(
+        services.electoral_log.entries().last(),
+        Some(&LoggedEntry::BallotPublicationFailure {
+            task_id: task.id.clone(),
+            publication_id: publication.clone(),
+            stage: BallotPublicationStage::Publish,
+            message: reason.to_string(),
+        })
+    );
+}
+
+#[rocket::async_test]
+async fn a_publication_not_generated_yet_is_refused_before_its_task() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
     let ungenerated = event
         .ballot_publication(&services.hasura, false, false)
         .await;
-    let unknown = uuid::Uuid::new_v4().to_string();
 
-    for (publication, reason) in [
-        (unknown, "Can't find ballot publication"),
+    assert_eq!(
+        json(publish(&client, &event, &ungenerated).await).await,
         (
-            ungenerated,
-            "Ballot publication not generated yet, can't publish.",
-        ),
-    ] {
-        let tasks_before = services.ledger.tasks().len();
-        let response = publish(&client, &event, &publication).await;
-        let task = services.ledger.tasks()[tasks_before].clone();
-        assert_eq!(
-            json(response).await,
-            failure(&format!("Publish task {} failed: {reason}", task.id))
-        );
-        assert_eq!(task.execution_status, "FAILED");
-        assert_eq!(task.logs, Some(json!([format!("Error: {reason}")])));
-        assert_eq!(
-            services.electoral_log.entries().last(),
-            Some(&LoggedEntry::BallotPublicationFailure {
-                task_id: task.id.clone(),
-                publication_id: publication.clone(),
-                stage: BallotPublicationStage::Publish,
-                message: reason.to_string(),
+            Status::BadRequest,
+            json!({
+                "message": "Only a generated, current ballot publication can be published.",
+                "extensions": {"reason": "transition", "code": "invalid"},
             })
-        );
-    }
+        )
+    );
+    assert!(services.ledger.tasks().is_empty());
 }
 
 #[rocket::async_test]
@@ -428,8 +439,21 @@ async fn a_publish_without_a_task_row_is_not_attempted() {
         .with_ledger(MemoryTaskLedger::refusing());
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
+    let published_at =
+        |row: tokio_postgres::Row| -> Option<chrono::DateTime<Utc>> {
+            row.get(0)
+        };
+    let select = "SELECT published_at FROM sequent_backend.ballot_publication
+         WHERE id = $1";
+    // A published publication passes its approval and stops at the task row.
     let publication =
-        generated_publication(&services.hasura, &event, false).await;
+        generated_publication(&services.hasura, &event, true).await;
+    let published_id = uuid::Uuid::parse_str(&publication).unwrap();
+    let before = published_at(
+        rows::query(&services.hasura, select, &[&published_id])
+            .await
+            .remove(0),
+    );
 
     let (status, body) =
         json(publish(&client, &event, &publication).await).await;
@@ -441,14 +465,34 @@ async fn a_publish_without_a_task_row_is_not_attempted() {
             .starts_with("tasks_execution is unavailable"),
         "{body}"
     );
-    let published = rows::query(
-        &services.hasura,
-        "SELECT published_at FROM sequent_backend.ballot_publication
-         WHERE id = $1 AND published_at IS NOT NULL",
-        &[&uuid::Uuid::parse_str(&publication).unwrap()],
-    )
-    .await;
-    assert!(published.is_empty());
+    assert_eq!(
+        published_at(
+            rows::query(&services.hasura, select, &[&published_id])
+                .await
+                .remove(0)
+        ),
+        before
+    );
+
+    // An unpublished one stops at its approval, before the task row, and
+    // stays unpublished.
+    let unpublished =
+        generated_publication(&services.hasura, &event, false).await;
+    let unpublished_id = uuid::Uuid::parse_str(&unpublished).unwrap();
+    let (_, body) = json(publish(&client, &event, &unpublished).await).await;
+    assert!(
+        !body.to_string().contains("tasks_execution is unavailable"),
+        "{body}"
+    );
+    assert_eq!(
+        published_at(
+            rows::query(&services.hasura, select, &[&unpublished_id])
+                .await
+                .remove(0)
+        ),
+        None
+    );
+    assert!(services.ledger.tasks().is_empty());
 }
 
 #[rocket::async_test]

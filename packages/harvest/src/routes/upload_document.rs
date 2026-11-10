@@ -33,6 +33,9 @@ pub async fn get_upload_url(
 ) -> Result<Json<UploadDocumentOutput>, (Status, String)> {
     let inner = body.into_inner();
     authorize_upload(&claims, &inner)?;
+    if !documents::is_document_name(&inner.name) {
+        return Err(invalid_document_name());
+    }
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|err| {
@@ -73,6 +76,16 @@ pub async fn get_upload_url(
         document_id: document.id,
         url,
     }))
+}
+
+/// The answer to a document name that [`documents::is_document_name`]
+/// refuses. Hasura passes on the message of a JSON body only.
+pub(crate) fn invalid_document_name() -> (Status, String) {
+    let refusal = serde_json::json!({
+        "message": documents::DOCUMENT_NAME_REFUSAL,
+        "extensions": { "code": "invalid-document-name" }
+    });
+    (Status::BadRequest, refusal.to_string())
 }
 
 /// Existing generic upload access is unchanged. Tenant restore and signed
@@ -134,3 +147,7 @@ fn is_private_archive(input: &UploadDocumentInput) -> bool {
         lower.ends_with(".ezip") && input.media_type == "application/ezip"
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/upload_document_routes.rs"]
+mod route_tests;

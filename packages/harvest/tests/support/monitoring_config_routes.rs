@@ -21,6 +21,7 @@ fn configurator(event: &Event) -> Claims {
         .roles([
             Permissions::MONITORING_VIEW,
             Permissions::MONITORING_CONFIGURE,
+            Permissions::SIGNING_REQUESTS_CANCEL,
         ])
 }
 
@@ -396,8 +397,10 @@ async fn a_widget_checks_saves_and_draws_through_the_real_renderer() {
         revision + 1
     );
 
-    let viewer = Claims::new(&event.tenant_id, "monitor")
-        .roles([Permissions::MONITORING_VIEW]);
+    let viewer = Claims::new(&event.tenant_id, "monitor").roles([
+        Permissions::MONITORING_VIEW,
+        Permissions::SIGNING_REQUESTS_CANCEL,
+    ]);
     let (status, body) = json(
         post(
             &client,

@@ -11,6 +11,7 @@
 /attack-detection/get
 /attack-detection/settings/get
 /attack-detection/settings/update
+/audit-ballot
 /cast-ballot
 /change-application-status
 /confirm-key-custody
@@ -37,6 +38,7 @@
 /delete-user
 /delete-user-role
 /delete-users
+/disable-election-revoting
 /edit-user
 /election-event/stats
 /election-event/top-votes-by-ip
@@ -62,7 +64,6 @@
 /export-tally-results
 /export-tasks-execution
 /export-template
-/export-tenant-config
 /export-tenant-users
 /export-trustees
 /export-users
@@ -100,7 +101,6 @@
 /import-certificate-authority
 /import-election-event
 /import-templates
-/import-tenant-config
 /import-users
 /insert-cast-vote
 /insert-election-event

@@ -263,6 +263,8 @@ const basqueTranslation: TranslationType = {
                     "Bozketa estiloa ez dago eskuragarri. Mesedez, jarri harremanetan laguntzarekin.",
                 NO_AUDITABLE_BALLOT:
                     "Ez dago auditatu daitekeen bozketarik eskuragarri. Mesedez, jarri harremanetan laguntzarekin.",
+                AUDIT_BALLOT:
+                    "Hautetontziak ezin izan du bozketa honen egiaztapena berretsi. Saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 INCONSISTENT_HASH:
                     "Errorea izan da bozketa hash prozesuan. BallotId: {{ballotId}} ez da koherentea auditatu daitekeen Bozketa Hash-arekin: {{auditableBallotHash}}. Mesedez, eman arazo honen berri laguntzari.",
                 ELECTION_EVENT_NOT_OPEN:

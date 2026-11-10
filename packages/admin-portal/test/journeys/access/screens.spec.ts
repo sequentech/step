@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {FIXED_TIME, IDS} from "@sequentech/ui-test-kit/fixtures"
 import {test, expect, TENANT_ID} from "../fixtures"
+import {BUILT_IN_LOGO} from "../settings/data"
 import {expectRole} from "./data"
 
 test.describe("settings administrator", () => {
@@ -41,29 +42,54 @@ test("shows the messages placeholder", async ({page, portal}) => {
     await expect(page.getByText("Messages", {exact: true})).toBeVisible()
 })
 
-test("lists this tenant's scheduled notifications", async ({page, portal}) => {
-    const notification = {
-        id: "12121212-1212-4212-8212-121212121201",
-        tenant_id: TENANT_ID,
-        election_event_id: IDS.event,
-        created_at: FIXED_TIME,
-        updated_at: FIXED_TIME,
-    }
-    let rows: Record<string, unknown>[] = []
-    portal.graphql.on("sequent_backend_notification", () => ({
-        data: {
-            sequent_backend_notification: rows,
-            sequent_backend_notification_aggregate: {aggregate: {count: rows.length}},
-        },
-    }))
-    await page.goto(`${portal.origin}/sequent_backend_notification?lang=en`)
-    await expect(page.getByText("No Scheduled Events yet.", {exact: true})).toBeVisible()
-    rows = [notification]
-    await page.reload()
-    await expect(page.getByRole("columnheader", {name: "Created at"})).toBeVisible()
-    await expect(page.getByText("Invalid Date")).toHaveCount(0)
-    // Without an event in context the filter keeps an empty, match-all event condition.
-    expect(portal.graphql.callsTo("sequent_backend_notification")[0].variables.where).toEqual({
-        _and: [{election_event_id: {}}, {tenant_id: {_eq: TENANT_ID}}],
+test.describe("notification reader", () => {
+    test.use({
+        roles: [
+            "admin-user",
+            "election-event-read",
+            "election-event-write",
+            "election-event-create",
+            "election-read",
+            "notification-read",
+        ],
     })
+
+    test("lists this tenant's scheduled notifications", async ({page, portal}) => {
+        const notification = {
+            id: "12121212-1212-4212-8212-121212121201",
+            tenant_id: TENANT_ID,
+            election_event_id: IDS.event,
+            created_at: FIXED_TIME,
+            updated_at: FIXED_TIME,
+        }
+        let rows: Record<string, unknown>[] = []
+        portal.graphql.on("sequent_backend_notification", () => ({
+            data: {
+                sequent_backend_notification: rows,
+                sequent_backend_notification_aggregate: {aggregate: {count: rows.length}},
+            },
+        }))
+        await page.goto(`${portal.origin}/sequent_backend_notification?lang=en`)
+        await expect(page.getByText("No Scheduled Events yet.", {exact: true})).toBeVisible()
+        rows = [notification]
+        await page.reload()
+        await expect(page.getByRole("columnheader", {name: "Created at"})).toBeVisible()
+        await expect(page.getByText("Invalid Date")).toHaveCount(0)
+        // Without an event in context the filter keeps an empty, match-all event condition.
+        expect(portal.graphql.callsTo("sequent_backend_notification")[0].variables.where).toEqual({
+            _and: [{election_event_id: {}}, {tenant_id: {_eq: TENANT_ID}}],
+        })
+    })
+})
+
+test("shows no scheduled notifications without the notification-read permission", async ({
+    page,
+    portal,
+}) => {
+    await page.goto(`${portal.origin}/sequent_backend_notification?lang=en`)
+    // The header shows the built-in logo once the tenant has loaded.
+    await expect(page.getByRole("img", {name: "Logo Image"})).toHaveAttribute("src", BUILT_IN_LOGO)
+    await expect(page.getByText("No Scheduled Events yet.", {exact: true})).toHaveCount(0)
+    await expect(page.getByRole("columnheader", {name: "Created at"})).toHaveCount(0)
+    expect(portal.graphql.callsTo("sequent_backend_notification")).toEqual([])
 })

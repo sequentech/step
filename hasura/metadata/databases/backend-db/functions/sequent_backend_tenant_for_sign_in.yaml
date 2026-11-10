@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+function:
+    name: tenant_for_sign_in
+    schema: sequent_backend
+permissions:
+    - role: unauthorized

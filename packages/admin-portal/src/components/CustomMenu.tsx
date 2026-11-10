@@ -18,6 +18,8 @@ import MailIcon from "@mui/icons-material/Mail"
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong"
 import QueueIcon from "@mui/icons-material/Queue"
 import {TenantContext} from "@/providers/TenantContextProvider"
+import {offersBrowserTrustee} from "@/services/browserTrusteeAccess"
+import {adminPortalHelpLinks} from "@/services/tenantLookAndFeel"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -146,6 +148,8 @@ export const CustomMenu = () => {
         IPermissions.ELECTORAL_LOG_CONSOLE_READ
     )
     const showTaskQueues = authContext.isAuthorized(true, null, IPermissions.TASK_QUEUES_READ)
+    // None where the tenant requires signed configuration packages (see the helper).
+    const helpLinks = adminPortalHelpLinks(tenant)
 
     const openInNewTab = (url: string) => {
         setAnchorEl(null)
@@ -182,7 +186,7 @@ export const CustomMenu = () => {
                 <MenuWrapper>
                     <ElectionEvents />
 
-                    {tenant && isTrustee && (
+                    {isTrustee && offersBrowserTrustee(tenant) && (
                         <StyledItem
                             to="/trustee"
                             primaryText={open ? "Trustee Dashboard" : null}
@@ -226,7 +230,7 @@ export const CustomMenu = () => {
                             leftIcon={<MailIcon sx={{color: adminTheme.palette.brandColor}} />}
                         />
                     )}
-                    {tenant?.settings?.help_links?.length > 0 && (
+                    {helpLinks.length > 0 && (
                         <StyledHelpItem
                             disableElevation
                             onClick={(e: React.MouseEvent<HTMLElement>) =>
@@ -239,7 +243,7 @@ export const CustomMenu = () => {
                             </StyledHelpItemContentWrapper>
                         </StyledHelpItem>
                     )}
-                    {tenant?.settings?.help_links?.length > 0 && (
+                    {helpLinks.length > 0 && (
                         <MMenu
                             id="menu-sidebar"
                             anchorEl={anchorEl}
@@ -255,7 +259,7 @@ export const CustomMenu = () => {
                             open={Boolean(anchorEl)}
                             onClose={() => setAnchorEl(null)}
                         >
-                            {tenant?.settings?.help_links?.map((i: any) => {
+                            {helpLinks.map((i) => {
                                 return (
                                     <MenuItem
                                         key={i.url}

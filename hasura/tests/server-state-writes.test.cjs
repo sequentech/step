@@ -44,6 +44,29 @@ for (const table of serverWrittenTables) {
     }
 }
 
+// Rows that only server operations write.
+const serverWrittenOperations = {
+    applications: ["insert", "update", "delete"],
+    certificate_authority: ["delete"],
+    preview: ["insert"],
+    scheduled_event: ["delete"],
+    tally_session_resolution: ["insert", "update"],
+    tenant: ["insert", "delete"],
+}
+
+for (const [table, operations] of Object.entries(serverWrittenOperations)) {
+    for (const operation of operations) {
+        test(`only service-account can ${operation} ${table}`, () => {
+            assert.deepEqual(
+                roles(loadTable(table), operation).filter(
+                    (role) => role !== "service-account"
+                ),
+                []
+            )
+        })
+    }
+}
+
 for (const operation of ["insert", "update", "delete"]) {
     test(`admin-user cannot ${operation} scheduled events`, () => {
         assert.ok(
@@ -54,9 +77,11 @@ for (const operation of ["insert", "update", "delete"]) {
     })
 }
 
-test("admin-user can still read scheduled events and ballot styles", () => {
+test("admin-user reads neither scheduled events nor ballot styles", () => {
     assert.ok(
-        roles(loadTable("scheduled_event"), "select").includes("admin-user")
+        !roles(loadTable("scheduled_event"), "select").includes("admin-user")
     )
-    assert.ok(roles(loadTable("ballot_style"), "select").includes("admin-user"))
+    assert.ok(
+        !roles(loadTable("ballot_style"), "select").includes("admin-user")
+    )
 })

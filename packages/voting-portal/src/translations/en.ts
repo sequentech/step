@@ -260,6 +260,8 @@ const englishTranslation = {
                 NO_BALLOT_STYLE: "This ballot is not available. Please contact support",
                 NO_AUDITABLE_BALLOT:
                     "There is no ballot available for audit. Please contact support",
+                AUDIT_BALLOT:
+                    "The ballot box could not confirm the audit of this ballot. Please try again later or contact support",
                 INCONSISTENT_HASH:
                     "There was an error related to the ballot hashing process. BallotId: {{ballotId}} is not consistent with auditable Ballot Hash: {{auditableBallotHash}}. Please report this issue to support.",
                 ELECTION_EVENT_NOT_OPEN: "This election is closed. You can no longer vote",

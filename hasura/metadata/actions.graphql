@@ -3,10 +3,10 @@ type Query {
 }
 
 type Mutation {
-  export_verification_transcript(
-    election_event_id: String!
-    protocol_board_id: String!
-  ): ExportVerificationTranscriptOutput!
+    export_verification_transcript(
+        election_event_id: String!
+        protocol_board_id: String!
+    ): ExportVerificationTranscriptOutput!
 
     report_trustee_board(report: jsonb!): TrusteeReportOutput!
 }
@@ -265,6 +265,13 @@ type Mutation {
 }
 
 type Mutation {
+    disable_election_revoting(
+        election_event_id: String!
+        election_id: String!
+    ): DisableElectionRevotingOutput
+}
+
+type Mutation {
     delete_tenant(tenant_id: String!): DeleteTenant
 }
 
@@ -490,10 +497,6 @@ type Mutation {
 }
 
 type Mutation {
-    export_tenant_config(tenant_id: String): documentTaskOutput
-}
-
-type Mutation {
     export_tenant_users(tenant_id: String!): ExportTenantUsersOutput
 }
 
@@ -705,15 +708,6 @@ type Mutation {
 }
 
 type Mutation {
-    import_tenant_config(
-        tenant_id: String!
-        document_id: String!
-        import_configurations: ImportOptions
-        sha256: String
-    ): ImportTenantOutput
-}
-
-type Mutation {
     import_users(
         tenant_id: String!
         election_event_id: String
@@ -754,6 +748,10 @@ type Mutation {
         ballot_id: String!
         cast_signature: String!
     ): CastBallotOutput
+}
+
+type Mutation {
+    audit_ballot(election_id: uuid!, ballot_id: String!): AuditBallotOutput
 }
 
 type Mutation {
@@ -1327,12 +1325,6 @@ input ApplicationChangeStatusBody {
     rejection_message: String
 }
 
-input ImportOptions {
-    include_tenant: Boolean
-    include_keycloak: Boolean
-    include_roles: Boolean
-}
-
 input CountUsersInput {
     tenant_id: uuid!
     election_event_id: uuid
@@ -1702,6 +1694,11 @@ type CastBallotOutput {
     cast_vote_id: uuid!
 }
 
+type AuditBallotOutput {
+    ballot_id: String!
+    ballot_hash: String!
+}
+
 type createBallotReceiptOutput {
     id: uuid!
     ballot_id: String
@@ -1894,6 +1891,11 @@ type ArchiveElectionEvent {
     id: String!
 }
 
+type DisableElectionRevotingOutput {
+    election_id: String!
+    num_allowed_revotes: Int!
+}
+
 type DeleteTenant {
     id: String
     task_execution: tasks_execution_type
@@ -2059,12 +2061,6 @@ type ExportTrusteesOutput {
 type SetVoterAuthenticationOutput {
     success: Boolean!
     message: String
-}
-
-type ImportTenantOutput {
-    message: String
-    error: String
-    task_execution: tasks_execution_type
 }
 
 type ExportElectionEventOutput {
@@ -3209,36 +3205,61 @@ type UpdateEventMessagingConfigOutput {
 }
 
 type ExportVerificationTranscriptOutput {
-  document_id: String!
-  url: String!
+    document_id: String!
+    url: String!
 }
 
 # Durable electoral phase and secure recovery state.
 type Query {
-  get_election_lifecycle(election_event_id: String!): jsonb!
+    get_election_lifecycle(election_event_id: String!): jsonb!
 }
 type Mutation {
-  start_election_post_processing(election_event_id: String!): jsonb!
+    start_election_post_processing(election_event_id: String!): jsonb!
 }
 
 # Complete background security self-tests (first delivery, version 1.0).
 type Mutation {
-    run_self_tests(election_event_id: String!, trigger: String): SelfTestStartOutput!
+    run_self_tests(
+        election_event_id: String!
+        trigger: String
+    ): SelfTestStartOutput!
     run_tsf_integrity_check(election_event_id: String!): SelfTestStartOutput!
     get_self_tests(election_event_id: String!): SelfTestStatusOutput!
-    update_self_test_settings(election_event_id: String!, settings: jsonb!): SelfTestSettingsOutput!
+    update_self_test_settings(
+        election_event_id: String!
+        settings: jsonb!
+    ): SelfTestSettingsOutput!
 }
-type SelfTestStartOutput { task_id: String! state: String! }
-type SelfTestStatusOutput { settings: jsonb! runs: jsonb! baseline_present: Boolean! notifications: jsonb! tsf_integrity: jsonb }
-type SelfTestSettingsOutput { settings: jsonb! }
+type SelfTestStartOutput {
+    task_id: String!
+    state: String!
+}
+type SelfTestStatusOutput {
+    settings: jsonb!
+    runs: jsonb!
+    baseline_present: Boolean!
+    notifications: jsonb!
+    tsf_integrity: jsonb
+}
+type SelfTestSettingsOutput {
+    settings: jsonb!
+}
 
 # Logged activity attack heuristics.
 type Query {
- get_attack_detection_settings: AttackDetectionSettingsOutput!
- get_attack_detections(election_event_id: String!): AttackDetectionsOutput!
+    get_attack_detection_settings: AttackDetectionSettingsOutput!
+    get_attack_detections(election_event_id: String!): AttackDetectionsOutput!
 }
 type Mutation {
- update_attack_detection_settings(settings: jsonb!): AttackDetectionSettingsOutput!
+    update_attack_detection_settings(
+        settings: jsonb!
+    ): AttackDetectionSettingsOutput!
 }
-type AttackDetectionSettingsOutput { tenant_id: String! settings: jsonb! }
-type AttackDetectionsOutput { detections: jsonb! request_source: jsonb! }
+type AttackDetectionSettingsOutput {
+    tenant_id: String!
+    settings: jsonb!
+}
+type AttackDetectionsOutput {
+    detections: jsonb!
+    request_source: jsonb!
+}

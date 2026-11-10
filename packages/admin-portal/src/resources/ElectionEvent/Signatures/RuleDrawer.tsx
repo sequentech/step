@@ -53,6 +53,7 @@ import {
     rolesChanged,
     sortRolesByName,
     ruleInputOf,
+    signaturesFixed,
     type ISignaturesAccess,
     type IRuleDraft,
 } from "./signingSettings"
@@ -95,6 +96,8 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
     // are unknown, so they can't be changed.
     const editRoles = access.rolesWrite && !!capacity
     const trustee = isTrusteeAction(rule.action)
+    // An action that needs signatures keeps the number it was saved with, and keeps needing them.
+    const fixed = signaturesFixed(rule)
     // The draft holds group ids; the capacity and the role list give their names.
     const initialRoles = useMemo(() => (capacity?.roles ?? []).map(({id}) => id), [capacity])
     const initial = useMemo(() => draftOf(rule, initialRoles), [rule, initialRoles])
@@ -154,6 +157,7 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
                     }
                 )
         }
+        if (fixed) return t("signing.rule.signaturesFixed")
         if (newRoles) return t("signing.rule.checkedOnSave")
         // Event-wide actions have no Posts to count signers in.
         if (check.shortPosts.length || check.minSigners === null || !capacity?.posts.length) {
@@ -184,7 +188,12 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
             const {data} = await putRule({variables: {...input, roles: input.roles ?? null}})
             saved = data?.signingPutRule
         } catch (error) {
-            setSaveError(writeErrorMessage(error, "signing.rule.saveError", {lockedDown}))
+            setSaveError(
+                writeErrorMessage(error, "signing.rule.saveError", {
+                    lockedDown,
+                    fixedSignatures: fixed,
+                })
+            )
             return
         }
         // With new roles, the server tells which Posts can't reach the number yet.
@@ -256,7 +265,7 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
                         control={
                             <Switch
                                 checked={required}
-                                disabled={readOnly || mandatorySigningAction(rule.action)}
+                                disabled={readOnly || mandatorySigningAction(rule.action) || fixed}
                                 onChange={(event) =>
                                     update({
                                         requirement: event.target.checked
@@ -324,6 +333,7 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
                             type="number"
                             label={t("signing.rule.signaturesNeeded")}
                             value={draft.signatures}
+                            disabled={fixed}
                             error={check.problem !== null}
                             helperText={signaturesHelp}
                             onChange={(event) => update({signatures: event.target.value})}

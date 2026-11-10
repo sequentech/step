@@ -11,10 +11,13 @@ import {FetchDocumentQuery, Sequent_Backend_Document} from "../../gql/graphql"
 import {FETCH_DOCUMENT} from "../../queries/FetchDocument"
 import {CircularProgress} from "@mui/material"
 import {downloadUrl} from "@sequentech/ui-core"
+import {useTranslation} from "react-i18next"
+import {phaseRefusalKey} from "@/services/serverRefusals"
 
 export const DocumentProperties: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Document>()
     const client = useApolloClient()
+    const {t} = useTranslation()
     const [downloading, setDownloading] = useState(false)
     const [downloadError, setDownloadError] = useState<string>()
 
@@ -33,7 +36,11 @@ export const DocumentProperties: React.FC = () => {
             if (!data?.fetchDocument?.url) throw new Error("Document download unavailable")
             await downloadUrl(data.fetchDocument.url, record.name || "report.pdf")
         } catch (error) {
-            setDownloadError(error instanceof Error ? error.message : String(error))
+            // A document that holds decoded ballots is kept until post-processing.
+            const refusal = phaseRefusalKey(error, "refusals.documentWaitsForPostProcessing")
+            setDownloadError(
+                refusal ? t(refusal) : error instanceof Error ? error.message : String(error)
+            )
         } finally {
             setDownloading(false)
         }

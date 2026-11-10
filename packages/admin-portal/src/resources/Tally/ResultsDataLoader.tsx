@@ -33,6 +33,9 @@ import {
     CurrentTallyDocuments,
     overlayCurrentDocuments,
 } from "./currentTallyDocuments"
+import {Alert} from "@mui/material"
+import {useTranslation} from "react-i18next"
+import {phaseRefusalKey} from "@/services/serverRefusals"
 
 export interface ResultsDataLoaderProps {
     resultsEventId: string
@@ -51,6 +54,7 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
     electionIds,
     databaseName,
 }) => {
+    const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const setTallyQueryData = useSetAtom(tallyQueryData)
     const auth = useContext(AuthContext)
@@ -301,5 +305,9 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         }
     }, [allQueriesReady, dbError, setTallyQueryData, tallyData])
 
-    return <></>
+    // The results database of a tally that holds decoded ballots is kept until
+    // post-processing; the results views stay empty until then.
+    const refusal = phaseRefusalKey(dbError, "refusals.resultsWaitForPostProcessing")
+
+    return refusal ? <Alert severity="info">{t(refusal)}</Alert> : <></>
 }

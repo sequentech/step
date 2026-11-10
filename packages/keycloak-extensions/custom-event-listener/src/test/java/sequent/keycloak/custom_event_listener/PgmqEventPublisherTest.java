@@ -72,7 +72,8 @@ class PgmqEventPublisherTest {
   void authenticationActivityUsesTheShortQueueAndTheSameCommitBoundary() throws Exception {
     new PgmqEventPublisher(sender, PublishFailurePolicy.FAIL_REQUEST)
         .publish(session, "auth-id", "record_attack_auth_failure", BODY);
-    ArgumentCaptor<KeycloakTransaction> enqueue = ArgumentCaptor.forClass(KeycloakTransaction.class);
+    ArgumentCaptor<KeycloakTransaction> enqueue =
+        ArgumentCaptor.forClass(KeycloakTransaction.class);
     verify(transaction).enlistPrepare(enqueue.capture());
     verifyNoInteractions(sender);
     enqueue.getValue().commit();

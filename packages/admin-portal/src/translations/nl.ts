@@ -5,6 +5,46 @@ import englishTranslation, {TranslationType} from "./en"
 
 const dutchTranslation: TranslationType = {
     translations: {
+        electionRevoting: {
+            title: "Herstemmen",
+            description:
+                "Tijdens de voorbereiding, voordat het stemmen op een kanaal van dit verkiezingsevenement begint, kunt u herstemmen voor een verkiezing uitschakelen: elke kiezer kan dan één stem uitbrengen. Herstemmen kan niet opnieuw worden ingeschakeld, en het verkiezingslog legt vast wie het heeft uitgeschakeld. De verkiezingscommissie moet de bijgewerkte configuratie goedkeuren voordat het stemmen begint.",
+            loading: "Instellingen voor herstemmen laden",
+            readFailed:
+                "De instellingen voor herstemmen van de verkiezingen konden niet worden gelezen. Laad de pagina opnieuw voordat u wijzigingen aanbrengt.",
+            empty: "Dit verkiezingsevenement heeft geen verkiezingen.",
+            election: "Verkiezing",
+            state: "Herstemmen",
+            unlimited: "Toegestaan, onbeperkt aantal stemmen",
+            upTo: "Toegestaan, tot {{votes}} stemmen",
+            single: "Uitgeschakeld, één stem",
+            disable: "Herstemmen uitschakelen",
+            disableFor: "Herstemmen uitschakelen voor {{name}}",
+            confirmTitle: "Herstemmen uitschakelen?",
+            confirm:
+                "Elke kiezer van {{name}} kan één stem uitbrengen. Herstemmen kan niet opnieuw worden ingeschakeld.",
+            disabled:
+                "Herstemmen uitgeschakeld voor {{name}}. De verkiezingscommissie moet de bijgewerkte configuratie goedkeuren voordat het stemmen begint.",
+            failed: "Herstemmen is niet uitgeschakeld voor {{name}}: {{reason}}",
+            failedNoReason:
+                "Herstemmen is niet uitgeschakeld voor {{name}}. Laad de pagina opnieuw en controleer de verkiezingsfase.",
+        },
+        refusals: {
+            documentName:
+                "Een documentnaam mag geen / \\ ; # % ? of stuurteken bevatten. Wijzig de naam en probeer het opnieuw.",
+            documentWaitsForPostProcessing:
+                "Dit document kan gedecodeerde stembiljetten bevatten. Het kan worden gedownload zodra de nabewerking is begonnen.",
+            resultsWaitForPostProcessing:
+                "De resultatendatabase van deze telling kan gedecodeerde stembiljetten bevatten. De resultaten kunnen hier worden getoond zodra de nabewerking is begonnen.",
+            ballotImagesWaitForPostProcessing:
+                "Afbeeldingen van stembiljetten kunnen worden gegenereerd zodra de nabewerking is begonnen.",
+            phaseChanging:
+                "De fase of de veiligheidstoestand van het verkiezingsevenement wordt gewijzigd. Probeer het zo meteen opnieuw.",
+            resultsAlreadyCounted:
+                "De resultaten van {{election}} zijn al geteld, en een hertelling is niet mogelijk.",
+            resultsTallyUnfinished:
+                "Een resultatentelling van {{election}} is niet voltooid. Wacht tot die is voltooid, of annuleer die.",
+        },
         copyableFingerprint: {
             copy: "De volledige SHA-256 kopiëren",
             copied: "De volledige SHA-256 is gekopieerd",
@@ -1669,12 +1709,30 @@ const dutchTranslation: TranslationType = {
                 },
             },
             permissions: {
-                "sign-start-tally": englishTranslation.translations.usersAndRolesScreen.permissions["sign-start-tally"],
-                "sign-import-election-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-import-election-data"],
-                "sign-export-execution-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-export-execution-data"],
-                "sign-delete-execution-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-delete-execution-data"],
-                "sign-read-voters-register": englishTranslation.translations.usersAndRolesScreen.permissions["sign-read-voters-register"],
-                "election-execution-export": englishTranslation.translations.usersAndRolesScreen.permissions["election-execution-export"],
+                "sign-start-tally":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-start-tally"
+                    ],
+                "sign-import-election-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-import-election-data"
+                    ],
+                "sign-export-execution-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-export-execution-data"
+                    ],
+                "sign-delete-execution-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-delete-execution-data"
+                    ],
+                "sign-read-voters-register":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-read-voters-register"
+                    ],
+                "election-execution-export":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "election-execution-export"
+                    ],
                 "voter-information-letter": "Kiezersinformatiebrief genereren",
                 "admin-user": "Beheerder Gebruiker",
                 "admin-dashboard-view": "Beheerdersdashboard Bekijken",
@@ -2465,6 +2523,12 @@ const dutchTranslation: TranslationType = {
                     entry: "Logbericht",
                 },
                 emptyLogs: "Nog geen logs.",
+                managerKey: {
+                    title: "Sleutel van de protocolbeheerder (SHA-256)",
+                    help: "Elke trusteeserver logt deze vingerafdruk voor het bord {{board}} wanneer hij de configuratie van de sleutelceremonie aanvaardt. Vergelijk ze via een apart kanaal, niet via dit portaal.",
+                    readError:
+                        "De sleutel van de protocolbeheerder van deze sleutelceremonie kon niet worden gelezen.",
+                },
             },
         },
         miruExport: {
@@ -3853,7 +3917,8 @@ const dutchTranslation: TranslationType = {
             },
             notices: {
                 ATTACK_REQUEST_ACTIVITY_UNAVAILABLE:
-                    englishTranslation.translations.monitoring.notices.ATTACK_REQUEST_ACTIVITY_UNAVAILABLE,
+                    englishTranslation.translations.monitoring.notices
+                        .ATTACK_REQUEST_ACTIVITY_UNAVAILABLE,
                 UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
                     "Pogingen met niet-geregistreerde gebruikersnamen horen bij geen enkele post en worden daarom alleen voor het hele evenement geteld.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
@@ -4367,6 +4432,8 @@ const dutchTranslation: TranslationType = {
                 forbidden: "U hebt geen toestemming voor deze wijziging.",
                 invalid:
                     "De server heeft deze waarden geweigerd. Controleer ze en probeer het opnieuw.",
+                signaturesFixed:
+                    "Het aantal handtekeningen van deze actie is al opgeslagen en kan niet meer worden gewijzigd. Laad de pagina opnieuw om het te zien.",
                 conflict:
                     "Iemand anders heeft dit intussen gewijzigd. Laad de pagina opnieuw en probeer het nogmaals.",
                 lockedDown:
@@ -4386,11 +4453,15 @@ const dutchTranslation: TranslationType = {
                 "configuration-and-keys": "Configuratie en sleutels",
             },
             actions: {
-                "import-election-data": englishTranslation.translations.signing.actions["import-election-data"],
+                "import-election-data":
+                    englishTranslation.translations.signing.actions["import-election-data"],
                 "start-tally": englishTranslation.translations.signing.actions["start-tally"],
-                "export-execution-data": englishTranslation.translations.signing.actions["export-execution-data"],
-                "delete-execution-data": englishTranslation.translations.signing.actions["delete-execution-data"],
-                "read-voters-register": englishTranslation.translations.signing.actions["read-voters-register"],
+                "export-execution-data":
+                    englishTranslation.translations.signing.actions["export-execution-data"],
+                "delete-execution-data":
+                    englishTranslation.translations.signing.actions["delete-execution-data"],
+                "read-voters-register":
+                    englishTranslation.translations.signing.actions["read-voters-register"],
                 "initialize-voting": {
                     label: "Stemming initialiseren",
                     short: "Initialisatie",
@@ -4527,6 +4598,7 @@ const dutchTranslation: TranslationType = {
                 signaturesNeededHelp:
                     "Elke ondertekenaar gebruikt zijn digitale certificaat. Elke $t(signing.terms.post) heeft minstens {{n}} personen die kunnen ondertekenen.",
                 signaturesNeededShortHelp: "Elke ondertekenaar gebruikt zijn digitale certificaat.",
+                signaturesFixed: "Dit aantal ligt vast zodra het is opgeslagen.",
                 requesterSigning: "De persoon die het start, mag ook ondertekenen",
                 expiresAfter: "Een verzoek verloopt na",
                 trusteesSign: "Trustees ondertekenen deze stap",
@@ -6278,7 +6350,7 @@ const dutchTranslation: TranslationType = {
         electoralLogConsole: {
             title: "Verkiezingslog",
             subtitle:
-                "Bekijk het verkiezingslog en de stembus van een verkiezingsevenement, of bevraag de database van zijn verkiezingslog. Niets op deze pagina wijzigt gegevens.",
+                "Bekijk het verkiezingslog van een verkiezingsevenement, of bevraag de database van zijn verkiezingslog. Niets op deze pagina wijzigt gegevens.",
             notAllowed:
                 "U hebt de machtiging electoral-log-console-read nodig om het verkiezingslog te openen.",
             tabs: {
@@ -6290,9 +6362,6 @@ const dutchTranslation: TranslationType = {
             table: "Tabel",
             tables: {
                 records: "Records",
-                ballots: "Stembiljetten",
-                voters: "Kiezers",
-                queue: "Wachtrij van de Sequencer",
             },
             order: {
                 "label": "Volgorde",
@@ -6302,22 +6371,14 @@ const dutchTranslation: TranslationType = {
             filters: {
                 statement_kind: "Soort",
                 election_id: "Verkiezing",
-                area_id: "Gebieds-ID",
                 user_id: "Gebruikers- of Kiezers-ID",
                 ballot_id: "Stembiljet-ID",
-                status: "Status",
                 created_after: "Vanaf",
                 created_before: "Tot",
                 any: "Alle",
                 apply: "Filters Toepassen",
                 clear: "Wissen",
-                invalid:
-                    "Controleer de gemarkeerde filters: datums moeten geldig zijn en gebieds-ID's van de stembus moeten UUID's zijn.",
-            },
-            statuses: {
-                valid: "Geldig",
-                pending: "In behandeling",
-                rejected: "Afgewezen",
+                invalid: "Controleer de gemarkeerde filters: datums moeten geldig zijn.",
             },
             estimatedRows: "Ongeveer {{rows}} rijen in deze tabel vóór filtering.",
             personalDataHidden:

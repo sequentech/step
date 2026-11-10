@@ -19,6 +19,7 @@ jest.mock("react-admin", () => ({
 jest.mock("@/providers/AuthContextProvider", () => ({
     AuthContext: require("react").createContext({
         tenantId: "tenant",
+        hasRole: (role: string) => mockRoles.has(role),
         isAuthorized: (_: boolean, _tenant: string, roles: string | string[]) =>
             (Array.isArray(roles) ? roles : [roles]).some((role) => mockRoles.has(role)),
     }),

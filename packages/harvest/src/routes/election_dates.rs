@@ -12,7 +12,7 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::ballot::VotingStatusChannel;
-use sequent_core::election_config::package_verify::ConfigurationSigningPolicy;
+use sequent_core::election_config::package_verify::signatures_required;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::types::scheduled_event::{
@@ -33,6 +33,8 @@ use windmill::services::signing::log::Actor;
 pub(crate) const DATES_ONLY_BY_SIGNED_IMPORT: &str =
     "Election dates change only by the signed import";
 
+/// Whether the tenant takes election data only through the signed import:
+/// it does unless its setting allows unsigned files.
 pub(crate) async fn signed_import_required(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -40,9 +42,35 @@ pub(crate) async fn signed_import_required(
     let signing =
         configuration_package::tenant_setting(hasura_transaction, tenant_id)
             .await?;
-    Ok(signing.is_some_and(|signing| {
-        signing.policy == ConfigurationSigningPolicy::Required
-    }))
+    Ok(signatures_required(signing.as_ref()))
+}
+
+/// Where signed packages are required, areas, candidates and voters arrive
+/// only through the signed import.
+pub(crate) const DATA_ONLY_BY_SIGNED_IMPORT: &str =
+    "Election data changes only by the signed import";
+
+/// Refuses a write of election data that the signed import brings, where
+/// `tenant_id` takes election data only through the signed import.
+pub(crate) async fn refuse_data_under_signed_import(
+    tenant_id: &str,
+) -> Result<(), (Status, String)> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    if signed_import_required(&hasura_transaction, tenant_id)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?
+    {
+        return Err((Status::Forbidden, DATA_ONLY_BY_SIGNED_IMPORT.into()));
+    }
+    Ok(())
 }
 
 /// The lockdown period is not part of the election data, so it stays

@@ -141,7 +141,8 @@ export default function MenuAction({
     const apollo = useApolloClient()
     const sealRole = useSealReadRole()
 
-    /** Whole-event deletion is authorized by the server only in Post-processing,
+    /** Whole-event deletion is authorized by the server only in Post-processing
+     * (or, for an archived event, in Preparation),
      * against a current complete export and the required board signatures.
      * Its sealed evidence is deliberately included in that final erasure.
      * Individual-election deletion retains the permanent seal protection.
@@ -547,8 +548,9 @@ export default function MenuAction({
                       : t("sideMenu.menuActions.messages.confirm.delete")}
                 {selectedActionModal?.payload.type === "sequent_backend_election_event" && (
                     <p>
-                        Post-processing, a complete current export, and the required election-board
-                        approvals are required before the event can be deleted.
+                        Post-processing (or, for an archived election event, Preparation), a
+                        complete current export, and the required election-board approvals are
+                        required before the event can be deleted.
                     </p>
                 )}
             </Dialog>

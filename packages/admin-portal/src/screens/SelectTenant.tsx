@@ -22,7 +22,8 @@ import {adminTheme, Header} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
-import {ITenantTheme, shortAppHash} from "@sequentech/ui-core"
+import {shortAppHash} from "@sequentech/ui-core"
+import {adminPortalCustomCss, adminPortalLogoUrl} from "@/services/tenantLookAndFeel"
 import {AppBar} from "react-admin"
 
 const StyledApp = styled(Stack)<{css: string}>`
@@ -133,8 +134,9 @@ export const SelectTenant = () => {
      * Fetches the default tenant's information from the backend and updates the logo and CSS state.
      *
      * This function sends a POST request to the HASURA_URL endpoint with a GraphQL query to fetch
-     * the tenant details by ID. It then extracts the logo URL and CSS from the tenant's annotations
-     * and updates the corresponding state variables.
+     * the tenant details by ID. It then extracts the logo URL from the tenant's annotations and
+     * updates the corresponding state variables (see `adminPortalLogoUrl` and
+     * `adminPortalCustomCss`).
      *
      * @async
      * @function getDefaultTenant
@@ -150,9 +152,8 @@ export const SelectTenant = () => {
             body: JSON.stringify({
                 query: `
                 query GetTenantById($id: uuid!) {
-                    sequent_backend_tenant(where: {id: {_eq: $id}}) {
+                    sequent_backend_tenant_for_sign_in(args: {id: $id}) {
                         id
-                        slug
                         annotations
                         }
                         }
@@ -161,13 +162,13 @@ export const SelectTenant = () => {
             }),
         })
         const {data, errors} = await response.json()
-        const newLogoState = (
-            data?.sequent_backend_tenant[0].annotations as ITenantTheme | undefined
-        )?.logo_url
-        const newCss = (data?.sequent_backend_tenant[0].annotations as ITenantTheme | undefined)
-            ?.css
+        const signInTenant = data?.sequent_backend_tenant_for_sign_in[0]
+        // Before sign-in the page does not learn the tenant's policy for configuration
+        // packages, which counts as requiring them: it shows the built-in logo and does
+        // not apply the tenant's custom CSS.
+        const newLogoState = adminPortalLogoUrl(signInTenant)
         setLogoImg(errors?.length > 0 ? SequentLogo : (newLogoState ?? SequentLogo))
-        setCss(newCss ?? "")
+        setCss(adminPortalCustomCss(signInTenant))
     }
 
     useEffect(() => {
@@ -300,9 +301,8 @@ export const SelectTenant = () => {
                 body: JSON.stringify({
                     query: `
                     query GetTenantBySlug($slug: String!) {
-                        sequent_backend_tenant(where: {slug: {_eq: $slug}}) {
+                        sequent_backend_tenant_for_sign_in(args: {slug: $slug}) {
                             id
-                            slug
                         }
                     }
                 `,
@@ -315,10 +315,12 @@ export const SelectTenant = () => {
                 throw new Error(errors[0].message)
             }
 
-            if (!data?.sequent_backend_tenant?.length) throw new Error("Tenant not found")
+            if (!data?.sequent_backend_tenant_for_sign_in?.length) {
+                throw new Error("Tenant not found")
+            }
 
             // if we are here, a tenant with the name slug has been found
-            const tenantId = data.sequent_backend_tenant[0].id
+            const tenantId = data.sequent_backend_tenant_for_sign_in[0].id
 
             // Check if the realm exists
             const realmExists = await checkIfRealmExists(`tenant-${tenantId}`)

@@ -75,7 +75,10 @@ interface Scenario {
     /** A row was edited after publication, a tz database update moved one, a row has no offset. */
     changes: boolean
     storedInAnotherZone?: boolean
-    /** Whether the tenant requires signed packages, and the event has a lockdown row. */
+    /**
+     * Whether the tenant requires signed packages, and the event has a lockdown row.
+     * Otherwise the tenant's setting makes them optional.
+     */
     signedImportRequired?: boolean
 }
 
@@ -179,15 +182,15 @@ const meta = {
         data = resourceBoundary(
             {
                 sequent_backend_tenant: [
-                    args.signedImportRequired
-                        ? {
-                              ...tenantRecord,
-                              settings: {
-                                  ...tenantRecord.settings,
-                                  configuration_signing: {policy: "required"},
-                              },
-                          }
-                        : tenantRecord,
+                    {
+                        ...tenantRecord,
+                        settings: {
+                            ...tenantRecord.settings,
+                            configuration_signing: {
+                                policy: args.signedImportRequired ? "required" : "optional",
+                            },
+                        },
+                    },
                 ],
                 [SCHEDULED_EVENT_RESOURCE]: args.populated ? schedule : [],
                 [ELECTION_RESOURCE]: configuration

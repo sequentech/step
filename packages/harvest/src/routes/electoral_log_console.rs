@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! The electoral-log console: administrators browse an election event's records
-//! and ballot box page by page and open a record. Users of the super-admin tenant
-//! browse any tenant's events and run read-only SQL queries on an event's
-//! electoral-log database.
+//! page by page and open a record. Users of the super-admin tenant browse any
+//! tenant's events and run read-only SQL queries on an event's electoral-log
+//! database.
 
 use crate::services::authorization::{
     authorize, authorize_election_permission_labels,
@@ -135,14 +135,17 @@ fn personal_data(claims: &JwtClaims) -> PersonalData {
     }
 }
 
-/// The table and order a page request names.
+/// The table and order a page request names. Pages show the records only:
+/// the ballot box's tables are not browsed.
 fn table_and_order(
     table: &str,
     order: Option<&str>,
 ) -> Result<(ConsoleTable, PageOrder), JsonError> {
-    let table = table.parse::<ConsoleTable>().map_err(|_| {
-        bad_request("Unknown table: give records, ballots, voters or queue")
-    })?;
+    let table = table
+        .parse::<ConsoleTable>()
+        .ok()
+        .filter(|table| *table == ConsoleTable::Records)
+        .ok_or_else(|| bad_request("Unknown table: give records"))?;
     let order = order
         .map(str::parse::<PageOrder>)
         .transpose()
@@ -151,30 +154,6 @@ fn table_and_order(
         })?
         .unwrap_or_default();
     Ok((table, order))
-}
-
-/// The ballot box keys elections and areas by UUID; records keep them as text.
-fn check_filters(
-    table: ConsoleTable,
-    filters: &ConsoleFilters,
-) -> Result<(), JsonError> {
-    if table == ConsoleTable::Records {
-        return Ok(());
-    }
-    for (name, value) in [
-        ("election", &filters.election_id),
-        ("area", &filters.area_id),
-    ] {
-        match value.as_deref() {
-            Some(value)
-                if !value.is_empty() && Uuid::parse_str(value).is_err() =>
-            {
-                return Err(bad_request(&format!("Invalid {name} ID filter")));
-            }
-            _ => {}
-        }
-    }
-    Ok(())
 }
 
 /// Whether a query is one the console runs.
@@ -410,7 +389,7 @@ pub struct ConsolePageInput {
     /// The tenant of the election event; the user's own unless given.
     tenant_id: Option<String>,
     election_event_id: String,
-    /// `records`, `ballots`, `voters` or `queue`.
+    /// `records`, the only table pages show.
     table: String,
     filters: Option<ConsoleFilters>,
     /// `newest-first` (the default) or `oldest-first`.
@@ -427,8 +406,8 @@ pub struct ConsolePageOutput {
     personal_data: PersonalData,
 }
 
-/// A page of the records of an election event's electoral log, or of its ballot
-/// box. Without the personal-data permission, personal columns read `hidden`.
+/// A page of the records of an election event's electoral log. Without the
+/// personal-data permission, personal columns read `hidden`.
 #[instrument(skip(claims, services))]
 #[post("/electoral-log-console/page", format = "json", data = "<body>")]
 pub async fn electoral_log_console_page(
@@ -445,7 +424,6 @@ pub async fn electoral_log_console_page(
     )?;
     let (table, order) = table_and_order(&input.table, input.order.as_deref())?;
     let filters = input.filters.unwrap_or_default();
-    check_filters(table, &filters)?;
     let board =
         event_board(services, &claims, &tenant_id, &input.election_event_id)
             .await?;
@@ -629,15 +607,17 @@ mod tests {
     #[test]
     fn pages_name_tables_and_orders_in_kebab_case() {
         assert_eq!(
-            table_and_order("queue", Some("oldest-first")).ok().unwrap(),
-            (ConsoleTable::Queue, PageOrder::OldestFirst)
+            table_and_order("records", Some("oldest-first"))
+                .ok()
+                .unwrap(),
+            (ConsoleTable::Records, PageOrder::OldestFirst)
         );
         assert_eq!(
             table_and_order("records", None).ok().unwrap(),
             (ConsoleTable::Records, PageOrder::NewestFirst)
         );
         for (table, order) in
-            [("cast_vote", None), ("ballots", Some("newest_first"))]
+            [("cast_vote", None), ("records", Some("newest_first"))]
         {
             let error = table_and_order(table, order).unwrap_err();
             assert_eq!(error.0, Status::BadRequest);
@@ -645,28 +625,15 @@ mod tests {
     }
 
     #[test]
-    fn ballot_box_filters_need_uuids() {
-        let filters = ConsoleFilters {
-            election_id: Some("north".into()),
-            area_id: Some(String::new()),
-            ..Default::default()
-        };
-        assert!(check_filters(ConsoleTable::Records, &filters).is_ok());
-        for table in [
-            ConsoleTable::Ballots,
-            ConsoleTable::Voters,
-            ConsoleTable::Queue,
-        ] {
+    fn pages_do_not_show_the_ballot_box() {
+        for table in ["ballots", "voters", "queue"] {
+            let error = table_and_order(table, None).unwrap_err();
+            assert_eq!(error.0, Status::BadRequest);
             assert_eq!(
-                check_filters(table, &filters).unwrap_err().0,
-                Status::BadRequest
+                error.1.into_inner().message,
+                "Unknown table: give records"
             );
         }
-        let valid = ConsoleFilters {
-            election_id: Some(Uuid::new_v4().to_string()),
-            ..filters
-        };
-        assert!(check_filters(ConsoleTable::Ballots, &valid).is_ok());
     }
 
     const OWN_TENANT: &str = "6f1c3a6e-2a61-4d6b-9a52-3f0f8a3c2b10";

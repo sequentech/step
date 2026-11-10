@@ -203,9 +203,12 @@ fn group_roles(realm: &Value, group: &str) -> Option<BTreeSet<String>> {
 const ALL_SIGNING: &[&str] = &["*"];
 
 /// The groups of each realm template that hold signing permissions, and
-/// which. Groups not listed hold none. Every new tenant realm gives them to
-/// its administrators only; the COMELEC template assigns the ticket's
-/// preset to its own groups (tenant data, not product code).
+/// which. Groups not listed hold none. Every new tenant realm gives them all
+/// to its administrators, and to its election board the Signatures tab with
+/// the reads of its rules, certificates and requests, the cancel and export
+/// of requests, and the signatures of the board's protected actions; the
+/// COMELEC template assigns the ticket's preset to its own groups (tenant
+/// data, not product code).
 fn signing_presets(
 ) -> [(&'static str, Vec<(&'static str, &'static [&'static str])>); 2] {
     let sbei: &'static [&'static str] = &[
@@ -218,7 +221,27 @@ fn signing_presets(
         "sign-approve-voter",
     ];
     [
-        ("tenant realm template", vec![("admin", ALL_SIGNING)]),
+        (
+            "tenant realm template",
+            vec![
+                ("admin", ALL_SIGNING),
+                (
+                    "election-board",
+                    &[
+                        "election-event-signatures-tab",
+                        "signing-rules-read",
+                        "signing-certificates-read",
+                        "signing-requests-read",
+                        "signing-requests-cancel",
+                        "signing-requests-export",
+                        "sign-initialize-voting",
+                        "sign-open-voting",
+                        "sign-close-voting",
+                        "sign-approve-configuration",
+                    ],
+                ),
+            ],
+        ),
         (
             "COMELEC realm template",
             vec![

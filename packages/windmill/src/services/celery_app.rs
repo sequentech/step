@@ -41,7 +41,6 @@ use crate::tasks::export_monitoring_data::export_monitoring_data;
 use crate::tasks::export_tally_results::export_tally_results_to_xlsx_task;
 use crate::tasks::export_tasks_execution::export_tasks_execution;
 use crate::tasks::export_templates::export_templates;
-use crate::tasks::export_tenant_config::export_tenant_config;
 use crate::tasks::export_trustees::export_trustees_task;
 use crate::tasks::export_users::export_users;
 use crate::tasks::generate_reconciliation_patches::generate_reconciliation_patches;
@@ -50,7 +49,6 @@ use crate::tasks::generate_template::generate_template;
 use crate::tasks::import_application::import_applications;
 use crate::tasks::import_election_event::import_election_event;
 use crate::tasks::import_templates::import_templates_task;
-use crate::tasks::import_tenant_config::import_tenant_config;
 use crate::tasks::import_users::import_users;
 use crate::tasks::insert_election_event::insert_election_event_t;
 use crate::tasks::insert_tenant::insert_tenant;
@@ -356,8 +354,6 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             export_application,
             import_applications,
             export_trustees_task,
-            export_tenant_config,
-            import_tenant_config,
             enqueue_electoral_log_event,
             process_electoral_log_events_batch,
             electoral_log_batch_dispatcher,
@@ -434,8 +430,6 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             export_trustees_task::NAME => Queue::ImportExport.queue_name(),
             import_election_event::NAME => Queue::ImportExport.queue_name(),
             export_templates::NAME => Queue::ImportExport.queue_name(),
-            export_tenant_config::NAME => Queue::ImportExport.queue_name(),
-            import_tenant_config::NAME => Queue::ImportExport.queue_name(),
             scheduled_events::NAME => Queue::Beat.queue_name(),
             scheduled_reports::NAME => Queue::Beat.queue_name(),
             review_cast_votes::NAME => Queue::Beat.queue_name(),

@@ -1,0 +1,67 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The TLS endpoint of the servers: nginx with its configuration, rendered at each
+# start from the three service hostnames of the installation (entrypoint.sh), running
+# with the hardened_malloc memory allocator, built here from source.
+# Build context: this directory.
+#
+# Every input obtained from a network has a stage of its own that the controlled
+# production build replaces with the accepted external input, `--build-context
+# <stage>=<directory>`, leaving the download unbuilt; a build outside that workflow
+# downloads it. `hardened-malloc-src` holds the source archive of hardened_malloc,
+# checked against HARDENED_MALLOC_SHA256 either way; `apks-hardened-malloc-build` the
+# Alpine packages of the stage that builds it; `apks-nginx` those of the runtime stage.
+# apk verifies the signatures of the packages when it installs them.
+ARG HARDENED_MALLOC_VERSION=14
+ARG HARDENED_MALLOC_SHA256=4cd95ff3b83c433ebc6269d0778d79eb3480b7d5bc873503e1cc3768546bdbec
+
+FROM nginx:alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2 AS hardened-malloc-download
+ARG HARDENED_MALLOC_VERSION
+ARG HARDENED_MALLOC_SHA256
+RUN curl -fsSL -o /tmp/hardened_malloc.tar.gz \
+    https://github.com/GrapheneOS/hardened_malloc/archive/refs/tags/${HARDENED_MALLOC_VERSION}.tar.gz \
+    && echo "${HARDENED_MALLOC_SHA256}  /tmp/hardened_malloc.tar.gz" | sha256sum -c -
+
+FROM scratch AS hardened-malloc-src
+COPY --from=hardened-malloc-download /tmp/hardened_malloc.tar.gz /hardened_malloc.tar.gz
+
+FROM nginx:alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2 AS apks-hardened-malloc-build-download
+RUN mkdir -p /apks && apk fetch --no-cache --recursive --output /apks gcc make musl-dev
+
+FROM scratch AS apks-hardened-malloc-build
+COPY --from=apks-hardened-malloc-build-download /apks/*.apk /
+
+# jq is the version the runtime pins; the build fails if the repository serves another.
+FROM nginx:alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2 AS apks-nginx-download
+RUN mkdir -p /apks && apk fetch --no-cache --recursive --output /apks jq \
+    && test -f /apks/jq-1.8.2-r0.apk
+
+FROM scratch AS apks-nginx
+COPY --from=apks-nginx-download /apks/*.apk /
+
+# For any x86-64 processor, not only the build machine's. Freed allocations of up to
+# 131064 bytes (128 KiB less the canary) are overwritten with zeros; larger ones are
+# returned to the kernel.
+FROM nginx:alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2 AS hardened-malloc-build
+ARG HARDENED_MALLOC_SHA256
+COPY --from=apks-hardened-malloc-build / /tmp/apks/
+COPY --from=hardened-malloc-src /hardened_malloc.tar.gz /tmp/hardened_malloc.tar.gz
+RUN apk add --no-network /tmp/apks/*.apk \
+    && echo "${HARDENED_MALLOC_SHA256}  /tmp/hardened_malloc.tar.gz" | sha256sum -c - \
+    && mkdir /build && tar -xzf /tmp/hardened_malloc.tar.gz -C /build --strip-components=1 \
+    && make -C /build VARIANT=default CONFIG_NATIVE=false CONFIG_ZERO_ON_FREE=true CONFIG_CXX_ALLOCATOR=false
+
+FROM nginx:alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2
+# apk logs the time of the install; removed so the layer is the same every build.
+COPY --from=apks-nginx / /tmp/apks/
+RUN apk add --no-network /tmp/apks/*.apk && rm -rf /tmp/apks && rm -f /var/log/apk.log \
+    && mkdir -p /var/cache/sequent-nginx
+COPY --from=hardened-malloc-build /build/out/libhardened_malloc.so /usr/lib/libhardened_malloc.so
+COPY --chmod=0755 entrypoint.sh /entrypoint.sh
+# Every process of the image, nginx included, allocates memory through hardened_malloc;
+# entrypoint.sh does not start nginx without it.
+ENV LD_PRELOAD=/usr/lib/libhardened_malloc.so
+EXPOSE 443
+ENTRYPOINT ["/entrypoint.sh"]

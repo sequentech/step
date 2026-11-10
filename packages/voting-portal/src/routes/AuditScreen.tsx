@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useState} from "react"
-import {Box} from "@mui/material"
+import {Box, CircularProgress} from "@mui/material"
 import {useTranslation, Trans} from "react-i18next"
 import {
     Icon,
@@ -37,11 +37,13 @@ import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {
     markBallotAudited,
     selectAuditableBallot,
+    selectIsBallotAuditConfirmed,
 } from "../store/auditableBallots/auditableBallotsSlice"
 import {clearSessionStorageBallotData} from "../store/castVotes/sessionBallotData"
 import {provideBallotService} from "../services/BallotService"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {useRootBackLink} from "../hooks/root-back-link"
+import {isAuditedByBallotBox} from "../hooks/useAuditReceivedBallot"
 import StyledLinkContainer from "../components/Link"
 import Stepper from "../components/Stepper"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
@@ -137,6 +139,13 @@ const AuditScreen: React.FC = () => {
     const navigate = useNavigate()
     const location = useLocation()
     const dispatch = useAppDispatch()
+    // With receipts on, the secret values are shown only once the ballot box
+    // has confirmed that it marked this ballot audited. The review screen asks
+    // it to, so any other way here leads back to the review.
+    const isAuditConfirmed = useAppSelector(selectIsBallotAuditConfirmed(String(electionId)))
+    const isAwaitingAuditConfirmation =
+        isAuditedByBallotBox(auditableBallot, globalSettings.DISABLE_AUTH) && !isAuditConfirmed
+    const reviewPath = `/tenant/${tenantId}/event/${eventId}/election/${electionId}/review${location.search}`
 
     if (ballotHash && auditableBallot?.ballot_hash && ballotHash !== auditableBallot.ballot_hash) {
         console.log(
@@ -151,15 +160,25 @@ const AuditScreen: React.FC = () => {
         }
     })
 
+    useEffect(() => {
+        if (ballotHash && isAwaitingAuditConfirmation) {
+            navigate(reviewPath, {replace: true})
+        }
+    }, [ballotHash, isAwaitingAuditConfirmation, navigate, reviewPath])
+
     // This screen shows the ballot's secret values, so the ballot can no
     // longer be cast: not from the review screen, and not from the session
     // data a re-authentication would cast it from.
     useEffect(() => {
-        if (ballotHash) {
+        if (ballotHash && !isAwaitingAuditConfirmation) {
             dispatch(markBallotAudited(String(electionId)))
             clearSessionStorageBallotData()
         }
-    }, [ballotHash, electionId, dispatch])
+    }, [ballotHash, isAwaitingAuditConfirmation, electionId, dispatch])
+
+    if (isAwaitingAuditConfirmation) {
+        return <CircularProgress className="audit-progress" aria-label={t("a11y.loading")} />
+    }
 
     const verifierSearchParams = new URLSearchParams(location.search)
     verifierSearchParams.set("lang", i18n.language)

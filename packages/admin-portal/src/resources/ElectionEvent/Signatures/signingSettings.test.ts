@@ -44,6 +44,7 @@ import {
     fullFingerprint,
     shortFingerprint,
     signaturesAccess,
+    signaturesFixed,
     sortRolesByName,
     toPem,
 } from "./signingSettings"
@@ -147,6 +148,17 @@ describe("rules", () => {
             revision: 0,
         })
         expect(ruleOf(SigningAction.CloseVoting, [saved])).toBe(saved)
+    })
+
+    it("fixes a number of signatures once saved for any action that needs signatures", () => {
+        expect(signaturesFixed(saved)).toBe(true)
+        expect(signaturesFixed(ruleOf(SigningAction.OpenVoting, [saved]))).toBe(false)
+        const reports = {action: SigningAction.GenerateReports, signatures: 3}
+        expect(signaturesFixed({...reports, requirement: SigningRequirement.Required})).toBe(true)
+        expect(signaturesFixed({...reports, requirement: SigningRequirement.NotRequired})).toBe(
+            false
+        )
+        expect(signaturesFixed(ruleOf(SigningAction.GenerateReports, [saved]))).toBe(false)
     })
 
     it("groups the fifteen actions in catalog order", () => {
@@ -756,6 +768,14 @@ describe("server errors", () => {
         expect(errorKey(SigningErrorCode.Conflict, false)).toBe("signing.errors.conflict")
         expect(errorKey(SigningErrorCode.NotFound, false)).toBe("signing.errors.notFound")
         expect(errorKey(SigningErrorCode.Other, false)).toBeNull()
+    })
+
+    it("names a refused change of a fixed number of signatures only for a fixed number", () => {
+        const {code, reason} = signingError(graphQLError({code: "invalid", reason: "out-of-range"}))
+        expect(errorKey(code, false, reason, true)).toBe("signing.errors.signaturesFixed")
+        expect(errorKey(code, false, reason)).toBe("signing.errors.invalid")
+        expect(errorKey(code, true, reason, true)).toBe("signing.errors.lockedDown")
+        expect(errorKey(code, false, "no-signatures", true)).toBe("signing.errors.invalid")
     })
 })
 

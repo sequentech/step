@@ -98,6 +98,7 @@ import {SLATES_FORM_FIELD, readSlatesConfiguration} from "@/utils/slates"
 import {SlatesConfigurationInput} from "./SlatesConfigurationInput"
 import {ElectionTimeZoneInput} from "@/components/timezones/ElectionTimeZoneInput"
 import {timeZoneContextOf} from "@/components/timezones/useTimeZoneContext"
+import {documentNameRefusal} from "@/services/serverRefusals"
 
 const formResetOptions = {keepDirtyValues: true}
 
@@ -436,13 +437,20 @@ export const ElectionDataForm: React.FC = () => {
         const theFile = files?.[0]
 
         if (theFile) {
-            let {data} = await getUploadUrl({
+            const answer = await getUploadUrl({
                 variables: {
                     name: theFile.name,
                     media_type: theFile.type,
                     size: theFile.size,
                 },
+            }).catch((error: unknown) => {
+                notify(documentNameRefusal(t, error) ?? t("electionScreen.error.fileError"), {
+                    type: "error",
+                })
+                return null
             })
+            if (!answer) return
+            let {data} = answer
             if (data?.get_upload_url?.document_id) {
                 try {
                     await fetch(data.get_upload_url.url, {

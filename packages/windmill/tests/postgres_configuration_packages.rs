@@ -179,6 +179,14 @@ fn file_of(bytes: &[u8]) -> NamedTempFile {
 async fn tenant(tx: &Transaction<'_>, policy: &str) -> String {
     let id = Uuid::new_v4();
     let root = Pki::get().root.pem();
+    // The settings guard accepts only the required policy: a setting that
+    // names another one is written past it.
+    let past_the_guard = policy != "required";
+    if past_the_guard {
+        tx.batch_execute("SET LOCAL session_replication_role = replica")
+            .await
+            .unwrap();
+    }
     tx.execute(
         "INSERT INTO sequent_backend.tenant (id, slug, settings) VALUES ($1, $2, $3)",
         &[
@@ -194,6 +202,11 @@ async fn tenant(tx: &Transaction<'_>, policy: &str) -> String {
     )
     .await
     .unwrap();
+    if past_the_guard {
+        tx.batch_execute("SET LOCAL session_replication_role = DEFAULT")
+            .await
+            .unwrap();
+    }
     id.to_string()
 }
 
@@ -417,7 +430,7 @@ async fn an_unsigned_file_imports_only_where_signatures_are_optional() {
 }
 
 #[tokio::test]
-async fn a_tenant_without_the_setting_imports_unsigned_files_as_before() {
+async fn a_tenant_without_the_setting_imports_nothing() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let id = Uuid::new_v4();
@@ -428,12 +441,12 @@ async fn a_tenant_without_the_setting_imports_unsigned_files_as_before() {
     .await
     .unwrap();
     let plain = zip(&members()).unwrap();
-    let (_, package) = admit_document(&tx, &id.to_string(), file_of(&plain))
+    let refused = admit_document(&tx, &id.to_string(), file_of(&plain))
         .await
-        .unwrap();
-    assert!(package.is_none());
+        .unwrap_err();
+    assert_eq!(ids(&refused), vec!["package.unsigned"]);
 
-    // A signed package is still checked, and with no trust it is refused.
+    // A signed package is checked, and with no trust it is refused.
     let refused = admit_document(&tx, &id.to_string(), file_of(&signed_package(1)))
         .await
         .unwrap_err();

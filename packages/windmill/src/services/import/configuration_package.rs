@@ -6,18 +6,23 @@
 //! configuration package is verified against the tenant's trust, its
 //! revision must be newer than the last one imported, and only then is its
 //! importable archive handed to the importer. An unsigned file is refused
-//! where the tenant requires signatures.
+//! unless the tenant's setting allows it; a tenant without the setting
+//! imports only signed packages.
 
+use std::collections::HashMap;
 use std::io::Write;
 
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::election_config::import_problems::{allowed_votes_raised, allows_more_votes};
 use sequent_core::election_config::manifest::open_package;
 use sequent_core::election_config::package_verify::{
     admit_at, already_imported, crls_from_pem, freshness, importable_member, Admission,
     ConfigurationSigning, Freshness, VerifiedPackage, CONFIGURATION_SIGNING_SETTING,
 };
-use sequent_core::election_config::Rejected;
+use sequent_core::election_config::{Rejected, ValidationReport};
+use sequent_core::services::uuid_validation::parse_uuid_v4;
+use sequent_core::types::hasura::core::Election;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 
@@ -102,6 +107,76 @@ pub async fn admit_document(
     Ok((importable, Some(verified)))
 }
 
+/// Refuses a package that gives an election more votes per voter than the
+/// election with its external id has now in the event the configuration's
+/// last revision was imported into: a new revision keeps or lowers that number.
+#[instrument(skip(hasura_transaction, package, elections), err)]
+pub async fn check_allowed_votes(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    package: &VerifiedPackage,
+    elections: &[Election],
+) -> Result<()> {
+    let rows = hasura_transaction
+        .query(
+            "SELECT election.external_id, election.num_allowed_revotes
+             FROM sequent_backend.election AS election
+             JOIN (SELECT election_event_id FROM sequent_backend.configuration_package
+                   WHERE tenant_id = $1 AND external_id = $2
+                   ORDER BY revision DESC LIMIT 1) AS last
+               ON election.election_event_id = last.election_event_id
+             WHERE election.tenant_id = $1 AND election.external_id IS NOT NULL",
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &package.manifest.configuration.external_id,
+            ],
+        )
+        .await
+        .context("could not read the allowed votes of the last imported revision")?;
+    let current = rows
+        .iter()
+        .map(|row| -> Result<(String, Option<i64>)> {
+            Ok((
+                row.try_get::<_, String>(0)?,
+                row.try_get::<_, Option<i32>>(1)?.map(i64::from),
+            ))
+        })
+        .collect::<Result<HashMap<_, _>>>()?;
+    let report = raised_allowed_votes(elections, &current);
+    if report.has_errors() {
+        return Err(anyhow::Error::new(Rejected::new(
+            "election event bundle",
+            report,
+        )));
+    }
+    Ok(())
+}
+
+/// A problem for each of `elections` that allows more votes per voter than
+/// `current` gives for its external id.
+fn raised_allowed_votes(
+    elections: &[Election],
+    current: &HashMap<String, Option<i64>>,
+) -> ValidationReport {
+    let mut report = ValidationReport::default();
+    for (index, election) in elections.iter().enumerate() {
+        let Some(external_id) = election.external_id.as_deref() else {
+            continue;
+        };
+        if let Some(current) = current.get(external_id) {
+            if allows_more_votes(election.num_allowed_revotes, *current) {
+                report.push(allowed_votes_raised(
+                    index,
+                    external_id,
+                    election.num_allowed_revotes,
+                    *current,
+                ));
+            }
+        }
+    }
+    report
+}
+
 /// The electoral log entry of an import, posted to the new event's board.
 pub async fn log_import(
     hasura_transaction: &Transaction<'_>,
@@ -180,7 +255,57 @@ pub fn typed_checksum<P>(typed: Option<String>, package: Option<&P>) -> Option<S
 
 #[cfg(test)]
 mod tests {
-    use super::typed_checksum;
+    use super::{raised_allowed_votes, typed_checksum};
+    use sequent_core::types::hasura::core::Election;
+    use std::collections::HashMap;
+
+    fn election(external_id: Option<&str>, num_allowed_revotes: Option<i64>) -> Election {
+        serde_json::from_value(serde_json::json!({
+            "id": "e0000000-0000-4000-8000-000000000001",
+            "tenant_id": "e0000000-0000-4000-8000-000000000002",
+            "election_event_id": "e0000000-0000-4000-8000-000000000003",
+            "external_id": external_id,
+            "num_allowed_revotes": num_allowed_revotes,
+        }))
+        .expect("an election")
+    }
+
+    #[test]
+    fn a_new_revision_keeps_or_lowers_the_votes_of_each_election() {
+        let current = HashMap::from([
+            ("president".to_string(), Some(2)),
+            ("council".to_string(), None),
+            ("board".to_string(), Some(0)),
+        ]);
+        let kept = [
+            election(Some("president"), Some(1)),
+            election(Some("council"), Some(1)),
+            election(Some("board"), Some(3)),
+            election(Some("new"), Some(0)),
+            election(None, Some(0)),
+        ];
+        assert!(raised_allowed_votes(&kept, &current).problems.is_empty());
+
+        let raised = [
+            election(Some("president"), Some(0)),
+            election(Some("council"), Some(2)),
+            election(Some("board"), Some(0)),
+        ];
+        let report = raised_allowed_votes(&raised, &current);
+        let paths: Vec<&str> = report
+            .problems
+            .iter()
+            .map(|problem| problem.path.as_str())
+            .collect();
+        assert_eq!(
+            paths,
+            [
+                "elections[0].num_allowed_revotes",
+                "elections[1].num_allowed_revotes"
+            ]
+        );
+        assert!(report.has_errors());
+    }
 
     #[test]
     fn a_plain_upload_keeps_the_checksum_typed_with_it() {

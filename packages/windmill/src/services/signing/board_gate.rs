@@ -6,7 +6,7 @@
 //! a completed quorum is consumed in the transaction that starts the operation.
 
 use super::guard::{effective_rule, guard, GuardOutcome, GuardRequest, RequestScope};
-use super::log::SystemOutcome;
+use super::log::{Actor, SystemOutcome};
 use super::requests::{cancel_request, relock, stage_request_step};
 use super::{action_title, SigningCaller, SigningError, SigningResult};
 use crate::postgres::signing::{
@@ -54,7 +54,8 @@ pub enum BoardGateOutcome {
 
 /// The caller commits a waiting request, presents its code, and repeats the
 /// same operation after the board signs. An authorised result names the
-/// consumed request for a durable worker binding.
+/// consumed request for a durable worker binding. When a signature of the
+/// completed request no longer counts, a new request waits in its place.
 pub async fn gate(
     transaction: &Transaction<'_>,
     caller: &SigningCaller,
@@ -99,63 +100,92 @@ pub async fn gate(
     .await?
     {
         let completed = relock(transaction, &found).await?;
-        let same = completed.status == SigningRequestStatus::Completed
+        let same_subject = completed.status == SigningRequestStatus::Completed
             && completed.requested_by == caller.user_id
-            && completed.rule_revision == rule.revision
             && canonical_json(&completed.subject).map_err(anyhow::Error::from)?
-                == canonical_json(&request.subject).map_err(anyhow::Error::from)?
-            && completed
-                .expires_at
-                .is_none_or(|expiry| expiry > Utc::now());
+                == canonical_json(&request.subject).map_err(anyhow::Error::from)?;
+        let same_rule = completed.rule_revision == rule.revision;
+        let in_time = completed
+            .expires_at
+            .is_none_or(|expiry| expiry > Utc::now());
+        let same = same_subject && same_rule && in_time;
         if same {
             let approvals =
                 list_signing_approvals(transaction, tenant_id, election_event_id, completed.id)
                     .await?;
             let people: HashSet<_> = approvals.iter().map(|a| &a.user_id).collect();
             let valid_certificates:i64=transaction.query_one("SELECT count(*) FROM sequent_backend.signing_approval a JOIN sequent_backend.staff_certificate c ON c.id=a.certificate_id AND c.tenant_id=a.tenant_id AND c.election_event_id=a.election_event_id WHERE a.request_id=$1 AND c.status='active' AND c.not_before<=clock_timestamp() AND c.not_after>clock_timestamp()", &[&completed.id]).await?.try_get(0)?;
-            if valid_certificates < i64::from(rule.required()) {
-                return Err(SigningError::Conflict("A required signing certificate expired or was revoked; request new board authorisations.".into()));
+            if valid_certificates >= i64::from(rule.required())
+                && people.len() >= usize::from(rule.required())
+            {
+                let executed = update_signing_request_status(
+                    transaction,
+                    tenant_id,
+                    election_event_id,
+                    completed.id,
+                    &SigningRequestTransition::Execute { result: None },
+                )
+                .await?
+                .ok_or_else(|| {
+                    SigningError::Conflict("The authorisation was used already.".into())
+                })?;
+                stage_request_step(
+                    transaction,
+                    &executed,
+                    SigningStatementKind::SigningActionExecuted,
+                    caller.actor(),
+                    SystemOutcome::Info,
+                    format!(
+                        "Authorised {} with request {}",
+                        action_title(action),
+                        executed.code
+                    ),
+                    json!({"status": executed.status.to_string(), "operation": operation}),
+                )
+                .await?;
+                return Ok(BoardGateOutcome::Authorized(executed.id));
             }
-
-            if people.len() < usize::from(rule.required()) {
-                return Err(SigningError::Conflict(
-                    "The completed request no longer has its required distinct authorisations."
-                        .into(),
-                ));
-            }
-            let executed = update_signing_request_status(
-                transaction,
-                tenant_id,
-                election_event_id,
-                completed.id,
-                &SigningRequestTransition::Execute { result: None },
-            )
-            .await?
-            .ok_or_else(|| SigningError::Conflict("The authorisation was used already.".into()))?;
-            stage_request_step(
-                transaction,
-                &executed,
-                SigningStatementKind::SigningActionExecuted,
-                caller.actor(),
-                SystemOutcome::Info,
-                format!(
-                    "Authorised {} with request {}",
-                    action_title(action),
-                    executed.code
-                ),
-                json!({"status": executed.status.to_string(), "operation": operation}),
-            )
-            .await?;
-            return Ok(BoardGateOutcome::Authorized(executed.id));
         }
-        cancel_request(
-            transaction,
-            &completed,
-            CancelReason::PayloadChanged,
-            caller.actor(),
-            None,
-        )
-        .await?;
+        // A completed request takes no more signatures, so one that no longer
+        // authorises this operation can only be replaced. Its cancellation names
+        // why: a revoked certificate as its officer would have ended it, anything
+        // else by the caller, who starts the request that replaces it.
+        let (reason, by, note) = if !same_subject {
+            (CancelReason::PayloadChanged, caller.actor(), None)
+        } else if !same_rule {
+            (
+                CancelReason::Superseded,
+                caller.actor(),
+                Some("The signing rule changed"),
+            )
+        } else if !in_time {
+            (
+                CancelReason::Superseded,
+                caller.actor(),
+                Some("Its time limit passed"),
+            )
+        } else if let Some(revoked) = transaction.query_opt("SELECT c.revoked_by,c.revoked_by_name FROM sequent_backend.signing_approval a JOIN sequent_backend.staff_certificate c ON c.id=a.certificate_id AND c.tenant_id=a.tenant_id AND c.election_event_id=a.election_event_id WHERE a.request_id=$1 AND c.status<>'active' ORDER BY c.revoked_at LIMIT 1", &[&completed.id]).await? {
+            let officer = revoked
+                .try_get::<_, Option<String>>(0)?
+                .map(|user_id| {
+                    Ok::<_, anyhow::Error>(Actor {
+                        username: revoked
+                            .try_get::<_, Option<String>>(1)?
+                            .unwrap_or_else(|| user_id.clone()),
+                        user_id,
+                    })
+                })
+                .transpose()?
+                .unwrap_or_else(|| caller.actor());
+            (CancelReason::CertificateRevoked, officer, None)
+        } else {
+            (
+                CancelReason::Superseded,
+                caller.actor(),
+                Some("A required signing certificate expired"),
+            )
+        };
+        cancel_request(transaction, &completed, reason, by, note).await?;
     }
     match guard(transaction, caller, &request).await? {
         GuardOutcome::SigningRequired(summary) => Ok(BoardGateOutcome::Waiting(summary)),

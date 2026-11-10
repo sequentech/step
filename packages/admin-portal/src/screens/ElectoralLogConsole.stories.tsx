@@ -121,15 +121,6 @@ const recordsPage = (after: string | null, personalData: Scenario["personalData"
     } satisfies ConsolePage
 }
 
-const ballotsPage: ConsolePage = {
-    columns: ["ballot_id", "election_id", "area_id", "status"],
-    rows: [["b3f1c2", STORY_IDS.election, STORY_IDS.area, "valid"]],
-    next: null,
-    estimated_rows: 1,
-    personal_columns: [],
-    personal_data: "shown",
-}
-
 const RECORD = {
     position: 3,
     created: "2026-01-01T09:20:00Z",
@@ -211,10 +202,10 @@ const meta = {
                         ? {errors: [new GraphQLError("Synthetic electoral log unavailable")]}
                         : {
                               data: {
-                                  electoral_log_console_page:
-                                      variables.table === "ballots"
-                                          ? ballotsPage
-                                          : recordsPage(variables.after, args.personalData),
+                                  electoral_log_console_page: recordsPage(
+                                      variables.after,
+                                      args.personalData
+                                  ),
                               },
                           },
                 ElectoralLogConsoleRecord: ({variables}) => ({
@@ -333,36 +324,20 @@ export const FilterTheRecords: Story = {
     },
 }
 
-/** The ballot box keys areas by UUID: a filter that is not one is never sent. */
-export const InvalidBallotFilter: Story = {
-    parameters: {widgets: ["FilterInput"]},
+/** Pages show the electoral log's records: the table selector offers nothing else. */
+export const OnlyTheRecords: Story = {
+    parameters: {...recordsGridDefect, widgets: ["TablesTab", "FilterInput"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await recordsShown(canvasElement)
-        await choose(canvasElement, "Table", "Ballots")
-        await expect(await canvas.findByText("b3f1c2")).toBeVisible()
-        const area = canvas.getByRole("textbox", {name: "Area ID"})
-        await userEvent.type(area, "north")
-        await choose(canvasElement, "Status", "Valid")
-        const reads = pageReads().length
-        await userEvent.click(canvas.getByRole("button", {name: "Apply Filters"}))
-        await expect(
-            canvas.getByText(
-                "Check the highlighted filters: dates must be valid, and the ballot box's area IDs must be UUIDs."
-            )
-        ).toBeVisible()
-        await expect(area).toHaveAttribute("aria-invalid", "true")
-        expect(pageReads()).toHaveLength(reads)
-        await userEvent.clear(area)
-        await userEvent.type(area, STORY_IDS.area)
-        await userEvent.click(canvas.getByRole("button", {name: "Apply Filters"}))
-        await waitFor(() =>
-            expect(lastPageRead()?.variables).toMatchObject({
-                table: "ballots",
-                filters: {area_id: STORY_IDS.area, status: "valid"},
-            })
-        )
-        await expect(area).toHaveAttribute("aria-invalid", "false")
+        await userEvent.click(canvas.getByRole("combobox", {name: "Table"}))
+        const options = await within(document.body).findAllByRole("option")
+        expect(options.map(({textContent}) => textContent)).toEqual(["Records"])
+        await userEvent.click(options[0])
+        await waitFor(() => expect(within(document.body).queryByRole("listbox")).toBeNull())
+        expect(canvas.queryByRole("textbox", {name: "Area ID"})).toBeNull()
+        expect(canvas.queryByRole("combobox", {name: "Status"})).toBeNull()
+        expect(pageReads().every(({variables}) => variables.table === "records")).toBe(true)
     },
 }
 

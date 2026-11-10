@@ -46,7 +46,6 @@ import {
     ELECTORAL_LOG_CONSOLE_TENANTS,
 } from "@/queries/ElectoralLogConsole"
 import {
-    BALLOT_STATUSES,
     CONSOLE_TABLES,
     ConsoleElection,
     ConsolePage,
@@ -109,17 +108,11 @@ const FilterInput: React.FC<{
     const {t} = useTranslation()
     const aliasRenderer = useAliasRenderer()
     const label = t(`electoralLogConsole.filters.${field}`)
-    if (field === "election_id" || field === "status") {
-        const options =
-            field === "status"
-                ? BALLOT_STATUSES.map((status) => ({
-                      value: status,
-                      label: t(`electoralLogConsole.statuses.${status}`),
-                  }))
-                : elections.map((election) => ({
-                      value: election.id,
-                      label: aliasRenderer(election),
-                  }))
+    if (field === "election_id") {
+        const options = elections.map((election) => ({
+            value: election.id,
+            label: aliasRenderer(election),
+        }))
         return (
             <FormControl size="small" fullWidth>
                 <InputLabel id={`electoral-log-filter-${field}`}>{label}</InputLabel>
@@ -429,7 +422,7 @@ const TablesTab: React.FC<{superAdmin: boolean}> = ({superAdmin}) => {
             return []
         }
         const data = gridColumns(page)
-        if (table !== "records" || positionIndex < 0) {
+        if (positionIndex < 0) {
             return data
         }
         const view: GridColDef = {
@@ -452,7 +445,7 @@ const TablesTab: React.FC<{superAdmin: boolean}> = ({superAdmin}) => {
             ),
         }
         return [...data, view]
-    }, [page, table, positionIndex, t])
+    }, [page, positionIndex, t])
     const rows = useMemo(
         () => (page ? toGridRows(page, position.page * pageSize) : []),
         [page, position.page, pageSize]

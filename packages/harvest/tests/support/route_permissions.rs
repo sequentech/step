@@ -5,9 +5,10 @@
 //! Pin every guarded route's permissions from both sides. With its minimum
 //! permissions a request must get past authorization and stop at the first
 //! backend, which the isolated child process leaves unconfigured. With any one
-//! of them removed it must get the route's current denial. A route that starts
-//! requiring another permission fails the first check; one that stops
-//! requiring a permission fails the second.
+//! of them removed it must get the route's current denial, or the answer the
+//! row names for that permission when a later check gives another one. A route
+//! that starts requiring another permission fails the first check; one that
+//! stops requiring a permission fails the second.
 
 use super::{
     bearer, client, http, is_isolated_child, run_isolated, OTHER_TENANT_ID,
@@ -25,6 +26,7 @@ use std::time::Duration;
 const EVENT_ID: &str = "test-event";
 const AREA_ID: &str = "test-area";
 const USERNAME: &str = "test-username";
+const OTHER_USER_ID: &str = "other-user";
 const VOTING_PORTAL_CLIENT: &str = "voting-portal";
 // Some routes parse these ids as UUIDs before reaching a backend.
 pub(super) const UUID_TENANT_ID: &str = "00000000-0000-0000-0000-00000000000a";
@@ -100,6 +102,8 @@ struct Case {
     answer: Reply,
     /// The answer with any one of them removed.
     denied: Option<Reply>,
+    /// The permissions whose removal is answered otherwise than `denied`.
+    denied_without: Vec<(String, Reply)>,
 }
 
 impl Case {
@@ -140,7 +144,10 @@ fn reply(
 /// One line per guarded route, or per request shape when a route's
 /// permissions depend on the body: who calls it, the body, the minimum
 /// permissions, the answer with them and the answer with one of them removed.
-/// Routes without a permission to remove have no denial.
+/// Routes without a permission to remove have no denial. A trailing block
+/// names the permissions whose removal is answered otherwise: without
+/// `SIGNING_REQUESTS_CANCEL` the board gate answers forbidden, and a permission
+/// checked after the board gate only shows behind the first backend.
 macro_rules! case {
     ($identity:ident, $path:literal, $body:tt, [$($permission:expr),+], $answer:expr, $denied:expr) => {
         Case {
@@ -150,6 +157,18 @@ macro_rules! case {
             permissions: vec![$($permission.to_string()),+],
             answer: $answer,
             denied: Some($denied),
+            denied_without: vec![],
+        }
+    };
+    ($identity:ident, $path:literal, $body:tt, [$($permission:expr),+], $answer:expr, $denied:expr, {$($removed:expr => $reply:expr),+}) => {
+        Case {
+            identity: Identity::$identity,
+            path: $path,
+            body: json!($body),
+            permissions: vec![$($permission.to_string()),+],
+            answer: $answer,
+            denied: Some($denied),
+            denied_without: vec![$(($removed.to_string(), $reply)),+],
         }
     };
     ($identity:ident, $path:literal, $body:tt, [], $answer:expr) => {
@@ -160,6 +179,7 @@ macro_rules! case {
             permissions: vec![],
             answer: $answer,
             denied: None,
+            denied_without: vec![],
         }
     };
 }
@@ -195,12 +215,13 @@ fn cases() -> Vec<Case> {
         case!(UuidTenant, "/save-lifecycle-policies", {"election_event_id": UUID_EVENT_ID, "policies": {"initialization_scope": "post-and-country", "unsigned_scheduled_close": "refuse"}}, [ELECTION_EVENT_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/applications/support-reference", {"election_event_id": UUID_EVENT_ID, "reference": "65SR-MSSD"}, [APPLICATION_READ], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/apply-reconciliation-changes", {"election_event_id": EVENT_ID, "diff_document_id": "test-document"}, [ELECTION_EVENT_VOTER_LIST_SYNC], BACKEND, FORBIDDEN),
+        case!(Voter, "/audit-ballot", {"ballot_id": "FTBE-MHRX", "election_id": ELECTION_ID}, [CAST_VOTE], BACKEND, UNAUTHORIZED_JSON),
         case!(Voter, "/cast-ballot", {"ballot_id": "FTBE-MHRX", "election_id": ELECTION_ID, "cast_signature": "test-signature"}, [CAST_VOTE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/change-application-status", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "id": "test-application", "user_id": USER_ID}, [APPLICATION_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/confirm-key-custody", {"election_event_id": EVENT_ID, "keys_ceremony_id": "test-ceremony", "custody_proof_json": "not-a-key"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED),
         case!(Admin, "/configure-results-website-policy", {"election_event_id": EVENT_ID, "status": "enabled", "access": "public", "visibility_scope": "full_event"}, [PUBLISH_RESULTS_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/count-users", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/count-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [VOTER_READ], BACKEND_TEXT, UNAUTHORIZED),
+        case!(Admin, "/count-users", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID}, [VOTER_READ, SIGNING_REQUESTS_CANCEL], BACKEND, UNAUTHORIZED, {SIGNING_REQUESTS_CANCEL => FORBIDDEN}),
         case!(Voter, "/create-ballot-receipt", {"ballot_id": "test-ballot", "ballot_tracker_url": "https://tracker.invalid/test", "election_event_id": EVENT_ID, "election_id": ELECTION_ID}, [CAST_VOTE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/create-election", {"election_event_id": EVENT_ID, "external_id": "test-election", "presentation": {}}, [ELECTION_EVENT_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/create-keys-ceremony", {"election_event_id": EVENT_ID, "threshold": 1, "trustee_names": ["test-trustee"], "is_automatic_ceremony": false}, [ADMIN_CEREMONY], BACKEND, UNAUTHORIZED),
@@ -209,7 +230,7 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/create-phone-blacklist-entry", {"election_event_id": EVENT_ID, "phone_e164": "+34600000000"}, [PHONE_BLACKLIST_CREATE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/create-reconciliation-import", {"election_event_id": EVENT_ID, "document_id": "test-document"}, [ELECTION_EVENT_VOTER_LIST_SYNC], BACKEND, FORBIDDEN),
         case!(Admin, "/create-role", {"tenant_id": TENANT_ID, "role": {}}, [ROLE_CREATE], BACKEND_TEXT, UNAUTHORIZED),
-        case!(Admin, "/create-tally-ceremony", {"election_event_id": EVENT_ID, "election_ids": [], "tally_type": "ELECTORAL_RESULTS"}, [ADMIN_CEREMONY], BACKEND, UNAUTHORIZED_JSON),
+        case!(Admin, "/create-tally-ceremony", {"election_event_id": UUID_EVENT_ID, "election_ids": [], "tally_type": "ELECTORAL_RESULTS"}, [ADMIN_CEREMONY, SIGNING_REQUESTS_CANCEL], BACKEND, UNAUTHORIZED_JSON, {SIGNING_REQUESTS_CANCEL => FORBIDDEN_JSON}),
         case!(Admin, "/create-tally-sheet-import", {"election_event_id": EVENT_ID, "document_id": "test-document", "source_format": "CANONICAL_CSV", "selected_channel": "PAPER"}, [TALLY_SHEET_IMPORT_CREATE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "user": {}}, [USER_CREATE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "user": {"attributes": {"permission_labels": ["test-label"]}}}, [USER_CREATE, PERMISSION_LABEL_WRITE], BACKEND, UNAUTHORIZED_JSON),
@@ -218,20 +239,20 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "user": {}, "user_roles_ids": ["test-role"]}, [USER_CREATE, USER_WRITE, ROLE_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "user": {}, "user_roles_ids": ["test-role"]}, [VOTER_CREATE, USER_WRITE, ROLE_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/delete-certificate-authority", {"ids": [], "election_event_id": UUID_EVENT_ID}, [CA_WRITE], BACKEND, UNAUTHORIZED),
-        // The task row is written before the permission check.
-        case!(Admin, "/delete-election-event", {"election_event_id": EVENT_ID}, [ELECTION_EVENT_DELETE], BACKEND, BACKEND),
+        case!(Admin, "/delete-election-event", {"election_event_id": UUID_EVENT_ID}, [ELECTION_EVENT_DELETE, SIGNING_REQUESTS_CANCEL], BACKEND, UNAUTHORIZED, {SIGNING_REQUESTS_CANCEL => FORBIDDEN}),
         case!(Admin, "/delete-permission", {"tenant_id": TENANT_ID, "permission_name": "test-permission"}, [USER_PERMISSION_WRITE], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/delete-phone-blacklist-entry", {"id": "test-entry", "election_event_id": EVENT_ID}, [PHONE_BLACKLIST_DELETE], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/delete-role", {"tenant_id": TENANT_ID, "role_id": "test-role"}, [ROLE_WRITE], BACKEND_TEXT, UNAUTHORIZED),
-        case!(Admin, "/delete-role-permission", {"tenant_id": TENANT_ID, "role_id": "test-role", "permission_name": "test-permission"}, [USER_PERMISSION_WRITE, ROLE_WRITE], BACKEND_TEXT, UNAUTHORIZED),
+        case!(Admin, "/delete-role", {"tenant_id": TENANT_ID, "role_id": "test-role"}, [ROLE_WRITE], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/delete-role-permission", {"tenant_id": TENANT_ID, "role_id": "test-role", "permission_name": "test-permission"}, [USER_PERMISSION_WRITE, ROLE_WRITE], BACKEND, UNAUTHORIZED),
         case!(UuidTenant, "/delete-role-permission", {"tenant_id": UUID_TENANT_ID, "role_id": "test-role", "permission_name": "sign-close-voting"}, [ROLE_WRITE], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(SuperAdmin, "/delete-tenant", {"tenant_id": TENANT_ID}, [TENANT_DELETE], BACKEND, BACKEND),
-        case!(Admin, "/delete-user", {"tenant_id": TENANT_ID, "user_id": USER_ID}, [USER_WRITE], BACKEND_TEXT, UNAUTHORIZED),
+        case!(Admin, "/delete-user", {"tenant_id": TENANT_ID, "user_id": USER_ID}, [USER_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/delete-user", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "user_id": USER_ID}, [VOTER_DELETE], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/delete-user-role", {"tenant_id": TENANT_ID, "user_id": USER_ID, "role_id": "test-role"}, [USER_WRITE, ROLE_WRITE], BACKEND_TEXT, UNAUTHORIZED),
-        case!(Admin, "/delete-users", {"tenant_id": TENANT_ID, "users_id": [USER_ID]}, [USER_WRITE], BACKEND_TEXT, UNAUTHORIZED),
+        case!(Admin, "/delete-user-role", {"tenant_id": TENANT_ID, "user_id": OTHER_USER_ID, "role_id": "test-role"}, [USER_WRITE, ROLE_WRITE], BACKEND_TEXT, UNAUTHORIZED),
+        case!(Admin, "/delete-users", {"tenant_id": TENANT_ID, "users_id": [USER_ID]}, [USER_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/delete-users", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "users_id": [USER_ID]}, [VOTER_DELETE], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/disable-election-revoting", {"election_event_id": UUID_V4_EVENT_ID, "election_id": UUID_V4_EVENT_ID}, [ADMIN_USER], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/edit-user", {"tenant_id": TENANT_ID, "user_id": USER_ID}, [USER_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/edit-user", {"tenant_id": TENANT_ID, "user_id": USER_ID, "attributes": {"permission_labels": ["test-label"]}}, [USER_WRITE, PERMISSION_LABEL_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/edit-user", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "user_id": USER_ID, "first_name": "Ada"}, [VOTER_WRITE], BACKEND, UNAUTHORIZED_JSON),
@@ -269,13 +290,12 @@ fn cases() -> Vec<Case> {
         // The task row is written before the permission check.
         case!(Admin, "/export-ballot-publication", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "ballot_publication_id": "test-publication"}, [PUBLISH_WRITE], BACKEND, BACKEND),
         case!(Admin, "/export-certificate-authority", {"ids": [], "election_event_id": UUID_EVENT_ID}, [CA_READ], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/export-election-event", {"election_event_id": EVENT_ID, "export_configurations": {}}, [ELECTION_EVENT_READ], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/export-election-event", {"election_event_id": UUID_EVENT_ID, "export_configurations": {}}, [ELECTION_EXECUTION_EXPORT, SIGNING_REQUESTS_CANCEL], BACKEND, UNAUTHORIZED, {SIGNING_REQUESTS_CANCEL => FORBIDDEN}),
         case!(Admin, "/export-election-event-logs", {"election_event_id": EVENT_ID, "format": "CSV"}, [LOGS_EXPORT], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-tally-results", {"election_event_id": EVENT_ID, "tally_session_id": "test-session"}, [TALLY_RESULTS_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-tasks-execution", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [TASKS_READ], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(Admin, "/export-template", {"tenant_id": TENANT_ID}, [TEMPLATE_WRITE], BACKEND, BACKEND),
-        case!(Admin, "/export-tenant-config", {"tenant_id": TENANT_ID}, [TENANT_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-tenant-users", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(Admin, "/export-trustees", {"password": "test-password"}, [TRUSTEES_EXPORT], BACKEND, BACKEND),
@@ -283,8 +303,9 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/export-users", {"tenant_id": TENANT_ID}, [USER_READ], Reply::Json(Status::Ok), UNAUTHORIZED),
         // The secret-attribute check comes after the tenant-user rejection.
         case!(Admin, "/export-users", {"tenant_id": TENANT_ID, "include_secret_attributes": true}, [USER_READ], BAD_REQUEST, UNAUTHORIZED),
-        case!(Admin, "/export-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [VOTER_READ], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/export-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "include_secret_attributes": true}, [VOTER_READ, VOTER_SECRET_ATTRIBUTE_READ], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/export-users", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID}, [VOTER_READ, SIGNING_REQUESTS_CANCEL], BACKEND, UNAUTHORIZED, {SIGNING_REQUESTS_CANCEL => FORBIDDEN}),
+        // The secret permission is checked before the board gate.
+        case!(Admin, "/export-users", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "include_secret_attributes": true}, [VOTER_READ, VOTER_SECRET_ATTRIBUTE_READ, SIGNING_REQUESTS_CANCEL], BACKEND, UNAUTHORIZED, {SIGNING_REQUESTS_CANCEL => FORBIDDEN}),
         case!(Admin, "/fetch-document", {"document_id": "test-document"}, [DOCUMENT_DOWNLOAD], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/fetch-results-artifact", {"election_event_id": EVENT_ID, "publication_id": "test-publication"}, [], BACKEND),
         case!(Gold, "/generate-ballot-publication", {"election_event_id": EVENT_ID}, [PUBLISH_WRITE], BACKEND, UNAUTHORIZED_JSON),
@@ -311,14 +332,14 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/get-upload-url", {"name": "restore.zip", "media_type": "application/zip", "size": 1, "is_public": false}, [TENANT_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/get-upload-url", {"name": "configuration.ezip", "media_type": "application/ezip", "size": 1, "is_public": false}, [ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/get-user", {"tenant_id": TENANT_ID, "user_id": USER_ID}, [USER_READ], BACKEND_TEXT, UNAUTHORIZED),
-        case!(Admin, "/get-user", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "user_id": USER_ID}, [VOTER_READ], BACKEND_TEXT, UNAUTHORIZED),
+        case!(Admin, "/get-user", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "user_id": USER_ID}, [VOTER_READ, SIGNING_REQUESTS_CANCEL], BACKEND, UNAUTHORIZED, {SIGNING_REQUESTS_CANCEL => FORBIDDEN}),
         case!(Admin, "/get-user-profile-attributes", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/get-user-profile-attributes", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [VOTER_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/get-user-profile-configuration", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/get-user-profile-configuration", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [VOTER_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/get-user-template", {"template_type": "test-template"}, [REPORT_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/get-users", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/get-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [VOTER_READ], BACKEND_TEXT, UNAUTHORIZED),
+        case!(Admin, "/get-users", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID}, [VOTER_READ, SIGNING_REQUESTS_CANCEL], BACKEND, UNAUTHORIZED, {SIGNING_REQUESTS_CANCEL => FORBIDDEN}),
         case!(Admin, "/self-tests/get", {"election_event_id": UUID_V4_EVENT_ID}, [SELF_TEST_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/self-tests/run", {"election_event_id": UUID_V4_EVENT_ID}, [SELF_TEST_RUN], BACKEND, UNAUTHORIZED),
         case!(Admin, "/self-tests/settings", {"election_event_id": UUID_V4_EVENT_ID}, [SELF_TEST_SETTINGS_WRITE], BACKEND, UNAUTHORIZED),
@@ -328,18 +349,19 @@ fn cases() -> Vec<Case> {
         // Looking ballots up by their ID first reads the checks period.
         case!(Voter, "/get-voter-cast-votes", {"election_event_id": EVENT_ID, "election_id": ELECTION_ID, "ballot_id": "0abc12"}, [CAST_VOTE], BACKEND, FORBIDDEN),
         case!(Admin, "/import-application", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "document_id": "test-document"}, [APPLICATION_IMPORT], BACKEND, UNAUTHORIZED),
+        // The permission and the signing policy are checked before the board gate.
         case!(Admin, "/import-areas", {"election_event_id": EVENT_ID, "document_id": "test-document"}, [AREA_WRITE], BACKEND, UNAUTHORIZED),
-        // The task row is written before the permission check.
-        case!(Admin, "/import-candidates", {"election_event_id": EVENT_ID, "document_id": "test-document"}, [ADMIN_USER], BACKEND, BACKEND),
+        // The permission and the signing policy are checked before the board gate.
+        case!(Admin, "/import-candidates", {"election_event_id": EVENT_ID, "document_id": "test-document"}, [CANDIDATE_CREATE], BACKEND, UNAUTHORIZED),
         case!(UuidTenant, "/import-certificate-authority", {"election_event_id": UUID_EVENT_ID, "pem_content": PEM}, [CA_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/import-election-event", {"tenant_id": TENANT_ID, "document_id": "test-document"}, [ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/import-election-event", {"tenant_id": OTHER_TENANT_ID, "document_id": "test-document"}, [ELECTION_EVENT_CREATE], UNAUTHORIZED, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(Admin, "/import-templates", {"tenant_id": TENANT_ID, "document_id": "test-document"}, [TEMPLATE_WRITE], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/import-tenant-config", {"tenant_id": TENANT_ID, "document_id": "test-document", "import_configurations": {}}, [TENANT_WRITE], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(Admin, "/import-users", {"tenant_id": TENANT_ID, "document_id": "test-document"}, [USER_CREATE], BACKEND, BACKEND),
-        case!(Admin, "/import-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "document_id": "test-document"}, [VOTER_CREATE], BACKEND, BACKEND),
+        // The permission and the signing policy are checked before the board gate.
+        case!(Admin, "/import-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "document_id": "test-document"}, [VOTER_CREATE], BACKEND, UNAUTHORIZED),
         case!(Voter, "/insert-cast-vote", {"ballot_id": "test-ballot", "election_id": ELECTION_ID, "content": "test-content"}, [CAST_VOTE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/insert-election-event", {"tenant_id": TENANT_ID, "name": "test-event"}, [ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
@@ -385,37 +407,43 @@ fn cases() -> Vec<Case> {
         case!(UuidTenant, "/messaging/monthly-volumes", {"month": "2026-10"}, [MESSAGING_CONFIG_READ], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/messaging/voter-counts", {"election_event_id": UUID_EVENT_ID}, [MESSAGING_CONFIG_READ], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/messaging/recount-voters", {"election_event_id": UUID_EVENT_ID}, [MESSAGING_CONFIG_READ], BACKEND, UNAUTHORIZED_JSON),
-        // The task row is written before the permission check.
-        case!(Admin, "/miru/create-transmission-package", {"election_event_id": EVENT_ID, "election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session", "force": false}, [MIRU_CREATE], BACKEND, BACKEND),
+        // Only builds with the `plugins` feature have the Miru routes.
+        #[cfg(feature = "plugins")]
+        case!(Admin, "/miru/create-transmission-package", {"election_event_id": EVENT_ID, "election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session", "force": false}, [MIRU_CREATE], BACKEND, UNAUTHORIZED),
+        #[cfg(feature = "plugins")]
         case!(Admin, "/miru/send-transmission-package", {"election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session"}, [MIRU_SEND], BACKEND, UNAUTHORIZED),
+        #[cfg(feature = "plugins")]
         case!(Admin, "/miru/upload-signature", {"election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session", "document_id": "test-document", "password": "test-password"}, [MIRU_SIGN], BACKEND_TEXT, UNAUTHORIZED),
-        // Plugins receive the claims and make their own decisions.
-        case!(UuidTenant, "/monitoring/export", {"election_event_id": UUID_EVENT_ID, "dashboard_id": "overview", "snapshot_revision": 1, "format": "CSV"}, [MONITORING_VIEW], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/monitoring/export", {"election_event_id": UUID_EVENT_ID, "dashboard_id": "overview", "snapshot_revision": 1, "format": "CSV"}, [MONITORING_VIEW, SIGNING_REQUESTS_CANCEL], BACKEND, UNAUTHORIZED_JSON, {SIGNING_REQUESTS_CANCEL => FORBIDDEN_JSON}),
         case!(UuidTenant, "/monitoring/get-config", {"election_event_id": UUID_EVENT_ID, "kind": "widget", "key": "turnout"}, [MONITORING_CONFIGURE], BACKEND, UNAUTHORIZED_JSON),
-        case!(UuidTenant, "/monitoring/get-dashboard", {"election_event_id": UUID_EVENT_ID, "dashboard_id": "overview"}, [MONITORING_VIEW], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/monitoring/get-dashboard", {"election_event_id": UUID_EVENT_ID, "dashboard_id": "overview"}, [MONITORING_VIEW, SIGNING_REQUESTS_CANCEL], BACKEND, UNAUTHORIZED_JSON, {SIGNING_REQUESTS_CANCEL => FORBIDDEN_JSON}),
         case!(UuidTenant, "/monitoring/list-config", {"election_event_id": UUID_EVENT_ID}, [MONITORING_CONFIGURE], BACKEND, UNAUTHORIZED_JSON),
-        case!(UuidTenant, "/monitoring/list-dashboards", {"election_event_id": UUID_EVENT_ID}, [MONITORING_VIEW], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/monitoring/list-dashboards", {"election_event_id": UUID_EVENT_ID}, [MONITORING_VIEW, SIGNING_REQUESTS_CANCEL], BACKEND, UNAUTHORIZED_JSON, {SIGNING_REQUESTS_CANCEL => FORBIDDEN_JSON}),
         case!(UuidTenant, "/monitoring/list-presets", {"election_event_id": UUID_EVENT_ID}, [MONITORING_CONFIGURE], Reply::Json(Status::Ok), UNAUTHORIZED_JSON),
-        case!(UuidTenant, "/monitoring/render-widget", {"election_event_id": UUID_EVENT_ID, "dashboard_id": "overview", "widget_id": "turnout"}, [MONITORING_VIEW], BACKEND, UNAUTHORIZED_JSON),
-        case!(UuidTenant, "/monitoring/render-widget", {"election_event_id": UUID_EVENT_ID, "dashboard_id": "overview", "widget_id": "turnout", "draft": {"widget_yaml": "id: turnout"}}, [MONITORING_VIEW, MONITORING_CONFIGURE], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/monitoring/render-widget", {"election_event_id": UUID_EVENT_ID, "dashboard_id": "overview", "widget_id": "turnout"}, [MONITORING_VIEW, SIGNING_REQUESTS_CANCEL], BACKEND, UNAUTHORIZED_JSON, {SIGNING_REQUESTS_CANCEL => FORBIDDEN_JSON}),
+        case!(UuidTenant, "/monitoring/render-widget", {"election_event_id": UUID_EVENT_ID, "dashboard_id": "overview", "widget_id": "turnout", "draft": {"widget_yaml": "id: turnout"}}, [MONITORING_VIEW, MONITORING_CONFIGURE, SIGNING_REQUESTS_CANCEL], BACKEND, UNAUTHORIZED_JSON, {SIGNING_REQUESTS_CANCEL => FORBIDDEN_JSON}),
         case!(UuidTenant, "/monitoring/reset-to-preset", {"election_event_id": UUID_EVENT_ID, "preset_id": "comelec"}, [MONITORING_CONFIGURE], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/monitoring/save-config", {"election_event_id": UUID_EVENT_ID, "kind": "widget", "key": "turnout", "yaml": "id: turnout", "change": "UPSERT"}, [MONITORING_CONFIGURE], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/monitoring/set-mode", {"election_event_id": UUID_EVENT_ID, "mode": "CONFIGURED"}, [MONITORING_CONFIGURE], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/monitoring/validate-config", {"election_event_id": UUID_EVENT_ID, "kind": "widget", "key": "turnout", "yaml": "id: turnout"}, [MONITORING_CONFIGURE], BACKEND, UNAUTHORIZED_JSON),
+        // Plugins receive the claims and make their own decisions; only builds
+        // with the `plugins` feature have the route.
+        #[cfg(feature = "plugins")]
         case!(Admin, "/plugin", {"path": "/test-plugin/test-route", "data": {}}, [], BACKEND_TEXT),
         case!(Admin, "/prepare-ballot-publication-preview", {"election_event_id": EVENT_ID, "ballot_publication_id": "test-publication"}, [DOCUMENT_UPLOAD], BACKEND, UNAUTHORIZED),
         case!(Admin, "/preview-tally-sheet-import", {"election_event_id": EVENT_ID, "document_id": "test-document", "source_format": "CANONICAL_CSV", "selected_channel": "PAPER"}, [TALLY_SHEET_IMPORT_CREATE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/publish-ballot", {"election_event_id": EVENT_ID, "ballot_publication_id": "test-publication"}, [PUBLISH_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/publish-results-website", {"election_event_id": EVENT_ID, "tally_session_id": "test-session", "tally_session_execution_id": "test-execution", "results_event_id": "test-results-event", "route_scope": "event", "election_ids": ["test-election"], "contest_ids": ["test-contest"], "access": "public", "visibility_scope": "full_event"}, [PUBLISH_RESULTS_WRITE], BACKEND, UNAUTHORIZED),
         case!(Voter, "/receive-ballot", {"ballot_id": "test-ballot", "election_id": ELECTION_ID, "content": "test-content"}, [CAST_VOTE], BACKEND, UNAUTHORIZED_JSON),
-        case!(Admin, "/recount-tally-session", {"election_event_id": EVENT_ID, "tally_session_id": "test-session"}, [TALLY_RECOUNT_EXECUTE], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/recount-tally-session", {"election_event_id": UUID_EVENT_ID, "tally_session_id": "test-session"}, [TALLY_RECOUNT_EXECUTE, SIGNING_REQUESTS_CANCEL], BACKEND, UNAUTHORIZED, {SIGNING_REQUESTS_CANCEL => FORBIDDEN}),
         case!(Admin, "/refresh-results-publication-index", {"election_event_id": EVENT_ID}, [PUBLISH_RESULTS_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/render-document-pdf", {"document_id": "test-document"}, [REPORT_READ], BACKEND, UNAUTHORIZED),
         // Readers are authorized by the service after it loads the publication.
         case!(Admin, "/resolve-results-publication", {"ee_id": EVENT_ID}, [], BACKEND),
         case!(Admin, "/custody-proof-signature-status", {"election_event_id": EVENT_ID, "tally_session_id": "test-session"}, [TRUSTEE_CEREMONY], BACKEND, FORBIDDEN_JSON),
         case!(Admin, "/authorize-tally-custody", {"election_event_id": EVENT_ID, "custody_proof_json": "not-a-key", "tally_session_id": "test-session"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/reveal-voter-secret-attribute", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "user_id": USER_ID, "attribute_name": "test-secret"}, [VOTER_READ, VOTER_SECRET_ATTRIBUTE_READ], BACKEND_TEXT, UNAUTHORIZED),
+        // The secret permission is checked before the board gate.
+        case!(Admin, "/reveal-voter-secret-attribute", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "user_id": USER_ID, "attribute_name": "test-secret"}, [VOTER_READ, VOTER_SECRET_ATTRIBUTE_READ, SIGNING_REQUESTS_CANCEL], BACKEND, UNAUTHORIZED, {SIGNING_REQUESTS_CANCEL => FORBIDDEN}),
         case!(Admin, "/review-tally-sheet", {"election_event_id": EVENT_ID, "tally_sheet_id": "test-sheet", "new_status": "DISAPPROVED"}, [TALLY_SHEET_REVIEW], BACKEND, UNAUTHORIZED),
         case!(Admin, "/review-tally-sheet-import", {"election_event_id": EVENT_ID, "import_id": "test-import", "decision": "DISAPPROVE"}, [TALLY_SHEET_IMPORT_REVIEW], BACKEND, UNAUTHORIZED),
         case!(Admin, "/revoke-results-publication", {"election_event_id": EVENT_ID, "publication_id": "test-publication"}, [PUBLISH_RESULTS_WRITE], BACKEND, UNAUTHORIZED),
@@ -428,10 +456,10 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/scheduled-event", {"tenant_id": OTHER_TENANT_ID, "event_processor": "START_VOTING_PERIOD", "event_payload": {}}, [], BACKEND),
         case!(Admin, "/set-custom-url", {"origin": "https://origin.invalid", "redirect_to": "https://redirect.invalid", "dns_prefix": "test", "election_id": EVENT_ID, "key": "login"}, [ELECTION_EVENT_WRITE], BACKEND, FORBIDDEN),
         case!(Admin, "/set-google-service-account-key", {"service_account_key": {}}, [TENANT_WRITE], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/set-role-permission", {"tenant_id": TENANT_ID, "role_id": "test-role", "permission_name": "test-permission"}, [USER_PERMISSION_WRITE, ROLE_WRITE], BACKEND_TEXT, UNAUTHORIZED),
+        case!(Admin, "/set-role-permission", {"tenant_id": TENANT_ID, "role_id": "test-role", "permission_name": "test-permission"}, [USER_PERMISSION_WRITE, ROLE_WRITE], BACKEND, UNAUTHORIZED),
         // A sign permission also passes with role-write alone; the change opens the database first.
         case!(UuidTenant, "/set-role-permission", {"tenant_id": UUID_TENANT_ID, "role_id": "test-role", "permission_name": "sign-close-voting"}, [ROLE_WRITE], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/set-user-role", {"tenant_id": TENANT_ID, "user_id": USER_ID, "role_id": "test-role"}, [USER_WRITE, ROLE_WRITE], BACKEND_TEXT, UNAUTHORIZED),
+        case!(Admin, "/set-user-role", {"tenant_id": TENANT_ID, "user_id": OTHER_USER_ID, "role_id": "test-role"}, [USER_WRITE, ROLE_WRITE], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/set-voter-authentication", {"election_event_id": EVENT_ID, "enrollment": "enabled", "otp": "enabled"}, [ELECTION_EVENT_WRITE], BACKEND, FORBIDDEN),
         // Without any sign permission the request isn't found (it may not
         // exist); the request's own sign permission is checked once loaded.
@@ -461,6 +489,7 @@ fn cases() -> Vec<Case> {
         case!(UuidTenant, "/update-realm-password-policy", {"election_event_id": UUID_EVENT_ID, "minimum_length": 8, "maximum_length": 64, "include_uppercase": true, "include_lowercase": true, "include_digits": true, "include_special_characters": false}, [ELECTION_EVENT_WRITE], BACKEND, FORBIDDEN_JSON),
         case!(Admin, "/update-tally-ceremony", {"election_event_id": EVENT_ID, "tally_session_id": "test-session", "status": "IN_PROGRESS"}, [ADMIN_CEREMONY], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/upsert-area", {"name": "test-area", "election_event_id": UUID_EVENT_ID, "tenant_id": UUID_TENANT_ID, "area_contest_ids": []}, [AREA_CREATE], BACKEND, UNAUTHORIZED),
+        // The permission and the signing policy are checked before the board gate.
         case!(Admin, "/upsert-areas", {"election_event_id": EVENT_ID, "document_id": "test-document"}, [AREA_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/verify-application", {"applicant_id": "test-applicant", "applicant_data": {}, "tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "annotations": {}}, [SERVICE_ACCOUNT], BACKEND, UNAUTHORIZED_JSON),
         // Who may act on a request depends on the request: the requester, its
@@ -487,6 +516,11 @@ fn guarded_routes() -> BTreeSet<&'static str> {
     include_str!("../fixtures/guarded-post-routes.txt")
         .lines()
         .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        // Only builds with the `plugins` feature register the plugin and Miru
+        // routes.
+        .filter(|line| {
+            cfg!(feature = "plugins") || !super::PLUGIN_ROUTES.contains(line)
+        })
         .collect()
 }
 
@@ -530,6 +564,11 @@ async fn minimum_permissions_reach_the_backend_and_one_fewer_is_denied() {
                 .cloned()
                 .collect();
             let answer = case.send(&client, &remaining).await;
+            let denied = case
+                .denied_without
+                .iter()
+                .find(|(permission, _)| permission == removed)
+                .map_or(denied, |(_, reply)| *reply);
             if answer != Ok(denied) {
                 failures.push(format!(
                     "{} {} without {removed}: {answer:?}, expected {denied:?}",
@@ -608,33 +647,35 @@ async fn realm_routes_refuse_scopes_that_are_not_uuids_before_any_check() {
 }
 
 #[rocket::async_test]
-async fn gold_routes_refuse_complete_permissions_without_a_fresh_gold_login() {
+async fn board_routes_refuse_complete_permissions_without_a_fresh_external_login(
+) {
     use Permissions::{ELECTION_STATE_WRITE, GOLD, PUBLISH_WRITE};
     let client = client().await;
     let now = Utc::now().timestamp();
-    let refusal = "Insufficient privileges";
-    for (path, body, permission, expected) in [
+    let expected = json!({
+        "message": "Fresh external authentication required",
+        "extensions": {"code": "Unauthorized"},
+    });
+    for (path, body, permission) in [
         (
             "/generate-ballot-publication",
             json!({"election_event_id": EVENT_ID}),
             PUBLISH_WRITE,
-            json!({"message": refusal, "extensions": {"code": "Unauthorized"}}),
         ),
         (
             "/update-event-voting-status",
             json!({"election_event_id": EVENT_ID, "voting_status": "OPEN"}),
             ELECTION_STATE_WRITE,
-            json!({"message": refusal, "extensions": {"code": "Unauthorized"}}),
         ),
         (
             "/update-election-voting-status",
             json!({"election_event_id": EVENT_ID, "election_id": "test-election", "voting_status": "OPEN"}),
             ELECTION_STATE_WRITE,
-            json!({"message": refusal, "extensions": {"code": "Unauthorized"}}),
         ),
     ] {
         for claims in [
-            Claims::new(TENANT_ID, USER_ID).auth_time(now),
+            Claims::new(TENANT_ID, USER_ID),
+            Claims::new(TENANT_ID, USER_ID).auth_time(now - 60),
             Claims::new(TENANT_ID, USER_ID)
                 .acr(&GOLD.to_string())
                 .auth_time(now - 3600),
@@ -647,11 +688,11 @@ async fn gold_routes_refuse_complete_permissions_without_a_fresh_gold_login() {
                 .dispatch()
                 .await;
             assert_eq!(response.status(), Status::Forbidden, "{path}");
-            let answer = match &expected {
-                Value::String(_) => json!(response.into_string().await),
-                _ => response.into_json::<Value>().await.unwrap(),
-            };
-            assert_eq!(answer, expected, "{path}");
+            assert_eq!(
+                response.into_json::<Value>().await.unwrap(),
+                expected,
+                "{path}"
+            );
         }
     }
 }
@@ -778,6 +819,7 @@ async fn scoped_archive_uploads_preserve_permission_and_path_boundaries() {
             permissions: vec![permission.to_string()],
             answer: BACKEND,
             denied: Some(UNAUTHORIZED),
+            denied_without: vec![],
         };
         assert_eq!(baseline.send(&client, &baseline.permissions).await, Ok(BACKEND), "{permission}: valid archive reaches the existing fresh-document backend");
         assert_eq!(baseline.send(&client, &[]).await, Ok(UNAUTHORIZED));
@@ -799,6 +841,7 @@ async fn scoped_archive_uploads_preserve_permission_and_path_boundaries() {
                     permissions: baseline.permissions.clone(),
                     answer: BACKEND,
                     denied: Some(UNAUTHORIZED),
+                    denied_without: vec![],
                 }
             };
             assert_eq!(
@@ -832,6 +875,7 @@ async fn scoped_archive_uploads_preserve_permission_and_path_boundaries() {
                 permissions: baseline.permissions.clone(),
                 answer: UNAUTHORIZED,
                 denied: Some(UNAUTHORIZED),
+                denied_without: vec![],
             };
             assert_eq!(
                 case.send(&client, &case.permissions).await,

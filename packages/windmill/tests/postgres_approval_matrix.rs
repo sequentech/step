@@ -226,6 +226,9 @@ async fn saved_versions_cannot_be_changed_and_go_with_their_event() {
     assert!(format!("{error:?}").contains("immutable"), "{error:?}");
     savepoint.rollback().await.unwrap();
 
+    // The event's lifecycle row goes with it only in the server's own
+    // transaction.
+    windmill::postgres::trusted_write(&tx).await.unwrap();
     tx.execute(
         "DELETE FROM sequent_backend.election_event WHERE id = $1",
         &[&event_id],

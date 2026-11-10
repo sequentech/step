@@ -49,7 +49,7 @@ pub async fn get_user_template(
             .map_err(|err| {
                 (
                     Status::InternalServerError,
-                    format!("Error fetching template: ${err}"),
+                    format!("Error fetching template: {err}"),
                 )
             })?;
 
@@ -61,7 +61,7 @@ pub async fn get_user_template(
         (
             Status::InternalServerError,
             format!(
-                "Error fetching the extra_config file of the template: ${err}"
+                "Error fetching the extra_config file of the template: {err}"
             ),
         )
     })?;

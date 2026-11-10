@@ -30,6 +30,8 @@ services:
     build:
       context: ../packages
       dockerfile: Dockerfile.keycloak
+      args:
+        - FEATURES=sign-in-links
       additional_contexts:
         beyond: ../beyond
         scripts: ../scripts
@@ -294,7 +296,6 @@ services:
       HASURA_GRAPHQL_UNAUTHORIZED_ROLE: "unauthorized"
       HASURA_GRAPHQL_JWT_SECRET: ${HASURA_GRAPHQL_JWT_SECRET}
       HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
-      ACTIONS_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       HARVEST_DOMAIN: ${HARVEST_DOMAIN}
     depends_on:
       data-connector-agent:

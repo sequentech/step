@@ -25,3 +25,7 @@ cargo build --release
 popd
 
 source .devcontainer/scripts/config-cli.sh
+
+# The development tenant imports unsigned election event files.
+.devcontainer/scripts/allow-unsigned-imports.sh \
+  || echo "Failed to let the super tenant import unsigned election event files; run .devcontainer/scripts/allow-unsigned-imports.sh once the stack is up"

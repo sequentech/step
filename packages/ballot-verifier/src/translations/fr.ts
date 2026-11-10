@@ -30,7 +30,6 @@ const frenchTranslation: TranslationType = {
             dragDropOption: "Ou glissez le fichier ici",
             importErrorDescription:
                 "Il y a eu un problème lors de l'importation du vote auditable. Avez-vous choisi le bon fichier ?",
-            importErrorMoreInfo: "Plus d'informations",
             importErrorTitle: "Erreur",
             ciphertextErrorTitle: "La vérification du vote a échoué",
             ciphertextErrorDescription:

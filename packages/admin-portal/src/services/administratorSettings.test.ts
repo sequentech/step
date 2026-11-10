@@ -27,6 +27,13 @@ describe("administrator settings queries", () => {
         expect(print(query)).toContain("presentation: administration_settings")
         expect(print(query)).toContain("affected_rows")
     })
+    it("keeps the number of allowed votes of each election", () => {
+        const query = administratorSettingsQuery(
+            parse(`query {sequent_backend_election {id presentation num_allowed_revotes status}}`)
+        )
+        expect(print(query)).toContain("num_allowed_revotes")
+        expect(print(query)).not.toContain("status")
+    })
     it("leaves identity and signing actions unchanged", () => {
         const query = parse(`query {get_roles(tenant_id:"tenant") {items{id name}}}`)
         expect(print(administratorSettingsQuery(query))).toBe(print(query))

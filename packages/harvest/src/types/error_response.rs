@@ -65,6 +65,7 @@ pub enum ErrorCode {
     ElectoralLogRecordNotFound,
     InvalidTaskQueuesRequest,
     TaskQueuesUnavailable,
+    RevotingValidation,
     // Add any other needed error codes
 }
 

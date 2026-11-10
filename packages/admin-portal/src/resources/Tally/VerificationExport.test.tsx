@@ -44,7 +44,7 @@ const parent = {
     keys_ceremony_id: keys,
     tally_session_id: null,
     batch: null,
-    manager_message: "\\x0102ff",
+    public_manager_message: "\\x0102ff",
 }
 const board = {
     ...parent,
@@ -53,6 +53,7 @@ const board = {
     name: `tally_${session.replace(/-/g, "")}_0`,
     tally_session_id: session,
     batch: 0,
+    public_manager_message: null,
 }
 const hash = "ab".repeat(64)
 const props = {
@@ -123,6 +124,37 @@ it("shows a fixed error without exposing a failed backend response or downloadin
     expect(screen.queryByText("private response details")).not.toBeInTheDocument()
     expect(mockDownload).not.toHaveBeenCalled()
 })
+
+const refusal =
+    "This operation requires electoral phase PostProcessing; current phase is Evaluation"
+it.each([
+    [
+        "rejects",
+        () => mockExport.mockRejectedValue({message: refusal, graphQLErrors: [{message: refusal}]}),
+    ],
+    [
+        "answers",
+        () =>
+            mockExport.mockResolvedValue({
+                data: {export_verification_transcript: null},
+                errors: [{message: refusal}],
+            }),
+    ],
+])(
+    "says when verification data can be downloaded if the server %s a download before post-processing",
+    async (_answer, refuse) => {
+        refuse()
+        render(<VerificationExport {...props} />)
+        fireEvent.click(await screen.findByRole("button", {name: "Download verification data"}))
+        expect(
+            await screen.findByText(
+                "Verification data can be downloaded once post-processing has started."
+            )
+        ).toBeVisible()
+        expect(screen.queryByText("Verification data could not be downloaded.")).toBeNull()
+        expect(mockDownload).not.toHaveBeenCalled()
+    }
+)
 
 it("refuses malformed independent anchors without offering a transcript", async () => {
     mockLoad.mockResolvedValue({

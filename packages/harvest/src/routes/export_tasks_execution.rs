@@ -55,7 +55,7 @@ pub async fn export_tasks_execution_route(
         .map_err(|err| {
             (
                 Status::InternalServerError,
-                format!("Error sending Export Tasks Execution task: ${err}"),
+                format!("Error sending Export Tasks Execution task: {err}"),
             )
         })?;
 

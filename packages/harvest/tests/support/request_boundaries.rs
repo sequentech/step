@@ -32,6 +32,14 @@ const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
 const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 205;
+/// The routes that only builds with the `plugins` feature register: the
+/// plugin route and the Miru transmission routes.
+const PLUGIN_ROUTES: [&str; 4] = [
+    "/plugin",
+    "/miru/create-transmission-package",
+    "/miru/send-transmission-package",
+    "/miru/upload-signature",
+];
 
 const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
 
@@ -56,7 +64,7 @@ pub(crate) fn run_isolated(test: &str, keycloak_url: &str) -> String {
     run_isolated_with_postgres(test, keycloak_url, false)
 }
 
-fn run_isolated_with_postgres(
+pub(crate) fn run_isolated_with_postgres(
     test: &str,
     keycloak_url: &str,
     postgres: bool,
@@ -129,6 +137,11 @@ fn run_isolated_with_postgres(
     };
     let output = std::fs::read_to_string(log.path()).unwrap();
     assert!(status.success(), "{output}");
+    // A name that matches no test runs nothing, and that passes as well.
+    assert!(
+        output.contains("test result: ok. 1 passed;"),
+        "{test} did not run: {output}"
+    );
     output
 }
 
@@ -326,6 +339,13 @@ async fn sensitive_routes_require_authorization_before_reading_the_body_or_conta
         paths.len(),
         "duplicate paths must not hide a missing authorization case"
     );
+    // The inventory lists the plugin and Miru routes, which only builds with
+    // the `plugins` feature register.
+    #[cfg(not(feature = "plugins"))]
+    let paths: Vec<_> = paths
+        .into_iter()
+        .filter(|path| !PLUGIN_ROUTES.contains(path))
+        .collect();
     let registered: std::collections::BTreeSet<_> = client
         .rocket()
         .routes()
@@ -368,6 +388,23 @@ async fn sensitive_routes_require_authorization_before_reading_the_body_or_conta
             assert_eq!(response.status(), Status::Unauthorized,
                 "{path} must reject missing/malformed claims before parsing the body or calling services");
         }
+    }
+}
+
+/// Only builds with the `plugins` feature register the plugin and Miru
+/// routes, for any method.
+#[rocket::async_test]
+async fn only_builds_with_the_plugins_feature_have_the_plugin_routes() {
+    let client = client().await;
+    for path in PLUGIN_ROUTES {
+        assert_eq!(
+            client
+                .rocket()
+                .routes()
+                .any(|route| route.uri.path() == path),
+            cfg!(feature = "plugins"),
+            "{path}"
+        );
     }
 }
 
@@ -748,7 +785,7 @@ async fn role_assignment_requires_every_permission_and_the_matching_tenant() {
             ),
         ] {
             let response = client.post(path).header(ContentType::JSON).header(authorization_for(tenant_id, &permissions))
-                .body(json!({"tenant_id":tenant,"user_id":USER_ID,"role_id":"test-role"}).to_string())
+                .body(json!({"tenant_id":tenant,"user_id":"other-user","role_id":"test-role"}).to_string())
                 .dispatch().await;
             assert_eq!(
                 response.status(),
@@ -756,6 +793,22 @@ async fn role_assignment_requires_every_permission_and_the_matching_tenant() {
                 "{path}: {tenant}, {permissions:?}"
             );
         }
+    }
+}
+
+#[rocket::async_test]
+async fn a_staff_account_cannot_change_its_own_role_memberships() {
+    let client = client().await;
+    for path in ["/set-user-role", "/delete-user-role"] {
+        let response = client.post(path).header(ContentType::JSON).header(authorization_for(TENANT_ID, &[Permissions::USER_WRITE, Permissions::ROLE_WRITE]))
+            .body(json!({"tenant_id":TENANT_ID,"user_id":USER_ID,"role_id":"test-role"}).to_string())
+            .dispatch().await;
+        assert_eq!(response.status(), Status::Forbidden, "{path}");
+        assert_eq!(
+            response.into_string().await.as_deref(),
+            Some("A staff account cannot change its own role memberships; another administrator must perform this change"),
+            "{path}"
+        );
     }
 }
 
@@ -1197,6 +1250,7 @@ async fn schedule_recompute_noops_and_scope_refusals_preserve_stored_dates() {
     use crate::route_services::{json as response_json, post, rows, Services};
     let services = Services::on_test_database().await;
     let event = rows::event(&services.hasura).await;
+    allow_unsigned_imports(&services.hasura, &event.tenant_id).await;
     let database: String =
         rows::query(&services.hasura, "SELECT current_database() AS name", &[])
             .await[0]
@@ -1280,6 +1334,7 @@ async fn schedule_recompute_noops_and_scope_refusals_preserve_stored_dates() {
          VALUES ($1,$2,$3,'END_VOTING_PERIOD',$4,$5)",
         &[&id, &tenant, &event_id, &cron, &annotations]).await;
     let other_tenant = rows::event(&services.hasura).await.tenant_id;
+    allow_unsigned_imports(&services.hasura, &other_tenant).await;
     let other = Claims::new(&other_tenant, USER_ID)
         .roles([Permissions::SCHEDULED_EVENT_WRITE]);
     assert_eq!(
@@ -1414,8 +1469,23 @@ async fn required_signing_leaves_only_the_lockdown_period_to_date_directly() {
     }
     assert_eq!(dated().await.len(), 3);
 
-    // Without the policy the same request saves.
+    // A tenant without the setting is refused the same way.
+    let unset = rows::event(&services.hasura).await;
+    let writer = Claims::new(&unset.tenant_id, USER_ID)
+        .roles([Permissions::SCHEDULED_EVENT_WRITE]);
+    let body = dates(&unset.election_event_id, "START_VOTING_PERIOD");
+    let (status, error) = response_json(
+        post(&client, "/manage-election-dates", &writer, &body).await,
+    )
+    .await;
+    assert_eq!(
+        (status, &error["message"]),
+        (Status::Forbidden, &json!(REFUSAL))
+    );
+
+    // Where the setting allows unsigned files, the same request saves.
     let open = rows::event(&services.hasura).await;
+    allow_unsigned_imports(&services.hasura, &open.tenant_id).await;
     let writer = Claims::new(&open.tenant_id, USER_ID)
         .roles([Permissions::SCHEDULED_EVENT_WRITE]);
     let body = dates(&open.election_event_id, "START_VOTING_PERIOD");
@@ -1426,79 +1496,128 @@ async fn required_signing_leaves_only_the_lockdown_period_to_date_directly() {
     assert_eq!((status, &saved["error_msg"]), (Status::Ok, &Value::Null));
 }
 
-#[rocket::async_test]
-async fn deleting_an_event_with_ballot_box_seals_is_refused_before_its_task() {
-    const TEST: &str = "request_boundaries::deleting_an_event_with_ballot_box_seals_is_refused_before_its_task";
-    if !is_isolated_child() {
-        run_isolated_with_postgres(TEST, "http://127.0.0.1:9", true);
-        return;
-    }
-    use crate::route_services::{
-        json as response_json, post, rows, text, Services,
-    };
-    use windmill::postgres::ballot_box_seal::{
-        insert_pending, ClosedBy, NewPendingSeal,
-    };
-    use windmill::postgres::election_event::SEALED_EVENT_DELETE_REFUSAL;
-    let services = Services::on_test_database().await;
-    let event = rows::event(&services.hasura).await;
-    let database: String =
-        rows::query(&services.hasura, "SELECT current_database() AS name", &[])
-            .await[0]
-            .get("name");
-    // The delete route records its task and reads the seals through
-    // Windmill's global pool. This child initializes it on its own database.
-    std::env::set_var("HASURA_DB__DBNAME", database);
-    let election = event.election(&services.hasura).await;
-    let area = event.area(&services.hasura, "Sealed box").await;
-    let tenant = uuid::Uuid::parse_str(&event.tenant_id).unwrap();
-    let event_id = uuid::Uuid::parse_str(&event.election_event_id).unwrap();
-    {
-        let mut client = services.hasura.get().await.unwrap();
-        let tx = client.transaction().await.unwrap();
-        let closed_at = chrono::Utc::now();
-        let seal = NewPendingSeal {
-            tenant_id: tenant,
-            election_event_id: event_id,
-            election_id: uuid::Uuid::parse_str(&election).unwrap(),
-            area_id: uuid::Uuid::parse_str(&area).unwrap(),
-            closed_at,
-            grace_deadline: closed_at,
-            close_request_id: None,
-            closed_by: ClosedBy::Scheduled,
-        };
-        assert_eq!(insert_pending(&tx, &[seal]).await.unwrap(), 1);
-        tx.commit().await.unwrap();
-    }
-    let client = services.client().await;
-    let deleter = Claims::new(&event.tenant_id, USER_ID)
-        .roles([Permissions::ELECTION_EVENT_DELETE]);
-
-    // Seals are permanent: the route answers the refusal and records it as
-    // the task's failure, before any delete task is queued.
-    let (status, output) = response_json(
-        post(
-            &client,
+/// The delete route's answer: its status and the JSON of a refusal.
+async fn answer_of_delete(
+    client: &Client,
+    deleter: &Claims,
+    election_event_id: &str,
+) -> (Status, Value) {
+    let (status, answer) = crate::route_services::text(
+        crate::route_services::post(
+            client,
             "/delete-election-event",
-            &deleter,
-            &json!({"election_event_id": event.election_event_id}),
+            deleter,
+            &json!({"election_event_id": election_event_id}),
         )
         .await,
     )
     .await;
-    assert_eq!(status, Status::Ok, "{output}");
-    assert_eq!(output["id"], json!(event.election_event_id));
-    assert_eq!(output["error_msg"], json!(SEALED_EVENT_DELETE_REFUSAL));
-    let task =
-        uuid::Uuid::parse_str(output["task_execution"]["id"].as_str().unwrap())
-            .unwrap();
-    let stored = rows::query(
-        &services.hasura,
-        "SELECT execution_status FROM sequent_backend.tasks_execution WHERE id = $1",
-        &[&task],
+    (
+        status,
+        serde_json::from_str(&answer).unwrap_or(json!(answer)),
+    )
+}
+
+/// How many task rows the event's tenant has.
+async fn tenant_tasks(pool: &deadpool_postgres::Pool, tenant_id: &str) -> i64 {
+    crate::route_services::rows::query(
+        pool,
+        "SELECT count(*) AS n FROM sequent_backend.tasks_execution WHERE tenant_id = $1",
+        &[&uuid::Uuid::parse_str(tenant_id).unwrap()],
+    )
+    .await[0]
+        .get("n")
+}
+
+/// The route refuses by phase, export and board. A sealed, locked-down or
+/// open event is the worker's refusal when it runs the task, tested in
+/// Windmill's `postgres_ballot_box_seal_flow`.
+#[rocket::async_test]
+async fn deleting_an_event_needs_post_processing_its_export_and_the_board_before_its_task(
+) {
+    const TEST: &str = "request_boundaries::deleting_an_event_needs_post_processing_its_export_and_the_board_before_its_task";
+    if !is_isolated_child() {
+        run_isolated_with_postgres(TEST, "http://127.0.0.1:9", true);
+        return;
+    }
+    use crate::route_services::{post, rows, Services};
+    let services = Services::on_global_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let event_id = uuid::Uuid::parse_str(&event.election_event_id).unwrap();
+    let deleter = Claims::new(&event.tenant_id, USER_ID).roles([
+        Permissions::ELECTION_EVENT_DELETE,
+        Permissions::SIGNING_REQUESTS_CANCEL,
+    ]);
+    let id = event.election_event_id.as_str();
+
+    assert_eq!(
+        answer_of_delete(&client, &deleter, id).await,
+        (
+            Status::Conflict,
+            json!({
+                "message": "This operation requires electoral phase PostProcessing; current phase is Preparation",
+                "extensions": {"code": "operation-prerequisite"},
+            })
+        )
+    );
+    assert_eq!(
+        answer_of_delete(&client, &deleter, "not-an-event-uuid").await,
+        (
+            Status::BadRequest,
+            json!("Invalid election event identifier")
+        )
+    );
+
+    event
+        .board_rule(&services.hasura, SigningAction::DeleteExecutionData)
+        .await;
+    event.enter_phase(&services.hasura, "evaluation").await;
+    event.enter_phase(&services.hasura, "post_processing").await;
+    assert_eq!(
+        answer_of_delete(&client, &deleter, id).await,
+        (
+            Status::Conflict,
+            json!({
+                "message": "Export the complete, current election execution data before requesting deletion",
+                "extensions": {"code": "operation-prerequisite"},
+            })
+        )
+    );
+
+    event.current_export(&services.hasura).await;
+    let (status, answer) = answer_of_delete(&client, &deleter, id).await;
+    assert_eq!(status, Status::Conflict, "{answer}");
+    assert_eq!(answer["extensions"]["code"], "signing-required");
+    assert_eq!(tenant_tasks(&services.hasura, &event.tenant_id).await, 0);
+
+    let request = uuid::Uuid::parse_str(
+        answer["extensions"]["signing_request"]["id"]
+            .as_str()
+            .unwrap(),
+    )
+    .unwrap();
+    event.board_signs(&services.hasura, request).await;
+    // The signed delete gets its task row, bound to the approval. This process
+    // has no task queue, so the route stops there, with the event in place.
+    let response = post(
+        &client,
+        "/delete-election-event",
+        &deleter,
+        &json!({"election_event_id": id}),
     )
     .await;
-    assert_eq!(stored[0].get::<_, String>("execution_status"), "FAILED");
+    assert_eq!(response.status(), Status::InternalServerError);
+    assert_eq!(tenant_tasks(&services.hasura, &event.tenant_id).await, 1);
+    let bound = rows::query(
+        &services.hasura,
+        "SELECT request_id FROM sequent_backend.board_operation_binding
+         WHERE election_event_id = $1 AND binding_kind = 'deletion'",
+        &[&event_id],
+    )
+    .await;
+    assert_eq!(bound.len(), 1);
+    assert_eq!(bound[0].get::<_, uuid::Uuid>("request_id"), request);
     let events = rows::query(
         &services.hasura,
         "SELECT count(*) AS n FROM sequent_backend.election_event WHERE id = $1",
@@ -1506,28 +1625,228 @@ async fn deleting_an_event_with_ballot_box_seals_is_refused_before_its_task() {
     )
     .await;
     assert_eq!(events[0].get::<_, i64>("n"), 1);
-
-    // A seal check that cannot run is a server error, not a delete.
-    let (status, error) = text(
-        post(
-            &client,
-            "/delete-election-event",
-            &deleter,
-            &json!({"election_event_id": "not-an-event-uuid"}),
-        )
-        .await,
-    )
-    .await;
-    assert_eq!(status, Status::InternalServerError);
-    assert!(
-        error.starts_with("Failed to check the ballot box seals"),
-        "{error}"
-    );
 }
 
 #[rocket::async_test]
-async fn deleting_an_event_that_must_be_kept_is_refused_before_its_task() {
-    const TEST: &str = "request_boundaries::deleting_an_event_that_must_be_kept_is_refused_before_its_task";
+async fn deleting_an_event_whose_voting_is_open_is_refused_before_its_task() {
+    const TEST: &str = "request_boundaries::deleting_an_event_whose_voting_is_open_is_refused_before_its_task";
+    if !is_isolated_child() {
+        run_isolated_with_postgres(TEST, "http://127.0.0.1:9", true);
+        return;
+    }
+    use crate::route_services::{rows, Services};
+    let services = Services::on_global_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let event_id = uuid::Uuid::parse_str(&event.election_event_id).unwrap();
+    rows::execute(
+        &services.hasura,
+        "UPDATE sequent_backend.election_event SET status = $1
+         WHERE id = $2
+           AND set_config('sequent.trusted_write', 'on', true) = 'on'",
+        &[&json!({"voting_status": "OPEN"}), &event_id],
+    )
+    .await;
+    event.enter_phase(&services.hasura, "execution").await;
+    let deleter = Claims::new(&event.tenant_id, USER_ID).roles([
+        Permissions::ELECTION_EVENT_DELETE,
+        Permissions::SIGNING_REQUESTS_CANCEL,
+    ]);
+
+    let (status, answer) =
+        answer_of_delete(&client, &deleter, &event.election_event_id).await;
+    assert_eq!(status, Status::Conflict, "{answer}");
+    assert_eq!(
+        answer["message"],
+        "This operation requires electoral phase PostProcessing; current phase is Execution"
+    );
+    assert_eq!(tenant_tasks(&services.hasura, &event.tenant_id).await, 0);
+    let events = rows::query(
+        &services.hasura,
+        "SELECT count(*) AS n FROM sequent_backend.election_event WHERE id = $1",
+        &[&event_id],
+    )
+    .await;
+    assert_eq!(events[0].get::<_, i64>("n"), 1);
+}
+
+/// The secret permission is checked before the board gate, which would refuse
+/// an account without the board's role. In Preparation reading the register
+/// needs no signatures, so the secret permission is also what refuses a board
+/// account without it.
+#[rocket::async_test]
+async fn secret_attributes_need_their_permission_before_the_board_gate() {
+    const TEST: &str = "request_boundaries::secret_attributes_need_their_permission_before_the_board_gate";
+    if !is_isolated_child() {
+        run_isolated_with_postgres(TEST, "http://127.0.0.1:9", true);
+        return;
+    }
+    use crate::route_services::{post, rows, text, Services};
+    let services = Services::on_global_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let board_reader = Claims::new(&event.tenant_id, USER_ID).roles([
+        Permissions::VOTER_READ,
+        Permissions::SIGNING_REQUESTS_CANCEL,
+    ]);
+    let reader =
+        Claims::new(&event.tenant_id, USER_ID).roles([Permissions::VOTER_READ]);
+    for (path, body) in [
+        (
+            "/reveal-voter-secret-attribute",
+            json!({
+                "tenant_id": event.tenant_id,
+                "election_event_id": event.election_event_id,
+                "user_id": USER_ID,
+                "attribute_name": "test-secret",
+            }),
+        ),
+        (
+            "/export-users",
+            json!({
+                "tenant_id": event.tenant_id,
+                "election_event_id": event.election_event_id,
+                "include_secret_attributes": true,
+            }),
+        ),
+    ] {
+        for caller in [&board_reader, &reader] {
+            let (status, answer) =
+                text(post(&client, path, caller, &body).await).await;
+            assert_eq!(status, Status::Unauthorized, "{path}: {answer}");
+        }
+    }
+}
+
+/// These imports check their permission, the tenant's signing policy and the
+/// caller's board account before they read the document. The tenant allows
+/// unsigned files, so the board gate answers.
+#[rocket::async_test]
+async fn document_imports_need_their_permission_and_board_before_the_read() {
+    const TEST: &str = "request_boundaries::document_imports_need_their_permission_and_board_before_the_read";
+    if !is_isolated_child() {
+        run_isolated_with_postgres(TEST, "http://127.0.0.1:9", true);
+        return;
+    }
+    use crate::route_services::{post, rows, text, Services};
+    use Permissions::{
+        AREA_WRITE, CANDIDATE_CREATE, SCHEDULED_EVENT_WRITE,
+        SIGNING_REQUESTS_CANCEL, VOTER_CREATE,
+    };
+    let services = Services::on_global_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    allow_unsigned_imports(&services.hasura, &event.tenant_id).await;
+    event
+        .board_rule(&services.hasura, SigningAction::ImportElectionData)
+        .await;
+    let document = event
+        .document(&services.hasura, "import.csv", "text/csv", Some(3))
+        .await;
+    let file = json!({
+        "election_event_id": event.election_event_id,
+        "document_id": document,
+    });
+    let voters = json!({
+        "tenant_id": event.tenant_id,
+        "election_event_id": event.election_event_id,
+        "document_id": document,
+    });
+    let routes = [
+        ("/import-areas", AREA_WRITE, &file),
+        ("/upsert-areas", AREA_WRITE, &file),
+        ("/import-candidates", CANDIDATE_CREATE, &file),
+        ("/import-users", VOTER_CREATE, &voters),
+        ("/import-schedule", SCHEDULED_EVENT_WRITE, &file),
+    ];
+    let key = format!(
+        "/documents/tenant-{}/event-{}/document-{document}/import.csv",
+        event.tenant_id, event.election_event_id,
+    );
+    let peer = http::HttpServer::start(
+        (0..routes.len())
+            .map(|_| {
+                http::Exchange::json("GET", &key, 200, Value::Null).body("a,b")
+            })
+            .collect(),
+    );
+    for (name, value) in [
+        ("AWS_REGION", "synthetic"),
+        ("AWS_S3_BUCKET", "documents"),
+        ("AWS_S3_PRIVATE_URI", peer.url.as_str()),
+        ("AWS_S3_ACCESS_KEY", "synthetic"),
+        ("AWS_S3_ACCESS_SECRET", "synthetic"),
+        ("AWS_EC2_METADATA_DISABLED", "true"),
+    ] {
+        std::env::set_var(name, value);
+    }
+    for (path, permission, body) in &routes {
+        let caller = |roles: &[&Permissions]| {
+            Claims::new(&event.tenant_id, USER_ID).roles(roles)
+        };
+        let (status, answer) = text(
+            post(&client, path, &caller(&[&SIGNING_REQUESTS_CANCEL]), body)
+                .await,
+        )
+        .await;
+        assert_eq!(status, Status::Unauthorized, "{path}: {answer}");
+        let (status, answer) =
+            text(post(&client, path, &caller(&[permission]), body).await).await;
+        assert_eq!(
+            (status, answer.as_str()),
+            (
+                Status::Forbidden,
+                "This operation requires an election board account with no administrator capabilities."
+            ),
+            "{path}"
+        );
+        let (status, answer) = text(
+            post(
+                &client,
+                path,
+                &caller(&[permission, &SIGNING_REQUESTS_CANCEL]),
+                body,
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(status, Status::Conflict, "{path}: {answer}");
+        let answer: Value = serde_json::from_str(&answer).unwrap();
+        assert_eq!(answer["extensions"]["code"], "signing-required", "{path}");
+    }
+    peer.finish();
+}
+
+/// Gives the tenant a signing setting that allows unsigned files. The settings
+/// guard accepts only the required policy, so the setting is written past it.
+async fn allow_unsigned_imports(
+    pool: &deadpool_postgres::Pool,
+    tenant_id: &str,
+) {
+    let mut client = pool.get().await.expect("test database connection");
+    let tx = client.transaction().await.unwrap();
+    tx.batch_execute("SET LOCAL session_replication_role = replica")
+        .await
+        .unwrap();
+    tx.execute(
+        "UPDATE sequent_backend.tenant SET settings = $2 WHERE id = $1",
+        &[
+            &uuid::Uuid::parse_str(tenant_id).unwrap(),
+            &json!({"configuration_signing": {"policy": "optional"}}),
+        ],
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+}
+
+/// Areas, candidates and voters of a tenant that requires signed packages, or
+/// has no signing setting, arrive only through the signed import: neither the
+/// other imports nor a direct write change them.
+#[rocket::async_test]
+async fn election_data_writes_wait_for_the_signed_import() {
+    const TEST: &str =
+        "request_boundaries::election_data_writes_wait_for_the_signed_import";
     if !is_isolated_child() {
         run_isolated_with_postgres(TEST, "http://127.0.0.1:9", true);
         return;
@@ -1535,118 +1854,116 @@ async fn deleting_an_event_that_must_be_kept_is_refused_before_its_task() {
     use crate::route_services::{
         json as response_json, post, rows, text, Services,
     };
-    let services = Services::on_test_database().await;
-    let database: String =
-        rows::query(&services.hasura, "SELECT current_database() AS name", &[])
-            .await[0]
-            .get("name");
-    std::env::set_var("HASURA_DB__DBNAME", database);
+    use Permissions::{
+        AREA_CREATE, AREA_WRITE, CANDIDATE_CREATE,
+        ELECTION_EVENT_VOTER_LIST_SYNC, VOTER_CREATE, VOTER_DELETE,
+        VOTER_WRITE,
+    };
+    const REFUSAL: &str = "Election data changes only by the signed import";
+    let services = Services::on_global_test_database().await;
     let client = services.client().await;
-
-    let open = rows::event(&services.hasura).await;
-    let open_id = uuid::Uuid::parse_str(&open.election_event_id).unwrap();
+    // Signing trust is set before a tenant's first election event.
+    let required = uuid::Uuid::new_v4();
+    let roots =
+        "-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----\n";
     rows::execute(
         &services.hasura,
-        "UPDATE sequent_backend.election_event SET status = $1
-         WHERE id = $2
-           AND set_config('sequent.trusted_write', 'on', true) = 'on'",
-        &[&json!({"voting_status": "OPEN"}), &open_id],
+        "INSERT INTO sequent_backend.tenant (id, slug, settings)
+         VALUES ($1, $2, $3)",
+        &[
+            &required,
+            &required.to_string(),
+            &json!({"configuration_signing": {
+                "policy": "required", "required_approvals": 2,
+                "package_roots": roots, "staff_roots": roots}}),
+        ],
     )
     .await;
-    let deleter = Claims::new(&open.tenant_id, USER_ID)
-        .roles([Permissions::ELECTION_EVENT_DELETE]);
-    let (status, output) = response_json(
-        post(
-            &client,
-            "/delete-election-event",
-            &deleter,
-            &json!({"election_event_id": open.election_event_id}),
-        )
-        .await,
-    )
-    .await;
-    assert_eq!(status, Status::Ok, "{output}");
-    assert_eq!(output["id"], json!(open.election_event_id));
-    let message = output["error_msg"].as_str().unwrap();
-    assert!(message.contains("Voting is open or paused"), "{message}");
-    let task =
-        uuid::Uuid::parse_str(output["task_execution"]["id"].as_str().unwrap())
-            .unwrap();
-    let stored = rows::query(
-        &services.hasura,
-        "SELECT execution_status FROM sequent_backend.tasks_execution WHERE id = $1",
-        &[&task],
-    )
-    .await;
-    assert_eq!(stored[0].get::<_, String>("execution_status"), "FAILED");
-    let events = rows::query(
-        &services.hasura,
-        "SELECT count(*) AS n FROM sequent_backend.election_event WHERE id = $1",
-        &[&open_id],
-    )
-    .await;
-    assert_eq!(events[0].get::<_, i64>("n"), 1);
-
-    let locked = rows::event(&services.hasura).await;
-    let locked_id = uuid::Uuid::parse_str(&locked.election_event_id).unwrap();
-    rows::execute(
-        &services.hasura,
-        "UPDATE sequent_backend.election_event SET presentation = $1
-         WHERE id = $2
-           AND set_config('sequent.trusted_write', 'on', true) = 'on'",
-        &[&json!({"locked_down": "locked-down"}), &locked_id],
-    )
-    .await;
-    let deleter = Claims::new(&locked.tenant_id, USER_ID)
-        .roles([Permissions::ELECTION_EVENT_DELETE]);
-    let (status, output) = response_json(
-        post(
-            &client,
-            "/delete-election-event",
-            &deleter,
-            &json!({"election_event_id": locked.election_event_id}),
-        )
-        .await,
-    )
-    .await;
-    assert_eq!(status, Status::Ok, "{output}");
-    assert_eq!(
-        output["error_msg"],
-        json!("The election event is locked down")
-    );
-
-    // A status that cannot be read means the checks cannot run: a server
-    // error, not a delete.
-    let unreadable = rows::event(&services.hasura).await;
-    let unreadable_id =
-        uuid::Uuid::parse_str(&unreadable.election_event_id).unwrap();
-    rows::execute(
-        &services.hasura,
-        "UPDATE sequent_backend.election_event SET status = $1
-         WHERE id = $2
-           AND set_config('sequent.trusted_write', 'on', true) = 'on'",
-        &[&json!({"voting_status": "NOT-A-STATUS"}), &unreadable_id],
-    )
-    .await;
-    let deleter = Claims::new(&unreadable.tenant_id, USER_ID)
-        .roles([Permissions::ELECTION_EVENT_DELETE]);
-    let (status, error) = text(
-        post(
-            &client,
-            "/delete-election-event",
-            &deleter,
-            &json!({"election_event_id": unreadable.election_event_id}),
-        )
-        .await,
-    )
-    .await;
-    assert_eq!(status, Status::InternalServerError);
-    assert!(
-        error.starts_with(
-            "Failed to check whether the election event can be deleted"
-        ),
-        "{error}"
-    );
+    let events = [
+        rows::event_of(&services.hasura, &required.to_string()).await,
+        rows::event(&services.hasura).await,
+    ];
+    for event in &events {
+        let document = uuid::Uuid::new_v4().to_string();
+        let file = json!({
+            "election_event_id": event.election_event_id,
+            "document_id": document,
+        });
+        let voters = json!({
+            "tenant_id": event.tenant_id,
+            "election_event_id": event.election_event_id,
+            "document_id": document,
+        });
+        let diff = json!({
+            "election_event_id": event.election_event_id,
+            "diff_document_id": document,
+        });
+        let area = json!({
+            "name": "Area",
+            "tenant_id": event.tenant_id,
+            "election_event_id": event.election_event_id,
+            "area_contest_ids": [],
+        });
+        let voter = json!({
+            "tenant_id": event.tenant_id,
+            "election_event_id": event.election_event_id,
+            "user_id": USER_ID,
+            "users_id": [USER_ID],
+        });
+        for (path, permission, body) in [
+            ("/import-areas", AREA_WRITE, &file),
+            ("/upsert-areas", AREA_WRITE, &file),
+            ("/upsert-area", AREA_CREATE, &area),
+            ("/import-candidates", CANDIDATE_CREATE, &file),
+            ("/import-users", VOTER_CREATE, &voters),
+            ("/delete-user", VOTER_DELETE, &voter),
+            ("/delete-users", VOTER_DELETE, &voter),
+            (
+                "/create-reconciliation-import",
+                ELECTION_EVENT_VOTER_LIST_SYNC,
+                &file,
+            ),
+            (
+                "/apply-reconciliation-changes",
+                ELECTION_EVENT_VOTER_LIST_SYNC,
+                &diff,
+            ),
+        ] {
+            let caller =
+                Claims::new(&event.tenant_id, USER_ID).roles([permission]);
+            assert_eq!(
+                text(post(&client, path, &caller, body).await).await,
+                (Status::Forbidden, REFUSAL.to_string()),
+                "{path}"
+            );
+        }
+        // These answer with a JSON error.
+        let created = json!({
+            "tenant_id": event.tenant_id,
+            "election_event_id": event.election_event_id,
+            "user": {},
+        });
+        let edited = json!({
+            "tenant_id": event.tenant_id,
+            "election_event_id": event.election_event_id,
+            "user_id": USER_ID,
+            "first_name": "Ada",
+        });
+        for (path, permission, body) in [
+            ("/create-user", VOTER_CREATE, &created),
+            ("/edit-user", VOTER_WRITE, &edited),
+        ] {
+            let caller =
+                Claims::new(&event.tenant_id, USER_ID).roles([permission]);
+            let (status, error) =
+                response_json(post(&client, path, &caller, body).await).await;
+            assert_eq!(
+                (status, &error["message"]),
+                (Status::Forbidden, &json!(REFUSAL)),
+                "{path}"
+            );
+        }
+    }
 }
 
 #[rocket::async_test]

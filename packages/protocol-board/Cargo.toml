@@ -31,6 +31,8 @@ uuid = "1.5"
 # `spawn_blocking` and the current runtime handle, for the board I/O bridge.
 tokio = { version = "1.40", features = ["rt", "time", "sync"], optional = true }
 tracing = "0.1"
+# Overwrites the trustee's secrets in memory once they are no longer needed.
+zeroize = "1.8"
 
 async-trait = "0.1"
 wasm-bindgen = { version = "=0.2.128", optional = true }

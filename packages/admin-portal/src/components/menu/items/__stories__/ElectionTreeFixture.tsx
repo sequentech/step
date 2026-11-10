@@ -294,6 +294,10 @@ export function treeServices({
                     ),
                 },
             }),
+            ArchiveElectionEvent: ({variables}) => {
+                if (writeFailure) throw new Error("Synthetic archive service unavailable")
+                return {data: {archive_election_event: {id: String(variables.electionEventId)}}}
+            },
             DeleteElectionEvent: ({variables}) => {
                 if (writeFailure) throw new Error("Synthetic deletion service unavailable")
                 const task = taskRecord({

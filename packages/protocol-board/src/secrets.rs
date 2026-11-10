@@ -8,6 +8,11 @@
 //! them, so a file cannot pair a secret with a public key that is not its
 //! own, and what [`TrusteeSecrets::public_keys`] gives is what an
 //! administrator registers for the trustee.
+//!
+//! Every copy of a secret this module holds is overwritten with zero when it
+//! is dropped: the signing key by `ed25519_dalek::SigningKey` (its `zeroize`
+//! feature), the share-encryption secret by [`KeyPair`], the keys file's text
+//! values by `KeysFile`.
 
 use std::fmt;
 
@@ -18,6 +23,7 @@ use cryptography::traits::groups::GroupElement as _;
 use cryptography::utils::signatures::SignatureScheme;
 use serde::{Deserialize, Serialize};
 use wbraid::messages::artifact::Configuration;
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::encoding::{
     encode_share_encryption_public_key, encode_share_encryption_secret,
@@ -30,12 +36,26 @@ use crate::{Ctx, Rng, Scheme, Signer, VerifyingKey};
 const SIGNING_KEY_FIELD: &str = "signing_key";
 const SHARE_ENCRYPTION_KEY_FIELD: &str = "share_encryption_key";
 
-/// The keys file as it is written down.
+/// The keys file as it is written down. Both values are secrets, so they are
+/// overwritten with zero when the file is dropped.
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct KeysFile {
     signing_key: String,
     share_encryption_key: String,
+}
+
+impl Zeroize for KeysFile {
+    fn zeroize(&mut self) {
+        self.signing_key.zeroize();
+        self.share_encryption_key.zeroize();
+    }
+}
+
+impl Drop for KeysFile {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
 }
 
 /// What a trustee signs its board messages with, and the key pair its peers
@@ -71,16 +91,21 @@ impl TrusteeSecrets {
         })?;
         let signing_key = parse_signing_key(&file.signing_key)
             .with_context(|| keys_file_field(SIGNING_KEY_FIELD))?;
-        let skey = parse_share_encryption_secret(&file.share_encryption_key)
-            .with_context(|| keys_file_field(SHARE_ENCRYPTION_KEY_FIELD))?;
+        let skey = Zeroizing::new(
+            parse_share_encryption_secret(&file.share_encryption_key)
+                .with_context(|| keys_file_field(SHARE_ENCRYPTION_KEY_FIELD))?,
+        );
         let pkey = Ctx::generator().exp(&skey);
         Ok(TrusteeSecrets {
             signing_key,
-            share_encryption: KeyPair::new(skey, pkey),
+            share_encryption: KeyPair::new(*skey, pkey),
         })
     }
 
     /// The keys file of these secrets.
+    ///
+    /// The text holds both secrets: callers keep it in a container that
+    /// overwrites it when dropped, such as `zeroize::Zeroizing`.
     pub fn to_toml(&self) -> Result<String> {
         let file = KeysFile {
             signing_key: encode_signing_key(&self.signing_key)
@@ -240,6 +265,27 @@ mod tests {
         let unterminated = format!("{SIGNING_KEY_FIELD} = \"{signing_key}\n");
         let error = refusal(&unterminated);
         assert!(!error.contains(&signing_key), "{error}");
+    }
+
+    #[test]
+    fn a_keys_file_is_overwritten_when_it_is_dropped() {
+        let (contents, _, _) = written();
+        let mut file: KeysFile = toml::from_str(&contents).unwrap();
+        assert!(!file.signing_key.is_empty());
+        assert!(!file.share_encryption_key.is_empty());
+
+        // What `Drop` runs. The bytes are overwritten with zero before the
+        // length is cleared, which is all safe code can observe.
+        file.zeroize();
+        assert!(file.signing_key.is_empty());
+        assert!(file.share_encryption_key.is_empty());
+    }
+
+    #[test]
+    fn both_secrets_are_overwritten_when_they_are_dropped() {
+        fn zeroized_on_drop<T: zeroize::ZeroizeOnDrop>() {}
+        zeroized_on_drop::<Signer>();
+        zeroized_on_drop::<KeyPair<Ctx>>();
     }
 
     #[test]

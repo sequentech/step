@@ -39,24 +39,24 @@ pub const MIGRATED_PERMISSIONS: [(Permissions, &str); 34] = [
         Permissions::SIGN_IMPORT_ELECTION_DATA,
         "Sign: import election data",
     ),
-    (Permissions::SELF_TEST_RUN, "Run security self-tests"),
-    (Permissions::SELF_TEST_READ, "Read security self-tests"),
+    (Permissions::SELF_TEST_RUN, "Self-tests: run checks"),
+    (Permissions::SELF_TEST_READ, "Self-tests: read results"),
     (
         Permissions::SELF_TEST_SETTINGS_WRITE,
-        "Configure security self-tests",
+        "Self-tests: edit settings",
     ),
-    (Permissions::SIGN_START_TALLY, "Sign: start tally"),
+    (Permissions::SIGN_START_TALLY, "Sign: start counting votes"),
     (
         Permissions::SIGN_EXPORT_EXECUTION_DATA,
-        "Sign: export execution data",
+        "Sign: export election execution data",
     ),
     (
         Permissions::SIGN_DELETE_EXECUTION_DATA,
-        "Sign: delete execution data",
+        "Sign: delete election execution data",
     ),
     (
         Permissions::SIGN_READ_VOTERS_REGISTER,
-        "Sign: read voters register",
+        "Sign: read the voters' register in post-processing",
     ),
     (
         Permissions::ELECTION_EXECUTION_EXPORT,
@@ -129,8 +129,8 @@ pub const MIGRATED_PERMISSIONS: [(Permissions, &str); 34] = [
         Permissions::SIGN_APPROVE_CONFIGURATION,
         "Sign: approve a configuration version",
     ),
-    (Permissions::SIGN_KEY_CEREMONY, "Sign: confirm a key share"),
-    (Permissions::SIGN_TALLY_KEY, "Sign: contribute a key share"),
+    (Permissions::SIGN_KEY_CEREMONY, "Sign: confirm custody"),
+    (Permissions::SIGN_TALLY_KEY, "Sign: authorize tally custody"),
     (
         Permissions::MESSAGING_ACCOUNT_READ,
         "Read messaging accounts",

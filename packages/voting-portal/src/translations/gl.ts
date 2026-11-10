@@ -262,6 +262,8 @@ const galegoTranslation: TranslationType = {
                     "O estado de selección para esta elección non está presente. Asegúrate de que seleccionaches as túas eleccións correctamente ou contacta co soporte.",
                 NO_BALLOT_STYLE: "O estilo da papeleta non está dispoñible. Contacta co soporte.",
                 NO_AUDITABLE_BALLOT: "Non hai papeleta auditable dispoñible. Contacta co soporte.",
+                AUDIT_BALLOT:
+                    "A urna non puido confirmar a comprobación desta papeleta. Téntao de novo máis tarde ou contacta co soporte.",
                 INCONSISTENT_HASH:
                     "Houbo un erro relacionado co proceso de hash da papeleta. O ID da Papeleta: {{ballotId}} non é consistente co hash da Papeleta Auditable: {{auditableBallotHash}}. Informa deste problema ao soporte.",
                 ELECTION_EVENT_NOT_OPEN: "O evento de eleccións está pechado. Contacta co soporte.",

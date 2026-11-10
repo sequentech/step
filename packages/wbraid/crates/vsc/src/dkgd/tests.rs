@@ -121,6 +121,7 @@ fn test_dkgd<C: Context, const T: usize, const P: usize, const W: usize>() {
         d.get_verifiable_shares(DKG_PROOF_CTX)
             .unwrap()
             .checking_values
+            .clone()
             .map(|cv| cv.value)
     });
     let verification_keys_2: [C::Element; T] = array::from_fn(|i| {
@@ -221,6 +222,7 @@ fn test_joint_pkey<C: Context, const T: usize, const P: usize, const W: usize>()
         d.get_verifiable_shares(DKG_PROOF_CTX)
             .unwrap()
             .checking_values
+            .clone()
             .map(|cv| cv.value)
     }));
     let rhs: PublicKey<C> = recipients[0].1.clone();
@@ -550,4 +552,54 @@ fn test_batched_proof_is_bound_to_its_author() {
         ),
         "a proof from another participant must not verify"
     );
+}
+
+#[test]
+fn test_dkg_secrets_zeroize_ristretto() {
+    test_dkg_secrets_zeroize::<RCtx, 2, 3>();
+}
+
+#[test]
+fn test_dkg_secrets_zeroize_p256() {
+    test_dkg_secrets_zeroize::<crate::context::P256Ctx, 2, 3>();
+}
+
+/// The methods called by the `Drop` implementations of the dealer's
+/// polynomial, the dealt shares, a verifiable share and a recipient overwrite
+/// every secret scalar with zero and leave the public values unchanged.
+fn test_dkg_secrets_zeroize<C: Context, const T: usize, const P: usize>() {
+    use zeroize::Zeroize;
+
+    let dealers: [Dealer<C, T, P>; P] = array::from_fn(|_| Dealer::generate());
+    let position = ParticipantPosition::<P>::from_usize(1);
+
+    let mut polynomial = dealers[0].polynomial.clone();
+    assert!(polynomial.0.iter().all(|c| *c != C::Scalar::zero()));
+    polynomial.zeroize();
+    assert!(polynomial.0.iter().all(|c| *c == C::Scalar::zero()));
+
+    let mut dealt = dealers[0].get_verifiable_shares(DKG_PROOF_CTX).unwrap();
+    let checking_values = dealt.checking_values.clone();
+    dealt.zeroize();
+    assert!(dealt.shares.iter().all(|s| *s == C::Scalar::zero()));
+    assert_eq!(dealt.checking_values, checking_values);
+
+    let mut share = dealers[1]
+        .get_verifiable_shares(DKG_PROOF_CTX)
+        .unwrap()
+        .for_recipient(&position);
+    share.zeroize();
+    assert_eq!(share.value, C::Scalar::zero());
+
+    let shares: [VerifiableShare<C, T>; P] = dealers.each_ref().map(|d| {
+        d.get_verifiable_shares(DKG_PROOF_CTX)
+            .unwrap()
+            .for_recipient(&position)
+    });
+    let (mut recipient, _joint_pk, verification_keys) =
+        Recipient::from_shares(position, &shares, DKG_PROOF_CTX).unwrap();
+    assert_ne!(*recipient.get_secret_share(), C::Scalar::zero());
+    recipient.zeroize();
+    assert_eq!(*recipient.get_secret_share(), C::Scalar::zero());
+    assert_eq!(recipient.get_verification_key(), &verification_keys[0]);
 }

@@ -11,6 +11,7 @@ import {createMemoryRouter, RouterProvider} from "react-router-dom"
 import {
     ECastVoteGoldLevelPolicy,
     EConsolidatedReportPolicy,
+    EReceiptsPolicy,
     EUnderVotePolicy,
     EVotingPortalAuditButtonCfg,
 } from "@sequentech/ui-core"
@@ -20,6 +21,7 @@ import type {
     IContest,
     IDecodedVoteContest,
     IElection,
+    IElectionEventPresentation,
     IVotingScreenBackPolicy,
 } from "@sequentech/ui-core"
 import theme from "../../../ui-essentials/src/services/theme"
@@ -180,6 +182,10 @@ jest.mock("../hooks/useCastReceivedBallot", () => ({
     signReceivedCast: (...args: unknown[]) => mockSignReceivedCast(...args),
     useCastReceivedBallot: () => mockCastReceivedBallot,
 }))
+jest.mock("../hooks/useAuditReceivedBallot", () => ({
+    ...jest.requireActual("../hooks/useAuditReceivedBallot"),
+    useAuditReceivedBallot: () => mockAuditReceivedBallot,
+}))
 jest.mock("../hooks/root-back-link", () => ({
     useRootBackLink: () => "/tenant/tenant-1/event/event-1/election-chooser",
 }))
@@ -213,6 +219,7 @@ const mockInsertCastVote = jest.fn()
 const mockReceiveBallotParams = jest.fn()
 const mockSignReceivedCast = jest.fn()
 const mockCastReceivedBallot = jest.fn()
+const mockAuditReceivedBallot = jest.fn()
 let mockReceiveBallotState: IReceiveBallotState
 const routeAction = jest.fn(() => null)
 let mockEmptyHashTranslation = false
@@ -1674,6 +1681,128 @@ describe("an audited ballot", () => {
         expect(audit).toBeDisabled()
         resolveCastVote()
         await waitFor(() => expect(routeAction).toHaveBeenCalledTimes(1))
+    })
+})
+
+describe("an audit the ballot box confirms", () => {
+    const RECEIVED_BALLOT_ID = "FTBE-MHRX"
+    const AUDIT_PATH = `${ELECTION_PATH}/audit`
+    // The ballot box receives ballots at review and has this one.
+    const receiveAtReview = (status = EReceiveBallotStatus.RECEIVED) => {
+        setUpState({auditButtonCfg: EVotingPortalAuditButtonCfg.SHOW})
+        mockDisableAuth = false
+        const ballotEml = mockState.ballotStyles["election-1"]!.ballot_eml
+        ballotEml.public_key = {public_key: "key", is_demo: false}
+        ballotEml.election_event_presentation = {
+            ...ballotEml.election_event_presentation,
+            receipts: {policy: EReceiptsPolicy.SIGNED_BY_BALLOT_BOX},
+        } as IElectionEventPresentation
+        mockReceiveBallotState =
+            status === EReceiveBallotStatus.RECEIVED
+                ? {status, ballotId: RECEIVED_BALLOT_ID}
+                : {status}
+    }
+    const confirmAudit = async (user: ReturnType<typeof userEvent.setup>) => {
+        await user.click(screen.getByRole("button", {name: "reviewScreen.auditButton"}))
+        await user.click(
+            screen.getByRole("button", {name: "reviewScreen.auditBallotHelpDialog.ok"})
+        )
+    }
+
+    it("shows the audit screen only after the ballot box marked the ballot audited", async () => {
+        receiveAtReview()
+        mockAuditReceivedBallot.mockResolvedValue(true)
+        const user = userEvent.setup()
+        const {router} = renderRoute(<ReviewScreen />, "review")
+
+        await confirmAudit(user)
+
+        await waitFor(() => expect(router.state.location.pathname).toBe(AUDIT_PATH))
+        expect(router.state.location.search).toBe("?preview=true")
+        expect(mockAuditReceivedBallot).toHaveBeenCalledTimes(1)
+        expect(mockAuditReceivedBallot).toHaveBeenCalledWith(
+            {electionId: "election-1", ballotId: RECEIVED_BALLOT_ID, ballotHash: BALLOT_ID},
+            expect.any(Function)
+        )
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+    })
+
+    it("stays on the review with the error when the ballot box does not confirm", async () => {
+        receiveAtReview()
+        mockAuditReceivedBallot.mockImplementation(
+            async (_ballot: unknown, setErrorMsg: (msg: string) => void) => {
+                setErrorMsg("reviewScreen.error.AUDIT_BALLOT")
+                return false
+            }
+        )
+        const user = userEvent.setup()
+        const {router} = renderRoute(<ReviewScreen />, "review")
+
+        await confirmAudit(user)
+
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+            "reviewScreen.error.AUDIT_BALLOT"
+        )
+        expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/review`)
+        expect(screen.getByRole("button", {name: "reviewScreen.auditButton"})).toBeEnabled()
+    })
+
+    it("can neither be repeated nor cast while the ballot box marks the ballot", async () => {
+        receiveAtReview()
+        let answer: (confirmed: boolean) => void = () => undefined
+        mockAuditReceivedBallot.mockReturnValue(
+            new Promise((resolve) => {
+                answer = resolve
+            })
+        )
+        const user = userEvent.setup()
+        renderRoute(<ReviewScreen />, "review")
+
+        await confirmAudit(user)
+
+        const audit = screen.getByRole("button", {name: "reviewScreen.auditButton"})
+        const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
+        expect(audit).toBeDisabled()
+        expect(cast).toBeDisabled()
+        await act(async () => answer(false))
+        expect(audit).toBeEnabled()
+        expect(cast).toBeEnabled()
+        expect(mockAuditReceivedBallot).toHaveBeenCalledTimes(1)
+        expect(mockCastReceivedBallot).not.toHaveBeenCalled()
+    })
+
+    it("is not offered before the ballot box has received the ballot", () => {
+        receiveAtReview(EReceiveBallotStatus.PENDING)
+        renderRoute(<ReviewScreen />, "review")
+
+        const audit = screen.getByRole("button", {name: "reviewScreen.auditButton"})
+        expect(audit).toBeDisabled()
+        fireEvent.click(audit)
+        expect(screen.queryByTestId("open-dialog")).toBeNull()
+        expect(mockAuditReceivedBallot).not.toHaveBeenCalled()
+    })
+
+    it("does not show the ballot's secret values without that confirmation", async () => {
+        receiveAtReview()
+        sessionStorage.setItem(BALLOT_DATA_KEY, "{}")
+        const {router} = renderRoute(<AuditScreen />, "audit")
+
+        await waitFor(() => expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/review`))
+        expect(router.state.location.search).toBe("?preview=true")
+        expect(router.state.historyAction).toBe("REPLACE")
+        expect(screen.queryByText(/"ballot_hash":/)).toBeNull()
+        expect(mockDispatch).not.toHaveBeenCalledWith(markBallotAudited("election-1"))
+        expect(sessionStorage.getItem(BALLOT_DATA_KEY)).toBe("{}")
+    })
+
+    it("shows them and marks the ballot audited once confirmed", () => {
+        receiveAtReview()
+        mockState.auditableBallots["election-1"]!.isAuditConfirmed = true
+        const {router} = renderRoute(<AuditScreen />, "audit")
+
+        expect(screen.getByText(/"ballot_hash":/)).toBeInTheDocument()
+        expect(router.state.location.pathname).toBe(AUDIT_PATH)
+        expect(mockDispatch).toHaveBeenCalledWith(markBallotAudited("election-1"))
     })
 })
 

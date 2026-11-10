@@ -5,6 +5,8 @@
 //! the migrated schema. Every test writes its own rows in a transaction,
 //! checks them with independent SQL and rolls the transaction back.
 
+#![recursion_limit = "256"]
+
 #[path = "support/schema.rs"]
 mod schema;
 
@@ -352,6 +354,119 @@ impl<'t, 'c> Fixture<'t, 'c> {
                  (tenant_id, election_event_id, tally_session_id, contest_id, resolution_type)
              VALUES ($1, $2, $3, $4, 'manual_recount')",
             &[&scope.tenant, &scope.event, &session, &contest],
+        )
+        .await;
+    }
+
+    /// A tally session of `tally_type` that tallies `election`, its execution
+    /// in `status`, completed or not.
+    async fn tally_session_of(
+        &self,
+        scope: Scope,
+        election: Uuid,
+        tally_type: &str,
+        status: Option<&str>,
+        completed: bool,
+    ) {
+        let (ceremony, session) = (self.id(), self.id());
+        self.execute(
+            "INSERT INTO sequent_backend.keys_ceremony
+                 (id, tenant_id, election_event_id, trustee_ids, threshold)
+             VALUES ($1, $2, $3, '{}', 1)",
+            &[&ceremony, &scope.tenant, &scope.event],
+        )
+        .await;
+        self.execute(
+            "INSERT INTO sequent_backend.tally_session
+                 (id, tenant_id, election_event_id, keys_ceremony_id, threshold, election_ids,
+                  tally_type, execution_status, is_execution_completed)
+             VALUES ($1, $2, $3, $4, 1, $5, $6, $7, $8)",
+            &[
+                &session,
+                &scope.tenant,
+                &scope.event,
+                &ceremony,
+                &vec![election],
+                &tally_type,
+                &status,
+                &completed,
+            ],
+        )
+        .await;
+    }
+
+    /// Archives the event of `scope` and gives this transaction what the
+    /// deletion task holds when it deletes the event: an export of its current
+    /// data and the board's executed approval, bound to the deletion and named
+    /// by `sequent.authorized_deletion`. Call it right before the deletion: a
+    /// later write changes the data the export covers.
+    async fn authorize_deletion(&self, scope: Scope) {
+        trusted_write(self.tx).await.unwrap();
+        self.execute(
+            "UPDATE sequent_backend.election_event SET is_archived = true
+             WHERE tenant_id = $1 AND id = $2",
+            &[&scope.tenant, &scope.event],
+        )
+        .await;
+        let params: [&(dyn ToSql + Sync); 2] = [&scope.tenant, &scope.event];
+        let generation: i64 = scalar(
+            self.tx,
+            "SELECT generation FROM sequent_backend.election_lifecycle
+             WHERE tenant_id = $1 AND election_event_id = $2",
+            &params,
+        )
+        .await;
+        let revision: i64 = scalar(
+            self.tx,
+            "SELECT revision FROM sequent_backend.election_execution_revision
+             WHERE tenant_id = $1 AND election_event_id = $2",
+            &params,
+        )
+        .await;
+        let request = self.id();
+        self.execute(
+            "INSERT INTO sequent_backend.signing_request
+                 (id, tenant_id, election_event_id, action, scope_key, subject,
+                  canonical_payload, payload_sha256, code, rule_revision, rule_snapshot,
+                  required, status, requested_by, requested_by_username, completed_at,
+                  executed_at)
+             VALUES ($1, $2, $3, 'delete-execution-data', 'deletion', $4, '{}',
+                     repeat('0', 64), 'code', 1, '{}', 1, 'executed', 'admin', 'admin',
+                     now(), now())",
+            &[
+                &request,
+                &scope.tenant,
+                &scope.event,
+                &json!({"lifecycle_generation": generation, "source_revision": revision}),
+            ],
+        )
+        .await;
+        self.execute(
+            "INSERT INTO sequent_backend.execution_export
+                 (tenant_id, election_event_id, document_id, request_id, source_revision,
+                  lifecycle_generation, manifest_sha256, archive_sha256, signing_public_key)
+             VALUES ($1, $2, $3, $4, $5, $6, repeat('1', 64), repeat('2', 64), 'key')",
+            &[
+                &scope.tenant,
+                &scope.event,
+                &self.id(),
+                &self.id(),
+                &revision,
+                &generation,
+            ],
+        )
+        .await;
+        self.execute(
+            "INSERT INTO sequent_backend.board_operation_binding
+                 (tenant_id, election_event_id, request_id, binding_kind, binding_id)
+             VALUES ($1, $2, $3, 'deletion', $4)",
+            &[&scope.tenant, &scope.event, &request, &self.id()],
+        )
+        .await;
+        scalar::<String>(
+            self.tx,
+            "SELECT set_config('sequent.authorized_deletion', $1, true)",
+            &[&request.to_string()],
         )
         .await;
     }
@@ -854,6 +969,8 @@ async fn insert_election_event_writes_every_column() {
             "annotations": {"note": "x"},
             "description": "Board election",
             "presentation": {"logo_url": "https://example.test/logo.png"},
+            // Generated from the presentation: its security settings and titles.
+            "administration_settings": {"i18n": {}},
             "bulletin_board_reference": {"id": 7, "database_name": "board", "is_archived": false},
             "is_archived": false,
             "voting_channels": {"online": true, "kiosk": false},
@@ -898,6 +1015,33 @@ async fn insert_election_event_silently_drops_an_invalid_audit_event_id() {
     assert_eq!(
         row_json(&tx, "election_event", "id", scope.event).await["audit_election_event_id"],
         Value::Null
+    );
+    tx.rollback().await.unwrap();
+}
+
+/// Only the board's archive action archives an election event: an insert
+/// writes it unarchived whatever its data says.
+#[tokio::test]
+async fn insert_election_event_never_writes_an_archived_event() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    trusted_write(&tx).await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let tenant = f.tenant().await;
+    let scope = Scope {
+        tenant,
+        event: f.id(),
+    };
+    let mut event = event_data(scope);
+    event.is_archived = true;
+
+    election_event::insert_election_event(&tx, &event)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        row_json(&tx, "election_event", "id", scope.event).await["is_archived"],
+        json!(false)
     );
     tx.rollback().await.unwrap();
 }
@@ -1270,6 +1414,7 @@ async fn delete_election_event_removes_the_event_and_its_rows_only() {
     let sibling = f.event_in(a.tenant).await;
     f.populate(a).await;
     f.populate(sibling).await;
+    f.authorize_deletion(a).await;
 
     election_event::delete_election_event(&tx, &a.tenant_id(), &a.event_id())
         .await
@@ -1297,6 +1442,7 @@ async fn delete_election_event_removes_the_events_phone_blacklist_entries() {
     let sibling = f.event_in(a.tenant).await;
     f.phone_blacklist_entry(a).await;
     f.phone_blacklist_entry(sibling).await;
+    f.authorize_deletion(a).await;
 
     election_event::delete_election_event(&tx, &a.tenant_id(), &a.event_id())
         .await
@@ -1323,6 +1469,7 @@ async fn delete_election_event_removes_the_events_tally_sheet_imports() {
     let sibling = f.event_in(a.tenant).await;
     f.tally_sheet_import(a).await;
     f.tally_sheet_import(sibling).await;
+    f.authorize_deletion(a).await;
 
     election_event::delete_election_event(&tx, &a.tenant_id(), &a.event_id())
         .await
@@ -1356,6 +1503,7 @@ async fn delete_election_event_removes_the_events_tally_session_resolutions() {
     let sibling = f.event_in(a.tenant).await;
     f.tally_session_resolution(a).await;
     f.tally_session_resolution(sibling).await;
+    f.authorize_deletion(a).await;
 
     election_event::delete_election_event(&tx, &a.tenant_id(), &a.event_id())
         .await
@@ -1389,6 +1537,7 @@ async fn delete_tenant_succeeds_once_events_with_blacklist_and_import_rows_are_d
 
     // The delete-tenant task requires the tenant to have no events left.
     for scope in [first, second] {
+        f.authorize_deletion(scope).await;
         election_event::delete_election_event(&tx, &scope.tenant_id(), &scope.event_id())
             .await
             .unwrap();
@@ -1551,6 +1700,8 @@ fn election_json(scope: Scope, id: Uuid, keys_ceremony: Uuid) -> Value {
         "annotations": {"note": "x"},
         "description": "President",
         "presentation": {"sort_order": 2},
+        // Generated from the presentation: its security settings and titles.
+        "administration_settings": {"i18n": {}},
         "status": {"voting_status": "OPEN"},
         "eml": "<eml/>",
         "external_id": "external",
@@ -2493,4 +2644,273 @@ async fn get_realm_id_rejects_ambiguous_realm_names() {
 
     assert_eq!(error.to_string(), "found too many realms with same name: 2");
     tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn unfinished_results_tallies_are_those_that_neither_counted_failed_nor_were_cancelled() {
+    use windmill::adapters::tally_ceremony::PgTallyCreationReader;
+    use windmill::ports::tally_ceremony::TallyCreationReader;
+
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let (scope, other) = (f.scope().await, f.scope().await);
+    let (mut asked, mut unfinished) = (Vec::new(), Vec::new());
+    for (status, completed, holds) in [
+        (None, false, true),
+        (Some("STARTED"), false, true),
+        (Some("CONNECTED"), false, true),
+        (Some("IN_PROGRESS"), false, true),
+        (Some("AWAITING_INPUT"), false, true),
+        (Some("SUCCESS"), false, true),
+        (Some("SUCCESS"), true, false),
+        (Some("FAILED"), true, false),
+        (Some("CANCELLED"), false, false),
+    ] {
+        let election = f.election(scope).await;
+        f.tally_session_of(scope, election, "ELECTORAL_RESULTS", status, completed)
+            .await;
+        asked.push(election);
+        if holds {
+            unfinished.push(election);
+        }
+    }
+    // Neither an initialization report nor another event's tally holds an
+    // election, and an election not asked about is not answered.
+    let reported = f.election(scope).await;
+    f.tally_session_of(
+        scope,
+        reported,
+        "INITIALIZATION_REPORT",
+        Some("IN_PROGRESS"),
+        false,
+    )
+    .await;
+    let elsewhere = f.election(other).await;
+    f.tally_session_of(
+        other,
+        elsewhere,
+        "ELECTORAL_RESULTS",
+        Some("IN_PROGRESS"),
+        false,
+    )
+    .await;
+    let unasked = f.election(scope).await;
+    f.tally_session_of(scope, unasked, "ELECTORAL_RESULTS", Some("STARTED"), false)
+        .await;
+    asked.extend([reported, elsewhere]);
+
+    let found = PgTallyCreationReader::new(&tx)
+        .unfinished_results_tallies(&scope.tenant_id(), &scope.event_id(), &strings(&asked))
+        .await
+        .unwrap();
+    assert_eq!(sorted(found), sorted(strings(&unfinished)));
+    tx.rollback().await.unwrap();
+}
+
+/// Of two creations of a results tally of one election, the second waits for
+/// the first's transaction and then sees its session. The rows are committed,
+/// because the second transaction must see them, and removed at the end. The
+/// event is archived, so that a listing of every tenant's unarchived events
+/// never shows it.
+#[tokio::test]
+async fn a_second_results_tally_of_an_election_waits_for_the_first_and_is_refused() {
+    use windmill::services::ceremonies::tally_ceremony::check_second_count;
+
+    let pool = schema::pool().await;
+    let mut setup = pool.get().await.unwrap();
+    let tx = setup.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let scope = f.scope().await;
+    let election = f.election(scope).await;
+    f.execute(
+        "UPDATE sequent_backend.election_event SET is_archived = true WHERE id = $1",
+        &[&scope.event],
+    )
+    .await;
+    tx.commit().await.unwrap();
+    let (tenant, event) = (scope.tenant_id(), scope.event_id());
+    let elections = strings(&[election]);
+
+    let mut first = pool.get().await.unwrap();
+    let first_tx = first.transaction().await.unwrap();
+    check_second_count(&first_tx, &tenant, &event, &elections)
+        .await
+        .unwrap();
+    let mut second = pool.get().await.unwrap();
+    let second_pid: i32 = second
+        .query_one("SELECT pg_backend_pid()", &[])
+        .await
+        .unwrap()
+        .get(0);
+    let mut racing = tokio::spawn({
+        let (tenant, event, elections) = (tenant.clone(), event.clone(), elections.clone());
+        async move {
+            let tx = second.transaction().await.unwrap();
+            check_second_count(&tx, &tenant, &event, &elections)
+                .await
+                .map_err(|error| error.to_string())
+        }
+    });
+    let observer = pool.get().await.unwrap();
+    let mut waiting = false;
+    for _ in 0..500 {
+        if racing.is_finished() {
+            panic!("the second did not wait: {:?}", (&mut racing).await);
+        }
+        waiting = observer
+            .query_one(
+                "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE pid = $1
+                 AND wait_event_type = 'Lock' AND wait_event = 'advisory')",
+                &[&second_pid],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        if waiting {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    assert!(waiting, "the second waits on the first's lock");
+    Fixture::new(&first_tx, line!())
+        .tally_session_of(scope, election, "ELECTORAL_RESULTS", Some("STARTED"), false)
+        .await;
+    first_tx.commit().await.unwrap();
+
+    assert_eq!(
+        racing.await.unwrap(),
+        Err(format!(
+            "Election {election}: a results tally of it has not finished. Wait until it \
+             finishes, or cancel it."
+        ))
+    );
+    let mut cleanup = pool.get().await.unwrap();
+    let tx = cleanup.transaction().await.unwrap();
+    Fixture::new(&tx, line!()).authorize_deletion(scope).await;
+    election_event::delete_election_event(&tx, &tenant, &event)
+        .await
+        .unwrap();
+    tenant::delete_tenant(&tx, &tenant).await.unwrap();
+    tx.commit().await.unwrap();
+}
+
+#[tokio::test]
+async fn generated_document_names_get_an_underscore_for_each_character_their_paths_cannot_hold() {
+    use windmill::services::documents;
+
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let scope = Fixture::new(&tx, line!()).scope().await;
+    let (tenant, event) = (scope.tenant.to_string(), scope.event.to_string());
+    // There is no such file, so each upload stops after writing its document.
+    let missing = "/nonexistent/generated-document";
+    assert!(documents::upload_and_return_document(
+        &tx,
+        missing,
+        1,
+        "application/pdf",
+        &tenant,
+        Some(event.clone()),
+        "Mesa 1/2; #3.pdf",
+        None,
+        false,
+    )
+    .await
+    .is_err());
+    assert!(documents::upload_and_return_public_event_document(
+        &tx,
+        missing,
+        1,
+        "application/json",
+        &tenant,
+        &event,
+        "results?50%\\x.json",
+        None,
+    )
+    .await
+    .is_err());
+
+    let names: Vec<String> = tx
+        .query(
+            "SELECT name FROM sequent_backend.document WHERE tenant_id = $1",
+            &[&scope.tenant],
+        )
+        .await
+        .unwrap()
+        .iter()
+        .map(|row| row.get(0))
+        .collect();
+    assert_eq!(sorted(names), ["Mesa 1/2_ _3.pdf", "results_50__x.json"]);
+}
+
+#[tokio::test]
+async fn a_document_name_with_a_character_its_paths_cannot_hold_is_refused() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let scope = f.scope().await;
+    let insert = "INSERT INTO sequent_backend.document (id, tenant_id, election_event_id, name)
+                  VALUES ($1, $2, $3, $4)";
+    let rename = "UPDATE sequent_backend.document SET name = $4
+                  WHERE id = $1 AND tenant_id = $2 AND election_event_id = $3";
+    // A generated name may separate the parts of its path with '/'.
+    let generated = f.id();
+    f.execute(
+        insert,
+        &[
+            &generated,
+            &scope.tenant,
+            &scope.event,
+            &"ballot-box-seals/e/a.json",
+        ],
+    )
+    .await;
+    // A name stored before the rule is kept, and its row can still change.
+    let stored = f.id();
+    tx.batch_execute("SET LOCAL session_replication_role = replica")
+        .await
+        .unwrap();
+    f.execute(
+        insert,
+        &[&stored, &scope.tenant, &scope.event, &"stored;name.pdf"],
+    )
+    .await;
+    tx.batch_execute("SET LOCAL session_replication_role = origin")
+        .await
+        .unwrap();
+    f.execute(
+        "UPDATE sequent_backend.document SET media_type = 'application/pdf', name = name
+         WHERE id = $1",
+        &[&stored],
+    )
+    .await;
+
+    for (statement, id) in [(insert, f.id()), (rename, generated)] {
+        for name in [
+            "a;b.pdf",
+            "a#b.pdf",
+            "a\\b.pdf",
+            "a%3Bb.pdf",
+            "a?b.pdf",
+            "a\tb.pdf",
+        ] {
+            tx.batch_execute("SAVEPOINT refused").await.unwrap();
+            let error = tx
+                .execute(statement, &[&id, &scope.tenant, &scope.event, &name])
+                .await
+                .unwrap_err();
+            let error = error.as_db_error().expect("a database error");
+            assert_eq!(error.code(), &SqlState::CHECK_VIOLATION, "{name:?}");
+            assert_eq!(error.constraint(), Some("document_name_valid"));
+            assert_eq!(
+                error.message(),
+                "A document name cannot contain \\ ; # % ? or a control character. Rename it \
+                 and try again."
+            );
+            tx.batch_execute("ROLLBACK TO SAVEPOINT refused")
+                .await
+                .unwrap();
+        }
+    }
 }

@@ -5,6 +5,46 @@ import englishTranslation, {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        electionRevoting: {
+            title: "Revoto",
+            description:
+                "Durante la preparación, antes de que empiece la votación en cualquier canal de este evento electoral, puede desactivar el revoto de una elección: cada votante podrá entonces emitir un solo voto. El revoto no se puede volver a activar, y el registro electoral deja constancia de quién lo desactivó. La junta electoral debe aprobar la configuración actualizada antes de que empiece la votación.",
+            loading: "Cargando la configuración del revoto",
+            readFailed:
+                "No se pudo leer la configuración del revoto de las elecciones. Recargue la página antes de hacer cambios.",
+            empty: "Este evento electoral no tiene elecciones.",
+            election: "Elección",
+            state: "Revoto",
+            unlimited: "Permitido, votos ilimitados",
+            upTo: "Permitido, hasta {{votes}} votos",
+            single: "Desactivado, un voto",
+            disable: "Desactivar el revoto",
+            disableFor: "Desactivar el revoto de {{name}}",
+            confirmTitle: "¿Desactivar el revoto?",
+            confirm:
+                "Cada votante de {{name}} podrá emitir un solo voto. El revoto no se puede volver a activar.",
+            disabled:
+                "Revoto desactivado para {{name}}. La junta electoral debe aprobar la configuración actualizada antes de que empiece la votación.",
+            failed: "No se desactivó el revoto de {{name}}: {{reason}}",
+            failedNoReason:
+                "No se desactivó el revoto de {{name}}. Recargue la página y compruebe la fase de la elección.",
+        },
+        refusals: {
+            documentName:
+                "El nombre de un documento no puede contener / \\ ; # % ? ni caracteres de control. Cambie el nombre e inténtelo de nuevo.",
+            documentWaitsForPostProcessing:
+                "Este documento puede contener papeletas decodificadas. Se podrá descargar cuando haya empezado el posprocesamiento.",
+            resultsWaitForPostProcessing:
+                "La base de datos de resultados de este recuento puede contener papeletas decodificadas. Los resultados se podrán mostrar aquí cuando haya empezado el posprocesamiento.",
+            ballotImagesWaitForPostProcessing:
+                "Las imágenes de las papeletas se podrán generar cuando haya empezado el posprocesamiento.",
+            phaseChanging:
+                "La fase o el estado de seguridad del evento electoral está cambiando. Inténtelo de nuevo en un momento.",
+            resultsAlreadyCounted:
+                "Los resultados de {{election}} ya se han contado y no se puede hacer un nuevo recuento.",
+            resultsTallyUnfinished:
+                "Un recuento de resultados de {{election}} no ha terminado. Espere a que termine o cancélelo.",
+        },
         copyableFingerprint: {
             copy: "Copiar el SHA-256 completo",
             copied: "Se ha copiado el SHA-256 completo",
@@ -1669,12 +1709,30 @@ const spanishTranslation: TranslationType = {
                 },
             },
             permissions: {
-                "sign-start-tally": englishTranslation.translations.usersAndRolesScreen.permissions["sign-start-tally"],
-                "sign-import-election-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-import-election-data"],
-                "sign-export-execution-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-export-execution-data"],
-                "sign-delete-execution-data": englishTranslation.translations.usersAndRolesScreen.permissions["sign-delete-execution-data"],
-                "sign-read-voters-register": englishTranslation.translations.usersAndRolesScreen.permissions["sign-read-voters-register"],
-                "election-execution-export": englishTranslation.translations.usersAndRolesScreen.permissions["election-execution-export"],
+                "sign-start-tally":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-start-tally"
+                    ],
+                "sign-import-election-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-import-election-data"
+                    ],
+                "sign-export-execution-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-export-execution-data"
+                    ],
+                "sign-delete-execution-data":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-delete-execution-data"
+                    ],
+                "sign-read-voters-register":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "sign-read-voters-register"
+                    ],
+                "election-execution-export":
+                    englishTranslation.translations.usersAndRolesScreen.permissions[
+                        "election-execution-export"
+                    ],
                 "voter-information-letter": "Generar Carta de información para el votante",
                 "admin-user": "Administración",
                 "admin-dashboard-view": "Vista del Panel de Administración",
@@ -2467,6 +2525,12 @@ const spanishTranslation: TranslationType = {
                     entry: "Entrada",
                 },
                 emptyLogs: "Sin logs aún.",
+                managerKey: {
+                    title: "Clave del gestor del protocolo (SHA-256)",
+                    help: "Cada servidor de autoridad registra esta huella para el tablón {{board}} cuando acepta la configuración de la ceremonia de claves. Compárelas por un canal independiente, no a través de este portal.",
+                    readError:
+                        "No se ha podido leer la clave del gestor del protocolo de esta ceremonia de claves.",
+                },
             },
         },
         miruExport: {
@@ -3844,7 +3908,8 @@ const spanishTranslation: TranslationType = {
             },
             notices: {
                 ATTACK_REQUEST_ACTIVITY_UNAVAILABLE:
-                    englishTranslation.translations.monitoring.notices.ATTACK_REQUEST_ACTIVITY_UNAVAILABLE,
+                    englishTranslation.translations.monitoring.notices
+                        .ATTACK_REQUEST_ACTIVITY_UNAVAILABLE,
                 UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
                     "Los intentos con nombres de usuario no registrados no pertenecen a ningún puesto, por lo que solo se cuentan para todo el evento.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
@@ -4354,6 +4419,8 @@ const spanishTranslation: TranslationType = {
                     "Este evento utiliza ceremonias de claves automáticas. Los custodios no realizan estos pasos, por lo que no se pueden exigir sus firmas. Para exigir las firmas de los custodios, utiliza ceremonias de claves manuales.",
                 forbidden: "No tiene permiso para este cambio.",
                 invalid: "El servidor rechazó estos valores. Revíselos e inténtelo de nuevo.",
+                signaturesFixed:
+                    "El número de firmas de esta acción ya está guardado y no se puede cambiar. Recargue la página para verlo.",
                 conflict:
                     "Otra persona lo cambió mientras tanto. Recargue la página e inténtelo de nuevo.",
                 lockedDown:
@@ -4373,11 +4440,15 @@ const spanishTranslation: TranslationType = {
                 "configuration-and-keys": "Configuración y claves",
             },
             actions: {
-                "import-election-data": englishTranslation.translations.signing.actions["import-election-data"],
+                "import-election-data":
+                    englishTranslation.translations.signing.actions["import-election-data"],
                 "start-tally": englishTranslation.translations.signing.actions["start-tally"],
-                "export-execution-data": englishTranslation.translations.signing.actions["export-execution-data"],
-                "delete-execution-data": englishTranslation.translations.signing.actions["delete-execution-data"],
-                "read-voters-register": englishTranslation.translations.signing.actions["read-voters-register"],
+                "export-execution-data":
+                    englishTranslation.translations.signing.actions["export-execution-data"],
+                "delete-execution-data":
+                    englishTranslation.translations.signing.actions["delete-execution-data"],
+                "read-voters-register":
+                    englishTranslation.translations.signing.actions["read-voters-register"],
                 "initialize-voting": {
                     label: "Inicializar la votación",
                     short: "Inicialización",
@@ -4514,6 +4585,7 @@ const spanishTranslation: TranslationType = {
                 signaturesNeededHelp:
                     "Cada firmante usa su certificado digital. Cada $t(signing.terms.post) tiene al menos {{n}} personas que pueden firmar.",
                 signaturesNeededShortHelp: "Cada firmante usa su certificado digital.",
+                signaturesFixed: "Este número queda fijo una vez guardado.",
                 requesterSigning: "La persona que la inicia también puede firmar",
                 expiresAfter: "Una solicitud caduca después de",
                 trusteesSign: "Las autoridades firman este paso",
@@ -6252,7 +6324,7 @@ const spanishTranslation: TranslationType = {
         electoralLogConsole: {
             title: "Registro Electoral",
             subtitle:
-                "Explore el registro electoral y la urna de un evento electoral, o consulte su base de datos del registro electoral. Nada en esta página modifica datos.",
+                "Explore el registro electoral de un evento electoral, o consulte su base de datos del registro electoral. Nada en esta página modifica datos.",
             notAllowed:
                 "Necesita el permiso electoral-log-console-read para abrir el registro electoral.",
             tabs: {
@@ -6264,9 +6336,6 @@ const spanishTranslation: TranslationType = {
             table: "Tabla",
             tables: {
                 records: "Entradas",
-                ballots: "Papeletas",
-                voters: "Votantes",
-                queue: "Cola del Secuenciador",
             },
             order: {
                 "label": "Orden",
@@ -6276,22 +6345,14 @@ const spanishTranslation: TranslationType = {
             filters: {
                 statement_kind: "Tipo",
                 election_id: "Elección",
-                area_id: "ID de Área",
                 user_id: "ID de Usuario o Votante",
                 ballot_id: "ID de Papeleta",
-                status: "Estado",
                 created_after: "Desde",
                 created_before: "Hasta",
                 any: "Cualquiera",
                 apply: "Aplicar Filtros",
                 clear: "Limpiar",
-                invalid:
-                    "Revise los filtros marcados: las fechas deben ser válidas y los ID de área de la urna deben ser UUID.",
-            },
-            statuses: {
-                valid: "Válida",
-                pending: "Pendiente",
-                rejected: "Rechazada",
+                invalid: "Revise los filtros marcados: las fechas deben ser válidas.",
             },
             estimatedRows: "Unas {{rows}} filas en esta tabla antes de filtrar.",
             personalDataHidden:

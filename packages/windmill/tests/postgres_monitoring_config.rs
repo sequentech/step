@@ -5,6 +5,8 @@
 //! each writes and records, what it refuses, and that a refused change writes
 //! nothing and records nothing.
 
+#[path = "support/deletion.rs"]
+mod deletion;
 #[path = "support/schema.rs"]
 mod schema;
 
@@ -74,6 +76,7 @@ async fn event(pool: &Pool, seed: u32) -> EventRef {
 async fn remove(pool: &Pool, event: EventRef) {
     let mut client = pool.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
+    deletion::authorize_deletion(&tx, event.tenant_id, event.election_event_id).await;
     delete_election_event(
         &tx,
         &event.tenant_id.to_string(),

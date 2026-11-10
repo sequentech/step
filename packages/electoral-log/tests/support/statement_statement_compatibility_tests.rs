@@ -312,7 +312,46 @@ fn statement_type_borsh_discriminants_are_append_only() {
         borsh::to_vec(&StatementType::TsfIntegrityCheck).unwrap(),
         vec![67]
     );
-    assert!(borsh::from_slice::<StatementType>(&[68]).is_err());
+    assert_eq!(
+        borsh::to_vec(&StatementType::BallotAudited).unwrap(),
+        vec![68]
+    );
+    assert!(borsh::from_slice::<StatementType>(&[69]).is_err());
+}
+
+fn ballot_audited() -> StatementBody {
+    StatementBody::BallotAudited(
+        ElectionIdString(Some("election".to_string())),
+        PseudonymHash::new([1; 64]),
+        CastVoteHash::new([2; 64]),
+        "FTBE-MHRX".to_string(),
+        VoterIpString("ip: 192.0.2.10".to_string()),
+        VoterCountryString("country: ES".to_string()),
+        VotingChannelString("ONLINE".to_string()),
+    )
+}
+
+/// The audit of a received ballot is appended after `LifecycleSecurityEvent`
+/// and has a statement type of its own, so it never reads as a cast vote.
+#[test]
+fn an_audited_received_ballot_is_appended_with_its_own_type() {
+    let body = ballot_audited();
+    let bytes = borsh::to_vec(&body).unwrap();
+    assert_eq!(bytes[0], 45);
+    assert!(matches!(
+        borsh::from_slice::<StatementBody>(&bytes).unwrap(),
+        StatementBody::BallotAudited(_, _, _, _, _, _, _)
+    ));
+
+    let head = StatementHead::from_body(EventIdString("event".to_string()), &body);
+    assert_eq!(head.kind.to_string(), "BallotAudited");
+    assert_eq!(head.event_type, StatementEventType::SYSTEM);
+    assert_eq!(head.log_type, StatementLogType::INFO);
+    assert_eq!(
+        head.description,
+        "Received ballot FTBE-MHRX audited. Voting channel: ONLINE."
+    );
+    assert!(head.kind.to_string().len() <= 40);
 }
 
 #[test]

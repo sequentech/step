@@ -16,13 +16,17 @@ name = "generate-logs"
 path = "external-bin/generate_logs.rs"
 
 [features]
-default = ["fips_full"]
+default = ["fips_full", "plugins"]
 fips_core = ["dep:postgres-openssl"]
 fips_full = ["dep:postgres-openssl"]
 # The Miru results-transmission integration (ACM/EML transmission packages
 # signed and encrypted with the external ECIES tool). Not part of the
 # evaluated TOE; no production build definition enables it.
 miru = ["sequent-core/miru", "velvet/miru"]
+# WebAssembly plugins: harvest and windmill load those under `plugins/` in the
+# public bucket at start-up and run their hooks, routes and tasks. Not part of
+# the evaluated TOE, whose build turns it off.
+plugins = ["dep:wasmtime", "dep:wasmtime-wasi", "dep:ouroboros", "sequent-core/plugins_wit"]
 
 [dependencies]
 wbraid-b4 = { workspace = true }
@@ -65,8 +69,8 @@ xz2 = "0.1"
 zip = "2.1"
 
 # WASM plugin management
-wasmtime = "44.0.3"
-wasmtime-wasi = "44.0.3"
+wasmtime = { version = "44.0.3", optional = true }
+wasmtime-wasi = { version = "44.0.3", optional = true }
 
 # logging
 tracing = "0.1"
@@ -90,7 +94,7 @@ aws-sdk-secretsmanager = "1.66"
 wrap-map-err = { path = "../wrap-map-err" }
 electoral-log = { path = "../electoral-log" }
 messaging = { path = "../messaging" }
-sequent-core = { path = "../sequent-core", features = ["reports", "s3", "keycloak", "log", "probe", "areas", "default_features", "plugins_wit", "sqlite", "monitoring", "election_config_signing"] }
+sequent-core = { path = "../sequent-core", features = ["reports", "s3", "keycloak", "log", "probe", "areas", "default_features", "sqlite", "monitoring", "election_config_signing"] }
 velvet = { path = "../velvet" }
 protocol-board = { path = "../protocol-board" }
 # Only the vault's symmetric encryption; the protocol itself is reached through
@@ -113,6 +117,8 @@ postgres-openssl = { version = "0.5", optional = true }
 # https://www.openssl.org/docs/man3.0/man7/fips_module.html
 # Also verifies signing certificates and CMS signatures (services::signing).
 openssl = "0.10"
+# Overwrites the key and IV derived for file encryption once they are used.
+zeroize = "1.8"
 # Parses the CMS SignedData of PDF signatures (services::signing).
 cms = "0.2.3"
 der = { version = "0.7", features = ["alloc", "oid"] }
@@ -142,7 +148,7 @@ unicode-normalization = "0.1"
 num_cpus = "1.16"
 ordered-float = { version = "5.0", features = ["serde"] }
 
-ouroboros = "0.18.5"
+ouroboros = { version = "0.18.5", optional = true }
 
 rust_xlsxwriter = "0.90.0"
 

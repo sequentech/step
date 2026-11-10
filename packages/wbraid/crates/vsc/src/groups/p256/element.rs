@@ -13,6 +13,7 @@ use p256::elliptic_curve::Group;
 use p256::elliptic_curve::sec1::{FromSec1Point, ToSec1Point};
 use p256::elliptic_curve::subtle::CtOption;
 use p256::{ProjectivePoint, Sec1Point};
+use zeroize::Zeroize;
 
 /**
  * A [`GroupElement`] implementation for the P-256 curve.
@@ -76,6 +77,13 @@ impl P256Element {
         let point = Sec1Point::from_bytes(&sec1).ok()?;
         let projective: Option<ProjectivePoint> = ProjectivePoint::from_sec1_point(&point).into();
         projective.map(P256Element)
+    }
+}
+
+/// Zeroizing an element overwrites the whole point with the identity element.
+impl Zeroize for P256Element {
+    fn zeroize(&mut self) {
+        self.0.zeroize();
     }
 }
 

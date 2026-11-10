@@ -30,9 +30,11 @@ use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
 use crate::services::ceremonies::keys_ceremony::custody_request;
 use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution_and_all_related_data;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::import::configuration_package;
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
 use futures::try_join;
+use sequent_core::election_config::package_verify::signatures_required;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::ceremonies::BatchNumber;
 use sequent_core::types::ceremonies::{TallyCeremonyStatus, TallyExecutionStatus, TallyRunReason};
@@ -381,6 +383,87 @@ impl TallyCreationReader for PgTallyCreationReader<'_> {
             ballots_in_box: seal.ballots_in_box,
         })
         .collect())
+    }
+
+    async fn signed_import_required(&self, tenant_id: &str) -> Result<bool> {
+        Ok(signatures_required(
+            configuration_package::tenant_setting(self.transaction, tenant_id)
+                .await?
+                .as_ref(),
+        ))
+    }
+
+    async fn counted_elections(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+    ) -> Result<Vec<String>> {
+        self.transaction
+            .query(
+                "SELECT DISTINCT e::text FROM sequent_backend.tally_session t
+             CROSS JOIN LATERAL unnest(t.election_ids) AS e
+             WHERE t.tenant_id = $1::text::uuid AND t.election_event_id = $2::text::uuid
+             AND t.tally_type = 'ELECTORAL_RESULTS' AND t.execution_status = 'SUCCESS'
+             AND t.is_execution_completed IS TRUE AND e = ANY($3::text[]::uuid[])
+             ORDER BY 1",
+                &[&tenant_id, &election_event_id, &election_ids],
+            )
+            .await?
+            .iter()
+            .map(|row| Ok(row.try_get(0)?))
+            .collect()
+    }
+
+    async fn lock_results_tallies(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+    ) -> Result<()> {
+        // One order for every creation, so that two never wait for each other.
+        let mut keys: Vec<String> = election_ids
+            .iter()
+            .map(|election_id| {
+                format!("results-tally:{tenant_id}:{election_event_id}:{election_id}")
+            })
+            .collect();
+        keys.sort();
+        keys.dedup();
+        for key in keys {
+            self.transaction
+                .execute(
+                    "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+                    &[&key],
+                )
+                .await?;
+        }
+        Ok(())
+    }
+
+    async fn unfinished_results_tallies(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+    ) -> Result<Vec<String>> {
+        self.transaction
+            .query(
+                "SELECT DISTINCT e::text FROM sequent_backend.tally_session t
+             CROSS JOIN LATERAL unnest(t.election_ids) AS e
+             WHERE t.tenant_id = $1::text::uuid AND t.election_event_id = $2::text::uuid
+             AND t.tally_type = 'ELECTORAL_RESULTS'
+             AND COALESCE(t.execution_status, '') NOT IN ('FAILED', 'CANCELLED')
+             AND NOT (COALESCE(t.execution_status, '') = 'SUCCESS'
+                      AND t.is_execution_completed IS TRUE)
+             AND e = ANY($3::text[]::uuid[])
+             ORDER BY 1",
+                &[&tenant_id, &election_event_id, &election_ids],
+            )
+            .await?
+            .iter()
+            .map(|row| Ok(row.try_get(0)?))
+            .collect()
     }
 }
 

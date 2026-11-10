@@ -13,6 +13,7 @@ use crate::traits::groups::GroupScalar;
 use crate::utils::error::Error;
 use crate::zkp::schnorr::SchnorrProof;
 use canonical_derive::Canonical;
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 /**
  * A dealer in the Joint-Feldman distributed key generation (DKG) protocol.
@@ -37,6 +38,9 @@ use canonical_derive::Canonical;
  *
  * At least `T` of the `P` participants are needed to decrypt ciphertexts encrypted
  * with the joint public key.
+ *
+ * The polynomial's coefficients are overwritten with zero when the dealer is
+ * dropped.
  *
  * See `EVS`: Protocol 16.20
  *
@@ -195,9 +199,9 @@ impl<C: Context, const T: usize, const P: usize> Dealer<C, T, P> {
         proof_context: &[u8],
     ) -> Result<[CheckingValue<C>; T], Error> {
         let g = C::generator();
-        let values: [Result<CheckingValue<C>, Error>; T] = self.polynomial.0.clone().map(|v| {
-            let value = g.exp(&v);
-            let proof = SchnorrProof::<C>::prove(&g, &value, &v, proof_context);
+        let values: [Result<CheckingValue<C>, Error>; T] = self.polynomial.0.each_ref().map(|v| {
+            let value = g.exp(v);
+            let proof = SchnorrProof::<C>::prove(&g, &value, v, proof_context);
             let cv = CheckingValue::new(value, proof?);
             Ok(cv)
         });
@@ -218,9 +222,25 @@ impl<C: Context, const T: usize, const P: usize> Dealer<C, T, P> {
  * This polynomial is used by the dealer to generate shares and checking values
  * for the participants in the DKG protocol. The polynomial is defined by `T` coefficients
  * of type `C::Scalar`, as are its arguments `x` and values `f(x)`.
+ *
+ * The coefficients are secret and are overwritten with zero on drop.
  */
 #[derive(Clone)]
 pub(crate) struct Polynomial<C: Context, const T: usize>(pub(crate) [C::Scalar; T]);
+
+impl<C: Context, const T: usize> Zeroize for Polynomial<C, T> {
+    fn zeroize(&mut self) {
+        self.0.zeroize();
+    }
+}
+
+impl<C: Context, const T: usize> Drop for Polynomial<C, T> {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl<C: Context, const T: usize> ZeroizeOnDrop for Polynomial<C, T> {}
 
 impl<C: Context, const T: usize> Polynomial<C, T> {
     /// Generate a random polynomial of degree `T - 1` with `T` coefficients.
@@ -237,15 +257,16 @@ impl<C: Context, const T: usize> Polynomial<C, T> {
     ///
     /// Returns the scalar `k`, where `k = f(x)`.
     pub(crate) fn eval(&self, x: &C::Scalar) -> C::Scalar {
-        let mut sum: C::Scalar = self.0[0].clone();
+        let mut sum: Zeroizing<C::Scalar> = Zeroizing::new(self.0[0].clone());
         let mut power = C::Scalar::one();
 
         for v in self.0.iter().skip(1) {
             power = power.mul(x);
-            sum = sum.add(&v.mul(&power));
+            let term = Zeroizing::new(v.mul(&power));
+            *sum = sum.add(&term);
         }
 
-        sum
+        (*sum).clone()
     }
 }
 
@@ -255,6 +276,8 @@ impl<C: Context, const T: usize> Polynomial<C, T> {
  * A [`DealerShares`] contains `P` shares for each of the `P` participants, together
  * with the dealer's `T` checking values. The set of *all* shares and checking
  * values for a protocol execution would be of type `[DealerShares; P]`
+ *
+ * The shares are overwritten with zero when the value is dropped.
  *
  * # Examples
  *
@@ -282,6 +305,21 @@ pub struct DealerShares<C: Context, const T: usize, const P: usize> {
     /// proof of knowledge of its exponent.
     pub checking_values: [CheckingValue<C>; T],
 }
+
+impl<C: Context, const T: usize, const P: usize> Zeroize for DealerShares<C, T, P> {
+    /// Overwrite the shares with zero; the checking values are public.
+    fn zeroize(&mut self) {
+        self.shares.zeroize();
+    }
+}
+
+impl<C: Context, const T: usize, const P: usize> Drop for DealerShares<C, T, P> {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl<C: Context, const T: usize, const P: usize> ZeroizeOnDrop for DealerShares<C, T, P> {}
 
 impl<C: Context, const T: usize, const P: usize> DealerShares<C, T, P> {
     /// Construct a new [`DealerShares`] instance from the given values.
@@ -362,6 +400,8 @@ impl<C: Context> CheckingValue<C> {
  * secret share of the joint public key held by a recipient is the sum of the `P` secret
  * scalars it receives from all dealers (participants), including itself.
  *
+ * The secret scalar is overwritten with zero when the share is dropped.
+ *
  * * # Examples
  *
  * ```
@@ -391,6 +431,21 @@ pub struct VerifiableShare<C: Context, const T: usize> {
     /// knowledge of its exponent
     pub checking_values: [CheckingValue<C>; T],
 }
+
+impl<C: Context, const T: usize> Zeroize for VerifiableShare<C, T> {
+    /// Overwrite the secret scalar with zero; the checking values are public.
+    fn zeroize(&mut self) {
+        self.value.zeroize();
+    }
+}
+
+impl<C: Context, const T: usize> Drop for VerifiableShare<C, T> {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl<C: Context, const T: usize> ZeroizeOnDrop for VerifiableShare<C, T> {}
 
 impl<C: Context, const T: usize> VerifiableShare<C, T> {
     /// Construct a new [`VerifiableShare`] from the given values.

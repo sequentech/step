@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
 
-import React, {useContext, useMemo, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
+import {gql, useQuery} from "@apollo/client"
 
 import {theme, Dialog} from "@sequentech/ui-essentials"
 import {
@@ -20,7 +21,7 @@ import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty"
-import {Accordion, AccordionSummary, Alert, Typography} from "@mui/material"
+import {Accordion, AccordionSummary, Alert, Box, Typography} from "@mui/material"
 import {getContrastRatio} from "@mui/material/styles"
 import Table from "@mui/material/Table"
 import TableBody from "@mui/material/TableBody"
@@ -34,6 +35,131 @@ import {Logs} from "../Logs"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {CancelButton} from "@/resources/Tally/styles"
 import {EElectionEventCeremoniesPolicy} from "@sequentech/ui-core"
+import {CopyableFingerprint} from "@/components/CopyableFingerprint"
+import {colonHex, hex, sha256} from "@/lib/signing/der"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {useKeysPermissions} from "@/resources/ElectionEvent/useKeysPermissions"
+import {IPermissions} from "@/types/keycloak"
+
+/** A key ceremony's DKG board, with the Configuration it serves. */
+export const KEYS_CEREMONY_CONFIGURATION = gql`
+    query KeysCeremonyConfiguration($tenantId: uuid!, $keysCeremonyId: uuid!) {
+        sequent_backend_protocol_board(
+            where: {
+                tenant_id: {_eq: $tenantId}
+                keys_ceremony_id: {_eq: $keysCeremonyId}
+                parent_id: {_is_null: true}
+            }
+        ) {
+            id
+            name
+            public_manager_message
+        }
+    }
+`
+
+interface IKeysCeremonyConfiguration {
+    sequent_backend_protocol_board: Array<{
+        id: string
+        name: string
+        public_manager_message: string | null
+    }>
+}
+
+/** The length of the sender's name, then the sender's Ed25519 key. */
+const NAME_LENGTH_BYTES = 8
+const KEY_BYTES = 32
+
+/**
+ * The fingerprint of the protocol manager key that a stored Configuration
+ * names, in the form each trustee server logs it when it accepts that
+ * Configuration: SHA-256 of the key's 32 bytes, every byte as two hexadecimal
+ * digits, separated by colons.
+ *
+ * Hasura gives the stored message as `\x` and hexadecimal digits. The message
+ * starts with its sender: the name, as a big-endian 64-bit length and that
+ * many bytes, then the sender's 32-byte key. A trustee accepts a
+ * Configuration only if its sender's key is the protocol manager key that it
+ * names.
+ */
+export const managerKeyFingerprint = async (
+    publicManagerMessage: string,
+    subtle?: SubtleCrypto
+): Promise<string> => {
+    if (!/^\\x(?:[0-9a-fA-F]{2})+$/.test(publicManagerMessage)) {
+        throw new Error("Invalid public configuration")
+    }
+    const bytes = new Uint8Array(
+        (publicManagerMessage.slice(2).match(/../g) ?? []).map((pair) => parseInt(pair, 16))
+    )
+    if (bytes.length < NAME_LENGTH_BYTES + KEY_BYTES) {
+        throw new Error("Invalid public configuration")
+    }
+    const view = new DataView(bytes.buffer)
+    const keyStart = NAME_LENGTH_BYTES + view.getUint32(4)
+    if (view.getUint32(0) !== 0 || keyStart + KEY_BYTES > bytes.length) {
+        throw new Error("Invalid public configuration")
+    }
+    return colonHex(hex(await sha256(bytes.slice(keyStart, keyStart + KEY_BYTES), subtle)))
+}
+
+/**
+ * The protocol manager key of a key ceremony, for the election board to
+ * compare with what each trustee server logs.
+ */
+const ManagerKeyFingerprint: React.FC<{keysCeremonyId: string}> = ({keysCeremonyId}) => {
+    const {t} = useTranslation()
+    const [tenantId] = useTenantStore()
+    const {data, error} = useQuery<IKeysCeremonyConfiguration>(KEYS_CEREMONY_CONFIGURATION, {
+        variables: {tenantId, keysCeremonyId},
+        skip: !tenantId || !keysCeremonyId,
+        context: {headers: {"x-hasura-role": IPermissions.ADMIN_CEREMONY}},
+    })
+    const boards = data?.sequent_backend_protocol_board ?? []
+    const board = boards.length === 1 ? boards[0] : undefined
+    const message = board?.public_manager_message ?? null
+    const [fingerprint, setFingerprint] = useState<string | null>(null)
+    const [failed, setFailed] = useState(false)
+
+    useEffect(() => {
+        let current = true
+        setFingerprint(null)
+        setFailed(false)
+        if (message) {
+            managerKeyFingerprint(message).then(
+                (value) => current && setFingerprint(value),
+                () => current && setFailed(true)
+            )
+        }
+        return () => {
+            current = false
+        }
+    }, [message])
+
+    if (error || failed || boards.length > 1 || (board && !message)) {
+        return (
+            <Alert severity="warning" className="keys-ceremony-manager-key-error">
+                {t("keysGeneration.ceremonyStep.managerKey.readError")}
+            </Alert>
+        )
+    }
+    if (!board || !fingerprint) {
+        return null
+    }
+    return (
+        <Box className="keys-ceremony-manager-key" sx={{width: "100%"}}>
+            <Typography variant="subtitle2" component="div">
+                {t("keysGeneration.ceremonyStep.managerKey.title")}
+            </Typography>
+            <Box sx={{fontFamily: "monospace", fontSize: "0.85rem", wordBreak: "break-all"}}>
+                <CopyableFingerprint value={fingerprint} short={fingerprint} />
+            </Box>
+            <Typography variant="caption" component="div">
+                {t("keysGeneration.ceremonyStep.managerKey.help", {board: board.name})}
+            </Typography>
+        </Box>
+    )
+}
 
 export const statusColor: (status: EStatus) => string = (status) => {
     if (status === EStatus.USER_CONFIGURATION) {
@@ -85,6 +211,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
 }) => {
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
+    const {canAdminCeremony} = useKeysPermissions()
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
     const [progressExpanded, setProgressExpanded] = useState(true)
 
@@ -134,6 +261,9 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
             <WizardStyles.ContentWrapper>
                 {(!status || !hasGeneratedCeremonyKeys(status)) && message}
                 {status?.failure && <Alert severity="error">{status.failure}</Alert>}
+                {canAdminCeremony && currentCeremonyId && (
+                    <ManagerKeyFingerprint keysCeremonyId={currentCeremonyId} />
+                )}
                 <Accordion
                     sx={{width: "100%"}}
                     expanded={progressExpanded}

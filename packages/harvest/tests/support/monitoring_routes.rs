@@ -20,10 +20,15 @@ use windmill::services::monitoring::snapshot::{
     LiveSnapshot as SnapshotHead, ScopeRead,
 };
 
+/// Monitoring activity requires a board account: `signing-requests-cancel`
+/// marks one.
 pub fn viewer(event: &Event) -> Claims {
     Claims::new(&event.tenant_id, "monitor")
         .username("monitor")
-        .roles([Permissions::MONITORING_VIEW])
+        .roles([
+            Permissions::MONITORING_VIEW,
+            Permissions::SIGNING_REQUESTS_CANCEL,
+        ])
 }
 
 pub fn configurator(event: &Event) -> Claims {
@@ -32,6 +37,7 @@ pub fn configurator(event: &Event) -> Claims {
         .roles([
             Permissions::MONITORING_VIEW,
             Permissions::MONITORING_CONFIGURE,
+            Permissions::SIGNING_REQUESTS_CANCEL,
         ])
 }
 
@@ -1160,6 +1166,7 @@ async fn a_malformed_request_is_refused_as_every_monitoring_refusal_is() {
         .roles([
             Permissions::MONITORING_VIEW,
             Permissions::MONITORING_CONFIGURE,
+            Permissions::SIGNING_REQUESTS_CANCEL,
         ]);
     for path in MONITORING_ROUTES {
         let mut malformed = vec![

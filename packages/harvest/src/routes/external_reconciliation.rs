@@ -8,6 +8,7 @@
 //! operator through the wizard and authorized like every other admin action
 //! (`JwtClaims` + `authorize`).
 
+use crate::routes::election_dates::refuse_data_under_signed_import;
 use crate::services::authorization::authorize;
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
@@ -80,6 +81,7 @@ pub async fn create_reconciliation_import(
         vec![Permissions::ELECTION_EVENT_VOTER_LIST_SYNC],
     )
     .map_err(|err| (Status::Forbidden, format!("{err:?}")))?;
+    refuse_data_under_signed_import(&tenant_id).await?;
 
     let executer_name = claims
         .name
@@ -158,6 +160,7 @@ pub async fn apply_reconciliation_changes(
         vec![Permissions::ELECTION_EVENT_VOTER_LIST_SYNC],
     )
     .map_err(|err| (Status::Forbidden, format!("{err:?}")))?;
+    refuse_data_under_signed_import(&tenant_id).await?;
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await

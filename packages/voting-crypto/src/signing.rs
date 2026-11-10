@@ -11,6 +11,7 @@ use cryptography::utils::serialization::{Deserializable, Serializable};
 use cryptography::utils::signatures::{SignatureScheme, Signer as _, Verifier as _};
 use ed25519::pkcs8::{DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 type Scheme = <RistrettoCtx as Context>::SignatureScheme;
 type Rng = <RistrettoCtx as Context>::Rng;
@@ -26,7 +27,8 @@ pub struct Signature([u8; 64]);
 #[derive(Clone, Debug, PartialEq, Eq, std::hash::Hash, BorshSerialize)]
 pub struct VerificationKey([u8; 32]);
 
-/// A private Ed25519 signing seed; debug output never reveals it.
+/// A private Ed25519 signing seed; debug output never reveals it, and the seed
+/// is overwritten with zero when the key is dropped.
 #[derive(Clone, BorshSerialize, BorshDeserialize)]
 pub struct SigningKey([u8; 32]);
 
@@ -36,23 +38,40 @@ impl std::fmt::Debug for SigningKey {
     }
 }
 
+impl Zeroize for SigningKey {
+    /// Overwrite the seed with zero (volatile writes, see [`Zeroize`]).
+    fn zeroize(&mut self) {
+        self.0.zeroize();
+    }
+}
+
+impl Drop for SigningKey {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for SigningKey {}
+
 macro_rules! base64_encoding {
     ($name:ident, $size:expr) => {
         impl $name {
             /// Encode the raw canonical bytes as standard base64.
             pub fn to_b64_string(&self) -> Result<String> {
-                Ok(STANDARD.encode(self.0))
+                Ok(STANDARD.encode(&self.0))
             }
             /// Parse exactly the required number of raw canonical bytes.
+            /// The decoded copies are overwritten with zero on return.
             pub fn from_b64_string(encoded: &str) -> Result<Self> {
-                let bytes = STANDARD.decode(encoded).context("invalid base64")?;
-                if bytes.len() != $size {
-                    return Self::from_standard_encoding(&bytes);
+                let decoded = Zeroizing::new(STANDARD.decode(encoded).context("invalid base64")?);
+                if decoded.len() != $size {
+                    return Self::from_standard_encoding(&decoded);
                 }
-                let bytes: [u8; $size] = bytes.try_into().map_err(|bytes: Vec<u8>| {
-                    anyhow::anyhow!("expected {} bytes, got {}", $size, bytes.len())
-                })?;
-                Self::from_bytes(bytes)
+                let bytes: Zeroizing<[u8; $size]> =
+                    Zeroizing::new(decoded.as_slice().try_into().map_err(|_| {
+                        anyhow::anyhow!("expected {} bytes, got {}", $size, decoded.len())
+                    })?);
+                Self::from_bytes(*bytes)
             }
             /// Return the raw canonical bytes.
             pub fn to_bytes(&self) -> [u8; $size] {
@@ -61,21 +80,25 @@ macro_rules! base64_encoding {
         }
         impl Serialize for $name {
             fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-                serializer.serialize_str(&hex::encode(self.0))
+                let encoded = Zeroizing::new(hex::encode(&self.0));
+                serializer.serialize_str(&encoded)
             }
         }
         impl<'de> Deserialize<'de> for $name {
             fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-                let encoded = <String as Deserialize>::deserialize(deserializer)?;
-                let bytes = hex::decode(&encoded).map_err(serde::de::Error::custom)?;
-                let bytes = bytes.try_into().map_err(|bytes: Vec<u8>| {
-                    serde::de::Error::custom(format!(
-                        "expected {} bytes, got {}",
-                        $size,
-                        bytes.len()
-                    ))
-                })?;
-                Self::from_bytes(bytes).map_err(serde::de::Error::custom)
+                // The decoded copies are overwritten with zero on return.
+                let encoded = Zeroizing::new(<String as Deserialize>::deserialize(deserializer)?);
+                let decoded =
+                    Zeroizing::new(hex::decode(&*encoded).map_err(serde::de::Error::custom)?);
+                let bytes: Zeroizing<[u8; $size]> =
+                    Zeroizing::new(decoded.as_slice().try_into().map_err(|_| {
+                        serde::de::Error::custom(format!(
+                            "expected {} bytes, got {}",
+                            $size,
+                            decoded.len()
+                        ))
+                    })?);
+                Self::from_bytes(*bytes).map_err(serde::de::Error::custom)
             }
         }
     };
@@ -121,13 +144,17 @@ impl VerificationKey {
 }
 
 impl SigningKey {
-    /// Generate a signing seed using wbraid's cryptographic RNG.
+    /// Generate a signing seed using wbraid's cryptographic RNG. The
+    /// intermediate copies of the seed are overwritten with zero on return.
     pub fn generate() -> Result<Self> {
-        let bytes = RistrettoCtx::gen_signing_key()
-            .ser()
-            .try_into()
-            .map_err(|_| anyhow::anyhow!("unexpected signing key size"))?;
-        Self::from_bytes(bytes)
+        let encoded = Zeroizing::new(RistrettoCtx::gen_signing_key().ser());
+        let bytes: Zeroizing<[u8; 32]> = Zeroizing::new(
+            encoded
+                .as_slice()
+                .try_into()
+                .map_err(|_| anyhow::anyhow!("unexpected signing key size"))?,
+        );
+        Self::from_bytes(*bytes)
     }
     /// Parse a signing seed.
     pub fn from_bytes(bytes: [u8; 32]) -> Result<Self> {
@@ -159,6 +186,10 @@ impl SigningKey {
         }
         Ok(key)
     }
+    /// The seed as PKCS#8 DER. `KeypairBytes` and the DER document overwrite
+    /// their copies when dropped; the returned bytes hold the seed, and the
+    /// caller keeps them in a container that overwrites them when dropped,
+    /// such as `zeroize::Zeroizing`.
     pub fn to_der(&self) -> Result<Vec<u8>> {
         Ok(ed25519::pkcs8::KeypairBytes {
             secret_key: self.0,

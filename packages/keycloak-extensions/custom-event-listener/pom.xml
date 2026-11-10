@@ -47,6 +47,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
+			<groupId>sequent</groupId>
+			<artifactId>conditional-authenticators</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
 			<groupId>org.keycloak</groupId>
 			<artifactId>keycloak-server-spi</artifactId>
 		</dependency>

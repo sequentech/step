@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::routes::election_dates::refuse_data_under_signed_import;
 use crate::services::authorization::authorize;
 use anyhow::Result;
 use rocket::http::Status;
@@ -32,6 +33,13 @@ pub async fn upsert_areas_route(
     input: Json<ImportAreasInput>,
 ) -> Result<Json<ImportAreasOutput>, (Status, String)> {
     let body = input.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::AREA_WRITE],
+    )?;
+    refuse_data_under_signed_import(&claims.hasura_claims.tenant_id).await?;
     let request =
         crate::services::board_authorization::authorize_import_document(
             &claims,
@@ -51,12 +59,6 @@ pub async fn upsert_areas_route(
     )
     .await?;
 
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::AREA_WRITE],
-    )?;
     upsert_areas_task(
         claims.hasura_claims.tenant_id.clone(),
         body.election_event_id.clone(),
@@ -80,6 +82,13 @@ pub async fn import_areas_route(
     input: Json<ImportAreasInput>,
 ) -> Result<Json<ImportAreasOutput>, (Status, String)> {
     let body = input.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::AREA_WRITE],
+    )?;
+    refuse_data_under_signed_import(&claims.hasura_claims.tenant_id).await?;
     let request =
         crate::services::board_authorization::authorize_import_document(
             &claims,
@@ -98,13 +107,6 @@ pub async fn import_areas_route(
         &body.document_id,
     )
     .await?;
-
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::AREA_WRITE],
-    )?;
 
     provide_hasura_transaction(|hasura_transaction| {
         let tenant_id = claims.hasura_claims.tenant_id.clone();

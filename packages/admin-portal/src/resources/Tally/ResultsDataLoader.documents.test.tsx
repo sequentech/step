@@ -2,12 +2,13 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {render, waitFor} from "@testing-library/react"
+import {render, screen, waitFor} from "@testing-library/react"
 import {ResultsDataLoader} from "./ResultsDataLoader"
 
 const mockSet = jest.fn()
 const mockQuery = jest.fn()
 let mockAuthorized = true
+let mockDbError: string | null = null
 const mockRows: Record<string, Array<Record<string, unknown>>> = {}
 const mockEmpty: never[] = []
 jest.mock("jotai", () => ({atom: () => ({}), useSetAtom: () => mockSet}))
@@ -24,8 +25,9 @@ jest.mock("@/providers/SettingsContextProvider", () => ({
         globalSettings: {QUERY_POLL_INTERVAL_MS: 1000},
     }),
 }))
+jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
 jest.mock("@/hooks/useSQLiteDatabase", () => ({
-    useManagedDatabase: () => ({isReady: true, error: null}),
+    useManagedDatabase: () => ({isReady: true, error: mockDbError}),
     useSQLQuery: (sql: string) => ({
         data: mockRows[sql.match(/FROM (\w+)/)![1]] ?? mockEmpty,
         isReady: true,
@@ -59,6 +61,7 @@ const output = () => mockSet.mock.calls.filter(([data]) => data !== null).at(-1)
 beforeEach(() => {
     jest.clearAllMocks()
     mockAuthorized = true
+    mockDbError = null
     mockRows.results_election = [post]
     mockRows.results_election_area = [area]
     mockQuery.mockReturnValue({
@@ -184,4 +187,18 @@ test("does not request a role the viewer lacks", async () => {
     await waitFor(() => expect(mockQuery).toHaveBeenCalled())
     expect(mockQuery.mock.calls[0][1].skip).toBe(true)
     expect(output().sequent_backend_results_election[0].documents).toEqual({})
+})
+test("explains that the results database waits for post-processing", async () => {
+    mockDbError =
+        "This operation requires electoral phase PostProcessing; current phase is Evaluation"
+    render(<ResultsDataLoader {...props} />)
+    expect(await screen.findByText("refusals.resultsWaitForPostProcessing")).toBeTruthy()
+    expect(mockSet.mock.calls.filter(([data]) => data !== null)).toEqual([])
+})
+test("says nothing for another failure to load the results database", async () => {
+    mockDbError = "Failed to fetch database from URL: Not Found (status: 404)"
+    const view = render(<ResultsDataLoader {...props} />)
+    await waitFor(() => expect(mockQuery).toHaveBeenCalled())
+    expect(view.container.textContent).toBe("")
+    expect(mockSet.mock.calls.filter(([data]) => data !== null)).toEqual([])
 })

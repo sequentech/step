@@ -34,8 +34,7 @@ final class PgmqEventPublisher implements AutoCloseable {
   static PgmqEventPublisher fromEnvironment() {
     Map<String, String> environment = System.getenv();
     PublishFailurePolicy policy = PublishFailurePolicy.fromEnvironment(environment);
-    QueueDatabase database =
-        QueueDatabase.sharedFromEnvironment();
+    QueueDatabase database = QueueDatabase.sharedFromEnvironment();
     log.infov("Electoral-log events go to the task-queue database ({0})", policy.value());
     return new PgmqEventPublisher(database, policy);
   }
@@ -66,7 +65,8 @@ final class PgmqEventPublisher implements AutoCloseable {
     }
     switch (policy) {
       case FAIL_REQUEST -> transaction.enlistPrepare(new Enqueue(queue, taskId, payload));
-      case LOG_AND_CONTINUE -> transaction.enlistAfterCompletion(new Enqueue(queue, taskId, payload));
+      case LOG_AND_CONTINUE ->
+          transaction.enlistAfterCompletion(new Enqueue(queue, taskId, payload));
     }
   }
 

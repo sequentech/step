@@ -31,7 +31,8 @@ use windmill::tasks::migrate_realm_permissions::{
 };
 
 /// The English labels Users and Roles shows for the migrated permissions
-/// (signing and messaging), read from the admin portal's translations: the
+/// (signing, messaging, the security self-tests and the export of election
+/// execution data), read from the admin portal's translations: the
 /// migration gives each role its label as its description.
 fn migrated_labels_in_the_portal() -> BTreeMap<String, String> {
     include_str!("../../admin-portal/src/translations/en.ts")
@@ -45,7 +46,9 @@ fn migrated_labels_in_the_portal() -> BTreeMap<String, String> {
                 && (key == "election-event-signatures-tab"
                     || key.starts_with("signing-")
                     || key.starts_with("sign-")
-                    || key.starts_with("messaging-"));
+                    || key.starts_with("messaging-")
+                    || key.starts_with("self-test-")
+                    || key == "election-execution-export");
             let value = value.trim_end_matches(',');
             (migrated && value.starts_with('"'))
                 .then(|| (key.to_string(), value.trim_matches('"').to_string()))
@@ -56,7 +59,7 @@ fn migrated_labels_in_the_portal() -> BTreeMap<String, String> {
 #[test]
 fn the_migration_adds_the_signing_and_messaging_permissions_with_their_labels() {
     let expected = migrated_labels_in_the_portal();
-    assert_eq!(expected.len(), 25, "{expected:?}");
+    assert_eq!(expected.len(), 34, "{expected:?}");
     let roles: BTreeMap<String, String> = migrated_roles()
         .into_iter()
         .map(|role| (role.name.unwrap(), role.description.unwrap()))

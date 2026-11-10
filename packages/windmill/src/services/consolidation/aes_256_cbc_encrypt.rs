@@ -18,7 +18,12 @@
 //!
 //! Everything runs in-process through the OpenSSL library (`openssl` crate):
 //! no external program is started and the password never leaves memory.
-type KeyDerivation = fn(&str, &[u8]) -> Result<KeyIv>;
+//!
+//! The derived key and IV are overwritten with zero as soon as a file is
+//! encrypted or decrypted: they are held in [`Zeroizing`] buffers, and the
+//! cipher context OpenSSL expands the key into is cleared by OpenSSL when it
+//! is freed.
+type KeyDerivation = fn(&str, &[u8]) -> Result<Zeroizing<KeyIv>>;
 
 use anyhow::{anyhow, Context, Result};
 use openssl::hash::MessageDigest;
@@ -28,6 +33,7 @@ use openssl::symm::{Cipher, Crypter, Mode};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use tracing::{instrument, warn};
+use zeroize::Zeroizing;
 
 const MAGIC: &[u8; 8] = b"Salted__";
 const SALT_LEN: usize = 8;
@@ -40,26 +46,25 @@ pub const PBKDF2_ITERATIONS: usize = 600_000;
 
 type KeyIv = ([u8; KEY_LEN], [u8; IV_LEN]);
 
-fn derive_pbkdf2(password: &str, salt: &[u8]) -> Result<KeyIv> {
-    let mut derived = [0u8; KEY_LEN + IV_LEN];
+fn derive_pbkdf2(password: &str, salt: &[u8]) -> Result<Zeroizing<KeyIv>> {
+    let mut derived = Zeroizing::new([0u8; KEY_LEN + IV_LEN]);
     pbkdf2_hmac(
         password.as_bytes(),
         salt,
         PBKDF2_ITERATIONS,
         MessageDigest::sha256(),
-        &mut derived,
+        &mut *derived,
     )
     .context("PBKDF2 key derivation failed")?;
-    let mut key = [0u8; KEY_LEN];
-    let mut iv = [0u8; IV_LEN];
-    key.copy_from_slice(&derived[..KEY_LEN]);
-    iv.copy_from_slice(&derived[KEY_LEN..]);
-    Ok((key, iv))
+    let mut key_iv = Zeroizing::new(([0u8; KEY_LEN], [0u8; IV_LEN]));
+    key_iv.0.copy_from_slice(&derived[..KEY_LEN]);
+    key_iv.1.copy_from_slice(&derived[KEY_LEN..]);
+    Ok(key_iv)
 }
 
 /// OpenSSL's legacy `EVP_BytesToKey` derivation (`openssl enc -md md5`
 /// without `-pbkdf2`), kept only to read files written by earlier releases.
-fn derive_legacy(password: &str, salt: &[u8]) -> Result<KeyIv> {
+fn derive_legacy(password: &str, salt: &[u8]) -> Result<Zeroizing<KeyIv>> {
     let pair = bytes_to_key(
         Cipher::aes_256_cbc(),
         MessageDigest::md5(),
@@ -68,14 +73,15 @@ fn derive_legacy(password: &str, salt: &[u8]) -> Result<KeyIv> {
         1,
     )
     .context("legacy key derivation failed")?;
-    let iv_vec = pair
-        .iv
-        .ok_or_else(|| anyhow!("legacy key derivation produced no IV"))?;
-    let mut key = [0u8; KEY_LEN];
-    let mut iv = [0u8; IV_LEN];
-    key.copy_from_slice(&pair.key);
-    iv.copy_from_slice(&iv_vec);
-    Ok((key, iv))
+    let key_vec = Zeroizing::new(pair.key);
+    let iv_vec = Zeroizing::new(
+        pair.iv
+            .ok_or_else(|| anyhow!("legacy key derivation produced no IV"))?,
+    );
+    let mut key_iv = Zeroizing::new(([0u8; KEY_LEN], [0u8; IV_LEN]));
+    key_iv.0.copy_from_slice(&key_vec);
+    key_iv.1.copy_from_slice(&iv_vec);
+    Ok(key_iv)
 }
 
 fn run_cipher<R: Read, W: Write>(
@@ -257,14 +263,35 @@ mod tests {
         assert_eq!(ciphertext.len(), 16 + data.len() + (16 - data.len() % 16));
         decrypt_file_aes_256_cbc(&path(&enc), &path(&dec), PASSWORD).unwrap();
         assert_eq!(std::fs::read(dec.path()).unwrap(), data);
-        assert!(decrypt_file_aes_256_cbc(&path(&enc), &path(&dec), "wrong").is_err());
+        // CBC has no authentication: a wrong key passes the padding check about once in 256.
+        let wrong = decrypt_file_aes_256_cbc(&path(&enc), &path(&dec), "wrong");
+        assert!(wrong.is_err() || std::fs::read(dec.path()).unwrap() != data);
     }
 
     #[test]
     fn pbkdf2_derivation_matches_openssl() {
-        let (key, iv) = derive_pbkdf2(PASSWORD, &SALT).unwrap();
-        let out = openssl::symm::decrypt(Cipher::aes_256_cbc(), &key, Some(&iv), &unhex(CT_PBKDF2))
-            .unwrap();
+        let key_iv = derive_pbkdf2(PASSWORD, &SALT).unwrap();
+        let out = openssl::symm::decrypt(
+            Cipher::aes_256_cbc(),
+            &key_iv.0,
+            Some(&key_iv.1),
+            &unhex(CT_PBKDF2),
+        )
+        .unwrap();
         assert_eq!(out, PLAINTEXT);
+    }
+
+    #[test]
+    fn the_derived_key_and_iv_are_overwritten_when_dropped() {
+        use zeroize::{Zeroize, ZeroizeOnDrop};
+        fn zeroized_on_drop<T: ZeroizeOnDrop>(_: &T) {}
+        for derive in [derive_pbkdf2 as KeyDerivation, derive_legacy] {
+            let mut key_iv = derive(PASSWORD, &SALT).unwrap();
+            zeroized_on_drop(&key_iv);
+            assert_ne!(*key_iv, ([0u8; KEY_LEN], [0u8; IV_LEN]));
+            // What `Zeroizing` runs when it is dropped.
+            key_iv.zeroize();
+            assert_eq!(*key_iv, ([0u8; KEY_LEN], [0u8; IV_LEN]));
+        }
     }
 }

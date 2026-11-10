@@ -9,6 +9,7 @@ use anyhow::{anyhow, Result};
 use cryptography::context::Context;
 use cryptography::traits::groups::CryptographicGroup;
 use cryptography::utils::serialization::Deserializable;
+use zeroize::Zeroizing;
 
 use crate::messages::artifact::{DkgPublicKey, Shares};
 use crate::messages::newtypes::{ConfigurationHash, SharesHash, TrusteeIndex};
@@ -25,6 +26,9 @@ impl<C: Context> Trustee<C> {
     /// Each trustee's share is ElGamal-encrypted directly to that trustee's
     /// configured share-encryption public key (§9.4) — no channel, symmetric
     /// wrapping, or PoK on the encryption itself.
+    ///
+    /// The dealer's polynomial and the plaintext shares are overwritten with
+    /// zero when this function returns (see `Dealer` and `DealerShares`).
     pub(super) fn compute_shares(
         &self,
         view: &MessageStore<C>,
@@ -54,9 +58,9 @@ impl<C: Context> Trustee<C> {
 
             let mut encrypted_shares = Vec::with_capacity(num_trustees);
             for i in 0..num_trustees {
-                let share = dealer_shares.shares[i].clone();
+                let share = &dealer_shares.shares[i];
                 let recipient_pk = &cfg.share_encryption_keys[i];
-                let share_bytes = C::G::encrypt_scalar(&share, recipient_pk).map_err(|e| {
+                let share_bytes = C::G::encrypt_scalar(share, recipient_pk).map_err(|e| {
                     anyhow!("failed to encrypt share for trustee {}: {:?}", i + 1, e)
                 })?;
                 encrypted_shares.push(share_bytes);
@@ -78,6 +82,10 @@ impl<C: Context> Trustee<C> {
     ///
     /// `shares_hashes` arrives in dealer-index order (1..=P), contiguous, because
     /// the action only fires once all dealers' shares are accumulated (§7).
+    ///
+    /// The decrypted shares and the derived secret share are overwritten with
+    /// zero when this function returns; the secret share is derived again at
+    /// decryption (`compute_partial_decryptions`), not kept.
     pub(super) fn compute_public_key(
         &self,
         view: &MessageStore<C>,
@@ -95,8 +103,16 @@ impl<C: Context> Trustee<C> {
         let self_slot = self_index - 1;
 
         crate::dispatch_threshold_trustees!(threshold, num_trustees, {
-            let mut verifiable_shares: Vec<VerifiableShare<C, T>> =
-                Vec::with_capacity(num_trustees);
+            if shares_hashes.len() != P {
+                return Err(anyhow!(
+                    "expected {} shares, got {}",
+                    P,
+                    shares_hashes.len()
+                ));
+            }
+            // Allocated once at full length and borrowed (not moved) into the
+            // array below, so each share is dropped, and overwritten, in place.
+            let mut verifiable_shares: Vec<VerifiableShare<C, T>> = Vec::with_capacity(P);
             for shares_hash in shares_hashes {
                 let body = view
                     .shares_body(shares_hash)
@@ -105,19 +121,24 @@ impl<C: Context> Trustee<C> {
                     .map_err(|e| anyhow!("failed to deserialize shares: {:?}", e))?;
 
                 let encrypted_share = &shares.encrypted_shares[self_slot];
-                let share_scalar =
+                let share_scalar = Zeroizing::new(
                     C::G::decrypt_scalar(encrypted_share, &self.share_encryption.skey)
-                        .map_err(|e| anyhow!("failed to decrypt share: {:?}", e))?;
+                        .map_err(|e| anyhow!("failed to decrypt share: {:?}", e))?,
+                );
 
                 let checking_values: [CheckingValue<C>; T] = shares
                     .commitments
                     .try_into()
                     .map_err(|_| anyhow!("expected {} commitments", T))?;
-                verifiable_shares.push(VerifiableShare::new(share_scalar, checking_values));
+                verifiable_shares.push(VerifiableShare::new(
+                    (*share_scalar).clone(),
+                    checking_values,
+                ));
             }
-            let shares_array: [VerifiableShare<C, T>; P] = verifiable_shares
+            let shares_array: &[VerifiableShare<C, T>; P] = verifiable_shares
+                .as_slice()
                 .try_into()
-                .map_err(|v: Vec<_>| anyhow!("expected {} shares, got {}", P, v.len()))?;
+                .map_err(|_| anyhow!("expected {} shares, got {}", P, verifiable_shares.len()))?;
 
             // §7 round 2 in one call: every dealer's every checking-value proof
             // and every share are verified, then the joint key and all
@@ -125,7 +146,7 @@ impl<C: Context> Trustee<C> {
             let proof_context = domain_label(cfg_hash, DKG_CHECKING_VALUE_PURPOSE);
             let position = ParticipantPosition::from_usize(self_index);
             let (_recipient, joint_pk, verification_keys) =
-                Recipient::<C, T, P>::from_shares(position, &shares_array, &proof_context)
+                Recipient::<C, T, P>::from_shares(position, shares_array, &proof_context)
                     .map_err(|e| anyhow!("dealing verification failed: {:?}", e))?;
 
             let public_key = DkgPublicKey::<C>::new(joint_pk.y, verification_keys.to_vec());

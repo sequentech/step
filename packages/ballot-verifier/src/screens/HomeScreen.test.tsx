@@ -138,6 +138,7 @@ const expectRejected = async () => {
     expect(alert).toHaveTextContent(
         "There was a problem importing the auditable ballot. Did you choose the right file?"
     )
+    expect(within(alert).queryByRole("link")).not.toBeInTheDocument()
     expect(screen.queryByText("Uploaded", {exact: true})).not.toBeInTheDocument()
 }
 

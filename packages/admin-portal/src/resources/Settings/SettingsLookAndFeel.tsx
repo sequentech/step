@@ -9,6 +9,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IHelpLink, ITenantSettings, ITenantTheme} from "@sequentech/ui-core"
 import {IPermissions} from "@/types/keycloak"
+import {staffScreensCustomizable} from "@/services/tenantLookAndFeel"
 
 /** The organization's name in messages that name it (`settings.display_name`). */
 interface ITenantDisplayName {
@@ -44,6 +45,10 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
     })
 
     const canEdit = authContext.isAuthorized(true, authContext.tenantId, IPermissions.TENANT_WRITE)
+    // Where the tenant requires signed configuration packages, the staff screens keep
+    // their built-in logo and style and offer no outside links: the form neither shows
+    // nor saves the logo address, the custom CSS and the help links (see the helper).
+    const customizable = staffScreensCustomizable(record)
 
     const [logoUrl, setLogoUrl] = useState<string | undefined>(
         (record?.annotations as ITenantTheme | undefined)?.logo_url
@@ -97,13 +102,12 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
         save!({
             annotations: {
                 ...((record?.annotations as ITenantTheme | undefined) ?? {}),
-                logo_url: logoUrlToSave,
-                css: cssContentToSave,
+                ...(customizable ? {logo_url: logoUrlToSave, css: cssContentToSave} : {}),
             },
             settings: withDisplayName(
                 {
                     ...(record?.settings ?? {}),
-                    help_links: helpLinks,
+                    ...(customizable ? {help_links: helpLinks} : {}),
                 },
                 displayName
             ),
@@ -129,21 +133,25 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
                 </Toolbar>
             }
         >
-            <TextInput
-                resettable={true}
-                source={"annotations.logo_url"}
-                defaultValue={logoUrl}
-                label={String(t("lookAndFeelScreen.common.logoUrl"))}
-                onBlur={(event) => setLogoUrl(event.target.value)}
-            />
-            <TextInput
-                resettable={true}
-                multiline={true}
-                source={"annotations.css"}
-                defaultValue={cssContent}
-                label={String(t("lookAndFeelScreen.common.css"))}
-                onBlur={(event) => setCssContent(event.target.value)}
-            />
+            {customizable ? (
+                <TextInput
+                    resettable={true}
+                    source={"annotations.logo_url"}
+                    defaultValue={logoUrl}
+                    label={String(t("lookAndFeelScreen.common.logoUrl"))}
+                    onBlur={(event) => setLogoUrl(event.target.value)}
+                />
+            ) : null}
+            {customizable ? (
+                <TextInput
+                    resettable={true}
+                    multiline={true}
+                    source={"annotations.css"}
+                    defaultValue={cssContent}
+                    label={String(t("lookAndFeelScreen.common.css"))}
+                    onBlur={(event) => setCssContent(event.target.value)}
+                />
+            ) : null}
             <TextInput
                 resettable={true}
                 source={"settings.display_name"}
@@ -152,14 +160,16 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
                 helperText={String(t("lookAndFeelScreen.common.displayNameHelp"))}
                 onBlur={(event) => setDisplayName(event.target.value)}
             />
-            <TextInput
-                resettable={true}
-                multiline={true}
-                source={"settings.help_links"}
-                defaultValue={JSON.stringify(helpLinks, null, 2)}
-                label={String(t("lookAndFeelScreen.common.helpLinks"))}
-                onBlur={handleHelpLinksChange}
-            />
+            {customizable ? (
+                <TextInput
+                    resettable={true}
+                    multiline={true}
+                    source={"settings.help_links"}
+                    defaultValue={JSON.stringify(helpLinks, null, 2)}
+                    label={String(t("lookAndFeelScreen.common.helpLinks"))}
+                    onBlur={handleHelpLinksChange}
+                />
+            ) : null}
         </SimpleForm>
     )
 }

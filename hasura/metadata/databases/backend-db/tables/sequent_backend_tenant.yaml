@@ -4,22 +4,6 @@ table:
 insert_permissions:
     - comment: ""
       permission:
-          check:
-              id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - annotations
-              - created_at
-              - id
-              - is_active
-              - labels
-              - settings
-              - slug
-              - updated_at
-              - voting_channels
-      role: admin-user
-    - comment: ""
-      permission:
           check: {}
           columns:
               - is_active
@@ -102,15 +86,6 @@ select_permissions:
     - comment: ""
       permission:
           columns:
-              - annotations
-              - id
-              - is_active
-              - slug
-          filter: {}
-      role: unauthorized
-    - comment: ""
-      permission:
-          columns:
               - is_active
               - annotations
               - labels
@@ -176,12 +151,6 @@ update_permissions:
           filter: {}
       role: service-account
 delete_permissions:
-    - comment: ""
-      permission:
-          filter:
-              id:
-                  _eq: X-Hasura-Tenant-Id
-      role: admin-user
     - comment: ""
       permission:
           filter: {}

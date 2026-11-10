@@ -58,6 +58,14 @@ impl StatementHead {
                 description: format!("{kind}: {details}"),
                 ..default_head
             },
+            StatementBody::BallotAudited(_, _, _, ballot_id, _, _, channel) => StatementHead {
+                kind: StatementType::BallotAudited,
+                description: format!(
+                    "Received ballot {ballot_id} audited. Voting channel: {channel}.",
+                    channel = channel.0
+                ),
+                ..default_head
+            },
             StatementBody::CastVote(_, _, _, _, _) => StatementHead {
                 kind: StatementType::CastVote,
                 description: "Inserted cast vote.".to_string(),
@@ -787,6 +795,19 @@ pub enum StatementBody {
     TallyBallotBoxRejected(ElectionIdString, AreaIdString, String, String),
     SelfTest(EventIdString, String, String),
     LifecycleSecurityEvent(EventIdString, String, String),
+    /// A voter audited a ballot the ballot box received at review: the
+    /// voter's pseudonym, the ballot's hash, the Ballot ID of its receipt and
+    /// where the request came from. An audited ballot is never cast. Same
+    /// rollout invariant as `CastVoteWithChannel`.
+    BallotAudited(
+        ElectionIdString,
+        PseudonymHash,
+        CastVoteHash,
+        String,
+        VoterIpString,
+        VoterCountryString,
+        VotingChannelString,
+    ),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -860,6 +881,7 @@ pub enum StatementType {
     SelfTestProbe,
     LifecycleSecurityEvent,
     TsfIntegrityCheck,
+    BallotAudited,
 }
 
 #[derive(

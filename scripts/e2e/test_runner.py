@@ -425,6 +425,45 @@ class BootstrapAdminContracts(unittest.TestCase):
         self.assertEqual(calls, ["password", "enroll"])
 
 
+class UnsignedImportContracts(unittest.TestCase):
+    TENANT = "22222222-2222-4222-8222-222222222222"
+
+    def allow(self, status, tenant=TENANT):
+        requests = []
+
+        class FakeHttp:
+            def post(self, url, **kwargs):
+                requests.append((url, kwargs))
+                return MagicMock(status=status, text="refused")
+
+        with patch.multiple(
+            bootstrap, Http=FakeHttp, HASURA_URL="http://graphql-engine:8080/v1/graphql"
+        ), patch.dict(bootstrap.ENV, {"HASURA_ADMIN_SECRET": "synthetic-secret"}):
+            return bootstrap.allow_unsigned_imports(tenant), requests
+
+    def test_a_tenant_without_a_setting_takes_unsigned_imports(self):
+        allowed, [(url, kwargs)] = self.allow(200)
+        self.assertTrue(allowed)
+        self.assertEqual(url, "http://graphql-engine:8080/v2/query")
+        self.assertEqual(
+            kwargs["headers"], {"x-hasura-admin-secret": "synthetic-secret"}
+        )
+        self.assertEqual(kwargs["json_body"]["type"], "run_sql")
+        sql = kwargs["json_body"]["args"]["sql"]
+        self.assertIn(f"WHERE id = '{self.TENANT}'", sql)
+        # A tenant that has a setting keeps it.
+        self.assertIn("settings -> 'configuration_signing' IS NULL", sql)
+        self.assertIn('{"configuration_signing": {"policy": "optional"}}', sql)
+
+    def test_a_refused_statement_stops_the_bootstrap(self):
+        with self.assertRaisesRegex(AssertionError, "HTTP 400"):
+            self.allow(400)
+
+    def test_only_a_tenant_id_reaches_the_statement(self):
+        with self.assertRaises(ValueError):
+            self.allow(200, tenant="x' OR '1'='1")
+
+
 class CoverageExitContracts(unittest.TestCase):
     def report(self, codes, *, json_lines=False):
         with tempfile.TemporaryDirectory() as temporary:
@@ -542,7 +581,10 @@ class CombinedBallotInputContracts(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             cli = MagicMock(directory=Path(directory), binary=Path("step-cli"))
-            portal = Portal("event", cli)
+            with patch.dict(
+                os.environ, {"VOTING_PORTAL_URL": "https://voting.invalid"}
+            ):
+                portal = Portal("event", cli)
             style = {
                 "contests": [
                     {

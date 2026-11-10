@@ -52,7 +52,11 @@ function mockTenant(portal: AdminPortal, org: IOrganization) {
         updated_at: FIXED_TIME,
         test: true,
     }
-    portal.graphql.on("GetTenantById", () => ({data: {sequent_backend_tenant: [tenant]}}))
+    portal.graphql.on("GetTenantById", () => ({
+        data: {
+            sequent_backend_tenant_for_sign_in: [{id: tenant.id, annotations: tenant.annotations}],
+        },
+    }))
     portal.graphql.on("sequent_backend_tenant", () => ({
         data: {
             sequent_backend_tenant: [tenant],

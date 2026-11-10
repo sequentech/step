@@ -28,6 +28,8 @@ const TENANT: &str = "10000000-0000-4000-8000-000000000001";
 const OTHER_TENANT: &str = "10000000-0000-4000-8000-000000000002";
 const EVENT: &str = "20000000-0000-4000-8000-000000000001";
 const OTHER_EVENT: &str = "20000000-0000-4000-8000-000000000002";
+// OTHER_TENANT's own event: a keys ceremony needs an event of its tenant.
+const OTHER_TENANT_EVENT: &str = "20000000-0000-4000-8000-000000000003";
 // ELECTION and OTHER_ELECTION are in SESSION; UNCOVERED_ELECTION is not.
 const ELECTION: &str = "30000000-0000-4000-8000-000000000001";
 const OTHER_ELECTION: &str = "30000000-0000-4000-8000-000000000002";
@@ -248,10 +250,12 @@ async fn away(tx: &Transaction<'_>) {
     contest(tx, TENANT, OTHER_EVENT, ELECTION, STRAY_CONTEST).await;
 }
 
-/// The same tally recorded under OTHER_TENANT for EVENT.
+/// The same tally recorded under OTHER_TENANT, in OTHER_TENANT_EVENT: the
+/// keys ceremony of a tally is refused in an event of another tenant.
 async fn stranger(tx: &Transaction<'_>) {
     tenant(tx, OTHER_TENANT).await;
-    tally(tx, OTHER_TENANT, EVENT).await;
+    election_event(tx, OTHER_TENANT, OTHER_TENANT_EVENT).await;
+    tally(tx, OTHER_TENANT, OTHER_TENANT_EVENT).await;
 }
 
 struct Source {
@@ -869,6 +873,7 @@ async fn versions_of_other_events_and_tenants_do_not_count() {
         &transaction,
         Stored {
             tenant: OTHER_TENANT,
+            event: OTHER_TENANT_EVENT,
             version: 6,
             ..PUBLISHED
         },
@@ -1222,6 +1227,7 @@ async fn a_publication_is_only_found_in_its_tenant_and_event() {
         &transaction,
         Stored {
             tenant: OTHER_TENANT,
+            event: OTHER_TENANT_EVENT,
             ..PUBLISHED
         },
     )
@@ -1398,6 +1404,7 @@ async fn a_route_publication_of_another_event_or_tenant_is_not_active() {
         &transaction,
         Stored {
             tenant: OTHER_TENANT,
+            event: OTHER_TENANT_EVENT,
             ..PUBLISHED
         },
     )
@@ -1499,6 +1506,7 @@ async fn active_publications_of_other_events_and_tenants_are_not_listed() {
         Stored {
             id: P3,
             tenant: OTHER_TENANT,
+            event: OTHER_TENANT_EVENT,
             ..PUBLISHED
         },
     )
@@ -1600,6 +1608,7 @@ async fn superseded_publications_of_other_events_and_tenants_are_not_listed() {
         Stored {
             id: P3,
             tenant: OTHER_TENANT,
+            event: OTHER_TENANT_EVENT,
             ..superseded
         },
     )
@@ -1824,6 +1833,7 @@ async fn activating_leaves_the_routes_of_other_events_and_tenants_active() {
         &transaction,
         Stored {
             tenant: OTHER_TENANT,
+            event: OTHER_TENANT_EVENT,
             ..PUBLISHED
         },
     )
@@ -1848,7 +1858,7 @@ async fn activating_leaves_the_routes_of_other_events_and_tenants_active() {
         unchanged("Published")
     );
     assert_eq!(
-        state(&transaction, OTHER_TENANT, EVENT, P1).await,
+        state(&transaction, OTHER_TENANT, OTHER_TENANT_EVENT, P1).await,
         unchanged("Published")
     );
     transaction.rollback().await.unwrap();
@@ -2209,12 +2219,14 @@ async fn a_publication_of_another_tenant_cannot_be_revoked() {
         &transaction,
         Stored {
             tenant: OTHER_TENANT,
+            event: OTHER_TENANT_EVENT,
             ..PUBLISHED
         },
     )
     .await;
 
-    let error = revoke_publication(&transaction, TENANT, EVENT, P1)
+    // Named by its event, it is still another tenant's.
+    let error = revoke_publication(&transaction, TENANT, OTHER_TENANT_EVENT, P1)
         .await
         .unwrap_err();
     assert_eq!(
@@ -2222,7 +2234,7 @@ async fn a_publication_of_another_tenant_cannot_be_revoked() {
         "Publication not found or not currently published"
     );
     assert_eq!(
-        state(&transaction, OTHER_TENANT, EVENT, P1).await,
+        state(&transaction, OTHER_TENANT, OTHER_TENANT_EVENT, P1).await,
         unchanged("Published")
     );
     transaction.rollback().await.unwrap();

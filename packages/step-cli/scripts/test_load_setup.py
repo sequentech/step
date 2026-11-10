@@ -45,6 +45,53 @@ class SetupTests(unittest.TestCase):
                 self.assertNotIn(password, text)
                 self.assertNotIn("SYNTHETIC_SECRET", text)
 
+    def test_unsigned_imports_are_allowed_only_where_no_setting_exists(self):
+        requests = []
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def read(self):
+                return b"{}"
+
+        def urlopen(request, timeout):
+            requests.append(request)
+            return Response()
+
+        tenant = "11111111-1111-4111-8111-111111111111"
+        with patch.object(
+            common.urllib.request, "urlopen", side_effect=urlopen
+        ), contextlib.redirect_stderr(io.StringIO()):
+            common.allow_unsigned_imports(
+                "http://graphql-engine:8080/v1/graphql", "SYNTHETIC_SECRET", tenant
+            )
+        [request] = requests
+        self.assertEqual(request.full_url, "http://graphql-engine:8080/v2/query")
+        self.assertEqual(
+            request.get_header("X-hasura-admin-secret"), "SYNTHETIC_SECRET"
+        )
+        body = json.loads(request.data)
+        self.assertEqual(body["type"], "run_sql")
+        sql = body["args"]["sql"]
+        self.assertIn(f"WHERE id = '{tenant}'", sql)
+        # A tenant that has a setting keeps it.
+        self.assertIn("settings -> 'configuration_signing' IS NULL", sql)
+        self.assertIn('{"configuration_signing": {"policy": "optional"}}', sql)
+
+    def test_only_a_tenant_id_reaches_the_statement(self):
+        with patch.object(
+            common.urllib.request, "urlopen"
+        ) as urlopen, contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                common.allow_unsigned_imports(
+                    "http://graphql", "SYNTHETIC_SECRET", "x' OR '1'='1"
+                )
+        urlopen.assert_not_called()
+
     def test_setup_generates_census_from_imported_identities(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -117,13 +117,19 @@ export const Populated: Story = {
         const canvas = within(canvasElement)
         await expect(await nameField(canvasElement)).toBeEnabled()
         await expect(canvas.getByText(i18n.t("common.label.selectTenant"))).toBeVisible()
-        // The default tenant's look and feel styles the screen.
+        // Before sign-in the tenant's policy for configuration packages is unknown, which
+        // counts as requiring them: the screen keeps the built-in logo, and the default
+        // tenant's CSS does not style it.
         await waitFor(() => expect(queries()).toEqual([{id: STORY_SETTINGS.DEFAULT_TENANT_ID}]))
-        expect(DEFAULT_TENANT_CSS).toContain("letter-spacing: 3px")
         await waitFor(() =>
-            expect(getComputedStyle(canvas.getByRole("heading", {level: 1})).letterSpacing).toBe(
-                "3px"
+            expect(canvas.getByRole("img", {name: "Logo Image"})).toHaveAttribute(
+                "src",
+                SequentLogo
             )
+        )
+        expect(DEFAULT_TENANT_CSS).toContain("letter-spacing: 3px")
+        expect(getComputedStyle(canvas.getByRole("heading", {level: 1})).letterSpacing).not.toBe(
+            "3px"
         )
     },
 }

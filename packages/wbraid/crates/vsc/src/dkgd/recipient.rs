@@ -15,6 +15,7 @@ use crate::utils::error::Error;
 use crate::zkp::dlogeq::DlogEqProof;
 use canonical_derive::Canonical;
 use std::array;
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 /**
  * A recipient in the Joint-Feldman distributed key generation (DKG) protocol.
@@ -43,6 +44,9 @@ use std::array;
  * verification key, using an equality of discrete logs proof. The correctness of the
  * aggregated decrypted value is verifiable from the partial decryptions, which
  * are public data.
+ *
+ * The recipient's secret share is overwritten with zero when the recipient is
+ * dropped.
  *
  * See `EVS`: Protocol 16.20
  *
@@ -118,6 +122,22 @@ pub struct Recipient<C: Context, const T: usize, const P: usize> {
     /// This recipient's share of the secret key, used to partially decrypt ciphertexts
     sk: C::Scalar,
 }
+
+impl<C: Context, const T: usize, const P: usize> Zeroize for Recipient<C, T, P> {
+    /// Overwrite the secret share with zero; position and verification key
+    /// are public.
+    fn zeroize(&mut self) {
+        self.sk.zeroize();
+    }
+}
+
+impl<C: Context, const T: usize, const P: usize> Drop for Recipient<C, T, P> {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl<C: Context, const T: usize, const P: usize> ZeroizeOnDrop for Recipient<C, T, P> {}
 
 impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
     /// compile-time checks for recipient const parameters
@@ -268,14 +288,14 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
         // Round-2 step 2: each share against its dealer's checking values;
         // accumulate the joint public key and this recipient's secret.
         let mut joint_pk = C::Element::one();
-        let mut sk = C::Scalar::zero();
+        let mut sk = Zeroizing::new(C::Scalar::zero());
         for (d, share) in shares.iter().enumerate() {
             let dealer = d.checked_add(1).expect("P < 100");
             Self::verify_share(&share.value, &raw[d], &position).map_err(|_| {
                 Error::ShareVerificationFailed(format!("invalid share from dealer {dealer}"))
             })?;
             joint_pk = joint_pk.mul(&raw[d][0]);
-            sk = sk.add(&share.value);
+            *sk = sk.add(&share.value);
         }
 
         // Round-2 outputs: the verification keys of all P participants.
@@ -290,7 +310,11 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
             .expect("ParticipantPosition is in 1..=P")
             .try_into()
             .expect("u32 fits in usize");
-        let recipient = Self::new(position, verification_keys[self_slot].clone(), sk);
+        let recipient = Self::new(
+            position,
+            verification_keys[self_slot].clone(),
+            (*sk).clone(),
+        );
 
         Ok((recipient, PublicKey { y: joint_pk }, verification_keys))
     }

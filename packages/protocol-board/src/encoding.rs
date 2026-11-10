@@ -18,6 +18,7 @@
 //! | joint public key | base64 **without padding** of the 32 canonical element bytes |
 //! | a protocol hash | 128 lowercase hexadecimal characters |
 //! | the board's manager key | base64 (padded) of the 32-byte Ed25519 seed |
+//! | the fingerprint of the board's manager public key, for people to compare | SHA-256 of the 32 raw Ed25519 bytes: 32 pairs of upper-case hexadecimal digits separated by colons |
 //! | trustee signing key | base64 (padded) of the 32-byte Ed25519 seed |
 //! | trustee share-encryption secret key | base64 (padded) of the 32 canonical scalar bytes |
 //! | a decrypted plaintext element | the 30 bytes the element encodes |
@@ -36,6 +37,7 @@ use cryptography::groups::Ristretto255Group;
 use cryptography::utils::serialization::{Deserializable, Serializable};
 use cryptography::utils::signatures::SignatureScheme;
 use wbraid::messages::newtypes::Hash;
+use zeroize::Zeroizing;
 
 use crate::{
     BoardManager, Ctx, Element, Rng, Scalar, Scheme, Signer, VerifyingKey,
@@ -94,17 +96,23 @@ pub(crate) fn encode_signing_key(key: &Signer) -> Result<String> {
         .context(SIGNING_KEY)
 }
 
-/// The scalar that decrypts the DKG shares dealt to a trustee.
+/// The scalar that decrypts the DKG shares dealt to a trustee. The decoded
+/// bytes are overwritten with zero once the scalar is read from them.
 pub(crate) fn parse_share_encryption_secret(encoded: &str) -> Result<Scalar> {
-    let bytes = KEY_MATERIAL_BASE64
-        .decode(encoded)
-        .context(SHARE_ENCRYPTION_SECRET_KEY)?;
+    let bytes = Zeroizing::new(
+        KEY_MATERIAL_BASE64
+            .decode(encoded)
+            .context(SHARE_ENCRYPTION_SECRET_KEY)?,
+    );
     Scalar::deser(&bytes).context(SHARE_ENCRYPTION_SECRET_KEY)
 }
 
-/// The inverse of [`parse_share_encryption_secret`].
+/// The inverse of [`parse_share_encryption_secret`]. The scalar's bytes are
+/// overwritten with zero once encoded; the returned text holds the secret,
+/// and its caller keeps it in a container that overwrites it when dropped.
 pub(crate) fn encode_share_encryption_secret(key: &Scalar) -> String {
-    KEY_MATERIAL_BASE64.encode(key.ser())
+    let bytes = Zeroizing::new(key.ser());
+    KEY_MATERIAL_BASE64.encode(&*bytes)
 }
 
 /// The joint public key `y` as the ceremony status and the ballot styles carry
@@ -220,10 +228,44 @@ pub(crate) fn manager_verifying_key(manager: &BoardManager) -> VerifyingKey {
     <Scheme as SignatureScheme<Rng>>::verifying_key(&manager.signing_key)
 }
 
+/// The fingerprint by which people compare a protocol manager's public key:
+/// SHA-256 of the key's canonical encoding (its 32 raw Ed25519 bytes), each
+/// byte of the digest as two upper-case hexadecimal digits, separated by
+/// colons. The admin portal shows certificate fingerprints, and a key
+/// ceremony's protocol manager key, in the same form.
+pub(crate) fn manager_key_fingerprint(key: &VerifyingKey) -> Result<String> {
+    let digest = voting_crypto::hash::hash_sha256(&key.ser())
+        .context("the fingerprint of the protocol manager key")?;
+    Ok(digest
+        .iter()
+        .map(|byte| format!("{byte:02X}"))
+        .collect::<Vec<_>>()
+        .join(":"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use wbraid::messages::newtypes::hash_bytes;
+
+    #[test]
+    fn a_manager_key_fingerprint_is_sha256_of_the_raw_key_in_colon_hex() {
+        // The public key of RFC 8032, section 7.1, TEST 1.
+        let key = VerifyingKey::deser(
+            &hex::decode(
+                "d75a980182b10ab7d54bfed3c964073a\
+                 0ee172f3daa62325af021a68f707511a",
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        // sha256sum of those 32 bytes, in pairs.
+        assert_eq!(
+            manager_key_fingerprint(&key).unwrap(),
+            "21:FE:31:DF:A1:54:A2:61:62:6B:F8:54:04:6F:D2:27:\
+             1B:7B:ED:4B:6A:BE:45:AA:58:87:7E:F4:7F:97:21:B9"
+        );
+    }
 
     #[test]
     fn signing_public_key_round_trips_and_rejects_the_old_der_form() {

@@ -4,6 +4,8 @@
 //! The signing tables and their queries: what the constraints refuse, the
 //! enum texts they accept, and that the rows go with their election event.
 
+#[path = "support/deletion.rs"]
+mod deletion;
 #[path = "support/schema.rs"]
 mod schema;
 
@@ -1265,7 +1267,11 @@ async fn the_tables_accept_exactly_the_enum_texts() {
         &tx,
         s.tenant,
         s.event,
-        &SigningRule::default_for(SigningAction::OpenVoting),
+        // A mandatory action's rule is saved with its signatures set.
+        &SigningRule {
+            signatures: 1,
+            ..SigningRule::default_for(SigningAction::OpenVoting)
+        },
         0,
         "officer",
         None,
@@ -1653,7 +1659,10 @@ async fn the_signing_rows_go_with_their_election_event() {
             &tx,
             scope.tenant,
             scope.event,
-            &SigningRule::default_for(SigningAction::OpenVoting),
+            &SigningRule {
+                signatures: 1,
+                ..SigningRule::default_for(SigningAction::OpenVoting)
+            },
             0,
             "officer",
             None,
@@ -1726,6 +1735,7 @@ async fn the_signing_rows_go_with_their_election_event() {
         assert!(count(&tx, &sql, &[&s.event]).await > 0, "{table} is empty");
     }
 
+    deletion::authorize_deletion(&tx, s.tenant, s.event).await;
     delete_election_event(&tx, &s.tenant.to_string(), &s.event.to_string())
         .await
         .unwrap();
@@ -1809,6 +1819,7 @@ async fn committed_scope(pool: &Pool, seed: u32) -> Scope {
 async fn forget(pool: &Pool, s: Scope) {
     let mut client = pool.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
+    deletion::authorize_deletion(&tx, s.tenant, s.event).await;
     delete_election_event(&tx, &s.tenant.to_string(), &s.event.to_string())
         .await
         .unwrap();

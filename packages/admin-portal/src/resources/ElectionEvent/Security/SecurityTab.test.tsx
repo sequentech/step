@@ -13,6 +13,7 @@ import SecurityTab, {
 import {IPermissions} from "@/types/keycloak"
 
 let mockPhase = "preparation"
+let mockArchived = false
 let mockRuns: unknown[] = []
 let mockTsfIntegrity: unknown = null
 let mockFresh = false
@@ -82,7 +83,7 @@ jest.mock("@apollo/client", () => ({
     useApolloClient: () => mockClient,
 }))
 jest.mock("react-admin", () => ({
-    useRecordContext: () => ({id: "event"}),
+    useRecordContext: () => ({id: "event", is_archived: mockArchived}),
     useNotify: () => mockNotify,
 }))
 jest.mock("@/providers/AuthContextProvider", () => ({
@@ -111,6 +112,7 @@ jest.mock("react-i18next", () => ({
 beforeEach(() => {
     mockBaselinePresent = true
     mockPhase = "preparation"
+    mockArchived = false
     mockFresh = false
     mockRuns = []
     mockTsfIntegrity = null
@@ -200,6 +202,24 @@ it("requires fresh external authentication before the irreversible phase change"
     expect(
         mockMutate.mock.calls.some(([request]) => request.mutation === START_POST_PROCESSING)
     ).toBe(false)
+})
+
+it("does not offer post-processing in preparation, also for an archived event", async () => {
+    mockArchived = true
+    render(<SecurityTab />)
+    await screen.findByText(/Preparation/)
+    expect(screen.queryByRole("button", {name: "Start post-processing"})).toBeNull()
+})
+
+it("says when post-processing may start, also after an unrecoverable failure", async () => {
+    mockPhase = "evaluation"
+    render(<SecurityTab />)
+    fireEvent.click(await screen.findByRole("button", {name: "Start post-processing"}))
+    const dialog = screen.getByRole("dialog").textContent
+    expect(dialog).toContain("the seal of one of its ballot boxes failed")
+    expect(dialog).toContain(
+        'In the safety state "Unrecoverable failure", post-processing starts without a result'
+    )
 })
 
 it("lets an administrator read lifecycle and configure tests without any board data permission", async () => {
@@ -309,6 +329,33 @@ describe("TOE software integrity", () => {
         expect(within(row).getByText("aaaaaaaa…bbbbbb")).toHaveProperty("title", ACCEPTED)
         expect(within(row).getByRole("cell", {name: "2"})).toBeTruthy()
         expect(within(row).getByText("Matches")).toBeTruthy()
+    })
+
+    it("lists every TOE part of the servers by its name", async () => {
+        const names = [
+            "admin-portal",
+            "b4",
+            "ballot-verifier",
+            "braid",
+            "graphql-engine",
+            "harvest",
+            "keycloak",
+            "tls-endpoint",
+            "voting-portal",
+            "windmill",
+        ]
+        mockTsfIntegrity = finished("verified", {
+            parts: names.map((name) => part(name, "verified")),
+        })
+        render(<SecurityTab />)
+        await screen.findByText("Matches the accepted delivery")
+        const table = within(screen.getByRole("table", {name: "TOE parts"}))
+        expect(
+            table
+                .getAllByRole("row")
+                .slice(1)
+                .map((row) => within(row).getAllByRole("cell")[0].textContent)
+        ).toEqual(names)
     })
 
     it("names the part that differs and the reason it gives", async () => {

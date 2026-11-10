@@ -82,6 +82,69 @@ async fn election_realm_access_is_checked_even_when_the_optional_event_claim_is_
     assert_eq!(observed.lock().unwrap().len(), 1);
 }
 
+#[rocket::async_test]
+async fn tenant_realm_accounts_other_than_administrators_and_the_board_are_checked(
+) {
+    use sequent_core::services::connection::{
+        VoterAccessFailure, VoterAccessGuard, VoterAccessPolicy,
+    };
+    use std::sync::{Arc, Mutex};
+    struct StorageUnavailable(Arc<Mutex<Vec<String>>>);
+    #[rocket::async_trait]
+    impl VoterAccessPolicy for StorageUnavailable {
+        async fn check(
+            &self,
+            _tenant: &str,
+            _event: &str,
+        ) -> Result<(), VoterAccessFailure> {
+            Err(VoterAccessFailure::AuditStorageUnavailable)
+        }
+        async fn check_staff(
+            &self,
+            tenant: &str,
+        ) -> Result<(), VoterAccessFailure> {
+            self.0.lock().unwrap().push(tenant.into());
+            Err(VoterAccessFailure::StaffAuditStorageUnavailable)
+        }
+    }
+    let observed = Arc::new(Mutex::new(vec![]));
+    let client = Client::tracked(
+        rocket::build()
+            .manage(signing::issuers())
+            .manage(VoterAccessGuard(Arc::new(StorageUnavailable(
+                observed.clone(),
+            ))))
+            .mount("/", routes![claims]),
+    )
+    .await
+    .unwrap();
+    for (roles, status) in [
+        (vec!["tenant-write"], Status::Ok),
+        (vec!["user", "election-state-write"], Status::Ok),
+        (
+            vec!["trustee-ceremony", "sign-key-ceremony"],
+            Status::ServiceUnavailable,
+        ),
+        (vec!["user"], Status::ServiceUnavailable),
+    ] {
+        let mut payload = voter_claims(&signing::issuer_of("north"));
+        payload["https://hasura.io/jwt/claims"]["x-hasura-allowed-roles"] =
+            json!(roles);
+        let token = signing::token(&payload);
+        assert_eq!(
+            client
+                .get("/claims")
+                .header(Header::new("Authorization", format!("Bearer {token}")))
+                .dispatch()
+                .await
+                .status(),
+            status,
+            "{roles:?}"
+        );
+    }
+    assert_eq!(*observed.lock().unwrap(), vec!["north", "north"]);
+}
+
 #[get("/headers")]
 fn headers(auth: AuthHeaders) -> String {
     format!("{}={}", auth.key, auth.value)

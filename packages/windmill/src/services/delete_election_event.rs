@@ -47,7 +47,9 @@ pub enum ElectionEventDeletionRefusal {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum DeletionContext {
     General,
-    AuthorizedPostProcessing,
+    /// The board-authorized deletion of exported data, in post-processing or,
+    /// for an archived event, in preparation.
+    AuthorizedTeardown,
 }
 
 /// Returns why the election event must not be deleted by a user with the
@@ -155,13 +157,13 @@ pub async fn find_election_event_deletion_refusal(
     .await?
         && hasura_transaction
             .query_one(
-                "SELECT EXISTS(SELECT 1 FROM sequent_backend.election_lifecycle_access WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid AND phase='post_processing' AND NOT voter_allowed)",
+                "SELECT EXISTS(SELECT 1 FROM sequent_backend.election_lifecycle_access a JOIN sequent_backend.election_event e ON e.tenant_id=a.tenant_id AND e.id=a.election_event_id WHERE a.tenant_id=$1::text::uuid AND a.election_event_id=$2::text::uuid AND (a.phase='post_processing' OR (a.phase='preparation' AND e.is_archived IS TRUE)) AND NOT a.voter_allowed)",
                 &[&tenant_id, &election_event_id],
             )
             .await?
             .try_get::<_, bool>(0)?
     {
-        DeletionContext::AuthorizedPostProcessing
+        DeletionContext::AuthorizedTeardown
     } else {
         DeletionContext::General
     };
@@ -493,7 +495,7 @@ mod deletion_refusal_tests {
                         &event,
                         &elections,
                         &[],
-                        DeletionContext::AuthorizedPostProcessing
+                        DeletionContext::AuthorizedTeardown
                     )
                     .unwrap(),
                     None
@@ -523,7 +525,7 @@ mod deletion_refusal_tests {
                             &event,
                             &elections,
                             &[],
-                            DeletionContext::AuthorizedPostProcessing
+                            DeletionContext::AuthorizedTeardown
                         )
                         .unwrap(),
                         Some(ElectionEventDeletionRefusal::VotingInProgress)
@@ -535,7 +537,7 @@ mod deletion_refusal_tests {
 
     #[test]
     fn authorized_teardown_preserves_parsing_and_label_boundaries() {
-        let context = DeletionContext::AuthorizedPostProcessing;
+        let context = DeletionContext::AuthorizedTeardown;
         let event = election_event(
             Some(json!({"locked_down":"locked-down"})),
             Some(json!({"voting_status":"OPEN"})),

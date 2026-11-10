@@ -420,6 +420,9 @@ pub async fn run_electoral_log_audit(
         .context("Electoral-log audit exceeded its configured time limit; no clean result was established")?
 }
 
+pub const AUDIT_ALREADY_RUNNING: &str =
+    "An electoral-log audit for this event is already running; inspect its task result";
+
 async fn audit_with_lock(tenant_id: &str, election_event_id: &str) -> Result<AuditResult> {
     // A transaction-scoped lock is released even when a timeout drops the audit.
     // It also prevents a manual and a periodic full-tree scan of one event from
@@ -434,10 +437,7 @@ async fn audit_with_lock(tenant_id: &str, election_event_id: &str) -> Result<Aud
         )
         .await?
         .try_get(0)?;
-    anyhow::ensure!(
-        acquired,
-        "An electoral-log audit for this event is already running; inspect its task result"
-    );
+    anyhow::ensure!(acquired, AUDIT_ALREADY_RUNNING);
     audit_snapshot(tenant_id, election_event_id).await
 }
 

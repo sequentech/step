@@ -12,6 +12,7 @@ use crate::traits::groups::GroupScalar;
 use crate::utils::error::Error;
 use crate::utils::serialization::Serializable;
 use canonical_derive::Canonical;
+use zeroize::Zeroizing;
 
 /**
  * Proof of equality of discrete logarithms.
@@ -100,16 +101,18 @@ impl<C: Context, const W: usize> DlogEqProof<C, W> {
         y1: &[C::Element; W],
         proof_context: &[u8],
     ) -> Result<DlogEqProof<C, W>, Error> {
-        let a = C::random_scalar();
+        // The nonce and the product with the secret are overwritten with
+        // zero when they go out of scope.
+        let a = Zeroizing::new(C::random_scalar());
         let big_a_0 = g0.exp(&a);
-        let big_a_1 = g1.dist_exp(&a);
+        let big_a_1 = g1.dist_exp(&*a);
 
         let (input, dsts) =
             Self::challenge_input(g0, g1, y0, y1, &big_a_0, &big_a_1, proof_context);
         let input: Vec<&[u8]> = input.iter().map(Vec::as_slice).collect();
         let v = C::G::hash_to_scalar(&input, &dsts)?;
 
-        let vx = v.mul(secret_x);
+        let vx = Zeroizing::new(v.mul(secret_x));
         let k = a.add(&vx);
         Ok(Self::new(big_a_0, big_a_1, k))
     }

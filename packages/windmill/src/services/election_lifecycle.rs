@@ -9,7 +9,7 @@ use crate::services::database::get_hasura_pool;
 use crate::services::electoral_log_board::get_event_store;
 use anyhow::{anyhow, ensure, Context, Result};
 use chrono::{DateTime, Utc};
-use deadpool_postgres::Transaction;
+use deadpool_postgres::{Client, Transaction};
 use sequent_core::ballot::{VotingStatus, VotingStatusChannel};
 use sequent_core::election_lifecycle::{
     policy, ElectoralPhase, LifecycleRefusal, LifecycleState, SafetyState,
@@ -18,11 +18,22 @@ use sequent_core::self_tests::{SelfTestOutcome, SelfTestRun, SelfTestTrigger};
 use sequent_core::signing::SigningAction;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use serde_json::{json, Value};
+use std::sync::{LazyLock, Once};
+use std::time::Duration;
+use uuid::Uuid;
 
 /// Maximum lifetime of a before-start/resume check. Ordinary periodic checks
 /// follow the event's independently configured interval.
 const OPENING_CHECK_MAX_AGE_SECONDS: i64 = 300;
 const LEASE_SECONDS: i64 = 45;
+/// A process renews its `lifecycle_service_instance` row this often and counts
+/// as alive while its last renewal is this recent.
+const INSTANCE_RENEW_SECONDS: u64 = 5;
+pub const INSTANCE_LIVE_SECONDS: i64 = 15;
+/// Two renewals of a process that is really running.
+const INSTANCE_PROOF_SECONDS: i64 = 12;
+static PROCESS_INSTANCE: LazyLock<String> = LazyLock::new(|| Uuid::new_v4().to_string());
+static INSTANCE_RENEWAL: Once = Once::new();
 const NONEMPTY_BOX_REASON: &str = "Ballot box not empty at the start of the election";
 const CHANNEL_STATUS_FIELDS: [&str; 4] = [
     "voting_status",
@@ -83,6 +94,38 @@ pub async fn require_phase(
     ensure!(
         current.phase == expected,
         "This operation requires electoral phase {expected:?}; current phase is {:?}",
+        current.phase
+    );
+    Ok(())
+}
+
+/// The export and the deletion of the election execution data: in
+/// post-processing or, for an archived event, in preparation.
+pub async fn require_execution_data_phase(
+    tx: &Transaction<'_>,
+    tenant: &str,
+    event: &str,
+) -> Result<()> {
+    let key = format!("{tenant}:{event}");
+    let acquired: bool = tx
+        .query_one(
+            "SELECT pg_try_advisory_xact_lock_shared(hashtextextended($1,848527))",
+            &[&key],
+        )
+        .await?
+        .try_get(0)?;
+    ensure!(
+        acquired,
+        "Election safety state is changing; retry the operation"
+    );
+    let current = state(tx, tenant, event).await?;
+    let archived: bool = tx.query_opt("SELECT COALESCE(is_archived,false) FROM sequent_backend.election_event WHERE tenant_id=$1::text::uuid AND id=$2::text::uuid", &[&tenant,&event]).await?
+        .context("Election event does not exist")?
+        .try_get(0)?;
+    ensure!(
+        policy::execution_data_operations_allowed(current.phase, archived),
+        "This operation requires electoral phase {:?}; current phase is {:?}",
+        ElectoralPhase::PostProcessing,
         current.phase
     );
     Ok(())
@@ -640,11 +683,14 @@ pub async fn after_status_change(
 pub async fn start_post_processing(tx: &Transaction<'_>, tenant: &str, event: &str) -> Result<()> {
     lock(tx, tenant, event).await?;
     let current = state(tx, tenant, event).await?;
-    let complete:bool=tx.query_one("SELECT EXISTS(SELECT 1 FROM sequent_backend.election WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid) AND NOT EXISTS(SELECT 1 FROM sequent_backend.election e WHERE e.tenant_id=$1::text::uuid AND e.election_event_id=$2::text::uuid AND NOT EXISTS(SELECT 1 FROM sequent_backend.tally_session t WHERE t.tenant_id=e.tenant_id AND t.election_event_id=e.election_event_id AND e.id=ANY(t.election_ids) AND t.is_execution_completed AND t.tally_type='ELECTORAL_RESULTS'))", &[&tenant,&event]).await?.try_get(0)?;
+    // An election is finished when counted or, as it can then never be counted, when a
+    // seal of its ballot boxes failed and none of its other seals can still change.
+    let finished=tx.query_one("WITH f AS (SELECT EXISTS(SELECT 1 FROM sequent_backend.tally_session t WHERE t.tenant_id=e.tenant_id AND t.election_event_id=e.election_event_id AND e.id=ANY(t.election_ids) AND t.is_execution_completed AND t.execution_status='SUCCESS' AND t.tally_type='ELECTORAL_RESULTS') AS counted,EXISTS(SELECT 1 FROM sequent_backend.ballot_box_seal s WHERE s.tenant_id=e.tenant_id AND s.election_event_id=e.election_event_id AND s.election_id=e.id AND s.status='failed') AS failed,EXISTS(SELECT 1 FROM sequent_backend.ballot_box_seal s WHERE s.tenant_id=e.tenant_id AND s.election_event_id=e.election_event_id AND s.election_id=e.id AND s.status IN ('pending','sealed')) AS unsettled FROM sequent_backend.election e WHERE e.tenant_id=$1::text::uuid AND e.election_event_id=$2::text::uuid) SELECT COALESCE(bool_and(counted OR (failed AND NOT unsettled)),false),COALESCE(bool_or(failed AND NOT counted),false) FROM f", &[&tenant,&event]).await?;
+    let (complete, uncounted_failure): (bool, bool) = (finished.try_get(0)?, finished.try_get(1)?);
     policy::post_processing_allowed(&current, complete)?;
     trusted_write(tx).await?;
     tx.execute("UPDATE sequent_backend.election_lifecycle SET phase='post_processing',generation=generation+1 WHERE tenant_id=$1::text::uuid AND election_event_id=$2::text::uuid", &[&tenant,&event]).await?;
-    notice(tx,tenant,event,"ElectoralPhaseChanged",json!({"from":"evaluation","to":"post_processing","investigation":current.safety==SafetyState::Unrecoverable})).await
+    notice(tx,tenant,event,"ElectoralPhaseChanged",json!({"from":"evaluation","to":"post_processing","investigation":current.safety==SafetyState::Unrecoverable,"failed_seal":complete&&uncounted_failure})).await
 }
 
 pub async fn heartbeat(component: &str) -> Result<()> {
@@ -658,19 +704,124 @@ pub async fn heartbeat(component: &str) -> Result<()> {
     // A delayed heartbeat cannot silently revive an expired lease. Record the
     // recovery requirement first, even if the other monitor has not run yet.
     if expired {
-        mark_process_stopped(component).await?;
+        component_stopped(component).await?;
     }
     let client = get_hasura_pool().await.get().await?;
     client.execute("INSERT INTO sequent_backend.lifecycle_service_lease(component,expires_at) VALUES($1,clock_timestamp()+($2::bigint*interval '1 second')) ON CONFLICT(component) DO UPDATE SET expires_at=EXCLUDED.expires_at", &[&component,&LEASE_SECONDS]).await?;
     Ok(())
 }
 
+/// This process's identity among the processes of its component.
+pub fn process_instance() -> &'static str {
+    &PROCESS_INSTANCE
+}
+
 pub async fn register_startup(component: &str) -> Result<()> {
-    mark_process_stopped(component).await?;
+    register_instance(component, process_instance()).await
+}
+
+/// A start counts as a restart of the component, which invalidates its operational
+/// evidence, unless a process already running proves the component never stopped.
+/// A retry keeps the row's first `started_at`.
+pub async fn register_instance(component: &str, instance: &str) -> Result<()> {
+    let client = get_hasura_pool().await.get().await?;
+    client.execute("INSERT INTO sequent_backend.lifecycle_service_instance(component,instance) VALUES($1,$2::text::uuid) ON CONFLICT DO NOTHING", &[&component,&instance]).await?;
+    INSTANCE_RENEWAL.call_once(|| start_renewal(component.to_owned(), instance.to_owned()));
+    let recent = another_instance_live(&client, component, instance).await?;
+    drop(client);
+    if !recent || !running_instance_proven(component, instance).await? {
+        component_stopped(component).await?;
+    }
     heartbeat(component).await
 }
 
 pub async fn mark_process_stopped(component: &str) -> Result<()> {
+    instance_stopped(component, process_instance()).await
+}
+
+/// Only the last process's end stops the component. Each process removes its own
+/// row before it looks, so of two stopping together at least one sees no other.
+pub async fn instance_stopped(component: &str, instance: &str) -> Result<()> {
+    let client = get_hasura_pool().await.get().await?;
+    client.execute("DELETE FROM sequent_backend.lifecycle_service_instance WHERE component=$1 AND instance=$2::text::uuid", &[&component,&instance]).await?;
+    if another_instance_live(&client, component, instance).await? {
+        return Ok(());
+    }
+    drop(client);
+    component_stopped(component).await
+}
+
+/// A recent row may be a process that just crashed, so it takes two more renewals
+/// to count. A process that started too shortly before this one proves nothing
+/// either: it may be waiting for the same proof.
+async fn running_instance_proven(component: &str, instance: &str) -> Result<bool> {
+    tokio::time::sleep(Duration::from_secs(INSTANCE_PROOF_SECONDS as u64)).await;
+    let client = get_hasura_pool().await.get().await?;
+    Ok(client.query_one("SELECT EXISTS(SELECT 1 FROM sequent_backend.lifecycle_service_instance o JOIN sequent_backend.lifecycle_service_instance m ON m.component=o.component WHERE m.component=$1 AND m.instance=$2::text::uuid AND o.instance<>m.instance AND o.started_at<m.started_at-($3::bigint*interval '1 second') AND o.renewed_at>m.started_at) AND EXISTS(SELECT 1 FROM sequent_backend.lifecycle_service_lease WHERE component=$1 AND expires_at>clock_timestamp())", &[&component,&instance,&INSTANCE_PROOF_SECONDS]).await?.try_get(0)?)
+}
+
+async fn another_instance_live(client: &Client, component: &str, instance: &str) -> Result<bool> {
+    Ok(client.query_one("SELECT EXISTS(SELECT 1 FROM sequent_backend.lifecycle_service_instance WHERE component=$1 AND instance<>$2::text::uuid AND renewed_at>clock_timestamp()-($3::bigint*interval '1 second'))", &[&component,&instance,&INSTANCE_LIVE_SECONDS]).await?.try_get(0)?)
+}
+
+/// Renews for the rest of the process on a thread of its own, with its own runtime
+/// and database connection, so a busy runtime or pool cannot make a working process
+/// look stopped. A thread that cannot start is only logged: the others then count
+/// this process as gone, which fails closed.
+fn start_renewal(component: String, instance: String) {
+    let started = std::thread::Builder::new()
+        .name("lifecycle-renewal".to_owned())
+        .spawn(move || {
+            match tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+            {
+                Ok(runtime) => runtime.block_on(renew_instance(component, instance)),
+                Err(error) => {
+                    tracing::error!("Lifecycle service instance renewal could not start: {error}");
+                }
+            }
+        });
+    if let Err(error) = started {
+        tracing::error!("Lifecycle service instance renewal could not start: {error}");
+    }
+}
+
+/// An UPDATE, so a stopped process's row stays gone. It keeps one connection of a
+/// pool of its own. A failure is only logged: the others then count this process
+/// as gone, which fails closed.
+async fn renew_instance(component: String, instance: String) {
+    let period = Duration::from_secs(INSTANCE_RENEW_SECONDS);
+    let mut own_pool = None;
+    let mut held = None;
+    loop {
+        tokio::time::sleep(period).await;
+        let renewed = tokio::time::timeout(period, async {
+            let client = match held.take() {
+                Some(client) => client,
+                None => {
+                    let pool = match own_pool.clone() {
+                        Some(pool) => pool,
+                        None => crate::services::database::generate_hasura_pool().await?,
+                    };
+                    own_pool = Some(pool.clone());
+                    pool.get().await?
+                }
+            };
+            client.execute("UPDATE sequent_backend.lifecycle_service_instance SET renewed_at=clock_timestamp() WHERE component=$1 AND instance=$2::text::uuid", &[&component,&instance]).await?;
+            client.execute("DELETE FROM sequent_backend.lifecycle_service_instance WHERE renewed_at<clock_timestamp()-interval '1 hour'", &[]).await?;
+            held = Some(client);
+            Ok::<_, anyhow::Error>(())
+        })
+        .await;
+        if !matches!(renewed, Ok(Ok(()))) {
+            tracing::warn!(%component, "Lifecycle service instance could not be renewed");
+        }
+    }
+}
+
+/// No process of the component is left, or the component stopped working.
+async fn component_stopped(component: &str) -> Result<()> {
     ensure!(
         matches!(component, "harvest" | "windmill"),
         "Unknown lifecycle component"
@@ -709,7 +860,8 @@ pub async fn mark_process_stopped(component: &str) -> Result<()> {
 pub async fn tick() -> Result<()> {
     heartbeat("windmill").await?;
     let client = get_hasura_pool().await.get().await?;
-    let rows=client.query("SELECT tenant_id::text,election_event_id::text FROM sequent_backend.election_lifecycle WHERE phase IN ('preparation','execution') ORDER BY last_monitored_at,election_event_id LIMIT 100", &[]).await?;
+    // An archived event in preparation never opens voting: nothing to start or monitor.
+    let rows=client.query("SELECT l.tenant_id::text,l.election_event_id::text FROM sequent_backend.election_lifecycle l JOIN sequent_backend.election_event e ON e.id=l.election_event_id AND e.tenant_id=l.tenant_id WHERE l.phase IN ('preparation','execution') AND NOT (l.phase='preparation' AND COALESCE(e.is_archived,false)) ORDER BY l.last_monitored_at,l.election_event_id LIMIT 100", &[]).await?;
     drop(client);
     for row in rows {
         let tenant: String = row.try_get(0)?;

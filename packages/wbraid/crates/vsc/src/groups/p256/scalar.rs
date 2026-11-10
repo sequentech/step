@@ -12,6 +12,7 @@ use p256::Scalar;
 use p256::Scalar as P256CrateScalar;
 use p256::elliptic_curve::Field;
 use std::ops::Neg;
+use zeroize::{Zeroize, Zeroizing};
 
 /**
  * A [`GroupScalar`] implementation for the P-256 group.
@@ -40,6 +41,13 @@ impl P256Scalar {
         P256Scalar(<Scalar as Reduce<p256::U256>>::reduce(
             &p256::U256::from_be_slice(bytes),
         ))
+    }
+}
+
+impl Zeroize for P256Scalar {
+    /// Overwrite the value with zero (volatile writes, see [`Zeroize`]).
+    fn zeroize(&mut self) {
+        self.0.zeroize();
     }
 }
 
@@ -109,16 +117,19 @@ use p256::elliptic_curve::PrimeField;
 
 impl Serializable for P256Scalar {
     fn write(&self, out: &mut Vec<u8>) {
-        out.extend_from_slice(&self.0.to_bytes());
+        // A secret scalar is written through here: this copy is overwritten on return.
+        out.extend_from_slice(&Zeroizing::new(self.0.to_bytes()));
     }
 }
 
 impl Deserializable for P256Scalar {
     fn read(input: &mut &[u8]) -> Result<Self, CryptographyError> {
         let bytes = take(input, 32)?;
-        let array: [u8; 32] = bytes.try_into().expect("take returns exactly 32 bytes");
+        // A secret scalar is read through here: this copy is overwritten on return.
+        let array: Zeroizing<[u8; 32]> =
+            Zeroizing::new(bytes.try_into().expect("take returns exactly 32 bytes"));
 
-        let scalar = Scalar::from_repr(array.into()).map(P256Scalar);
+        let scalar = Scalar::from_repr((*array).into()).map(P256Scalar);
 
         if scalar.is_some().into() {
             Ok(scalar.expect("scalar.is_some() == true"))

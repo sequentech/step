@@ -24,6 +24,7 @@ use serde_json::json;
 use signing::*;
 use std::collections::BTreeMap;
 use std::sync::Mutex;
+use strum::IntoEnumIterator;
 use uuid::Uuid;
 use windmill::postgres::signing::*;
 use windmill::postgres::signing_actions::count_published_configuration_versions;
@@ -659,13 +660,21 @@ async fn a_rule_save_is_checked_against_the_posts_and_cancels_waiting_requests()
             save_rule(&htx, &ktx, &manager, w.tenant, w.event, &input(2, 0)).await,
             Err(SigningError::Conflict(_))
         ));
-        let mut without_requester = input(1, 1);
+        let mut without_requester = input(2, 1);
         without_requester.requester_signing = RequesterSigning::NotAllowed;
         let saved = save_rule(&htx, &ktx, &manager, w.tenant, w.event, &without_requester)
             .await
             .unwrap();
-        assert_eq!(saved.outcome.rule.signatures, 1);
-        assert_eq!(saved.outcome.warnings, [RuleWarning::RequesterExcluded]);
+        assert_eq!(saved.outcome.rule.signatures, 2);
+        assert_eq!(
+            saved.outcome.warnings,
+            [RuleWarning::ShortPosts, RuleWarning::RequesterExcluded]
+        );
+        // Once set, the number of signatures of a mandatory action stays.
+        assert_eq!(
+            reason(save_rule(&htx, &ktx, &manager, w.tenant, w.event, &input(1, 2)).await),
+            InvalidReason::OutOfRange
+        );
         let mut cancelled = saved.outcome.cancelled.clone();
         cancelled.sort();
         waiting.sort();
@@ -700,7 +709,7 @@ async fn a_rule_save_is_checked_against_the_posts_and_cancels_waiting_requests()
             assert_eq!(details["allowed_by"], json!(["signing-rules-write"]));
         }
         let rules = list_rules(&htx, w.tenant, w.event).await.unwrap();
-        assert_eq!(rules.len(), 10);
+        assert_eq!(rules.len(), SigningAction::iter().count());
         let close = rules.iter().find(|r| r.rule.action == ACTION).unwrap();
         assert_eq!(
             (
@@ -708,13 +717,22 @@ async fn a_rule_save_is_checked_against_the_posts_and_cancels_waiting_requests()
                 close.updated_by.as_deref(),
                 close.updated_by_name.as_deref()
             ),
-            (1, Some("manager"), Some("manager display"))
+            (2, Some("manager"), Some("manager display"))
         );
+        // An action without a saved rule lists its default: opening always
+        // needs signatures, and how many is not set yet.
         let open = rules
             .iter()
             .find(|r| r.rule.action == SigningAction::OpenVoting)
             .unwrap();
-        assert_eq!(open.rule.requirement, SigningRequirement::NotRequired);
+        assert_eq!(
+            (
+                open.rule.requirement,
+                open.rule.signatures,
+                open.updated_by.as_deref()
+            ),
+            (SigningRequirement::Required, 0, None)
+        );
     }
 }
 
@@ -784,7 +802,11 @@ async fn event_with_rule(w: &World) -> Uuid {
         &tx,
         w.tenant,
         other_event,
-        &sequent_core::signing::SigningRule::default_for(ACTION),
+        // A mandatory action's rule is saved with its signatures set.
+        &sequent_core::signing::SigningRule {
+            signatures: 1,
+            ..sequent_core::signing::SigningRule::default_for(ACTION)
+        },
         0,
         "someone",
         None,

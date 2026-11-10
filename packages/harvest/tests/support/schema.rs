@@ -54,11 +54,13 @@ CREATE TABLE user_attribute (
     id varchar(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
     name varchar(255) NOT NULL,
     value varchar(255),
+    long_value text,
     user_id varchar(36) NOT NULL REFERENCES user_entity (id)
 );
 CREATE TABLE keycloak_group (
     id varchar(36) PRIMARY KEY,
     name varchar(255),
+    parent_group varchar(36),
     realm_id varchar(36)
 );
 CREATE TABLE user_group_membership (
@@ -66,6 +68,23 @@ CREATE TABLE user_group_membership (
     user_id varchar(36) NOT NULL REFERENCES user_entity (id),
     PRIMARY KEY (group_id, user_id)
 );
+CREATE TABLE realm_attribute (realm_id varchar(36), name varchar(255), value text);
+CREATE TABLE client (id varchar(36) PRIMARY KEY, realm_id varchar(36));
+CREATE TABLE client_attributes (client_id varchar(36), name varchar(255));
+CREATE TABLE group_attribute (id varchar(36) PRIMARY KEY, group_id varchar(36), name varchar(255));
+CREATE TABLE keycloak_role (id varchar(36) PRIMARY KEY, realm_id varchar(36));
+CREATE TABLE role_attribute (id varchar(36) PRIMARY KEY, role_id varchar(36), name varchar(255));
+CREATE TABLE authentication_flow (id varchar(36) PRIMARY KEY, realm_id varchar(36));
+CREATE TABLE authentication_execution (id varchar(36) PRIMARY KEY, realm_id varchar(36));
+CREATE TABLE client_scope (id varchar(36) PRIMARY KEY, realm_id varchar(36));
+CREATE TABLE protocol_mapper (id varchar(36) PRIMARY KEY, client_id varchar(36), client_scope_id varchar(36));
+CREATE TABLE protocol_mapper_config (protocol_mapper_id varchar(36), name varchar(255));
+CREATE TABLE group_role_mapping (group_id varchar(36), role_id varchar(36));
+CREATE TABLE user_role_mapping (user_id varchar(36), role_id varchar(36));
+CREATE TABLE composite_role (composite varchar(36), child_role varchar(36));
+-- The configuration snapshot also reads Hasura's own catalog.
+CREATE SCHEMA hdb_catalog;
+CREATE TABLE hdb_catalog.hdb_metadata (id integer PRIMARY KEY, metadata json NOT NULL);
 "#;
 
 fn pool_for(database: &str) -> Pool {

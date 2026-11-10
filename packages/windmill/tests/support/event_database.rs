@@ -15,7 +15,10 @@
 
 #![allow(dead_code)]
 
-use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome, BallotStatus};
+use chrono::{TimeZone, Utc};
+use electoral_log::adapters::ballot_box::{
+    AcceptBallot, AcceptOutcome, BallotStatus, PendingBallot,
+};
 use electoral_log::adapters::postgres::PostgresStore;
 use electoral_log::ports::ElectoralLogStore;
 use electoral_log::seal::ballot_hash;
@@ -24,6 +27,7 @@ use std::sync::OnceLock;
 use tokio::runtime::Runtime;
 use uuid::Uuid;
 use voting_crypto::signing::SigningKey;
+use windmill::services::ballot_admission;
 use windmill::services::ballot_box::ballot_record;
 use windmill::services::electoral_log_board::{get_event_board, get_event_databases};
 
@@ -60,6 +64,44 @@ pub struct Vote<'a> {
     pub content: &'a str,
     pub ballot_id: &'a str,
     pub channel: &'a str,
+}
+
+/// `ballot` with the admission the application signs when it accepts a ballot:
+/// `try_cast` stores only what the ballot box reads of that record.
+fn admitted(ballot: &PendingBallot, event: &str, key: &SigningKey) -> PendingBallot {
+    let accepted_at = Utc
+        .timestamp_millis_opt(ballot.accepted_at_millis)
+        .single()
+        .unwrap();
+    let admission_record = ballot_admission::sign(
+        &AcceptBallot {
+            election_event_id: event,
+            election_id: &ballot.election_id,
+            area_id: &ballot.area_id,
+            voter_id: &ballot.voter_id,
+            ballot_id: &ballot.ballot_id,
+            format: &ballot.format,
+            content: &ballot.content,
+            voter_signature: ballot.voter_signature.as_deref(),
+            admission_record: &[],
+            pseudonym_hash: &ballot.pseudonym_hash,
+            ballot_hash: &ballot.ballot_hash,
+            voting_channel: &ballot.voting_channel,
+            status: BallotStatus::Valid,
+            voter_ip: ballot.voter_ip.as_deref(),
+            voter_country: ballot.voter_country.as_deref(),
+            username: ballot.username.as_deref(),
+            allowed_votes: 0,
+        },
+        key,
+        &accepted_at,
+        ballot.seq,
+    )
+    .unwrap();
+    PendingBallot {
+        admission_record,
+        ..ballot.clone()
+    }
 }
 
 pub struct EventDatabase {
@@ -165,7 +207,9 @@ impl EventDatabase {
             }
             let entries: Vec<_> = pending
                 .iter()
-                .map(|ballot| ballot_record(&self.board, &event, ballot, key).unwrap())
+                .map(|ballot| {
+                    ballot_record(&self.board, &event, &admitted(ballot, &event, key), key).unwrap()
+                })
                 .collect();
             self.store
                 .append(&self.board, &mut entries.into_iter().map(anyhow::Ok))

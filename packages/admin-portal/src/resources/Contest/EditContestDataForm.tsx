@@ -81,6 +81,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
 import {IVR_ENTITY_I18N_ANNOTATION, parseIvrEntityAnnotations} from "@/utils/ivr"
+import {documentNameRefusal} from "@/services/serverRefusals"
 
 type FieldValues = Record<string, any>
 
@@ -593,13 +594,20 @@ export const ContestDataForm: React.FC = () => {
         const theFile = files?.[0]
 
         if (theFile) {
-            let {data, errors} = await getUploadUrl({
+            const answer = await getUploadUrl({
                 variables: {
                     name: theFile.name,
                     media_type: theFile.type,
                     size: theFile.size,
                 },
+            }).catch((error: unknown) => {
+                notify(documentNameRefusal(t, error) ?? t("electionScreen.error.fileError"), {
+                    type: "error",
+                })
+                return null
             })
+            if (!answer) return
+            let {data, errors} = answer
             if (data?.get_upload_url?.document_id) {
                 try {
                     await fetch(data.get_upload_url.url, {

@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::{
     postgres::{document::get_document, preview::insert_preview},
-    services::documents::{get_document_as_temp_file, upload_and_return_document},
+    services::documents::{
+        get_document_as_temp_file, is_document_name, upload_and_return_document,
+    },
     tasks::prepare_publication_preview::PublicationPreview,
 };
 use anyhow::{anyhow, Result};
@@ -60,6 +62,14 @@ pub fn read_preview(preview_file_path: &str) -> Result<(PublicationPreview, Stri
         .and_then(Value::as_str)
         .map(str::to_owned)
         .unwrap_or_else(|| Uuid::new_v4().to_string());
+    // Both are part of the preview's address, and the ballot style's ID of
+    // its document's name.
+    if !is_document_name(&area_id) || !is_document_name(&ballot_style_id) {
+        return Err(anyhow!(
+            "The area and ballot style IDs of a preview cannot contain / \\ ; # % ? or a \
+             control character"
+        ));
+    }
 
     Ok((parsed, ballot_style_id, area_id))
 }
@@ -166,6 +176,32 @@ mod tests {
             written["election_event"]["annotations"],
             json!({"miru:election-event-id": "miru-event"})
         );
+    }
+
+    #[test]
+    fn a_preview_whose_ids_cannot_be_part_of_its_address_is_refused() {
+        for (id, area_id) in [
+            ("style;1", "area-id"),
+            ("style-id", "area/1"),
+            ("style-id", "area%2F1"),
+        ] {
+            let file = preview_file(json!({
+                "ballot_styles": [{"id": id, "area_id": area_id}],
+                "election_event": {"id": "event"},
+                "elections": [],
+                "support_materials": [],
+                "documents": [],
+            }));
+
+            assert_eq!(
+                read_preview(&file.path().to_string_lossy())
+                    .unwrap_err()
+                    .to_string(),
+                "The area and ballot style IDs of a preview cannot contain / \\ ; # % ? or a \
+                 control character",
+                "{id} {area_id}"
+            );
+        }
     }
 
     #[test]

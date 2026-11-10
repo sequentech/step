@@ -3,6 +3,7 @@
 """Failures after remote creation must leave enough local state to clean up."""
 import argparse
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -28,12 +29,16 @@ class RecoveryTests(unittest.TestCase):
             "keycloak_client_id": "synthetic-client", "keycloak_admin_user": "synthetic-master",
             "keycloak_admin_password": "synthetic-password", "out_dir": str(self.directory),
             "election_event_json": str(self.event), "new_tenants": 1,
+            "hasura_admin_secret": "synthetic-hasura-secret",
         }
         self.calls = []
         for name, value in [("load_config", {"setup": self.cfg}), ("find_step_cli", "synthetic-cli")]:
             mock = patch.object(common, name, return_value=value)
             mock.start()
             self.addCleanup(mock.stop)
+        allow = patch.object(common, "allow_unsigned_imports", side_effect=lambda *args: self.calls.append(("allow-unsigned-imports", *args)))
+        allow.start()
+        self.addCleanup(allow.stop)
 
     def cli(self, binary, *args):
         self.calls.append(args)
@@ -43,7 +48,6 @@ class RecoveryTests(unittest.TestCase):
                 archive.writestr("event.json", json.dumps({"election_event": {
                     "id": args[args.index("--election-event-id") + 1], "tenant_id": "bootstrap"}}))
         return {
-            "export-tenant-config": "Success! ID: export-id",
             "create-tenant": "Success! ID: created-tenant",
             "import-election": "Success! ID: imported-event",
         }.get(args[0], "Success!")
@@ -64,6 +68,9 @@ class RecoveryTests(unittest.TestCase):
                 setup.main()
         index = json.loads((self.directory / "tenants.json").read_text())
         self.assertEqual(index["tenants"], [{"tenant_id": "bootstrap", "dir": "tenant-bootstrap", "source": "existing"}])
+        commands = [args[0] for args in self.calls]
+        self.assertLess(commands.index("allow-unsigned-imports"), commands.index("import-election"))
+        self.assertIn(("allow-unsigned-imports", "http://synthetic/graphql", "synthetic-hasura-secret", "bootstrap"), self.calls)
         summary = json.loads((self.directory / "tenant-bootstrap" / "summary.json").read_text())
         self.assertEqual(summary["election_event_id"], "imported-event")
         self.calls.clear()
@@ -71,6 +78,15 @@ class RecoveryTests(unittest.TestCase):
             cleanup.main()
         self.assertIn(("delete-election-event", "--election-event-id", "imported-event"), self.calls)
         self.assertFalse(any(args[0] == "delete-tenant" for args in self.calls))
+
+    def test_new_tenants_need_the_hasura_admin_secret(self):
+        del self.cfg["hasura_admin_secret"]
+        with patch.dict(os.environ), patch.object(common, "run_step", side_effect=self.cli):
+            for name in ("HASURA_ADMIN_SECRET", "KEYCLOAK_ADMIN_CLIENT_SECRET"):
+                os.environ.pop(name, None)
+            with self.assertRaises(SystemExit):
+                setup.main()
+        self.assertFalse(any(args[0] == "create-tenant" for args in self.calls))
 
     def test_missing_summary_keeps_new_tenant_cleanup_and_scope_flags(self):
         common.write_json(self.directory / "tenants.json", {"tenants": [

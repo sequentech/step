@@ -1,6 +1,10 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! `/plugin`, which only builds with the `plugins` feature have.
+#![cfg(feature = "plugins")]
+
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;

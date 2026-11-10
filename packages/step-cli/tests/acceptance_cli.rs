@@ -269,8 +269,9 @@ fn election_event(server: TcpListener, requests: usize, logged_hash: Vec<u8>) {
     }
 }
 
-/// The voter's ballot, accepted into the election event's ballot box on the
-/// server `ELECTORAL_LOG_PG_*` names and recorded by the sequencer.
+/// The voter's ballot, accepted now into the election event's ballot box on
+/// the server `ELECTORAL_LOG_PG_*` names and recorded by the sequencer: the
+/// run reads only the ballots cast since its session opened.
 fn cast_vote(event: &str, content: &str) {
     tokio::runtime::Runtime::new().unwrap().block_on(async {
         let store = get_event_databases()
@@ -292,7 +293,15 @@ fn cast_vote(event: &str, content: &str) {
                 format: &format,
                 content,
                 voter_signature: None,
-                admission_record: &format!(r#"{{"payload":{{"accepted_at":"2026-10-27T12:00:00.000Z","sequence":{}}},"signature":""}}"#, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() as i64).into_bytes(),
+                admission_record: &format!(
+                    r#"{{"payload":{{"accepted_at":"{}","sequence":{}}},"signature":""}}"#,
+                    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_nanos() as i64
+                )
+                .into_bytes(),
                 pseudonym_hash: &[0; 64],
                 ballot_hash: &[0; 64],
                 voting_channel: "ONLINE",

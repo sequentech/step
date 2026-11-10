@@ -8,7 +8,6 @@ import {AuthContext} from "../providers/AuthContextProvider"
 import {
     getValueFromCookie,
     ITenantSettings,
-    ITenantTheme,
     setCookie,
     shortAppHash,
     USER_LANGUAGE_COOKIE_NAME,
@@ -20,6 +19,7 @@ import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
 import {useMatch} from "react-router-dom"
 import {WaitingForMySignature} from "@/resources/ElectionEvent/Signatures/WaitingForMySignature"
+import {adminPortalLogoUrl} from "@/services/tenantLookAndFeel"
 
 export const CustomAppBar: React.FC = () => {
     const authContext = useContext(AuthContext)
@@ -43,9 +43,9 @@ export const CustomAppBar: React.FC = () => {
     const langList = (tenant?.settings as ITenantSettings | undefined)?.language_conf
         ?.enabled_language_codes ?? ["en"]
 
-    const [logoUrl, setLogoUrl] = useState<string | undefined | null>(
-        (tenant?.annotations as ITenantTheme | undefined)?.logo_url
-    )
+    // The tenant's logo, where its staff screens may show it (see the helper).
+    const tenantLogoUrl = adminPortalLogoUrl(tenant)
+    const [logoUrl, setLogoUrl] = useState<string | undefined>(tenantLogoUrl)
 
     const [logoImg, setLogoImg] = useState<string | undefined>(BlankLogoImg)
 
@@ -53,18 +53,16 @@ export const CustomAppBar: React.FC = () => {
         setLogoImg(logoUrl ?? BlankLogoImg)
     }, [])
 
-    /*  When tenant annotations column is empty annotations.logo_url will be 
-        undefined and in that case Sequent logo must be shown.
-        But while data isn't fetched yet annotations.logo_url is also undefined 
-        and a blank logo must be shown.
+    /*  Without a tenant logo to show (none set, or the staff screens keep the
+        built-in logo) the Sequent logo must be shown. But while data isn't
+        fetched yet there is no tenant logo either, and a blank logo must be shown.
     */
     useEffect(() => {
-        const newLogoState = (tenant?.annotations as ITenantTheme | undefined)?.logo_url
-        setLogoUrl(newLogoState)
+        setLogoUrl(tenantLogoUrl)
         if (!isFetching) {
-            setLogoImg(newLogoState ?? SequentLogo)
+            setLogoImg(tenantLogoUrl ?? SequentLogo)
         }
-    }, [(tenant?.annotations as ITenantTheme | undefined)?.logo_url, logoUrl, isFetching])
+    }, [tenantLogoUrl, logoUrl, isFetching])
 
     const onChangeLanguage = (lang: string) => {
         if (getValueFromCookie(USER_LANGUAGE_COOKIE_NAME) !== lang) {

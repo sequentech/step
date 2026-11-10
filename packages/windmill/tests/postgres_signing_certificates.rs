@@ -148,8 +148,11 @@ async fn second_event(tx: &Transaction<'_>, s: Scope, seed: u32) -> Scope {
     other
 }
 
-/// Deletes a committed tenant with its events and their rows.
+/// Deletes a committed tenant with its events and their rows, in the
+/// server's own transaction: only there the lifecycle row of an event goes
+/// with it.
 async fn purge(tx: &Transaction<'_>, tenant: Uuid) {
+    windmill::postgres::trusted_write(tx).await.unwrap();
     for table in ["election", "election_event", "tenant"] {
         let column = if table == "tenant" { "id" } else { "tenant_id" };
         tx.execute(

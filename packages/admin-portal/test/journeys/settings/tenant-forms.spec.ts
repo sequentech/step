@@ -3,13 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {test, expect} from "../fixtures"
 import {
+    BUILT_IN_LOGO,
     LANGUAGE_CONF,
+    OPTIONAL_SIGNING_SETTINGS,
     SETTINGS_ROLES,
     TENANT_WHERE,
     commitUndoable,
     mockElectionTypes,
     mockTenant,
     openSettings,
+    pageStyles,
     tenantRow,
 } from "./data"
 
@@ -114,7 +117,7 @@ test("saves the logo, custom CSS and help links and applies them to the portal",
     page,
     portal,
 }) => {
-    const tenant = mockTenant(portal)
+    const tenant = mockTenant(portal, tenantRow({settings: OPTIONAL_SIGNING_SETTINGS}))
     const logoUrl = portal.s3.putBytes("public", "branding/logo.png", PNG, "image/png")
     await openSettings(page, portal, "Look & Feel")
     await expect(page.getByRole("button", {name: "Help", exact: true})).toHaveCount(0)
@@ -136,7 +139,7 @@ test("saves the logo, custom CSS and help links and applies them to the portal",
         {
             _set: {
                 annotations: {logo_url: logoUrl, css: ".settings-box { outline: 1px solid; }"},
-                settings: {language_conf: LANGUAGE_CONF, help_links: HELP_LINKS},
+                settings: {...OPTIONAL_SIGNING_SETTINGS, help_links: HELP_LINKS},
             },
             where: TENANT_WHERE,
         },
@@ -149,7 +152,10 @@ test("saves the logo, custom CSS and help links and applies them to the portal",
 test("removes the logo and CSS when their fields are emptied", async ({page, portal}) => {
     const tenant = mockTenant(
         portal,
-        tenantRow({annotations: {logo_url: null, css: "body { margin: 0; }"}})
+        tenantRow({
+            annotations: {logo_url: null, css: "body { margin: 0; }"},
+            settings: OPTIONAL_SIGNING_SETTINGS,
+        })
     )
     await openSettings(page, portal, "Look & Feel")
     const css = page.getByRole("textbox", {name: "Custom CSS"})
@@ -162,7 +168,7 @@ test("removes the logo and CSS when their fields are emptied", async ({page, por
         {
             _set: {
                 annotations: {logo_url: null, css: null},
-                settings: {language_conf: LANGUAGE_CONF, help_links: []},
+                settings: {...OPTIONAL_SIGNING_SETTINGS, help_links: []},
             },
             where: TENANT_WHERE,
         },
@@ -170,7 +176,7 @@ test("removes the logo and CSS when their fields are emptied", async ({page, por
 })
 
 test("rejects help links that are not a JSON list", async ({page, portal}) => {
-    const tenant = mockTenant(portal)
+    const tenant = mockTenant(portal, tenantRow({settings: OPTIONAL_SIGNING_SETTINGS}))
     await openSettings(page, portal, "Look & Feel")
     const helpLinks = page.getByRole("textbox", {name: "Help Links"})
     for (const invalid of ['{"url": "https://help.synthetic.example"}', "[{"]) {
@@ -181,6 +187,45 @@ test("rejects help links that are not a JSON list", async ({page, portal}) => {
         await expect(page.getByText("Invalid Help Links format", {exact: true})).toHaveCount(0)
     }
     expect(tenant.updates()).toEqual([])
+})
+
+test("offers only the display name where signed configuration packages are required", async ({
+    page,
+    portal,
+}) => {
+    const logoUrl = portal.s3.putBytes("public", "branding/logo.png", PNG, "image/png")
+    const css = ".settings-box { outline: 3px dashed rgb(1, 2, 3); }"
+    const settings = {
+        language_conf: LANGUAGE_CONF,
+        configuration_signing: {policy: "required"},
+        help_links: HELP_LINKS,
+    }
+    const tenant = mockTenant(portal, tenantRow({annotations: {logo_url: logoUrl, css}, settings}))
+    await openSettings(page, portal, "Look & Feel")
+    const displayName = page.getByRole("textbox", {name: "Display name"})
+    await expect(displayName).toBeVisible()
+    for (const name of ["Logo URL", "Custom CSS", "Help Links"]) {
+        await expect(page.getByRole("textbox", {name})).toHaveCount(0)
+    }
+    // The staff screens keep the built-in logo and style, and offer no help links.
+    await expect(page.getByRole("img", {name: "Logo Image"})).toHaveAttribute("src", BUILT_IN_LOGO)
+    await expect(page.getByRole("button", {name: "Help", exact: true})).toHaveCount(0)
+    expect(await pageStyles(page)).not.toContain("rgb(1, 2, 3)")
+    await displayName.fill("Synthetic Council")
+    await displayName.blur()
+    await page.getByRole("button", {name: "Save", exact: true}).click()
+    await commitUndoable(page, portal, "update_sequent_backend_tenant")
+    // The saved logo address, CSS and help links stay as they were.
+    expect(tenant.updates()).toEqual([
+        {
+            _set: {
+                annotations: {logo_url: logoUrl, css},
+                settings: {...settings, display_name: "Synthetic Council"},
+            },
+            where: TENANT_WHERE,
+        },
+    ])
+    expect(portal.s3.requestsFor("branding/logo.png")).toEqual([])
 })
 
 test("blocks voting and enrollment from the chosen countries", async ({page, portal}) => {

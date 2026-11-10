@@ -4,13 +4,15 @@
 
 //! The trustee's login to the platform: Keycloak's password grant for the
 //! trustee's user, as step-cli logs a trustee in, and the renewal of the token
-//! it gets.
+//! it gets. The password, the client secret and the tokens are overwritten
+//! with zero when they are dropped.
 
 use std::time::{Duration, Instant};
 
 use anyhow::{Context as _, Result};
 use serde::Deserialize;
 use tracing::{info, warn};
+use zeroize::Zeroize;
 
 use crate::platform::call;
 
@@ -31,6 +33,20 @@ pub(crate) struct Credentials {
     pub(crate) password: String,
 }
 
+impl Zeroize for Credentials {
+    /// The secrets only: the password and the client secret.
+    fn zeroize(&mut self) {
+        self.password.zeroize();
+        self.client_secret.zeroize();
+    }
+}
+
+impl Drop for Credentials {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
 /// Access tokens of the trustee's user, renewed before they expire.
 pub(crate) struct TokenSource {
     http: reqwest::Client,
@@ -43,6 +59,19 @@ struct Token {
     access: String,
     refresh: Option<String>,
     renew_at: Instant,
+}
+
+impl Zeroize for Token {
+    fn zeroize(&mut self) {
+        self.access.zeroize();
+        self.refresh.zeroize();
+    }
+}
+
+impl Drop for Token {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
 }
 
 #[derive(Deserialize)]
@@ -77,10 +106,12 @@ impl TokenSource {
     pub(crate) async fn access_token(&mut self) -> Result<&str> {
         let token = match self.token.take() {
             Some(token) if Instant::now() < token.renew_at => token,
+            // The token renewed or replaced is overwritten once this statement
+            // ends.
             Some(Token {
-                refresh: Some(refresh),
+                refresh: Some(ref refresh),
                 ..
-            }) => match self.renew(&refresh).await {
+            }) => match self.renew(refresh).await {
                 Ok(token) => token,
                 Err(err) => {
                     warn!(
@@ -144,5 +175,41 @@ impl TokenSource {
             refresh: answer.refresh_token,
             renew_at: requested_at + lifetime.saturating_sub(RENEWAL_MARGIN),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // What `Drop` runs. The bytes are overwritten with zero before the length
+    // is cleared, which is all safe code can observe.
+
+    #[test]
+    fn the_login_secrets_are_overwritten_when_they_are_dropped() {
+        let mut credentials = Credentials {
+            keycloak_url: "http://keycloak.invalid".into(),
+            realm: "tenant-fixture".into(),
+            client_id: "fixture-client".into(),
+            client_secret: Some("fixture-secret".into()),
+            username: "trustee1".into(),
+            password: "fixture-password".into(),
+        };
+        credentials.zeroize();
+        assert!(credentials.password.is_empty());
+        assert_eq!(credentials.client_secret, None);
+        assert_eq!(credentials.username, "trustee1");
+    }
+
+    #[test]
+    fn a_token_is_overwritten_when_it_is_dropped() {
+        let mut token = Token {
+            access: "fixture-access-token".into(),
+            refresh: Some("fixture-refresh-token".into()),
+            renew_at: Instant::now(),
+        };
+        token.zeroize();
+        assert!(token.access.is_empty());
+        assert_eq!(token.refresh, None);
     }
 }

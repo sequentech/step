@@ -9,8 +9,10 @@ import {Route, Routes} from "react-router-dom"
 import {i18n, initCore} from "@sequentech/ui-core"
 import {AdminStoryProvider, EVENT_ID} from "@/__stories__/AdminStoryProvider"
 import {STORY_IDS} from "@/__stories__/fixtures"
+import {groupRoles} from "@/__stories__/storyAuth"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {WidgetsContextProvider} from "@/providers/WidgetsContextProvider"
+import {IPermissions} from "@/types/keycloak"
 import {EditElectionEventData} from "./EditElectionEventData"
 import {
     SECOND_ELECTION_ID,
@@ -24,7 +26,8 @@ const RESOURCE = "sequent_backend_election_event"
 
 let boundaries: ReturnType<typeof eventDataBoundaries>
 
-// The event tabs render the section on the event's route.
+// The event tabs render the section on the event's route, here for a member of the group
+// without the administrator role: the administrator's Data tab holds other settings.
 function Fixture() {
     const {permissions, tenant} = useStoryGlobals()
     return (
@@ -32,6 +35,7 @@ function Fixture() {
             boundary={boundaries.graphql}
             dataProvider={boundaries.data.provider}
             role={permissions}
+            roles={groupRoles(permissions).filter((role) => role !== IPermissions.ADMIN_USER)}
             tenant={tenant}
         >
             <WidgetsContextProvider>

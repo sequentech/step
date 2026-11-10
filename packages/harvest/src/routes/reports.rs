@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::routes::election_dates::signed_import_required;
 use crate::routes::signing::{signing_failure, SigningReply};
 use crate::services::authorization::{
     authorize, authorize_election_permission_labels,
@@ -13,12 +14,14 @@ use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
+use sequent_core::election_lifecycle::ElectoralPhase;
 use sequent_core::{
     services::jwt::{self, JwtClaims},
     types::{hasura::core::TasksExecution, permissions::Permissions},
 };
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use windmill::services::election_lifecycle;
 use windmill::services::electoral_log::{
     ElectoralLogAdminContext, VoterSecretAttributeAction,
     VoterSecretAttributeAudit,
@@ -243,6 +246,27 @@ pub async fn generate_template(
     let EGenerateTemplate::BallotImages {
         election_event_id, ..
     } = input.clone();
+    // Where only signed packages import, the images of the decoded ballots
+    // are generated from post-processing on.
+    let tenant_id = &claims.hasura_claims.tenant_id;
+    if signed_import_required(&hasura_transaction, tenant_id)
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error reading the tenant's settings: {error:?}"),
+            )
+        })?
+    {
+        election_lifecycle::require_phase(
+            &hasura_transaction,
+            tenant_id,
+            &election_event_id,
+            ElectoralPhase::PostProcessing,
+        )
+        .await
+        .map_err(|error| (Status::Conflict, error.to_string()))?;
+    }
 
     // Insert the task execution record
     let task_execution = services

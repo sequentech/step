@@ -80,6 +80,25 @@ fn find_duplicates(input: Vec<&str>) -> Vec<&str> {
     duplicates
 }
 
+/// The deployment's readiness probe tests for this file: a rolling update stops an
+/// older worker only after its replacement has registered.
+const READINESS_FILE: &str = "/tmp/windmill-registered";
+
+/// Removes the readiness file an earlier run of this container may have left, so it
+/// cannot mark this worker ready before it has registered.
+fn clear_readiness_file() -> Result<()> {
+    match std::fs::remove_file(READINESS_FILE) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => match std::path::Path::new(READINESS_FILE).try_exists() {
+            Ok(false) => Ok(()),
+            _ => Err(anyhow!(
+                "The readiness file {READINESS_FILE} could not be removed: {error}"
+            )),
+        },
+    }
+}
+
 fn read_worker_threads(opt: &CeleryOpt) -> usize {
     match opt.clone() {
         CeleryOpt::Consume { worker_threads, .. } => worker_threads,
@@ -141,6 +160,10 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             heartbeat,
             ..
         } => {
+            clear_readiness_file()?;
+            windmill::services::vault::check_master_secret()
+                .await
+                .context("Windmill does not start without its master secret")?;
             celery_cfg::set_config(celery_cfg::CeleryConfig {
                 prefetch_count,
                 acks_late,
@@ -214,6 +237,9 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             // value it had to replace are logged when the worker starts.
             cadence::configured();
             windmill::services::self_tests::startup().await?;
+            if let Err(error) = std::fs::write(READINESS_FILE, "") {
+                event!(Level::WARN, "Readiness file could not be written: {error}");
+            }
             celery_cfg::set_is_app_active(true);
             let consumed = celery_app.consume_from(&vec_str[..]).await;
             windmill::services::election_lifecycle::mark_process_stopped("windmill").await?;

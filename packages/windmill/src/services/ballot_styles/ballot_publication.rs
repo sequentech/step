@@ -528,7 +528,29 @@ fn validate_publication_ceremonies(
     Ok(())
 }
 
-async fn validate_published_ballot_styles(
+/// What [`validate_published_ballot_styles`] checks, on what it read: the
+/// publication's ballot styles (`current`), the event's keys ceremonies and,
+/// as for [`validate_started_elections_publication`], the published ballot
+/// styles of its started elections.
+fn validate_publication_styles(
+    current: &Value,
+    ceremonies: &[KeysCeremony],
+    previous_publications: &[Value],
+) -> Result<()> {
+    let keys = parse_ballot_styles(current)?
+        .into_iter()
+        .filter_map(|style| style.public_key)
+        .collect::<Vec<_>>();
+    validate_publication_ceremonies(&keys, ceremonies)?;
+    validate_started_elections_publication(previous_publications, current)
+}
+
+/// Checks a ballot publication before publishing it writes anything: each
+/// native key of its ballot styles comes from a keys ceremony that reached
+/// SUCCESS (every trustee confirmed custody) with that key, and nothing that
+/// decodes the ballots of an election whose voting started changes. A
+/// refusal is a [`BallotPublicationValidationError`].
+pub async fn validate_published_ballot_styles(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
@@ -549,11 +571,6 @@ async fn validate_published_ballot_styles(
         election_event_id,
     )
     .await?;
-    let keys = parse_ballot_styles(&current)?
-        .into_iter()
-        .filter_map(|style| style.public_key)
-        .collect::<Vec<_>>();
-    validate_publication_ceremonies(&keys, &ceremonies)?;
     let previous_publications = started_elections_published_styles(
         hasura_transaction,
         tenant_id,
@@ -562,7 +579,7 @@ async fn validate_published_ballot_styles(
     )
     .await?;
 
-    validate_started_elections_publication(&previous_publications, &current)
+    validate_publication_styles(&current, &ceremonies, &previous_publications)
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -718,6 +735,14 @@ pub async fn update_publish_ballot(
     if ballot_publication.published_at.is_some() {
         return Ok(());
     }
+
+    validate_published_ballot_styles(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication,
+    )
+    .await?;
 
     validate_published_slates(
         hasura_transaction,
@@ -1432,5 +1457,72 @@ mod tests {
         ]));
 
         assert!(result.is_err());
+    }
+
+    /// One area's ballot style holding `key` and `contest`.
+    fn keyed_publication(key: &PublicKeyConfig, contest: Value) -> Value {
+        let mut style = area_style("area-1", vec![contest]);
+        style["public_key"] = serde_json::to_value(key).unwrap();
+        json!([style])
+    }
+
+    fn reasons_of(result: Result<()>) -> Vec<String> {
+        result
+            .expect_err("the publication must be rejected")
+            .downcast_ref::<BallotPublicationValidationError>()
+            .expect("a ballot publication validation error")
+            .reasons
+            .clone()
+    }
+
+    #[test]
+    fn publishing_needs_completed_custody_and_unchanged_started_ballots() {
+        let key = PublicKeyConfig {
+            public_key: "joint-key".into(),
+            is_demo: false,
+            keys_ceremony_id: Some("ceremony".into()),
+            configuration_id: Some("123".into()),
+        };
+        let ceremony = |execution_status: KeysCeremonyExecutionStatus| -> KeysCeremony {
+            serde_json::from_value(json!({
+                "id": "ceremony", "tenant_id": "tenant", "election_event_id": "event",
+                "trustee_ids": [], "threshold": 2, "execution_status": execution_status.to_string(),
+                "status": {"public_key": "joint-key", "public_key_hash": "verified-hash", "logs": [], "trustees": []}
+            }))
+            .unwrap()
+        };
+        let published = json!([area_style("area-1", vec![published_mayor_contest()])]);
+        let current = keyed_publication(&key, published_mayor_contest());
+        let completed = [ceremony(KeysCeremonyExecutionStatus::SUCCESS)];
+
+        // Every trustee confirmed custody and nothing that decodes changed.
+        assert!(validate_publication_styles(
+            &current,
+            &completed,
+            std::slice::from_ref(&published)
+        )
+        .is_ok());
+        assert!(validate_publication_styles(&current, &completed, &[]).is_ok());
+        // The keys ceremony has not reached SUCCESS.
+        for status in [
+            KeysCeremonyExecutionStatus::STARTED,
+            KeysCeremonyExecutionStatus::IN_PROGRESS,
+        ] {
+            assert_eq!(
+                reasons_of(validate_publication_styles(&current, &[ceremony(status)], &[])),
+                ["Keys ceremony ceremony must complete before ballot publication with its verified joint public key."]
+            );
+        }
+        // A contest of a started election decodes differently.
+        let mut changed = published_mayor_contest();
+        changed["max_votes"] = json!(2);
+        assert_eq!(
+            reasons_of(validate_publication_styles(
+                &keyed_publication(&key, changed),
+                &completed,
+                &[published]
+            )),
+            ["Contest \"Mayor\" (contest-1) changed max_votes after voting started for its election. Restore the published values before publishing again."]
+        );
     }
 }

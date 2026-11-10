@@ -127,6 +127,7 @@ fn build_application_with(
                 routes::insert_cast_vote::insert_cast_vote,
                 routes::receive_ballot::receive_ballot,
                 routes::cast_ballot::cast_ballot,
+                routes::audit_ballot::audit_ballot,
                 routes::fetch_document::fetch_document,
                 routes::export_verification_transcript::export_verification_transcript,
                 routes::document_password::get_document_password,
@@ -158,9 +159,8 @@ fn build_application_with(
                 routes::insert_election_event::import_election_event_f,
                 routes::delete_election_event::delete_election_event_f,
                 routes::archive_election_event::archive_election_event_f,
+                routes::election_revoting::disable_election_revoting,
                 routes::delete_tenant::delete_tenant_f,
-                routes::import_tenant_config::import_tenant_config_route,
-                routes::export_tenant_config::export_tenant_config_route,
                 routes::insert_tenant::insert_tenant,
                 routes::users::create_user,
                 routes::users::import_users_f,
@@ -250,9 +250,6 @@ fn build_application_with(
                 routes::election_dates::manage_election_dates,
                 routes::custom_urls::update_custom_url,
                 routes::custom_urls::get_custom_url,
-                routes::miru_plugin::create_transmission_package,
-                routes::miru_plugin::send_transmission_package,
-                routes::miru_plugin::upload_signature,
                 routes::export_tasks_execution::export_tasks_execution_route,
                 routes::limit_access_by_countries::limit_access_by_countries,
                 routes::export_template::export_template,
@@ -328,9 +325,19 @@ fn build_application_with(
                 routes::scheduled_outcomes::get_lifecycle_snapshots,
             ],
         )
-        .mount("/", routes![routes::plugins::plugin_routes])
         .manage(LastDatafixAccessToken::init())
         .manage(services);
+    // Only in builds with the `plugins` feature.
+    #[cfg(feature = "plugins")]
+    let rocket = rocket.mount(
+        "/",
+        routes![
+            routes::plugins::plugin_routes,
+            routes::miru_plugin::create_transmission_package,
+            routes::miru_plugin::send_transmission_package,
+            routes::miru_plugin::upload_signature,
+        ],
+    );
     // Only with MESSAGING_FAKE_PROVIDER_ROUTES=ENABLED (development).
     routes::fake_provider::mount(rocket, fake_provider_routes)
 }

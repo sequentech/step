@@ -13,6 +13,7 @@ use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::traits::{Identity, MultiscalarMul};
 use sha3::digest::Digest;
 use sha3::digest::typenum::U64;
+use zeroize::DefaultIsZeroes;
 
 /**
  * A [`GroupElement`] implementation for the [Ristretto](https://docs.rs/curve25519-dalek/latest/curve25519_dalek/ristretto/index.html) group.
@@ -34,6 +35,16 @@ impl RistrettoElement {
         RistrettoElement(RistrettoPoint::from_hash::<D>(hasher))
     }
 }
+
+/// The identity element.
+impl Default for RistrettoElement {
+    fn default() -> Self {
+        RistrettoElement(RistrettoPoint::identity())
+    }
+}
+
+/// Zeroizing an element overwrites the whole value with the identity element.
+impl DefaultIsZeroes for RistrettoElement {}
 
 impl GroupElement for RistrettoElement {
     type Scalar = RistrettoScalar;

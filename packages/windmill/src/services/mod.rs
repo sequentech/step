@@ -4,6 +4,7 @@
 
 pub mod application;
 pub mod approval_matrix;
+pub mod audit_ballot;
 pub mod ballot_box;
 pub mod ballot_box_key;
 pub mod ballot_box_reads;
@@ -31,6 +32,7 @@ pub mod election_event_dates;
 pub mod election_event_statistics;
 pub mod election_event_status;
 pub mod election_lifecycle;
+pub mod election_revoting;
 pub mod election_statistics;
 pub mod electoral_log;
 pub mod electoral_log_audit;

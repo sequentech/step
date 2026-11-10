@@ -6,7 +6,9 @@
 //! for an action, and saving a rule.
 //!
 //! A save is refused while the event is locked down, when it asks for more
-//! signatures than any Post can give, and when another save came first.
+//! signatures than any Post can give, when it changes a number of signatures
+//! already set or makes that action need none, and when another save came
+//! first.
 //! It cancels every request of the action still waiting, since they were
 //! started under the old rule, and logs the change. It may also change which
 //! groups hold the action's sign permission (Keycloak realm roles, which
@@ -412,6 +414,15 @@ fn validate(rule: &SigningRule) -> SigningResult<()> {
     })
 }
 
+/// Whether `proposed` changes the number of signatures that `stored` has
+/// already set for an action that needs signatures, or makes that action
+/// need none: once set, the number stays, whichever the action.
+fn changes_fixed_signatures(stored: &SigningRule, proposed: &SigningRule) -> bool {
+    stored.is_required()
+        && stored.signatures > 0
+        && (!proposed.is_required() || proposed.signatures != stored.signatures)
+}
+
 /// The event's ceremonies policy; manual when it sets none.
 async fn event_ceremonies_policy(
     hasura_transaction: &Transaction<'_>,
@@ -565,6 +576,15 @@ pub async fn save_rule(
         return Err(SigningError::Conflict(format!(
             "The rule changed since it was read (revision {current_revision})."
         )));
+    }
+    if current
+        .as_ref()
+        .is_some_and(|row| changes_fixed_signatures(&row.rule, &rule))
+    {
+        return Err(SigningError::invalid(
+            InvalidReason::OutOfRange,
+            "The number of signatures of this action is set: it can't change, and the action keeps needing signatures.",
+        ));
     }
 
     let permission = action.sign_permission().to_string();
@@ -794,4 +814,59 @@ pub async fn commit_rule(
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rule(action: SigningAction, signatures: u16) -> SigningRule {
+        SigningRule {
+            signatures,
+            requirement: SigningRequirement::Required,
+            ..SigningRule::default_for(action)
+        }
+    }
+
+    #[test]
+    fn a_set_number_of_signatures_stays_whichever_the_action() {
+        // A mandatory action, and one an administrator added to those needing signatures.
+        for action in [SigningAction::CloseVoting, SigningAction::GenerateReports] {
+            let stored = rule(action, 2);
+            for signatures in [1, 3] {
+                assert!(changes_fixed_signatures(&stored, &rule(action, signatures)));
+            }
+            assert!(!changes_fixed_signatures(&stored, &rule(action, 2)));
+        }
+    }
+
+    #[test]
+    fn an_action_with_a_set_number_keeps_needing_signatures() {
+        let stored = rule(SigningAction::GenerateReports, 2);
+        let off = SigningRule {
+            requirement: SigningRequirement::NotRequired,
+            ..stored.clone()
+        };
+        assert!(changes_fixed_signatures(&stored, &off));
+    }
+
+    #[test]
+    fn an_unset_number_or_that_of_an_action_needing_none_may_change() {
+        // Zero is the undefined default of a mandatory action.
+        assert!(!changes_fixed_signatures(
+            &rule(SigningAction::StartTally, 0),
+            &rule(SigningAction::StartTally, 2)
+        ));
+        // An action that needs no signatures may come to need any number.
+        let off = SigningRule {
+            signatures: 2,
+            ..SigningRule::default_for(SigningAction::GenerateReports)
+        };
+        for signatures in [1, 3] {
+            assert!(!changes_fixed_signatures(
+                &off,
+                &rule(SigningAction::GenerateReports, signatures)
+            ));
+        }
+    }
 }

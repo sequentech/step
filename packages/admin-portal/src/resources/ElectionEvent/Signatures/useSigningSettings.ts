@@ -328,9 +328,15 @@ export function usePeopleSearch(search: string) {
 export function useWriteErrorMessage() {
     const {t} = useTranslation()
     return useCallback(
-        (error: unknown, fallbackKey: string, {lockedDown = false} = {}) => {
+        (
+            error: unknown,
+            fallbackKey: string,
+            {lockedDown = false, fixedSignatures = false} = {}
+        ) => {
             const refusal = signingError(error)
-            return t(errorKey(refusal.code, lockedDown, refusal.reason) ?? fallbackKey)
+            return t(
+                errorKey(refusal.code, lockedDown, refusal.reason, fixedSignatures) ?? fallbackKey
+            )
         },
         [t]
     )

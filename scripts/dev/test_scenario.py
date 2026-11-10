@@ -1690,12 +1690,17 @@ class StackTest(StoreTestCase):
             mock.patch.object(
                 bootstrap, "hasura_accepts_admin_token", return_value=True
             ),
+            mock.patch.object(
+                bootstrap, "allow_unsigned_imports", calls.allow_unsigned_imports
+            ),
             mock.patch.object(self.backend, "_restore_otp_test_mode"),
         ):
             self.backend.authenticate()
         self.assertEqual(
-            [call[0] for call in calls.mock_calls], ["set_password", "sign_in"]
+            [call[0] for call in calls.mock_calls],
+            ["set_password", "sign_in", "allow_unsigned_imports"],
         )
+        calls.allow_unsigned_imports.assert_called_once_with(TENANT)
 
     def test_a_timeout_reports_the_last_observation_and_hint(self):
         with self.assertRaisesRegex(

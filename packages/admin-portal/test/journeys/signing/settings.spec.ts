@@ -81,7 +81,11 @@ test.describe("a configuration manager", () => {
         portal,
     }) => {
         mockSigningEvent(portal)
-        const state = tabState()
+        // Closing voting needs signatures, and is blocked until their number is set.
+        const state = tabState({
+            rules: [rule("close-voting", {signatures: 0})],
+            capacities: {"close-voting": capacity()},
+        })
         mockSignaturesTab(portal, state)
         portal.graphql.on("getRoles", () => ({
             data: {
@@ -112,7 +116,7 @@ test.describe("a configuration manager", () => {
                 data: {
                     signingPutRule: {
                         revision: 5,
-                        cancelled: ["f5000000-0000-4000-8000-000000000001"],
+                        cancelled: [],
                         rule: state.rules[0],
                         short_posts: [],
                         warnings: [],
@@ -127,9 +131,9 @@ test.describe("a configuration manager", () => {
             "Close voting",
             "Each election",
             SBEI_GROUP.name,
-            "1",
+            "Not configured — operation blocked",
             "1 hour",
-            "1",
+            "–",
             "",
         ])
         await expect(
@@ -139,11 +143,6 @@ test.describe("a configuration manager", () => {
         await row.getByRole("button", {name: "Edit Close voting"}).click()
         const drawer = page.locator(".MuiDrawer-paper")
         await expect(drawer.getByRole("heading", {name: "Close voting"})).toBeVisible()
-        await expect(
-            drawer.getByText(
-                "1 request is waiting for signatures under the current rule. Saving cancels it; the person who started it starts again."
-            )
-        ).toBeVisible()
         const save = drawer.getByRole("button", {name: "Save", exact: true})
         await expect(save).toBeDisabled()
         const signatures = drawer.getByRole("spinbutton", {name: "Signatures needed"})
@@ -182,6 +181,11 @@ test.describe("a configuration manager", () => {
         await expect(row.getByRole("cell").nth(2)).toHaveText(
             `${OFOV_GROUP.name}${SBEI_GROUP.name}`
         )
+        // Once saved, the number of signatures stays.
+        await row.getByRole("button", {name: "Edit Close voting"}).click()
+        await expect(signatures).toBeDisabled()
+        await expect(signatures).toHaveValue("2")
+        await expect(drawer.getByText("This number is fixed once saved.")).toBeVisible()
         expectRole(portal, "SigningPutRule", "signing-rules-write")
         expectRole(portal, "GetSigningRules", "signing-rules-read")
         expectRole(portal, "GetSigningRuleCapacities", "signing-rules-read")
@@ -211,7 +215,9 @@ test.describe("a security officer", () => {
         mockSignaturesTab(portal, state)
         portal.graphql.on("getUsers", ({variables}) => {
             const items = [MARIA, JOSE, ANA]
-                .filter((person) => person.username.includes(String(variables.username ?? "")))
+                .filter((person) =>
+                    person.username.includes((variables.username as {IsLike: string}).IsLike)
+                )
                 .map((person) => ({
                     id: person.userId,
                     username: person.username,

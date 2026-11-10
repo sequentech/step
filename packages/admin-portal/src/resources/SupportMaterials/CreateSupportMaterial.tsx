@@ -32,6 +32,7 @@ import ImageIcon from "@mui/icons-material/Image"
 import DescriptionIcon from "@mui/icons-material/Description"
 import {Sequent_Backend_Support_Material_Extended} from "./EditSuportMaterial"
 import {AudioInstructionsFields, withAudioInstructions} from "./AudioInstructionsFields"
+import {documentNameRefusal} from "@/services/serverRefusals"
 
 interface CreateSupportMaterialProps {
     record: any
@@ -127,14 +128,21 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
         setImageType(theFile.type)
 
         const uploadPromise = (async (): Promise<string | undefined> => {
-            let {data, errors} = await getUploadUrl({
+            const answer = await getUploadUrl({
                 variables: {
                     name: theFile.name,
                     media_type: theFile.type,
                     size: theFile.size,
                     election_event_id: record?.id,
                 },
+            }).catch((error: unknown) => {
+                notify(documentNameRefusal(t, error) ?? t("electionScreen.error.fileError"), {
+                    type: "error",
+                })
+                return null
             })
+            if (!answer) return undefined
+            let {data, errors} = answer
             if (!data?.get_upload_url?.document_id) {
                 console.log("error :>> ", errors)
                 notify(t("electionScreen.error.fileError"), {type: "error"})

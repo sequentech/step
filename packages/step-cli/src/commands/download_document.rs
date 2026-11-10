@@ -9,7 +9,7 @@ use colored::Colorize;
 #[derive(Args)]
 #[command(about = "Download a document (not tied to an election event) to a local file", long_about = None)]
 pub struct DownloadDocument {
-    /// Document id - as returned by e.g. export-tenant-config
+    /// Id of the document to download
     #[arg(long)]
     document_id: String,
 

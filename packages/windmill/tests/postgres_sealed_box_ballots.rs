@@ -17,6 +17,7 @@ mod event_database;
 #[path = "support/schema.rs"]
 mod schema;
 
+use base64::{engine::general_purpose::STANDARD, Engine};
 use chrono::Utc;
 use deadpool_postgres::Transaction;
 use electoral_log::adapters::ballot_box_seal::{
@@ -24,6 +25,7 @@ use electoral_log::adapters::ballot_box_seal::{
 };
 use electoral_log::adapters::postgres::append_in;
 use electoral_log::messages::message::{Message, SigningData};
+use electoral_log::messages::newtypes::EventIdString;
 use electoral_log::messages::statement::StatementType;
 use electoral_log::ports::ElectoralLogStore;
 use electoral_log::seal::{
@@ -39,25 +41,27 @@ use sequent_core::types::participation::ParticipationChannel;
 use serde_json::json;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::io::Read;
 use std::sync::Once;
 use uuid::Uuid;
 use voting_crypto::signing::SigningKey;
 use voting_crypto::{RecordDeserialize, RecordSerialize};
 use windmill::postgres::ballot_box_seal::{
-    insert_pending, list_for_elections, mark_published, mark_sealed, ClosedBy, NewPendingSeal,
-    PublishedFields, SealLogRecord, SealedFields,
+    insert_pending, list_for_elections, mark_failed, mark_published, mark_sealed, ClosedBy,
+    NewPendingSeal, PublishedFields, SealLogRecord, SealedFields,
 };
 use windmill::postgres::tally_session::get_tally_session_by_id;
 use windmill::postgres::tally_session_contest::insert_tally_session_contest;
 use windmill::services::ballot_box_seal::is_ballot_box_sealed;
-use windmill::services::ballot_box_seal::seal::seal_delivery_id;
+use windmill::services::ballot_box_seal::seal::{failure_delivery_id, seal_delivery_id};
 use windmill::services::ceremonies::sealed_box_ballots::{
-    check_sealed_boxes_tallied, sealed_box_ballots, sealed_elections, SealedBox, SealedBoxBallots,
-    SealedBoxLog,
+    check_sealed_boxes_tallied, sealed_box_ballots, sealed_elections, self_test_verify_box,
+    SealedBox, SealedBoxBallots, SealedBoxLog,
 };
 use windmill::services::ceremonies::tally_boards::sealed_boxes_for_execution;
 use windmill::services::election::get_election_event_elections;
 use windmill::services::electoral_log_board::create_protocol_manager_keys;
+use windmill::services::export::export_election_event::write_uncounted_ballot_boxes;
 
 const SESSION: &str = "tally-session";
 const ELECTION_NAME: &str = "Mayor";
@@ -290,6 +294,113 @@ impl World {
         self.publish_row(tx, &built, signed_message, SealLogRecord::from(&stored[0]))
             .await;
         message
+    }
+
+    /// Fails the seal as the sealer does: the failure's record on the board
+    /// and the failed seal in the event's database. The row takes it after.
+    async fn fail_seal(&self, reason: &str) {
+        let (event, election, area) = (
+            self.event.to_string(),
+            self.election.to_string(),
+            self.area.to_string(),
+        );
+        let ballot_box = BallotBoxId {
+            election_event_id: &event,
+            election_id: &election,
+            area_id: &area,
+        };
+        let message = Message::ballot_box_seal_failed_message(
+            EventIdString(event.clone()),
+            &election,
+            &area,
+            ELECTION_NAME,
+            AREA_NAME,
+            reason.to_string(),
+            &SigningData::new(self.key.clone(), "", self.key.clone()),
+        )
+        .unwrap();
+        let mut client = self.database.store.client().await.unwrap();
+        let event_tx = client.transaction().await.unwrap();
+        let stored = append_in(
+            &event_tx,
+            self.board(),
+            &[LogEntry {
+                delivery_id: failure_delivery_id(ballot_box),
+                message: (&message).try_into().unwrap(),
+            }],
+        )
+        .await
+        .unwrap();
+        assert!(insert_seal(
+            &event_tx,
+            &NewSeal {
+                ballot_box,
+                outcome: &StoredOutcome::Failed {
+                    reason: reason.to_string(),
+                },
+                signed_message: &message.record_serialize().unwrap(),
+                record: &stored[0],
+            },
+        )
+        .await
+        .unwrap());
+        event_tx.commit().await.unwrap();
+    }
+
+    /// What the self-test of the ballot boxes finds for this box.
+    async fn self_test(&self, tx: &Transaction<'_>) -> anyhow::Result<Option<String>> {
+        let (tenant, event, election, area) = (
+            self.tenant.to_string(),
+            self.event.to_string(),
+            self.election.to_string(),
+            self.area.to_string(),
+        );
+        self_test_verify_box(
+            tx,
+            &self.log(),
+            &SealedBox {
+                tenant_id: &tenant,
+                election_event_id: &event,
+                election_id: &election,
+                area_id: &area,
+                election_name: "",
+                area_name: "",
+                tally_session_id: "self-test",
+            },
+        )
+        .await
+    }
+
+    /// The box's seal row, pending as the close left it; returns its ID.
+    async fn pending_row(&self, tx: &Transaction<'_>) -> Uuid {
+        let now = Utc::now();
+        insert_pending(
+            tx,
+            &[NewPendingSeal {
+                tenant_id: self.tenant,
+                election_event_id: self.event,
+                election_id: self.election,
+                area_id: self.area,
+                closed_at: now,
+                grace_deadline: now,
+                close_request_id: None,
+                closed_by: ClosedBy::Scheduled,
+            }],
+        )
+        .await
+        .unwrap();
+        list_for_elections(tx, &self.tenant, &self.event, &[self.election])
+            .await
+            .unwrap()
+            .remove(0)
+            .id
+    }
+
+    /// The box's seal row, failed as the sealer leaves it after
+    /// [`World::fail_seal`].
+    async fn fail_row(&self, tx: &Transaction<'_>, reason: &str) {
+        let id = self.pending_row(tx).await;
+        mark_failed(tx, &id, reason, None).await.unwrap();
     }
 
     /// The box's seal row, published with the seal `built`.
@@ -911,6 +1022,344 @@ fn a_box_without_a_seal_row_is_an_error_not_a_rejection() {
         let error = w.count(&tx).await.unwrap_err();
         assert_eq!(error.to_string(), "The ballot box of North has no seal");
         assert!(w.rejections().await.is_empty());
+        w.finish().await;
+    })
+}
+
+#[test]
+fn a_failed_seal_refuses_the_count_and_is_no_finding_of_the_self_test() {
+    event_database::run(async {
+        let pool = schema::pool().await;
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let w = World::new(&tx, "seal-at-close").await;
+        cast_all(&w).await;
+        w.fail_seal("unreadable ballot").await;
+        w.fail_row(&tx, "unreadable ballot").await;
+
+        let error = w.count(&tx).await.unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "The seal of the ballot box of North failed: unreadable ballot"
+        );
+        assert!(w.rejections().await.is_empty());
+        assert_eq!(w.self_test(&tx).await.unwrap(), None);
+        w.finish().await;
+    })
+}
+
+/// The sealer stores a failed seal before its row says so: until then, the
+/// box is neither counted nor exempt from the self-test.
+#[test]
+fn a_failed_seal_its_row_does_not_record_yet_is_an_error() {
+    event_database::run(async {
+        let pool = schema::pool().await;
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let w = World::new(&tx, "seal-at-close").await;
+        cast_all(&w).await;
+        w.fail_seal("unreadable ballot").await;
+        w.pending_row(&tx).await;
+
+        let error = w.count(&tx).await.unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "The failed seal of the ballot box of North is not recorded yet"
+        );
+        assert!(w.rejections().await.is_empty());
+        let error = w.self_test(&tx).await.unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "The failed seal of the ballot box of  is not recorded yet"
+        );
+        w.finish().await;
+    })
+}
+
+/// A failed seal is exempt from the self-test only when its row says the
+/// seal failed.
+#[test]
+fn a_failed_seal_whose_row_says_otherwise_is_rejected() {
+    for published in [false, true] {
+        event_database::run(async move {
+            let pool = schema::pool().await;
+            let mut client = pool.get().await.unwrap();
+            let tx = client.transaction().await.unwrap();
+            let w = World::new(&tx, "seal-at-close").await;
+            let entries = cast_all(&w).await;
+            w.fail_seal("unreadable ballot").await;
+            if published {
+                let built = build(w.manifest(entries, 4)).unwrap();
+                let message = w.signed(built.manifest.clone(), &w.key);
+                w.publish_row(
+                    &tx,
+                    &built,
+                    message.record_serialize().unwrap(),
+                    SealLogRecord {
+                        delivery_id: "ballot-box-seal:elsewhere".into(),
+                        log_uid: Uuid::new_v4(),
+                        leaf_index: 1,
+                    },
+                )
+                .await;
+            }
+            let reason =
+                "the stored seal of this ballot box failed, but its seal row doesn't say so";
+            assert_eq!(w.self_test(&tx).await.unwrap().as_deref(), Some(reason));
+            assert_rejected(&w, &tx, reason).await;
+            w.finish().await;
+        })
+    }
+}
+
+/// The files of the export of the world's ballot boxes that no tally counted, in
+/// archive order, each with its lines.
+async fn exported_boxes(tx: &Transaction<'_>, w: &World) -> Vec<(String, Vec<serde_json::Value>)> {
+    let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    write_uncounted_ballot_boxes(
+        &mut zip,
+        zip::write::SimpleFileOptions::default(),
+        tx,
+        &w.database.store,
+        &w.tenant.to_string(),
+        &w.event.to_string(),
+    )
+    .await
+    .unwrap();
+    let mut archive = zip::ZipArchive::new(zip.finish().unwrap()).unwrap();
+    (0..archive.len())
+        .map(|index| {
+            let mut file = archive.by_index(index).unwrap();
+            let mut text = String::new();
+            file.read_to_string(&mut text).unwrap();
+            let lines = text
+                .lines()
+                .map(|line| serde_json::from_str(line).unwrap())
+                .collect();
+            (file.name().to_string(), lines)
+        })
+        .collect()
+}
+
+/// The voter, content and status of each ballot of an exported box.
+fn exported_ballots(lines: &[serde_json::Value]) -> Vec<(&str, &str, &str)> {
+    lines[1..]
+        .iter()
+        .map(|ballot| {
+            (
+                ballot["voter_id"].as_str().unwrap(),
+                ballot["content"].as_str().unwrap(),
+                ballot["status"].as_str().unwrap(),
+            )
+        })
+        .collect()
+}
+
+/// Every ballot [`cast_all`] casts, in acceptance order.
+const CAST: [(&str, &str, &str); 5] = [
+    ("alice", "alice-old", "valid"),
+    ("alice", "alice-new", "valid"),
+    ("bob", "bob", "valid"),
+    ("carol", "carol", "rejected"),
+    ("dave", "dave", "valid"),
+];
+
+/// Deleting the event drops a box whose seal failed: its export keeps the
+/// failure as stored, with its record and row, and every ballot of the box.
+#[test]
+fn the_export_keeps_a_box_whose_seal_failed_with_every_ballot() {
+    event_database::run(async {
+        let pool = schema::pool().await;
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let w = World::new(&tx, "seal-at-close").await;
+        cast_all(&w).await;
+        w.fail_seal("unreadable ballot").await;
+        w.fail_row(&tx, "unreadable ballot").await;
+
+        let files = exported_boxes(&tx, &w).await;
+        assert_eq!(files.len(), 1);
+        let (name, lines) = &files[0];
+        assert_eq!(
+            name,
+            &format!("failed-ballot-boxes/{}/{}.jsonl", w.election, w.area)
+        );
+
+        let failure = &lines[0];
+        assert_eq!(failure["reason"], "unreadable ballot");
+        assert_eq!(failure["seal_row"]["status"], "failed");
+        assert_eq!(failure["seal_row"]["failure_reason"], "unreadable ballot");
+        let (event, election, area) = (
+            w.event.to_string(),
+            w.election.to_string(),
+            w.area.to_string(),
+        );
+        assert_eq!(
+            failure["log_delivery_id"],
+            failure_delivery_id(BallotBoxId {
+                election_event_id: &event,
+                election_id: &election,
+                area_id: &area,
+            })
+        );
+        let on_board = w.entries(StatementType::BallotBoxSealFailed).await;
+        assert_eq!(
+            STANDARD
+                .decode(failure["signed_message"].as_str().unwrap())
+                .unwrap(),
+            on_board[0].record_serialize().unwrap()
+        );
+        assert_eq!(exported_ballots(lines), CAST);
+        assert!(lines[1..]
+            .iter()
+            .all(|ballot| ballot["ballot_id"]
+                == format!("id-{}", ballot["content"].as_str().unwrap())));
+        w.finish().await;
+    })
+}
+
+/// A sealed box that no tally counted is exported with its seal and every
+/// ballot, until a successful results tally counts it.
+#[test]
+fn the_export_keeps_a_sealed_box_until_a_tally_counts_it() {
+    event_database::run(async {
+        let pool = schema::pool().await;
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let w = World::new(&tx, "seal-at-close").await;
+        let manifest = w.manifest(cast_all(&w).await, 4);
+        let message = w.seal(&tx, manifest.clone(), &w.key).await;
+        let (tenant, event, election, area) = (
+            w.tenant.to_string(),
+            w.event.to_string(),
+            w.election.to_string(),
+            w.area.to_string(),
+        );
+
+        let files = exported_boxes(&tx, &w).await;
+        assert_eq!(files.len(), 1);
+        let (name, lines) = &files[0];
+        assert_eq!(
+            name,
+            &format!("sealed-uncounted-ballot-boxes/{election}/{area}.jsonl")
+        );
+        let seal = &lines[0];
+        let built = build(manifest).unwrap();
+        assert_eq!(seal["seal_hash"], hex::encode(built.hash));
+        assert_eq!(
+            STANDARD.decode(seal["manifest"].as_str().unwrap()).unwrap(),
+            built.bytes
+        );
+        assert_eq!(seal["ballots_in_box"], 5);
+        assert_eq!(seal["ballots_counted"], 2);
+        assert_eq!(seal["seal_row"]["status"], "published");
+        assert_eq!(
+            seal["log_delivery_id"],
+            seal_delivery_id(BallotBoxId {
+                election_event_id: &event,
+                election_id: &election,
+                area_id: &area,
+            })
+        );
+        assert_eq!(
+            STANDARD
+                .decode(seal["signed_message"].as_str().unwrap())
+                .unwrap(),
+            message.record_serialize().unwrap()
+        );
+        assert!(seal.get("reason").is_none());
+        assert_eq!(exported_ballots(lines), CAST);
+
+        // A tally that failed counted nothing.
+        let failed = create_session(&tx, &w).await;
+        insert_tally_session_contest(&tx, &tenant, &event, &area, None, 1, &failed, &election)
+            .await
+            .unwrap();
+        complete_results(&tx, &failed, "FAILED").await;
+        assert_eq!(exported_boxes(&tx, &w).await.len(), 1);
+
+        let counted = create_session(&tx, &w).await;
+        insert_tally_session_contest(&tx, &tenant, &event, &area, None, 1, &counted, &election)
+            .await
+            .unwrap();
+        complete_results(&tx, &counted, "SUCCESS").await;
+        assert!(exported_boxes(&tx, &w).await.is_empty());
+        w.finish().await;
+    })
+}
+
+/// A box without a seal, such as one whose seal never ran, is exported with
+/// every ballot and its seal row, if any.
+#[test]
+fn the_export_keeps_a_box_without_a_seal_with_every_ballot() {
+    event_database::run(async {
+        let pool = schema::pool().await;
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let w = World::new(&tx, "seal-at-close").await;
+        cast_all(&w).await;
+        w.pending_row(&tx).await;
+
+        let files = exported_boxes(&tx, &w).await;
+        assert_eq!(files.len(), 1);
+        let (name, lines) = &files[0];
+        assert_eq!(
+            name,
+            &format!(
+                "unsealed-uncounted-ballot-boxes/{}/{}.jsonl",
+                w.election, w.area
+            )
+        );
+        assert_eq!(lines[0]["seal_row"]["status"], "pending");
+        assert!(lines[0].get("signed_message").is_none());
+        assert_eq!(exported_ballots(lines), CAST);
+        w.finish().await;
+    })
+}
+
+/// Marks `session` a completed results tally that ended with `status`.
+async fn complete_results(tx: &Transaction<'_>, session: &str, status: &str) {
+    tx.execute(
+        "UPDATE sequent_backend.tally_session SET tally_type = 'ELECTORAL_RESULTS', \
+         execution_status = $2, is_execution_completed = true WHERE id = $1::text::uuid",
+        &[&session, &status],
+    )
+    .await
+    .unwrap();
+}
+
+#[test]
+fn the_self_test_still_finds_a_seal_on_the_board_of_a_box_whose_seal_failed() {
+    event_database::run(async {
+        let pool = schema::pool().await;
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let w = World::new(&tx, "seal-at-close").await;
+        let entries = cast_all(&w).await;
+        w.fail_seal("unreadable ballot").await;
+        w.post(&w.signed(w.manifest(entries, 4), &w.key)).await;
+
+        assert_eq!(
+            w.self_test(&tx).await.unwrap().as_deref(),
+            Some(
+                "the bulletin board holds the seal of this ballot box, but the stored seal failed"
+            )
+        );
+        w.finish().await;
+    })
+}
+
+#[test]
+fn the_self_test_still_cannot_verify_a_box_without_a_seal() {
+    event_database::run(async {
+        let pool = schema::pool().await;
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let w = World::new(&tx, "seal-at-close").await;
+        cast_all(&w).await;
+
+        let error = w.self_test(&tx).await.unwrap_err();
+        assert_eq!(error.to_string(), "The ballot box of  has no seal");
         w.finish().await;
     })
 }

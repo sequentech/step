@@ -4,60 +4,60 @@ table:
     name: event_execution
     schema: sequent_backend
 insert_permissions:
--   comment: ''
-    permission:
-        check: {}
-        columns:
-        - execution_state
-        - annotations
-        - execution_payload
-        - labels
-        - result_payload
-        - ended_at
-        - started_at
-        - election_event_id
-        - id
-        - scheduled_event_id
-        - tenant_id
-    role: service-account
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - execution_state
+              - annotations
+              - execution_payload
+              - labels
+              - result_payload
+              - ended_at
+              - started_at
+              - election_event_id
+              - id
+              - scheduled_event_id
+              - tenant_id
+      role: service-account
 select_permissions:
--   comment: ''
-    permission:
-        allow_aggregations: true
-        columns:
-        - execution_state
-        - annotations
-        - execution_payload
-        - labels
-        - result_payload
-        - ended_at
-        - started_at
-        - election_event_id
-        - id
-        - scheduled_event_id
-        - tenant_id
-        filter: {}
-    role: service-account
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - execution_state
+              - annotations
+              - execution_payload
+              - labels
+              - result_payload
+              - ended_at
+              - started_at
+              - election_event_id
+              - id
+              - scheduled_event_id
+              - tenant_id
+          filter: {}
+      role: service-account
 update_permissions:
--   comment: ''
-    permission:
-        check: {}
-        columns:
-        - execution_state
-        - annotations
-        - execution_payload
-        - labels
-        - result_payload
-        - ended_at
-        - started_at
-        - election_event_id
-        - id
-        - scheduled_event_id
-        - tenant_id
-        filter: {}
-    role: service-account
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - execution_state
+              - annotations
+              - execution_payload
+              - labels
+              - result_payload
+              - ended_at
+              - started_at
+              - election_event_id
+              - id
+              - scheduled_event_id
+              - tenant_id
+          filter: {}
+      role: service-account
 delete_permissions:
--   comment: ''
-    permission:
-        filter: {}
-    role: service-account
+    - comment: ""
+      permission:
+          filter: {}
+      role: service-account

@@ -713,6 +713,15 @@ pub async fn change_election_voting_status(
     let election_event_id = election_event_id.to_string();
     let election_id = election_id.to_string();
     let new_status = new_status.clone();
+    // Read-modify-write of the Post's status: no concurrent change in
+    // between, nor an archiving of its event.
+    lock_status_rows(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        Some(&election_id),
+    )
+    .await?;
     let election_event =
         get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id)
             .await
@@ -723,15 +732,6 @@ pub async fn change_election_voting_status(
         return Ok(false);
     }
 
-    // Read-modify-write of the Post's status: no concurrent change in
-    // between.
-    lock_status_rows(
-        hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        Some(&election_id),
-    )
-    .await?;
     let Some(election) = get_election_by_id(
         hasura_transaction,
         &tenant_id,

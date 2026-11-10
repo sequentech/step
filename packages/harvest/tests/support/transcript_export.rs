@@ -36,7 +36,16 @@ struct Fixture {
     session: Uuid,
     election: Uuid,
 }
+/// The boards of a completed count, in post-processing.
 async fn fixture(services: &Services) -> Fixture {
+    let f = fixture_in_preparation(services).await;
+    f.event.enter_phase(&services.hasura, "evaluation").await;
+    f.event
+        .enter_phase(&services.hasura, "post_processing")
+        .await;
+    f
+}
+async fn fixture_in_preparation(services: &Services) -> Fixture {
     let event = rows::event(&services.hasura).await;
     let tenant = Uuid::parse_str(&event.tenant_id).unwrap();
     let event_id = Uuid::parse_str(&event.election_event_id).unwrap();
@@ -89,6 +98,7 @@ async fn exports_raw_public_evidence_to_a_new_private_event_document() {
     let source = Arc::new(Source::default());
     s.transcripts = source.clone();
     let f = fixture(&s).await;
+    let mut exported = vec![];
     for board in [f.child] {
         let (status, body) = call(&s, &claims(&f), request(&f, board)).await;
         assert_eq!(status, Status::Ok, "{body}");
@@ -116,9 +126,14 @@ async fn exports_raw_public_evidence_to_a_new_private_event_document() {
             .download(&f.event.tenant_id, &doc)
             .await
             .unwrap();
-        let contents: Value =
-            serde_json::from_slice(&std::fs::read(file.path()).unwrap())
-                .unwrap();
+        let bytes = std::fs::read(file.path()).unwrap();
+        exported.push(json!({
+            "exported_by": "board",
+            "protocol_board_id": board,
+            "document_id": id,
+            "sha256": hex::encode(voting_crypto::hash::hash_sha256(&bytes).unwrap()),
+        }));
+        let contents: Value = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(contents["version"], 1);
         assert_eq!(contents["dkg_messages"], json!(["AAEC"]));
         assert_eq!(
@@ -137,6 +152,87 @@ async fn exports_raw_public_evidence_to_a_new_private_event_document() {
             Some(BoardName::for_tally(&f.session, 0).to_string())
         )]
     );
+    assert_eq!(exports_logged(&s, &f).await, exported);
+}
+
+/// The details of each recorded export of verification data, for the
+/// electoral log of the event.
+async fn exports_logged(s: &Services, f: &Fixture) -> Vec<Value> {
+    rows::query(&s.hasura, "SELECT details FROM sequent_backend.lifecycle_notice WHERE election_event_id=$1 AND kind='VerificationDataExported' ORDER BY created_at", &[&Uuid::parse_str(&f.event.election_event_id).unwrap()])
+        .await
+        .iter()
+        .map(|row| row.get(0))
+        .collect()
+}
+
+#[rocket::async_test]
+async fn refuses_verification_data_before_post_processing() {
+    let mut s = Services::on_test_database().await;
+    let source = Arc::new(Source::default());
+    s.transcripts = source.clone();
+    let f = fixture_in_preparation(&s).await;
+    for phase in ["Preparation", "Evaluation"] {
+        if phase == "Evaluation" {
+            f.event.enter_phase(&s.hasura, "evaluation").await;
+        }
+        let (status, body) = call(&s, &claims(&f), request(&f, f.child)).await;
+        assert_eq!(status, Status::Conflict, "{body}");
+        assert_eq!(
+            body["message"],
+            format!("This operation requires electoral phase PostProcessing; current phase is {phase}")
+        );
+    }
+    assert!(source.0.lock().unwrap().is_empty());
+    assert!(exports_logged(&s, &f).await.is_empty());
+    f.event.enter_phase(&s.hasura, "post_processing").await;
+    for _ in 0..2 {
+        let (status, body) = call(&s, &claims(&f), request(&f, f.child)).await;
+        assert_eq!(status, Status::Ok, "{body}");
+    }
+    assert_eq!(exports_logged(&s, &f).await.len(), 2);
+}
+
+#[rocket::async_test]
+async fn each_download_of_exported_verification_data_is_logged() {
+    let mut s = Services::on_test_database().await;
+    s.transcripts = Arc::new(Source::default());
+    let f = fixture(&s).await;
+    let (status, body) = call(&s, &claims(&f), request(&f, f.child)).await;
+    assert_eq!(status, Status::Ok, "{body}");
+    let exported = body["document_id"].as_str().unwrap();
+    let other = f
+        .event
+        .document(&s.hasura, "record.json", "application/json", None)
+        .await;
+    let reader = Claims::new(&f.event.tenant_id, "reader")
+        .roles([Permissions::DOCUMENT_DOWNLOAD]);
+    let client = s.client().await;
+    for document in [exported, exported, other.as_str()] {
+        let input = json!({"election_event_id":f.event.election_event_id,"document_id":document});
+        let (status, body) =
+            json(post(&client, "/fetch-document", &reader, &input).await).await;
+        assert_eq!(status, Status::Ok, "{body}");
+        assert_eq!(body["url"], format!("https://documents.test/{document}"));
+    }
+    let download = json!({
+        "downloaded_by": "reader",
+        "protocol_board_id": f.child,
+        "document_id": exported,
+    });
+    assert_eq!(
+        downloads_logged(&s, &f).await,
+        vec![download.clone(), download]
+    );
+    assert_eq!(exports_logged(&s, &f).await.len(), 1);
+}
+
+/// The details of each recorded download of exported verification data.
+async fn downloads_logged(s: &Services, f: &Fixture) -> Vec<Value> {
+    rows::query(&s.hasura, "SELECT details FROM sequent_backend.lifecycle_notice WHERE election_event_id=$1 AND kind='VerificationDataDownloaded' ORDER BY created_at", &[&Uuid::parse_str(&f.event.election_event_id).unwrap()])
+        .await
+        .iter()
+        .map(|row| row.get(0))
+        .collect()
 }
 
 #[rocket::async_test]
@@ -248,9 +344,39 @@ async fn accepts_no_caller_url_path_or_tenant_override() {
 fn listing(content: Value, url: Option<&str>) -> Value {
     json!({"messages":[{"id":"1","version":"2","content_type":content,"download_url":url}]})
 }
+/// `export_messages_bounded` allows two exports at once in the whole process
+/// and refuses a third before it connects, so the tests that call it take
+/// turns.
+static NATIVE_EXPORTS: tokio::sync::Mutex<()> =
+    tokio::sync::Mutex::const_new(());
+
+/// The next connection to `listener`. A refused export never connects: that
+/// fails the test instead of hanging it.
+fn accept(listener: &std::net::TcpListener) -> std::net::TcpStream {
+    listener.set_nonblocking(true).unwrap();
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    loop {
+        match listener.accept() {
+            Ok((stream, _)) => {
+                stream.set_nonblocking(false).unwrap();
+                return stream;
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "the export did not connect"
+                );
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            Err(error) => panic!("{error}"),
+        }
+    }
+}
+
 #[rocket::async_test]
 async fn native_export_preserves_bytes_and_enforces_metadata_message_and_version_bounds(
 ) {
+    let _turn = NATIVE_EXPORTS.lock().await;
     let board = BoardName::for_dkg(&Uuid::new_v4());
     let path = format!("/boards/{board}/messages");
     for (body, metadata, bytes, count, success) in [
@@ -288,6 +414,7 @@ async fn native_export_preserves_bytes_and_enforces_metadata_message_and_version
 #[rocket::async_test]
 async fn native_export_checks_blob_origin_bucket_board_key_and_refuses_redirects(
 ) {
+    let _turn = NATIVE_EXPORTS.lock().await;
     let board = BoardName::for_dkg(&Uuid::new_v4());
     let object = Uuid::new_v4().to_string();
     let key = format!("{board}/messages/{object}");
@@ -344,11 +471,12 @@ async fn native_export_checks_blob_origin_bucket_board_key_and_refuses_redirects
 
 #[rocket::async_test]
 async fn native_export_timeout_cancels_the_actual_http_socket() {
+    let _turn = NATIVE_EXPORTS.lock().await;
     use std::io::Read;
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
     let peer = std::thread::spawn(move || {
-        let (mut stream, _) = listener.accept().unwrap();
+        let mut stream = accept(&listener);
         stream
             .set_read_timeout(Some(Duration::from_secs(2)))
             .unwrap();
@@ -374,6 +502,7 @@ async fn native_export_timeout_cancels_the_actual_http_socket() {
 
 #[rocket::async_test]
 async fn canceled_callers_do_not_release_running_native_export_capacity() {
+    let _turn = NATIVE_EXPORTS.lock().await;
     use std::io::Read;
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
@@ -381,7 +510,7 @@ async fn canceled_callers_do_not_release_running_native_export_capacity() {
     let peer = std::thread::spawn(move || {
         let mut workers = Vec::new();
         for _ in 0..2 {
-            let (mut stream, _) = listener.accept().unwrap();
+            let mut stream = accept(&listener);
             let accepted = accepted_tx.clone();
             workers.push(std::thread::spawn(move || {
                 stream
@@ -473,11 +602,12 @@ async fn transport_failure_does_not_return_presigned_urls_or_create_documents()
 
 #[rocket::async_test]
 async fn native_export_bounds_chunked_bodies_without_content_length() {
+    let _turn = NATIVE_EXPORTS.lock().await;
     use std::io::{Read, Write};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
     let peer = std::thread::spawn(move || {
-        let (mut stream, _) = listener.accept().unwrap();
+        let mut stream = accept(&listener);
         stream
             .set_read_timeout(Some(Duration::from_secs(2)))
             .unwrap();

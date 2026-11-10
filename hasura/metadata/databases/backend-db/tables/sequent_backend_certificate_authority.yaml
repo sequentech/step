@@ -143,23 +143,5 @@ select_permissions:
 delete_permissions:
     - comment: ""
       permission:
-          filter:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - purpose:
-                        _eq: voter-sign-in
-      role: admin-user
-    - comment: ""
-      permission:
-          filter:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - purpose:
-                        _eq: voter-sign-in
-      role: ca-write
-    - comment: ""
-      permission:
           filter: {}
       role: service-account

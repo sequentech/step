@@ -4,7 +4,7 @@
 //! The ballot publication, publication file and ballot style adapters
 //! against the migrated schema. Every test writes its own rows in a
 //! transaction, checks them with independent SQL and rolls the transaction back.
-//! The publication handoff test removes its committed cross-connection fixtures.
+//! The publication handoff and row lock tests remove their committed fixtures.
 
 #[path = "support/schema.rs"]
 mod schema;
@@ -472,6 +472,9 @@ async fn a_generation_worker_waits_for_publication_commit_without_blocking_the_t
     }
 
     let cleanup = producer.transaction().await.unwrap();
+    // The lifecycle row of an event goes with it only in the server's own
+    // transaction.
+    windmill::postgres::trusted_write(&cleanup).await.unwrap();
     for table in [
         "tasks_execution",
         "ballot_publication",
@@ -498,11 +501,15 @@ async fn a_generation_worker_waits_for_publication_commit_without_blocking_the_t
 
 #[tokio::test]
 async fn lock_publication_event_row_locks_only_the_requested_event() {
+    // The events are committed first: the foreign key of a new event's
+    // lifecycle row locks the event in the transaction that creates it.
     let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
+    let setup = client.transaction().await.unwrap();
+    let f = Fixture::new(&setup, line!());
     let a = f.scope().await;
     f.event_in(a.tenant).await;
+    setup.commit().await.unwrap();
+    let tx = client.transaction().await.unwrap();
 
     ballot_publication::lock_publication_event(&tx, &a.tenant_id(), &a.event_id())
         .await
@@ -522,6 +529,19 @@ async fn lock_publication_event_row_locks_only_the_requested_event() {
         .collect();
     assert_eq!(locked, vec![a.event]);
     tx.rollback().await.unwrap();
+
+    let cleanup = client.transaction().await.unwrap();
+    windmill::postgres::trusted_write(&cleanup).await.unwrap();
+    for (table, column) in [("election_event", "tenant_id"), ("tenant", "id")] {
+        cleanup
+            .execute(
+                &format!("DELETE FROM sequent_backend.{table} WHERE {column} = $1"),
+                &[&a.tenant],
+            )
+            .await
+            .unwrap();
+    }
+    cleanup.commit().await.unwrap();
 }
 
 #[tokio::test]

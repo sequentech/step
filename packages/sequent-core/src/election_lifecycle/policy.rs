@@ -158,6 +158,17 @@ pub fn post_processing_allowed(
     }
     Ok(())
 }
+/// The board operations on election execution data, its export and its
+/// deletion: in post-processing and, for an archived event, in preparation. An
+/// archived event still in preparation never opened voting and never returns
+/// to it.
+pub fn execution_data_operations_allowed(
+    phase: ElectoralPhase,
+    archived: bool,
+) -> bool {
+    phase == ElectoralPhase::PostProcessing
+        || (phase == ElectoralPhase::Preparation && archived)
+}
 
 #[cfg(test)]
 mod tests {
@@ -402,5 +413,27 @@ mod tests {
                 Err(LifecycleRefusal::WrongPhase)
             );
         }
+    }
+    #[test]
+    fn execution_data_operations_need_postprocessing_or_an_archived_preparation(
+    ) {
+        for archived in [false, true] {
+            assert!(execution_data_operations_allowed(
+                ElectoralPhase::PostProcessing,
+                archived
+            ));
+            for phase in [ElectoralPhase::Execution, ElectoralPhase::Evaluation]
+            {
+                assert!(!execution_data_operations_allowed(phase, archived));
+            }
+        }
+        assert!(execution_data_operations_allowed(
+            ElectoralPhase::Preparation,
+            true
+        ));
+        assert!(!execution_data_operations_allowed(
+            ElectoralPhase::Preparation,
+            false
+        ));
     }
 }

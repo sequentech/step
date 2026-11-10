@@ -136,12 +136,15 @@ export const test = base.extend<
         graphql.on("GetHeldReportRequests", () => ({
             data: {signingHeldReportRequests: {requests: []}},
         }))
+        // The administrator's re-voting settings list no elections unless a journey supplies them.
+        graphql.on("GetElectionRevoting", () => ({data: {sequent_backend_election: []}}))
         const tenant = {
             id: TENANT_ID,
             slug: "synthetic",
             annotations: {},
             settings: {
                 language_conf: {enabled_language_codes: ["en"], default_language_code: "en"},
+                configuration_signing: {policy: "optional"},
             },
             is_active: true,
             labels: {},
@@ -151,14 +154,18 @@ export const test = base.extend<
             test: true,
         }
         const secondTenant = {...tenant, id: SECOND_TENANT_ID, slug: "second"}
+        // The anonymous tenant lookup answers only a tenant's id and look.
+        const signIn = ({id, annotations}: {id: string; annotations: object}) => ({id, annotations})
         graphql.on("GetTenantBySlug", ({variables}) => ({
             data: {
-                sequent_backend_tenant: [tenant, secondTenant].filter(
-                    (row) => row.slug === variables.slug
-                ),
+                sequent_backend_tenant_for_sign_in: [tenant, secondTenant]
+                    .filter((row) => row.slug === variables.slug)
+                    .map(signIn),
             },
         }))
-        graphql.on("GetTenantById", () => ({data: {sequent_backend_tenant: [tenant]}}))
+        graphql.on("GetTenantById", () => ({
+            data: {sequent_backend_tenant_for_sign_in: [signIn(tenant)]},
+        }))
         graphql.on("sequent_backend_tenant", ({headers}) => {
             const token = headers.authorization?.replace(/^Bearer /, "")
             const claims = token ? oidc.verifyAccessToken(token) : undefined

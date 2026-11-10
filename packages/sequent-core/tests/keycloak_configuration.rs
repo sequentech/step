@@ -63,6 +63,8 @@ fn admin_environment(url: &str) -> Environment {
         ("KEYCLOAK_URL", Some(url)),
         ("KEYCLOAK_ADMIN_CLIENT_ID", Some(ADMIN_CLIENT_ID)),
         ("KEYCLOAK_ADMIN_CLIENT_SECRET", Some(ADMIN_CLIENT_SECRET)),
+        ("KEYCLOAK_ADMIN_API_CLIENT_ID", None),
+        ("KEYCLOAK_ADMIN_API_CLIENT_SECRET", None),
         ("SUPER_ADMIN_TENANT_ID", Some("north")),
     ])
 }
@@ -600,6 +602,74 @@ async fn fresh_admin_clients_propagate_denied_authentication() {
     let public = KeycloakAdminClient::pub_new().await.unwrap();
     assert_eq!(public.url, peer.url);
     assert_eq!(peer.finish().len(), 4);
+}
+
+#[rocket::async_test]
+async fn dedicated_admin_api_client_uses_client_credentials_in_master() {
+    const API_CLIENT_SECRET: &str = "synthetic-admin-api-secret";
+    let endpoint = ADMIN_TOKEN_PATH;
+    let peer = HttpServer::start(vec![
+        Exchange::json("POST", endpoint, 200, http::token_json()),
+        Exchange::json("POST", endpoint, 200, http::token_json()),
+    ]);
+    let _environment = Environment::set(&[
+        ("KEYCLOAK_URL", Some(&peer.url)),
+        ("KEYCLOAK_ADMIN_API_CLIENT_ID", Some("admin-api")),
+        ("KEYCLOAK_ADMIN_API_CLIENT_SECRET", Some(API_CLIENT_SECRET)),
+        // The master realm user settings stay for other deployments; the
+        // dedicated client takes precedence when both of its values are set.
+        ("KEYCLOAK_ADMIN_CLIENT_ID", Some(ADMIN_CLIENT_ID)),
+        ("KEYCLOAK_ADMIN_CLIENT_SECRET", Some(ADMIN_CLIENT_SECRET)),
+        ("SUPER_ADMIN_TENANT_ID", None),
+    ]);
+    KeycloakAdminClient::new_requested().await.unwrap();
+    let public = KeycloakAdminClient::pub_new().await.unwrap();
+    assert_eq!(public.url, peer.url);
+    let requests = peer.finish();
+    assert_eq!(requests.len(), 2);
+    for request in requests {
+        let form: std::collections::HashMap<String, String> =
+            serde_urlencoded::from_str(&request.body).unwrap();
+        assert_eq!(form["grant_type"], "client_credentials");
+        assert_eq!(form["client_id"], "admin-api");
+        assert_eq!(form["client_secret"], API_CLIENT_SECRET);
+        assert!(!form.contains_key("username"));
+        assert!(!form.contains_key("password"));
+    }
+}
+
+#[rocket::async_test]
+async fn half_configured_admin_api_client_fails_before_any_request() {
+    const API_CLIENT_SECRET: &str = "synthetic-admin-api-secret";
+    let peer = HttpServer::start(vec![]);
+    for partial in [
+        ("KEYCLOAK_ADMIN_API_CLIENT_ID", Some("admin-api")),
+        ("KEYCLOAK_ADMIN_API_CLIENT_SECRET", Some(API_CLIENT_SECRET)),
+    ] {
+        let missing = if partial.0 == "KEYCLOAK_ADMIN_API_CLIENT_ID" {
+            "KEYCLOAK_ADMIN_API_CLIENT_SECRET"
+        } else {
+            "KEYCLOAK_ADMIN_API_CLIENT_ID"
+        };
+        let _environment = Environment::set(&[
+            ("KEYCLOAK_URL", Some(&peer.url)),
+            partial,
+            (missing, None),
+            ("KEYCLOAK_ADMIN_CLIENT_ID", Some(ADMIN_CLIENT_ID)),
+            ("KEYCLOAK_ADMIN_CLIENT_SECRET", Some(ADMIN_CLIENT_SECRET)),
+        ]);
+        for error in [
+            KeycloakAdminClient::new_requested().await.err().unwrap(),
+            KeycloakAdminClient::pub_new().await.err().unwrap(),
+        ] {
+            assert_eq!(
+                error.to_string(),
+                "KEYCLOAK_ADMIN_API_CLIENT_ID and KEYCLOAK_ADMIN_API_CLIENT_SECRET must be set together"
+            );
+            assert!(!format!("{error:?}").contains(API_CLIENT_SECRET));
+        }
+    }
+    assert!(peer.finish().is_empty());
 }
 
 #[rocket::async_test]

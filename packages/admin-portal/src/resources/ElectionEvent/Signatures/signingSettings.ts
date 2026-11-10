@@ -101,6 +101,17 @@ export const defaultRule = (action: SigningAction): ISigningRule => ({
     revision: 0,
 })
 
+/**
+ * Whether a rule's number of signatures stays as saved: an action that needs signatures
+ * keeps the number it was first saved with, and keeps needing them. Until then (a
+ * mandatory action's 0, or an action that needs none) it can still be set.
+ */
+export const signaturesFixed = (
+    rule: Pick<ISigningRule, "action" | "requirement" | "signatures">
+): boolean =>
+    (mandatorySigningAction(rule.action) || rule.requirement === SigningRequirement.Required) &&
+    rule.signatures > 0
+
 export const ruleOf = <R extends ISigningRule>(
     action: SigningAction,
     rules: ReadonlyArray<R>
@@ -560,18 +571,23 @@ export function signingError(error: unknown): ISigningError {
 
 /**
  * The message of a refused write, or null for the write's own fallback. The
- * server refuses a rule edit of a locked-down event as invalid input.
+ * server refuses a rule edit of a locked-down event as invalid input, and
+ * another number for a rule whose number of signatures stays (`fixedSignatures`)
+ * as out of range.
  */
 export function errorKey(
     code: SigningErrorCode,
     lockedDown: boolean,
-    reason?: string
+    reason?: string,
+    fixedSignatures = false
 ): string | null {
     switch (code) {
         case SigningErrorCode.Forbidden:
             return "signing.errors.forbidden"
         case SigningErrorCode.Invalid:
             if (lockedDown) return "signing.errors.lockedDown"
+            if (fixedSignatures && reason === "out-of-range")
+                return "signing.errors.signaturesFixed"
             return reason === "automated-ceremonies"
                 ? "signing.errors.automatedCeremonies"
                 : "signing.errors.invalid"

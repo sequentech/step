@@ -137,10 +137,11 @@ pub const CONFIGURATION_SIGNING_SETTING: &str = "configuration_signing";
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ConfigurationSigningPolicy {
-    /// A signed package is checked; an unsigned file imports as before.
-    #[default]
+    /// A signed package is checked; an unsigned file imports as before. Only
+    /// a setting that names this policy has it.
     Optional,
     /// Only a signed package that passes every check imports.
+    #[default]
     Required,
 }
 
@@ -194,9 +195,9 @@ pub enum Admission {
 }
 
 /// The check an importer runs before reading anything in `bytes`: a signed
-/// package is verified, and an unsigned file is refused where the policy
-/// requires signatures. `revocation_lists` are the lists (DER) the
-/// installation has seen.
+/// package is verified, and an unsigned file is refused unless the settings
+/// allow it (see [`signatures_required`]). `revocation_lists` are the lists
+/// (DER) the installation has seen.
 ///
 /// Without a clock, a signing time is taken at the package's word. An
 /// importer that has one calls [`admit_at`].
@@ -219,17 +220,23 @@ pub fn admit_at(
     admission(bytes, settings, revocation_lists, Some(now))
 }
 
+/// Whether `settings` require a signed package: they do unless they name the
+/// policy [`ConfigurationSigningPolicy::Optional`]. An installation without
+/// the setting requires one.
+pub fn signatures_required(settings: Option<&ConfigurationSigning>) -> bool {
+    settings.is_none_or(|settings| {
+        settings.policy == ConfigurationSigningPolicy::Required
+    })
+}
+
 fn admission(
     bytes: &[u8],
     settings: Option<&ConfigurationSigning>,
     revocation_lists: Vec<Vec<u8>>,
     now: Option<DateTime<Utc>>,
 ) -> Result<Admission, Report> {
-    let required = settings.is_some_and(|settings| {
-        settings.policy == ConfigurationSigningPolicy::Required
-    });
     if !has_signature_members(bytes) {
-        return if required {
+        return if signatures_required(settings) {
             Err(Report::from_problem(unsigned(&[
                 super::manifest::MANIFEST_MEMBER,
                 super::manifest::SIGNATURE_MEMBER,

@@ -6,6 +6,7 @@ use crate::ports::cast_votes::{CastVoter, CastVotes};
 use sequent_core::ballot::VotingStatusChannel;
 use std::collections::VecDeque;
 use std::sync::Mutex;
+use windmill::services::audit_ballot::{AuditBallotInput, AuditBallotOutput};
 use windmill::services::cast_ballot::{CastBallotInput, CastBallotResult};
 use windmill::services::insert_cast_vote::{
     CastVoteError, InsertCastVoteInput, InsertCastVoteResult,
@@ -39,6 +40,8 @@ pub struct ScriptedCastVotes {
     receive_attempts: Mutex<Vec<Attempt>>,
     casts: Mutex<VecDeque<Result<CastBallotResult, CastVoteError>>>,
     cast_attempts: Mutex<Vec<Attempt>>,
+    audits: Mutex<VecDeque<Result<AuditBallotOutput, CastVoteError>>>,
+    audit_attempts: Mutex<Vec<Attempt>>,
 }
 
 impl ScriptedCastVotes {
@@ -69,6 +72,20 @@ impl ScriptedCastVotes {
     /// Casts of received ballots: `content` is the voter's Cast signature.
     pub fn cast_attempts(&self) -> Vec<Attempt> {
         self.cast_attempts.lock().unwrap().clone()
+    }
+
+    pub fn auditing(
+        audits: impl IntoIterator<Item = Result<AuditBallotOutput, CastVoteError>>,
+    ) -> Self {
+        Self {
+            audits: Mutex::new(audits.into_iter().collect()),
+            ..Default::default()
+        }
+    }
+
+    /// Audits of received ballots: `content` is empty.
+    pub fn audit_attempts(&self) -> Vec<Attempt> {
+        self.audit_attempts.lock().unwrap().clone()
     }
 
     pub fn answering(
@@ -162,5 +179,30 @@ impl CastVotes for ScriptedCastVotes {
             .unwrap()
             .pop_front()
             .expect("a scripted outcome for every cast")
+    }
+
+    async fn try_audit(
+        &self,
+        input: AuditBallotInput,
+        voter: CastVoter<'_>,
+    ) -> Result<AuditBallotOutput, CastVoteError> {
+        self.audit_attempts.lock().unwrap().push(Attempt {
+            ballot_id: input.ballot_id,
+            election_id: input.election_id.to_string(),
+            content: String::new(),
+            tenant_id: voter.tenant_id.to_string(),
+            auth_time: *voter.auth_time,
+            username: voter.username.clone(),
+            voter_id: voter.voter_id.to_string(),
+            area_id: voter.area_id.to_string(),
+            voting_channel: voter.voting_channel,
+            voter_ip: voter.voter_ip.clone(),
+            voter_country: voter.voter_country.clone(),
+        });
+        self.audits
+            .lock()
+            .unwrap()
+            .pop_front()
+            .expect("a scripted outcome for every audit")
     }
 }

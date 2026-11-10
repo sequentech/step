@@ -21,8 +21,16 @@ use crate::utils::serialization::Serializable;
 use canonical_derive::Canonical;
 use rand::RngExt;
 use sha3::Digest;
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use rayon::prelude::*;
+
+/// The secret exponents of a shuffle: the commitment exponents and the
+/// re-encryption exponents, each overwritten with zero when dropped.
+type PrivateExponents<C, const W: usize> = (
+    Zeroizing<Vec<<C as Context>::Scalar>>,
+    Zeroizing<Vec<[<C as Context>::Scalar; W]>>,
+);
 
 /**
  * Shuffler for the Terelius-Wikstrom proof of shuffle
@@ -73,7 +81,7 @@ use rayon::prelude::*;
  * let generators_context = &[];
  * let generators = Ristretto255Group::ind_generators(3, generators_context).unwrap();
  *
- * let shuffler = Shuffler::<RCtx, W>::new(generators, keypair.pkey);
+ * let shuffler = Shuffler::<RCtx, W>::new(generators, keypair.pkey.clone());
  * let proof_context = &[];
  * let (shuffled, proof) = shuffler.shuffle(&ciphertexts, proof_context).unwrap();
  *
@@ -224,13 +232,17 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
 
     /// Generate random exponents for ciphertext re-encryption.
     ///
-    /// Returns a tuple of form (commitment exponents, re-encryption exponents)
-    pub(crate) fn gen_private_exponents(size: usize) -> (Vec<C::Scalar>, Vec<[C::Scalar; W]>) {
+    /// Returns a tuple of form (commitment exponents, re-encryption exponents),
+    /// both overwritten with zero when dropped.
+    pub(crate) fn gen_private_exponents(size: usize) -> PrivateExponents<C, W> {
         #[cfg_attr(
             feature = "custom-warnings",
             crate::warning("The following code is not optimized. Parallelize with rayon")
         )]
-        (0..size)
+        let (commitment_exponents, encryption_exponents): (
+            Vec<C::Scalar>,
+            Vec<[C::Scalar; W]>,
+        ) = (0..size)
             .into_par_iter()
             .map(|_| {
                 let mut rng = C::get_rng();
@@ -239,7 +251,11 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
                     <[C::Scalar; W]>::random(&mut rng),
                 )
             })
-            .collect()
+            .collect();
+        (
+            Zeroizing::new(commitment_exponents),
+            Zeroizing::new(encryption_exponents),
+        )
     }
 
     /// Shuffle the input ciphertexts and computes a corresponding proof.
@@ -336,46 +352,54 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
 
         ///////////////// Step 2 /////////////////
 
+        // The secret values of steps 2 and 4 (the permuted challenges, the
+        // randomizers and the values derived from the witness) are held in
+        // `Zeroizing` containers: they are overwritten with zero when this
+        // function returns. So are the powers of public elements to these
+        // values: together with the published commitments and responses each
+        // of them would reveal part of the permutation.
+
         // a) Bridging commitments
         let e_prime_n = permutation
-            .apply_inverse(&e_n)
+            .apply_inverse_zeroizing(&e_n)
             .expect("permutation.len() == e_n.len()");
-        let b_n: Vec<C::Scalar> = (0..big_n).map(|_| C::random_scalar()).collect();
+        let b_n: Zeroizing<Vec<C::Scalar>> =
+            Zeroizing::new((0..big_n).map(|_| C::random_scalar()).collect());
         // h_1 is at index 0
         let mut big_b_previous = &self.h_generators[0];
         let mut big_b_n = vec![];
-        let g_b_n: Vec<C::Element> = b_n.clone().into_par_iter().map(|b| g.exp(&b)).collect();
+        let g_b_n: Zeroizing<Vec<C::Element>> =
+            Zeroizing::new(b_n.par_iter().map(|b| g.exp(b)).collect());
         for (i, g_b) in g_b_n.iter().enumerate() {
-            let big_b_factor = big_b_previous.exp(e_prime_n[i]);
+            let big_b_factor = Zeroizing::new(big_b_previous.exp(&e_prime_n[i]));
             let big_b_i = g_b.mul(&big_b_factor);
             big_b_n.push(big_b_i);
             big_b_previous = &big_b_n[i];
         }
 
         // b) Proof commitments
-        let alpha = C::random_scalar();
-        let (beta_n, epsilon_n): (Vec<C::Scalar>, Vec<C::Scalar>) = (0..big_n)
+        let alpha = Zeroizing::new(C::random_scalar());
+        let (betas, epsilons): (Vec<C::Scalar>, Vec<C::Scalar>) = (0..big_n)
             .into_par_iter()
             .map(|_| (C::random_scalar(), C::random_scalar()))
             .collect();
-        let gamma = C::random_scalar();
-        let delta = C::random_scalar();
+        let beta_n = Zeroizing::new(betas);
+        let epsilon_n = Zeroizing::new(epsilons);
+        let gamma = Zeroizing::new(C::random_scalar());
+        let delta = Zeroizing::new(C::random_scalar());
         let mut rng = C::get_rng();
-        let phi = <[C::Scalar; W]>::random(&mut rng);
+        let phi = Zeroizing::new(<[C::Scalar; W]>::random(&mut rng));
 
         // A'
-        let h_n_epsilon_n = self
-            .h_generators
-            .clone()
-            .into_par_iter()
-            .zip(epsilon_n.clone().into_par_iter());
-        let h_n_epsilon_n = h_n_epsilon_n.map(|(h, e)| h.exp(&e));
-        let h_n_epsilon_n_fold = h_n_epsilon_n
-            .into_par_iter()
-            .reduce(C::Element::one, |acc, next| acc.mul(&next));
+        let h_n_epsilon_n = self.h_generators.par_iter().zip(epsilon_n.par_iter());
+        let h_n_epsilon_n = h_n_epsilon_n.map(|(h, e)| Zeroizing::new(h.exp(e)));
+        let h_n_epsilon_n_fold = h_n_epsilon_n.into_par_iter().reduce(
+            || Zeroizing::new(C::Element::one()),
+            |acc, next| Zeroizing::new(acc.mul(&next)),
+        );
         // let h_n_epsilon_n_fold: C::Element = h_n_epsilon_n_fold.collect();
-        let big_a_prime = g.exp(&alpha);
-        let big_a_prime = big_a_prime.mul(&h_n_epsilon_n_fold);
+        let g_alpha = Zeroizing::new(g.exp(&alpha));
+        let big_a_prime = g_alpha.mul(&h_n_epsilon_n_fold);
 
         // B'
         // We need to start this calculation at big_b_0, which is = h_1
@@ -387,35 +411,31 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let except_last = &big_b_n[0..big_b_n.len() - 1];
         let big_b_0_n_minus_1 = h_1_iter.chain(except_last.into_par_iter());
 
-        let big_b_n_epsilon_n = big_b_0_n_minus_1
-            .into_par_iter()
-            .zip(epsilon_n.clone().into_par_iter());
-        let big_b_n_epsilon_n_beta_n = big_b_n_epsilon_n.zip(beta_n.clone().into_par_iter());
+        let big_b_n_epsilon_n = big_b_0_n_minus_1.into_par_iter().zip(epsilon_n.par_iter());
+        let big_b_n_epsilon_n_beta_n = big_b_n_epsilon_n.zip(beta_n.par_iter());
         let big_b_prime_n: Vec<C::Element> = big_b_n_epsilon_n_beta_n
             .into_par_iter()
             .map(|((big_b, e), beta)| {
-                let g_beta = g.exp(&beta);
-                let big_b_epsilon = big_b.exp(&e);
+                let g_beta = Zeroizing::new(g.exp(beta));
+                let big_b_epsilon = Zeroizing::new(big_b.exp(e));
 
                 g_beta.mul(&big_b_epsilon)
             })
             .collect();
 
         // F'
-        let w_prime_n_epsilon_n = permuted_ciphertexts
-            .clone()
-            .into_par_iter()
-            .zip(epsilon_n.clone().into_par_iter());
+        let w_prime_n_epsilon_n = permuted_ciphertexts.par_iter().zip(epsilon_n.par_iter());
         let w_prime_n_epsilon_n = w_prime_n_epsilon_n
             .into_par_iter()
-            .map(|(w, e)| w.map_ref(|uv| uv.dist_exp(&e)));
+            .map(|(w, e)| Zeroizing::new(w.map_ref(|uv| uv.dist_exp(e))));
         let w_prime_n_epsilon_n = fold_values(
             w_prime_n_epsilon_n,
-            <[[C::Element; W]; 2]>::one,
-            |acc, next| acc.mul(next),
+            || Zeroizing::new(<[[C::Element; W]; 2]>::one()),
+            |acc, next| Zeroizing::new(acc.mul(next)),
         );
-        let big_f_prime = Ciphertext::<C, W>(w_prime_n_epsilon_n);
-        let big_f_prime: Ciphertext<C, W> = big_f_prime.re_encrypt(&phi.neg(), &self.pk.y);
+        let big_f_prime = Zeroizing::new(Ciphertext::<C, W>((*w_prime_n_epsilon_n).clone()));
+        let phi_neg = Zeroizing::new(phi.neg());
+        let big_f_prime: Ciphertext<C, W> = big_f_prime.re_encrypt(&phi_neg, &self.pk.y);
 
         // C'
         let big_c_prime = g.exp(&gamma);
@@ -440,26 +460,41 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
 
         ///////////////// Step 4 /////////////////
 
+        // The products and partial sums of a, c and f are derived from the
+        // secret exponents (with a public challenge e, s * e gives s): each is
+        // overwritten when it is dropped or replaced.
+
         // a
         let r_n_e_prime_n = commitment_exponents.par_iter().zip(e_prime_n.par_iter());
-        let r_n_e_prime_n = r_n_e_prime_n.map(|(r, e)| r.mul(e));
-        let a = r_n_e_prime_n.reduce(C::Scalar::zero, |acc, next| acc.add(&next));
+        let r_n_e_prime_n = r_n_e_prime_n.map(|(r, e)| Zeroizing::new(r.mul(e)));
+        let a = r_n_e_prime_n.reduce(
+            || Zeroizing::new(C::Scalar::zero()),
+            |acc, next| Zeroizing::new(acc.add(&next)),
+        );
 
         // c
         let c = commitment_exponents
             .iter()
-            .fold(C::Scalar::zero(), |acc, next| acc.add(next));
+            .fold(Zeroizing::new(C::Scalar::zero()), |acc, next| {
+                Zeroizing::new(acc.add(next))
+            });
 
         // f
         let s_n_e_n = encryption_exponents.par_iter().zip(e_n.par_iter());
-        let s_n_e_n = s_n_e_n.map(|(s, e)| s.dist_mul(e));
-        let f = fold_values(s_n_e_n, <[C::Scalar; W]>::zero, |acc, next| acc.add(next));
+        let s_n_e_n = s_n_e_n.map(|(s, e)| Zeroizing::new(s.dist_mul(e)));
+        let f = fold_values(
+            s_n_e_n,
+            || Zeroizing::new(<[C::Scalar; W]>::zero()),
+            |acc, next| Zeroizing::new(acc.add(next)),
+        );
 
         // d_n
         // "sets d1 = b1 and computes di = bi + e′i*di−1 for i ∈ [N]"
         // This means we start the computation at i = 1 (which is i = 2 in EVS)
         // and our vector d_n has d_n[0] = b_n[0] (d1 = b1 in EVS)
-        let mut d_n = vec![b_n[0].clone()];
+        // (allocated once at full length, so no partial copy is left behind)
+        let mut d_n: Zeroizing<Vec<C::Scalar>> = Zeroizing::new(Vec::with_capacity(big_n));
+        d_n.push(b_n[0].clone());
         #[cfg_attr(
             feature = "custom-warnings",
             crate::warning("Figure out how this skip(1) behaves")
@@ -467,7 +502,7 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         for (i, b) in b_n.iter().enumerate().skip(1) {
             // cannot underflow, skip(1) starts at 1
             #[allow(clippy::arithmetic_side_effects)]
-            let e_prime_d = e_prime_n[i].mul(&d_n[i - 1]);
+            let e_prime_d = Zeroizing::new(e_prime_n[i].mul(&d_n[i - 1]));
             let sum = b.add(&e_prime_d);
             d_n.push(sum);
         }
@@ -477,13 +512,14 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let d = &d_n[d_n.len() - 1];
 
         // k_a
-        let k_a = v.mul(&a).add(&alpha);
+        let va = Zeroizing::new(v.mul(&a));
+        let k_a = va.add(&alpha);
 
         // k_b
         let b_n_beta_n = b_n.par_iter().zip(beta_n.par_iter());
         let k_b_n: Vec<C::Scalar> = b_n_beta_n
             .map(|(b, beta)| {
-                let vb = v.mul(b);
+                let vb = Zeroizing::new(v.mul(b));
                 vb.add(beta)
             })
             .collect();
@@ -492,19 +528,22 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let e_prime_n_epsilon_n = e_prime_n.par_iter().zip(epsilon_n.par_iter());
         let k_e_n: Vec<C::Scalar> = e_prime_n_epsilon_n
             .map(|(e, epsilon)| {
-                let ve = v.mul(e);
+                let ve = Zeroizing::new(v.mul(e));
                 ve.add(epsilon)
             })
             .collect();
 
         // k_c
-        let k_c = v.mul(&c).add(&gamma);
+        let vc = Zeroizing::new(v.mul(&c));
+        let k_c = vc.add(&gamma);
 
         // k_d
-        let k_d = v.mul(d).add(&delta);
+        let vd = Zeroizing::new(v.mul(d));
+        let k_d = vd.add(&delta);
 
         // k_f
-        let k_f = v.repl_mul(&f).add(&phi);
+        let vf = Zeroizing::new(v.repl_mul(&*f));
+        let k_f = vf.add(&phi);
 
         let responses = Responses::<C, W>::new(k_a, k_b_n, k_c, k_d, k_e_n, k_f);
         let proof = ShuffleProof::new(commitments, responses);
@@ -741,36 +780,46 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         permutation: &Permutation,
         ciphertexts: &[Ciphertext<C, W>],
     ) -> Result<PermutationData<C, W>, Error> {
-        let (r_n, s_n) = Self::gen_private_exponents(ciphertexts.len());
+        let size = permutation.len();
+        if ciphertexts.len() != size || self.h_generators.len() != size {
+            return Err(Error::MismatchedPermutationLength);
+        }
+        let (r_n, s_n) = Self::gen_private_exponents(size);
 
-        let r_permuted = permutation.apply(&r_n)?;
-        let h_permuted = permutation.apply(&self.h_generators)?;
-        let w_permuted = permutation.apply_inverse(ciphertexts)?;
-        let s_permuted = permutation.apply_inverse(&s_n)?;
-
-        let r_h_permuted = r_permuted.into_par_iter().zip(h_permuted.into_par_iter());
+        // The permuted order is read from the permutation itself, which is
+        // overwritten with zero when dropped, rather than from permuted
+        // vectors of references, which would hold the secret order after use.
+        // Output position `j` takes input `inverse[j]` for the commitments
+        // (as [`Permutation::apply`] does) and input `permutation[j]` for the
+        // ciphertexts (as [`Permutation::apply_inverse`] does).
+        // Every index of a permutation of `size` elements is below `size`, the
+        // length of each vector read (checked above).
         #[cfg_attr(
             feature = "custom-warnings",
             crate::warning("The following code is not optimized. Parallelize with rayon")
         )]
-        let u_n: Vec<C::Element> = r_h_permuted
-            .into_par_iter()
-            .map(|(r, h)| {
+        #[allow(clippy::indexing_slicing)]
+        let u_n: Vec<C::Element> = permutation
+            .inverse
+            .par_iter()
+            .map(|&i| {
                 let g = C::generator();
-                let g_r = g.exp(r);
-                g_r.mul(h)
+                // g^r and the published commitment give the permuted
+                // generator: g^r is overwritten when dropped.
+                let g_r = Zeroizing::new(g.exp(&r_n[i]));
+                g_r.mul(&self.h_generators[i])
             })
             .collect();
 
-        let s_w_permuted = w_permuted.into_par_iter().zip(s_permuted.into_par_iter());
-
         #[cfg_attr(
             feature = "custom-warnings",
             crate::warning("The following code is not optimized. Parallelize with rayon")
         )]
-        let w_prime_n: Vec<Ciphertext<C, W>> = s_w_permuted
-            .into_par_iter()
-            .map(|(c, s)| c.re_encrypt(s, &self.pk.y))
+        #[allow(clippy::indexing_slicing)]
+        let w_prime_n: Vec<Ciphertext<C, W>> = permutation
+            .permutation
+            .par_iter()
+            .map(|&i| ciphertexts[i].re_encrypt(&s_n[i], &self.pk.y))
             .collect();
 
         let ret = PermutationData::new(r_n, s_n, u_n, w_prime_n);
@@ -910,10 +959,10 @@ where
 
 /// Convenience structure to hold re-encryption and permutation data
 pub(crate) struct PermutationData<C: Context, const W: usize> {
-    /// Commitment exponents, private
-    commitment_exponents: Vec<C::Scalar>,
-    /// Re-encryption exponents, private
-    encryption_exponents: Vec<[C::Scalar; W]>,
+    /// Commitment exponents, private: overwritten with zero when dropped
+    commitment_exponents: Zeroizing<Vec<C::Scalar>>,
+    /// Re-encryption exponents, private: overwritten with zero when dropped
+    encryption_exponents: Zeroizing<Vec<[C::Scalar; W]>>,
     /// Pedersen commitments, public
     pedersen_commitments: Vec<C::Element>,
     /// Permuted ciphertexts, public
@@ -925,8 +974,8 @@ impl<C: Context, const W: usize> PermutationData<C, W> {
     ///
     /// This structure is returned by the [`Shuffler::apply_permutation`] function.
     pub fn new(
-        commitment_exponents: Vec<C::Scalar>,
-        encryption_exponents: Vec<[C::Scalar; W]>,
+        commitment_exponents: Zeroizing<Vec<C::Scalar>>,
+        encryption_exponents: Zeroizing<Vec<[C::Scalar; W]>>,
         pedersen_commitments: Vec<C::Element>,
         permuted_ciphertexts: Vec<Ciphertext<C, W>>,
     ) -> Self {
@@ -1119,6 +1168,9 @@ impl<C: Context, const W: usize> Responses<C, W> {
  * The vector values corresponds to values in [one-line
  * notation](https://en.wikipedia.org/wiki/Permutation#One-line_notation).
  *
+ * A shuffle's permutation is secret: both vectors are overwritten with zero
+ * when the value is dropped.
+ *
  * # Examples
  * ```
  * use cryptography::context::Context;
@@ -1145,6 +1197,22 @@ pub struct Permutation {
     /// The inverse permutation vector.
     pub inverse: Vec<usize>,
 }
+
+impl Zeroize for Permutation {
+    /// Overwrite both vectors with zero and empty them.
+    fn zeroize(&mut self) {
+        self.permutation.zeroize();
+        self.inverse.zeroize();
+    }
+}
+
+impl Drop for Permutation {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for Permutation {}
 
 impl Permutation {
     /// Generate a random permutation and its inverse.
@@ -1253,6 +1321,38 @@ impl Permutation {
         // The element at original index `i` (target[i]) moves to the position `self.inverse[i]`.
         for (i, v_ref) in target.iter().enumerate() {
             permuted[self.inverse[i]] = v_ref;
+        }
+
+        Ok(permuted)
+    }
+
+    /// Apply the inverse permutation to the given slice, as
+    /// [`apply_inverse`](Self::apply_inverse) does, into a vector of clones
+    /// that is overwritten with zero when dropped.
+    ///
+    /// For secret data, and for public data whose permuted order is secret.
+    ///
+    /// # Errors
+    ///
+    /// - `MismatchedPermutationLength` if the target slice length does not match the permutation length
+    pub(crate) fn apply_inverse_zeroizing<T: Clone + Zeroize>(
+        &self,
+        target: &[T],
+    ) -> Result<Zeroizing<Vec<T>>, Error> {
+        if target.len() != self.inverse.len() {
+            return Err(Error::MismatchedPermutationLength);
+        }
+
+        // Position `j` takes the element at original index `self.permutation[j]`;
+        // the capacity is reserved up front so the vector never reallocates.
+        let mut permuted = Zeroizing::new(Vec::with_capacity(target.len()));
+        for &i in &self.permutation {
+            permuted.push(
+                target
+                    .get(i)
+                    .ok_or(Error::MismatchedPermutationLength)?
+                    .clone(),
+            );
         }
 
         Ok(permuted)
@@ -1383,7 +1483,7 @@ mod tests {
             messages.iter().map(|m| keypair.encrypt(m)).collect();
 
         let generators = C::G::ind_generators(count, &vec![]).unwrap();
-        let shuffler = Shuffler::<C, W>::new(generators, keypair.pkey);
+        let shuffler = Shuffler::<C, W>::new(generators, keypair.pkey.clone());
 
         let (pciphertexts, proof) = shuffler.shuffle(&ciphertexts, &vec![]).unwrap();
         let ok = shuffler.verify(&ciphertexts, &pciphertexts, &proof, &vec![]);
@@ -1441,7 +1541,7 @@ mod tests {
             messages.iter().map(|m| keypair.encrypt(m)).collect();
 
         let generators = C::G::ind_generators(count, &vec![]).unwrap();
-        let shuffler = Shuffler::<C, W>::new(generators, keypair.pkey);
+        let shuffler = Shuffler::<C, W>::new(generators, keypair.pkey.clone());
 
         let (pciphertexts, proof) = shuffler.shuffle(&ciphertexts, &vec![1u8]).unwrap();
         let ok = shuffler.verify(&ciphertexts, &pciphertexts, &proof, &vec![2u8]);
@@ -1462,7 +1562,7 @@ mod tests {
             messages.iter().map(|m| keypair.encrypt(m)).collect();
 
         let generators = C::G::ind_generators(count, &vec![]).unwrap();
-        let shuffler = Shuffler::<C, W>::new(generators, keypair.pkey);
+        let shuffler = Shuffler::<C, W>::new(generators, keypair.pkey.clone());
 
         let (pciphertexts, proof) = shuffler.shuffle(&ciphertexts, &vec![1u8]).unwrap();
         let s_proof = proof.ser();
@@ -1554,5 +1654,37 @@ mod tests {
         assert!(err.is_err());
         let err = perm.apply_inverse(&small_data);
         assert!(err.is_err());
+        let small_scalars: Vec<C::Scalar> = (0..3).map(|_| C::random_scalar()).collect();
+        assert!(perm.apply_inverse_zeroizing(&small_scalars).is_err());
+    }
+
+    #[test]
+    fn test_permutation_zeroize() {
+        use zeroize::Zeroize;
+        let mut perm = Permutation::generate::<RCtx>(10);
+        assert_eq!(perm.len(), 10);
+
+        // `Vec::zeroize` overwrites every element with zero and then empties
+        // the vector, so what remains observable is an empty permutation.
+        perm.zeroize();
+        assert!(perm.is_empty());
+        assert!(perm.permutation.is_empty());
+        assert!(perm.inverse.is_empty());
+    }
+
+    #[test]
+    fn test_apply_inverse_zeroizing_matches_apply_inverse() {
+        let perm = Permutation::generate::<RCtx>(10);
+        let scalars: Vec<<RCtx as Context>::Scalar> =
+            (0..10).map(|_| RCtx::random_scalar()).collect();
+
+        let by_reference: Vec<_> = perm
+            .apply_inverse(&scalars)
+            .unwrap()
+            .into_iter()
+            .copied()
+            .collect();
+        let cloned = perm.apply_inverse_zeroizing(&scalars).unwrap();
+        assert_eq!(by_reference, *cloned);
     }
 }

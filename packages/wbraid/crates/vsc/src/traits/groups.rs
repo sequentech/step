@@ -15,6 +15,7 @@ use crate::utils::hash;
 use crate::utils::rng;
 
 use std::fmt::Debug;
+use zeroize::Zeroize;
 
 // -------------------------------------------------------------------------
 // Trait for a Cryptographic Group
@@ -140,8 +141,12 @@ pub trait CryptographicGroup {
  *
  * Group elements ought be valid by construction. Hence, no validity
  * predicate such as `G` in [CyclicGroupI.cry](../../../../../../../../../models/cryptography/cryptol/Algebra/CyclicGroupI.cry) is specified by the trait.
+ *
+ * Elements can be secret, for example an encoded key share or a value that
+ * masks a plaintext, so every element type can be overwritten through
+ * [`Zeroize`]; the backends overwrite an element with the identity element.
  */
-pub trait GroupElement: Sized + Debug + Eq + std::hash::Hash {
+pub trait GroupElement: Sized + Debug + Eq + std::hash::Hash + Zeroize {
     /// The scalar type associated to this group
     type Scalar: GroupScalar;
 
@@ -369,9 +374,13 @@ pub trait ReplGroupOps<Rhs: GroupElement>: GroupElement {
  * underlying group's order. (Note that this restricts the group order to
  * be a either prime or a prime power.)
  *
+ * Scalars serve as secret keys, key shares and randomness, so every scalar
+ * type can be overwritten with zero through [`Zeroize`]. The types that hold
+ * secret scalars call it when they are dropped.
+ *
  * @traceability type `E` in [CyclicGroupI.cry](../../../../../../../../../models/cryptography/cryptol/Algebra/CyclicGroupI.cry)
  */
-pub trait GroupScalar: Sized + Debug + Eq {
+pub trait GroupScalar: Sized + Debug + Eq + Zeroize {
     /**
      * Zero of the field (identity of addition)
      *

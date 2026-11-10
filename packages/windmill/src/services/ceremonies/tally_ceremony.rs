@@ -519,6 +519,65 @@ pub async fn create_tally_ceremony(
     .await
 }
 
+/// Where only signed packages import, an election is counted once: a results
+/// tally of it is refused after one counted it and while one has not
+/// finished; one that failed or was cancelled counted nothing. The elections
+/// stay locked until the transaction ends, so that of two concurrent
+/// creations the second sees the first.
+pub async fn refuse_second_count(
+    reader: &impl TallyCreationReader,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_ids: &[String],
+) -> Result<()> {
+    if !reader.signed_import_required(tenant_id).await? {
+        return Ok(());
+    }
+    reader
+        .lock_results_tallies(tenant_id, election_event_id, election_ids)
+        .await?;
+    if let Some(counted) = reader
+        .counted_elections(tenant_id, election_event_id, election_ids)
+        .await?
+        .first()
+    {
+        return Err(TallyValidationError::new(format!(
+            "Election {counted}: its results are already counted, and a recount is not \
+             available."
+        ))
+        .into());
+    }
+    if let Some(unfinished) = reader
+        .unfinished_results_tallies(tenant_id, election_event_id, election_ids)
+        .await?
+        .first()
+    {
+        return Err(TallyValidationError::new(format!(
+            "Election {unfinished}: a results tally of it has not finished. Wait until it \
+             finishes, or cancel it."
+        ))
+        .into());
+    }
+    Ok(())
+}
+
+/// [`refuse_second_count`] in `transaction`, as the creation of a results
+/// tally of `election_ids` checks it.
+pub async fn check_second_count(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_ids: &[String],
+) -> Result<()> {
+    refuse_second_count(
+        &PgTallyCreationReader::new(transaction),
+        tenant_id,
+        election_event_id,
+        election_ids,
+    )
+    .await
+}
+
 /// Returns the id of the new tally session.
 pub async fn create_tally_ceremony_with(
     reader: &impl TallyCreationReader,
@@ -552,6 +611,9 @@ pub async fn create_tally_ceremony_with(
     let parsed_tally_type = TallyType::try_from(tally_type.as_str())
         .map_err(|_| TallyValidationError::new("Invalid tally type"))?;
     validate_tally_elections(&all_elections, &election_ids, parsed_tally_type.clone())?;
+    if parsed_tally_type == TallyType::ELECTORAL_RESULTS {
+        refuse_second_count(reader, &tenant_id, &election_event_id, &election_ids).await?;
+    }
     let contest_encryption_policy = election_event.get_contest_encryption_policy();
     let decoded_ballots_inclusion_policy = election_event.get_decoded_ballots_inclusion_policy();
     let delegated_voting_policy = election_event.get_delegated_voting_policy();

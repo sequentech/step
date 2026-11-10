@@ -16,6 +16,7 @@ use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::approval_matrix::store::get_latest_approval_matrix;
 use crate::services::database::get_hasura_pool;
+use crate::services::electoral_log_board::get_event_store;
 use crate::services::electoral_log_transfer::{
     export_electoral_log, manifest_file_name, records_file_name,
 };
@@ -32,7 +33,12 @@ use crate::tasks::export_election_event::ExportOptions;
 use crate::types::documents::EDocuments;
 
 use anyhow::{anyhow, Context, Result};
+use base64::{engine::general_purpose::STANDARD, Engine};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use electoral_log::adapters::ballot_box_seal::{
+    ballot_box_seal_in, box_ballots, BallotBoxId, SealOutcome, StoredSeal,
+};
+use electoral_log::adapters::postgres::PostgresStore;
 use futures::try_join;
 use sequent_core::election_config::emit::{plain_csv, MULTI_VALUE_SEPARATOR, REPORT_COLUMNS};
 use sequent_core::services::keycloak::get_event_realm;
@@ -44,12 +50,13 @@ use sequent_core::types::hasura::core::{
     Candidate, Contest, DocumentAnnotations, Election, KeysCeremony, SupportMaterial,
 };
 use sequent_core::util::version::{DEV_APP_VERSION, ENV_VAR_APP_VERSION};
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fs::File;
-use std::io::Write;
+use std::io::{Seek, Write};
 use std::path::PathBuf;
 use tempfile::{NamedTempFile, TempPath};
 use tokio::io::{self, AsyncWriteExt};
+use tokio_postgres::IsolationLevel;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 use voting_crypto::hash::hash_sha256_file;
@@ -464,6 +471,149 @@ fn select_export_upload_path<'a>(
     Err(anyhow!("Encrypted election-event archive was not created"))
 }
 
+/// The folder of an export with each ballot box whose seal failed.
+const FAILED_BALLOT_BOXES: &str = "failed-ballot-boxes";
+/// The folder of an export with each sealed ballot box that no tally counted.
+const SEALED_UNCOUNTED_BALLOT_BOXES: &str = "sealed-uncounted-ballot-boxes";
+/// The folder of an export with each unsealed ballot box that no tally counted.
+const UNSEALED_UNCOUNTED_BALLOT_BOXES: &str = "unsealed-uncounted-ballot-boxes";
+
+/// Writes each ballot box of the event that no successful electoral-results tally
+/// counted, as stored, to `<folder>/<election>/<area>.jsonl`, where the folder says
+/// whether the box's seal failed, the box is sealed or it has no seal: first the
+/// box's seal row and its seal in the event's electoral-log database, if any, with
+/// its signed record, then each ballot of the box, in any status and in acceptance
+/// order, one per line. The ballots a tally counted are on its protocol boards, and
+/// deleting the event drops every box with its electoral-log database.
+pub async fn write_uncounted_ballot_boxes<W: Write + Seek + Send>(
+    zip_writer: &mut zip::ZipWriter<W>,
+    options: FileOptions<'_, ()>,
+    hasura_transaction: &Transaction<'_>,
+    store: &PostgresStore,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<()> {
+    let mut seal_rows: HashMap<(String, String), serde_json::Value> = HashMap::new();
+    for row in hasura_transaction
+        .query(
+            "SELECT s.election_id::text, s.area_id::text, to_jsonb(s) \
+             FROM sequent_backend.ballot_box_seal s \
+             WHERE s.tenant_id=$1::text::uuid AND s.election_event_id=$2::text::uuid",
+            &[&tenant_id, &election_event_id],
+        )
+        .await?
+    {
+        seal_rows.insert((row.try_get(0)?, row.try_get(1)?), row.try_get(2)?);
+    }
+    let counted = hasura_transaction
+        .query(
+            "SELECT DISTINCT c.election_id::text, c.area_id::text \
+             FROM sequent_backend.tally_session_contest c \
+             JOIN sequent_backend.tally_session t ON t.tenant_id=c.tenant_id \
+             AND t.election_event_id=c.election_event_id AND t.id=c.tally_session_id \
+             WHERE c.tenant_id=$1::text::uuid AND c.election_event_id=$2::text::uuid \
+             AND t.tally_type='ELECTORAL_RESULTS' AND t.execution_status='SUCCESS' \
+             AND t.is_execution_completed IS TRUE",
+            &[&tenant_id, &election_event_id],
+        )
+        .await?
+        .iter()
+        .map(|row| Ok((row.try_get(0)?, row.try_get(1)?)))
+        .collect::<Result<BTreeSet<(String, String)>>>()?;
+    let mut client = store.client().await?;
+    let event_tx = client
+        .build_transaction()
+        .isolation_level(IsolationLevel::RepeatableRead)
+        .read_only(true)
+        .start()
+        .await?;
+    let mut boxes: BTreeSet<(String, String)> = seal_rows.keys().cloned().collect();
+    for row in event_tx
+        .query(
+            "SELECT election_id::text, area_id::text FROM ballot_box_ballot \
+             WHERE election_event_id=$1::text::uuid \
+             UNION SELECT election_id::text, area_id::text FROM ballot_box_seal \
+             WHERE election_event_id=$1::text::uuid",
+            &[&election_event_id],
+        )
+        .await?
+    {
+        boxes.insert((row.try_get(0)?, row.try_get(1)?));
+    }
+    for key in boxes.difference(&counted) {
+        let (election_id, area_id) = key;
+        let ballot_box = BallotBoxId {
+            election_event_id,
+            election_id,
+            area_id,
+        };
+        let mut header = serde_json::json!({
+            "election_event_id": election_event_id,
+            "election_id": election_id,
+            "area_id": area_id,
+            "seal_row": seal_rows.get(key),
+        });
+        let folder = match ballot_box_seal_in(&event_tx, ballot_box).await? {
+            None => UNSEALED_UNCOUNTED_BALLOT_BOXES,
+            Some(StoredSeal {
+                outcome,
+                signed_message,
+                log_delivery_id,
+                log_uid,
+                log_leaf_index,
+                created_at,
+                ..
+            }) => {
+                header["signed_message"] = STANDARD.encode(&signed_message).into();
+                header["log_delivery_id"] = log_delivery_id.into();
+                header["log_uid"] = log_uid.to_string().into();
+                header["log_leaf_index"] = log_leaf_index.into();
+                header["stored_at_micros"] = created_at.into();
+                match outcome {
+                    SealOutcome::Failed { reason } => {
+                        header["reason"] = reason.into();
+                        FAILED_BALLOT_BOXES
+                    }
+                    SealOutcome::Sealed {
+                        seal_hash,
+                        manifest,
+                        ballots_in_box,
+                        ballots_counted,
+                    } => {
+                        header["seal_hash"] = hex::encode(seal_hash).into();
+                        header["manifest"] = STANDARD.encode(&manifest).into();
+                        header["ballots_in_box"] = ballots_in_box.into();
+                        header["ballots_counted"] = ballots_counted.into();
+                        SEALED_UNCOUNTED_BALLOT_BOXES
+                    }
+                }
+            }
+        };
+        zip_writer.start_file(format!("{folder}/{election_id}/{area_id}.jsonl"), options)?;
+        serde_json::to_writer(&mut *zip_writer, &header)?;
+        zip_writer.write_all(b"\n")?;
+        box_ballots(&event_tx, ballot_box, |ballot| {
+            serde_json::to_writer(
+                &mut *zip_writer,
+                &serde_json::json!({
+                    "seq": ballot.seq,
+                    "voter_id": ballot.voter_id,
+                    "status": ballot.status.to_string(),
+                    "format": ballot.format,
+                    "content": ballot.content,
+                    "ballot_id": ballot.ballot_id,
+                    "voting_channel": ballot.voting_channel,
+                }),
+            )?;
+            zip_writer.write_all(b"\n")?;
+            Ok(())
+        })
+        .await?;
+    }
+    event_tx.commit().await?;
+    Ok(())
+}
+
 #[instrument(err, skip(export_config))]
 pub async fn process_export_zip(
     tenant_id: &str,
@@ -739,6 +889,16 @@ pub async fn process_export_zip(
             .map_err(|e| anyhow!("Error starting electoral-log manifest file in ZIP: {e:?}"))?;
         serde_json::to_writer_pretty(&mut zip_writer, &manifest)
             .map_err(|e| anyhow!("Error writing electoral-log manifest to ZIP: {e:?}"))?;
+        write_uncounted_ballot_boxes(
+            &mut zip_writer,
+            options,
+            &hasura_transaction,
+            &get_event_store(election_event_id).await?,
+            tenant_id,
+            election_event_id,
+        )
+        .await
+        .map_err(|e| anyhow!("Error exporting the ballot boxes that no tally counted: {e:?}"))?;
     }
 
     // Add the S3 files to the ZIP archive

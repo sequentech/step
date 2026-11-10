@@ -9,7 +9,6 @@ pub mod import_publications;
 pub mod import_scheduled_events;
 pub mod import_tally;
 pub mod import_tenant;
-pub mod import_tenant_config;
 pub mod import_users;
 pub mod rejection;
 

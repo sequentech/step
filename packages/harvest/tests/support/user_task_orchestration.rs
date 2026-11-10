@@ -463,7 +463,7 @@ async fn voter_export_broker_failures_revoke_the_task_grant_before_returning_the
     assert_eq!(output.document_id, "document-1");
     assert_eq!(
         output.error_msg.as_deref(),
-        Some("Error sending Export Users task: $broker offline")
+        Some("Error sending Export Users task: broker offline")
     );
     assert_eq!(
         output.task_execution.as_ref().unwrap().execution_status,
@@ -495,7 +495,7 @@ async fn a_voter_export_the_task_queues_cannot_take_revokes_its_task_grant() {
     .unwrap();
     assert_eq!(
         output.error_msg.as_deref(),
-        Some("Error sending Export Users task: $task queues unreachable")
+        Some("Error sending Export Users task: task queues unreachable")
     );
     let state = tasks.snapshot();
     assert_eq!(state.tasks[0].execution_status, "FAILED");
@@ -542,7 +542,7 @@ async fn tenant_export_broker_failures_return_an_error_message_without_updating_
             .unwrap();
     assert_eq!(
         output.error_msg.as_deref(),
-        Some("Error sending Export Users task: $broker offline")
+        Some("Error sending Export Users task: broker offline")
     );
     assert!(output.task_execution.is_none());
     assert!(tasks.snapshot().failed_tasks.is_empty());

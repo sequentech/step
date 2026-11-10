@@ -7,7 +7,7 @@
 
 use super::ballot_box_reads::{BallotContent, BallotIdMatch, StoredBallot};
 use super::postgres::PostgresStore;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, ensure, Context, Result};
 use chrono::{DateTime, Duration, Utc};
 use strum_macros::{Display, EnumString};
 use tokio_postgres::Row;
@@ -82,6 +82,19 @@ pub enum ReceiveOutcome {
     AlreadyReceived(ReceivedBallot),
     /// Every attempt's Ballot ID was taken in the election event.
     NoFreeBallotId,
+}
+
+/// What marking a received ballot audited did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AuditOutcome {
+    /// Marked audited now, with its record appended.
+    Audited,
+    /// Another request had marked it audited.
+    AlreadyAudited,
+    /// It was cast, and stays cast.
+    Cast,
+    /// The ballot box has no such received ballot.
+    NotReceived,
 }
 
 /// A cast received ballot, with the short Ballot ID of its receipt.
@@ -247,6 +260,67 @@ impl PostgresStore {
             .as_ref()
             .map(received_ballot)
             .transpose()
+    }
+
+    /// Mark a received ballot audited and append `entry`, its record, to `board` in
+    /// the same transaction. Only a ballot waiting to be cast is marked: the cast of a
+    /// received ballot locks it the same way, so whichever comes second finds it cast or
+    /// audited.
+    pub async fn audit_received_ballot(
+        &self,
+        received: &ReceivedBallot,
+        board: &str,
+        entry: &crate::LogEntry,
+    ) -> Result<AuditOutcome> {
+        let audited = ReceivedStatus::Audited.to_string();
+        let waiting = ReceivedStatus::Received.to_string();
+        let mut client = self.client().await?;
+        let transaction = client.transaction().await?;
+        let marked = transaction
+            .query_opt(
+                "UPDATE ballot_box_received SET status = $3 \
+                 WHERE election_event_id = $1::text::uuid AND id = $2::text::uuid \
+                   AND status = $4 \
+                 RETURNING id::text",
+                &[
+                    &received.election_event_id,
+                    &received.id,
+                    &audited,
+                    &waiting,
+                ],
+            )
+            .await
+            .context("Error marking the received ballot audited")?;
+        if marked.is_some() {
+            let appended =
+                super::postgres::append_in(&transaction, board, std::slice::from_ref(entry))
+                    .await?;
+            ensure!(
+                appended.len() == 1,
+                "The audit record was not appended exactly once"
+            );
+            transaction.commit().await?;
+            return Ok(AuditOutcome::Audited);
+        }
+        transaction.rollback().await?;
+        let status = client
+            .query_opt(
+                "SELECT status FROM ballot_box_received \
+                 WHERE election_event_id = $1::text::uuid AND id = $2::text::uuid",
+                &[&received.election_event_id, &received.id],
+            )
+            .await
+            .context("Error reading the received ballot")?
+            .map(|row| row.try_get::<_, String>(0))
+            .transpose()?;
+        match status.as_deref().map(str::parse::<ReceivedStatus>) {
+            Some(Ok(ReceivedStatus::Audited)) => Ok(AuditOutcome::AlreadyAudited),
+            Some(Ok(ReceivedStatus::Cast)) => Ok(AuditOutcome::Cast),
+            None => Ok(AuditOutcome::NotReceived),
+            Some(Ok(ReceivedStatus::Received)) | Some(Err(_)) => Err(anyhow!(
+                "Unexpected received ballot status {status:?} after marking it audited"
+            )),
+        }
     }
 
     /// The voter's cast received ballots in an election whose short Ballot ID

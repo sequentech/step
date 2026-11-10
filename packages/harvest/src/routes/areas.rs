@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::routes::election_dates::refuse_data_under_signed_import;
 use crate::services::authorization::authorize;
 use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
@@ -21,7 +22,6 @@ use windmill::postgres::area::{
 use windmill::postgres::area_contest::insert_area_to_area_contests;
 use windmill::postgres::election_event::get_election_event_by_id_if_exist;
 use windmill::services::database::get_hasura_pool;
-use windmill::services::import::import_election_event::ensure_election_audit_boards;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpsertAreaInput {
@@ -62,6 +62,7 @@ pub async fn upsert_area(
     claims: JwtClaims,
 ) -> Result<Json<UpsertAreaOutput>, (Status, String)> {
     authorize_upsert_area(&claims, &body)?;
+    refuse_data_under_signed_import(&body.tenant_id.to_string()).await?;
     let parameters = serde_json::to_value(&*body)
         .map_err(|e| (Status::BadRequest, e.to_string()))?;
     let request = crate::services::board_authorization::authorize_operation(
@@ -194,16 +195,6 @@ pub async fn upsert_area(
             format!("Failed to insert area_contests: {e:?}"),
         )
     })?;
-
-    ensure_election_audit_boards(
-        &hasura_transaction,
-        &tenant_id,
-        &body.election_event_id.to_string(),
-        &vec![area.id.clone()],
-        false,
-    )
-    .await
-    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     hasura_transaction
         .commit()

@@ -11,6 +11,7 @@ import {GetUploadUrlMutation} from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useMutation} from "@apollo/client"
 import {SimpleForm, useNotify} from "react-admin"
+import {documentNameRefusal} from "@/services/serverRefusals"
 
 interface ImportScreenProps {
     doImport: (documentId: string, sha256: string, password?: string) => Promise<void>
@@ -118,9 +119,13 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     )
                 }
                 notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
-            } catch (_error) {
+            } catch (error) {
                 setDocumentId(null)
-                notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
+                notify(
+                    documentNameRefusal(t, error) ??
+                        t("electionEventScreen.import.fileUploadError"),
+                    {type: "error"}
+                )
             } finally {
                 setIsUploading(false)
             }

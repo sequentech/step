@@ -69,6 +69,8 @@ function ballot(portal: PortalServices, fileName: string) {
     portal.graphql.on("contest_tree", () => ({data: {sequent_backend_contest: [contest]}}))
     portal.graphql.on("candidate_tree", () => ({data: {sequent_backend_candidate: candidates}}))
     const key = `tenant-${TENANT_ID}/document-${DOCUMENT_ID}/${fileName}`
+    // The portal addresses the image with the name as one encoded path part.
+    const imagePath = `tenant-${TENANT_ID}/document-${DOCUMENT_ID}/${encodeURIComponent(fileName)}`
     const imageUrl = portal.s3.putBytes("public", key, imageBytes, "image/png")
     const uploadUrl = portal.s3.presign(key, "ballot-image-upload")
     portal.s3.override(
@@ -79,7 +81,7 @@ function ballot(portal: PortalServices, fileName: string) {
     portal.graphql.on("GetUploadUrl", () => ({
         data: {get_upload_url: {url: uploadUrl, document_id: DOCUMENT_ID}},
     }))
-    return {key, imageUrl, uploadUrl}
+    return {key, imagePath, imageUrl, uploadUrl}
 }
 
 for (const resource of resources) {
@@ -88,7 +90,7 @@ for (const resource of resources) {
         portal,
     }) => {
         const fileName = resource.name === "candidate" ? "ballotimage.png" : originalName
-        const {key, imageUrl, uploadUrl} = ballot(portal, fileName)
+        const {key, imagePath, imageUrl, uploadUrl} = ballot(portal, fileName)
         await page.goto(`${portal.origin}/sequent_backend_${resource.name}/${resource.id}?lang=en`)
         await page.getByRole("button", {name: "Image", exact: true}).click()
         const uploaded = page.waitForRequest(
@@ -128,9 +130,9 @@ for (const resource of resources) {
         expectRole(portal, `update_sequent_backend_${resource.name}`, resource.role)
         await page.reload()
         await page.getByRole("button", {name: "Image", exact: true}).click()
-        await expect(page.getByRole("img", {name: key, exact: true})).toHaveAttribute(
+        await expect(page.getByRole("img", {name: imagePath, exact: true})).toHaveAttribute(
             "src",
-            decodeURI(imageUrl)
+            imageUrl
         )
         if (resource.name === "candidate") {
             // The delete icon has no label, so scope it to its visible Image section.
@@ -147,7 +149,7 @@ for (const resource of resources) {
                     _set: {image_document_id: null, presentation: candidatePresentation},
                 }
             )
-            await expect(page.getByRole("img", {name: key, exact: true})).toHaveCount(0)
+            await expect(page.getByRole("img", {name: imagePath, exact: true})).toHaveCount(0)
         }
     })
 }
@@ -157,7 +159,7 @@ for (const resource of resources) {
         page,
         portal,
     }) => {
-        const {uploadUrl, key, imageUrl} = ballot(
+        const {uploadUrl, imagePath, imageUrl} = ballot(
             portal,
             resource.name === "candidate" ? "ballotimage.png" : originalName
         )
@@ -203,9 +205,9 @@ for (const resource of resources) {
         } finally {
             releaseMetadata()
         }
-        await expect(page.getByRole("img", {name: key, exact: true})).toHaveAttribute(
+        await expect(page.getByRole("img", {name: imagePath, exact: true})).toHaveAttribute(
             "src",
-            decodeURI(imageUrl)
+            imageUrl
         )
     })
 }

@@ -23,7 +23,7 @@ test("saves a toggled voting channel once the undo window closes", async ({page,
         portal,
         tenantRow({voting_channels: {online: true, kiosk: false, telephone: true}})
     )
-    await openSettings(page, portal, "VOTING CHANELS")
+    await openSettings(page, portal, "VOTING CHANNELS")
     await expect(switchFor(page, "Online Voting")).toBeChecked()
     await expect(switchFor(page, "Telephone Voting")).toBeChecked()
     const kiosk = switchFor(page, "Kiosk Voting")
@@ -47,7 +47,7 @@ test("undoing a voting channel change restores the switch and sends nothing", as
     portal,
 }) => {
     const tenant = mockTenant(portal)
-    await openSettings(page, portal, "VOTING CHANELS")
+    await openSettings(page, portal, "VOTING CHANNELS")
     const telephone = switchFor(page, "Telephone Voting")
     await telephone.click()
     await expect(telephone).toBeChecked()
@@ -59,7 +59,7 @@ test("undoing a voting channel change restores the switch and sends nothing", as
 
 test("shows online voting as off when the tenant disabled it", async ({page, portal}) => {
     mockTenant(portal, tenantRow({voting_channels: {online: false, kiosk: true, telephone: false}}))
-    await openSettings(page, portal, "VOTING CHANELS")
+    await openSettings(page, portal, "VOTING CHANNELS")
     await expect(switchFor(page, "Kiosk Voting")).toBeChecked()
 
     await expect(switchFor(page, "Online Voting")).not.toBeChecked({timeout: 2_000})

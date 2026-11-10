@@ -1653,6 +1653,7 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-bindgen-rayon",
  "web-sys",
+ "zeroize",
 ]
 
 [[package]]
@@ -7732,6 +7733,7 @@ dependencies = [
  "vsc",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "zeroize",
 ]
 
 [[package]]
@@ -11151,6 +11153,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "zeroize",
 ]
 
 [[package]]
@@ -11564,6 +11567,7 @@ dependencies = [
  "sha2 0.10.9",
  "sha3",
  "vsc",
+ "zeroize",
 ]
 
 [[package]]
@@ -11584,6 +11588,7 @@ dependencies = [
  "rayon",
  "sha3",
  "thiserror 1.0.69",
+ "zeroize",
 ]
 
 [[package]]
@@ -12484,6 +12489,7 @@ dependencies = [
  "wrap-map-err",
  "x509-parser 0.18.1",
  "xz2",
+ "zeroize",
  "zip 2.4.2",
 ]
 

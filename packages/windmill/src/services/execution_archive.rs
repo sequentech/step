@@ -59,6 +59,8 @@ pub fn sign(
     let key = PKey::generate_ed25519()?;
     let public_key = String::from_utf8(key.public_key_to_pem()?)?;
     let signature = Signer::new_without_digest(&key)?.sign_oneshot_to_vec(&manifest)?;
+    // Freeing the key overwrites it: OpenSSL clears an Ed25519 private key when
+    // the key is freed (`EVP_PKEY_free`), on this path and on every early return.
     drop(key);
     let mut archive =
         zip::ZipWriter::new_append(OpenOptions::new().read(true).write(true).open(path)?)?;

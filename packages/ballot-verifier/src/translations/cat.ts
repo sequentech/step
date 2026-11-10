@@ -32,7 +32,6 @@ const catalanTranslation: TranslationType = {
             dragDropOption: "O arrossegueu el fitxer aquí",
             importErrorDescription:
                 "Hi ha hagut un problema en importar el vot auditable. Heu triat el fitxer correcte?",
-            importErrorMoreInfo: "Més informació",
             importErrorTitle: "Error",
             ciphertextErrorTitle: "La verificació del vot ha fallat",
             ciphertextErrorDescription:
