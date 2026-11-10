@@ -8,7 +8,7 @@ use std::env;
 use tracing::instrument;
 use uuid::Uuid;
 
-#[instrument(skip(input))]
+#[instrument(skip(input, keep))]
 pub fn replace_uuids(
     input: &str,
     keep: Vec<String>,
