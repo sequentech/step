@@ -34,7 +34,7 @@ public class ConditionalBrokeredValueAuthenticator implements ConditionalAuthent
       new ConditionalBrokeredValueAuthenticator();
 
   /** Set by the attribute lookup mapper when it could not resolve the username. */
-  static final String USERNAME_UNRESOLVED_KEY = "sequent.brokered-username-unresolved";
+  public static final String USERNAME_UNRESOLVED_KEY = "sequent.brokered-username-unresolved";
 
   private static final String EMAIL = "email";
   private static final String FIRST_NAME = "firstName";
