@@ -83,6 +83,19 @@ sed -i.bak "s|^MASTER_SECRET=.*|MASTER_SECRET=$MASTER_SECRET|g" "$ENV_FILE" && r
 
 KEYCLOAK_JSON_FILE="$DEVCONTAINER_DIR/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json"
 
+# Imported realm users must never inherit deployment-template passwords or OTPs.
+STRIP_USER_CREDENTIALS_JQ='
+  (.users[]? |= del(.credentials))
+  | (.users[]? | select(.username == "admin") | .requiredActions)
+    |= ((. // []) + ["UPDATE_PASSWORD"] | unique)
+'
+if ! jq "$STRIP_USER_CREDENTIALS_JQ" "$KEYCLOAK_JSON_FILE" > "$KEYCLOAK_JSON_FILE.tmp"; then
+  rm -f "$KEYCLOAK_JSON_FILE.tmp"
+  echo "Unable to remove user credentials from $KEYCLOAK_JSON_FILE" >&2
+  exit 1
+fi
+mv "$KEYCLOAK_JSON_FILE.tmp" "$KEYCLOAK_JSON_FILE" || exit 1
+
 KEYCLOAK_CLIENT_SECRET=$(generate_base64 32)
 KEYCLOAK_CLI_CLIENT_SECRET=$(generate_base64 32)
 HASURA_GRAPHQL_ADMIN_SECRET=$(generate_base64 32)
