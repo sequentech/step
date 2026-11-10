@@ -16,31 +16,30 @@ use tokio::task;
 use tracing::instrument;
 
 #[instrument(skip(handler), err)]
-pub async fn provide_transaction<F>(handler: F, mut db_client: DbClient) -> Result<()>
+pub async fn provide_transaction<F, T>(handler: F, mut db_client: DbClient) -> Result<T>
 where
-    for<'a> F: FnOnce(&'a Transaction<'a>) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>,
+    for<'a> F: FnOnce(&'a Transaction<'a>) -> Pin<Box<dyn Future<Output = Result<T>> + Send + 'a>>,
 {
     let hasura_transaction = db_client.transaction().await?;
 
     let res = handler(&hasura_transaction).await;
 
     match res {
-        Ok(_) => {
+        Ok(value) => {
             hasura_transaction
                 .commit()
                 .await
                 .map_err(|e| anyhow!("Commit failed manage_election_dates: {}", e))?;
+            Ok(value)
         }
         Err(err) => {
             hasura_transaction
                 .rollback()
                 .await
                 .with_context(|| format!("Rollback error after transaction error {:?}", err))?;
-            return Err(anyhow!("{}", err).into());
+            Err(anyhow!("{}", err).into())
         }
     }
-
-    Ok(())
 }
 
 #[instrument(skip(handler), err)]
@@ -74,9 +73,9 @@ where
 }
 
 #[instrument(skip(handler), err)]
-pub async fn provide_hasura_transaction<F>(handler: F) -> Result<()>
+pub async fn provide_hasura_transaction<F, T>(handler: F) -> Result<T>
 where
-    for<'a> F: FnOnce(&'a Transaction<'a>) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>,
+    for<'a> F: FnOnce(&'a Transaction<'a>) -> Pin<Box<dyn Future<Output = Result<T>> + Send + 'a>>,
 {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await

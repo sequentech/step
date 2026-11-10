@@ -78,8 +78,11 @@ use zip::read::ZipArchive;
 
 const KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY: &str =
     "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY";
+/// Client attribute holding the previous secret while a secret rotates.
+const CLIENT_ROTATED_SECRET_ATTRIBUTE: &str = "client.secret.rotated";
 
 use super::import_users::import_users_file;
+use super::realm_masked_secrets::{remove_masked_secrets, MaskedSecret};
 use crate::postgres;
 use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contests;
@@ -320,6 +323,13 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
                             secret
                         })
                 });
+                // Both belong to the client's previous credentials: the
+                // previous secret kept valid during rotation, and the token
+                // Keycloak issued for dynamic client registration.
+                client_copy.registration_access_token = None;
+                if let Some(attributes) = client_copy.attributes.as_mut() {
+                    attributes.remove(CLIENT_ROTATED_SECRET_ATTRIBUTE);
+                }
                 client_copy
             })
             .collect()
@@ -354,13 +364,15 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
     Ok(realm_copy)
 }
 
+/// Creates the event realm and returns the secrets it was created without,
+/// because the realm held Keycloak's secret mask instead of their value.
 #[instrument(err, skip(keycloak_event_realm))]
 pub async fn upsert_keycloak_realm(
     tenant_id: &str,
     election_event_id: &str,
     keycloak_event_realm: Option<RealmRepresentation>,
     default_locale: Option<String>,
-) -> Result<()> {
+) -> Result<Vec<MaskedSecret>> {
     let mut realm = if let Some(realm) = keycloak_event_realm.clone() {
         realm
     } else {
@@ -383,6 +395,10 @@ pub async fn upsert_keycloak_realm(
     }
 
     realm = remove_keycloak_realm_secrets(&realm)?;
+    let masked_secrets = remove_masked_secrets(&mut realm);
+    for masked_secret in &masked_secrets {
+        tracing::warn!("{masked_secret}");
+    }
     let realm_config = serde_json::to_string(&realm)?;
     let client = KeycloakAdminClient::new().await?;
     let realm_name = get_event_realm(tenant_id, election_event_id);
@@ -397,7 +413,7 @@ pub async fn upsert_keycloak_realm(
         )
         .await?;
     upsert_realm_jwks(realm_name.as_str()).await?;
-    Ok(())
+    Ok(masked_secrets)
 }
 
 /// Fails when an election event with this id already exists in any tenant, so
@@ -702,7 +718,11 @@ pub async fn process_election_event_file(
     election_event_id: String,
     tenant_id: String,
     is_importing_keys: bool,
-) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
+) -> Result<(
+    ImportElectionEventSchema,
+    HashMap<String, String>,
+    Vec<MaskedSecret>,
+)> {
     let (mut data, replacement_map) = get_election_event_schema(
         file_election_event_schema,
         Some(election_event_id.clone()),
@@ -774,7 +794,7 @@ pub async fn process_election_event_file(
 
     ensure_new_election_event(hasura_transaction, &election_event_id).await?;
 
-    upsert_keycloak_realm(
+    let masked_secrets = upsert_keycloak_realm(
         tenant_id.as_str(),
         &election_event_id,
         data.keycloak_event_realm.clone(),
@@ -884,7 +904,7 @@ pub async fn process_election_event_file(
             .with_context(|| "Error inserting applications")?;
     }
 
-    Ok((data, replacement_map))
+    Ok((data, replacement_map, masked_secrets))
 }
 
 #[instrument(err, skip(hasura_transaction, temp_file))]
@@ -1218,13 +1238,15 @@ pub async fn get_zip_entries(
     Ok((zip_entries, election_event_schema))
 }
 
+/// Imports the election event document and returns the realm secrets the
+/// import could not carry, for the admin to re-enter.
 #[instrument(err, skip_all)]
 pub async fn process_document(
     hasura_transaction: &Transaction<'_>,
     object: ImportElectionEventBody,
     election_event_id: String,
     tenant_id: String,
-) -> Result<()> {
+) -> Result<Vec<MaskedSecret>> {
     let (temp_file_path, document, document_type) = get_document(
         hasura_transaction,
         object.clone(),
@@ -1272,7 +1294,7 @@ pub async fn process_document(
 
     let may_write_secret_attributes = object.may_write_secret_attributes;
     let secret_write_initiator = object.secret_write_initiator.clone();
-    let (election_event_schema, mut replacement_map) = process_election_event_file(
+    let (election_event_schema, mut replacement_map, masked_secrets) = process_election_event_file(
         hasura_transaction,
         &document_type,
         &file_election_event_schema,
@@ -1581,7 +1603,7 @@ pub async fn process_document(
         }
     };
 
-    Ok(())
+    Ok(masked_secrets)
 }
 
 #[instrument(err, skip_all)]

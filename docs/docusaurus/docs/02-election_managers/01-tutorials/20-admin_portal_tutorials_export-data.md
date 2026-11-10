@@ -35,3 +35,29 @@ Without both safeguards, these documents are excluded. Objects without committed
 are always excluded. CSV secret exports remain plaintext downloads with an explicit warning; store
 and transfer them securely. Importing these CSV columns still requires secret-write permission and
 encrypts each value for the destination event and voter.
+
+## Keycloak realm secrets
+
+Keycloak exports `**********` in place of most secrets of the event's Keycloak realm, so an
+election-event archive does not contain them. When the archive is imported, settings that hold
+`**********` are left unset instead of being saved as `**********`, and the import task's log lists
+each one in a `Warning:` line that names the setting, never its value. Re-enter them in the
+Keycloak admin console of the imported event's realm:
+
+| Setting | Where to re-enter it |
+|---------|----------------------|
+| SMTP server password or token client secret | **Realm settings > Email** |
+| Identity provider client secret | **Identity providers >** the provider |
+| Client private keys, such as a SAML signing key (Keycloak 26.8 and later) | **Clients >** the client |
+| Component secrets, such as an LDAP bind credential | **User federation >** the provider |
+| Authenticator settings (Keycloak 26.7 and later) | **Authentication >** the flow **>** the step's settings |
+
+Before Keycloak 26.7, the export contains authenticator settings as they are. From Keycloak 26.7,
+it masks every authenticator setting that no installed authenticator declares as non-secret, even
+when it is not secret, so check the import warnings after each import.
+
+Client secrets are not listed: the import sets the platform clients' secrets from the deployment
+and Keycloak generates new ones for the other clients. It also drops the clients' rotated secrets
+and registration access tokens. The `digital-certificates` identity provider gets a new secret
+shared with its client. Vault references (`${vault.…}`) are not secrets in the export and are
+imported as they are.
