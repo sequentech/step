@@ -125,6 +125,25 @@ sequenceDiagram
 9. Only then, Keycloak validates what OCR read with the realm rules and stores
    the voter's data, which later steps compare with the voter registry.
 
+## OCR capture resolution
+
+OCR requests a 1920 × 1080 camera stream. Its `input_image` is also used for
+Document Liveness, whose [image requirements](https://docs.idrnd.net/idlivedoc/)
+specify Full HD as the minimum. Keep the development OCR video configuration,
+the air-gap `scanovate-theme.yaml` copy and hosted capture configuration in sync.
+This is a capture-page setting, not an election Excel or realm threshold setting.
+
+The pinned vendor client passes width and height as numeric `getUserMedia`
+preferences, not mandatory minimum constraints. A browser may negotiate a lower
+resolution on limited hardware. It sends JPEG frames at the actual video-track
+settings dimensions, without upscaling; increasing the configured request does
+not prove every camera produces Full HD. Verify the actual frame dimensions on
+supported mobile and desktop cameras before rollout, including limited cameras
+and permission denial. Prefer a supported rear-facing camera for documents.
+Keep document-liveness checks and thresholds unchanged; do not bypass failed
+checks to accommodate a lower-resolution camera. Video compression settings are
+separate from the still-image capture and are unchanged.
+
 ## Access to the images
 
 We run the images from our own mirror on AWS ECR, in the `133529410358` account
