@@ -5,7 +5,7 @@
 use crate::postgres::maintenance::vacuum_analyze_direct;
 use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
-use crate::services::tasks_execution::{update_complete, update_fail};
+use crate::services::tasks_execution::{update_complete_with_warnings, update_fail};
 use crate::{
     services::import::import_election_event::{self as import_election_event_service},
     types::error::Result,
@@ -56,11 +56,17 @@ pub async fn import_election_event(
     .await;
 
     match &result {
-        Ok(_) => {
+        Ok(masked_secrets) => {
             // Execute database maintenance
             info!("Performing mainteinance after election event import.");
             vacuum_analyze_direct().await?;
-            let _ = update_complete(&task_execution, Some(object.document_id.clone())).await;
+            let warnings: Vec<String> = masked_secrets.iter().map(ToString::to_string).collect();
+            let _ = update_complete_with_warnings(
+                &task_execution,
+                Some(object.document_id.clone()),
+                &warnings,
+            )
+            .await;
             Ok(())
         }
         Err(error) => {

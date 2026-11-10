@@ -391,14 +391,30 @@ pub async fn update_with_annotations(
 }
 
 // TODO filter also by tenant-id and document-id
-#[instrument(skip_all, err)]
+#[instrument(skip_all)]
 pub async fn update_complete(
     task: &TasksExecution,
     document_id: Option<String>,
 ) -> Result<(), anyhow::Error> {
+    update_complete_with_warnings(task, document_id, &[]).await
+}
+
+/// Completes a task, first logging the warnings it finished with.
+#[instrument(skip_all, err)]
+pub async fn update_complete_with_warnings(
+    task: &TasksExecution,
+    document_id: Option<String>,
+    warnings: &[String],
+) -> Result<(), anyhow::Error> {
     let task_id = &task.id;
     let new_status = TasksExecutionStatus::SUCCESS;
-    let logs = task.logs.clone();
+    let mut logs = task.logs.clone();
+    for warning in warnings {
+        logs = Some(serde_json::to_value(append_general_log(
+            &logs,
+            &format!("Warning: {warning}"),
+        ))?);
+    }
     let new_msg = "Task completed successfully";
     let new_logs = serde_json::to_value(append_general_log(&logs, new_msg))?;
 
