@@ -41,6 +41,7 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.representations.IDToken;
+import sequent.keycloak.conditional_authenticators.ConditionalBrokeredValueAuthenticator;
 
 class AttributeLookupMapperTest {
 
@@ -344,6 +345,13 @@ class AttributeLookupMapperTest {
     assertEquals("fallback", context.getModelUsername());
     assertEquals(
         "true", context.getContextData().get(AttributeLookupMapper.USERNAME_UNRESOLVED_KEY));
+  }
+
+  @Test
+  void unresolvedMarkerMatchesTheBrokeredValueCondition() {
+    assertEquals(
+        ConditionalBrokeredValueAuthenticator.USERNAME_UNRESOLVED_KEY,
+        AttributeLookupMapper.USERNAME_UNRESOLVED_KEY);
   }
 
   @Test
