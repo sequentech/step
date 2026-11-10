@@ -2798,6 +2798,68 @@ mod imported_realm_sanitization_tests {
             .unwrap_or_default()
             .is_empty());
     }
+
+    #[test]
+    fn aligning_restores_a_missing_template_claim_mapper() {
+        let mut realm = template_realm();
+        realm
+            .clients
+            .iter_mut()
+            .flatten()
+            .find(|client| client.client_id.as_deref() == Some("voting-portal"))
+            .and_then(|client| client.protocol_mappers.as_mut())
+            .expect("voting-portal mappers present")
+            .retain(|mapper| mapper.name.as_deref() != Some("x-hasura-tenant-id"));
+
+        let sanitized = sanitize(&realm);
+
+        assert_eq!(
+            client_claim_mapper_count(&sanitized, "voting-portal"),
+            client_claim_mapper_count(&template_realm(), "voting-portal"),
+        );
+    }
+
+    #[test]
+    fn aligning_leaves_other_mappers_as_uploaded() {
+        let mut realm = template_realm();
+        realm
+            .client_scopes
+            .iter_mut()
+            .flatten()
+            .find(|scope| scope.name.as_deref() == Some("email"))
+            .and_then(|scope| scope.protocol_mappers.as_mut())
+            .expect("email scope mappers present")
+            .retain(|mapper| mapper.name.as_deref() != Some("email verified"));
+
+        let sanitized = sanitize(&realm);
+
+        let names: Vec<_> = sanitized
+            .client_scopes
+            .iter()
+            .flatten()
+            .find(|scope| scope.name.as_deref() == Some("email"))
+            .and_then(|scope| scope.protocol_mappers.as_deref())
+            .unwrap_or_default()
+            .iter()
+            .filter_map(|mapper| mapper.name.as_deref())
+            .collect();
+        assert_eq!(names, vec!["email"]);
+    }
+
+    #[test]
+    fn aligning_keeps_the_kiosk_client_claim_mappers() {
+        let template = template_realm();
+        let kiosk_mappers = client_claim_mapper_count(&template, "voting-portal-kiosk");
+
+        assert_eq!(
+            kiosk_mappers,
+            client_claim_mapper_count(&template, "voting-portal")
+        );
+        assert_eq!(
+            client_claim_mapper_count(&sanitize(&template), "voting-portal-kiosk"),
+            kiosk_mappers
+        );
+    }
 }
 
 #[cfg(test)]
