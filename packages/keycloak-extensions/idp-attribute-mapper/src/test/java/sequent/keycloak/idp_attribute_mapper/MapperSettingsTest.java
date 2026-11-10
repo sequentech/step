@@ -189,4 +189,19 @@ class MapperSettingsTest {
                 MapperSettings.TARGET_ATTRIBUTE, "t"));
     assertEquals("area", resolve(settings, Map.of("a", "ab", "b", "cd")).value());
   }
+
+  @Test
+  void rejectsDefaultPolicyForUsernameTarget() {
+    IllegalArgumentException error =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                MapperSettings.parse(
+                    config(
+                        MapperSettings.SOURCES, "id",
+                        MapperSettings.TARGET, "USERNAME",
+                        MapperSettings.ON_MISS, "DEFAULT",
+                        MapperSettings.DEFAULT_VALUE, "fallback")));
+    assertTrue(error.getMessage().contains("USERNAME"));
+  }
 }
