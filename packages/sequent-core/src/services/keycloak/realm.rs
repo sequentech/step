@@ -272,13 +272,28 @@ pub fn extract_realm_replacements(
     (tenant_id_replacement, election_event_id_replacement)
 }
 
+/// UUID values in the realm's authenticator configs. They are settings, such
+/// as an integration's API key, rather than ids of the realm's own objects, so
+/// replacing a realm's ids must keep them.
+pub fn authenticator_config_uuids(realm: &RealmRepresentation) -> Vec<String> {
+    realm
+        .authenticator_config
+        .iter()
+        .flatten()
+        .filter_map(|authenticator_config| authenticator_config.config.as_ref())
+        .flat_map(|config| config.values())
+        .filter(|value| Uuid::parse_str(value).is_ok())
+        .cloned()
+        .collect()
+}
+
 /// Replaces UUIDs in a Keycloak realm JSON configuration while preserving
 /// specific IDs.
 ///
 /// This function processes the realm configuration and replaces most UUIDs with
 /// new ones, while keeping certain IDs unchanged based on the provided `keep`
-/// list. It also automatically preserves UUIDs referenced in Keycloak
-/// authenticator configurations to maintain consistency of internal references.
+/// list. It also keeps the `authenticator_config_uuids` of the realm at the top
+/// level of `json_realm_config`.
 ///
 /// # Arguments
 /// * `json_realm_config` - The original JSON string representation of the realm
@@ -293,7 +308,7 @@ pub fn extract_realm_replacements(
 /// A tuple containing:
 /// * The modified JSON string with replaced UUIDs
 /// * A HashMap mapping old UUIDs to their new replacements
-#[instrument(err, skip(json_realm_config))]
+#[instrument(err, skip(json_realm_config, keep))]
 pub fn replace_realm_ids(
     json_realm_config: &str,
     mut keep: Vec<String>,
@@ -313,21 +328,7 @@ pub fn replace_realm_ids(
         keep.push(old_event_id.clone());
     }
 
-    // Find and preserve UUIDs referenced in Keycloak authenticator
-    // configurations These UUIDs are references that must remain consistent
-    if let Some(authenticator_configs) = realm.authenticator_config.clone() {
-        for authenticator_config in authenticator_configs {
-            let Some(config) = authenticator_config.config.clone() else {
-                continue;
-            };
-            // Check each config value to see if it's a valid UUID
-            for (_key, value) in config {
-                if Uuid::parse_str(&value).is_ok() {
-                    keep.push(value.clone());
-                }
-            }
-        }
-    }
+    keep.extend(authenticator_config_uuids(&realm));
 
     // Replace all UUIDs in the JSON string except those in the 'keep' list
     // Returns the modified JSON string and a map of old UUID -> new UUID
@@ -931,7 +932,8 @@ impl KeycloakAdminClient {
 mod tests {
     use super::{
         admin_portal_redirect_uris, admin_portal_url_for_realm,
-        include_results_portal_in_client_condition, kiosk_voting_portal_url,
+        authenticator_config_uuids, include_results_portal_in_client_condition,
+        kiosk_voting_portal_url, replace_realm_ids,
         results_portal_redirect_uris, scope_tenant_realm_clients,
         voting_portal_redirect_uris, ACCOUNT_CONSOLE_CLIENT_ID,
         ADMIN_PORTAL_CLIENT_ID, AUTH_BASE_URL, CLI_ACCOUNT_ADMIN_CLIENT_ID,
@@ -940,7 +942,11 @@ mod tests {
         SAME_AS_REDIRECT_URIS,
     };
     use crate::serialization::deserialize_with_path::deserialize_str;
-    use keycloak::types::{ClientRepresentation, RealmRepresentation};
+    use keycloak::types::{
+        AuthenticatorConfigRepresentation, ClientRepresentation,
+        RealmRepresentation,
+    };
+    use serde_json::json;
     use std::collections::HashMap;
 
     const TENANT_REALM_TEMPLATE: &str = include_str!(
@@ -1207,5 +1213,87 @@ mod tests {
             ),
             "voting-portal,results-portal"
         );
+    }
+
+    const AUTHENTICATOR_CONFIG_ID: &str =
+        "0b6f1f8e-5d1c-4d43-9a43-1f0c8f2d8a11";
+    const INETUM_API_KEY: &str = "196c9b53-4a7e-4f0e-8c35-7a1d2b9e6c01";
+    const INETUM_APP_ID: &str = "444c4b13-9e2a-4c55-b1d0-3f6e8a7c2d02";
+
+    fn authenticator_config(
+        alias: &str,
+        config: Option<&[(&str, &str)]>,
+    ) -> AuthenticatorConfigRepresentation {
+        AuthenticatorConfigRepresentation {
+            alias: Some(alias.to_string()),
+            config: config.map(|entries| {
+                entries
+                    .iter()
+                    .map(|(key, value)| (key.to_string(), value.to_string()))
+                    .collect()
+            }),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn authenticator_config_uuids_lists_only_uuid_values() {
+        let realm = RealmRepresentation {
+            authenticator_config: Some(vec![
+                authenticator_config(
+                    "inetum-registration",
+                    Some(&[
+                        ("api-key", INETUM_API_KEY),
+                        ("app-id", INETUM_APP_ID),
+                        ("base-url", "https://inetum.example.test"),
+                    ]),
+                ),
+                authenticator_config("otp-sms", Some(&[("length", "6")])),
+                authenticator_config("already-validated-alias", None),
+            ]),
+            ..Default::default()
+        };
+
+        let mut uuids = authenticator_config_uuids(&realm);
+        uuids.sort();
+        assert_eq!(uuids, vec![INETUM_API_KEY, INETUM_APP_ID]);
+    }
+
+    #[test]
+    fn authenticator_config_uuids_is_empty_without_authenticator_configs() {
+        assert!(authenticator_config_uuids(&RealmRepresentation::default())
+            .is_empty());
+    }
+
+    #[test]
+    fn replace_realm_ids_keeps_authenticator_config_uuids_of_a_realm() {
+        let realm = json!({
+            "realm": "event-realm",
+            "authenticatorConfig": [{
+                "id": AUTHENTICATOR_CONFIG_ID,
+                "alias": "inetum-registration",
+                "config": { "api-key": INETUM_API_KEY }
+            }]
+        });
+
+        let (replaced, replacements) =
+            replace_realm_ids(&realm.to_string(), vec![], None, None)
+                .expect("realm ids are replaced");
+        let replaced: RealmRepresentation =
+            deserialize_str(&replaced).expect("replaced realm parses");
+        let configs = replaced.authenticator_config.expect("configs kept");
+        let config = &configs[0];
+
+        assert_ne!(config.id.as_deref(), Some(AUTHENTICATOR_CONFIG_ID));
+        assert!(replacements.contains_key(AUTHENTICATOR_CONFIG_ID));
+        assert_eq!(
+            config
+                .config
+                .as_ref()
+                .and_then(|config| config.get("api-key"))
+                .map(String::as_str),
+            Some(INETUM_API_KEY)
+        );
+        assert!(!replacements.contains_key(INETUM_API_KEY));
     }
 }
