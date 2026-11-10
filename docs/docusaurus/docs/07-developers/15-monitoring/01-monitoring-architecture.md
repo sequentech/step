@@ -97,6 +97,15 @@ preset does not, sets the mode (configured by default) and records the
 preset and version. This is also how an event opts in. Settings are
 `PRESET_ONLY`: the editor cannot save them.
 
+New events, whether created normally or imported (including Architect packages),
+start in `CONFIGURED` mode with the bundled `comelec` preset. Import initializes
+these defaults only after restoring the archive's signing keys and electoral
+log, within the import transaction; initialization failure fails the import.
+These are fresh defaults, not an import of the source event's monitoring
+configuration. Initialization never replaces an existing configuration or an
+explicit `LEGACY` choice. Events created before this behavior keep their mode;
+enable **Configurable dashboards** on an existing event to opt in.
+
 ## Snapshot job
 
 The beat task `refresh_monitoring_snapshots` runs once per snapshot interval
