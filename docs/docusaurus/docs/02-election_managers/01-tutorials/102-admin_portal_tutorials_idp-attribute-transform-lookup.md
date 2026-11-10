@@ -121,6 +121,10 @@ table included, from its database on every login, so keep large tables compact (
 | `UNSET` | The target stays empty, even if the identity provider supplied a value for it. | The attribute or user property is removed. |
 | `DEFAULT` | The default value is stored. | The default value is stored. |
 
+`DEFAULT` can't be used with target `USERNAME`, because every user without a value would get the same
+username and share one account. That configuration is invalid, so logins through the identity
+provider fail with a generic error.
+
 The mapper never stops a login. To reject a login on a miss, leave **On miss** as `UNSET` and add a
 check to the login flows (see [Rejecting logins](#rejecting-logins)).
 

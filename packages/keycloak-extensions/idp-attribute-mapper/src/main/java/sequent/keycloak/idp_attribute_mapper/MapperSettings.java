@@ -118,6 +118,11 @@ public final class MapperSettings {
     if (missPolicy == MissPolicy.DEFAULT && (defaultValue == null || defaultValue.isEmpty())) {
       throw new IllegalArgumentException("Default value is required for policy DEFAULT");
     }
+    if (target == Target.USERNAME && missPolicy == MissPolicy.DEFAULT) {
+      throw new IllegalArgumentException(
+          "Policy DEFAULT can't be used with target USERNAME: every unresolved user would share"
+              + " one username");
+    }
   }
 
   /**
