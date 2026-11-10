@@ -86,7 +86,7 @@ in its preparation phase:
 ## Confirm the server settings to the administrator
 
 The section "TOE software integrity" of the tab "Security and self-tests" of the
-election event compares the six server TOE parts with the accepted delivery
+election event compares the ten server TOE parts with the accepted delivery
 ([Verify the TOE software](../../02-election_managers/04-administrator_handbook/07-self_tests.md#verify-the-toe-software)),
 but it does not cover the election verifier image or the content store of C2. The
 admin portal shows no plugins, no telephone provider and no other tenants. The
@@ -106,18 +106,20 @@ administrator are one person, no message is needed. To confirm the server settin
    shows. The checks establish that:
    - the running images are those of the accepted TOE delivery: the complete
      TSF software integrity check gave its four `PASS` lines;
-   - no plugin is installed;
+   - no plugin can run: the accepted images contain no plugin runtime;
    - no telephone provider and no credentials for the telephone channel's
      endpoints are configured;
    - election work uses only the customer's tenant: the TOE has no tenant
      other than the customer's and the super-admin tenant, which serves only
      the installation steps of this guide, holds no election event and has
      no enabled personal account;
-   - no account, group or role holds "Datafix account" (`datafix-account`)
-     or "Manually Verify Voter" (`voter-manually-verify`);
-   - the identity service has no smart-link sign-in: none of its extension
-     files has `smart-link-hmac` in its name, and the smart-link sign-in
-     address answers `404`.
+   - no account, group or role holds the permissions "Datafix account"
+     (`datafix-account`) or "Manually Verify Voter" (`voter-manually-verify`);
+   - the identity service has no smart-link sign-in and accepts no sign-in
+     link: none of its extension files has `smart-link-hmac` or
+     `sign-in-link-handlers` in its name or holds a sign-in link handler or a
+     provider that issues sign-in links, and the smart-link sign-in address
+     answers `404`.
 3. If a check gives another result, stop. Tell the administrators that the
    election board must not approve the configuration version, and report the result
    to [security@sequentech.io](mailto:security@sequentech.io).
@@ -139,10 +141,12 @@ The recurring duties are these:
 | Daily in preparation and execution | Storage | [Storage](#storage) | Administrator and board, if low |
 | After each import | Realm and server checks | [Election event realms](10-verification.md#election-event-realms), [Confirm the server settings to the administrator](#confirm-the-server-settings-to-the-administrator) | Administrators |
 | Before each key or tally ceremony | `./deploy commission site.json` | [Transfer the matching keys and start the instances](08-installing_toe.md#transfer-the-matching-keys-and-start-the-instances) | Board |
+| During each key ceremony, before a trustee downloads the custody request | Protocol manager key, with the trustee watching | [Show each trustee the protocol manager key](08-installing_toe.md#show-each-trustee-the-protocol-manager-key) | The trustee |
 | After each key ceremony | Trustee backup | [Back up the trustee state](08-installing_toe.md#back-up-the-trustee-state) | Board (path and digest) |
 | Before the execution phase and after voting | System backup | [Create and verify the encrypted backup](#create-and-verify-the-encrypted-backup) | Board (path and digest) |
-| Before each election event | Certificate end date: `openssl x509 -in "$(jq -er '.tls.certificate' site.json)" -noout -enddate`; it must be after the election event's end | [Set up the TLS endpoint](05-certificates_tls.md#set-up-the-tls-endpoint) | Ask Sequent for the renewal steps if it is not |
-| After the retention period | Remove keys | [Remove the trustee keys at the end of the election event](08-installing_toe.md#remove-the-trustee-keys-at-the-end-of-the-election-event) | Board |
+| Before each election event | Certificate end date: `openssl x509 -in "$(jq -er '.tls.certificate' site.json)" -noout -enddate`; it must be after the election event's end, otherwise renew it | [Renew the certificate](05-certificates_tls.md#renew-the-certificate) | Board, if the CA file changes |
+| After the tally and the export, on the board's instruction | Remove keys | [Remove the trustee keys at the end of the election event](08-installing_toe.md#remove-the-trustee-keys-at-the-end-of-the-election-event) | Board |
+| After a key removal, before the next election event's key ceremony | New trustee keys: `./deploy commission site.json` | [Install new trustee keys for a later election event](08-installing_toe.md#install-new-trustee-keys-for-a-later-election-event) | Board |
 
 ### Read the current server state
 
@@ -151,11 +155,15 @@ The recurring duties are these:
 ```
 
 **Expected result:** the recorded C1 hostname, both nodes marked `Ready`,
-application pods marked `Running` and completed setup jobs marked `Completed`.
-The final table shows the data volume's `Use%` and `Avail` columns. The command
+application pods marked `Running`, among them two `harvest` pods, two `windmill`
+pods and the `tls-endpoint` pod, and completed setup jobs marked `Completed`.
+The final table shows the `Use%` and `Avail` columns of the file system that holds
+`/var/lib/sequent-data` ([Storage](#storage)). The command
 does not report the host observer of [TOE image observation](#toe-image-observation).
 
 ![Actual terminal running the short status command against both servers](./assets/installation/server-operations.png)
+
+*Terminal capture from a test installation of an earlier build, with one `harvest` pod, one `windmill` pod and no `tls-endpoint` pod. Your addresses and names differ.*
 
 To read the identity service's most recent 20 operating-log lines:
 
@@ -165,21 +173,35 @@ To read the identity service's most recent 20 operating-log lines:
 
 To read the last 20 lines of another component's log, put its name
 ([Restart an authorized failed component](#restart-an-authorized-failed-component))
-in place of `keycloak`.
+in place of `keycloak`. The command shows the last 20 lines of each pod of the
+component, such as both `windmill` workers, and starts each line with the pod's
+name, as in `[pod/<pod>/keycloak]`.
 
 These are operating logs, not audit records: the election board reviews the
-electoral log in the admin portal.
+electoral log in the admin portal. The electoral log is kept by `postgres` (a
+database for each election event) and written by `windmill`; write-once copies of
+its checkpoints are kept by `rustfs`. If `windmill` cannot write such a copy, it
+logs `Could not write the write-once copy of the electoral-log checkpoint at size`
+followed by the size and the error, and publishes the checkpoint without its copy.
+When the administrators ask you to restore the
+audit service after the check "Audit recording and integrity" failed with
+**Recovery required**
+([Security and Self-Tests](../../02-election_managers/04-administrator_handbook/07-self_tests.md)),
+read the state and the logs of these three components, then follow
+**If different** below.
 
 ![Actual terminal reading the identity service log with the short maintenance command](./assets/installation/server-logs.png)
+
+*Terminal capture from a test installation of an earlier build, which did not yet start each line with the pod's name.*
 
 **If different:** keep the failed component's error
 ([If something fails](01-about.md#if-something-fails)), investigate connectivity,
 storage and its controlled configuration, and inform the administrator and the
 election board. Do not delete records, change a Secret or edit a running container
 to recover it. Ask the administrator to check the tab "Security and self-tests" of
-the election event. Stopping or restarting Harvest
-or Windmill, an expired service heartbeat, a failed current check or an expired
-test prevents voter admission. A successful service rollout does not clear the
+the election event. Stopping both Harvest instances or both Windmill workers,
+an expired service heartbeat, a failed current check or an expired test prevents
+voter admission. A successful service rollout does not clear the
 state **Recovery required** or authorize resumption.
 
 ### Restart an authorized failed component
@@ -195,14 +217,25 @@ If Keycloak is the agreed failed component:
 
 Type `RESTART keycloak` when prompted. Expect `COMPONENT READY: keycloak`, followed
 by the reminder to complete platform and browser checks. `./deploy` waits up to
-45 seconds for that deployment. On timeout or failure, read its log with
+10 minutes for that deployment, 22 minutes for `windmill`. On timeout or failure, read its log with
 `./deploy services site.json logs COMPONENT`; do not restart unrelated services or
 bypass an active maintenance operation. To restart another component, put its name in
 the same command and type `RESTART` followed by that name: `postgres` (the database),
 `rustfs` (the object storage), `trustee1`, `trustee2` (the trustee instances),
 `harvest`, `windmill`, `beat` (the worker's scheduler), `b4` (the bulletin board),
-`hasura` (the GraphQL engine), `admin-portal`, `voting-portal` or `ballot-verifier`.
+`hasura` (the GraphQL engine), `admin-portal`, `voting-portal`, `ballot-verifier` or
+`tls-endpoint` (the TLS endpoint).
+
+`harvest` runs two instances and `windmill` two workers. A restart replaces them one
+at a time, each only once its replacement has registered, so voter admission goes on.
+A stopping worker takes no new tasks and finishes those it holds, for up to 660 seconds.
 Outside the execution phase, agree the time with the administrator.
+
+`tls-endpoint` stops before it starts again: until it is ready, nothing answers on
+port 443 of C1 and the request activity monitoring is unavailable, so during the
+execution phase the election event enters maintenance mode (on screen, the state
+**Recovery required**). Restart it outside the execution phase, or when the election
+board has agreed.
 
 Then run `./deploy inspect site.json platform`, and have an administrator make the sign-in of
 [The first sign-in](09-accounts.md#the-first-sign-in) and tell you the result (if you
@@ -211,13 +244,14 @@ administrators that the component is back; the administrator then makes the chec
 [Verify the TOE software](../../02-election_managers/04-administrator_handbook/07-self_tests.md#verify-the-toe-software).
 The election board retains all decisions on voting and audit review.
 
-For time problems, use [Authenticated time](04-hosts_network_time.md#authenticated-time)
-and its exact check. For certificate renewal, see
-[Set up the TLS endpoint](05-certificates_tls.md#set-up-the-tls-endpoint). Change the
+For time problems, use
+[Restore time synchronization](04-hosts_network_time.md#restore-time-synchronization). For certificate renewal, see
+[Renew the certificate](05-certificates_tls.md#renew-the-certificate). Change the
 operating system, the cluster software and the TOE only with a new delivery or
 installation kit from Sequent, outside the execution phase. The fresh-install command
 refuses an occupied cluster, so obtain the steps for an existing installation from
-Sequent. Never replace credentials or install an unaccepted image.
+Sequent, and keep the installation unchanged until you have them. Never replace
+credentials or install an unaccepted image.
 
 ### A security notification is not delivered
 
@@ -234,27 +268,118 @@ To follow it up:
 4. Tell the administrator the result.
 
 If the relay's credentials have changed or expired, ask Sequent: `./deploy` has no
-command to replace them.
+command to replace them. Until they are replaced, no security notification reaches
+anyone by email: tell the administrators, who follow the security state and the
+delivery state of each notification in the tab "Security and self-tests" of the
+election event.
 
 ### Storage
 
 Use `./deploy services site.json status` and read the final table's `Use%` and
 `Avail` columns. Check daily during the preparation and execution phases, and arrange
-expansion well before `Use%` reaches 80: above that, voters are refused.
+expansion well before `Use%` reaches 80: above that, voters and trustees are refused.
 
-An observer in the database's pod measures the volume every 30 seconds; you do not
-start it.
+An observer in the database's pod measures the file system that holds
+`/var/lib/sequent-data` on C1 every 30 seconds; you do not start it. That file
+system holds the databases, the object storage and the trustee instances' state.
+It is the partition labelled `SEQUENT_DATA` of C1's data disk if the site
+configuration declares one, and otherwise C1's system partition `SEQUENT_ROOT`.
 Above 80% use, or without a fresh trustworthy observation, voter token issuance,
-refresh and voter operations are refused. Board and administrator access
-remains available for recovery. Ask the administrator to check the security state
-and the notification delivery; restoring capacity may also require the board's protected resumption.
+refresh and voter operations are refused. In the tenants, the identity service
+also refuses tokens to trustees and to every other account except board members
+and administrators, whose access remains available for recovery. Ask the
+administrator to check the security state and the notification delivery; restoring
+capacity may also require the board's protected resumption.
 
 If capacity is low, inform the administrator and the election board immediately.
 The election board decides whether to pause operations while the operator expands
-the storage. Never delete records, logs or arbitrary files to make space.
-This guide does not cover extending the volume mounted at `/var/lib/sequent-data`:
-ask Sequent for the steps, then repeat `./deploy services site.json status` and
-`./deploy inspect site.json platform`.
+the storage as [Extend the data file system](#extend-the-data-file-system)
+describes. Never delete records, logs or arbitrary files to make space.
+
+#### Extend the data file system
+
+**When:** `Use%` approaches 80, or the administrators report that the audit
+storage threshold is exceeded.
+
+**Where:** the deployment directory on the administration workstation and a root
+shell on C1; for step 5, the system that provides C1's disks, such as its
+hypervisor or storage array.
+
+The partition grows into space added at the end of its disk, and its ext4 file
+system grows while it stays mounted and the platform keeps running. The servers
+mount it by its label and never partition disks themselves, so the change remains
+after a restart. To extend it:
+
+1. Inform the administrator and the election board. The board decides whether
+   voting is paused.
+2. Outside the execution phase, first create and verify an encrypted backup
+   ([Create and verify the encrypted backup](#create-and-verify-the-encrypted-backup))
+   and keep the archive.
+3. Open a root shell on C1 from the deployment directory:
+
+   ```bash
+   SERVER=$(jq -er '.nodes.c1' site.json)
+   ADMIN_KEY=$(jq -er '.ssh_identity' site.json)
+   ssh -i "$ADMIN_KEY" "root@$SERVER"
+   ```
+
+4. In that shell, find the partition and its disk:
+
+   ```bash
+   findmnt -T /var/lib/sequent-data
+   lsblk -o NAME,SIZE,LABEL,MOUNTPOINTS
+   ```
+
+   The column `SOURCE` of `findmnt` names the partition, for example `/dev/sdb1`
+   or `/dev/nvme1n1p1`. Write down its disk (`/dev/sdb` or `/dev/nvme1n1`) and
+   its partition number (`1`). `lsblk` shows its label: `SEQUENT_DATA` for the
+   only partition of the data disk, or `SEQUENT_ROOT` for the second partition of
+   the system disk.
+5. Enlarge the virtual disk, RAID volume or storage volume (LUN) behind that disk
+   in the system that provides it. A physical disk cannot be enlarged: with C1
+   shut down, copy the whole disk to a larger one, which keeps its partitions and
+   their labels, use the larger one in its place, and open the shell of step 3
+   again. The election board decides when C1 may be shut down.
+6. In the shell on C1, enter the disk and the partition number from step 4, then
+   enlarge the partition and its file system:
+
+   ```bash
+   DISK=/dev/sdb   # the disk from step 4
+   PART=1          # the partition number from step 4
+   sfdisk --relocate gpt-bak-std "$DISK"
+   echo ',+' | sfdisk --no-reread -N "$PART" "$DISK"
+   partx -u "$DISK"
+   resize2fs /dev/disk/by-label/SEQUENT_DATA   # SEQUENT_ROOT for the system partition
+   df -h /var/lib/sequent-data
+   ```
+
+   The first `sfdisk` moves the partition table's backup copy to the new end of
+   the disk; the second keeps the start of the partition and extends it to the
+   end of the disk. `partx` gives the kernel the new partition size, and
+   `resize2fs` grows the file system to it.
+
+   **Expected result:** `df` shows the larger size.
+7. After 30 seconds, read the observer's latest measurement in the same shell,
+   then leave the shell with `exit`:
+
+   ```bash
+   k3s kubectl exec -n step-infra deployment/postgres -c postgres -- \
+     psql -U postgres -d queues \
+     -c "SELECT state, observed_at, used_bytes, available_bytes FROM step_queue.audit_storage_health"
+   ```
+
+   **Expected result:** `state` is `available`, and `observed_at` lies within
+   the last minute.
+8. On the administration workstation, run `./deploy services site.json status`:
+   `Use%` must be 80 or less. Tell the administrator and the election board; the
+   board resumes voting as
+   [Maintenance mode](../../02-election_managers/04-administrator_handbook/10-modes_of_operation.md#maintenance-mode)
+   describes. Then run `./deploy inspect site.json platform`, which must pass.
+
+**If a command fails or the size does not change:** stop and keep the output. Do
+not repeat the commands with other values or other tools. Tell the administrator
+and the election board, and ask Sequent
+([If something fails](01-about.md#if-something-fails)).
 
 ### Request activity monitoring
 
@@ -264,6 +389,9 @@ when the protected external-request observation is healthy and no more than
 unauthenticated refusals. Its raw observations omit client addresses, URLs,
 queries, request bodies and credentials. The administrator configures detection
 thresholds in the portal; the election board reviews the resulting detections.
+During a stop for maintenance or a backup the TLS endpoint is stopped as well, and
+the status reads `REQUEST MONITORING: unavailable — TLS endpoint is not running`
+until the services resume.
 
 **If unavailable:** inform the administrator and the election board. Voting remains
 blocked and the election event enters maintenance mode (on screen, the state
@@ -295,7 +423,7 @@ a service or host restart.
 
 The section "TOE software integrity" of the tab "Security and self-tests" of the
 election event ([Verify the TOE software](../../02-election_managers/04-administrator_handbook/07-self_tests.md#verify-the-toe-software))
-compares the six server TOE parts with the accepted delivery. It relies on a host
+compares the ten server TOE parts with the accepted delivery. It relies on a host
 observer on C1, the units `sequent-image-status.service` and
 `sequent-image-status.timer`. They come with the host configuration of the
 installation kit, so there is nothing to install. The observer runs 5 seconds after
@@ -327,14 +455,14 @@ Correct the cause, then tell the administrators to verify again:
 | Reason shown | Cause and what to do |
 |---|---|
 | "The host image observation is stale" | The observation is older than 180 seconds. A run that reaches its 90-second limit publishes nothing. Check the two units on C1. |
-| "The host image observation is dated in the future" | The observation carries a time later than the check's. Check [Authenticated time](04-hosts_network_time.md#authenticated-time). |
+| "The host image observation is dated in the future" | The observation carries a time later than the check's. Check C1's time service as [Restore time synchronization](04-hosts_network_time.md#restore-time-synchronization) describes. |
 | "The host image observation is unavailable or invalid" | The Windmill pod cannot read a valid `/run/sequent-images/status.json`. Check the two units and the file on C1. |
-| "The host image observation does not cover exactly the six TOE parts" | The published file does not describe the six parts of this release. Run [Repeat the complete TSF software integrity check](10-verification.md#repeat-the-complete-tsf-software-integrity-check) and ask Sequent. |
+| "The host image observation does not cover exactly the ten TOE parts" | The published file does not describe the ten parts of this release. Run [Repeat the complete TSF software integrity check](10-verification.md#repeat-the-complete-tsf-software-integrity-check) and ask Sequent. |
 | "The accepted digest list cannot be read" | The file `/root/deploy/image-digests.txt` on C1 is missing or invalid. Never edit it. Compare its SHA-256 with `toe.manifest_sha256` of `site.json`, and ask Sequent for the steps if the file is missing or differs. |
 | "The running containers cannot be read" | `k3s kubectl` failed on C1. Follow [Read the current server state](#read-the-current-server-state). |
-| A message such as "1 of the 2 required containers are ready" | Too few containers of that part are ready: the check requires 2 for braid and Windmill and 1 for each other part. Follow [Read the current server state](#read-the-current-server-state) and [Restart an authorized failed component](#restart-an-authorized-failed-component). |
+| A message such as "1 of the 2 required containers are ready" | Too few containers of that part are ready: the check requires 2 for braid, Harvest and Windmill and 1 for each other part. Follow [Read the current server state](#read-the-current-server-state) and [Restart an authorized failed component](#restart-an-authorized-failed-component). |
 | "The accepted image could not be resolved", "The image of a running container could not be read", or another message about an image or the content store | The observer could not follow an image to its content. Run [Repeat the complete TSF software integrity check](10-verification.md#repeat-the-complete-tsf-software-integrity-check) and ask Sequent. |
-| "The check could not be queued" or "The electoral-log record of this check could not be verified" | The check did not complete in the TOE's own services. Follow [Read the current server state](#read-the-current-server-state). |
+| "The check could not be queued", "The check did not complete", "The start of this check could not be recorded in the electoral log" or "The electoral-log record of this check could not be verified" | The check did not complete in the TOE's own services. Follow [Read the current server state](#read-the-current-server-state). |
 
 ### Backups and restore
 
@@ -354,15 +482,13 @@ obtain the procedure for those from Sequent.
 
 **When:** after commissioning, before the execution phase, or after voting has ended and
 the election board authorizes maintenance.
-A backup briefly stops the services. Coordinate the outage with the administrator
+A backup briefly stops the services, the TLS endpoint among them. Coordinate the outage with the administrator
 and the election board; do not use it in the execution phase. Mount an encrypted
 medium that only the people named to keep backups can open, the kit at `kit.directory`
 and the delivery medium at `toe.directory`.
 
 Run this **one command**. It stops the services, creates and checks the encrypted
 archive, then restores their original replica counts:
-
-<!-- deployment-step: 11-002 -->
 
 ```bash
 ./deploy backup site.json
@@ -392,18 +518,20 @@ plaintext to the workstation.
 
 ![Actual VM terminal creating, verifying and completing an encrypted system backup with the short command](./assets/installation/system-backup.png)
 
-The passphrase stays hidden. Your archive path and digest will differ.
+The passphrase stays hidden. Your archive path and digest will differ. The capture is from an earlier build: the current output adds "Running tasks finish first; this can take up to 12 minutes" to the line that announces the stop, and also prints `deployment.apps/tls-endpoint scaled` and `READY: tls-endpoint`.
 
 Keep the encrypted archive, and in the current directory the protected file
 `.backup-receipt.json`, which holds the path and digest of the latest backup: the next
 backup overwrites it, and a restore requires it.
 
 Tell the election board the archive's path and SHA256 digest: it records them in the
-board's minutes, and selects from them if a restore is needed. When the board has
-deleted the election execution data
+board's minutes, and selects from them if a restore is needed. Each backup holds the whole
+installation, with every election event in it. When the board has deleted the
+election execution data of an election event
 ([Deleting the election execution data](../../02-election_managers/05-election_organizer_handbook/08-evaluation-and-post-processing.md#deleting-the-election-execution-data)),
-it directs the keeper to destroy every system backup of that election event and
-records the destruction in the board's minutes.
+it directs the keeper to destroy every system backup made since that election
+event was imported, once no other election event still needs it under its
+retention period, and records the destruction in the board's minutes.
 
 Run `./deploy inspect site.json platform`, and have an administrator make the sign-in of
 [The first sign-in](09-accounts.md#the-first-sign-in) and tell you the result (if you
@@ -422,19 +550,21 @@ missing directories and truncated data.
 The backup command above already stops services. Use this separate command only
 for an authorized maintenance outage:
 
-<!-- deployment-step: 11-001 -->
-
 ```bash
 ./deploy services site.json stop
 ```
 
 Type `STOP SERVICES FOR MAINTENANCE`. Expect
 `APPLICATIONS STOPPED: backup may begin`. `./deploy` saves the original replica
-counts and allows up to 30 seconds for application shutdown, then up to 30 seconds
-for the database and remaining pods. A system or trustee maintenance operation
+counts and allows up to 720 seconds for application shutdown, because a stopping
+`windmill` worker finishes the tasks it holds, then up to 90 seconds
+for the database and remaining pods. The TLS endpoint stops with the applications:
+until the services resume, nothing answers on port 443 of C1. A system or trustee maintenance operation
 already in progress prevents another operation from starting.
 
 ![Actual VM terminal stopping services with the short maintenance command](./assets/installation/system-stop.png)
+
+*Terminal capture from a test installation of an earlier build. The current output adds "Running tasks finish first; this can take up to 12 minutes" to the line that announces the stop, and also prints `deployment.apps/tls-endpoint scaled`.*
 
 **If it fails:** keep the maintenance record and inspect the actual service
 state. Some services may already be stopped. Do not manually remove the record,
@@ -457,6 +587,8 @@ services that had zero replicas; it does not assume every service should run.
 
 ![Actual VM terminal restoring the saved replica counts with resume-unchanged](./assets/installation/system-resume.png)
 
+*Terminal capture from a test installation of an earlier build. The current output also prints `READY: tls-endpoint`.*
+
 Then run `./deploy inspect site.json platform`, have an administrator make the sign-in of
 [The first sign-in](09-accounts.md#the-first-sign-in) and tell you the result (if you
 also work in the admin portal, make it yourself), and report the failed
@@ -472,8 +604,6 @@ authorize the selected backup and the outage
 tell the administrators and the election board of every restore. First make a verified current-state
 backup, and keep it separately from the older archive. From the deployment
 directory, use these commands in order:
-
-<!-- deployment-step: 11-003 -->
 
 ```bash
 ./deploy backup site.json
@@ -504,7 +634,15 @@ procedure that preserves all accepted records: ask Sequent for it. Keep services
 a safety check fails.
 
 During replacement, the maintenance record remains outside the restored
-directories. Only PostgreSQL starts first. `./deploy` checks the actual restored
+directories. On C1, `./deploy` deletes everything under `/var/lib/sequent-data`
+(the data of the database, the object storage and the two trustee instances) and
+under `/root/deploy` (the installation workspace), then extracts the older archive
+there, so that no file written after that backup remains beside the restored
+ones. This also deletes the write-once copies of the electoral log's checkpoints
+written after that backup: they remain only in the current-state backup, so keep
+it. The cluster's Secrets, the trustee keys among them, the operating systems,
+the TLS files under `/var/lib/sequent-site` and the container images keep their
+current state. Only PostgreSQL starts first. `./deploy` checks the actual restored
 safety records, invalidates prior service admissions and successful test generations,
 and records the restoration before starting other services. Each recoverable
 election event requires current self-tests and the board's recovery decision.
@@ -518,6 +656,8 @@ produce a bounded read-only wait of under one minute; it does not bypass issuer,
 certificate or policy failures.
 
 ![Actual VM terminal authenticating the selected backup and completing the authorized restore](./assets/installation/system-restore.png)
+
+*Terminal capture from a test installation of an earlier build. The current output adds "Running tasks finish first; this can take up to 12 minutes" to the line that announces the stop, and also prints `deployment.apps/tls-endpoint scaled` and `READY: tls-endpoint`.*
 
 The restored system still requires current self-tests and the board's recovery
 decision. Successful restoration does not reopen voting.
@@ -537,7 +677,7 @@ the restored electoral log and all six current self-tests. Each trustee compares
 their original keys file with the registered public keys
 (`./trustee public-keys trustee.json`), and you check both instances with
 `./deploy commission site.json`. Run
-`./deploy inspect site.json integrity` to recheck all seven accepted software
+`./deploy inspect site.json integrity` to recheck all eleven accepted software
 parts. Recovery from an incident during the execution phase follows
 [Maintenance mode](../../02-election_managers/04-administrator_handbook/10-modes_of_operation.md#maintenance-mode):
 a fresh successful run with the purpose **Before resuming voting** and the election

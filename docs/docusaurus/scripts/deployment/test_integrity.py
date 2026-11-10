@@ -21,7 +21,7 @@ class IntegrityTests(unittest.TestCase):
     def test_an_unexpected_or_missing_component_is_refused(self):
         for values in ({}, {'harvest':'sha256:'+'a'*64}, {part:'bad' for part in integrity.install.PARTS}):
             with self.assertRaises(ValueError):integrity.node_script(values)
-    def test_operator_check_requires_all_seven_accepted_layouts_before_remote_reads(self):
+    def test_operator_check_requires_all_eleven_accepted_layouts_before_remote_reads(self):
         data={'toe':{'format':'tar'}}
         with patch('integrity.install.verify_inputs') as verify:
             with self.assertRaises(ValueError):integrity.check(data)

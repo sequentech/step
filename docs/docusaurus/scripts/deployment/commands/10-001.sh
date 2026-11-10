@@ -29,15 +29,16 @@ config() {
   done
   return 1
 }
-grep -E '^(b4|ballot-verifier|braid|harvest|keycloak|windmill) sha256:' image-digests.txt > "$D/expected.txt"
-[ "$(wc -l < "$D/expected.txt")" -eq 6 ]
-[ "$(cut -d' ' -f1 "$D/expected.txt" | sort -u | wc -l)" -eq 6 ]
+grep -E '^(admin-portal|b4|ballot-verifier|braid|graphql-engine|harvest|keycloak|tls-endpoint|voting-portal|windmill) sha256:' \
+  image-digests.txt > "$D/expected.txt"
+[ "$(wc -l < "$D/expected.txt")" -eq 10 ]
+[ "$(cut -d' ' -f1 "$D/expected.txt" | sort -u | wc -l)" -eq 10 ]
 k3s kubectl get pods -A -o json > "$D/pods.json"
 awk '{print "sequentech.local/" $1 "@" $2}' "$D/expected.txt" > "$D/refs.txt"
 jq -e --rawfile refs "$D/refs.txt" '
   ($refs | split("\n") | map(select(length > 0))) as $expected
   | all(.items[]; . as $pod | all(.spec.containers[];
-      if (.image | test("^sequentech\\.local/(b4|ballot-verifier|braid|harvest|keycloak|windmill)(@|:)"))
+      if (.image | test("^sequentech\\.local/(admin-portal|b4|ballot-verifier|braid|graphql-engine|harvest|keycloak|tls-endpoint|voting-portal|windmill)(@|:)"))
       then . as $container
         | (($expected | index($container.image)) != null)
         and ($pod.status.phase == "Succeeded" or any($pod.status.containerStatuses[]?;
@@ -50,7 +51,7 @@ while read -r p d; do
     | .name as $name | $pod.status.containerStatuses[]?
     | select(.name == $name and .ready == true and .state.running != null)
     | .imageID' "$D/pods.json")
-  minimum=1; case "$p" in braid|windmill) minimum=2;; esac
+  minimum=1; case "$p" in braid|harvest|windmill) minimum=2;; esac
   [ "${#actual[@]}" -ge "$minimum" ]
   for id in "${actual[@]}"; do
     observed=$(config "${id##*@}")
@@ -59,7 +60,7 @@ while read -r p d; do
   printf '%s %s verified\n' "$p" "${#actual[@]}"
 done < "$D/expected.txt"
 if jq -r '.items[].spec.containers[].image' "$D/pods.json" \
-  | grep -E 'sequentech\.local/(b4|ballot|braid|harvest|keycloak|windmill)' \
+  | grep -E 'sequentech\.local/(admin-portal|b4|ballot|braid|graphql-engine|harvest|keycloak|tls-endpoint|voting-portal|windmill)' \
   | grep -v '@sha256:'; then
   echo 'FAIL: a TOE container uses an unpinned image' >&2
   exit 1

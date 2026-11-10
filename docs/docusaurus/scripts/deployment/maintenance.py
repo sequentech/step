@@ -4,6 +4,7 @@
 """Explicit, fail-closed maintenance for an existing accepted installation."""
 import getpass
 import hashlib
+import io
 import json
 import os
 import re
@@ -11,6 +12,7 @@ from pathlib import Path
 import shlex
 import shutil
 import subprocess
+import tarfile
 import tempfile
 import time
 import uuid
@@ -22,7 +24,16 @@ PHASES={'preparation':0,'execution':1,'evaluation':2,'post_processing':3}
 SERVICES={'keycloak':'step-infra','postgres':'step-infra','rustfs':'step-infra',
           'trustee1':'step-infra','trustee2':'step-infra','harvest':'step-apps',
           'windmill':'step-apps','beat':'step-apps','b4':'step-apps','hasura':'step-apps',
-          'admin-portal':'step-apps','voting-portal':'step-apps','ballot-verifier':'step-apps'}
+          'admin-portal':'step-apps','voting-portal':'step-apps','ballot-verifier':'step-apps',
+          'tls-endpoint':'step-infra'}
+# A stopping task worker first finishes the tasks it holds, for up to 660
+# seconds (terminationGracePeriodSeconds of the windmill Deployment); a trustee
+# finishes its current cycle, within 120; every other pod stops within the
+# default 30. The margin covers the kubelet.
+STOP_SECONDS=720
+DATABASE_STOP_SECONDS=90
+# How long a component may take to become ready, as the installer allows.
+READY_SECONDS=600
 
 
 def load(configuration):
@@ -137,7 +148,7 @@ LIFECYCLE_SQL="SELECT coalesce(json_agg(json_build_object('tenant_id',tenant_id,
 
 
 def stop(data):
-    print('Stopping applications, recording safety state, then stopping the database…',flush=True)
+    print('Stopping applications, recording safety state, then stopping the database. Running tasks finish first; this can take up to '+str(STOP_SECONDS//60)+' minutes…',flush=True)
     script=r'''
 +test ! -e /root/deploy/.trustee-backup-in-progress
 +test ! -e /root/deploy/.backup-in-progress
@@ -154,19 +165,20 @@ def stop(data):
 +touch /root/deploy/.backup-in-progress
 +jq -r '.[] | select(.name!="postgres" or .namespace!="step-infra") | [.namespace,.name] | @tsv' /var/lib/sequent-maintenance/replicas.json |
 +while read -r ns name; do k3s kubectl -n "$ns" scale "deployment/$name" --replicas=0; done
-+for attempt in $(seq 1 30); do
++deadline=$((SECONDS+STOP_SECONDS))
++while :; do
 + count=$(k3s kubectl get pods -A -o json | jq '[.items[] | select(.metadata.namespace | startswith("step-")) | select(.status.phase!="Succeeded" and .status.phase!="Failed") | select(.metadata.namespace!="step-infra" or (.metadata.labels.app // "")!="postgres")] | length')
-+ if test "$count" = 0; then break; fi
-+ sleep 1
++ if test "$count" = 0 || test "$SECONDS" -ge "$deadline"; then break; fi
++ sleep 2
 +done
 +test "$count" = 0
-+'''.replace('\n+','\n')
++'''.replace('\n+','\n').replace('STOP_SECONDS',str(STOP_SECONDS))
     script+='k3s kubectl exec -n step-infra deployment/postgres -- psql -U postgres -d hasura -At -v ON_ERROR_STOP=1 -c '+shlex.quote(LIFECYCLE_SQL)+' > '+STATE+'/lifecycle.json\n'
     script+='jq -e \'type=="array"\' '+STATE+'/lifecycle.json >/dev/null\n'
     script+='k3s kubectl -n step-infra scale deployment/postgres --replicas=0\n'
-    script+='for attempt in $(seq 1 30); do\n'+PODS+' && break\nsleep 1\ndone\n'+PODS+'\n'
+    script+='deadline=$((SECONDS+'+str(DATABASE_STOP_SECONDS)+'))\nuntil '+PODS+'; do\ntest "$SECONDS" -lt "$deadline"\nsleep 2\ndone\n'
     script+='printf \'{"phase":"stopped"}\\n\' > '+STATE+'/state.json\necho "APPLICATIONS STOPPED: backup may begin"\n'
-    output=install.ssh(data,'c1',script,'Application shutdown for maintenance',timeout=80)
+    output=install.ssh(data,'c1',script,'Application shutdown for maintenance',timeout=STOP_SECONDS+DATABASE_STOP_SECONDS+120)
     print(output.decode(),end='',flush=True)
 
 
@@ -190,7 +202,7 @@ def resume(data,restored=False):
     for item in replicas:
         if item['replicas']==0:continue
         install.require(item['namespace'] in ('step-apps','step-infra') and re.fullmatch(r'[a-z0-9-]+',item['name']) is not None,'Unexpected saved deployment; keep maintenance state and investigate')
-        install.ssh(data,'c1','k3s kubectl -n '+shlex.quote(item['namespace'])+' rollout status deployment/'+shlex.quote(item['name'])+' --timeout=45s','Wait for '+item['name'],timeout=50)
+        install.ssh(data,'c1','k3s kubectl -n '+shlex.quote(item['namespace'])+' rollout status deployment/'+shlex.quote(item['name'])+' --timeout='+str(READY_SECONDS)+'s','Wait for '+item['name'],timeout=READY_SECONDS+10)
         print('READY: '+item['name'],flush=True)
     install.ssh(data,'c1','rm /root/deploy/.backup-in-progress\nmv '+STATE+'/state.json '+STATE+'/last-completed.json\nrm '+STATE+'/claim/owner\nrmdir '+STATE+'/claim\n','Close completed maintenance',timeout=10)
     print('RECORDED REPLICA COUNTS RESTORED; voting recovery still requires the board',flush=True)
@@ -269,6 +281,80 @@ def restore(data):
     print('RESTORE CHECKS COMPLETE: run platform inspection; all six self-tests and board review are required before voting',flush=True)
 
 
+SITE_TLS='/var/lib/sequent-site/tls'
+# How long the TLS endpoint and Traefik may take to serve a new certificate.
+SERVED_SECONDS=60
+# The certificate and key arrive on standard input; the CA file stays. The TLS
+# endpoint takes the new files with a reload, which keeps port 443 open, and
+# Traefik takes the replaced step-tls-cert Secrets. The installation copies
+# change last, once both serve the new certificate for every host.
+RENEW_TLS=r"""install -d -m 0700 @STATE@
+mkdir @STATE@/claim
+printf renew-tls > @STATE@/claim/owner
+trap 'rm -rf /root/deploy/.tls-renewal; rm -f @STATE@/claim/owner; rmdir @STATE@/claim' EXIT
+test ! -e @STATE@/state.json
+test ! -e /root/deploy/.trustee-backup-in-progress
+renewal=/root/deploy/.tls-renewal
+rm -rf "$renewal"
+mkdir -m 700 "$renewal"
+tar -C "$renewal" --no-same-owner -xf - tls.crt tls.key
+exec </dev/null
+if ! sha256sum --check --status <<'CA'
+@CA@  /root/deploy/tls/ca.pem
+@CA@  @SITE@/ca.pem
+CA
+then printf 'AGD_CHECK_FAILED TLS_CA_CHANGED\n' >&2; exit 1; fi
+. /root/deploy/hosts.env
+k3s kubectl -n step-infra rollout status deployment/tls-endpoint --timeout=10s
+cd @SITE@
+cp -p tls.crt "$renewal/previous.crt"
+cp -p tls.key "$renewal/previous.key"
+install -m 644 "$renewal/tls.crt" .tls.crt.new
+install -m 600 "$renewal/tls.key" .tls.key.new
+mv -f .tls.key.new tls.key
+mv -f .tls.crt.new tls.crt
+if ! k3s kubectl -n step-infra exec deploy/tls-endpoint -- nginx -t -q; then
+  mv -f "$renewal/previous.key" tls.key
+  mv -f "$renewal/previous.crt" tls.crt
+  printf 'AGD_CHECK_FAILED TLS_ENDPOINT_REFUSED\n' >&2; exit 1
+fi
+k3s kubectl -n step-infra exec deploy/tls-endpoint -- nginx -s reload
+for ns in step-apps step-infra; do
+  k3s kubectl -n "$ns" create secret tls step-tls-cert --cert="$renewal/tls.crt" --key="$renewal/tls.key" --dry-run=client -o yaml | k3s kubectl -n "$ns" replace -f -
+done
+fingerprint(){ openssl x509 -noout -fingerprint -sha256 2>/dev/null; }
+expected=$(fingerprint < "$renewal/tls.crt")
+deadline=$((SECONDS+@WAIT@))
+for port in 443 10443; do
+  for host in "$PORTAL_HOST" "$ADMIN_HOST" "$VERIFIER_HOST"; do
+    until test "$(openssl s_client -connect "127.0.0.1:$port" -servername "$host" </dev/null 2>/dev/null | fingerprint)" = "$expected"; do
+      if test "$SECONDS" -ge "$deadline"; then printf 'AGD_CHECK_FAILED TLS_NOT_SERVED\n' >&2; exit 1; fi
+      sleep 2
+    done
+  done
+done
+install -m 600 "$renewal/tls.crt" /root/deploy/tls/.tls.crt.new
+install -m 600 "$renewal/tls.key" /root/deploy/tls/.tls.key.new
+mv -f /root/deploy/tls/.tls.key.new /root/deploy/tls/tls.key
+mv -f /root/deploy/tls/.tls.crt.new /root/deploy/tls/tls.crt
+"""
+
+
+def renew_tls(data):
+    """Serve the certificate and key that site.json names, from the same CA file, without closing port 443."""
+    tls=data['tls']
+    end=install.run(['openssl','x509','-in',tls['certificate'],'-noout','-enddate'],'TLS certificate end-date check').decode().strip().removeprefix('notAfter=')
+    print('Renewing the TLS certificate (valid until '+end+'): the TLS endpoint reloads it without closing port 443, then Traefik serves it.',flush=True)
+    confirm('RENEW TLS CERTIFICATE')
+    buffer=io.BytesIO()
+    with tarfile.open(fileobj=buffer,mode='w') as archive:
+        for name,key in (('tls.crt','certificate'),('tls.key','private_key')):
+            body=Path(tls[key]).read_bytes();info=tarfile.TarInfo(name);info.size=len(body);info.mode=0o600;archive.addfile(info,io.BytesIO(body))
+    script=RENEW_TLS.replace('@STATE@',STATE).replace('@SITE@',SITE_TLS).replace('@CA@',install.digest(tls['ca'])).replace('@WAIT@',str(SERVED_SECONDS))
+    install.run(ssh_command(data,script),'TLS certificate renewal',buffer.getvalue(),timeout=SERVED_SECONDS+120)
+    print('TLS CERTIFICATE RENEWED: the TLS endpoint and Traefik serve it for every host; run ./deploy inspect site.json tls',flush=True)
+
+
 def main(command,configuration,operation=None,component=None):
     if command=='services':
         install.require(operation in ('status','stop','resume-unchanged','restart','logs'),'Choose status, stop, resume-unchanged, restart or logs')
@@ -278,6 +364,9 @@ def main(command,configuration,operation=None,component=None):
         install.require(shutil.which('gpg') is not None,'Install the accepted GPG tool before maintenance')
         install.verify_inputs(data)
         return backup(data) if command=='backup' else restore(data)
+    if command=='renew-tls':
+        install.verify_inputs(data)
+        return renew_tls(data)
     if operation=='status':
         script='hostname\nk3s kubectl get nodes\nk3s kubectl get pods -A\ndf -h /var/lib/sequent-data\n'
         script+='if test -f /run/sequent-security/activity.json; then\n'
@@ -290,10 +379,17 @@ def main(command,configuration,operation=None,component=None):
     install.require(operation in ('restart','logs') and component in SERVICES,'Choose status, stop, resume-unchanged, or restart/logs with a documented component')
     ns=SERVICES[component]
     if operation=='logs':
-        print(install.ssh(data,'c1','k3s kubectl -n '+ns+' logs deployment/'+component+' --tail=20','Recent component log',timeout=15).decode(),end='');return
+        # Every pod of the component, each line prefixed with its pod.
+        print(install.ssh(data,'c1','k3s kubectl -n '+ns+' logs -l app='+component+' --prefix --tail=20','Recent component log',timeout=15).decode(),end='');return
     confirm('RESTART '+component)
+    longest=READY_SECONDS+(STOP_SECONDS if component=='windmill' else 0)
+    # The TLS endpoint holds port 443 of C1: its pod stops before the new one starts.
+    behaviour='it stops, then starts again with the current TLS files; nothing answers on port 443 meanwhile' if component=='tls-endpoint' else 'it finishes its current cycle and stops, then starts again' if component in ('trustee1','trustee2') else 'each replaced pod stops once a new one is ready'+('; running tasks finish first' if component=='windmill' else '')
+    print('Restarting '+component+': '+behaviour+'. This can take up to '+str(longest//60)+' minutes…',flush=True)
     script='install -d -m 0700 '+STATE+'\nmkdir '+STATE+'/claim\nprintf restart > '+STATE+'/claim/owner\n'
     script+="trap 'rm -f "+STATE+"/claim/owner; rmdir "+STATE+"/claim' EXIT\n"
-    script+='test ! -e '+STATE+'/state.json\ntest ! -e /root/deploy/.trustee-backup-in-progress\nk3s kubectl -n '+ns+' rollout restart deployment/'+component+'\nk3s kubectl -n '+ns+' rollout status deployment/'+component+' --timeout=45s'
-    install.ssh(data,'c1',script,'Restart '+component,timeout=50)
+    script+='test ! -e '+STATE+'/state.json\ntest ! -e /root/deploy/.trustee-backup-in-progress\nk3s kubectl -n '+ns+' rollout restart deployment/'+component+'\nk3s kubectl -n '+ns+' rollout status deployment/'+component+' --timeout='+str(READY_SECONDS)+'s\n'
+    # The claim holds until the replaced pods have stopped.
+    script+='deadline=$((SECONDS+'+str(STOP_SECONDS)+'))\nuntil k3s kubectl -n '+ns+' get pods -l app='+component+' -o json | jq -e \'all(.items[]; .metadata.deletionTimestamp == null)\' >/dev/null; do\ntest "$SECONDS" -lt "$deadline"\nsleep 2\ndone\n'
+    install.ssh(data,'c1',script,'Restart '+component,timeout=READY_SECONDS+STOP_SECONDS+60)
     print('COMPONENT READY: '+component+'; perform platform and browser checks; voting remains a board decision')

@@ -53,12 +53,14 @@ under the electoral regulation. An administrator does not take that decision.
 To resume voting:
 
 1. Help the board to resolve the reason for the pause.
-2. The election board selects **Security and self-tests → Before resuming voting →
-   Run self-tests**; you can run it too when the board asks you to.
+2. On the election event's tab "Security and self-tests", the election board
+   selects "Before resuming voting" in the field "Purpose of the test", then the
+   button "Run self-tests"; you can run it too when the board asks you to.
 3. Wait for all six checks in the latest run to pass for the current state.
-4. The board authorizes **Start Voting → Start Online Voting** in the election
-   event's tab **Publish**. The approved voting period and the required services
-   must still be available.
+4. The board resumes voting with the protected action "Open voting": the button
+   "Start Voting", then the entry "Start Online Voting", in the tab "Publish" of
+   each election. The approved voting period and the required
+   services must still be available.
 
 A run that failed, is still pending, has expired or has another purpose does not
 allow resumption.
@@ -80,6 +82,10 @@ voting. The tab gives the reason. The causes are:
 - a ballot box that is not empty at the start of the election;
 - TOE software that differs from the accepted delivery;
 - a required service that stopped or no longer reports that it is running;
+- audit storage above its threshold, or without a current measurement, in the
+  execution phase, shown with the reason "The required self-test failed or its
+  validity interval expired"
+  ([The audit storage threshold](#the-audit-storage-threshold));
 - external request monitoring (the count of requests on the external interfaces,
   [Attack detections](09-audit_and_monitoring.md#attack-detections)) that is
   unavailable or out of date.
@@ -102,13 +108,16 @@ To recover and resume voting:
    the log of the failed component and tells the board what it shows.
 3. Have the operator correct the cause as the
    [Deployment Guide](../../05-reference/06-deployment_guide/01-about.md)
-   describes, for example the service, trusted certificate, authenticated time
-   source or storage availability. Never replace records merely to make a test
+   describes, for example the service ([Restart an authorized failed component](../../05-reference/06-deployment_guide/11-selftest_handover.md#restart-an-authorized-failed-component)),
+   the trusted certificate ([Renew the certificate](../../05-reference/06-deployment_guide/05-certificates_tls.md#renew-the-certificate)), the authenticated time source
+   ([Restore time synchronization](../../05-reference/06-deployment_guide/04-hosts_network_time.md#restore-time-synchronization)) or the storage
+   ([Extend the data file system](../../05-reference/06-deployment_guide/11-selftest_handover.md#extend-the-data-file-system)). Never replace records merely to make a test
    pass.
 4. The election board runs the checks with the purpose **Before resuming voting**,
    or you do when the board asks you to. Wait for the current six-check result.
-5. The board reviews the investigation and authorizes **Start Voting → Start Online Voting**. The
-   TOE checks its preconditions again and runs an additional check after
+5. The board reviews the investigation and resumes voting with the protected
+   action "Open voting": the button "Start Voting", then the entry "Start Online
+   Voting", in the tab "Publish" of each election. The TOE checks its preconditions again and runs an additional check after
    leaving maintenance.
 6. Check **Security email delivery** and confirm that the administrators and the
    election board received the notice. A failed email shows in that area and does
@@ -136,23 +145,43 @@ component, as
 [Restart an authorized failed component](../../05-reference/06-deployment_guide/11-selftest_handover.md#restart-an-authorized-failed-component)
 describes. After the restart,
 [verify the TOE software](07-self_tests.md#verify-the-toe-software).
-A required service that stopped or no longer reports that it is running prevents
-voter operations.
+A required service, `harvest` or `windmill`, that stopped or no longer reports
+that it is running prevents voter operations. Each runs two processes. In the
+execution phase, when the last process of one of them stops, or one starts while
+no other process of it is working, the TOE puts the election event into
+**Recovery required** with the reason "A required service stopped or restarted".
+When the processes of `harvest` stop reporting without stopping, for example
+when they hang, the reason is "A required service heartbeat expired". One process stopping or restarting while the other keeps working
+changes nothing. `windmill` reports that it is running only through its single
+scheduling process, `beat`: if `beat` stops for more than 45 seconds, the TOE
+refuses voter operations, and when `beat` runs again it puts the election event
+into **Recovery required** with the reason "A required service stopped or
+restarted". `harvest` and `windmill` do not start without the installation's
+master secret, the key with which they encrypt the secrets they store
+([Generate the deployment secrets](../../05-reference/06-deployment_guide/07-hardening.md#generate-the-deployment-secrets)):
+if one does not start again, tell the operator.
 
-After a restart in the execution phase, the TOE records that the election event
-needs recovery. Follow [Maintenance mode](#maintenance-mode), including the
-purpose-specific checks and board resumption. Do not infer readiness merely from a green container status.
+If the tab "Security and self-tests" shows **Recovery required**, follow
+[Maintenance mode](#maintenance-mode), including the purpose-specific checks and
+board resumption. Do not infer readiness merely from a green container status.
 
 ## The audit storage threshold
 
 Above 80% used audit-storage capacity, the TOE refuses new sessions and requests of
-voters. Missing, stale, future-dated or unreadable measurements also refuse access. Staff access remains available for recovery.
+voters and of the machine accounts `trustee1` and `trustee2` of the trustee server
+instances, so key ceremonies and tallies wait. Missing, stale, future-dated or
+unreadable measurements also refuse access. Administrators and board members keep
+access for recovery. In the execution phase the election event also enters
+**Recovery required** with the reason "The required self-test failed or its
+validity interval expired", and its open voting channels pause.
 
 Have the operator extend storage
-([Storage](../../05-reference/06-deployment_guide/11-selftest_handover.md#storage));
+([Storage](../../05-reference/06-deployment_guide/11-selftest_handover.md#storage), [Extend the data file system](../../05-reference/06-deployment_guide/11-selftest_handover.md#extend-the-data-file-system));
 never delete audit records or election execution data to make space. A fresh
-measurement at or below the threshold removes the storage refusal, but the other
-phase, period and self-test checks still apply. See
+measurement at or below the threshold removes the storage refusal, but voting
+that the TOE stopped resumes only when the election board resumes it as
+[Maintenance mode](#maintenance-mode) describes, and the other phase, period and
+self-test checks still apply. See
 [Audit, Monitoring and Notifications](09-audit_and_monitoring.md#the-audit-storage-threshold).
 
 ## Backups

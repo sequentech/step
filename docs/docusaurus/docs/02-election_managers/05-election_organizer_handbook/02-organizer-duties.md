@@ -37,7 +37,8 @@ rest. The regulation states at least:
   [Self-test intervals](11-security-relevant-events.md#self-test-intervals));
 - who may observe the election event and verify the result;
 - how long exported election execution data is kept, who keeps it, and when it
-  is deleted;
+  is deleted
+  ([Exporting the election execution data](08-evaluation-and-post-processing.md#exporting-the-election-execution-data));
 - whether the election dates or the election board open voting
   ([Starting the election execution](07-execution.md#starting-the-election-execution)),
   and when the board interrupts it
@@ -47,9 +48,7 @@ rest. The regulation states at least:
 - the witnesses of the initialization report
   ([The initialization report](06-preparation.md#the-initialization-report));
 - the reports needed in addition to the results
-  ([Checking and publishing the result](08-evaluation-and-post-processing.md#checking-and-publishing-the-result)),
-  and which parts the export keeps
-  ([Exporting the election execution data](08-evaluation-and-post-processing.md#exporting-the-election-execution-data));
+  ([Checking and publishing the result](08-evaluation-and-post-processing.md#checking-and-publishing-the-result));
 - what the board may read in the post-processing phase
   ([Reading the cast votes and the voters' register](08-evaluation-and-post-processing.md#reading-the-cast-votes-and-the-voters-register));
 - what happens to an election whose ballot box is not sealed
@@ -123,8 +122,9 @@ person.
   certificates from the election organizer's certification authority and hand
   each token to its holder in person. Give the administrators the issuer
   certificate and state its SHA-256 fingerprint to them in writing, through a
-  channel that protects its integrity. They import it on the election event's
-  tab "Signatures", area "Certificates", under the heading "Trusted issuers", with
+  channel that protects its integrity. They import it in every election event,
+  the approval event and each imported one, on its tab "Signatures", area
+  "Certificates", under the heading "Trusted issuers", with
   the button "Import issuer certificates", and compare the complete fingerprint that the
   admin portal shows with the value you stated. Have the administrators set, in
   the same place:
@@ -174,7 +174,8 @@ person.
   (`publish-results-write`) nobody can configure or publish it, whatever a package
   contains. If imported data is wrong, the election organizer issues a corrected,
   signed package as a new revision: the board imports it as a new election event
-  and archives the wrong one (see
+  and archives the wrong one, whose data stays in the TOE until the board exports
+  and deletes it (see
   [Importing the election data](06-preparation.md#importing-the-election-data)).
 
 ### Instruct the voters
@@ -251,13 +252,15 @@ suspected security problem that you receive from voters.
 | Protected server and network | Install and operate as the Deployment Guide describes; restrict physical access to the servers | Election organizer, operators | Physical, connectivity |
 | Trusted time | Provide a time server with Network Time Security | Election organizer, operators | Connectivity |
 | Protected remote endpoints | Use controlled devices; connect only to the addresses the administrators give you; stop at any certificate warning | Board members, trustees, administrators | Procedural, connectivity |
-| Key shares kept secret | Controlled offline trustee sessions; separate encrypted media for each trustee; the keys file never sent by email or chat or pasted into a web page; two backups in separate locked places, kept as securely as the original; the keys file handed over to the operators only in person, for the trustee's instance of the trustee server; loss or exposure reported at once; keys files destroyed at the end of the retention period (see [Protecting your keys file](09-trustee-procedures.md#protecting-your-keys-file)) | Trustees, election board, operators | Physical, procedural |
+| Key shares kept secret | Controlled offline trustee sessions; separate encrypted media for each trustee; the keys file never sent by email or chat or pasted into a web page; two backups in separate locked places, kept as securely as the original; the keys file handed over to the operators only in person, for the trustee's instance of the trustee server; loss or exposure reported at once; keys destroyed after the tally and the export, as the board instructs (see [Protecting your keys file](09-trustee-procedures.md#protecting-your-keys-file) and [At the end of the election event](09-trustee-procedures.md#at-the-end-of-the-election-event)) | Trustees, election board, operators | Physical, procedural |
 
 ## Reporting a security problem
 
 Report suspected security flaws in the voting system, and enquiries about them,
 to Sequent's security contact,
-[security@sequentech.io](mailto:security@sequentech.io).
+[security@sequentech.io](mailto:security@sequentech.io). Any other question about
+the TOE goes to
+[election-support@sequentech.io](mailto:election-support@sequentech.io).
 
 - **Encryption.** Encrypted reports are recommended. Use Sequent's
   security-contact OpenPGP key, fingerprint

@@ -21,8 +21,13 @@ W=$(mktemp -d /root/deploy/.trustee-map.XXXXXXXX)
 trap 'rm -rf "$W"; k3s kubectl -n step-infra exec deploy/keycloak -- rm -f /tmp/kcadm-trustee-map.config >/dev/null 2>&1 || true' EXIT
 kc() { k3s kubectl -n step-infra exec -i deploy/keycloak -- \
   /opt/keycloak/bin/kcadm.sh "$@" --config /tmp/kcadm-trustee-map.config; }
-kc config credentials --server http://localhost:8090 --realm master \
-  --user "$KC_ADMIN_USER" --password "$KC_ADMIN_PASSWORD" < /dev/null > "$W/auth.log" 2>&1
+# kcadm takes the password from KC_CLI_PASSWORD, read from standard input, so
+# that it is on no command line.
+printf '%s\n' "$KC_ADMIN_PASSWORD" | k3s kubectl -n step-infra exec -i deploy/keycloak -- \
+  bash -c 'IFS= read -r KC_CLI_PASSWORD && export KC_CLI_PASSWORD &&
+    exec /opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8090 \
+      --realm master --user "$1" --config /tmp/kcadm-trustee-map.config' kcadm "$KC_ADMIN_USER" \
+  > "$W/auth.log" 2>&1
 kc get users -r "$CR" -q username="trustee$N" -q exact=true \
   --fields id,username < /dev/null > "$W/users.json"
 I=$(jq -er --arg n "trustee$N" '[.[] | select(.username==$n)] |

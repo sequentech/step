@@ -31,9 +31,9 @@ An administrator:
 - manages the user accounts and roles of the tenant, and keeps the
   administrator role and the election board role apart;
 - sets the protected actions and their required authorisations, the automatic
-  self-tests and the attack-detection thresholds, and gives the election
-  organizer the required number of allowed votes (re-voting), which the board
-  checks;
+  self-tests and the attack-detection thresholds, gives the election organizer
+  the required number of allowed votes (re-voting), which the board checks, and
+  disables re-voting in an election when the election organizer decides so;
 - acts on the TOE's notifications and supports the election board when a
   failure occurs;
 - as the operator, installs and runs the servers of the TOE as the Deployment
@@ -45,8 +45,9 @@ importing, checking and approving election data, publishing configuration
 versions, authorising the security-critical actions, starting, interrupting,
 resuming and ending the election execution, counting the votes and determining
 the election result, reviewing the audit records, and exporting, archiving and
-deleting election event data. The Handbook for
-Election Organizers describes them.
+deleting election event data. The
+[Handbook for Election Organizers](../05-election_organizer_handbook/01-about.md)
+describes them.
 
 ## This document
 
@@ -61,9 +62,9 @@ has been accepted, the operational environment and the TOE have been installed
 and hardened, and the first personal administrator account works, all as the
 Deployment Guide describes.
 
-The admin portal is a supporting component outside the TOE. Its screens guide
-the workflow; displaying or hiding a control is not a security boundary or
-evidence of a server-side refusal. Follow the checks that this handbook gives for
+The admin portal is part of the TOE, but its screens only guide the workflow:
+displaying or hiding a control is not a security boundary or evidence of a
+server-side refusal. Follow the checks that this handbook gives for
 each operation, including required authorisations.
 
 ## Roles and people
@@ -89,7 +90,7 @@ use these names for people:
 | [The Administrator Role](02-administrator_role.md) | What the administrator may and may not do; the TOE and its supporting components; the privileges to control |
 | [Secure Use of the Admin Portal](03-admin_portal.md) | Signing in, confirming sensitive actions, sessions and logout, and the version check |
 | [Users, Roles and Role Separation](04-users_and_roles.md) | Accounts, the administrator role, the election board role, the trustee role, and what to do when a person leaves |
-| [Tenant and Election Event Settings](05-tenant_and_event_settings.md) | Signed configuration packages, the administrator's part around the election board's import, each security setting of the election event and its elections with the required values, and the hand-over to the board for the publication of the configuration version |
+| [Tenant and Election Event Settings](05-tenant_and_event_settings.md) | Signed configuration packages, the administrator's part around the election board's import, each security setting of the election event and its elections with the required values, disabling re-voting, and the hand-over to the board for the publication of the configuration version |
 | [Configuring Protected Actions](06-signing_rules.md) | Security-critical actions, required authorisations, trusted issuers and certificate checks |
 | [Security and Self-Tests](07-self_tests.md) | The six background checks, configurable interval, security state, notification delivery and the check of the TOE software |
 | [Authentication and Session Settings](08-authentication_and_sessions.md) | The external authentication server, the authentication failure threshold, session limits and the functions available before login |
@@ -176,4 +177,4 @@ screen is not evidence that your own operation completed.
 | Version | Date | Changes |
 |---|---|---|
 | 1.0 | 2026-10-27 | First edition for the evaluated configuration of v10.0.0. |
-| 1.1 | 2026-11-02 | Numbered sections; consistent use of election event; all chapters revised; new screenshots. |
+| 1.1 | 2026-11-10 | Numbered sections; consistent use of election event; all chapters revised; new sections Disabling re-voting and Settings tabs and templates; new screenshots. |

@@ -3,7 +3,9 @@
 def without(names): map(select(.name as $n | names | index($n) | not));
 "-Djdk.tls.client.protocols=TLSv1.3"
   + " -Djdk.tls.client.cipherSuites=TLS_AES_256_GCM_SHA384"
-  + " -Djdk.tls.namedGroups=secp384r1" as $tls
+  + " -Djdk.tls.namedGroups=secp384r1"
+  + " -Djdk.tls.client.SignatureSchemes=ecdsa_secp384r1_sha384"
+  + " -Djavax.net.ssl.trustStore=NONE" as $tls
 | .spec.template.spec.containers |= map(if .name != "keycloak" then . else
     .args = ["start", "--import-realm"]
     | .env = (.env | without(["KC_HOSTNAME_STRICT", "KC_HOSTNAME_STRICT_HTTPS"]))
@@ -11,6 +13,7 @@ def without(names): map(select(.name as $n | names | index($n) | not));
          {name: "KC_HTTP_ENABLED", value: "true"},
          {name: "KC_TRUSTSTORE_PATHS",
           value: "/opt/keycloak/conf/truststores/ca.pem"},
+         {name: "KC_TRUSTSTORE_KUBERNETES_ENABLED", value: "false"},
          {name: "JAVA_OPTS_APPEND", value: $tls}]
     | .envFrom = (.envFrom // []) + [{secretRef: {name: "keycloak-bootstrap-admin"}}]
     | .volumeMounts += [{name: "auth-server-ca", readOnly: true,

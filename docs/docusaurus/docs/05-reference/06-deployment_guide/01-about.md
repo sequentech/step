@@ -45,7 +45,7 @@ uniWAHL Version, v10.0.0 (the TOE). It describes how to accept the delivered
 TOE, how to prepare its operational environment and how to install and
 configure the TOE, so that it starts in its evaluated configuration.
 
-There is exactly one evaluated configuration: all seven TOE parts deployed and
+There is exactly one evaluated configuration: all eleven TOE parts deployed and
 operated together, on the operational environment that this guide describes, with
 every setting this guide makes. A deployment that leaves out a step, changes a
 setting or adds a component the guide does not name is not the evaluated
@@ -69,6 +69,7 @@ configuration.
 | super-admin tenant | The tenant the installer creates, only for the installation steps. It holds no election event. |
 | realm | The identity service's space for one tenant or one election event. |
 | instance | One of the two `braid` deployments, `trustee1` and `trustee2`, with the machine account of the same name. |
+| session store | A file in which an instance keeps the messages of one bulletin board, including the key shares encrypted to that instance. The session stores are the instance's protocol state. |
 | C1, C2 | The two servers ([Servers](02-operational_environment.md#servers)). |
 | kit | The USB drive that Sequent builds for your site ([Installing the Servers](03-installation_kit.md)). |
 | site plan | The values of your site that Sequent builds the kit from ([Agree the site plan](03-installation_kit.md#agree-the-site-plan)). |
@@ -81,9 +82,13 @@ configuration.
 
 | Part | What it does |
 | --- | --- |
+| tls-endpoint | The only listener for clients: TLS 1.3 on port 443 of C1, forwarding the requests to the other parts |
 | harvest | Central backend: access control, voters' register, ballot boxes, import and export |
-| windmill | Worker for the asynchronous tasks |
+| graphql-engine | The GraphQL interface: checks the token of each request, enforces table permissions and forwards actions to harvest |
+| windmill | Two workers for the asynchronous tasks |
 | keycloak | Identities, sessions and tokens; the link to the external authentication server |
+| voting-portal | The voters' web application, with the code that encrypts the vote |
+| admin-portal | The web application of the administrators, the election board and the trustees |
 | ballot-verifier | The voter's check that a ballot was cast as intended |
 | election-verifier | Verifies the shuffle and decryption proofs of an election event's tally |
 | braid | The trustee: key generation, mixing and threshold decryption |
@@ -92,11 +97,10 @@ configuration.
 Each part is an OCI image. The guidance documents AGD-01 to AGD-04 are
 delivered with them. Everything else this guide installs is operational
 environment, not TOE: the servers, the operating system and the cluster
-software installed from the installation kit, the TLS endpoint and the ingress
-in front of the TOE, the container runtime, the
-database, the object storage, the GraphQL engine, the two web portals, the
-network, the time server, the external authentication server and the web
-browsers.
+software installed from the installation kit, the ingress behind the TLS
+endpoint, the container runtime, the database, the object storage, the
+monitoring chart renderer, the network, the time server, the external
+authentication server and the web browsers.
 
 ## Install from one configuration file
 
@@ -132,6 +136,9 @@ Complete these preparations once:
    ([Decrypt the medium](../08-delivery_verification.md#3-decrypt-the-medium)) and
    copy the directory `guidance/deployment` to a root-only directory on the
    administration workstation. This guide calls that copy the deployment directory.
+   In it, `./deploy check` without a configuration file compares the copy with the
+   directory's own file hashes and prints
+   `Package hashes match. Independently verify its delivery signature and source identity.`
    On the servers, the installer's own directory is `/root/deploy`. In the
    deployment directory, copy `site.example.json` to `site.json`, open it in a text
    editor and fill in the site's public values and file paths. Keep passwords,
@@ -194,10 +201,10 @@ section of `site.json` selects the OCI images already supplied by Sequent:
 ```
 
 The medium contains `image-digests.txt` and one OCI image directory under `images/`
-for each of the seven TOE parts. Leave those files unchanged. You do not create
-tar files or enter six more hashes: the check validates the delivered image
+for each of the eleven TOE parts. Leave those files unchanged. You do not create
+tar files or enter ten more hashes: the check validates the delivered image
 descriptors and blobs, and installation prepares and checks its own temporary
-transport archives for the six server images. The election-verifier image remains
+transport archives for the ten server images. The election-verifier image remains
 part of the accepted delivery even though it is not installed on the servers.
 
 Keep the `identity_provider.definition` file private: it contains the client
@@ -398,9 +405,10 @@ After customer and trustee commissioning, use the broader inspection of
 That section shows its actual output and remaining browser, client-network and
 election-event checks. The storage probe creates and removes a temporary check pod.
 
-Backup, restore and trustee-key removal are later lifecycle operations. They are
-not performed by the installation command. Their commands are in
-[Backups and restore](11-selftest_handover.md#backups-and-restore) and
+Backup, restore, certificate renewal and trustee-key removal are later lifecycle
+operations. They are not performed by the installation command. Their commands are in
+[Backups and restore](11-selftest_handover.md#backups-and-restore),
+[Renew the certificate](05-certificates_tls.md#renew-the-certificate) and
 [Remove the trustee keys at the end of the election event](08-installing_toe.md#remove-the-trustee-keys-at-the-end-of-the-election-event).
 
 ## If something fails
@@ -424,10 +432,11 @@ These rules apply wherever this guide says to stop:
   ([Verify SSH host keys before first use](03-installation_kit.md#verify-ssh-host-keys-before-first-use))
   and start again at [Check the site](#check-the-site). Once an election event
   exists, ask Sequent.
-- **Ask Sequent.** Wherever this guide says to ask Sequent, use the contact channel
-  of your delivery, or write to [security@sequentech.io](mailto:security@sequentech.io)
-  for a security problem. Give the stage name, the error message and the TOE
-  reference, and no secret.
+- **Ask Sequent.** Wherever this guide says to ask Sequent, write to
+  [election-support@sequentech.io](mailto:election-support@sequentech.io),
+  or to [security@sequentech.io](mailto:security@sequentech.io) for a security
+  problem. Give the stage name, the error message and the TOE reference, and no
+  secret.
 
 ## Detailed operations and acceptance criteria
 
@@ -435,7 +444,9 @@ The following chapters explain the configuration requirements, complete commands
 expected outputs and fault handling. Their terminal captures come from a test
 installation; the admin portal captures come from a local build with test data.
 Run a command where its section specifies; a server name or internal operation
-number by itself is never an instruction to execute. Installation is automated;
+number by itself is never an instruction to execute. The numbered operations in the
+directory `steps/` of the deployment directory are run by `./deploy` itself, never
+by hand. Installation is automated;
 the explicit acceptance checks establish conditions that still require the
 operator, an independent client network or another person.
 
@@ -461,4 +472,4 @@ their example addresses and identifiers are not values to enter at your site.
 | Version | Date | Changes |
 | --- | --- | --- |
 | 1.0 | 2026-10-27 | First edition for the evaluated configuration of v10.0.0. |
-| 1.1 | 2026-11-02 | Numbered sections; introductions to numbered steps; all chapters revised; handover and TOE image observation added; new screenshots. |
+| 1.1 | 2026-11-10 | Numbered sections; chapters revised; handover, maintenance and recovery added; new portal screenshots. |

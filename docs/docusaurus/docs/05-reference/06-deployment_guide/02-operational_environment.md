@@ -17,8 +17,8 @@ chapter before you install anything. The later chapters check most of it.
 
 | Server | Role | Requirements |
 | --- | --- | --- |
-| C1 | Cluster server: runs the cluster control plane, receives all client traffic on port 443 at its TLS endpoint and holds the data of the database, the object storage and the instances of the trustee server | x86_64, UEFI boot, at least 64 GB on the system disk, at least 16 GB of memory and 4 processor cores |
-| C2 | Second cluster node: runs workloads | x86_64, UEFI boot, at least 64 GB on the system disk, at least 16 GB of memory and 4 processor cores |
+| C1 | Cluster server: runs the cluster control plane and every part of the TOE, receives all client traffic on port 443 at its TLS endpoint and holds the data of the database, the object storage and the instances of the trustee server | x86_64, UEFI boot, at least 64 GB on the system disk, at least 16 GB of memory and 4 processor cores |
+| C2 | Second cluster node: runs no part of the TOE. Software outside the TOE, such as the cluster's own services and the monitoring chart renderer, runs on either server | x86_64, UEFI boot, at least 64 GB on the system disk, at least 16 GB of memory and 4 processor cores |
 
 Together, C1 and C2 are the e-voting server of the Security Target, the IT
 systems on which the TOE is installed: everything this guide and the handbooks
@@ -49,8 +49,9 @@ let only the operators log in.
 
 - Its SSH public key is the only key in the site file's `admin.authorizedKeys`
   (see [Installing the Servers](03-installation_kit.md)).
-- Its address lies in the site file's `admin.allowedSourceCidr`, and no
-  other client device is in that range.
+- Its address lies in the site file's `admin.allowedSourceCidr`, the only IPv4
+  range from which both servers accept SSH, and no other client device is in
+  that range.
 - It trusts the certificates of the TOE's web hosts (see
   [Certificates](#certificates)).
 
@@ -89,12 +90,20 @@ components) is not encrypted. Filter the traffic to them at the site firewall:
 | C1 and C2 | external authentication server | TCP 443 |
 | C1 and C2 | DNS server | DNS |
 | C1 and C2 | mail relay | the TCP port of the relay's `smtps://` URL ([Configure security email](01-about.md#configure-security-email)) |
+| C1 | the addresses of the revocation lists of the election board members' signing certificates ([Trusted issuers and certificate checks](../../02-election_managers/04-administrator_handbook/06-signing_rules.md#trusted-issuers-and-certificate-checks)) | the HTTP or HTTPS port of each address |
 | Anything else | C1 or C2 | nothing |
 
 :::warning
 No other port of either server may be reachable from client networks. Port 80
 stays closed: the TOE offers no unencrypted HTTP.
 :::
+
+The election organizer's certificate authority names the addresses of its
+revocation lists (the CRL distribution points) in its certificates. Obtain them
+from the election organizer and allow only those hosts and ports. The TOE
+downloads a list only from a public address, over HTTP or HTTPS, and does not
+follow redirects. If the certificate authority publishes no list that the TOE can
+download, leave that row out.
 
 The site provides a network with the capacity and availability that the election
 event needs (OE.Network).
@@ -111,7 +120,9 @@ administration portal and the ballot verifier) resolve to the address of C1.
 The servers take their time from the site's time servers, given in the site
 file by IP address. A time server must offer NTS (Network Time Security), so
 that the servers accept only authenticated time. Electoral phases, token
-lifetimes and the timestamps in the electoral log depend on it.
+lifetimes and the timestamps in the electoral log depend on it. Every TOE part
+runs on C1, so all of these times come from C1's clock; C2 is synchronised in
+the same way.
 
 The time server’s NTS certificate must cover that IP address and chain to a CA
 trusted by the delivered server operating system. Confirm this trust requirement
@@ -131,13 +142,15 @@ authentication server; the TOE holds no passwords for them. The server must:
 - be an OpenID Connect provider that signs its ID tokens and publishes its
   signing keys;
 - authenticate administrators and election board members with two factors;
-- serve TLS 1.3 with the cipher suite TLS_AES_256_GCM_SHA384 and the group
-  secp384r1 only, with an ECDSA P-384 certificate;
+- serve TLS 1.3 with the cipher suite TLS_AES_256_GCM_SHA384, the group
+  secp384r1 and the signature scheme ecdsa_secp384r1_sha384 only, with an
+  ECDSA P-384 certificate;
 - register the TOE as a confidential client, as
   [Connecting the Authentication Server](06-authentication_server.md)
   describes;
-- give the operator the CA certificate that its server certificate chains to,
-  through a channel that guarantees its integrity (in person or a signed email).
+- give the operator the one CA certificate that its server certificate chains
+  to, with an ECDSA P-384 key, through a channel that guarantees its integrity
+  (in person or a signed email).
 
 ## Certificates
 

@@ -58,11 +58,14 @@ not provide this separation.
 
 ### Browser trustees and the evaluated configuration
 
-The product includes a browser page, the entry "Trustee Dashboard" of the side menu. This evaluated configuration
+The product includes a browser page for trustees, which the evaluated configuration
+does not offer: the side menu has no entry "Trustee Dashboard", and the page's
+address opens an empty page. This evaluated configuration
 uses the server-side `braid` component identified by the Security Target, so
 browser trustees do not replace those cluster instances. The portal handles
 public custody requests and signed proofs; private trustee keys stay out of it.
-Use the offline tool for key generation and custody authorization.
+Use the offline tool for key generation and custody authorization. If the side
+menu shows the entry "Trustee Dashboard", do not use it, and tell the administrators.
 
 ## Generating your keys
 
@@ -158,19 +161,42 @@ When the election board has created the key ceremony, the admin portal invites
 you to take part in it. To take part:
 
 1. Sign in with your personal account and open the election event's tab "Keys".
-   Select the ceremony's key action.
-2. The page "Trustee Key Ceremony" says that you participate as a trustee and
+   With the board member who created the ceremony, check in person that its row
+   shows the name and the time in the column "Started at" that the board wrote in
+   its minutes, and that the member's page of the ceremony lists under the heading
+   "Key Ceremony Progress" the trustees that the board decided. If anything
+   differs, or the list shows a ceremony that the board did not create, stop and
+   tell the board.
+2. Compare the protocol manager key before you download the custody request. The
+   board gives you, over a channel that does not pass through the TOE, the value
+   "Protocol manager key (SHA-256)" and the board name `dkg_…` of the ceremony.
+   The operators show you the log of your instance of the trustee server, on the
+   screen or on a printout, with `trustee1` or `trustee2` as your instance and the
+   board name in place of `BOARD_NAME`:
+
+   ```sh
+   k3s kubectl -n step-infra logs deployment/trustee1 | grep "protocol manager key SHA-256" | grep BOARD_NAME
+   ```
+
+   Find the line "session opened: Configuration accepted, protocol manager key
+   SHA-256 …" for that board name, and compare all 32 pairs of the value with the
+   board's, not only the first and the last. If they match, write down the date,
+   the board name, the value and who compared, and select the ceremony's key
+   action. If they differ, or there is no such line, do not create or upload a
+   custody proof for this ceremony, and tell the board; the operators keep the
+   log.
+3. The page "Trustee Key Ceremony" says that you participate as a trustee and
    shows your trustee name. Check that it is yours.
-3. Select the button "Download Custody Request". The admin portal shows the message
+4. Select the button "Download Custody Request". The admin portal shows the message
    "Public custody request downloaded successfully." The file
    `<trustee name>-custody-request.json` (your trustee name, with spaces and
    special characters replaced by "-") is public: it holds identifiers and
    your registered public keys.
-4. Select the button "Next". The dialog "Back Up Your Local Trustee Keys" asks you to
+5. Select the button "Next". The dialog "Back Up Your Local Trustee Keys" asks you to
    back up the file `trustee.toml` in at least two secure locations. Tick the boxes "First backup
    secured" and "Second backup secured" only when both backups exist, then select the
    button "Confirm Backups and Continue".
-5. Move the downloaded public request into your own encrypted working directory.
+6. Move the downloaded public request into your own encrypted working directory.
    The portal shows three short public configuration fields. Copy their values
    into your file `trustee.json`: `request_file`, `proof_file` and `tally_session_id`.
    For the key ceremony, `tally_session_id` must be `null`. Keep your existing
@@ -190,11 +216,11 @@ you to take part in it. To take part:
    *Illustration: the offline VM creating a proof for a laboratory key ceremony, with
    synthetic data. Your ceremony identifier and configured filename will differ.*
 
-6. Move the new public proof back. On the step "Confirm Trustee Custody",
+7. Move the new public proof back. On the step "Confirm Trustee Custody",
    upload it. The admin portal checks the proof when you select the file.
    Sign it with your signing certificate (protected action "Confirm custody (key
    ceremony)").
-7. The admin portal shows the message "Trustee custody confirmed successfully." On
+8. The admin portal shows the message "Trustee custody confirmed successfully." On
    the tab "Keys", your row shows a tick in the column "Custody Confirmed".
 
 Keep the file `<trustee name>-custody-request.json` on your encrypted working medium: you need
@@ -255,10 +281,9 @@ command and tell the election board.
 
 ## What trustees never do
 
-- Do not use the entry "Trustee Dashboard" of the side menu. In the evaluated
-  configuration custody authorization uses the offline trustee tool; the
-  server-side instance runs in the cluster. That page would handle your keys in
-  the browser.
+- Do not use the entry "Trustee Dashboard" if the side menu ever shows it
+  ([Browser trustees and the evaluated configuration](#browser-trustees-and-the-evaluated-configuration)):
+  that page would handle your keys in the browser.
 - Do not use any device other than an organizer-controlled one prepared as
   [Reuse one existing workstation](#reuse-one-existing-workstation) and
   [Preparing a trustee workstation](../../05-reference/06-deployment_guide/08-installing_toe.md#preparing-a-trustee-workstation) describe.
@@ -283,12 +308,69 @@ To handle the loss or exposure:
 
 ## At the end of the election event
 
-When the electoral regulation's retention period has ended and the election
-execution data has been deleted, each trustee destroys their keys file and all
-its backups, in the presence of another board member, and the board records it
-in the board's minutes. The operators remove the copy held for your trustee server
-instance
-([Remove the trustee keys at the end of the election event](../../05-reference/06-deployment_guide/08-installing_toe.md#remove-the-trustee-keys-at-the-end-of-the-election-event)).
-The board then directs the keepers of the backups to destroy the retained
-trustee-state backups and every system backup of the election event, and records
-the destruction in the board's minutes.
+The trustee keys are needed until the votes are counted. After the tally and the
+export
+([Exporting the election execution data](08-evaluation-and-post-processing.md#exporting-the-election-execution-data)),
+the election board decides when they are destroyed and writes its instruction in
+the board's minutes. Once they are destroyed, no election event of the
+installation can be counted with them. Then:
+
+1. A board member archives the approval event, as for a wrong import
+   ([Importing the election data](06-preparation.md#importing-the-election-data)):
+   the operators' command refuses while any election event of the installation is
+   neither in the post-processing phase nor archived.
+2. The operators destroy the keys and the protocol state of both trustee server
+   instances, with the board present
+   ([Remove the trustee keys at the end of the election event](../../05-reference/06-deployment_guide/08-installing_toe.md#remove-the-trustee-keys-at-the-end-of-the-election-event)).
+   Their command prints the public keys of each instance: the board compares them
+   with those of the registered trustees, which an administrator shows in
+   Settings > "TRUSTEES".
+3. Each trustee destroys their keys file and every backup of it on the trustee
+   workstation, in the presence of another board member. In a root terminal in the
+   accepted `deployment` folder, with only their own encrypted working medium
+   unlocked, the trustee runs:
+
+   ```sh
+   ./trustee destroy trustee.json
+   ```
+
+   For each backup, with its medium mounted, they run the same command with the
+   backup's absolute path added, for example
+   `./trustee destroy trustee.json /media/usb/trustee.toml`. The tool warns that
+   the file is overwritten with zeros, flushed to the medium and removed, and asks
+   for the phrase `DESTROY KEYS FILE`: type it. Expect, with the file's path in
+   place of `PATH`, the line `destroyed the keys file PATH (… bytes) of`, the two
+   public keys (`public_key:` and `share_encryption_public_key:`), the line
+   `KEYS FILE DESTROYED: PATH` and the two sentences "An overwrite reaches only the
+   file the file system shows: a flash medium, a journaling or copy-on-write file
+   system, a snapshot or an earlier copy of the file can keep its content elsewhere
+   on the medium. The election board decides what happens to the medium itself."
+   The board member compares the two public keys with those that the operators'
+   command printed for the trustee's instance. If the tool stops with a message
+   that starts with `TRUSTEE OPERATION STOPPED:`, follow the message; if the file
+   cannot be destroyed, tell the board. Two board members destroy in the same way,
+   each file with its absolute path, the keys file and backups that a trustee who
+   left handed over
+   ([A trustee leaves](03-board-roles-and-permissions.md#a-trustee-leaves)).
+4. The board directs the keepers of the backups to destroy the retained
+   trustee-state backups, and the system backups as
+   [Deleting the election execution data](08-evaluation-and-post-processing.md#deleting-the-election-execution-data)
+   describes: a system backup holds the whole installation.
+
+The board records each destruction in the board's minutes. The operators' command
+erases no backup and no copy of the servers' disks, and destroying a file does not
+erase what a storage medium may keep: the election organizer decides what happens
+to the servers' disks, and the election board what happens to the trustees'
+media.
+
+A later election event on the installation needs new trustee keys. Once their
+old keys file is destroyed, each trustee generates a new one
+([Generating your keys](#generating-your-keys)) and gives its public keys to the
+administrators, who register them under the trustee's name in place of the old
+ones
+([Registering the trustees' public keys](../04-administrator_handbook/04-users_and_roles.md#registering-the-trustees-public-keys)).
+Before that election event's key ceremony, both trustees bring their media to the
+operators, as at the commissioning
+([Handing over the keys file for your trustee server instance](#handing-over-the-keys-file-for-your-trustee-server-instance)),
+and the operators install the new keys files
+([Install new trustee keys for a later election event](../../05-reference/06-deployment_guide/08-installing_toe.md#install-new-trustee-keys-for-a-later-election-event)).

@@ -6,8 +6,16 @@ kind: Pod
 metadata:
   name: storage-check
   namespace: step-infra
+  labels:
+    app: storage-check
 spec:
   restartPolicy: Never
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: "true"
+  tolerations:
+    - key: "node-role.kubernetes.io/master"
+      operator: "Exists"
+      effect: "NoSchedule"
   containers:
     - name: check
       image: sequentech.local/trustee:latest
@@ -15,8 +23,6 @@ spec:
       command: ["/bin/sh", "-c"]
       args:
         - |
-          aws s3api list-objects-v2 --bucket public --prefix plugins/ \
-            --query 'length(Contents || `[]`)'
           aws --no-sign-request s3api list-objects-v2 \
             --bucket election-event-documents 2>&1 | grep -o AccessDenied
           aws s3api get-bucket-policy --bucket election-event-documents 2>&1 \
@@ -34,6 +40,8 @@ spec:
           value: "http://rustfs.step-infra.svc.cluster.local:9000"
         - name: AWS_REGION
           value: "us-east-1"
+        - name: AWS_MAX_ATTEMPTS
+          value: "10"
         - name: AWS_ACCESS_KEY_ID
           value: "admin"
         - name: AWS_SECRET_ACCESS_KEY

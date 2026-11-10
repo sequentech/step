@@ -23,16 +23,14 @@ the accepted delivery medium.
 
 Before Sequent builds the kit, write down the values of the table in
 [Check the site file](#check-the-site-file): this is the site plan. The election
-organizer approves it. Send it to Sequent through the contact channel of your
-delivery, with the time server's public CA certificate if that CA is private.
+organizer approves it. Send it to Sequent at
+[election-support@sequentech.io](mailto:election-support@sequentech.io),
+with the time server's public CA certificate if that CA is private.
 Sequent delivers the kit on a USB drive and sends its signing fingerprint
 separately from the drive. Keep the site plan and the fingerprint with the delivery
 note.
 
 ## Verify the kit
-
-<!-- deployment-step: 03-001 -->
-<!-- deployment-step: 03-002 -->
 
 **Where:** a root terminal on the administration workstation, in the deployment
 directory. Mount the kit read-only.
@@ -64,8 +62,6 @@ Do not remove checksum entries or regenerate a checksum list.
 
 ## Check the site file
 
-<!-- deployment-step: 03-003 -->
-
 After the kit passes, open its `nixos/site.json` **read-only** in your editor and
 compare it with the approved site plan: the values that your site gave Sequent for
 this kit. Do not edit the delivered file in place.
@@ -80,7 +76,7 @@ into the server image.
 | Nodes | C1 has role `server`; C2 has role `agent`; names and addresses match the plan |
 | Disks | Any pinned disk identifies the disk approved for erasure |
 | `admin.authorizedKeys` | The administration workstation's SSH public key, and no other key |
-| `admin.allowedSourceCidr` | Only the administration workstation's approved source network |
+| `admin.allowedSourceCidr` | Only the administration workstation's approved source network, as one IPv4 range: the servers accept SSH only from it, and from every source if it is missing |
 
 **Expected result:** every row agrees with the approved plan. A successful file
 signature or schema check does not prove that the delivered values describe your
@@ -104,8 +100,9 @@ To install the operating system on C1 and C2:
 1. Use your workstation's approved USB-image writer to write the accepted
    `nixos/*.iso` to the installation USB. Select the USB by its physical device
    identity; image writing replaces its existing contents.
-2. Boot C1 from that USB in UEFI mode. The installer starts automatically.
-   Press **1** to select C1.
+2. Boot C1 from that USB in UEFI mode. The installer starts automatically and
+   lists the servers of the site plan, each with a key, its host name and its
+   address. Press the key shown for C1.
 3. Check the selected role, disk and capacity against the site plan. Press
    **Enter** only when the displayed disk is the approved disk to erase.
    Any other key cancels without writing.
@@ -116,7 +113,7 @@ To install the operating system on C1 and C2:
 
 4. Wait for **Installation complete**. Remove the USB and press any key to
    restart into the installed system.
-5. Repeat on C2 with the same USB, selecting **2**. Install C1 first because C2
+5. Repeat on C2 with the same USB, pressing the key shown for C2. Install C1 first because C2
    joins it at first boot. Once both installations finish, lock away or destroy
    the installation USB.
 
@@ -195,11 +192,11 @@ name, different fingerprint or changed-host warning means **stop**. Answer
 authorized reinstall before updating trust. Never disable host-key checking
 or delete a known-host entry merely to silence a warning. If the fingerprint
 matches but authentication fails, check that the approved key matches
-`admin.authorizedKeys` in the accepted site definition.
+`admin.authorizedKeys` in the accepted site definition. If the connection times
+out before any prompt, check that the workstation's address lies in
+`admin.allowedSourceCidr`.
 
 ## Check the installed servers
-
-<!-- deployment-step: 03-004 -->
 
 After verifying both SSH host keys above, run the single check of
 [Check the site](01-about.md#check-the-site) from the deployment directory on the
@@ -230,7 +227,6 @@ applications until both configured nodes are ready.
 
 ## Prepare the directory /root/deploy
 
-<!-- deployment-step: 03-005 -->
 <!-- deployment-step: 03-006 -->
 
 **Automatic part of `./deploy install site.json`.** The installer creates

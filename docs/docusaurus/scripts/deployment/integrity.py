@@ -9,7 +9,7 @@ import install
 
 
 def node_script(expected):
-    install.require(set(expected)==set(install.PARTS), 'Exactly six server component digests are required')
+    install.require(set(expected)==set(install.PARTS), 'Exactly ten server component digests are required')
     install.require(all(isinstance(d,str) and re.fullmatch(r'sha256:[0-9a-f]{64}',d) for d in expected.values()), 'Invalid server component digest')
     manifest='\n'.join(part+' '+expected[part] for part in install.PARTS)+'\n'
     return r'''set -euo pipefail
@@ -48,15 +48,15 @@ done <<'ACCEPTED_COMPONENT_DIGESTS'
 
 def check(data):
     install.require(data.get('toe',{}).get('format','tar')=='oci',
-                    'TSF integrity inspection requires the complete seven-image accepted OCI delivery')
+                    'TSF integrity inspection requires the complete eleven-image accepted OCI delivery')
     # This rechecks the independently accepted manifest, every OCI descriptor and
-    # every content blob of all seven parts, including the on-demand verifier.
+    # every content blob of all eleven parts, including the on-demand verifier.
     install.verify_inputs(data)
     manifest=(Path(data['toe']['directory'])/'image-digests.txt').read_text()
     expected={m[1]:m[2] for line in manifest.splitlines()
               if (m:=re.fullmatch(r'(\S+) (sha256:[0-9a-f]{64})',line))}
-    install.require(set(expected)==set(install.TOE_PARTS),'All seven accepted TOE parts are required')
-    print('PASS: all seven delivered TSF images, including election-verifier, match the accepted release',flush=True)
+    install.require(set(expected)==set(install.TOE_PARTS),'All eleven accepted TOE parts are required')
+    print('PASS: all eleven delivered TSF images, including election-verifier, match the accepted release',flush=True)
     servers={part:expected[part] for part in install.PARTS}
     script=node_script(servers)
     for node in ('c1','c2'):
@@ -64,14 +64,14 @@ def check(data):
         lines=raw.strip().splitlines()
         install.require(lines==[part+' manifest, configuration and every layer verified' for part in install.PARTS],
                         'Incomplete TSF content verification on '+node)
-        print('PASS: '+node+' — all six installed server images match every accepted content blob',flush=True)
+        print('PASS: '+node+' — all ten installed server images match every accepted content blob',flush=True)
     refs='\n'.join('sequentech.local/'+part+'@'+servers[part] for part in install.PARTS)+'\n'
     # Trusted expected values come from verified delivery, not the current cluster.
     runtime="expected="+shlex.quote(refs)+r'''
 k3s kubectl get deployments -A -o json | jq -e --arg expected "$expected" '
  ($expected | split("\n") | map(select(length>0))) as $allowed |
  [.items[].spec.template.spec | (.containers[]?,.initContainers[]?) | .image |
- select(test("^sequentech\\.local/(b4|ballot-verifier|braid|harvest|keycloak|windmill)(@|:)"))] |
+ select(test("^sequentech\\.local/(admin-portal|b4|ballot-verifier|braid|graphql-engine|harvest|keycloak|tls-endpoint|voting-portal|windmill)(@|:)"))] |
  length>0 and all(. as $image | $allowed | index($image)!=null)' >/dev/null
 '''
     install.ssh(data,'c1',runtime,'Running TSF deployment identity verification',timeout=10)

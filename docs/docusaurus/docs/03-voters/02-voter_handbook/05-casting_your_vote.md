@@ -105,8 +105,8 @@ count. Until you cast it, the ballot locator does not find this Ballot ID.
 
 :::
 
-While your ballot is being sent, the screen shows no Ballot ID and the button
-"Cast ballot" is disabled. If an error message appears and the button
+While your ballot is being sent, the screen shows no Ballot ID and the buttons
+"Audit ballot" and "Cast ballot" are disabled. If an error message appears and the button
 "Cast ballot" stays disabled, nothing has been cast: select the button
 "Edit ballot", then the button "Next", to send your ballot again. If it happens
 again, see
@@ -120,7 +120,7 @@ To finish the review:
 | Button | What happens next |
 |---|---|
 | "Edit ballot" | Return to your selections and change them. |
-| "Audit ballot" | Check this ballot’s encryption. The voting portal then discards this ballot and does not let you cast it; to vote, you start again with a new encrypted ballot and a new Ballot ID. See [Auditing Your Ballot](06-auditing_your_ballot.md). |
+| "Audit ballot" | Check this ballot’s encryption. The intermediate ballot box first records the audit and from then on refuses to cast this ballot; the voting portal discards it. To vote, you start again with a new encrypted ballot and a new Ballot ID. See [Auditing Your Ballot](06-auditing_your_ballot.md). |
 | "Cast ballot" | Submit the ballot. Continue with [Cast your vote](#cast-your-vote) and wait for the confirmation. |
 
 If you reload the page before you cast, your browser loses the encrypted ballot,
@@ -154,9 +154,7 @@ To cast your vote:
 :::warning
 
 **Cast only a ballot that shows exactly your selections.** If you have audited
-a ballot, check that the ballot you cast has a different full Ballot ID. The
-audit takes place only on your device, so the voting system cannot recognise
-an audited ballot; only your check shows that you do not cast it. Once cast, a
+a ballot, check that the ballot you cast has a different full Ballot ID. Once cast, a
 vote cannot be changed. If your election allows
 you to vote again, a new vote replaces it in the count (see
 [Voting Again](08-voting_again.md)).

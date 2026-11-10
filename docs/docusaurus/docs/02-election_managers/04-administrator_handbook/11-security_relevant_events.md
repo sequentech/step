@@ -30,23 +30,24 @@ For every event of this chapter:
 | An account reached the authentication failure threshold | the election board tells you: it sees the record on the election event's tab "Dashboard", under "Attack detections" | Ask the organisation that runs the external authentication server whose sign-ins failed, and find out with that person whether the attempts were theirs. If they were not, tell the election board. ([Authentication failure threshold](08-authentication_and_sessions.md#authentication-failure-threshold)) |
 | An attack detection matched | the election board tells you | Tell the operator, and whoever runs the network if that is someone else, and agree the measures with the board ([Audit, Monitoring and Notifications](09-audit_and_monitoring.md#attack-detections)). |
 | The header's "Version:" is not `10.0.0`, or the TOE software differs from the accepted delivery | your checks ([Checking the version of the TOE](03-admin_portal.md#checking-the-version-of-the-toe), [Verify the TOE software](07-self_tests.md#verify-the-toe-software)) | The system is not the evaluated TOE: do not start or continue an election event; tell the election board and the election organizer; report it. |
-| The audit storage threshold is exceeded | an email, and the area "Security email delivery" of the tab "Security and self-tests" of the election event | Have the operator extend storage ([Storage](../../05-reference/06-deployment_guide/11-selftest_handover.md#storage)); never delete records. A fresh measurement at or below the threshold removes this refusal; the other phase, period and self-test checks still apply. |
-| A server component crashed or was shut down | the tab "Security and self-tests" of the election event shows "Recovery required"; the operator identifies the component with the service checks of the Deployment Guide | Tell the election board the reason the tab shows and the time; it records them in the board's minutes. Ask the operator to read the log of the failed component and tell the board what it shows. Obtain the board's decision before the operator restarts it during execution. After the restart, [verify the TOE software](07-self_tests.md#verify-the-toe-software), then follow [Maintenance mode](10-modes_of_operation.md#maintenance-mode). |
-| The browser reports a certificate problem for the admin portal or the external authentication server | the browser | Do not sign in; tell the operator. |
+| The audit storage threshold is exceeded | an email, and the area "Security email delivery" of the tab "Security and self-tests" of the election event | Have the operator extend storage ([Storage](../../05-reference/06-deployment_guide/11-selftest_handover.md#storage), [Extend the data file system](../../05-reference/06-deployment_guide/11-selftest_handover.md#extend-the-data-file-system)); never delete records. A fresh measurement at or below the threshold removes this refusal; the other phase, period and self-test checks still apply. In the execution phase the election event shows **Recovery required**: the board resumes voting as [Maintenance mode](10-modes_of_operation.md#maintenance-mode) describes. |
+| A server component crashed or was shut down, and no process of it is left working | for `harvest` and `windmill` in the execution phase, the tab "Security and self-tests" of the election event shows "Recovery required" with the reason "A required service stopped or restarted"; the operator identifies the component with the service checks of the Deployment Guide | Tell the election board the reason the tab shows and the time; it records them in the board's minutes. Ask the operator to read the log of the failed component and tell the board what it shows. Obtain the board's decision before the operator restarts it during execution. After the restart, [verify the TOE software](07-self_tests.md#verify-the-toe-software), then follow [Maintenance mode](10-modes_of_operation.md#maintenance-mode). |
+| The browser reports a certificate problem for the admin portal or the external authentication server | the browser | Do not sign in; tell the operator. The operator renews a certificate of the TOE's addresses as [Renew the certificate](../../05-reference/06-deployment_guide/05-certificates_tls.md#renew-the-certificate) describes, or changes its CA file on the election board's decision ([Change the CA file](../../05-reference/06-deployment_guide/05-certificates_tls.md#change-the-ca-file)). |
 | A notification email does not arrive, or arrives for an event you did not expect | email | Check the account's "Email" and tell the operator; ask the election board to check the electoral log for the event. |
 
 ## Preparation phase
 
 | Event | How you notice it | What you do |
 |---|---|---|
-| An import of the election board is refused: the digest, the signature or the approvals are not valid | the election board tells you | Open **Settings → Configuration packages** and check that the saved CA fingerprints and approval count still match your approved values ([Import of election data](05-tenant_and_event_settings.md#import-of-election-data)); do not change them. The board asks the election organizer for a new package. |
+| An import of the election board is refused: the digest, the signature or the approvals are not valid | the election board tells you | Open the tab "Configuration packages" of the side menu "Settings" and check that the saved CA fingerprints and approval count still match your approved values ([Import of election data](05-tenant_and_event_settings.md#import-of-election-data)); do not change them. The board asks the election organizer for a new package. |
 | A setting of an imported election event differs from the required value | your checks ([Tenant and Election Event Settings](05-tenant_and_event_settings.md)) | Stop before publication and tell the election board and the election organizer. The organizer includes the required value in a corrected signed package; the board imports a new election event and archives the wrong one. Check the new event without repairing imported values in the TOE. |
 | The imported election data is wrong | the election board's check | Nobody corrects it in the TOE. The election organizer issues a corrected package, which the election board imports; the board archives the wrong election event. Check the settings of the new one. |
 | The TOE refuses a change with a message that starts "The election event is locked down" | the message | The election event is in a lockdown period: change nothing. A needed change goes through a new configuration version, with the election board. |
 | An electoral-log audit fails, is missing or is delayed | the election board tells you: it sees the task "Audit Electoral Log" in the tab "Tasks" of the election event | Tell the operator and help the board to find the cause. An electoral-log audit does not replace the six self-test checks ([Security and Self-Tests](07-self_tests.md)). |
 | A ballot box is not empty when the execution phase is to start | the tab "Security and self-tests" of the election event shows "Recovery required" with the reason "Ballot box not empty at the start of the election" | Tell the election board; do not try to empty it; report it. |
 | A scheduled opening or closing shows "Will be refused" or "Will run without signatures" | the election board tells you | The board reads the reason under the button "Why?". The state "Will run without signatures" means that the setting "Scheduled close without signatures" is "Run as system", which [Configuration the board must verify](05-tenant_and_event_settings.md#configuration-the-board-must-verify) forbids: treat it as a setting that differs from the required value. For the state "Will be refused", tell the board every setting you changed after the approval. |
-| A signing request ends as "Failed" | the election board tells you | Check the protected action's rule and the certificate registrations on the Signatures tab with the board. |
+| A signing request ends as "Failed" | the election board tells you | Check the protected action's rule and the certificate registrations on the Signatures tab with the board. A request "Approve a configuration version" also fails when re-voting was disabled in an election after it started, or ends as "Cancelled" with the reason "What it signs changed" if the board requested the approval again before its last signature ([Disabling re-voting](05-tenant_and_event_settings.md#disabling-re-voting)). |
+| Re-voting was disabled in an election | an email with the subject "Election security notification: RevotingDisabled", and the area "Security email delivery" of the tab "Security and self-tests" of the election event. The email gives the identifiers of the election event and of the election, and the user identifier and username of the account. When you select an election event or an election in the side menu, the address of the admin portal ends with its identifier. | If an administrator disabled it on the election organizer's written decision, check that the election board knows: only a configuration version that the board approves after the change lets voting start ([Disabling re-voting](05-tenant_and_event_settings.md#disabling-re-voting)). Otherwise tell the election board and the election organizer at once: re-voting cannot be enabled again in that election. |
 
 ## Execution phase
 
@@ -54,7 +55,7 @@ For every event of this chapter:
 |---|---|---|
 | An electoral-log audit fails, is missing or is delayed | the election board tells you: it sees the task "Audit Electoral Log" in the tab "Tasks" of the election event | Tell the operator and help the board to find the cause. An electoral-log audit does not replace the six self-test checks ([Security and Self-Tests](07-self_tests.md)). |
 | Suspected ballot-box integrity failure | **Unrecoverable failure** and the ballot-box check result, or an operator report | Support the election board; ask the operator to read the log of the failed component and tell the board what it shows; report it ([Modes of Operation and Failure Handling](10-modes_of_operation.md#an-unrecoverable-failure)). |
-| The server clock is not synchronised | the self-test check "Clock synchronization" fails | Have the operator restore the time service ([Authenticated time](../../05-reference/06-deployment_guide/04-hosts_network_time.md#authenticated-time)). |
+| The server clock is not synchronised | the self-test check "Clock synchronization" fails | Have the operator restore the time service ([Authenticated time](../../05-reference/06-deployment_guide/04-hosts_network_time.md#authenticated-time), [Restore time synchronization](../../05-reference/06-deployment_guide/04-hosts_network_time.md#restore-time-synchronization)). |
 
 ## Evaluation and post-processing phases
 
@@ -82,17 +83,17 @@ board, which keeps it with the board's minutes.
   checked the digest received from the organizer. Tell the operator that an
   election event was imported.
 - ☐ [Verify the TOE software](07-self_tests.md#verify-the-toe-software) shows
-  "Matches the accepted delivery", and the "SHA-256 of the accepted digest list"
-  matches the value the operator gave you.
+  the result "Matches the accepted delivery", and the value labelled "SHA-256 of
+  the accepted digest list" matches the one the operator gave you.
 - ☐ The operator tells you that the checks of
   [Data correction, telephone channel, plugins and tenants](../../05-reference/06-deployment_guide/10-verification.md#data-correction-telephone-channel-plugins-and-tenants)
-  passed: election work uses only the customer's tenant, no plugin is installed,
+  passed: election work uses only the customer's tenant, no plugin can run,
   and no telephone provider is configured.
 
 ### Check the accounts and permissions {#2-check-the-accounts-and-permissions}
 
 - ☐ No account combines an administrator role with a board permission.
-- ☐ "Role Data" of `admin` shows no "Sign:" permission, no **Edit Election
+- ☐ The page "Role Data" of `admin` shows no "Sign:" permission, no **Edit Election
   State** and no **Create Election Event**
   ([The administrator role](04-users_and_roles.md#the-administrator-role)).
 - ☐ No role has **Edit Results Publication** (`publish-results-write`),
@@ -107,7 +108,7 @@ board, which keeps it with the board's minutes.
 
 ### Check the event settings with the board {#3-check-the-event-settings-with-the-board}
 
-Compare the controls visible in **Data → Security settings**. For the other
+Compare the controls visible in the section "Security settings" of the election event's tab "Data". For the other
 rows, obtain the board's confirmation from its read-only Data view. Tick a row
 only after that check; do not add a board permission to your account.
 
@@ -183,7 +184,7 @@ only after that check; do not add a board permission to your account.
 - ☐ The operator tells you that the checks of
   [Election event realms](../../05-reference/06-deployment_guide/10-verification.md#election-event-realms) passed, and
   your [login checks](08-authentication_and_sessions.md#what-you-check) pass.
-- ☐ In **Settings → Attack detection**, **Failed logins per minute, all accounts**,
+- ☐ In the tab "Attack detection" of the side menu "Settings", **Failed logins per minute, all accounts**,
   **Requests per minute, external interfaces** and **Failed sign-ins per account
   before an alert** match the values agreed with the election organizer.
 

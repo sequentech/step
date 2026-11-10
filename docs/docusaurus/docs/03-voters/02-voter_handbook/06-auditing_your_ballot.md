@@ -17,13 +17,14 @@ that your vote is cast as intended.
 It works like this:
 
 - On the review screen you can either cast the encrypted ballot or audit it.
-- If you audit it, the voting portal reveals the secret values it used to encrypt
-  that ballot, and the ballot verifier checks with them that the encrypted ballot
-  contains your selections.
+- If you audit it, the voting portal first asks the intermediate ballot box to
+  record the audit. Only once the ballot box has confirmed it does the voting
+  portal reveal the secret values it used to encrypt that ballot, and the ballot
+  verifier checks with them that the encrypted ballot contains your selections.
 - A ballot whose secret values have been revealed is spoiled. It must never be
-  cast, because these values show how it was filled in. The voting portal discards
-  it and does not let you cast it. The voting system itself cannot recognise an
-  audited ballot, because the audit takes place only on your device.
+  cast, because these values show how it was filled in. The intermediate ballot
+  box, which recorded the audit, refuses to cast it, and the voting portal
+  discards it.
 - To vote, you start again. Your next ballot is encrypted anew, with new secret
   values and a new Ballot ID.
 
@@ -66,6 +67,13 @@ To start the audit:
    which warns that an audit voids this ballot and restarts the voting.
 4. Select the button "Yes, discard my ballot to audit". To return to the review
    screen instead, select the button "Cancel".
+5. Wait while the voting portal asks the intermediate ballot box to record the
+   audit: meanwhile the buttons "Audit ballot" and "Cast ballot" are disabled.
+   Once the ballot box has confirmed it, the screen "Check your ballot" opens. If
+   the review screen shows the message "The ballot box could not confirm the audit
+   of this ballot. Please try again later or contact support" instead, nothing
+   has been revealed or cast (see
+   [Messages and what to do](10-states_and_problems.md#messages-and-what-to-do)).
 
 ## Save the audit details
 

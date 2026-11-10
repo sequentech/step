@@ -28,7 +28,7 @@ TOE. This handbook is that instruction.
 
 ## The TOE and the supporting components
 
-The TOE consists of seven components:
+The TOE consists of eleven components:
 
 | Component | What it does |
 |---|---|
@@ -39,16 +39,23 @@ The TOE consists of seven components:
 | election-verifier | the tool that verifies the proofs of the mixing and decryption of the votes, run on demand on exported data |
 | braid | the trustee component that generates the election key, mixes and decrypts the votes |
 | b4 | the bulletin board of the trustees |
+| tls-endpoint | terminates the trusted channels (TLS 1.3) of every remote endpoint, such as your browser, and forwards the requests to the other components |
+| graphql-engine | the GraphQL interface of the TOE: checks the token of each request, enforces the TOE's access rules on its data and forwards actions to harvest |
+| voting-portal | the web application of the voters, run in their browsers, with the code that encrypts the vote |
+| admin-portal | the web application of the administrators and the election board, run in their browsers |
 
 The evaluated configuration also contains **supporting components** of the
-operational environment, which are not part of the TOE: the admin portal and
-voting portal web applications, the TLS endpoint and the ingress in front of the TOE,
-the GraphQL engine that executes the TOE's access rules, the database, the
-document storage, the container platform and operating system of the servers,
-and the time service. The Deployment Guide installs and hardens them.
+operational environment, which are not part of the TOE: the ingress in front of
+the TOE, the database, the document storage, the container platform and
+operating system of the servers, the time service, the observers that report
+the clock's synchronisation, the running images and the request activity to the
+TOE, the renderer of the monitoring charts, the setup helpers of the
+installation kit, and the mail relay that delivers the TOE's email
+notifications. The Deployment Guide installs and hardens them, and connects the
+TOE to the mail relay.
 
-You use the TOE through the **admin portal**, a supporting web application in
-your browser. The admin portal shows only the functions your permissions allow,
+You use the TOE through its **admin portal**, a web application in your
+browser. The admin portal shows only the functions your permissions allow,
 but that is a convenience: the TOE checks every request on the server side,
 whatever the admin portal shows.
 
@@ -64,6 +71,7 @@ whatever the admin portal shows.
 | Verify that the running TOE software matches the accepted delivery | after deployment, after each update, after a server component crashed and before the election board approves a configuration version | [Verify the TOE software](07-self_tests.md#verify-the-toe-software) |
 | Set the attack detection rates and the authentication failure threshold | preparation phase | [Audit, Monitoring and Notifications](09-audit_and_monitoring.md#attack-detections) |
 | Give the election organizer the required number of allowed votes (re-voting); the board checks the imported value of each election | before package approval and after import | [Tenant and Election Event Settings](05-tenant_and_event_settings.md) |
+| Disable re-voting in an election when the election organizer decides so | preparation phase, before the board requests the approval of the configuration version | [Disabling re-voting](05-tenant_and_event_settings.md#disabling-re-voting) |
 | Check the session and login settings | after deployment, and for each new election event | [Authentication and Session Settings](08-authentication_and_sessions.md) |
 | Act on the TOE's notifications and on what the election board reports, and support the board's audit review | every phase, especially the execution phase | [Audit, Monitoring and Notifications](09-audit_and_monitoring.md) |
 | Support the election board in maintenance mode and after failures | when they occur | [Modes of Operation and Failure Handling](10-modes_of_operation.md) |
@@ -83,11 +91,11 @@ phase stated, and only as the election organizer has decided.
 | Trusted issuers and certificate checks | <ul><li>"Signatures: import and remove trusted issuers" (<code>signing-issuers-write</code>)</li><li>"Signatures: edit certificate checks" (<code>signing-checks-write</code>)</li><li>"Signatures: register certificates" (<code>signing-certificates-register</code>)</li><li>"Signatures: revoke certificates" (<code>signing-certificates-revoke</code>)</li></ul> | Decide whose signatures the TOE accepts for protected actions. |
 | Trustees' public keys | "Edit Trustee" (`trustee-write`) | Decides which public keys the key ceremony uses for each trustee: register only keys checked with the trustee ([Registering the trustees' public keys](04-users_and_roles.md#registering-the-trustees-public-keys)). |
 | Tenant configuration | "Edit Tenant" (`tenant-write`) | Includes the rules for signed configuration packages, which protect the integrity and authenticity of imported election data. |
-| Election event administration settings | "Admin User" (`admin-user`) | You can change only the administrator settings on the election event's tab "Data", and only in the preparation phase. The TOE does not show you each election's own settings, and shows only the settings that [Tenant and Election Event Settings](05-tenant_and_event_settings.md) lists. Values that affect the approved ballot design must already be correct in the signed package: verify them after import, and request a corrected package instead of editing them to repair the import. |
+| Election event administration settings | "Admin User" (`admin-user`) | On the election event's tab "Data" you can only change the administrator settings and disable re-voting (next row), and only in the preparation phase. The TOE shows you only the settings that [Tenant and Election Event Settings](05-tenant_and_event_settings.md) lists, and of each election only its name and its number of allowed votes. Values that affect the approved ballot design must already be correct in the signed package: verify them after import, and request a corrected package instead of editing them to repair the import. |
+| Disabling re-voting | "Admin User" (`admin-user`) | Each voter of the election can then cast one vote, and re-voting cannot be enabled again. Disable it only on the election organizer's written decision, before the board requests the approval of the configuration version ([Disabling re-voting](05-tenant_and_event_settings.md#disabling-re-voting)). |
 | Permissions on election data and audit records | For example: <ul><li>"Create Election Event" (<code>election-event-create</code>)</li><li>"Read Voter" (<code>voter-read</code>)</li><li>"Read Logs" (<code>logs-read</code>)</li><li>"Read Publish" (<code>publish-read</code>)</li><li>"Edit Scheduled Events" (<code>scheduled-event-write</code>)</li><li>"Read Area" (<code>area-read</code>)</li><li>"Delete Election Event" (<code>election-event-delete</code>)</li></ul> | The TOE never gives them to an administrator account ([The administrator role](04-users_and_roles.md#the-administrator-role)). Whoever holds them imports, reads, publishes or deletes election data, or reads the audit records. Never give an administrator a role that holds them, and give "Edit Results Publication" (`publish-results-write`) to no role. |
 | Configure background self-tests | <ul><li>"Self-tests: read results" (<code>self-test-read</code>)</li><li>"Self-tests: run checks" (<code>self-test-run</code>)</li><li>"Self-tests: edit settings" (<code>self-test-settings-write</code>), to change the interval and the optional conditions in preparation</li></ul> | [Security and Self-Tests](07-self_tests.md) |
 | Attack detection rates and the authentication failure threshold | "Edit Tenant" (`tenant-write`) and "Admin User" (`admin-user`) | Settings, tab "Attack detection". "Failed logins per minute, all accounts", "Requests per minute, external interfaces" and "Failed sign-ins per account before an alert" decide when the TOE records a potential attack for the election board ([Attack detections](09-audit_and_monitoring.md#attack-detections)). |
-| Tenant backup and restore | "Edit Tenant" (`tenant-write`) | Settings, tab "Backup / Restore", can import a tenant configuration, a Keycloak configuration and roles and permissions from a file, which can change what this handbook sets up. This handbook gives no procedure for it: do not import anything there. |
 
 :::warning
 Never give yourself or another administrator a board permission, and never

@@ -116,12 +116,13 @@ No scheduled event "Start Enrollment Period" is created: voters do not
 register themselves in the evaluated configuration.
 
 :::warning
-An imported package can also carry settings of the election event's realm,
-such as its brute-force protection and the recording of authentication events.
-After each import, the operator checks, as the
+The TOE creates the realm of each imported election event from the realm
+template that the Deployment Guide installs, and takes from the package only
+the realm's display settings: names, themes, texts and locales. After each
+import, the operator checks, as the
 [Deployment Guide](../../05-reference/06-deployment_guide/10-verification.md)
-describes, that the realm of the new election event still has brute-force
-protection on and records its authentication events. If not, do not let the board
+describes, that the realm of the new election event has brute-force protection
+on and records its authentication events. If not, do not let the board
 approve the configuration version until the setting has been restored.
 :::
 

@@ -60,4 +60,21 @@ class SiteChecksTest(unittest.TestCase):
             with self.assertRaises(ValueError):site_checks.check_allowed(0,bad)
         with self.assertRaises(ValueError):site_checks.check_allowed(1,valid)
 
+    def test_authentication_server_probe_offers_only_the_ecdsa_p384_signature_scheme(self):
+        valid='New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384\nPeer Temp Key: ECDH, secp384r1, 384 bits\nServer public key is 384 bit\nVerify return code: 0 (ok)\n'
+        calls=[]
+        def probe(arguments,d=None,node=None):
+            calls.append((arguments,node))
+            allowed='-CAfile' in arguments and 'TLS_AES_256_GCM_SHA384' in arguments and 'secp384r1' in arguments
+            return (0,valid) if allowed else (1,'')
+        d={'nodes':{'c1':'192.0.2.11','c2':'192.0.2.12'},'hosts':{'voting':'vote.example.org','administration':'admin.example.org','verifier':'verify.example.org','authentication':'login.example.org'}}
+        with patch('site_checks.verified_ca',return_value=('ca.pem',b'')),patch('site_checks.probe',side_effect=probe),patch('site_checks.port_open',return_value=False),patch('builtins.print'):
+            site_checks.tls(d)
+        allowed=[arguments for arguments,node in calls if '-groups' in arguments and 'secp384r1' in arguments]
+        authentication=[arguments for arguments in allowed if 'login.example.org' in arguments]
+        self.assertTrue(authentication)
+        for arguments in authentication:
+            self.assertEqual(arguments[arguments.index('-sigalgs')+1],'ecdsa_secp384r1_sha384')
+        self.assertTrue(all('-sigalgs' not in arguments for arguments in allowed if 'login.example.org' not in arguments))
+
 if __name__=='__main__':unittest.main()

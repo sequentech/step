@@ -11,16 +11,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 ## The electoral log
 
 Each election event has its own electoral log ([Terms](01-about.md#terms)). Each
-record has its time, its type and the account that caused it, if a person caused
-it. The records are chained, so that a removed or changed record is detected. The
+record has its time and its type, and a record that a person caused names the
+account. The records of the disabling of re-voting, of a download of verification
+data and of the archiving name it only in their details, by its user identifier;
+the record of an export names no account, but the export's signing request does.
+The records are chained, so that a removed or changed record is detected. The
 TOE records:
 
 | Caused by | What the electoral log records |
 |---|---|
-| The election board | The import of election data, each publication and approval of a configuration version, each signing request with its signatures, the start, interruption, resumption and termination of the election execution, the counting, the export, the archiving and the deletion |
-| The administrators | Changes of signing rules, trusted issuers, certificate checks and "Sign:" permissions, certificate registrations and revocations, changes of the self-test settings, and changes of the attack-detection settings, which are recorded in every election event of the tenant |
-| The TOE | Self-test results, maintenance and unrecoverable-failure transitions, audit-storage failures, and attack detections, among them an account reaching the authentication failure threshold. A detection that concerns the tenant's accounts is recorded in every election event of the tenant |
-| The voters | Their actions in the voting portal |
+| The election board | The import of election data, each publication and approval of a configuration version, each signing request with its signatures, the start, interruption, resumption and termination of the election execution, the counting, the export, each download of verification data, the archiving and the deletion |
+| The administrators | Changes of signing rules, trusted issuers, certificate checks and "Sign:" permissions, certificate registrations and revocations with the signing requests a revocation cancels, the disabling of re-voting in an election, changes of the self-test settings, and changes of the attack-detection settings, which are recorded in every election event of the tenant |
+| The TOE | The start and the result of each self-test run and of each verification of the TOE software, maintenance and unrecoverable-failure transitions, audit-storage failures, and attack detections, among them an account reaching the authentication failure threshold. A detection that concerns the tenant's accounts is recorded in every election event of the tenant |
+| The voters | Their actions in the voting portal, among them each ballot cast or audited |
 
 The electoral log does not record changes of staff accounts, role assignments,
 other role permissions, the realm's password policy or other tenant settings. Once
@@ -58,7 +61,7 @@ does not see it.*
 
 Your part: check that the role `election-board` holds these permissions, as
 [The election board role](04-users_and_roles.md#the-election-board-role) lists, and
-that "Role Data" of the role `admin` shows none of them. Add the permission "Read
+that the page "Role Data" of the role `admin` shows none of them. Add the permission "Read
 Electoral Log Personal Data" (`electoral-log-personal-data-read`) to the role
 `election-board` only if the election organizer decides so.
 
@@ -87,7 +90,7 @@ the board holds.
 
 To set and verify the thresholds:
 
-1. Open **Settings → Attack detection**.
+1. Open the tab "Attack detection" of the side menu "Settings".
 2. Enter whole numbers in **Failed logins per minute, all accounts** (1–100,000),
    **Failed sign-ins per account before an alert** (1–100,000, default 5,
    [Authentication failure threshold](08-authentication_and_sessions.md#authentication-failure-threshold))
@@ -124,16 +127,28 @@ capacity it:
 
 - refuses new sessions and requests of voters, so that no vote is cast that
   could not be recorded;
+- refuses new sessions, token renewals and requests to `harvest` of the other
+  accounts of the tenant that are neither administrators, board members nor
+  service accounts: in the evaluated configuration, the machine accounts
+  `trustee1` and `trustee2` of the trustee server instances, so key ceremonies
+  and tallies wait;
+- in the execution phase, unless the election board has paused voting, puts
+  the election event into **Recovery required** with the reason "The required
+  self-test failed or its validity interval expired", although no self-test
+  failed, and pauses its open voting channels;
 - writes a record to the electoral log;
 - emails the election board and the administrators.
 
-Administrators and board members can still sign in and work. Have the operator
-extend the storage at once
-([Storage](../../05-reference/06-deployment_guide/11-selftest_handover.md#storage)):
-never by deleting audit records or election execution data. Voters can sign in
-again once the used space is at or below the threshold and the measurement is
-fresh. Missing, stale, future-dated or unreadable measurements also refuse voter
-access. The other phase, period and self-test checks continue to apply.
+Administrators and board members, the trustees among them, can still sign in
+and work. Have the operator extend the storage at once
+([Storage](../../05-reference/06-deployment_guide/11-selftest_handover.md#storage), [Extend the data file system](../../05-reference/06-deployment_guide/11-selftest_handover.md#extend-the-data-file-system)):
+never by deleting audit records or election execution data. Voters and the
+other accounts can sign in again once the used space is at or below the
+threshold and the measurement is fresh. Missing, stale, future-dated or
+unreadable measurements also refuse their access and stop voting in the same
+way. Voting that the TOE stopped does not resume by itself: the election board
+resumes it as [Maintenance mode](10-modes_of_operation.md#maintenance-mode)
+describes. The other phase, period and self-test checks continue to apply.
 
 ## Email notifications
 
@@ -147,7 +162,9 @@ members. It sends an email when:
 - an election event leaves maintenance mode;
 - the electoral phase of an election event changes;
 - election execution data is exported;
+- verification data of an election event is downloaded;
 - an election event is archived;
+- re-voting is disabled in an election;
 - the audit storage threshold is exceeded, or the TOE has no current measurement
   of the audit storage.
 

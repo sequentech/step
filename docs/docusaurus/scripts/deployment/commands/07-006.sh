@@ -7,8 +7,8 @@ k3s kubectl -n step-infra create secret generic keycloak-bootstrap-admin \
 k3s kubectl -n step-apps create secret generic keycloak-service-credentials \
   --from-env-file=<(printf '%s\n' KEYCLOAK_CLIENT_ID=service-account \
     "KEYCLOAK_CLIENT_SECRET=$KC_SERVICE_ACCOUNT_SECRET" \
-    "KEYCLOAK_ADMIN_CLIENT_ID=$KC_ADMIN_USER" \
-    "KEYCLOAK_ADMIN_CLIENT_SECRET=$KC_ADMIN_PASSWORD")
+    KEYCLOAK_ADMIN_API_CLIENT_ID=step-admin-api \
+    "KEYCLOAK_ADMIN_API_CLIENT_SECRET=$KC_ADMIN_API_CLIENT_SECRET")
 for s in step-infra/keycloak-bootstrap-admin step-apps/keycloak-service-credentials; do
   k3s kubectl -n ${s%/*} get secret ${s#*/} -o jsonpath='{.data}' | jq -r 'keys[]'
 done

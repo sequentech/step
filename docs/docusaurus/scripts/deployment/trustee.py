@@ -105,9 +105,12 @@ def check_files(data, operation):
         need(not proof.exists() and not proof.is_symlink(), 'Proof already exists; choose a new proof_file in trustee.json')
 
 
+PODMAN = ['podman', 'run', '--rm', '--pull=never', '--network=none', '--read-only', '--cap-drop=ALL', '--security-opt=no-new-privileges', '--pids-limit=64', '--memory=256m', '--memory-swap=256m', '--cpus=1', '--entrypoint', '/usr/bin/trustee']
+
+
 def native_args(data, digest, operation):
     need(operation in ('generate', 'public-keys', 'attest'), 'Only offline key and custody operations are supported')
-    args = ['podman', 'run', '--rm', '--pull=never', '--network=none', '--read-only', '--cap-drop=ALL', '--security-opt=no-new-privileges', '--pids-limit=64', '--memory=256m', '--memory-swap=256m', '--cpus=1', '--entrypoint', '/usr/bin/trustee', '-v', data['working_directory'] + ':/work:Z', '-w', '/work', 'localhost/braid@' + digest, operation, '--trustee-config', data['keys_file']]
+    args = PODMAN + ['-v', data['working_directory'] + ':/work:Z', '-w', '/work', 'localhost/braid@' + digest, operation, '--trustee-config', data['keys_file']]
     if operation == 'attest':
         args += ['--request', data['request_file'], '--output', data['proof_file']]
         if data['tally_session_id'] is not None: args += ['--tally-session-id', data['tally_session_id']]
@@ -131,6 +134,43 @@ def native(data, digest, operation):
         print('CUSTODY PROOF CREATED: ' + data['proof_file'])
 
 
+DESTROY_LIMITS = 'An overwrite reaches only the file the file system shows: a flash medium, a journaling or copy-on-write file system, a snapshot or an earlier copy of the file can keep its content elsewhere on the medium. The election board decides what happens to the medium itself.'
+
+
+def regular_file(path):
+    try: mode = os.lstat(path).st_mode
+    except FileNotFoundError: raise ValueError('No file at ' + str(path) + '; nothing was changed') from None
+    need(stat.S_ISREG(mode), str(path) + ' is not a regular file; nothing was changed')
+    return path
+
+
+def destroy_target(data, copy):
+    """The directory and name of the keys file, or of a copy of it on another medium."""
+    if copy is None: return encrypted_working_directory(data), data['keys_file']
+    need(copy.is_absolute() and not any(character in str(copy) for character in '\n\r\x00,:'), 'Use the absolute path of the copy, without control or mount-option characters')
+    return checked_directory(str(copy.parent)), copy.name
+
+
+def destroy_args(directory, name, digest):
+    # The working directory is the image's root, which holds no session store:
+    # the native command destroys the keys file only.
+    return PODMAN + ['-v', str(directory) + ':/keys:Z', '-w', '/', 'localhost/braid@' + digest, 'destroy', '--trustee-config', '/keys/' + name]
+
+
+def destroy(data, digest, copy=None):
+    directory, name = destroy_target(data, copy)
+    path = regular_file(directory / name)
+    try: install.run(PODMAN + ['localhost/braid@' + digest, 'destroy', '--help'], 'Trustee destroy availability', timeout=30)
+    except ValueError: raise ValueError('The accepted trustee image does not provide trustee destroy; nothing was changed') from None
+    confirm('DESTROY KEYS FILE', "Only on the election board's recorded instruction, after the operators removed the trustee keys from the servers, in the presence of another board member. " + str(path) + ' is overwritten with zeros, flushed to the medium and removed; its keys can never take part in a ceremony or a tally again. Each copy on another medium is destroyed with its own command. ' + DESTROY_LIMITS)
+    try: output = install.run(destroy_args(directory, name, digest), 'Offline trustee destroy', timeout=60).decode()
+    except ValueError: raise ValueError('trustee destroy did not complete; ' + str(path) + (' still exists' if os.path.lexists(path) else ' was removed') + '. It must be a trustee keys file you can write') from None
+    need(not os.path.lexists(path), 'trustee destroy did not remove ' + str(path))
+    print(output.strip().replace('/keys/' + name, str(path), 1))
+    print('KEYS FILE DESTROYED: ' + str(path))
+    print(DESTROY_LIMITS)
+
+
 OTHER_MAINTENANCE = '''test ! -e /root/deploy/.backup-in-progress
 test ! -e /var/lib/sequent-maintenance/state.json
 '''
@@ -146,6 +186,9 @@ test "$(cat /var/lib/sequent-maintenance/claim/owner)" = trustee
 RELEASE = '''rm -f /var/lib/sequent-maintenance/claim/owner /var/lib/sequent-maintenance/claim/phase /var/lib/sequent-maintenance/claim/operation.lock /var/lib/sequent-maintenance/claim/id
 rmdir /var/lib/sequent-maintenance/claim
 '''
+# A stopping trustee ends its loop after the current cycle; the Deployments
+# give it 120 seconds (terminationGracePeriodSeconds), and the kubelet a margin.
+TRUSTEE_STOP_SECONDS = 150
 STOP = OTHER_MAINTENANCE + '''test ! -e /root/deploy/.trustee-backup-in-progress
 test ! -e /root/deploy/.trustee-removal-in-progress
 ''' + CLAIM + '''(set -o noclobber; : > /root/deploy/.trustee-backup-in-progress)
@@ -156,7 +199,7 @@ test ! -L /root/deploy/trustee-backup-replicas.json
 k3s kubectl -n step-infra get deploy trustee1 trustee2 -o json |
  jq '[.items[] | {name:.metadata.name,replicas:(.spec.replicas // 1)}]' > /root/deploy/trustee-backup-replicas.json
 k3s kubectl -n step-infra scale deploy trustee1 trustee2 --replicas=0
-k3s kubectl -n step-infra wait --for=delete pod -l 'app in (trustee1,trustee2)' --timeout=30s
+k3s kubectl -n step-infra wait --for=delete pod -l 'app in (trustee1,trustee2)' --timeout=''' + str(TRUSTEE_STOP_SECONDS) + '''s
 count=$(k3s kubectl -n step-infra get pods -l 'app in (trustee1,trustee2)' -o json | jq '.items | length')
 test "$count" = 0
 printf 'TRUSTEES STOPPED: state backup may begin\n'
@@ -185,23 +228,119 @@ for name in trustee1 trustee2; do k3s kubectl -n step-infra rollout status "depl
 rm /root/deploy/.trustee-backup-in-progress
 printf 'TRUSTEE REPLICA COUNTS RESTORED\n'
 ''' + RELEASE
+# Every election event the platform treats as finished: in post-processing, or
+# archived while in preparation. Any other event can still use the keys.
+OPEN_EVENTS_SQL = ("SELECT count(*) FROM sequent_backend.election_event e LEFT JOIN sequent_backend.election_lifecycle l"
+                   " ON l.tenant_id = e.tenant_id AND l.election_event_id = e.id"
+                   " WHERE l.phase IS NULL OR NOT (l.phase = 'post_processing' OR (l.phase = 'preparation' AND e.is_archived IS TRUE))")
+# One run of `trustee destroy` per trustee, in a pod of the image the trustee
+# ran: its working directory is the trustee's volume, and its keys file is an
+# in-memory copy of the mounted Secret. The command overwrites and removes
+# that copy and the session stores; the pod ends within 120 seconds.
+DESTROY_POD = '''{apiVersion: "v1", kind: "Pod",
+ metadata: {name: ($name + "-destroy"), namespace: "step-infra", labels: {app: "trustee-destroy"}},
+ spec: {restartPolicy: "Never", activeDeadlineSeconds: 120,
+  automountServiceAccountToken: false, enableServiceLinks: false,
+  nodeSelector: {"node-role.kubernetes.io/control-plane": "true"},
+  tolerations: [{key: "node-role.kubernetes.io/master", operator: "Exists", effect: "NoSchedule"}],
+  containers: [{name: "destroy", image: $image, imagePullPolicy: "Never", workingDir: "/opt/trustee",
+   command: ["/bin/sh", "-c", "umask 077; cat /var/run/trustee-keys/trustee.toml > /run/destroy/trustee.toml && exec trustee destroy --trustee-config /run/destroy/trustee.toml"],
+   volumeMounts: [{name: "data", mountPath: "/opt/trustee"},
+    {name: "keys", mountPath: "/var/run/trustee-keys", readOnly: true},
+    {name: "copy", mountPath: "/run/destroy"}]}],
+  volumes: [{name: "data", persistentVolumeClaim: {claimName: ($name + "-pvc")}},
+   {name: "keys", secret: {secretName: ($name + "-keys"), defaultMode: 256}},
+   {name: "copy", emptyDir: {medium: "Memory", sizeLimit: "1Mi"}}]}}'''
 REMOVE = OTHER_MAINTENANCE + '''test ! -e /root/deploy/.trustee-backup-in-progress
-test ! -e /root/deploy/.trustee-removal-in-progress
-''' + CLAIM + '''(set -o noclobber; : > /root/deploy/.trustee-removal-in-progress)
 for path in /var/lib/sequent-data/trustee1 /var/lib/sequent-data/trustee2; do test -d "$path"; test ! -L "$path"; done
-k3s kubectl -n step-infra scale deployment/trustee1 deployment/trustee2 --replicas=0
-k3s kubectl -n step-infra wait --for=delete pod -l 'app in (trustee1,trustee2)' --timeout=30s
+# A run that stopped part way leaves its marker and claim; the next run
+# continues it with the trustees whose keys Secret remains.
+resume=no
+if test -e /root/deploy/.trustee-removal-in-progress; then
+ test -f /root/deploy/.trustee-removal-in-progress
+ test ! -L /root/deploy/.trustee-removal-in-progress
+''' + OWNED + ''' resume=yes
+else
+ remaining=$(k3s kubectl -n step-infra get secret trustee1-keys trustee2-keys trustee1-auth trustee2-auth --ignore-not-found -o name)
+ count=$(find /var/lib/sequent-data/trustee1 /var/lib/sequent-data/trustee2 -mindepth 1 | wc -l)
+ if test -z "$remaining" && test "$count" = 0; then
+  rm -f /root/deploy/.trustee-keys-import-started
+  printf 'TRUSTEE KEYS ALREADY DESTROYED: four Secrets absent; state directories empty\\n'
+  exit 0
+ fi
+fi
+open=$(k3s kubectl -n step-infra exec deploy/postgres -- psql -U postgres -d hasura -tA -v ON_ERROR_STOP=1 -c "''' + OPEN_EVENTS_SQL + '''")
+if test "$open" != 0; then printf 'AGD_CHECK_FAILED TRUSTEE_KEYS_NEEDED\\n' >&2; exit 1; fi
+# An import of new keys that stopped part way may have left only one.
+if test "$resume" = no && test ! -e /root/deploy/.trustee-keys-import-started; then k3s kubectl -n step-infra get secret trustee1-keys trustee2-keys -o name >/dev/null; fi
+image=$(k3s kubectl -n step-infra get deployment trustee1 trustee2 -o json | jq -r '[.items[].spec.template.spec.containers[0].image] | unique | if length == 1 then .[0] else "" end')
+printf '%s\\n' "$image" | grep -qxE 'sequentech\\.local/braid@sha256:[0-9a-f]{64}'
+grep -qx "braid ${image#sequentech.local/braid@}" /root/deploy/image-digests.txt
+if ! k3s ctr -n k8s.io run --rm "$image" "agd-trustee-destroy-check-$$" /usr/bin/trustee destroy --help >/dev/null 2>&1; then
+ printf 'AGD_CHECK_FAILED TRUSTEE_DESTROY_UNAVAILABLE\\n' >&2; exit 1
+fi
+test ! -L /root/deploy/trustee-destroy.log
+if test "$resume" = no; then
+''' + CLAIM + '''(set -o noclobber; : > /root/deploy/.trustee-removal-in-progress)
+ rm -f /root/deploy/.trustee-keys-destroyed
+fi
+exec 9>/var/lib/sequent-maintenance/claim/operation.lock
+flock -n 9
+k3s kubectl -n step-infra scale deployment/trustee1 deployment/trustee2 --replicas=0 >/dev/null
+k3s kubectl -n step-infra wait --for=delete pod -l 'app in (trustee1,trustee2)' --timeout=''' + str(TRUSTEE_STOP_SECONDS) + '''s >/dev/null
 count=$(k3s kubectl -n step-infra get pods -l 'app in (trustee1,trustee2)' -o json | jq '.items | length')
 test "$count" = 0
-k3s kubectl -n step-infra delete secret trustee1-keys trustee2-keys trustee1-auth trustee2-auth
+for name in trustee1 trustee2; do
+ keys=$(k3s kubectl -n step-infra get secret "$name-keys" --ignore-not-found -o name)
+ if test -z "$keys"; then continue; fi
+ k3s kubectl -n step-infra delete pod "$name-destroy" --ignore-not-found --timeout=60s >/dev/null
+ jq -n --arg name "$name" --arg image "$image" \'''' + DESTROY_POD + '''\' | k3s kubectl create -f - >/dev/null
+ deadline=$((SECONDS+150))
+ while :; do
+  phase=$(k3s kubectl -n step-infra get pod "$name-destroy" -o jsonpath='{.status.phase}' 2>/dev/null) || phase=
+  case "$phase" in Succeeded|Failed) break;; esac
+  if test "$SECONDS" -ge "$deadline"; then break; fi
+  sleep 2
+ done
+ logs=$(k3s kubectl -n step-infra logs "pod/$name-destroy" 2>&1) || true
+ printf '%s\\n' "$logs" | sed "s/^/$name: /" | tee -a /root/deploy/trustee-destroy.log
+ k3s kubectl -n step-infra delete pod "$name-destroy" --timeout=60s >/dev/null
+ if test "$phase" != Succeeded; then printf 'AGD_CHECK_FAILED TRUSTEE_DESTROY_FAILED\\n' >&2; exit 1; fi
+done
+k3s kubectl -n step-infra delete secret trustee1-keys trustee2-keys trustee1-auth trustee2-auth --ignore-not-found >/dev/null
 find /var/lib/sequent-data/trustee1 /var/lib/sequent-data/trustee2 -mindepth 1 -delete
 remaining=$(k3s kubectl -n step-infra get secret trustee1-keys trustee2-keys trustee1-auth trustee2-auth --ignore-not-found -o name)
 test -z "$remaining"
 count=$(find /var/lib/sequent-data/trustee1 /var/lib/sequent-data/trustee2 -mindepth 1 | wc -l)
 test "$count" = 0
 printf 'TRUSTEE REMOVAL COMPLETE: four Secrets absent; state directories empty\n'
+rm -f /root/deploy/.trustee-keys-import-started
 rm /root/deploy/.trustee-removal-in-progress
 ''' + RELEASE
+# Stopping both trustees, then for each one at most a leftover pod's removal,
+# its destroy run and its pod's removal.
+REMOVE_SECONDS = 780
+# The cluster datastore keeps the earlier revisions of a deleted object until
+# it compacts them. Once compaction has passed the revision read after the
+# deletion, a list at that revision is refused as too old. Events are read
+# from the datastore, not from the API server's cache, and the field selector
+# matches no event, so the check returns no object.
+COMPACTION_SECONDS = 1800
+COMPACTION = '''query='/api/v1/namespaces/step-infra/events?fieldSelector=metadata.name%3Dagd-no-such-event'
+rv=$(k3s kubectl get --raw "$query" | jq -er '.metadata.resourceVersion | select(test("^[0-9]+$"))')
+deadline=$((SECONDS+''' + str(COMPACTION_SECONDS) + '''))
+while :; do
+ if err=$(k3s kubectl get --raw "$query&resourceVersion=$rv&resourceVersionMatch=Exact" 2>&1 >/dev/null); then :
+ elif printf '%s\\n' "$err" | grep -q 'too old'; then
+  : > /root/deploy/.trustee-keys-destroyed
+  printf 'DATASTORE COMPACTED: no earlier revision of the trustee Secrets remains in the cluster datastore\\n'
+  exit 0
+ fi
+ if test "$SECONDS" -ge "$deadline"; then break; fi
+ sleep 20
+done
+printf 'DATASTORE COMPACTION PENDING\\n'
+'''
 
 
 def backup_output():
@@ -218,7 +357,7 @@ def backup_server(data):
     stop = STOP.replace(owner_line, owner_line + 'printf ' + attempt + ' > /var/lib/sequent-maintenance/claim/id\n')
     owned_attempt = OWNED + 'test "$(cat /var/lib/sequent-maintenance/claim/id)" = ' + attempt + '\n'
     try:
-        print(install.ssh(data, 'c1', stop, 'Stopping trustee instances', timeout=45).decode().strip(), flush=True)
+        print(install.ssh(data, 'c1', stop, 'Stopping trustee instances', timeout=TRUSTEE_STOP_SECONDS + 30).decode().strip(), flush=True)
         checksum = maintenance.encrypt_remote(data, owned_attempt + ARCHIVE, output, kind='trustee', passphrase=secret)
         install.ssh(data, 'c1', owned_attempt + 'printf backup-complete > /var/lib/sequent-maintenance/claim/phase\n', 'Record completed trustee backup', timeout=10)
     except BaseException:
@@ -242,6 +381,17 @@ def confirm(phrase, explanation):
         need(response.readline().strip() == phrase, 'Operation cancelled; no automatic confirmation')
 
 
+def remove_server(data):
+    confirm('REMOVE TRUSTEE KEYS', "Only on the election board's recorded instruction, after the tally and the export, with every election event in post-processing or archived. Both trustee instances stop; their keys and session stores on the servers are overwritten with zeros and removed, and their Secrets are deleted. Backups are not erased, nor data a storage medium may keep after an overwrite.")
+    print('Checking that no election event needs the trustee keys, then destroying them with the session stores. This can take up to ' + str(REMOVE_SECONDS // 60) + ' minutes…', flush=True)
+    print(install.ssh(data, 'c1', REMOVE, 'Trustee key destruction', timeout=REMOVE_SECONDS).decode().strip(), flush=True)
+    print('Waiting for the cluster datastore to discard the deleted trustee Secrets. This can take up to ' + str(COMPACTION_SECONDS // 60) + ' minutes…', flush=True)
+    result = install.ssh(data, 'c1', COMPACTION, 'Cluster datastore compaction check', timeout=COMPACTION_SECONDS + 120).decode().strip()
+    need(result.startswith('DATASTORE COMPACTED: '), 'The cluster datastore still holds earlier revisions of the deleted trustee Secrets; run ./deploy remove-trustees site.json again later')
+    print(result)
+    print('Before the next election event: each trustee generates a new key pair offline and an administrator registers both new public keys in the customer administration portal; then run ./deploy commission site.json with both trustees and their key media present.')
+
+
 def server(config_path, operation):
     import maintenance
     need(os.geteuid() == 0, 'Run in a root administration-workstation terminal')
@@ -251,17 +401,17 @@ def server(config_path, operation):
     elif operation == 'resume-trustees':
         confirm('RESUME UNCHANGED TRUSTEES', 'Use only after a failed backup, with the original state intact and board authorization.')
         print(install.ssh(data, 'c1', RESUME, 'Restoring original trustee replica counts', timeout=50).decode().strip())
-    elif operation == 'remove-trustees':
-        confirm('REMOVE TRUSTEE KEYS', 'Board-authorized retirement after retention and execution-data deletion. Server keys and state will be destroyed.')
-        print(install.ssh(data, 'c1', REMOVE, 'Removing retired trustee keys and state', timeout=50).decode().strip())
+    elif operation == 'remove-trustees': remove_server(data)
     else: raise ValueError('Unknown trustee maintenance operation')
 
 
 def main():
     parser = argparse.ArgumentParser(description='Use the accepted trustee tool offline; no server or browser private-key handling.')
-    parser.add_argument('operation', choices=('prepare', 'generate', 'public-keys', 'attest'))
+    parser.add_argument('operation', choices=('prepare', 'generate', 'public-keys', 'attest', 'destroy'))
     parser.add_argument('configuration', type=Path)
+    parser.add_argument('copy', type=Path, nargs='?', help='destroy only: the path of a copy of the keys file on another medium')
     args = parser.parse_args()
+    need(args.copy is None or args.operation == 'destroy', 'Only destroy takes the path of a copy')
     import runner
     need(not runner.manifest().get('test_only'), 'Use the accepted delivery tool folder, not a test-only bundle')
     need(os.geteuid() == 0, 'Run in the offline trustee workstation root terminal')
@@ -271,10 +421,12 @@ def main():
     offline()
     if args.operation == 'prepare': prepare(data, config)
     else:
-        encrypted_working_directory(data)
+        # destroy checks the medium of the file it destroys.
+        if args.operation != 'destroy': encrypted_working_directory(data)
         digest = accepted_digest(data, config.parent / 'trustee-image-digests.txt')
         verify_local_image(digest)
-        native(data, digest, args.operation)
+        if args.operation == 'destroy': destroy(data, digest, args.copy)
+        else: native(data, digest, args.operation)
 
 
 if __name__ == '__main__':

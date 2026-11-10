@@ -21,7 +21,7 @@ from urllib.parse import urlencode, urlsplit, parse_qs
 from step_names import STEP_NAMES
 
 ROOT = Path(__file__).resolve().parent
-PARTS = ('b4', 'ballot-verifier', 'braid', 'harvest', 'keycloak', 'windmill')
+PARTS = ('admin-portal', 'b4', 'ballot-verifier', 'braid', 'graphql-engine', 'harvest', 'keycloak', 'tls-endpoint', 'voting-portal', 'windmill')
 TOE_PARTS = PARTS + ('election-verifier',)
 R = 'tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5'
 # The Deployment Guide's chapter on the operational environment lists these.
@@ -108,7 +108,7 @@ def run(argv, label, data=None, timeout=120):
     if r.returncode:
         stage=re.findall(rb'^AGD_STAGE_FAILED ([0-9]{2}-[0-9]{3})$',r.stderr,re.M)
         suffix=(' (operation '+STEP_NAMES.get(stage[-1].decode(),stage[-1].decode())+')') if stage else ''
-        checks={b'TIME_AUTHENTICATION': 'NTS-authenticated time is required; correct the accepted site time configuration', b'SSH_POLICY': 'SSH must allow administrator keys only', b'FRESH_CLUSTER': 'A fresh cluster and empty installation workspace are required', b'SOURCE_IDENTITY': 'Installed operating-system source differs from the accepted kit', b'TOOLS': 'An offline-kit prerequisite is unavailable', b'TLS_ENDPOINT': 'The accepted server kit must provide the nginx TLS endpoint before application installation', b'PRIVATE_INGRESS': 'Traefik must use loopback-only entrypoints with ClusterIP service; public plaintext HTTP is not allowed'}
+        checks={b'TIME_AUTHENTICATION': 'NTS-authenticated time is required; correct the accepted site time configuration', b'SSH_POLICY': 'SSH must allow administrator keys only', b'FRESH_CLUSTER': 'A fresh cluster and empty installation workspace are required', b'SOURCE_IDENTITY': 'Installed operating-system source differs from the accepted kit', b'TOOLS': 'An offline-kit prerequisite is unavailable', b'TLS_ENDPOINT': 'Port 443 of C1 must be free for the TLS endpoint before application installation', b'MASTER_SECRET': 'The generated master secret is missing or not 64 hexadecimal characters', b'PRIVATE_INGRESS': 'Traefik must use loopback-only entrypoints with ClusterIP service; public plaintext HTTP is not allowed', b'TLS_CA_CHANGED': 'The CA file that site.json names differs from the installed one; this command renews only a certificate from the same CA file; nothing was changed', b'TLS_ENDPOINT_REFUSED': 'The TLS endpoint did not accept the new certificate files; the previous files are back in place and nothing else was changed', b'TLS_NOT_SERVED': 'The TLS endpoint or Traefik did not serve the new certificate for every host within 60 seconds; the installation copies are unchanged and the command can be repeated', b'TRUSTEE_KEYS_NEEDED': 'An election event can still use the trustee keys: every election event must be in post-processing or archived; nothing was changed', b'TRUSTEE_DESTROY_UNAVAILABLE': 'The accepted trustee image does not provide trustee destroy; nothing was changed', b'TRUSTEE_DESTROY_FAILED': 'A trustee destroy run did not complete; the trustee Secrets are kept and both trustees stay stopped; its output is in /root/deploy/trustee-destroy.log on C1'}
         code=re.findall(rb'^AGD_CHECK_FAILED ([A-Z_]+)$',r.stderr,re.M)
         if code and code[-1] in checks: suffix=': '+checks[code[-1]]
         raise ValueError(label + ' failed'+suffix+'; stop and inspect this stage privately; see If something fails in the Deployment Guide')
@@ -177,6 +177,13 @@ def validate_idp(d, alias):
         require(isinstance(c.get(key),str) and c[key].startswith('https://') and not any(x in c[key] for x in ('\n','\r',' ')),'Identity-provider endpoints must be HTTPS URLs')
     require(isinstance(c.get('clientSecret'),str) and bool(c['clientSecret']) and isinstance(c.get('clientId'),str) and bool(c['clientId']),'Identity-provider registration is incomplete')
 
+def verify_auth_server_anchor(ca):
+    # Keycloak trusts every certificate in this file for the identity-provider connection.
+    pem=ca.read_bytes()
+    require(pem.count(b'-----BEGIN ')==1 and pem.count(b'-----BEGIN CERTIFICATE-----')==1,'Identity-provider CA file must contain exactly one certificate')
+    detail=run(['openssl','x509','-in',str(ca),'-noout','-text'],'Identity-provider CA key check')
+    require(b'Public Key Algorithm: id-ecPublicKey' in detail and b'NIST CURVE: P-384' in detail,'Identity-provider CA certificate must have an ECDSA P-384 key')
+
 def verify_inputs(d):
     checked_path(d['ssh_identity'],private=True,label='SSH identity')
     verify_kit(d)
@@ -190,7 +197,7 @@ def verify_inputs(d):
         if not line.strip() or line.startswith(('toe_reference:','tag:','commit:','production_run:','generated:')):continue
         m=re.fullmatch(r'(\S+) (sha256:[0-9a-f]{64})',line)
         require(m is not None and m[1] not in found,'Invalid or duplicate image digest entry');found[m[1]]=m[2]
-    require(set(TOE_PARTS)==set(found),'Image digest manifest must contain exactly the seven TOE parts')
+    require(set(TOE_PARTS)==set(found),'Image digest manifest must contain exactly the eleven TOE parts')
     if d['toe'].get('format','tar')=='oci':
         checked_path(str(toe/'images'),directory=True,label='TOE OCI image directory')
         import oci
@@ -206,6 +213,7 @@ def verify_inputs(d):
         ca=checked_path(d[group]['ca'],label=group+' CA certificate')
         der=run(['openssl','x509','-in',str(ca),'-outform','DER'],'CA certificate parsing')
         require(hashlib.sha256(der).hexdigest()==d[group]['ca_sha256'].lower(),'CA fingerprint differs from independently received value')
+    verify_auth_server_anchor(checked_path(d['identity_provider']['ca'],label='identity_provider CA certificate'))
     cert=checked_path(d['tls']['certificate'],label='TLS certificate');key=checked_path(d['tls']['private_key'],private=True,label='TLS private key')
     for host in [d['hosts'][name] for name in ('voting','administration','verifier')]:
         run(['openssl','verify','-purpose','sslserver','-verify_hostname',host,'-CAfile',d['tls']['ca'],str(cert)],'TLS certificate chain and hostname check')
@@ -260,9 +268,9 @@ chronyc sources | grep -qE '^.\\*'
     base+='test "$(jq -r .images.manifest.stepRevision /var/lib/sequent-install/provenance.json)" = '+shlex.quote(d.get('_kit_identity',d['release'])['step_commit'])+'\n'
     if fresh:base+='AGD_CHECK=FRESH_CLUSTER\ntest ! -e /root/deploy\n'
     if node=='c2':return base
+    # The TLS endpoint is a workload on C1's network; nothing else may hold its port.
     base+='''AGD_CHECK=TLS_ENDPOINT
-command -v nginx >/dev/null
-systemctl cat nginx.service >/dev/null
+test -z "$(ss -H -ltn 'sport = :443')"
 AGD_CHECK=PRIVATE_INGRESS
 k3s kubectl -n kube-system get deployment traefik -o json | jq -e '
  .spec.template.spec.hostNetwork == true and
@@ -323,7 +331,8 @@ def command_source(ident,d):
     return s
 
 
-REALM_CHECK = '.sslRequired == "external" and .ssoSessionIdleTimeout == 900 and\n      .bruteForceProtected == true and .failureFactor == 5 and\n      .eventsEnabled == true and .registrationAllowed == false and\n      .resetPasswordAllowed == false and .rememberMe == false and\n      (.eventsListeners | index("custom-event-listener") != null) and\n      (.identityProviders | length == 1) and .identityProviders[0].alias == $alias and\n      ([.clients[] | select(.clientId == "admin-portal" or .clientId == "voting-portal") | .clientId] | sort) == (if $kind == "event-template" then ["voting-portal"] else ["admin-portal","voting-portal"] end) and\n      ([.groups[]? | select(.name | startswith("admin")) | .realmRoles[]?\n        | select(. == "publish-results-write" or . == "datafix-account" or . == "voter-manually-verify")] | length == 0) and\n      ([.clients[] | select(.clientId == "admin-portal" or .clientId == "voting-portal")\n        | .directAccessGrantsEnabled == false and .attributes["pkce.code.challenge.method"] == "S256"] | all) and\n      .adminEventsEnabled == ($kind != "event-template") and .adminEventsDetailsEnabled == ($kind != "event-template")'
+REALM_CHECK = '.sslRequired == "external" and .ssoSessionIdleTimeout == 900 and\n      .bruteForceProtected == true and .failureFactor == 5 and\n      .eventsEnabled == true and .registrationAllowed == false and\n      .resetPasswordAllowed == false and .rememberMe == false and\n      (.eventsListeners | index("custom-event-listener") != null) and\n      (.identityProviders | length == 1) and .identityProviders[0].alias == $alias and\n      ([.clients[] | select(.clientId == "admin-portal" or .clientId == "voting-portal") | .clientId] | sort) == (if $kind == "event-template" then ["voting-portal"] else ["admin-portal","voting-portal"] end) and\n      ([(.groups[]? | recurse(.subGroups[]?) | .realmRoles[]?), .users[]?.realmRoles[]?\n        | select(. == "publish-results-write" or . == "datafix-account" or . == "voter-manually-verify")] | length == 0) and\n      ([.clients[] | select(.clientId == "admin-portal" or .clientId == "voting-portal")\n        | .directAccessGrantsEnabled == false and .attributes["pkce.code.challenge.method"] == "S256"] | all) and\n      .adminEventsEnabled == ($kind != "event-template") and .adminEventsDetailsEnabled == ($kind != "event-template") and\n      (.requiredActions | type == "array") and ([.requiredActions[] | select(.enabled != false or .defaultAction == true)] | length == 0) and any(.requiredActions[]; .alias == "idp_link") and\n      ([.clients[] | select(.clientId == "account" or .clientId == "account-console" or .clientId == "security-admin-console") | [.clientId, .enabled]] | sort) == [["account",false],["account-console",false],["security-admin-console",false]] and\n      (.defaultRole.name as $dr | [.roles.realm[]? | select(.name == $dr)] | length == 1 and ((.[0].composites.client.account // []) | index("manage-account") == null) and ((.[0].composites.realm // []) | index("offline_access") == null)) and\n      ([.components["org.keycloak.userprofile.UserProfileProvider"][]?.config["kc.user.profile.config"][]?] | length == 1) and\n      ([.components["org.keycloak.userprofile.UserProfileProvider"][]?.config["kc.user.profile.config"][]? | fromjson | .attributes[]?\n        | select(.name == "username" or .name == "email") | (.permissions.edit | type == "array") and (.permissions.edit | index("user") == null)] | length == 2 and all) and\n      ([(.defaultOptionalClientScopes, .defaultDefaultClientScopes, .clients[].optionalClientScopes, .clients[].defaultClientScopes, (.groups[]? | recurse(.subGroups[]?) | .realmRoles), .users[]?.realmRoles,\n        .roles.realm[]?.composites.realm, ((.roles.client // {}) | .[][]? | .composites.realm))[]?] | index("offline_access") == null) and\n      ([.users[]? | select((.credentials // []) | length > 0) | .username] | sort) == (if $kind == "tenant" then ["trustee1","trustee2"] else [] end) and\n      all(.clients[] | select(.clientId as $c | ["cli-account-admin","results-portal","onsite-voting-portal","vp-sso","ivr-service","ivr-voting","voting-portal-certs"] | index($c)); .enabled == false) and\n      all(.clients[] | select(.clientId == "cli-account-admin"); .directAccessGrantsEnabled == false) and\n      ([.clients[] | select(.clientId == "admin-cli") | .directAccessGrantsEnabled] == [false]) and\n      ([.authenticationFlows[]?.authenticationExecutions[]? | select(.flowAlias == "sequent browser flow forms" or .flowAlias == "message channel OTP") | .requirement] | all(. == "DISABLED")) and\n      (.browserFlow as $b | [.authenticationFlows[]? | select(.alias == $b) | .authenticationExecutions[]? | select(.flowAlias == "sequent browser flow forms") | .requirement] == ["DISABLED"]) and\n      ([.authenticatorConfig[]? | select(.alias == "redirect-to-idp") | .config.defaultProvider] == [$alias]) and\n      all(.authenticationFlows[]?.authenticationExecutions[]? | select(.authenticator == "identity-provider-redirector"); .authenticatorConfig == "redirect-to-idp") and\n      all(.identityProviders[]?; (.config.prompt // "") == "") and\n      ([.authenticationFlows[]? | select((.alias | startswith("smart-link")) or any(.authenticationExecutions[]?; .authenticator == "smart-link"))] | length == 0) and\n      ($kind != "event-template" or .attributes["sequent.messaging"] == null) and\n      all(.identityProviders[]; .firstBrokerLoginFlowAlias == "certificate-first-login-flow") and\n      ([.authenticationFlows[]? | select(.alias == "certificate-first-login-flow")\n        | [.topLevel, .providerId, [(.authenticationExecutions // []) | sort_by(.priority) | .[] | [.authenticator, .requirement]]]]\n        == [[true,"basic-flow",[["idp-detect-existing-broker-user","REQUIRED"],["idp-auto-link","REQUIRED"]]]]) and\n      ($admin != "" and $portal != "" and $verifier != "") and\n      ([.clients[] | select(.clientId == "admin-portal" or .clientId == "voting-portal")\n        | [.clientId, .publicClient, .standardFlowEnabled, .implicitFlowEnabled, (.redirectUris // [] | sort), .webOrigins, .attributes["post.logout.redirect.uris"],\n          .attributes["oauth2.device.authorization.grant.enabled"] == "true", .attributes["oidc.ciba.grant.enabled"] == "true"]] | sort)\n        == [if $kind == "event-template" then empty else ["admin-portal",true,true,false,["https://" + $admin + "/*"],["+"],"+",false,false] end,\n          ["voting-portal",true,true,false,(["https://" + $portal + "/*","https://" + $verifier + "/*"] | sort),["+"],"+",false,false]] and\n      ([.clients[] | select(.enabled != false) | .redirectUris[]?]\n        - ((if $kind == "event-template" then [] else ["https://" + $admin + "/*"] end) + ["https://" + $portal + "/*","https://" + $verifier + "/*"]) | length == 0) and\n      ($kind == "event-template" or (\n        ([.clients[] | select(.clientId == "api-key-client") | [.publicClient, .standardFlowEnabled, .implicitFlowEnabled, .directAccessGrantsEnabled, .serviceAccountsEnabled,\n          .redirectUris, .webOrigins, .attributes["post.logout.redirect.uris"], [.protocolMappers[]? | select(.name == "x-hasura-default-role") | .config["claim.value"]]]]\n          == [[false,false,false,true,false,[],[],null,["trustee-ceremony"]]]) and\n        ([.clients[] | select(.clientId == "service-account") | [.publicClient, .standardFlowEnabled, .implicitFlowEnabled, .directAccessGrantsEnabled, .serviceAccountsEnabled,\n          .authorizationServicesEnabled == true, .redirectUris, .webOrigins, .attributes["post.logout.redirect.uris"]]] == [[false,false,false,false,true,false,[],[],null]]) and\n        ([.clients[] | select(.clientId == "api-key-client" or .clientId == "service-account") | .attributes\n          | .["oauth2.device.authorization.grant.enabled"], .["oidc.ciba.grant.enabled"], .["standard.token.exchange.enabled"]] | all(. != "true")) and\n        .identityProviders[0].config.passMaxAge == "true" and\n        ([.clients[] | select(.clientId == "admin-portal") | .protocolMappers[]? | select(.config["claim.name"] == "auth_time")\n          | [.protocolMapper, .config["user.session.note"], .config["jsonType.label"], .config["id.token.claim"], .config["access.token.claim"]]]\n          == [["oidc-usersessionmodel-note-mapper","AUTH_TIME","long","true","true"]]) and\n        ([.users[]? | select(.serviceAccountClientId == "api-key-client")] | length == 0)))'
+BOARD_GROUP_CHECK = 'include "board"; [.groups[]? | select(.name | startswith("admin")) | recurse(.subGroups[]?) | .realmRoles[]? | select(board_only)] | length == 0'
 
 def install_script(d):
     # One shell preserves functions, variables and working directories across reviewed blocks.
@@ -332,13 +341,18 @@ def install_script(d):
         lines.append('AGD_STAGE='+ident)
         lines.append('source /root/deploy/installation-commands/'+ident+'.sh')
     source('03-006')
-    for ident in ('05-004','05-005','06-002','07-001','07-002','07-003','07-004','07-005','07-006','07-007'):
+    for ident in ('05-004','05-005','06-002','07-001','07-002','07-003','07-004','07-005'):
+        source(ident)
+    # Harvest and Windmill decode the master secret at first use: 64 hexadecimal characters.
+    lines.append('AGD_CHECK=MASTER_SECRET')
+    lines.append('if ! ( . /root/deploy/secrets.env; [[ ${MASTER_SECRET:-} =~ ^[0-9a-fA-F]{64}$ ]] ); then printf \'AGD_CHECK_FAILED %s\\n\' "$AGD_CHECK" >&2; false; fi')
+    for ident in ('07-006','07-007'):
         source(ident)
     lines.extend(['install -m 600 /root/deploy/installation-commands/07-008.jq /root/deploy/keycloak.jq','install -m 600 /root/deploy/installation-commands/07-015.jq /root/deploy/board.jq','install -m 600 /root/deploy/installation-commands/07-016.jq /root/deploy/realm.jq'])
     for ident in ('07-009','07-010','07-011','07-012','07-013','07-014','07-017','07-020'):
         source(ident)
     lines.append('AGD_STAGE=07-018')
-    lines.append('verify_realms() {\n  for kind in tenant tenant-template event-template; do\n    jq -e --arg kind "$kind" --arg alias "$IDP_ALIAS" '+shlex.quote(REALM_CHECK)+' "/root/deploy/realm-$kind.new.json" >/dev/null\n  done\n}\nverify_realms\n')
+    lines.append('verify_realms() {\n  for kind in tenant tenant-template event-template; do\n    jq -e --arg kind "$kind" --arg alias "$IDP_ALIAS" --arg admin "$ADMIN_HOST" --arg portal "$PORTAL_HOST" --arg verifier "$VERIFIER_HOST" '+shlex.quote(REALM_CHECK)+' "/root/deploy/realm-$kind.new.json" >/dev/null\n    jq -e -L /root/deploy '+shlex.quote(BOARD_GROUP_CHECK)+' "/root/deploy/realm-$kind.new.json" >/dev/null\n  done\n}\nverify_realms\n')
     source('07-021')
     lines.append('k3s kubectl -n step-apps create secret generic security-notifications --from-literal=EMAIL_TRANSPORT_NAME=smtp --from-file=EMAIL_FROM=/root/deploy/notifications/sender --from-file=EMAIL_TRANSPORT_CONFIG=/root/deploy/notifications/smtp.json')
     source('08-003')
@@ -394,7 +408,7 @@ def install_prepared(d,archives,archive_hashes):
         sums=''.join(archive_hashes[p]+'  '+p+'.tar\n' for p in PARTS)+d['toe']['manifest_sha256']+'  image-digests.txt\n'
         script='cd /root/toe-images\nsha256sum -c /dev/stdin <<\'ARCHIVE_HASHES\'\n'+sums+'ARCHIVE_HASHES\n'
         script+=command_source('08-002',d)
-        script+='\nwhile read -r part hash; do case "$part" in b4|ballot-verifier|braid|harvest|keycloak|windmill) k3s ctr -n k8s.io images ls -q | grep -qx "sequentech.local/$part@$hash";; esac; done < /root/toe-images/image-digests.txt\n'
+        script+='\nwhile read -r part hash; do case "$part" in '+'|'.join(PARTS)+') k3s ctr -n k8s.io images ls -q | grep -qx "sequentech.local/$part@$hash";; esac; done < /root/toe-images/image-digests.txt\n'
         ssh(d,node,script,node+' image import and readback',timeout=1800)
         print('PASS: '+node+' delivery archive hashes and imported image digests',flush=True)
     print('INSTALL 2/4: harden configuration and create private service credentials',flush=True)
@@ -496,7 +510,7 @@ for app in harvest windmill; do
 done
 deployments=$(k3s kubectl get deployments,jobs -A -o json)
 pods=$(k3s kubectl get pods -A -o json)
-for part in b4 ballot-verifier braid harvest keycloak windmill; do
+for part in __PARTS__; do
  expected=$(sed -n "s/^$part //p" /root/toe-images/image-digests.txt)
  test -n "$expected"
  image="sequentech.local/$part@$expected"
@@ -514,7 +528,7 @@ __RUNTIME_IDS__' | sort -u)
  done <<< "$ids"
 done
 '''
-    script=script.replace('__RUNTIME_IDS__',RUNTIME_IDS)
+    script=script.replace('__RUNTIME_IDS__',RUNTIME_IDS).replace('__PARTS__',' '.join(PARTS))
     print('VERIFY: waiting for platform services and checking their security settings',flush=True)
     ssh(d,'c1',script,'Installed platform policy verification',timeout=1800)
     verify_metadata(d)

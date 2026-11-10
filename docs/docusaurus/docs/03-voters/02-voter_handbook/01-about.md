@@ -37,10 +37,9 @@ Version, v10.0.0, in its evaluated configuration. It covers:
 In this handbook, **the voting system** means the Sequent Voting Platform -
 uniWAHL Version, v10.0.0. You use it with these:
 
-- **The voting portal.** The web application you open in your browser to vote.
-  It is not itself part of the voting system. It brings the voting system's
-  encryption code to your browser, so your vote is encrypted on your device
-  before it is sent.
+- **The voting portal.** The web application of the voting system that you
+  open in your browser to vote. It brings the voting system's encryption code to
+  your browser, so your vote is encrypted on your device before it is sent.
 - **The ballot verifier.** A page of the voting system for checking a ballot
   you have audited (see [Auditing Your Ballot](06-auditing_your_ballot.md)).
 - **The election verifier.** A program of the voting system that checks the
@@ -140,4 +139,4 @@ copy values from a screenshot.
 | Version | Date | Changes |
 |---|---|---|
 | 1.0 | 2026-10-27 | First edition for the evaluated configuration of v10.0.0. |
-| 1.1 | 2026-11-02 | Numbered sections; introductions to numbered steps; all sections revised; new screenshots. |
+| 1.1 | 2026-11-10 | Numbered sections; introductions to numbered steps; all sections revised; new screenshots. |

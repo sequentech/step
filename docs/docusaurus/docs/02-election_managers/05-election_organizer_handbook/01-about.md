@@ -33,9 +33,10 @@ configuration of the TOE only: one configuration, set up as the Deployment
 Guide describes and configured as the Handbook for Election Administrators
 describes. Do not run an election event with any other configuration.
 
-The admin portal is a supporting component outside the TOE. Its screens guide
-the workflow; displaying or hiding a control is not a security boundary or
-evidence of a server-side refusal. Follow the operation-specific checks and
+The admin portal is the part of the TOE that the server provides to the browser
+and that runs there. The server checks every request: displaying or hiding a
+control in the admin portal is not a security boundary or evidence of a
+server-side refusal. Follow the operation-specific checks and
 completion evidence in this handbook, including required authorisations.
 
 ## Roles and people
@@ -138,4 +139,4 @@ screen is not evidence that your own operation completed.
 | Version | Date | Changes |
 |---|---|---|
 | 1.0 | 2026-10-27 | First edition for the evaluated configuration of v10.0.0. |
-| 1.1 | 2026-11-02 | Numbered sections; consistent use of election event; all chapters revised; new screenshots. |
+| 1.1 | 2026-11-10 | Numbered sections; consistent use of election event; all chapters revised; new screenshots. |

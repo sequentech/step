@@ -20,7 +20,9 @@ permission "Self-tests: run checks" (`self-test-run`).
 
 Tests run in the background. You can leave this page while they run.
 The page refreshes every five seconds. A queued, unfinished, missing or timed-out
-test is never a passed test.
+test is never a passed test. If the server process running a test ends, the TOE
+repeats the test from the start, at most twice; the electoral log then holds the
+test's records once for each attempt.
 
 ## Run the checks
 
@@ -54,9 +56,9 @@ If the status cannot be refreshed, do not rely on a previously displayed result.
 | Ballot-box integrity | Authenticated ballot admission, contents and order, cast-vote records, voting counters, seals and completed cryptographic tally transcripts. | A detected integrity error gives **Unrecoverable failure**: do not edit ballots, replace records or attempt to resume voting. Data that could not be read gives **Recovery required**. |
 | Approved election data | Live election data against the approved baseline, which the TOE captured and signed when the board approved and published the configuration. | **Recovery required**. Tell the election board: it compares the live election data with the approved publication and investigates any difference. Only the exact approved values pass. |
 | Audit recording and integrity | Writing a signed test record, reading back the exact stored record, and verifying the electoral log and its checkpoints. | A verified integrity finding in the electoral log gives **Unrecoverable failure**. Any other failure, such as a write or read-back problem, gives **Recovery required**: have the operator restore the audit service. |
-| Trusted HTTPS channels | Public endpoints, trusted certificates and the required TLS profile. A timeout is inconclusive and fails the test. | **Recovery required**. Have the operator correct the endpoint, certificate or network configuration. Never disable certificate verification. |
-| Approved access-control configuration | The TOE's authorization rules, the access-control configuration of its realms, its accounts and roles, and the signing rules against the approved baseline. A staff account that was disabled or lost roles passes; a new account or a new role assignment does not. | **Recovery required**. Investigate the changed permissions or rules with the election board, and restore the approved values. Do not create a new baseline merely to hide a difference. |
-| Clock synchronization | A fresh reading of the servers' time service, including its authenticated source (Network Time Security) and its synchronization status. | **Recovery required**. Have the operator restore the time service ([Authenticated time](../../05-reference/06-deployment_guide/04-hosts_network_time.md#authenticated-time)). |
+| Trusted HTTPS channels | Public endpoints, trusted certificates and the required TLS profile. A timeout is inconclusive and fails the test. | **Recovery required**. Have the operator correct the endpoint, certificate or network configuration: an expired certificate is renewed as [Renew the certificate](../../05-reference/06-deployment_guide/05-certificates_tls.md#renew-the-certificate) describes, and a certificate from another CA needs [Change the CA file](../../05-reference/06-deployment_guide/05-certificates_tls.md#change-the-ca-file), on the election board's decision. Never disable certificate verification. |
+| Approved access-control configuration | The TOE's authorization rules, the access-control configuration of its realms, its accounts and roles, and the signing rules against the approved baseline. A staff account that was disabled or lost roles passes; a new account or a new role assignment does not. | **Recovery required**. Investigate the changed permissions or rules with the election board, and restore the approved values. Do not create a new baseline merely to hide a difference. A change of the CA file of the TOE's addresses, which the election board decides, also makes the check fail until the board approves a new configuration version ([Change the CA file](../../05-reference/06-deployment_guide/05-certificates_tls.md#change-the-ca-file)). |
+| Clock synchronization | A fresh reading of the servers' time service, including its authenticated source (Network Time Security) and its synchronization status. | **Recovery required**. Have the operator restore the time service ([Authenticated time](../../05-reference/06-deployment_guide/04-hosts_network_time.md#authenticated-time), [Restore time synchronization](../../05-reference/06-deployment_guide/04-hosts_network_time.md#restore-time-synchronization)). [Clock observation](../../05-reference/06-deployment_guide/04-hosts_network_time.md#clock-observation) says what the check reads and when it fails. |
 
 Until the board approves the first configuration version, the tab shows a notice
 that the approved baseline is not yet available, and **Purpose of the test** offers
@@ -81,8 +83,10 @@ doubt. To verify the TOE software:
 
 1. Select **Verify the TOE software**. The button changes to **Verification
    queued or running**. You can leave this page while it runs.
-2. Read the result. The table lists the six TOE parts on the servers, each with
-   its accepted digest, its running containers and its result.
+2. Read the result. The table lists the ten TOE parts on the servers
+   (admin-portal, b4, ballot-verifier, braid, graphql-engine, harvest, keycloak,
+   tls-endpoint, voting-portal and windmill), each with its accepted digest, its
+   running containers and its result.
 3. Select the copy icon next to **SHA-256 of the accepted digest list**, and
    compare the value with the one the operator gave you
    ([Confirm the server settings to the administrator](../../05-reference/06-deployment_guide/11-selftest_handover.md#confirm-the-server-settings-to-the-administrator)).
@@ -90,21 +94,24 @@ doubt. To verify the TOE software:
    your file `site.json`. If they differ, the servers do not hold the accepted digest list, whatever
    the result says: act as for **Differs from the accepted delivery**.
 
-![The section TOE software integrity with the six parts matching](assets/toe-software-integrity.png)
+![The section TOE software integrity with the ten parts matching](assets/toe-software-integrity.png)
 
 *Illustration: a synthetic election event whose TOE software matches the
 accepted delivery.*
 
 | Result | What it means | What you do |
 | --- | --- | --- |
-| **Matches the accepted delivery** | Each of the six parts runs its accepted image, the stored content matches the digest, and the required number of its containers is ready. The security state does not change. | Compare the SHA-256 (step 3). |
-| **Differs from the accepted delivery** | The stored content, the image or the configuration of a part is not the accepted one. The election event enters **Recovery required** with the reason "TOE software differs from the accepted delivery". | Do not start or continue the election event. Tell the election board and the election organizer, [report it](12-environment_and_security_problems.md#reporting-a-security-problem) and follow [Maintenance mode](10-modes_of_operation.md#maintenance-mode). |
-| **Could not verify** | The section gives the reason, for example a part with too few ready containers. The security state does not change. This is not a match. | Have the operator correct the cause ([TOE image observation](../../05-reference/06-deployment_guide/11-selftest_handover.md#toe-image-observation)), then verify again. |
+| **Matches the accepted delivery** | Each of the ten parts runs its accepted image, the stored content matches the digest, and the required number of its containers is ready: at least two of braid, harvest and windmill, one of every other part. The security state does not change. | Compare the SHA-256 (step 3). |
+| **Differs from the accepted delivery** | The stored content, the image or the configuration of a part is not the accepted one. The election event enters **Recovery required** with the reason "TOE software differs from the accepted delivery". The other election events run on the same servers, but their state does not change. | Do not start or continue any election event. Tell the election board and the election organizer, [report it](12-environment_and_security_problems.md#reporting-a-security-problem) and follow [Maintenance mode](10-modes_of_operation.md#maintenance-mode). Verify the TOE software in each other election event as well, so that it also enters **Recovery required**. |
+| **Could not verify** | The section gives the reason, for example a part with too few ready containers, or the reason "The host image observation does not cover exactly the ten TOE parts". The security state does not change. This is not a match. | Have the operator correct the cause ([TOE image observation](../../05-reference/06-deployment_guide/11-selftest_handover.md#toe-image-observation)), then verify again. |
 
-The electoral log of the election event records each result. The election
+The electoral log of the election event records the start and the result of
+each verification. If the TOE cannot record the start, the verification does
+not run, and the section shows **Could not verify** with the reason "The start
+of this check could not be recorded in the electoral log". The election
 verifier does not run on the servers, so this section does not cover it: the
 operator's
-[complete TSF software integrity check](../../05-reference/06-deployment_guide/10-verification.md#repeat-the-complete-tsf-software-integrity-check)
+[complete software integrity check of the TOE](../../05-reference/06-deployment_guide/10-verification.md#repeat-the-complete-tsf-software-integrity-check)
 does.
 
 ## Configure the background interval
@@ -151,15 +158,20 @@ prevents voter access.
   the normal state of a new election event: do nothing. Otherwise voting remains
   unavailable. Have the cause resolved. The board runs the checks with the purpose
   **Before resuming voting**, or you do when the board asks you to, and the board
-  authorizes **Start Voting → Start Online Voting** in **Publish**. Repairs alone do
-  not reopen voting.
+  resumes voting with the protected action "Open voting": the button "Start
+  Voting", then the entry "Start Online Voting", in the tab "Publish" of each
+  election. Repairs alone do not reopen voting.
 - **Unrecoverable failure:** election execution cannot resume. Change nothing on
   the election event and follow
   [An unrecoverable failure](10-modes_of_operation.md#an-unrecoverable-failure).
   A later passed test cannot erase an earlier unrecoverable result.
 
-A required service that stops, restarts or no longer reports that it is running
-also prevents voter operations. During an execution failure, ballot-box reads and writes are
+A required service, `harvest` or `windmill`, that stopped or no longer reports
+that it is running also prevents voter operations. Each runs two processes: one
+of them stopping or restarting while the other keeps working changes nothing, but
+`windmill` reports that it is running only through its single scheduling process
+`beat` ([A crash or shutdown of a server component](10-modes_of_operation.md#a-crash-or-shutdown-of-a-server-component)).
+During an execution failure, ballot-box reads and writes are
 refused. Staff can still inspect the status and perform authorized investigation.
 
 First opening requires the approved start time, current checks, empty ballot
@@ -191,10 +203,14 @@ The operator provides the authenticated mail relay, and you keep the staff
 email addresses correct. A failed notification neither reopens voting nor
 suppresses the security event.
 
-Above **80% used audit-storage capacity**, the voter channel is refused.
+Above **80% used audit-storage capacity**, the TOE refuses voters and the
+machine accounts of the trustee server instances, and in the execution phase it
+puts the election event into **Recovery required**
+([The audit storage threshold](09-audit_and_monitoring.md#the-audit-storage-threshold)).
 Missing, stale or future-dated measurements also refuse access. The
 operator must restore usable capacity and a fresh measurement
-([Storage](../../05-reference/06-deployment_guide/11-selftest_handover.md#storage)).
+([Storage](../../05-reference/06-deployment_guide/11-selftest_handover.md#storage), [Extend the data file system](../../05-reference/06-deployment_guide/11-selftest_handover.md#extend-the-data-file-system)),
+and only the election board resumes voting.
 
 ## The election board's electoral-log audit
 

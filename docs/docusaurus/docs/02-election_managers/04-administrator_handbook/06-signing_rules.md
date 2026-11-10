@@ -26,7 +26,14 @@ permission for it.
 
 Signing rules, trusted issuers, certificate checks and registered certificates
 belong to one election event. Set them for every new election event, also for
-one that replaces a wrong import.
+one that replaces a wrong import. Where signed configuration packages are
+required, as in the evaluated configuration, the TOE takes none of them from a
+package: an imported election event starts as one created without a package.
+The protected actions for which the TOE always requires the board's approval
+([Security-critical authorisations required by the Security Target](#security-critical-authorisations-required-by-the-security-target))
+then need signatures but have no number yet, the other protected actions are
+off, the certificate checks have the values of the column "Default" of
+[Checks](#checks), no issuer is trusted and no certificate is registered.
 
 ## Permissions
 
@@ -59,14 +66,16 @@ and of [Protected actions to switch on](#protected-actions-to-switch-on) impleme
 | termination of the election execution, the protected action "Close voting" | execution |
 | resumption of the election execution, the protected action "Open voting" | execution |
 | start of the counting of the votes with determination of the election result | evaluation |
-| export of election execution data | post-processing |
-| deletion of election execution data | post-processing |
+| export of election execution data | post-processing; for an archived election event, preparation |
+| deletion of election execution data | post-processing; for an archived election event, preparation |
 | the election board's read of the voters' register | post-processing |
 
-"Open voting" also covers the first opening of voting.
+The protected action "Open voting" also covers the first opening of voting.
 The evaluated procedure imports the four data categories together as a signed
 configuration package. The board approves each import in the approval event:
-configure **Import election data** and register the board certificates there.
+configure there **Import election data**, and **Export election execution data**
+and **Delete election execution data** for the export and deletion of the
+approval event's own data, and register the board certificates.
 The board selects this event in **Board approval for import**; its signing
 request binds the exact uploaded file. Package signatures and these online
 board approvals are both required. See
@@ -81,15 +90,35 @@ The TOE always requires configured board approval for these actions:
 | **Open voting** | Approved time window and current purpose-specific self-tests. This also covers resumption. |
 | **Close voting** | The board's current approved close operation; closure cannot be reversed. |
 | **Start counting votes** | Evaluation after close; trustee custody approvals remain separately required. |
-| **Export election execution data** | Post-processing; the approved complete export profile and current source revision. |
-| **Delete election execution data** | Post-processing and a completed export receipt for the current revision. |
+| **Export election execution data** | Post-processing, or preparation for an archived election event; the approved complete export profile and current source revision. |
+| **Delete election execution data** | Post-processing, or preparation for an archived election event, and a completed export receipt for the current revision. |
 | **Read the voters' register in post-processing** | A five-minute read session for the requesting board member and current event state. |
 
 For these rows, **Off** and an undefined or zero signature count cannot bypass
 authorization. An unset rule refuses the operation. Configure at least two
-distinct board signers before using it. The approvals are bound to the action,
+distinct board signers before using it. Once a number of signatures is saved for
+an action, for one of these rows or for one that you switch on, the TOE refuses
+to change it and keeps the action needing signatures: save the number the
+electoral regulation fixes. The fields "Who can sign", "The person who starts it
+can also sign" and "A request expires after" can still change. The approvals are bound to the action,
 requester, exact parameters, event state and current rule. Changed inputs,
 revoked or expired certificates, and reused authorizations are refused.
+
+If a number was saved wrong, the election event keeps it. Tell the election
+board and the election organizer:
+
+- For an imported election event, the election organizer issues a new revision
+  of the signed configuration package, because the TOE refuses the same package
+  a second time. A member of the election board imports it as a new election
+  event, and the board archives the wrong one
+  ([Correcting imported election data](05-tenant_and_event_settings.md#correcting-imported-election-data)).
+  Then set the signing rules of the new election event.
+- For the approval event, a member of the election board creates a new one,
+  which you configure as
+  [The approval event](05-tenant_and_event_settings.md#the-approval-event)
+  describes, and the board archives the old one. An archived election event
+  approves no import and no other board operation except the export and
+  deletion of its own data, and **Board approval for import** does not offer it.
 
 For import, counting, export, deletion and register read-out, the portal opens
 the signing request when approval is needed. After the required members sign,
@@ -123,7 +152,8 @@ be required. To require trustee signatures, use manual key ceremonies."
 The protected actions "Transmit results" and "Approve a voter manually" are not
 used in the evaluated configuration: voters do not enrol, and results are not
 transmitted. Leave the protected action "Generate election returns" off unless the
-election organizer wants signed election returns.
+election organizer wants signed election returns: once saved with a number, a
+protected action stays on.
 
 ![Protected actions table showing configured signature counts and a read-only lockdown notice](assets/protected-actions-current.png)
 
@@ -145,9 +175,10 @@ set a signing rule:
    "Off" only for optional actions. Required actions without a configured
    count remain unavailable.
 2. Select the edit icon of the action. The drawer opens.
-3. For "Confirm custody (key ceremony)" and "Authorize tally custody (tally)",
-   switch on "Trustees sign this step" and save. These two rows have no
-   "Who can sign", "Signatures needed", requester or expiry controls: each
+3. For the protected actions "Confirm custody (key ceremony)" and "Authorize
+   tally custody (tally)", turn on the switch "Trustees sign this step" and save.
+   Once saved, the switch stays on. These two rows have no fields "Who can sign"
+   and "Signatures needed", and no requester or expiry controls: each
    trustee signs their own custody step, with the permissions of
    [The trustee role](04-users_and_roles.md#the-trustee-role).
    For every other protected action, set the following fields:
@@ -156,7 +187,7 @@ set a signing rule:
 |---|---|
 | "Needs signatures" | on |
 | "Who can sign" | only the role `election-board`. Never the administrator role. The TOE gives the listed roles the permission "Sign: …" for every election event; a signer must also be able to reach the election. |
-| "Signatures needed" | the number the electoral regulation fixes, at least 2 |
+| "Signatures needed" | the number the electoral regulation fixes, at least 2. Once the number is saved, the field and the switch "Needs signatures" are disabled, and the field shows the text "This number is fixed once saved." |
 | "The person who starts it can also sign" | off, unless the electoral regulation counts the person who starts the action as one of the authorising members |
 | "A request expires after" | "30 minutes", "1 hour", "2 hours" or "24 hours", long enough for the board members to sign; never "No limit" |
 
@@ -172,7 +203,12 @@ Messages of the drawer:
 | "The election event is locked down: signing rules change only through a new configuration version." | The election event is in a lockdown period; the TOE refuses the change. |
 | "You don't have the permission for this change." | Your account lacks a permission of the table of [Permissions](#permissions). |
 | "Someone else changed this meanwhile. Reload the page and try again." | Reload and check the rule again before you change it. |
+| "The number of signatures of this action is already saved and can't change. Reload the page to see it." | The TOE keeps the number of signatures already saved for this protected action, and the action keeps needing signatures. |
 | "The server refused these values. Check them and try again." | A value is outside what the TOE accepts. |
+| "The signing rule couldn't be saved. Someone may have changed it meanwhile; reload and try again." | Reload and check the rule again before you change it. |
+| "It no longer exists. Reload the page." | The election or the trustee of the rule no longer exists. Reload the page. |
+| "The signing rule was saved. … can't reach the number yet: add a signer there." or "… add signers there." | The rule is saved, but in the elections it names fewer people can sign than the number. Give the role to more board members who can reach these elections, or ask the election organizer. |
+| "The signing rule was saved. Some elections can't reach the number without the person who starts a request." | The rule is saved, but in some elections the number is reached only if the person who starts a request signs too, which the rule does not allow. Give the role to more board members, or ask the election organizer. |
 
 :::warning
 Never put the administrator role, or any role that an administrator holds,
@@ -213,8 +249,9 @@ To import the trusted issuers:
 1. Receive the CA certificates that issue the board members' signing
    certificates from the election organizer, with their SHA-256 fingerprints
    in writing, through a channel that protects their integrity.
-2. Select "Import issuer certificates", then "Choose a certificate file", choose
-   the file you received, and select "Import".
+2. Select the button "Import issuer certificates", then the button "Choose a
+   certificate file", choose the file you received, and select the button
+   "Import".
 3. Check the issuer name and validity in the table.
 4. Select the copy icon next to the issuer's "SHA-256" value to copy its complete
    fingerprint, paste it next to the election organizer's value and compare all
@@ -258,9 +295,10 @@ To register a board member's certificate:
 
 1. Meet the board member in person. Check their identity and receive their
    public certificate (PEM) from them, for example on a medium they hand over.
-2. Select "Register a certificate". In "Person", type part of the username and
-   select the board member's account.
-3. Paste the certificate into "Certificate (PEM)" and select "Register". The
+2. Select the button "Register a certificate". In the field "Person", type part
+   of the username and select the board member's account.
+3. Paste the certificate into the field "Certificate (PEM)" and select the button
+   "Register". The
    TOE confirms "The certificate was registered." It refuses with "This
    certificate can't be registered: check that a trusted issuer issued it,
    that it's valid today and that it's made for signing."
@@ -283,10 +321,12 @@ before expiry when further signing will be needed. Do not count "Expired" or
 To revoke a registration, select the button "Revoke" and fill in the field "Reason". A revoked
 certificate cannot sign any more. Signatures on completed requests still count,
 except for an action that waits for the button "Continue operation": it runs only
-while enough of its signers' certificates are valid; otherwise the TOE refuses it,
-and another board member starts it again for new signatures. Every waiting request
+while enough of its signers' certificates are valid; otherwise, when the member who
+started it repeats it, the TOE cancels that request and opens a new one for new
+signatures. Every waiting request
 the certificate signed is cancelled, and the board starts it again if it still
-needs it. Revoking one registration revokes every registration of that
+needs it. The electoral log records these cancellations under the administrator
+who revoked the certificate. Revoking one registration revokes every registration of that
 certificate's key in the tenant.
 Revoke a registration on the same day when a board member leaves, loses their
 security token, or the election organizer revokes their certificate

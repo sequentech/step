@@ -37,7 +37,7 @@ That pending result does not waive the checks required after an import.
 
 ![Actual VM terminal running the grouped platform inspection](./assets/installation/platform-inspection.png)
 
-*Terminal capture from a test installation. Your addresses, names and digests differ.*
+*Terminal capture from a test installation of an earlier build, which checked six server images. The current output checks all ten, names sign-in link extensions in the smart-link line, adds account self-service and the restricted administration API client to the tenants line, and starts the documents line with "private documents restricted". Your addresses, names and digests differ.*
 
 **If the result differs.** A failed group, timeout, missing final line or unexpected
 response is a failed inspection. Keep the installation out of handover and correct
@@ -61,7 +61,7 @@ not run an additional server command for every heading.
 <!-- deployment-step: 10-001 -->
 
 **Included in the platform inspection.** The check requires ready containers for
-all six server TOE parts, with at least two for Windmill and two for braid. It
+all ten server TOE parts, with at least two for Harvest, Windmill and braid. It
 checks digest-qualified references against the accepted delivery and hashes the
 referenced content blobs. A runtime image ID referring to a single-child OCI
 index is resolved to its image configuration before comparison.
@@ -73,7 +73,7 @@ image group.
 ## Repeat the complete TSF software integrity check
 
 **Where:** the administration workstation, in the deployment directory.
-Keep the original accepted seven-image OCI delivery mounted at `toe.directory`
+Keep the original accepted eleven-image OCI delivery mounted at `toe.directory`
 in `site.json`. The command checks its `image-digests.txt` against
 `toe.manifest_sha256` of `site.json`.
 
@@ -83,23 +83,23 @@ in `site.json`. The command checks its `image-digests.txt` against
 
 **Expected result:** four `PASS` lines confirm:
 
-- all seven delivered TOE images, including the on-demand election verifier;
+- all eleven delivered TOE images, including the on-demand election verifier;
 - every installed server image manifest, configuration and layer on C1;
 - the same complete content check on C2;
 - the cluster's deployed image references match that accepted release.
 
 ![Actual VM integrity check showing the command and all four successful checks](./assets/installation/complete-tsf-integrity.png)
 
-*Terminal capture from a test installation. Your addresses, names and digests differ.*
+*Terminal capture from a test installation of an earlier build, which had seven delivered images, six of them server images. The current output names eleven delivered images and ten installed server images on each server. Your addresses, names and digests differ.*
 
 This command reads image content and does not replace software. It also works
 when a trustee is idle; it checks the accepted trustee image on both servers.
 
 The section "TOE software integrity" of the tab "Security and self-tests" of the
 election event ([Verify the TOE software](../../02-election_managers/04-administrator_handbook/07-self_tests.md#verify-the-toe-software))
-compares the six server TOE parts, using the image observer on C1
+compares the ten server TOE parts, using the image observer on C1
 ([TOE image observation](11-selftest_handover.md#toe-image-observation)). This
-complete check covers all seven images, including the election verifier, and the
+complete check covers all eleven images, including the election verifier, and the
 content stores of both servers. Run it for
 [Confirm the server settings to the administrator](11-selftest_handover.md#confirm-the-server-settings-to-the-administrator),
 after recovery or software replacement, when the admin portal shows the result "Differs
@@ -107,10 +107,12 @@ from the accepted delivery", and whenever the integrity of the software is in do
 
 **If the result differs:** keep voting unavailable, tell the administrators and the
 election board, and keep the failed result. Obtain the steps to restore the
-complete accepted software from Sequent, then repeat this command. Never copy an
+complete accepted software from Sequent, reporting it to
+[security@sequentech.io](mailto:security@sequentech.io) as a security problem, then
+repeat this command. Never copy an
 observed digest into the file `image-digests.txt` to make a mismatch pass. The
 background election-event self-tests and their data checks do not replace this
-seven-component software verification.
+eleven-component software verification.
 
 ## Version
 
@@ -154,9 +156,6 @@ to distinguish filtering from a disconnected test machine.
 
 ## Identity service
 
-<!-- deployment-step: 10-002 -->
-<!-- deployment-step: 10-003 -->
-
 **Included in the platform inspection.** Both the realm of the super-admin tenant
 and the customer's realm must publish the expected issuer. The checks require:
 
@@ -177,10 +176,12 @@ server's administrator correct it.
 
 <!-- deployment-step: 10-004 -->
 <!-- deployment-step: 10-005 -->
-<!-- deployment-step: 10-006 -->
 
 **Included in the platform inspection.** No identity-service extension filename
-may contain `smart-link-hmac`; no authentication flow used by a realm, client or
+may contain `smart-link-hmac` or `sign-in-link-handlers`, and no extension may
+hold a handler for sign-in links (manual verification, one-time or login bridge
+links) or the providers that issue manual verification links and smart links;
+no authentication flow used by a realm, client or
 identity provider may invoke the smart-link authenticator; the public smart-link
 endpoint must answer HTTP `404` on each portal host.
 
@@ -191,7 +192,6 @@ running container or alter realm tables directly to make the check pass.
 ## GraphQL endpoint and cross-origin requests
 
 <!-- deployment-step: 10-007 -->
-<!-- deployment-step: 10-008 -->
 
 **Included in the platform inspection.** The ingress routes only
 `/hasura/v1/graphql` with an exact-path match; console and development mode are
@@ -204,7 +204,6 @@ Do not expose the console or metadata API for diagnosis.
 ## Encrypted secrets and the internal bulletin board
 
 <!-- deployment-step: 10-009 -->
-<!-- deployment-step: 10-010 -->
 
 **Included in the platform inspection.** Cluster-secret encryption is enabled.
 The bulletin board has a `ClusterIP` Service and no ingress. No external Service
@@ -220,7 +219,6 @@ enable shell tracing or generate a replacement as a diagnostic step.
 
 <!-- deployment-step: 10-011 -->
 <!-- deployment-step: 10-012 -->
-<!-- deployment-step: 10-013 -->
 
 **When:** after every election-event import, while the election event is in the
 preparation phase and before the election board approves its configuration version.
@@ -242,9 +240,11 @@ describes. To check the election event realms:
 
 3. Repeat for every imported election event. Expect a `PASS` line naming that realm and
    its TLS/session/audit policy, issuer, absent code channels and disabled
-   password grant. The check requires brute-force protection with a positive
-   value of the realm setting `failureFactor`: 5 from the realm template, or the
-   value in the signed configuration package. That setting is the identity
+   password grant. The check requires brute-force protection with the value 5
+   of the realm setting `failureFactor`, which an election event's realm takes
+   from the realm template
+   ([Configure the realms](07-hardening.md#configure-the-realms)): the signed
+   configuration package supplies only the realm's display settings. That setting is the identity
    service's own lockout of accounts with a local password; it is not the
    [Authentication failure threshold](../../02-election_managers/04-administrator_handbook/08-authentication_and_sessions.md#authentication-failure-threshold),
    which the administrator sets in the admin portal.
@@ -258,20 +258,17 @@ the browser checks of
 [What you check](../../02-election_managers/04-administrator_handbook/08-authentication_and_sessions.md#what-you-check).
 
 **If the command fails:** tell the administrators that the election board must not
-approve the configuration version of that election event. If the realm's settings
-are wrong, nobody corrects them on the servers: the election organizer issues a
-corrected signed package, and the board imports it as a new election event and
-archives the wrong one
-([Correcting imported election data](../../02-election_managers/04-administrator_handbook/05-tenant_and_event_settings.md#correcting-imported-election-data)).
-Check the new realm the same way; if it fails too, ask Sequent. If only the redirect
+approve the configuration version of that election event. If only the redirect
 registration is wrong, have the authentication server's administrator correct it and
-repeat the check. Do not substitute a different realm or enable a password grant.
+repeat the check. If the realm's settings are wrong, a new import does not correct
+them, because every election event's realm takes them from the installed realm
+template. Nobody corrects them on the servers: keep the configuration version
+unapproved and ask Sequent. Do not substitute a different realm or enable a password grant.
 
 ## Data correction, telephone channel, plugins and tenants
 
 <!-- deployment-step: 10-014 -->
 <!-- deployment-step: 10-015 -->
-<!-- deployment-step: 10-016 -->
 
 **Included in the platform inspection.** The checks require:
 
@@ -281,7 +278,20 @@ repeat the check. Do not substitute a different realm or enable a password grant
   Voter" (`voter-manually-verify`);
 - disabled telephone-channel clients and no telephone provider credentials;
 - administration-event recording, including details, in both tenant realms;
-- no plugin objects; private document storage denies anonymous access and has no
+- no account self-service: the clients `account` and `account-console` disabled in
+  every realm; in the realms of the tenants and their election events, no required
+  action enabled or set as default and no default role with `manage-account`; in
+  election event realms, no `username` or `email` that the user can edit;
+- in the realms of the tenants and their election events, every OpenID Connect
+  client carries the audit-storage admission mapper (`sequent-audit-storage-guard`),
+  and in the tenant realms also the administrator and board separation mapper
+  (`sequent-staff-authorization`); no client and no realm default offers the scope
+  `offline_access`;
+- the administration API client: exactly one enabled, confidential client
+  `step-admin-api` in the master realm, with only a service account; no service
+  account of the master realm with the role `admin`; the services hold this
+  client's credentials and not the service administrator's;
+- private document storage denies anonymous access and has no
   bucket policy granting public access;
 - the public bucket's exact permitted read policy and Object Lock on electoral
   log checkpoints;
@@ -299,13 +309,13 @@ These facts of the evaluated configuration also hold:
 - The seeded administrator groups hold none of the permissions reserved to the election board
   ([Configure the realms](07-hardening.md#configure-the-realms)), and at sign-in the
   TOE gives an administrator account only the permissions of the administrator role.
-- Only the election board's role holds "Create Election Event"
+- Only the election board's role holds the permission "Create Election Event"
   (`election-event-create`), with which a board member imports election data with the
   menu entry "Import Election Event" and a signed configuration package, and the
   permissions to publish configuration versions and to read the electoral log.
-- No role holds "Edit Results Publication" (`publish-results-write`), no account holds
-  "Datafix account" (`datafix-account`), and no role and no group holds "Manually
-  Verify Voter" (`voter-manually-verify`).
+- No role holds the permission "Edit Results Publication" (`publish-results-write`),
+  no account holds the permission "Datafix account" (`datafix-account`), and no role
+  and no group holds the permission "Manually Verify Voter" (`voter-manually-verify`).
 - The results portal is not deployed
   ([Keep the results and kiosk portals off](07-hardening.md#keep-the-results-and-kiosk-portals-off)),
   and without the permission "Edit Results Publication" nobody can configure or publish

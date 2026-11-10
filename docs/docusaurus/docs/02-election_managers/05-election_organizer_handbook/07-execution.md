@@ -41,7 +41,8 @@ open voting itself:
    Wait for all six checks to show the result "Passed". To open a further election
    once voting has opened for another one, select "Before resuming voting" instead:
    the phase is then already "Election execution". At or after the approved start
-   time, open its tab "Publish" and select the button "Start Voting".
+   time, select the election in the side menu, open its tab "Publish", select the
+   button "Start Voting" and then the entry "Start Online Voting".
 
    ![The tab Security and self-tests as a board member sees it](assets/board-self-tests.png)
 
@@ -59,6 +60,8 @@ open voting itself:
    says another test is needed, let that task finish, review all six results
    and authorize a fresh opening request. A missing or expired test cannot
    be bypassed with an earlier signature.
+
+Open each election of the election event in this way.
 
 Opening checks are short-lived and bound to the current election event state.
 Changing that state or waiting more than five minutes requires a fresh check.
@@ -90,7 +93,7 @@ phase, and checks the following at least once in every configured self-test inte
 
 | Where | What to look at | Act when |
 |---|---|---|
-| The election event's tabs "Dashboard" and "Publish" | Election voting status, turnout and ballot boxes | An unexpected state, count or seal; use the tab "Security and self-tests" for the authoritative phase and recovery reason |
+| The election event's tabs "Dashboard" and "Publish", and each election's tab "Dashboard" | Election voting status, turnout and ballot boxes | An unexpected state, count or seal; use the tab "Security and self-tests" for the authoritative phase and recovery reason |
 | The election event's tab "Security and self-tests" | Current phase, security state, six results and their times | The state "Recovery required" or "Unrecoverable failure", any failed, missing or expired result, or a status-read error |
 | The election event's tab "Dashboard", in the dashboard "Attack detections" | Brute-force attempts on accounts and denial-of-service attempts on the external interfaces | Any detection |
 | The election event's tab "Logs", or the screen "Electoral Log" in the side menu | The audit records of the election event (see [Security-Relevant Events for the Election Board](11-security-relevant-events.md)) | Any record of a kind listed there as security-relevant |
@@ -107,17 +110,12 @@ TOE's notices about its own state, such as `MaintenanceModeEntered` or
 The screen "Electoral Log" in the side menu reads the same records; without the
 permission "Read Electoral Log Personal Data" (`electoral-log-personal-data-read`) it
 shows usernames, IP addresses and countries as hidden. It needs the
-permission "Browse Electoral Log" (`electoral-log-console-read`). Select the
-election event in the selector "Election Event" and what to read in the selector
-"Table". Narrow the list with the filters "Kind", "Election", "User or Voter ID",
-"Ballot ID", "From" and "Until", and open a row to see the whole record.
-
-| Selector "Table" | What it lists |
-|---|---|
-| "Records" | The audit records of the election event |
-| "Ballots" | The accepted ballots, without their content |
-| "Voters" | The voters and how many times they voted |
-| "Sequencer Queue" | The ballots waiting to be written to the electoral log |
+permission "Browse Electoral Log" (`electoral-log-console-read`) and changes no
+data. Select the election event in the selector "Election Event": the selector
+"Table" offers only "Records", the audit records of the election event, and the
+selector "Order" sorts them, "Newest first" or "Oldest first". Narrow the list with
+the filters "Kind", "Election", "User or Voter ID", "Ballot ID", "From" and "Until",
+and open a row to see the whole record.
 
 ![The screen Electoral Log in the side menu](assets/electoral-log-screen.png)
 
@@ -183,13 +181,15 @@ The election board interrupts the election execution when the electoral
 regulation calls for it, for example because of a suspected attack or a
 problem reported by voters. To interrupt the election execution:
 
-1. On the election event's tab "Publish", select the button "Pause Voting".
+1. Select the election in the side menu, open its tab "Publish", select the button
+   "Pause Voting" and then the entry "Pause Online Voting".
 2. Read the dialog, which asks whether you want to pause the voting period, and
    select the button "Confirm". If the admin portal sends you to the
    external authentication server, log in there again.
-3. Voting is suspended: no voter can open or continue an election action. The
-   election event's tab "Logs" shows the interruption record (`ElectionVotingPeriodPause` or
-   `ElectionEventVotingPeriodPause`).
+3. Voting is suspended in that election: no voter can open or continue an election
+   action in it. The election event's tab "Logs" shows the interruption record
+   (`ElectionVotingPeriodPause` or `ElectionEventVotingPeriodPause`).
+4. Repeat steps 1 to 3 for every other open election that the interruption concerns.
 
 The election event stays in the execution phase. Record the reason and the
 time in the board's minutes, and tell the election organizer, which announces the
@@ -252,13 +252,14 @@ election board terminates it.
 
 **At the scheduled end.** The election dates contain the scheduled event "End
 Voting Period" for the end of election time. When it is reached, the TOE closes
-voting by itself. The election event's tab "Dashboard" then shows the text "Closed
-by the scheduled close of polls."
+voting by itself. Each election's tab "Dashboard", with the switch "Show ballot
+boxes" on, then shows the text "Closed by the scheduled close of polls."
 
 **With the button "Stop Voting".** Termination is a security-critical action. To terminate
 the election execution:
 
-1. On the election event's tab "Publish", select the button "Stop Voting".
+1. Select the election in the side menu, open its tab "Publish", select the button
+   "Stop Voting" and then the entry "Stop Online Voting".
 2. The TOE shows the confirmation notice, the dialog "Confirm Action", which says
    that the ballot boxes are then sealed, so that no ballot can be added, changed
    or deleted, and that voting cannot start again. Read it and select the button
@@ -267,12 +268,15 @@ the election execution:
 3. The TOE creates a signing request for the protected action "Close voting". Each required board
    member authenticates again at the external authentication server and
    signs.
-4. The TOE closes voting. The election event's tab "Dashboard" shows the text
-   "Closed by …" with the names of the signers and the signing code.
+4. The TOE closes voting in that election. Its tab "Dashboard", with the switch
+   "Show ballot boxes" on, shows the text "Closed by …" with the names of the
+   signers and the signing code.
+5. Repeat steps 1 to 4 for every other election.
 
-In both cases the TOE then seals the ballot boxes. Turn on the switch "Show ballot
-boxes" on the tab "Dashboard": the status of each ballot box goes from "Sealing now"
-to "Sealed, publishing" and then "Sealed". The election event is now in the evaluation phase.
+In both cases the TOE then seals the ballot boxes of each election. Turn on the
+switch "Show ballot boxes" on the election's tab "Dashboard": the status of each
+ballot box goes from "Sealing now" to "Sealed, publishing" and then "Sealed". Once
+voting is closed in every election, the election event is in the evaluation phase.
 
 :::warning
 - Termination cannot be undone: voting cannot start again in a closed

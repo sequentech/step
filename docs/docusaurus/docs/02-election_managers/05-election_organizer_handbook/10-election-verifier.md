@@ -48,12 +48,14 @@ can run it on the data that the election organizer publishes.
 
 ## Downloading the verification data
 
-After voting has closed for every election in
-the tally, an election board member opens the completed results tally from the
-election event's tab "Tally". This export requires closed voting and a
-successfully completed results tally; it does not export initialization
-reports or key-ceremony-only data. In the section "Election verification", for every
-listed protocol board:
+In the post-processing phase, an election board member opens the completed
+results tally from the election event's tab "Tally". Before that phase the TOE
+refuses the download, and the admin portal shows the message "Verification data
+can be downloaded once post-processing has started.". The download does not
+export initialization reports or key-ceremony-only data, and the TOE records each
+one
+([Downloading the verification data](08-evaluation-and-post-processing.md#downloading-the-verification-data)).
+In the section "Election verification", for every listed protocol board:
 
 1. Record its board name and the full values "Configuration hash" and "Tally ID" in
    the board's minutes. The TOE shows these values separately from the file.
@@ -67,8 +69,7 @@ The displayed value "Tally ID" is the protocol board's identifier written as an
 unsigned decimal number with up to 39 digits. It is **not** the tally-session
 ID in the election event's tally list or URL. Copy the complete displayed value as text;
 do not round it in a spreadsheet or convert it through a floating-point
-number. A recount has its own board identifiers and must be recorded and
-verified separately.
+number.
 
 If a completed results tally has no listed protocol boards, or its anchors
 or download cannot be loaded, stop and report the problem. Do not substitute a
@@ -122,7 +123,7 @@ The tool prints a report in JSON and ends with exit code 0 only if the status is
 |---|---|---|---|
 | `verified` | 0 | Every check passed. With the counting, the field `detail` reads "DKG, ballot proofs, ordered shuffles, endorsements, threshold decryption and plaintexts verified". | Compare the field `ballot_count` with the number of votes that the result states as counted for the contest and area of this batch. |
 | `incomplete` | not 0 | The record ends before the counting is complete. The tool ends with the error "public verification incomplete: …". | Check that you have the file of the completed tally. If it persists, report it to the election board. |
-| `invalid` | not 0 | A check failed. The field `detail` says which, for example "invalid shuffle proof", "published plaintexts differ from independently verified decryption" or "ballots do not match the trusted batch hash", and the tool ends with the error "public verification failed: …". | Report it at once to the election board, with the report. The election board treats it as a security-relevant event. |
+| `invalid` | not 0 | A check failed. The field `detail` says which, for example "invalid shuffle proof", "published plaintexts differ from independently verified decryption" or "ballots do not match the trusted batch hash", and the tool ends with the error "public verification failed: …". | Report it at once to the election board, with the report. The election board treats it as a security-relevant event ([Events in the post-processing phase](11-security-relevant-events.md#events-in-the-post-processing-phase)). |
 
 The election verifier does not apply the counting rules: it shows that the
 decrypted votes are exactly the votes that were cast and mixed, not that the

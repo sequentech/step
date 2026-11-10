@@ -36,6 +36,14 @@ After `./deploy check site.json` passes, run:
 The installer loads the protected credentials in its own server-side process;
 you do not type a separate deployment command or source `secrets.env` yourself.
 
+This stage starts the TOE parts, all on C1, with network policies in the cluster
+namespaces `step-apps` and `step-infra`: they refuse, in both directions, every
+connection between pods that the parts do not need. The TLS endpoint and the
+ingress run on C1's own network and are outside these policies. The stage also
+creates the administration API client `step-admin-api` in the master realm, with
+which Harvest and Windmill manage the realms, and disables the account clients
+of the master realm.
+
 ![Actual VM terminal showing the configuration-driven installation completing](./assets/installation/installer-complete.png)
 
 *Terminal capture from a test installation. Your addresses, names and digests differ.*
@@ -46,11 +54,10 @@ rerun the fresh installation as a recovery operation.
 
 ## Load the TOE images
 
-<!-- deployment-step: 08-001 -->
 <!-- deployment-step: 08-002 -->
 
-**Automatic part of the command above.** The installer validates the seven
-accepted OCI image directories, prepares private transfer archives for the six
+**Automatic part of the command above.** The installer validates the eleven
+accepted OCI image directories, prepares private transfer archives for the ten
 server images, transfers them to C1 and C2, and checks their hashes and imported
 digests. It prints `PASS: c1 delivery archive hashes and imported image digests`
 and the corresponding line for `c2`.
@@ -64,9 +71,16 @@ verification. Either server failing its import blocks installation.
 <!-- deployment-step: 08-003 -->
 
 **Automatic part of the command above.** Every TOE container reference is pinned
-to its accepted `@sha256:` digest. The two supporting `trustee:latest` references
-belong to the kit's setup jobs, not to the two native braid trustee instances;
-the installer verifies the supporting setup image separately against the kit.
+to its accepted `@sha256:` digest; the two native trustee instances run the
+delivered `braid` image. The two remaining `trustee:latest` references name the
+kit's supporting setup image, which is not part of the TOE: the init container
+`create-bucket` of the `b4` deployment, which runs at each start of `b4`, and the
+job that creates the object storage's buckets. The storage check of the platform
+inspection also runs it. The installer checks that image on both servers against
+the accepted kit before it installs anything. The kit's other images, such as
+those of the database and the object storage, are referenced by name and tag.
+The servers reach no image registry, so each of these names resolves only to the
+image that the accepted kit installed on that server.
 The later [Running images](10-verification.md#running-images) check verifies
 actual running content rather than relying only on a manifest's text.
 
@@ -119,8 +133,6 @@ before the trustee keys are installed. `ADMIN_HOST` below means the value of
 3. Put the customer slug and administrator identity in `commissioning` in
    `site.json`, then run `./deploy commission site.json` from the administration
    workstation. The command resolves the customer tenant on C1.
-
-   <!-- deployment-step: 08-007 -->
 
    **Required result.** The lookup identifies exactly the super-admin tenant and the customer's tenant matching the configured slug. The customer realm is `tenant-` followed by that customer UUID.
 
@@ -213,9 +225,10 @@ key.
 :::warning
 The keys file holds the trustee's private keys. Take it over only in person,
 with the trustee watching every step, directly from the trustee's own medium.
-No copy may remain on the administration workstation or on the disk of C1: on
-the servers it is kept only in the cluster's encrypted Secret. The trustee keeps
-the original on their own medium.
+No copy may remain on the administration workstation or on the disk of C1. The
+installer's transfer copy stays in C1's memory and is removed after the import;
+on the servers the keys file is then kept only in the cluster's encrypted Secret.
+The trustee keeps the original on their own medium.
 :::
 
 **Where to work:** the administration workstation—the computer from which you
@@ -254,8 +267,6 @@ instances:
    bind the native accounts and start both instances. These are automatic
    operations; no additional command on C1 is required.
 
-<!-- deployment-step: 08-010 -->
-
 **Expected result.** First the terminal prints
 `PASS: both trustee media match their registered public-key pairs before either import`.
 After each successful import, it prints
@@ -287,8 +298,6 @@ paths under `commissioning` in `site.json`: a later `./deploy commission site.js
 refuses a changed configuration. Personal trustee accounts remain separate from
 these native machine accounts.
 
-<!-- deployment-step: 08-012 -->
-
 **Final expected result.** The terminal prints
 `PASS: customer login restrictions and both native trustees Ready`, followed by
 `COMMISSIONING COMMANDS COMPLETE — perform the browser, client-network and board handover checks in AGD-04.`
@@ -304,6 +313,60 @@ first-run completion banner is not repeated. If the check fails, tell the electi
 board not to start the ceremony until you have resolved the fault and the check
 passes.
 
+### Show each trustee the protocol manager key
+
+In each key ceremony, each trustee compares two values of the fingerprint
+(SHA-256) of the ceremony's protocol manager key before confirming custody of
+their key: the value that the election board reads in the admin portal and gives
+them over a separate channel, and the value that their own instance logged when it
+accepted the ceremony's configuration
+([Trustee Procedures](../../02-election_managers/05-election_organizer_handbook/09-trustee-procedures.md)).
+Trustees have no access to the cluster, so you read the log of their instance for
+them while they watch. The commands only read the log.
+
+**When:** after the election board has created the key ceremony and before the
+trustee downloads the custody request. The instance logs the value within seconds
+of the ceremony's creation.
+
+**Where:** the administration workstation, in the deployment directory, with the
+trustee watching the screen.
+
+To show a trustee the value that their instance logged:
+
+1. Ask the trustee for the board name that the election board gave them: `dkg_`
+   followed by the ceremony's identifier without dashes. Their instance is
+   `trustee1` for the first trustee and `trustee2` for the second.
+2. Read the instance's log lines for that board. Put the board name and the
+   instance in place of the examples:
+
+   ```bash
+   BOARD=dkg_0123456789abcdef0123456789abcdef   # the board name the trustee gives you
+   INSTANCE=trustee1                            # or trustee2
+   SERVER=$(jq -er '.nodes.c1' site.json)
+   ADMIN_KEY=$(jq -er '.ssh_identity' site.json)
+   ssh -i "$ADMIN_KEY" "root@$SERVER" "k3s kubectl -n step-infra logs deployment/$INSTANCE" \
+     | grep 'protocol manager key SHA-256' | grep -F "$BOARD"
+   ```
+
+3. Let the trustee compare all 32 pairs of the logged value with the value that
+   the election board gave them, not only the first and last pairs.
+4. Repeat steps 1 to 3 with the other trustee and their instance.
+
+**Expected result.** At least one line with
+`session opened: Configuration accepted, protocol manager key SHA-256`, followed
+by the value, 32 pairs of upper-case hexadecimal digits separated by colons, and
+by `board=` with the board name. Every line for that board shows the same value.
+The time, the level and the field name `board` may appear in colour.
+
+**If the result differs.** If no line names the board and the instance has
+restarted since the ceremony was created (the column `RESTARTS` of
+`./deploy services site.json status`), repeat step 2 with `logs --previous` in
+place of `logs`: the line is then in the log of the instance's earlier container.
+If the values differ, or no line names the board, the trustee does not create or
+upload a custody proof for this ceremony and tells the election board, which does
+not use the ceremony. Keep the instance's complete log: run the command of step 2
+without the two `grep` filters and save its output to a file.
+
 ## Back up the trustee state
 
 **When:** after a key ceremony, with no ceremony running, and with the board and
@@ -312,8 +375,6 @@ encrypts and verifies their state, then restores their original replica counts.
 
 **Where:** the administration workstation, in the deployment directory.
 Use the existing `site.json` and mount the encrypted backup medium. Run:
-
-<!-- deployment-step: 08-013 -->
 
 ```sh
 ./deploy backup-trustees site.json
@@ -329,14 +390,17 @@ passphrase in separate locked places.
 1. `TRUSTEES STOPPED: state backup may begin`.
 2. `BACKUP CONTENTS VERIFIED: trustee`.
 3. `TRUSTEE REPLICA COUNTS RESTORED`.
-4. `TRUSTEE BACKUP COMPLETE:` followed by the encrypted file's path and SHA-256.
+4. `TRUSTEE BACKUP COMPLETE:` followed by the encrypted file's path.
+5. `Encrypted backup SHA-256:` followed by its SHA-256.
 
 Tell the election board the path and the digest: it records them in the board's
 minutes, and they name the backup to destroy at
 [Remove the trustee keys at the end of the election event](#remove-the-trustee-keys-at-the-end-of-the-election-event).
 The encrypted archive is accepted only after decryption and complete content validation succeed.
-There is no command to restore this archive. If an instance's state is lost, keep
-the archive and ask Sequent.
+There is no command to restore this archive. If an instance's state is lost, tell
+the election board, which postpones every key or tally ceremony that needs the
+instance. Keep the archive and its digest unchanged, and ask Sequent
+([If something fails](01-about.md#if-something-fails)).
 
 ![Actual terminal completing an encrypted trustee-state backup](./assets/installation/trustee-backup.png)
 
@@ -365,43 +429,149 @@ ceremony.
 ## Remove the trustee keys at the end of the election event
 
 :::warning
-This destroys server-side trustee keys and protocol state. Use it only after the
-retention period has ended, the required election execution data has been deleted,
-and the election board has authorized retirement and is present. It is not an
-installation or troubleshooting command.
+This destroys the keys and the session stores of both trustee server instances.
+Use it only on the election board's recorded instruction, after the tally and the
+export, with the board present. Afterwards no election event of this installation
+can be tallied with these keys. It is not an installation or troubleshooting command.
 :::
+
+**When:** after the tally and the export of the election execution data
+([Exporting the election execution data](../../02-election_managers/05-election_organizer_handbook/08-evaluation-and-post-processing.md#exporting-the-election-execution-data)),
+once the election board has recorded in its minutes the instruction to destroy the
+keys. The two instances serve every election event of the installation, so the
+command refuses unless every election event is in the post-processing phase or
+archived in the preparation phase.
 
 **Where:** the administration workstation, in the deployment directory. Show the
 board the two addresses under `nodes` in `site.json`, and have it confirm that these
 are the servers of this installation. Then run:
 
-<!-- deployment-step: 08-014 -->
-
 ```sh
 ./deploy remove-trustees site.json
 ```
 
-Read the warning and type `REMOVE TRUSTEE KEYS`. The command stops both instances
-and verifies that their pods have disappeared before it removes the four trustee
-Secrets and empties the two fixed protocol-state directories.
+Read the warning and type `REMOVE TRUSTEE KEYS`. The command checks the election
+events and the accepted trustee image, then stops both instances. For each instance
+it runs `trustee destroy` on an in-memory copy of the instance's keys file and on its
+session stores: it overwrites them with zeros, removes them and prints the instance's
+public keys. The command then deletes the four trustee Secrets, empties the two state
+directories and waits until the cluster datastore has discarded the deleted Secrets.
 
-**Expected result:**
-`TRUSTEE REMOVAL COMPLETE: four Secrets absent; state directories empty`.
-No trustee instance is restarted.
+**Expected result**, in this order:
+
+1. `Checking that no election event needs the trustee keys, then destroying them with the session stores. This can take up to 13 minutes…`.
+2. The output of `trustee destroy`, first for `trustee1`, then for `trustee2`, each
+   line starting with the instance's name and a colon: the line that starts with
+   `destroyed the keys file /run/destroy/trustee.toml`, the instance's two public
+   keys (`public_key:` and `share_encryption_public_key:`) and, if the instance holds
+   session stores, a line `destroyed the session store` for each of their files and
+   `removed the session store directory /opt/trustee/message_store`.
+3. `TRUSTEE REMOVAL COMPLETE: four Secrets absent; state directories empty`.
+4. `Waiting for the cluster datastore to discard the deleted trustee Secrets. This can take up to 30 minutes…`.
+5. `DATASTORE COMPACTED: no earlier revision of the trustee Secrets remains in the cluster datastore`.
+6. `Before the next election event: each trustee generates a new key pair offline and an administrator registers both new public keys in the customer administration portal; then run ./deploy commission site.json with both trustees and their key media present.`
+
+No trustee instance is restarted. The board compares the printed public keys with
+those of the two registered trustee records, which an administrator opens in the
+portal, and records the result in its minutes. The lines of step 2 also remain in
+the file `/root/deploy/trustee-destroy.log` on C1, which holds no secret.
 
 ![Actual terminal confirming trustee retirement](./assets/installation/trustee-removal.png)
 
-*Terminal capture from a test installation. Your addresses, names and digests differ.*
+*Terminal capture from a test installation. Its warning and the lines before step 3
+differ from the current output, and steps 4 to 6 are missing. Your addresses, names
+and digests differ.*
 
-**If the result differs:** keep the remaining state and backups, and tell the
-election board what was removed. Tell the board not to start another ceremony, and
-do not destroy backups, while the outcome is uncertain. After confirmed server
-removal, the board directs the people who keep them to destroy retained
-trustee-state backups and system backups
+**If the result differs:**
+
+| The message starts with | Meaning | What to do |
+| --- | --- | --- |
+| `Stopped: Trustee key destruction failed: An election event can still use the trustee keys` | An election event is neither in the post-processing phase nor archived in the preparation phase. Nothing was changed. | Tell the election board. Run the command again once that election event is in the post-processing phase or archived in the preparation phase. |
+| `Stopped: Trustee key destruction failed: The accepted trustee image does not provide trustee destroy` | The installed trustee image has no `trustee destroy`. Nothing was changed. | Ask Sequent. |
+| `Stopped: Trustee key destruction failed: A trustee destroy run did not complete` | `trustee destroy` failed or did not finish for an instance. Both instances stay stopped and the Secrets are kept; the output is in `/root/deploy/trustee-destroy.log` on C1. | Keep the message and ask Sequent. Once the cause is resolved, run the command again: it continues the stopped run. |
+| `Stopped: The cluster datastore still holds earlier revisions of the deleted trustee Secrets` | The keys and session stores are destroyed, but the cluster datastore has not discarded the deleted Secrets within 30 minutes. | Run the command again later: it prints `TRUSTEE KEYS ALREADY DESTROYED: four Secrets absent; state directories empty` and waits again. |
+| Any other `Stopped: Trustee key destruction failed` or `Stopped: Cluster datastore compaction check failed` | Another maintenance operation is running or was interrupted, or a check or the connection to C1 failed. | Keep the message and tell the election board. Run the command again once the cause is resolved, or ask Sequent. |
+
+Running the command again is always safe: it refuses again, continues a run that
+stopped part way, or reports `TRUSTEE KEYS ALREADY DESTROYED: four Secrets absent;
+state directories empty`. Until a stopped run is complete, both trustee instances
+stay stopped, and the other maintenance commands refuse, except those that read the
+server state and the logs.
+
+While the outcome is uncertain, keep the remaining state and backups, tell the
+election board what was removed, and tell it not to start another ceremony. After
+confirmed server removal, the board directs the people who keep them to destroy
+retained trustee-state backups and system backups
 ([Backups and restore](11-selftest_handover.md#backups-and-restore)), which also hold
-the protocol state, and records their destruction in the board's minutes. Deleting files does not
-establish physical erasure of storage remnants; the election organizer decides what
-happens to the media.
+the protocol state, and records their destruction in the board's minutes. Each
+trustee then destroys their own keys file and each copy of it on the offline
+trustee workstation with `./trustee destroy trustee.json`
+([Trustee Procedures](../../02-election_managers/05-election_organizer_handbook/09-trustee-procedures.md)).
+
+The command overwrites files through the file system and deletes the Secrets
+through the cluster; it does not reach the storage medium. Remnants can remain on
+C1's disks (for example on SSDs, on virtual disks, on storage with snapshots, and in
+space that the cluster datastore has freed) and in snapshots of C1 made outside the
+kit. Only purging or destroying the media removes them; the election organizer
+decides what happens to the media.
+
+### Install new trustee keys for a later election event
+
+After the removal, the trustee instances have no keys, and a later election event
+needs new ones.
+
+**When:** after `./deploy remove-trustees site.json` has printed
+`DATASTORE COMPACTED: …`, and before the key ceremony of the next election event.
+
+**Where:** the administration workstation, in the deployment directory, with
+both trustees and their key media present, as in
+[Transfer the matching keys and start the instances](#transfer-the-matching-keys-and-start-the-instances).
+Leave `site.json` unchanged: each `commissioning.trustees` entry keeps its name and
+the path of its keys file on the trustee's medium.
+
+To install the new keys:
+
+1. Have each trustee generate a new key pair on the offline trustee workstation
+   ([Generate keys in the trustee's private session](#generate-keys-in-the-trustees-private-session)).
+2. Run the commissioning command:
+
+   ```bash
+   ./deploy commission site.json
+   ```
+
+3. The command first checks the installed platform, then prints
+   `The trustee keys of the earlier election event were removed.` and asks for the
+   registration of both trustees with their new public keys under the names in
+   `site.json`. Have the administrator register them and check both public keys in
+   the portal, as
+   [Bind each native account to its registered trustee](#bind-each-native-account-to-its-registered-trustee)
+   shows. Then type `CONTINUE` and press Enter.
+4. At each `Trustee 1: be present...` / `Trustee 2: be present...` prompt, have
+   that trustee confirm their own mounted medium and private-key file, then type
+   `CONTINUE` and press Enter.
+
+**Expected result**, in this order:
+
+1. `PASS: both trustee media match their registered public-key pairs before either import`.
+2. `PASS: trustee 1 public-key pair, native binding and startup; transfer copy removed`,
+   then the same line for trustee 2.
+3. `PASS: customer login restrictions and both native trustees Ready`.
+4. `NEW TRUSTEE KEYS COMMISSIONED — both trustees run with their newly registered keys.`
+
+Then unmount each trustee's medium and return it to its owner. A later
+`./deploy commission site.json` only checks the instances again.
+
+**If the result differs:**
+
+| The message starts with | Meaning | What to do |
+| --- | --- | --- |
+| `Stopped: A trustee key removal stopped part way` | The removal did not finish. | Run `./deploy remove-trustees site.json` to complete it, then this command again. |
+| `Stopped: The removed trustee keys are not yet confirmed gone from the cluster datastore` | The removal has not yet printed `DATASTORE COMPACTED`. | Run `./deploy remove-trustees site.json` again until it does, then this command again. |
+| `Stopped: An import of new trustee keys stopped part way` | An earlier run of this command stopped during an import. | Tell the election board. Run `./deploy remove-trustees site.json`, which removes what that import installed, then this command again. |
+| `Stopped: The configured customer differs from the commissioned one` | `site.json` names another customer. Nothing was changed. | Use the unchanged `site.json` of this installation. |
+| `Stopped: Trustee private keys do not match the exact registered public-key pair` | A medium does not hold the keys registered for its trustee. Nothing was imported. | Proceed as for **Keys do not match** in [Transfer the matching keys and start the instances](#transfer-the-matching-keys-and-start-the-instances). |
+| `Stopped: Trustee medium changed after the two-key precheck` | A medium changed during the import. | Keep the message and tell the election board. The next run of this command stops with the message of an import that stopped part way; proceed as that row says. |
+| `Stopped: Commissioning paused; no automatic continuation` | Something other than `CONTINUE` was typed. Nothing was imported. | Run this command again when the step is complete. |
 
 ## Preparing a trustee workstation
 
@@ -449,8 +619,6 @@ trustee avoids selecting another person's medium accidentally.
 
 Before attaching a trustee's key medium, run:
 
-<!-- deployment-step: 08-015 -->
-
 ```sh
 ./trustee prepare trustee.json
 ```
@@ -471,8 +639,6 @@ the observed value or enable networking to download an image.
 
 Unlock only this trustee's encrypted working medium and select its private
 working directory in `trustee.json`. Then run:
-
-<!-- deployment-step: 08-016 -->
 
 ```sh
 ./trustee generate trustee.json
@@ -496,7 +662,9 @@ To display those public keys again, run:
 correcting the offline operating environment. A medium or permission error means
 the private working directory is not ready. An existing keys file means this
 trustee already has keys: use `public-keys`; do not delete it and generate a
-replacement. If the accepted image is missing, repeat the prepare command with
+replacement. Only on the election board's instruction at the end of an election
+event does the trustee destroy it, with `./trustee destroy trustee.json`
+([Trustee Procedures](../../02-election_managers/05-election_organizer_handbook/09-trustee-procedures.md)). If the accepted image is missing, repeat the prepare command with
 the accepted delivery medium.
 
 Only this trustee's working directory is mounted into the offline container.

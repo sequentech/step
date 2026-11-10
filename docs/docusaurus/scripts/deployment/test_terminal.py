@@ -63,17 +63,6 @@ class TerminalTests(unittest.TestCase):
         self.assertIn('Operation cancelled; no automatic confirmation', text)
         self.assertNotIn('ACCEPTED\r\n', text)
 
-    def test_runner_prompt_reads_terminal_with_redirected_stdin(self):
-        code, text, sent = self.terminal("import runner; assert runner.prompt('Host', 'default') == 'chosen'; print('ACCEPTED')", 'Host [default]: ', 'chosen')
-        self.assertEqual(code, 0, text)
-        self.assertTrue(sent)
-        self.assertIn('ACCEPTED', text)
-
-    def test_runner_prompt_keeps_explicit_default_on_empty_terminal_response(self):
-        code, text, sent = self.terminal("import runner; assert runner.prompt('Host', 'default') == 'default'; print('ACCEPTED')", 'Host [default]: ', '')
-        self.assertEqual(code, 0, text)
-        self.assertTrue(sent)
-
     def test_piped_phrase_cannot_authorize_without_controlling_terminal(self):
         result = subprocess.run([sys.executable, '-c', "import trustee; trustee.confirm('REMOVE TRUSTEE KEYS', 'Retirement fixture'); print('ACCEPTED')"], cwd=Path(__file__).parent, input='REMOVE TRUSTEE KEYS\n', text=True, capture_output=True, start_new_session=True, timeout=5)
         self.assertNotEqual(result.returncode, 0)

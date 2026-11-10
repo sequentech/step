@@ -8,8 +8,8 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-Board members use the TOE through the admin portal, a web application that the
-operational environment serves to the browser. The TOE checks every request
+Board members use the TOE through the admin portal, the part of the TOE that the
+server provides to the browser and that runs there. The TOE checks every request
 on the server: what the admin portal shows or hides does not grant or deny
 anything. Trustees also use the `trustee` program of the `braid` image on
 their trustee workstation (see
@@ -149,7 +149,7 @@ account and returns to this request to sign.
 | "Waiting" | Signatures are missing | The remaining signers sign before it expires. |
 | "Signed" | All signatures are in | Wait for the action to run; for an action that waits ([How a signing request works](#how-a-signing-request-works)), the member who started it selects the button "Continue operation". |
 | "Done" | The action was performed | Check its result, for example on the election event's tab "Publish" or "Logs". |
-| "Cancelled" | A board member cancelled it, or what it signs or its rule changed | Signatures given for it no longer count. Start the action again if the board still wants it. |
+| "Cancelled" | A board member cancelled it, or what it signs, its rule, its time limit or a signer's certificate no longer allowed it to run | The reason shows under the status, for example "A newer request replaced it" or "A certificate that signed it was revoked"; for a replaced request, the record `SigningRequestCancelled` on the election event's tab "Logs" says why. Signatures given for it no longer count. Sign the newer request, or start the action again, if the board still wants it. |
 | "Expired" | It was not complete in time | Start the action again. |
 | "Failed" | All signatures are in, but the action failed | The electoral log has the details (the election event's tab "Logs"). Treat it as a security-relevant event. |
 

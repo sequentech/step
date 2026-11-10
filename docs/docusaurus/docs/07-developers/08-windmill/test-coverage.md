@@ -59,9 +59,32 @@ election workflows; these need dedicated service fixtures, not production
 rewrites or tests that only exercise derives.
 
 `postgres_scheduling.rs` checks that stopped schedules accept only future
-re-arming, archived events cannot execute queued lifecycle tasks, and workers
-re-read a schedule after a concurrent editor commits. The concurrency fixture
+re-arming, archived events cannot execute queued lifecycle tasks except the end
+of a lockdown they were archived in, and workers re-read a schedule after a
+concurrent editor commits. The concurrency fixture
 observes PostgreSQL's row-lock wait before committing the edit.
+
+`postgres_lifecycle_instances.rs` runs the real registration and stop functions
+of a component's processes: one stopping or starting changes nothing while another
+renews, the last one's stop enters failure, and an interrupted self-test is repeated.
+A process keeps renewing on its own thread while every worker of its runtime is busy.
+
+`postgres_election_revoting.rs` checks disabling re-voting: an administrator
+disables it once, the queued lifecycle notice names them and a security
+notification is queued; an election with a single vote, voting started on any channel of the event, an event
+outside preparation, a lockdown and an election of another event are refused.
+Each test rolls back its transaction.
+
+`postgres_post_processing.rs` checks the way into post-processing: no event enters
+it from preparation, an election whose seal failed is finished once none of its
+seals can change, a counted event keeps the ordinary way, and an archived event
+stays in preparation, where the board exports and then deletes its data. Each test
+commits its own tenant.
+
+`postgres_signing_board_gate.rs` checks the board-operation gate: a completed
+request authorises the operation once, and a request that no longer authorises it
+(revoked or expired certificate, changed rule, time limit passed) or that was for
+something else is replaced by a new request whose cancellation names why.
 
 `postgres_initialization_recovery.rs` uses its own migrated fixture database
 because the periodic sweep visits all events. It injects an outbox failure,
@@ -109,6 +132,11 @@ Run the unit tests from `packages/`:
 ```bash
 cargo test -p windmill --lib
 ```
+
+Among them, `src/services/audit_ballot_tests.rs` checks ballot auditing: only a
+ballot waiting to be cast is marked, an audited ballot answers again, a ballot cast
+while it was being audited stays cast, and the audit record names the voter, the
+ballot and its receipt.
 
 Files that only declare modules or traits have no measured lines. List them in
 `scripts/coverage/profiles.toml` under `profiles.windmill.scope_exceptions`, or

@@ -74,11 +74,11 @@ Roles, then the technical name) and what to watch:
 | Run the key ceremony and the counting | <ul><li>"View Election Event Keys" (<code>election-event-keys-tab</code>)</li><li>"Admin Ceremony" (<code>admin-ceremony</code>)</li><li>"Create Ceremony" (<code>create-ceremony</code>)</li><li>"Export Ceremony" (<code>export-ceremony</code>)</li><li>"Read Trustee" (<code>trustee-read</code>)</li><li>"View Election Event Tally" (<code>election-event-tally-tab</code>)</li><li>"Read Tally" (<code>tally-read</code>)</li><li>"Read Tally Results" (<code>tally-results-read</code>)</li></ul> | Ceremonies only as manual ceremonies (see [The key ceremony](06-preparation.md#the-key-ceremony)). |
 | Generate and download reports, among them the initialization report | <ul><li>"View Election Event Reports" (<code>election-event-reports-tab</code>)</li><li>"Read Reports" (<code>report-read</code>)</li><li>"Generate Report" (<code>report-generate</code>)</li><li>"Read Documents" (<code>document-read</code>)</li><li>"Download Documents" (<code>document-download</code>)</li></ul> | The initialization report, the election returns and the other election reports need the board's authorisations of their protected actions (see [Security-critical actions](05-electoral-phases.md#security-critical-actions)). |
 | Check, audit and export the audit records | <ul><li>"View Election Event Logs" (<code>election-event-logs-tab</code>)</li><li>"Read Logs" (<code>logs-read</code>)</li><li>"Export Logs" (<code>logs-export</code>)</li><li>"Audit Electoral Log" (<code>electoral-log-audit</code>)</li><li>"Browse Electoral Log" (<code>electoral-log-console-read</code>)</li></ul> | Only the election board reads and audits the audit records; the audit is needed at the beginning of the evaluation phase. The export holds personal data of voters: keep it confidential. |
-| Follow the dashboards, the self-tests and the tasks | <ul><li>"Admin Dashboard View" (<code>admin-dashboard-view</code>)</li><li>"View Election Dashboard" (<code>election-dashboard-tab</code>)</li><li>"View Monitoring Dashboards" (<code>monitoring-view</code>)</li><li>"Configure Monitoring Dashboards" (<code>monitoring-configure</code>)</li><li>"Self-tests: read results" (<code>self-test-read</code>)</li><li>"Self-tests: run checks" (<code>self-test-run</code>)</li><li>"View Election Event Tasks" (<code>election-event-tasks-tab</code>)</li><li>"Read Tasks Execution" (<code>tasks-read</code>)</li></ul> | The tab "Dashboard" shows the board the election execution data (turnout, cast votes, ballot boxes); its dashboard "Attack detections" shows the attacks the TOE detected. See [Preparing the security dashboard](06-preparation.md#preparing-the-security-dashboard) for setting up the security dashboard. The tab "Security and self-tests" shows six results and the current phase; the self-test settings belong to the administrator during preparation. |
+| Follow the dashboards, the self-tests and the tasks | <ul><li>"Admin Dashboard View" (<code>admin-dashboard-view</code>)</li><li>"View Election Dashboard" (<code>election-dashboard-tab</code>)</li><li>"View Monitoring Dashboards" (<code>monitoring-view</code>)</li><li>"Configure Monitoring Dashboards" (<code>monitoring-configure</code>)</li><li>"Self-tests: read results" (<code>self-test-read</code>)</li><li>"Self-tests: run checks" (<code>self-test-run</code>)</li><li>"View Election Event Tasks" (<code>election-event-tasks-tab</code>)</li><li>"Read Tasks Execution" (<code>tasks-read</code>)</li></ul> | The tabs "Dashboard" of the election event and of each election show the board the election execution data (turnout, cast votes, ballot boxes); its dashboard "Attack detections" shows the attacks the TOE detected. See [Preparing the security dashboard](06-preparation.md#preparing-the-security-dashboard) for setting up the security dashboard. The tab "Security and self-tests" shows six results and the current phase; the self-test settings belong to the administrator during preparation. |
 | Read the voters' register | <ul><li>"View Election Event Voters" (<code>election-event-voters-tab</code>)</li><li>"Read Voter" (<code>voter-read</code>)</li></ul> | Read only. In the post-processing phase the read is a security-critical action and needs the required authorisations (see [Security-critical actions](05-electoral-phases.md#security-critical-actions)). |
-| Export election execution data | <ul><li>"Export election execution data" (<code>election-execution-export</code>)</li></ul> | Post-processing phase only, with the required authorisations. |
-| Delete an election event and its election execution data | <ul><li>"Delete Election Event" (<code>election-event-delete</code>)</li></ul> | Only the election board holds it. The TOE refuses every deletion unless the election execution data has been exported and the required authorisations are reached. The deletion also deletes the election event's audit records in the TOE. What stays is in [Deleting the election execution data](08-evaluation-and-post-processing.md#deleting-the-election-execution-data). |
-| Archive an election event | <ul><li>"Archive Election Event" (<code>election-event-archive</code>)</li></ul> | Only the election board holds it. Used in the preparation phase for an election event imported with wrong data. Archiving deletes nothing: the data and audit records stay, and the electoral log records the archiving. An archived election event never opens voting and is never unarchived. |
+| Export election execution data | <ul><li>"Export election execution data" (<code>election-execution-export</code>)</li></ul> | In the post-processing phase, or in the preparation phase for an archived election event, with the required authorisations. |
+| Delete an election event and its election execution data | <ul><li>"Delete Election Event" (<code>election-event-delete</code>)</li></ul> | Only the election board holds it. The TOE deletes only in the post-processing phase, or in the preparation phase for an archived election event, and refuses every deletion unless the election execution data has been exported and the required authorisations are reached. The deletion also deletes the election event's audit records in the TOE. What stays is in [Deleting the election execution data](08-evaluation-and-post-processing.md#deleting-the-election-execution-data). |
+| Archive an election event | <ul><li>"Archive Election Event" (<code>election-event-archive</code>)</li></ul> | Only the election board holds it. Used in the preparation phase for an election event imported with wrong data. Archiving deletes nothing: the data and audit records stay, and the electoral log records the archiving. An archived election event stays in the preparation phase, never opens voting and is never unarchived; its data stays until the board exports and deletes it. |
 | Check the accounts and their roles | <ul><li>"View users and roles" (<code>users-menu</code>)</li><li>"Read User" (<code>user-read</code>)</li><li>"Read Role" (<code>role-read</code>)</li><li>"Read User Permission" (<code>user-permission-read</code>)</li></ul> | Read access only; needed for the checks of the role assignments in this chapter. |
 | Trustees only: take part in the key ceremony and the counting | Role <code>trustee</code>, with exactly these permissions: <ul><li>"Trustee Ceremony" (<code>trustee-ceremony</code>)</li><li>"Sign: confirm custody" (<code>sign-key-ceremony</code>)</li><li>"Sign: authorize tally custody" (<code>sign-tally-key</code>)</li></ul> | See [Trustee Procedures](09-trustee-procedures.md). |
 
@@ -187,10 +187,11 @@ the execution phase. It applies also when a board member changes function:
    with the button "Revoke" and fill in the field "Reason". A registration is never deleted. A revoked certificate cannot sign any more.
    Signatures on completed requests still count, except for an action that waits
    ([How a signing request works](04-secure-use.md#how-a-signing-request-works)): it
-   runs only while enough of its signers' certificates are valid; otherwise the TOE
-   refuses it, and another board member starts it again for new signatures. Every
-   waiting request the certificate signed is cancelled with the reason "A certificate that signed it was revoked", and
-   the board starts it again if it still needs it. Revoking one registration
+   runs only while enough of its signers' certificates are valid; otherwise, when
+   the member who started it repeats it, the TOE cancels that request with the reason
+   "A certificate that signed it was revoked" and opens a new one for new signatures.
+   Every waiting request the certificate signed is cancelled at once with the same
+   reason, and the board starts it again if it still needs it. Revoking one registration
    revokes every registration of that certificate's key in the tenant. The election organizer also revokes the
    person's approval certificate at its certification authority and adds the
    revocation list to its next configuration package; from then on the TOE
@@ -209,8 +210,10 @@ the execution phase. It applies also when a board member changes function:
 
 ### A trustee leaves
 
-The trustee's share stays valid after the person leaves. Before the end of the
-post-processing phase:
+The trustee's share stays valid after the person leaves, until the trustee keys
+are destroyed
+([At the end of the election event](09-trustee-procedures.md#at-the-end-of-the-election-event)).
+Until then:
 
 1. Follow the steps of
    [A person leaves, loses the role or loses their security token](#a-person-leaves-loses-the-role-or-loses-their-security-token)
@@ -218,7 +221,7 @@ post-processing phase:
 2. The trustee hands over the trustee workstation's keys file, all its
    backups and the saved custody request to the election board, which keeps
    them locked away under the control of at least two board members until the
-   end of the post-processing phase.
+   board instructs the destruction of the trustee keys.
 3. Both trustees are needed to count the votes. The election organizer
    appoints a board member who is not a trustee as the replacement. The
    administrators give that person's account the role `trustee` and, in the user

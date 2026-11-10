@@ -51,9 +51,10 @@ To sign in to the admin portal:
 
 1. Open the admin portal at its address followed by "`/tenant`". For example,
    if its address is `https://admin.example.org`, open
-   `https://admin.example.org/tenant`. Under "Select Tenant", enter your
-   organisation's tenant name in "Tenant Name" and select "Continue". After five failed attempts the admin portal shows "Too many attempts. Please try
-   again later."
+   `https://admin.example.org/tenant`. Under the heading "Select Tenant", enter
+   your organisation's tenant name in the field "Tenant Name" and select the
+   button "Continue". After five failed attempts the admin portal shows the
+   message "Too many attempts. Please try again later."
 2. The admin portal sends you to the login page of the TOE, which sends you to
    the external authentication server of your organisation.
 3. Authenticate there with your two factors.
@@ -119,8 +120,8 @@ their sessions while they are not actively working with the TOE.
 
 ## Checking the version of the TOE
 
-The header of the admin portal shows "Version:" followed by the software
-release. In a wide window it also shows "Hash:" followed by the first eight
+The header of the admin portal shows the label "Version:" followed by the software
+release. In a wide window it also shows the label "Hash:" followed by the first eight
 characters of the source revision of the TOE, in the form `1A2B-3C4D`.
 
 Check after the deployment, after every update and at the start of each

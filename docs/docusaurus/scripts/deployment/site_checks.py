@@ -156,13 +156,13 @@ def probe(arguments, d=None, node=None):
     return result.returncode, result.stdout.decode(errors='replace')
 
 
-def endpoint(d, address, host, ca, label, node=None, names=False):
+def endpoint(d, address, host, ca, label, node=None, names=False, sigalgs=None):
     target = '[' + address + ']:443' if ':' in address else address + ':443'
     common = ['-connect', target, '-servername', host, '-CAfile', ca, '-verify_hostname', host, '-verify_return_error']
-    allowed = ['-tls1_3', '-ciphersuites', 'TLS_AES_256_GCM_SHA384', '-groups', 'secp384r1']
+    allowed = ['-tls1_3', '-ciphersuites', 'TLS_AES_256_GCM_SHA384', '-groups', 'secp384r1'] + (['-sigalgs', sigalgs] if sigalgs else [])
     code, output = probe(common + allowed, d, node)
     check_allowed(code, output)
-    print('PASS: ' + label + ' — TLS 1.3 / TLS_AES_256_GCM_SHA384 / secp384r1 / 384-bit key / certificate verified', flush=True)
+    print('PASS: ' + label + ' — TLS 1.3 / TLS_AES_256_GCM_SHA384 / secp384r1' + (' / ' + sigalgs if sigalgs else '') + ' / 384-bit key / certificate verified', flush=True)
     prohibited = [('TLS 1.2', ['-tls1_2']), ('AES-128', ['-tls1_3', '-ciphersuites', 'TLS_AES_128_GCM_SHA256']), ('ChaCha20', ['-tls1_3', '-ciphersuites', 'TLS_CHACHA20_POLY1305_SHA256']), ('X25519', ['-tls1_3', '-groups', 'X25519'])]
     for name, options in prohibited:
         code, output = probe(common + options, d, node)
@@ -201,5 +201,6 @@ def tls(d):
         # A public CA certificate is staged in a temporary file and removed on exit.
         # Neither the client secret nor a private key is sent by these probes.
         host = d['hosts']['authentication']
-        endpoint(inspection, host, host, '__AGD_CA_FILE__', node.upper() + ' to authentication server ' + host, node=node)
+        # Keycloak offers only this signature scheme to the authentication server (07-008).
+        endpoint(inspection, host, host, '__AGD_CA_FILE__', node.upper() + ' to authentication server ' + host, node=node, sigalgs='ecdsa_secp384r1_sha384')
     print('TLS PROFILE CHECK PASSED — allowed connections verified and prohibited variants refused', flush=True)

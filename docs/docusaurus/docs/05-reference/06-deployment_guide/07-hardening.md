@@ -62,9 +62,11 @@ container.
 **Automatic installation stage.** The public storage endpoint is the voting
 portal's HTTPS origin with no path suffix. The browser allowlist contains only
 the three portal HTTPS origins. The private endpoint stays inside the cluster.
-The ingress preserves each signed request's host, bucket path and query; it
-keeps the existing `/storage` route for public assets and does not expose the
-storage administration console. Private objects still require valid signed URLs.
+The ingress preserves each signed request's host, bucket path and query. Its
+route `/storage/public` serves the public assets: through it, anyone can read the
+objects of the bucket `public`, and nothing else. No route reaches the storage
+administration console or the bucket `electoral-log-checkpoints`. Private objects
+still require valid signed URLs.
 
 A failed signed upload is not corrected by stripping `/storage`, a bucket name
 or query parameters from its URL. Use the storage and cross-origin checks in
@@ -94,6 +96,10 @@ services start. The object-storage client secret matches the storage root
 password. `operator.service_administrator` supplies the service administrator's
 name; it is not a personal login account.
 
+The installer then checks that the master secret, with which Harvest and Windmill
+encrypt the secrets they store, is 64 hexadecimal characters. Otherwise it stops with
+`Stopped: Hardened platform deployment failed: The generated master secret is missing or not 64 hexadecimal characters; stop and inspect this stage privately; see If something fails in the Deployment Guide`.
+
 Never print or copy this file into a terminal transcript. Never regenerate it
 after first startup: the databases and encrypted application data depend on the
 original values. An existing file during fresh installation means a partial earlier
@@ -107,8 +113,10 @@ replace it.
 
 **Automatic installation stage.** The installer creates
 `keycloak-bootstrap-admin` and `keycloak-service-credentials` as encrypted cluster
-Secrets. Harvest and both Windmill services receive the service client identity
-and secret through Secret references. People must not use these credentials.
+Secrets. Harvest and both Windmill services receive, through Secret references,
+the identity and secret of the service client and of the administration API
+client `step-admin-api`. The service administrator's credentials stay with the
+identity service and the installer. People must not use these credentials.
 
 The database, storage and identity-service credentials are part of the protected
 backup. Recovery must retain those original values; an `AlreadyExists` error does
@@ -121,8 +129,10 @@ not authorize deleting or replacing a Secret.
 
 **Automatic installation stage.** The installer applies the reviewed identity
 service transformation. Keycloak starts with the arguments `start --import-realm`, its fixed
-public hostname, the authentication server's CA and the required outbound TLS
-profile. The realm is loaded from a Secret. It does not use development mode or
+public hostname and the required outbound TLS profile. Toward the authentication
+server it trusts only the authentication server's CA, not the default CAs of
+Java or of the cluster, and offers only the signature scheme
+`ecdsa_secp384r1_sha384`. The realm is loaded from a Secret. It does not use development mode or
 accept an arbitrary hostname.
 
 ## Close the GraphQL console
@@ -150,7 +160,7 @@ checks the deployed behavior.
 
 **Automatic installation stage.** The ingress refuses access to the identity
 service's master realm on all three portal hosts. The master realm holds the
-service administrator, not personal users. The external discovery checks must
+service administrator and the administration API client, not personal users. The external discovery checks must
 receive HTTP `403`; a connection failure is not evidence of a successful block.
 
 ## Give harvest its service
@@ -174,8 +184,6 @@ to make an unavailable screen reachable.
 <!-- deployment-step: 07-015 -->
 <!-- deployment-step: 07-016 -->
 <!-- deployment-step: 07-017 -->
-<!-- deployment-step: 07-018 -->
-<!-- deployment-step: 07-019 -->
 
 **Automatic installation stage.** The installer transforms the initial tenant
 realm, the template for new tenants and the template for new election events.
@@ -191,14 +199,20 @@ The required sign-in policy is:
   realms only the machine accounts `trustee1` and `trustee2` have one. It is not the
   [Authentication failure threshold](../../02-election_managers/04-administrator_handbook/08-authentication_and_sessions.md#authentication-failure-threshold),
   which the administrator sets in the admin portal.
-- Disable self-registration, password reset and the "remember me" option. Redirect personal
-  sign-in to the sole external identity provider. Disable local password and
-  one-time-code forms, and link a first sign-in only to an existing account.
-- Disable the local required action `mfa-method-selector`, also as a default action.
-  The external provider still enforces the user's required factors.
-- Use authorization code flow with PKCE `S256` and exact portal redirect
-  addresses. Disable password grants for portal clients and the client `admin-cli`,
-  and disable the client `cli-account-admin`.
+- Keep self-registration and password reset off: they are off in the delivered
+  realm files, and the installer stops if either is on. Set the realm setting
+  `rememberMe` to false. Redirect personal sign-in to the sole external identity provider.
+  Disable local password and one-time-code forms, and link a first sign-in only
+  to an existing account.
+- Disable every local required action, such as `mfa-method-selector`, also as a
+  default action. The external provider still enforces the user's required factors.
+- Use authorization code flow with PKCE `S256`, with redirect addresses only on
+  the portals' own host names. Disable password grants for portal clients and the
+  client `admin-cli`, and disable the client `cli-account-admin`.
+- The trustee instances' client `api-key-client` allows only the password grant,
+  and the client `service-account` only the client credentials grant. Neither has
+  a redirect address or web origin. Tokens of `api-key-client` name the GraphQL
+  role `trustee-ceremony` by default.
 - Preserve the external authentication time needed for fresh board authorization:
   the identity-provider setting `passMaxAge` is `true`, and the client `admin-portal`
   carries the session's authentication time in the claim `auth_time`. A new access
@@ -209,9 +223,17 @@ The required sign-in policy is:
   administrator groups. Give no group the permissions "Edit Results Publication"
   (`publish-results-write`), "Datafix account" (`datafix-account`) or "Manually
   Verify Voter" (`voter-manually-verify`).
-- Disable the account console (client `account-console`) in every realm. In
-  event realms, also disable voter sign-in codes, messaging channels, offline
-  access and the unused channel/results clients.
+- Disable the account clients `account` and `account-console` in every realm,
+  and give the default role no `manage-account`: users cannot manage their own
+  account. Only administrators can change a user's `username` and `email`.
+- Disable the client `security-admin-console` and offline access in every realm:
+  no client and no realm default offers the scope `offline_access`. In event
+  realms, also disable voter sign-in codes, messaging channels and the unused
+  channel/results clients.
+
+The installer checks these settings in the three transformed files before it
+imports them. A difference stops the installation at the stage
+`07-check-realm-security`.
 
 The relevant permissions and values are described in
 [Users, Roles and Role Separation](../../02-election_managers/04-administrator_handbook/04-users_and_roles.md)

@@ -15,7 +15,8 @@ holds no election event:
 
 | Account | Realm | State | Used by |
 | --- | --- | --- | --- |
-| The service administrator (the name in `operator.service_administrator` of `site.json`) | master | random password, only in `secrets.env` and two Secrets; the master realm is not reachable from outside | the TOE's services only |
+| The service administrator (the name in `operator.service_administrator` of `site.json`) | master | random password, only in `secrets.env` and the Secret `keycloak-bootstrap-admin`; the master realm is not reachable from outside | the identity service's start and `./deploy` only |
+| `service-account-step-admin-api`, the account of the administration API client `step-admin-api` | master | client secret random, only in `secrets.env` and the Secret `keycloak-service-credentials` | the TOE's services only |
 | The first personal administrator | customer's tenant | no password; signs in only through the external authentication server | the administrator |
 | `admin` (seeded when the tenant was created) | customer's tenant | no password | nobody; deleted by the administrator |
 | `trustee1` and `trustee2` | customer's tenant | random passwords, only in `secrets.env` and the trustees' Secrets | the trustee instances only |
@@ -87,15 +88,17 @@ Election Event" (`election-event-archive`), the "Sign:" permissions, the
 scheduled events and the areas. At sign-in the TOE gives an administrator
 account only the permissions of
 [The administrator role](../../02-election_managers/04-administrator_handbook/04-users_and_roles.md#the-administrator-role). No group
-holds "Edit Results Publication" (`publish-results-write`), "Datafix
-account" (`datafix-account`) or "Manually Verify Voter"
+holds the permissions "Edit Results Publication" (`publish-results-write`),
+"Datafix account" (`datafix-account`) or "Manually Verify Voter"
 (`voter-manually-verify`).
 
 :::warning
 The first personal administrator account holds the permissions of the
 administrator role, among them the user and role permissions, with which an
 account could be given any permission. Use
-it only for the setup that the Handbook for Election Administrators describes, and never
+it only for the setup that the
+[Handbook for Election Administrators](../../02-election_managers/04-administrator_handbook/01-about.md)
+describes, and never
 give an administrator account a permission that the handbook reserves for
 the election board. The administrator never imports, reads or changes
 election data and never reads the electoral log.

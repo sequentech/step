@@ -55,9 +55,10 @@ the delivery note, before going on.
 
 The delivery consists of the signed delivery note, the encrypted delivery
 medium and its passphrase, which comes separately from the medium. The medium
-holds the seven TOE parts as OCI images (harvest, windmill, keycloak,
-ballot-verifier, election-verifier, braid and b4), the guidance documents, and
-the files `checksums.txt` and `image-digests.txt`.
+holds the eleven TOE parts as OCI images (harvest, windmill, braid, b4,
+ballot-verifier, election-verifier, keycloak, tls-endpoint, graphql-engine,
+voting-portal and admin-portal), the guidance documents, and the files
+`checksums.txt` and `image-digests.txt`.
 [Verify the files and the images](#4-verify-the-files-and-the-images) and
 [Check the guidance version](#6-check-the-guidance-version) check its contents.
 
@@ -96,14 +97,15 @@ grep ' sha256:' "$M/image-digests.txt" | while read -r name digest; do
 done
 ```
 
-The medium must hold exactly the seven TOE parts, each verified by the loop
+The medium must hold exactly the eleven TOE parts, each verified by the loop
 above:
 
 ```bash
 ls -A "$M"          # checksums.txt guidance image-digests.txt images
                     # (an empty lost+found directory may also be listed)
-ls "$M/images"      # b4 ballot-verifier braid election-verifier harvest keycloak windmill
-grep -c ' sha256:' "$M/image-digests.txt"    # 7
+ls "$M/images"      # admin-portal b4 ballot-verifier braid election-verifier
+                    # graphql-engine harvest keycloak tls-endpoint voting-portal windmill
+grep -c ' sha256:' "$M/image-digests.txt"    # 11
 ```
 
 ## Compare with the signed delivery note {#5-compare-with-the-signed-delivery-note}

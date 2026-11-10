@@ -17,11 +17,17 @@ def remote(d, script, label, timeout=120):
     return install.ssh(d, 'c1', script, label, timeout=timeout).decode()
 
 
+# The realm template's failureFactor (07-016.jq, install.REALM_CHECK). Where
+# only signed packages import, an election event's realm is that template with
+# the package's display settings.
+EVENT_FAILURE_FACTOR='5'
+
+
 def check_event_rows(value, expected):
     rows=[line.split('|') for line in lines(value)]
     install.require(len(rows)==len(expected) and {r[0] for r in rows}==set(expected), 'Event realm policy result is absent, duplicated or unexpected')
     for row in rows:
-        install.require(len(row)==7 and row[1:5]==['EXTERNAL','900','t','true'] and row[5].isdigit() and int(row[5])>0 and row[6]=='custom-event-listener', 'An event realm TLS, session, brute-force or audit policy differs')
+        install.require(len(row)==7 and row[1:5]==['EXTERNAL','900','t','true'] and row[5]==EVENT_FAILURE_FACTOR and row[6]=='custom-event-listener', 'An event realm TLS, session, brute-force or audit policy differs')
 
 
 def validate_event_name(name):
@@ -83,7 +89,9 @@ def external(d, realm):
 
 def check_restrictions(value, customer):
     rows=lines(value);tenant=customer.removeprefix('tenant-');initial=install.R.removeprefix('tenant-')
-    install.require(len(rows)==9 and rows[:3]==['0']*3 and set(rows[3:5])=={tenant,initial} and rows[5:7]==['0','0'] and set(rows[7:])=={install.R+'|t|t',customer+'|t|t'},'Tenant, prohibited-role, unused-channel or administration-audit restrictions differ')
+    install.require(len(rows)==12 and rows[:3]==['0']*3 and set(rows[3:5])=={tenant,initial} and rows[5:7]==['0','0'] and set(rows[7:9])=={install.R+'|t|t',customer+'|t|t'},'Tenant, prohibited-role, unused-channel or administration-audit restrictions differ')
+    install.require(rows[9:11]==['0','0|2'],'Account self-service, required actions, user profile or administration API client restrictions differ')
+    install.require(rows[11]=='0|0|0','Token mapper or offline-access restrictions of the tenant and event realms differ')
 
 
 def storage_script(d):
@@ -100,10 +108,10 @@ trap cleanup EXIT
 
 def inspect_storage(d):
     output=lines(remote(d,storage_script(d),'Storage policy inspection',timeout=180))
-    # kubectl may prepend creation/wait messages; the five data lines are exact.
+    # kubectl may prepend creation/wait messages; the four data lines are exact.
     values=[line.strip('"') for line in output if not line.startswith(('pod/','pod "'))]
-    install.require(values==['0','AccessDenied','NoSuchBucketPolicy','1','Enabled'],'Plugin, public/private storage or checkpoint Object Lock policy differs')
-    print('PASS: no plugins; private documents restricted; public policy exact; checkpoint Object Lock enabled',flush=True)
+    install.require(values==['AccessDenied','NoSuchBucketPolicy','1','Enabled'],'Public/private storage or checkpoint Object Lock policy differs')
+    print('PASS: private documents restricted; public policy exact; checkpoint Object Lock enabled',flush=True)
 
 
 def event_list(d):
@@ -139,16 +147,16 @@ def platform(d):
     images=lines(remote(d,install.command_source('10-001',d),'Running image content verification',timeout=180))
     observed={}
     for row in images:
-        match=re.fullmatch(r'(b4|ballot-verifier|braid|harvest|keycloak|windmill) ([0-9]+) verified',row)
+        match=re.fullmatch(r'(admin-portal|b4|ballot-verifier|braid|graphql-engine|harvest|keycloak|tls-endpoint|voting-portal|windmill) ([0-9]+) verified',row)
         install.require(match is not None and match[1] not in observed,'Running image check returned missing, repeated or unexpected output')
         observed[match[1]]=int(match[2])
-    install.require(set(observed)==set(install.PARTS) and all(count >= (2 if part in ('braid','windmill') else 1) for part,count in observed.items()),'A required running TOE image is absent')
-    print('PASS: all six server image contents match the accepted delivery; both trustees ready',flush=True)
+    install.require(set(observed)==set(install.PARTS) and all(count >= (2 if part in ('braid','harvest','windmill') else 1) for part,count in observed.items()),'A required running TOE image is absent')
+    print('PASS: all ten server image contents match the accepted delivery; both trustees ready',flush=True)
     files=lines(remote(d,install.command_source('10-004',d),'Identity provider file inspection'))
-    install.require(files and files[-1]=='0' and not any('smart-link-hmac' in value for value in files[:-1]),'Prohibited smart-link extension is installed')
+    install.require(len(files)>2 and files[-2:]==['0','0'] and not any(name in value for value in files[:-2] for name in ('smart-link-hmac','sign-in-link-handlers')),'Prohibited smart-link or sign-in link extension is installed')
     flows=lines(remote(d,install.command_source('10-005',d),'Used authentication flow inspection'))
     install.require(flows==['0'],'A used authentication flow includes smart-link')
-    print('PASS: no smart-link extension or used authentication flow',flush=True)
+    print('PASS: no smart-link or sign-in link extension or used authentication flow',flush=True)
     graphql=set(lines(remote(d,install.command_source('10-007',d),'GraphQL ingress policy')))
     install.require(graphql=={'/hasura/v1/graphql Exact','HASURA_GRAPHQL_ENABLE_CONSOLE false','HASURA_GRAPHQL_DEV_MODE false'},'GraphQL console, development mode or ingress path differs')
     cluster=lines(remote(d,install.command_source('10-009',d),'Cluster secret and service exposure policy'))
@@ -156,7 +164,7 @@ def platform(d):
     print('PASS: exact GraphQL route; console disabled; encrypted Secrets; internal-only services',flush=True)
     external(d,customer)
     check_restrictions(remote(d,install.command_source('10-014',d),'Tenant and unused-function inspection'),customer)
-    print('PASS: exactly two tenants; no installation personal login, prohibited roles or telephone channel',flush=True)
+    print('PASS: exactly two tenants; no installation personal login, prohibited roles or telephone channel; no account self-service or required actions; restricted administration API client',flush=True)
     inspect_storage(d)
     realms=event_list(d)
     install.require(all(name.startswith(customer+'-event-') for name in realms),'An event realm belongs to an unexpected tenant')

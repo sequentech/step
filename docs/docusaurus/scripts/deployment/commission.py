@@ -80,14 +80,24 @@ def public_keys(d,number,remote):
     return json.loads(install.ssh(d,'c1',script,'Trustee public-key derivation',timeout=120))
 
 
+# The transfer copy of a trustee's keys file stays in memory from its arrival to
+# its removal: /run is a tmpfs and the servers have no swap, so no disk ever
+# holds it. A directory on any other file system is removed unused.
+TRANSFER_DIRECTORY='''set -e
+folder=$(mktemp -d /run/sequent-commission-key.XXXXXXXX)
+if test "$(stat -f -c %T "$folder")" != tmpfs; then rmdir "$folder"; echo "$folder is not in memory" >&2; exit 1; fi
+printf '%s\\n' "$folder"
+'''
+
+
 def import_trustee(d,c,realm,number,apply=False,expected_hash=None):
     trustee=c['trustees'][number-1]
     key=install.checked_path(trustee['keys_file'],private=True)
     if not apply:ask('Trustee '+str(number)+': be present and confirm this mounted medium contains your registered private keys. Keep your original medium in your custody.')
     body=key.read_bytes();key_hash=hashlib.sha256(body).hexdigest()
     install.require(expected_hash is None or key_hash==expected_hash,'Trustee medium changed after the two-key precheck')
-    folder=install.ssh(d,'c1','mktemp -d /root/deploy/.commission-key.XXXXXXXX\n','Private trustee transfer directory').decode().strip()
-    install.require(re.fullmatch(r'/root/deploy/\.commission-key\.[A-Za-z0-9]{8}',folder) is not None,'Unexpected private transfer directory')
+    folder=install.ssh(d,'c1',TRANSFER_DIRECTORY,'Private in-memory trustee transfer directory').decode().strip()
+    install.require(re.fullmatch(r'/run/sequent-commission-key\.[A-Za-z0-9]{8}',folder) is not None,'Unexpected private transfer directory')
     remote=folder+'/keys.toml'
     transfer='set -e; set +x; umask 077; set -C; cat > '+shlex.quote(remote)
     try:
@@ -100,11 +110,48 @@ def import_trustee(d,c,realm,number,apply=False,expected_hash=None):
         script=install.command_source('08-009',values)
         script+='\nk3s kubectl -n step-infra create secret generic trustee'+str(number)+'-keys --from-file=trustee.toml='+shlex.quote(remote)+'\n'
         script+=install.command_source('08-011',values)
+        # After ./deploy remove-trustees the instance has no replica.
+        script+='\nk3s kubectl -n step-infra scale deployment/trustee'+str(number)+' --replicas=1\nk3s kubectl -n step-infra rollout status deployment/trustee'+str(number)+' --timeout=5m\n'
         install.ssh(d,'c1',script,'Native trustee '+str(number)+' binding and startup',timeout=600)
     finally:
         # The private original is never changed. Remove this transfer copy even on refusal.
         install.ssh(d,'c1','test ! -L '+shlex.quote(remote)+'\nif test -f '+shlex.quote(remote)+'; then shred -u '+shlex.quote(remote)+'; fi\nrmdir '+shlex.quote(folder)+'\n','Temporary trustee key cleanup')
     print('PASS: trustee '+str(number)+' public-key pair, native binding and startup; transfer copy removed',flush=True)
+
+
+def trustee_keys(d):
+    """kept, or the stage of ./deploy remove-trustees and of new keys after it."""
+    s='''if test -e /root/deploy/.trustee-keys-import-started; then printf importing; exit 0; fi
+if test -e /root/deploy/.trustee-removal-in-progress; then printf removing; exit 0; fi
+remaining=$(k3s kubectl -n step-infra get secret trustee1-keys trustee2-keys trustee1-auth trustee2-auth --ignore-not-found -o name)
+count=$(find /var/lib/sequent-data/trustee1 /var/lib/sequent-data/trustee2 -mindepth 1 | wc -l)
+if test -n "$remaining" || test "$count" != 0; then printf kept
+elif test -f /root/deploy/.trustee-keys-destroyed; then printf removed
+else printf compacting; fi
+'''
+    return install.ssh(d,'c1',s,'Trustee key state').decode().strip()
+
+
+NEW_KEYS_STARTED='''test ! -e /root/deploy/.backup-in-progress
+test ! -e /var/lib/sequent-maintenance/state.json
+test ! -e /var/lib/sequent-maintenance/claim
+test -f /root/deploy/.trustee-keys-destroyed
+(set -o noclobber; : > /root/deploy/.trustee-keys-import-started)
+'''
+
+
+def new_keys(d,c,realm,digest):
+    """The trustees' new keys for a later election event, after ./deploy remove-trustees."""
+    held=install.ssh(d,'c1','. /root/deploy/hosts.env\nprintf %s "$CR"\n','Commissioned customer').decode()
+    install.require(held==realm,'The configured customer differs from the commissioned one')
+    ask('The trustee keys of the earlier election event were removed. Each trustee generates a new key pair on the offline trustee workstation. Sign in to the customer administration portal with the external administrator account and register both trustees with their new public keys under the names in site.json.')
+    hashes={number:import_trustee(d,c,realm,number) for number in (1,2)}
+    print('PASS: both trustee media match their registered public-key pairs before either import',flush=True)
+    install.ssh(d,'c1',NEW_KEYS_STARTED,'New trustee keys import boundary')
+    for number in (1,2):import_trustee(d,c,realm,number,apply=True,expected_hash=hashes[number])
+    verify(d,realm)
+    install.ssh(d,'c1','printf %s '+shlex.quote(digest)+' > /root/deploy/.commissioned\nrm /root/deploy/.trustee-keys-import-started /root/deploy/.trustee-keys-destroyed\n','Commissioning record')
+    print('NEW TRUSTEE KEYS COMMISSIONED — both trustees run with their newly registered keys.',flush=True)
 
 
 def main(d):
@@ -115,6 +162,12 @@ def main(d):
     current=state(d)
     install.require(current!='partial','A previous commissioning attempt stopped during writes. Inspect its actual state; automatic replay is refused')
     if current=='complete':
+        keys=trustee_keys(d)
+        install.require(keys!='removing','A trustee key removal stopped part way; run ./deploy remove-trustees site.json to complete it, then ./deploy commission site.json again')
+        install.require(keys!='compacting','The removed trustee keys are not yet confirmed gone from the cluster datastore; run ./deploy remove-trustees site.json again until it reports DATASTORE COMPACTED')
+        install.require(keys!='importing','An import of new trustee keys stopped part way; run ./deploy remove-trustees site.json to remove what it installed, then ./deploy commission site.json again')
+        if keys=='removed':
+            new_keys(d,c,realm,digest);return
         recorded=install.ssh(d,'c1','cat /root/deploy/.commissioned\n','Commissioning identity').decode()
         install.require(recorded==digest,'Commissioning configuration differs from the completed record')
         verify(d,realm);return

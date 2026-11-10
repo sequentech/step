@@ -100,9 +100,9 @@ revision you approved (see [Checking the import](#checking-the-import)).
 ### Prepare the first import's approval event
 
 The first import needs a place to hold its signing rule and registered board
-certificates. The administrators must already have saved Settings → Configuration
-packages: the TOE refuses that save while an election event that is not archived
-exists. Prepare this once before importing the first package:
+certificates. The administrators must already have saved the settings in
+Settings > "Configuration packages": the TOE refuses that save while an election
+event that is not archived exists. Prepare this once before importing the first package:
 
 1. In the side menu, a board member selects the plus icon next to the entry "Election
    Events", then the entry "Create an Election Event", and creates an empty
@@ -115,9 +115,15 @@ exists. Prepare this once before importing the first package:
    certificate checks
    ([Trusted issuers and certificate checks](../04-administrator_handbook/06-signing_rules.md#trusted-issuers-and-certificate-checks)).
 3. Under the area "Protected actions", the administrator configures the protected
-   action "Import election data" with the number of independent board signatures
+   actions "Import election data", "Export election execution data" and "Delete
+   election execution data", each with the number of independent board signatures
    required by the regulation, at least two, and the role `election-board` under the
-   setting "Who can sign", and saves the rule. The action cannot proceed with a missing or disabled rule.
+   setting "Who can sign", and saves the rules. An action cannot proceed with a
+   missing or disabled rule: without the last two, the data of the approval event
+   cannot be exported or deleted at the end
+   ([Security-critical authorisations required by the Security Target](../04-administrator_handbook/06-signing_rules.md#security-critical-authorisations-required-by-the-security-target)).
+   Once a number is saved, the TOE refuses to change it in this election event. If
+   it differs from the regulation's, archive this election event and prepare a new one.
 4. Board members sign in with their personal board accounts and confirm that
    they can see this election event's signing requests. Write this election
    event's identifier in the board's minutes; it must remain in the preparation
@@ -125,8 +131,8 @@ exists. Prepare this once before importing the first package:
 
 The approval event contains authorisation records. Importing creates a separate
 new election event containing the election data; the administrators configure that
-election event's own signing rules and certificate registrations before its
-protected actions.
+election event's own signing rules, trusted issuers, certificate checks and
+certificate registrations before its protected actions.
 
 ### Importing the package
 
@@ -150,12 +156,26 @@ package:
    requester selects the button "Continue operation".
 4. The TOE checks that the stored file is still exactly the approved file.
    It also checks the package signature, every listed file and the package's own
-   approvals. A changed upload, invalid or untrusted signature, missing or added
-   file, insufficient package approvals or an already-imported revision is refused.
-5. Wait for the task to finish and for the message "Election event imported
-   Successfully". Open the newly imported election event and perform the checks of
+   approvals. A changed upload, an unsigned package, an invalid or untrusted
+   signature, a missing or added file, insufficient package approvals or an
+   already-imported revision is refused. So is a revision that would give the
+   voters of an election of the previous revision more votes than that election
+   allows now: a new revision may keep or lower the number of allowed votes.
+5. Wait until the task window "Task: Import Election Event" shows the status
+   "SUCCESS". The admin portal then opens the new election event, which the side
+   menu lists under its tab "Active": an import never creates an archived election
+   event. Perform the checks of
    [Checking the import](#checking-the-import). A completed signing
    request alone is not confirmation that the import task succeeded.
+
+The voters' sign-in settings of the new election event come from the TOE's own
+template: of the package's, the TOE takes only names, themes, texts and languages,
+and the list "Logs" of the task window notes this. The new election event takes
+none of the signing rules, certificate checks and trusted issuers that a package may
+carry either: it starts with the TOE's defaults, and the list "Logs" notes each one
+left out. Until the administrators have imported its trusted issuers, the TOE
+refuses every signature in it; they set these settings in the preparation phase
+([Checking the imported data and the settings](#checking-the-imported-data-and-the-settings)).
 
 If the signing request expires, is cancelled, or the file changes, obtain a new
 request and new approvals. If a package check fails, write the error in the
@@ -178,7 +198,10 @@ To check the import:
    describes.
 4. Tell the administrators that a board member imported the
    election event with the entry "Import Election Event" and the digest from the
-   election organizer, so that they check and make its settings.
+   election organizer, so that they check and make its settings, among them the
+   rules of "Export election execution data" and "Delete election execution data":
+   the TOE refuses the export and the deletion without them, also once the election
+   event is archived.
 5. Record each import that the TOE refused, with its error message, in the
    board's minutes.
 
@@ -197,9 +220,9 @@ To check the import:
 - The TOE accepts election data only as a signed configuration
   package, through the entry "Import Election Event". Use the entry "Create an Election Event" only for the empty approval event of
   [Prepare the first import's approval event](#prepare-the-first-imports-approval-event).
-  Do not populate an election event by hand or with the separate voter, area or
-  candidate imports, which the evaluated workflow does not use: election data comes
-  only from the signed package and its approvals. The tab "Scheduled Events" offers
+  The TOE refuses the separate voter, area and candidate imports and changes of
+  the voters' register, the areas or the elections by hand, whatever the permissions
+  of the account: election data comes only from the signed package and its approvals. The tab "Scheduled Events" offers
   no import of the election dates, and the TOE refuses one. If election
   data ever appears that did not come from a signed package, or an imported
   value of the voters' register, the candidate list, the set of election rules
@@ -207,11 +230,11 @@ To check the import:
   security-relevant event.
 :::
 
-If the imported data is wrong, nobody corrects it by hand, and the wrong
-election event is never deleted:
+If the imported data is wrong, nobody corrects it by hand:
 
 1. The election organizer issues a corrected, signed configuration package as
-   a new revision of the configuration.
+   a new revision of the configuration. It may keep or lower the number of allowed
+   votes of each election, but not raise it.
 2. The board approves the corrected package as
    [Approving a configuration package](#approving-a-configuration-package) describes,
    and a board member imports it as a new election event.
@@ -221,8 +244,12 @@ election event is never deleted:
    "Archive this Election Event" and confirm the question "Are you sure to
    archive this item?". The TOE shows the message "The item has been archived",
    and the election event is listed under the side menu's tab "Archived". An archived election event
-   never opens voting and nothing sets it back; its data and audit records stay
-   in the TOE.
+   stays in the preparation phase, never opens voting and nothing sets it back; its
+   data and audit records stay in the TOE until the board exports and deletes them
+   ([Deleting the election execution data](08-evaluation-and-post-processing.md#deleting-the-election-execution-data)).
+   For both, have the administrators first save its rules of "Export election
+   execution data" and "Delete election execution data", if they have not done so
+   yet: they still can in the preparation phase.
 4. The board checks that, of the two election events, only the corrected one is
    listed under the side menu's tab "Active", and writes both in the board's minutes.
 
@@ -258,7 +285,7 @@ settings:
 | Each election, tab "Data" | "Allow Tally" | "Requires Voting Period End" |
 | Each election, tab "Data" | "Initialize Report Policy" | "Required" |
 | Each election, tab "Data" | "Grace Period Policy" | "No grace period" |
-| Each election, tab "Data" | "Number of allowed votes" | As the electoral regulation fixes it (1 means no re-voting) |
+| Each election, tab "Data" | "Number of allowed votes" | As the electoral regulation fixes it (1 means no re-voting); 1 where the administrators have disabled re-voting |
 | Election event and each election, tab "Data" | "Voting Channels Allowed" | "Online" only |
 | Tenant (set by the administrators, who show it to the board) | Required number of package approvals for imports | As the electoral regulation fixes it, at least 2 |
 | Election event, tab "Signatures" | "Signatures needed" of every non-trustee protected action that [Protected actions to switch on](../04-administrator_handbook/06-signing_rules.md#protected-actions-to-switch-on) does not leave unused | As the electoral regulation fixes it, at least 2 (see [Security-critical actions](05-electoral-phases.md#security-critical-actions)) |
@@ -274,9 +301,12 @@ If any setting differs from this table, the TOE is not in its evaluated
 configuration and some of its protections do not apply. Do not approve the
 configuration. If an imported value of a tab "Data" differs, obtain a corrected signed
 package and import a new election event as
-[Checking the import](#checking-the-import) describes. For the separate signing
-and certificate settings and the self-test settings, wait for the administrators to complete their
-procedures.
+[Checking the import](#checking-the-import) describes. Do the same, with the
+package issued again as a new revision, if the column "Signatures needed" shows a
+lower number than the regulation fixes: a saved number cannot change
+([Security-critical actions](05-electoral-phases.md#security-critical-actions)).
+For the other signing and certificate settings and the self-test settings, wait for
+the administrators to complete their procedures.
 :::
 
 ## Preparing the security dashboard
@@ -342,19 +372,32 @@ Publish" (`publish-create`), "Regenerate Publish" (`publish-regenerate`),
 version" (`sign-approve-configuration`).
 
 Generate the final publication only after the key ceremony, so that the
-ballots carry its verified election key. A publication generated before the
-ceremony can contain a demonstration key instead of the election key and is not
-updated when the ceremony finishes.
-If one was generated earlier, regenerate it after the ceremony and obtain the
-board's approval before starting lockdown or generating the initialization
-report.
+ballots carry its verified election key. Until the ceremony has created the
+election key, generating a publication fails: the evaluated configuration has no
+demonstration key.
+
+If the election organizer decides that an election must not allow re-voting, the
+administrators disable it before they tell the board that the settings are complete
+([Disabling re-voting](../04-administrator_handbook/05-tenant_and_event_settings.md#disabling-re-voting)).
+It cannot be undone. The TOE writes the record `RevotingDisabled` on the election
+event's tab "Logs" and emails the administrators and the board members; the field
+"Number of allowed votes" of the election then shows 1. If re-voting is disabled
+later, a waiting signing request for the protected action "Approve a configuration
+version" ends with the status "Failed", and after an approval the self-test check "Approved election data" fails:
+voting does not open until the board approves a new configuration version.
 
 A board member publishes the configuration of the election event on its
 tab "Publish": select the button "Generate Publication" (the button "Regenerate"
 once a publication exists), check the area "Changes to Publish", and select the
 button "Publish Changes". Publishing
 is possible only in the preparation phase; the TOE refuses it in every later
-phase and while the election event is locked down. Each publication is a new
+phase and while the election event is locked down. Before anyone is asked to sign,
+the TOE also refuses a publication whose election key comes from a key ceremony
+that is not complete: the message "Error publishing ballot publication" lists the
+reason "Keys ceremony … must complete before ballot publication with its verified
+joint public key." (… is the ceremony's identifier); once every trustee has
+confirmed custody, generate the publication again with the button "Regenerate".
+Each publication is a new
 configuration version, and it becomes valid only when the election board
 approves it:
 
@@ -382,8 +425,8 @@ publishes and approves in the same way.
 
 Lockdown protects the approved configuration while the election event takes place.
 While the election event is locked down, the TOE refuses a new publication,
-changes of the signing rules, changes of voters and the deletion of the
-election event. It does not stop voting.
+changes of the signing rules, changes of voters, the disabling of re-voting and
+the deletion of the election event. It does not stop voting.
 
 Who: one board member. Phase: the preparation phase, after the configuration version is
 approved and before the election period starts. Permissions: "View Election
@@ -436,21 +479,40 @@ To run the ceremony, a board member with the permission "Admin Ceremony"
 2. Select the intended election, or the entry "All Elections" if the ceremony covers
    the whole election event. The ceremony name is derived from that selection.
    In the list "Trustees", select both trustees. Set the field "Threshold" to 2.
+   No other screen shows the threshold before the initialization report: have a
+   second board member check both fields before you continue, and write the
+   threshold in the board's minutes.
 3. Check that the form does not offer the switch "Automatic Ceremony". It appears
    only if the field "Keys/Tally Ceremonies Policy" allows automatic ceremonies.
 4. Select the button "Create Key Ceremony" and confirm the question "Are you sure you want to
    Create Key Ceremony?" with the button "Yes, Create Key Ceremony".
-5. Each trustee then takes part from their own account. Follow the progress
-   under the heading "Key Ceremony Progress": for every trustee the columns "Key Fragment
-   Generated", "Custody Request Downloaded" and "Custody Confirmed" must be
-   ticked.
-6. The ceremony is complete only when every selected trustee has the tick in the
-   column "Custody Confirmed".
+5. The page of the ceremony opens at its step "Ceremony". Write in the board's
+   minutes the complete value under the heading "Protocol manager key (SHA-256)"
+   and the board name `dkg_…` that the line below it names. Give both values to
+   each trustee over a channel that does not pass through the TOE: on paper in
+   person, or read out by telephone to a person you know. If the heading is missing
+   or the admin portal shows the message "The protocol manager key of this key
+   ceremony could not be read.", stop and tell the operators.
+6. Each trustee then takes part from their own account, after checking the
+   ceremony with you and comparing the protocol manager key with the log of their
+   instance of the trustee server
+   ([Taking part in the key ceremony](09-trustee-procedures.md#taking-part-in-the-key-ceremony)).
+   Write in the board's minutes the ceremony's name and the time in the column
+   "Started at" of its row on the tab "Keys", and its trustees, which the ceremony
+   page lists under the heading "Key Ceremony Progress". Follow the progress there:
+   for every trustee the columns "Key Fragment Generated", "Custody Request
+   Downloaded" and "Custody Confirmed" must be ticked.
+7. The ceremony is complete only when every selected trustee has the tick in the
+   column "Custody Confirmed". A trustee whose comparison of the protocol manager
+   key failed does not confirm custody, so the ceremony stays incomplete and its key
+   cannot be used for the ballots: select the button "Cancel Key Ceremony", create a
+   new ceremony and treat it as a security-relevant event.
 
-![Key Ceremony Progress with status IN_PROGRESS and custody progress columns](assets/key-ceremony-progress.png)
+![The page of a new key ceremony at its step Ceremony: the heading Protocol manager key (SHA-256) with the complete value, its copy icon and the line that names the board, above Key Ceremony Progress with status IN_PROGRESS](assets/key-ceremony-progress.png)
 
 *Illustration: a newly created v10.0.0 ceremony, before trustee progress appears.
-“Key Ceremony created” does not mean that custody is confirmed; wait for the
+The protocol manager key and the board name shown are test values.
+The message "Key Ceremony created" does not mean that custody is confirmed; wait for the
 required confirmations from every selected trustee.*
 
 After the ceremony the operators back up the state of the trustee instances and
@@ -507,8 +569,10 @@ names:
    Each trustee creates a fresh proof with this tally's identifier and signs
    their own confirmation. A proof from the key ceremony or another tally
    cannot be reused.
-5. Check that the required trustees have confirmed custody and that their
-   trustee servers are running. Select the button "Start Tally" and confirm with the
+5. Check that the section "Trustees" of the tally shows "2 trustees needed", the
+   threshold that the board wrote in its minutes at the key ceremony; otherwise stop
+   and treat it as a security-relevant event. Check that the required trustees have
+   confirmed custody and that their trustee servers are running. Select the button "Start Tally" and confirm with the
    button "Start Tally". Wait for the initialization tally to complete.
 6. Release the initialization report: the required board members sign it (protected
    action "Generate other election reports").
@@ -563,8 +627,8 @@ start", and an earlier run does not replace it.
 | Dashboard "Attack detections" set up and showing a current update time | [Preparing the security dashboard](#preparing-the-security-dashboard) |
 | Configuration version published and approved by the board | [Approving the configuration](#approving-the-configuration) |
 | The scheduled events "Start Lockdown Period" and "End Lockdown Period" created at the times the election organizer decided | [Setting the lockdown period](#setting-the-lockdown-period) |
-| Key ceremony complete, every trustee ticked in the column "Custody Confirmed" | [The key ceremony](#the-key-ceremony) |
-| Initialization report of every election witnessed, zero ballots, hash matches the electoral log | [The initialization report](#the-initialization-report) |
+| Key ceremony complete, every trustee ticked in the column "Custody Confirmed" after comparing the protocol manager key | [The key ceremony](#the-key-ceremony) |
+| Initialization report of every election witnessed, "2 trustees needed", zero ballots, hash matches the electoral log | [The initialization report](#the-initialization-report) |
 | All six opening self-tests passed, unless the election dates open voting; no unresolved failure | [The self-test before the start](#the-self-test-before-the-start) |
 | The check of the TOE software shows the result "Matches the accepted delivery" | [Verifying the TOE software](07-execution.md#verifying-the-toe-software) |
 | Every board member's account has a working email address, and at least one board member reads the email throughout the execution phase | [Notifications](11-security-relevant-events.md#notifications) |

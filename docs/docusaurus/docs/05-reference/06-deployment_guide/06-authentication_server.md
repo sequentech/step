@@ -110,8 +110,6 @@ URLs from the registration; do not derive or guess them from these examples. The
 installer copies the definition through the protected administration connection.
 The client secret remains in the private definition, not in `site.json`.
 
-<!-- deployment-step: 06-001 -->
-
 **Check it from a root terminal in the deployment directory**, after the full
 working configuration and server installations are ready:
 
@@ -149,7 +147,11 @@ account and never creates one.
 Set `identity_provider.ca` to the independently supplied CA file and
 `identity_provider.ca_sha256` to its separately received fingerprint, as 64
 hexadecimal characters without colons. The preflight above compares the actual
-fingerprint before installation.
+fingerprint before installation. The file must hold exactly one certificate,
+with an ECDSA P-384 key, because Keycloak trusts every certificate in it for
+this connection. Otherwise the check stops with
+`Stopped: Identity-provider CA file must contain exactly one certificate` or
+`Stopped: Identity-provider CA certificate must have an ECDSA P-384 key`.
 
 **Automatic part of `./deploy install site.json`:** the installer installs the
 checked trust anchor and configures Keycloak to use it with the required TLS
@@ -165,9 +167,6 @@ already started, follow [If something fails](01-about.md#if-something-fails).
 
 ## Check the authentication server's TLS
 
-<!-- deployment-step: 06-003 -->
-<!-- deployment-step: 06-004 -->
-
 **Where:** a root terminal in the deployment directory, after the platform has
 been installed. Run the same live TLS inspection
 used in [Certificates and TLS](05-certificates_tls.md#check-the-tls-profile):
@@ -177,16 +176,21 @@ used in [Certificates and TLS](05-certificates_tls.md#check-the-tls-profile):
 ```
 
 The command checks the TOE's endpoints and makes full authenticated TLS probes
-from **both C1 and C2** to the configured authentication host, because Keycloak
-can run on either node. The public, fingerprint-verified CA certificate is
-provided to each inspection through a temporary file and removed afterwards.
+from **both C1 and C2** to the configured authentication host. Each allowed
+connection offers only the signature scheme that Keycloak offers,
+`ecdsa_secp384r1_sha384`. The
+public, fingerprint-verified CA certificate is provided to each inspection
+through a temporary file and removed afterwards.
 No client secret or private key is sent by these probes.
 
 ![Actual TLS inspection including connections from both servers to the authentication service](./assets/installation/inspect-tls.png)
 
+*Terminal capture from a test installation of an earlier build, whose lines to the authentication server do not yet name `ecdsa_secp384r1_sha384`. Your addresses, names and digests differ.*
+
 **Expected result:** the lines labelled `C1 to authentication server` and
 `C2 to authentication server` each show a verified TLS 1.3 connection with
-`TLS_AES_256_GCM_SHA384`, `secp384r1` and a 384-bit server key. TLS 1.2, AES-128,
+`TLS_AES_256_GCM_SHA384`, `secp384r1`, `ecdsa_secp384r1_sha384` and a 384-bit
+server key. TLS 1.2, AES-128,
 ChaCha20 and X25519 attempts are refused; the allowed connection still succeeds
 after those rejection tests. The run ends with
 `TLS PROFILE CHECK PASSED — allowed connections verified and prohibited variants refused`.

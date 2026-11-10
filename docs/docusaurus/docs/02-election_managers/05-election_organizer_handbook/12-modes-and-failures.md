@@ -8,9 +8,9 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-An election event is always in one of the four phases; the modes "Interrupted",
-"Maintenance mode", "Unrecoverable failure", "Audit storage restriction" and "Ballot
-box not sealed" occur within a phase. This chapter says how the
+An election event is always in one of the four phases. Within a phase, these
+modes can occur: an interruption, maintenance mode, an unrecoverable failure, the
+audit storage restriction and a ballot box that is not sealed. This chapter says how the
 election board recognises each mode, what the TOE does in it, and how the board
 returns the election event to a secure state after a failure or an operational
 error.
@@ -24,16 +24,18 @@ self-tests" shows, unless it says otherwise.
 |---|---|---|---|---|
 | Preparation | From the creation of the approval event, or from the import, until the start of the election execution | Cannot open an election action | Approves the configuration packages and imports them, checks the import and the settings, publishes and approves the configuration version, sets the lockdown period, runs the key ceremony and the initialization report | "Preparation", with the state "Recovery required" and the reason "Startup self-tests are required" |
 | Normal operation | From the start until the termination of the election execution | Vote, check and audit ballots | Monitors, reviews integrity audits, interrupts, terminates | "Election execution" and "Operational"; the elections are open |
-| Interrupted | After the button "Pause Voting" | Cannot open or continue an election action | Investigates, reviews integrity audits, resumes or terminates | The status of the elections is "Paused"; the tab "Dashboard" shows the text "Voting is paused. …" |
-| Maintenance mode | Recoverable failure, expired checks, or a required service stopping or restarting | Election requests are refused; ballot-box access is blocked during the execution phase | Investigates and authorizes recovery after fresh tests | "Recovery required", with the reason |
+| Interrupted | After the button "Pause Voting" on an election's tab "Publish" | Cannot open or continue an election action in that election | Investigates, reviews integrity audits, resumes or terminates | The status of the election is "Paused"; its tab "Dashboard" shows the text "Voting is paused. …" |
+| Maintenance mode | Recoverable failure, expired checks, or a required service stopping | Election requests are refused; ballot-box access is blocked during the execution phase | Investigates and authorizes recovery after fresh tests | "Recovery required", with the reason |
 | Unrecoverable failure | A ballot-box integrity mismatch, or a verified integrity finding in the electoral log | Election requests and execution-phase ballot-box access remain blocked | Preserves evidence, terminates and exports for investigation | "Unrecoverable failure" |
-| Audit storage restriction | The storage of the audit data is more than 80 % full (see [The audit storage restriction](#the-audit-storage-restriction)) | Cannot log in; their requests are refused | Continues to work | Email; the record `AuditStorageThresholdExceeded` on the tab "Logs" |
-| Evaluation | After the termination | Cannot open an election action | Checks the audit records, counts the votes | "Evaluation"; on the tab "Dashboard", the status "Sealed" of the ballot boxes |
-| Ballot box not sealed | A ballot box could not be sealed at the termination (see [A ballot box is not sealed](#a-ballot-box-is-not-sealed)) | Cannot open an election action | Records the evidence, decides; that election cannot be counted | On the tab "Dashboard", the status "Not sealed: incident" |
-| Post-processing | After the button "Start post-processing" | Cannot open an election action | Reads, exports, hands the verification data to the election organizer, deletes | "Post-processing" |
+| Audit storage restriction | The storage of the audit data is more than 80 % full (see [The audit storage restriction](#the-audit-storage-restriction)) | Cannot log in; their requests are refused | Continues to work; key ceremonies and tallies wait, because the trustee servers are refused | Email; the record `AuditStorageThresholdExceeded` on the tab "Logs" |
+| Evaluation | After the termination | Cannot open an election action | Checks the audit records, counts the votes | "Evaluation"; on each election's tab "Dashboard", the status "Sealed" of its ballot boxes |
+| Ballot box not sealed | A ballot box could not be sealed at the termination (see [A ballot box is not sealed](#a-ballot-box-is-not-sealed)) | Cannot open an election action | Records the evidence, decides; that election cannot be counted | On the election's tab "Dashboard", the status "Not sealed: incident" |
+| Post-processing | After the button "Start post-processing" | Cannot open an election action | Downloads the verification data and hands it to the election organizer, reads, exports, deletes | "Post-processing" |
 
 The phases follow each other in this order only. The TOE never returns an
-election event to an earlier phase.
+election event to an earlier phase. An archived election event stays in the
+preparation phase, where the board exports and deletes its data
+([Deleting the election execution data](08-evaluation-and-post-processing.md#deleting-the-election-execution-data)).
 
 ## Maintenance mode
 
@@ -50,7 +52,7 @@ cases:
 |---|---|
 | A self-test failed, other than the two results of [An unrecoverable failure](#an-unrecoverable-failure). This includes a difference from the approved baseline, in the election data or the access control: restore the exact approved values and verify again | "Self-test failed" |
 | A required self-test is missing or its validity has expired | "The required self-test failed or its validity interval expired" |
-| A required service of the TOE stops or restarts | "A required service stopped or restarted" |
+| A required service of the TOE stops or restarts, with no other process of it working | "A required service stopped or restarted" |
 | A required service of the TOE sends no heartbeat for 45 seconds. A late heartbeat cannot silently reopen the election event | "A required service heartbeat expired" |
 | The external monitoring of requests is unavailable or out of date | "Required external request monitoring is unavailable or its observation expired" |
 | A ballot box is not empty at the start of the election | "Ballot box not empty at the start of the election" |
@@ -143,10 +145,14 @@ The TOE measures the used capacity of the audit storage every 30 seconds. Above
 
 - it refuses new sessions and requests of voters, so voters cannot log in or
   continue;
+- it refuses the requests of every other account that is neither an administrator
+  nor a board member, among them the machine accounts of the trustee servers: key
+  ceremonies and tallies wait until the restriction ends;
 - it writes the record `AuditStorageThresholdExceeded`, or
   `AuditStorageObservationUnavailable`, and emails the election board and the
   administrators ([Email notifications](#email-notifications));
-- the election board and the administrators can continue to work.
+- the election board, including the trustees, and the administrators can continue
+  to work.
 
 The election board:
 
@@ -170,7 +176,9 @@ members. It sends an email when:
 - an election event leaves maintenance mode;
 - the electoral phase of an election event changes;
 - election execution data is exported;
+- verification data is downloaded;
 - an election event is archived;
+- re-voting is disabled in an election event;
 - the audit storage threshold is exceeded, or the TOE has no current measurement
   of the audit storage.
 
@@ -186,7 +194,7 @@ relay accepted a message does not prove that the recipient read it.
 ## A ballot box is not sealed
 
 At the termination, the TOE seals each ballot box. The switch "Show ballot boxes" on
-the election event's tab "Dashboard" shows the status of each one. This section is the runbook for a failed
+each election's tab "Dashboard" shows the status of each one. This section is the runbook for a failed
 seal that the admin portal refers to.
 
 | Status | Meaning | What to do |
@@ -205,7 +213,7 @@ sealed yet. Read the reason under the status:
 
 - "… is still enabled and not closed: stop it to seal the ballot box.", or a
   similar reason naming a voting channel that is not closed: stop that channel
-  with the button "Stop Voting" on the election event's tab "Publish".
+  with the button "Stop Voting" on that election's tab "Publish".
 - "… ballots aren't on the bulletin board yet …": wait; if it does not change,
   have the operators check the TOE.
 - "The last attempt couldn't …; it is retried every minute.", "Last tried at …"
@@ -239,12 +247,13 @@ for it: watch the tab "Dashboard" after every termination.
 changed or deleted, so the evidence is preserved. The failure is final for that
 ballot box: there is no retry and no way to unseal it. The election cannot be
 counted, because counting needs every ballot box of the election sealed. Other
-ballot boxes can still be sealed and other elections can still be counted. The
-election event as a whole stays in the evaluation phase, however, unless its state is
-"Unrecoverable failure"
-([An unrecoverable failure](#an-unrecoverable-failure)): the button "Start
-post-processing" needs a completed results tally of every election, so the election
-execution data can be neither exported nor deleted.
+ballot boxes can still be sealed and other elections can still be counted. Once
+none of the election's ballot boxes is still being sealed, the board can start
+post-processing without a result for that election
+([Starting post-processing](08-evaluation-and-post-processing.md#starting-post-processing)).
+The export then holds the ballot box with all its ballots in its folder
+`failed-ballot-boxes`
+([Exporting the election execution data](08-evaluation-and-post-processing.md#exporting-the-election-execution-data)).
 
 **What to do.** To handle a failed seal:
 
@@ -296,7 +305,7 @@ A security-critical action runs only when its signing request is complete.
 | Status | What happened | What to do |
 |---|---|---|
 | "Expired" | The required authorisations were not given in time | The action did not run. Start it again if the board still wants it. |
-| "Cancelled" | A board member aborted it, or what it signs or its rule changed | The action did not run. Check why; start it again only if the board still wants it. |
+| "Cancelled" | A board member aborted it, or what it signs, its rule, its time limit or a signer's certificate no longer allowed it to run | The action did not run. Read the reason under the status; for the reason "A newer request replaced it", the record `SigningRequestCancelled` on the tab "Logs" says why. Sign the newer request, or start the action again, only if the board still wants it. |
 | "Failed" | All authorisations were given, but the action failed | Read the reason on the election event's tab "Logs". Treat it as a security-relevant event; start the action again only when the cause is clear. |
 
 If the required authorisations cannot be reached because board members are
@@ -318,10 +327,10 @@ replacements (see
 | Error | Consequence | What to do |
 |---|---|---|
 | A wrong file was chosen at the import | The TOE refuses it, unless it is a validly signed package with the required approvals | Check the import record `ConfigurationPackageImported` against the configuration and revision the board approved. Use only the file and digest that the election organizer gave; never import without the integrity check. |
-| A validly signed and approved package with wrong data was imported, or election data was changed by hand | The election event holds data that the board did not decide | Do not approve its configuration version. The election organizer issues a corrected package as a new revision, the board approves it, a board member imports it as a new election event, and the board archives the wrong one in the preparation phase (see [Importing the election data](06-preparation.md#importing-the-election-data)). |
+| A validly signed and approved package with wrong data was imported, or election data was changed by hand | The election event holds data that the board did not decide | Do not approve its configuration version. The election organizer issues a corrected package as a new revision, the board approves it, a board member imports it as a new election event, and the board archives the wrong one in the preparation phase, then exports and deletes it (see [Importing the election data](06-preparation.md#importing-the-election-data)). |
 | A security-critical action was started by mistake | A signing request waits for authorisations | Abort it with the button "Cancel request" (see [Aborting](04-secure-use.md#aborting)). |
 | The election execution was interrupted by mistake | Voters cannot vote | Resume it as in [Resuming the election execution](07-execution.md#resuming-the-election-execution). |
 | The election execution was terminated too early | Voting cannot start again in that election | Write it in the board's minutes; decide under the electoral regulation. |
-| The export was made without the option "Encrypt with Password", or its password was kept with the file | The election execution data may be readable by others | Destroy the unprotected file, make a new protected export, treat it as a security-relevant event. |
+| The password of an export was kept with the file | The election execution data may be readable by others | Destroy the unprotected copies, make a new export, treat it as a security-relevant event. |
 | An election event was deleted | The election execution data in the TOE is gone | Only the exported copies and the records that [Deleting the election execution data](08-evaluation-and-post-processing.md#deleting-the-election-execution-data) names remain. Keep them as the electoral regulation requires. The TOE refuses every deletion unless the election execution data has been exported and the required authorisations are reached; only the election board holds the permission "Delete Election Event" (`election-event-delete`). The deletion also removed the election event's audit records in the TOE. |
 | A session was left open on an unattended workstation | Anyone at the workstation can act with that member's permissions | Log out at once; check the election event's tabs "Logs" and "Signatures" for actions in the meantime. |

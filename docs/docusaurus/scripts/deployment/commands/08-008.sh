@@ -3,8 +3,12 @@
 . /root/deploy/hosts.env && . /root/deploy/secrets.env
 kc() { k3s kubectl -n step-infra exec -i deploy/keycloak -- \
   /opt/keycloak/bin/kcadm.sh "$@" --config /tmp/kcadm.config; }
-kc config credentials --server http://localhost:8090 --realm master \
-  --user "$KC_ADMIN_USER" --password "$KC_ADMIN_PASSWORD"
+# kcadm takes the password from KC_CLI_PASSWORD, read from standard input, so
+# that it is on no command line.
+printf '%s\n' "$KC_ADMIN_PASSWORD" | k3s kubectl -n step-infra exec -i deploy/keycloak -- \
+  bash -c 'IFS= read -r KC_CLI_PASSWORD && export KC_CLI_PASSWORD &&
+    exec /opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8090 \
+      --realm master --user "$1" --config /tmp/kcadm.config' kcadm "$KC_ADMIN_USER"
 U='<user-name-at-the-authentication-server>'
 jq -n --arg u "$U" --arg m '<e-mail-address>' --arg t "${CR#tenant-}" \
   '{username: $u, email: $m, emailVerified: true, enabled: true,

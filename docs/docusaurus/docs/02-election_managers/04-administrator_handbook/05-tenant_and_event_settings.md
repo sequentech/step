@@ -16,8 +16,9 @@ To complete the tenant and election event settings:
    up signed configuration packages
    ([Signed configuration packages](#signed-configuration-packages)).
 2. Once a member of the election board has created the empty approval event,
-   configure **Import election data**, the trusted issuers and the board members'
-   certificate registrations on its tab "Signatures"
+   configure **Import election data**, **Export election execution data** and
+   **Delete election execution data**, the trusted issuers, the certificate checks
+   and the board members' certificate registrations on its tab "Signatures"
    ([The approval event](#the-approval-event)).
 3. In the preparation phase, a member of the election board imports the
    election data of each election event as a signed configuration package
@@ -29,8 +30,13 @@ To complete the tenant and election event settings:
    already carry the required values.
    If one differs, use [Correcting imported election
    data](#correcting-imported-election-data) before continuing.
-5. Set the protected actions
-   ([Configuring Protected Actions](06-signing_rules.md)), the automatic self-tests ([Security and Self-Tests](07-self_tests.md)) and check the
+   If the election organizer decides that an election must not allow
+   re-voting, disable it now ([Disabling re-voting](#disabling-re-voting)).
+5. Set the protected actions, the trusted issuers, the certificate checks and
+   the board members' certificate registrations of the election event, which
+   the TOE does not take from the package
+   ([Configuring Protected Actions](06-signing_rules.md)). Set the automatic
+   self-tests ([Security and Self-Tests](07-self_tests.md)) and check the
    authentication settings
    ([Authentication and Session Settings](08-authentication_and_sessions.md))
    of the election event.
@@ -60,11 +66,12 @@ below, the TOE admits the import of an election event only if:
 - the manifest is not dated more than 5 minutes in the future;
 - the same package has not been imported before.
 
-Every error stops the import. An unsigned file is refused (`package.unsigned`),
-a package with too few approvals is refused (`package.too-few-approvals`), and
-a package that was already imported is refused (`package.already-imported`).
-While `configuration_signing` is missing, its `policy` is not `required` or
-`required_approvals` is not set, the TOE refuses every import. The TOE records
+Every error stops the import, and the board's import dialog lists each reason:
+for example, a reason that starts "Package not signed" for an unsigned file, "Too
+few approvals" for a package with too few approvals, and "Already imported" for a
+package that was already imported. While `configuration_signing` is missing, the
+TOE refuses every import. It saves the setting only with `policy` `required`, both
+CA files and a `required_approvals` from 2 to 65535. The TOE records
 each successful import of a signed package in the electoral log of the new
 election event.
 
@@ -78,7 +85,7 @@ screen sets `policy` to `required` itself:
 
 | Field | Meaning | Default | Required value |
 |---|---|---|---|
-| `policy` | `required`: only signed packages with enough approvals are imported; with any other value the TOE refuses every import | not set: every import is refused | `required` |
+| `policy` | `required`: only signed packages with enough approvals are imported; the TOE refuses to save any other value | not set: every import is refused | `required` |
 | `package_roots` | the CA certificates, in PEM format, that issue the election organizer's package signing certificates | none | the election organizer's CA certificates for package signing |
 | `staff_roots` | the CA certificates, in PEM format, that issue the certificates with which election board members approve a package | none | the election organizer's CA certificates for package approvals |
 | `required_approvals` | the number of approvals by distinct members of the election board that a package needs | not set: every import is refused | at least 2, as the election organizer decides |
@@ -103,8 +110,8 @@ and **View settings** (`settings-menu`). The TOE accepts the change only from an
 account with the permission **Admin User** (`admin-user`), and only for the
 account's own tenant. To configure the certificates:
 
-1. Open **Settings → Configuration packages** before a board member creates the
-   first election event. The screen is titled **Signed configuration packages**.
+1. Open the tab "Configuration packages" of the side menu "Settings" before a
+   board member creates the first election event. The screen is titled **Signed configuration packages**.
 2. Under **Package-signing CAs**, select **Choose CA certificate file** and open
    the organizer's public PEM CA file. A file can contain several CA
    certificates, including an approved successor. Do not select a private key
@@ -116,7 +123,11 @@ account's own tenant. To configure the certificates:
    for board members' approval certificates.
 5. Set **Required distinct approvals** to the organizer's approved number,
    **at least 2**. Confirm the count and the package-signing CAs carefully:
-   these values cannot change after the first save.
+   these values cannot change after the first save, and the TOE never deletes a
+   tenant that has them. If one was saved wrong, or a package-signing CA is
+   compromised, tell the election organizer and the operator: only a new tenant
+   ([Create the customer's tenant](../../05-reference/06-deployment_guide/08-installing_toe.md#create-the-customers-tenant))
+   can have other values.
 6. Select **Save certificate settings**. Continue only after
    **Certificate settings saved and read back successfully.** Reload the page
    and check the saved certificates and approval count before telling the board
@@ -142,12 +153,11 @@ configuration.
 | **Save certificate settings** is unavailable | Supply both CA files, compare every fingerprint and confirm both sets; choose a whole approval count of at least 2. |
 | A certificate-file error | Obtain the correct public PEM CA file. Do not bypass a fingerprint mismatch or use a private key. An expired saved package-signing CA remains fixed: tell the election organizer and the operator. This screen cannot replace it, and a new tenant ([Create the customer's tenant](../../05-reference/06-deployment_guide/08-installing_toe.md#create-the-customers-tenant)) is the only way to a new one. |
 | **Settings were not confirmed** | Reload before retrying. Check your role and tenant, whether another administrator changed the settings, and whether the tenant holds an election event that is not archived. Do not tell the board that configuration succeeded. |
-| Package-signing CAs or the approval count are disabled | They were already configured. Do not try to change them through the tab "Backup / Restore" or a direct API call. |
+| Package-signing CAs or the approval count are disabled | They were already configured. Do not try to change them through a direct API call. |
 | Replacing the **Election board approval CAs** is refused | **Election board approval CAs** (the notice on the screen calls them "Staff CAs") can change only while every election event of the tenant is archived or deleted. An election event can be archived only in the preparation phase ([Correcting imported election data](#correcting-imported-election-data)); one that has left that phase stays until the board deletes it after the export. Confirm this with the election board; never archive or delete an election event just to enable a certificate change. |
 
 The TOE enforces the required policy, the approval-count bounds, the public PEM
-format and the change restrictions also for changes made without this screen
-and for tenant restores.
+format and the change restrictions also for changes made without this screen.
 The TOE performs the authoritative X.509 trust-chain and signature checks when
 it imports a package. The browser's successful certificate preview alone does
 not authorize an election-data import.
@@ -179,11 +189,11 @@ Your part:
    [Settings of the election event](#settings-of-the-election-event) and
    [Settings of each election](#settings-of-each-election). After each import, when
    the election board names the new election event, check the controls of your form
-   in **Data → Security settings**, ask the board to check the rest, and leave them
+   in the section "Security settings" of its tab "Data", ask the board to check the rest, and leave them
    unchanged. You see the settings, not the election data. Tell the operator that
    an election event was imported.
 3. If the election board reports that an import was refused although the
-   package is the one the election organizer released, open **Settings → Configuration packages** and check that the saved CA
+   package is the one the election organizer released, open the tab "Configuration packages" of the side menu "Settings" and check that the saved CA
    fingerprints and approval count still match your approved values. Do not change them. Treat the refusal as a security-relevant event
    ([Security-Relevant Events for Administrators](11-security_relevant_events.md)).
 
@@ -198,8 +208,15 @@ event and election Data-tab values before the package approvals. Administrators
 check the values their form shows and the board the others; they do not change
 them to repair a package.
 Otherwise publication can refuse the changed ballot design. The tenant settings,
-protected-action rules, certificate registrations and the automatic self-tests are
-configured separately as their procedures describe. Areas remain election data.
+protected-action rules, trusted issuers, certificate checks, certificate
+registrations and the automatic self-tests are configured separately as their
+procedures describe. Where signed configuration packages are required, as in the
+evaluated configuration, the TOE takes none of the signing rules, trusted issuers
+and certificate checks that a package carries, nor its approval matrix for voter
+enrollment, which the evaluated configuration does not use: the new election
+event starts with the default ones, as one created without a package. Set its
+signing rules, trusted issuers and certificate checks in the preparation phase
+([Configuring Protected Actions](06-signing_rules.md)). Areas remain election data.
 
 ### The approval event
 
@@ -214,8 +231,8 @@ creates an empty one
 
 | Who | What |
 |---|---|
-| A board member | Creates the empty approval event with **Create an Election Event**. It holds no election data and never opens voting. |
-| You | On its **Signatures** tab, configure **Import election data**, the trusted issuers and the board members' certificate registrations ([Configuring Protected Actions](06-signing_rules.md)). |
+| A board member | Creates the empty approval event: in the side menu, the plus icon next to the entry "Election Events", then the entry "Create an Election Event". It holds no election data and never opens voting. An administrator cannot create it: the administrator role's permissions do not include "Create Election Event" (`election-event-create`). |
+| You | On its **Signatures** tab, configure the protected actions **Import election data**, **Export election execution data** and **Delete election execution data**, the trusted issuers, the certificate checks and the board members' certificate registrations ([Configuring Protected Actions](06-signing_rules.md)). Without the last two protected actions, the board cannot export and delete the approval event's data once it is no longer needed. |
 | The importing board member | Selects it in **Board approval for import**. The exact uploaded file then needs the approval event's board signatures as well as the package checks. |
 
 ### Correcting imported election data
@@ -227,7 +244,9 @@ If the imported election data is wrong, nobody corrects it in the TOE:
 3. The election board archives the wrong election event in the preparation
    phase with the entry "Archive this Election Event" of its menu. An archived election event never
    opens voting; its data and its audit records stay. It is never unarchived.
-4. Check the settings of the new election event as after every import.
+4. Check the settings of the new election event as after every import, and
+   set its protected actions and certificates
+   ([Configuring Protected Actions](06-signing_rules.md)).
 
 :::danger
 Never delete an election event, and never ask for one to be deleted. Deleting
@@ -245,7 +264,7 @@ synthetic v10.0.0 election event. Use the required values below, and verify the
 signed package’s settings; do not copy a sample election event’s state or
 identifiers.*
 
-Open the election event and select **Data → Security settings**. This
+Open the section "Security settings" of the election event's tab "Data". This
 administrator form is writable only during preparation. It exposes these
 controls without exposing the rest of the ballot design, the voters' register or
 the election dates:
@@ -362,7 +381,9 @@ website, whatever a package contains.
 ## Settings of each election
 
 Ask the board to open each election's **Data** tab and confirm the following
-values. Your form on the tab "Data" shows none of these fields. If a value is
+values. Of these fields, your view of the election event's tab "Data" shows
+only the number of allowed votes, in its section "Re-voting"
+([Disabling re-voting](#disabling-re-voting)). If a value is
 wrong, ask the election organizer for a corrected signed configuration package
 ([Correcting imported election data](#correcting-imported-election-data)); do not
 ask for election-data permissions.
@@ -378,11 +399,19 @@ ask for election-data permissions.
 | "Allow Tally" ("Advanced Configuration"): "Allowed" / "Disallowed" / "Requires Voting Period End" | "Allowed" | "Requires Voting Period End" | Votes can be counted only after the election period has ended. |
 
 :::warning
-In "Number of allowed votes", the value 0 means **unlimited** votes, not "no
-re-voting". The signed package must use 1 if the electoral regulation does
+In the field "Number of allowed votes", the value 0 means **unlimited** votes,
+not "no re-voting". The signed package must use 1 if the electoral regulation does
 not allow re-voting. If re-voting is allowed, only the last vote of each voter
 is counted; ask the board to check that the imported value is the number the regulation allows. The value cannot be changed once voting
-has started on any voting channel.
+has started on any voting channel. Before that you can only lower it to 1
+([Disabling re-voting](#disabling-re-voting)). A newer revision of the same
+configuration can keep or lower an election's number but not raise it: the import
+refuses a higher number. The import compares an election only with the election
+of the same external identifier in the configuration's latest imported revision.
+An election that a package presents as new, because the configuration or the
+election has another external identifier, is not compared, so the board checks
+the number in every package
+([checklist](11-security_relevant_events.md#checklist-before-the-election-board-approves-the-configuration-version)).
 :::
 
 :::warning
@@ -392,6 +421,89 @@ of the election period. With "Not Show" or "Show In Help Dialog", voters are
 not offered the check that their ballot was encrypted as intended, or must
 search for it.
 :::
+
+### Disabling re-voting
+
+You can disable re-voting in an election, so that each of its voters can cast
+one vote. Do it only on the election organizer's written decision, and before
+the election board requests the approval of the configuration version. It
+needs the permission "Admin User" (`admin-user`). The TOE accepts it only in the
+preparation phase, before voting has started on any voting channel of the
+election event, and outside a lockdown period. It cannot be undone: the TOE
+offers no way to enable re-voting again, and a newer revision of the same
+configuration cannot raise the number of allowed votes of the election
+([Settings of each election](#settings-of-each-election)).
+
+The section "Re-voting" of the election event's tab "Data" lists each election
+in the column "Election", by its name, or by its identifier if it has none, and
+its state in the column "Re-voting":
+
+| State | Number of allowed votes |
+|---|---|
+| "Allowed, unlimited votes" | 0 |
+| "Allowed, up to … votes" | the number shown, 2 or more |
+| "Disabled, one vote" | 1 |
+
+![The section Re-voting of the tab Data with one election that allows re-voting and one with re-voting disabled](assets/revoting-section.png)
+
+*Illustration from a local build with synthetic data: the section "Re-voting" of
+the tab "Data", in which only the election that allows re-voting has the button
+"Disable re-voting".*
+
+To disable re-voting in an election:
+
+1. Open the election event, tab "Data". The section "Re-voting" follows the
+   section "Security settings".
+2. In the row of the election, select the button "Disable re-voting". Only an
+   election that allows re-voting has it.
+3. Check that the dialog "Disable re-voting?" names the election of the
+   decision, and select its button "Disable re-voting".
+
+   ![The dialog Disable re-voting? naming the election](assets/revoting-dialog.png)
+
+   *Illustration from a local build with synthetic data: the dialog "Disable
+   re-voting?" for one election.*
+
+4. Check that the admin portal shows the message that starts "Re-voting
+   disabled for" and that the row shows "Disabled, one vote".
+5. Tell the election board. Only a configuration version that the board
+   publishes and approves after your change lets voting start
+   ([Publishing the configuration version](#publishing-the-configuration-version)).
+
+The TOE sets the number of allowed votes of the election to 1, records in the
+electoral log of the election event that your account disabled re-voting, and
+emails the administrators and the board members
+([Email notifications](09-audit_and_monitoring.md#email-notifications)). A
+signing request "Approve a configuration version" that is waiting then does not
+publish: it ends with the state "Failed" when its last signature is given, or with
+the state "Cancelled" and the reason "What it signs changed" if the board requests
+the approval again first. Tell the board that your change caused it. If the board
+has already approved a configuration version, the check "Approved election data"
+fails from then on: the next self-test run puts the election event into
+**Recovery required** with the reason "Self-test failed", also in the preparation
+phase, and the TOE emails that the election event entered maintenance mode.
+Voting does not open until the board approves a new configuration version.
+
+If the TOE refuses the change, the admin portal shows the message "Re-voting
+was not disabled for …: …" with the election's name and one of these reasons:
+
+| Reason | What you do |
+|---|---|
+| "The election is not part of this election event." | Reload the page and select the election again. |
+| "Election safety state is changing; retry the operation" | Another change of the election event's state is in progress: try again shortly. |
+| "This operation requires electoral phase Preparation; current phase is …" | The election event has left the preparation phase, so the approved number of allowed votes applies. Tell the election organizer. |
+| "The election event is locked down; its re-voting setting can't change." | The election event is in a lockdown period: change nothing, and tell the election board and the election organizer. |
+| "Voting has started on a channel of this election event; re-voting can no longer be disabled." | The approved number of allowed votes applies. Tell the election organizer. |
+| "Re-voting is already disabled for this election." | Another administrator has disabled it: reload the page. |
+| "Election outside the user's permission labels" | The election carries a permission label, which no account can reach ([Permission labels](04-users_and_roles.md#permission-labels)). Tell the election organizer. |
+| "election_event_id is not a UUID" or "election_id is not a UUID" | Reload the page and select the election again. |
+| "Could not disable re-voting." | The TOE could not complete the change. Reload the page and check the row; if re-voting is still allowed, try again, and if the message repeats, tell the operator. |
+
+If the message ends with "Reload and check the election phase." instead of a
+reason, reload the page and check the electoral phase on the tab "Security and
+self-tests". If the section shows the message "The re-voting settings of the
+elections could not be read. Reload before making changes.", reload the page
+before you disable anything.
 
 ## Areas: early voting
 
@@ -415,9 +527,38 @@ you checked it yourself in
 |---|---|---|
 | Tenants | The customer's tenant holds every election event and every account and role for election work. The super-admin tenant serves only the installation steps of the Deployment Guide, holds no election event and has no enabled personal account. | Work only in the customer's tenant. The operator tells you that election work uses only the customer's tenant. |
 | Telephone voting channel | Not configured: no telephone provider and no credentials for its endpoints, which refuse every request. Voters vote only through the voting portal. | The setting "Voting Channels Allowed" is "Online" only in the election event and in each election: the board confirms this ([Configuration the board must verify](#configuration-the-board-must-verify), [Settings of each election](#settings-of-each-election)). The operator tells you that the installation configured no telephone provider. |
-| Plugins | None installed: the TOE answers every plugin request that the plugin does not exist. | The operator tells you that no plugin is installed. |
+| Plugins | None can run: the accepted images of the TOE contain no plugin runtime. | The operator tells you that no plugin can run. |
 | Data correction | No account holds "Datafix account" (`datafix-account`); its data-correction routes are not used. | No role contains it and no account has it ([The roles of the evaluated configuration](04-users_and_roles.md#the-roles-of-the-evaluated-configuration)). |
 | Manual verification of voters | No account holds "Manually Verify Voter" (`voter-manually-verify`); voters sign in only through the external authentication server. | No role contains it and no account has it ([The roles of the evaluated configuration](04-users_and_roles.md#the-roles-of-the-evaluated-configuration)). |
+
+## Settings tabs and templates
+
+The administrator role reaches every tab of **Settings** and the entry
+"Templates" of the side menu. Set them as the table requires before the election
+board approves the configuration version, and change nothing afterwards. The
+column "Self-tests" says whether the self-tests detect a later change
+([Publishing the configuration version](#publishing-the-configuration-version)).
+
+| Screen | What it holds | Required value | Self-tests |
+|---|---|---|---|
+| Tab "ELECTION TYPES" | names of election types, which no election event uses | none | not compared |
+| Tab "VOTING CHANNELS" | the voting channels that a new election event takes when the board member who creates it sets none. It changes neither existing election events nor what an election event may allow. | only "Online Voting" on | not compared |
+| Tab "Configuration packages" | the trust in signed configuration packages | as [Signed configuration packages](#signed-configuration-packages) requires | compared |
+| Tab "Attack detection" | the detection thresholds | as [Attack detections](09-audit_and_monitoring.md#attack-detections) requires | compared |
+| Tab "LANGUAGES" | the languages of the admin portal, and the default language of new election events and of the documents of signing requests. The voting portal takes its languages from the election event. | as the election organizer decides | compared |
+| Tab "LOCALIZATION" | replacement texts for the admin portal. The voting portal takes its texts from the election event. | none: a replaced text changes the screen texts that this handbook quotes | compared |
+| Tab "Integrations" | a Google Calendar service-account key and its email address, for meeting links that no account of the evaluated configuration may create | both fields empty: with a key, the TOE could send data to Google | the email address only |
+| Tab "Look & Feel" | the field "Display name", the organization's name on the signature page of reports that need signatures, and the button "Save". Where signed configuration packages are required, as in the evaluated configuration, the tab offers no logo, custom style or help links: the admin portal shows its built-in logo and applies none of them. | as the election organizer decides | compared |
+| Tab "TRUSTEES" | the trustees' public keys | as [Registering the trustees' public keys](04-users_and_roles.md#registering-the-trustees-public-keys) describes | not compared |
+| Tab "Countries" | nothing: the administrator role lacks the permission, so saving shows the message "Error saving the country list" | none | not applicable |
+| Entry "Templates" | the layouts with which the TOE renders a document whose template the imported election data names by its alias, among them the initialization report, the reports of the results and the ballot receipt that voters download. Without such a template the TOE uses its built-in layout. | none, unless the election organizer gives a template in writing: then create exactly that one, under its own alias | not compared |
+
+:::warning
+Never change, rename or delete a template after the election board has approved
+the configuration version: it would change the documents of the election event,
+among them the reports of its results and the voters' ballot receipts, and no
+self-test detects it.
+:::
 
 ## Publishing the configuration version
 
@@ -448,15 +589,21 @@ To publish and approve the configuration version:
    ([Run the checks](07-self_tests.md#run-the-checks)) and confirm that all six
    finish within the timeout.
 
-From the approval on, the self-tests compare the settings with it, so change nothing
-on your form on the tab "Data", in the protected actions, in the self-test settings,
-or in the tabs of Settings that hold tenant settings ("Attack detection", "Look &
-Feel", "LANGUAGES", "LOCALIZATION", "Countries", "Integrations"). The tenant settings
-and the attack-detection thresholds count for every election event of the tenant. A
-change makes the check "Approved election data" or "Approved access-control
-configuration" fail, which puts the election event in **Recovery required** and, in
+From the approval on, the self-tests compare the election event with it, so
+change nothing that they compare. The check "Approved election data" compares the
+election data and the settings of the election event and of its elections, among
+them your form on the tab "Data" and the number of allowed votes in its section
+"Re-voting". The check "Approved access-control configuration" compares the realms
+with their roles and accounts, the protected actions, the self-test settings, the
+attack-detection thresholds and the tenant settings of the Settings tabs
+"Configuration packages", "LANGUAGES", "LOCALIZATION", "Integrations" (its
+email address, not its key) and "Look & Feel" (its display name). The tenant settings and the attack-detection
+thresholds count for every election event of the tenant. A change makes one of
+these checks fail, which puts the election event in **Recovery required** and, in
 the execution phase, stops voting. Before the execution phase such a change needs a
-new configuration version that the board approves.
+new configuration version that the board approves. The self-tests do not compare
+the other Settings tabs or the templates: keep them as
+[Settings tabs and templates](#settings-tabs-and-templates) requires.
 
 If an imported Data-tab setting differs from the tables, stop before the board
 approves the configuration version and ask the election organizer for a corrected

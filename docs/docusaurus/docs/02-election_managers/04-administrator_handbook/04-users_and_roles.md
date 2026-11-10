@@ -58,7 +58,7 @@ gives no other permission. These rules keep the roles apart:
 |---|---|
 | No account holds `admin` together with `election-board` or `trustee`. | At sign-in, an account with an administrator capability ([The election board role](#the-election-board-role) lists them) gets only the administrator role's permissions. Correct such an assignment; do not rely on this safeguard. |
 | No account holds the shipped roles `admin-light` or `admin-lockdown`. | They are not roles of the evaluated configuration. |
-| No role holds "Edit Results Publication" (`publish-results-write`), "Datafix account" (`datafix-account`) or "Manually Verify Voter" (`voter-manually-verify`). | The realm settings of the Deployment Guide have removed them. The datafix routes change the voters' register and the voting record outside the import; the manual verification link signs a voter in without the external authentication server. |
+| No role holds "Edit Results Publication" (`publish-results-write`), "Datafix account" (`datafix-account`) or "Manually Verify Voter" (`voter-manually-verify`). | The realm settings of the Deployment Guide have removed them. The datafix routes change the voters' register and the voting record outside the import; the manual verification link would sign a voter in without the external authentication server, and the TOE refuses such links. |
 | Nobody changes their own access. | The TOE refuses a change of your own roles, and of a role that your own account holds: another administrator makes it. |
 
 As administrator you see an election event's settings, not its election data
@@ -85,9 +85,9 @@ self-tests:
 | Accounts; "Edit User" also changes an account's roles and deletes accounts | <ul><li>"View users and roles" (<code>users-menu</code>)</li><li>"Read User" (<code>user-read</code>)</li><li>"Create User" (<code>user-create</code>)</li><li>"Edit User" (<code>user-write</code>)</li></ul> |
 | Roles and their permissions | <ul><li>"Read Role" (<code>role-read</code>)</li><li>"Create Role" (<code>role-create</code>)</li><li>"Edit Role" (<code>role-write</code>)</li><li>"Read User Permission" (<code>user-permission-read</code>)</li><li>"Create User Permission" (<code>user-permission-create</code>)</li><li>"Edit User Permission" (<code>user-permission-write</code>)</li></ul> |
 | Tenant settings, among them the policy for signed configuration packages, the attack detection rates and the authentication failure threshold | <ul><li>"Read Tenant" (<code>tenant-read</code>)</li><li>"Edit Tenant" (<code>tenant-write</code>)</li></ul> |
-| Tenants: act only in the super-admin tenant, in which nobody works | <ul><li>"Create Tenant" (<code>tenant-create</code>)</li><li>"Delete Tenant" (<code>tenant-delete</code>)</li></ul> |
+| Tenants: act only in the super-admin tenant, in which nobody works. The TOE refuses to delete a tenant whose signed configuration packages are set up | <ul><li>"Create Tenant" (<code>tenant-create</code>)</li><li>"Delete Tenant" (<code>tenant-delete</code>)</li></ul> |
 | Settings screens and message templates | <ul><li>"View settings" (<code>settings-menu</code>)</li><li>"View election types settings" (<code>settings-election-types-tab</code>)</li><li>"View voting channels settings" (<code>settings-voting-channels-tab</code>)</li><li>"View templates settings" (<code>settings-templates-tab</code>)</li><li>"View languages settings" (<code>settings-languages-tab</code>)</li><li>"View localization settings" (<code>settings-localization-tab</code>)</li><li>"View look and feel settings" (<code>settings-look-feel-tab</code>)</li><li>"View countries settings" (<code>settings-countries-tab</code>)</li><li>"View templates" (<code>templates-menu</code>)</li><li>"Read Communication Template" (<code>communication-template-read</code>)</li><li>"Create Communication Template" (<code>communication-template-create</code>)</li><li>"Edit Communication Template" (<code>communication-template-write</code>)</li></ul> |
-| An election event's administration settings, on its tab "Data", and the Settings tab "Attack detection". In preparation you change only the settings that [Tenant and Election Event Settings](05-tenant_and_event_settings.md) names; the TOE does not show you each election's own settings | "Admin User" (`admin-user`) |
+| An election event's administration settings, on its tab "Data", the disabling of re-voting in an election, and the Settings tab "Attack detection". In preparation you change only the settings that [Tenant and Election Event Settings](05-tenant_and_event_settings.md) names; of each election the TOE shows you only its name and its number of allowed votes | "Admin User" (`admin-user`) |
 | Protected actions, trusted issuers and certificate registrations | <ul><li>"Election Event Signatures Tab" (<code>election-event-signatures-tab</code>)</li><li>"Signatures: read protected actions" (<code>signing-rules-read</code>)</li><li>"Signatures: edit protected actions" (<code>signing-rules-write</code>)</li><li>"Signatures: import and remove trusted issuers" (<code>signing-issuers-write</code>)</li><li>"Signatures: edit certificate checks" (<code>signing-checks-write</code>)</li><li>"Signatures: read certificates" (<code>signing-certificates-read</code>)</li><li>"Signatures: register certificates" (<code>signing-certificates-register</code>)</li><li>"Signatures: revoke certificates" (<code>signing-certificates-revoke</code>)</li></ul> |
 | Trustees' public keys | <ul><li>"View trustees settings" (<code>settings-trustees-tab</code>)</li><li>"Read Trustee" (<code>trustee-read</code>)</li><li>"Create Trustee" (<code>trustee-create</code>)</li><li>"Edit Trustee" (<code>trustee-write</code>)</li></ul> |
 | Self-tests: read the results, run the checks and, in preparation, change the interval and the optional conditions ([Security and Self-Tests](07-self_tests.md)) | <ul><li>"Self-tests: read results" (<code>self-test-read</code>)</li><li>"Self-tests: run checks" (<code>self-test-run</code>)</li><li>"Self-tests: edit settings" (<code>self-test-settings-write</code>)</li></ul> |
@@ -138,9 +138,9 @@ permissions. Add only those it decides, and only to this role:
 To check the role:
 
 1. In "Users and Roles", tab "Roles", select the edit icon in the row
-   `election-board`. "Role Data" opens.
-2. Compare the ticked permissions with the tables above. "Role Data" has no
-   "Save" button: each tick or untick is saved at once.
+   `election-board`. The page "Role Data" opens.
+2. Compare the ticked permissions with the tables above. The page "Role Data"
+   has no button "Save": each tick or untick is saved at once.
 3. Tick each missing permission of the tables, and untick every permission
    that the tables do not name.
 4. If you changed the role, ask the board members to sign out and sign in
@@ -170,10 +170,12 @@ counting to the election board role:
 | Sign the protected action "Authorize tally custody (tally)" | "Sign: authorize tally custody" (`sign-tally-key`) |
 
 :::note
-The side menu shows holders of "Trustee Ceremony" the entry "Trustee
-Dashboard". The evaluated configuration does not use it: trustees generate
-their keys and authorise their custody steps with the trustee tool of the TOE
-delivery on an offline workstation
+The side menu does not show holders of "Trustee Ceremony" the entry "Trustee
+Dashboard": a tenant that requires signed configuration packages does not offer
+it, and every tenant of the evaluated configuration requires them, also before
+its setting `configuration_signing` is saved. Trustees generate their keys and
+authorise their custody steps with the trustee tool of the TOE delivery on an
+offline workstation
 ([Trustee Procedures](../05-election_organizer_handbook/09-trustee-procedures.md)).
 :::
 
@@ -191,17 +193,18 @@ the trustee generated with the trustee tool of the TOE delivery
 
 To register a trustee:
 
-1. Open Settings, tab "TRUSTEES". Select "Create Trustee" if the list is
-   empty, or "Add" if it already shows a trustee.
+1. Open Settings, tab "TRUSTEES". Select the button "Create Trustee" if the
+   list is empty, or the button "Add" if it already shows a trustee.
 
    ![The empty Trustees tab with Create Trustee](assets/trustees-empty.png)
 
    *Illustration: the Trustees tab of a synthetic v10.0.0 tenant before the
    first registration.*
 
-2. In "Create Trustee", enter the trustee's name in "Name". Paste
-   `signing_public_key` into "Public key" and `share_encryption_public_key`
-   into "Share encryption public key". Select "Save".
+2. In the form "Create Trustee", enter the trustee's name in the field "Name".
+   Paste `signing_public_key` into the field "Public key" and
+   `share_encryption_public_key` into the field "Share encryption public key".
+   Select the button "Save".
 
    ![The Create Trustee form](assets/trustee-create-form.png)
 
@@ -209,15 +212,15 @@ To register a trustee:
    that your trustee hands over.*
 
 3. Open the registered trustee with its edit icon and check both keys
-   together with the trustee, character by character. Close "Edit Trustee"
-   without saving.
+   together with the trustee, character by character. Close the form "Edit
+   Trustee" without saving.
 
    ![The Trustees tab with two registered trustees](assets/trustees-registered.png)
 
    *Illustration: two registered synthetic trustees, each with its edit icon.*
 
 4. In "Users and Roles", tab "Users", open the trustee's personal account with
-   "Actions" > "Edit". Select this trustee's name in the field "Act as Trustee" and
+   the entry "Edit" of its menu in the column "Actions". Select this trustee's name in the field "Act as Trustee" and
    select the button "Save". Check the row under the heading "Review changes" and
    select the button "Confirm changes".
 
@@ -230,6 +233,22 @@ To register a trustee:
    operator binds the instance's machine account to this name before starting it
    ([Bind each native account to its registered trustee](../../05-reference/06-deployment_guide/08-installing_toe.md#bind-each-native-account-to-its-registered-trustee)).
    The personal account's binding alone does not configure the server instance.
+
+A trustee who brings new keys for a later election event stays registered
+under the same name: the operator installs them after removing the keys of the
+earlier election event
+([Install new trustee keys for a later election event](../../05-reference/06-deployment_guide/08-installing_toe.md#install-new-trustee-keys-for-a-later-election-event)),
+and with a second trustee of the same name the operator's command stops. To
+register the new keys:
+
+1. Open the registered trustee with its edit icon in the tab "TRUSTEES" of the
+   side menu "Settings".
+2. In the form "Edit Trustee", replace the keys in the fields "Public key" and
+   "Share encryption public key", leave the field "Name" unchanged, and select
+   the button "Save". The trustee's personal account and the operator's
+   configuration name the trustee by it.
+3. Check both keys with the trustee and give them to the operator, as steps 3
+   and 5 above describe.
 
 :::warning
 A wrong public key lets someone other than the trustee act for the trustee's
@@ -312,8 +331,8 @@ permissions, with which an account can be given any permission. Delete it before
 When the election organizer tells you that a person no longer holds their
 function, act on the same day:
 
-1. In "Users and Roles", tab "Users", open the person's account with "Actions" >
-   "Edit", untick the option "Enabled" and remove the account from all its roles. Select the button
+1. In "Users and Roles", tab "Users", open the person's account with the entry
+   "Edit" of its menu in the column "Actions", untick the option "Enabled" and remove the account from all its roles. Select the button
    "Save", check the changes under the heading "Review changes" and select the
    button "Confirm changes". A disabled account cannot sign in again.
 2. Ask the organisation that runs the external authentication server to
@@ -332,7 +351,8 @@ function, act on the same day:
    cancelled or expires: the board cancels it if needed
    ([Configuring Protected Actions](06-signing_rules.md)).
 4. Check that the number of remaining board members who can sign each
-   protected action is still at least its "Signatures needed". If not, tell the
+   protected action is still at least the number in its field "Signatures
+   needed". If not, tell the
    election organizer and the election board at once. In the preparation phase
    the organizer appoints a new member, you create the account, and the board
    approves a new configuration version. Once the execution phase has started, a
