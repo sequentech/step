@@ -1699,6 +1699,194 @@
       ]
     },
     {
+      "id": "2319d31c-1bca-4388-a46c-8d164a1b37c3",
+      "clientId": "voting-portal-kiosk",
+      "name": "${client_voting-portal-kiosk}",
+      "description": "",
+      "rootUrl": "http://localhost:3000",
+      "adminUrl": "http://127.0.0.1:3000/",
+      "baseUrl": "http://localhost:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/33f18502-a67c-4853-8333-a58630663559/login?kiosk",
+      "surrogateAuthRequired": false,
+      "enabled": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
+      "redirectUris": [
+        "/*",
+        "http://127.0.0.1:3001/*",
+        "http://127.0.0.1:3000/*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "publicClient": true,
+      "frontchannelLogout": true,
+      "protocol": "openid-connect",
+      "attributes": {
+        "login_theme": "sequent.voting-portal",
+        "post.logout.redirect.uris": "*",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "backchannel.logout.revoke.offline.tokens": "false",
+        "use.refresh.tokens": "true",
+        "realm_client": "false",
+        "oidc.ciba.grant.enabled": "false",
+        "client.use.lightweight.access.token.enabled": "false",
+        "exclude.issuer.from.auth.response": "true",
+        "backchannel.logout.session.required": "true",
+        "client_credentials.use_refresh_token": "false",
+        "acr.loa.map": "{\"silver\":\"1\",\"gold\":\"2\"}",
+        "require.pushed.authorization.requests": "false",
+        "tls.client.certificate.bound.access.tokens": "false",
+        "display.on.consent.screen": "false",
+        "account_theme": "sequent.voting-portal",
+        "token.response.type.bearer.lower-case": "false",
+        "dpop.bound.access.tokens": "false"
+      },
+      "authenticationFlowBindingOverrides": {
+        "browser": "9ab56303-701f-4862-92a2-c32f630e0366"
+      },
+      "fullScopeAllowed": true,
+      "nodeReRegistrationTimeout": -1,
+      "protocolMappers": [
+        {
+          "id": "178dd971-0136-4a3d-a67d-65f71c606583",
+          "name": "x-hasura-default-role",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.value": "user",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-default-role",
+            "jsonType.label": "String",
+            "access.tokenResponse.claim": "false"
+          }
+        },
+        {
+          "id": "e8464dcc-6163-4e5c-a4b1-25011baffc6f",
+          "name": "x-hasura-authorized-election-ids",
+          "protocol": "openid-connect",
+          "protocolMapper": "authorized-elections-oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "aggregate.attrs": "false",
+            "introspection.token.claim": "true",
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "authorized-election-ids",
+            "use.array.attrs": "false",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-authorized-election-ids",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "2ac38289-c9cd-4608-86aa-28ba9914426c",
+          "name": "x-hasura-area-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "area-id",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-area-id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "61913ed0-8236-4edc-8d6b-315aebb9508c",
+          "name": "x-hasura-tenant-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "tenant-id",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-tenant-id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "e519ed45-be3f-47ad-91c4-dfe2ca072ae0",
+          "name": "x-hasura-user-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "id",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-user-id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "c100e8ef-58a1-46bd-a67c-a223eb17ce28",
+          "name": "authorized-election-ids",
+          "protocol": "openid-connect",
+          "protocolMapper": "authorized-elections-oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "aggregate.attrs": "false",
+            "introspection.token.claim": "true",
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "authorized-election-ids",
+            "use.array.attrs": "true",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.authorized-election-ids",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "6d940f1c-67f3-4cad-a85a-c02ed99ff79f",
+          "name": "x-hasura-allowed-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-allowed-roles",
+            "jsonType.label": "String"
+          }
+        }
+      ],
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "roles",
+        "profile",
+        "basic",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ]
+    },
+    {
       "clientId": "results-portal",
       "name": "Results Portal",
       "description": "",
@@ -3203,6 +3391,33 @@
       ]
     },
     {
+      "id": "b1cda3cb-e0a4-469a-8dda-d2c192e4d7ad",
+      "alias": "kiosk sequent browser flow advanced / gold condition",
+      "description": "",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorConfig": "kiosk sequent browser flow gold",
+          "authenticator": "conditional-level-of-authentication",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "auth-password-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 1,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
       "id": "917b905b-2b84-484d-a917-d2b23f0bb69f",
       "alias": "basic / silver condition",
       "description": "",
@@ -3229,6 +3444,42 @@
         },
         {
           "authenticatorConfig": "session-count-limit",
+          "authenticator": "user-session-limits",
+          "authenticatorFlow": false,
+          "requirement": "DISABLED",
+          "priority": 2,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "7aded29a-a722-4635-ac37-4bc3c341563a",
+      "alias": "kiosk sequent browser flow basic / silver condition",
+      "description": "",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorConfig": "kiosk sequent browser flow silver",
+          "authenticator": "conditional-level-of-authentication",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "auth-username-password-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 1,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorConfig": "kiosk sequent browser flow session-count-limit",
           "authenticator": "user-session-limits",
           "authenticatorFlow": false,
           "requirement": "DISABLED",
@@ -3610,6 +3861,48 @@
       ]
     },
     {
+      "id": "9ab56303-701f-4862-92a2-c32f630e0366",
+      "alias": "kiosk sequent browser flow",
+      "description": "browser based authentication",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-cookie",
+          "authenticatorFlow": false,
+          "requirement": "DISABLED",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "auth-spnego",
+          "authenticatorFlow": false,
+          "requirement": "DISABLED",
+          "priority": 20,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "identity-provider-redirector",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 25,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "ALTERNATIVE",
+          "priority": 30,
+          "autheticatorFlow": true,
+          "flowAlias": "kiosk sequent browser flow sequent browser flow forms",
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
       "id": "855aa7fc-2c12-4d9d-8824-97f31cf4c5d7",
       "alias": "sequent browser flow forms",
       "description": "Username, password, otp and other auth forms.",
@@ -3631,6 +3924,32 @@
           "priority": 28,
           "autheticatorFlow": true,
           "flowAlias": "advanced / gold condition",
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "529c1d62-b4d4-4634-9809-ee75bce3cd52",
+      "alias": "kiosk sequent browser flow sequent browser flow forms",
+      "description": "Username, password, otp and other auth forms.",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 27,
+          "autheticatorFlow": true,
+          "flowAlias": "kiosk sequent browser flow basic / silver condition",
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 28,
+          "autheticatorFlow": true,
+          "flowAlias": "kiosk sequent browser flow advanced / gold condition",
           "userSetupAllowed": false
         }
       ]
@@ -4197,6 +4516,14 @@
       }
     },
     {
+      "id": "257ca9f3-ec3b-4f46-aa56-f058b6bd0016",
+      "alias": "kiosk sequent browser flow gold",
+      "config": {
+        "loa-condition-level": "2",
+        "loa-max-age": "0"
+      }
+    },
+    {
       "id": "12fc7b4f-7add-41f5-9438-4d08e786b649",
       "alias": "has-temporary-password",
       "config": {
@@ -4403,8 +4730,25 @@
       }
     },
     {
+      "id": "5b0a69d4-6ef3-42dd-96b5-ccd5fb2b6edf",
+      "alias": "kiosk sequent browser flow session-count-limit",
+      "config": {
+        "userClientLimit": "0",
+        "behavior": "Deny new session",
+        "userRealmLimit": "10"
+      }
+    },
+    {
       "id": "ac467044-d331-4842-8c33-4270a18cfe36",
       "alias": "silver",
+      "config": {
+        "loa-condition-level": "1",
+        "loa-max-age": "36000"
+      }
+    },
+    {
+      "id": "6fde64e4-e505-4054-9505-5ba622033a58",
+      "alias": "kiosk sequent browser flow silver",
       "config": {
         "loa-condition-level": "1",
         "loa-max-age": "36000"
