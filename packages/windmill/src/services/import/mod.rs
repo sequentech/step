@@ -18,4 +18,5 @@ pub mod realm_channels;
 pub mod rejection;
 
 mod realm_identity_providers;
+pub mod realm_masked_secrets;
 mod realm_user_credentials;

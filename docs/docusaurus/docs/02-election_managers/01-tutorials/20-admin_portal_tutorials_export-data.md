@@ -55,5 +55,33 @@ archives are never included in the **S3 Files** of later exports.
 
 Anyone holding the archive and its password holds the secret. Importing the
 archive installs the realm configuration as it is, including the secret and its
-`liveness-url`; Liveness Plus must use the same secret for the imported event to
-work.
+`liveness-url`, except the settings still masked (see
+[Other Keycloak realm secrets](#other-keycloak-realm-secrets)); Liveness Plus must
+use the same secret for the imported event to work.
+
+## Other Keycloak realm secrets
+
+Keycloak exports `**********` in place of most secrets of the event's Keycloak realm, so an
+election-event archive does not contain them. When the archive is imported, settings that hold
+`**********` are left unset instead of being saved as `**********`, and the import task's log lists
+each one in a line that names the setting, never its value. Re-enter them in the Keycloak admin
+console of the imported event's realm:
+
+| Setting | Where to re-enter it |
+|---------|----------------------|
+| SMTP server password or token client secret | **Realm settings > Email** |
+| Identity provider client secret | **Identity providers >** the provider |
+| Client private keys, such as a SAML signing key (Keycloak 26.8 and later) | **Clients >** the client |
+| Component secrets, such as an LDAP bind credential | **User federation >** the provider |
+| Authenticator settings | **Authentication >** the flow **>** the step's settings |
+
+Keycloak masks every authenticator setting that no installed authenticator declares as non-secret,
+even when it is not secret, so check the import's log after each import. The Scanovate
+`liveness-secret` is the exception: an import refuses a masked one instead (see
+[Integration secrets](#integration-secrets)).
+
+Client secrets are not listed: the import sets the platform clients' secrets from the deployment
+and Keycloak generates new ones for the other clients. It also drops the clients' rotated secrets
+and registration access tokens. The `digital-certificates` identity provider gets a new secret
+shared with its client. Vault references (`${vault.…}`) are not secrets in the export and are
+imported as they are.
