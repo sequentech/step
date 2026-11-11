@@ -254,6 +254,29 @@ class HardenClientsTests(unittest.TestCase):
         run_realm_mode(keycloak, "--apply", "--realm", "tenant-t")
         self.assertNotIn("request.uris", keycloak.realms["tenant-t"][0]["attributes"])
 
+    def test_keycloak_requests_send_their_own_user_agent(self):
+        sent = []
+
+        def urlopen(request):
+            sent.append(request)
+            if request.full_url.endswith("/protocol/openid-connect/token"):
+                return io.BytesIO(b'{"access_token": "token"}')
+            return io.BytesIO(b"[]")
+
+        admin = harden.KeycloakAdmin("https://keycloak.example.test/auth", "admin", "password")
+        with mock.patch.object(harden.urllib.request, "urlopen", urlopen):
+            self.assertEqual(admin.call("GET", ""), [])
+
+        self.assertEqual(
+            [request.full_url for request in sent],
+            [
+                "https://keycloak.example.test/auth/realms/master/protocol/openid-connect/token",
+                "https://keycloak.example.test/auth/admin/realms",
+            ],
+        )
+        for request in sent:
+            self.assertEqual(request.get_header("User-agent"), harden.USER_AGENT)
+
     def test_development_templates_keep_portal_clients_public(self):
         for path in TEMPLATES:
             realm = json.loads(path.read_text(encoding="utf-8"))
