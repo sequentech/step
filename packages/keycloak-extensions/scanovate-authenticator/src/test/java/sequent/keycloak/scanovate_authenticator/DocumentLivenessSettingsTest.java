@@ -28,7 +28,7 @@ class DocumentLivenessSettingsTest {
     assertEquals(
         List.of("default-sr", "default-pc", "default-ps", "default-dm"), settings.pipelines());
     assertEquals("REGULAR", settings.calibration());
-    assertEquals(0.5, settings.minProbability());
+    assertEquals(0.4, settings.minProbability());
   }
 
   @Test
@@ -44,6 +44,17 @@ class DocumentLivenessSettingsTest {
     assertEquals(List.of("default-sr"), settings.pipelines());
     assertEquals("HARD", settings.calibration());
     assertEquals(0.7, settings.minProbability());
+  }
+
+  @Test
+  void existingExplicitThresholdsArePreserved() throws ScanovateException {
+    for (double threshold : List.of(0.25, 0.5, 0.8)) {
+      Map<String, String> config = config();
+      config.put(
+          ScanovateAuthenticatorFactory.DOCUMENT_LIVENESS_MIN_PROBABILITY,
+          String.valueOf(threshold));
+      assertEquals(threshold, DocumentLivenessSettings.fromConfig(config).minProbability());
+    }
   }
 
   @Test

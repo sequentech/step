@@ -213,7 +213,7 @@ steps that collect the document type, and configure it:
 | `document-liveness-url` | Document Liveness base URL as Keycloak reaches it, on the internal network, e.g. `http://scanovate-document-liveness:8080`. | |
 | `document-liveness-pipelines` | Comma separated checks the photo of the document must pass: `default-sr` (screen replay), `default-pc` (printed copy), `default-ps` (portrait substitution), `default-dm` (digital manipulation). Each must be enabled in the service. | all four |
 | `document-liveness-calibration` | `REGULAR`, `SOFT` (fewer genuine documents rejected) or `HARD` (fewer attacks missed). | `REGULAR` |
-| `document-liveness-min-probability` | Minimum probability (above 0, up to 1) every check must give the photo. | `0.5` |
+| `document-liveness-min-probability` | Minimum probability (above 0, up to 1) every check must give the photo. Explicit event values are preserved. | `0.4` |
 | `face-match-min-similarity` | JSON keyed by document type, with a `default` key for any other type, of the minimum similarity (0 to 1) of the voter's live face with the portrait OCR read from the document. The service's own threshold (`0.67`) applies if higher. | `{"default": 0.67}` |
 | `holding-photo` | `REQUIRED`: after the face check, the voter takes a photo of themselves holding the document, which must match their live face with the same minimum similarity. `NONE`: no such photo. | `REQUIRED` |
 | `video-seconds` | Holding time: seconds the image must stay still before the holding photo is taken. A positive whole number. | `5` |
