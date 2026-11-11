@@ -372,7 +372,7 @@ def main() -> None:
     # template).
     admin_portal_user = common.req_str(cfg, "admin_portal_user", env="ADMIN_PORTAL_TEST_USERNAME")
     admin_portal_password = common.req_str(cfg, "admin_portal_password", env="ADMIN_PORTAL_TEST_PASSWORD")
-    # NOT $KEYCLOAK_CLI_CLIENT_ID: that client (admin-portal in this
+    # NOT $KEYCLOAK_CLI_CLIENT_ID: that client (cli-account-admin in this
     # devcontainer) gets Keycloak's default "silver" acr on direct-grant
     # login, and publish / update-event-voting-status require "gold"
     # (sequent-core's has_gold_permission checks claims.acr == "gold").
@@ -381,7 +381,7 @@ def main() -> None:
     # docs/docusaurus hardcodes for this same reason.
     keycloak_client_id = str(cfg.get("keycloak_client_id") or "api-key-client")
     # NOT $KEYCLOAK_CLI_CLIENT_SECRET: that devcontainer env var is
-    # admin-portal's secret, a different client. Find this one in the
+    # cli-account-admin's secret, a different client. Find this one in the
     # tenant's own realm: Keycloak admin console -> Clients -> api-key-client
     # -> Credentials tab. Only valid for tenant_id itself — a freshly
     # created tenant gets its own, different, randomly generated secret,
