@@ -15,7 +15,7 @@ sequent-core), it restricts them to browser logins:
 
 | Client | Settings applied |
 |--------|------------------|
-| `voting-portal`, `onsite-voting-portal`, `voting-portal-kiosk`, `results-portal`, `admin-portal` | Direct access (password) grant and implicit flow off; PKCE `S256` required; Web Origins and post-logout redirect URIs `+` (the client's own redirect URIs); no request URIs. |
+| `voting-portal`, `onsite-voting-portal`, `voting-portal-kiosk`, `results-portal`, `admin-portal` | Direct access (password) grant and implicit flow off; PKCE `S256` required; Web Origins `+` (the client's own redirect URIs); no request URIs. Post-logout redirect URIs `+` too, except on `voting-portal`, `onsite-voting-portal` and `voting-portal-kiosk`: their Finish button logs out to the event's finish URL (`redirect_finish_url`, `kiosk_redirect_finish_url`), which can be another site, so theirs are left as they are. |
 | `admin-portal` | In tenant realms, also: root, base and redirect URIs pinned to `ADMIN_PORTAL_URL`, which windmill requires. |
 | `account-console` | In every realm: redirect URIs limited to `/realms/<realm>/account/*`; Web Origins and post-logout redirect URIs `+`; no request URIs. |
 | `cli-account-admin` | Confidential: the password grant now also needs the client secret. No browser logins and no request URIs. Gets any `admin-portal` token mapper it lacks and the `admin-portal` default role, so its tokens carry the same Hasura claims. |
@@ -62,9 +62,11 @@ python3 scripts/keycloak/harden_public_clients.py realm --all-tenant-realms \
 Before applying it to a deployment:
 
 1. Switch every script and CLI configuration that uses the password grant on
-   `admin-portal` or a voting portal client to `cli-account-admin` and its
-   secret. If `cli-account-admin` has no secret yet, the script generates one;
-   read it from the Credentials tab afterwards.
+   `admin-portal` or a voting portal client to `cli-account-admin`. Keycloak
+   keeps no secret for a public client, so the script sets `cli-account-admin`'s
+   secret to `KEYCLOAK_CLI_CLIENT_SECRET` when that variable is set, and
+   generates one otherwise; read it from the Credentials tab afterwards. A
+   secret Keycloak already stores is kept.
 2. Pass the admin portal URL with `--admin-portal-url` so that existing tenant
    realms get the same `admin-portal` redirect URIs as new ones.
 
