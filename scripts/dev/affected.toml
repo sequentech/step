@@ -378,6 +378,7 @@ cwd = "{path}"
 command = "yarn test --runInBand"
 focus = ["yarn", "jest", "--runInBand"]
 workflows = ["frontend-coverage.yml"]
+paths = ["scripts/dev/ubuntu_apt.py"]
 [checks.also_workflows]
 ui-core = ["tests.yml"]
 ui-essentials = ["tests.yml"]
@@ -583,6 +584,7 @@ trigger = "changed"
 cwd = "packages/wbraid"
 command = "cargo fmt --all -- --check"
 workflows = ["wbraid.yml"]
+paths = ["scripts/dev/ubuntu_apt.py"]
 
 [[checks]]
 id = "cargo-test:{unit}"
@@ -595,7 +597,7 @@ command = "cargo test --locked -p {unit}"
 focus = ["cargo", "test", "--locked", "-p", "{unit}"]
 workflows = ["tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
-paths = ["scripts/dev/rust_cache.py"]
+paths = ["scripts/dev/rust_cache.py", "scripts/dev/ubuntu_apt.py"]
 
 [[checks]]
 id = "cargo-test:{unit}"
@@ -608,7 +610,7 @@ command = "cargo test --release --locked -p {unit}"
 focus = ["cargo", "test", "--release", "--locked", "-p", "{unit}"]
 workflows = ["tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
-paths = ["scripts/dev/rust_cache.py"]
+paths = ["scripts/dev/rust_cache.py", "scripts/dev/ubuntu_apt.py"]
 
 # Renders PDFs in place with a local Chromium.
 [[checks]]
@@ -623,7 +625,7 @@ focus = ["cargo", "test", "--locked", "-p", "velvet"]
 requires = ["chromium"]
 workflows = ["tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
-paths = ["scripts/dev/rust_cache.py"]
+paths = ["scripts/dev/rust_cache.py", "scripts/dev/ubuntu_apt.py"]
 
 # The upstream service is behind a feature.
 [[checks]]
@@ -637,7 +639,7 @@ command = "cargo test --locked -p trellis --features upstream-service --lib --ex
 focus = ["cargo", "test", "--locked", "-p", "trellis", "--features", "upstream-service"]
 workflows = ["tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
-paths = ["scripts/dev/rust_cache.py"]
+paths = ["scripts/dev/rust_cache.py", "scripts/dev/ubuntu_apt.py"]
 
 # The electoral log and ballot box contract on a PostgreSQL server, with a role
 # that may create roles and databases: the tests create and drop their own.
@@ -687,7 +689,7 @@ command = "cargo test --locked -p {unit} --tests"
 focus = ["cargo", "test", "--locked", "-p", "{unit}"]
 workflows = ["additional-unit-tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
-paths = ["scripts/dev/rust_cache.py"]
+paths = ["scripts/dev/rust_cache.py", "scripts/dev/ubuntu_apt.py"]
 
 [[checks]]
 id = "cargo-test:sequent-core"
@@ -701,7 +703,7 @@ command = "cargo test --locked -p sequent-core --features keycloak,default_featu
 focus = ["cargo", "test", "--locked", "-p", "sequent-core", "--features", "keycloak,default_features,election_config_xlsx,election_config_templates,election_config_archive,monitoring"]
 workflows = ["tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
-paths = ["scripts/dev/rust_cache.py"]
+paths = ["scripts/dev/rust_cache.py", "scripts/dev/ubuntu_apt.py"]
 
 # The library must compile for each feature set a consumer asks for; a workspace
 # build unifies features and hides a mis-gated module or re-export.
@@ -715,7 +717,7 @@ cwd = "packages"
 command = "cargo check --locked -p sequent-core --lib && for features in default_features keycloak,default_features election_config_templates election_config_archive election_config_xlsx election_config_archive,election_config_xlsx monitoring wasmtest,default_features wasmtest,default_features,monitoring; do cargo check --locked -p sequent-core --lib --features \"$features\" || exit 1; done"
 workflows = ["tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
-paths = ["scripts/dev/rust_cache.py"]
+paths = ["scripts/dev/rust_cache.py", "scripts/dev/ubuntu_apt.py"]
 
 # The election-config WASM package (bundle schema, validator, workbook builder
 # for the Election Architect) is built from sequent-core with its own features.
@@ -741,7 +743,7 @@ command = "cargo test --locked -p windmill"
 focus = ["cargo", "test", "--locked", "-p", "windmill"]
 workflows = ["tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
-paths = ["scripts/dev/rust_cache.py"]
+paths = ["scripts/dev/rust_cache.py", "scripts/dev/ubuntu_apt.py"]
 
 # Request boundaries and error contracts need no database; the complete suite
 # does (cargo-test-db:harvest).
@@ -756,7 +758,7 @@ command = "cargo test --locked -p harvest --bin harvest -- request_boundaries er
 focus = ["cargo", "test", "--locked", "-p", "harvest"]
 workflows = ["tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
-paths = ["scripts/dev/rust_cache.py"]
+paths = ["scripts/dev/rust_cache.py", "scripts/dev/ubuntu_apt.py"]
 [checks.env]
 KEYCLOAK_DB__HOST = "127.0.0.1"
 HASURA_DB__HOST = "127.0.0.1"
@@ -833,7 +835,7 @@ command = "cargo test --locked -p orare --features openwhisk --test runtime_cont
 focus = ["cargo", "test", "--locked", "-p", "orare", "--features", "openwhisk"]
 workflows = ["orare-unit-tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
-paths = ["scripts/dev/rust_cache.py"]
+paths = ["scripts/dev/rust_cache.py", "scripts/dev/ubuntu_apt.py"]
 
 [[checks]]
 id = "cargo-test:doc_renderer"
@@ -846,7 +848,7 @@ command = "cargo test --locked -p doc_renderer"
 focus = ["cargo", "test", "--locked", "-p", "doc_renderer"]
 workflows = ["orare-unit-tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
-paths = ["scripts/dev/rust_cache.py"]
+paths = ["scripts/dev/rust_cache.py", "scripts/dev/ubuntu_apt.py"]
 
 [[checks]]
 id = "cargo-test:miru"
@@ -859,7 +861,7 @@ command = "cargo build --locked --release -p miru --target wasm32-wasip2 && carg
 focus = ["cargo", "test", "--locked", "-p", "miru"]
 workflows = ["miru-unit-tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
-paths = ["scripts/dev/rust_cache.py"]
+paths = ["scripts/dev/rust_cache.py", "scripts/dev/ubuntu_apt.py"]
 
 [[checks]]
 id = "cargo-test:wbraid"
@@ -871,7 +873,7 @@ cwd = "packages/wbraid"
 command = "cargo test --locked --release --features sqlite,postgres"
 workflows = ["wbraid.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
-paths = ["scripts/dev/rust_cache.py"]
+paths = ["scripts/dev/rust_cache.py", "scripts/dev/ubuntu_apt.py"]
 
 [[checks]]
 id = "wasm-test:sequent-core"
@@ -884,6 +886,7 @@ command = "cargo test --locked --target wasm32-unknown-unknown -p sequent-core -
 requires = ["chromium"]
 workflows = ["core-native-features.yml"]
 actions = ["setup-test-browser"]
+paths = ["scripts/dev/ubuntu_apt.py"]
 
 # The committed sequent-core tgz must match its Rust sources; consumers test
 # that tgz, so they are selected when it is regenerated.
@@ -965,6 +968,7 @@ cwd = "packages/keycloak-extensions"
 command = "mvn -B -ntp test"
 requires = ["mvn"]
 workflows = ["java-unit-tests.yml", "java_test.yml"]
+paths = ["scripts/dev/ubuntu_apt.py"]
 
 [[checks]]
 id = "java:ecies"

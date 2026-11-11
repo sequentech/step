@@ -92,10 +92,11 @@ class PlanTests(unittest.TestCase):
         self.assertTrue(plan["ui_jobs"]["workbench"])
         self.assertFalse(plan["jobs"]["run-tests"])
 
-    def test_compiler_cache_changes_select_all_its_rust_callers(self):
+    def test_shared_rust_setup_changes_select_all_its_rust_callers(self):
         for path in (
             ".github/actions/setup-rust-cache/action.yml",
             "scripts/dev/rust_cache.py",
+            "scripts/dev/ubuntu_apt.py",
         ):
             with self.subTest(path=path):
                 plan = self.plan(path)

@@ -138,3 +138,12 @@ hold comments, and run `reuse lint` from the repository root.
 
 Which services run depends on the
 [devcontainer mode](./fast-feedback.md#devcontainer-modes).
+
+### Hosted Ubuntu dependencies
+
+CI prepares Ubuntu APT sources with `scripts/dev/ubuntu_apt.py` before installing
+native dependencies. It replaces the hosted runner's Azure mirror and mirror-file
+URIs with official HTTPS Ubuntu archives, preserving suites, components and signing
+keys. Other repositories are unchanged. APT update errors fail the job instead of
+silently using stale indexes. Dependency setup failures occur before tests and can
+also cause missing coverage artifacts; inspect the first failing step.

@@ -3,10 +3,10 @@
 name: Frontend coverage
 on:
   pull_request:
-    paths: ['packages/**', 'scripts/coverage/**', '.github/workflows/frontend-coverage.yml', '.github/actions/setup-test-browser/**', '.github/actions/setup-frontend/**']
+    paths: ['scripts/dev/ubuntu_apt.py', 'packages/**', 'scripts/coverage/**', '.github/workflows/frontend-coverage.yml', '.github/actions/setup-test-browser/**', '.github/actions/setup-frontend/**']
   push:
     branches: [main]
-    paths: ['packages/**', 'scripts/coverage/**', '.github/workflows/frontend-coverage.yml', '.github/actions/setup-test-browser/**', '.github/actions/setup-frontend/**']
+    paths: ['scripts/dev/ubuntu_apt.py', 'packages/**', 'scripts/coverage/**', '.github/workflows/frontend-coverage.yml', '.github/actions/setup-test-browser/**', '.github/actions/setup-frontend/**']
 permissions:
   contents: read
 concurrency:

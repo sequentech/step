@@ -3,10 +3,10 @@
 name: Additional package unit tests
 on:
   pull_request:
-    paths: ['packages/**', '.github/workflows/additional-unit-tests.yml', '.github/actions/setup-rust-tests/**', '.github/actions/setup-rust-cache/**', 'scripts/dev/rust_cache.py']
+    paths: ['scripts/dev/ubuntu_apt.py', 'packages/**', '.github/workflows/additional-unit-tests.yml', '.github/actions/setup-rust-tests/**', '.github/actions/setup-rust-cache/**', 'scripts/dev/rust_cache.py']
   push:
     branches: [main, ovcs]
-    paths: ['packages/**', '.github/workflows/additional-unit-tests.yml', '.github/actions/setup-rust-tests/**', '.github/actions/setup-rust-cache/**', 'scripts/dev/rust_cache.py']
+    paths: ['scripts/dev/ubuntu_apt.py', 'packages/**', '.github/workflows/additional-unit-tests.yml', '.github/actions/setup-rust-tests/**', '.github/actions/setup-rust-cache/**', 'scripts/dev/rust_cache.py']
   workflow_dispatch:
 permissions:
   contents: read

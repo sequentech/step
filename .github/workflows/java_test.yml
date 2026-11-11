@@ -33,7 +33,8 @@ jobs:
 
     - name: Install Maven
       run: |
-        sudo apt-get update
+        sudo python3 scripts/dev/ubuntu_apt.py
+        sudo apt-get -o APT::Update::Error-Mode=any update
         sudo apt-get install -y maven
 
     - name: Keycloak Extensions Build and Test with Maven
