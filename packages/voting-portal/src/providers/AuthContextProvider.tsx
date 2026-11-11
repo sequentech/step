@@ -274,6 +274,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     // opening the app or reloading the page). If not authenticated the user will
                     // be send to the login form. If already authenticated the webapp will open.
                     checkLoginIframe: false,
+                    pkceMethod: "S256", // keycloak-js 22 sends a code challenge only when asked
                     locale: getLanguageFromURL(),
                 }
                 const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)

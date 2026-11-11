@@ -159,6 +159,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 // be send to the login form. If already authenticated the webapp will open.
                 onLoad: "login-required",
                 checkLoginIframe: false,
+                pkceMethod: "S256", // keycloak-js 22 sends a code challenge only when asked
             }
             const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)
 

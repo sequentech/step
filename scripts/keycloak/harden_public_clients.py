@@ -10,12 +10,16 @@ same settings:
 
 - voting-portal, onsite-voting-portal, voting-portal-kiosk, results-portal and
   admin-portal: no direct access (password) or implicit grant, PKCE S256, web
-  origins and post-logout redirects limited to the client's redirect URIs, no
-  request URIs.
+  origins limited to the client's redirect URIs, no request URIs. Post-logout
+  redirects are limited the same way, except on the voting, onsite and kiosk
+  portals, whose Finish button logs out to the event's finish URL.
 - admin-portal: redirect URIs pinned to --admin-portal-url, when given.
 - account-console: redirects only to its realm's account pages.
 - cli-account-admin: confidential (password grant plus client secret), no
   browser logins, no request URIs, and the admin-portal token claims it lacks.
+  Keycloak keeps no secret for a public client, so the script sets it to
+  KEYCLOAK_CLI_CLIENT_SECRET when that is set, and generates one otherwise. A
+  stored secret is kept.
 
 A realm is left unchanged when one of those clients would keep the redirect URI
 `*`: its web origins `+` would then allow no origin and break browser logins.
@@ -25,7 +29,8 @@ Usage:
     harden_public_clients.py template FILE...        rewrite realm JSON files
     harden_public_clients.py realm [--apply] (--realm NAME... | --all-tenant-realms)
         Reads KEYCLOAK_URL, KEYCLOAK_ADMIN and KEYCLOAK_ADMIN_PASSWORD (master
-        realm admin). Without --apply it only prints what it would change.
+        realm admin), and KEYCLOAK_CLI_CLIENT_SECRET if set. Without --apply it
+        only prints what it would change.
 """
 
 import argparse
@@ -35,6 +40,7 @@ import os
 import secrets
 import string
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -45,6 +51,9 @@ PUBLIC_BROWSER_CLIENT_IDS = (
     "results-portal",
     "admin-portal",
 )
+# Their Finish button logs out to the event's finish URL, which can be outside
+# their redirect URIs, so their post-logout redirect URIs are left as they are.
+FINISH_URL_CLIENT_IDS = ("voting-portal", "onsite-voting-portal", "voting-portal-kiosk")
 ADMIN_PORTAL = "admin-portal"
 ACCOUNT_CONSOLE = "account-console"
 CLI_ACCOUNT_ADMIN = "cli-account-admin"
@@ -68,7 +77,8 @@ def harden_public_browser_client(client):
     client["webOrigins"] = ["+"]
     attributes = client.setdefault("attributes", {})
     attributes["pkce.code.challenge.method"] = "S256"
-    attributes["post.logout.redirect.uris"] = "+"
+    if client.get("clientId") not in FINISH_URL_CLIENT_IDS:
+        attributes["post.logout.redirect.uris"] = "+"
     attributes.pop(REQUEST_URIS_ATTR, None)
 
 
@@ -199,9 +209,40 @@ def mapper_changes(before, after):
     return new, changed
 
 
-def harden_realm(admin, realm, apply, admin_portal_url=None):
+def stored_secret(admin, realm, client):
+    """The client's stored secret, which the clients list leaves out."""
+    try:
+        stored = admin.call("GET", f"/{realm}/clients/{client['id']}/client-secret")
+    except urllib.error.HTTPError:
+        return ""
+    return (stored or {}).get("value") or ""
+
+
+def update_payload(before, after):
+    """The PUT body that turns `before` into `after`. Keycloak keeps attributes
+    an update leaves out, so removed ones are sent empty, and an unchanged
+    secret isn't sent again."""
+    update = {k: v for k, v in after.items() if k != "protocolMappers"}
+    if update.get("secret") == before.get("secret"):
+        update.pop("secret", None)
+    removed = set(before.get("attributes", {})) - set(after.get("attributes", {}))
+    if removed:
+        update["attributes"] = {
+            **after.get("attributes", {}),
+            **{key: "" for key in sorted(removed)},
+        }
+    return update
+
+
+def harden_realm(admin, realm, apply, admin_portal_url=None, cli_secret=""):
     clients = admin.call("GET", f"/{realm}/clients")
+    for client in clients:
+        if client.get("clientId") == CLI_ACCOUNT_ADMIN:
+            client["secret"] = stored_secret(admin, realm, client)
     originals = {client["id"]: copy.deepcopy(client) for client in clients}
+    for client in clients:
+        if client.get("clientId") == CLI_ACCOUNT_ADMIN and not client["secret"]:
+            client["secret"] = cli_secret
     changed = harden_clients(clients, realm, admin_portal_url)
     for client in clients:
         if client.get("clientId") not in changed:
@@ -211,8 +252,9 @@ def harden_realm(admin, realm, apply, admin_portal_url=None):
         if not apply:
             continue
         new_mappers, changed_mappers = mapper_changes(original, client)
-        update = {k: v for k, v in client.items() if k != "protocolMappers"}
-        admin.call("PUT", f"/{realm}/clients/{client['id']}", update)
+        admin.call(
+            "PUT", f"/{realm}/clients/{client['id']}", update_payload(original, client)
+        )
         models = f"/{realm}/clients/{client['id']}/protocol-mappers/models"
         for mapper in new_mappers:
             admin.call("POST", models, mapper)
@@ -269,7 +311,13 @@ def main(argv):
     ]
     for name in realms:
         try:
-            harden_realm(admin, name, args.apply, args.admin_portal_url)
+            harden_realm(
+                admin,
+                name,
+                args.apply,
+                args.admin_portal_url,
+                os.environ.get("KEYCLOAK_CLI_CLIENT_SECRET", ""),
+            )
         except UnpinnedRedirectError as error:
             print(f"not changed: {error}", file=sys.stderr)
             failed = True
