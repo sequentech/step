@@ -98,6 +98,8 @@ summary = "Backend and real-stack UI journey runners"
 
 [units.scripts-database]
 summary = "Voting-flow harness, PostgreSQL checks and database regression scripts"
+# test_harden_public_clients.py checks the development realm templates.
+test_inputs = [".devcontainer/keycloak/import/**"]
 
 [units.scripts-misc]
 summary = "Air-gap, dependency-report and one-off maintenance scripts"
@@ -279,7 +281,7 @@ globs = ["scripts/e2e/**", "scripts/e2e-up.sh"]
 units = ["scripts-e2e"]
 
 [[paths]]
-globs = ["scripts/voting_flow/**", "scripts/postgres/**", "scripts/test_*.py"]
+globs = ["scripts/voting_flow/**", "scripts/postgres/**", "scripts/keycloak/**", "scripts/test_*.py"]
 units = ["scripts-database"]
 
 [[paths]]
