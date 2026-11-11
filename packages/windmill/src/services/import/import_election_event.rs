@@ -488,10 +488,150 @@ fn idp_mapper_key(
     )
 }
 
+/// Keycloak component holding a realm's declarative user profile.
+const USER_PROFILE_PROVIDER_COMPONENT: &str = "org.keycloak.userprofile.UserProfileProvider";
+/// Config key under which that component stores the profile as one JSON document.
+const USER_PROFILE_CONFIG_KEY: &str = "kc.user.profile.config";
+/// User-profile setting that lets users edit attributes the profile doesn't declare.
+const UNMANAGED_ATTRIBUTE_POLICY_KEY: &str = "unmanagedAttributePolicy";
+
+/// A realm's user-profile component, if it has one.
+fn user_profile_component(realm: &RealmRepresentation) -> Option<&ComponentExportRepresentation> {
+    realm
+        .components
+        .as_ref()?
+        .get(USER_PROFILE_PROVIDER_COMPONENT)?
+        .first()
+}
+
+/// The user profile a component stores, parsed. `None` when it is missing or
+/// isn't a profile (no `attributes` list). Keycloak keeps it as a single value.
+fn user_profile_config(component: &ComponentExportRepresentation) -> Option<serde_json::Value> {
+    let raw = component
+        .config
+        .as_ref()?
+        .get(USER_PROFILE_CONFIG_KEY)?
+        .first()?;
+    let profile: serde_json::Value = serde_json::from_str(raw).ok()?;
+    profile.get("attributes")?.as_array()?;
+    Some(profile)
+}
+
+/// Reconcile the uploaded realm's declarative user profile with the template's.
+/// Token claims come from user attributes (`tenant-id`, `area-id`,
+/// `authorized-election-ids`), so a profile that lets users edit them lets a
+/// voter choose the tenant or elections of their own tokens. Every attribute
+/// the template declares therefore gets the template's permissions, a template
+/// attribute missing from the upload is restored, and the template's
+/// unmanaged-attribute policy applies, since enabling it would make an
+/// undeclared attribute editable. Attributes only the upload declares stay:
+/// the claim mappers are already reduced to the template's, which read
+/// template attributes only. A missing or unreadable profile is replaced with
+/// the template's.
+fn reconcile_user_profile(
+    realm: &mut RealmRepresentation,
+    template: &RealmRepresentation,
+    discarded: &mut Vec<String>,
+) {
+    let Some(template_component) = user_profile_component(template) else {
+        return;
+    };
+    let Some(template_profile) = user_profile_config(template_component) else {
+        return;
+    };
+
+    let Some(mut profile) = user_profile_component(realm).and_then(user_profile_config) else {
+        let mut component = template_component.clone();
+        component.id = None;
+        realm
+            .components
+            .get_or_insert_with(HashMap::new)
+            .insert(USER_PROFILE_PROVIDER_COMPONENT.to_string(), vec![component]);
+        discarded
+            .push("user profile (missing or unreadable, replaced with the template's)".to_string());
+        return;
+    };
+
+    let template_attributes: Vec<serde_json::Value> = template_profile["attributes"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let mut changed = false;
+    if let Some(attributes) = profile
+        .get_mut("attributes")
+        .and_then(serde_json::Value::as_array_mut)
+    {
+        for template_attribute in &template_attributes {
+            let Some(name) = template_attribute
+                .get("name")
+                .and_then(serde_json::Value::as_str)
+            else {
+                continue;
+            };
+            let template_permissions = template_attribute
+                .get("permissions")
+                .cloned()
+                .unwrap_or(serde_json::Value::Null);
+            match attributes.iter_mut().find(|attribute| {
+                attribute.get("name").and_then(serde_json::Value::as_str) == Some(name)
+            }) {
+                Some(attribute) => {
+                    if attribute
+                        .get("permissions")
+                        .cloned()
+                        .unwrap_or(serde_json::Value::Null)
+                        != template_permissions
+                    {
+                        attribute["permissions"] = template_permissions;
+                        discarded.push(format!("user-profile permissions of attribute '{name}'"));
+                        changed = true;
+                    }
+                }
+                None => {
+                    attributes.push(template_attribute.clone());
+                    discarded.push(format!(
+                        "user-profile attribute '{name}' missing (restored)"
+                    ));
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    let template_policy = template_profile
+        .get(UNMANAGED_ATTRIBUTE_POLICY_KEY)
+        .cloned();
+    if profile.get(UNMANAGED_ATTRIBUTE_POLICY_KEY).cloned() != template_policy {
+        if let Some(object) = profile.as_object_mut() {
+            match template_policy {
+                Some(policy) => object.insert(UNMANAGED_ATTRIBUTE_POLICY_KEY.to_string(), policy),
+                None => object.remove(UNMANAGED_ATTRIBUTE_POLICY_KEY),
+            };
+        }
+        discarded.push("user-profile unmanaged-attribute policy".to_string());
+        changed = true;
+    }
+
+    if changed {
+        if let Some(component) = realm
+            .components
+            .as_mut()
+            .and_then(|components| components.get_mut(USER_PROFILE_PROVIDER_COMPONENT))
+            .and_then(|components| components.first_mut())
+        {
+            component.config.get_or_insert_with(HashMap::new).insert(
+                USER_PROFILE_CONFIG_KEY.to_string(),
+                vec![profile.to_string()],
+            );
+        }
+    }
+}
+
 /// Reconcile an uploaded election-event realm against the platform template so
 /// that only the template's realm roles, Hasura claim mappers and
-/// identity-provider mappers survive. This prevents an imported realm from
-/// granting roles (such as `service-account` or `admin-user`) or minting
+/// identity-provider mappers survive, and its user profile doesn't let users
+/// edit the attributes token claims come from. This prevents an imported realm
+/// from granting roles (such as `service-account` or `admin-user`) or minting
 /// Hasura claims that the platform never intended an event realm to carry.
 #[instrument(skip(imported, template))]
 fn sanitize_imported_event_realm(
@@ -744,6 +884,10 @@ fn sanitize_imported_event_realm(
             keep
         });
     }
+
+    // 9. User profile: users must not be able to edit the attributes the
+    //    claims come from.
+    reconcile_user_profile(&mut realm, template, &mut discarded);
 
     if !discarded.is_empty() {
         match reconciliation {
@@ -4383,6 +4527,126 @@ mod imported_realm_sanitization_tests {
             ImportedRealmReconciliation::RejectForeignClaims,
         )
         .is_err());
+    }
+
+    fn user_profile(realm: &RealmRepresentation) -> serde_json::Value {
+        user_profile_component(realm)
+            .and_then(user_profile_config)
+            .expect("realm has a user profile")
+    }
+
+    fn profile_attribute<'a>(
+        profile: &'a serde_json::Value,
+        name: &str,
+    ) -> Option<&'a serde_json::Value> {
+        profile["attributes"]
+            .as_array()?
+            .iter()
+            .find(|attribute| attribute["name"] == name)
+    }
+
+    /// The template with its user profile edited as an uploaded export could be.
+    fn with_user_profile(edit: impl FnOnce(&mut serde_json::Value)) -> RealmRepresentation {
+        let mut realm = template_realm();
+        let mut profile = user_profile(&realm);
+        edit(&mut profile);
+        realm
+            .components
+            .as_mut()
+            .and_then(|components| components.get_mut(USER_PROFILE_PROVIDER_COMPONENT))
+            .and_then(|components| components.first_mut())
+            .and_then(|component| component.config.as_mut())
+            .expect("template has a user-profile config")
+            .insert(
+                USER_PROFILE_CONFIG_KEY.to_string(),
+                vec![profile.to_string()],
+            );
+        realm
+    }
+
+    #[test]
+    fn aligning_resets_user_profile_permissions_the_template_defines() {
+        let tampered = with_user_profile(|profile| {
+            for attribute in profile["attributes"].as_array_mut().unwrap() {
+                if attribute["name"] == "tenant-id" || attribute["name"] == "area-id" {
+                    attribute["permissions"]["edit"] = serde_json::json!(["admin", "user"]);
+                }
+            }
+        });
+
+        let profile = user_profile(&sanitize(&tampered));
+        let template_profile = user_profile(&template_realm());
+        for name in ["tenant-id", "area-id"] {
+            assert_eq!(
+                profile_attribute(&profile, name).expect("attribute kept")["permissions"],
+                profile_attribute(&template_profile, name).expect("template attribute")
+                    ["permissions"],
+                "{name} must have the template's permissions",
+            );
+        }
+
+        let error = sanitize_imported_event_realm(
+            &tampered,
+            &template_realm(),
+            ImportedRealmReconciliation::RejectForeignClaims,
+        )
+        .expect_err("a user-editable tenant-id is reported");
+        assert!(error
+            .to_string()
+            .contains("user-profile permissions of attribute 'tenant-id'"));
+    }
+
+    #[test]
+    fn aligning_restores_a_removed_attribute_and_the_unmanaged_policy() {
+        let tampered = with_user_profile(|profile| {
+            profile["attributes"]
+                .as_array_mut()
+                .unwrap()
+                .retain(|attribute| attribute["name"] != "tenant-id");
+            profile[UNMANAGED_ATTRIBUTE_POLICY_KEY] = serde_json::json!("ENABLED");
+        });
+
+        let profile = user_profile(&sanitize(&tampered));
+        let template_profile = user_profile(&template_realm());
+        assert_eq!(
+            profile_attribute(&profile, "tenant-id"),
+            profile_attribute(&template_profile, "tenant-id"),
+        );
+        assert_eq!(
+            profile.get(UNMANAGED_ATTRIBUTE_POLICY_KEY),
+            template_profile.get(UNMANAGED_ATTRIBUTE_POLICY_KEY),
+        );
+    }
+
+    #[test]
+    fn aligning_keeps_an_attribute_only_the_upload_declares() {
+        let tampered = with_user_profile(|profile| {
+            profile["attributes"]
+                .as_array_mut()
+                .unwrap()
+                .push(serde_json::json!({
+                    "name": "c31-extra",
+                    "permissions": {"view": ["admin", "user"], "edit": ["admin", "user"]}
+                }));
+        });
+
+        let profile = user_profile(&sanitize(&tampered));
+        assert!(profile_attribute(&profile, "c31-extra").is_some());
+    }
+
+    #[test]
+    fn aligning_replaces_a_missing_user_profile_with_the_template() {
+        let mut realm = template_realm();
+        realm
+            .components
+            .as_mut()
+            .unwrap()
+            .remove(USER_PROFILE_PROVIDER_COMPONENT);
+
+        assert_eq!(
+            user_profile(&sanitize(&realm)),
+            user_profile(&template_realm())
+        );
     }
 
     const REALM_ADMIN_CLIENT: &str = "realm-management";
