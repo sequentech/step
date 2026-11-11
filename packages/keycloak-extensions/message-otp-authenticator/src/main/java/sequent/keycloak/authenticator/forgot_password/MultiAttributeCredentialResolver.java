@@ -570,7 +570,11 @@ public final class MultiAttributeCredentialResolver {
     session
         .getProvider(BruteForceProtector.class)
         .failedLogin(
-            realm, user, context.getConnection(), context.getUri(), PasswordCredentialModel.TYPE);
+            realm,
+            user,
+            context.getConnection(),
+            context.getUri(),
+            Collections.singleton(PasswordCredentialModel.TYPE));
   }
 
   /**

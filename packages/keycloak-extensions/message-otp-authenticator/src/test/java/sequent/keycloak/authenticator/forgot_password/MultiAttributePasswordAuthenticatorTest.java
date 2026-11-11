@@ -762,7 +762,7 @@ class MultiAttributePasswordAuthenticatorTest {
 
   private void verifyCharged(UserModel user) {
     verify(bruteForceProtector)
-        .failedLogin(realm, user, clientConnection, uriInfo, PasswordCredentialModel.TYPE);
+        .failedLogin(realm, user, clientConnection, uriInfo, Set.of(PasswordCredentialModel.TYPE));
   }
 
   private void verifyNotCharged(UserModel user) {
@@ -1927,7 +1927,11 @@ class MultiAttributePasswordAuthenticatorTest {
     inOrder
         .verify(bruteForceProtector)
         .failedLogin(
-            realm, attributableUser, clientConnection, uriInfo, PasswordCredentialModel.TYPE);
+            realm,
+            attributableUser,
+            clientConnection,
+            uriInfo,
+            Set.of(PasswordCredentialModel.TYPE));
     inOrder.verify(context).clearUser();
     verify(bruteForceProtector, times(1)).failedLogin(any(), any(), any(), any(), any());
   }
