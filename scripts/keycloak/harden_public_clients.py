@@ -162,6 +162,11 @@ def harden_template(path, admin_portal_url=None):
     return changed
 
 
+# Some proxies in front of Keycloak refuse urllib's default "Python-urllib/3.x"
+# (Cloudflare: 403, error 1010), so every request names this script instead.
+USER_AGENT = "sequent-harden-public-clients/1.0"
+
+
 class KeycloakAdmin:
     def __init__(self, url, username, password):
         self.url = url.rstrip("/")
@@ -178,7 +183,8 @@ class KeycloakAdmin:
             }
         ).encode()
         url = f"{self.url}/realms/master/protocol/openid-connect/token"
-        with urllib.request.urlopen(urllib.request.Request(url, data=data)) as response:
+        request = urllib.request.Request(url, data=data, headers={"User-Agent": USER_AGENT})
+        with urllib.request.urlopen(request) as response:
             return json.load(response)["access_token"]
 
     def call(self, method, path, body=None):
@@ -189,6 +195,7 @@ class KeycloakAdmin:
             headers={
                 "Authorization": f"Bearer {self.token()}",
                 "Content-Type": "application/json",
+                "User-Agent": USER_AGENT,
             },
         )
         with urllib.request.urlopen(request) as response:
