@@ -18,12 +18,24 @@ const IMMUDB_DEFAULT_LIMIT: usize = 900;
 const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
 const IMMUDB_DEFAULT_OFFSET: usize = 0;
 const ELECTORAL_LOG_TABLE: &'static str = "electoral_log_messages";
+const ELECTORAL_LOG_RECEIPTS_TABLE: &str = "electoral_log_delivery_receipts";
 /// 36 chars + EOL + some padding
 const ID_VARCHAR_LENGTH: usize = 40;
 /// Longest possible statement kind must be < 40
 const STATEMENT_KIND_VARCHAR_LENGTH: usize = 40;
 /// 64 chars + EOL + some padding
 const BALLOT_ID_VARCHAR_LENGTH: usize = 70;
+
+/// What a board held for a delivery ID when the delivery was written.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeliveryReceipt {
+    /// The delivery's rows and receipt were written in the transaction.
+    Stored,
+    /// An earlier delivery with the same ID and input was already committed.
+    AlreadyStored,
+    /// The ID was already used for a different input; nothing was written.
+    Conflicting,
+}
 
 #[derive(Debug)]
 pub struct BoardClient {
@@ -82,6 +94,38 @@ pub struct ElectoralLogMessage {
     pub election_id: Option<String>,
     pub area_id: Option<String>,
     pub ballot_id: Option<String>,
+}
+
+impl ElectoralLogMessage {
+    /// Checks the values against the bounded columns of the board's table, which
+    /// would otherwise make the whole board transaction fail on every attempt.
+    pub fn check_column_limits(&self) -> Result<()> {
+        let bounded = [
+            (
+                "statement_kind",
+                Some(&self.statement_kind),
+                STATEMENT_KIND_VARCHAR_LENGTH,
+            ),
+            ("user_id", self.user_id.as_ref(), ID_VARCHAR_LENGTH),
+            ("election_id", self.election_id.as_ref(), ID_VARCHAR_LENGTH),
+            ("area_id", self.area_id.as_ref(), ID_VARCHAR_LENGTH),
+            (
+                "ballot_id",
+                self.ballot_id.as_ref(),
+                BALLOT_ID_VARCHAR_LENGTH,
+            ),
+        ];
+        for (column, value, limit) in bounded {
+            if let Some(value) = value {
+                anyhow::ensure!(
+                    value.len() <= limit,
+                    "electoral log {column} is {} bytes, longer than {limit}",
+                    value.len()
+                );
+            }
+        }
+        Ok(())
+    }
 }
 
 impl TryFrom<&Row> for ElectoralLogMessage {
@@ -641,6 +685,101 @@ impl BoardClient {
         self.client.commit(transaction_id).await
     }
 
+    /// Add receipts to existing boards without changing their audit table.
+    /// Call before opening the delivery transaction.
+    pub async fn ensure_electoral_log_delivery_receipts(&mut self) -> Result<()> {
+        self.client
+            .sql_exec(
+                &format!(
+                    "CREATE TABLE IF NOT EXISTS {ELECTORAL_LOG_RECEIPTS_TABLE} (delivery_id VARCHAR[64], payload_hash VARCHAR[64], PRIMARY KEY delivery_id)"
+                ),
+                vec![],
+            )
+            .await
+    }
+
+    /// Atomically record a stable delivery ID with all of its audit rows.
+    /// Returns what was found for the ID: a delivery already stored with the
+    /// same input is not written again, even if signing produced different bytes.
+    pub async fn insert_electoral_log_delivery(
+        &mut self,
+        transaction_id: &String,
+        delivery_id: &str,
+        payload_hash: &str,
+        messages: &[ElectoralLogMessage],
+    ) -> Result<DeliveryReceipt> {
+        anyhow::ensure!(
+            [delivery_id, payload_hash].iter().all(
+                |value| value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+            ),
+            "electoral log delivery identity must be a SHA-256 digest"
+        );
+        anyhow::ensure!(
+            !messages.is_empty(),
+            "electoral log delivery has no messages"
+        );
+        let id_param = NamedParam {
+            name: "delivery_id".into(),
+            value: Some(SqlValue {
+                value: Some(Value::S(delivery_id.into())),
+            }),
+        };
+        let mut response = self
+            .client
+            .tx_sql_query(
+                &format!(
+                    "SELECT payload_hash FROM {ELECTORAL_LOG_RECEIPTS_TABLE} WHERE delivery_id = @delivery_id"
+                ),
+                transaction_id,
+                vec![id_param.clone()],
+            )
+            .await?
+            .into_inner();
+        let mut existing = None;
+        while let Some(result) = response.next().await {
+            for row in result?.rows {
+                anyhow::ensure!(
+                    existing.is_none(),
+                    "duplicate electoral log delivery receipts"
+                );
+                existing = Some(
+                    row.values
+                        .into_iter()
+                        .next()
+                        .and_then(|value| value.value)
+                        .ok_or_else(|| anyhow!("invalid electoral log delivery receipt"))?,
+                );
+            }
+        }
+        if let Some(existing) = existing {
+            return Ok(if existing == Value::S(payload_hash.into()) {
+                DeliveryReceipt::AlreadyStored
+            } else {
+                DeliveryReceipt::Conflicting
+            });
+        }
+        self.insert_electoral_log_messages_batch(transaction_id, messages)
+            .await?;
+        self.client
+            .tx_sql_exec(
+                &format!(
+                    "INSERT INTO {ELECTORAL_LOG_RECEIPTS_TABLE} (delivery_id, payload_hash) VALUES (@delivery_id, @payload_hash)"
+                ),
+                transaction_id,
+                vec![
+                    id_param,
+                    NamedParam {
+                        name: "payload_hash".into(),
+                        value: Some(SqlValue {
+                            value: Some(Value::S(payload_hash.into())),
+                        }),
+                    },
+                ],
+            )
+            .await?;
+        Ok(DeliveryReceipt::Stored)
+    }
+
     // Insert messages in batch using an existing session/transaction
     pub async fn insert_electoral_log_messages_batch(
         &mut self,
@@ -968,7 +1107,8 @@ impl BoardClient {
         ];
 
         self.upsert_database(board_dbname, &sql, elog_indexes.as_slice())
-            .await
+            .await?;
+        self.ensure_electoral_log_delivery_receipts().await
     }
 
     /// Deletes the immudb database.
