@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import unittest
 from unittest import mock
+import urllib.error
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location(
@@ -35,6 +36,7 @@ class FakeKeycloak:
     def __init__(self, realms, secrets=None):
         self.realms = realms
         self.secrets = dict(secrets or {})
+        self.secret_error = None
         self.calls = []
 
     def __call__(self, *args):
@@ -50,6 +52,8 @@ class FakeKeycloak:
                 for c in clients
             ]
         if method == "GET" and parts[3:] == ["client-secret"]:
+            if self.secret_error:
+                raise urllib.error.HTTPError(path, self.secret_error, "error", {}, None)
             return {"type": "secret", "value": self.secrets.get(parts[2], "")}
         if method == "PUT" and len(parts) == 3:
             (stored,) = [c for c in clients if c["id"] == parts[2]]
@@ -223,6 +227,27 @@ class HardenClientsTests(unittest.TestCase):
             keycloak, "--apply", "--realm", "tenant-t", KEYCLOAK_CLI_CLIENT_SECRET="configured"
         )
         self.assertEqual(keycloak.secrets["c"], "configured")
+
+    def test_realm_run_stops_a_realm_whose_secret_cannot_be_read(self):
+        keycloak = FakeKeycloak(
+            {
+                "tenant-a": [client("cli-account-admin", id="c", protocolMappers=[])],
+                "tenant-b": [client("voting-portal", id="v")],
+            },
+            secrets={"c": "kept"},
+        )
+        keycloak.secret_error = 500
+        status, stderr = run_realm_mode(
+            keycloak, "--apply", "--realm", "tenant-a", "--realm", "tenant-b",
+            KEYCLOAK_CLI_CLIENT_SECRET="configured",
+        )
+        self.assertEqual(status, 1)
+        self.assertIn("tenant-a: stopped", stderr)
+        self.assertEqual(keycloak.secrets["c"], "kept")
+        self.assertEqual(
+            [call for call in keycloak.calls if call[0] != "GET"],
+            [("PUT", "/tenant-b/clients/v")],
+        )
 
     def test_realm_run_clears_removed_attributes(self):
         keycloak = FakeKeycloak({"tenant-t": [client("admin-portal", id="a")]})

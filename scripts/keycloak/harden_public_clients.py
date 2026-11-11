@@ -210,11 +210,9 @@ def mapper_changes(before, after):
 
 
 def stored_secret(admin, realm, client):
-    """The client's stored secret, which the clients list leaves out."""
-    try:
-        stored = admin.call("GET", f"/{realm}/clients/{client['id']}/client-secret")
-    except urllib.error.HTTPError:
-        return ""
+    """The client's stored secret, which the clients list leaves out. Keycloak
+    answers an empty value for a public client; an error stops the realm."""
+    stored = admin.call("GET", f"/{realm}/clients/{client['id']}/client-secret")
     return (stored or {}).get("value") or ""
 
 
@@ -320,6 +318,11 @@ def main(argv):
             )
         except UnpinnedRedirectError as error:
             print(f"not changed: {error}", file=sys.stderr)
+            failed = True
+        except urllib.error.HTTPError as error:
+            # Reads come before any update, so a failed read leaves the realm
+            # unchanged; a failed update may leave it partly migrated.
+            print(f"{name}: stopped: {error}", file=sys.stderr)
             failed = True
     if not args.apply:
         print("Dry run: nothing was changed. Re-run with --apply to update the realms.")
