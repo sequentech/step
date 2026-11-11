@@ -96,7 +96,7 @@ class PlanTests(unittest.TestCase):
         for path in (
             ".github/actions/setup-rust-cache/action.yml",
             "scripts/dev/rust_cache.py",
-            "scripts/dev/ubuntu_apt.py",
+            "scripts/dev/ci_dependencies.py",
         ):
             with self.subTest(path=path):
                 plan = self.plan(path)

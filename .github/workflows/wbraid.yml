@@ -15,7 +15,7 @@ on:
       - '.github/actions/setup-rust-tests/**'
       - '.github/actions/setup-rust-cache/**'
       - 'scripts/dev/rust_cache.py'
-      - 'scripts/dev/ubuntu_apt.py'
+      - 'scripts/dev/ci_dependencies.py'
   push:
     branches: [ 'main', 'ovcs', 'release/[0-9]+.[0-9]+' ]
     paths:
@@ -24,7 +24,7 @@ on:
       - '.github/actions/setup-rust-tests/**'
       - '.github/actions/setup-rust-cache/**'
       - 'scripts/dev/rust_cache.py'
-      - 'scripts/dev/ubuntu_apt.py'
+      - 'scripts/dev/ci_dependencies.py'
 
 defaults:
   run:
@@ -156,7 +156,7 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           if [ -z "$BASE" ] || ! git diff --quiet "$(git merge-base "$BASE" HEAD)" HEAD -- packages/wbraid .github/workflows/wbraid.yml \
-            .github/actions/setup-rust-tests .github/actions/setup-rust-cache scripts/dev/rust_cache.py scripts/dev/ubuntu_apt.py; then
+            .github/actions/setup-rust-tests .github/actions/setup-rust-cache scripts/dev/rust_cache.py scripts/dev/ci_dependencies.py; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"

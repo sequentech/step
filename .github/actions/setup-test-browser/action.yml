@@ -8,9 +8,9 @@ runs:
   steps:
     - shell: bash
       run: |
-        sudo python3 "$GITHUB_ACTION_PATH/../../../scripts/dev/ubuntu_apt.py"
-        sudo apt-get -o APT::Update::Error-Mode=any update
-        sudo apt-get install -y libgbm1 libnss3 libatk-bridge2.0-0 libxkbcommon0 libasound2t64 unzip
+        # The hosted image already includes Chrome libraries and unzip. The
+        # pinned binary version check below fails if a runtime library is missing.
+        command -v unzip
         browser_dir="$RUNNER_TEMP/pdf-test-browser"
         mkdir -p "$browser_dir/bin"
         curl --fail --location --silent --show-error \

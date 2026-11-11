@@ -31,11 +31,13 @@ jobs:
         java-version: '17'
         distribution: 'adopt'
 
-    - name: Install Maven
+    - name: Install Maven 3.9.9
       run: |
-        sudo python3 scripts/dev/ubuntu_apt.py
-        sudo apt-get -o APT::Update::Error-Mode=any update
-        sudo apt-get install -y maven
+        curl --fail --location --retry 3 -o "$RUNNER_TEMP/maven.tar.gz" https://archive.apache.org/dist/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz
+        curl --fail --location --retry 3 -o "$RUNNER_TEMP/maven.sha512" https://archive.apache.org/dist/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz.sha512
+        printf '%s  %s\n' "$(cat "$RUNNER_TEMP/maven.sha512")" "$RUNNER_TEMP/maven.tar.gz" | sha512sum --check
+        tar -xzf "$RUNNER_TEMP/maven.tar.gz" -C "$RUNNER_TEMP"
+        echo "$RUNNER_TEMP/apache-maven-3.9.9/bin" >> "$GITHUB_PATH"
 
     - name: Keycloak Extensions Build and Test with Maven
       run: mvn -B clean verify --file packages/keycloak-extensions/pom.xml

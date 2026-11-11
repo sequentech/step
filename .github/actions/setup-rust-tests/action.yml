@@ -71,30 +71,16 @@ runs:
           echo 'CARGO_PROFILE_TEST_DEBUG=line-tables-only' >> "$GITHUB_ENV"
         fi
 
-    # Only what the runner image lacks, usually protoc. apt waits on an
-    # unresponsive mirror without limit, so each call is bounded and retried:
-    # one update hung for 35 minutes (sequentech/meta#14622).
-    - name: Install system dependencies
+    # Ubuntu's hosted image already supplies the native toolchain. Check the
+    # capabilities we use instead of reinstalling metapackages over the network.
+    - name: Check native dependencies
       shell: bash
       env:
         CORE_FIXTURE: ${{ inputs.cargo-build-name == 'sequent-core' }}
       run: |
-        packages=(build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev)
-        # The Core database fixture.
-        if [ "$CORE_FIXTURE" = true ]; then packages+=(postgresql libpq-dev); fi
-        missing=()
-        for package in "${packages[@]}"; do
-          dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q 'ok installed' || missing+=("$package")
-        done
-        [ "${#missing[@]}" -eq 0 ] && exit 0
-        sudo python3 "$GITHUB_ACTION_PATH/../../../scripts/dev/ubuntu_apt.py"
-        apt=(sudo apt-get -o APT::Update::Error-Mode=any -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
-        for attempt in 1 2 3; do
-          timeout 180 "${apt[@]}" update && break
-          [ "$attempt" -eq 3 ] && exit 1
-          echo "apt-get update did not finish (attempt $attempt); retrying"
-        done
-        timeout 600 "${apt[@]}" install -y "${missing[@]}"
+        options=()
+        if [ "$CORE_FIXTURE" = true ]; then options+=(--postgres); fi
+        python3 "$GITHUB_ACTION_PATH/../../../scripts/dev/ci_dependencies.py" "${options[@]}"
 
     # Enforce the first production-module policy; test assertions are unrestricted.
     # Existing crate-wide lint debt remains tracked in meta #11566.

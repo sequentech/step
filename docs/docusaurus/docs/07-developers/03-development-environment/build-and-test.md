@@ -141,9 +141,10 @@ Which services run depends on the
 
 ### Hosted Ubuntu dependencies
 
-CI prepares Ubuntu APT sources with `scripts/dev/ubuntu_apt.py` before installing
-native dependencies. It replaces the hosted runner's Azure mirror and mirror-file
-URIs with official HTTPS Ubuntu archives, preserving suites, components and signing
-keys. Other repositories are unchanged. APT update errors fail the job instead of
-silently using stale indexes. Dependency setup failures occur before tests and can
-also cause missing coverage artifacts; inspect the first failing step.
+CI uses the native compiler, OpenSSL and PostgreSQL tools supplied by the
+`ubuntu-24.04` runner image. `scripts/dev/ci_dependencies.py` checks the required
+capabilities and fails if any are missing. The pinned browser's version check
+also verifies that its runtime libraries load. Java workflows download the same
+checksum-verified Maven distribution. These checks avoid redundant APT installs
+and do not skip tests or change coverage gates. Dependency setup failures occur
+before tests and can also cause missing coverage artifacts.

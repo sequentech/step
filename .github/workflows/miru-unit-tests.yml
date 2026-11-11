@@ -3,10 +3,10 @@
 name: Miru component contracts
 on:
   pull_request:
-    paths: ['scripts/dev/ubuntu_apt.py', 'packages/**', '.github/workflows/miru-unit-tests.yml', '.github/actions/setup-rust-tests/**', '.github/actions/setup-rust-cache/**', 'scripts/dev/rust_cache.py']
+    paths: ['scripts/dev/ci_dependencies.py', 'packages/**', '.github/workflows/miru-unit-tests.yml', '.github/actions/setup-rust-tests/**', '.github/actions/setup-rust-cache/**', 'scripts/dev/rust_cache.py']
   push:
     branches: [main, ovcs]
-    paths: ['scripts/dev/ubuntu_apt.py', 'packages/**', '.github/workflows/miru-unit-tests.yml', '.github/actions/setup-rust-tests/**', '.github/actions/setup-rust-cache/**', 'scripts/dev/rust_cache.py']
+    paths: ['scripts/dev/ci_dependencies.py', 'packages/**', '.github/workflows/miru-unit-tests.yml', '.github/actions/setup-rust-tests/**', '.github/actions/setup-rust-cache/**', 'scripts/dev/rust_cache.py']
 permissions:
   contents: read
   # OIDC for the shared compiler cache (setup-rust-cache)
