@@ -70,7 +70,9 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
     if (!validateForm(context, formData)) {
       return;
     }
-    context.success();
+    // Keycloak 26.7 clears a user's brute-force failures after a login only when the login
+    // recorded a counted credential type, so name the password, as UsernamePasswordForm does.
+    context.success(PasswordCredentialModel.TYPE);
   }
 
   protected boolean validateForm(
