@@ -121,8 +121,9 @@ const PUBLIC_BROWSER_CLIENT_IDS: [&str; 5] = [
     ADMIN_PORTAL_CLIENT_ID,
 ];
 
-/// Restricts a public browser client to the code flow with PKCE S256, and its
-/// CORS origins and post-logout redirects to its own redirect URIs.
+/// Restricts a public browser client to the code flow with PKCE S256, its
+/// CORS origins and post-logout redirects to its own redirect URIs, and drops
+/// its request URIs.
 fn harden_public_browser_client(client: &mut ClientRepresentation) {
     client.direct_access_grants_enabled = Some(false);
     client.implicit_flow_enabled = Some(false);
@@ -133,7 +134,7 @@ fn harden_public_browser_client(client: &mut ClientRepresentation) {
             (PKCE_CODE_CHALLENGE_METHOD_ATTR, PKCE_S256_METHOD),
             (POST_LOGOUT_REDIRECT_URIS_ATTR, SAME_AS_REDIRECT_URIS),
         ],
-        &[],
+        &[REQUEST_URIS_ATTR],
     );
 }
 
@@ -151,6 +152,7 @@ fn make_cli_client_confidential(client: &mut ClientRepresentation) {
     client.implicit_flow_enabled = Some(false);
     client.redirect_uris = Some(vec![]);
     client.web_origins = Some(vec![]);
+    set_client_attributes(client, &[], &[REQUEST_URIS_ATTR]);
 }
 
 /// Adds to `cli` the protocol mappers of `admin_portal` it lacks, so a CLI
@@ -1333,8 +1335,11 @@ mod tests {
             web_origins: Some(vec!["*".to_string()]),
             redirect_uris: Some(vec!["*".to_string()]),
             attributes: Some(
-                [("post.logout.redirect.uris".to_string(), "*".to_string())]
-                    .into(),
+                [
+                    ("post.logout.redirect.uris".to_string(), "*".to_string()),
+                    ("request.uris".to_string(), "*".to_string()),
+                ]
+                .into(),
             ),
             ..Default::default()
         }
@@ -1373,6 +1378,7 @@ mod tests {
                 attribute(&client, "post.logout.redirect.uris"),
                 Some("+")
             );
+            assert_eq!(attribute(&client, "request.uris"), None, "{id}");
         }
     }
 
@@ -1385,6 +1391,7 @@ mod tests {
         );
         assert_eq!(console.web_origins, Some(vec!["+".to_string()]));
         assert_eq!(attribute(console, "post.logout.redirect.uris"), Some("+"));
+        assert_eq!(attribute(console, "request.uris"), None);
     }
 
     #[test]
@@ -1394,6 +1401,7 @@ mod tests {
         assert_eq!(cli.direct_access_grants_enabled, Some(true));
         assert_eq!(cli.standard_flow_enabled, Some(false));
         assert_eq!(cli.redirect_uris, Some(vec![]));
+        assert_eq!(attribute(cli, "request.uris"), None);
         assert!(cli
             .secret
             .as_deref()

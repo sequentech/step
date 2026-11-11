@@ -10,11 +10,16 @@ same settings:
 
 - voting-portal, onsite-voting-portal, voting-portal-kiosk, results-portal and
   admin-portal: no direct access (password) or implicit grant, PKCE S256, web
-  origins and post-logout redirects limited to the client's redirect URIs.
+  origins and post-logout redirects limited to the client's redirect URIs, no
+  request URIs.
 - admin-portal: redirect URIs pinned to --admin-portal-url, when given.
 - account-console: redirects only to its realm's account pages.
 - cli-account-admin: confidential (password grant plus client secret), no
-  browser logins, and the admin-portal token claims it lacks.
+  browser logins, no request URIs, and the admin-portal token claims it lacks.
+
+A realm is left unchanged when one of those clients would keep the redirect URI
+`*`: its web origins `+` would then allow no origin and break browser logins.
+Pin the client's redirect URIs first (--admin-portal-url for admin-portal).
 
 Usage:
     harden_public_clients.py template FILE...        rewrite realm JSON files
@@ -44,6 +49,12 @@ ADMIN_PORTAL = "admin-portal"
 ACCOUNT_CONSOLE = "account-console"
 CLI_ACCOUNT_ADMIN = "cli-account-admin"
 HASURA_DEFAULT_ROLE_MAPPER = "x-hasura-default-role"
+ANY_REDIRECT_URI = "*"
+REQUEST_URIS_ATTR = "request.uris"
+
+
+class UnpinnedRedirectError(Exception):
+    """A hardened client still accepts any redirect URI."""
 
 
 def generate_client_secret():
@@ -58,6 +69,7 @@ def harden_public_browser_client(client):
     attributes = client.setdefault("attributes", {})
     attributes["pkce.code.challenge.method"] = "S256"
     attributes["post.logout.redirect.uris"] = "+"
+    attributes.pop(REQUEST_URIS_ATTR, None)
 
 
 def make_cli_client_confidential(client, admin_portal):
@@ -70,6 +82,7 @@ def make_cli_client_confidential(client, admin_portal):
     client["implicitFlowEnabled"] = False
     client["redirectUris"] = []
     client["webOrigins"] = []
+    client.get("attributes", {}).pop(REQUEST_URIS_ATTR, None)
     if admin_portal is not None:
         mappers = client.setdefault("protocolMappers", [])
         by_name = {mapper.get("name"): mapper for mapper in mappers}
@@ -85,7 +98,24 @@ def make_cli_client_confidential(client, admin_portal):
 
 def harden_clients(clients, realm, admin_portal_url=None):
     """Harden `clients` (realm representation dicts) in place, as `upsert_realm`
-    does. Returns the clientIds that changed."""
+    does. Returns the clientIds that changed. Raises UnpinnedRedirectError,
+    before changing anything, when a hardened client would keep the redirect
+    URI `*`."""
+    for client in clients:
+        client_id = client.get("clientId")
+        pinned_here = client_id == ACCOUNT_CONSOLE or (
+            client_id == ADMIN_PORTAL and admin_portal_url
+        )
+        if (
+            client_id in PUBLIC_BROWSER_CLIENT_IDS
+            and not pinned_here
+            and ANY_REDIRECT_URI in client.get("redirectUris", [])
+        ):
+            hint = " with --admin-portal-url" if client_id == ADMIN_PORTAL else ""
+            raise UnpinnedRedirectError(
+                f"{realm}: {client_id} accepts any redirect URI; pin its "
+                f"redirect URIs{hint} first, so that web origins '+' allow its portal"
+            )
     admin_portal = next(
         (client for client in clients if client.get("clientId") == ADMIN_PORTAL), None
     )
@@ -215,10 +245,17 @@ def main(argv):
     target.add_argument("--all-tenant-realms", action="store_true")
     args = parser.parse_args(argv)
 
+    failed = False
     if args.command == "template":
         for path in args.files:
-            print(f"{path}: {', '.join(harden_template(path, args.admin_portal_url)) or 'unchanged'}")
-        return 0
+            try:
+                changed = harden_template(path, args.admin_portal_url)
+            except UnpinnedRedirectError as error:
+                print(f"{path}: not changed: {error}", file=sys.stderr)
+                failed = True
+                continue
+            print(f"{path}: {', '.join(changed) or 'unchanged'}")
+        return 1 if failed else 0
 
     admin = KeycloakAdmin(
         os.environ["KEYCLOAK_URL"],
@@ -231,10 +268,14 @@ def main(argv):
         if realm["realm"].startswith("tenant-")
     ]
     for name in realms:
-        harden_realm(admin, name, args.apply, args.admin_portal_url)
+        try:
+            harden_realm(admin, name, args.apply, args.admin_portal_url)
+        except UnpinnedRedirectError as error:
+            print(f"not changed: {error}", file=sys.stderr)
+            failed = True
     if not args.apply:
         print("Dry run: nothing was changed. Re-run with --apply to update the realms.")
-    return 0
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

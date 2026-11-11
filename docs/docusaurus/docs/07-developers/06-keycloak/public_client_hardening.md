@@ -15,10 +15,10 @@ sequent-core), it restricts them to browser logins:
 
 | Client | Settings applied |
 |--------|------------------|
-| `voting-portal`, `onsite-voting-portal`, `voting-portal-kiosk`, `results-portal`, `admin-portal` | Direct access (password) grant and implicit flow off; PKCE `S256` required; Web Origins and post-logout redirect URIs `+` (the client's own redirect URIs). |
+| `voting-portal`, `onsite-voting-portal`, `voting-portal-kiosk`, `results-portal`, `admin-portal` | Direct access (password) grant and implicit flow off; PKCE `S256` required; Web Origins and post-logout redirect URIs `+` (the client's own redirect URIs); no request URIs. |
 | `admin-portal` | In tenant realms, also: root, base and redirect URIs pinned to `ADMIN_PORTAL_URL`, which windmill requires. |
-| `account-console` | In every realm: redirect URIs limited to `/realms/<realm>/account/*`; Web Origins and post-logout redirect URIs `+`. |
-| `cli-account-admin` | Confidential: the password grant now also needs the client secret. No browser logins. Gets any `admin-portal` token mapper it lacks and the `admin-portal` default role, so its tokens carry the same Hasura claims. |
+| `account-console` | In every realm: redirect URIs limited to `/realms/<realm>/account/*`; Web Origins and post-logout redirect URIs `+`; no request URIs. |
+| `cli-account-admin` | Confidential: the password grant now also needs the client secret. No browser logins and no request URIs. Gets any `admin-portal` token mapper it lacks and the `admin-portal` default role, so its tokens carry the same Hasura claims. |
 
 The password grant skips the browser flow, including its email or SMS
 one-time code, so on a public client a password alone was enough to get a
@@ -67,5 +67,10 @@ Before applying it to a deployment:
    read it from the Credentials tab afterwards.
 2. Pass the admin portal URL with `--admin-portal-url` so that existing tenant
    realms get the same `admin-portal` redirect URIs as new ones.
+
+The script leaves a realm unchanged, reports it and exits with status 1 when one
+of the browser clients above would keep the redirect URI `*`. Its Web Origins
+`+` would allow no origin, so its portal could not log in. Pin that client's
+redirect URIs first, or pass `--admin-portal-url` for `admin-portal`.
 
 `template FILE...` applies the same settings to realm template files.
