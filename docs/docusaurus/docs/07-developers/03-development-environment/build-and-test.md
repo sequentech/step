@@ -138,3 +138,13 @@ hold comments, and run `reuse lint` from the repository root.
 
 Which services run depends on the
 [devcontainer mode](./fast-feedback.md#devcontainer-modes).
+
+### Hosted Ubuntu dependencies
+
+CI uses the native compiler, OpenSSL and PostgreSQL tools supplied by the
+`ubuntu-24.04` runner image. `scripts/dev/ci_dependencies.py` checks the required
+capabilities and fails if any are missing. The pinned browser's version check
+also verifies that its runtime libraries load. Java workflows download the same
+checksum-verified Maven distribution. These checks avoid redundant APT installs
+and do not skip tests or change coverage gates. Dependency setup failures occur
+before tests and can also cause missing coverage artifacts.

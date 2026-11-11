@@ -11,6 +11,7 @@ when the image changes, copy its `/app/static/index.html` again and keep the
 rule.
 """
 
+import json
 import re
 import unittest
 from pathlib import Path
@@ -39,6 +40,10 @@ def compose_service(name):
 
 
 class ScanovateOcrPageTest(unittest.TestCase):
+    def test_capture_requests_full_hd_for_document_liveness(self):
+        video = json.loads(VIDEO_CONFIG.read_text())
+        self.assertEqual((video["video_width"], video["video_height"]), (1920, 1080))
+
     def test_the_ocr_service_serves_our_page(self):
         service = compose_service("scanovate-ocr")
         self.assertIn(OCR_IMAGE, service)
