@@ -27,6 +27,59 @@ TEMPLATES = [
 ]
 
 
+class FakeKeycloak:
+    """The admin API calls the script makes. Like Keycloak, the clients list
+    leaves secrets out, and an update keeps the attributes it doesn't name and
+    removes the ones it sends empty."""
+
+    def __init__(self, realms, secrets=None):
+        self.realms = realms
+        self.secrets = dict(secrets or {})
+        self.calls = []
+
+    def __call__(self, *args):
+        return self
+
+    def call(self, method, path, body=None):
+        self.calls.append((method, path))
+        parts = path.strip("/").split("/")
+        clients = self.realms.get(parts[0], [])
+        if method == "GET" and parts[1:] == ["clients"]:
+            return [
+                {k: v for k, v in json.loads(json.dumps(c)).items() if k != "secret"}
+                for c in clients
+            ]
+        if method == "GET" and parts[3:] == ["client-secret"]:
+            return {"type": "secret", "value": self.secrets.get(parts[2], "")}
+        if method == "PUT" and len(parts) == 3:
+            (stored,) = [c for c in clients if c["id"] == parts[2]]
+            attributes = {**stored.get("attributes", {}), **body.get("attributes", {})}
+            stored.update(body)
+            stored["attributes"] = {k: v for k, v in attributes.items() if v != ""}
+            if "secret" in body:
+                self.secrets[parts[2]] = body["secret"]
+            return None
+        if method in ("POST", "PUT"):
+            return None
+        raise AssertionError(f"unexpected call {method} {path}")
+
+
+def run_realm_mode(keycloak, *args, **extra_env):
+    env = {
+        "KEYCLOAK_URL": "u",
+        "KEYCLOAK_ADMIN": "a",
+        "KEYCLOAK_ADMIN_PASSWORD": "p",
+        "KEYCLOAK_CLI_CLIENT_SECRET": "",
+        **extra_env,
+    }
+    stderr = io.StringIO()
+    with mock.patch.dict(os.environ, env), mock.patch.object(
+        harden, "KeycloakAdmin", keycloak
+    ), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
+        status = harden.main(["realm", *args])
+    return status, stderr.getvalue()
+
+
 def client(client_id, **fields):
     return {
         "clientId": client_id,
@@ -51,7 +104,8 @@ class HardenClientsTests(unittest.TestCase):
             self.assertTrue(hardened["standardFlowEnabled"])
             self.assertEqual(hardened["webOrigins"], ["+"])
             self.assertEqual(hardened["attributes"]["pkce.code.challenge.method"], "S256")
-            self.assertEqual(hardened["attributes"]["post.logout.redirect.uris"], "+")
+            post_logout = "*" if hardened["clientId"] in harden.FINISH_URL_CLIENT_IDS else "+"
+            self.assertEqual(hardened["attributes"]["post.logout.redirect.uris"], post_logout)
             self.assertNotIn("request.uris", hardened["attributes"])
 
     def test_account_console_redirects_to_its_realm(self):
@@ -123,35 +177,65 @@ class HardenClientsTests(unittest.TestCase):
         self.assertEqual(harden.harden_clients(clients, "tenant-t", "https://admin.example.test"), [])
 
     def test_realm_run_skips_only_the_realm_with_an_unpinned_client(self):
-        realms = {
-            "tenant-bad": [client("admin-portal", id="a", redirectUris=["*"])],
-            "tenant-good": [client("voting-portal", id="v")],
-        }
-        calls = []
-
-        class FakeAdmin:
-            def __init__(self, *args):
-                pass
-
-            def call(self, method, path, body=None):
-                calls.append((method, path))
-                if method == "GET":
-                    return json.loads(json.dumps(realms[path.split("/")[1]]))
-                return None
-
-        env = {"KEYCLOAK_URL": "u", "KEYCLOAK_ADMIN": "a", "KEYCLOAK_ADMIN_PASSWORD": "p"}
-        argv = ["realm", "--apply", "--realm", "tenant-bad", "--realm", "tenant-good"]
-        with mock.patch.dict(os.environ, env), mock.patch.object(
-            harden, "KeycloakAdmin", FakeAdmin
-        ), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(
-            io.StringIO()
-        ) as stderr:
-            self.assertEqual(harden.main(argv), 1)
-        self.assertIn("tenant-bad: admin-portal accepts any redirect URI", stderr.getvalue())
+        keycloak = FakeKeycloak(
+            {
+                "tenant-bad": [client("admin-portal", id="a", redirectUris=["*"])],
+                "tenant-good": [client("voting-portal", id="v")],
+            }
+        )
+        status, stderr = run_realm_mode(
+            keycloak, "--apply", "--realm", "tenant-bad", "--realm", "tenant-good"
+        )
+        self.assertEqual(status, 1)
+        self.assertIn("tenant-bad: admin-portal accepts any redirect URI", stderr)
         self.assertEqual(
-            [call for call in calls if call[0] != "GET"],
+            [call for call in keycloak.calls if call[0] != "GET"],
             [("PUT", "/tenant-good/clients/v")],
         )
+
+    def test_realm_run_keeps_the_stored_cli_secret_and_settles(self):
+        keycloak = FakeKeycloak(
+            {"tenant-t": [client("cli-account-admin", id="c", protocolMappers=[])]},
+            secrets={"c": "kept"},
+        )
+        self.assertEqual(run_realm_mode(keycloak, "--apply", "--realm", "tenant-t")[0], 0)
+        self.assertEqual(keycloak.secrets["c"], "kept")
+        self.assertFalse(keycloak.realms["tenant-t"][0]["publicClient"])
+        keycloak.calls.clear()
+        self.assertEqual(run_realm_mode(keycloak, "--apply", "--realm", "tenant-t")[0], 0)
+        self.assertEqual([call for call in keycloak.calls if call[0] != "GET"], [])
+
+    def test_realm_run_generates_a_cli_secret_only_when_none_is_stored(self):
+        keycloak = FakeKeycloak(
+            {"tenant-t": [client("cli-account-admin", id="c", protocolMappers=[])]}
+        )
+        run_realm_mode(keycloak, "--apply", "--realm", "tenant-t")
+        generated = keycloak.secrets["c"]
+        self.assertEqual(len(generated), 32)
+        run_realm_mode(keycloak, "--apply", "--realm", "tenant-t")
+        self.assertEqual(keycloak.secrets["c"], generated)
+
+    def test_realm_run_uses_the_configured_cli_secret_when_none_is_stored(self):
+        keycloak = FakeKeycloak(
+            {"tenant-t": [client("cli-account-admin", id="c", protocolMappers=[])]}
+        )
+        run_realm_mode(
+            keycloak, "--apply", "--realm", "tenant-t", KEYCLOAK_CLI_CLIENT_SECRET="configured"
+        )
+        self.assertEqual(keycloak.secrets["c"], "configured")
+
+    def test_realm_run_clears_removed_attributes(self):
+        keycloak = FakeKeycloak({"tenant-t": [client("admin-portal", id="a")]})
+        run_realm_mode(keycloak, "--apply", "--realm", "tenant-t")
+        self.assertNotIn("request.uris", keycloak.realms["tenant-t"][0]["attributes"])
+
+    def test_development_templates_keep_portal_clients_public(self):
+        for path in TEMPLATES:
+            realm = json.loads(path.read_text(encoding="utf-8"))
+            for portal in realm["clients"]:
+                if portal["clientId"] in harden.PUBLIC_BROWSER_CLIENT_IDS:
+                    self.assertTrue(portal["publicClient"], (path.name, portal["clientId"]))
+                    self.assertTrue(portal["standardFlowEnabled"], (path.name, portal["clientId"]))
 
     def test_development_templates_are_already_hardened(self):
         for path in TEMPLATES:

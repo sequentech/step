@@ -46,6 +46,7 @@ Set up the following environment variables with your instance details:
 
 **Important Notes:**
 - For **CLI and administrative operations** (like importing election events, managing users), use the confidential `cli-account-admin` client and its secret. Its tokens carry the same Hasura claims as the Admin Portal's.
+- Publishing an election event and changing its voting status need a token with the `gold` level of assurance. `cli-account-admin` tokens get Keycloak's default `silver` level, so for those operations use `api-key-client` and its secret (Keycloak admin console → tenant realm → Clients → `api-key-client` → Credentials), whose tokens default to `gold`.
 - The browser clients (`admin-portal`, `voting-portal`, `onsite-voting-portal`, `voting-portal-kiosk`, `results-portal`) do not accept the password grant: they only allow browser logins with PKCE, so a password alone never yields a token for them. See [Public realm client hardening](../06-keycloak/public_client_hardening.md).
 - **Security Note:** Never commit credentials to version control. Use environment variables or a secure secrets management system.
 

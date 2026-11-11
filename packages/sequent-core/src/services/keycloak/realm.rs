@@ -122,21 +122,39 @@ const PUBLIC_BROWSER_CLIENT_IDS: [&str; 5] = [
     ADMIN_PORTAL_CLIENT_ID,
 ];
 
-/// Restricts a public browser client to the code flow with PKCE S256, its
-/// CORS origins and post-logout redirects to its own redirect URIs, and drops
-/// its request URIs.
+/// Voter clients whose Finish button logs out to the event's finish URL
+/// (`redirect_finish_url`, `kiosk_redirect_finish_url`), which can be outside
+/// their redirect URIs. Their post-logout redirect URIs are left as they are.
+const FINISH_URL_CLIENT_IDS: [&str; 3] = [
+    VOTING_PORTAL_CLIENT_ID,
+    ONSITE_VOTING_PORTAL_CLIENT_ID,
+    KIOSK_VOTING_PORTAL_CLIENT_ID,
+];
+
+/// Restricts a public browser client to the code flow with PKCE S256 and its
+/// CORS origins to its own redirect URIs, and drops its request URIs. Its
+/// post-logout redirects are limited to its redirect URIs too, unless it logs
+/// out to a finish URL.
 fn harden_public_browser_client(client: &mut ClientRepresentation) {
     client.direct_access_grants_enabled = Some(false);
     client.implicit_flow_enabled = Some(false);
     client.web_origins = Some(vec![SAME_AS_REDIRECT_URIS.into()]);
     set_client_attributes(
         client,
-        &[
-            (PKCE_CODE_CHALLENGE_METHOD_ATTR, PKCE_S256_METHOD),
-            (POST_LOGOUT_REDIRECT_URIS_ATTR, SAME_AS_REDIRECT_URIS),
-        ],
+        &[(PKCE_CODE_CHALLENGE_METHOD_ATTR, PKCE_S256_METHOD)],
         &[REQUEST_URIS_ATTR],
     );
+    let logs_out_to_finish_url = client
+        .client_id
+        .as_deref()
+        .is_some_and(|id| FINISH_URL_CLIENT_IDS.contains(&id));
+    if !logs_out_to_finish_url {
+        set_client_attributes(
+            client,
+            &[(POST_LOGOUT_REDIRECT_URIS_ATTR, SAME_AS_REDIRECT_URIS)],
+            &[],
+        );
+    }
 }
 
 /// `cli-account-admin` is for scripts and the CLI, which log in with a
@@ -1416,9 +1434,16 @@ mod tests {
                 attribute(&client, "pkce.code.challenge.method"),
                 Some("S256")
             );
+            let post_logout = match id.as_str() {
+                "voting-portal"
+                | "onsite-voting-portal"
+                | "voting-portal-kiosk" => "*",
+                _ => "+",
+            };
             assert_eq!(
                 attribute(&client, "post.logout.redirect.uris"),
-                Some("+")
+                Some(post_logout),
+                "{id}"
             );
             assert_eq!(attribute(&client, "request.uris"), None, "{id}");
         }

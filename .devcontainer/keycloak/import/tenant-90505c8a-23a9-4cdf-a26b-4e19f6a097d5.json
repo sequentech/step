@@ -4523,7 +4523,7 @@
         "oidc.ciba.grant.enabled": "false",
         "client.secret.creation.time": "1691304106",
         "backchannel.logout.session.required": "true",
-        "post.logout.redirect.uris": "+",
+        "post.logout.redirect.uris": "*",
         "display.on.consent.screen": "false",
         "oauth2.device.authorization.grant.enabled": "false",
         "backchannel.logout.revoke.offline.tokens": "false",
