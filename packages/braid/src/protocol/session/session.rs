@@ -70,7 +70,9 @@ impl<C: Ctx, B: Board> Session<C, B> {
 }
 
 /// Runs one trustee step, turning a panic into an error for this board so
-/// that it does not stop the steps of the other boards.
+/// that it does not stop the steps of the other boards. This works only where
+/// panics unwind (native): the wasm build aborts on panic, so a peer's message
+/// must fail with an error inside the step, not rely on this backstop.
 fn catch_step_panic<T>(
     step: impl FnOnce() -> Result<T, ProtocolError>,
 ) -> Result<T, ProtocolError> {
