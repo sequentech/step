@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Approvals | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/election_managers/reference/election-event/election_management_election_event_approvals"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Approvals | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4110/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/election_managers/reference/election-event/election_management_election_event_approvals"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/election_managers/reference/election-event/election_management_election_event_approvals" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/election_managers/reference/election-event/election_management_election_event_approvals" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Approvals","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/election_managers/reference/election-event/election_management_election_event_approvals"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4110/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4110/assets/js/runtime~main.c47f8c89.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4110/assets/js/runtime~main.a9bb5dec.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4110/assets/js/main.a2a6e731.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -20,7 +20,25 @@ compared with the voter registry when the voter enrolls, and is then:</p>
 </ul>
 <p>Which of the three happens is decided by the election event&#x27;s <strong>approval matrix</strong>.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="the-queue">The queue<a href="#the-queue" class="hash-link" aria-label="Direct link to The queue" title="Direct link to The queue" translate="no">​</a></h2>
-<p>The tab opens on the enrollments that need review. Each row shows:</p>
+<p>The first time you open the tab in a browser, it shows the enrollments that need review. After
+that, it opens with the filters you last used for this election event (or election) in this
+browser: status, search, any added filters, sorting, page size and page. A filter you removed stays
+removed: after removing <strong>Status</strong>, the tab keeps showing every enrollment.</p>
+<ul>
+<li class="">Each administrator who signs in on the same browser keeps their own filters. Another browser
+starts again from the enrollments that need review.</li>
+<li class="">Nothing is stored on the server. The filters, including any search text or voter details typed
+into them, stay in this browser&#x27;s storage until its site data is cleared, also after signing out.</li>
+<li class="">Saved filters that no longer apply, for example one on a voter attribute that was removed, are
+discarded and the tab opens as on a first visit. An administrator without permission to read
+voter attributes always starts from the enrollments that need review, because their saved filters
+can&#x27;t be checked.</li>
+<li class="">The tab always shows the enrollments of the election event (or election) you are on, whatever was
+saved.</li>
+<li class="">A saved search for a support reference is looked up again when the tab opens; the enrollments it
+matched before are not reused.</li>
+</ul>
+<p>Each row shows:</p>
 <table><thead><tr><th>Column</th><th>What it shows</th></tr></thead><tbody><tr><td>Voter</td><td>The name and email on the enrollment</td></tr><tr><td>What happened</td><td>Which details differ from the registry, or that the voter typed their details by hand; for a decided enrollment, who decided it</td></tr><tr><td>Post</td><td>The area of the enrollment, or the Post the voter named</td></tr><tr><td>When</td><td>How long the enrollment has been waiting, and the day it was sent</td></tr><tr><td>Status</td><td>Needs review, Approved or Rejected</td></tr></tbody></table>
 <ul>
 <li class=""><strong>Search</strong> finds enrollments by any text the voter gave: name, email or ID number.</li>
@@ -28,14 +46,15 @@ compared with the voter registry when the voter enrolls, and is then:</p>
 rejected. <strong>Add filter</strong> filters by verification, IDs or any voter attribute.</li>
 <li class=""><strong>Columns</strong> shows more columns (verification, verified by, IDs and every voter attribute) and
 changes their order.</li>
-<li class="">The menu at the end of a row opens the enrollment, or the rule that decided it.</li>
+<li class="">The menu at the end of a row opens the enrollment or, with <strong>See the rule that decided</strong>, the
+approval matrix simulating that enrollment.</li>
 </ul>
 <p><strong>Import</strong> and <strong>Export</strong> work on the enrollments as CSV files.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="review-an-enrollment">Review an enrollment<a href="#review-an-enrollment" class="hash-link" aria-label="Direct link to Review an enrollment" title="Direct link to Review an enrollment" translate="no">​</a></h2>
 <p>Select a row to review the enrollment. The top of the page says why it needs a person, for example
 that the first name is &quot;Juan Carlos&quot; on the enrollment and &quot;Juan&quot; in the registry, and names the
-matrix version and rule that sent it to review. <strong>See the rule</strong> opens the approval matrix on that
-rule.</p>
+matrix version and rule that sent it to review. <strong>See the rule</strong> opens the approval matrix
+simulating this enrollment (see <a href="#simulate-an-enrollment" class="">Simulate an enrollment</a>).</p>
 <p>The review has three steps:</p>
 <ol>
 <li class=""><strong>Check the identity.</strong> Shows how the voter&#x27;s identity was established and the details on the
@@ -54,8 +73,8 @@ the voter will get. Neither can be undone.</li>
 <p>An approved enrollment opens with how it was decided and its details. A rejected enrollment can
 still be approved with the same steps.</p>
 <p>The registry comparison on this page ignores capital letters, accents and hyphens in the same way
-the rules do, and compares first and middle name together for a driver&#x27;s license and a seafarer&#x27;s
-book.</p>
+the rules do, and compares first and middle name together for a driver&#x27;s license, a seafarer&#x27;s
+book and a passport read by the scanner.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="approval-matrix">Approval matrix<a href="#approval-matrix" class="hash-link" aria-label="Direct link to Approval matrix" title="Direct link to Approval matrix" translate="no">​</a></h2>
 <p>Select <strong>Approval matrix</strong> in the toolbar of the Approvals tab to see the matrix in force. The page
 shows its version and who saved it, and has three parts.</p>
@@ -63,7 +82,10 @@ shows its version and who saved it, and has three parts.</p>
 <p>The voter details that are compared with the registry voter, for example first name, middle name,
 last name, date of birth and embassy. Names ignore capital letters, accents and hyphens. For a
 driver&#x27;s license and a seafarer&#x27;s book, first and middle name are compared together: the first name
-carries the result and the middle name has none of its own.</p>
+carries the result and the middle name has none of its own. So are those of a passport read by the
+scanner: its machine-readable zone has a single field for the given names, the middle name included,
+and they are compared with the registry voter&#x27;s first and middle name joined. A passport enrollment
+with a middle name of its own, typed apart, compares the two apart.</p>
 <p>Select a detail to stop or start comparing it, and <strong>Compare another detail</strong> to add any other
 voter attribute. Conditions on a detail that is no longer compared are removed from the rules.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="rules">Rules<a href="#rules" class="hash-link" aria-label="Direct link to Rules" title="Direct link to Rules" translate="no">​</a></h3>
@@ -76,6 +98,9 @@ hold, <strong>Then</strong> its decision, with what the voter is told.</p>
 <table><thead><tr><th>Decision</th><th>Result</th><th>What the voter is told</th></tr></thead><tbody><tr><td>Approve automatically</td><td>Approved</td><td>Nothing</td></tr><tr><td>Send to a person</td><td>Needs review</td><td>Required</td></tr><tr><td>Reject</td><td>Rejected</td><td>Required</td></tr></tbody></table>
 <p>What the voter is told is one of: No matching voter, Already approved, Missing data, Identity not
 verified and Other. The rule editor shows the message the voter sees for each.</p>
+<p>An enrollment the rules approve is still rejected, as Email used by another voter, when another
+voter of the election event already has its email: each email can belong to one voter only. The
+voter is told to enroll again with a different email.</p>
 <p>When the registry returns several voters for an enrollment, each one is checked against the rules,
 and the results are combined always in the same way, whatever the order of the voters:</p>
 <ol>
@@ -99,21 +124,75 @@ applies them again when it decides:</p>
 </ul>
 <p>The rule editor also refuses a rule without conditions, because it would decide every enrollment
 that reaches it and hide the rules below.</p>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="try-an-example">Try an example<a href="#try-an-example" class="hash-link" aria-label="Direct link to Try an example" title="Direct link to Try an example" translate="no">​</a></h3>
-<p><strong>Try an example</strong> describes an enrollment (how the identity was checked, whether the voter is in
-the registry and already enrolled, the ID type, and which details are the same) and shows which
-rule decides it and what the voter would be told. The rule is marked <strong>Applies to your example</strong> in
-the list. It uses the rules on the screen, including changes that are not saved yet, and decides
-exactly as a real enrollment with the same data would. Nothing is stored.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="simulate-an-enrollment">Simulate an enrollment<a href="#simulate-an-enrollment" class="hash-link" aria-label="Direct link to Simulate an enrollment" title="Direct link to Simulate an enrollment" translate="no">​</a></h3>
+<p>The panel beside the rules decides one enrollment with the rules on the screen, including changes
+that are not saved yet, exactly as a real enrollment with the same details would be decided (how
+the identity was checked, whether the voter is in the registry and already enrolled, the ID type,
+and which details are the same). It never changes an enrollment and saves nothing. What the panel
+is about depends on where the matrix was opened from.</p>
+<p><strong>From the toolbar</strong>, the panel is <strong>Try an example</strong>. It starts with the <strong>sample enrollment</strong>:
+a verified voter in the registry, not enrolled yet, whose compared details are all the same.</p>
+<ul>
+<li class=""><strong>Edit example</strong> opens its details below, marked <strong>Editing the example — not applied yet</strong>.
+Changes there decide nothing until <strong>Apply</strong>; <strong>Cancel</strong> leaves the example as it was. <strong>Fill in
+the sample</strong> only puts the sample&#x27;s details back in the editor, undoing the edits made there; it
+applies nothing.</li>
+<li class="">After applying other details, the panel shows <strong>Your example</strong>.</li>
+</ul>
+<p><strong>From an enrollment</strong> (the row menu&#x27;s <strong>See the rule that decided</strong>, or <strong>See the rule</strong> in its
+review), the panel is <strong>Simulating the enrollment of …</strong> and starts with the details the rules saw
+when they decided that enrollment.</p>
+<ul>
+<li class=""><strong>Back to the enrollment</strong>, at the top of the panel, returns to that enrollment&#x27;s review.
+<strong>Approvals</strong>, above the page title, returns to the list.</li>
+<li class=""><strong>Recorded decision</strong> names the rule and matrix version that decided the enrollment and what
+they decided, with the enrollment&#x27;s status as the list or review showed it when an officer has
+decided since. It is context only: no rule is highlighted for it.</li>
+<li class=""><strong>Recorded details · in the simulation</strong> lists the details in use. <strong>Try other details</strong> opens
+them below, marked <strong>Trying other details — not in the simulation yet</strong>; they decide nothing
+until <strong>Apply</strong>, and <strong>Cancel</strong> discards them. <strong>Fill in the recorded details</strong> only puts the
+recorded details back in the editor, undoing the edits made there; it applies nothing.</li>
+<li class="">After applying other details, the panel shows <strong>Other details · in the simulation</strong>; the enrollment
+keeps its recorded details.</li>
+</ul>
+<p>In both cases:</p>
+<ul>
+<li class=""><strong>Current simulation</strong> says which rule decides (<strong>In the simulation, rule 3 decides.</strong>, or that
+no rule fits and the last rule decides) and what the voter would be told; <strong>Go to rule</strong> scrolls
+to that rule. In the list, only that rule is highlighted, marked <strong>Decides in the simulation</strong>.
+While the simulation runs, or when it can&#x27;t (the rules have a problem, or running it fails), no
+rule is highlighted.</li>
+<li class="">Editing, moving, adding or deleting rules, changing the compared details, saving and discarding
+never apply the details being edited: the details in use are decided again with the changed
+rules.</li>
+</ul>
+<p>When the rules on screen are given exactly an enrollment&#x27;s recorded details, the panel says
+whether they now give the same decision as the recorded one. It doesn&#x27;t compare when other
+details are in use, when several registry voters were compared, or when a compared detail wasn&#x27;t
+recorded:</p>
+<ul>
+<li class="">A compared detail that the decision didn&#x27;t record, for example one compared only since, is shown
+as <strong>Not recorded</strong>. It is never assumed to be the same: the rules treat it as differing in
+conditions on that detail, and don&#x27;t count it among the details that differ.</li>
+<li class="">When the enrollment&#x27;s ID gives first and middle name together (seafarer&#x27;s book, driver&#x27;s
+license, passport without a middle name), the middle name shows <strong>Compared with the first
+name</strong>. This follows the enrollment&#x27;s ID type as it is now.</li>
+<li class="">When the recorded decision can&#x27;t be read, the panel says so first and simulates the sample
+enrollment, headed <strong>Sample enrollment — not their recorded details</strong>.</li>
+</ul>
+<p>The details in use are kept while the matrix is open. Leaving the matrix (back to the enrollment
+or to the list) and opening it again starts from the enrollment&#x27;s recorded details or the sample.
+Reloading the page opens the election event on its first tab, or the tab named in the address, and
+the simulation, its source enrollment and unsaved rule changes are lost.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="change-the-matrix">Change the matrix<a href="#change-the-matrix" class="hash-link" aria-label="Direct link to Change the matrix" title="Direct link to Change the matrix" translate="no">​</a></h3>
 <p>Changing the matrix needs the <code>approval-matrix-write</code> permission. Without it the matrix is <strong>View
-only</strong> and the example still works.</p>
+only</strong> and the simulation panel still works.</p>
 <ol>
 <li class="">Add a rule with <strong>Add rule</strong>, or edit, move up, move down or delete a rule with the buttons on
 it. The editor says the rule in one sentence while you change it: add or remove conditions,
 choose the decision and what the voter is told, and select <strong>Apply</strong>. The compared details and
 the last rule can be changed too.</li>
-<li class="">Try the changes with <strong>Try an example</strong>.</li>
+<li class="">Try the changes in the simulation panel (see <a href="#simulate-an-enrollment" class="">Simulate an enrollment</a>).</li>
 <li class="">The page shows that there are unsaved changes and what they are. <strong>Discard changes</strong> goes back
 to the saved version. <strong>Save as version N</strong> lists what changed and asks for confirmation.</li>
 </ol>
@@ -134,9 +213,10 @@ the rule&#x27;s conditions, for example:</p>
 <blockquote>
 <p>Rule 5 of matrix version 1 · Exactly 1 detail differs · Embassy matches</p>
 </blockquote>
-<p><strong>See the rule</strong> opens the matrix with that rule marked <strong>Decided the enrollment you came from</strong>,
-as long as that version is still the one in force. Enrollments decided before this information was
-recorded don&#x27;t show a rule.</p>
+<p><strong>See the rule</strong> opens the matrix simulating this enrollment&#x27;s recorded details. The panel names
+the recorded rule and version as context, and the list highlights only the rule that decides the
+simulation with the rules on screen (see <a href="#simulate-an-enrollment" class="">Simulate an enrollment</a>).
+Enrollments decided before this information was recorded don&#x27;t show a rule.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="election-event-exports">Election event exports<a href="#election-event-exports" class="hash-link" aria-label="Direct link to Election event exports" title="Direct link to Election event exports" translate="no">​</a></h2>
 <p>An export of the election event carries the matrix in force. Importing it saves that matrix as
 version 1 of the new election event. Earlier versions are not exported.</p>
@@ -148,6 +228,6 @@ whatever the matrix decides, with the <code>no-matching-voter-policy</code> sett
 <em>no matching voter</em>. The COMELEC template does this. See
 <a class="" href="/docusaurus/pr-preview/pr-4110/docs/integrations/scanovate_identity_verification_guide#after-the-identity-verification">Scanovate Identity Verification</a>.</p>
 <p>A voter who isn&#x27;t in the registry yet has to be added to it before the enrollment can be approved;
-otherwise, reject it.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/02-election_managers/02-reference/02-election-event/14-election_management_election-event_approvals.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-4110/docs/election_managers/reference/election-event/election_management_election_event_scheduled_events"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Scheduled Events</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-4110/docs/election_managers/reference/election-event/election_management_election_event_certificates"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Certificates</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#the-queue" class="table-of-contents__link toc-highlight">The queue</a></li><li><a href="#review-an-enrollment" class="table-of-contents__link toc-highlight">Review an enrollment</a></li><li><a href="#approval-matrix" class="table-of-contents__link toc-highlight">Approval matrix</a><ul><li><a href="#what-we-compare" class="table-of-contents__link toc-highlight">What we compare</a></li><li><a href="#rules" class="table-of-contents__link toc-highlight">Rules</a></li><li><a href="#what-a-matrix-can-never-do" class="table-of-contents__link toc-highlight">What a matrix can never do</a></li><li><a href="#try-an-example" class="table-of-contents__link toc-highlight">Try an example</a></li><li><a href="#change-the-matrix" class="table-of-contents__link toc-highlight">Change the matrix</a></li></ul></li><li><a href="#why-an-enrollment-was-decided" class="table-of-contents__link toc-highlight">Why an enrollment was decided</a></li><li><a href="#election-event-exports" class="table-of-contents__link toc-highlight">Election event exports</a></li><li><a href="#enrollments-that-match-no-voter" class="table-of-contents__link toc-highlight">Enrollments that match no voter</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+otherwise, reject it.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/02-election_managers/02-reference/02-election-event/14-election_management_election-event_approvals.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-4110/docs/election_managers/reference/election-event/election_management_election_event_scheduled_events"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Scheduled Events</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-4110/docs/election_managers/reference/election-event/election_management_election_event_certificates"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Certificates</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#the-queue" class="table-of-contents__link toc-highlight">The queue</a></li><li><a href="#review-an-enrollment" class="table-of-contents__link toc-highlight">Review an enrollment</a></li><li><a href="#approval-matrix" class="table-of-contents__link toc-highlight">Approval matrix</a><ul><li><a href="#what-we-compare" class="table-of-contents__link toc-highlight">What we compare</a></li><li><a href="#rules" class="table-of-contents__link toc-highlight">Rules</a></li><li><a href="#what-a-matrix-can-never-do" class="table-of-contents__link toc-highlight">What a matrix can never do</a></li><li><a href="#simulate-an-enrollment" class="table-of-contents__link toc-highlight">Simulate an enrollment</a></li><li><a href="#change-the-matrix" class="table-of-contents__link toc-highlight">Change the matrix</a></li></ul></li><li><a href="#why-an-enrollment-was-decided" class="table-of-contents__link toc-highlight">Why an enrollment was decided</a></li><li><a href="#election-event-exports" class="table-of-contents__link toc-highlight">Election event exports</a></li><li><a href="#enrollments-that-match-no-voter" class="table-of-contents__link toc-highlight">Enrollments that match no voter</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
 </body>
 </html>

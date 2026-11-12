@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Historical SQL and workbook import | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/developers/development-environment/historical-import"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Historical SQL and workbook import | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4110/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/developers/development-environment/historical-import"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/developers/development-environment/historical-import" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/developers/development-environment/historical-import" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Historical SQL and workbook import","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/developers/development-environment/historical-import"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4110/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4110/assets/js/runtime~main.c47f8c89.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4110/assets/js/runtime~main.a9bb5dec.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4110/assets/js/main.a2a6e731.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -110,32 +110,77 @@ voter area joins below.</p>
 Mapped text uses declared UTF-8 or MySQL latin1 encoding. Binary content remains
 in the unmodified original; this profile does not publish candidate photographs
 from opaque blobs.</p>
-<p>The workbook contains <code>ElectionEvent</code>, <code>Elections</code>, <code>Areas</code>,
-<code>ScheduledEvents</code> and <code>CcsServers</code>. Blank styling rows are not records.
+<p>The workbook carries everything the dump does not. It contains <code>ElectionEvent</code>,
+<code>Elections</code>, <code>Areas</code>, <code>ScheduledEvents</code> and <code>CcsServers</code>, and optionally
+<code>Contests</code>, <code>Parameters</code> and any other sheet an authoring workbook takes. Blank
+styling rows are not records.</p>
+<ul>
+<li class=""><strong><code>Contests</code></strong> gives contests the columns the dump lacks, such as
+<code>description</code> and <code>presentation.i18n.&lt;lang&gt;.description</code>. A row without a
+<code>name</code> applies to every contest; a row with a <code>name</code> (the source&#x27;s
+<code>seat.CONTEST</code>) to that contest, after the defaults. <code>{max_votes}</code> in a value
+is the contest&#x27;s seat count, so <code>Vote for no more than {max_votes}</code> describes
+every contest. What the seats decide (<code>external_id</code>, <code>election.external_id</code>,
+the vote counts, <code>voting_type</code>, <code>counting_algorithm</code>, the <code>miru:</code> annotations)
+is refused.</li>
+<li class=""><strong><code>Parameters</code></strong> goes to the build unchanged, as in an authoring workbook. It
+carries the Keycloak realm, which the dump has nothing about: a whole realm,
+as an event export&#x27;s <code>keycloak_event_realm</code> holds it, under the key
+<code>keycloak_event_realm</code>, split across <code>value+</code> continuation cells. The build
+patches it the way it patches a base export&#x27;s: the realm&#x27;s name and its URLs
+take this event&#x27;s id, <code>displayName</code> follows the event name, <code>login_custom_css</code>
+becomes the login stylesheet in every enabled language, an <code>auth_type</code> applies
+its preset, and <code>keycloak_event_realm.&lt;path&gt;</code> rows set anything else. The
+importer then checks it against the deployment&#x27;s template and generates new
+client secrets, as for any imported realm. Without a realm (and without a base
+export) those settings reach the realm patch beside the package instead.</li>
+<li class=""><strong><code>Templates</code>, <code>Reports</code>, <code>Admin Users</code>, <code>Permissions</code></strong> and the plan sheets
+(<code>Contacts</code>, <code>Trustees</code>, <code>Ceremony</code>, <code>Milestones</code>, <code>Messages</code>, <code>Notes</code>) go to
+the build unchanged. A <code>Reports</code> row names its election by <code>election_alias</code>,
+as a schedule does, in place of <code>election.external_id</code>.</li>
+</ul>
+<p>A cell holds at most 32,767 characters, and a stylesheet can be longer. A column
+headed <code>&lt;column&gt;+</code> directly after <code>&lt;column&gt;</code> (or after another <code>&lt;column&gt;+</code>)
+continues it: a row&#x27;s text there is joined onto the column&#x27;s, left to right,
+before the cell is read. This holds for every workbook sheet, and the workbook
+writer splits longer text the same way.
 Election aliases must be unique because schedules refer to aliases. Several
 election rows may share a post; they remain separate contexts.</p>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="without-the-workbook">Without the workbook<a href="#without-the-workbook" class="hash-link" aria-label="Direct link to Without the workbook" title="Direct link to Without the workbook" translate="no">​</a></h3>
-<p>The workbook is optional. Without it, the decisions carry a <code>supplement</code> with
-what the dump does not hold, and the rest is derived from the dump:</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="defaults-workbook">Defaults workbook<a href="#defaults-workbook" class="hash-link" aria-label="Direct link to Defaults workbook" title="Direct link to Defaults workbook" translate="no">​</a></h3>
+<p>A full workbook names one election per post and one area per cluster, so it fits
+one dump. A workbook without an <code>Elections</code> sheet is a <strong>defaults workbook</strong>: it
+carries only what the dump does not hold, and the elections and areas are
+derived from the dump, so the same workbook serves any dump of that source.</p>
 <ul>
 <li class=""><strong>Elections</strong>: one per polling center that a <code>pop</code> row places voters in,
-named and aliased by its <code>POLLING_PLACE</code>.</li>
+named and aliased by its <code>POLLING_PLACE</code>. An <code>ElectionDefaults</code> sheet gives
+elections their other columns, <code>name</code> included. A row without a
+<code>polling_place</code> applies to every election; a row with one applies to the
+elections whose polling place it matches, as a whole name or a pattern with
+one <code>*</code> (<code>*-T</code>, <code>* PE</code>), and the most specific match goes on top: a whole name
+before a pattern, then the pattern that spells out more. Two equally specific
+matches, a second row for the same pattern, and <code>alias</code> or <code>election_post</code>
+columns are refused; a pattern that matches nothing is not, since one defaults
+workbook serves every dump. <code>{place}</code> in a value is what the <code>*</code> stood for,
+written as a voter reads it (<code>ABU DHABI</code> becomes <code>Abu Dhabi</code>), or the whole
+polling place as its embassy label reads. The alias stays the polling place,
+because schedules name elections by it; <code>presentation.i18n.&lt;lang&gt;.alias</code> is
+the alias voters see.</li>
 <li class=""><strong>Areas</strong>: one per precinct cluster (<code>pop.CLUSTERPOLLCENTER</code>), named by the
 historical name rule below and described by the cluster&#x27;s own polling place.
 Without its own polling center, every precinct row of that cluster must refer
-to the same post; conflicting posts are refused.</li>
-<li class=""><strong>Event</strong>: <code>supplement.event</code> — <code>name</code> and <code>electionEventId</code> are required;
-<code>description</code>, <code>logoUrl</code> and <code>css</code> are optional.</li>
-<li class=""><strong>Schedules</strong>: <code>supplement.schedules</code>, each a <code>type</code> and a <code>date</code>. A schedule
-with no <code>election</code> (the post) applies to every election. Dates are RFC 3339
-instants, or local date-times read at <code>scheduleOffsetMinutes</code>.</li>
-<li class=""><strong>CCS servers and trustees</strong>: <code>supplement.ccsServers</code>, and the
-<code>areaCcsServerTags</code> and <code>areaTrusteeServers</code> every area carries.</li>
+to the same post; conflicting posts are refused. An <code>Areas</code> row without a
+<code>name</code> gives its other columns (CCS server tags, trustee servers, station id)
+to every area; a row with a <code>name</code> gives them to that area only, after the
+defaults. A named row that matches no derived area or more than one, and a
+second row for the same area or for every area, are refused.</li>
+<li class=""><strong>Schedules</strong>: a <code>ScheduledEvents</code> row without an <code>election_alias</code> applies to
+every election; one with an alias (the post) to that election only.</li>
+<li class=""><strong>Event and CCS servers</strong>: the <code>ElectionEvent</code> and <code>CcsServers</code> sheets, read
+as in a full workbook.</li>
 </ul>
-<p>A workbook and a supplement together are refused, as is neither. Election and
-area associations name workbook rows, so they are refused without one. The
-summary and provenance then have no <code>workbookSha256</code>, and <code>sourceDigests</code>
-binds the SQL alone.</p>
+<p>Election and area associations name workbook rows, so they are refused with a
+defaults workbook. The summary and provenance record <code>defaultsWorkbook: true</code>.</p>
 <p>Names and descriptions are kept per language in <code>presentation.i18n.&lt;lang&gt;</code>.
 <code>&lt;lang&gt;</code> is the row&#x27;s <code>presentation.language_conf.default_language_code</code>, or
 <code>en</code> when the row sets none:</p>
@@ -199,12 +244,38 @@ composed as <code>dateOfBirth</code> (<code>yyyy-MM-dd</code>), and <code>countr
 voter&#x27;s area with the same formatting as the registration option lists.</li>
 <li class="">Raw source values for audit, unchanged: <code>source_maternal_name</code>, <code>source_suffix</code>,
 <code>source_dob_year</code>/<code>_month</code>/<code>_day</code>, <code>source_country</code>, <code>source_embassy</code>,
-<code>source_precinct</code> and <code>source_abroad_status</code>. The abroad status is never turned
-into eligibility.</li>
+and, from a legacy dump, <code>source_precinct</code> and <code>source_abroad_status</code>. A
+post-qualification dump has neither column, so neither is emitted. The abroad
+status is never turned into eligibility.</li>
 </ul>
-<p>Email, mobile and password are left unset; enrollment collects them later. Every
-row is checked before the conversion is refused, and each failing voter is reported
-by row and column: a location with no in-scope area, a duplicate id, an incomplete
+<p>By default, email, mobile and password are left unset; enrollment collects them
+later, so the conversion does not warn that voters cannot be sent a one-time code.
+An optional supplemental <strong>Voters</strong> sheet can restore account values that are
+not in the SQL census. It requires <code>preserve-source-voters</code> and joins by the
+source <code>username</code>. Each username may occur once and must already be in the census.
+Only these columns are accepted:</p>
+<ul>
+<li class=""><code>username</code>: the source voter ID, used only as the join key.</li>
+<li class=""><code>email</code>: the account email address.</li>
+<li class=""><code>email_verified</code> and <code>enabled</code>: explicit account flags, including <code>false</code>.
+Use Excel booleans or <code>true</code>/<code>false</code>, <code>yes</code>/<code>no</code>, <code>1</code>/<code>0</code> (<code>x</code> means true).</li>
+<li class=""><code>authorized-election-ids</code>: election <strong>external IDs</strong>, separated by <code>||</code>.
+They must name generated elections, such as <code>center:P01:context:alias</code>.
+Duplicate IDs are removed in source order. Unknown elections block the build.
+Election external IDs cannot contain <code>|</code>. Explicit <code>null</code>, empty lists and
+malformed restriction members are rejected, rather than becoming unrestricted.</li>
+</ul>
+<p>Omitted rows and blank cells retain the existing defaults: no email or election
+restriction, enabled, and email verification based on whether an email is present.
+An explicit verification flag is preserved even without an email. SQL identity,
+location and audit fields cannot be overridden; other account, enrollment and
+credential columns are rejected. Source SQL contact columns are not copied
+implicitly. Direct builds, the Wizard, and saved/reopened plans preserve the
+supplied account values. The exported voters CSV uses a single <code>|</code> between
+canonical external IDs, which the Keycloak mapper resolves to platform IDs.
+A blank restriction stays blank and leaves the existing area-based rules in place.
+Every SQL census row is checked before the conversion is refused, and each failing
+voter is reported by row and column: a location with no in-scope area, a duplicate id, an incomplete
 or impossible date of birth, or an area without an embassy/country label. Nothing
 is dropped silently. The preserved count is reported in the summary and stored in
 provenance as <code>preservedVoters</code>.</p>
@@ -225,10 +296,10 @@ configured seats under <code>configured-seats-only</code>.</p>
 <p>From <code>packages/</code>, using a built CLI:</p>
 <div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">step-cli step build-election-event </span><span class="token punctuation" style="color:rgb(199, 146, 234)">\</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--workbook</span><span class="token plain"> /private/input/supplement.xlsx </span><span class="token punctuation" style="color:rgb(199, 146, 234)">\</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  --historical-sql /private/input/source.sql </span><span class="token punctuation" style="color:rgb(199, 146, 234)">\</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  --historical-decisions admin-portal/src/services/historical-profile-defaults.json </span><span class="token punctuation" style="color:rgb(199, 146, 234)">\</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--out</span><span class="token plain"> /private/output </span><span class="token punctuation" style="color:rgb(199, 146, 234)">\</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  --check-only</span><br></span></code></pre></div></div>
 <p>Run without <code>--check-only</code> to write a validated package. <code>--strict</code> also refuses
-warnings. The existing workbook-only command remains available. With
-<code>--historical-sql</code>, <code>--workbook</code> may be left out when the decisions file carries
-a <code>supplement</code>:</p>
-<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;census&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;preserve-source-voters&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;voterAreaJoin&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;mail-country-embassy&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;ballot&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;seat-plurality-at-large&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;scope&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;configured-seats-only&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;scheduleOffsetMinutes&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token number" style="color:rgb(247, 140, 108)">480</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;supplement&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;event&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"> </span><span class="token property">&quot;name&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;Example Event&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token property">&quot;electionEventId&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;1&quot;</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;schedules&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"> </span><span class="token property">&quot;type&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;START_VOTING_PERIOD&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token property">&quot;date&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;2027-01-01T08:00&quot;</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"> </span><span class="token property">&quot;type&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;END_VOTING_PERIOD&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token property">&quot;date&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;2027-01-02T08:00&quot;</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;ccsServers&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        </span><span class="token property">&quot;name&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;Example CCS&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        </span><span class="token property">&quot;tag&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;1&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        </span><span class="token property">&quot;address&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;https://ccs.example.org&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        </span><span class="token property">&quot;publicKey&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;&lt;PEM public key&gt;&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        </span><span class="token property">&quot;sendLogs&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token boolean" style="color:rgb(255, 88, 116)">false</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;areaCcsServerTags&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;1&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+warnings. The existing workbook-only command remains available. <code>--workbook</code> may
+be a defaults workbook (no <code>Elections</code> sheet), with the voter area join in the
+decisions when voters are preserved:</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;census&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;preserve-source-voters&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;voterAreaJoin&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;mail-country-embassy&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;ballot&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;seat-plurality-at-large&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;scope&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;configured-seats-only&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;scheduleOffsetMinutes&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token number" style="color:rgb(247, 140, 108)">480</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
 <p>The command above uses the drawer&#x27;s historical policy preset. The drawer additionally
 supplies its loaded runtime version through <code>baseExport.version</code>. For advanced CLI conversion,
 supply a separate reviewed decisions file. Such a file uses these fields; replace the hash placeholders with the
@@ -245,6 +316,27 @@ and scheduled-event CSV members. Configuration-only conversion emits no voter
 CSV; <code>preserve-source-voters</code> adds an <code>export_voters-*.csv</code> census member.
 Keep original source files in controlled local storage; hashes do not
 replace the originals.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="editing-a-converted-event">Editing a converted event<a href="#editing-a-converted-event" class="hash-link" aria-label="Direct link to Editing a converted event" title="Direct link to Editing a converted event" translate="no">​</a></h2>
+<p><code>openFromHistorical(sql, workbook, decisions)</code> in the core&#x27;s WASM converts the
+dump as <code>adapt</code> does and reads the result back with <code>plan_from_workbook</code>. It
+returns an editable plan, the same as opening a wizard workbook does. The
+Election Architect uses it for <em>Edit in the Wizard</em>. Compiling that plan
+unchanged builds the same ballot as the direct build:</p>
+<ul>
+<li class="">Columns the plan has no field for are carried on each entity (<code>columns</code>).
+So are the <code>miru:*</code> and <code>import:provenance</code> annotations. The writer puts both
+back into the workbook the build reads.</li>
+<li class="">Contest behaviour the template would supply for a blank cell is read as
+explicit overrides. A value every contest shares becomes a plan default.</li>
+<li class="">The event&#x27;s <code>presentation.i18n.&lt;lang&gt;</code> object gives its name and description
+to the plan&#x27;s fields and its remaining keys to the portal texts (<code>i18n</code>). It is
+not carried whole, so an edited name wins.</li>
+<li class=""><code>presentation.ceremonies_policy</code>, which the Admin Portal&#x27;s ceremony screens
+read, is the plan&#x27;s ceremony policy. A <code>Ceremony</code> sheet overrides it.</li>
+</ul>
+<p>The test <code>a_converted_event_opened_in_the_wizard_builds_the_same_ballot</code> checks
+the unchanged round trip. <code>wizard_edits_of_a_converted_event_win_over_its_source_cells</code>
+checks that edits win.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="verification-and-limits">Verification and limits<a href="#verification-and-limits" class="hash-link" aria-label="Direct link to Verification and limits" title="Direct link to Verification and limits" translate="no">​</a></h2>
 <p>The release helper also initializes the generated WASM and checks a synthetic
 rejection through its exported API before packing. It requires Binaryen 110 or
@@ -260,6 +352,28 @@ These are implementation limits, not a capacity certification.</p>
 <p>Historical compatibility does not establish compatibility with a later official
 EMS schema, resolve no-remapping procurement requirements or authorize live
 imports. A test association scenario demonstrates mechanics; issuer-approved
-seat, area, census and ballot semantics remain a separate decision.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/03-development-environment/historical-import.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-4110/docs/developers/development-environment/fast-feedback"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Fast feedback loops</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-4110/docs/developers/development-environment/nvd-api-key-setup"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">nvd-api-key-setup</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#opt-in-offline-admin-plugin" class="table-of-contents__link toc-highlight">Opt-in offline Admin plugin</a></li><li><a href="#source-contract" class="table-of-contents__link toc-highlight">Source contract</a><ul><li><a href="#without-the-workbook" class="table-of-contents__link toc-highlight">Without the workbook</a></li></ul></li><li><a href="#historical-profile-defaults" class="table-of-contents__link toc-highlight">Historical profile defaults</a><ul><li><a href="#preserving-the-source-voters-as-the-census" class="table-of-contents__link toc-highlight">Preserving the source voters as the census</a></li></ul></li><li><a href="#cli" class="table-of-contents__link toc-highlight">CLI</a></li><li><a href="#verification-and-limits" class="table-of-contents__link toc-highlight">Verification and limits</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+seat, area, census and ballot semantics remain a separate decision.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="event-messaging-configuration">Event messaging configuration<a href="#event-messaging-configuration" class="hash-link" aria-label="Direct link to Event messaging configuration" title="Direct link to Event messaging configuration" translate="no">​</a></h2>
+<p>A <code>Parameters</code> row with key <code>messaging_config</code> and a JSON object in <code>value</code>
+sets the native export&#x27;s top-level <code>messaging_config</code>. This is the same
+<code>EventMessagingConfig</code> used by the Admin Portal: <code>version</code>, <code>channels</code> (account
+references, purposes, template bindings and out-of-window policies), and
+<code>election_channels</code>. It survives direct SQL/XLSX conversion, Edit in the Wizard,
+plan save/reopen and opening a native event export.</p>
+<p>In workbook input, <code>election_channels</code> keys may be election <code>external_id</code>
+values or the generated election UUIDs. Native exports and base exports use
+UUIDs; these are mapped through their elections&#x27; external IDs to the rebuilt
+UUIDs. Unknown elections and conflicting references are refused, rather than
+silently dropping a restriction.</p>
+<p>An absent or blank parameter keeps a base export&#x27;s configuration. A literal
+<code>null</code> overrides the base and emits no event configuration. To explicitly
+configure no channels, use <code>{&quot;version&quot;:1,&quot;channels&quot;:[],&quot;election_channels&quot;:{}}</code>.
+The legacy <code>messaging:config</code> annotation and Keycloak&#x27;s public
+<code>sequent.messaging</code> projection do not substitute for the top-level field.</p>
+<p>The Architect validates the configuration shape and its local references. It
+cannot verify destination accounts: the referenced accounts must already exist
+in the target tenant, support the channel and be ready for the enabled purposes.
+The import still requires <code>messaging-config-write</code> and performs those checks.
+No provider accounts or credentials are created or exported by this parameter.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/03-development-environment/historical-import.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-4110/docs/developers/development-environment/fast-feedback"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Fast feedback loops</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-4110/docs/developers/development-environment/nvd-api-key-setup"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">nvd-api-key-setup</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#opt-in-offline-admin-plugin" class="table-of-contents__link toc-highlight">Opt-in offline Admin plugin</a></li><li><a href="#source-contract" class="table-of-contents__link toc-highlight">Source contract</a><ul><li><a href="#defaults-workbook" class="table-of-contents__link toc-highlight">Defaults workbook</a></li></ul></li><li><a href="#historical-profile-defaults" class="table-of-contents__link toc-highlight">Historical profile defaults</a><ul><li><a href="#preserving-the-source-voters-as-the-census" class="table-of-contents__link toc-highlight">Preserving the source voters as the census</a></li></ul></li><li><a href="#cli" class="table-of-contents__link toc-highlight">CLI</a></li><li><a href="#editing-a-converted-event" class="table-of-contents__link toc-highlight">Editing a converted event</a></li><li><a href="#verification-and-limits" class="table-of-contents__link toc-highlight">Verification and limits</a></li><li><a href="#event-messaging-configuration" class="table-of-contents__link toc-highlight">Event messaging configuration</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
 </body>
 </html>

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Monitoring Configuration | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/election_managers/reference/monitoring_configuration"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Monitoring Configuration | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4110/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/election_managers/reference/monitoring_configuration"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/election_managers/reference/monitoring_configuration" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/election_managers/reference/monitoring_configuration" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Monitoring Configuration","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/election_managers/reference/monitoring_configuration"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4110/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4110/assets/js/runtime~main.c47f8c89.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4110/assets/js/runtime~main.a9bb5dec.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4110/assets/js/main.a2a6e731.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -150,8 +150,20 @@ servers as its threshold asks) or <code>transmission_failed</code> (a package wa
 refused and not yet received enough).</li>
 <li class=""><strong>Final testing and lockdown.</strong> A Post is <code>not_tested</code>, <code>tested</code> or
 <code>locked_down</code>.</li>
-<li class=""><strong>Enrollment decisions.</strong> Each voter&#x27;s latest application counts once; the
-<code>reason</code> dimension is the recorded disapproval reason.</li>
+<li class=""><strong>Enrollment decisions.</strong> Each voter&#x27;s latest application counts once, by
+when it was last updated; the <code>reason</code> dimension is the recorded disapproval
+reason. An application counts for the voter it is stored under: the voter
+an automatic decision accepted, or whose acceptance an email already in use
+undid, and the voter a reviewer approved. A reviewer&#x27;s rejection keeps the
+voter the application was stored under. An application stored without a
+voter counts for no voter: one that is pending review with no voter chosen
+yet, one that matched no voter or several, and an attempt naming a voter who
+is already enrolled.
+Applications saved with the placeholder applicant id <code>null</code> or a blank one,
+as the enrollment flow saved automatic decisions before it stored the
+voter, count for no voter: the username they record may since belong to
+another voter, so they are not matched by it. Dashboards of events with such
+applications show fewer decisions than were made.</li>
 <li class=""><strong>Access and security.</strong> Keycloak <code>LOGIN</code> events count as <code>logins</code>.
 <code>LOGIN_ERROR</code> counts as <code>login_failures</code> and, by whether the username
 named an account, as <code>login_failures_valid_user</code> or

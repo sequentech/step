@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Fast feedback loops | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/developers/development-environment/fast-feedback"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Fast feedback loops | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4110/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/developers/development-environment/fast-feedback"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/developers/development-environment/fast-feedback" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/developers/development-environment/fast-feedback" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Fast feedback loops","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/developers/development-environment/fast-feedback"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4110/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4110/assets/js/runtime~main.c47f8c89.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4110/assets/js/runtime~main.a9bb5dec.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4110/assets/js/main.a2a6e731.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -41,8 +41,10 @@ forwarded ports in <a class="" href="/docusaurus/pr-preview/pr-4110/docs/develop
 <code>scripts/dev/step-dev browser_trustees</code> provisions the accounts on an existing
 realm without resetting their passwords or MFA or changing native trustee accounts.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="opt-in-scanovate-services">Opt-in Scanovate services<a href="#opt-in-scanovate-services" class="hash-link" aria-label="Direct link to Opt-in Scanovate services" title="Direct link to Opt-in Scanovate services" translate="no">​</a></h3>
-<p>The identity verification of enrollment (Liveness Plus with its PAD server, Face
-Match and OCR) belongs to the <code>scanovate</code> Compose profile, which no mode starts:
+<p>The identity verification of enrollment (OCR and Liveness Plus, whose capture
+pages <code>keycloak-nginx</code> serves under <code>https://localhost:8443/biometric/</code>,
+Liveness Plus&#x27;s presentation and injection attack detection servers, and Face
+Match) belongs to the <code>scanovate</code> Compose profile, which no mode starts:
 its images are private, in our ECR mirror, and need about 18 GB of memory. To
 work on enrollment, start them next to <code>backend</code> or <code>full</code>, from the host, in the
 checkout:</p>
