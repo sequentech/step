@@ -731,7 +731,7 @@ impl BallotChoices {
         // sorting by id.
         // The selections must be encoded to and decoded from a ballot
         // following this order, given by contest.id.
-        let mut sorted_contests = contests.clone();
+        let mut sorted_contests = contests.to_vec();
         sorted_contests.sort_by_key(|c| c.id.clone());
 
         for contest in sorted_contests {
