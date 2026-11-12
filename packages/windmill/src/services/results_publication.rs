@@ -1405,7 +1405,7 @@ pub async fn publish_results_website_artifacts_with(
         if let Err(cleanup_err) =
             delete_publication_artifacts_with(renderer, &uploaded, false).await
         {
-            error!(
+            tracing::error!(
                 error = ?cleanup_err,
                 publication_id = publication.id,
                 "Failed to delete the artifacts of a publication whose source changed"
