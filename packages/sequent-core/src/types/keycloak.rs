@@ -135,6 +135,7 @@ pub const LAST_NAME: &str = "lastName";
 pub const FIRST_NAME_ATTRIBUTE: &str = "first_name";
 pub const LAST_NAME_ATTRIBUTE: &str = "last_name";
 pub const PERMISSION_LABELS: &str = "permission_labels";
+pub const TRUSTEE_ATTR_NAME: &str = "trustee";
 pub const REALM_ATTR_VOTER_CERTIFICATE_POLICY: &str =
     "voter-certificate-policy";
 /// Mirror the event's presentation policies of the same names, for the login

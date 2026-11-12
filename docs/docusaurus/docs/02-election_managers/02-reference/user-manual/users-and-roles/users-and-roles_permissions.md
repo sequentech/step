@@ -62,10 +62,16 @@ user can access, so setting them needs the same permissions as changing them on 
 | Assign roles while creating a user | The create permission, `user-write` and `role-write` |
 | Import a CSV whose `group_name` column names a group other than `voter` | The create permission, `user-write` and `role-write` |
 | Import a CSV with a non-empty `permission_labels` value | The create permission and `permission-label-write` |
+| Set the `trustee` attribute while creating a user | The create permission and `trustee-write` |
+| Import a CSV with a non-empty `trustee` value | The create permission and `trustee-write` |
+
+The `trustee` attribute names the trustee a user acts as in the key and tally ceremonies. Changing it
+on an existing user also needs `trustee-write`; an edit that sends back the user's current value
+needs only the usual edit permission.
 
 If a row needs a permission the importing user lacks, the whole import is rejected and the error
-names the row and the column. Empty `group_name` and `permission_labels` cells need no extra
-permission. The voters file inside an election event import follows the same rules, according to the
+names the row and the column. Empty `group_name`, `permission_labels` and `trustee` cells need no
+extra permission. The voters file inside an election event import follows the same rules, according to the
 permissions of the user who imports the event.
 
 Users always belong to the tenant they are created or imported into. Creating a user with a

@@ -31,7 +31,8 @@ use sequent_core::services::keycloak::{
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{
     AREA_ID_ATTR_NAME, DEFAULT_VOTE_WEIGHT, MAX_TOTAL_VOTE_WEIGHT, MAX_VOTE_WEIGHT,
-    MIN_VOTE_WEIGHT, PERMISSION_LABELS, TENANT_ID_ATTR_NAME, VOTE_WEIGHT_ATTR_NAME,
+    MIN_VOTE_WEIGHT, PERMISSION_LABELS, TENANT_ID_ATTR_NAME, TRUSTEE_ATTR_NAME,
+    VOTE_WEIGHT_ATTR_NAME,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
@@ -129,6 +130,17 @@ pub enum PermissionLabelPolicy {
     Allowed,
 }
 
+/// Whether an import may set the `trustee` attribute, the trustee a user acts
+/// as in the key and tally ceremonies.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TrusteePolicy {
+    /// `trustee` cells must be empty.
+    #[default]
+    Forbidden,
+    /// `trustee` cells may name any trustee.
+    Allowed,
+}
+
 /// What the user who started an import is allowed to grant through it. The
 /// task caller derives it from that user's permissions; a body without it gets
 /// the restrictive defaults.
@@ -137,13 +149,15 @@ pub enum PermissionLabelPolicy {
 pub struct ImportUsersPrivileges {
     pub group_assignment: GroupAssignmentPolicy,
     pub permission_labels: PermissionLabelPolicy,
+    pub trustee: TrusteePolicy,
 }
 
 /// Refuses a cell that sets something the importing user may not set.
 ///
 /// Every imported user gets the id of the tenant being imported into, so a
-/// `tenant-id` cell may only be empty or repeat that id. The `group_name` and
-/// `permission_labels` columns are checked against the caller's privileges.
+/// `tenant-id` cell may only be empty or repeat that id. The `group_name`,
+/// `permission_labels` and `trustee` columns are checked against the caller's
+/// privileges.
 fn ensure_cell_allowed(
     column_name: &str,
     value: &str,
@@ -184,6 +198,15 @@ fn ensure_cell_allowed(
                 "Invalid `{PERMISSION_LABELS}` value on row {row}: setting permission \
                  labels requires the `{}` permission",
                 Permissions::PERMISSION_LABEL_WRITE
+            )
+            .into()),
+        },
+        TRUSTEE_ATTR_NAME => match privileges.trustee {
+            TrusteePolicy::Allowed => Ok(()),
+            TrusteePolicy::Forbidden => Err(anyhow!(
+                "Invalid `{TRUSTEE_ATTR_NAME}` value on row {row}: setting a user's \
+                 trustee requires the `{}` permission",
+                Permissions::TRUSTEE_WRITE
             )
             .into()),
         },
@@ -1370,6 +1393,7 @@ mod tests {
         ImportUsersPrivileges {
             group_assignment,
             permission_labels,
+            trustee: TrusteePolicy::Forbidden,
         }
     }
 
@@ -1549,6 +1573,35 @@ mod tests {
             PermissionLabelPolicy::Allowed,
         );
         assert!(ensure_cell_allowed(PERMISSION_LABELS, "label-a", TENANT_ID, &allowed, 9).is_ok());
+    }
+
+    /// Any non-empty `trustee` cell needs the allowed policy, which the group
+    /// and label privileges don't give, while an empty cell does not.
+    #[test]
+    fn trustee_cells_require_allowed_policy() {
+        let all_but_trustee = privileges(
+            GroupAssignmentPolicy::AnyGroup,
+            PermissionLabelPolicy::Allowed,
+        );
+        for value in ["trustee1", " "] {
+            let error =
+                ensure_cell_allowed(TRUSTEE_ATTR_NAME, value, TENANT_ID, &all_but_trustee, 5)
+                    .expect_err(&format!("trustee {value:?} must be rejected"));
+            let message = error.to_string();
+            assert!(message.contains("row 5"), "{message}");
+            assert!(message.contains(TRUSTEE_ATTR_NAME), "{message}");
+            assert!(
+                message.contains(&Permissions::TRUSTEE_WRITE.to_string()),
+                "{message}"
+            );
+        }
+        assert!(ensure_cell_allowed(TRUSTEE_ATTR_NAME, "", TENANT_ID, &all_but_trustee, 5).is_ok());
+
+        let allowed = ImportUsersPrivileges {
+            trustee: TrusteePolicy::Allowed,
+            ..ImportUsersPrivileges::default()
+        };
+        assert!(ensure_cell_allowed(TRUSTEE_ATTR_NAME, "trustee1", TENANT_ID, &allowed, 5).is_ok());
     }
 
     /// Columns other than the restricted ones accept any value whatever the

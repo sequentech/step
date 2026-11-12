@@ -7,13 +7,14 @@
 
 use rocket::http::Status;
 use sequent_core::types::hasura::core::DocumentAnnotations;
-use sequent_core::types::keycloak::PERMISSION_LABELS;
+use sequent_core::types::keycloak::{PERMISSION_LABELS, TRUSTEE_ATTR_NAME};
 use sequent_core::types::permissions::Permissions;
 use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 use windmill::services::import::import_users::{
     GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
+    TrusteePolicy,
 };
 use windmill::services::signing::permissions::signing_action_of;
 
@@ -84,9 +85,69 @@ fn sets_permission_labels(attributes: Option<&Attributes>) -> bool {
         .is_some_and(|attributes| attributes.contains_key(PERMISSION_LABELS))
 }
 
+/// Whether a request holds the same values as the user's attribute, in any
+/// order: a form may send them back reordered.
+pub fn same_attribute_values(
+    requested: &[String],
+    current: Option<&Vec<String>>,
+) -> bool {
+    let mut requested = requested.to_vec();
+    let mut current = current.cloned().unwrap_or_default();
+    requested.sort();
+    current.sort();
+    requested == current
+}
+
+/// Whether a request names the `trustee` attribute.
+pub fn sets_trustee(attributes: Option<&Attributes>) -> bool {
+    attributes
+        .is_some_and(|attributes| attributes.contains_key(TRUSTEE_ATTR_NAME))
+}
+
+/// The `trustee` attribute is the trustee a user acts as in the key and tally
+/// ceremonies, so giving it a value other than the user's current one needs
+/// trustee-write.
+fn trustee_permission(
+    requested: Option<&Attributes>,
+    current: Option<&Attributes>,
+) -> Option<Permissions> {
+    let requested = requested?.get(TRUSTEE_ATTR_NAME)?;
+    let current =
+        current.and_then(|attributes| attributes.get(TRUSTEE_ATTR_NAME));
+    (!same_attribute_values(requested, current))
+        .then_some(Permissions::TRUSTEE_WRITE)
+}
+
+/// A profile can mark `trustee` as encrypted, and then it arrives among the
+/// secret attributes. Those can't be compared with the stored value, so any
+/// request naming it there needs trustee-write.
+fn secret_trustee_permission(
+    secret_attributes: Option<&SecretAttributes>,
+) -> Option<Permissions> {
+    secret_attributes?
+        .contains_key(TRUSTEE_ATTR_NAME)
+        .then_some(Permissions::TRUSTEE_WRITE)
+}
+
+/// The permission an edit's `trustee` attribute needs, given the user's
+/// current attributes. An unchanged `trustee` is left out of the edit: writing
+/// back the value read here would undo a change made in between.
+pub fn trustee_edit_permission(
+    requested: &mut Option<Attributes>,
+    current: Option<&Attributes>,
+) -> Option<Permissions> {
+    let permission = trustee_permission(requested.as_ref(), current);
+    if permission.is_none() {
+        if let Some(requested) = requested {
+            requested.remove(TRUSTEE_ATTR_NAME);
+        }
+    }
+    permission
+}
+
 /// The permissions needed to create a user: the create permission of the
-/// scope, plus the ones for the secret attributes, the permission labels and
-/// the roles that the request sets.
+/// scope, plus the ones for the secret attributes, the permission labels, the
+/// trustee and the roles that the request sets.
 pub fn create_user_permissions(
     scope: UserScope,
     secret_attributes: Option<&SecretAttributes>,
@@ -111,6 +172,8 @@ pub fn create_user_permissions(
             }
         }
     }
+    permissions.extend(trustee_permission(attributes, None));
+    permissions.extend(secret_trustee_permission(secret_attributes));
     if user_roles_ids.is_some_and(|role_ids| !role_ids.is_empty()) {
         // The same permissions the set-user-role route requires.
         permissions.push(Permissions::USER_WRITE);
@@ -121,7 +184,8 @@ pub fn create_user_permissions(
 
 /// What a user import may set, for a caller whose permissions `holds` answers
 /// for: assigning arbitrary groups needs the permissions of the set-user-role
-/// route, and setting permission labels needs permission-label-write.
+/// route, setting permission labels needs permission-label-write and setting
+/// the trustee needs trustee-write.
 pub fn import_users_privileges(
     holds: impl Fn(Vec<Permissions>) -> bool,
 ) -> ImportUsersPrivileges {
@@ -138,6 +202,11 @@ pub fn import_users_privileges(
             PermissionLabelPolicy::Allowed
         } else {
             PermissionLabelPolicy::Forbidden
+        },
+        trustee: if holds(vec![Permissions::TRUSTEE_WRITE]) {
+            TrusteePolicy::Allowed
+        } else {
+            TrusteePolicy::Forbidden
         },
     }
 }
@@ -218,6 +287,8 @@ pub fn edit_user_access(
                         permissions.push(Permissions::VOTER_WRITE);
                     }
                 }
+                permissions
+                    .extend(secret_trustee_permission(edit.secret_attributes));
                 permissions
             };
             Ok(UserEditAccess {

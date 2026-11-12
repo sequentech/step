@@ -222,6 +222,8 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "user": {"attributes": {"permission_labels": ["test-label"]}}}, [USER_CREATE, PERMISSION_LABEL_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "user": {}}, [VOTER_CREATE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "user": {}, "secret_attributes": {"test-secret": ["value"]}}, [VOTER_CREATE, VOTER_SECRET_ATTRIBUTE_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "user": {"attributes": {"trustee": ["test-trustee"]}}}, [USER_CREATE, TRUSTEE_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "user": {}, "secret_attributes": {"trustee": ["test-trustee"]}}, [VOTER_CREATE, VOTER_SECRET_ATTRIBUTE_WRITE, TRUSTEE_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "user": {}, "user_roles_ids": ["test-role"]}, [USER_CREATE, USER_WRITE, ROLE_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "user": {}, "user_roles_ids": ["test-role"]}, [VOTER_CREATE, USER_WRITE, ROLE_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/delete-certificate-authority", {"ids": [], "election_event_id": UUID_EVENT_ID}, [CA_WRITE], BACKEND, UNAUTHORIZED),
@@ -249,6 +251,10 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/edit-user", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "user_id": USER_ID, "password": "test-password", "temporary": true}, [VOTER_CHANGE_PASSWORD], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/edit-user", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "user_id": USER_ID, "password": "test-password", "first_name": "Ada"}, [VOTER_WRITE, VOTER_CHANGE_PASSWORD], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/edit-user", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "user_id": USER_ID, "secret_attributes": {"test-secret": ["value"]}}, [VOTER_WRITE, VOTER_SECRET_ATTRIBUTE_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        case!(Admin, "/edit-user", {"tenant_id": TENANT_ID, "election_event_id": UUID_EVENT_ID, "user_id": USER_ID, "secret_attributes": {"trustee": ["test-trustee"]}}, [VOTER_WRITE, VOTER_SECRET_ATTRIBUTE_WRITE, TRUSTEE_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        // Whether a `trustee` needs TRUSTEE_WRITE depends on the user's current
+        // one, so Keycloak is read first.
+        case!(Admin, "/edit-user", {"tenant_id": TENANT_ID, "user_id": USER_ID, "attributes": {"trustee": ["test-trustee"]}}, [USER_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/election-event/stats", {"election_event_id": EVENT_ID, "start_date": "2026-01-01", "end_date": "2026-01-02", "user_timezone": "UTC"}, [ADMIN_DASHBOARD_VIEW], BACKEND, UNAUTHORIZED),
         case!(Admin, "/election-event/top-votes-by-ip", {"election_event_id": EVENT_ID}, [FORENSIC_READ], Reply::Text(Status::Gone), UNAUTHORIZED),
         case!(Admin, "/election/stats", {"election_event_id": EVENT_ID, "election_id": "test-election", "start_date": "2026-01-01", "end_date": "2026-01-02", "user_timezone": "UTC"}, [ADMIN_DASHBOARD_VIEW], BACKEND, UNAUTHORIZED),
