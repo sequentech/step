@@ -297,6 +297,7 @@ fn build_application_with(
                 routes::templates::get_user_template,
                 routes::applications::verify_user_application,
                 routes::applications::change_application_status,
+                routes::applications::reject_application_email_in_use,
                 routes::export_application::export_application_route,
                 routes::import_application::import_application_route,
                 routes::trustees::export_trustees_route,

@@ -32,8 +32,10 @@ import org.keycloak.representations.userprofile.config.UPConfig;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.sessions.RootAuthenticationSessionModel;
 import org.keycloak.userprofile.UserProfileProvider;
+import org.mockito.ArgumentCaptor;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
+import sequent.keycloak.authenticator.messaging.MessagingAttributes;
 
 class MessageOTPAuthenticationFlowTest {
   private static final String CODE = "482619";
@@ -319,6 +321,283 @@ class MessageOTPAuthenticationFlowTest {
     authenticator.action(context);
     assertNull(notes.get(Utils.CODE));
     verify(event).error(MessageOTPAuthenticator.TOO_MANY_ATTEMPTS);
+  }
+
+  /** The enrollment's details form, done, then this code step. */
+  private void afterTheDetailsForm() {
+    statuses = StepBackFlow.afterTheDetailsForm(context, realm, authSession);
+  }
+
+  private Map<String, org.keycloak.sessions.CommonClientSessionModel.ExecutionStatus> statuses;
+
+  /** The voter submits the details form again after going back: the flow runs this step next. */
+  private void detailsFormSubmitted() {
+    statuses.put("details", org.keycloak.sessions.CommonClientSessionModel.ExecutionStatus.SUCCESS);
+  }
+
+  @Test
+  void backReturnsToTheDetailsFormAndDropsTheCode() {
+    afterTheDetailsForm();
+    parameters.putSingle(StepBack.PARAM, "true");
+    authenticator.action(context);
+
+    verify(context).forceChallenge(any());
+    verify(context, never()).success();
+    // The code must not verify a contact the voter changes on the details form.
+    assertNull(notes.get(Utils.CODE));
+  }
+
+  @Test
+  void theCodePageOffersBackAfterTheDetailsForm() {
+    afterTheDetailsForm();
+    authenticator.authenticate(context);
+    verify(form).setAttribute(StepBack.ATTRIBUTE, true);
+  }
+
+  @Test
+  void withoutAPreviousStepBackShowsTheCodePageAgain() {
+    parameters.putSingle(StepBack.PARAM, "true");
+    authenticator.action(context);
+
+    verify(context, never()).forceChallenge(any());
+    verify(form).setAttribute(StepBack.ATTRIBUTE, false);
+    assertEquals(CODE, notes.get(Utils.CODE));
+  }
+
+  @Test
+  void backIsRefusedOnceTheAttemptsAreUsedUp() {
+    afterTheDetailsForm();
+    fiveWrongCodes();
+    parameters.putSingle(StepBack.PARAM, "true");
+    authenticator.action(context);
+
+    verify(context, never()).forceChallenge(any());
+  }
+
+  private void back() {
+    parameters.clear();
+    parameters.putSingle(StepBack.PARAM, "true");
+    authenticator.action(context);
+    parameters.clear();
+  }
+
+  /**
+   * Back to the details form forgets the code and everything a code proved: the contact may change
+   * there. The resend timer and the attempt count are kept.
+   */
+  @Test
+  void backForgetsWhatTheCodeVerifiedAndKeepsTheTimerAndTheAttempts() {
+    afterTheDetailsForm();
+    parameters.putSingle(Utils.CODE, "000000");
+    authenticator.action(context);
+    notes.put(Utils.EMAIL_VERIFIED, "true");
+    notes.put(MessagingAttributes.NOTE_VERIFIED_CHANNEL, "EMAIL");
+    notes.put(MessagingAttributes.NOTE_VERIFIED_DESTINATION, "a@example.test");
+    notes.put(MessagingAttributes.NOTE_CODE_CHANNEL, "EMAIL");
+    notes.put(MessagingAttributes.NOTE_CODE_DESTINATION, "a@example.test");
+    notes.put(Utils.OTL_VISITED, "false");
+    String timer = notes.get(Utils.CODE_TTL);
+    Map<String, String> attempts = new HashMap<>(notes);
+    attempts.keySet().removeIf(key -> !key.startsWith(Utils.CODE_ATTEMPTS));
+    assertFalse(attempts.isEmpty());
+
+    back();
+
+    verify(context).forceChallenge(any());
+    for (String note :
+        java.util.List.of(
+            Utils.CODE,
+            Utils.EMAIL_VERIFIED,
+            Utils.OTL_VISITED,
+            MessagingAttributes.NOTE_VERIFIED_CHANNEL,
+            MessagingAttributes.NOTE_VERIFIED_DESTINATION,
+            MessagingAttributes.NOTE_CODE_CHANNEL,
+            MessagingAttributes.NOTE_CODE_DESTINATION)) {
+      assertNull(notes.get(note), note);
+    }
+    assertEquals(timer, notes.get(Utils.CODE_TTL));
+    attempts.forEach((key, value) -> assertEquals(value, notes.get(key), key));
+  }
+
+  /**
+   * Back and forward again within the resend timer sends nothing: the old code stays forgotten and
+   * the voter asks for a new one once the timer allows. Back is not a way around the timer.
+   */
+  @Test
+  void backAndForwardWithinTheResendTimerSendsNothingAndTheOldCodeIsDead() throws Exception {
+    afterTheDetailsForm();
+    codeIssuedSecondsAgo(1);
+    for (int round = 0; round < 3; round++) {
+      back();
+      verify(context, times(round + 1)).forceChallenge(any());
+      detailsFormSubmitted();
+      authenticator.authenticate(context);
+    }
+    verify(sms, never()).send(anyString(), anyString(), anyList(), any(), any(), any());
+
+    parameters.putSingle(Utils.CODE, CODE);
+    authenticator.action(context);
+    verify(context, never()).success();
+
+    parameters.clear();
+    parameters.putSingle("resend", "true");
+    authenticator.action(context);
+    verify(sms, never()).send(anyString(), anyString(), anyList(), any(), any(), any());
+  }
+
+  /** Once the resend timer has run, coming forward sends one new code, and only it verifies. */
+  @Test
+  void forwardAfterTheResendTimerSendsOneNewCode() throws Exception {
+    afterTheDetailsForm();
+    codeIssuedSecondsAgo(61);
+    back();
+    detailsFormSubmitted();
+    authenticator.authenticate(context);
+    authenticator.authenticate(context);
+
+    verify(sms, times(1))
+        .send(eq(PHONE), eq(Utils.SEND_CODE_SMS_I18N_KEY), anyList(), any(), any(), any());
+    String newCode = notes.get(Utils.CODE);
+    assertNotNull(newCode);
+
+    parameters.putSingle(Utils.CODE, newCode);
+    authenticator.action(context);
+    verify(context).success();
+  }
+
+  /**
+   * Back from the identity check runs the verified code step again: its page waits for the resend
+   * timer like any other Back, so going back and forth can't send one message after another.
+   */
+  @Test
+  void backFromTheIdentityCheckWaitsForTheResendTimer() throws Exception {
+    AuthenticationExecutionModel code = context.getExecution();
+    AuthenticationExecutionModel identity =
+        StepBackFlow.atTheIdentityCheck(context, realm, authSession);
+    codeIssuedSecondsAgo(1);
+    parameters.putSingle(Utils.CODE, CODE);
+    authenticator.action(context);
+    verify(context).success();
+
+    when(context.getExecution()).thenReturn(identity);
+    assertTrue(StepBack.toPreviousStep(context));
+    when(context.getExecution()).thenReturn(code);
+    parameters.clear();
+    authenticator.authenticate(context);
+    verify(sms, never()).send(anyString(), anyString(), anyList(), any(), any(), any());
+
+    codeIssuedSecondsAgo(61);
+    authenticator.authenticate(context);
+    authenticator.authenticate(context);
+    verify(sms, times(1))
+        .send(eq(PHONE), eq(Utils.SEND_CODE_SMS_I18N_KEY), anyList(), any(), any(), any());
+  }
+
+  /**
+   * Without Back nothing waits: the next code step of the flow sends its code at once, although the
+   * last step's code was sent a second ago.
+   */
+  @Test
+  void theNextCodeStepSendsAtOnceAfterTheLastOneSucceeded() throws Exception {
+    codeIssuedSecondsAgo(1);
+    parameters.putSingle(Utils.CODE, CODE);
+    authenticator.action(context);
+    verify(context).success();
+
+    context.getExecution().setId("second-code-step");
+    parameters.clear();
+    authenticator.authenticate(context);
+    verify(sms, times(1))
+        .send(eq(PHONE), eq(Utils.SEND_CODE_SMS_I18N_KEY), anyList(), any(), any(), any());
+    assertNotNull(notes.get(Utils.CODE));
+  }
+
+  private long resendSecondsLeftShown() {
+    ArgumentCaptor<Object> left = ArgumentCaptor.forClass(Object.class);
+    verify(form).setAttribute(eq("resendSecondsLeft"), left.capture());
+    return (Long) left.getValue();
+  }
+
+  /**
+   * After Back the page has no live code: it says so, and its countdown continues the last send's
+   * instead of offering a resend the server refuses. Rendering it again, or Back again, never
+   * restarts the full wait.
+   */
+  @Test
+  void aPacedPageShowsTheWaitLeftAndRenderingAgainDoesNotRestartIt() throws Exception {
+    afterTheDetailsForm();
+    codeIssuedSecondsAgo(20);
+    back();
+    detailsFormSubmitted();
+    clearInvocations(form);
+    authenticator.authenticate(context);
+
+    verify(form).setInfo(MessageOTPAuthenticator.NO_CODE_KEY);
+    verify(form).setAttribute("resendTimerStarted", false);
+    verify(form).setAttribute("codeJustSent", false);
+    long first = resendSecondsLeftShown();
+    assertTrue(first > 35 && first <= 40, "left=" + first);
+
+    codeIssuedSecondsAgo(50);
+    back();
+    detailsFormSubmitted();
+    clearInvocations(form);
+    authenticator.authenticate(context);
+    long later = resendSecondsLeftShown();
+    assertTrue(later > 5 && later <= 10, "left=" + later);
+    verify(sms, never()).send(anyString(), anyString(), anyList(), any(), any(), any());
+  }
+
+  /** A page shown right after a send starts the full countdown; it carries no stale wait. */
+  @Test
+  void aPageThatJustSentStartsTheFullCountdown() throws Exception {
+    notes.remove(Utils.CODE);
+    notes.remove(Utils.CODE_TTL);
+    authenticator.authenticate(context);
+    verify(form).setAttribute("resendTimerStarted", true);
+    verify(form, never()).setAttribute(eq("resendSecondsLeft"), any());
+    verify(form, never()).setInfo(MessageOTPAuthenticator.NO_CODE_KEY);
+  }
+
+  /** Going back never resets the step's wrong codes. */
+  @Test
+  void wrongCodesCountAcrossBack() throws Exception {
+    configMap.put(Utils.MAX_CODE_ATTEMPTS, "3");
+    afterTheDetailsForm();
+    parameters.putSingle(Utils.CODE, "000000");
+    authenticator.action(context);
+    authenticator.action(context);
+    back();
+    detailsFormSubmitted();
+    codeIssuedSecondsAgo(61);
+    authenticator.authenticate(context);
+    String newCode = notes.get(Utils.CODE);
+    assertNotNull(newCode);
+
+    parameters.putSingle(Utils.CODE, newCode.equals("000000") ? "111111" : "000000");
+    authenticator.action(context);
+    verify(event).error(MessageOTPAuthenticator.TOO_MANY_ATTEMPTS);
+    parameters.putSingle(Utils.CODE, newCode);
+    authenticator.action(context);
+    verify(context, never()).success();
+  }
+
+  /** The used-up page refuses Back, so it doesn't offer it either, also when reloaded. */
+  @Test
+  void theUsedUpPageOffersNoBack() {
+    afterTheDetailsForm();
+    for (int attempt = 0; attempt < 4; attempt++) {
+      parameters.putSingle(Utils.CODE, "000000");
+      authenticator.action(context);
+    }
+    clearInvocations(form);
+    authenticator.action(context);
+    parameters.clear();
+    authenticator.authenticate(context);
+
+    verify(form, atLeast(2)).setAttribute("attemptsExhausted", true);
+    verify(form, never()).setAttribute(StepBack.ATTRIBUTE, true);
+    verify(form, atLeast(2)).setAttribute(StepBack.ATTRIBUTE, false);
   }
 
   private void fiveWrongCodes() {

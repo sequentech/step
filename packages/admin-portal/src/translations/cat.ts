@@ -1845,6 +1845,9 @@ const catalanTranslation: TranslationType = {
                 encryptWithPassword: "Xifrar amb Contrasenya",
                 passwordForcedNote:
                     "L'arxiu es protegirà amb contrasenya igualment: els informes, les sol·licituds i les dades del tauler sempre es xifren. Marca la casella per incloure també els camps secrets de votant desxifrats.",
+                integrationSecrets: "Secrets d'integració (credencials de servei)",
+                integrationSecretsNote:
+                    "Un cop desxifrat, el fitxer contindrà en clar el secret de liveness de Scanovate. Mantén en secret el fitxer i la seva contrasenya, i importa'l només on s'hagi d'utilitzar aquest servei de Liveness Plus.",
                 includeVoters: "Incloure Votants",
                 activityLogs: "Registres d'Activitat",
                 bulletinBoard: "Tauler d'Anuncis",
@@ -2279,6 +2282,7 @@ const catalanTranslation: TranslationType = {
                 "voter-write": "Editar Votant",
                 "voter-secret-attribute-read": "Mostrar Camps Secrets del Votant",
                 "voter-secret-attribute-write": "Editar Camps Secrets del Votant",
+                "integration-secret-read": "Exportar Secrets d'Integració",
                 "user-create": "Crear Usuari",
                 "user-read": "Llegir Usuari",
                 "user-write": "Editar Usuari",
@@ -2804,6 +2808,9 @@ const catalanTranslation: TranslationType = {
                         delete: "Estàs segur de que vols eliminar aquest element?",
                         sealsUnknown:
                             "No s'han pogut comprovar els segells de les urnes: si té urnes segellades, l'esborrat es rebutjarà.",
+                        archiveNamed: 'Estàs segur de que vols arxivar "{{name}}"?',
+                        unarchiveNamed: 'Estàs segur de que vols desarxivar "{{name}}"?',
+                        deleteNamed: 'Estàs segur de que vols eliminar "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2924,6 +2931,13 @@ const catalanTranslation: TranslationType = {
                 "label": "Forma de la icona de la casella de verificació dels candidats",
                 "square-checkbox": "Caixa de verificació quadrada",
                 "round-checkbox": "Caixa de verificació rodona",
+            },
+            candidatesLayout: {
+                "label": "Disposició de les candidatures",
+                "helperText":
+                    "La graella de papereta de paper mostra les candidatures com a cel·les numerades amb un cercle per omplir, columna per columna, segons Columnes (4 si és buit). Les votacions per ordre de preferència sempre fan servir la llista.",
+                "list": "Llista",
+                "paper-grid": "Graella de papereta de paper",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidats I Llistes",
@@ -4115,7 +4129,7 @@ const catalanTranslation: TranslationType = {
                 differs: "Diferent",
                 compareNote: "En els noms no es tenen en compte majúscules, accents ni guionets.",
                 compareJoint:
-                    "Per a permisos de conduir i llibretes de mariner, el nom i el segon nom es comparen junts.",
+                    "Per a permisos de conduir, llibretes de mariner i passaports llegits per l'escàner, el nom i el segon nom es comparen junts.",
                 applicationId: "ID de la sol·licitud",
                 copy: "Copia",
                 copied: "Copiat",
@@ -4152,6 +4166,7 @@ const catalanTranslation: TranslationType = {
                     "insufficient-information": "Dades insuficients",
                     "no-matching-voter": "Votant no trobat",
                     "voter-already-approved": "Ja aprovat",
+                    "EMAIL_IN_USE": "Correu usat per un altre votant",
                     "other": "Altre",
                 },
                 hint: {
@@ -4209,8 +4224,7 @@ const catalanTranslation: TranslationType = {
                 noneApply: "No s'aplica cap de les regles anteriors",
                 andWord: "i",
                 and: " i ",
-                appliesToExample: "S'aplica al vostre exemple",
-                cameFrom: "Va decidir la inscripció des de la qual heu arribat",
+                appliesToExample: "Decideix a la simulació",
                 voterIsTold: "Al votant se li diu: “{{reason}}”.",
                 sentence: "Quan {{when}}, {{outcome}}.",
                 sentenceOtherwise: "Si no s'aplica cap de les regles anteriors, {{outcome}}.",
@@ -4231,13 +4245,70 @@ const catalanTranslation: TranslationType = {
                     more: "+{{count}} més",
                 },
                 test: "Prova un exemple",
-                testHelp:
-                    "Descriviu una inscripció per veure quina regla la decideix. Els canvis sense desar també compten.",
+                example: {
+                    stateSample: "Inscripció de mostra",
+                    sampleText:
+                        "Un votant verificat del registre, encara no inscrit, amb totes les dades comparades iguals.",
+                    stateCustom: "El vostre exemple",
+                    customText: "Ha partit de la mostra.",
+                    recorded: "Decisió registrada",
+                    recordedRule: "Regla {{number}} de la versió {{version}} · {{decision}}.",
+                    recordedLast: "Última regla de la versió {{version}} · {{decision}}.",
+                    severalApproved: "Hi encaixaven diversos votants del registre.",
+                    statusNow: "Ara el seu estat és {{status}}.",
+                    noChanges: "Provar un exemple no canvia cap inscripció ni desa res.",
+                    edit: "Edita l'exemple",
+                    editing: "Editant l'exemple — encara no aplicat",
+                    editingHelp:
+                        "Els canvis només compten quan els apliqueu. Fins llavors la simulació fa servir l'exemple aplicat amb les regles de la pantalla.",
+                    apply: "Aplica",
+                    notRecorded: "No registrat",
+                    withFirstName: "Comparat amb el nom",
+                    notComparedForId: "No es compara per a aquest document",
+                    noLongerOffered: "{{id}} (ja no s'ofereix)",
+                    simulation: "Simulació actual",
+                    rulesOnScreen: "Regles de la pantalla",
+                    rulesUnsaved: "Regles de la pantalla, amb canvis sense desar",
+                    goToRule: "Vés a la regla {{number}}",
+                    goToLast: "Vés a l'última regla",
+                    titleEnrollment: "Simulació de la inscripció de {{name}}",
+                    titleUnnamed: "Simulació d'una inscripció",
+                    back: "Torna a la inscripció",
+                    backLabel: "Torna a la inscripció de {{name}}",
+                    noChangesEnrollment:
+                        "La simulació no canvia res d'aquesta inscripció ni desa res.",
+                    unreadable:
+                        "No es pot llegir la decisió registrada d'aquesta inscripció, per això la simulació fa servir la inscripció de mostra.",
+                    stateRecorded: "Dades registrades · a la simulació",
+                    stateChanged: "Altres dades · a la simulació",
+                    stateUnreadable: "Inscripció de mostra — no són les seves dades registrades",
+                    changedNote: "La inscripció conserva les seves dades registrades.",
+                    editDetails: "Prova altres dades",
+                    editingDetails: "Provant altres dades — encara no són a la simulació",
+                    editingDetailsHelp:
+                        "Aquestes dades no decideixen res fins que les apliqueu. Fins llavors la simulació fa servir les dades de dalt amb les regles de la pantalla.",
+                    restore: "Omple amb les dades registrades",
+                    resetSample: "Omple amb la mostra",
+                    decides: "A la simulació, decideix la regla {{number}}.",
+                    lastDecides: "A la simulació no encaixa cap regla: decideix l'última regla.",
+                    evaluating: "Calculant quina regla decideix la simulació…",
+                    stillApplied: "La regla destacada continua decidint la simulació.",
+                    comparison: {
+                        SAME: "La simulació actual dona la mateixa decisió que la registrada.",
+                        DIFFERENT:
+                            "La simulació actual dona una decisió diferent de la registrada.",
+                        EDITED: "Aquestes no són les dades registrades, per això la simulació no es compara amb la decisió registrada.",
+                        NOT_RECORDED:
+                            "Una dada comparada no es va registrar, per això la simulació no es compara amb la decisió registrada.",
+                        SEVERAL_VOTERS:
+                            "Es van comparar diversos votants del registre, per això la simulació no es compara amb la decisió registrada.",
+                        UNKNOWN_VOTERS:
+                            "No es va registrar quants votants del registre es van comparar, per això la simulació no es compara amb la decisió registrada.",
+                    },
+                },
                 testDetails: "Dades comparades",
-                applies: "S'aplica la regla {{number}}",
-                otherwiseApplies: "S'aplica l'última regla",
-                testError: "No s'ha pogut provar l'exemple.",
-                testInvalid: "Corregiu aquestes regles per provar un exemple:",
+                testError: "No s'ha pogut executar la simulació.",
+                testInvalid: "Corregiu aquestes regles per executar la simulació:",
                 ruleError: "Regla {{number}}: {{error}}",
                 invariants: {
                     MANUAL_ENTRY_NOT_ACCEPTED:
@@ -4392,6 +4463,8 @@ const catalanTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Taulers configurables",
+            modeChangeError: "No s’ha pogut canviar el mode del tauler. Torneu-ho a provar.",
             title: "Monitoratge",
             loading: "Carregant el monitoratge",
             unavailableAlert:

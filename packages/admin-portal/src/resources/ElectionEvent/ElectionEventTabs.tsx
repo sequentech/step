@@ -14,7 +14,6 @@ import React, {
 import {useRecordContext, useSidebarState, RecordContextProvider} from "react-admin"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import ElectionHeader from "@/components/ElectionHeader"
-import {ListIpAddress} from "@/resources/ElectionEvent/ListIpAddress"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {useTranslation} from "react-i18next"
@@ -32,22 +31,16 @@ import {Alert, Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 import {useNavigate, useLocation} from "react-router-dom"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
-import {monitoringLock} from "@/components/monitoring/useMonitoringPermissions"
 import {LOGS_TAB_ID} from "@/components/logs/messagingLogFilters"
 import {showMessagingTab} from "./messagingTabAccess"
 import {LockdownBanner} from "./LockdownBanner"
 import {ElectionEventDataTab} from "./ElectionEventDataTab"
+import {ElectionEventDashboardTab as DashboardTab} from "./ElectionEventDashboardTab"
 import {EEventDataMode, useElectionEventDataMode} from "./useElectionEventDataMode"
 
 // ---------------------------------------------------------------------
 // Lazy load all tab contents
 // ---------------------------------------------------------------------
-const DashboardElectionEvent = lazy(() => import("@/components/dashboard/election-event/Dashboard"))
-const MonitoringDashboardTab = lazy(() =>
-    import("@/components/monitoring/MonitoringDashboardTab").then((m) => ({
-        default: m.MonitoringDashboardTab,
-    }))
-)
 const EditElectionEventTextData = lazy(() =>
     import("./EditElectionEventTextData").then((m) => ({default: m.default}))
 )
@@ -106,40 +99,6 @@ const EditElectionEventReports = lazy(() =>
 // ---------------------------------------------------------------------
 // Stable Tab Components (all use useRecordContext)
 // ---------------------------------------------------------------------
-
-interface ITabProps {
-    refreshRef: React.RefObject<HTMLButtonElement | null>
-    handleChildMount: () => void
-}
-
-const DashboardTab: React.FC<ITabProps> = ({refreshRef, handleChildMount}) => {
-    const record = useRecordContext<Sequent_Backend_Election_Event>()
-    const lock = monitoringLock(record)
-    return (
-        <Suspense fallback={<div>Loading Dashboard...</div>}>
-            <Box sx={{width: "100%", minWidth: 0}}>
-                {/* A failed seal is an incident the event shows in both monitoring modes. */}
-                <FailedSealsBanner
-                    electionEventId={record?.id}
-                    presentation={record?.presentation}
-                />
-                <MonitoringDashboardTab
-                    electionEventId={record?.id}
-                    lock={lock}
-                    footer={<ListIpAddress />}
-                    legacy={
-                        <Box sx={{overflowX: "auto"}}>
-                            <DashboardElectionEvent
-                                refreshRef={refreshRef}
-                                onMount={handleChildMount}
-                            />
-                        </Box>
-                    }
-                />
-            </Box>
-        </Suspense>
-    )
-}
 
 const LocalizationTab: React.FC = () => (
     <Suspense fallback={<div>Loading Localization...</div>}>
@@ -579,10 +538,7 @@ export const ElectionEventTabs: React.FC = () => {
                 label: t("electionEventScreen.tabs.approvals"),
                 component: ApprovalsTab,
                 props: {showList: showApprovalList},
-                action: () => {
-                    setShowApprovalList(uuidv4())
-                    localStorage.setItem("approvals_status_filter", "pending")
-                },
+                action: () => setShowApprovalList(uuidv4()),
             })
         }
 

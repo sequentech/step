@@ -54,6 +54,27 @@ Select **Export** from the Voters tab to generate a CSV.
   the confirmation dialog. This adds the secret columns with plaintext values.
 - Treat a decrypted export as sensitive data. The generated document remains protected by the
   secret-read permission when it is downloaded.
+- Each election in the export adds a participation column: `true` when the voter has voted in it,
+  empty otherwise. The column is named after the election's external ID, not its name:
+  `election__external_id__` followed by the external ID's UTF-8 bytes in lowercase hexadecimal.
+  For example, external ID `GE-2026` gives `election__external_id__47452d32303236`. The ID is
+  encoded exactly as stored, so IDs that differ only by case, punctuation or spacing get different
+  columns.
+- Every election in the export needs an external ID, unique within the election event. Otherwise
+  the export stops and names the elections to fix. This also applies to an election event export
+  that includes voters.
+- Participation columns are report-only: import never stores them as voter attributes or voting
+  history. Exports made before this change, with columns named after
+  each election's alias or name, still import. Import still rejects a file that repeats a column,
+  including a participation column repeated by an older export: export again, or delete the
+  repeated column.
+- A deployment older than this change also accepts the new columns, unless two external IDs start
+  with the same 20 bytes, for example a 20-byte ID and a longer ID that begins with it. Its import
+  keeps only the first 63 characters of a column name, so it fails with a database error that a
+  column is specified more than once.
+- Importing an exported election event can change an external ID that has the form of a UUID. The
+  participation columns of a voters file exported with that event then no longer match the
+  imported election. Import still does not store them.
 
 For the complete permission combinations, see
 [Permissions](../02-reference/user-manual/users-and-roles/users-and-roles_permissions.md#secret-voter-field-permissions).

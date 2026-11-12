@@ -13,7 +13,6 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack"
 import CheckIcon from "@mui/icons-material/Check"
 import FactCheckIcon from "@mui/icons-material/FactCheck"
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined"
-import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline"
 import RuleIcon from "@mui/icons-material/Rule"
 import {Dialog} from "@sequentech/ui-essentials"
 import {
@@ -30,14 +29,23 @@ import {getAttributeLabel} from "@/services/UserService"
 import {IApplicationsStatus} from "@/types/applications"
 import {IPermissions} from "@/types/keycloak"
 import {ApprovalMatrixRuleDialog} from "./ApprovalMatrixRuleDialog"
-import {ApprovalMatrixRules, RulePointer} from "./ApprovalMatrixRules"
-import {ApprovalMatrixTest} from "./ApprovalMatrixTest"
+import {ApprovalMatrixRules, ruleCardId} from "./ApprovalMatrixRules"
+import {
+    ApprovalMatrixTest,
+    SAVE_BAR_ROOM,
+    decidingRule,
+    useExampleEvaluation,
+} from "./ApprovalMatrixTest"
+import {EMatrixEntry, recordedDecision, sampleEnrollment} from "./approvalExample"
+import {IApplication, applicantName} from "./approvalReview"
+import {contentAfter, scrollFrame} from "./matrixLayout"
 import {convertToCamelCase} from "./UtilsApprovals"
 import {
     EMatrixError,
     EMatrixSource,
     IApprovalMatrix,
     IApprovalRule,
+    ITestEnrollment,
     addRule,
     cleanMatrix,
     deleteRule,
@@ -86,20 +94,35 @@ const BackLink = styled("button")(({theme}) => ({
     "&:focus-visible": {outline: `2px solid ${theme.palette.brandSuccess}`},
 }))
 
+// The example comes first in the page, so reading and keyboard order follow
+// what narrow screens show; wide screens place it on the right.
 const Columns = styled("div")(({theme}) => ({
     display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr) 340px",
+    gridTemplateColumns: "minmax(0, 1fr)",
+    gridTemplateAreas: '"example" "main"',
     gap: "24px",
     alignItems: "start",
     marginTop: "24px",
-    [theme.breakpoints.down("lg")]: {
-        gridTemplateColumns: "minmax(0, 1fr)",
+    [theme.breakpoints.up("lg")]: {
+        gridTemplateColumns: "minmax(0, 1fr) 360px",
+        gridTemplateAreas: '"main example"',
     },
 }))
 
+/**
+ * On the smallest phones, beside the portal's collapsed side menu, the matrix gives its page's
+ * and cards' padding to their contents, so the simulation editor's buttons fit on one row.
+ */
+export const SMALL_PHONE = "@media (max-width: 367.95px)"
+export const NARROW_CARD = {[SMALL_PHONE]: {padding: "8px"}}
+
+/** Where the save bar sticks above the window's bottom, and the space kept above it. */
+const SAVE_BAR_BOTTOM = 16
+const SAVE_BAR_GAP = 16
+
 const SaveBar = styled("div")(({theme}) => ({
     position: "sticky",
-    bottom: "16px",
+    bottom: `${SAVE_BAR_BOTTOM}px`,
     zIndex: 2,
     display: "flex",
     flexWrap: "wrap",
@@ -114,17 +137,23 @@ const SaveBar = styled("div")(({theme}) => ({
     boxShadow: "0 8px 24px rgba(15, 5, 76, 0.16)",
 }))
 
+/** The enrollment the matrix was opened from, and the way back to it. */
+export interface IMatrixSource {
+    application: IApplication
+    onBack: () => void
+}
+
 export interface ApprovalMatrixProps {
     electionEventId: string
     goBack: () => void
-    /** The rule that decided the enrollment the administrator came from. */
-    cameFrom?: {version: number; rule: number | null}
+    /** The enrollment the matrix was opened from; the toolbar opens it without one. */
+    source?: IMatrixSource
 }
 
 export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({
     electionEventId,
     goBack,
-    cameFrom,
+    source,
 }) => {
     const {t, i18n} = useTranslation()
     const notify = useNotify()
@@ -149,7 +178,18 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({
     const [draft, setDraft] = useState<IApprovalMatrix | null>(null)
     const [editing, setEditing] = useState<Editing | null>(null)
     const [confirmSave, setConfirmSave] = useState(false)
-    const [appliesTo, setAppliesTo] = useState<RulePointer>(undefined)
+    const application = source?.application
+    const recorded = useMemo(
+        () => (application ? recordedDecision(application) : null),
+        [application]
+    )
+    // An enrollment whose recorded inputs can't be read is shown with the sample.
+    const entry = recorded?.enrollment ? EMatrixEntry.ENROLLMENT : EMatrixEntry.TOOLBAR
+    const joint = entry === EMatrixEntry.ENROLLMENT && Boolean(recorded?.jointNames)
+    const [applied, setApplied] = useState<ITestEnrollment>(
+        () => recorded?.enrollment ?? sampleEnrollment()
+    )
+    const evaluation = useExampleEvaluation(electionEventId, draft, applied, entry, joint)
     const [offered, setOffered] = useState<string[]>([])
     const [detailMenu, setDetailMenu] = useState<HTMLElement | null>(null)
 
@@ -173,7 +213,63 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({
                 .filter((name) => name),
         [profileAttributes]
     )
-    const onResult = useCallback((rule: RulePointer) => setAppliesTo(rule), [])
+    // The save bar's height as drawn (it wraps on narrow windows and long texts), with the
+    // gap below it, so the example card and its editor stay clear of it.
+    const [saveBarRoom, setSaveBarRoom] = useState(0)
+    const saveBar = useCallback((element: HTMLDivElement | null) => {
+        if (!element) {
+            return
+        }
+        const measure = () => setSaveBarRoom(element.offsetHeight + SAVE_BAR_BOTTOM + SAVE_BAR_GAP)
+        measure()
+        const observer = new ResizeObserver(measure)
+        observer.observe(element)
+        return () => {
+            observer.disconnect()
+            setSaveBarRoom(0)
+        }
+    }, [])
+    // The height of the page's sticky header (the portal's app bar), which covers the top of
+    // the window; none outside the portal's layout.
+    const [headerRoom, setHeaderRoom] = useState(0)
+    useEffect(() => {
+        const header = Array.from(document.querySelectorAll("header")).find((element) =>
+            ["sticky", "fixed"].includes(getComputedStyle(element).position)
+        )
+        if (!header) {
+            return
+        }
+        const measure = () => setHeaderRoom(header.offsetHeight)
+        measure()
+        const observer = new ResizeObserver(measure)
+        observer.observe(header)
+        return () => observer.disconnect()
+    }, [])
+    // What the page shows below the columns (the save bar, the page's margins): at the end of
+    // the page the sticky card is pushed up by it, so the card is never taller than what fits
+    // between the header and it. Measured from the sizes of what follows the columns, not from
+    // positions, so neither the card's height nor empty window space changes it.
+    const [belowRoom, setBelowRoom] = useState(0)
+    const [columnsElement, setColumnsElement] = useState<HTMLDivElement | null>(null)
+    const columns = useCallback((element: HTMLDivElement | null) => setColumnsElement(element), [])
+    useEffect(() => {
+        if (!columnsElement) {
+            return
+        }
+        const scroller = scrollFrame(columnsElement)
+        const measure = () => setBelowRoom(contentAfter(columnsElement, scroller))
+        measure()
+        const observer = new ResizeObserver(measure)
+        observer.observe(columnsElement)
+        observer.observe(scroller)
+        return () => observer.disconnect()
+    }, [columnsElement, saveBarRoom])
+    const goToRule = useCallback((rule: number | null) => {
+        const card = document.getElementById(ruleCardId(rule))
+        const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+        card?.scrollIntoView({block: "center", behavior: still ? "auto" : "smooth"})
+        card?.focus({preventScroll: true})
+    }, [])
 
     if (loading) {
         return <CircularProgress aria-label={String(t("approvalsScreen.matrix.title"))} />
@@ -263,7 +359,10 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({
         : "-"
 
     return (
-        <Page>
+        <Page
+            style={{[SAVE_BAR_ROOM]: `${saveBarRoom}px`} as React.CSSProperties}
+            sx={{[SMALL_PHONE]: {padding: 0}}}
+        >
             {back}
             <Box
                 sx={{
@@ -275,7 +374,14 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({
                 }}
             >
                 <Box sx={{maxWidth: "460px"}}>
-                    <Box component="h2" sx={{margin: "0 0 8px", fontSize: "26px", fontWeight: 600}}>
+                    <Box
+                        component="h2"
+                        sx={{
+                            margin: "0 0 8px",
+                            fontSize: {xs: "20px", sm: "26px"},
+                            fontWeight: 600,
+                        }}
+                    >
                         {t("approvalsScreen.matrix.title")}
                     </Box>
                     <Muted>{t("approvalsScreen.matrix.subtitle")}</Muted>
@@ -324,9 +430,51 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({
                 </Notice>
             )}
 
-            <Columns>
-                <Box sx={{display: "flex", flexDirection: "column", gap: "24px"}}>
-                    <Card aria-labelledby="approval-matrix-compared">
+            <Columns ref={columns}>
+                <Card
+                    aria-labelledby="approval-matrix-example"
+                    sx={{
+                        ...NARROW_CARD,
+                        gridArea: "example",
+                        boxSizing: "border-box",
+                        position: {lg: "sticky"},
+                        top: {lg: `calc(${headerRoom}px + 16px)`},
+                        // The card scrolls on its own when it is taller than the window, and
+                        // stays between the page's header and the save bar, so its buttons can
+                        // always be reached.
+                        maxHeight: {
+                            lg: `calc(100vh - ${headerRoom}px - 16px - ${Math.max(
+                                16,
+                                saveBarRoom,
+                                belowRoom
+                            )}px)`,
+                        },
+                        overflowY: {lg: "auto"},
+                    }}
+                >
+                    <ApprovalMatrixTest
+                        applied={applied}
+                        onApply={setApplied}
+                        entry={entry}
+                        joint={joint}
+                        source={
+                            source && {
+                                name: applicantName(source.application),
+                                status: source.application.status,
+                                recorded,
+                                onBack: source.onBack,
+                            }
+                        }
+                        comparedFields={cleanMatrix(draft).compared_fields}
+                        validIds={current.valid_ids}
+                        fieldLabel={fieldLabel}
+                        evaluation={evaluation}
+                        unsavedRules={changed}
+                        onGoToRule={goToRule}
+                    />
+                </Card>
+                <Box sx={{gridArea: "main", display: "flex", flexDirection: "column", gap: "24px"}}>
+                    <Card aria-labelledby="approval-matrix-compared" sx={NARROW_CARD}>
                         <CardTitle id="approval-matrix-compared">
                             <CardIcon>
                                 <FactCheckIcon fontSize="small" />
@@ -415,7 +563,7 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({
                         )}
                     </Card>
 
-                    <Card aria-labelledby="approval-matrix-rules">
+                    <Card aria-labelledby="approval-matrix-rules" sx={NARROW_CARD}>
                         <CardTitle id="approval-matrix-rules">
                             <CardIcon sx={{background: "#E3F4EC", color: "#0B6B43"}}>
                                 <RuleIcon fontSize="small" />
@@ -427,12 +575,7 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({
                             matrix={draft}
                             canEdit={canEdit}
                             fieldLabel={fieldLabel}
-                            appliesTo={appliesTo}
-                            cameFrom={
-                                cameFrom && cameFrom.version === current.version && !changed
-                                    ? cameFrom.rule
-                                    : undefined
-                            }
+                            appliesTo={decidingRule(evaluation)}
                             problems={problems}
                             onEdit={(index) =>
                                 setEditing(
@@ -453,29 +596,14 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({
                         />
                     </Card>
                 </Box>
-
-                <Card
-                    aria-labelledby="approval-matrix-example"
-                    sx={{position: {lg: "sticky"}, top: {lg: "16px"}}}
-                >
-                    <CardTitle id="approval-matrix-example">
-                        <CardIcon>
-                            <PlayCircleOutlineIcon fontSize="small" />
-                        </CardIcon>
-                        {t("approvalsScreen.matrix.test")}
-                    </CardTitle>
-                    <ApprovalMatrixTest
-                        electionEventId={electionEventId}
-                        matrix={draft}
-                        validIds={current.valid_ids}
-                        fieldLabel={fieldLabel}
-                        onResult={onResult}
-                    />
-                </Card>
             </Columns>
 
             {canEdit && changed && (
-                <SaveBar role="region" aria-label={String(t("approvalsScreen.matrix.unsaved"))}>
+                <SaveBar
+                    ref={saveBar}
+                    role="region"
+                    aria-label={String(t("approvalsScreen.matrix.unsaved"))}
+                >
                     <div>
                         <NoticeTitle>{t("approvalsScreen.matrix.saveBar.title")}</NoticeTitle>
                         <Muted>

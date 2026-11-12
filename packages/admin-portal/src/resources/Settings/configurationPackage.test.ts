@@ -220,6 +220,25 @@ describe("the entered SHA-256", () => {
 })
 
 describe("proposed changes", () => {
+    it("says an event's version warning on its line instead of dropping it", () => {
+        // configuration_package_target.rs: a different major version does not
+        // block the event (meta#14760); the preview names it.
+        expect(
+            changeLines([
+                {
+                    electionEventId: "e1",
+                    action: "import",
+                    censusSize: 3,
+                    warnings: [
+                        "the file was exported by version v10.0.0, a different major version",
+                    ],
+                },
+            ])
+        ).toEqual([
+            "e1 · import · census: 3 · warning: the file was exported by version v10.0.0, a different major version",
+        ])
+    })
+
     it("name what each section's preview would change, in the platform's own shapes", () => {
         // configuration_package_sections.rs: tenant settings, roles, admins,
         // the tenant record, trustees and the event.

@@ -10,6 +10,7 @@ the bundle's `.env` lacks breaks every service of the next release, not only
 the one that uses it.
 """
 
+import json
 import os
 import re
 import shutil
@@ -59,6 +60,36 @@ class AirgapBundleTest(unittest.TestCase):
                 if name.startswith("MESSAGING_") or line.strip().startswith("- ${"):
                     needed.add(name)
         self.assertEqual(sorted(needed - names), [])
+
+    @unittest.skipUnless(shutil.which("docker"), "docker is not installed")
+    def test_ballot_log_domain_uses_harvest_unless_explicitly_overridden(self):
+        for overrides, expected in (
+            ({}, "harvest:8400"),
+            ({"HARVEST_DOMAIN": "custom-harvest:9400"}, "custom-harvest:9400"),
+            ({"HARVEST_BALLOT_LOG_DOMAIN": ""}, "harvest:8400"),
+            ({"HARVEST_BALLOT_LOG_DOMAIN": "proxy:8080"}, "proxy:8080"),
+        ):
+            with self.subTest(overrides=overrides):
+                result = subprocess.run(
+                    [
+                        "docker", "compose", "--project-directory", str(BUNDLE),
+                        "--env-file", str(BUNDLE / ".env"),
+                        "-f", str(BUNDLE / "docker-compose.yml"),
+                        "--profile", "full", "config", "--format", "json",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    env={"PATH": os.environ.get("PATH", ""), **overrides},
+                    check=True,
+                )
+                services = json.loads(result.stdout)["services"]
+                environment = services["graphql-engine"]["environment"]
+                self.assertEqual(environment.get("HARVEST_BALLOT_LOG_DOMAIN"), expected)
+                self.assertEqual(
+                    environment["HARVEST_DOMAIN"],
+                    overrides.get("HARVEST_DOMAIN", "harvest:8400"),
+                )
+                self.assertNotIn("harvest-edge", services)
 
     def test_airgap_trustees_keep_native_identity_and_session_state(self):
         for relative in (

@@ -1367,6 +1367,7 @@ input ExportOptions {
     applications: Boolean
     tally: Boolean
     include_certificates: Boolean
+    include_integration_secrets: Boolean
 }
 
 input ApplicationVerifyBody {

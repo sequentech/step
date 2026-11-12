@@ -1051,12 +1051,11 @@
         {
             "alias": "scanovate-registration",
             "config": {
-                "ocr-url": "{{{scanovate_ocr_url}}}",
                 "ocr-types": "{\"philippinePassport\": \"passport\"}",
-                "capture-sides": "{\"philippinePassport\": [\"front\"], \"default\": [\"front\", \"back\"]}",
                 "liveness-url": "{{{scanovate_liveness_url}}}",
                 "liveness-secret": "{{{scanovate_liveness_secret}}}",
                 "face-match-url": "{{{scanovate_face_match_url}}}",
+                "document-liveness-url": "{{{scanovate_document_liveness_url}}}",
                 "face-match-min-similarity": "{\"philSysID\": {{philis_id_scanovate_min_biometric_score}}, \"seamanBook\": {{seaman_book_scanovate_min_biometric_score}}, \"philippinePassport\": {{passport_scanovate_min_biometric_score}}, \"driversLicense\": {{driver_license_scanovate_min_biometric_score}}, \"iBP\": {{ibp_scanovate_min_biometric_score}}}",
                 "doc-id-type": "sequent.read-only.id-card-type",
                 "user-status": "sequent.read-only.id-card-number-validated",

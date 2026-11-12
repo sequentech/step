@@ -2049,6 +2049,9 @@ const englishTranslation = {
                 encryptWithPassword: "Encrypt with Password",
                 passwordForcedNote:
                     "The archive will be password protected anyway: reports, applications and bulletin-board data are always encrypted. Tick the box to also include decrypted secret voter fields.",
+                integrationSecrets: "Integration secrets (service credentials)",
+                integrationSecretsNote:
+                    "The archive will contain the Scanovate liveness secret in clear text once decrypted. Keep the archive and its password secret, and import it only where that Liveness Plus service is meant to be used.",
                 includeVoters: "Include Voters",
                 activityLogs: "Activity Logs",
                 bulletinBoard: "Bulletin Board",
@@ -2478,6 +2481,7 @@ const englishTranslation = {
                 "voter-write": "Edit Voter",
                 "voter-secret-attribute-read": "Reveal Secret Voter Fields",
                 "voter-secret-attribute-write": "Edit Secret Voter Fields",
+                "integration-secret-read": "Export Integration Secrets",
                 "user-create": "Create User",
                 "user-read": "Read User",
                 "user-write": "Edit User",
@@ -2985,6 +2989,9 @@ const englishTranslation = {
                         delete: "Are you sure to delete this item?",
                         sealsUnknown:
                             "The ballot box seals could not be checked: if it has sealed ballot boxes, the delete is refused.",
+                        archiveNamed: 'Are you sure you want to archive "{{name}}"?',
+                        unarchiveNamed: 'Are you sure you want to unarchive "{{name}}"?',
+                        deleteNamed: 'Are you sure you want to delete "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -3105,6 +3112,13 @@ const englishTranslation = {
                 "label": "Candidates checkbox icon shape",
                 "square-checkbox": "Square Checkbox",
                 "round-checkbox": "Round Checkbox",
+            },
+            candidatesLayout: {
+                "label": "Candidates layout",
+                "helperText":
+                    "Paper ballot grid shows candidates as numbered cells with a fill-in circle, filled column by column, using Columns (4 if empty). Ranked contests always use the list.",
+                "list": "List",
+                "paper-grid": "Paper ballot grid",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidates And Lists",
@@ -4309,7 +4323,7 @@ const englishTranslation = {
                 differs: "Different",
                 compareNote: "Names ignore capital letters, accents and hyphens.",
                 compareJoint:
-                    "For driver's licenses and seafarer's books, first and middle name are compared together.",
+                    "For driver's licenses, seafarer's books and passports read by the scanner, first and middle name are compared together.",
                 applicationId: "Application ID",
                 copy: "Copy",
                 copied: "Copied",
@@ -4346,6 +4360,7 @@ const englishTranslation = {
                     "insufficient-information": "Missing data",
                     "no-matching-voter": "No matching voter",
                     "voter-already-approved": "Already approved",
+                    "EMAIL_IN_USE": "Email used by another voter",
                     "other": "Other",
                 },
                 hint: {
@@ -4403,8 +4418,7 @@ const englishTranslation = {
                 noneApply: "None of the rules above apply",
                 andWord: "and",
                 and: " and ",
-                appliesToExample: "Applies to your example",
-                cameFrom: "Decided the enrollment you came from",
+                appliesToExample: "Decides in the simulation",
                 voterIsTold: "The voter is told: “{{reason}}”.",
                 sentence: "When {{when}}, {{outcome}}.",
                 sentenceOtherwise: "If none of the rules above apply, {{outcome}}.",
@@ -4425,13 +4439,70 @@ const englishTranslation = {
                     more: "+{{count}} more",
                 },
                 test: "Try an example",
-                testHelp:
-                    "Describe an enrollment to see which rule decides it. Your unsaved changes count.",
+                example: {
+                    stateSample: "Sample enrollment",
+                    sampleText:
+                        "A verified voter in the registry, not enrolled yet, whose compared details are all the same.",
+                    stateCustom: "Your example",
+                    customText: "Started from the sample.",
+                    recorded: "Recorded decision",
+                    recordedRule: "Rule {{number}} of version {{version}} · {{decision}}.",
+                    recordedLast: "Last rule of version {{version}} · {{decision}}.",
+                    severalApproved: "Several registry voters fit.",
+                    statusNow: "Its status is now {{status}}.",
+                    noChanges: "Trying an example changes no enrollment and saves nothing.",
+                    edit: "Edit example",
+                    editing: "Editing the example — not applied yet",
+                    editingHelp:
+                        "Your changes take effect only when you apply them. Until then the simulation uses the applied example with the rules on screen.",
+                    apply: "Apply",
+                    notRecorded: "Not recorded",
+                    withFirstName: "Compared with the first name",
+                    notComparedForId: "Not compared for this ID document",
+                    noLongerOffered: "{{id}} (no longer offered)",
+                    simulation: "Current simulation",
+                    rulesOnScreen: "Rules on screen",
+                    rulesUnsaved: "Rules on screen, including unsaved changes",
+                    goToRule: "Go to rule {{number}}",
+                    goToLast: "Go to the last rule",
+                    titleEnrollment: "Simulating the enrollment of {{name}}",
+                    titleUnnamed: "Simulating an enrollment",
+                    back: "Back to the enrollment",
+                    backLabel: "Back to the enrollment of {{name}}",
+                    noChangesEnrollment:
+                        "The simulation changes nothing in this enrollment and saves nothing.",
+                    unreadable:
+                        "The recorded decision of this enrollment can't be read, so the simulation uses the sample enrollment.",
+                    stateRecorded: "Recorded details · in the simulation",
+                    stateChanged: "Other details · in the simulation",
+                    stateUnreadable: "Sample enrollment — not their recorded details",
+                    changedNote: "The enrollment keeps its recorded details.",
+                    editDetails: "Try other details",
+                    editingDetails: "Trying other details — not in the simulation yet",
+                    editingDetailsHelp:
+                        "These details decide nothing until you apply them. Until then the simulation uses the details above with the rules on screen.",
+                    restore: "Fill in the recorded details",
+                    resetSample: "Fill in the sample",
+                    decides: "In the simulation, rule {{number}} decides.",
+                    lastDecides: "In the simulation, no rule fits: the last rule decides.",
+                    evaluating: "Working out which rule decides the simulation…",
+                    stillApplied: "The highlighted rule still decides the simulation.",
+                    comparison: {
+                        SAME: "The current simulation gives the same decision as the recorded one.",
+                        DIFFERENT:
+                            "The current simulation gives a different decision from the recorded one.",
+                        EDITED: "These aren't the recorded details, so the simulation isn't compared with the recorded decision.",
+                        NOT_RECORDED:
+                            "A compared detail wasn't recorded, so the simulation isn't compared with the recorded decision.",
+                        SEVERAL_VOTERS:
+                            "Several registry voters were compared, so the simulation isn't compared with the recorded decision.",
+                        UNKNOWN_VOTERS:
+                            "The number of registry voters compared wasn't recorded, so the simulation isn't compared with the recorded decision.",
+                    },
+                },
                 testDetails: "Details compared",
-                applies: "Rule {{number}} applies",
-                otherwiseApplies: "The last rule applies",
-                testError: "The example could not be tried.",
-                testInvalid: "Fix these rules to try an example:",
+                testError: "The simulation could not be run.",
+                testInvalid: "Fix these rules to run the simulation:",
                 ruleError: "Rule {{number}}: {{error}}",
                 invariants: {
                     MANUAL_ENTRY_NOT_ACCEPTED:
@@ -4587,6 +4658,8 @@ const englishTranslation = {
             },
         },
         monitoring: {
+            configuredDashboards: "Configurable dashboards",
+            modeChangeError: "Could not change the dashboard mode. Try again.",
             title: "Monitoring",
             loading: "Loading monitoring",
             unavailableAlert:

@@ -3944,10 +3944,10 @@
       "id": "3b3c7e73-efd1-4f2c-8233-e5f62c3dbbf5",
       "alias": "scanovate-registration",
       "config": {
-        "ocr-url": "http://scanovate-ocr:5040",
         "liveness-url": "https://localhost:8443/biometric",
         "liveness-secret": "liveness-dev-callback-secret",
         "face-match-url": "http://scanovate-face-match:3000",
+        "document-liveness-url": "http://scanovate-document-liveness:8080",
         "doc-id-type": "sequent.read-only.id-card-type",
         "user-status": "sequent.read-only.id-card-number-validated",
         "attributes-to-validate": "{\n  \"default\": [\n    {\n      \"type\": \"isBeforeDateValue\",\n      \"isBeforeDateValue\": \"now\",\n      \"process\": \"ocr\",\n      \"attributePath\": \"/date_of_expiry\",\n      \"sourceDateFormat\": \"yyyy-MM-dd\",\n      \"errorMsg\": \"scanovateAttributesError\"\n    }\n  ]\n}",

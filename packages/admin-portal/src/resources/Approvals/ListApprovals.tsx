@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
 import {
     List,
     FunctionField,
@@ -12,13 +12,13 @@ import {
     RecordContextProvider,
     SelectInput,
     TextInput,
-    useListContext,
     DatagridConfigurableProps,
     useNotify,
     useRefresh,
     useReference,
     useSidebarState,
     useGetOne,
+    useStoreContext,
 } from "react-admin"
 import {AdminDateField} from "@/components/AdminDateTime"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -59,6 +59,7 @@ import {getPreferenceKey} from "@/lib/helpers"
 import CustomDateField from "../User/CustomDateField"
 import {IApplicationsStatus} from "@/types/applications"
 import {ApprovalStatusChip} from "./ApprovalChips"
+import {IQueueFilter, restorableListParams} from "./rememberedFilters"
 import {profileFieldLabel} from "./approvalMatrix"
 import {
     applicantData,
@@ -93,22 +94,19 @@ export interface ListApprovalsProps {
     electionId?: string
     onViewApproval: (id: Identifier) => void
     onViewMatrix?: () => void
-    /** Opens the matrix on the rule that decided this application. */
-    onViewRule?: (id: Identifier) => void
+    /** Opens the matrix with the example of this application's recorded decision. */
+    onViewRule?: (application: Sequent_Backend_Applications) => void
     electionEventRecord?: Sequent_Backend_Election_Event
 }
 
 interface ApprovalsListProps extends Omit<DatagridConfigurableProps, "children"> {
     onViewApproval: (id: Identifier) => void
-    onViewRule?: (id: Identifier) => void
+    onViewRule?: (application: Sequent_Backend_Applications) => void
     userAttributes: GetUserProfileAttributesQuery | undefined
-    defaultFilters: string | null
     /** The queue's own filter (event and Post), which a support reference is looked up in. */
     scope: Record<string, unknown>
 }
 
-// Storage key for the status filter
-const STATUS_FILTER_KEY = "approvals_status_filter"
 const NO_RECORD = {}
 // The queue opens on the enrollments that wait for a person.
 const DEFAULT_STATUS = "pending"
@@ -136,11 +134,9 @@ const ApprovalsList = ({
     onViewApproval,
     onViewRule,
     userAttributes,
-    defaultFilters,
     scope,
     ...props
 }: ApprovalsListProps) => {
-    const {filterValues, setFilters} = useListContext()
     useSupportReferenceSearch(scope)
     const location = useLocation()
 
@@ -167,12 +163,6 @@ const ApprovalsList = ({
         })
         return {attributesFields: profileAttributes ?? [], omitFields}
     }, [profileAttributes])
-
-    useEffect(() => {
-        if (defaultFilters) {
-            setFilters({...filterValues, status: defaultFilters}, {})
-        }
-    }, [defaultFilters])
 
     const renderUserFields = (fields: UserProfileAttribute[]) =>
         fields.map((attr) => {
@@ -255,13 +245,6 @@ const ApprovalsList = ({
         )
         return renderUserFields(listFields.attributesFields)
     }, [listFields.attributesFields, location.pathname])
-
-    // Monitor and save filter changes
-    useEffect(() => {
-        if (filterValues?.status) {
-            localStorage.setItem(STATUS_FILTER_KEY, filterValues.status)
-        }
-    }, [filterValues?.status])
 
     const isPending = (record: Sequent_Backend_Applications) =>
         String(record.status).toUpperCase() === IApplicationsStatus.PENDING
@@ -406,7 +389,7 @@ const ApprovalsList = ({
                                     ? [
                                           {
                                               icon: <RuleIcon />,
-                                              action: onViewRule,
+                                              action: () => onViewRule(record),
                                               label: String(t("approvalsScreen.list.seeRule")),
                                           },
                                       ]
@@ -437,7 +420,7 @@ const generateFilters = (
     })
 }
 
-const CustomFilters = (t: any, changeFilters: any, fields: UserProfileAttribute[]) => {
+const CustomFilters = (t: any, fields: UserProfileAttribute[]) => {
     return [
         <TextInput
             source="q"
@@ -456,13 +439,6 @@ const CustomFilters = (t: any, changeFilters: any, fields: UserProfileAttribute[
                 {id: "accepted", name: String(t("approvalsScreen.status.ACCEPTED"))},
                 {id: "rejected", name: String(t("approvalsScreen.status.REJECTED"))},
             ]}
-            defaultValue={localStorage.getItem(STATUS_FILTER_KEY) || DEFAULT_STATUS}
-            onChange={(e) => {
-                if (e.target.value) {
-                    localStorage.setItem(STATUS_FILTER_KEY, e.target.value)
-                    changeFilters(e.target.value)
-                }
-            }}
         />,
         <SelectInput
             source="verification_type"
@@ -603,19 +579,16 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     }
 
     const [tenantId] = useTenantStore()
-    const {data: userAttributes, loading: userAttributesLoading} =
-        useQuery<GetUserProfileAttributesQuery>(USER_PROFILE_ATTRIBUTES, {
-            variables: {
-                tenantId: tenantId,
-                electionEventId: electionEventId,
-            },
-        })
-
-    // Get initial status from localStorage or use "pending" as default
-    // const defaultFilters = localStorage.getItem(STATUS_FILTER_KEY) // || "pending"
-    const [defaultFilters, setDefaultFilters] = useState<string | null>(
-        localStorage.getItem(STATUS_FILTER_KEY) || DEFAULT_STATUS
-    )
+    const {
+        data: userAttributes,
+        loading: userAttributesLoading,
+        error: userAttributesError,
+    } = useQuery<GetUserProfileAttributesQuery>(USER_PROFILE_ATTRIBUTES, {
+        variables: {
+            tenantId: tenantId,
+            electionEventId: electionEventId,
+        },
+    })
 
     const listFilter = useMemo(() => {
         const filter: Record<string, any> = {
@@ -627,9 +600,11 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         }
 
         return filter
-    }, [electionEventId, election?.permission_label, defaultFilters])
+    }, [electionEventId, election?.permission_label])
 
     const authContext = useContext(AuthContext)
+    const store = useStoreContext()
+    const restoredKey = useRef<string | undefined>(undefined)
     const canExport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_EXPORT)
     const canImport = authContext.isAuthorized(true, tenantId, IPermissions.APPLICATION_IMPORT)
 
@@ -640,6 +615,26 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
 
     if (!electionEventRecord) {
         return <CircularProgress aria-label={String(t("approvalsScreen.list.title"))} />
+    }
+
+    const filters = CustomFilters(t, userAttributes?.get_user_profile_attributes || [])
+    // Each administrator's filters of this page, in this browser. Until the
+    // administrator is known, or while the voter attribute filters can't be
+    // checked, the queue filters without remembering.
+    const storeKey =
+        authContext.userId && !userAttributesError
+            ? `${getPreferenceKey(location.pathname, PREFERENCE_KEY)}.${authContext.userId}`
+            : false
+    if (storeKey && restoredKey.current !== storeKey) {
+        restoredKey.current = storeKey
+        const saved = store.getItem(storeKey)
+        if (saved !== undefined) {
+            const inputs: IQueueFilter[] = filters.map(({props}) => ({
+                source: props.source,
+                choices: props.choices?.map(({id}: {id: string}) => id),
+            }))
+            store.setItem(storeKey, restorableListParams(saved, inputs))
+        }
     }
 
     return (
@@ -675,22 +670,19 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                     }
                     empty={false}
                     resource="sequent_backend_applications"
-                    filters={CustomFilters(
-                        t,
-                        setDefaultFilters,
-                        userAttributes?.get_user_profile_attributes || []
-                    )}
+                    filters={filters}
                     filter={listFilter}
                     sort={{field: "created_at", order: "DESC"}}
                     perPage={10}
-                    filterDefaultValues={{status: defaultFilters}}
+                    filterDefaultValues={{status: DEFAULT_STATUS}}
                     disableSyncWithLocation
+                    storeKey={storeKey}
+                    key={String(storeKey)}
                 >
                     <ApprovalsList
                         onViewApproval={onViewApproval}
                         onViewRule={onViewRule}
                         userAttributes={userAttributes}
-                        defaultFilters={defaultFilters}
                         scope={listFilter}
                     />
                 </List>

@@ -18,9 +18,7 @@ import {
     cleanConditions,
     cleanMatrix,
     conditionLabels,
-    defaultEnrollment,
     deleteRule,
-    enrollmentFor,
     humanizeField,
     matrixChanges,
     moveRule,
@@ -408,28 +406,6 @@ describe("matrixChanges", () => {
     })
 })
 
-describe("test enrollment", () => {
-    it("starts from a verified voter whose fields match", () => {
-        expect(defaultEnrollment(["firstName", "embassy"])).toEqual({
-            identity: EIdentityMethod.VERIFIED,
-            voter_found: true,
-            already_enrolled: false,
-            valid_id: null,
-            fields: {firstName: EFieldMatch.MATCHES, embassy: EFieldMatch.MATCHES},
-        })
-    })
-
-    it("follows the compared fields", () => {
-        const enrollment = defaultEnrollment(["firstName", "embassy"])
-        enrollment.fields.embassy = EFieldMatch.DIFFERS
-
-        expect(enrollmentFor(enrollment, ["embassy", "lastName"]).fields).toEqual({
-            embassy: EFieldMatch.DIFFERS,
-            lastName: EFieldMatch.MATCHES,
-        })
-    })
-})
-
 describe("profileFieldLabel", () => {
     const label = profileFieldLabel(
         [
@@ -465,5 +441,11 @@ describe("rejectionReasonKey", () => {
         )
         expect(rejectionReasonKey(null)).toBe("approvalsScreen.reject.reasons.undefined")
         expect(rejectionReasonKey(undefined)).toBe("approvalsScreen.reject.reasons.undefined")
+    })
+
+    it("reads a reason the enrollment itself rejects with by its name", () => {
+        expect(rejectionReasonKey("EMAIL_IN_USE")).toBe(
+            "approvalsScreen.reject.reasons.EMAIL_IN_USE"
+        )
     })
 })

@@ -204,8 +204,9 @@ export const NamesComparedTogether: Story = {
         expect(canvas.queryByRole("row", {name: /^Middle Name/})).toBeNull()
         await expect(
             canvas.getByText(
-                "Names ignore capital letters, accents and hyphens. For driver's licenses and " +
-                    "seafarer's books, first and middle name are compared together."
+                "Names ignore capital letters, accents and hyphens. For driver's licenses, " +
+                    "seafarer's books and passports read by the scanner, first and middle name " +
+                    "are compared together."
             )
         ).toBeVisible()
         expect(choices(canvasElement)[0]).toMatch(/Best match · 2 of 4 details match$/)

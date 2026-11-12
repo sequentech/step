@@ -16,123 +16,43 @@ export const scanovateEnglish = {
     "scanovateDocumentType.iBP": "IBP ID",
     "scanovateDocumentType.seamanBook": "Seafarer’s Book",
 
-    scanovateIntroTitle: "Verify your identity",
-    scanovateIntroLead:
-        "We will take photos of your {0} and a short video of your face to confirm it is you. It takes about 2 minutes.",
-    scanovateIntroDocumentBothSides: "Front and back of your ID",
-    scanovateIntroDocumentFrontSide: "Your ID",
-    scanovateIntroDocumentHint: "On a flat, dark surface, with all four corners visible.",
-    scanovateIntroFace: "Your face",
-    scanovateIntroFaceHint: "A few seconds looking at the camera.",
-    scanovateIntroVideo: "You holding your ID",
-    scanovateIntroVideoHint: "A short video with the ID next to your face.",
-    scanovateIntroBeforeTitle: "Before you start",
     scanovateIntroTipLight: "Find a well-lit place.",
-    scanovateIntroTipCoverings: "Remove sunglasses, hats and face coverings.",
-    scanovateIntroTipDocument: "Have your {0} with you.",
-    scanovateIntroPrivacy:
-        "Your photos and video are deleted after verification. We keep the details from your ID.",
-    scanovateIntroStart: "Start",
-
-    scanovateCameraStarting: "Starting the camera…",
-    scanovateCameraDeniedTitle: "Allow access to your camera",
-    scanovateCameraDeniedText:
-        "We need your camera to take the photos. Allow camera access for this site in your browser settings, then try again.",
-    scanovateCameraNotFoundTitle: "We couldn’t find a camera",
-    scanovateCameraNotFoundText:
-        "Connect a camera, or open this page on a phone or tablet with a camera, then try again.",
-    scanovateCameraInUseTitle: "Your camera is in use",
-    scanovateCameraInUseText:
-        "Close other apps or browser tabs that are using the camera, then try again.",
-    scanovateInsecureContextTitle: "The camera can’t be used on this page",
-    scanovateInsecureContextText:
-        "Your browser only allows the camera on secure pages. Open the link you received again, or contact support.",
-    scanovateCameraFailedTitle: "We couldn’t start your camera",
-    scanovateCameraFailedText: "Check that your camera works and try again.",
-    scanovateAnalyzerFailedTitle: "We couldn’t prepare the camera check",
-    scanovateAnalyzerFailedText: "Check your internet connection and try again.",
     scanovateTryAgain: "Try again",
-    scanovateBackToStart: "Back to start",
 
-    scanovateCaptureFrontTitle: "Front of your ID",
-    scanovateCaptureBackTitle: "Back of your ID",
-    scanovateCaptureFaceTitle: "Your face",
-    scanovateCaptureVideoTitle: "You holding your ID",
-    scanovateCaptureCounter: "{0} · {1} of {2}",
-    scanovateCaptureFrontHeading: "Place the front of your ID in the frame",
-    scanovateCaptureFrontText:
-        "Use a dark surface, avoid glare and keep all four corners visible. The photo is taken automatically.",
-    scanovateCaptureBackHeading: "Now the back of your ID",
-    scanovateCaptureBackText: "As before: all four corners inside the frame and no glare.",
-    scanovateCaptureFaceHeading: "Keep your face inside the oval",
-    scanovateCaptureFaceText:
-        "Make sure your face is well lit and nothing covers it. This takes a few seconds.",
-    scanovateCaptureVideoHeading: "Hold your ID next to your face",
-    scanovateCaptureVideoText:
-        "Keep your face and the front of your ID in view until the recording ends.",
-    scanovateChipFront: "Front",
-    scanovateChipBack: "Back",
-    scanovateChipFace: "Face",
-    scanovateCaptureSecure: "Secure identity verification",
-    scanovateTakePhoto: "Take photo",
-    scanovateStop: "Stop and go back",
-    scanovateHelp: "Help",
-    scanovateCaptured: "Photo taken",
-    scanovateRecording: "REC {0}",
-    scanovateRecordingStatus: "Recording",
-    scanovateStepDone: "Done",
-    scanovateStepCurrent: "In progress",
-
-    scanovateGuideLoading: "Getting ready…",
-    scanovateGuidePlaceDocument: "Place your ID in the frame",
-    scanovateGuideTurnDocument: "Turn your ID over",
-    scanovateGuideDocumentTooFar: "Move your ID closer",
-    scanovateGuideDocumentTooClose: "Move your ID a little farther away",
-    scanovateGuideDocumentNotAligned: "Line up your ID with the frame",
-    scanovateGuideDocumentTilted: "Hold your ID flat, facing the camera",
-    scanovateGuideTooDark: "Find a brighter place",
-    scanovateGuideSunglasses: "Take off your sunglasses",
-    scanovateGuideFaceCovered: "Uncover your mouth and nose",
-    scanovateGuideDocumentTooBright: "Move away from direct light",
-    scanovateGuideGlare: "Tilt your ID to remove the glare",
-    scanovateGuideDocumentBlurry: "Hold steady so your ID is sharp",
-    scanovateGuideDocumentHoldStill: "Hold still, capturing…",
-    scanovateGuidePlaceFace: "Place your face in the oval",
-    scanovateGuideMultipleFaces: "Only you should be in the frame",
-    scanovateGuideFaceTooFar: "Move a little closer",
-    scanovateGuideFaceTooClose: "Move back a little",
-    scanovateGuideFaceOffCenter: "Center your face in the oval",
-    scanovateGuideTurnToCamera: "Look straight at the camera",
-    scanovateGuideFaceTooBright: "Avoid strong light on your face",
-    scanovateGuideFaceBlurry: "Hold your camera steady",
-    scanovateGuideFaceHoldStill: "Look at the camera and hold still",
-    scanovateGuideHoldDocument: "Hold your ID next to your face",
-    scanovateGuideRecording: "Recording, keep still",
-    scanovateGuideKeepInView: "Keep your face and ID in view",
-    scanovateGuideCaptured: "Got it",
-
-    scanovateHelpTitle: "Tips for this step",
-    scanovateHelpDocumentSurface: "Place your ID on a flat, dark surface.",
-    scanovateHelpDocumentCorners: "Keep all four corners inside the frame.",
-    scanovateHelpDocumentGlare:
-        "If you see reflections, tilt the ID slightly or turn off lights above it.",
-    scanovateHelpDocumentLight: "Move to a place with even light.",
-    scanovateHelpShutter:
-        "You can also take the photo yourself with the round button once the frame turns green.",
-    scanovateHelpFaceLevel: "Hold the camera at eye level, about an arm’s length away.",
-    scanovateHelpFaceCoverings: "Remove sunglasses, hats and face coverings.",
-    scanovateHelpFaceLight: "Face a window or a lamp so your face is evenly lit.",
-    scanovateHelpFaceAlone: "Make sure nobody else is in the frame.",
-    scanovateHelpVideoDocument:
-        "Hold the front of your ID next to your face, inside the small frame.",
-    scanovateHelpVideoFace: "Keep your face inside the oval.",
-    scanovateHelpVideoStill: "Stay still until the recording ends.",
-    scanovateHelpClose: "Got it",
-
-    scanovateStopTitle: "Stop verifying your identity?",
-    scanovateStopText: "The photos taken so far will be discarded.",
-    scanovateStopConfirm: "Stop",
-    scanovateStopCancel: "Keep going",
+    scanovateDocumentStepTitle: "Scan your ID",
+    scanovateDocumentStepLead:
+        "Follow the instructions below to scan your {0}. Then we will check your face.",
+    scanovateDocumentFrameTitle: "ID scan",
+    scanovateFaceStepTitle: "Check your face",
+    scanovateFaceStepLead:
+        "Your ID is scanned. Follow the instructions below so we can confirm it is you in front of the camera.",
+    scanovateFaceFrameTitle: "Face check",
+    scanovateHoldingStepTitle: "Take a photo holding your ID",
+    scanovateHoldingStepLead:
+        "Hold your {0} open next to your face, with both your face and its photo in view, and keep still: the photo is taken by itself.",
+    scanovateHoldingCameraLabel: "Camera",
+    scanovateHoldingPhotoLabel: "Your photo holding your ID",
+    scanovateHoldingKeepStill: "Hold your ID next to your face and keep still.",
+    scanovateHoldingCountdown: "Hold still: {0}",
+    scanovateHoldingProgress: "Holding still",
+    scanovateHoldingRetake: "Take it again",
+    scanovateHoldingUse: "Use this photo",
+    scanovateUploadProblemTitle: "We couldn’t send your photo",
+    scanovateUploadProblemText: "Check your internet connection and try again.",
+    scanovateCameraProblemTitle: "We couldn’t use your camera",
+    scanovateCameraProblemText:
+        "Allow camera access for this site in your browser settings, close other apps that are using the camera, then try again. If your device has no camera, open this page on a phone.",
+    scanovateSessionExpiredTitle: "The scan timed out",
+    scanovateSessionExpiredText:
+        "The scan took too long and was stopped. Try again when you are ready.",
+    scanovateStartAgainTitle: "Start the verification again",
+    scanovateStartAgainText:
+        "This scan can’t be continued. Start again to get a new one; it doesn’t use up one of your attempts.",
+    scanovateClosedTitle: "The scan was closed",
+    scanovateClosedText: "The scan was closed before it finished. Try again when you are ready.",
+    scanovateProblemTitle: "The scan didn’t finish",
+    scanovateProblemText: "Check your internet connection and try again.",
+    scanovateCheckingScanned: "ID scan and face check finished",
 
     scanovateCheckingTitle: "Checking your identity",
     scanovateCheckingLead: "This usually takes a few seconds. Keep this page open.",
@@ -164,7 +84,7 @@ export const scanovateEnglish = {
     scanovateDocumentAuthenticationError:
         "We could not authenticate your identity document. Please make sure it is valid, well lit and fully visible, and try again.",
     scanovateDocumentUnreadableError:
-        "We couldn’t read your ID. Take the photos again with the whole ID in the frame, well lit and in focus.",
+        "We couldn’t read your ID. Scan it again with the whole ID in the frame, well lit and in focus.",
     scanovateAttributesError:
         "The information extracted by our system doesn’t match the details you provided in the form. Try again or restart registration and double-check your entries.",
     scanovateScoringError:
@@ -179,22 +99,9 @@ export const scanovateEnglish = {
     scanovateConfirmDocument: "ID",
     scanovateConfirmSubmit: "Confirm and enroll",
     scanovateConfirmRetry: "Scan my ID again",
-    scanovateLivenessFailedTitle: "The face check didn’t finish",
-    scanovateLivenessFailedText:
-        "Check your internet connection, stay in a well-lit place and try the face check again.",
-    scanovateLivenessExpiredTitle: "Start the verification again",
-    scanovateLivenessExpiredText:
-        "The face check can’t be tried again from here. Start over to take the photos of your ID and check your face again.",
     scanovateStartOver: "Start over",
-    scanovateUploadFailedTitle: "We couldn’t send your photos",
-    scanovateUploadFailedText: "Check your connection and try again.",
-    scanovateCaptureExpiredTitle: "Start the verification again",
-    scanovateCaptureExpiredText:
-        "Your photos can’t be sent from this page anymore. Start over to take them again.",
-    scanovateCheckingReceivedLiveness: "Photos and face check received",
     scanovateLivenessError:
         "We could not confirm that it was you in front of the camera. Please try again.",
-    scanovateLivenessChecking: "Checking your face, hold still…",
     scanovateFaceMismatchError: "The face in your photos doesn’t match the photo on your ID.",
     scanovateFaceNotFoundError:
         "We couldn’t find your face on your ID or in the photo of you holding it. Make sure the photo on your ID is clear and not covered.",
@@ -215,127 +122,44 @@ export const scanovateSpanish: Record<keyof typeof scanovateEnglish, string> = {
     "scanovateDocumentType.iBP": "IBP ID",
     "scanovateDocumentType.seamanBook": "libreta de marino",
 
-    scanovateIntroTitle: "Verifique su identidad",
-    scanovateIntroLead:
-        "Tomaremos fotos de su {0} y un vídeo corto de su cara para confirmar que es usted. Tarda unos 2 minutos.",
-    scanovateIntroDocumentBothSides: "Anverso y reverso de su documento",
-    scanovateIntroDocumentFrontSide: "Su documento",
-    scanovateIntroDocumentHint:
-        "Sobre una superficie plana y oscura, con las cuatro esquinas visibles.",
-    scanovateIntroFace: "Su cara",
-    scanovateIntroFaceHint: "Unos segundos mirando a la cámara.",
-    scanovateIntroVideo: "Usted con su documento",
-    scanovateIntroVideoHint: "Un vídeo corto con el documento junto a su cara.",
-    scanovateIntroBeforeTitle: "Antes de empezar",
     scanovateIntroTipLight: "Busque un lugar bien iluminado.",
-    scanovateIntroTipCoverings:
-        "Quítese gafas de sol, gorros y cualquier cosa que le cubra la cara.",
-    scanovateIntroTipDocument: "Tenga a mano su {0}.",
-    scanovateIntroPrivacy:
-        "Sus fotos y su vídeo se eliminan tras la verificación. Guardamos los datos de su documento.",
-    scanovateIntroStart: "Empezar",
-
-    scanovateCameraStarting: "Iniciando la cámara…",
-    scanovateCameraDeniedTitle: "Permita el acceso a su cámara",
-    scanovateCameraDeniedText:
-        "Necesitamos su cámara para tomar las fotos. Permita el acceso a la cámara para este sitio en la configuración de su navegador y vuelva a intentarlo.",
-    scanovateCameraNotFoundTitle: "No encontramos ninguna cámara",
-    scanovateCameraNotFoundText:
-        "Conecte una cámara, o abra esta página en un teléfono o una tableta con cámara, y vuelva a intentarlo.",
-    scanovateCameraInUseTitle: "Su cámara está en uso",
-    scanovateCameraInUseText:
-        "Cierre otras aplicaciones o pestañas que estén usando la cámara y vuelva a intentarlo.",
-    scanovateInsecureContextTitle: "No se puede usar la cámara en esta página",
-    scanovateInsecureContextText:
-        "Su navegador solo permite la cámara en páginas seguras. Abra de nuevo el enlace que recibió o contacte con soporte.",
-    scanovateCameraFailedTitle: "No pudimos iniciar su cámara",
-    scanovateCameraFailedText: "Compruebe que su cámara funciona y vuelva a intentarlo.",
-    scanovateAnalyzerFailedTitle: "No pudimos preparar la comprobación de la cámara",
-    scanovateAnalyzerFailedText: "Compruebe su conexión a internet y vuelva a intentarlo.",
     scanovateTryAgain: "Volver a intentarlo",
-    scanovateBackToStart: "Volver al inicio",
 
-    scanovateCaptureFrontTitle: "Anverso de su documento",
-    scanovateCaptureBackTitle: "Reverso de su documento",
-    scanovateCaptureFaceTitle: "Su cara",
-    scanovateCaptureVideoTitle: "Usted con su documento",
-    scanovateCaptureCounter: "{0} · {1} de {2}",
-    scanovateCaptureFrontHeading: "Coloque el anverso de su documento en el marco",
-    scanovateCaptureFrontText:
-        "Use una superficie oscura, evite los reflejos y mantenga visibles las cuatro esquinas. La foto se toma automáticamente.",
-    scanovateCaptureBackHeading: "Ahora el reverso de su documento",
-    scanovateCaptureBackText: "Como antes: las cuatro esquinas dentro del marco y sin reflejos.",
-    scanovateCaptureFaceHeading: "Mantenga su cara dentro del óvalo",
-    scanovateCaptureFaceText:
-        "Asegúrese de que su cara esté bien iluminada y descubierta. Tarda unos segundos.",
-    scanovateCaptureVideoHeading: "Sostenga su documento junto a su cara",
-    scanovateCaptureVideoText:
-        "Mantenga su cara y el anverso de su documento a la vista hasta que termine la grabación.",
-    scanovateChipFront: "Anverso",
-    scanovateChipBack: "Reverso",
-    scanovateChipFace: "Cara",
-    scanovateCaptureSecure: "Verificación de identidad segura",
-    scanovateTakePhoto: "Tomar foto",
-    scanovateStop: "Detener y volver",
-    scanovateHelp: "Ayuda",
-    scanovateCaptured: "Foto tomada",
-    scanovateRecording: "REC {0}",
-    scanovateRecordingStatus: "Grabando",
-    scanovateStepDone: "Hecho",
-    scanovateStepCurrent: "En curso",
-
-    scanovateGuideLoading: "Preparando…",
-    scanovateGuidePlaceDocument: "Coloque su documento en el marco",
-    scanovateGuideTurnDocument: "Dé la vuelta a su documento",
-    scanovateGuideDocumentTooFar: "Acerque su documento",
-    scanovateGuideDocumentTooClose: "Aleje un poco su documento",
-    scanovateGuideDocumentNotAligned: "Alinee su documento con el marco",
-    scanovateGuideDocumentTilted: "Sostenga su documento plano, frente a la cámara",
-    scanovateGuideTooDark: "Busque un lugar con más luz",
-    scanovateGuideSunglasses: "Quítese las gafas de sol",
-    scanovateGuideFaceCovered: "Descubra su boca y su nariz",
-    scanovateGuideDocumentTooBright: "Aléjese de la luz directa",
-    scanovateGuideGlare: "Incline su documento para quitar el reflejo",
-    scanovateGuideDocumentBlurry: "Sujételo firme para que se vea nítido",
-    scanovateGuideDocumentHoldStill: "No se mueva, capturando…",
-    scanovateGuidePlaceFace: "Coloque su cara en el óvalo",
-    scanovateGuideMultipleFaces: "Solo usted debe aparecer en la imagen",
-    scanovateGuideFaceTooFar: "Acérquese un poco",
-    scanovateGuideFaceTooClose: "Aléjese un poco",
-    scanovateGuideFaceOffCenter: "Centre su cara en el óvalo",
-    scanovateGuideTurnToCamera: "Mire de frente a la cámara",
-    scanovateGuideFaceTooBright: "Evite la luz fuerte sobre su cara",
-    scanovateGuideFaceBlurry: "Sujete la cámara firme",
-    scanovateGuideFaceHoldStill: "Mire a la cámara y no se mueva",
-    scanovateGuideHoldDocument: "Sostenga su documento junto a su cara",
-    scanovateGuideRecording: "Grabando, no se mueva",
-    scanovateGuideKeepInView: "Mantenga su cara y su documento a la vista",
-    scanovateGuideCaptured: "Listo",
-
-    scanovateHelpTitle: "Consejos para este paso",
-    scanovateHelpDocumentSurface: "Coloque su documento sobre una superficie plana y oscura.",
-    scanovateHelpDocumentCorners: "Mantenga las cuatro esquinas dentro del marco.",
-    scanovateHelpDocumentGlare:
-        "Si ve reflejos, incline un poco el documento o apague las luces que tenga encima.",
-    scanovateHelpDocumentLight: "Busque un lugar con luz uniforme.",
-    scanovateHelpShutter:
-        "También puede tomar la foto usted mismo con el botón redondo cuando el marco se ponga verde.",
-    scanovateHelpFaceLevel: "Sujete la cámara a la altura de los ojos, a un brazo de distancia.",
-    scanovateHelpFaceCoverings:
-        "Quítese gafas de sol, gorros y cualquier cosa que le cubra la cara.",
-    scanovateHelpFaceLight:
-        "Póngase frente a una ventana o una lámpara para que su cara esté bien iluminada.",
-    scanovateHelpFaceAlone: "Asegúrese de que no aparece nadie más en la imagen.",
-    scanovateHelpVideoDocument:
-        "Sostenga el anverso de su documento junto a su cara, dentro del marco pequeño.",
-    scanovateHelpVideoFace: "Mantenga su cara dentro del óvalo.",
-    scanovateHelpVideoStill: "No se mueva hasta que termine la grabación.",
-    scanovateHelpClose: "Entendido",
-
-    scanovateStopTitle: "¿Dejar de verificar su identidad?",
-    scanovateStopText: "Se descartarán las fotos tomadas hasta ahora.",
-    scanovateStopConfirm: "Detener",
-    scanovateStopCancel: "Continuar",
+    scanovateDocumentStepTitle: "Escanee su documento",
+    scanovateDocumentStepLead:
+        "Siga las instrucciones de abajo para escanear su {0}. Después comprobaremos su cara.",
+    scanovateDocumentFrameTitle: "Escaneo del documento",
+    scanovateFaceStepTitle: "Compruebe su cara",
+    scanovateFaceStepLead:
+        "Su documento está escaneado. Siga las instrucciones de abajo para confirmar que es usted quien está frente a la cámara.",
+    scanovateFaceFrameTitle: "Comprobación facial",
+    scanovateHoldingStepTitle: "Hágase una foto con su documento",
+    scanovateHoldingStepLead:
+        "Sostenga su {0} abierto junto a su cara, con su cara y la foto del documento a la vista, y no se mueva: la foto se hace sola.",
+    scanovateHoldingCameraLabel: "Cámara",
+    scanovateHoldingPhotoLabel: "Su foto con su documento",
+    scanovateHoldingKeepStill: "Sostenga su documento junto a su cara y no se mueva.",
+    scanovateHoldingCountdown: "No se mueva: {0}",
+    scanovateHoldingProgress: "Sin moverse",
+    scanovateHoldingRetake: "Repetirla",
+    scanovateHoldingUse: "Usar esta foto",
+    scanovateUploadProblemTitle: "No pudimos enviar su foto",
+    scanovateUploadProblemText: "Compruebe su conexión a internet e inténtelo de nuevo.",
+    scanovateCameraProblemTitle: "No pudimos usar su cámara",
+    scanovateCameraProblemText:
+        "Permita el acceso a la cámara para este sitio en la configuración de su navegador, cierre otras aplicaciones que la estén usando y vuelva a intentarlo. Si su dispositivo no tiene cámara, abra esta página en un teléfono.",
+    scanovateSessionExpiredTitle: "Se agotó el tiempo del escaneo",
+    scanovateSessionExpiredText:
+        "El escaneo tardó demasiado y se detuvo. Vuelva a intentarlo cuando esté listo.",
+    scanovateStartAgainTitle: "Vuelva a empezar la verificación",
+    scanovateStartAgainText:
+        "Este escaneo no se puede continuar. Vuelva a empezar para obtener uno nuevo; no gasta ninguno de sus intentos.",
+    scanovateClosedTitle: "Se cerró el escaneo",
+    scanovateClosedText:
+        "El escaneo se cerró antes de terminar. Vuelva a intentarlo cuando esté listo.",
+    scanovateProblemTitle: "El escaneo no terminó",
+    scanovateProblemText: "Compruebe su conexión a internet y vuelva a intentarlo.",
+    scanovateCheckingScanned: "Escaneo del documento y comprobación facial terminados",
 
     scanovateCheckingTitle: "Comprobando su identidad",
     scanovateCheckingLead: "Suele tardar unos segundos. Mantenga esta página abierta.",
@@ -368,7 +192,7 @@ export const scanovateSpanish: Record<keyof typeof scanovateEnglish, string> = {
     scanovateDocumentAuthenticationError:
         "No pudimos autenticar su documento de identidad. Asegúrese de que es válido, está bien iluminado y se ve completo, y vuelva a intentarlo.",
     scanovateDocumentUnreadableError:
-        "No pudimos leer su documento. Vuelva a hacer las fotos con todo el documento en el encuadre, bien iluminado y enfocado.",
+        "No pudimos leer su documento. Vuelva a escanearlo con todo el documento en el encuadre, bien iluminado y enfocado.",
     scanovateAttributesError:
         "Los datos extraídos de su documento no coinciden con los que introdujo en el formulario. Vuelva a intentarlo o reinicie la inscripción y revise sus datos.",
     scanovateScoringError: "Hay que mejorar la calidad de las imágenes. Vuelva a intentarlo.",
@@ -382,22 +206,9 @@ export const scanovateSpanish: Record<keyof typeof scanovateEnglish, string> = {
     scanovateConfirmDocument: "Documento",
     scanovateConfirmSubmit: "Confirmar e inscribirme",
     scanovateConfirmRetry: "Volver a escanear mi documento",
-    scanovateLivenessFailedTitle: "La comprobación facial no terminó",
-    scanovateLivenessFailedText:
-        "Compruebe su conexión a internet, busque un lugar bien iluminado y vuelva a intentar la comprobación facial.",
-    scanovateLivenessExpiredTitle: "Vuelva a empezar la verificación",
-    scanovateLivenessExpiredText:
-        "La comprobación facial no se puede repetir desde aquí. Vuelva a empezar para fotografiar su documento y comprobar su cara de nuevo.",
     scanovateStartOver: "Volver a empezar",
-    scanovateUploadFailedTitle: "No hemos podido enviar sus fotos",
-    scanovateUploadFailedText: "Compruebe su conexión y vuelva a intentarlo.",
-    scanovateCaptureExpiredTitle: "Vuelva a empezar la verificación",
-    scanovateCaptureExpiredText:
-        "Sus fotos ya no se pueden enviar desde esta página. Vuelva a empezar para tomarlas de nuevo.",
-    scanovateCheckingReceivedLiveness: "Fotos y comprobación facial recibidas",
     scanovateLivenessError:
         "No pudimos confirmar que era usted quien estaba frente a la cámara. Vuelva a intentarlo.",
-    scanovateLivenessChecking: "Comprobando su cara, no se mueva…",
     scanovateFaceMismatchError: "La cara de sus fotos no coincide con la foto de su documento.",
     scanovateFaceNotFoundError:
         "No encontramos su cara en su documento ni en la foto en la que lo sostiene. Asegúrese de que la foto de su documento se vea bien y no esté tapada.",

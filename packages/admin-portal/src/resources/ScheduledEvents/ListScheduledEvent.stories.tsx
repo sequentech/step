@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React from "react"
+import React, {useEffect} from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, fireEvent, userEvent, waitFor, within} from "storybook/test"
 import {GraphQLError} from "graphql"
-import {ResourceContextProvider} from "react-admin"
+import {ResourceContextProvider, ResourceDefinitionContextProvider} from "react-admin"
+import {useLocation} from "react-router-dom"
 import {
     formatDateTimeZone,
     formatMyTime,
@@ -101,6 +102,15 @@ const outcomesOf = (configuration: Scenario["configuration"]): Array<IScheduledO
 
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
+let location = ""
+
+function LocationProbe() {
+    const {pathname, search} = useLocation()
+    useEffect(() => {
+        location = `${pathname}${search}`
+    }, [pathname, search])
+    return null
+}
 
 const ALL_ROLES = [
     IPermissions.SCHEDULED_EVENT_WRITE,
@@ -132,6 +142,7 @@ const meta = {
         },
     },
     beforeEach: async ({args}) => {
+        location = ""
         const configuration =
             args.configuration === "none" ? null : CONFIGURATIONS[args.configuration]()
         const schedule = configuration ? lifecycleSchedule(configuration) : scheduledEventRecords()
@@ -221,11 +232,25 @@ const meta = {
             roles={roles}
             auth={{tenantId: TENANT_ID}}
         >
-            <MyTimeZoneProvider zone={MY_TIME_ZONE}>
-                <ResourceContextProvider value="sequent_backend_election_event">
-                    <ListScheduledEvents electionEventId={EVENT_ID} />
-                </ResourceContextProvider>
-            </MyTimeZoneProvider>
+            <ResourceDefinitionContextProvider
+                definitions={{
+                    // Match App.tsx: an implicit row click would open the edit route.
+                    [SCHEDULED_EVENT_RESOURCE]: {
+                        name: SCHEDULED_EVENT_RESOURCE,
+                        hasList: true,
+                        hasEdit: true,
+                        hasCreate: false,
+                        hasShow: false,
+                    },
+                }}
+            >
+                <LocationProbe />
+                <MyTimeZoneProvider zone={MY_TIME_ZONE}>
+                    <ResourceContextProvider value="sequent_backend_election_event">
+                        <ListScheduledEvents electionEventId={EVENT_ID} />
+                    </ResourceContextProvider>
+                </MyTimeZoneProvider>
+            </ResourceDefinitionContextProvider>
         </AdminStoryProvider>
     ),
 } satisfies WidgetMeta<Scenario>
@@ -286,6 +311,26 @@ export const Populated: Story = {
     },
 }
 
+/** Clicking a row must not leave the event tab for the unscoped resource route. */
+export const RowClickKeepsEventScope: Story = {
+    play: async ({canvasElement}) => {
+        const row = await eventRow(canvasElement, EventProcessors.START_VOTING_PERIOD)
+        const initialLocation = location
+        for (let click = 0; click < 3; click++) {
+            await userEvent.click(within(row).getByText("Council"))
+            expect(location).toBe(initialLocation)
+            await expect(row).toBeVisible()
+        }
+        for (const {args} of listCalls()) {
+            expect(args[1]).toMatchObject({
+                filter: {election_event_id: EVENT_ID, tenant_id: TENANT_ID},
+            })
+        }
+        expect(document.body.querySelector(".MuiDrawer-root")).toBeNull()
+        expect(scheduled()).toEqual([])
+    },
+}
+
 export const Empty: Story = {
     args: {populated: false},
     parameters: {expectedFailure: null},
@@ -317,6 +362,11 @@ export const ReadOnly: Story = {
             within(canvasElement).queryByRole("button", {name: i18n.t("common.label.add")})
         ).toBeNull()
     },
+}
+
+export const ReadOnlyRowClickKeepsEventScope: Story = {
+    ...ReadOnly,
+    play: RowClickKeepsEventScope.play,
 }
 
 export const ScheduleAnEvent: Story = {

@@ -1835,6 +1835,9 @@ const galegoTranslation: TranslationType = {
                 encryptWithPassword: "Cifrar con Contrasinal",
                 passwordForcedNote:
                     "O arquivo protexerase con contrasinal de todos os xeitos: os informes, as solicitudes e os datos do taboleiro cífranse sempre. Marca a caixa para incluír tamén os campos secretos de votante descifrados.",
+                integrationSecrets: "Segredos de integración (credenciais de servizo)",
+                integrationSecretsNote:
+                    "Unha vez descifrado, o arquivo conterá en claro o segredo de liveness de Scanovate. Garda en segredo o arquivo e o seu contrasinal, e impórtao só onde se deba usar ese servizo de Liveness Plus.",
                 includeVoters: "Incluir Votantes",
                 activityLogs: "Rexistros de Actividade",
                 bulletinBoard: "Taboleiro de Anuncios",
@@ -2269,6 +2272,7 @@ const galegoTranslation: TranslationType = {
                 "voter-write": "Editar Votante",
                 "voter-secret-attribute-read": "Mostrar Campos Secretos do Votante",
                 "voter-secret-attribute-write": "Editar Campos Secretos do Votante",
+                "integration-secret-read": "Exportar Segredos de Integración",
                 "user-create": "Crear Usuario",
                 "user-read": "Leer Usuario",
                 "user-write": "Editar Usuario",
@@ -2786,6 +2790,9 @@ const galegoTranslation: TranslationType = {
                         delete: "¿Estás seguro de que queres eliminar este elemento?",
                         sealsUnknown:
                             "Non se puideron comprobar os selos das urnas: se ten urnas seladas, rexeitarase a eliminación.",
+                        archiveNamed: '¿Estás seguro de que queres arquivar "{{name}}"?',
+                        unarchiveNamed: '¿Estás seguro de que queres desarquivar "{{name}}"?',
+                        deleteNamed: '¿Estás seguro de que queres eliminar "{{name}}"?',
                     },
                     notification: {
                         success: {
@@ -2906,6 +2913,13 @@ const galegoTranslation: TranslationType = {
                 "label": "Forma do Icono de Caixa de Selección dos Candidatos",
                 "square-checkbox": "Caixa de Selección Cadrada",
                 "round-checkbox": "Caixa de Selección Redonda",
+            },
+            candidatesLayout: {
+                "label": "Disposición das candidaturas",
+                "helperText":
+                    "A grade de papeleta en papel mostra as candidaturas como celas numeradas cun círculo para encher, columna a columna, segundo Columnas (4 se está baleiro). As votacións por orde de preferencia sempre usan a lista.",
+                "list": "Lista",
+                "paper-grid": "Grade de papeleta en papel",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidatos e Listas",
@@ -4096,7 +4110,7 @@ const galegoTranslation: TranslationType = {
                 differs: "Distinto",
                 compareNote: "Nos nomes non se teñen en conta maiúsculas, acentos nin guións.",
                 compareJoint:
-                    "Para permisos de conducir e libretas de mariño, o nome e o segundo nome compáranse xuntos.",
+                    "Para permisos de conducir, libretas de mariño e pasaportes lidos polo escáner, o nome e o segundo nome compáranse xuntos.",
                 applicationId: "ID da solicitude",
                 copy: "Copiar",
                 copied: "Copiado",
@@ -4133,6 +4147,7 @@ const galegoTranslation: TranslationType = {
                     "insufficient-information": "Faltan datos",
                     "no-matching-voter": "Votante non coincidente",
                     "voter-already-approved": "Xa aprobado",
+                    "EMAIL_IN_USE": "Correo usado por outro votante",
                     "other": "Outro",
                 },
                 hint: {
@@ -4190,8 +4205,7 @@ const galegoTranslation: TranslationType = {
                 noneApply: "Non se aplica ningunha das regras anteriores",
                 andWord: "e",
                 and: " e ",
-                appliesToExample: "Aplícase ao seu exemplo",
-                cameFrom: "Decidiu a inscrición desde a que chegou",
+                appliesToExample: "Decide na simulación",
                 voterIsTold: "Ao votante díselle: “{{reason}}”.",
                 sentence: "Cando {{when}}, {{outcome}}.",
                 sentenceOtherwise: "Se non se aplica ningunha das regras anteriores, {{outcome}}.",
@@ -4212,13 +4226,69 @@ const galegoTranslation: TranslationType = {
                     more: "+{{count}} máis",
                 },
                 test: "Probar un exemplo",
-                testHelp:
-                    "Describa unha inscrición para ver que regra a decide. Os cambios sen gardar tamén contan.",
+                example: {
+                    stateSample: "Inscrición de mostra",
+                    sampleText:
+                        "Un votante verificado do rexistro, aínda sen inscribir, con todos os datos comparados iguais.",
+                    stateCustom: "O seu exemplo",
+                    customText: "Partiu da mostra.",
+                    recorded: "Decisión rexistrada",
+                    recordedRule: "Regra {{number}} da versión {{version}} · {{decision}}.",
+                    recordedLast: "Última regra da versión {{version}} · {{decision}}.",
+                    severalApproved: "Encaixaban varios votantes do rexistro.",
+                    statusNow: "Agora o seu estado é {{status}}.",
+                    noChanges: "Probar un exemplo non cambia ningunha inscrición nin garda nada.",
+                    edit: "Editar o exemplo",
+                    editing: "Editando o exemplo — aínda sen aplicar",
+                    editingHelp:
+                        "Os seus cambios só contan ao aplicalos. Ata entón a simulación usa o exemplo aplicado coas regras en pantalla.",
+                    apply: "Aplicar",
+                    notRecorded: "Non rexistrado",
+                    withFirstName: "Comparado co nome",
+                    notComparedForId: "Non se compara para este documento",
+                    noLongerOffered: "{{id}} (xa non se ofrece)",
+                    simulation: "Simulación actual",
+                    rulesOnScreen: "Regras en pantalla",
+                    rulesUnsaved: "Regras en pantalla, con cambios sen gardar",
+                    goToRule: "Ir á regra {{number}}",
+                    goToLast: "Ir á última regra",
+                    titleEnrollment: "Simulación da inscrición de {{name}}",
+                    titleUnnamed: "Simulación dunha inscrición",
+                    back: "Volver á inscrición",
+                    backLabel: "Volver á inscrición de {{name}}",
+                    noChangesEnrollment:
+                        "A simulación non cambia nada nesta inscrición nin garda nada.",
+                    unreadable:
+                        "Non se pode ler a decisión rexistrada desta inscrición, así que a simulación usa a inscrición de mostra.",
+                    stateRecorded: "Datos rexistrados · na simulación",
+                    stateChanged: "Outros datos · na simulación",
+                    stateUnreadable: "Inscrición de mostra — non son os seus datos rexistrados",
+                    changedNote: "A inscrición conserva os seus datos rexistrados.",
+                    editDetails: "Probar outros datos",
+                    editingDetails: "Probando outros datos — aínda non están na simulación",
+                    editingDetailsHelp:
+                        "Estes datos non deciden nada ata que os aplique. Ata entón a simulación usa os datos de arriba coas regras en pantalla.",
+                    restore: "Encher cos datos rexistrados",
+                    resetSample: "Encher coa mostra",
+                    decides: "Na simulación, decide a regra {{number}}.",
+                    lastDecides: "Na simulación non encaixa ningunha regra: decide a última regra.",
+                    evaluating: "Calculando que regra decide a simulación…",
+                    stillApplied: "A regra destacada segue decidindo a simulación.",
+                    comparison: {
+                        SAME: "A simulación actual dá a mesma decisión ca rexistrada.",
+                        DIFFERENT: "A simulación actual dá unha decisión distinta da rexistrada.",
+                        EDITED: "Estes non son os datos rexistrados, así que a simulación non se compara coa decisión rexistrada.",
+                        NOT_RECORDED:
+                            "Un dato comparado non se rexistrou, así que a simulación non se compara coa decisión rexistrada.",
+                        SEVERAL_VOTERS:
+                            "Comparáronse varios votantes do rexistro, así que a simulación non se compara coa decisión rexistrada.",
+                        UNKNOWN_VOTERS:
+                            "Non se rexistrou cantos votantes do rexistro se compararon, así que a simulación non se compara coa decisión rexistrada.",
+                    },
+                },
                 testDetails: "Datos comparados",
-                applies: "Aplícase a regra {{number}}",
-                otherwiseApplies: "Aplícase a última regra",
-                testError: "Non se puido probar o exemplo.",
-                testInvalid: "Corrixa estas regras para probar un exemplo:",
+                testError: "Non se puido executar a simulación.",
+                testInvalid: "Corrixa estas regras para executar a simulación:",
                 ruleError: "Regra {{number}}: {{error}}",
                 invariants: {
                     MANUAL_ENTRY_NOT_ACCEPTED:
@@ -4373,6 +4443,8 @@ const galegoTranslation: TranslationType = {
             },
         },
         monitoring: {
+            configuredDashboards: "Paneis configurables",
+            modeChangeError: "Non se puido cambiar o modo do panel. Ténteo de novo.",
             title: "Monitorización",
             loading: "Cargando a monitorización",
             unavailableAlert:

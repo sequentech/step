@@ -197,6 +197,20 @@ class BackendJourneys(unittest.TestCase):
         )["listElectoralLog"]
         return collections.Counter(item["statement_kind"] for item in data["items"])
 
+    def assert_imported_monitoring_defaults(self, event_id):
+        """Imports expose the same configured dashboards as normal creation."""
+        data = Hasura(token=self.admin_token(), role="monitoring-view").query(
+            """query ($event: uuid!) {
+              monitoringListDashboards(election_event_id: $event) {
+                mode preset { id } dashboards { id }
+              }
+            }""",
+            {"event": event_id},
+        )["monitoringListDashboards"]
+        self.assertEqual(data["mode"], "CONFIGURED")
+        self.assertEqual(data["preset"]["id"], "comelec")
+        self.assertIn("overview", [dashboard["id"] for dashboard in data["dashboards"]])
+
     def wait_for_log(self, event_id, expected, timeout=120):
         """Wait until the electoral log holds at least `expected` entries per kind."""
 
@@ -222,6 +236,15 @@ class BackendJourneys(unittest.TestCase):
 
     def event_rows(self, query, **variables):
         return self.admin.query(query, {"event": self.state.event_id, **variables})
+
+    def set_election_external_id(self, election_id, external_id):
+        updated = self.admin.query(
+            """mutation ($id: uuid!, $external_id: String) {
+              update_sequent_backend_election(where: {id: {_eq: $id}}, _set: {external_id: $external_id}) { affected_rows }
+            }""",
+            {"id": election_id, "external_id": external_id},
+        )["update_sequent_backend_election"]
+        self.assertEqual(updated["affected_rows"], 1)
 
     def assert_rejected(self, errors, code, message):
         self.assertIsNotNone(errors, "the vote was accepted")
@@ -400,9 +423,12 @@ class BackendJourneys(unittest.TestCase):
             self.keycloak.admin("GET", event_realm(event_id))["realm"],
             event_realm(event_id),
         )
-        # The event's electoral log starts empty. An event without an electoral-log
-        # database reads as empty too, never as another event's records.
-        self.assertEqual(self.electoral_log(event_id), collections.Counter())
+        # Initial dashboards are recorded once using the new event's system key.
+        self.assert_imported_monitoring_defaults(event_id)
+        self.assertEqual(
+            self.electoral_log(event_id), collections.Counter({"MonitoringConfigChanged": 1})
+        )
+        # An unknown event never reads another event's records.
         self.assertEqual(self.electoral_log(str(uuid.uuid4())), collections.Counter())
         self.passed("journey 2")
 
@@ -1273,19 +1299,50 @@ class BackendJourneys(unittest.TestCase):
         }
         archive_dir = self.cli.directory / "archive"
         archive_dir.mkdir()
-        output = self.step(
-            "export-election-event",
-            "--election-event-id",
-            self.state.event_id,
-            "--bulletin-board",
-            "--activity-logs",
-            "--publications",
-            "--tally",
-            "--include-voters",
-            "--encrypted",
-            "--output-dir",
-            str(archive_dir),
-        )
+        # The voters export names each participation column by the election's
+        # external ID and refuses an election without one. The grace election
+        # has none on purpose, so journeys 3 to 7b cover voters authorized by
+        # election ID. While this export runs its external ID is its own ID:
+        # authorization keys it by that same value, so its voters stay
+        # authorized, and the native import remaps the two fields alike. (The
+        # archived voters keep the source election ID, as they always have.)
+        grace = self.state.elections["grace"]
+        realm = event_realm(self.state.event_id)
+        for voter in fixtures.census(self.tag, {"C": 2}):
+            self.assertEqual(
+                self.keycloak.user(realm, voter.username)["attributes"][
+                    "authorized-election-ids"
+                ],
+                [grace],
+            )
+        self.set_election_external_id(grace, grace)
+        try:
+            external_ids = [
+                election["external_id"]
+                for election in self.event_rows(
+                    """query ($event: uuid!) {
+                      sequent_backend_election(where: {election_event_id: {_eq: $event}}) { external_id }
+                    }"""
+                )["sequent_backend_election"]
+            ]
+            self.assertEqual(
+                sorted(external_ids), sorted([f"e2e-main-{self.tag}", grace])
+            )
+            output = self.step(
+                "export-election-event",
+                "--election-event-id",
+                self.state.event_id,
+                "--bulletin-board",
+                "--activity-logs",
+                "--publications",
+                "--tally",
+                "--include-voters",
+                "--encrypted",
+                "--output-dir",
+                str(archive_dir),
+            )
+        finally:
+            self.set_election_external_id(grace, None)
         password = re.search(r"Export password: (\S+)", output)
         self.assertIsNotNone(
             password, "encrypted native export must return its password"
@@ -1302,6 +1359,21 @@ class BackendJourneys(unittest.TestCase):
         )
         self.assertNotEqual(recovered_id, self.state.event_id)
         recovered = self.admin.query(query, {"event": recovered_id})
+        # The import remaps the grace election's external ID with its ID, so
+        # authorization still keys it as it keys an election without one.
+        rows = self.admin.query(
+            """query ($event: uuid!) {
+              sequent_backend_election(where: {election_event_id: {_eq: $event}}) { id external_id }
+            }""",
+            {"event": recovered_id},
+        )["sequent_backend_election"]
+        self.assertEqual(len(rows), 2, rows)
+        recovered_elections = {row["external_id"]: row["id"] for row in rows}
+        main_external_id = f"e2e-main-{self.tag}"
+        self.assertIn(main_external_id, recovered_elections)
+        (grace_external_id,) = set(recovered_elections) - {main_external_id}
+        self.assertEqual(grace_external_id, recovered_elections[grace_external_id])
+        self.assertNotEqual(grace_external_id, self.state.elections["grace"])
         recovered_boards = recovered["sequent_backend_protocol_board"]
         self.assertEqual(len(recovered_boards), len(source_boards))
         self.assertEqual(
@@ -1421,6 +1493,8 @@ class BackendJourneys(unittest.TestCase):
             {"event": imported["id"]},
         )
         self.assertNotEqual(imported["id"], self.state.event_id)
+        # Key-bearing archives must initialize only after their keys are restored.
+        self.assert_imported_monitoring_defaults(imported["id"])
         self.assertEqual(
             recovered["sequent_backend_protocol_board_aggregate"]["aggregate"]["count"],
             self.state.archive_board_count,

@@ -35,6 +35,7 @@ import type {
 } from "@/types/ballotBoxSeal"
 import {useSealReadRole} from "@/hooks/useSealReadRole"
 import {isSealAtClose} from "@/services/ballotBoxSealPolicy"
+import {getMenuActionConfirmMessage} from "./menuActionConfirmMessage"
 
 /** What the pre-check of a delete found about ballot box seals (VOTE-FREEZE). */
 enum ESealCheck {
@@ -569,9 +570,11 @@ export default function MenuAction({
                     setOpenArchiveModal(false)
                 }}
             >
-                {selectedActionModal?.action === Action.Archive
-                    ? t("sideMenu.menuActions.messages.confirm.archive")
-                    : t("sideMenu.menuActions.messages.confirm.unarchive")}
+                {getMenuActionConfirmMessage(
+                    t,
+                    selectedActionModal?.action === Action.Archive ? "archive" : "unarchive",
+                    selectedActionModal?.payload.name
+                )}
             </Dialog>
 
             <Dialog
@@ -594,10 +597,10 @@ export default function MenuAction({
                               : "sideMenu.menuActions.messages.notification.error.deleteSealedElection"
                       )
                     : sealCheck === ESealCheck.UNKNOWN
-                      ? `${t("sideMenu.menuActions.messages.confirm.delete")} ${t(
+                      ? `${getMenuActionConfirmMessage(t, "delete", selectedActionModal?.payload.name)} ${t(
                             "sideMenu.menuActions.messages.confirm.sealsUnknown"
                         )}`
-                      : t("sideMenu.menuActions.messages.confirm.delete")}
+                      : getMenuActionConfirmMessage(t, "delete", selectedActionModal?.payload.name)}
             </Dialog>
         </>
     )

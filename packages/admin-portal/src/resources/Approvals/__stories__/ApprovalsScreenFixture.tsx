@@ -2,8 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {type PropsWithChildren} from "react"
-import type {DataProvider, GetListParams, RaRecord} from "react-admin"
-import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
+import {memoryStore} from "react-admin"
+import type {DataProvider, GetListParams, RaRecord, Store} from "react-admin"
+import {AdminStoryProvider, EVENT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
+import {getPreferenceKey} from "@/lib/helpers"
 import {documentHandlers} from "@/__stories__/downloads"
 import {resourceBoundary, type ReadState} from "@/__stories__/resourceBoundary"
 import {areaRecords, electionRecord, storyId} from "@/__stories__/fixtures"
@@ -92,17 +94,28 @@ export function withServiceFilters(provider: DataProvider): DataProvider {
     }
 }
 
-const STATUS_FILTER_KEY = "approvals_status_filter"
+/** The election event's page, where the Approvals tab shows the queue. */
+export const EVENT_PATH = `/sequent_backend_election_event/${EVENT_ID}`
+
+/** The signed-in administrator's Keycloak user ID, and another administrator's. */
+export const ADMIN_ID = storyId(8, 1)
+export const OTHER_ADMIN_ID = storyId(8, 2)
+
+/** Where react-admin keeps an administrator's list parameters of the queue at `pathname`. */
+export const queueStoreKey = (pathname: string, userId = ADMIN_ID) =>
+    `${getPreferenceKey(pathname, "approvals_queue")}.${userId}`
 
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
+let preferences: Store
 
 export async function setUpApprovals(
     {reads, empty, storedStatus, registry = "records"}: ApprovalServices,
     operations: Handlers = {}
 ) {
-    if (storedStatus) localStorage.setItem(STATUS_FILTER_KEY, storedStatus)
-    else localStorage.removeItem(STATUS_FILTER_KEY)
+    preferences = memoryStore(
+        storedStatus ? {[queueStoreKey(EVENT_PATH)]: {filter: {status: storedStatus}}} : {}
+    )
     data = resourceBoundary(
         {
             sequent_backend_applications: empty ? [] : applications(),
@@ -125,8 +138,16 @@ export async function setUpApprovals(
     await graphql.ready
 }
 
-/** The approval screens inside an election event, as the signed-in administrator sees them. */
-export function ApprovalsScreen({children}: PropsWithChildren) {
+/**
+ * The approval screens inside an election event, as the signed-in administrator
+ * (`userId`, empty while the profile loads) sees them. `store` replaces the
+ * preferences `storedStatus` prepared.
+ */
+export function ApprovalsScreen({
+    children,
+    store,
+    userId = ADMIN_ID,
+}: PropsWithChildren<{store?: Store; userId?: string}>) {
     const {permissions, tenant} = useStoryGlobals()
     return (
         <AdminStoryProvider
@@ -134,6 +155,8 @@ export function ApprovalsScreen({children}: PropsWithChildren) {
             dataProvider={withServiceFilters(data.provider)}
             role={permissions}
             tenant={tenant}
+            store={store ?? preferences}
+            auth={{userId}}
         >
             {children}
         </AdminStoryProvider>

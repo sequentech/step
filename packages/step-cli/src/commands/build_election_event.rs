@@ -33,11 +33,13 @@ use std::path::{Component, Path, PathBuf};
 #[derive(Args)]
 #[command(about)]
 pub struct BuildElectionEvent {
-    /// Path to the authoring workbook
+    /// Path to the authoring workbook. With --historical-sql it is the
+    /// supplemental workbook: a full one, or a defaults workbook without an
+    /// `Elections` sheet, whose elections and areas come from the SQL.
     #[arg(short = 'w', long, value_name = "WORKBOOK")]
     workbook: PathBuf,
 
-    /// Historical data-only SQL used with the supplemental workbook
+    /// Historical data-only SQL, legacy or post-qualification schema
     #[arg(long, value_name = "SQL", requires = "historical_decisions")]
     historical_sql: Option<PathBuf>,
 
@@ -189,6 +191,8 @@ impl BuildElectionEvent {
             // No ceremony from a workbook, so this labels nothing; the platform's
             // own default, named rather than defaulted for the reason above.
             ceremony_policy: CeremoniesPolicy::MANUAL_CEREMONIES,
+            // A historical census leaves contact details to enrollment.
+            census_contacts_at_enrollment: self.historical_sql.is_some(),
         };
 
         let bundle = match build(&workbook, &templates, &options, &Sources::default()) {
@@ -627,6 +631,25 @@ mod tests {
         for name in &names {
             assert!(fixture.directory().join(name).is_file(), "{name}");
         }
+    }
+
+    #[test]
+    fn a_sheet_nothing_reads_is_noted_and_still_builds() {
+        let fixture = Fixture::new(&workbook(vec![("Candidatez", vec![vec![text("name")]])]));
+
+        fixture.command.build().unwrap();
+
+        assert!(fixture.directory().join("event.zip").is_file());
+    }
+
+    #[test]
+    fn an_output_directory_that_cannot_be_created_is_an_error() {
+        let mut fixture = Fixture::new(&workbook(vec![]));
+        fixture.command.out = fixture.file("not-a-directory", b"");
+
+        let error = fixture.error();
+
+        assert!(error.contains("could not create"), "{error}");
     }
 
     #[test]

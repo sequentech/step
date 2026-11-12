@@ -43,7 +43,21 @@ describes the feature for election managers.
 | `fields` | `{"<field>": "MATCHES" \| "DIFFERS"}` | A compared field's result |
 
 `then.decision` is `ACCEPTED`, `PENDING` or `REJECTED`; `then.reason` is `NO_VOTER`,
-`ALREADY_APPROVED`, `INSUFFICIENT_INFORMATION`, `IDENTITY_NOT_VERIFIED` or `OTHER`.
+`ALREADY_APPROVED`, `INSUFFICIENT_INFORMATION`, `IDENTITY_NOT_VERIFIED` or `OTHER`. `EMAIL_IN_USE` is
+not a rule's: `verify_application` rejects an accepted enrollment with it when the flow's
+`update-attributes` write the email and another voter of the realm already has it, unless the realm
+allows duplicate emails.
+
+Another voter can take the email after windmill accepts the enrollment and before Keycloak updates
+the voter. Keycloak then checks again and asks harvest's `/reject-application-email-in-use`, as the
+tenant's service account, to reject the application. Harvest locks the application and rejects it
+only if it is still automatically accepted, was sent from the asking enrollment session (stored as a
+digest), matched the named voter, writes the email, and the email still belongs to another user of
+a realm with unique emails, with the voter not enrolled. Asking again once rejected succeeds, so a
+lost answer can be retried. Until harvest answers, the voter sees an error and a reload asks again;
+only then does Keycloak show the rejection and send it. The two databases still commit apart:
+another voter can take the email after Keycloak's own check, and Keycloak's update of the voter then
+fails as before, with the application left accepted.
 
 Unknown keys and values fail deserialization. `ApprovalMatrix::validate` returns the errors that keep
 a matrix from being saved: `NO_COMPARED_FIELDS`, `DUPLICATE_COMPARED_FIELD`, `UNKNOWN_FIELD` (a rule
@@ -141,6 +155,52 @@ version 1.
 
 `rule` is empty when Otherwise decided. It contains no data beyond what the application already
 holds, and follows the application's retention.
+
+## Admin portal example panel
+
+The matrix screen (`packages/admin-portal/src/resources/Approvals/ApprovalMatrix.tsx`) decides one
+**applied example** with `evaluate_approval_matrix` and the rules on screen. The rule it highlights
+is derived from that query in the same render: while a request for the current rules and example
+is on its way, failed, or answered with matrix errors, no rule is highlighted. With
+`fetchPolicy: "no-cache"`, Apollo Client 3.8 drops the result of earlier variables, so a late
+answer can't highlight a rule of an earlier rule order.
+
+The editor keeps a draft; only **Apply** replaces the applied example. **Fill in the recorded
+details** / **Fill in the sample** only reset the draft (and are `aria-disabled` while the draft
+already holds them). Cancel and Apply stay on one row: in narrow editors (a container query on the
+editor's width) the footer's text and padding become compact rather than wrap. On a phone the
+editor reaches into its card's padding, and below 368 px (`SMALL_PHONE` in `ApprovalMatrix.tsx`)
+the page and its cards give up their padding, so on windows of 320 px and wider, beside the
+collapsed side menu, the editor is never narrower than 174 px. The panel's title follows where the
+matrix was opened from: **Try an example** from the toolbar, **Simulating the enrollment of …**
+from an enrollment.
+The heading over the details in use, and whether the unreadable notice shows, follow `panelState`
+(`approvalExample.ts`, `EPanelState`): the sample or the administrator's own example; the
+enrollment's recorded details or other details; or, when its decision can't be read, the sample
+or other details started from it. Other details are counted on what the rules see, as the
+comparison counts them.
+
+The card is sticky on wide screens and sized from measurements (`matrixLayout.ts`): the page
+header's height, the save bar's height, and the content below the rules in the layout's scroll
+frame, so it stays between the header and the save bar wherever the page is scrolled.
+
+Opened from an application, the example is read from its decision record
+(`approvalExample.ts`, `recordedDecision`). The reading is strict:
+
+- A matrix version that isn't a whole number from 1, an unknown status, a rule that isn't a
+  position from 1, an unknown invariant, an unknown field result, malformed inputs, or inputs
+  that disagree with the number of compared candidates (a voter exactly when candidates were
+  compared) make the record unreadable: the panel says so and the sample is used instead.
+- A candidate count (`candidates`, `accepted_candidates`) that isn't a whole number from 0 is
+  unknown, not unreadable: the recorded inputs are still replayed, but with an unknown number of
+  compared candidates the decisions aren't compared. A
+compared field without a recorded result is sent without one (as the backend decides it) and
+shown as not recorded; the middle name of an ID that gives first and middle name together
+(`GivenNames::TOGETHER`) has no result of its own. The decisions are compared only when the
+applied example replays the record exactly and one candidate or none was compared.
+
+The panel's source is in-session state of `EditElectionEventApprovals`, scoped to the tenant and
+event. The tab selection isn't written to the address, so a reload loses it.
 
 ## Bundles and the janitor
 

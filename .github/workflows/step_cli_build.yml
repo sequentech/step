@@ -13,13 +13,50 @@ on:
 
 permissions:
   contents: read
+  # OIDC for the shared compiler cache (setup-rust-cache)
+  id-token: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # A release build takes 15 to 40 minutes, and nothing on a PR uses the binary.
+  # PRs check it only when the affected model selects step-cli's tests; pushes
+  # and releases always build it.
+  plan:
+    name: Select the CLI build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      build: ${{ steps.plan.outputs.build }}
+    steps:
+      # The PR merge commit, which build-cli also checks; the merge base is then
+      # the base commit itself.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # History for the merge base, without the blobs of every revision.
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - name: Plan against the actual PR merge base
+        id: plan
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.sha }}
+          VALIDATION: ${{ github.event_name == 'pull_request' && 'affected' || 'full' }}
+        run: |
+          selection=$(GITHUB_OUTPUT=/dev/null python3 -m scripts.dev.ci plan --base "$BASE" --validation "$VALIDATION")
+          if jq -e 'any(.rust[]; .service == "step-cli")' <<<"$selection" >/dev/null \
+            || ! git diff --quiet "$(git merge-base "$BASE" HEAD)" HEAD -- .github/workflows/step_cli_build.yml; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "step-cli is not affected by this change; the CLI binary is not built." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   build-cli:
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -52,6 +89,7 @@ jobs:
         uses: ./.github/actions/setup-rust-cache
         with:
           epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
+          compile-cache: ${{ vars.STEP_COMPILE_CACHE }}
           name: step-cli
           target-dir: packages/step-cli/rust-local-target
           lockfile: packages/Cargo.lock
@@ -62,17 +100,30 @@ jobs:
         working-directory: packages/step-cli
         run: sudo ln -s /usr/include/x86_64-linux-gnu/openssl/opensslconf.h /usr/include/openssl/opensslconf.h && sudo ln -s /usr/include/x86_64-linux-gnu/openssl/configuration.h /usr/include/openssl/configuration.h
 
+      # Nothing on a PR uses the binary, so a PR checks the static build instead:
+      # that catches the musl and feature errors in about a third of the time,
+      # and pushes and releases still build and upload the binary.
+      - name: Check step-cli for the static target
+        if: github.event_name == 'pull_request'
+        working-directory: packages/step-cli
+        env:
+          CARGO_BUILD_JOBS: 4
+        run: cargo check --locked --release --target x86_64-unknown-linux-musl
+
       - name: Build step-cli
+        if: github.event_name != 'pull_request'
         working-directory: packages/step-cli
         env:
           CARGO_BUILD_JOBS: 4
         run: cargo build --locked --release --target x86_64-unknown-linux-musl
 
       - name: List build output target-rust-local (for debugging)
+        if: github.event_name != 'pull_request'
         working-directory: packages/step-cli
         run: ls -lR rust-local-target/x86_64-unknown-linux-musl/release
 
       - name: Upload CLI binary artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: step-cli-binary-${{ github.run_id }}

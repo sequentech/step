@@ -105,6 +105,7 @@ const NO_OPTIONS = {
     applications: false,
     tally: false,
     include_certificates: false,
+    include_integration_secrets: false,
 }
 
 const exportDialog = async () => {

@@ -2195,3 +2195,1639 @@ fn a_voter_whose_area_has_no_embassy_label_is_refused() {
     // Only the 20 voters of the unlabelled area, each by its own row.
     assert_eq!(problems.len(), 20);
 }
+
+/// The legacy SQL rewritten in the documented post-qualification names.
+fn post_qualification(sql: &[u8]) -> String {
+    let mut sql = String::from_utf8(sql.to_vec()).unwrap();
+    for (legacy, post) in [
+        ("candidate", "candidates"),
+        ("contest", "contests"),
+        ("seat", "seats"),
+        ("party_list", "political_party"),
+        ("canvass_center", "canvass_centers"),
+        ("trans_route", "trans_routes"),
+        ("geographical", "jurisdictions"),
+        ("ELIGIBLEAMOUNT", "NUM_SEAT"),
+    ] {
+        sql = sql.replace(&format!("`{legacy}`"), &format!("`{post}`"));
+    }
+    sql + "CREATE TABLE `trans_servers` (`ID` int, `CODE_SERVER` text); INSERT INTO `trans_servers` VALUES (1,'S1');\n"
+}
+
+#[test]
+fn a_post_qualification_dump_converts_as_its_legacy_equivalent() {
+    let (sql, xlsx) = fixture();
+    let post = post_qualification(&sql);
+    let legacy = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    let renamed = adapt(post.as_bytes(), &xlsx, &reviewed()).unwrap();
+    assert_eq!(legacy.summary.source_schema, SourceSchema::Legacy);
+    assert_eq!(
+        renamed.summary.source_schema,
+        SourceSchema::PostQualification
+    );
+    // The same rows; only the provenance differs, recording the source's own names.
+    let cells = |workbook: &Workbook| -> Vec<Vec<(String, Value)>> {
+        workbook
+            .sheets()
+            .iter()
+            .flat_map(|sheet| sheet.rows.iter())
+            .map(|row| row.without(&["annotations.import:provenance"]))
+            .collect()
+    };
+    assert_eq!(cells(&renamed.workbook), cells(&legacy.workbook));
+    let provenance: Value = serde_json::from_str(
+        renamed.workbook.rows("electionevent")[0]
+            .text("annotations.import:provenance")
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(provenance["sourceSchema"], json!("post-qualification"));
+    assert_eq!(provenance["sourceRows"]["seats"], json!(1));
+}
+
+#[test]
+fn a_dump_mixing_both_schemas_is_refused() {
+    let (sql, xlsx) = fixture();
+    let mixed = post_qualification(&sql).replace("`contests`", "`contest`");
+    let refused = adapt(mixed.as_bytes(), &xlsx, &reviewed()).unwrap_err();
+    assert_eq!(refused.report.problems[0].code, Code::InvalidValue);
+    assert_eq!(refused.report.problems[0].path, "SQL schema");
+}
+
+#[test]
+fn post_qualification_problems_name_the_source_tables_and_columns() {
+    let (sql, xlsx) = fixture();
+    let post = post_qualification(&sql).replace(
+        "('S01','Example Seat',1,'G01')",
+        "('S01','Example Seat',NULL,'G01')",
+    );
+    let refused = adapt(post.as_bytes(), &xlsx, &reviewed()).unwrap_err();
+    let path = &refused.report.problems[0].path;
+    assert!(
+        path.starts_with("SQL table seats ")
+            && path.ends_with("column NUM_SEAT"),
+        "{path}"
+    );
+
+    let report = schema::source_names(
+        Report::from(Problem::error(
+            Code::InvalidValue,
+            "SQL table pop row 2 column MACHINE_TYPE",
+            "x",
+        )),
+        SourceSchema::PostQualification,
+    );
+    assert_eq!(
+        report.problems[0].path,
+        "SQL table pop row 2 column VOTING_MODE"
+    );
+}
+
+/// The overseas source in the post-qualification schema: voters carry their mail
+/// country and embassy, and no precinct or abroad status. Each cluster has its own
+/// polling center, whose post is the area's embassy; `UNITED STATES` is named after
+/// its own post, so its area takes the municipality's name.
+fn post_qualification_overseas() -> Vec<u8> {
+    let (sql, _) = overseas_voter_fixture("", "");
+    let mut sql = post_qualification(&sql)
+        .replace(
+            "('P01','Post One');",
+            "('P01','Post One'),('B06','BANGKOK PE'),('B02','DHAKA PE'),('B91','WASHINGTON D.C.');",
+        )
+        .replace("('B91','UNITED STATES')", "('B91','WASHINGTON D.C.')");
+    let start = sql.find("CREATE TABLE `voters`").unwrap();
+    let end = start + sql[start..].find(";\n").unwrap() + 2;
+    let voters: Vec<String> = (0..80usize)
+        .map(|i| {
+            let (country, embassy) =
+                [("90", "06"), ("90", "06"), ("90", "02"), ("91", "01")][i / 20];
+            format!("('v-{i:04}','Last{i}','First{i}','Mid{i}','','F','1990','1','2',NULL,'000','x@example.org','{country}','{embassy}',NULL)")
+        })
+        .collect();
+    sql.replace_range(start..end, &format!("CREATE TABLE `voters` (`ID` text, `LASTNAME` text, `FIRSTNAME` text, `MATERNALNAME` text, `SUFFIX` text, `SEX` text, `DOBYEAR` text, `DOBMONTH` text, `DOBDAY` text, `VOTING_HIST1` text, `MOBILE` text, `EMAIL` text, `MAILCOUNTRY` text, `MAILEMBASSY` text, `GEOLOGY` text); INSERT INTO `voters` VALUES {};\n", voters.join(",")));
+    sql.into_bytes()
+}
+
+fn defaulted() -> HistoricalOptions {
+    HistoricalOptions {
+        voter_area_join: Some(VoterAreaJoin::MailCountryEmbassy),
+        schedule_offset_minutes: Some(480),
+        ..preserving()
+    }
+}
+
+/// A defaults workbook: without an `Elections` sheet, the elections and areas
+/// come from the SQL. A schedule without an alias is every election's, and an
+/// area row without a name is every area's.
+fn defaults_workbook() -> Vec<u8> {
+    defaults_workbook_with(|_| {})
+}
+fn defaults_workbook_with(change: impl FnOnce(&mut Vec<Sheet>)) -> Vec<u8> {
+    let schedule = |i, alias: &str, event: &str, date: &str| {
+        row(
+            "ScheduledEvents",
+            i,
+            vec![
+                ("election_alias", json!(alias)),
+                ("type", json!(event)),
+                ("date", json!(date)),
+            ],
+        )
+    };
+    let mut sheets = vec![
+        rows_sheet(
+            "ElectionEvent",
+            vec![row(
+                "ElectionEvent",
+                0,
+                vec![
+                    ("name", json!("Synthetic Event")),
+                    ("annotations.miru_election_event_id", json!("evt-001")),
+                ],
+            )],
+        ),
+        rows_sheet(
+            "ScheduledEvents",
+            vec![
+                schedule(0, "", "START_VOTING_PERIOD", "2027-01-01T10:00:00"),
+                schedule(
+                    1,
+                    "Post One",
+                    "END_VOTING_PERIOD",
+                    "2027-01-02T10:00:00+08:00",
+                ),
+            ],
+        ),
+        rows_sheet(
+            "CcsServers",
+            vec![row(
+                "CcsServers",
+                0,
+                vec![
+                    ("name", json!("Central")),
+                    ("tag", json!("9701")),
+                    ("address", json!("https://ccs.example.org")),
+                    ("public_key", json!("key")),
+                    ("send_logs", json!(false)),
+                ],
+            )],
+        ),
+        rows_sheet(
+            "Areas",
+            vec![row(
+                "Areas",
+                0,
+                vec![
+                    ("name", json!("")),
+                    ("annotations.miru_ccs_server_tags", json!("9701")),
+                ],
+            )],
+        ),
+    ];
+    change(&mut sheets);
+    // Columns a change added are written too.
+    let sheets = sheets
+        .into_iter()
+        .map(|sheet| rows_sheet(&sheet.name, sheet.rows))
+        .collect();
+    write_xlsx(&Workbook::new(sheets).unwrap()).unwrap()
+}
+fn sheet_mut<'a>(sheets: &'a mut [Sheet], key: &str) -> &'a mut Sheet {
+    sheets.iter_mut().find(|s| s.key == key).unwrap()
+}
+
+#[test]
+fn a_defaults_workbook_derives_elections_and_areas_and_the_mail_location_joins_voters(
+) {
+    let sql = post_qualification_overseas();
+    let adapted = adapt(&sql, &defaults_workbook(), &defaulted()).unwrap();
+    assert!(adapted.summary.defaults_workbook);
+    assert_eq!(adapted.summary.preserved_voters, 80);
+
+    let templates = TemplateSet::builtin().unwrap();
+    let built = build(
+        &adapted.workbook,
+        &templates,
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap();
+    let event = &built.export["election_event"];
+    assert_eq!(
+        event["presentation"]["i18n"]["en"]["name"],
+        json!("Synthetic Event")
+    );
+    let elections = built.export["elections"].as_array().unwrap();
+    assert_eq!(elections.len(), 1, "one election per post with voters");
+    // A schedule without an alias is every election's; a local time takes the
+    // reviewed offset.
+    let dates: Vec<&str> = adapted
+        .workbook
+        .rows("scheduledevents")
+        .iter()
+        .map(|row| row.text("scheduled_datetime").unwrap())
+        .collect();
+    assert_eq!(
+        dates,
+        ["2027-01-01T10:00:00+08:00", "2027-01-02T10:00:00+08:00"]
+    );
+
+    let v = &built.voters;
+    let col = |name: &str| v.column(name).unwrap();
+    let (area, embassy) = (col("area_name"), col("embassy"));
+    for (prefix, expected_area, expected_embassy) in [
+        ("90/06", "KINGDOM OF THAILAND", "Bangkok PE"),
+        ("90/02", "PEOPLES REPUBLIC OF BANGLADESH", "Dhaka PE"),
+        ("91/01", "City C", "Washington D.C."),
+    ] {
+        let (c, e) = prefix.split_once('/').unwrap();
+        let matching: Vec<_> = v
+            .rows
+            .iter()
+            .filter(|r| {
+                r[col("source_country")] == c && r[col("source_embassy")] == e
+            })
+            .collect();
+        assert!(!matching.is_empty(), "{prefix}");
+        assert!(
+            matching
+                .iter()
+                .all(|r| r[area] == expected_area
+                    && r[embassy] == expected_embassy),
+            "{prefix} must map to {expected_area} / {expected_embassy}"
+        );
+    }
+    // Contact and sex stay in the source: nothing beyond the reviewed census.
+    assert!(v.rows.iter().all(|r| r[col("email")].is_empty()));
+    assert!(v.column("mobile").is_none());
+    // The schema has no precinct or abroad status, so neither column is emitted
+    // only to be dropped blank.
+    assert!(v.column("source_precinct").is_none());
+    assert!(v.column("source_abroad_status").is_none());
+    // (The fixture's suffixes are blank, so that column is still dropped.)
+    let blank = |built: &crate::election_config::build::Bundle| {
+        built.warnings.warnings().any(|problem| {
+            problem.message.contains("blank for every voter")
+                && problem.message.contains("source_precinct")
+        })
+    };
+    let unreachable = |built: &crate::election_config::build::Bundle| {
+        built.warnings.warnings().any(|problem| {
+            problem.message.contains("cannot be sent a one-time code")
+        })
+    };
+    assert!(!blank(&built));
+    // Every voter lacks a contact; that is only worth saying when enrollment
+    // does not collect it.
+    assert!(unreachable(&built));
+    let enrolling = build(
+        &adapted.workbook,
+        &templates,
+        &BuildOptions {
+            census_contacts_at_enrollment: true,
+            ..BuildOptions::default()
+        },
+        &Sources::default(),
+    )
+    .unwrap();
+    assert!(!unreachable(&enrolling));
+}
+
+#[test]
+fn a_defaults_workbook_needs_an_event_name_and_identity() {
+    let sql = post_qualification_overseas();
+    let xlsx = defaults_workbook_with(|sheets| {
+        sheet_mut(sheets, "electionevent").rows[0]
+            .cells
+            .retain(|(c, _)| c != "annotations.miru_election_event_id");
+    });
+    let refused = adapt(&sql, &xlsx, &defaulted()).unwrap_err();
+    assert_eq!(refused.report.problems[0].code, Code::MissingField);
+    assert!(
+        refused.report.problems[0]
+            .path
+            .contains("miru_election_event_id"),
+        "{}",
+        refused.report.problems[0].path
+    );
+}
+
+#[test]
+fn decisions_no_longer_take_a_supplement() {
+    let mut json = serde_json::to_value(defaulted()).unwrap();
+    assert_eq!(json["voterAreaJoin"], json!("mail-country-embassy"));
+    let back: HistoricalOptions = serde_json::from_value(json.clone()).unwrap();
+    assert_eq!(serde_json::to_value(&back).unwrap(), json);
+    json["supplement"] =
+        json!({"event": {"name": "x", "electionEventId": "1"}});
+    assert!(serde_json::from_value::<HistoricalOptions>(json).is_err());
+}
+
+#[test]
+fn a_defaults_workbook_carries_event_metadata_and_area_defaults_and_overrides()
+{
+    let sql = post_qualification_overseas();
+    let xlsx = defaults_workbook_with(|sheets| {
+        let event = &mut sheet_mut(sheets, "electionevent").rows[0];
+        set(event, "description", json!("Synthetic description"));
+        set(event, "logo_url", json!("https://example.org/logo.png"));
+        set(event, "presentation.css", json!("body {}"));
+        let areas = &mut sheet_mut(sheets, "areas").rows;
+        set(
+            &mut areas[0],
+            "annotations.miru_trustee_servers",
+            json!("trustee1,trustee2"),
+        );
+        areas.push(row(
+            "Areas",
+            1,
+            vec![
+                ("name", json!("PEOPLES REPUBLIC OF BANGLADESH")),
+                (
+                    "annotations.miru_trustee_servers",
+                    json!("trustee1,trustee3"),
+                ),
+                ("annotations.miru_station_id", json!("70080001")),
+            ],
+        ));
+    });
+    let adapted = adapt(&sql, &xlsx, &defaulted()).unwrap();
+    let event = &adapted.workbook.rows("electionevent")[0];
+    assert_eq!(event.text("description"), Some("Synthetic description"));
+    assert_eq!(
+        event.text("presentation.logo_url"),
+        Some("https://example.org/logo.png")
+    );
+    assert_eq!(event.text("presentation.css"), Some("body {}"));
+    let areas = adapted.workbook.rows("areas");
+    assert_eq!(areas.len(), 3);
+    for area in areas {
+        let bangladesh =
+            area.text("name") == Some("PEOPLES REPUBLIC OF BANGLADESH");
+        assert_eq!(
+            area.text("annotations.miru_ccs_server_tags"),
+            Some("9701"),
+            "every area takes the defaults row"
+        );
+        assert_eq!(
+            area.text("annotations.miru_trustee_servers"),
+            Some(if bangladesh {
+                "trustee1,trustee3"
+            } else {
+                "trustee1,trustee2"
+            })
+        );
+        assert_eq!(
+            area.text("annotations.miru_station_id"),
+            bangladesh.then_some("70080001")
+        );
+    }
+}
+
+#[test]
+fn defaults_workbook_area_rows_must_name_a_derived_area_once() {
+    let sql = post_qualification_overseas();
+    let unknown = defaults_workbook_with(|sheets| {
+        sheet_mut(sheets, "areas").rows.push(row(
+            "Areas",
+            1,
+            vec![("name", json!("Atlantis")), ("description", json!("x"))],
+        ));
+    });
+    let refused = adapt(&sql, &unknown, &defaulted()).unwrap_err();
+    assert_eq!(refused.report.problems[0].code, Code::DanglingReference);
+    assert!(refused.report.problems[0].path.contains("Areas"));
+
+    let twice = defaults_workbook_with(|sheets| {
+        let areas = &mut sheet_mut(sheets, "areas").rows;
+        let mut again = areas[0].clone();
+        again.number = 3;
+        areas.push(again);
+    });
+    let refused = adapt(&sql, &twice, &defaulted()).unwrap_err();
+    assert_eq!(refused.report.problems[0].code, Code::DuplicateId);
+}
+
+#[test]
+fn an_area_override_naming_two_derived_areas_is_refused() {
+    // A second cluster whose barangay has the same name as B02's.
+    let sql = String::from_utf8(post_qualification_overseas())
+        .unwrap()
+        .replace(
+            "('B02','PEOPLES REPUBLIC OF BANGLADESH'),",
+            "('B02','PEOPLES REPUBLIC OF BANGLADESH'),('B08','PEOPLES REPUBLIC OF BANGLADESH'),",
+        )
+        .replace(
+            "('B02','P01','90','02','001','0001A'),",
+            "('B02','P01','90','02','001','0001A'),('B08','B02','90','08','001','0001A'),",
+        );
+    let xlsx = defaults_workbook_with(|sheets| {
+        sheet_mut(sheets, "areas").rows.push(row(
+            "Areas",
+            1,
+            vec![
+                ("name", json!("PEOPLES REPUBLIC OF BANGLADESH")),
+                ("annotations.miru_trustee_servers", json!("trustee3")),
+            ],
+        ));
+    });
+    let refused = adapt(sql.as_bytes(), &xlsx, &defaulted()).unwrap_err();
+    let problem = &refused.report.problems[0];
+    assert_eq!(problem.code, Code::ConflictingColumns);
+    assert!(
+        problem.message.contains("more than one area"),
+        "{problem:?}"
+    );
+}
+
+#[test]
+fn a_description_override_does_not_split_a_cluster_without_its_own_center() {
+    // B07 has no polling center of its own; both its precinct rows use P01.
+    let sql = String::from_utf8(post_qualification_overseas())
+        .unwrap()
+        .replace(
+            "('B02','PEOPLES REPUBLIC OF BANGLADESH'),",
+            "('B02','PEOPLES REPUBLIC OF BANGLADESH'),('B07','Cluster Seven'),",
+        )
+        .replace("('9002','City B'),", "('9002','City B'),('9007','City D'),")
+        .replace("('90020001','DESTB'),", "('90020001','DESTB'),('90070001','DESTD'),")
+        .replace(
+            "('B02','P01','90','02','001','0001A'),",
+            "('B02','P01','90','02','001','0001A'),('B07','P01','90','07','001','0001A'),('B07','P01','90','07','001','0002A'),",
+        );
+    let xlsx = defaults_workbook_with(|sheets| {
+        set(
+            &mut sheet_mut(sheets, "areas").rows[0],
+            "description",
+            json!("Overseas area"),
+        );
+    });
+    let adapted = adapt(sql.as_bytes(), &xlsx, &defaulted()).unwrap();
+    let areas = adapted.workbook.rows("areas");
+    let seven: Vec<_> = areas
+        .iter()
+        .filter(|area| area.text("name") == Some("Cluster Seven"))
+        .collect();
+    assert_eq!(seven.len(), 1);
+    assert_eq!(seven[0].text("description"), Some("Overseas area"));
+}
+
+#[test]
+fn a_defaults_workbook_refuses_a_source_it_cannot_derive_elections_and_areas_from(
+) {
+    let sql = String::from_utf8(post_qualification_overseas()).unwrap();
+    let xlsx = defaults_workbook();
+    for (from, to, expected) in [
+        ("`pop`", "`pop_missing`", Code::MissingField),
+        ("`polling_centers`", "`centers_missing`", Code::MissingField),
+        ("`allbgy`", "`allbgy_missing`", Code::MissingField),
+        ("`allmun`", "`allmun_missing`", Code::MissingField),
+        (
+            "('B06','P01','90','06'",
+            "('B06','P99','90','06'",
+            Code::DanglingReference,
+        ),
+        (
+            "('B06','KINGDOM OF THAILAND')",
+            "('B07','KINGDOM OF THAILAND')",
+            Code::DanglingReference,
+        ),
+        (
+            "('9101','City C')",
+            "('9102','City C')",
+            Code::DanglingReference,
+        ),
+    ] {
+        assert!(sql.contains(from), "{from}");
+        let changed = sql.replace(from, to);
+        let refused =
+            adapt(changed.as_bytes(), &xlsx, &defaulted()).unwrap_err();
+        assert_eq!(refused.report.problems[0].code, expected, "{from}");
+    }
+}
+
+#[test]
+fn post_qualification_renames_reach_keys_charsets_and_bare_table_paths() {
+    let dump = crate::election_config::sql_dump::read_mysql_dump(
+        b"CREATE TABLE `seats` (`DISTRICTCODE` text, `NUM_SEAT` int CHARACTER SET latin1, PRIMARY KEY (`NUM_SEAT`), UNIQUE KEY u (`NUM_SEAT`));\n",
+    )
+    .unwrap();
+    let (dump, schema) = schema::normalize(dump).unwrap();
+    assert_eq!(schema, SourceSchema::PostQualification);
+    let seat = &dump.tables["seat"];
+    assert_eq!(seat.columns, ["DISTRICTCODE", "ELIGIBLEAMOUNT"]);
+    assert_eq!(seat.primary_key, ["ELIGIBLEAMOUNT"]);
+    assert!(seat
+        .unique_keys
+        .iter()
+        .all(|key| key == &["ELIGIBLEAMOUNT"]));
+    assert!(seat.column_charsets.contains_key("ELIGIBLEAMOUNT"));
+
+    let report = schema::source_names(
+        Report::from(Problem::error(Code::MissingField, "SQL table seat", "x")),
+        SourceSchema::PostQualification,
+    );
+    assert_eq!(report.problems[0].path, "SQL table seats");
+}
+
+#[test]
+fn a_defaults_workbook_refuses_associations_and_unreadable_dates() {
+    let sql = post_qualification_overseas();
+    let mut options = defaulted();
+    options.election_mappings = vec![ElectionMapping {
+        workbook_row: 2,
+        seat_rows: vec![1],
+    }];
+    let refused = adapt(&sql, &defaults_workbook(), &options).unwrap_err();
+    assert_eq!(refused.report.problems[0].code, Code::InvalidValue);
+    assert!(refused.report.problems[0].path.ends_with("areaMappings"));
+
+    let xlsx = defaults_workbook_with(|sheets| {
+        set(
+            &mut sheet_mut(sheets, "scheduledevents").rows[0],
+            "date",
+            json!("next tuesday"),
+        );
+    });
+    let refused = adapt(&sql, &xlsx, &defaulted()).unwrap_err();
+    assert_eq!(refused.report.problems[0].code, Code::InvalidValue);
+    assert!(refused.report.problems[0].path.contains("ScheduledEvents"));
+}
+
+#[test]
+fn a_defaults_workbook_refuses_ambiguous_cluster_posts_in_either_row_order() {
+    let sql = String::from_utf8(post_qualification_overseas()).unwrap();
+    let original = "('B06','P01','90','06','001','0001A'),('B06','P01','90','06','001','0002A')";
+    let first = "('B06','P01','90','06','001','0001A')";
+    let second = "('B06','P02','90','06','001','0002A')";
+    assert!(sql.contains(original));
+    let sql = sql.replace(",('B06','BANGKOK PE')", "").replace(
+        "('P01','Post One')",
+        "('P01','Post One'),('P02','Post Two')",
+    );
+    for rows in [format!("{first},{second}"), format!("{second},{first}")] {
+        let source = sql.replace(original, &rows);
+        let refused =
+            adapt(source.as_bytes(), &defaults_workbook(), &defaulted())
+                .unwrap_err();
+        let problem = &refused.report.problems[0];
+        assert_eq!(problem.code, Code::ConflictingColumns);
+        assert_eq!(problem.path, "SQL table pop row 2 column POLLCENTER_CODE");
+    }
+}
+
+#[test]
+fn a_clusters_own_center_keeps_its_embassy_across_multiple_posts() {
+    let sql = String::from_utf8(post_qualification_overseas()).unwrap();
+    let original = "('B06','P01','90','06','001','0001A'),('B06','P01','90','06','001','0002A')";
+    let first = "('B06','P01','90','06','001','0001A')";
+    let second = "('B06','P02','90','06','001','0002A')";
+    assert!(sql.contains(original));
+    let sql = sql.replace(
+        "('P01','Post One')",
+        "('P01','Post One'),('P02','Post Two')",
+    );
+    for rows in [format!("{first},{second}"), format!("{second},{first}")] {
+        let source = sql.replace(original, &rows);
+        let adapted =
+            adapt(source.as_bytes(), &defaults_workbook(), &defaulted())
+                .unwrap();
+        assert_eq!(adapted.summary.generated_rows["Elections"], 2);
+        let area = adapted
+            .workbook
+            .rows("areas")
+            .iter()
+            .find(|row| row.text("external_id") == Some("barangay:B06"))
+            .unwrap();
+        assert_eq!(area.text("description"), Some("BANGKOK PE"));
+        let voters: Vec<_> = adapted
+            .workbook
+            .rows("voters")
+            .iter()
+            .filter(|row| row.text("area.external_id") == Some("barangay:B06"))
+            .collect();
+        assert_eq!(voters.len(), 40);
+        assert!(voters
+            .iter()
+            .all(|row| row.text("embassy") == Some("Bangkok PE")));
+    }
+}
+
+#[test]
+fn post_qualification_column_alias_collisions_are_refused() {
+    for (table, source, legacy) in [
+        ("seats", "NUM_SEAT", "ELIGIBLEAMOUNT"),
+        ("seats", "PROC_CCS_CODE", "CCS_CODE"),
+        ("pop", "VOTING_MODE", "MACHINE_TYPE"),
+        ("trans_routes", "TYPE", "MACHINE_TYPE"),
+    ] {
+        for columns in [
+            format!("`{source}` text, `{legacy}` text"),
+            format!("`{legacy}` text, `{source}` text"),
+        ] {
+            for values in ["('1','2')", "('1','1')"] {
+                let sql = format!(
+                    "CREATE TABLE contests (ID text); CREATE TABLE `{table}` ({columns}); INSERT INTO `{table}` VALUES {values};"
+                );
+                let dump = crate::election_config::sql_dump::read_mysql_dump(
+                    sql.as_bytes(),
+                )
+                .unwrap();
+                let problem = schema::normalize(dump).unwrap_err();
+                assert_eq!(problem.code, Code::ConflictingColumns);
+                assert_eq!(
+                    problem.path,
+                    format!("SQL table {table} column {source}")
+                );
+            }
+        }
+    }
+}
+
+/// An `ElectionDefaults` sheet with these `(polling_place, column, value)` rows.
+fn election_defaults(rows: &[(&str, &[(&str, &str)])]) -> Vec<u8> {
+    let rows: Vec<Row> = rows
+        .iter()
+        .enumerate()
+        .map(|(i, (place, cells))| {
+            let mut cells: Vec<(&str, Value)> =
+                cells.iter().map(|(c, v)| (*c, json!(v))).collect();
+            cells.insert(0, ("polling_place", json!(place)));
+            row("ElectionDefaults", i, cells)
+        })
+        .collect();
+    defaults_workbook_with(|sheets| {
+        sheets.push(rows_sheet("ElectionDefaults", rows))
+    })
+}
+
+#[test]
+fn election_defaults_name_elections_by_polling_place_pattern() {
+    let sql = post_qualification_overseas();
+    let xlsx = election_defaults(&[
+        ("", &[("annotations.miru_election_name", "Vote")]),
+        (
+            "Post *",
+            &[
+                ("name", "General Election"),
+                ("presentation.i18n.en.alias", "{place} – General Election"),
+            ],
+        ),
+        // Matches nothing in this dump, which is not an error.
+        ("*-T", &[("name", "Test Voting")]),
+    ]);
+    let adapted = adapt(&sql, &xlsx, &defaulted()).unwrap();
+    let elections = adapted.workbook.rows("elections");
+    assert_eq!(elections.len(), 1);
+    let election = &elections[0];
+    assert_eq!(
+        election.text("presentation.i18n.en.name"),
+        Some("General Election")
+    );
+    assert_eq!(
+        election.text("presentation.i18n.en.alias"),
+        Some("One – General Election")
+    );
+    assert_eq!(
+        election.text("annotations.miru:election-name"),
+        Some("Vote")
+    );
+    // The identity schedules use stays the polling place.
+    assert_eq!(election.text("alias"), Some("Post One"));
+    assert_eq!(
+        election.text("external_id"),
+        Some("center:P01:context:Post One")
+    );
+}
+
+#[test]
+fn a_whole_polling_place_beats_a_pattern_and_reads_as_its_embassy() {
+    let sql = post_qualification_overseas();
+    let xlsx = election_defaults(&[
+        ("Post *", &[("name", "Pattern")]),
+        ("Post One", &[("name", "Exact {place}")]),
+    ]);
+    let adapted = adapt(&sql, &xlsx, &defaulted()).unwrap();
+    assert_eq!(
+        adapted.workbook.rows("elections")[0].text("presentation.i18n.en.name"),
+        Some("Exact Post ONE")
+    );
+}
+
+#[test]
+fn election_defaults_refuse_what_they_cannot_say() {
+    let sql = post_qualification_overseas();
+    for (rows, expected) in [
+        (
+            vec![("Post*", [("name", "A")]), ("* One", [("name", "B")])],
+            "matches two patterns equally",
+        ),
+        (
+            vec![("Post *", [("name", "A")]), ("Post *", [("name", "B")])],
+            "one row at most",
+        ),
+        (vec![("*a*", [("name", "A")])], "one * at most"),
+        (vec![("Post *", [("alias", "A")])], "set its name instead"),
+    ] {
+        let rows: Vec<(&str, &[(&str, &str)])> = rows
+            .iter()
+            .map(|(place, cells)| (*place, cells.as_slice()))
+            .collect();
+        let refused =
+            adapt(&sql, &election_defaults(&rows), &defaulted()).unwrap_err();
+        assert!(
+            refused.report.problems[0].message.contains(expected),
+            "{expected}: {:?}",
+            refused.report.problems
+        );
+    }
+}
+
+#[test]
+fn a_supplemental_parameters_sheet_reaches_the_realm() {
+    let sql = post_qualification_overseas();
+    let xlsx = defaults_workbook_with(|sheets| {
+        sheets.push(rows_sheet(
+            "Parameters",
+            vec![row(
+                "Parameters",
+                0,
+                vec![
+                    ("type", json!("settings")),
+                    ("key", json!("keycloak_event_realm.displayName")),
+                    ("value", json!("Election Office")),
+                ],
+            )],
+        ))
+    });
+    let adapted = adapt(&sql, &xlsx, &defaulted()).unwrap();
+    let built = build(
+        &adapted.workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap();
+    // After the name derived from the event, so it wins.
+    assert_eq!(
+        built.realm_patch.patch["displayName"],
+        json!("Election Office")
+    );
+}
+
+fn built_with(
+    change: impl FnOnce(&mut Vec<Sheet>),
+) -> crate::election_config::Bundle {
+    let adapted = adapt(
+        &post_qualification_overseas(),
+        &defaults_workbook_with(change),
+        &defaulted(),
+    )
+    .unwrap();
+    build(
+        &adapted.workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap()
+}
+
+#[test]
+fn a_contests_sheet_gives_contests_what_the_dump_lacks() {
+    let built = built_with(|sheets| {
+        sheets.push(rows_sheet(
+            "Contests",
+            vec![row(
+                "Contests",
+                0,
+                vec![
+                    ("description", json!("Vote for no more than {max_votes}")),
+                    (
+                        "presentation.i18n.en.description",
+                        json!("Vote for no more than {max_votes}"),
+                    ),
+                ],
+            )],
+        ))
+    });
+    let contests = built.export["contests"].as_array().unwrap();
+    assert!(!contests.is_empty());
+    for contest in contests {
+        let expected =
+            format!("Vote for no more than {}", contest["max_votes"]);
+        assert_eq!(contest["description"], json!(expected));
+        assert_eq!(
+            contest["presentation"]["i18n"]["en"]["description"],
+            json!(expected)
+        );
+    }
+}
+
+#[test]
+fn a_contests_row_cannot_change_what_the_source_decides() {
+    let sql = post_qualification_overseas();
+    let xlsx = defaults_workbook_with(|sheets| {
+        sheets.push(rows_sheet(
+            "Contests",
+            vec![row("Contests", 0, vec![("max_votes", json!(3))])],
+        ))
+    });
+    let refused = adapt(&sql, &xlsx, &defaulted()).unwrap_err();
+    assert_eq!(refused.report.problems[0].code, Code::ConflictingColumns);
+}
+
+#[test]
+fn templates_and_reports_pass_through_with_reports_named_by_alias() {
+    let built = built_with(|sheets| {
+        sheets.push(rows_sheet(
+            "Templates",
+            vec![row(
+                "Templates",
+                0,
+                vec![
+                    ("alias", json!("results")),
+                    ("template.document", json!("<p>{{title}}</p>")),
+                ],
+            )],
+        ));
+        sheets.push(rows_sheet(
+            "Reports",
+            vec![row(
+                "Reports",
+                0,
+                vec![
+                    ("report_type", json!("ELECTORAL_RESULTS")),
+                    ("election_alias", json!("Post One")),
+                    ("template.alias", json!("results")),
+                ],
+            )],
+        ));
+    });
+    assert_eq!(built.templates.len(), 1);
+    let reports = built.reports.as_ref().unwrap();
+    assert_eq!(reports.rows.len(), 1);
+    let column = reports
+        .columns
+        .iter()
+        .position(|c| c == "election_id")
+        .unwrap();
+    let election = built.export["elections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["alias"] == json!("Post One"))
+        .unwrap();
+    assert_eq!(reports.rows[0][column], election["id"].as_str().unwrap());
+}
+
+#[test]
+fn a_realm_in_the_workbook_is_the_one_its_settings_apply_to() {
+    let source_event = "6ca52ac1-42f1-4f84-ba87-83f475b4e0d4";
+    let realm = json!({
+        "id": "keycloak-own-id",
+        "realm": format!("tenant-t-event-{source_event}"),
+        "displayName": "Source Event",
+        "clients": [{"clientId": "voting-portal", "rootUrl": format!("https://vote.example.org/{source_event}")}]
+    });
+    let built = built_with(|sheets| {
+        sheets.push(rows_sheet(
+            "Parameters",
+            vec![
+                row(
+                    "Parameters",
+                    0,
+                    vec![
+                        ("type", json!("settings")),
+                        ("key", json!("keycloak_event_realm")),
+                        ("value", realm),
+                    ],
+                ),
+                row(
+                    "Parameters",
+                    1,
+                    vec![
+                        ("type", json!("settings")),
+                        (
+                            "key",
+                            json!("keycloak_event_realm.registrationAllowed"),
+                        ),
+                        ("value", json!(true)),
+                    ],
+                ),
+            ],
+        ))
+    });
+    let emitted = &built.export["keycloak_event_realm"];
+    let event_id = built.export["election_event"]["id"].as_str().unwrap();
+    assert_eq!(emitted["displayName"], json!("Synthetic Event"));
+    assert_eq!(emitted["registrationAllowed"], json!(true));
+    assert_eq!(
+        emitted["realm"].as_str().unwrap(),
+        format!(
+            "tenant-{}-event-{event_id}",
+            built.export["tenant_id"].as_str().unwrap()
+        )
+    );
+    assert_eq!(
+        emitted["clients"][0]["rootUrl"],
+        json!(format!("https://vote.example.org/{event_id}"))
+    );
+    assert!(!built
+        .warnings
+        .problems
+        .iter()
+        .any(|w| w.message.contains("no base export")));
+}
+
+/// What a ballot shows and how it counts, without the identifiers and the
+/// numbering a plan assigns afresh.
+///
+/// Contests and candidates are compared in their ballot order, which the plan
+/// keeps while renumbering `sort_order` from zero; a null and the default it
+/// stands for (one column, no cap per type) count as the same.
+fn ballot_of(export: &Value) -> Value {
+    fn strip(value: &Value) -> Value {
+        match value {
+            Value::Object(map) => Value::Object(
+                map.iter()
+                    .filter(|(key, _)| {
+                        !(key.as_str() == "id"
+                            || key.ends_with("_id")
+                            || key.ends_with("_at")
+                            || key.as_str() == "sort_order")
+                    })
+                    .map(|(key, value)| {
+                        let value = match (key.as_str(), value) {
+                            ("columns", Value::Null) => json!(1),
+                            ("max_selections_per_type", Value::Null) => {
+                                json!(0)
+                            }
+                            _ => strip(value),
+                        };
+                        (key.clone(), value)
+                    })
+                    .collect(),
+            ),
+            Value::Array(items) => {
+                Value::Array(items.iter().map(strip).collect())
+            }
+            other => other.clone(),
+        }
+    }
+    let ordered = |key: &str| {
+        let mut items = export[key].as_array().cloned().unwrap_or_default();
+        items.sort_by_key(|item| {
+            item["presentation"]["sort_order"]
+                .as_i64()
+                .unwrap_or(i64::MAX)
+        });
+        Value::Array(items.iter().map(strip).collect())
+    };
+    json!({"contests": ordered("contests"), "candidates": ordered("candidates")})
+}
+
+#[test]
+fn a_converted_event_opened_in_the_wizard_builds_the_same_ballot() {
+    use crate::election_config::architect::{compile_plan, Compile, Trustee};
+    use crate::election_config::plan_from_workbook::plan_from_workbook;
+
+    let (sql, xlsx) = fixture();
+    let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    let templates = TemplateSet::builtin().unwrap();
+    let options = BuildOptions::default();
+    let direct =
+        build(&adapted.workbook, &templates, &options, &Sources::default())
+            .unwrap();
+
+    let mut read = plan_from_workbook(&adapted.workbook).unwrap();
+    // The wizard asks for trustees before it compiles; the workbook may carry
+    // them, and this one does not.
+    read.plan.trustees = ["trustee-a", "trustee-b"]
+        .map(|name| Trustee {
+            name: name.into(),
+            email: format!("{name}@example.test"),
+        })
+        .to_vec();
+    let compiled = compile_plan(Compile {
+        plan: &read.plan,
+        templates: &templates,
+        options: &options,
+        profile: None,
+        sources: Some(&read.sources),
+    })
+    .unwrap();
+
+    assert_eq!(
+        ballot_of(&compiled.bundle.export),
+        ballot_of(&direct.export)
+    );
+    // Ballot behaviour the template supplies, not the plan's own defaults.
+    assert_eq!(
+        compiled.bundle.export["contests"][0]["tally_configuration"]
+            ["tie_breaking_policy"],
+        direct.export["contests"][0]["tally_configuration"]
+            ["tie_breaking_policy"]
+    );
+    assert_eq!(
+        compiled.bundle.export["election_event"]["annotations"],
+        direct.export["election_event"]["annotations"]
+    );
+}
+
+#[test]
+fn wizard_edits_of_a_converted_event_win_over_its_source_cells() {
+    use crate::election_config::architect::{compile_plan, Compile, Trustee};
+    use crate::election_config::plan_from_workbook::plan_from_workbook;
+
+    let (sql, xlsx) = fixture();
+    let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    // An export's event texts as one object per language, because its portal
+    // keys are dotted.
+    let mut sheets = adapted.workbook.sheets().to_vec();
+    let event = sheets
+        .iter_mut()
+        .find(|s| s.key == "electionevent")
+        .unwrap();
+    let row = &mut event.rows[0];
+    row.cells
+        .retain(|(column, _)| !column.starts_with("presentation.i18n."));
+    row.cells.push((
+        "presentation.i18n.en".into(),
+        json!({
+            "name": "Source name",
+            "description": null,
+            "votingPortal:breadcrumbSteps.electionList": "Ballot List",
+        }),
+    ));
+    row.cells
+        .retain(|(column, _)| column != "presentation.ceremonies_policy");
+    row.cells.push((
+        "presentation.ceremonies_policy".into(),
+        json!("automated-ceremonies"),
+    ));
+    let workbook = Workbook::new(sheets).unwrap();
+
+    let mut read = plan_from_workbook(&workbook).unwrap();
+    assert_eq!(read.plan.name.get("en"), Some("Source name"));
+    assert_eq!(
+        read.plan.ceremony_policy,
+        crate::types::ceremonies::CeremoniesPolicy::AUTOMATED_CEREMONIES
+    );
+    read.plan.name =
+        crate::election_config::architect::Translated::new("Edited name");
+    read.plan.ceremony_policy =
+        crate::types::ceremonies::CeremoniesPolicy::MANUAL_CEREMONIES;
+    read.plan.trustees = ["trustee-a", "trustee-b"]
+        .map(|name| Trustee {
+            name: name.into(),
+            email: format!("{name}@example.test"),
+        })
+        .to_vec();
+    let templates = TemplateSet::builtin().unwrap();
+    let compiled = compile_plan(Compile {
+        plan: &read.plan,
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: Some(&read.sources),
+    })
+    .unwrap();
+
+    let english =
+        &compiled.bundle.export["election_event"]["presentation"]["i18n"]["en"];
+    assert_eq!(english["name"], "Edited name");
+    assert_eq!(
+        english["votingPortal:breadcrumbSteps.electionList"],
+        "Ballot List"
+    );
+    assert_eq!(
+        compiled.bundle.export["election_event"]["presentation"]
+            ["ceremonies_policy"],
+        "manual-ceremonies"
+    );
+}
+/// The historical SQL+XLSX conversion's importable zip passes the OVCS v11
+/// importer's gate, which a `v10.0.0` label made it fail before any field was
+/// read. Deserializing and validating alone, as the test above does, cannot
+/// see that.
+#[test]
+fn the_historical_conversion_passes_the_v11_importer_gate() {
+    use crate::election_config::import_gate;
+    let (sql, xlsx) = fixture();
+    let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    let templates = TemplateSet::builtin().unwrap();
+    let bundle = build(
+        &adapted.workbook,
+        &templates,
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap();
+    assert_eq!(bundle.export["version"], json!("v11.0.0"));
+    let layout = archive::layout(&bundle);
+    import_gate::assert_v11_admits_cleanly_and_v10_warns(
+        &import_gate::event_member(&layout.importable),
+    );
+}
+
+/// A historical source's supplemental workbook may state the event's signing
+/// configuration in the same `SigningRules`/`SigningChecks` sheets any
+/// workbook uses. They are carried to the build as they are, and an empty
+/// rules sheet stays an explicit "no rules". Before, such a sheet was refused
+/// as unrecognized, so the conversion could not carry a policy at all.
+#[test]
+fn a_supplemental_workbooks_signing_sheets_reach_the_bundle() {
+    use crate::election_config::signing_sheet::PlannedSigning;
+    use crate::election_config::xlsx::read_xlsx;
+    let (sql, xlsx) = fixture();
+    let signing = PlannedSigning {
+        rules: Some(vec![serde_json::from_value(json!({
+            "action": "open-voting", "requirement": "required", "signatures": 2,
+            "requester_signing": "not-allowed", "expires_minutes": 30
+        }))
+        .unwrap()]),
+        checks: Some(
+            serde_json::from_value(json!({
+                "revocation_check": "check", "crl_unavailable": "refuse",
+                "registration": "security-officer-only", "post_binding": "one-post"
+            }))
+            .unwrap(),
+        ),
+        ..Default::default()
+    };
+    let with = |signing: &PlannedSigning| {
+        let mut sheets = read_xlsx(&xlsx).unwrap().sheets().to_vec();
+        sheets.extend(signing.sheets());
+        write_xlsx(&Workbook::new(sheets).unwrap()).unwrap()
+    };
+    let templates = TemplateSet::builtin().unwrap();
+    let convert = |workbook: &[u8]| {
+        let adapted = adapt(&sql, workbook, &reviewed()).unwrap();
+        build(
+            &adapted.workbook,
+            &templates,
+            &BuildOptions::default(),
+            &Sources::default(),
+        )
+        .unwrap()
+        .export
+    };
+    let export = convert(&with(&signing));
+    assert_eq!(
+        PlannedSigning::from_export(&export).unwrap(),
+        signing,
+        "the conversion carries the policy as stated"
+    );
+    let layout = archive::layout(
+        &build(
+            &adapt(&sql, &with(&signing), &reviewed()).unwrap().workbook,
+            &templates,
+            &BuildOptions::default(),
+            &Sources::default(),
+        )
+        .unwrap(),
+    );
+    crate::election_config::import_gate::assert_v11_admits_cleanly_and_v10_warns(
+        &crate::election_config::import_gate::event_member(&layout.importable),
+    );
+
+    let empty = PlannedSigning {
+        rules: Some(vec![]),
+        ..Default::default()
+    };
+    let export = convert(&with(&empty));
+    assert_eq!(export["signing_rules"], json!([]));
+    assert!(export.get("signing_checks").is_none_or(|v| v.is_null()));
+
+    let export = convert(&xlsx);
+    assert!(PlannedSigning::from_export(&export).unwrap().is_empty());
+}
+
+#[test]
+fn messaging_configuration_survives_historical_direct_and_wizard_routes() {
+    use crate::election_config::{
+        architect, plan_from_workbook::plan_from_workbook,
+    };
+    let (sql, xlsx) = fixture();
+    let config = json!({"version": 1, "channels": [
+        {"channel": "SMS", "account_id": "sms-account", "purposes": ["OTP", "NOTICE"], "templates": [], "out_of_window": "DISABLED"},
+        {"channel": "EMAIL", "account_id": "email-account", "purposes": ["OTP", "NOTICE"], "templates": [], "out_of_window": "DISABLED"}
+    ], "election_channels": {}});
+    let xlsx = changed_workbook(&xlsx, |sheets| {
+        sheets.push(rows_sheet(
+            "Parameters",
+            vec![row(
+                "Parameters",
+                0,
+                vec![
+                    ("key", json!("messaging_config")),
+                    ("value", config.clone()),
+                ],
+            )],
+        ));
+    });
+    let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    let templates = TemplateSet::builtin().unwrap();
+    let sources = Sources::default();
+    let run = |book: &Workbook| {
+        build(book, &templates, &BuildOptions::default(), &sources).unwrap()
+    };
+    let direct = run(&adapted.workbook);
+    assert_eq!(direct.export["messaging_config"], config);
+    let read = plan_from_workbook(&adapted.workbook).unwrap();
+    let saved =
+        architect::read_plan_value(serde_json::to_value(&read.plan).unwrap())
+            .unwrap();
+    let workbook = architect::to_workbook(&saved.plan, &sources).unwrap();
+    let wizard = run(&workbook);
+    assert_eq!(wizard.export["messaging_config"], config);
+    for bundle in [direct, wizard] {
+        let native: crate::election_config::ImportElectionEventSchema =
+            serde_json::from_value(bundle.export).unwrap();
+        assert_eq!(native.messaging_config, Some(config.clone()));
+    }
+}
+
+fn voter_overlay(rows: Vec<Row>) -> Vec<u8> {
+    let (_, xlsx) = overseas_voter_fixture("", "");
+    let workbook = crate::election_config::xlsx::read_xlsx(&xlsx).unwrap();
+    let mut sheets = workbook.sheets().to_vec();
+    sheets.push(rows_sheet("Voters", rows));
+    write_xlsx(&Workbook::new(sheets).unwrap()).unwrap()
+}
+
+#[test]
+fn historical_voter_overlay_preserves_accounts_through_direct_wizard_and_saved_delivery(
+) {
+    use crate::election_config::architect::{compile_plan, Compile, Trustee};
+    use crate::election_config::plan_from_workbook::plan_from_workbook;
+
+    let (sql, _) = overseas_voter_fixture("", "");
+    let xlsx = voter_overlay(vec![
+        row(
+            "Voters",
+            0,
+            vec![
+                ("username", json!("v-0000")),
+                ("email", json!("synthetic@example.test")),
+                ("email_verified", json!(false)),
+                ("enabled", json!(false)),
+                (
+                    "authorized-election-ids",
+                    json!(["center:P01:context:e1", "center:P01:context:e1"]),
+                ),
+            ],
+        ),
+        row(
+            "Voters",
+            1,
+            vec![
+                ("username", json!("v-0001")),
+                ("email_verified", json!(true)),
+            ],
+        ),
+    ]);
+    let adapted = adapt(&sql, &xlsx, &preserving()).unwrap();
+    let templates = TemplateSet::builtin().unwrap();
+    let options = BuildOptions::default();
+    let direct =
+        build(&adapted.workbook, &templates, &options, &Sources::default())
+            .unwrap();
+    let mut read = plan_from_workbook(&adapted.workbook).unwrap();
+    read.plan.trustees = ["trustee-a", "trustee-b"]
+        .map(|name| Trustee {
+            name: name.into(),
+            email: format!("{name}@example.test"),
+        })
+        .to_vec();
+    let compiled = compile_plan(Compile {
+        plan: &read.plan,
+        templates: &templates,
+        options: &options,
+        profile: None,
+        sources: Some(&read.sources),
+    })
+    .unwrap();
+    let delivery = archive::delivery(&compiled.layout).unwrap();
+    let opened = crate::election_config::open::open(&delivery.bytes).unwrap();
+    let rebuilt = compile_plan(Compile {
+        plan: &opened.plan,
+        templates: &templates,
+        options: &options,
+        profile: None,
+        sources: Some(&opened.sources),
+    })
+    .unwrap();
+    for bundle in [&direct, &compiled.bundle, &rebuilt.bundle] {
+        let voters = &bundle.voters;
+        assert_eq!(voters.rows.len(), 80);
+        let value = |username: &str, field: &str| {
+            let row = voters
+                .rows
+                .iter()
+                .find(|r| r[voters.column("username").unwrap()] == username)
+                .unwrap();
+            row[voters.column(field).unwrap()].clone()
+        };
+        assert_eq!(value("v-0000", "email"), "synthetic@example.test");
+        assert_eq!(value("v-0000", "enabled"), "false");
+        assert_eq!(value("v-0000", "email_verified"), "false");
+        assert_eq!(
+            value("v-0000", "authorized-election-ids"),
+            "center:P01:context:e1"
+        );
+        assert_eq!(value("v-0000", "first_name"), "First0");
+        assert_eq!(value("v-0000", "area_name"), "KINGDOM OF THAILAND");
+        assert_eq!(value("v-0001", "email"), "");
+        assert_eq!(value("v-0001", "email_verified"), "true");
+        assert_eq!(value("v-0002", "enabled"), "true");
+        assert_eq!(value("v-0002", "email_verified"), "false");
+        assert_eq!(value("v-0002", "authorized-election-ids"), "");
+    }
+}
+
+#[test]
+fn historical_voter_overlay_rejects_duplicate_and_unknown_usernames() {
+    let (sql, _) = overseas_voter_fixture("", "");
+    for (names, code) in [
+        (vec!["v-0000", "v-0000"], Code::DuplicateId),
+        (vec!["unknown"], Code::DanglingReference),
+    ] {
+        let rows = names
+            .into_iter()
+            .enumerate()
+            .map(|(i, name)| {
+                row(
+                    "Voters",
+                    i,
+                    vec![
+                        ("username", json!(name)),
+                        ("email", json!("synthetic@example.test")),
+                    ],
+                )
+            })
+            .collect();
+        let refused =
+            adapt(&sql, &voter_overlay(rows), &preserving()).unwrap_err();
+        assert_eq!(refused.report.problems[0].code, code);
+        assert_eq!(
+            refused.report.problems[0]
+                .at
+                .as_ref()
+                .unwrap()
+                .column
+                .as_deref(),
+            Some("username")
+        );
+    }
+}
+
+#[test]
+fn historical_voter_overlay_protects_source_identity_area_and_unrequested_attributes(
+) {
+    let (sql, _) = overseas_voter_fixture("", "");
+    for field in [
+        "id",
+        "first_name",
+        "last_name",
+        "middleName",
+        "dateOfBirth",
+        "country",
+        "embassy",
+        "area.external_id",
+        "area_name",
+        "source_country",
+        "password",
+        "passport",
+    ] {
+        let xlsx = voter_overlay(vec![row(
+            "Voters",
+            0,
+            vec![("username", json!("v-0000")), (field, json!("replacement"))],
+        )]);
+        let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
+        assert_eq!(
+            refused.report.problems[0].code,
+            Code::ConflictingColumns,
+            "{field}"
+        );
+        assert_eq!(
+            refused.report.problems[0]
+                .at
+                .as_ref()
+                .unwrap()
+                .column
+                .as_deref(),
+            Some(field)
+        );
+    }
+}
+
+#[test]
+fn historical_voter_overlay_requires_preserving_census_and_valid_flags() {
+    let (sql, _) = overseas_voter_fixture("", "");
+    let xlsx = voter_overlay(vec![row(
+        "Voters",
+        0,
+        vec![("username", json!("v-0000")), ("enabled", json!(false))],
+    )]);
+    let refused = adapt(&sql, &xlsx, &reviewed()).unwrap_err();
+    assert_eq!(refused.report.problems[0].code, Code::NotApproved);
+    for field in ["enabled", "email_verified"] {
+        let xlsx = voter_overlay(vec![row(
+            "Voters",
+            0,
+            vec![("username", json!("v-0000")), (field, json!("typo"))],
+        )]);
+        let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
+        assert_eq!(refused.report.problems[0].code, Code::InvalidValue);
+        assert_eq!(
+            refused.report.problems[0]
+                .at
+                .as_ref()
+                .unwrap()
+                .column
+                .as_deref(),
+            Some(field)
+        );
+    }
+}
+
+#[test]
+fn historical_voter_overlay_refuses_unknown_elections_at_build() {
+    let (sql, _) = overseas_voter_fixture("", "");
+    let xlsx = voter_overlay(vec![row(
+        "Voters",
+        0,
+        vec![
+            ("username", json!("v-0000")),
+            ("authorized-election-ids", json!(["unknown-election"])),
+        ],
+    )]);
+    let adapted = adapt(&sql, &xlsx, &preserving()).unwrap();
+    let report = build(
+        &adapted.workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap_err();
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.code == Code::DanglingReference
+            && problem.path.contains("authorized-election-ids")));
+}
+
+#[test]
+fn empty_or_blank_historical_voter_overlays_leave_the_census_unchanged() {
+    let (sql, xlsx) = overseas_voter_fixture("", "");
+    let original = adapt(&sql, &xlsx, &preserving()).unwrap();
+    let templates = TemplateSet::builtin().unwrap();
+    let options = BuildOptions::default();
+    let baseline = build(
+        &original.workbook,
+        &templates,
+        &options,
+        &Sources::default(),
+    )
+    .unwrap();
+    for rows in [
+        vec![],
+        vec![row(
+            "Voters",
+            0,
+            vec![
+                ("username", json!("v-0000")),
+                ("email", json!("")),
+                ("email_verified", json!("")),
+                ("enabled", json!("")),
+                ("authorized-election-ids", json!("")),
+            ],
+        )],
+    ] {
+        let adapted = adapt(&sql, &voter_overlay(rows), &preserving()).unwrap();
+        let built =
+            build(&adapted.workbook, &templates, &options, &Sources::default())
+                .unwrap();
+        assert_eq!(built.voters, baseline.voters);
+    }
+}
+
+#[test]
+fn historical_voter_overlay_accepts_documented_flag_spellings() {
+    let (sql, _) = overseas_voter_fixture("", "");
+    let cases = [
+        (json!(true), "true"),
+        (json!(false), "false"),
+        (json!(" YES "), "true"),
+        (json!("no"), "false"),
+        (json!("x"), "true"),
+        (json!("1"), "true"),
+        (json!("0"), "false"),
+        (json!(1), "true"),
+        (json!(0), "false"),
+    ];
+    let rows = cases
+        .iter()
+        .enumerate()
+        .map(|(i, (flag, _))| {
+            row(
+                "Voters",
+                i,
+                vec![
+                    ("username", json!(format!("v-{i:04}"))),
+                    ("enabled", flag.clone()),
+                    ("email_verified", flag.clone()),
+                ],
+            )
+        })
+        .collect();
+    let adapted = adapt(&sql, &voter_overlay(rows), &preserving()).unwrap();
+    let built = build(
+        &adapted.workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap();
+    let username = built.voters.column("username").unwrap();
+    for (i, (_, expected)) in cases.iter().enumerate() {
+        let row = built
+            .voters
+            .rows
+            .iter()
+            .find(|row| row[username] == format!("v-{i:04}"))
+            .unwrap();
+        for field in ["enabled", "email_verified"] {
+            assert_eq!(
+                row[built.voters.column(field).unwrap()],
+                *expected,
+                "case {i}, {field}"
+            );
+        }
+    }
+}
+
+#[test]
+fn historical_voter_overlay_rejects_mistyped_accounts_and_missing_join_keys() {
+    let (sql, _) = overseas_voter_fixture("", "");
+    // Each refusal differs from a valid source username and account value by
+    // one field, so it proves the account boundary rather than a broken fixture.
+    for (field, value, code) in [
+        ("enabled", json!(2), Code::InvalidValue),
+        ("enabled", json!(0.5), Code::InvalidValue),
+        ("email_verified", json!([]), Code::InvalidValue),
+        (
+            "email_verified",
+            json!({"enabled": true}),
+            Code::InvalidValue,
+        ),
+        ("email", json!(true), Code::InvalidValue),
+        ("email", json!(42), Code::InvalidValue),
+        ("username", json!(""), Code::MissingField),
+    ] {
+        let mut cells = vec![
+            ("username", json!("v-0000")),
+            ("email", json!("synthetic@example.test")),
+        ];
+        cells.retain(|(column, _)| *column != field);
+        cells.push((field, value));
+        let xlsx = voter_overlay(vec![row("Voters", 0, cells)]);
+        let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
+        let problem = &refused.report.problems[0];
+        assert_eq!(problem.code, code, "{field}");
+        assert_eq!(problem.at.as_ref().unwrap().column.as_deref(), Some(field));
+    }
+}
+
+#[test]
+fn voter_restriction_review_rejects_null_and_malformed_historical_members() {
+    let (sql, _) = overseas_voter_fixture("", "");
+    for value in [
+        json!(null),
+        json!("null"),
+        json!(["center:P01:context:e1", null]),
+        json!([true]),
+        json!([{}]),
+        json!([[]]),
+        json!("||"),
+    ] {
+        let xlsx = voter_overlay(vec![row(
+            "Voters",
+            0,
+            vec![
+                ("username", json!("v-0000")),
+                ("authorized-election-ids", value.clone()),
+            ],
+        )]);
+        let refused = adapt(&sql, &xlsx, &preserving()).unwrap_err();
+        let problem = &refused.report.problems[0];
+        assert_eq!(problem.code, Code::InvalidValue, "{value}");
+        assert_eq!(
+            problem.at.as_ref().unwrap().column.as_deref(),
+            Some("authorized-election-ids")
+        );
+    }
+}

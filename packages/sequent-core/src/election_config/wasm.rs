@@ -510,6 +510,7 @@ pub fn historical_import_info() -> Result<JsValue, JsError> {
 #[wasm_bindgen(js_name = buildFromHistorical)]
 pub fn build_from_historical(
     sql: &[u8],
+    // A full workbook, or a defaults workbook without an `Elections` sheet.
     workbook: &[u8],
     decisions: JsValue,
     options: JsValue,
@@ -544,7 +545,10 @@ pub fn build_from_historical(
     let decisions: HistoricalOptions =
         serde_wasm_bindgen::from_value(decisions)
             .map_err(|_| JsError::new("historical decisions are invalid"))?;
-    let options = build_options(options)?;
+    let options = BuildOptions {
+        census_contacts_at_enrollment: true,
+        ..build_options(options)?
+    };
     let request: Option<PackageRequest> =
         if package_request.is_undefined() || package_request.is_null() {
             None
@@ -914,6 +918,13 @@ pub fn compile_plan_js(
     // deserializes to `Option::None`. A named field cannot be dropped that way.
     let profile = profile_from(&options)?;
     let sources = sources_from(&options, &plan)?;
+    let tenant = match tenant_package_from(&options)? {
+        Ok(tenant) => tenant,
+        Err(report) => {
+            return to_js(&Output::refused(report)).map(IBuildOutput::from)
+        }
+    };
+    let record = historical_record_from(&options)?;
     let options = build_options(options)?;
 
     let templates = match TemplateSet::builtin() {
@@ -939,6 +950,27 @@ pub fn compile_plan_js(
         Err(problem) => return failed(problem).map(IBuildOutput::from),
     };
 
+    // The tenant's sections go in the delivery only: the importable zip and
+    // the auxiliary files above stay what the plan alone produced.
+    let mut delivered = compiled.layout.clone();
+    if let Some(tenant) = &tenant {
+        if let Err(problem) =
+            crate::election_config::tenant_package::add_to_layout(
+                &mut delivered,
+                tenant,
+                &compiled.bundle.tenant_id,
+            )
+        {
+            return to_js(&Output::refused(Report::from_problem(problem)))
+                .map(IBuildOutput::from);
+        }
+    }
+    if let Some(record) = &record {
+        delivered.auxiliary.push(
+            crate::election_config::tenant_package::historical_record(record),
+        );
+    }
+
     to_js(&Output {
         importable: compiled.layout.importable.iter().map(File::from).collect(),
         auxiliary: compiled.layout.auxiliary.iter().map(File::from).collect(),
@@ -946,7 +978,7 @@ pub fn compile_plan_js(
             name: compiled.layout.archive_name.clone(),
             bytes: zipped,
         }),
-        delivery: match archive::delivery(&compiled.layout) {
+        delivery: match archive::delivery(&delivered) {
             Ok(artifact) => Some(File::from(&artifact)),
             // A delivery that cannot be written is a bug in this tool rather than a
             // problem with the plan, and the importable zip above is unaffected — so
@@ -957,6 +989,60 @@ pub fn compile_plan_js(
         event_external_id: Some(compiled.bundle.event_external_id.clone()),
     })
     .map(IBuildOutput::from)
+}
+
+/// The tenant package a delivery profile adds to the plan's delivery, from
+/// `options.tenantPackage`: the same document `buildFromHistorical` takes, so
+/// a historical event edited in the wizard is delivered with the same tenant
+/// sections as one downloaded from the review. The inner `Err` is a package
+/// that does not read, said as the build's own refusal.
+#[cfg(feature = "election_config_archive")]
+fn tenant_package_from(
+    options: &JsValue,
+) -> Result<
+    Result<
+        Option<crate::election_config::tenant_package::TenantPackage>,
+        Report,
+    >,
+    JsError,
+> {
+    #[derive(serde::Deserialize, Default)]
+    #[serde(default, rename_all = "camelCase")]
+    struct Carrying {
+        tenant_package: Option<serde_json::Value>,
+    }
+    if !options.is_object() {
+        return Ok(Ok(None));
+    }
+    let carrying: Carrying = serde_wasm_bindgen::from_value(options.clone())
+        .map_err(|error| JsError::new(&format!("bad options: {error}")))?;
+    Ok(carrying
+        .tenant_package
+        .as_ref()
+        .map(crate::election_config::tenant_package::read)
+        .transpose())
+}
+
+/// `options.historicalRecord`: the summary `openFromHistorical` returned for
+/// the event this plan was opened from, recorded in the delivery as the
+/// review's download records it.
+#[cfg(feature = "election_config_archive")]
+fn historical_record_from(
+    options: &JsValue,
+) -> Result<Option<serde_json::Value>, JsError> {
+    #[derive(serde::Deserialize, Default)]
+    #[serde(default, rename_all = "camelCase")]
+    struct Carrying {
+        historical_record: Option<serde_json::Value>,
+    }
+    if !options.is_object() {
+        return Ok(None);
+    }
+    let carrying: Carrying = serde_wasm_bindgen::from_value(options.clone())
+        .map_err(|error| JsError::new(&format!("bad options: {error}")))?;
+    Ok(carrying
+        .historical_record
+        .filter(|record| !record.is_null()))
 }
 
 /// The ballots this plan's voters would be given.
@@ -1184,7 +1270,7 @@ pub fn plan_in_delivery_js(bytes: &[u8]) -> Result<JsValue, JsError> {
             ))
         })?;
 
-    to_js(&value)
+    to_js_plan(&value)
 }
 
 /// Every report type and the formats it can be generated in, the first being
@@ -1354,7 +1440,7 @@ pub fn open_configuration(
         },
     };
 
-    to_js(&answer)
+    to_js_plan(&answer)
 }
 
 // -- opening, with what travelled beside the plan ------------------------------
@@ -1433,6 +1519,8 @@ pub struct OpenedConfiguration {
     report: Report,
     source: Option<crate::election_config::open::Source>,
     sources: Option<sources::Sources>,
+    /// A historical conversion's summary, the delivery's record of it.
+    record: Option<serde_json::Value>,
 }
 
 #[cfg(all(
@@ -1444,7 +1532,7 @@ impl OpenedConfiguration {
     /// The plan, or `null` when nothing could be read. Read `report` then.
     #[wasm_bindgen(js_name = plan)]
     pub fn plan(&self) -> Result<JsValue, JsError> {
-        to_js(&self.plan)
+        to_js_plan(&self.plan)
     }
 
     /// Everything found on the way, errors and warnings together.
@@ -1457,6 +1545,15 @@ impl OpenedConfiguration {
     #[wasm_bindgen(js_name = source)]
     pub fn source(&self) -> Result<JsValue, JsError> {
         to_js(&self.source)
+    }
+
+    /// A historical conversion's summary (source digests, counts and
+    /// decisions), or `undefined`. `compilePlan` takes it back as
+    /// `historicalRecord`, so the wizard's delivery keeps the record the
+    /// review's download carries.
+    #[wasm_bindgen(js_name = record)]
+    pub fn record(&self) -> Result<JsValue, JsError> {
+        to_js(&self.record)
     }
 
     /// The census that travelled with it, if one did.
@@ -1522,15 +1619,66 @@ pub fn open_file(
                 report: opened.report,
                 source: Some(opened.source),
                 sources: Some(opened.sources),
+                record: None,
             },
             Err(report) => OpenedConfiguration {
                 plan: None,
                 report,
                 source: None,
                 sources: None,
+                record: None,
             },
         },
     )
+}
+
+/// A historical source, converted and opened in the wizard rather than built.
+///
+/// The same conversion `buildFromHistorical` runs, read back as a plan the way
+/// a dropped workbook is, so every screen can review and change it before the
+/// wizard builds the delivery. A refused conversion answers like an unreadable
+/// file: no plan, and the report says why.
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+#[wasm_bindgen(js_name = openFromHistorical)]
+pub fn open_from_historical(
+    sql: &[u8],
+    workbook: &[u8],
+    decisions: JsValue,
+) -> Result<OpenedConfiguration, JsError> {
+    use crate::election_config::historical::{adapt, HistoricalOptions};
+    use crate::election_config::plan_from_workbook::plan_from_workbook;
+    let decisions: HistoricalOptions =
+        serde_wasm_bindgen::from_value(decisions)
+            .map_err(|_| JsError::new("historical decisions are invalid"))?;
+    let refused = |report: Report| OpenedConfiguration {
+        plan: None,
+        report,
+        source: None,
+        sources: None,
+        record: None,
+    };
+    let adapted = match adapt(sql, workbook, &decisions) {
+        Ok(adapted) => adapted,
+        Err(refusal) => return Ok(refused(refusal.report)),
+    };
+    let read = match plan_from_workbook(&adapted.workbook) {
+        Ok(read) => read,
+        Err(report) => return Ok(refused(report)),
+    };
+    Ok(OpenedConfiguration {
+        plan: Some(serde_json::to_value(&read.plan).map_err(|error| {
+            JsError::new(&format!("this plan could not be read: {error}"))
+        })?),
+        report: read.report,
+        source: Some(crate::election_config::open::Source::Workbook),
+        sources: Some(read.sources),
+        record: Some(serde_json::to_value(&adapted.summary).map_err(|_| {
+            JsError::new("cannot record the conversion summary")
+        })?),
+    })
 }
 
 /// The zip the wizard hands over when somebody saves.
@@ -1585,6 +1733,40 @@ pub fn save_file_js(
 /// other default is written only where the plan says nothing, so seeding cannot
 /// overwrite an answer somebody already gave — and a second copy of that in
 /// another language is a second opinion about what a profile means.
+/// Start a new plan from a profile: its `seeds`, then everything
+/// `applyProfile` does. For a plan started from nothing only; a plan that was
+/// opened or handed in goes through `applyProfile`, which never writes a seed.
+#[cfg(feature = "election_config_archive")]
+#[wasm_bindgen(js_name = seedNewPlan)]
+pub fn seed_new_plan_js(
+    plan: JsValue,
+    profile: JsValue,
+) -> Result<JsValue, JsError> {
+    let plan = plan_from_js(plan)?;
+    let document: profile::ClientProfile =
+        serde_wasm_bindgen::from_value(profile)
+            .map_err(|error| JsError::new(&format!("bad profile: {error}")))?;
+    let first = |report: Report| {
+        report
+            .problems
+            .first()
+            .map(|problem| problem.message.clone())
+            .unwrap_or_default()
+    };
+    let read = profile::Profile::read(&document).map_err(|report| {
+        JsError::new(&format!("this profile cannot be read: {}", first(report)))
+    })?;
+    let seeded = profile::seed_new_plan(&plan, &read).map_err(|report| {
+        JsError::new(&format!(
+            "this profile cannot seed a plan: {}",
+            first(report)
+        ))
+    })?;
+    seeded
+        .serialize(&serde_wasm_bindgen::Serializer::json_compatible())
+        .map_err(|error| JsError::new(&format!("cannot hand back: {error}")))
+}
+
 #[cfg(feature = "election_config_archive")]
 #[wasm_bindgen(js_name = applyProfile)]
 pub fn apply_profile_js(
@@ -1646,6 +1828,12 @@ pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
         /// preference about the wizard rather than about the election, which is
         /// why it travels here and not through `defaults`.
         preview_slim: bool,
+        /// What a new plan's signing configuration starts as under this
+        /// profile (its `seeds`, applied to a blank plan exactly as
+        /// `seedNewPlan` applies them). Empty when the profile seeds none.
+        /// The wizard offers it as an explicit "apply the profile's policy"
+        /// on a plan that was opened rather than started, never silently.
+        seeded_signing: crate::election_config::signing_sheet::PlannedSigning,
         warnings: Report,
     }
 
@@ -1655,7 +1843,7 @@ pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
         })?;
 
     match profile::Profile::read(&document) {
-        Ok(read) => to_js(&Read {
+        Ok(read) => to_js_plan(&Read {
             id: read.id.clone(),
             display_name: read.display_name.clone(),
             hidden: read
@@ -1666,6 +1854,12 @@ pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
             presets: read.presets.clone(),
             only_our_presets: read.only_our_presets,
             preview_slim: read.preview_slim,
+            seeded_signing: profile::seed_new_plan(
+                &crate::election_config::architect::Blueprint::default(),
+                &read,
+            )
+            .map(|plan| plan.signing)
+            .unwrap_or_default(),
             locked: read
                 .locked_paths()
                 .into_iter()
@@ -1929,6 +2123,8 @@ fn build_options(options: JsValue) -> Result<BuildOptions, JsError> {
         // time would mean two ways to say the same thing and one of them stale.
         images: Vec::new(),
         ceremony_policy: Default::default(),
+        // Set by `build_from_historical`, whose census this is about.
+        census_contacts_at_enrollment: false,
     })
 }
 
@@ -2012,6 +2208,23 @@ fn failed(problem: Problem) -> Result<JsValue, JsError> {
 /// that also turns `None` into `null` instead of `undefined` and changes how
 /// bytes serialise, and `compile_plan` hands artifacts across as bytes. One flag,
 /// for the one thing that was wrong.
+/// [`to_js`] for a plan (or a profile's seeded part of one), keeping `null`.
+///
+/// A plan says "never" with `null`: a signing rule's `expires_minutes: null` is
+/// "requests never expire", while an absent one is 60 minutes. `to_js` turns
+/// `None` into `undefined`, which the front end then sends back as absent — so
+/// an opened plan's never-expiring rule came back as a 60-minute one. Plans from
+/// `applyProfile`/`seedNewPlan` already cross as `json_compatible` (with nulls),
+/// so the front end reads nulls in a plan already; this makes every door agree.
+fn to_js_plan<T: Serialize>(value: &T) -> Result<JsValue, JsError> {
+    let serializer = serde_wasm_bindgen::Serializer::new()
+        .serialize_maps_as_objects(true)
+        .serialize_missing_as_null(true);
+    value
+        .serialize(&serializer)
+        .map_err(|error| JsError::new(&format!("could not convert: {error}")))
+}
+
 fn to_js<T: Serialize>(value: &T) -> Result<JsValue, JsError> {
     let serializer =
         serde_wasm_bindgen::Serializer::new().serialize_maps_as_objects(true);
