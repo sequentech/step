@@ -46,7 +46,7 @@
   "resolutions": {
     "@babel/core": "^7.29.6",
     "@babel/plugin-transform-modules-systemjs": "^7.29.4",
-    "body-parser": "^1.20.6",
+    "body-parser": "^1.20.9",
     "brace-expansion": "^1.1.18",
     "browserslist": "^4.28.7",
     "dompurify": "^3.4.13",
