@@ -809,17 +809,17 @@ fn keycloak_user_error(error: anyhow::Error, context: &str) -> JsonError {
 }
 
 /// The `trustee` attribute is the trustee a user acts as in the key and tally
-/// ceremonies, so giving it a new value needs trustee write permission.
+/// ceremonies, so giving it a new value needs trustee write permission. The
+/// values are compared in any order, as a form may send them back reordered.
 fn trustee_attribute_permission(
     requested: Option<&HashMap<String, Vec<String>>>,
     current: Option<&HashMap<String, Vec<String>>>,
 ) -> Option<Permissions> {
     let requested = requested?.get(TRUSTEE_ATTR_NAME)?;
-    let current = current
-        .and_then(|attributes| attributes.get(TRUSTEE_ATTR_NAME))
-        .map(Vec::as_slice)
-        .unwrap_or_default();
-    (requested.as_slice() != current).then_some(Permissions::TRUSTEE_WRITE)
+    let current =
+        current.and_then(|attributes| attributes.get(TRUSTEE_ATTR_NAME));
+    (!same_attribute_values(requested, current))
+        .then_some(Permissions::TRUSTEE_WRITE)
 }
 
 /// `trustee_attribute_permission` for an edit, which also leaves an unchanged
@@ -2409,6 +2409,25 @@ mod tests {
             trustee_attribute_permission(Some(&requested), Some(&current)),
             None
         );
+    }
+
+    #[test]
+    fn reordered_trustee_values_need_no_trustee_write() {
+        let current =
+            attributes(&[(TRUSTEE_ATTR_NAME, &["trustee1", "trustee2"])]);
+        let mut requested = Some(attributes(&[
+            (TRUSTEE_ATTR_NAME, &["trustee2", "trustee1"]),
+            ("other", &["value"]),
+        ]));
+        assert_eq!(
+            trustee_attribute_permission(requested.as_ref(), Some(&current)),
+            None
+        );
+        assert_eq!(
+            trustee_edit_permission(&mut requested, Some(&current)),
+            None
+        );
+        assert_eq!(requested, Some(attributes(&[("other", &["value"])])));
     }
 
     #[test]
