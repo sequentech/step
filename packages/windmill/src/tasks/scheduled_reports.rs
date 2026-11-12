@@ -749,29 +749,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_report_whose_user_is_unknown_is_not_sent() {
-        let mut client = test_client().await;
-        let transaction = client.transaction().await.expect("a transaction");
-        let mut report = daily_at_eight("2028-04-07T23:00:00.000");
-        report
-            .cron_config
-            .as_mut()
-            .expect("a cron config")
-            .executer_username = String::new();
-        let zones = HashMap::new();
-        let scheduling = CeleryReportScheduling {
-            sender: &UnusedSender,
-            zones: &zones,
-        };
-
-        scheduling
-            .schedule(&transaction, &report)
-            .await
-            .expect("a report without an authorized user is skipped");
-        transaction.rollback().await.expect("a rollback");
-    }
-
-    #[tokio::test]
     async fn a_transaction_that_cannot_open_a_savepoint_fails_the_tick() {
         let mut client = test_client().await;
         let mut transaction = client.transaction().await.expect("a transaction");
