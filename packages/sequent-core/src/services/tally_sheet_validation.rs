@@ -19,6 +19,11 @@ pub struct TallySheetValidationError {
     pub params: HashMap<String, String>,
 }
 
+/// The largest count a tally produces: 2^53 - 1, the largest integer a JSON
+/// number holds exactly. Tally processing rejects a larger count, so
+/// validation rejects it first.
+pub const MAX_TALLY_COUNT: u64 = (1 << 53) - 1;
+
 /// Computes the maximum number of candidate marks a single non-blank
 /// ballot can legitimately contribute, given a contest's `max_votes` and
 /// counting algorithm. Absent or non-positive `max_votes` defaults to `1`
@@ -147,7 +152,10 @@ pub fn validate_area_contest_results(
         total_valid_votes.saturating_sub(total_blank_votes);
     let max_marks = max_marks_per_ballot.unwrap_or(1).max(1);
     let lower_bound = u128::from(non_blank_valid_votes);
-    let upper_bound = lower_bound * u128::from(max_marks);
+    // Tally processing rejects a sum of marks past MAX_TALLY_COUNT, so
+    // validation rejects it first instead of failing the tally later.
+    let upper_bound =
+        (lower_bound * u128::from(max_marks)).min(u128::from(MAX_TALLY_COUNT));
 
     if candidate_votes_sum < lower_bound || candidate_votes_sum > upper_bound {
         errors.push(error(
@@ -168,11 +176,12 @@ pub fn validate_area_contest_results(
 
     if u128::from(total_votes)
         != u128::from(total_valid_votes) + u128::from(total_invalid)
+        || total_votes > MAX_TALLY_COUNT
     {
         errors.push(error(
             "invalid_total_votes",
             format!(
-                "total_votes ({total_votes}) must equal total_valid_votes ({total_valid_votes}) + total_invalid ({total_invalid})"
+                "total_votes ({total_votes}) must equal total_valid_votes ({total_valid_votes}) + total_invalid ({total_invalid}) and not exceed {MAX_TALLY_COUNT}"
             ),
             "total_votes",
             HashMap::from([
@@ -718,6 +727,29 @@ mod tests {
     }
 
     #[test]
+    fn rejects_marks_beyond_the_counter_range_within_the_mark_bound() {
+        let content = sheet_with_candidate_votes(
+            MAX_TALLY_COUNT,
+            MAX_TALLY_COUNT,
+            &[MAX_TALLY_COUNT, 1],
+        );
+
+        assert_eq!(
+            error_codes(&content, Some(2)),
+            vec!["invalid_total_valid_votes"]
+        );
+    }
+
+    #[test]
+    fn rejects_a_total_beyond_the_counter_range() {
+        let total = MAX_TALLY_COUNT + 1;
+        let content = sheet_with_candidate_votes(total, total, &[total]);
+
+        assert!(error_codes(&content, None)
+            .contains(&"invalid_total_votes".to_string()));
+    }
+
+    #[test]
     fn rejects_invalid_vote_components_whose_sum_exceeds_the_counter_range() {
         let content = AreaContestResults {
             total_votes: Some(0),
@@ -743,7 +775,8 @@ mod tests {
             explicit_invalid: Some(0),
         });
 
-        assert_eq!(error_codes(&content, None), vec!["invalid_total_votes"]);
+        assert!(error_codes(&content, None)
+            .contains(&"invalid_total_votes".to_string()));
     }
 
     #[test]
