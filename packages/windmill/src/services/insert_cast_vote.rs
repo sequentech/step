@@ -52,8 +52,7 @@ use serde_json::Serializer;
 use std::collections::HashSet;
 use std::time::Instant;
 use strand::backend::ristretto::RistrettoCtx;
-use strand::hash::{hash_to_array, Hash, HashWrapper};
-use strand::serialization::StrandSerialize;
+use strand::hash::{Hash, HashWrapper};
 use strand::signature::StrandSignature;
 use strand::signature::StrandSignaturePk;
 use strand::signature::StrandSignatureSk;
@@ -822,8 +821,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
 }
 
 pub(crate) fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
-    let bytes = voter_id.to_string().strand_serialize()?;
-    hash_to_array(&bytes)
+    electoral_log::messages::message::hash_voter_id(voter_id)
 }
 
 #[instrument(skip_all, err)]
