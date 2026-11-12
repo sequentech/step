@@ -18,6 +18,7 @@ use crate::services::electoral_log::{
     post_voter_password_change, prepare_voter_ballots_discard, ElectoralLogAdminContext,
     VoterPasswordChangeSource,
 };
+use crate::services::electoral_log_outbox::{deliver_log_event, store_log_event};
 use crate::services::pg_lock::PgLock;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};
@@ -266,10 +267,11 @@ async fn edit_keycloak_voter(
         .map_err(|err| format!("Error editing Datafix voter in Keycloak: {err:?}"))
 }
 
-/// Discards the voter's active ballots in its own Hasura transaction and,
-/// before committing, posts an electoral-log entry naming them and the admin
-/// who released the voter. If that entry cannot be posted the discard is
-/// rolled back and a retried disable resumes the release.
+/// Discards the voter's active ballots and stores an electoral-log entry
+/// naming them and the admin who released the voter in the electoral-log
+/// outbox, in one Hasura transaction, so the discard and its entry commit or
+/// roll back together. The entry is published after the commit; if that
+/// fails, the outbox relay publishes it later.
 #[instrument(skip(admin), err)]
 async fn discard_voter_ballots(
     tenant_id: &str,
@@ -285,8 +287,10 @@ async fn discard_voter_ballots(
     let discarded =
         discard_voter_cast_votes(&transaction, &tenant_uuid, &election_event_uuid, voter_id)
             .await?;
-    if !discarded.is_empty() {
-        prepare_voter_ballots_discard(
+    let pending_log = if discarded.is_empty() {
+        None
+    } else {
+        let log_event = prepare_voter_ballots_discard(
             &transaction,
             tenant_id,
             election_event_id,
@@ -296,12 +300,19 @@ async fn discard_voter_ballots(
             &discarded,
         )
         .await?
-        .post()
-        .await
-        .context("Failed to post the voter ballot-discard electoral-log entry")?;
-    }
+        .to_log_event(tenant_id, election_event_id)?;
+        Some(
+            store_log_event(&transaction, &tenant_uuid, &election_event_uuid, log_event)
+                .await
+                .context("Failed to store the voter ballot-discard electoral-log entry")?,
+        )
+    };
     transaction.commit().await?;
+    drop(client);
     info!(?discarded, "Discarded active Datafix cast votes");
+    if let Some(pending_log) = pending_log {
+        deliver_log_event(&pending_log).await;
+    }
     Ok(())
 }
 
