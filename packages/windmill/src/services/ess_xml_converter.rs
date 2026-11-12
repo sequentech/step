@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::io;
 
 use anyhow::{anyhow, Context, Result};
 use csv::Writer;
@@ -161,6 +162,61 @@ fn output_too_large_error(selected_channel: &VotingChannel) -> TallySheetImportV
     )
 }
 
+/// Marker error of a `LimitedBuffer` that has hit its limit.
+#[derive(Debug)]
+struct OutputLimitExceeded;
+
+impl std::fmt::Display for OutputLimitExceeded {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "output is over {MAX_CANONICAL_CSV_BYTES} bytes")
+    }
+}
+
+impl std::error::Error for OutputLimitExceeded {}
+
+/// In-memory output that refuses a write taking it past
+/// `MAX_CANONICAL_CSV_BYTES`, so a conversion never holds more than the
+/// limit, however large one party sheet would be.
+#[derive(Default)]
+struct LimitedBuffer {
+    bytes: Vec<u8>,
+}
+
+impl io::Write for LimitedBuffer {
+    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
+        if (self.bytes.len() + data.len()) as u64 > MAX_CANONICAL_CSV_BYTES {
+            return Err(io::Error::new(io::ErrorKind::Other, OutputLimitExceeded));
+        }
+        self.bytes.extend_from_slice(data);
+        Ok(data.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+/// Whether `err` comes from a `LimitedBuffer` that hit its limit.
+fn is_output_limit_exceeded(err: &anyhow::Error) -> bool {
+    let is_limit = |io_err: &io::Error| {
+        io_err
+            .get_ref()
+            .map_or(false, |inner| inner.is::<OutputLimitExceeded>())
+    };
+    err.chain().any(|cause| {
+        if let Some(io_err) = cause.downcast_ref::<io::Error>() {
+            return is_limit(io_err);
+        }
+        match cause
+            .downcast_ref::<csv::Error>()
+            .map(|csv_err| csv_err.kind())
+        {
+            Some(csv::ErrorKind::Io(io_err)) => is_limit(io_err),
+            _ => false,
+        }
+    })
+}
+
 /// Column names of the canonical CSV, in order.
 const CANONICAL_CSV_HEADER: [&str; 6] = [
     "channel",
@@ -174,7 +230,7 @@ const CANONICAL_CSV_HEADER: [&str; 6] = [
 /// Writes the canonical CSV header row. Shared so every conversion path —
 /// including one refused before it reads a single contest — emits the same
 /// well-formed CSV shape.
-fn write_canonical_csv_header(writer: &mut Writer<Vec<u8>>) -> Result<()> {
+fn write_canonical_csv_header(writer: &mut Writer<LimitedBuffer>) -> Result<()> {
     writer.write_record(CANONICAL_CSV_HEADER)?;
     Ok(())
 }
@@ -547,9 +603,9 @@ fn check_party_names_match_configured_areas(
 /// The canonical CSV header with no data rows, for a conversion refused
 /// before any contest could be read.
 fn empty_canonical_csv() -> Result<Vec<u8>> {
-    let mut writer = Writer::from_writer(Vec::new());
+    let mut writer = Writer::from_writer(LimitedBuffer::default());
     write_canonical_csv_header(&mut writer)?;
-    writer.into_inner().map_err(|err| anyhow!(err))
+    Ok(writer.into_inner().map_err(|err| anyhow!(err))?.bytes)
 }
 
 /// Party-grouped ES&S conversion — `area_name` is each contest's party
@@ -604,11 +660,11 @@ fn empty_canonical_csv() -> Result<Vec<u8>> {
 /// unrecognized area name; this function doesn't need its own separate
 /// check for it.
 ///
-/// The size of the CSV written so far is measured after each party sheet, and
-/// the conversion stops with one `ESS_OUTPUT_TOO_LARGE` error, and no rows, as
-/// soon as it goes past `MAX_CANONICAL_CSV_BYTES`. It therefore never
-/// buffers more than the limit plus one party sheet, and never refuses output
-/// that fits.
+/// The CSV is written to a buffer that refuses any write past
+/// `MAX_CANONICAL_CSV_BYTES`: the conversion then stops, with one
+/// `ESS_OUTPUT_TOO_LARGE` error and no rows. It therefore never buffers more
+/// than the limit, even inside one party sheet, and never refuses output that
+/// fits.
 #[instrument(skip_all, err)]
 fn convert_party_grouped(
     document: &Document<'_>,
@@ -617,7 +673,29 @@ fn convert_party_grouped(
     contest_vote_config: &HashMap<String, ContestVoteConfig>,
     missing_config_policy: MissingContestConfigPolicy,
 ) -> Result<(Vec<u8>, Vec<TallySheetImportValidationError>)> {
-    let mut writer = Writer::from_writer(Vec::new());
+    match write_party_grouped(
+        document,
+        selected_channel.clone(),
+        reporting_group_id,
+        contest_vote_config,
+        missing_config_policy,
+    ) {
+        Err(err) if is_output_limit_exceeded(&err) => Ok((
+            empty_canonical_csv()?,
+            vec![output_too_large_error(&selected_channel)],
+        )),
+        result => result,
+    }
+}
+
+fn write_party_grouped(
+    document: &Document<'_>,
+    selected_channel: VotingChannel,
+    reporting_group_id: &str,
+    contest_vote_config: &HashMap<String, ContestVoteConfig>,
+    missing_config_policy: MissingContestConfigPolicy,
+) -> Result<(Vec<u8>, Vec<TallySheetImportValidationError>)> {
+    let mut writer = Writer::from_writer(LimitedBuffer::default());
     let mut validation_errors = Vec::new();
 
     write_canonical_csv_header(&mut writer)?;
@@ -635,7 +713,7 @@ fn convert_party_grouped(
     )?;
     if let Some(error) = precondition_error {
         return Ok((
-            writer.into_inner().map_err(|err| anyhow!(err))?,
+            writer.into_inner().map_err(|err| anyhow!(err))?.bytes,
             vec![error],
         ));
     }
@@ -643,7 +721,7 @@ fn convert_party_grouped(
         Ok(map) => map,
         Err(error) => {
             return Ok((
-                writer.into_inner().map_err(|err| anyhow!(err))?,
+                writer.into_inner().map_err(|err| anyhow!(err))?.bytes,
                 vec![error],
             ));
         }
@@ -871,16 +949,10 @@ fn convert_party_grouped(
             }
 
             writer.flush()?;
-            if writer.get_ref().len() as u64 > MAX_CANONICAL_CSV_BYTES {
-                return Ok((
-                    empty_canonical_csv()?,
-                    vec![output_too_large_error(&selected_channel)],
-                ));
-            }
         }
     }
 
-    let csv_bytes = writer.into_inner().map_err(|err| anyhow!(err))?;
+    let csv_bytes = writer.into_inner().map_err(|err| anyhow!(err))?.bytes;
     Ok((csv_bytes, validation_errors))
 }
 
@@ -1205,7 +1277,7 @@ fn precinct_names_by_id(document: &Document<'_>) -> Result<HashMap<String, Strin
 }
 
 fn write_scalar_row(
-    writer: &mut Writer<Vec<u8>>,
+    writer: &mut Writer<LimitedBuffer>,
     channel: &VotingChannel,
     area_name: &str,
     contest_external_id: &str,
@@ -2482,6 +2554,38 @@ mod tests {
     #[test]
     fn party_grouping_refuses_a_conversion_with_too_many_bytes() {
         let xml = file_with_one_ballot_per_party(&party_names_with_padding(64, 4_096), 250);
+
+        let (csv, errors) = convert_for_test(
+            &xml,
+            VotingChannel::PAPER,
+            &single_choice_config(&["contest-1"]),
+            &party_area_names(),
+        )
+        .unwrap();
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "ess_output_too_large");
+        assert!(csv_has_no_rows(&csv));
+    }
+
+    #[test]
+    fn limited_buffer_refuses_a_write_past_the_limit() {
+        use std::io::Write;
+        let mut buffer = LimitedBuffer::default();
+        let chunk = vec![b'x'; MAX_CANONICAL_CSV_BYTES as usize - 1];
+        buffer.write_all(&chunk).expect("fits");
+        buffer.write_all(b"y").expect("fits exactly");
+        let err = buffer.write_all(b"z").expect_err("past the limit");
+        assert!(is_output_limit_exceeded(&anyhow!(err)));
+        assert_eq!(buffer.bytes.len() as u64, MAX_CANONICAL_CSV_BYTES);
+    }
+
+    #[test]
+    fn party_grouping_refuses_one_oversized_party_sheet() {
+        // One party with a 200 KB name repeated on 300 candidate rows: a
+        // single sheet of about 60 MB.
+        let party_names = vec!["Area A".to_string(), "p".repeat(200_000)];
+        let xml = file_with_one_ballot_per_party(&party_names, 300);
 
         let (csv, errors) = convert_for_test(
             &xml,
