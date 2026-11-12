@@ -29,6 +29,8 @@ import org.keycloak.models.UserLoginFailureModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.services.managers.BruteForceProtector;
+import org.keycloak.services.managers.DefaultBlockingBruteForceProtector;
+import org.keycloak.services.managers.DefaultBruteForceProtector;
 
 /**
  * Resolves a user from one or more configured attributes plus a password, without a username.
@@ -439,7 +441,8 @@ public final class MultiAttributeCredentialResolver {
     // that request ends, so asking it about each candidate would make voters who share these
     // attributes lock each other out of their own accounts whenever they log in at the same time.
     // With more than one candidate, screen them against the stored lockout state instead and
-    // consult the protector only for the account that actually authenticates - see resolved().
+    // consult the protector only for the account that authenticates, or the only one still
+    // unlocked - see resolved() and isLostRaceForSoleViable().
     // src/test/integration/concurrent-shared-dob-login.py checks this against a running Keycloak.
     boolean shared = enabledCandidates.size() > 1;
     Map<UserModel, LockoutState> lockoutStates =
@@ -465,6 +468,9 @@ public final class MultiAttributeCredentialResolver {
       // Preserve the dummy password-hash work used for nonexistent users/tuples.
       // Constant-time equality alone does not hide the existence of a candidate.
       performDummyHash(session, realm);
+      if (isLostRaceForSoleViable(session, realm, shared, viableCandidates)) {
+        return Resolution.failure();
+      }
       // Include locked accounts in ambiguity detection: locking one account must not
       // make a credential shared by two accounts authenticate as the other one.
       List<UserModel> matches =
@@ -505,6 +511,9 @@ public final class MultiAttributeCredentialResolver {
 
     if (viableCandidates.size() == 1) {
       UserModel candidate = viableCandidates.get(0);
+      if (isLostRaceForSoleViable(session, realm, shared, viableCandidates)) {
+        return dummyFailure(session, realm);
+      }
       if (verifier.get().test(candidate, password)) {
         return resolved(session, realm, tupleKey, candidate, shared);
       }
@@ -543,11 +552,27 @@ public final class MultiAttributeCredentialResolver {
   }
 
   /**
+   * With several candidates, only one of which is not locked out, any failure is attributed to that
+   * account, and nothing screened it through the protector. Reserving it before its credential is
+   * tested keeps concurrent guesses against it serialized, as they are for a single candidate. A
+   * request that finds it held by another request, or locked in the meantime, fails generically
+   * with nothing recorded: the attempt was never tested, so it is no evidence against the tuple or
+   * the account.
+   */
+  private static boolean isLostRaceForSoleViable(
+      KeycloakSession session, RealmModel realm, boolean shared, List<UserModel> viableCandidates) {
+    return shared
+        && viableCandidates.size() == 1
+        && lockoutStateOf(session, realm, viableCandidates.get(0)) != LockoutState.NONE;
+  }
+
+  /**
    * Fails a request whose submitted attributes still matched more than one viable candidate. Under
    * {@link SharedCandidateFailurePolicy#CHARGE_VIABLE_CANDIDATES} each of them is charged with the
-   * same {@link BruteForceProtector#failedLogin} call Keycloak makes for a single attributed user;
-   * that call only records the failure and doesn't hold the account, so candidates who share these
-   * attributes still don't block each other's concurrent logins.
+   * same {@link BruteForceProtector#failedLogin} call Keycloak makes for a single attributed user,
+   * made through {@link #chargeUnreservedFailedLogin} since none of them was reserved; that call
+   * only records the failure and doesn't hold the account, so candidates who share these attributes
+   * still don't block each other's concurrent logins.
    */
   private static Resolution sharedFailure(
       KeycloakSession session,
@@ -556,25 +581,64 @@ public final class MultiAttributeCredentialResolver {
       ThrottleConfig throttleConfig) {
     if (throttleConfig.sharedCandidateFailurePolicy()
         == SharedCandidateFailurePolicy.CHARGE_VIABLE_CANDIDATES) {
-      viableCandidates.forEach(candidate -> chargeFailedLogin(session, realm, candidate));
+      viableCandidates.forEach(candidate -> chargeUnreservedFailedLogin(session, realm, candidate));
     }
     return Resolution.failure();
   }
 
-  /** Records a failed login against an account in Keycloak's Brute Force Detection, if it's on. */
+  /**
+   * Records a failed login against an account this request reserved through the protector, if Brute
+   * Force Detection is on. Every account a failure is attributed to is one: a single candidate was
+   * checked through the protector, and several were narrowed to one that is checked before its
+   * credential is tested. The browser form charges it here, and the Direct Grant flow engine
+   * charges the user the authenticator sets, through the configured protector either way.
+   */
   static void chargeFailedLogin(KeycloakSession session, RealmModel realm, UserModel user) {
     if (!realm.isBruteForceProtected()) {
       return;
     }
+    charge(session, realm, user, session.getProvider(BruteForceProtector.class));
+  }
+
+  /**
+   * Records a failed login against an account this request did NOT reserve through the protector.
+   *
+   * <p>Keycloak's default {@code DefaultBlockingBruteForceProtector} tracks the request holding
+   * each account in {@code loginAttempts}, and its {@code failure()} unconditionally enlists a
+   * removal that cuts the {@code #brute_force_started} suffix off whatever entry is there when the
+   * off-thread job commits. If another request reserves the account between {@code failedLogin} and
+   * that commit, the removal corrupts the other request's entry (a {@code StringIndexOutOfBounds}
+   * for short thread names, a truncated owner otherwise). So with that protector the failure is
+   * recorded through a plain {@code DefaultBruteForceProtector} on the session factory: Keycloak's
+   * own {@code failure()}, without the reservation bookkeeping. Other providers get the same call
+   * as a reserved account.
+   *
+   * <p>This depends on Keycloak's class layout: {@code DefaultBlockingBruteForceProtector} is what
+   * {@code DefaultBruteForceProtectorFactory} builds unless {@code allowConcurrentRequests} is set,
+   * and {@code DefaultBruteForceProtector} has a public constructor over the session factory. Same
+   * in 26.7.0 (compiled against) and 26.7.5 (the image). Recheck on every Keycloak upgrade.
+   */
+  static void chargeUnreservedFailedLogin(
+      KeycloakSession session, RealmModel realm, UserModel user) {
+    if (!realm.isBruteForceProtected()) {
+      return;
+    }
+    BruteForceProtector protector = session.getProvider(BruteForceProtector.class);
+    if (protector instanceof DefaultBlockingBruteForceProtector) {
+      protector = new DefaultBruteForceProtector(session.getKeycloakSessionFactory());
+    }
+    charge(session, realm, user, protector);
+  }
+
+  private static void charge(
+      KeycloakSession session, RealmModel realm, UserModel user, BruteForceProtector protector) {
     KeycloakContext context = session.getContext();
-    session
-        .getProvider(BruteForceProtector.class)
-        .failedLogin(
-            realm,
-            user,
-            context.getConnection(),
-            context.getUri(),
-            Collections.singleton(PasswordCredentialModel.TYPE));
+    protector.failedLogin(
+        realm,
+        user,
+        context.getConnection(),
+        context.getUri(),
+        Collections.singleton(PasswordCredentialModel.TYPE));
   }
 
   /**
