@@ -34,6 +34,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.keycloak.authentication.AuthenticationFlowContext;
+import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
 import org.keycloak.common.ClientConnection;
 import org.keycloak.common.util.Time;
 import org.keycloak.credential.CredentialInput;
@@ -1969,6 +1970,27 @@ class MultiAttributePasswordAuthenticatorTest {
     actionAuthenticator(Resolution.failure(), mock(Response.class)).action(context);
 
     verify(bruteForceProtector, never()).failedLogin(any(), any(), any(), any(), any());
+  }
+
+  /**
+   * With no user on the session, the flow engine charges the account noted as the attempted
+   * username. An earlier step, such as another login form or a smart link, may have noted one, and
+   * the engine would charge it for this form's failure too, or instead of the account the failure
+   * belongs to.
+   */
+  @Test
+  void action_failureDropsAnAttemptedUsernameAnEarlierStepNoted() {
+    for (Resolution resolution :
+        List.of(Resolution.failureAttributedTo(mock(UserModel.class)), Resolution.failure())) {
+      AuthenticationFlowContext context = mockFailureContext(true);
+      AuthenticationSessionModel authenticationSession = mock(AuthenticationSessionModel.class);
+      when(context.getAuthenticationSession()).thenReturn(authenticationSession);
+
+      actionAuthenticator(resolution, mock(Response.class)).action(context);
+
+      verify(authenticationSession)
+          .removeAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME);
+    }
   }
 
   /** A locked account isn't charged again, as Keycloak's own form doesn't. */
