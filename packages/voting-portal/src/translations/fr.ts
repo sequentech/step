@@ -454,6 +454,9 @@ const frenchTranslation: TranslationType = {
                 bytesToUtf8Conversion:
                     "Erreur lors de la conversion du texte de bytes en chaîne UTF-8 : {{errorMessage}}",
                 ballotTooLarge: "La taille du bulletin dépasse la limite prévue",
+                duplicatedSelection: "La même option a été sélectionnée plus d'une fois",
+                blankBallotWithSelections:
+                    "Bulletin marqué comme blanc, mais ce scrutin contient des sélections",
             },
             explicit: {
                 notAllowed: "Bulletin marqué comme invalide, mais ce scrutin ne l'autorise pas",

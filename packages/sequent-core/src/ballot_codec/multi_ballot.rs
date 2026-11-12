@@ -31,6 +31,10 @@ use crate::encrypt::encode_to_plaintext_decoded_multi_contest;
 use crate::util::normalize_vote::normalize_election;
 use num_traits::{ToPrimitive, Zero};
 
+const DUPLICATED_SELECTION_ERROR: &str = "errors.encoding.duplicatedSelection";
+const BLANK_BALLOT_WITH_SELECTIONS_ERROR: &str =
+    "errors.encoding.blankBallotWithSelections";
+
 fn is_candidate_selected(
     candidate: &Candidate,
     choices: &[ContestChoice],
@@ -309,6 +313,29 @@ impl<'a> MultiBallotCodecContext<'a> {
             )?;
             choice_index += vote_slot_count;
             contest_choices.push(next);
+        }
+
+        // The blank ballot flag stands for a ballot whose contests are all
+        // empty, so it is only kept when no contest carries a selection or
+        // an explicit invalid or explicit blank mark.
+        let mut is_blank_ballot = is_blank_ballot;
+        if is_blank_ballot {
+            for contest in contest_choices.iter_mut().filter(|contest| {
+                contest.is_explicit_invalid || !contest.choices.is_empty()
+            }) {
+                contest.invalid_errors.push(InvalidPlaintextError {
+                    error_type: InvalidPlaintextErrorType::EncodingError,
+                    candidate_id: None,
+                    message: Some(
+                        BLANK_BALLOT_WITH_SELECTIONS_ERROR.to_string(),
+                    ),
+                    message_map: HashMap::new(),
+                });
+                // The flags contradict each other, so neither stands: the
+                // contest counts as implicitly invalid.
+                contest.is_explicit_invalid = false;
+                is_blank_ballot = false;
+            }
         }
 
         let serial_number = match serial_number_counter {
@@ -972,6 +999,8 @@ impl BallotChoices {
         let sorted_candidates = &context.sorted_normal_candidates;
 
         let mut next_choices = vec![];
+        let mut seen_candidate_ids: HashSet<&str> = HashSet::new();
+        let mut has_repeated_candidate = false;
         for i in 0..vote_slot_count {
             let next = choices[i];
             let next = usize::try_from(next).map_err(|_| {
@@ -997,15 +1026,26 @@ impl BallotChoices {
                 ));
             };
 
-            let choice = DecodedContestChoice(candidate.id.clone());
-
-            next_choices.push(choice);
+            if seen_candidate_ids.insert(candidate.id.as_str()) {
+                next_choices.push(DecodedContestChoice(candidate.id.clone()));
+            } else {
+                has_repeated_candidate = true;
+            }
         }
 
-        // Track distinct selections for the duplicate check below.
-        let unique: HashSet<DecodedContestChoice> =
-            HashSet::from_iter(next_choices.iter().cloned());
-        decoded_contest.choices = unique.clone().into_iter().collect();
+        // A candidate counts once towards the selection rules no matter how
+        // many slots repeat it, and the repetition makes the contest invalid
+        // without failing the decoding of the ballot.
+        let num_selected_candidates = next_choices.len();
+        decoded_contest.choices = next_choices;
+        if has_repeated_candidate {
+            decoded_contest.invalid_errors.push(InvalidPlaintextError {
+                error_type: InvalidPlaintextErrorType::EncodingError,
+                candidate_id: None,
+                message: Some(DUPLICATED_SELECTION_ERROR.to_string()),
+                message_map: HashMap::new(),
+            });
+        }
         if is_explicit_invalid {
             if let Some(candidate) = context.explicit_invalid_candidate {
                 decoded_contest
@@ -1021,20 +1061,11 @@ impl BallotChoices {
             }
         }
 
-        let num_selected_candidates = next_choices.len();
         // Explicit invalid and explicit blank flags count as selections
         // for the min_votes, max_votes, undervote and blank-vote rules.
         let num_selected_with_markers = num_selected_candidates
             + usize::from(is_explicit_invalid)
             + usize::from(is_explicit_blank);
-
-        if unique.len() != num_selected_candidates {
-            // The encoder forbids duplicates. Accepting them here could make
-            // repeated marks satisfy a minimum that requires distinct choices.
-            return Err(
-                "Plaintext vector contained duplicate values".to_string()
-            );
-        }
 
         let presentation = contest.presentation.clone().unwrap_or_default();
 

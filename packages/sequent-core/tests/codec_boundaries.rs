@@ -255,22 +255,162 @@ fn malformed_raw_choice_counts_and_candidate_positions_are_rejected() {
     assert!(choices(&["a", "a"]).encode_to_bigint(&config).is_err());
 }
 
+/// A second contest, sorted after "council": one seat, candidates x and y.
+fn mayor() -> Contest {
+    Contest {
+        id: "mayor".into(),
+        max_votes: 1,
+        min_votes: 0,
+        candidates: ["x", "y"]
+            .into_iter()
+            .map(|id| Candidate {
+                id: id.into(),
+                ..Default::default()
+            })
+            .collect(),
+        ..Default::default()
+    }
+}
+
+fn decode_raw(
+    contests: &Vec<Contest>,
+    include_blank_ballots: bool,
+    raw_choices: Vec<u64>,
+) -> Vec<DecodedVoteContest> {
+    use sequent_core::plaintext::map_decoded_ballot_choices_to_decoded_contests;
+    let bases = BallotChoices::get_bases(
+        contests,
+        false,
+        include_blank_ballots,
+        MultiContestEncodingMode::LEGACY,
+    )
+    .expect("the contests fit a ballot");
+    let decoded = BallotChoices::decode(
+        &RawBallotContest::new(bases, raw_choices),
+        contests,
+        false,
+        include_blank_ballots,
+        MultiContestEncodingMode::LEGACY,
+        None,
+    )
+    .expect("contradictory content is a contest error, not a decoding failure");
+    map_decoded_ballot_choices_to_decoded_contests(decoded, contests)
+        .expect("every contest is decoded")
+}
+
+fn has_error(contest: &DecodedVoteContest, message: &str) -> bool {
+    contest
+        .invalid_errors
+        .iter()
+        .any(|error| error.message.as_deref() == Some(message))
+}
+
+fn selected_ids(contest: &DecodedVoteContest) -> Vec<&str> {
+    contest
+        .choices
+        .iter()
+        .filter(|choice| choice.selected >= 0)
+        .map(|choice| choice.id.as_str())
+        .collect()
+}
+
 #[test]
-fn duplicate_raw_selections_cannot_count_as_two_different_candidates() {
-    let contests = vec![contest()];
-    let duplicate = RawBallotContest::new(vec![2, 4, 4], vec![0, 1, 1]);
-    assert!(
-        BallotChoices::decode(
-            &duplicate,
-            &contests,
-            false,
-            false,
-            MultiContestEncodingMode::LEGACY,
-            None
-        )
-        .is_err(),
-        "the decoder must reject duplicates that the encoder already forbids"
+fn duplicate_raw_selections_count_once_and_invalidate_only_their_contest() {
+    let mut council = contest();
+    council.min_votes = 2;
+    let contests = vec![council, mayor()];
+    // [council invalid flag, council slots "a" and "a",
+    //  mayor invalid flag, mayor slot "y"]
+    let decoded = decode_raw(&contests, false, vec![0, 1, 1, 0, 2]);
+
+    assert_eq!(selected_ids(&decoded[0]), ["a"]);
+    assert!(decoded[0].is_invalid());
+    assert!(has_error(
+        &decoded[0],
+        "errors.encoding.duplicatedSelection"
+    ));
+    let min_error = decoded[0]
+        .invalid_errors
+        .iter()
+        .find(|error| {
+            error.message.as_deref() == Some("errors.implicit.selectedMin")
+        })
+        .expect("a repeated candidate counts as one selection");
+    assert_eq!(
+        min_error.message_map.get("numSelected").map(String::as_str),
+        Some("1")
     );
+
+    assert_eq!(selected_ids(&decoded[1]), ["y"]);
+    assert!(decoded[1].invalid_errors.is_empty());
+}
+
+#[test]
+fn distinct_raw_selections_decode_in_slot_order_without_errors() {
+    let contests = vec![contest()];
+    let bases = BallotChoices::get_bases(
+        &contests,
+        false,
+        false,
+        MultiContestEncodingMode::LEGACY,
+    )
+    .expect("the contest fits a ballot");
+    // [invalid flag, slots "c" and "a"]
+    let decoded = BallotChoices::decode(
+        &RawBallotContest::new(bases, vec![0, 3, 1]),
+        &contests,
+        false,
+        false,
+        MultiContestEncodingMode::LEGACY,
+        None,
+    )
+    .expect("distinct selections decode");
+
+    assert_eq!(
+        decoded.choices[0].choices,
+        vec![
+            DecodedContestChoice("c".into()),
+            DecodedContestChoice("a".into())
+        ]
+    );
+    assert!(decoded.choices[0].invalid_errors.is_empty());
+}
+
+#[test]
+fn a_blank_ballot_flag_stands_only_when_every_contest_is_empty() {
+    const CONTRADICTION: &str = "errors.encoding.blankBallotWithSelections";
+    let contests = vec![contest(), mayor()];
+
+    // [blank ballot flag, council invalid flag, two council slots,
+    //  mayor invalid flag, mayor slot]
+    let blank = decode_raw(&contests, true, vec![1, 0, 0, 0, 0, 0]);
+    assert!(blank
+        .iter()
+        .all(|contest| contest.is_blank_ballot
+            && contest.invalid_errors.is_empty()));
+
+    // A selection in the council contest: only that contest contradicts the
+    // flag, and the mayor contest stays an ordinary blank vote.
+    let with_selection = decode_raw(&contests, true, vec![1, 0, 1, 0, 0, 0]);
+    assert!(with_selection
+        .iter()
+        .all(|contest| !contest.is_blank_ballot));
+    assert_eq!(selected_ids(&with_selection[0]), ["a"]);
+    assert!(with_selection[0].is_invalid());
+    assert!(has_error(&with_selection[0], CONTRADICTION));
+    assert!(with_selection[1].is_blank());
+    assert!(!has_error(&with_selection[1], CONTRADICTION));
+
+    // An explicit invalid mark contradicts the flag too, and the contest
+    // counts as implicitly invalid.
+    let with_invalid_mark = decode_raw(&contests, true, vec![1, 0, 0, 0, 1, 0]);
+    assert!(with_invalid_mark
+        .iter()
+        .all(|contest| !contest.is_blank_ballot));
+    assert!(!has_error(&with_invalid_mark[0], CONTRADICTION));
+    assert!(with_invalid_mark[1].is_invalid());
+    assert!(!with_invalid_mark[1].is_explicit_invalid);
+    assert!(has_error(&with_invalid_mark[1], CONTRADICTION));
 }
 
 #[test]

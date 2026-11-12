@@ -455,6 +455,9 @@ const dutchTranslation: TranslationType = {
                 bytesToUtf8Conversion:
                     "Fout bij het converteren van de ingevulde tekst van bytes naar UTF-8-tekenreeks: {{errorMessage}}",
                 ballotTooLarge: "Stembiljet groter dan verwacht",
+                duplicatedSelection: "Dezelfde keuze is meer dan eens geselecteerd",
+                blankBallotWithSelections:
+                    "Stembiljet als blanco gemarkeerd maar vraag heeft selecties",
             },
             explicit: {
                 notAllowed:

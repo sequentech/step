@@ -456,6 +456,9 @@ const spanishTranslation: TranslationType = {
                 bytesToUtf8Conversion:
                     "Error al convertir la escritura libre de bytes a cadena UTF-8: {{errorMessage}}",
                 ballotTooLarge: "La papeleta es más grande de lo esperado",
+                duplicatedSelection: "La misma opción se ha seleccionado más de una vez",
+                blankBallotWithSelections:
+                    "La papeleta está marcada como en blanco, pero la pregunta tiene selecciones",
             },
             explicit: {
                 notAllowed:
