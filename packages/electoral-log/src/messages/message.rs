@@ -7,10 +7,12 @@ use anyhow::{ensure, Result};
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
+use strand::hash::{hash_to_array, Hash, HashWrapper};
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::StrandSignature;
 use strand::signature::StrandSignaturePk;
 use strand::signature::StrandSignatureSk;
+use strand::util::StrandError;
 
 use crate::messages::statement::Statement;
 use crate::messages::statement::StatementBody;
@@ -376,23 +378,72 @@ impl TryFrom<&Message> for ElectoralLogMessage {
     }
 }
 
+/// The pseudonym a voter's cast votes and public key are recorded under.
+pub fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
+    let bytes = voter_id.to_string().strand_serialize()?;
+    hash_to_array(&bytes)
+}
+
+impl Message {
+    /// Makes the unsigned metadata of a verified message agree with its
+    /// signed statement. `Message::verify` only covers the statement, so the
+    /// columns taken from the statement are overwritten with it, and the ones
+    /// that can be checked against it are rejected when they disagree.
+    /// Columns with no source in the statement (`username` and `area_id` of
+    /// cast votes) are kept as sent.
+    fn bind_metadata_to_statement(&mut self) -> Result<()> {
+        match &self.statement.body {
+            StatementBody::CastVote(election, pseudonym, _, _, _)
+            | StatementBody::CastVoteError(election, pseudonym, _, _, _) => {
+                self.election_id = election.0.clone();
+                self.ensure_user_has_pseudonym(pseudonym)?;
+            }
+            StatementBody::VoterPublicKey(_, _, pseudonym, _) => {
+                self.election_id = None;
+                self.username = None;
+                self.ensure_user_has_pseudonym(pseudonym)?;
+            }
+            _ => {}
+        }
+        self.artifact = None;
+        Ok(())
+    }
+
+    fn ensure_user_has_pseudonym(&self, pseudonym: &PseudonymHash) -> Result<()> {
+        if let Some(user_id) = &self.user_id {
+            ensure!(
+                &PseudonymHash(HashWrapper::new(hash_voter_id(user_id)?)) == pseudonym,
+                "The user of the message is not the voter of its statement"
+            );
+        }
+        Ok(())
+    }
+}
+
 impl ElectoralLogMessage {
     /// Returns the row of the signed message this row carries, once both of
-    /// its signatures verify with `system_pk` and its statement belongs to
-    /// `election_event_id`. Every column is derived from that message.
+    /// its signatures verify with `system_pk`, the message was sent by the
+    /// system key and its statement belongs to `election_event_id`. The
+    /// columns are derived from the message after its unsigned metadata is
+    /// bound to the statement (see `Message::bind_metadata_to_statement`).
     pub fn rebuild_verified(
         &self,
         system_pk: &StrandSignaturePk,
         election_event_id: &str,
     ) -> Result<ElectoralLogMessage> {
-        let message = Message::strand_deserialize(&self.message)?;
+        let mut message = Message::strand_deserialize(&self.message)?;
         message.verify(system_pk)?;
+        ensure!(
+            message.sender.pk.to_der_b64_string()? == system_pk.to_der_b64_string()?,
+            "Message was not sent by the system key"
+        );
         ensure!(
             message.statement.head.event.0 == election_event_id,
             "Message for election event '{}' is not for election event '{}'",
             message.statement.head.event.0,
             election_event_id
         );
+        message.bind_metadata_to_statement()?;
         ElectoralLogMessage::try_from(&message)
     }
 }
@@ -434,15 +485,16 @@ mod tests {
 
     const EVENT_ID: &str = "event-id";
 
-    fn signed_cast_vote_row(
-        event_id: &str,
-        system_sk: &StrandSignatureSk,
-    ) -> Result<ElectoralLogMessage> {
+    fn pseudonym(voter_id: &str) -> Result<PseudonymHash> {
+        Ok(PseudonymHash(HashWrapper::new(hash_voter_id(voter_id)?)))
+    }
+
+    fn signed_cast_vote(event_id: &str, system_sk: &StrandSignatureSk) -> Result<Message> {
         let signing_data = SigningData::new(system_sk.clone(), "voter-id", system_sk.clone());
-        let message = Message::cast_vote_message(
+        Message::cast_vote_message(
             EventIdString(event_id.to_string()),
             ElectionIdString(Some("election-id".to_string())),
-            PseudonymHash::new([1; 64]),
+            pseudonym("voter-id")?,
             CastVoteHash::new([2; 64]),
             &signing_data,
             VoterIpString("ip".to_string()),
@@ -450,8 +502,25 @@ mod tests {
             Some("voter-id".to_string()),
             Some("voter".to_string()),
             "area-id".to_string(),
-        )?;
-        (&message).try_into()
+        )
+    }
+
+    fn signed_cast_vote_row(
+        event_id: &str,
+        system_sk: &StrandSignatureSk,
+    ) -> Result<ElectoralLogMessage> {
+        (&signed_cast_vote(event_id, system_sk)?).try_into()
+    }
+
+    /// The row a publisher queues after editing the unsigned metadata of the
+    /// embedded message, with both signatures left as they were.
+    fn row_with_edited_message(
+        mut message: Message,
+        edit: impl FnOnce(&mut Message),
+    ) -> Result<ElectoralLogMessage> {
+        edit(&mut message);
+        let row: ElectoralLogMessage = (&message).try_into()?;
+        Ok(row)
     }
 
     fn same_columns_except_created(left: &ElectoralLogMessage, right: &ElectoralLogMessage) {
@@ -509,7 +578,7 @@ mod tests {
     }
 
     #[test]
-    fn rebuild_verified_takes_every_column_from_the_signed_message() -> Result<()> {
+    fn rebuild_verified_ignores_the_outer_columns() -> Result<()> {
         let system_sk = StrandSignatureSk::r#gen()?;
         let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
         let row = signed_cast_vote_row(EVENT_ID, &system_sk)?;
@@ -528,6 +597,107 @@ mod tests {
         let rebuilt = edited.rebuild_verified(&system_pk, EVENT_ID)?;
 
         same_columns_except_created(&rebuilt, &row);
+        Ok(())
+    }
+
+    #[test]
+    fn rebuild_verified_takes_the_statement_columns_of_an_edited_embedded_message() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let edited = row_with_edited_message(signed_cast_vote(EVENT_ID, &system_sk)?, |m| {
+            m.election_id = Some("other-election-id".to_string());
+            m.artifact = Some(b"forged".to_vec());
+        })?;
+
+        let rebuilt = edited.rebuild_verified(&system_pk, EVENT_ID)?;
+
+        assert_eq!(rebuilt.election_id.as_deref(), Some("election-id"));
+        let message = Message::strand_deserialize(&rebuilt.message)?;
+        assert_eq!(message.artifact, None);
+        assert_eq!(message.election_id, rebuilt.election_id);
+        Ok(())
+    }
+
+    #[test]
+    fn rebuild_verified_rejects_an_edited_user_id() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let edited = row_with_edited_message(signed_cast_vote(EVENT_ID, &system_sk)?, |m| {
+            m.user_id = Some("other-voter-id".to_string());
+        })?;
+
+        assert!(edited.rebuild_verified(&system_pk, EVENT_ID).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn rebuild_verified_rejects_a_replaced_sender() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let mut message = signed_cast_vote(EVENT_ID, &system_sk)?;
+        let sender_sk = StrandSignatureSk::r#gen()?;
+        message.sender = Sender::new(
+            "voter-id".to_string(),
+            StrandSignaturePk::from_sk(&sender_sk)?,
+        );
+        message.sender_signature = sender_sk.sign(&message.statement.strand_serialize()?)?;
+        let row: ElectoralLogMessage = (&message).try_into()?;
+
+        assert!(row.rebuild_verified(&system_pk, EVENT_ID).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn rebuild_verified_binds_a_voter_public_key_to_its_pseudonym() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let signing_data = SigningData::new(system_sk.clone(), "", system_sk.clone());
+        let message = |voter_id: &str| -> Result<Message> {
+            Message::voter_public_key_message(
+                TenantIdString("tenant-id".to_string()),
+                EventIdString(EVENT_ID.to_string()),
+                pseudonym("voter-id")?,
+                PublicKeyDerB64("pk".to_string()),
+                &signing_data,
+                Some(voter_id.to_string()),
+                Some("voter".to_string()),
+                Some("area-id".to_string()),
+            )
+        };
+
+        let row: ElectoralLogMessage = (&message("voter-id")?).try_into()?;
+        let rebuilt = row.rebuild_verified(&system_pk, EVENT_ID)?;
+        assert_eq!(rebuilt.user_id.as_deref(), Some("voter-id"));
+        assert_eq!(rebuilt.username, None);
+
+        let forged: ElectoralLogMessage = (&message("other-voter-id")?).try_into()?;
+        assert!(forged.rebuild_verified(&system_pk, EVENT_ID).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn rebuild_verified_binds_a_cast_vote_error_to_its_election() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let signing_data = SigningData::new(system_sk.clone(), "", system_sk.clone());
+        let message = Message::cast_vote_error_message(
+            EventIdString(EVENT_ID.to_string()),
+            ElectionIdString(Some("election-id".to_string())),
+            pseudonym("voter-id")?,
+            CastVoteErrorString("error".to_string()),
+            &signing_data,
+            VoterIpString("ip".to_string()),
+            VoterCountryString("country".to_string()),
+            Some("voter-id".to_string()),
+            "area-id".to_string(),
+        )?;
+        let edited = row_with_edited_message(message, |m| {
+            m.election_id = Some("other-election-id".to_string());
+        })?;
+
+        let rebuilt = edited.rebuild_verified(&system_pk, EVENT_ID)?;
+
+        assert_eq!(rebuilt.election_id.as_deref(), Some("election-id"));
         Ok(())
     }
 }
