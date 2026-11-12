@@ -20,6 +20,7 @@ import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
+import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
 import org.keycloak.events.Errors;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticationExecutionModel.Requirement;
@@ -188,9 +189,10 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
   /**
    * Keycloak's flow engine logs a failure after this authenticator returns, against the user still
    * on the authentication session or its attempted-username note. This form clears the user, so an
-   * account that hasn't authenticated doesn't stay on the session between requests, and has no
-   * username to note. The engine then finds nobody to charge, so a failure attributed to one
-   * account is charged here. A failure shared by several candidates was charged during resolution.
+   * account that hasn't authenticated doesn't stay on the session between requests, and drops any
+   * username an earlier step noted, which would charge that account too or instead. The engine then
+   * finds nobody to charge, so a failure attributed to one account is charged here. A failure
+   * shared by several candidates was charged during resolution.
    */
   private void fail(
       AuthenticationFlowContext context,
@@ -204,6 +206,10 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
             MultiAttributeCredentialResolver.chargeFailedLogin(
                 context.getSession(), context.getRealm(), user));
     context.clearUser();
+    AuthenticationSessionModel authenticationSession = context.getAuthenticationSession();
+    if (authenticationSession != null) {
+      authenticationSession.removeAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME);
+    }
   }
 
   /**
