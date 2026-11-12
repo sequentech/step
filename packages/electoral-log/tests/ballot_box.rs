@@ -21,7 +21,9 @@ use electoral_log::adapters::ballot_box_seal::{
     box_ballots, insert_seal, is_ballot_box_sealed, is_sealed_refusal, try_lock_ballot_box,
     BallotBoxId, BoxBallot, NewSeal, SealOutcome,
 };
-use electoral_log::adapters::ballot_box_status::{BallotToReview, VoterBallotState};
+use electoral_log::adapters::ballot_box_status::{
+    reject_voter_ballots_in, BallotToReview, VoterBallotState,
+};
 use electoral_log::adapters::postgres::{append_in, PostgresStore};
 use electoral_log::ports::ElectoralLogStore;
 use electoral_log::{ElectoralLogMessage, LogEntry, StoredRecord};
@@ -1243,6 +1245,133 @@ async fn a_sealed_box_refuses_every_write_and_other_boxes_take_them() -> Result<
     assert!(store.drop_ballot_box(&event).await.is_err());
     assert!(store.has_ballot_box(&event).await?);
     store.delete_board(&board).await
+}
+
+async fn ballot_status(store: &PostgresStore, event: &str, voter: &str, id: &str) -> BallotStatus {
+    store
+        .voter_ballots(event, voter)
+        .await
+        .expect("voter's ballots")
+        .into_iter()
+        .find(|ballot| ballot.id == id)
+        .expect("ballot")
+        .status
+}
+
+async fn votes(store: &PostgresStore, event: &str, election: &str, voter: &str) -> i32 {
+    store
+        .voter_state(event, election, voter)
+        .await
+        .expect("voter state")
+        .expect("voter")
+        .votes
+}
+
+/// Rejects a voter's ballots in a transaction of its own and ends it with
+/// `commit`, or rolls it back.
+async fn reject_in_transaction(
+    store: &PostgresStore,
+    event: &str,
+    voter: &str,
+    kept: &[(String, String)],
+    commit: bool,
+) -> anyhow::Result<Vec<String>> {
+    let mut client = store.client().await.expect("client");
+    let tx = client.transaction().await.expect("transaction");
+    let rejected = reject_voter_ballots_in(&tx, event, voter, kept).await;
+    if commit && rejected.is_ok() {
+        tx.commit().await.expect("commit");
+    } else {
+        tx.rollback().await.expect("rollback");
+    }
+    rejected
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn a_voters_rejection_in_a_transaction_commits_with_it_and_keeps_the_given_boxes() {
+    let store = store().await.expect("store");
+    let (event, election, area, other_area) = ids();
+    let other_election = Uuid::new_v4().to_string();
+    store.create_ballot_box(&event).await.expect("ballot box");
+    let (_, kept_id) = Vote::new(&event, &election, &area, "voter-a", 0)
+        .accept_with_id(&store)
+        .await
+        .expect("valid ballot");
+    let (_, pending_id) = Vote::new(&event, &other_election, &other_area, "voter-a", 0)
+        .with_status(BallotStatus::Pending)
+        .accept_with_id(&store)
+        .await
+        .expect("pending ballot");
+    let (_, other_voter_id) = Vote::new(&event, &election, &area, "voter-b", 0)
+        .accept_with_id(&store)
+        .await
+        .expect("other voter's ballot");
+
+    // Rolled back, the rejection leaves the ballots and the votes as they were.
+    let mut both = vec![kept_id.clone(), pending_id.clone()];
+    both.sort();
+    assert_eq!(
+        reject_in_transaction(&store, &event, "voter-a", &[], false)
+            .await
+            .expect("rejection"),
+        both
+    );
+    assert_eq!(
+        ballot_status(&store, &event, "voter-a", &kept_id).await,
+        BallotStatus::Valid
+    );
+    assert_eq!(
+        ballot_status(&store, &event, "voter-a", &pending_id).await,
+        BallotStatus::Pending
+    );
+    assert_eq!(votes(&store, &event, &other_election, "voter-a").await, 1);
+
+    // Committed, it rejects the ballots outside the kept boxes and gives their votes
+    // back.
+    let kept = [(election.clone(), area.clone())];
+    assert_eq!(
+        reject_in_transaction(&store, &event, "voter-a", &kept, true)
+            .await
+            .expect("rejection"),
+        vec![pending_id.clone()]
+    );
+    assert_eq!(
+        ballot_status(&store, &event, "voter-a", &kept_id).await,
+        BallotStatus::Valid
+    );
+    assert_eq!(
+        ballot_status(&store, &event, "voter-a", &pending_id).await,
+        BallotStatus::Rejected
+    );
+    assert_eq!(votes(&store, &event, &election, "voter-a").await, 1);
+    assert_eq!(votes(&store, &event, &other_election, "voter-a").await, 0);
+    assert_eq!(
+        ballot_status(&store, &event, "voter-b", &other_voter_id).await,
+        BallotStatus::Valid
+    );
+
+    // A sealed box that isn't kept refuses the whole rejection.
+    let board = format!("rejecttest{}", Uuid::new_v4().simple());
+    store.create_board(&board).await.expect("board");
+    seal_box(&store, &board, ballot_box(&event, &election, &area), false)
+        .await
+        .expect("seal");
+    let error = reject_in_transaction(&store, &event, "voter-b", &[], true)
+        .await
+        .unwrap_err();
+    assert!(is_sealed_refusal(&error), "{error:#}");
+    assert!(
+        reject_in_transaction(&store, &event, "voter-b", &kept, true)
+            .await
+            .expect("rejection")
+            .is_empty()
+    );
+    assert_eq!(
+        ballot_status(&store, &event, "voter-b", &other_voter_id).await,
+        BallotStatus::Valid
+    );
+    store.delete_board(&board).await.expect("delete board");
 }
 
 #[tokio::test]

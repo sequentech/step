@@ -7,7 +7,7 @@ use crate::services::ballot_box::get_voter_ballot_state;
 use crate::services::ballot_box_reads::get_event_ballot_box;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::electoral_log::{
-    post_voter_password_change, ElectoralLogAdminContext, VoterPasswordChangeSource,
+    post_voter_password_change, ElectoralLog, ElectoralLogAdminContext, VoterPasswordChangeSource,
 };
 use crate::services::external;
 use crate::services::external::datafix_types::{
@@ -26,10 +26,9 @@ use anyhow::Context;
 use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
-use electoral_log::adapters::ballot_box::BallotStatus;
 use electoral_log::adapters::ballot_box_seal::is_sealed_refusal;
-use electoral_log::adapters::ballot_box_status::VoterBallotState;
-use electoral_log::adapters::postgres::PostgresStore;
+use electoral_log::adapters::ballot_box_status::{reject_voter_ballots_in, VoterBallotState};
+use electoral_log::adapters::postgres::{append_in, PostgresStore};
 use electoral_log::messages::newtypes::ExtApiRequestDirection;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
@@ -40,6 +39,7 @@ use sequent_core::types::keycloak::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tokio_postgres::IsolationLevel;
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
@@ -59,8 +59,10 @@ pub struct EditUserTaskBody {
     pub username: Option<String>,
     pub password: Option<String>,
     pub temporary: Option<bool>,
-    #[serde(default)]
-    pub password_change_initiator: Option<ElectoralLogAdminContext>,
+    /// The admin who requested the edit. Tasks queued by older versions name
+    /// it only for a password change, as `password_change_initiator`.
+    #[serde(default, alias = "password_change_initiator")]
+    pub initiator: Option<ElectoralLogAdminContext>,
 }
 
 /// Response of the `/edit-user` route. For Datafix election events the edit is
@@ -137,7 +139,8 @@ struct VoterReleasePlan {
     /// The edit disables the voter, so its non-discarded ballots must be
     /// discarded.
     release_attempt: bool,
-    /// The voter voted online, so the release owes VoterView a `SetNotVoted`.
+    /// The voter has an active ballot or is marked as having voted online, so
+    /// VoterView may hold it as voted and the release owes it a `SetNotVoted`.
     owes_set_not_voted: bool,
 }
 
@@ -154,11 +157,9 @@ fn plan_voter_release(
     let disable_transition = is_disable_transition(current_enabled, requested_enabled);
     let reenable_transition = is_reenable_transition(current_enabled, requested_enabled);
     let disable_requested = requested_enabled == Some(false);
-    let release_attempt = disable_transition
-        || (disable_requested
-            && (cast_vote_state.has_pending
-                || cast_vote_state.has_valid
-                || voted_via_internet(current_attributes)));
+    let may_be_voted_in_voterview =
+        cast_vote_state.has_active_vote() || voted_via_internet(current_attributes);
+    let release_attempt = disable_transition || (disable_requested && may_be_voted_in_voterview);
 
     if reenable_transition
         && (cast_vote_state.has_pending
@@ -177,8 +178,25 @@ fn plan_voter_release(
 
     Ok(VoterReleasePlan {
         release_attempt,
-        owes_set_not_voted: release_attempt && voted_via_internet(current_attributes),
+        owes_set_not_voted: release_attempt && may_be_voted_in_voterview,
     })
+}
+
+/// The admin a release's ballot discard is attributed to in the electoral log.
+/// Checked before Keycloak is edited, so a task that names no admin changes
+/// nothing.
+#[instrument(skip_all, err)]
+fn release_initiator<'a>(
+    body: &'a EditUserTaskBody,
+    plan: &VoterReleasePlan,
+) -> std::result::Result<Option<&'a ElectoralLogAdminContext>, String> {
+    if !plan.release_attempt {
+        return Ok(None);
+    }
+    body.initiator
+        .as_ref()
+        .map(Some)
+        .ok_or_else(|| "Missing initiating admin for the ballot-discard audit".to_string())
 }
 
 /// Rejects edits to the fields an admin may not change on a Datafix voter: the
@@ -293,56 +311,78 @@ async fn edit_keycloak_voter(
         .map_err(|err| format!("Error editing Datafix voter in Keycloak: {err:?}"))
 }
 
-/// Rejects the voter's pending and valid ballots in the event's ballot box.
-/// Keycloak and the ballot box are updated sequentially; failures are traced by
-/// the caller and left for the existing reconciliation process. Returns `false`
-/// when a ballot of the voter is in a sealed ballot box (VOTE-FREEZE): the
-/// ballots in sealed ballot boxes stay as they were sealed, and only the
-/// others are rejected (one `warn!` names the sealed boxes).
-#[instrument(err)]
+/// A release's ballot discard: the voter, the admin who disabled the voter and
+/// the log that signs the discard's entry for that admin.
+struct BallotDiscard<'a> {
+    election_event_id: &'a str,
+    voter_id: &'a str,
+    voter_username: Option<&'a str>,
+    admin: &'a ElectoralLogAdminContext,
+    signer: &'a ElectoralLog,
+}
+
+/// Rejects the voter's pending and valid ballots in the event's ballot box and
+/// records them, with the admin who disabled the voter, in the event's electoral
+/// log, in one transaction of the event's database (see
+/// [`reject_voter_ballots_outside_sealed_boxes`]). Keycloak and the ballot box
+/// are updated sequentially; failures are traced by the caller and left for the
+/// existing reconciliation process. Returns `false` when a ballot of the voter
+/// is in a sealed ballot box (VOTE-FREEZE): the ballots in sealed ballot boxes
+/// stay as they were sealed, and only the others are rejected (one `warn!` names
+/// the sealed boxes).
+#[instrument(skip(admin), err)]
 async fn discard_voter_ballots(
     tenant_id: &str,
     election_event_id: &str,
     voter_id: &str,
+    voter_username: Option<&str>,
+    admin: &ElectoralLogAdminContext,
 ) -> anyhow::Result<bool> {
-    let store = {
+    let (ballot_box, signer) = {
         let mut client: DbClient = get_hasura_pool().await.get().await?;
-        let transaction = client.build_transaction().read_only(true).start().await?;
-        get_event_ballot_box(&transaction, tenant_id, election_event_id)
-            .await?
-            .store
+        let transaction = client.transaction().await?;
+        let ballot_box = get_event_ballot_box(&transaction, tenant_id, election_event_id).await?;
+        let signer = ElectoralLog::for_admin_user(
+            &transaction,
+            &ballot_box.board,
+            tenant_id,
+            election_event_id,
+            &admin.user_id,
+            admin.username.clone(),
+            admin.authorized_election_ids.clone(),
+            admin.area_id.clone(),
+        )
+        .await
+        .context("Failed to initialize the admin-signed ballot-discard electoral log")?;
+        // Keeps a signing key the admin got now.
+        transaction.commit().await?;
+        (ballot_box, signer)
     };
-    reject_voter_ballots_outside_sealed_boxes(&store, election_event_id, voter_id).await
+    let discard = BallotDiscard {
+        election_event_id,
+        voter_id,
+        voter_username,
+        admin,
+        signer: &signer,
+    };
+    reject_voter_ballots_outside_sealed_boxes(&ballot_box.store, &ballot_box.board, &discard).await
 }
 
 /// Rejects the voter's pending and valid ballots, except those in sealed ballot
-/// boxes. Returns `false` when the voter has ballots in a sealed box, or one
-/// was sealed meanwhile.
+/// boxes, and records them on the event's `board`. Returns `false` when the
+/// voter has ballots in a sealed box, or one was sealed meanwhile.
 async fn reject_voter_ballots_outside_sealed_boxes(
     store: &PostgresStore,
-    election_event_id: &str,
-    voter_id: &str,
+    board: &str,
+    discard: &BallotDiscard<'_>,
 ) -> anyhow::Result<bool> {
     let sealed = store
-        .voter_sealed_boxes(election_event_id, voter_id)
+        .voter_sealed_boxes(discard.election_event_id, discard.voter_id)
         .await?;
-    let discarded = if sealed.is_empty() {
-        store
-            .reject_voter_ballots(election_event_id, voter_id)
-            .await
-    } else {
-        reject_unsealed_ballots(store, election_event_id, voter_id, &sealed).await
+    let Some(discarded) = reject_and_record(store, board, discard, &sealed).await? else {
+        return Ok(false);
     };
-    let discarded = match discarded {
-        Ok(discarded) => discarded,
-        // A box sealed while this ran: the next edit discards the rest.
-        Err(err) if is_sealed_refusal(&err) => {
-            warn!("Not discarding the voter's ballots: {err}");
-            return Ok(false);
-        }
-        Err(err) => return Err(err),
-    };
-    info!(discarded, "Discarded active Datafix cast votes");
+    info!(?discarded, "Discarded active Datafix cast votes");
     if !sealed.is_empty() {
         let boxes: Vec<String> = sealed
             .iter()
@@ -358,37 +398,54 @@ async fn reject_voter_ballots_outside_sealed_boxes(
     Ok(true)
 }
 
-/// Rejects, one by one, the voter's pending and valid ballots outside the
-/// sealed ballot boxes `sealed`, as (election, area). Returns how many it
-/// rejected.
-async fn reject_unsealed_ballots(
+/// Rejects the voter's pending and valid ballots outside the ballot boxes
+/// `kept`, as (election, area), and appends the admin-signed entry naming them
+/// to `board`, in one READ COMMITTED transaction of the event's database: the
+/// discard and its entry commit or roll back together, and a discard of no
+/// ballot records nothing. Returns the rejected ballots' IDs, or `None`, having
+/// changed nothing, when a box that isn't kept is sealed.
+async fn reject_and_record(
     store: &PostgresStore,
-    election_event_id: &str,
-    voter_id: &str,
-    sealed: &[(String, String)],
-) -> anyhow::Result<i64> {
-    let mut rejected = 0;
-    for ballot in store.voter_ballots(election_event_id, voter_id).await? {
-        let in_sealed_box = sealed.iter().any(|(election_id, area_id)| {
-            *election_id == ballot.election_id && *area_id == ballot.area_id
-        });
-        if in_sealed_box || ballot.status == BallotStatus::Rejected {
-            continue;
+    board: &str,
+    discard: &BallotDiscard<'_>,
+    kept: &[(String, String)],
+) -> anyhow::Result<Option<Vec<String>>> {
+    let mut client = store.client().await?;
+    let transaction = client
+        .build_transaction()
+        .isolation_level(IsolationLevel::ReadCommitted)
+        .start()
+        .await?;
+    let discarded = match reject_voter_ballots_in(
+        &transaction,
+        discard.election_event_id,
+        discard.voter_id,
+        kept,
+    )
+    .await
+    {
+        Ok(discarded) => discarded,
+        // A box sealed while this ran: the next edit discards the rest.
+        Err(err) if is_sealed_refusal(&err) => {
+            warn!("Not discarding the voter's ballots: {err}");
+            return Ok(None);
         }
-        if store
-            .set_ballot_status(
-                election_event_id,
-                voter_id,
-                &ballot.id,
-                ballot.status,
-                BallotStatus::Rejected,
-            )
-            .await?
-        {
-            rejected += 1;
-        }
+        Err(err) => return Err(err),
+    };
+    if !discarded.is_empty() {
+        let entry = discard.signer.voter_ballots_discard_entry(
+            discard.election_event_id,
+            discard.voter_id,
+            discard.voter_username,
+            discard.admin,
+            &discarded,
+        )?;
+        append_in(&transaction, board, &[entry])
+            .await
+            .context("Error recording the discarded ballots in the electoral log")?;
     }
-    Ok(rejected)
+    transaction.commit().await?;
+    Ok(Some(discarded))
 }
 
 /// Resets `VOTED_CHANNEL` back to `NONE` after a release discards the voter's
@@ -568,13 +625,14 @@ async fn run_datafix_voter_edit(
 
     let password_change_initiator = if body.password.is_some() {
         Some(
-            body.password_change_initiator
+            body.initiator
                 .as_ref()
                 .ok_or("Missing initiating admin for voter password-change audit")?,
         )
     } else {
         None
     };
+    let discard_initiator = release_initiator(body, &plan)?;
 
     edit_keycloak_voter(ctx, client).await?;
 
@@ -593,9 +651,9 @@ async fn run_datafix_voter_edit(
         })?;
     }
 
-    if !plan.release_attempt {
+    let Some(admin) = discard_initiator else {
         return Ok(());
-    }
+    };
 
     ctx.lock
         .update_expiry_for(DATAFIX_VOTER_LOCK_SECS)
@@ -603,35 +661,43 @@ async fn run_datafix_voter_edit(
         .map_err(|err| {
             format!("The Datafix voter lock was lost before discarding ballots: {err}")
         })?;
-    let discarded = discard_voter_ballots(&body.tenant_id, &body.election_event_id, &body.user_id)
-        .await
-        .map_err(|err| format!("Error discarding Datafix cast votes: {err:?}"))?;
+    let discarded = discard_voter_ballots(
+        &body.tenant_id,
+        &body.election_event_id,
+        &body.user_id,
+        current_user.username.as_deref(),
+        admin,
+    )
+    .await
+    .map_err(|err| format!("Error discarding Datafix cast votes: {err:?}"))?;
     if !discarded {
         // A ballot of the voter is in a sealed box: that vote stands, so the
         // voter stays marked as voted, here and in VoterView.
         return Ok(());
     }
-    clear_voted_channel(ctx).await.map_err(|err| {
+    // A failed reset is reported only after `SetNotVoted`: the ballots are gone
+    // by now, so a retry may no longer see that the voter is owed one.
+    let channel_reset = clear_voted_channel(ctx).await.map_err(|err| {
         format!("Could not reset the voter's voted-channel attribute after discard: {err}")
-    })?;
+    });
 
     if !plan.owes_set_not_voted {
-        return Ok(());
+        return channel_reset;
     }
     let username = current_user
         .username
         .clone()
         .ok_or("Datafix voter has no username")?;
     send_set_not_voted(ctx, election_event, &username).await;
-    Ok(())
+    channel_reset
 }
 
 /// Applies an admin edit to a Datafix voter under the per-voter lock. On a
-/// disable of a voter who voted online, it discards the voter's ballots and
-/// sends `SetNotVoted`, logging whatever VoterView answers; a re-enable is
-/// refused while the voter's Datafix voting state is unresolved. Returns
-/// `Ok(())` on success or a human-readable failure reason recorded on the task
-/// widget.
+/// disable it discards the voter's ballots, recording them in the electoral
+/// log, and, when VoterView may hold the voter as voted, sends `SetNotVoted`,
+/// logging whatever VoterView answers; a re-enable is refused while the voter's
+/// Datafix voting state is unresolved. Returns `Ok(())` on success or a
+/// human-readable failure reason recorded on the task widget.
 #[instrument(skip(body), err)]
 async fn apply_datafix_voter_edit(body: &EditUserTaskBody) -> std::result::Result<(), String> {
     let realm = get_event_realm(&body.tenant_id, &body.election_event_id);
@@ -742,7 +808,29 @@ mod tests {
         };
         let plan = plan_voter_release(Some(false), Some(false), &state, &HashMap::new()).unwrap();
         assert!(plan.release_attempt);
-        assert!(!plan.owes_set_not_voted);
+        assert!(plan.owes_set_not_voted);
+    }
+
+    #[test]
+    fn disabling_a_voter_with_a_valid_ballot_owes_set_not_voted() {
+        let state = VoterBallotState {
+            has_valid: true,
+            ..no_cast_votes()
+        };
+        let plan = plan_voter_release(Some(true), Some(false), &state, &HashMap::new()).unwrap();
+        assert!(plan.release_attempt);
+        assert!(plan.owes_set_not_voted);
+    }
+
+    #[test]
+    fn disabling_a_voter_with_a_pending_ballot_owes_set_not_voted() {
+        let state = VoterBallotState {
+            has_pending: true,
+            ..no_cast_votes()
+        };
+        let plan = plan_voter_release(Some(true), Some(false), &state, &HashMap::new()).unwrap();
+        assert!(plan.release_attempt);
+        assert!(plan.owes_set_not_voted);
     }
 
     #[test]
@@ -822,8 +910,90 @@ mod tests {
             username: username.map(str::to_string),
             password: None,
             temporary: None,
-            password_change_initiator: None,
+            initiator: None,
         }
+    }
+
+    fn admin() -> ElectoralLogAdminContext {
+        ElectoralLogAdminContext {
+            user_id: "admin-id".to_string(),
+            username: Some("admin".to_string()),
+            authorized_election_ids: None,
+            area_id: None,
+        }
+    }
+
+    #[test]
+    fn a_release_without_an_initiating_admin_is_refused() {
+        let plan =
+            plan_voter_release(Some(true), Some(false), &no_cast_votes(), &HashMap::new()).unwrap();
+        let body = edit_body(None, HashMap::new());
+        assert!(release_initiator(&body, &plan).is_err());
+    }
+
+    #[test]
+    fn a_release_is_attributed_to_the_initiating_admin() {
+        let plan =
+            plan_voter_release(Some(true), Some(false), &no_cast_votes(), &HashMap::new()).unwrap();
+        let body = EditUserTaskBody {
+            initiator: Some(admin()),
+            ..edit_body(None, HashMap::new())
+        };
+        let initiator = release_initiator(&body, &plan).unwrap();
+        assert_eq!(
+            initiator.map(|admin| admin.user_id.as_str()),
+            Some("admin-id")
+        );
+    }
+
+    #[test]
+    fn an_edit_without_a_release_needs_no_initiating_admin() {
+        let plan =
+            plan_voter_release(Some(true), Some(true), &no_cast_votes(), &HashMap::new()).unwrap();
+        let body = edit_body(None, HashMap::new());
+        assert!(release_initiator(&body, &plan).unwrap().is_none());
+    }
+
+    #[test]
+    fn a_queued_body_with_a_password_change_initiator_still_names_the_admin() {
+        let body: EditUserTaskBody = serde_json::from_value(serde_json::json!({
+            "tenant_id": "tenant",
+            "user_id": "voter",
+            "election_event_id": "event",
+            "enabled": null,
+            "attributes": {},
+            "email": null,
+            "first_name": null,
+            "last_name": null,
+            "username": null,
+            "password": "secret",
+            "temporary": null,
+            "password_change_initiator": admin(),
+        }))
+        .unwrap();
+        assert_eq!(
+            body.initiator.map(|admin| admin.user_id),
+            Some("admin-id".to_string())
+        );
+    }
+
+    #[test]
+    fn a_queued_body_without_an_initiator_still_deserializes() {
+        let body: EditUserTaskBody = serde_json::from_value(serde_json::json!({
+            "tenant_id": "tenant",
+            "user_id": "voter",
+            "election_event_id": "event",
+            "enabled": false,
+            "attributes": {},
+            "email": null,
+            "first_name": null,
+            "last_name": null,
+            "username": null,
+            "password": null,
+            "temporary": null,
+        }))
+        .unwrap();
+        assert!(body.initiator.is_none());
     }
 
     #[test]
@@ -861,7 +1031,13 @@ mod tests {
 mod postgres_wiring_tests {
     use super::*;
     use crate::services::ballot_box::BallotFormat;
-    use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome};
+    use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome, BallotStatus};
+    use electoral_log::domain::LogQuery;
+    use electoral_log::messages::message::Message;
+    use electoral_log::messages::statement::StatementBody;
+    use electoral_log::ports::ElectoralLogStore;
+    use voting_crypto::signing::SigningKey;
+    use voting_crypto::RecordDeserialize;
 
     struct ElectionArea {
         election: String,
@@ -944,23 +1120,87 @@ mod postgres_wiring_tests {
         store
     }
 
+    /// An event's board and the admin-signed log that records its discards.
+    struct Discards {
+        board: String,
+        signer: ElectoralLog,
+        admin: ElectoralLogAdminContext,
+    }
+
+    impl Discards {
+        async fn new(store: &PostgresStore) -> Self {
+            let board = format!("discardtest{}", Uuid::new_v4().simple());
+            store.create_board(&board).await.unwrap();
+            let key = SigningKey::generate().unwrap();
+            Self {
+                signer: ElectoralLog::for_system_with_signing_key(&board, &key),
+                board,
+                admin: ElectoralLogAdminContext {
+                    user_id: "admin-id".to_string(),
+                    username: Some("admin".to_string()),
+                    authorized_election_ids: None,
+                    area_id: None,
+                },
+            }
+        }
+
+        fn of<'a>(&'a self, event: &'a str, voter: &'a str) -> BallotDiscard<'a> {
+            BallotDiscard {
+                election_event_id: event,
+                voter_id: voter,
+                voter_username: Some("voter-name"),
+                admin: &self.admin,
+                signer: &self.signer,
+            }
+        }
+
+        /// The voter and the ballots each entry on the board names, oldest
+        /// first.
+        async fn recorded(&self, store: &PostgresStore) -> Vec<(String, Vec<String>)> {
+            let mut stored = store
+                .query(&self.board, &LogQuery::default())
+                .await
+                .unwrap();
+            stored.reverse();
+            stored
+                .iter()
+                .map(|stored| {
+                    let message = Message::record_deserialize(&stored.message).unwrap();
+                    let StatementBody::KeycloakUserEvent(details, _) = &message.statement.body
+                    else {
+                        panic!("not a Keycloak user event");
+                    };
+                    let details: serde_json::Value = serde_json::from_str(&details.0).unwrap();
+                    assert_eq!(details["initiated_by"]["user_id"], "admin-id");
+                    (
+                        stored.user_id.clone().unwrap(),
+                        serde_json::from_value(details["cast_vote_ids"].clone()).unwrap(),
+                    )
+                })
+                .collect()
+        }
+    }
+
     #[tokio::test]
     #[ignore = "requires a disposable ELECTORAL_LOG_TEST_DATABASE_URL database"]
     async fn a_release_rejects_the_voters_ballots_outside_sealed_ballot_boxes() {
         let store = store().await;
         let event = Uuid::new_v4().to_string();
         store.create_ballot_box(&event).await.unwrap();
+        let discards = Discards::new(&store).await;
         let (sealed, open) = (ElectionArea::new(), ElectionArea::new());
         let kept = sealed.accept(&store, &event, "voter").await;
         let rejected = open.accept(&store, &event, "voter").await;
         let other_voter = open.accept(&store, &event, "other-voter").await;
         sealed.seal(&store, &event).await;
 
-        assert!(
-            !reject_voter_ballots_outside_sealed_boxes(&store, &event, "voter")
-                .await
-                .unwrap()
-        );
+        assert!(!reject_voter_ballots_outside_sealed_boxes(
+            &store,
+            &discards.board,
+            &discards.of(&event, "voter")
+        )
+        .await
+        .unwrap());
         assert_eq!(
             status(&store, &event, "voter", &kept).await,
             BallotStatus::Valid
@@ -973,15 +1213,88 @@ mod postgres_wiring_tests {
             status(&store, &event, "other-voter", &other_voter).await,
             BallotStatus::Valid
         );
-
-        assert!(
-            reject_voter_ballots_outside_sealed_boxes(&store, &event, "other-voter")
-                .await
-                .unwrap()
+        assert_eq!(
+            discards.recorded(&store).await,
+            vec![("voter".to_string(), vec![rejected.clone()])]
         );
+
+        assert!(reject_voter_ballots_outside_sealed_boxes(
+            &store,
+            &discards.board,
+            &discards.of(&event, "other-voter")
+        )
+        .await
+        .unwrap());
         assert_eq!(
             status(&store, &event, "other-voter", &other_voter).await,
             BallotStatus::Rejected
+        );
+
+        // A voter without active ballots: nothing to discard, nothing recorded.
+        assert!(reject_voter_ballots_outside_sealed_boxes(
+            &store,
+            &discards.board,
+            &discards.of(&event, "absent-voter")
+        )
+        .await
+        .unwrap());
+        assert_eq!(
+            discards.recorded(&store).await,
+            vec![
+                ("voter".to_string(), vec![rejected]),
+                ("other-voter".to_string(), vec![other_voter]),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires a disposable ELECTORAL_LOG_TEST_DATABASE_URL database"]
+    async fn a_box_sealed_after_the_check_refuses_the_whole_discard_and_records_nothing() {
+        let store = store().await;
+        let event = Uuid::new_v4().to_string();
+        store.create_ballot_box(&event).await.unwrap();
+        let discards = Discards::new(&store).await;
+        let (sealed, open) = (ElectionArea::new(), ElectionArea::new());
+        let in_sealed_box = sealed.accept(&store, &event, "voter").await;
+        let in_open_box = open.accept(&store, &event, "voter").await;
+        sealed.seal(&store, &event).await;
+
+        // The sealed box was not known when the discard began.
+        assert!(
+            reject_and_record(&store, &discards.board, &discards.of(&event, "voter"), &[])
+                .await
+                .unwrap()
+                .is_none()
+        );
+        for ballot in [&in_sealed_box, &in_open_box] {
+            assert_eq!(
+                status(&store, &event, "voter", ballot).await,
+                BallotStatus::Valid
+            );
+        }
+        assert!(discards.recorded(&store).await.is_empty());
+    }
+
+    #[tokio::test]
+    #[ignore = "requires a disposable ELECTORAL_LOG_TEST_DATABASE_URL database"]
+    async fn a_discard_whose_entry_cannot_be_recorded_rejects_nothing() {
+        let store = store().await;
+        let event = Uuid::new_v4().to_string();
+        store.create_ballot_box(&event).await.unwrap();
+        let discards = Discards::new(&store).await;
+        let ballot = ElectionArea::new().accept(&store, &event, "voter").await;
+        let missing_board = format!("missingboard{}", Uuid::new_v4().simple());
+
+        assert!(reject_voter_ballots_outside_sealed_boxes(
+            &store,
+            &missing_board,
+            &discards.of(&event, "voter")
+        )
+        .await
+        .is_err());
+        assert_eq!(
+            status(&store, &event, "voter", &ballot).await,
+            BallotStatus::Valid
         );
     }
 }
