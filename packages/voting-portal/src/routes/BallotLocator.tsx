@@ -182,6 +182,8 @@ const BallotLocator: React.FC = () => {
     })
 
     let fetchTimeout: any = useRef(undefined)
+    // Only the latest cast-vote request may update the table or the error.
+    const latestRequestId = useRef(0)
 
     const requestCVMsgs = async (headerName?: string, newOrder?: string) => {
         let duration = lastCVRequestTimestamp.current
@@ -190,6 +192,7 @@ const BallotLocator: React.FC = () => {
         let tooQuick = duration ? duration < 500 : false
         lastCVRequestTimestamp.current = Date.now()
         async function tryFetchMessages() {
+            const requestId = ++latestRequestId.current
             try {
                 let limit = rowsPerPage
                 let offset = page * rowsPerPage
@@ -199,6 +202,9 @@ const BallotLocator: React.FC = () => {
                     limit,
                     offset,
                 })
+                if (requestId !== latestRequestId.current) {
+                    return
+                }
                 console.log(data)
                 setSomethingWentWrongErr(false)
                 if (data?.list_cast_vote_messages) {
@@ -209,6 +215,9 @@ const BallotLocator: React.FC = () => {
                     )
                 }
             } catch (e) {
+                if (requestId !== latestRequestId.current) {
+                    return
+                }
                 setSomethingWentWrongErr(true)
             }
         }
