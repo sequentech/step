@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_permission_labels,
+};
 use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -51,6 +53,24 @@ pub async fn publish_tally_sheet(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let election_id = tally_sheet::get_tally_sheet_election_id(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+        &input.tally_sheet_id,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    if let Some(election_id) = &election_id {
+        authorize_election_permission_labels(
+            &hasura_transaction,
+            &claims,
+            &input.election_event_id,
+            Some(std::slice::from_ref(election_id)),
+        )
+        .await?;
+    }
 
     let found = tally_sheet::publish_tally_sheet(
         &hasura_transaction,

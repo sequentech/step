@@ -341,6 +341,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         let area_ids: Vec<String> = election_areas.into_iter().map(|area| area.id).collect();
 
         let input = GetElectoralLogBody {
+            permitted_election_ids: None,
             tenant_id: self.ids.tenant_id.clone(),
             election_event_id: self.ids.election_event_id.clone(),
             limit: None,
@@ -468,6 +469,7 @@ impl TemplateRenderer for AuditLogsTemplate {
 
         loop {
             let input = GetElectoralLogBody {
+                permitted_election_ids: None,
                 tenant_id: self.ids.tenant_id.clone(),
                 election_event_id: self.ids.election_event_id.clone(),
                 limit: Some(limit), // request up to the full limit each time
@@ -680,6 +682,7 @@ impl TemplateRenderer for AuditLogsTemplate {
         let mut offset: i64 = 0;
         loop {
             let electoral_logs_batch = list_electoral_log(GetElectoralLogBody {
+                permitted_election_ids: None,
                 tenant_id: String::from(&self.get_tenant_id()),
                 election_event_id: String::from(&self.ids.election_event_id),
                 limit: Some(IMMUDB_ROWS_LIMIT as i64),

@@ -2,7 +2,9 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_permission_labels,
+};
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -48,8 +50,8 @@ pub async fn update_event_status(
 
     let input = body.into_inner();
     let tenant_id = &claims.hasura_claims.tenant_id;
-    let user_id = claims.hasura_claims.user_id;
-    let username = claims.preferred_username;
+    let user_id = claims.hasura_claims.user_id.clone();
+    let username = claims.preferred_username.clone();
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
@@ -62,6 +64,14 @@ pub async fn update_event_status(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    authorize_election_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        None,
+    )
+    .await?;
 
     election_event_status::update_event_voting_status(
         &hasura_transaction,
@@ -107,8 +117,8 @@ pub async fn update_election_status(
     )?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
-    let user_id = claims.hasura_claims.user_id;
-    let username = claims.preferred_username;
+    let user_id = claims.hasura_claims.user_id.clone();
+    let username = claims.preferred_username.clone();
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
@@ -122,6 +132,15 @@ pub async fn update_election_status(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    authorize_election_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        Some(std::slice::from_ref(&input.election_id)),
+    )
+    .await?;
+
     voting_status::update_election_status(
         tenant_id,
         Some(&user_id),

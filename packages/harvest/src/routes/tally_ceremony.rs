@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_permission_labels,
+    authorize_tally_session_permission_labels,
+};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -162,6 +165,13 @@ pub async fn update_tally_ceremony(
             ),
         )
     })?;
+    authorize_election_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        tally_session.election_ids.as_deref(),
+    )
+    .await?;
     let tally_type = tally_session
         .clone()
         .tally_type
@@ -292,6 +302,14 @@ pub async fn restore_private_key(
                 format!("Error starting hasura transaction: {err}"),
             )
         })?;
+
+    authorize_tally_session_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &input.election_event_id,
+        &input.tally_session_id,
+    )
+    .await?;
 
     let outcome = tally_ceremony::set_private_key(
         &hasura_transaction,
