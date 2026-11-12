@@ -73,6 +73,7 @@ const dutchTranslation: TranslationType = {
                 bytesToUtf8Conversion:
                     "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Ballot larger than expected",
+                duplicatedSelection: "Dezelfde keuze is meer dan eens geselecteerd",
             },
             implicit: {
                 selectedMax:

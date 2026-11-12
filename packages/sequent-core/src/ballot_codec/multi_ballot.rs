@@ -25,6 +25,8 @@ use crate::encrypt::encode_to_plaintext_decoded_multi_contest;
 use crate::util::normalize_vote::normalize_election;
 use num_traits::{ToPrimitive, Zero};
 
+const DUPLICATED_SELECTION_ERROR: &str = "errors.encoding.duplicatedSelection";
+
 /// A multi contest ballot.
 ///
 /// A multi contest ballot can be encoded in to a
@@ -578,6 +580,8 @@ impl BallotChoices {
         })?;
 
         let mut next_choices = vec![];
+        let mut seen_candidate_ids: HashSet<&str> = HashSet::new();
+        let mut has_repeated_candidate = false;
         for i in 0..max_votes {
             let next = choices[i];
             let next = usize::try_from(next).map_err(|_| {
@@ -603,28 +607,33 @@ impl BallotChoices {
                 ));
             };
 
-            let choice = DecodedContestChoice(candidate.id.clone());
-
-            next_choices.push(choice);
+            if seen_candidate_ids.insert(candidate.id.as_str()) {
+                next_choices.push(DecodedContestChoice(candidate.id.clone()));
+            } else {
+                has_repeated_candidate = true;
+            }
         }
 
-        // Duplicate values will be ignored
-        let unique: HashSet<DecodedContestChoice> =
-            HashSet::from_iter(next_choices.iter().cloned());
-        decoded_contest.choices = unique.clone().into_iter().collect();
-
+        // A candidate counts once towards the selection rules no matter how
+        // many slots repeat it.
         let num_selected_candidates = next_choices.len();
-
-        if unique.len() != num_selected_candidates {
-            // FIXME decide if we do something here
-            // currently duplicates will be silently ignored, unless
-            // they lead to fewer than min_votes values
+        decoded_contest.choices = next_choices;
+        if has_repeated_candidate {
+            // A repeated slot is a content error of this contest, not a
+            // decode failure: the contest is counted as invalid and the rest
+            // of the ballot keeps decoding.
+            decoded_contest.invalid_errors.push(InvalidPlaintextError {
+                error_type: InvalidPlaintextErrorType::EncodingError,
+                candidate_id: None,
+                message: Some(DUPLICATED_SELECTION_ERROR.to_string()),
+                message_map: HashMap::new(),
+            });
         }
 
         // This can happen with unset (= 0) values
         // The opposite is impossible due to the above
         // loop's range 0..max_votes
-        if unique.len() < min_votes {
+        if !has_repeated_candidate && num_selected_candidates < min_votes {
             return Err(format!(
                 "Raw ballot vector contained fewer than min_votes choices"
             ));
@@ -1239,6 +1248,117 @@ mod tests {
             BallotChoices::undecodable_ballot(&contests, None).serial_number,
             None
         );
+    }
+
+    fn decode_raw_choices(
+        contests: &Vec<Contest>,
+        choices: Vec<u64>,
+    ) -> DecodedBallotChoices {
+        let bases = BallotChoices::get_bases(contests)
+            .expect("get_bases should succeed");
+        let raw_ballot = RawBallotContest::new(bases, choices);
+
+        BallotChoices::decode(&raw_ballot, contests, None)
+            .expect("decode should report content errors, not fail")
+    }
+
+    fn three_candidate_contest(
+        id: &str,
+        min_votes: i64,
+        max_votes: i64,
+    ) -> Contest {
+        random_contest(
+            id.to_string(),
+            vec![
+                random_candidate("a".to_string(), id.to_string()),
+                random_candidate("b".to_string(), id.to_string()),
+                random_candidate("c".to_string(), id.to_string()),
+            ],
+            min_votes,
+            max_votes,
+        )
+    }
+
+    fn has_invalid_error(contest: &DecodedVoteContest, message: &str) -> bool {
+        contest
+            .invalid_errors
+            .iter()
+            .any(|error| error.message.as_deref() == Some(message))
+    }
+
+    #[test]
+    fn test_decode_reports_candidate_repeated_across_slots() {
+        let contests = vec![three_candidate_contest("1", 3, 3)];
+        // [invalid flag, three vote slots all holding candidate "a"]
+        let decoded = decode_raw_choices(&contests, vec![0, 1, 1, 1]);
+
+        assert_eq!(
+            decoded.choices[0].choices,
+            vec![DecodedContestChoice("a".to_string())]
+        );
+
+        let mapped =
+            map_decoded_ballot_choices_to_decoded_contests(decoded, &contests)
+                .expect("mapping should succeed");
+        assert!(mapped[0].is_invalid());
+        assert!(has_invalid_error(
+            &mapped[0],
+            "errors.encoding.duplicatedSelection"
+        ));
+        let min_error = mapped[0]
+            .invalid_errors
+            .iter()
+            .find(|error| {
+                error.message.as_deref() == Some("errors.implicit.selectedMin")
+            })
+            .expect("a repeated candidate counts as one selection");
+        assert_eq!(
+            min_error.message_map.get("numSelected").map(String::as_str),
+            Some("1")
+        );
+    }
+
+    #[test]
+    fn test_decode_repeated_slot_invalidates_only_its_contest() {
+        let contests = vec![
+            three_candidate_contest("1", 0, 2),
+            three_candidate_contest("2", 0, 2),
+        ];
+        // [invalid flag, contest 1: "a" twice, contest 2: "b" and "c"]
+        let decoded = decode_raw_choices(&contests, vec![0, 1, 1, 2, 3]);
+
+        let mapped =
+            map_decoded_ballot_choices_to_decoded_contests(decoded, &contests)
+                .expect("mapping should succeed");
+        assert!(mapped[0].is_invalid());
+        assert!(!mapped[1].is_invalid());
+        assert_eq!(mapped[1].choices.len(), 2);
+    }
+
+    #[test]
+    fn test_decode_keeps_distinct_selections_in_slot_order() {
+        let contests = vec![three_candidate_contest("1", 2, 3)];
+        // [invalid flag, slots holding "c", "a" and unset]
+        let decoded = decode_raw_choices(&contests, vec![0, 3, 1, 0]);
+
+        assert_eq!(
+            decoded.choices[0].choices,
+            vec![
+                DecodedContestChoice("c".to_string()),
+                DecodedContestChoice("a".to_string())
+            ]
+        );
+        assert!(decoded.choices[0].invalid_errors.is_empty());
+    }
+
+    #[test]
+    fn test_decode_still_rejects_fewer_than_min_votes_without_repeats() {
+        let contests = vec![three_candidate_contest("1", 3, 3)];
+        let bases = BallotChoices::get_bases(&contests)
+            .expect("get_bases should succeed");
+        let raw_ballot = RawBallotContest::new(bases, vec![0, 1, 2, 0]);
+
+        assert!(BallotChoices::decode(&raw_ballot, &contests, None).is_err());
     }
 
     fn decoding_test_contest(
