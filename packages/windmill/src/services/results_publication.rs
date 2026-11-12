@@ -9,8 +9,8 @@ use crate::adapters::results_publication::{
 use crate::adapters::results_publication_lifecycle::StoredResultsArtifacts;
 use crate::domain::results_publication::{
     artifact_document_ids_for_reader, authorize_results_reader, check_publication_source,
-    manifest_for_reader, manifest_public_path, publication_matches_requested_route,
-    publication_source,
+    check_published_source, manifest_for_reader, manifest_public_path,
+    publication_matches_requested_route, publication_source,
 };
 pub use crate::domain::results_publication::{
     is_results_website_enabled, publication_matches_results_website_policy, results_website_policy,
@@ -1375,6 +1375,8 @@ pub async fn publish_results_website_artifacts_with(
         }
     }
     let selected_contests = selected_contest_ids(&publication)?;
+    let facts = publications.lock_source_facts(&publication).await?;
+    check_published_source(&publication, &facts)?;
     let source = renderer.prepare(&publication, &selected_contests).await?;
     let (documents, manifest) = if publication.access == ResultsWebsiteAccess::Public {
         renderer
@@ -2135,6 +2137,7 @@ mod tests {
     use crate::domain::results_publication::fixtures::*;
     use crate::postgres::tally_results_publication::PublicationSourceFacts;
     use sequent_core::ballot::{ResultsWebsitePolicy, ResultsWebsiteStatus};
+    use sequent_core::types::ceremonies::TallyType;
 
     fn row_count(conn: &Connection, table: &str) -> Result<i64> {
         Ok(
@@ -3117,6 +3120,10 @@ mod tests {
             .publications
             .set_source_facts(PublicationSourceFacts {
                 valid_execution: false,
+                execution_status: None,
+                is_execution_completed: false,
+                tally_type: TallyType::ELECTORAL_RESULTS,
+                is_latest_execution: false,
                 election_count: 2,
                 contest_count: 1,
                 tallied_contest_count: 1,

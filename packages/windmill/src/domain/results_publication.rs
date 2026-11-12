@@ -26,6 +26,7 @@ use sequent_core::ballot::{
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
+use sequent_core::types::ceremonies::{TallyExecutionStatus, TallyType};
 use sequent_core::types::permissions::Permissions;
 use thiserror::Error;
 use uuid::Uuid;
@@ -364,32 +365,76 @@ pub fn publication_source_from_ids(
     Ok(source)
 }
 
-/// The execution, session and results event must belong together, and
-/// every source election, contest and contest result must exist. The
-/// database counts distinct identifiers, so repeated ones fail too.
+/// The execution, session and results event must belong together; the
+/// session must be an electoral results tally that finished successfully,
+/// and the execution its latest one; and every source election, contest
+/// and contest result must exist. The database counts distinct
+/// identifiers, so repeated ones fail too.
 pub fn check_publication_source(
     source: &PublicationSource,
     facts: &PublicationSourceFacts,
 ) -> Result<()> {
-    let expected_elections = i64::try_from(source.election_ids.len())?;
-    let expected_contests = i64::try_from(source.contest_ids.len())?;
+    check_source_facts(source.election_ids.len(), source.contest_ids.len(), facts)
+}
 
+/// [`check_publication_source`] for a stored publication about to be
+/// published, naming it in the refusal.
+pub fn check_published_source(
+    publication: &TallyResultsPublication,
+    facts: &PublicationSourceFacts,
+) -> Result<()> {
+    check_source_facts(
+        publication.election_ids.len(),
+        publication.published_contest_ids.len(),
+        facts,
+    )
+    .with_context(|| {
+        format!(
+            "Invalid source for publication {}: tally session {}, execution {}, results event {}",
+            publication.id,
+            publication.tally_session_id,
+            publication.tally_session_execution_id,
+            publication.results_event_id
+        )
+    })
+}
+
+fn check_source_facts(
+    expected_elections: usize,
+    expected_contests: usize,
+    facts: &PublicationSourceFacts,
+) -> Result<()> {
     if !facts.valid_execution {
         return Err(anyhow!(
             "The tally session, execution, and results event do not belong together"
         ));
     }
-    if facts.election_count != expected_elections {
+    if facts.tally_type != TallyType::ELECTORAL_RESULTS {
+        return Err(anyhow!(
+            "Only electoral results tally sessions can be published"
+        ));
+    }
+    if facts.execution_status != Some(TallyExecutionStatus::SUCCESS)
+        || !facts.is_execution_completed
+    {
+        return Err(anyhow!("The tally session has not completed successfully"));
+    }
+    if !facts.is_latest_execution {
+        return Err(anyhow!(
+            "Only the latest tally session execution can be published"
+        ));
+    }
+    if usize::try_from(facts.election_count) != Ok(expected_elections) {
         return Err(anyhow!(
             "One or more publication elections are outside the tally event"
         ));
     }
-    if facts.contest_count != expected_contests {
+    if usize::try_from(facts.contest_count) != Ok(expected_contests) {
         return Err(anyhow!(
             "One or more publication contests are outside the selected elections"
         ));
     }
-    if facts.tallied_contest_count != expected_contests {
+    if usize::try_from(facts.tallied_contest_count) != Ok(expected_contests) {
         return Err(anyhow!(
             "Every selected contest must have results in the selected tally execution"
         ));
@@ -1160,9 +1205,29 @@ mod tests {
     ) -> PublicationSourceFacts {
         PublicationSourceFacts {
             valid_execution,
+            execution_status: Some(TallyExecutionStatus::SUCCESS),
+            is_execution_completed: true,
+            tally_type: TallyType::ELECTORAL_RESULTS,
+            is_latest_execution: true,
             election_count,
             contest_count,
             tallied_contest_count,
+        }
+    }
+
+    /// The facts of the request source with the given tally state.
+    fn tally_state(
+        execution_status: Option<TallyExecutionStatus>,
+        is_execution_completed: bool,
+        tally_type: TallyType,
+        is_latest_execution: bool,
+    ) -> PublicationSourceFacts {
+        PublicationSourceFacts {
+            execution_status,
+            is_execution_completed,
+            tally_type,
+            is_latest_execution,
+            ..source_facts(true, 2, 1, 1)
         }
     }
 
@@ -1289,6 +1354,87 @@ mod tests {
             let error = check_publication_source(&request_source(), &facts).unwrap_err();
             assert_eq!(error.to_string(), message, "{facts:?}");
         }
+    }
+
+    #[test]
+    fn only_the_latest_execution_of_a_finished_electoral_results_tally_is_published() {
+        use TallyExecutionStatus::*;
+        let not_finished = "The tally session has not completed successfully";
+        for (facts, message) in [
+            // In progress, or waiting for a tie-break decision.
+            (
+                tally_state(Some(IN_PROGRESS), false, TallyType::ELECTORAL_RESULTS, true),
+                not_finished,
+            ),
+            (
+                tally_state(
+                    Some(AWAITING_INPUT),
+                    false,
+                    TallyType::ELECTORAL_RESULTS,
+                    true,
+                ),
+                not_finished,
+            ),
+            // Successful but not marked completed.
+            (
+                tally_state(Some(SUCCESS), false, TallyType::ELECTORAL_RESULTS, true),
+                not_finished,
+            ),
+            // Superseded by a later execution, such as a recount.
+            (
+                tally_state(Some(SUCCESS), true, TallyType::ELECTORAL_RESULTS, false),
+                "Only the latest tally session execution can be published",
+            ),
+            (
+                tally_state(Some(SUCCESS), true, TallyType::INITIALIZATION_REPORT, true),
+                "Only electoral results tally sessions can be published",
+            ),
+        ] {
+            let error = check_publication_source(&request_source(), &facts).unwrap_err();
+            assert_eq!(error.to_string(), message, "{facts:?}");
+        }
+        // Marked completed without a successful status.
+        for status in [
+            None,
+            Some(STARTED),
+            Some(CONNECTED),
+            Some(IN_PROGRESS),
+            Some(AWAITING_INPUT),
+            Some(FAILED),
+            Some(CANCELLED),
+        ] {
+            let facts = tally_state(status, true, TallyType::ELECTORAL_RESULTS, true);
+            let error = check_publication_source(&request_source(), &facts).unwrap_err();
+            assert_eq!(error.to_string(), not_finished, "{facts:?}");
+        }
+    }
+
+    #[test]
+    fn a_stored_publication_is_checked_against_its_own_elections_and_contests() {
+        // Two elections and one contest.
+        let stored = publication();
+        assert!(check_published_source(&stored, &source_facts(true, 2, 1, 1)).is_ok());
+        let error = check_published_source(
+            &stored,
+            &tally_state(
+                Some(TallyExecutionStatus::SUCCESS),
+                true,
+                TallyType::ELECTORAL_RESULTS,
+                false,
+            ),
+        )
+        .unwrap_err();
+        assert_eq!(
+            format!("{error:#}"),
+            "Invalid source for publication publication-1: tally session session-1, execution \
+             execution-1, results event results-event-1: Only the latest tally session \
+             execution can be published"
+        );
+        let error = check_published_source(&stored, &source_facts(true, 2, 2, 2)).unwrap_err();
+        assert_eq!(
+            error.root_cause().to_string(),
+            "One or more publication contests are outside the selected elections"
+        );
     }
 
     #[test]
