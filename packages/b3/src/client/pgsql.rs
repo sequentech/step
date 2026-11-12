@@ -302,6 +302,20 @@ impl<'a> PooledPgsqlB3Client<'a> {
         insert_messages(self.client.deref_mut(), board_name, messages).await
     }
 
+    /// Inserts the messages in a single transaction, which is committed only
+    /// if `before_commit` succeeds once all of them are inserted.
+    pub async fn insert_messages_then_commit<F>(
+        &mut self,
+        board_name: &str,
+        messages: &[B3MessageRow],
+        before_commit: F,
+    ) -> Result<()>
+    where
+        F: FnOnce() -> Result<()> + Send,
+    {
+        insert_then_commit(self.client.deref_mut(), board_name, messages, before_commit).await
+    }
+
     pub async fn delete_board(&mut self, board_name: &str) -> Result<()> {
         delete_board(self.client.deref_mut(), board_name).await
     }
@@ -379,6 +393,26 @@ impl PgsqlB3Client {
         messages: &Vec<B3MessageRow>,
     ) -> Result<()> {
         insert_messages(self.client.borrow_mut(), board_name, messages).await
+    }
+
+    /// Inserts the messages in a single transaction, which is committed only
+    /// if `before_commit` succeeds once all of them are inserted.
+    pub async fn insert_messages_then_commit<F>(
+        &mut self,
+        board_name: &str,
+        messages: &[B3MessageRow],
+        before_commit: F,
+    ) -> Result<()>
+    where
+        F: FnOnce() -> Result<()> + Send,
+    {
+        insert_then_commit(
+            self.client.borrow_mut(),
+            board_name,
+            messages,
+            before_commit,
+        )
+        .await
     }
 
     pub async fn delete_board(&mut self, board_name: &str) -> Result<()> {
@@ -918,6 +952,19 @@ async fn get(
 
 #[instrument(err, skip(client, messages))]
 async fn insert(client: &mut Client, board_name: &str, messages: &[B3MessageRow]) -> Result<()> {
+    insert_then_commit(client, board_name, messages, || Ok(())).await
+}
+
+#[instrument(err, skip(client, messages, before_commit))]
+async fn insert_then_commit<F>(
+    client: &mut Client,
+    board_name: &str,
+    messages: &[B3MessageRow],
+    before_commit: F,
+) -> Result<()>
+where
+    F: FnOnce() -> Result<()> + Send,
+{
     // Start a new transaction
     let transaction = client.transaction().await?;
     // http://disq.us/p/2ficy6c
@@ -982,6 +1029,7 @@ async fn insert(client: &mut Client, board_name: &str, messages: &[B3MessageRow]
             .await?;
     }
 
+    before_commit()?;
     transaction.commit().await?;
 
     // We do not care if any of these operations fail, they are statistics
@@ -1225,5 +1273,34 @@ pub(crate) mod tests {
         assert_eq!(msg.statement_kind, board_message.statement_kind);
         assert_eq!(msg.message, board_message.message);
         assert_eq!(msg.version, board_message.version);
+    }
+
+    #[tokio::test]
+    #[ignore]
+    #[serial]
+    async fn test_insert_messages_then_commit_rolls_back_when_hook_fails() {
+        let mut client = set_up().await;
+        client.create_board_ine(TEST_BOARD).await.unwrap();
+        let board_message = B3MessageRow {
+            id: 1,
+            created: crate::timestamp(),
+            sender_pk: "".to_string(),
+            statement_timestamp: crate::timestamp(),
+            statement_kind: "".to_string(),
+            batch: 0,
+            mix_number: 0,
+            message: vec![],
+            version: "".to_string(),
+        };
+
+        let result = client
+            .insert_messages_then_commit(TEST_BOARD, &[board_message], || {
+                Err(anyhow!("hook failed"))
+            })
+            .await;
+
+        assert!(result.is_err());
+        let ret = client.get_messages(TEST_BOARD, -1).await.unwrap();
+        assert!(ret.is_empty());
     }
 }
