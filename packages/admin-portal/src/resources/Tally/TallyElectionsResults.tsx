@@ -38,6 +38,7 @@ import {
 import {orderItemsByIds} from "./utils"
 
 interface TallyElectionsResultsProps {
+    completeElectionIds: string[]
     tenantId: string | null
     electionEventId: string | null
     resultsEventId: string | null
@@ -175,10 +176,18 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
 }
 
 export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (props) => {
-    const {tenantId, electionEventId, resultsEventId, electionIds, isMultiContest} = props
+    const {
+        tenantId,
+        electionEventId,
+        resultsEventId,
+        electionIds,
+        isMultiContest,
+        completeElectionIds,
+    } = props
     const {t, i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
+    const [resultsDataEventId, setResultsDataEventId] = useState<string | null>(null)
     const [selectedElectionId, setSelectedElectionId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const tallyData = useAtomValue(tallyQueryData)
@@ -191,9 +200,14 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
         )
 
         return availableElections
-            ? orderItemsByIds(availableElections, electionIds ?? [])
+            ? orderItemsByIds(
+                  availableElections.filter((election) =>
+                      completeElectionIds.includes(election.id)
+                  ),
+                  electionIds ?? []
+              )
             : undefined
-    }, [tallyData?.sequent_backend_election, electionIds])
+    }, [tallyData?.sequent_backend_election, electionIds, completeElectionIds])
 
     const defaultLangByElectionId = useMemo(() => {
         const map = new Map<string, string | undefined>()
@@ -214,7 +228,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                       (result) => result.results_event_id === resultsEventId
                   )
                 : undefined,
-        [tallyData?.sequent_backend_results_election]
+        [tallyData?.sequent_backend_results_election, resultsEventId]
     )
 
     const isTallyDataMatchCurrentResults = useMemo(() => {
@@ -241,6 +255,8 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
 
     useEffect(() => {
         setIsLoading(true)
+        setResultsData([])
+        setResultsDataEventId(null)
         if (elections && results && elections.length > 0 && results.length > 0) {
             const mappedElections: Array<Sequent_Backend_Election_Extended> = elections.map(
                 (item, index): Sequent_Backend_Election_Extended => {
@@ -284,6 +300,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             }).map((election, index) => ({...election, rowId: index}))
 
             setResultsData(temp)
+            setResultsDataEventId(resultsEventId)
             // Set default selected election to the first one if none is selected
             if (!selectedElectionId && temp.length > 0) {
                 setSelectedElectionId(temp[0].id)
@@ -301,6 +318,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
         isMultiContest,
         isTallyDataMatchCurrentResults,
         results,
+        resultsEventId,
         selectedElectionId,
         tallyData?.sequent_backend_results_contest,
     ])
@@ -385,7 +403,11 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
 
     return (
         <>
-            {resultsData.length ? (
+            {resultsData.length &&
+            !isLoading &&
+            isTallyDataMatchCurrentResults &&
+            resultsDataEventId === resultsEventId &&
+            resultsData.every((row) => completeElectionIds.includes(row.id)) ? (
                 <Box
                     className="seq-admin-tally-results__content"
                     sx={{
@@ -446,7 +468,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                         />
                     </Box>
                 </Box>
-            ) : isLoading || !isTallyDataMatchCurrentResults ? (
+            ) : isLoading || !isTallyDataMatchCurrentResults || completeElectionIds.length === 0 ? (
                 <LoadingResults />
             ) : (
                 <NoItem />

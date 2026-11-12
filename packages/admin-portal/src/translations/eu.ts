@@ -2094,6 +2094,8 @@ const basqueTranslation: TranslationType = {
             },
         },
         tally: {
+            numericResultsReportsPending:
+                "Zenbakizko emaitzak osatuta daude. Txostenak sortzen ari dira oraindik.",
             errorUploadingSignature: "Errorea izan da sinadura igotzean",
             downloadTransmissionPackage: "Deskargatu Transmisio Paketea",
             resultsPublication: {
