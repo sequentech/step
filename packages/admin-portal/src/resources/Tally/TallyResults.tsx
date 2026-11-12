@@ -24,6 +24,7 @@ import {LoadingResults} from "./TallyElectionsResults"
 import {getDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
 
 interface TallyResultsProps {
+    completeElectionIds: string[]
     tally: Sequent_Backend_Tally_Session | undefined
     resultsEventId: string | null
     loading?: boolean
@@ -32,7 +33,8 @@ interface TallyResultsProps {
 
 const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> = memo(
     (props: TallyResultsProps): React.JSX.Element => {
-        const {tally, resultsEventId, onCreateTransmissionPackage, loading} = props
+        const {tally, resultsEventId, onCreateTransmissionPackage, loading, completeElectionIds} =
+            props
 
         const {t, i18n} = useTranslation()
         const [value, setValue] = React.useState<number | null>(0)
@@ -70,7 +72,11 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         const elections: Array<Sequent_Backend_Election> | undefined = useMemo(
             () =>
                 tallyData?.sequent_backend_election
-                    ?.filter((election) => data?.election_ids?.includes(election.id))
+                    ?.filter(
+                        (election) =>
+                            data?.election_ids?.includes(election.id) &&
+                            completeElectionIds.includes(election.id)
+                    )
                     ?.map(
                         (election): Sequent_Backend_Election => ({
                             ...election,
@@ -78,7 +84,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             contests_aggregate: {nodes: []},
                         })
                     ),
-            [tallyData?.sequent_backend_election, data?.election_ids]
+            [tallyData?.sequent_backend_election, data?.election_ids, completeElectionIds]
         )
 
         useEffect(() => {
@@ -210,7 +216,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
 
         return (
             <>
-                {!isTallyDataMatchCurrentResults ? (
+                {!isTallyDataMatchCurrentResults || completeElectionIds.length === 0 ? (
                     <LoadingResults />
                 ) : (
                     <>
@@ -233,15 +239,23 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                                 variant="scrollable"
                                 scrollButtons="auto"
                             >
-                                {electionsData?.map((election, index) => (
-                                    <Tab
-                                        key={index}
-                                        label={getElectionAlias(election)}
-                                        onClick={() => tabClicked(election.id, index)}
-                                    />
-                                ))}
+                                {electionsData
+                                    ?.filter((election) =>
+                                        completeElectionIds.includes(election.id)
+                                    )
+                                    .map((election, index) => (
+                                        <Tab
+                                            key={index}
+                                            label={getElectionAlias(election)}
+                                            onClick={() => tabClicked(election.id, index)}
+                                        />
+                                    ))}
                             </Tabs>
-                            {documentsList && canExportCeremony && tally?.id ? (
+                            {documentsList &&
+                            canExportCeremony &&
+                            tally?.id &&
+                            electionId &&
+                            completeElectionIds.includes(electionId) ? (
                                 <ExportElectionMenu
                                     documentsList={documentsList}
                                     electionEventId={data?.election_event_id}
@@ -258,18 +272,20 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                                 />
                             ) : null}
                         </Box>
-                        {electionsData?.map((election, index) => (
-                            <CustomTabPanel key={index} index={index} value={value}>
-                                <TallyResultsContest
-                                    areas={areasData}
-                                    electionId={electionId}
-                                    electionEventId={election.election_event_id}
-                                    tenantId={election.tenant_id}
-                                    resultsEventId={resultsEventId}
-                                    tallySessionId={tally?.id ?? null}
-                                />
-                            </CustomTabPanel>
-                        ))}
+                        {electionsData
+                            ?.filter((election) => completeElectionIds.includes(election.id))
+                            .map((election, index) => (
+                                <CustomTabPanel key={index} index={index} value={value}>
+                                    <TallyResultsContest
+                                        areas={areasData}
+                                        electionId={election.id}
+                                        electionEventId={election.election_event_id}
+                                        tenantId={election.tenant_id}
+                                        resultsEventId={resultsEventId}
+                                        tallySessionId={tally?.id ?? null}
+                                    />
+                                </CustomTabPanel>
+                            ))}
                     </>
                 )}
             </>

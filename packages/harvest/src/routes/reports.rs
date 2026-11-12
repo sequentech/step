@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use windmill::services::ceremonies::result_readiness::{
+    require_complete_result_document, ORIGIN, POLICY,
+};
 
 use crate::services::authorization::authorize;
 use anyhow::{anyhow, Result};
@@ -96,6 +99,23 @@ pub async fn render_document_pdf(
         ));
     };
 
+    let result_origin = require_complete_result_document(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        &found_document,
+        input.tally_session_id.as_deref(),
+    )
+    .await
+    .map_err(|error| (Status::Conflict, error.to_string()))?;
+
+    // Bind new report tasks/outputs to the source event even when the caller
+    // omitted the optional event filter. Legacy request behavior is unchanged.
+    let election_event_id = if result_origin.is_some() {
+        found_document.election_event_id.clone()
+    } else {
+        election_event_id
+    };
+
     if let Some(media_type) = found_document.media_type {
         if "text/html".to_string() != media_type {
             return Err((
@@ -125,11 +145,12 @@ pub async fn render_document_pdf(
     let celery_app = get_celery_app().await;
 
     // Insert the task execution record
-    let task_execution = post(
+    let task_execution = post_with_annotations(
         &claims.hasura_claims.tenant_id,
         election_event_id.as_deref(),
         ETasksExecution::RENDER_DOCUMENT_PDF,
         &executer_name,
+        result_origin.as_ref().map(|origin| serde_json::json!({(POLICY):1, (ORIGIN):origin, "expected_document_id": output_document_id})).unwrap_or_else(|| serde_json::json!({})),
     )
     .await
     .map_err(|error| {

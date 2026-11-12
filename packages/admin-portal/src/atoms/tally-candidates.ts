@@ -4,4 +4,6 @@
 import {atom} from "jotai"
 import {GetTallyDataQuery} from "@/gql/graphql"
 
-export const tallyQueryData = atom<GetTallyDataQuery | null>(null)
+export type TallyDataSnapshot = GetTallyDataQuery & {sqliteDocumentId: string}
+
+export const tallyQueryData = atom<TallyDataSnapshot | null>(null)

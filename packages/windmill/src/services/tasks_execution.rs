@@ -41,6 +41,32 @@ pub async fn post(
     Ok(task)
 }
 
+pub async fn post_with_annotations(
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+    task_type: ETasksExecution,
+    executed_by_user: &str,
+    annotations: serde_json::Value,
+) -> Result<TasksExecution, anyhow::Error> {
+    let logs = serde_json::to_value(general_start_log())?;
+
+    let task = insert_tasks_execution(
+        tenant_id,
+        election_event_id,
+        &task_type.to_name(),
+        &task_type.to_string(),
+        TasksExecutionStatus::IN_PROGRESS,
+        Some(annotations),
+        None,
+        Some(logs),
+        executed_by_user,
+    )
+    .await
+    .context("Failed to insert task execution record")?;
+
+    Ok(task)
+}
+
 // TODO filter also by tenant-id and document-id
 pub async fn update(
     tenant_id: &str,
@@ -95,4 +121,27 @@ pub async fn update_fail(task: &TasksExecution, err_message: &str) -> Result<(),
     .context("Failed to update task execution record with failure status")?;
 
     Ok(())
+}
+
+// Preserve the originating result binding on terminal task updates.
+pub async fn update_complete_with_annotations(
+    task: &TasksExecution,
+    annotations: serde_json::Value,
+) -> Result<()> {
+    let logs = serde_json::to_value(append_general_log(
+        &task.logs,
+        "Task completed successfully",
+    ))?;
+    update_task_execution_status(
+        &task.tenant_id,
+        &task.id,
+        TasksExecutionStatus::SUCCESS,
+        Some(logs),
+        annotations,
+    )
+    .await?;
+    Ok(())
+}
+pub async fn update_fail_preserving_annotations(task: &TasksExecution, error: &str) -> Result<()> {
+    update_fail(task, error).await
 }
