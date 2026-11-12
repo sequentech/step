@@ -1,0 +1,69 @@
+{
+  "comment": "Expected tally results for validation - matches election-fixture.json",
+  "election_event_id": "test-event-001",
+  "election_id": "test-election-001",
+  "contest_id": "test-contest-001",
+  "contest_name": "Test Contest",
+  "counting_algorithm": "plurality-at-large",
+  "num_winners": 2,
+  "candidates": [
+    {
+      "id": "test-candidate-alice",
+      "name": "Alice",
+      "expected_votes": 8,
+      "is_winner": true,
+      "rank": 1
+    },
+    {
+      "id": "test-candidate-bob",
+      "name": "Bob",
+      "expected_votes": 6,
+      "is_winner": true,
+      "rank": 2
+    },
+    {
+      "id": "test-candidate-carol",
+      "name": "Carol",
+      "expected_votes": 4,
+      "is_winner": false,
+      "rank": 3
+    }
+  ],
+  "total_votes": 18,
+  "total_valid_ballots": 10,
+  "database_checks": {
+    "required_tables": [
+      "election_event",
+      "election",
+      "contest",
+      "area",
+      "candidate",
+      "results_contest",
+      "results_contest_candidate"
+    ],
+    "expected_row_counts": {
+      "election_event": 1,
+      "election": 1,
+      "contest": 1,
+      "area": 1,
+      "candidate": 3
+    }
+  },
+  "file_checks": {
+    "required_files": [
+      "results.db"
+    ],
+    "optional_files": [
+      "*.html",
+      "*.xlsx",
+      "*.pdf"
+    ]
+  },
+  "validation_rules": {
+    "vote_count_tolerance": 0,
+    "winners_must_match": true,
+    "ranking_must_match": true,
+    "check_database_structure": true,
+    "check_file_existence": true
+  }
+}
