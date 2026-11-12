@@ -53,6 +53,7 @@ The audit image reads the backups directory at `/backups` and writes to the outp
 | File in `output/restore` | Content | Personal data |
 | --- | --- | --- |
 | `restore-hasura.log`, `restore-keycloak.log`, `restore-b3.log` | The messages of `pg_restore` for each copy. | No |
+| `immudb-grants.log` | The messages of the read permissions on each ImmuDB database. A failure on a name that starts with a digit is expected: no audited board has such a name. | No |
 | `postgres-init.log`, `immudb.log`, `b3-server.log` | The messages of the database servers of the copies. `b3-server.log` shows the password of the PostgreSQL copy, which the container removed. | No |
 
 The copies are inside the container. Docker removes them when the command stops. The files of
