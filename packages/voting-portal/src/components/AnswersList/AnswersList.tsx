@@ -109,7 +109,6 @@ export const AnswersList: React.FC<AnswersListProps> = ({
         contest.presentation?.collapsible_lists ?? ECollapsibleLists.DISABLED
     const isCollapsible = collapsibleListsPolicy !== ECollapsibleLists.DISABLED
     const defaultExpanded = collapsibleListsPolicy !== ECollapsibleLists.ENABLED_COLLAPSED
-    const collapseToggleAriaLabel = t("candidatesList.collapseToggle", {listTitle: title})
     const showCandidatesLabel = t("candidatesList.showCandidates")
     const hideCandidatesLabel = t("candidatesList.hideCandidates")
     const categoryCandidateIds = new Set(category.candidates.map((candidate) => candidate.id))
@@ -168,7 +167,11 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     let listPresentation = contest.presentation?.types_presentation?.[title] ?? {
         name: title,
     }
-    listPresentation.name = title
+    const listTitle =
+        translate(category.header, "name", i18n.language) ??
+        translate(listPresentation, "name", i18n.language) ??
+        title
+    const collapseToggleAriaLabel = t("candidatesList.collapseToggle", {listTitle})
     let subtypesPresentation = Object.entries(listPresentation.subtypes_presentation ?? {}).map(
         ([key, value]) => {
             value.name = key
@@ -183,7 +186,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
 
     return (
         <CandidatesList
-            title={translate(listPresentation, "name", i18n.language) ?? title}
+            title={listTitle}
             isActive={!isReview && isActive}
             isCheckable={checkableLists}
             checked={isChecked()}
