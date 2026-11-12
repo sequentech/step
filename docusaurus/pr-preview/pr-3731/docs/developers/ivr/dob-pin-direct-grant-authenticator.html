@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">DOB + PIN Authentication (Direct Grant) | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3731/docs/developers/ivr/dob-pin-direct-grant-authenticator"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="DOB + PIN Authentication (Direct Grant) | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3731/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3731/docs/developers/ivr/dob-pin-direct-grant-authenticator"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3731/docs/developers/ivr/dob-pin-direct-grant-authenticator" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3731/docs/developers/ivr/dob-pin-direct-grant-authenticator" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"DOB + PIN Authentication (Direct Grant)","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3731/docs/developers/ivr/dob-pin-direct-grant-authenticator"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3731/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3731/assets/js/runtime~main.9c119e99.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3731/assets/js/runtime~main.e60a8365.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3731/assets/js/main.b650ea0e.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -148,8 +148,14 @@ brute-force lockout engages once resolution narrows to a single candidate - that
 failed PIN attempts get counted the same way a standard login&#x27;s would. When more than one
 candidate still shares the identifying attribute(s), no single account can be blamed for a failed
 attempt; <strong>Shared-candidate failure policy</strong> decides how it is counted (see
-<a href="#shared-candidate-failure-policy" class="">Shared-Candidate Failure Policy</a>). A locked-out account among
-several ambiguous candidates is excluded from consideration before any PIN is checked.
+<a href="#shared-candidate-failure-policy" class="">Shared-Candidate Failure Policy</a>). In <code>PASSWORD</code> mode, a
+locked-out account among several ambiguous candidates is excluded before any PIN is checked. In
+<code>SECRET_ATTRIBUTE</code> mode, the resolver verifies every enabled candidate, locked ones included, so
+locking one account can&#x27;t make a PIN shared by two accounts authenticate as the other; a locked
+account itself never authenticates. A <code>SECRET_ATTRIBUTE</code> attempt against a locked account costs
+one dummy password hash, like every other request on that path, and with Brute Force Detection on
+it is not counted toward <strong>Max failures per identifier-value combination</strong>; limit request rates as
+described in <a href="#rate-limiting-per-ip-address" class="">Rate Limiting per IP Address</a>.
 Configuring more identifying attributes narrows the candidate set before the PIN check, making
 the single-candidate (fully protected) case the common one; keep <strong>Brute Force Detection</strong>
 enabled at the realm level regardless. Callers who share a date of birth do not block each other
