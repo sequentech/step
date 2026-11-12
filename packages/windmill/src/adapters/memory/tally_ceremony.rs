@@ -225,6 +225,18 @@ impl InMemoryTallyCeremony {
         self.state().calls.clone()
     }
 
+    /// Marks a stored session `CANCELLED`, as cancelling it does.
+    pub fn cancel_session(&self, tally_session_id: &str) {
+        for session in self
+            .state()
+            .sessions
+            .iter_mut()
+            .filter(|session| session.id == tally_session_id)
+        {
+            session.execution_status = Some("CANCELLED".into());
+        }
+    }
+
     pub fn add_session(&self, session: TallySession) {
         self.state().sessions.push(session);
     }

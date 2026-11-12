@@ -281,7 +281,10 @@ async fn initialization_reports_do_not_read_the_seals() {
     // Before the election opens, as an initialization report needs it.
     let ceremony = event_with(seal_at_close(), "NOT_STARTED");
     ceremony.fail(TallyCall::BallotBoxSeals, "seals are unavailable");
-    create(&ceremony, INITIALIZATION_REPORT).await.unwrap();
+    let created = create(&ceremony, INITIALIZATION_REPORT).await.unwrap();
+    // `start` moves the fixture session, so the one just created must not
+    // count as another initialization report.
+    ceremony.cancel_session(&created);
     start(&ceremony, Some(INITIALIZATION_REPORT)).await.unwrap();
     assert_eq!(stored_status(&ceremony), Some("IN_PROGRESS".into()));
 }
