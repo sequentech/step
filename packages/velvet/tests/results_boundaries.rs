@@ -152,6 +152,226 @@ fn counting_algorithms_reject_overflow_when_merging_paper_sheets() {
     }
 }
 
+/// A result whose only nonzero counter is `counter`, set to `count`.
+fn result_with_counter(counter: &str, count: u64) -> ContestResult {
+    use sequent_core::types::participation::{ParticipationChannel, VotesByChannel};
+    use sequent_core::types::tally_sheets::VotingChannel;
+    use velvet::pipes::do_tally::{BlankVotes, ExtendedMetricsContest, InvalidVotes};
+
+    let mut result = ContestResult {
+        contest: contest(),
+        extended_metrics: Some(ExtendedMetricsContest::default()),
+        ..Default::default()
+    };
+    let metrics = result
+        .extended_metrics
+        .as_mut()
+        .expect("the metrics were just set");
+    match counter {
+        "over_votes" => metrics.over_votes = count,
+        "under_votes" => metrics.under_votes = count,
+        "votes_actually" => metrics.votes_actually = count,
+        "expected_votes" => metrics.expected_votes = count,
+        "total_ballots" => metrics.total_ballots = count,
+        "total_weight" => metrics.total_weight = count,
+        "total_declined_to_vote" => metrics.total_declined_to_vote = count,
+        "total_blank_ballots" => metrics.total_blank_ballots = count,
+        "PAPER" => {
+            metrics.votes_by_channel =
+                VotesByChannel::from([(ParticipationChannel::from(VotingChannel::PAPER), count)])
+        }
+        "census" => result.census = count,
+        "auditable_votes" => result.auditable_votes = count,
+        "total_votes" => result.total_votes = count,
+        "total_valid_votes" => result.total_valid_votes = count,
+        "total_invalid_votes" => result.total_invalid_votes = count,
+        "total_blank_votes" => result.total_blank_votes = count,
+        "blank explicit" => result.blank_votes = BlankVotes::new(count, 0),
+        "blank implicit" => result.blank_votes = BlankVotes::new(0, count),
+        "invalid explicit" => result.invalid_votes = InvalidVotes::new(count, 0),
+        "invalid implicit" => result.invalid_votes = InvalidVotes::new(0, count),
+        "ada" => {
+            result.candidate_result = vec![CandidateResult {
+                candidate: candidate("ada", "Ada"),
+                percentage_votes: 0.0,
+                total_count: count,
+            }]
+        }
+        _ => panic!("unknown counter {counter}"),
+    }
+    result
+}
+
+#[test]
+fn aggregation_rejects_every_counter_beyond_the_counter_range() {
+    // (counter set on both results, the counter named in the overflow error)
+    let counters = [
+        ("over_votes", "over_votes"),
+        ("under_votes", "under_votes"),
+        ("votes_actually", "votes_actually"),
+        ("expected_votes", "expected_votes"),
+        ("total_ballots", "total_ballots"),
+        ("total_weight", "total_weight"),
+        ("total_declined_to_vote", "total_declined_to_vote"),
+        ("total_blank_ballots", "total_blank_ballots"),
+        ("PAPER", "PAPER"),
+        ("census", "census"),
+        ("auditable_votes", "auditable_votes"),
+        ("total_votes", "total_votes"),
+        ("total_valid_votes", "total_valid_votes"),
+        ("total_invalid_votes", "total_invalid_votes"),
+        ("total_blank_votes", "total_blank_votes"),
+        ("blank explicit", "explicit"),
+        ("blank implicit", "implicit"),
+        ("invalid explicit", "explicit"),
+        ("invalid implicit", "implicit"),
+        ("ada", "ada"),
+    ];
+    for (counter, reported) in counters {
+        let exact = result_with_counter(counter, u64::MAX - 1)
+            .aggregate(&result_with_counter(counter, 1), true)
+            .expect("a total of exactly u64::MAX fits");
+        assert_eq!(
+            exact.candidate_result.len(),
+            usize::from(counter == "ada"),
+            "{counter}"
+        );
+
+        let error = result_with_counter(counter, u64::MAX)
+            .aggregate(&result_with_counter(counter, 1), true)
+            .expect_err("a total beyond u64::MAX must fail instead of wrapping");
+        assert!(
+            error
+                .to_string()
+                .contains(&format!("overflow for {reported}")),
+            "{counter}: {error}"
+        );
+    }
+}
+
+fn paper_sheet(
+    candidate_votes: &[(&str, u64)],
+    total_valid_votes: u64,
+    (explicit_invalid, implicit_invalid): (u64, u64),
+) -> sequent_core::types::hasura::core::TallySheet {
+    use sequent_core::types::tally_sheets::{
+        AreaContestResults, CandidateResults, InvalidVotes as SheetInvalidVotes, TallySheetStatus,
+    };
+
+    sequent_core::types::hasura::core::TallySheet {
+        id: "paper-batch".into(),
+        tenant_id: "tenant".into(),
+        election_event_id: "event".into(),
+        election_id: "election".into(),
+        contest_id: CONTEST_ID.into(),
+        area_id: "area".into(),
+        created_at: None,
+        last_updated_at: None,
+        labels: None,
+        annotations: None,
+        reviewed_at: None,
+        reviewed_by_user_id: None,
+        content: Some(AreaContestResults {
+            area_id: "area".into(),
+            contest_id: CONTEST_ID.into(),
+            total_valid_votes: Some(total_valid_votes),
+            invalid_votes: Some(SheetInvalidVotes {
+                total_invalid: None,
+                implicit_invalid: Some(implicit_invalid),
+                explicit_invalid: Some(explicit_invalid),
+            }),
+            candidate_results: candidate_votes
+                .iter()
+                .map(|(id, votes)| {
+                    (
+                        (*id).to_string(),
+                        CandidateResults {
+                            candidate_id: (*id).to_string(),
+                            total_votes: Some(*votes),
+                        },
+                    )
+                })
+                .collect(),
+            ..Default::default()
+        }),
+        channel: Some("PAPER".into()),
+        deleted_at: None,
+        created_by_user_id: "test-operator".into(),
+        status: TallySheetStatus::APPROVED,
+        version: 1,
+        import_id: None,
+    }
+}
+
+#[test]
+fn tally_sheet_totals_beyond_the_counter_range_fail_instead_of_wrapping() {
+    use velvet::pipes::do_tally::tally::process_tally_sheet;
+
+    let contest = contest();
+    let exact = process_tally_sheet(
+        &paper_sheet(&[("ada", u64::MAX - 1), ("bea", 1)], u64::MAX - 1, (0, 1)),
+        &contest,
+    )
+    .expect("totals of exactly u64::MAX fit");
+    assert_eq!(exact.total_votes, u64::MAX);
+    assert_eq!(
+        exact
+            .extended_metrics
+            .expect("a sheet result has metrics")
+            .total_weight,
+        u64::MAX
+    );
+
+    for (sheet, counter) in [
+        (
+            paper_sheet(&[("ada", u64::MAX), ("bea", 1)], 1, (0, 0)),
+            "candidate votes",
+        ),
+        (
+            paper_sheet(&[("ada", 1)], 1, (u64::MAX, 1)),
+            "total_invalid",
+        ),
+        (paper_sheet(&[("ada", 1)], u64::MAX, (0, 1)), "total_votes"),
+    ] {
+        let error = process_tally_sheet(&sheet, &contest)
+            .expect_err("a total beyond u64::MAX must fail instead of wrapping");
+        assert!(
+            error
+                .to_string()
+                .contains(&format!("Tally count overflow for {counter}")),
+            "{counter}: {error}"
+        );
+    }
+}
+
+#[test]
+fn a_tally_sheet_cannot_wrap_the_electronic_candidate_total() {
+    use velvet::pipes::do_tally::counting_algorithm::Error;
+    use velvet::pipes::do_tally::tally::process_tally_sheet;
+
+    // Three electronic votes for Ada, then one approved paper sheet for her.
+    let area_with_sheet = |ada_paper_votes: u64| {
+        let mut area = tally(vec![(ballot(&["ada"]), Weight::default()); 3]);
+        area.tally_sheet_results = vec![process_tally_sheet(
+            &paper_sheet(&[("ada", ada_paper_votes)], ada_paper_votes, (0, 0)),
+            &contest(),
+        )
+        .expect("a self-consistent sheet processes")];
+        PluralityAtLarge::new(area).tally()
+    };
+
+    let combined = area_with_sheet(4).expect("small counts aggregate");
+    assert_eq!(candidate_counts(&combined)["ada"], 7);
+
+    let error = area_with_sheet(u64::MAX - 1)
+        .expect_err("a total beyond u64::MAX must fail instead of wrapping");
+    assert!(
+        matches!(&error, Error::UnexpectedError(message)
+            if message.contains("Tally count overflow for")),
+        "{error}"
+    );
+}
+
 #[test]
 fn winners_use_counts_then_names_and_never_elect_ballot_markers() {
     // Marker totals deliberately exceed every candidate. Bea and Ada tie;
@@ -219,8 +439,8 @@ fn aggregation_is_partition_independent_for_counts_and_percentages() {
     // A change in partition or fold order may reorder the result vector but
     // must not change the election. Census summation is checked separately.
     for aggregate in [
-        first.aggregate(&second, false),
-        second.aggregate(&first, false),
+        first.aggregate(&second, false).expect("counts fit"),
+        second.aggregate(&first, false).expect("counts fit"),
     ] {
         assert_eq!(candidate_counts(&aggregate), candidate_counts(&together));
         assert_eq!(aggregate.total_valid_votes, 2);

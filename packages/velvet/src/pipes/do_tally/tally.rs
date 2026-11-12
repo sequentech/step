@@ -7,6 +7,7 @@ use super::counting_algorithm::{
     acclaimed::Acclaimed, instant_runoff::InstantRunoff, plurality_at_large::PluralityAtLarge,
     CountingAlgorithm,
 };
+use super::do_tally::checked_count_sum;
 use super::error::{Error, Result};
 use super::{BlankVotes, CandidateResult, ContestResult, ExtendedMetricsContest, InvalidVotes};
 use crate::pipes::error::Error as PipesError;
@@ -292,7 +293,10 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         invalid_votes.explicit_invalid.unwrap_or(0),
         invalid_votes.implicit_invalid.unwrap_or(0),
     );
-    let count_invalid: u64 = count_invalid_votes.explicit + count_invalid_votes.implicit;
+    let count_invalid = checked_count_sum(
+        [count_invalid_votes.explicit, count_invalid_votes.implicit],
+        "total_invalid",
+    )?;
     let blank_votes = BlankVotes::new(0, content.total_blank_votes.unwrap_or(0));
     let count_blank = blank_votes.total();
 
@@ -316,15 +320,18 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         })
         .collect::<Result<Vec<CandidateResult>>>()?;
 
-    let votes_for_candidates: u64 = candidate_results
-        .iter()
-        .map(|candidate_result| candidate_result.total_count)
-        .sum();
+    let votes_for_candidates = checked_count_sum(
+        candidate_results
+            .iter()
+            .map(|candidate_result| candidate_result.total_count),
+        "candidate votes",
+    )?;
     let count_valid: u64 = content
         .total_valid_votes
         .unwrap_or(votes_for_candidates.saturating_add(count_blank));
     // The candidate percentage base, in the unit the electronic tally sums into total_weight:
-    // marks for plurality, one per non-blank ballot for instant runoff.
+    // marks for plurality, one per non-blank ballot for instant runoff. The plurality marks
+    // are a subset of votes_for_candidates, so their sum fits in u64 as well.
     let total_weight: u64 = match contest.get_counting_algorithm() {
         CountingAlgType::PluralityAtLarge => candidate_results
             .iter()
@@ -338,7 +345,7 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         _ => 0,
     };
 
-    let total_votes = count_valid + count_invalid;
+    let total_votes = checked_count_sum([count_valid, count_invalid], "total_votes")?;
     let channel: VotingChannel = tally_sheet.channel.clone().into();
     let votes_by_channel =
         VotesByChannel::from([(ParticipationChannel::from(channel), total_votes)]);
@@ -738,7 +745,9 @@ mod tests {
             ..ContestResult::default()
         };
 
-        let result = electronic_result.aggregate(&tally_sheet_result, false);
+        let result = electronic_result
+            .aggregate(&tally_sheet_result, false)
+            .expect("counts fit");
 
         assert_percentage(candidate_percentage(&result, "candidate-a"), 60.0);
         assert_percentage(candidate_percentage(&result, "candidate-b"), 40.0);
