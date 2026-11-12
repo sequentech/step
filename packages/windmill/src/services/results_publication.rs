@@ -8,9 +8,9 @@ use crate::postgres::election_event::{
 };
 use crate::postgres::tally_results_publication::{
     get_active_publication_for_route, get_publication_by_id, insert_publishing_publication,
-    list_active_public_publications, list_superseded_publications, mark_publication_failed,
-    mark_publication_published, mark_publication_superseded, revoke_publication,
-    set_publication_finalization_error, validate_new_publication_source,
+    list_active_public_publications, list_superseded_publications, lock_publication_for_publishing,
+    mark_publication_failed, mark_publication_published, mark_publication_superseded,
+    revoke_publication, set_publication_finalization_error, validate_new_publication_source,
     NewTallyResultsPublication, TallyResultsPublication,
 };
 use crate::postgres::tally_session::lock_tally_session_for_update;
@@ -1472,6 +1472,10 @@ pub async fn publish_results_website_artifacts(
     election_event_id: &str,
     publication_id: &str,
 ) -> Result<()> {
+    // One attempt per publication at a time: a second worker waits here and
+    // then sees the stored status, so it never uploads to the same public
+    // paths or deletes artifacts another attempt published.
+    lock_publication_for_publishing(tx, tenant_id, election_event_id, publication_id).await?;
     let publication =
         get_publication_by_id(tx, tenant_id, election_event_id, publication_id).await?;
     match publication.publication_status {
