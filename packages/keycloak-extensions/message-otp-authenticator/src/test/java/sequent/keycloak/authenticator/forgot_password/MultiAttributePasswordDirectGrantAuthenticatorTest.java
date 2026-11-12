@@ -204,6 +204,7 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     inOrder.verify(context).setUser(user);
     inOrder.verify(context).failure(any(), any());
     verify(context, never()).success(any());
+    verify(context, never()).success();
   }
 
   @Test
@@ -315,6 +316,7 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
 
     verify(context).setUser(user);
     verify(context, never()).success(any());
+    verify(context, never()).success();
     // Locked-out accounts use forceChallenge (matching the stock ValidateUsername authenticator's
     // brute-force handling), not failure() - the flow engine only logs another brute-force
     // failure for FAILED/FAILURE_CHALLENGE results, and this account is already locked out.
@@ -394,6 +396,7 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
 
     verify(context, never()).setUser(any());
     verify(context, never()).success(any());
+    verify(context, never()).success();
     verify(alice.credentialManager(), never()).isValid(any(CredentialInput.class));
     verify(bob.credentialManager(), never()).isValid(any(CredentialInput.class));
     verify(carol.credentialManager(), never()).isValid(any(CredentialInput.class));
