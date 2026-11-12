@@ -721,17 +721,6 @@ mod tests {
     }
 
     #[test]
-    fn rejects_marks_beyond_the_counter_range_within_the_mark_bound() {
-        let content =
-            sheet_with_candidate_votes(u64::MAX, u64::MAX, &[u64::MAX, 1]);
-
-        assert_eq!(
-            error_codes(&content, Some(2)),
-            vec!["invalid_total_valid_votes"]
-        );
-    }
-
-    #[test]
     fn rejects_invalid_vote_components_whose_sum_exceeds_the_counter_range() {
         let content = AreaContestResults {
             total_votes: Some(0),
@@ -761,11 +750,15 @@ mod tests {
     }
 
     #[test]
-    fn accepts_multi_mark_candidate_votes_summing_beyond_the_counter_range() {
+    fn rejects_multi_mark_candidate_votes_summing_beyond_the_counter_range() {
         let content =
             sheet_with_candidate_votes(u64::MAX, u64::MAX, &[u64::MAX, 1]);
 
-        assert!(error_codes(&content, Some(2)).is_empty());
+        // Tally processing cannot represent this sum, whatever the mark bound.
+        assert_eq!(
+            error_codes(&content, Some(2)),
+            vec!["invalid_total_valid_votes"]
+        );
         assert_eq!(
             error_codes(&content, Some(1)),
             vec!["invalid_total_valid_votes"]
