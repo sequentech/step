@@ -1332,7 +1332,13 @@ mod tests {
                 .expect("mapping should succeed");
         assert!(mapped[0].is_invalid());
         assert!(!mapped[1].is_invalid());
-        assert_eq!(mapped[1].choices.len(), 2);
+        let selected: Vec<&str> = mapped[1]
+            .choices
+            .iter()
+            .filter(|choice| choice.selected >= 0)
+            .map(|choice| choice.id.as_str())
+            .collect();
+        assert_eq!(selected, vec!["b", "c"]);
     }
 
     #[test]
