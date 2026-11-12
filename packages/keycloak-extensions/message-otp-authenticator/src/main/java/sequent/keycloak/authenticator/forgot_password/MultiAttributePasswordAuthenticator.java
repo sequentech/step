@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
@@ -147,17 +148,18 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
                 matchPolicy,
                 context.getAuthenticatorConfig());
 
-    // Set even on failure/lockout, before signaling the outcome - Keycloak's brute-force
-    // accounting (DefaultAuthenticationFlow -> AuthenticationProcessor.logFailure()) only fires
-    // for a user set on the authentication session, same as the standard username/password form.
+    // Set even on failure/lockout, before signaling the outcome, as the standard username/password
+    // form does. fail() charges the failure itself: see there.
     result.attributableUser().ifPresent(context::setUser);
 
     if (result.authenticatedUser().isPresent()) {
-      context.success();
+      // Keycloak 26.7 clears a user's brute-force failures after a login only when the login
+      // recorded a counted credential type, so name the password, as UsernamePasswordForm does.
+      context.success(PasswordCredentialModel.TYPE);
     } else if (result.lockoutState() != MultiAttributeCredentialResolver.LockoutState.NONE) {
       lockedOut(context, formData, result.lockoutState());
     } else {
-      fail(context, formData);
+      fail(context, formData, result.attributableUser());
     }
   }
 
@@ -185,10 +187,24 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
     }
   }
 
-  private void fail(AuthenticationFlowContext context, MultivaluedMap<String, String> formData) {
+  /**
+   * Keycloak's flow engine logs a failure after this authenticator returns, against the user still
+   * on the authentication session or its attempted-username note. This form clears the user, so an
+   * account that hasn't authenticated doesn't stay on the session between requests, and has no
+   * username to note. The engine then finds nobody to charge, so a failure attributed to one
+   * account is charged here. A failure shared by several candidates was charged during resolution.
+   */
+  private void fail(
+      AuthenticationFlowContext context,
+      MultivaluedMap<String, String> formData,
+      Optional<UserModel> attributedUser) {
     context.getEvent().error(Errors.INVALID_USER_CREDENTIALS);
     Response challengeResponse = challenge(context, formData, INVALID_CREDENTIALS_MESSAGE);
     context.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS, challengeResponse);
+    attributedUser.ifPresent(
+        user ->
+            MultiAttributeCredentialResolver.chargeFailedLogin(
+                context.getSession(), context.getRealm(), user));
     context.clearUser();
   }
 
@@ -522,6 +538,7 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
                 + ".",
             ProviderConfigProperty.STRING_TYPE,
             Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT),
+        Utils.sharedCandidateFailurePolicyProperty(),
         matchPolicy,
         existingUserSessionPolicy,
         new ProviderConfigProperty(

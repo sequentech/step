@@ -26,6 +26,8 @@ use crate::client::pgsql::B3MessageRow;
 use crate::client::pgsql::PgsqlDbConnectionParams;
 use crate::client::pgsql::PooledPgsqlB3Client;
 use crate::messages::message::Message;
+use crate::messages::trusted_board;
+use strand::backend::ristretto::RistrettoCtx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
 const BB8_POOL_SIZE: u32 = 20;
@@ -93,11 +95,7 @@ impl PgsqlB3Server {
             // We do a first pass to write any messages bytes that may have been written
             // directly into the database (as opposed to the blob store)
             for m in messages.iter().filter(|m| m.message.len() > 0) {
-                let name = format!(
-                    "{}-{}-{}-{}",
-                    m.statement_kind, m.sender_pk, m.batch, m.mix_number
-                );
-                let path = blob_path.join(name.replace("/", ":"));
+                let path = blob_file(blob_root, board, m);
                 if !path.exists() {
                     let mut file = File::create(&path)?;
                     file.write_all(&m.message)?;
@@ -106,11 +104,7 @@ impl PgsqlB3Server {
             }
 
             for m in messages.into_iter() {
-                let name = format!(
-                    "{}-{}-{}-{}",
-                    m.statement_kind, m.sender_pk, m.batch, m.mix_number
-                );
-                let path = blob_path.join(name.replace("/", ":"));
+                let path = blob_file(blob_root, board, &m);
 
                 assert!(path.exists());
                 let mut file = File::open(&path)?;
@@ -179,6 +173,51 @@ impl PgsqlB3Server {
         };
         let mut c = PooledPgsqlB3Client::new(c);
 
+        // The board configuration is provisioned through the database, not through this endpoint.
+        let configurations = c
+            .get_with_kind_only(board, StatementType::Configuration)
+            .await
+            .map_err(|e| {
+                error!("Failed to load board configuration: {:?}", e);
+                Status::internal("Unable to load board configuration")
+            })?;
+        let configurations = configurations
+            .iter()
+            .map(|row| -> Result<Message> {
+                let bytes = stored_message_bytes(self.blob_root.as_deref(), board, row)?;
+                Ok(Message::strand_deserialize(&bytes)?)
+            })
+            .collect::<Result<Vec<_>>>()
+            .map_err(|e| {
+                error!("Failed to read board configuration: {:?}", e);
+                Status::failed_precondition("Invalid board configuration")
+            })?;
+        if configurations.len() != 1 {
+            return Err(Status::failed_precondition(
+                "Board must have one provisioned configuration",
+            ));
+        }
+        let config = trusted_board::verify_board::<RistrettoCtx>(
+            &configurations,
+            &configurations[0].sender.pk,
+        )
+        .map_err(|_| Status::failed_precondition("Invalid board configuration"))?;
+
+        // Verify every message before inserting any of them.
+        for incoming in messages {
+            let message = Message::strand_deserialize(&incoming.message)
+                .map_err(|_| Status::invalid_argument("Invalid board message"))?;
+            if message.statement.get_kind() == StatementType::Configuration {
+                return Err(Status::permission_denied(
+                    "Board configuration is provisioned separately",
+                ));
+            }
+            trusted_board::verify_message(&message, &config).map_err(|e| {
+                warn!("Rejected message for board '{}': {}", board, e);
+                Status::permission_denied("Message authentication failed")
+            })?;
+        }
+
         let mut messages = messages
             .iter()
             .map(|m| B3MessageRow::try_from(m))
@@ -195,11 +234,7 @@ impl PgsqlB3Server {
             }
 
             for m in messages.iter_mut() {
-                let name = format!(
-                    "{}-{}-{}-{}",
-                    m.statement_kind, m.sender_pk, m.batch, m.mix_number
-                );
-                let path = blob_path.join(name.replace("/", ":"));
+                let path = blob_file(blob_root, board, m);
                 let mut file = File::create(&path)?;
                 file.write_all(&m.message)?;
                 info!("Wrote {} bytes to {:?}", m.message.len(), path);
@@ -444,6 +479,28 @@ impl TryFrom<&GrpcB3Message> for B3MessageRow {
     }
 }
 
+/// Where the blob store keeps a row's message bytes.
+fn blob_file(blob_root: &Path, board: &str, row: &B3MessageRow) -> PathBuf {
+    let name = format!(
+        "{}-{}-{}-{}",
+        row.statement_kind, row.sender_pk, row.batch, row.mix_number
+    );
+    blob_root.join(board).join(name.replace("/", ":"))
+}
+
+/// A stored row's message bytes. With a blob store `put_messages_` empties the
+/// row's own copy, so they're in the row's file.
+fn stored_message_bytes(
+    blob_root: Option<&Path>,
+    board: &str,
+    row: &B3MessageRow,
+) -> std::io::Result<Vec<u8>> {
+    match blob_root {
+        Some(blob_root) if row.message.is_empty() => fs::read(blob_file(blob_root, board, row)),
+        _ => Ok(row.message.clone()),
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use std::marker::PhantomData;
@@ -462,7 +519,6 @@ pub(crate) mod tests {
     use serial_test::serial;
     use strand::{
         backend::ristretto::RistrettoCtx,
-        context::Ctx,
         signature::{StrandSignaturePk, StrandSignatureSk},
     };
 
@@ -474,6 +530,46 @@ pub(crate) mod tests {
     const PG_PASSW: &'static str = "postgrespw";
     const PG_PORT: u32 = 49153;
     const TEST_BOARD: &'static str = "testboard";
+
+    fn configuration_row(message: Vec<u8>) -> B3MessageRow {
+        B3MessageRow {
+            id: 1,
+            created: 0,
+            sender_pk: "sender/pk".to_string(),
+            statement_timestamp: 0,
+            statement_kind: StatementType::Configuration.to_string(),
+            batch: 0,
+            mix_number: 0,
+            message,
+            version: "1".to_string(),
+        }
+    }
+
+    #[test]
+    fn a_row_emptied_for_the_blob_store_is_read_from_its_file() {
+        let blob_root = std::env::temp_dir().join(format!("b3-blobs-{}", std::process::id()));
+        let row = configuration_row(vec![]);
+        fs::create_dir_all(blob_root.join(TEST_BOARD)).unwrap();
+        fs::write(blob_file(&blob_root, TEST_BOARD, &row), [1, 2, 3]).unwrap();
+
+        let bytes = stored_message_bytes(Some(&blob_root), TEST_BOARD, &row);
+
+        fs::remove_dir_all(&blob_root).unwrap();
+        assert_eq!(bytes.unwrap(), [1, 2, 3]);
+    }
+
+    #[test]
+    fn a_row_with_its_bytes_is_read_from_the_row() {
+        let row = configuration_row(vec![1, 2, 3]);
+        let blob_root = Path::new("/nonexistent");
+
+        for root in [None, Some(blob_root)] {
+            assert_eq!(
+                stored_message_bytes(root, TEST_BOARD, &row).unwrap(),
+                [1, 2, 3]
+            );
+        }
+    }
 
     async fn set_up() -> PgsqlB3Client {
         let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
@@ -493,20 +589,70 @@ pub(crate) mod tests {
     #[ignore]
     #[serial]
     async fn test_put_get_messages() {
-        let _ = set_up().await;
-
+        let mut database = set_up().await;
+        let manager = ProtocolManager::<RistrettoCtx>::new(StrandSignatureSk::gen().unwrap());
+        let trustees: Vec<_> = (0..3)
+            .map(|_| ProtocolManager::<RistrettoCtx>::new(StrandSignatureSk::gen().unwrap()))
+            .collect();
+        let cfg = Configuration::<RistrettoCtx>::new(
+            0,
+            StrandSignaturePk::from_sk(&manager.signing_key).unwrap(),
+            trustees
+                .iter()
+                .map(|t| StrandSignaturePk::from_sk(&t.signing_key).unwrap())
+                .collect(),
+            2,
+            PhantomData,
+        );
+        let bootstrap = Message::bootstrap_msg(&cfg, &manager).unwrap();
+        database
+            .insert_messages(
+                TEST_BOARD,
+                &vec![B3MessageRow::try_from(bootstrap).unwrap()],
+            )
+            .await
+            .unwrap();
         let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
-        let c = c.with_database(PG_DATABASE);
-        let b3_impl = PgsqlB3Server::new(c, None).await.unwrap();
-
-        let cfg = get_test_configuration::<RistrettoCtx>(3, 2);
-        let messages = vec![cfg];
-        let request = B3Client::put_messages_request(TEST_BOARD, &messages).unwrap();
-        let put = b3_impl
+        let b3_impl = PgsqlB3Server::new(c.with_database(PG_DATABASE), None)
+            .await
+            .unwrap();
+        let member = Message::configuration_msg(&cfg, &trustees[0]).unwrap();
+        let mut mismatched = member.try_clone().unwrap();
+        mismatched.sender.pk = cfg.trustees[1].clone();
+        let request =
+            B3Client::put_messages_request(TEST_BOARD, &[member.try_clone().unwrap(), mismatched])
+                .unwrap();
+        assert_eq!(
+            b3_impl
+                .put_messages(tonic::Request::new(request))
+                .await
+                .unwrap_err()
+                .code(),
+            tonic::Code::PermissionDenied
+        );
+        assert_eq!(
+            database.get_messages(TEST_BOARD, -1).await.unwrap().len(),
+            1,
+            "invalid batch must not partially insert"
+        );
+        let request = B3Client::put_messages_request(
+            TEST_BOARD,
+            &[Message::bootstrap_msg(&cfg, &manager).unwrap()],
+        )
+        .unwrap();
+        assert_eq!(
+            b3_impl
+                .put_messages(tonic::Request::new(request))
+                .await
+                .unwrap_err()
+                .code(),
+            tonic::Code::PermissionDenied
+        );
+        let request = B3Client::put_messages_request(TEST_BOARD, &[member]).unwrap();
+        b3_impl
             .put_messages(tonic::Request::new(request))
             .await
             .unwrap();
-        let _ = put.get_ref();
 
         let request = B3Client::get_messages_request(TEST_BOARD, -1);
         let messages_returned = b3_impl
@@ -515,7 +661,7 @@ pub(crate) mod tests {
             .unwrap();
         let messages_returned = messages_returned.get_ref();
 
-        assert_eq!(messages_returned.messages.len(), 1);
+        assert_eq!(messages_returned.messages.len(), 2);
 
         let cfg_msg = Message::strand_deserialize(&messages_returned.messages[0].message).unwrap();
         let bytes = cfg_msg.artifact.clone().unwrap();
@@ -541,31 +687,5 @@ pub(crate) mod tests {
 
         assert_eq!(boards.boards.len(), 1);
         assert_eq!(boards.boards[0], TEST_BOARD);
-    }
-
-    fn get_test_configuration<C: Ctx>(n_trustees: usize, threshold: usize) -> Message {
-        let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
-        let pm: ProtocolManager<C> = ProtocolManager {
-            signing_key: pmkey,
-            phantom: PhantomData,
-        };
-        let trustee_pks: Vec<StrandSignaturePk> = (0..n_trustees)
-            .map(|_| {
-                let sk = StrandSignatureSk::gen().unwrap();
-                // let encryption_key = strand::symm::gen_key();
-                let pk = StrandSignaturePk::from_sk(&sk).unwrap();
-                pk
-            })
-            .collect();
-
-        let cfg = Configuration::<C>::new(
-            0,
-            StrandSignaturePk::from_sk(&pm.signing_key).unwrap(),
-            trustee_pks,
-            threshold,
-            PhantomData,
-        );
-
-        Message::bootstrap_msg(&cfg, &pm).unwrap()
     }
 }
