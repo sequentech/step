@@ -18,6 +18,21 @@ impl TallyValidationError {
     }
 }
 
+/// Refuses an initialization report for an election that another
+/// non-cancelled initialization-report session (`conflicting_session_id`)
+/// already covers: the generated flag is only written when that session
+/// finishes.
+pub fn duplicate_initialization_report_error(
+    conflicting_session_id: Option<String>,
+) -> Result<(), TallyValidationError> {
+    match conflicting_session_id {
+        Some(id) => Err(TallyValidationError::new(format!(
+            "Another initialization report tally ({id}) already exists for these elections."
+        ))),
+        None => Ok(()),
+    }
+}
+
 /// An initialization report is a test tally of the still empty ballot
 /// boxes. Each selected election must allow it, must not have generated its
 /// report yet, and must have every voting channel NOT_STARTED: otherwise the
@@ -63,7 +78,34 @@ pub fn validate_initialization_report(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::postgres::election::LOCK_ELECTIONS_FOR_ADMISSION_SQL;
+    use crate::postgres::tally_session::FIND_BLOCKING_INITIALIZATION_REPORT_SQL;
     use serde_json::json;
+
+    #[test]
+    fn admission_locks_election_rows_in_a_fixed_order() {
+        let sql = LOCK_ELECTIONS_FOR_ADMISSION_SQL;
+        assert!(sql.contains("FOR NO KEY UPDATE"));
+        assert!(sql.contains("ORDER BY id"));
+        assert!(sql.contains("id = ANY($3)"));
+    }
+
+    #[test]
+    fn blocking_session_lookup_ignores_only_cancelled_and_the_excluded_session() {
+        let sql = FIND_BLOCKING_INITIALIZATION_REPORT_SQL;
+        assert!(sql.contains("tally_type = 'INITIALIZATION_REPORT'"));
+        assert!(sql.contains("COALESCE(execution_status, 'STARTED') <> 'CANCELLED'"));
+        assert!(sql.contains("election_ids && $3::uuid[]"));
+        assert!(sql.contains("id <> $4::uuid"));
+    }
+
+    #[test]
+    fn a_second_initialization_report_session_is_rejected() {
+        assert!(duplicate_initialization_report_error(None).is_ok());
+        let error =
+            duplicate_initialization_report_error(Some("session-1".to_string())).unwrap_err();
+        assert!(error.to_string().contains("session-1"));
+    }
 
     fn election(id: &str) -> Election {
         serde_json::from_value(json!({

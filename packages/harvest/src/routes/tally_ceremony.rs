@@ -179,6 +179,23 @@ pub async fn update_tally_ceremony(
         })
         .unwrap_or_default();
 
+    // Cancelling reads no election state. Anything else locks the elections
+    // first, so the status reads below wait for a status writer in flight and
+    // a later writer waits for this transaction, and refuses a second
+    // initialization report for the same elections.
+    if input.status != TallyExecutionStatus::CANCELLED {
+        tally_ceremony::reserve_tally_admission(
+            &hasura_transaction,
+            &tenant_id,
+            &input.election_event_id,
+            &tally_session.election_ids.clone().unwrap_or_default(),
+            tally_type.clone(),
+            Some(&tally_session.id),
+        )
+        .await
+        .map_err(tally_service_error)?;
+    }
+
     let elections = get_elections_by_ids(
         &hasura_transaction,
         &tenant_id,
