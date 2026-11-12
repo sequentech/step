@@ -112,6 +112,33 @@ configuration field is required.
 
 Validation messages also retain their [message-specific CSS hooks](./08-ballot-errors-custom-css.md).
 
+## Supported CSS features
+
+The voting portal and the ballot verifier apply Custom CSS after removing the parts
+that load files from other sites or add text to the page:
+
+- `url()` must point to the page's own origin, the public files bucket or a `data:`
+  URI. A declaration with any other URL is skipped, so host images in the
+  public bucket instead of linking to another site.
+- Only `@media`, `@supports`, `@container`, `@layer` and `@keyframes` at-rules are
+  kept. `@import` and `@font-face` rules are skipped, as are `image-set()`,
+  `image()` and `src()` values.
+- `content`, `quotes`, `list-style`, `list-style-image`, `list-style-type`,
+  `text-overflow`, `text-emphasis`, `text-emphasis-style` and `hyphenate-character` are
+  skipped when their value has a non-empty string, a `url()`, or a `var()`, `attr()`,
+  `counter()` or `counters()` reference. `content: ""` for decorative pseudo-elements
+  still works.
+- `list-style` and `list-style-type` keep only markers that show no letters: `none`,
+  `disc`, `circle`, `square`, `decimal`, `decimal-leading-zero`, `disclosure-open` and
+  `disclosure-closed`, with `inside` or `outside`.
+- Comments are removed. Declarations, rules and at-rules with backslash escapes,
+  control characters or `//` outside a string are skipped.
+- If the stylesheet cannot be parsed, for example because of an unbalanced brace
+  or quote, none of it is applied.
+
+The same rules apply to the CSS of ballot styles that were published earlier, and
+to the CSS inside an auditable ballot imported into the ballot verifier.
+
 ## Confirmation Ballot ID
 
 | Component                                                | Selector within `.confirmation-screen`                                            |
