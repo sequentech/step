@@ -199,7 +199,7 @@ and explains where realm attributes are edited.
 | Exactly one candidate, wrong password | Generic "invalid credentials" error - this attempt **is** counted toward that account's Brute Force Detection lockout, same as a standard login. With Brute Force Detection on, it does not count toward **Max failures per attribute-value combination**. |
 | Exactly one candidate, currently locked out by Brute Force Detection | Generic "invalid credentials" error; the locked account cannot log in. |
 | Multiple candidates share the configured attribute(s), and the password matches exactly one | Login succeeds as that user. |
-| Multiple candidates match the password, with `FIRST_MATCH` | Login succeeds as the first candidate whose password matches; see [Multiple-Candidate Match Policy](#multiple-candidate-match-policy). |
+| Multiple candidates match the password, with `FIRST_MATCH` | With the `PASSWORD` credential verification policy, login succeeds as the first candidate whose password matches; see [Multiple-Candidate Match Policy](#multiple-candidate-match-policy). With `SECRET_ATTRIBUTE`, the configuration is rejected and every login fails with the generic error. |
 | Multiple candidates match the password with `REJECT_AMBIGUOUS`, or none do | Generic "invalid credentials" error - by default, when Brute Force Detection is on, the attempt is counted toward it for every candidate that is not locked out; see [Shared-Candidate Failure Policy](#shared-candidate-failure-policy). |
 
 Authentication failures use a generic message rather than identifying the incorrect attribute or
@@ -225,7 +225,8 @@ the number of candidates and decryption still contribute to total request time.
 >
 > Voters who share the configured attribute(s) can log in at the same time without blocking each
 > other: while several candidates match, their lockout state is read without reserving them in
-> Keycloak's brute-force protector, and only the account that authenticates is checked through it.
+> Keycloak's brute-force protector, and only the account that authenticates, or the only one still
+> unlocked, is checked through it.
 > Developers can verify this against a running environment with
 > `packages/keycloak-extensions/message-otp-authenticator/src/test/integration/concurrent-shared-dob-login.py`.
 

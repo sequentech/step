@@ -184,8 +184,14 @@ computation on paths that never found a candidate to check.
 > failed PIN attempts get counted the same way a standard login's would. When more than one
 > candidate still shares the identifying attribute(s), no single account can be blamed for a failed
 > attempt; **Shared-candidate failure policy** decides how it is counted (see
-> [Shared-Candidate Failure Policy](#shared-candidate-failure-policy)). A locked-out account among
-> several ambiguous candidates is excluded from consideration before any PIN is checked.
+> [Shared-Candidate Failure Policy](#shared-candidate-failure-policy)). In `PASSWORD` mode, a
+> locked-out account among several ambiguous candidates is excluded before any PIN is checked. In
+> `SECRET_ATTRIBUTE` mode, the resolver verifies every enabled candidate, locked ones included, so
+> locking one account can't make a PIN shared by two accounts authenticate as the other; a locked
+> account itself never authenticates. A `SECRET_ATTRIBUTE` attempt against a locked account costs
+> one dummy password hash, like every other request on that path, and with Brute Force Detection on
+> it is not counted toward **Max failures per identifier-value combination**; limit request rates as
+> described in [Rate Limiting per IP Address](#rate-limiting-per-ip-address).
 > Configuring more identifying attributes narrows the candidate set before the PIN check, making
 > the single-candidate (fully protected) case the common one; keep **Brute Force Detection**
 > enabled at the realm level regardless. Callers who share a date of birth do not block each other
