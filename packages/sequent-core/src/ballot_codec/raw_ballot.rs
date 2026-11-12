@@ -416,13 +416,17 @@ impl RawBallotCodec for Contest {
             decoded_contest.update(min_check);
         }
 
-        let under_vote_check = check_under_vote_policy(
-            &presentation,
-            num_selected_with_markers,
-            max_votes.clone(),
-            min_votes.clone(),
-        );
-        decoded_contest.update(under_vote_check);
+        // A selected explicit blank is a deliberate choice, not an
+        // undervote, so it skips the undervote check.
+        if !is_explicit_blank {
+            let under_vote_check = check_under_vote_policy(
+                &presentation,
+                num_selected_with_markers,
+                max_votes.clone(),
+                min_votes.clone(),
+            );
+            decoded_contest.update(under_vote_check);
+        }
 
         // handle blank vote policy. A selected explicit blank or explicit
         // invalid marker counts as a selection, so it is not a blank vote.
@@ -852,7 +856,7 @@ mod tests {
     }
 
     #[test]
-    fn test_explicit_blank_counts_towards_under_vote_alert() {
+    fn test_explicit_blank_does_not_raise_under_vote_alert() {
         let (mut contest, _implicit_blank, explicit_blank) =
             explicit_blank_fixture();
         contest.min_votes = 1;
@@ -874,12 +878,12 @@ mod tests {
             .expect("Expected decoded contest");
 
         assert!(
-            decoded
+            !decoded
                 .invalid_alerts
                 .iter()
                 .any(|alert| alert.message.as_deref()
                     == Some("errors.implicit.underVote")),
-            "Expected undervote alert for explicit blank selection"
+            "Explicit blank should not raise an undervote alert"
         );
         assert!(
             !decoded
