@@ -513,10 +513,11 @@ async fn cycle<T: Transport<Ctx>, P: Persistence>(
     session.post(messages).await.context("posting to the board")
 }
 
-/// Runs a session's step with a panic turned into an error, which halts that
-/// board only: a panic would end the trustee and every session in it, again
-/// after each restart, for as long as the board serves what caused it. The
-/// step only reads the session, and a halted session is never used again.
+/// Backstop for native: a panic in a step becomes an error that halts that
+/// board only. The browser build aborts on panic and cannot recover, so a
+/// peer's message must fail with an error inside braid; this catches only
+/// what that misses. The step only reads the session, and a halted session
+/// is never used again.
 fn without_panics<T>(step: impl FnOnce() -> Result<T>) -> Result<T> {
     catch_unwind(AssertUnwindSafe(step)).unwrap_or_else(|payload| {
         Err(anyhow!(
