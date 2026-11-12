@@ -441,7 +441,7 @@ impl BallotChoices {
     /// Decode a mixed radix representation of the ballot.
     pub fn decode(
         raw_ballot: &RawBallotContest,
-        contests: &Vec<Contest>,
+        contests: &[Contest],
         serial_number_counter: Option<&mut u32>,
     ) -> Result<DecodedBallotChoices, String> {
         let mut contest_choices: Vec<DecodedContestChoices> = vec![];
@@ -466,7 +466,7 @@ impl BallotChoices {
         // The order of the contests is computed sorting by id.
         // The selections must be encoded to and decoded from a ballot
         // following this order, given by contest.id.
-        let mut sorted_contests = contests.clone();
+        let mut sorted_contests = contests.to_vec();
         sorted_contests.sort_by_key(|c| c.id.clone());
 
         // This explicit invalid flag is at the ballot level
@@ -716,7 +716,7 @@ impl BallotChoices {
     //
     // Returns the vector of bases for the mixed radix
     // representation of this ballot (including a explicit invalid base = 2).
-    pub fn get_bases(contests: &Vec<Contest>) -> Result<Vec<u64>, String> {
+    pub fn get_bases(contests: &[Contest]) -> Result<Vec<u64>, String> {
         // the base for explicit invalid ballot slot is 2:
         // 0: not invalid, 1: explicit invalid
         let mut bases: Vec<u64> = vec![2];
