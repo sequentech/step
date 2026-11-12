@@ -411,9 +411,9 @@ pub async fn persist_board_deliveries(
     result
 }
 
-/// Publishes the signed CastVotes that accepted votes left in the electoral
-/// log outbox, for example because RabbitMQ was unavailable after the vote
-/// was committed.
+/// Publishes the events left in the electoral log outbox, such as the signed
+/// CastVotes of accepted votes, for example because RabbitMQ was unavailable
+/// after their transaction committed.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 // No expiry: a worker may take this task late, behind a long dispatcher run,

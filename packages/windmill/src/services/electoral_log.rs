@@ -179,6 +179,24 @@ pub struct PreparedVoterPasswordChangeLog {
 }
 
 impl PreparedVoterPasswordChangeLog {
+    /// The queued event that writes this signed entry, unchanged, to the board
+    /// of `election_event_id`, which is the board it was prepared for. Stored
+    /// in the electoral-log outbox, it commits or rolls back with the change it
+    /// records.
+    pub fn to_log_event(&self, tenant_id: &str, election_event_id: &str) -> Result<LogEventInput> {
+        Ok(LogEventInput {
+            election_event_id: election_event_id.to_string(),
+            message_type: LogMessageType::Internal,
+            user_id: self.message.user_id.clone(),
+            username: self.message.username.clone(),
+            tenant_id: tenant_id.to_string(),
+            body: LogEventBody::Plain(
+                serde_json::to_string(&self.message)
+                    .context("Failed to serialize the prepared electoral-log entry")?,
+            ),
+        })
+    }
+
     #[instrument(skip(self), err)]
     pub async fn post(&self) -> Result<()> {
         retry_with_exponential_backoff(
@@ -366,7 +384,7 @@ fn voter_ballots_discard_body(
 
 /// Prepares the admin-signed entry naming the ballots discarded when an admin
 /// disables a voter. It uses the discard's own transaction, so the caller can
-/// post it before committing and roll the discard back if posting fails.
+/// store the entry in the electoral-log outbox and commit it with the discard.
 #[instrument(skip_all, err)]
 pub async fn prepare_voter_ballots_discard(
     hasura_transaction: &Transaction<'_>,
@@ -2359,6 +2377,27 @@ mod password_change_tests {
         let restored: PreparedVoterPasswordChangeLog = serde_json::from_value(serialized).unwrap();
 
         assert_eq!(restored, prepared);
+    }
+
+    #[test]
+    fn prepared_log_becomes_an_internal_event_carrying_the_signed_message() {
+        let prepared = PreparedVoterPasswordChangeLog {
+            board: "event-board".to_string(),
+            message: prepared_message(),
+        };
+
+        let input = prepared.to_log_event("tenant-id", "event-id").unwrap();
+        // The outbox keeps the event as JSON until it is published.
+        let input: LogEventInput =
+            serde_json::from_value(serde_json::to_value(&input).unwrap()).unwrap();
+
+        assert_eq!(input.message_type, LogMessageType::Internal);
+        assert_eq!(input.tenant_id, "tenant-id");
+        assert_eq!(input.election_event_id, "event-id");
+        assert_eq!(input.user_id.as_deref(), Some("voter-id"));
+        assert_eq!(input.username.as_deref(), Some("voter-user"));
+        let message: ElectoralLogMessage = deserialize_str(&input.body.as_raw()).unwrap();
+        assert_eq!(message, prepared.message);
     }
 
     #[test]
