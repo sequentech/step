@@ -148,7 +148,7 @@ pub async fn validate_new_publication_source(
                             WHERE latest.tenant_id = execution.tenant_id
                               AND latest.election_event_id = execution.election_event_id
                               AND latest.tally_session_id = execution.tally_session_id
-                            ORDER BY latest.created_at DESC
+                            ORDER BY latest.created_at DESC, latest.id DESC
                             LIMIT 1
                         ) AS is_latest_execution
                     FROM sequent_backend.tally_session_execution execution
