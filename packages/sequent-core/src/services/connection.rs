@@ -497,9 +497,16 @@ mod tests {
 
     #[rocket::async_test]
     async fn datafix_guard_logs_no_client_secret() {
+        if !in_child_process(
+            module_path!(),
+            "datafix_guard_logs_no_client_secret",
+        ) {
+            return;
+        }
+        clear_optional_issuer_settings();
         let keycloak = HttpStub::start(|_| (200, TOKEN_RESPONSE.to_string()))
             .expect("keycloak stub");
-        std::env::set_var("KEYCLOAK_URL", keycloak.url());
+        std::env::set_var(KEYCLOAK_URL, keycloak.url());
         let client = Client::untracked(
             rocket::build()
                 .manage(LastDatafixAccessToken::init())
