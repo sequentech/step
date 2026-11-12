@@ -9,11 +9,15 @@ use sequent_core::types::ceremonies::{
     TallySessionResolutionStatus, TallySessionResolutionType,
 };
 use std::collections::HashMap;
+use thiserror::Error;
 use tracing::info;
 use uuid::Uuid;
 
+use super::tally_ceremony::begin_tally_session_recount_with;
+use super::tally_validation::TallyValidationError;
+use crate::adapters::tally_ceremony::PgTallySessions;
+use crate::ports::tally_ceremony::TallySessions;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::tally_session::{get_tally_session_by_id, update_tally_session_status};
 use crate::postgres::tally_session_resolution::{
     create_tally_session_resolution, get_pending_resolutions, get_resolution_by_tally_session,
     submit_resolution, update_resolution,
@@ -214,7 +218,22 @@ pub async fn handle_pending_irv_resolutions(
     Ok(pending_resolution_ids)
 }
 
+/// What submitting tie-break decisions does to the tally session.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResolutionSubmission {
+    /// The tally is paused in `AWAITING_INPUT` and resumes with the decisions.
+    ResumePausedTally,
+    /// The tally has completed; changing a decision recounts it.
+    RecountCompletedTally,
+}
+
+#[derive(Debug, Error)]
+#[error("Tie-break submission {0:?} is not permitted for this user")]
+pub struct ResolutionSubmissionNotPermitted(pub ResolutionSubmission);
+
 /// Submit multiple tally resolutions for a paused tally (batch operation).
+/// `permitted` lists the kinds of submission the caller is authorized for;
+/// any other kind is rejected before anything is written.
 /// Returns the number of resolutions processed.
 pub async fn submit_tally_resolution(
     hasura_transaction: &Transaction<'_>,
@@ -224,15 +243,17 @@ pub async fn submit_tally_resolution(
     resolutions: &[TallyResolution],
     user_id: &str,
     username: Option<String>,
+    permitted: &[ResolutionSubmission],
 ) -> Result<usize> {
-    // Get tally session and validate status
-    let tally_session = get_tally_session_by_id(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        tally_session_id,
-    )
-    .await?;
+    // Serialize with the tally task, recounts and other submissions, and read
+    // the status only once the lock is held.
+    let sessions = PgTallySessions::new(hasura_transaction);
+    sessions
+        .lock_for_update(tenant_id, election_event_id, tally_session_id)
+        .await?;
+    let tally_session = sessions
+        .get(tenant_id, election_event_id, tally_session_id)
+        .await?;
 
     let execution_status = tally_session
         .execution_status
@@ -248,12 +269,14 @@ pub async fn submit_tally_resolution(
     )
     .await?;
 
-    // Allow re-submission of already-resolved resolutions even when the tally is not
-    // in AWAITING_INPUT (e.g., SUCCESS). Only reject if the tally is not awaiting
-    // input AND at least one submitted resolution targets a pending (not yet resolved) record.
     let input_contest_ids: Vec<&str> = resolutions.iter().map(|r| r.contest_id.as_str()).collect();
-    validate_resolution_allowed(&execution_status, &input_contest_ids, &all_resolutions)
-        .map_err(|(_, msg)| anyhow!(msg))?;
+    let submission = permitted_resolution_submission(
+        &execution_status,
+        tally_session.is_execution_completed,
+        &input_contest_ids,
+        &all_resolutions,
+        permitted,
+    )?;
 
     let election_event =
         get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
@@ -382,54 +405,125 @@ pub async fn submit_tally_resolution(
         resolved_count += 1;
     }
 
-    let next_status = TallyExecutionStatus::IN_PROGRESS;
-
-    // Update tally session status — always resume so the tally re-runs and
-    // produces intermediate results. Windmill will pause again in AWAITING_INPUT
-    // if any new tie-breaks are detected during the re-run.
-    update_tally_session_status(
-        hasura_transaction,
+    let election_ids = tally_session.election_ids.clone().unwrap_or_default();
+    resume_tally_after_resolution_with(
+        &sessions,
         tenant_id,
         election_event_id,
         tally_session_id,
-        next_status.clone(),
-        false,
+        &election_ids,
+        submission,
     )
     .await?;
 
     info!(
-        "Tally session status set to {:?} after resolution submission",
-        next_status
+        "Tally session set to {:?} after resolution submission ({:?})",
+        TallyExecutionStatus::IN_PROGRESS,
+        submission
     );
 
     Ok(resolved_count)
 }
 
-/// Returns `Err` if the tally is not awaiting input AND at least one of the
-/// requested contest IDs does not yet have a resolved record in `all_resolutions`.
-pub fn validate_resolution_allowed(
-    execution_status: &TallyExecutionStatus,
-    input_contest_ids: &[&str],
-    all_resolutions: &[TallySessionResolution],
-) -> Result<(), (Status, String)> {
-    if *execution_status != TallyExecutionStatus::AWAITING_INPUT {
-        let all_are_resolved_updates = input_contest_ids.iter().all(|contest_id| {
-            all_resolutions.iter().any(|r| {
-                r.contest_id.as_deref() == Some(contest_id)
-                    && r.status == TallySessionResolutionStatus::Resolved
-            })
-        });
-        if !all_are_resolved_updates {
-            return Err((
-                Status::BadRequest,
-                format!(
-                    "Tally session is not awaiting input. Current status: {}",
-                    execution_status
-                ),
-            ));
+/// Sets the tally running again with the submitted decisions, so it re-runs
+/// and produces intermediate results. Windmill pauses it again in
+/// `AWAITING_INPUT` if the re-run detects new tie-breaks. A completed tally is
+/// reopened through the recount path, which records a `RECOUNT` execution.
+pub async fn resume_tally_after_resolution_with(
+    sessions: &impl TallySessions,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    election_ids: &[String],
+    submission: ResolutionSubmission,
+) -> Result<()> {
+    match submission {
+        ResolutionSubmission::ResumePausedTally => {
+            sessions
+                .set_status(
+                    tenant_id,
+                    election_event_id,
+                    tally_session_id,
+                    TallyExecutionStatus::IN_PROGRESS,
+                    false,
+                )
+                .await
+        }
+        ResolutionSubmission::RecountCompletedTally => {
+            let recount_started = begin_tally_session_recount_with(
+                sessions,
+                tenant_id,
+                election_event_id,
+                tally_session_id,
+                election_ids,
+            )
+            .await?;
+            if recount_started {
+                Ok(())
+            } else {
+                Err(TallyValidationError::new(
+                    "Only a completed tally session with execution history can be recounted",
+                )
+                .into())
+            }
         }
     }
-    Ok(())
+}
+
+/// Classifies the submission and checks that it is one of the `permitted`
+/// kinds. A refused classification is a `TallyValidationError`; a kind the
+/// caller may not make is a `ResolutionSubmissionNotPermitted`.
+pub fn permitted_resolution_submission(
+    execution_status: &TallyExecutionStatus,
+    is_execution_completed: bool,
+    input_contest_ids: &[&str],
+    all_resolutions: &[TallySessionResolution],
+    permitted: &[ResolutionSubmission],
+) -> Result<ResolutionSubmission> {
+    let submission = classify_resolution_submission(
+        execution_status,
+        is_execution_completed,
+        input_contest_ids,
+        all_resolutions,
+    )
+    .map_err(|(_, message)| TallyValidationError::new(message))?;
+    if permitted.contains(&submission) {
+        Ok(submission)
+    } else {
+        Err(ResolutionSubmissionNotPermitted(submission).into())
+    }
+}
+
+/// Decides what submitting decisions for `input_contest_ids` does to a tally
+/// session. A paused tally accepts any decision; a completed tally accepts only
+/// changes to contests that already have one. Every other status is rejected:
+/// a running tally would finish with the decisions it read when it started, and
+/// a cancelled one is final.
+pub fn classify_resolution_submission(
+    execution_status: &TallyExecutionStatus,
+    is_execution_completed: bool,
+    input_contest_ids: &[&str],
+    all_resolutions: &[TallySessionResolution],
+) -> Result<ResolutionSubmission, (Status, String)> {
+    let all_are_resolved_updates = input_contest_ids.iter().all(|contest_id| {
+        all_resolutions.iter().any(|r| {
+            r.contest_id.as_deref() == Some(contest_id)
+                && r.status == TallySessionResolutionStatus::Resolved
+        })
+    });
+    match execution_status {
+        TallyExecutionStatus::AWAITING_INPUT => Ok(ResolutionSubmission::ResumePausedTally),
+        TallyExecutionStatus::SUCCESS if is_execution_completed && all_are_resolved_updates => {
+            Ok(ResolutionSubmission::RecountCompletedTally)
+        }
+        _ => Err((
+            Status::BadRequest,
+            format!(
+                "Tally session is not awaiting input. Current status: {}",
+                execution_status
+            ),
+        )),
+    }
 }
 
 /// Extracts the list of tied candidate IDs from a resolution's `resolution_data` field.
@@ -461,14 +555,18 @@ pub fn is_resubmission(resolution: &TallySessionResolution) -> bool {
 #[cfg(test)]
 mod tally_resolution_tests {
     use super::{
-        build_tie_resolutions_map, extract_tied_candidate_ids, is_resubmission,
-        pending_resolution_exists, validate_resolution_allowed,
+        build_tie_resolutions_map, classify_resolution_submission, extract_tied_candidate_ids,
+        is_resubmission, pending_resolution_exists, permitted_resolution_submission,
+        resume_tally_after_resolution_with, ResolutionSubmission, ResolutionSubmissionNotPermitted,
     };
+    use crate::adapters::memory::tally_ceremony::{InMemoryTallyCeremony, TallyCall};
+    use crate::services::ceremonies::tally_validation::TallyValidationError;
     use rocket::http::Status;
     use sequent_core::types::ceremonies::{
         TallyExecutionStatus, TallySessionResolution, TallySessionResolutionData,
         TallySessionResolutionStatus, TallySessionResolutionType, TieBreakingMethod,
     };
+    use sequent_core::types::hasura::core::{TallySession, TallySessionExecution};
 
     fn make_resolution_tests(
         contest_id: &str,
@@ -506,8 +604,9 @@ mod tally_resolution_tests {
             TallySessionResolutionStatus::Pending,
             &["c-1", "c-2"],
         );
-        let result = validate_resolution_allowed(
+        let result = classify_resolution_submission(
             &TallyExecutionStatus::IN_PROGRESS,
+            false,
             &["contest-1"],
             &[resolution],
         );
@@ -541,12 +640,13 @@ mod tally_resolution_tests {
             TallySessionResolutionStatus::Pending,
             &["c-1", "c-2"],
         );
-        let result = validate_resolution_allowed(
+        let result = classify_resolution_submission(
             &TallyExecutionStatus::AWAITING_INPUT,
+            false,
             &["contest-1"],
             &[resolution.clone()],
         );
-        assert!(result.is_ok());
+        assert_eq!(result, Ok(ResolutionSubmission::ResumePausedTally));
         assert!(
             !is_resubmission(&resolution),
             "Pending resolution should not be treated as a re-submission"
@@ -564,12 +664,293 @@ mod tally_resolution_tests {
             is_resubmission(&resolution),
             "Resolved resolution should be treated as a re-submission"
         );
-        let result = validate_resolution_allowed(
+        let result = classify_resolution_submission(
             &TallyExecutionStatus::SUCCESS,
+            true,
             &["contest-1"],
             &[resolution],
         );
-        assert!(result.is_ok());
+        assert_eq!(result, Ok(ResolutionSubmission::RecountCompletedTally));
+    }
+
+    #[test]
+    fn test_resubmit_resolution_rejected_when_success_not_completed() {
+        let resolution = make_resolution_tests(
+            "contest-1",
+            TallySessionResolutionStatus::Resolved,
+            &["c-1", "c-2"],
+        );
+        let result = classify_resolution_submission(
+            &TallyExecutionStatus::SUCCESS,
+            false,
+            &["contest-1"],
+            &[resolution],
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_submit_pending_resolution_rejected_after_completion() {
+        let resolution = make_resolution_tests(
+            "contest-1",
+            TallySessionResolutionStatus::Pending,
+            &["c-1", "c-2"],
+        );
+        let result = classify_resolution_submission(
+            &TallyExecutionStatus::SUCCESS,
+            true,
+            &["contest-1"],
+            &[resolution],
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_resubmit_resolution_rejected_unless_paused_or_completed() {
+        let resolution = make_resolution_tests(
+            "contest-1",
+            TallySessionResolutionStatus::Resolved,
+            &["c-1", "c-2"],
+        );
+        let accepted: Vec<(TallyExecutionStatus, bool)> = [
+            TallyExecutionStatus::STARTED,
+            TallyExecutionStatus::CONNECTED,
+            TallyExecutionStatus::IN_PROGRESS,
+            TallyExecutionStatus::CANCELLED,
+        ]
+        .into_iter()
+        .flat_map(|status| [(status.clone(), false), (status, true)])
+        .filter(|(status, is_completed)| {
+            classify_resolution_submission(
+                status,
+                *is_completed,
+                &["contest-1"],
+                &[resolution.clone()],
+            )
+            .is_ok()
+        })
+        .collect();
+        assert!(accepted.is_empty(), "Resubmission accepted in {accepted:?}");
+    }
+
+    const ALL_SUBMISSIONS: [ResolutionSubmission; 2] = [
+        ResolutionSubmission::ResumePausedTally,
+        ResolutionSubmission::RecountCompletedTally,
+    ];
+
+    #[test]
+    fn test_permitted_submission_is_returned() {
+        let resolution = make_resolution_tests(
+            "contest-1",
+            TallySessionResolutionStatus::Resolved,
+            &["c-1", "c-2"],
+        );
+        let paused = permitted_resolution_submission(
+            &TallyExecutionStatus::AWAITING_INPUT,
+            false,
+            &["contest-1"],
+            &[resolution.clone()],
+            &[ResolutionSubmission::ResumePausedTally],
+        )
+        .expect("a paused tally accepts the decisions");
+        assert_eq!(paused, ResolutionSubmission::ResumePausedTally);
+        let completed = permitted_resolution_submission(
+            &TallyExecutionStatus::SUCCESS,
+            true,
+            &["contest-1"],
+            &[resolution],
+            &ALL_SUBMISSIONS,
+        )
+        .expect("a completed tally accepts changed decisions from a recounter");
+        assert_eq!(completed, ResolutionSubmission::RecountCompletedTally);
+    }
+
+    #[test]
+    fn test_recount_submission_needs_its_permission() {
+        let resolution = make_resolution_tests(
+            "contest-1",
+            TallySessionResolutionStatus::Resolved,
+            &["c-1", "c-2"],
+        );
+        let error = permitted_resolution_submission(
+            &TallyExecutionStatus::SUCCESS,
+            true,
+            &["contest-1"],
+            &[resolution],
+            &[ResolutionSubmission::ResumePausedTally],
+        )
+        .expect_err("changing a completed tally's decision is a recount");
+        let not_permitted = error
+            .downcast_ref::<ResolutionSubmissionNotPermitted>()
+            .expect("a submission the caller may not make");
+        assert_eq!(not_permitted.0, ResolutionSubmission::RecountCompletedTally);
+    }
+
+    #[test]
+    fn test_refused_submission_is_a_validation_error() {
+        let resolution = make_resolution_tests(
+            "contest-1",
+            TallySessionResolutionStatus::Resolved,
+            &["c-1", "c-2"],
+        );
+        let error = permitted_resolution_submission(
+            &TallyExecutionStatus::CANCELLED,
+            true,
+            &["contest-1"],
+            &[resolution],
+            &ALL_SUBMISSIONS,
+        )
+        .expect_err("a cancelled tally is final");
+        let validation = error
+            .downcast_ref::<TallyValidationError>()
+            .expect("a validation error");
+        assert_eq!(
+            validation.to_string(),
+            "Tally session is not awaiting input. Current status: CANCELLED"
+        );
+    }
+
+    const TENANT: &str = "tenant-1";
+    const EVENT: &str = "event-1";
+    const SESSION: &str = "session-1";
+    const ELECTION: &str = "election-1";
+
+    /// A session in `status`, with one execution when `executed`.
+    fn tally_ceremony(
+        status: TallyExecutionStatus,
+        is_execution_completed: bool,
+        executed: bool,
+    ) -> InMemoryTallyCeremony {
+        let ceremony = InMemoryTallyCeremony::default();
+        ceremony.add_session(TallySession {
+            id: SESSION.to_string(),
+            tenant_id: TENANT.to_string(),
+            election_event_id: EVENT.to_string(),
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations: None,
+            election_ids: Some(vec![ELECTION.to_string()]),
+            area_ids: None,
+            is_execution_completed,
+            keys_ceremony_id: "keys-ceremony".to_string(),
+            execution_status: Some(status.to_string()),
+            threshold: 1,
+            configuration: None,
+            tally_type: None,
+            permission_label: None,
+        });
+        if executed {
+            ceremony.add_execution(TallySessionExecution {
+                id: "execution-1".to_string(),
+                tenant_id: TENANT.to_string(),
+                election_event_id: EVENT.to_string(),
+                created_at: None,
+                last_updated_at: None,
+                labels: None,
+                annotations: None,
+                current_message_id: 1,
+                tally_session_id: SESSION.to_string(),
+                session_ids: None,
+                status: Some(serde_json::json!({
+                    "logs": [], "trustees": [], "elections_status": []
+                })),
+                results_event_id: None,
+                documents: None,
+                run_reason: None,
+            });
+        }
+        ceremony
+    }
+
+    async fn resume(
+        ceremony: &InMemoryTallyCeremony,
+        submission: ResolutionSubmission,
+    ) -> anyhow::Result<()> {
+        resume_tally_after_resolution_with(
+            ceremony,
+            TENANT,
+            EVENT,
+            SESSION,
+            &[ELECTION.to_string()],
+            submission,
+        )
+        .await
+    }
+
+    fn session_state(ceremony: &InMemoryTallyCeremony) -> (Option<String>, bool, usize) {
+        let session = ceremony.session(SESSION);
+        (
+            session.execution_status,
+            session.is_execution_completed,
+            ceremony.executions(SESSION).len(),
+        )
+    }
+
+    #[tokio::test]
+    async fn test_paused_tally_resumes_without_a_recount() {
+        let ceremony = tally_ceremony(TallyExecutionStatus::AWAITING_INPUT, false, true);
+        resume(&ceremony, ResolutionSubmission::ResumePausedTally)
+            .await
+            .expect("the paused tally resumes");
+        assert_eq!(
+            session_state(&ceremony),
+            (Some("IN_PROGRESS".to_string()), false, 1)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_changed_decision_on_completed_tally_records_a_recount() {
+        let ceremony = tally_ceremony(TallyExecutionStatus::SUCCESS, true, true);
+        resume(&ceremony, ResolutionSubmission::RecountCompletedTally)
+            .await
+            .expect("the completed tally is recounted");
+        assert_eq!(
+            session_state(&ceremony),
+            (Some("IN_PROGRESS".to_string()), false, 2)
+        );
+        let executions = ceremony.executions(SESSION);
+        assert_eq!(
+            executions
+                .last()
+                .expect("the recount execution")
+                .run_reason
+                .as_deref(),
+            Some("RECOUNT")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_completed_tally_without_execution_history_is_not_recounted() {
+        let ceremony = tally_ceremony(TallyExecutionStatus::SUCCESS, true, false);
+        let error = resume(&ceremony, ResolutionSubmission::RecountCompletedTally)
+            .await
+            .expect_err("nothing to recount");
+        let validation = error
+            .downcast_ref::<TallyValidationError>()
+            .expect("a validation error");
+        assert_eq!(
+            validation.to_string(),
+            "Only a completed tally session with execution history can be recounted"
+        );
+        assert_eq!(
+            session_state(&ceremony),
+            (Some("SUCCESS".to_string()), true, 0)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_recount_that_cannot_lock_the_session_fails() {
+        let ceremony = tally_ceremony(TallyExecutionStatus::SUCCESS, true, true);
+        ceremony.fail(TallyCall::LockSession, "lock timeout");
+        let error = resume(&ceremony, ResolutionSubmission::RecountCompletedTally)
+            .await
+            .expect_err("the lock is required");
+        assert_eq!(error.to_string(), "lock timeout");
+        assert_eq!(
+            session_state(&ceremony),
+            (Some("SUCCESS".to_string()), true, 1)
+        );
     }
 
     fn make_resolution(

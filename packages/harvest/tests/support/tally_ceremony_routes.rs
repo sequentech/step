@@ -311,12 +311,84 @@ async fn a_tally_resolution_batch_needs_at_least_one_resolution_before_any_datab
     )
     .await;
     assert_eq!(
-        text(response).await,
-        (
-            Status::BadRequest,
-            "At least one resolution required".into()
-        )
+        json(response).await,
+        tally_validation("At least one resolution required")
     );
+}
+
+async fn submit_tie_break<'c>(
+    client: &'c Client,
+    event: &Event,
+    tally_session_id: &str,
+    contest_id: &str,
+    permissions: &[Permissions],
+) -> LocalResponse<'c> {
+    post(
+        client,
+        "/submit-tally-resolution",
+        &Claims::new(&event.tenant_id, USER_ID).roles(permissions),
+        &json!({
+            "election_event_id": event.election_event_id,
+            "tally_session_id": tally_session_id,
+            "resolutions": [
+                {"contest_id": contest_id, "selected_candidate_id": "candidate"}
+            ],
+        }),
+    )
+    .await
+}
+
+/// A tally that finished with `status` and a tie-break an admin already
+/// decided in it; returns the event, the session and the tied contest.
+async fn tallied_with_a_decided_tie(
+    services: &Services,
+    status: &str,
+) -> (Event, String, String) {
+    let (event, election_id, tally_session_id) =
+        tallied(services, status).await;
+    let contest_id = event
+        .contest(&services.hasura, &election_id, "instant-runoff")
+        .await;
+    let id = |id: &str| uuid::Uuid::parse_str(id).expect("a fixture uuid");
+    rows::execute(
+        &services.hasura,
+        "INSERT INTO sequent_backend.tally_session_resolution
+            (tenant_id, election_event_id, tally_session_id, contest_id,
+             resolution_type, status, resolution_data)
+         VALUES ($1, $2, $3, $4, 'irv_tie_break', 'resolved', $5::text::jsonb)",
+        &[
+            &id(&event.tenant_id),
+            &id(&event.election_event_id),
+            &id(&tally_session_id),
+            &id(&contest_id),
+            &r#"{"round_number": 2, "tied_candidate_ids": ["candidate", "other"],
+                "vote_count": 1, "method_used": "ExternalProcedure",
+                "resolved_by_candidate_id": "other"}"#,
+        ],
+    )
+    .await;
+    (event, tally_session_id, contest_id)
+}
+
+/// The session's status and how many executions it has.
+async fn tally_state(
+    services: &Services,
+    event: &Event,
+    tally_session_id: &str,
+) -> (String, usize) {
+    let rows = rows::query(
+        &services.hasura,
+        "SELECT execution_status FROM sequent_backend.tally_session
+         WHERE id = $1",
+        &[&uuid::Uuid::parse_str(tally_session_id).expect("a session uuid")],
+    )
+    .await;
+    (
+        rows[0].get(0),
+        event
+            .tally_session_executions(&services.hasura, tally_session_id)
+            .await,
+    )
 }
 
 #[rocket::async_test]
@@ -325,19 +397,88 @@ async fn resolutions_for_a_tally_that_is_not_paused_fail() {
     let client = services.client().await;
     let (event, _, tally_session_id) = tallied(&services, "SUCCESS").await;
 
-    let response = post(
+    let response = submit_tie_break(
         &client,
-        "/submit-tally-resolution",
-        &admin(&event, Permissions::TALLY_RESOLUTION_SUBMIT),
-        &json!({
-            "election_event_id": event.election_event_id,
-            "tally_session_id": tally_session_id,
-            "resolutions": [{"contest_id": "contest", "selected_candidate_id": "candidate"}],
-        }),
+        &event,
+        &tally_session_id,
+        "contest",
+        &[Permissions::TALLY_RESOLUTION_SUBMIT],
     )
     .await;
-    let (status, _) = text(response).await;
-    assert_eq!(status, Status::InternalServerError);
+    assert_eq!(
+        json(response).await,
+        tally_validation(
+            "Tally session is not awaiting input. Current status: SUCCESS"
+        )
+    );
+    assert_eq!(
+        tally_state(&services, &event, &tally_session_id).await,
+        ("SUCCESS".into(), 1)
+    );
+}
+
+#[rocket::async_test]
+async fn a_decided_tie_break_cannot_reopen_a_cancelled_tally() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let (event, tally_session_id, contest_id) =
+        tallied_with_a_decided_tie(&services, "CANCELLED").await;
+
+    let response = submit_tie_break(
+        &client,
+        &event,
+        &tally_session_id,
+        &contest_id,
+        &[
+            Permissions::TALLY_RESOLUTION_SUBMIT,
+            Permissions::TALLY_RECOUNT_EXECUTE,
+        ],
+    )
+    .await;
+    assert_eq!(
+        json(response).await,
+        tally_validation(
+            "Tally session is not awaiting input. Current status: CANCELLED"
+        )
+    );
+    assert_eq!(
+        tally_state(&services, &event, &tally_session_id).await,
+        ("CANCELLED".into(), 1)
+    );
+    assert!(services.tasks.sent().is_empty());
+}
+
+#[rocket::async_test]
+async fn changing_a_decided_tie_break_of_a_completed_tally_needs_the_recount_permission(
+) {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let (event, tally_session_id, contest_id) =
+        tallied_with_a_decided_tie(&services, "SUCCESS").await;
+
+    let response = submit_tie_break(
+        &client,
+        &event,
+        &tally_session_id,
+        &contest_id,
+        &[Permissions::TALLY_RESOLUTION_SUBMIT],
+    )
+    .await;
+    assert_eq!(
+        json(response).await,
+        (
+            Status::Unauthorized,
+            json!({
+                "message": "Tie-break submission RecountCompletedTally is not permitted for this user",
+                "extensions": {"code": "Unauthorized"}
+            })
+        )
+    );
+    assert_eq!(
+        tally_state(&services, &event, &tally_session_id).await,
+        ("SUCCESS".into(), 1)
+    );
+    assert!(services.tasks.sent().is_empty());
 }
 
 #[rocket::async_test]
@@ -385,6 +526,13 @@ async fn tally_ceremony_routes_answer_500_when_the_database_is_unreachable() {
             json!({"election_event_id": event.election_event_id,
                 "tally_session_id": session, "status": "IN_PROGRESS"}),
         ),
+        (
+            "/submit-tally-resolution",
+            Permissions::TALLY_RESOLUTION_SUBMIT,
+            json!({"election_event_id": event.election_event_id,
+                "tally_session_id": session, "resolutions": [
+                    {"contest_id": "contest", "selected_candidate_id": "candidate"}]}),
+        ),
     ] {
         let response =
             post(&client, path, &admin(&event, permission), &body).await;
@@ -409,13 +557,6 @@ async fn tally_ceremony_routes_answer_500_when_the_database_is_unreachable() {
             Permissions::TRUSTEE_CEREMONY,
             json!({"election_event_id": event.election_event_id,
                 "tally_session_id": session, "custody_proof_json": "key"}),
-        ),
-        (
-            "/submit-tally-resolution",
-            Permissions::TALLY_RESOLUTION_SUBMIT,
-            json!({"election_event_id": event.election_event_id,
-                "tally_session_id": session, "resolutions": [
-                    {"contest_id": "contest", "selected_candidate_id": "candidate"}]}),
         ),
     ] {
         let response =
