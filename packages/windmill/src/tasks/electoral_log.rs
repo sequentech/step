@@ -34,8 +34,9 @@ use electoral_log::adapters::events::{owner_of_board, BoardOwner};
 use electoral_log::messages::message::Message;
 use electoral_log::messages::newtypes::{
     AuditLogEntry, AuditStatementKind, ErrorMessageString, EventIdString, KeycloakEventTypeString,
+    PseudonymHash,
 };
-use electoral_log::messages::statement::{StatementEventType, StatementLogType};
+use electoral_log::messages::statement::{StatementBody, StatementEventType, StatementLogType};
 use electoral_log::{ElectoralLogMessage, LogEntry};
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
