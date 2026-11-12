@@ -5,6 +5,12 @@
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
 /**
+ * Virtual voter attributes the worker derives for the one-time PIN link. A
+ * template using them gets the permission and audit of secret attributes.
+ */
+export const PIN_LINK_TEMPLATE_VARIABLES = ["pin_link_token", "pin_link_url"]
+
+/**
  * Returns the secret attributes a communication actually uses, meaning those
  * referenced inside a Handlebars expression such as `{{user.reference}}` or
  * `{{lookup user.attributes "reference"}}`. A name that only appears in prose

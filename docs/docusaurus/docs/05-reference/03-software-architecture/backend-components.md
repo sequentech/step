@@ -103,6 +103,42 @@ one is involved, the attribute names and, for generated reports, the document id
 The entry is written before the action takes effect, so an action that cannot be audited does not
 happen.
 
+### Voter PIN Link
+
+The [one-time PIN link](../../02-election_managers/01-tutorials/102-admin_portal_tutorials_voter-pin-link.md)
+is the one place outside encrypted login where a Keycloak extension decrypts a stored secret. A public
+realm resource, off by default and turned on per realm, decrypts the PIN attribute server-side for
+the single request that spends the link, and wipes it after writing the response. It needs the same
+`MASTER_SECRET`. The envelope remains bound to its voter, event and attribute, so a moved envelope
+refuses instead of decrypting.
+
+The link's token is derived, not stored. Windmill and Harvest derive it from the PIN with HMAC-SHA-256
+under an HKDF key from the master secret, scoped to tenant, event and voter, and store only its plain
+SHA-256 in a generated attribute, because envelopes cannot be searched. The token is random enough
+that a plain hash is safe for it, which would not be true of the PIN.
+
+These generated attributes are written by direct SQL and are not declared in the User Profile, so the
+account console, tokens and administrative `PUT`s neither see nor change them. Harvest and the voter
+import refuse them as input, and templates, reports and default exports strip them.
+
+Mail recipients get the token through `pin_link_token` and `pin_link_url`, which go through
+`secret_attribute_names` and therefore keep the `voter-secret-attribute-read` permission and the
+communication entry in the electoral log of any other secret attribute.
+
+Each reveal writes a `VOTER_SECRET_ATTRIBUTE: PIN_LINK_REVEAL` entry with no value. Unlike the entries
+above it names no administrator, only the voter, because a voter triggers it. The message broker confirms
+it inside the database transaction that deletes the hash: if the broker does not confirm, the
+transaction rolls back and the link stays alive. If the broker confirms and the commit then fails, the
+log shows a reveal the voter did not see. The queue is a durable classic queue, which confirms before
+it syncs to disk, so a broker crash right after the confirm can lose the entry of a reveal that
+happened.
+
+Keycloak's other events, such as the logins and the opening or refusal of a link, get no such
+confirm. They leave on a thread of their own, in order, so a broker that stops reading holds no
+request. Up to 10,000 wait in memory until it reads again, and a crash of Keycloak loses those. One
+that does not fit, or that can't be sent, is logged by Keycloak with its details as
+`Audit event was not delivered to RabbitMQ`, and does not reach the electoral log.
+
 Secret-bearing reports use private storage and require secret-read permission at download, including
 password retrieval. Ordinary document writers cannot update or delete their access metadata.
 Delivery audit entries do not contain rendered subjects or bodies. Explicitly selecting

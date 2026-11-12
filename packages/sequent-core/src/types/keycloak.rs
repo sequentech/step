@@ -123,6 +123,16 @@ pub const LAST_NAME_ATTRIBUTE: &str = "last_name";
 pub const PERMISSION_LABELS: &str = "permission_labels";
 pub const REALM_ATTR_VOTER_CERTIFICATE_POLICY: &str =
     "voter-certificate-policy";
+pub const REALM_ATTR_PIN_LINK_POLICY: &str = "pin-link-policy";
+pub const REALM_ATTR_PIN_LINK_PIN_ATTRIBUTE: &str = "pin-link-pin-attribute";
+pub const REALM_ATTR_PIN_LINK_TOKEN_HASH_ATTRIBUTE: &str =
+    "pin-link-token-hash-attribute";
+pub const REALM_ATTR_PIN_LINK_ATTEMPTS_ATTRIBUTE: &str =
+    "pin-link-attempts-attribute";
+pub const REALM_ATTR_PIN_LINK_MAX_ATTEMPTS: &str = "pin-link-max-attempts";
+pub const REALM_ATTR_PIN_LINK_EXPIRES_AT: &str = "pin-link-expires-at";
+pub const REALM_ATTR_PIN_LINK_PUBLIC_BASE_URL: &str =
+    "pin-link-public-base-url";
 pub const REALM_ATTR_CREDENTIAL_INPUT_POLICY: &str = "credential-input-policy";
 pub const REALM_ATTR_CREDENTIAL_INPUT_PATTERN: &str =
     "credential-input-pattern";
