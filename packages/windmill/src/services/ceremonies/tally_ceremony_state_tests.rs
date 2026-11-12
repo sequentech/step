@@ -523,17 +523,17 @@ async fn an_invalid_tally_type_cannot_be_started() {
 
 #[tokio::test]
 async fn a_session_without_a_tally_type_is_validated_as_electoral_results() {
-    // An open election can produce an initialization report but not results,
-    // so only the electoral results rules refuse it.
+    // An election that has not opened can produce an initialization report
+    // but not results, so only the electoral results rules refuse it.
     let ceremony = ceremony(&CONNECTED, &restored_pair());
-    let open = InMemoryTallyCeremony::default();
-    open.add_election(election("OPEN"));
+    let unopened = InMemoryTallyCeremony::default();
+    unopened.add_election(election("NOT_STARTED"));
     let start = |tally_type: Option<&str>| {
         let mut tally_session = tally_session(&CONNECTED);
         tally_session.tally_type = tally_type.map(str::to_string);
         update_tally_ceremony_with(
             &ceremony,
-            &open,
+            &unopened,
             &ceremony,
             &ceremony,
             TallyStatusChange {

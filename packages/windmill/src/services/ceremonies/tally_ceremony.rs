@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::sealed_box_ballots::event_ballot_box_seal_policy;
 use super::tally_validation::{
-    validate_ballot_boxes_sealed, validate_sealed_boxes_tallied, validate_tally_elections,
-    ExpectedBallotBox, TallyValidationError,
+    validate_ballot_boxes_sealed, validate_initialization_not_generated,
+    validate_sealed_boxes_tallied, validate_tally_elections, ExpectedBallotBox,
+    TallyValidationError,
 };
 use crate::adapters::system::RandomIds;
 use crate::adapters::tally_ceremony::{
@@ -41,7 +42,9 @@ use crate::services::election::ElectionHead;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_status;
 use crate::services::electoral_log_board::get_event_board;
-use crate::services::initialization_record::INITIALIZATION_AREA_IDS_ANNOTATION;
+use crate::services::initialization_record::{
+    initialization_area_filter, INITIALIZATION_AREA_IDS_ANNOTATION,
+};
 use crate::services::initialization_scope::check_initialization_area_filter;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
@@ -554,6 +557,12 @@ pub async fn create_tally_ceremony_with(
     let parsed_tally_type = TallyType::try_from(tally_type.as_str())
         .map_err(|_| TallyValidationError::new("Invalid tally type"))?;
     validate_tally_elections(&all_elections, &election_ids, parsed_tally_type.clone())?;
+    validate_initialization_not_generated(
+        &all_elections,
+        &election_ids,
+        &parsed_tally_type,
+        area_filter.is_some(),
+    )?;
     let contest_encryption_policy = election_event.get_contest_encryption_policy();
     let decoded_ballots_inclusion_policy = election_event.get_decoded_ballots_inclusion_policy();
     let delegated_voting_policy = election_event.get_delegated_voting_policy();
@@ -921,7 +930,13 @@ pub async fn update_tally_ceremony_with(
             .transpose()
             .map_err(|_| TallyValidationError::new("Invalid tally type"))?
             .unwrap_or_default();
-        validate_tally_elections(&elections, &election_ids, tally_type)?;
+        validate_tally_elections(&elections, &election_ids, tally_type.clone())?;
+        validate_initialization_not_generated(
+            &elections,
+            &election_ids,
+            &tally_type,
+            initialization_area_filter(&tally_session).is_some(),
+        )?;
     }
 
     let Some((tally_session_execution, _)) = sessions

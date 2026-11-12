@@ -46,6 +46,18 @@ pub fn validate_tally_elections(
                 TallyType::INITIALIZATION_REPORT if status.init_report != InitReport::ALLOWED => {
                     Some("initialization reports are not allowed")
                 }
+                TallyType::INITIALIZATION_REPORT
+                    if ![
+                        &status.voting_status,
+                        &status.kiosk_voting_status,
+                        &status.early_voting_status,
+                        &status.telephone_voting_status,
+                    ]
+                    .iter()
+                    .all(|channel_status| channel_status.is_not_started()) =>
+                {
+                    Some("generate its initialization report before any voting channel opens")
+                }
                 TallyType::INITIALIZATION_REPORT => None,
                 TallyType::ELECTORAL_RESULTS => match status.allow_tally {
                     AllowTallyStatus::ALLOWED => None,
@@ -96,6 +108,33 @@ pub fn validate_tally_elections(
         }
     }
     Ok(())
+}
+
+/// A Post gets one initialization report: once it is generated
+/// (`initialization_report_generated`), another one is refused. A report of
+/// some of its countries (`per_country`, initialization scope Post and
+/// country) is not: a country published after the Post was initialized
+/// still needs its own.
+pub fn validate_initialization_not_generated(
+    elections: &[Election],
+    selected_ids: &[String],
+    tally_type: &TallyType,
+    per_country: bool,
+) -> Result<(), TallyValidationError> {
+    if *tally_type != TallyType::INITIALIZATION_REPORT || per_country {
+        return Ok(());
+    }
+    let generated = selected_ids.iter().find(|id| {
+        elections.iter().any(|election| {
+            election.id == **id && election.initialization_report_generated == Some(true)
+        })
+    });
+    match generated {
+        Some(id) => Err(TallyValidationError::new(format!(
+            "Election {id}: its initialization report was already generated."
+        ))),
+        None => Ok(()),
+    }
 }
 
 /// A ballot box the tally counts: one area of one election, with the names
@@ -356,6 +395,7 @@ mod tests {
             TallyType::ELECTORAL_RESULTS
         )
         .is_err());
+        selected.status.as_mut().unwrap()["voting_status"] = json!("NOT_STARTED");
         assert!(validate_tally_elections(
             &[selected.clone()],
             &["selected".into()],
@@ -369,6 +409,64 @@ mod tests {
             TallyType::INITIALIZATION_REPORT
         )
         .is_err());
+    }
+
+    #[test]
+    fn initialization_report_requires_every_channel_not_started() {
+        for channel in [
+            "voting_status",
+            "kiosk_voting_status",
+            "early_voting_status",
+            "telephone_voting_status",
+        ] {
+            for status in ["OPEN", "PAUSED", "CLOSED"] {
+                let mut selected = election("selected", "NOT_STARTED");
+                selected.status.as_mut().unwrap()[channel] = json!(status);
+                selected.voting_channels = Some(json!({}));
+                let error = validate_tally_elections(
+                    &[selected],
+                    &["selected".into()],
+                    TallyType::INITIALIZATION_REPORT,
+                )
+                .unwrap_err();
+                assert!(
+                    error.to_string().contains(
+                        "Election selected: generate its initialization report before any voting channel opens"
+                    ),
+                    "{channel}: {status}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn initialization_report_is_generated_only_once() {
+        let mut selected = election("selected", "NOT_STARTED");
+        let other = election("other", "NOT_STARTED");
+        let ids = ["other".to_string(), "selected".to_string()];
+        let check = |selected: &Election, tally_type: TallyType, per_country: bool| {
+            validate_initialization_not_generated(
+                &[other.clone(), selected.clone()],
+                &ids,
+                &tally_type,
+                per_country,
+            )
+        };
+        for generated in [None, Some(false)] {
+            selected.initialization_report_generated = generated;
+            assert!(check(&selected, TallyType::INITIALIZATION_REPORT, false).is_ok());
+        }
+        selected.initialization_report_generated = Some(true);
+        let error = check(&selected, TallyType::INITIALIZATION_REPORT, false)
+            .expect_err("a second report of the Post is refused");
+        assert_eq!(
+            error.to_string(),
+            "Election selected: its initialization report was already generated."
+        );
+        // A country published after the Post was initialized gets its own
+        // report, and electoral results aren't initialization reports.
+        assert!(check(&selected, TallyType::INITIALIZATION_REPORT, true).is_ok());
+        assert!(check(&selected, TallyType::ELECTORAL_RESULTS, false).is_ok());
     }
 
     #[test]
