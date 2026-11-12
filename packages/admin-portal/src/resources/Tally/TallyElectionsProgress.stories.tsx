@@ -38,6 +38,11 @@ function Fixture({tally, executed, quorum}: Scenario) {
     return (
         <AdminStoryProvider boundary={boundary}>
             <TallyElectionsProgress
+                completeElectionIds={
+                    executed && workflow === EStoryWorkflow.RESULTS
+                        ? [COUNCIL_ELECTION.id, DEPUTY_ELECTION.id]
+                        : []
+                }
                 tally={tally ? tallySession(workflow) : undefined}
                 tallySessionExecutions={executed ? [execution] : undefined}
                 allElections={[COUNCIL_ELECTION, DEPUTY_ELECTION] as Sequent_Backend_Election[]}

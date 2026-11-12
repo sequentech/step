@@ -44,6 +44,7 @@ function Fixture({loaded, electionIds, loading, onCreateTransmissionPackage}: Sc
             <WidgetsContextProvider>
                 <TallyStoryContext data={loaded ? tallyData() : null}>
                     <TallyResults
+                        completeElectionIds={electionIds}
                         tally={tallySession(workflow, {election_ids: electionIds})}
                         resultsEventId={tallyExecution(workflow).results_event_id ?? null}
                         loading={loading}

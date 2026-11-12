@@ -282,9 +282,7 @@ async fn a_tally_status_change_the_ceremony_does_not_allow_is_a_validation_error
     .await;
     assert_eq!(
         json(response).await,
-        tally_validation(
-            "Cannot change tally status from SUCCESS to IN_PROGRESS."
-        )
+        tally_validation("Cannot change a completed tally's status")
     );
 }
 

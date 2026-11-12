@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::document::get_document;
+use crate::services::ceremonies::result_readiness::{
+    require_complete_result_document, write_origin,
+};
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
 use crate::services::compress::extract_archive_to_temp_dir;
 use crate::services::consolidation::create_transmission_package_service::download_tally_tar_gz_to_file;
@@ -12,7 +15,9 @@ use crate::services::documents::{
 use crate::services::reports::generation::{
     attach_report_manifest, manifest_of, manifest_of_document, ReportRequester, WrittenManifest,
 };
-use crate::services::tasks_execution::{update_complete, update_fail};
+use crate::services::tasks_execution::{
+    update_complete_with_annotations, update_fail_preserving_annotations,
+};
 use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::types::error::{Error as WrapError, Result as WrapResult};
 use anyhow::{anyhow, Context, Result};
@@ -116,7 +121,7 @@ pub async fn render_document_pdf_wrap(
         &hasura_transaction,
         &tenant_id,
         election_event_id.clone(),
-        tally_id,
+        tally_id.clone(),
     )
     .await?;
 
@@ -131,6 +136,13 @@ pub async fn render_document_pdf_wrap(
         return Err(anyhow!("Document not found: {}", document_id));
     };
 
+    let result_origin = require_complete_result_document(
+        &hasura_transaction,
+        &tenant_id,
+        &document,
+        tally_id.as_deref(),
+    )
+    .await?;
     let mut temp_document = get_document_as_temp_file(&tenant_id, &document).await?;
     temp_document.rewind()?;
     let mut render = String::new();
@@ -167,7 +179,7 @@ pub async fn render_document_pdf_wrap(
         .await?;
     }
 
-    let _document = upload_and_return_document_with_annotations(
+    let rendered_document = upload_and_return_document_with_annotations(
         &hasura_transaction,
         &temp_path_string,
         file_size,
@@ -181,6 +193,15 @@ pub async fn render_document_pdf_wrap(
     )
     .await?;
 
+    if let Some(origin) = result_origin {
+        write_origin(
+            &hasura_transaction,
+            &tenant_id,
+            &rendered_document.id,
+            &origin,
+        )
+        .await?;
+    }
     hasura_transaction.commit().await?;
     Ok(())
 }
@@ -239,10 +260,16 @@ pub async fn render_document_pdf_task_wrap(
     .await
     {
         Ok(_) => {
-            update_complete(&task_execution, Some(output_document_id.clone())).await?;
+            let mut annotations = task_execution
+                .annotations
+                .clone()
+                .unwrap_or_else(|| serde_json::json!({}));
+            annotations["document_id"] = serde_json::json!(output_document_id);
+            update_complete_with_annotations(&task_execution, annotations).await?;
         }
         Err(err) => {
-            update_fail(&task_execution, format!("{:?}", err).as_str()).await?;
+            update_fail_preserving_annotations(&task_execution, format!("{:?}", err).as_str())
+                .await?;
             return Err(err);
         }
     };

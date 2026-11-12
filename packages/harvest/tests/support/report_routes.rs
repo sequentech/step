@@ -22,6 +22,7 @@ use windmill::services::electoral_log::VoterSecretAttributeAction;
 const USER_ID: &str = "report-admin";
 const USERNAME: &str = "report.admin";
 const TEMPLATE_ALIAS: &str = "voter-credentials";
+const LEGACY_TALLY_ID: &str = "00000000-0000-4000-8000-000000000001";
 
 fn reader(event: &Event, permissions: &[Permissions]) -> Claims {
     Claims::new(&event.tenant_id, USER_ID)
@@ -39,7 +40,7 @@ fn render_request(event: &Event, document_id: &str) -> Value {
     json!({
         "document_id": document_id,
         "election_event_id": event.election_event_id,
-        "tally_session_id": "tally-session",
+        "tally_session_id": LEGACY_TALLY_ID,
     })
 }
 
@@ -83,7 +84,63 @@ async fn rendering_an_html_document_queues_its_pdf_behind_a_task_row() {
     assert_ne!(body["document_id"], document_id.as_str());
     assert_eq!(kwargs["task_execution"]["id"], tasks[0].id.as_str());
     assert_eq!(kwargs["executer_username"], USERNAME);
-    assert_eq!(kwargs["tally_session_id"], "tally-session");
+    assert_eq!(kwargs["tally_session_id"], LEGACY_TALLY_ID);
+}
+
+#[rocket::async_test]
+async fn an_incomplete_result_document_cannot_be_rendered_or_downloaded() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let document_id = html_document(&services, &event).await;
+    let annotations = json!({"tally_result_origin": {
+        "version": 1,
+        "tally_session_id": LEGACY_TALLY_ID,
+        "execution_id": uuid::Uuid::new_v4().to_string(),
+        "results_event_id": uuid::Uuid::new_v4().to_string(),
+        "election_id": null,
+        "complete": false,
+    }});
+    rows::execute(
+        &services.hasura,
+        "UPDATE sequent_backend.document SET annotations = $2 WHERE id = $1",
+        &[&uuid::Uuid::parse_str(&document_id).unwrap(), &annotations],
+    )
+    .await;
+
+    let (status, message) = text(
+        post(
+            &client,
+            "/render-document-pdf",
+            &reader(&event, &[Permissions::REPORT_READ]),
+            &render_request(&event, &document_id),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Conflict, "{message}");
+    assert_eq!(
+        message,
+        "Result document does not belong to a complete requested tally scope"
+    );
+    assert!(services.ledger.tasks().is_empty());
+    assert!(services.tasks.sent().is_empty());
+
+    let (status, body) = json(
+        post(
+            &client,
+            "/fetch-document",
+            &reader(&event, &[Permissions::DOCUMENT_DOWNLOAD]),
+            &json!({
+                "election_event_id": event.election_event_id,
+                "document_id": document_id,
+            }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Conflict, "{body}");
+    assert!(body.get("url").is_none(), "{body}");
 }
 
 #[rocket::async_test]
