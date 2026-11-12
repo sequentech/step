@@ -16,6 +16,7 @@ use crate::services::electoral_log_board::{
 use crate::services::electoral_log_dead_letter::{
     dead_letter_events, dead_letter_message, DeadLetterStage,
 };
+use crate::services::insert_cast_vote::hash_voter_id;
 use crate::services::monitoring::login_counter::{
     count_login_attempts_apart, login_attempt, LoginAttempt,
 };
@@ -44,6 +45,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use tracing::{event, info, instrument};
 use uuid::Uuid;
+use voting_crypto::hash::{hash_to_array, HashWrapper, HASH_LENGTH_BYTES};
 use voting_crypto::{RecordDeserialize, RistrettoCtx};
 
 /// Classifies the type of an incoming log event.
@@ -686,25 +688,90 @@ async fn build_event<L: BatchLookups + Send>(
 /// carries once both of the message's signatures verify with the election
 /// event's system key and its statement belongs to the election event the
 /// queue entry names. Every column is taken from that message, none from the
-/// queued row.
+/// queued row, and the message's unsigned metadata is bound to its statement
+/// (see `bind_metadata_to_statement`).
 fn verified_internal_message(
     input: &LogEventInput,
     signer: &ElectoralLog,
 ) -> anyhow::Result<ElectoralLogMessage> {
     let row = deserialize_str::<ElectoralLogMessage>(&input.body.as_raw())
         .context("Error parsing the body as an ElectoralLogMessage")?;
-    let message = Message::record_deserialize(&row.message)
+    let mut message = Message::record_deserialize(&row.message)
         .context("The internal record carries no signed message")?;
+    let system_pk = signer.sd.system_public_key()?;
     message
-        .verify(&signer.sd.system_public_key()?)
+        .verify(&system_pk)
         .context("The internal record is not signed with its election event's key")?;
+    ensure!(
+        message.sender.pk.to_b64_string()? == system_pk.to_b64_string()?,
+        "The internal record was not sent by its election event's key"
+    );
     ensure!(
         message.statement.head.event.0 == input.election_event_id,
         "The internal record is for election event {}, not {}",
         message.statement.head.event.0,
         input.election_event_id
     );
+    bind_metadata_to_statement(&mut message)?;
     ElectoralLogMessage::try_from(&message)
+}
+
+fn bind_metadata_to_statement(message: &mut Message) -> anyhow::Result<()> {
+    match &message.statement.body {
+        StatementBody::CastVote(election, pseudonym, vote_h, _, _)
+        | StatementBody::CastVoteWithChannel(election, pseudonym, vote_h, _, _, _) => {
+            message.election_id = election.0.clone();
+            message.ballot_id = Some(
+                vote_h
+                    .0
+                    .clone()
+                    .into_inner()
+                    .iter()
+                    .take(HASH_LENGTH_BYTES / 2)
+                    .map(|b| format!("{:02x}", b))
+                    .collect(),
+            );
+            ensure_user_has_pseudonym(message, pseudonym)?;
+        }
+        StatementBody::CastVoteError(election, pseudonym, _, _, _) => {
+            message.election_id = election.0.clone();
+            message.ballot_id = None;
+            ensure_user_has_pseudonym(message, pseudonym)?;
+        }
+        StatementBody::VoterPublicKey(_, _, pseudonym, _) => {
+            message.election_id = None;
+            message.username = None;
+            message.ballot_id = None;
+            ensure_user_has_pseudonym(message, pseudonym)?;
+        }
+        StatementBody::ExternalApiRequest(_, subject, _, _, _) => {
+            message.user_id = subject.user_id.clone();
+            message.username = subject.username.clone();
+            message.ballot_id = None;
+        }
+        _ => {}
+    }
+    if !matches!(
+        message.statement.body,
+        StatementBody::ExternalReconciliation(..)
+    ) {
+        message.artifact = None;
+    }
+    Ok(())
+}
+
+/// A voter is recorded under the hash of their serialized id, or of its
+/// bytes when the election's ballots are private.
+fn ensure_user_has_pseudonym(message: &Message, pseudonym: &PseudonymHash) -> anyhow::Result<()> {
+    if let Some(user_id) = &message.user_id {
+        let hashed = PseudonymHash(HashWrapper::new(hash_voter_id(user_id)?));
+        let private = PseudonymHash(HashWrapper::new(hash_to_array(user_id.as_bytes())?));
+        ensure!(
+            &hashed == pseudonym || &private == pseudonym,
+            "The user of the message is not the voter of its statement"
+        );
+    }
+    Ok(())
 }
 
 /// Who made a Keycloak admin event.
@@ -1402,7 +1469,14 @@ mod delivery_tests {
 mod batch_build_tests {
     use super::*;
     use crate::services::electoral_log_dead_letter::event_message;
+    use electoral_log::messages::message::SigningData;
+    use electoral_log::messages::newtypes::*;
+    use electoral_log::messages::newtypes::{
+        CastVoteHash, ElectionIdString, EventIdString, PseudonymHash, VoterCountryString,
+        VoterIpString,
+    };
     use electoral_log::messages::statement::{Statement, StatementBody};
+    use voting_crypto::hash::HashWrapper;
     use voting_crypto::signing::SigningKey;
 
     const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
@@ -1715,6 +1789,249 @@ mod batch_build_tests {
             },
             signed
         );
+    }
+
+    #[tokio::test]
+    async fn an_internal_record_from_another_sender_is_dead_lettered() {
+        let mut lookups = FakeLookups::new();
+        let sender_key = SigningKey::generate().unwrap();
+        let message = Message::send_template(
+            EventIdString(EVENT.into()),
+            ElectionIdString(None),
+            &SigningData::new(sender_key, "sender", lookups.signing_key.clone()),
+            None,
+            None,
+            Some("sent".into()),
+            None,
+        )
+        .unwrap();
+        let row: ElectoralLogMessage = (&message).try_into().unwrap();
+        let events = vec![internal_event("d1", serde_json::to_string(&row).unwrap())];
+
+        let built = build_batch(&mut lookups, &events).await.unwrap();
+
+        assert!(built.by_board.is_empty());
+        assert!(built.dead_letters[0].1.contains("not sent by"));
+    }
+
+    #[tokio::test]
+    async fn an_internal_record_whose_embedded_voter_was_edited_is_dead_lettered() {
+        let mut lookups = FakeLookups::new();
+        let mut message = Message::cast_vote_message(
+            EventIdString(EVENT.into()),
+            ElectionIdString(Some("election-id".into())),
+            PseudonymHash(HashWrapper::new(hash_voter_id("voter-id").unwrap())),
+            CastVoteHash::new([2; 64]),
+            &SigningData::new(lookups.signing_key.clone(), "", lookups.signing_key.clone()),
+            VoterIpString("ip".into()),
+            VoterCountryString("country".into()),
+            Some("voter-id".into()),
+            None,
+            "area-id".into(),
+        )
+        .unwrap();
+        message.user_id = Some("other-voter-id".into());
+        let row: ElectoralLogMessage = (&message).try_into().unwrap();
+        let events = vec![internal_event("d1", serde_json::to_string(&row).unwrap())];
+
+        let built = build_batch(&mut lookups, &events).await.unwrap();
+
+        assert!(built.by_board.is_empty());
+        assert!(built.dead_letters[0].1.contains("not the voter"));
+    }
+
+    fn system_signing_data() -> SigningData {
+        let system_sk = SigningKey::generate().expect("system key");
+        SigningData::new(system_sk.clone(), "", system_sk)
+    }
+
+    fn pseudonym_of(voter_id: &str) -> PseudonymHash {
+        PseudonymHash(HashWrapper::new(
+            hash_voter_id(voter_id).expect("pseudonym"),
+        ))
+    }
+
+    fn signed_cast_vote(voter_id: &str, pseudonym: PseudonymHash) -> Message {
+        Message::cast_vote_with_channel_message(
+            EventIdString("event-id".to_string()),
+            ElectionIdString(Some("election-id".to_string())),
+            pseudonym,
+            CastVoteHash::new([2; 64]),
+            &system_signing_data(),
+            VoterIpString("ip".to_string()),
+            VoterCountryString("country".to_string()),
+            VotingChannelString("ONLINE".to_string()),
+            Some(voter_id.to_string()),
+            Some("voter".to_string()),
+            "area-id".to_string(),
+        )
+        .expect("cast vote")
+    }
+
+    #[test]
+    fn cast_vote_metadata_is_bound_to_the_statement() {
+        let mut message = signed_cast_vote("voter-id", pseudonym_of("voter-id"));
+        message.election_id = Some("other-election-id".to_string());
+        message.ballot_id = Some("ff".repeat(HASH_LENGTH_BYTES / 2));
+        message.artifact = Some(b"forged".to_vec());
+
+        bind_metadata_to_statement(&mut message).expect("bound");
+
+        assert_eq!(message.election_id.as_deref(), Some("election-id"));
+        assert_eq!(
+            message.ballot_id.as_deref(),
+            Some("02".repeat(HASH_LENGTH_BYTES / 2).as_str())
+        );
+        assert_eq!(message.artifact, None);
+        assert_eq!(message.user_id.as_deref(), Some("voter-id"));
+    }
+
+    #[test]
+    fn legacy_cast_vote_metadata_is_bound_to_the_statement() {
+        let mut message = Message::cast_vote_message(
+            EventIdString("event-id".to_string()),
+            ElectionIdString(Some("election-id".to_string())),
+            pseudonym_of("voter-id"),
+            CastVoteHash::new([2; 64]),
+            &system_signing_data(),
+            VoterIpString("ip".to_string()),
+            VoterCountryString("country".to_string()),
+            Some("voter-id".to_string()),
+            None,
+            "area-id".to_string(),
+        )
+        .expect("cast vote");
+        message.election_id = None;
+
+        bind_metadata_to_statement(&mut message).expect("bound");
+
+        assert_eq!(message.election_id.as_deref(), Some("election-id"));
+    }
+
+    #[test]
+    fn a_cast_vote_of_another_user_is_rejected() {
+        let mut message = signed_cast_vote("voter-id", pseudonym_of("voter-id"));
+        message.user_id = Some("other-voter-id".to_string());
+
+        assert!(bind_metadata_to_statement(&mut message).is_err());
+    }
+
+    #[test]
+    fn a_private_ballot_pseudonym_is_the_hash_of_the_user_id_bytes() {
+        let private = PseudonymHash(HashWrapper::new(
+            hash_to_array("voter-id".as_bytes()).expect("hash"),
+        ));
+        let mut message = signed_cast_vote("voter-id", private);
+
+        bind_metadata_to_statement(&mut message).expect("bound");
+
+        assert_eq!(message.user_id.as_deref(), Some("voter-id"));
+    }
+
+    #[test]
+    fn a_cast_vote_without_user_is_bound_without_a_user_check() {
+        let mut message = signed_cast_vote("voter-id", pseudonym_of("voter-id"));
+        message.user_id = None;
+
+        bind_metadata_to_statement(&mut message).expect("bound");
+
+        assert_eq!(message.user_id, None);
+    }
+
+    #[test]
+    fn cast_vote_error_metadata_is_bound_to_the_statement() {
+        let mut message = Message::cast_vote_error_message(
+            EventIdString("event-id".to_string()),
+            ElectionIdString(Some("election-id".to_string())),
+            pseudonym_of("voter-id"),
+            CastVoteErrorString("error".to_string()),
+            &system_signing_data(),
+            VoterIpString("ip".to_string()),
+            VoterCountryString("country".to_string()),
+            Some("voter-id".to_string()),
+            "area-id".to_string(),
+        )
+        .expect("cast vote error");
+        message.election_id = Some("other-election-id".to_string());
+        message.ballot_id = Some("ff".repeat(HASH_LENGTH_BYTES / 2));
+
+        bind_metadata_to_statement(&mut message).expect("bound");
+
+        assert_eq!(message.election_id.as_deref(), Some("election-id"));
+        assert_eq!(message.ballot_id, None);
+    }
+
+    #[test]
+    fn voter_public_key_metadata_is_bound_to_its_pseudonym() {
+        let signed = |voter_id: &str| {
+            Message::voter_public_key_message(
+                TenantIdString("tenant-id".to_string()),
+                EventIdString("event-id".to_string()),
+                pseudonym_of("voter-id"),
+                PublicKeyDerB64("pk".to_string()),
+                &system_signing_data(),
+                Some(voter_id.to_string()),
+                Some("voter".to_string()),
+                Some("area-id".to_string()),
+            )
+            .expect("voter public key")
+        };
+        let mut message = signed("voter-id");
+        message.election_id = Some("other-election-id".to_string());
+        message.ballot_id = Some("ff".repeat(HASH_LENGTH_BYTES / 2));
+
+        bind_metadata_to_statement(&mut message).expect("bound");
+
+        assert_eq!(message.election_id, None);
+        assert_eq!(message.username, None);
+        assert_eq!(message.ballot_id, None);
+        let mut forged = signed("other-voter-id");
+        assert!(bind_metadata_to_statement(&mut forged).is_err());
+    }
+
+    #[test]
+    fn external_api_request_subject_is_taken_from_the_statement() {
+        let mut message = Message::external_api_request_message(
+            EventIdString("event-id".to_string()),
+            ElectionIdString(None),
+            &system_signing_data(),
+            Some("voter-id".to_string()),
+            Some("voter".to_string()),
+            ExtApiRequestDirection::Outbound,
+            ExtApiName::Other,
+            "operation".to_string(),
+        )
+        .expect("external api request");
+        message.user_id = Some("other-voter-id".to_string());
+        message.username = Some("other-voter".to_string());
+        message.ballot_id = Some("ff".repeat(HASH_LENGTH_BYTES / 2));
+
+        bind_metadata_to_statement(&mut message).expect("bound");
+
+        assert_eq!(message.user_id.as_deref(), Some("voter-id"));
+        assert_eq!(message.username.as_deref(), Some("voter"));
+        assert_eq!(message.ballot_id, None);
+    }
+
+    #[test]
+    fn only_a_reconciliation_keeps_its_artifact() {
+        let mut reconciliation = Message::external_reconciliation_message(
+            EventIdString("event-id".to_string()),
+            ExternalReconciliationKind::PatchGenerated,
+            ExternalReconciliationSequenceString("1".to_string()),
+            ExternalReconciliationGeneratedAtString("2".to_string()),
+            ExternalReconciliationInputHashString("in".to_string()),
+            ExternalReconciliationOutputHashString(None),
+            Some(b"artifact".to_vec()),
+            &system_signing_data(),
+            None,
+            None,
+        )
+        .expect("reconciliation");
+
+        bind_metadata_to_statement(&mut reconciliation).expect("bound");
+
+        assert_eq!(reconciliation.artifact, Some(b"artifact".to_vec()));
     }
 
     #[tokio::test]
