@@ -727,20 +727,6 @@ mod tests {
     }
 
     #[test]
-    fn rejects_marks_beyond_the_counter_range_within_the_mark_bound() {
-        let content = sheet_with_candidate_votes(
-            MAX_TALLY_COUNT,
-            MAX_TALLY_COUNT,
-            &[MAX_TALLY_COUNT, 1],
-        );
-
-        assert_eq!(
-            error_codes(&content, Some(2)),
-            vec!["invalid_total_valid_votes"]
-        );
-    }
-
-    #[test]
     fn rejects_a_total_beyond_the_counter_range() {
         let total = MAX_TALLY_COUNT + 1;
         let content = sheet_with_candidate_votes(total, total, &[total]);
@@ -780,11 +766,18 @@ mod tests {
     }
 
     #[test]
-    fn accepts_multi_mark_candidate_votes_summing_beyond_the_counter_range() {
-        let content =
-            sheet_with_candidate_votes(u64::MAX, u64::MAX, &[u64::MAX, 1]);
+    fn rejects_multi_mark_candidate_votes_summing_beyond_the_counter_range() {
+        let content = sheet_with_candidate_votes(
+            MAX_TALLY_COUNT,
+            MAX_TALLY_COUNT,
+            &[MAX_TALLY_COUNT, 1],
+        );
 
-        assert!(error_codes(&content, Some(2)).is_empty());
+        // Tally processing cannot represent this sum, whatever the mark bound.
+        assert_eq!(
+            error_codes(&content, Some(2)),
+            vec!["invalid_total_valid_votes"]
+        );
         assert_eq!(
             error_codes(&content, Some(1)),
             vec!["invalid_total_valid_votes"]
