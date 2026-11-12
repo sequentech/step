@@ -30,6 +30,7 @@ use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use serde::{Deserialize, Serialize};
+use std::future::Future;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignaturePk;
 use tracing::{info, instrument, warn};
@@ -173,20 +174,20 @@ fn verified_internal_message(
 }
 
 /// The public key of each board's protocol manager, which signs the board's
-/// internal messages. A board keeps its protocol manager for its whole life.
+/// internal messages, as last read. A message that does not verify against
+/// the cached key is checked again with the key read anew, which replaces the
+/// cached one, so a board recreated under the same name with a new protocol
+/// manager is picked up without a restart.
 static BOARD_SYSTEM_PKS: Lazy<DashMap<String, StrandSignaturePk>> = Lazy::new(DashMap::new);
 
-/// The public key of the protocol manager that signs the internal messages of
-/// a board, read once per board.
+/// Reads the public key of the protocol manager that signs the internal
+/// messages of a board and caches it in place of the board's cached key.
 async fn board_system_pk(
     hasura_tx: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     board: &str,
 ) -> anyhow::Result<StrandSignaturePk> {
-    if let Some(system_pk) = BOARD_SYSTEM_PKS.get(board) {
-        return Ok(system_pk.clone());
-    }
     let protocol_manager =
         get_protocol_manager::<RistrettoCtx>(hasura_tx, tenant_id, Some(election_event_id), board)
             .await
@@ -195,6 +196,27 @@ async fn board_system_pk(
         .with_context(|| "Error getting protocol manager public key")?;
     BOARD_SYSTEM_PKS.insert(board.to_string(), system_pk.clone());
     Ok(system_pk)
+}
+
+/// Checks a message with the cached key and, when there is no cached key or
+/// the message does not verify against it, with the current key that
+/// `read_current_key` reads. The outer error is that read's, so the event is
+/// retried; the inner result is the check's.
+async fn verify_with_cached_or_current_key<K, T, Fut>(
+    cached_key: Option<K>,
+    read_current_key: impl FnOnce() -> Fut,
+    verify: impl Fn(&K) -> anyhow::Result<T>,
+) -> anyhow::Result<anyhow::Result<T>>
+where
+    Fut: Future<Output = anyhow::Result<K>>,
+{
+    if let Some(cached_key) = cached_key {
+        if let Ok(verified) = verify(&cached_key) {
+            return Ok(Ok(verified));
+        }
+    }
+    let current_key = read_current_key().await?;
+    Ok(verify(&current_key))
 }
 
 /// Builds the entries of one event. Errors from the databases or the vault are
@@ -231,9 +253,16 @@ async fn prepare_log_event(
 
     let messages = match &input.message_type {
         LogMessageType::Internal => {
-            let system_pk =
-                board_system_pk(hasura_tx, &input.tenant_id, &election_event.id, &board).await?;
-            verified_internal_message(input, &system_pk).map(|message| vec![message])
+            let cached_pk = BOARD_SYSTEM_PKS
+                .get(board.as_str())
+                .map(|system_pk| system_pk.value().clone());
+            verify_with_cached_or_current_key(
+                cached_pk,
+                || board_system_pk(hasura_tx, &input.tenant_id, &election_event.id, &board),
+                |system_pk: &StrandSignaturePk| verified_internal_message(input, system_pk),
+            )
+            .await?
+            .map(|message| vec![message])
         }
         LogMessageType::KeycloakEvent(event_type) => {
             let user_id = input
@@ -691,6 +720,92 @@ mod internal_message_tests {
         };
 
         assert!(verified_internal_message(&input, &system_pk).is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn a_message_signed_with_a_new_board_key_is_accepted_after_reading_it(
+    ) -> anyhow::Result<()> {
+        let cached_pk = StrandSignaturePk::from_sk(&StrandSignatureSk::r#gen()?)?;
+        let new_sk = StrandSignatureSk::r#gen()?;
+        let new_pk = StrandSignaturePk::from_sk(&new_sk)?;
+        let input = queued_cast_vote(&new_sk)?;
+        let mut read = false;
+
+        let message = verify_with_cached_or_current_key(
+            Some(cached_pk),
+            || {
+                read = true;
+                async move { Ok::<_, anyhow::Error>(new_pk) }
+            },
+            |system_pk: &StrandSignaturePk| verified_internal_message(&input, system_pk),
+        )
+        .await??;
+
+        assert!(read);
+        assert_eq!(message.statement_kind, "CastVote");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn a_message_signed_with_an_unknown_key_is_rejected_after_reading_the_board_key(
+    ) -> anyhow::Result<()> {
+        let input = queued_cast_vote(&StrandSignatureSk::r#gen()?)?;
+        let cached_pk = StrandSignaturePk::from_sk(&StrandSignatureSk::r#gen()?)?;
+        let new_pk = StrandSignaturePk::from_sk(&StrandSignatureSk::r#gen()?)?;
+        let mut read = false;
+
+        let verified = verify_with_cached_or_current_key(
+            Some(cached_pk),
+            || {
+                read = true;
+                async move { Ok::<_, anyhow::Error>(new_pk) }
+            },
+            |system_pk: &StrandSignaturePk| verified_internal_message(&input, system_pk),
+        )
+        .await?;
+
+        assert!(read);
+        assert!(verified.is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn a_message_signed_with_the_cached_key_is_accepted_without_reading_the_board_key(
+    ) -> anyhow::Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let cached_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let input = queued_cast_vote(&system_sk)?;
+        let mut read = false;
+
+        let message = verify_with_cached_or_current_key(
+            Some(cached_pk),
+            || {
+                read = true;
+                async { Err::<StrandSignaturePk, _>(anyhow!("the board key is read")) }
+            },
+            |system_pk: &StrandSignaturePk| verified_internal_message(&input, system_pk),
+        )
+        .await??;
+
+        assert!(!read);
+        assert_eq!(message.statement_kind, "CastVote");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn an_error_reading_the_board_key_is_returned_as_an_error() -> anyhow::Result<()> {
+        let input = queued_cast_vote(&StrandSignatureSk::r#gen()?)?;
+        let cached_pk = StrandSignaturePk::from_sk(&StrandSignatureSk::r#gen()?)?;
+
+        let verified = verify_with_cached_or_current_key(
+            Some(cached_pk),
+            || async { Err::<StrandSignaturePk, _>(anyhow!("vault unavailable")) },
+            |system_pk: &StrandSignaturePk| verified_internal_message(&input, system_pk),
+        )
+        .await;
+
+        assert!(verified.is_err());
         Ok(())
     }
 }
