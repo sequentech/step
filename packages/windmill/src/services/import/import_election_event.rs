@@ -564,17 +564,20 @@ fn user_profile_config(component: &ComponentExportRepresentation) -> Option<serd
 /// undeclared attribute editable. Attributes only the upload declares stay:
 /// the claim mappers are already reduced to the template's, which read
 /// template attributes only. A missing or unreadable profile is replaced with
-/// the template's.
+/// the template's. A template without a readable profile fails the import,
+/// since it is the baseline the uploaded permissions are checked against.
 fn reconcile_user_profile(
     realm: &mut RealmRepresentation,
     template: &RealmRepresentation,
     discarded: &mut Vec<String>,
-) {
-    let Some(template_component) = user_profile_component(template) else {
-        return;
-    };
-    let Some(template_profile) = user_profile_config(template_component) else {
-        return;
+) -> Result<()> {
+    let Some((template_component, template_profile)) = user_profile_component(template)
+        .and_then(|component| Some((component, user_profile_config(component)?)))
+    else {
+        return Err(anyhow!(
+            "The realm template has no readable user profile, so the imported realm's \
+             user-profile permissions can't be checked"
+        ));
     };
 
     let Some(mut profile) = user_profile_component(realm).and_then(user_profile_config) else {
@@ -586,7 +589,7 @@ fn reconcile_user_profile(
             .insert(USER_PROFILE_PROVIDER_COMPONENT.to_string(), vec![component]);
         discarded
             .push("user profile (missing or unreadable, replaced with the template's)".to_string());
-        return;
+        return Ok(());
     };
 
     let template_attributes: Vec<serde_json::Value> = template_profile["attributes"]
@@ -662,6 +665,7 @@ fn reconcile_user_profile(
             );
         }
     }
+    Ok(())
 }
 
 /// Reconcile an uploaded election-event realm against the platform template so
@@ -924,7 +928,7 @@ fn sanitize_imported_event_realm(
 
     // 9. User profile: users must not be able to edit the attributes the
     //    claims come from.
-    reconcile_user_profile(&mut realm, template, &mut discarded);
+    reconcile_user_profile(&mut realm, template, &mut discarded)?;
 
     if !discarded.is_empty() {
         match reconciliation {
@@ -2769,6 +2773,45 @@ mod imported_realm_sanitization_tests {
             user_profile(&sanitize(&realm)),
             user_profile(&template_realm())
         );
+    }
+
+    #[test]
+    fn a_template_without_a_readable_user_profile_fails_the_import() {
+        let tampered = with_user_profile(|profile| {
+            for attribute in profile["attributes"].as_array_mut().unwrap() {
+                if attribute["name"] == "tenant-id" {
+                    attribute["permissions"]["edit"] = serde_json::json!(["admin", "user"]);
+                }
+            }
+        });
+        let mut without_profile = template_realm();
+        without_profile
+            .components
+            .as_mut()
+            .unwrap()
+            .remove(USER_PROFILE_PROVIDER_COMPONENT);
+        let mut unreadable_profile = template_realm();
+        unreadable_profile
+            .components
+            .as_mut()
+            .and_then(|components| components.get_mut(USER_PROFILE_PROVIDER_COMPONENT))
+            .and_then(|components| components.first_mut())
+            .and_then(|component| component.config.as_mut())
+            .expect("template has a user-profile config")
+            .insert(
+                USER_PROFILE_CONFIG_KEY.to_string(),
+                vec!["not a profile".to_string()],
+            );
+
+        for template in [without_profile, unreadable_profile] {
+            let error = sanitize_imported_event_realm(
+                &tampered,
+                &template,
+                ImportedRealmReconciliation::AlignWithTemplate,
+            )
+            .expect_err("the uploaded permissions can't be checked without the template's");
+            assert!(error.to_string().contains("no readable user profile"));
+        }
     }
 
     const REALM_ADMIN_CLIENT: &str = "realm-management";
