@@ -385,6 +385,44 @@ pub enum StatementType {
     PlaintextsSigned = 12,
 }
 
+/// The configuration member that signs each statement type.
+#[derive(Clone, Copy, PartialEq, Eq, Display, Debug)]
+pub enum StatementSigner {
+    ProtocolManager,
+    Trustee,
+}
+
+impl StatementSigner {
+    pub fn from_position(position: TrusteePosition) -> StatementSigner {
+        if position == PROTOCOL_MANAGER_INDEX {
+            StatementSigner::ProtocolManager
+        } else {
+            StatementSigner::Trustee
+        }
+    }
+}
+
+impl StatementType {
+    pub fn signer(&self) -> StatementSigner {
+        match self {
+            StatementType::Configuration | StatementType::Ballots => {
+                StatementSigner::ProtocolManager
+            }
+            StatementType::ConfigurationSigned
+            | StatementType::Channel
+            | StatementType::ChannelsAllSigned
+            | StatementType::Shares
+            | StatementType::PublicKey
+            | StatementType::PublicKeySigned
+            | StatementType::Mix
+            | StatementType::MixSigned
+            | StatementType::DecryptionFactors
+            | StatementType::Plaintexts
+            | StatementType::PlaintextsSigned => StatementSigner::Trustee,
+        }
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // Manual serialization necessary as [u8; 64] does not implement Default
 ///////////////////////////////////////////////////////////////////////////
