@@ -754,6 +754,15 @@ pub async fn update_tally_ceremony(
             .transpose()
             .map_err(|_| TallyValidationError::new("Invalid tally type"))?
             .unwrap_or_default();
+        // Same lock order as finalization and recounts: session row first,
+        // then the election rows.
+        lock_tally_session_for_update(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &tally_session.id,
+        )
+        .await?;
         reserve_tally_admission(
             hasura_transaction,
             &tenant_id,
@@ -1249,6 +1258,15 @@ mod tests {
     use crate::postgres::election::LOCK_ELECTIONS_FOR_ADMISSION_SQL;
     use crate::postgres::tally_session::FIND_BLOCKING_INITIALIZATION_REPORT_SQL;
     use sequent_core::ballot::Contest as SequentContest;
+
+    #[test]
+    fn moving_to_in_progress_locks_the_session_before_the_elections() {
+        let source = include_str!("tally_ceremony.rs");
+        let body = &source[source.find("pub async fn update_tally_ceremony(").unwrap()..];
+        let session_lock = body.find("lock_tally_session_for_update(").unwrap();
+        let election_lock = body.find("reserve_tally_admission(").unwrap();
+        assert!(session_lock < election_lock);
+    }
 
     #[test]
     fn admission_locks_election_rows_in_a_fixed_order() {
