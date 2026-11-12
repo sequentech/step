@@ -5,21 +5,30 @@
 #
 # Points the Scanovate identity verification steps of a realm to the Scanovate
 # services hosted on premise (OCR, Liveness Plus and Face Match), and removes
-# the settings of the B-Trust cloud integration that preceded them.
+# the settings of the integrations that preceded them: the B-Trust cloud, and
+# our own capture page.
 #
 # Usage:
 #   configure-realm.sh configure <realm>
 #
 # Environment:
-#   SCANOVATE_OCR_URL: OCR URL as Keycloak reaches it. Required.
-#   SCANOVATE_LIVENESS_URL, SCANOVATE_LIVENESS_SECRET, SCANOVATE_FACE_MATCH_URL:
-#     Liveness Plus URL as the browser reaches it, its callback secret, and
-#     the Face Match URL as Keycloak reaches it. Required.
+#   SCANOVATE_LIVENESS_URL, SCANOVATE_LIVENESS_SECRET, SCANOVATE_FACE_MATCH_URL,
+#   SCANOVATE_DOCUMENT_LIVENESS_URL:
+#     base URL of the OCR and Liveness Plus pages as the browser reaches them
+#     (https://<keycloak host>/biometric), their callback secret, and the Face
+#     Match and Document Liveness URLs as Keycloak reaches them. Required.
+#   SCANOVATE_DOCUMENT_LIVENESS_PIPELINES: document-liveness-pipelines, default
+#     default-sr,default-pc,default-ps,default-dm (each enabled in the
+#     service's IDLIVEDOC_SERVER_AVAILABLE_PIPELINES).
 #   SCANOVATE_OCR_TYPES: ocr-types, default {"default": "passport"}.
 #   SCANOVATE_FACE_MATCH_MIN_SIMILARITY: face-match-min-similarity, default
 #     {"default": 0.67}.
-#   SCANOVATE_CAPTURE_SIDES: capture-sides, default the passport's front only
-#     and both sides of any other document.
+#   SCANOVATE_HOLDING_PHOTO: holding-photo, REQUIRED (the default: the voter
+#     also takes a photo holding their document, matched with their live face)
+#     or NONE.
+#   SCANOVATE_HOLDING_SECONDS: if set, video-seconds, the seconds the voter
+#     holds still with the document before the holding photo is taken
+#     (default 5).
 #   SCANOVATE_LOGIN_THEME: if set, the login theme of the realm, and of its
 #     clients that set their own, e.g. sequent-ui-voting, which has the
 #     capture page.
@@ -77,7 +86,8 @@ scanovate_config_ids() {
 
 configure() {
   local realm="$1"
-  require SCANOVATE_OCR_URL SCANOVATE_LIVENESS_URL SCANOVATE_LIVENESS_SECRET SCANOVATE_FACE_MATCH_URL
+  require SCANOVATE_LIVENESS_URL SCANOVATE_LIVENESS_SECRET SCANOVATE_FACE_MATCH_URL \
+    SCANOVATE_DOCUMENT_LIVENESS_URL
   local token admin config_ids config_id config updated
   token="$(keycloak_admin_token)"
   admin="$KEYCLOAK_URL/admin/realms/$realm/authentication"
@@ -87,30 +97,34 @@ configure() {
     config="$(curl -sSf -H "Authorization: Bearer $token" "$admin/config/$config_id")"
     updated="$(
       jq \
-        --arg ocr_url "$SCANOVATE_OCR_URL" \
         --arg ocr_types "${SCANOVATE_OCR_TYPES:-{\"default\": \"passport\"\}}" \
         --arg liveness_url "$SCANOVATE_LIVENESS_URL" \
         --arg liveness_secret "$SCANOVATE_LIVENESS_SECRET" \
         --arg face_match_url "$SCANOVATE_FACE_MATCH_URL" \
+        --arg document_liveness_url "$SCANOVATE_DOCUMENT_LIVENESS_URL" \
+        --arg document_liveness_pipelines "${SCANOVATE_DOCUMENT_LIVENESS_PIPELINES:-default-sr,default-pc,default-ps,default-dm}" \
         --arg min_similarity "${SCANOVATE_FACE_MATCH_MIN_SIMILARITY:-{\"default\": 0.67\}}" \
-        --arg capture_sides "${SCANOVATE_CAPTURE_SIDES:-{\"philippinePassport\": [\"front\"], \"default\": [\"front\", \"back\"]\}}" \
+        --arg holding_photo "${SCANOVATE_HOLDING_PHOTO:-REQUIRED}" \
+        --arg holding_seconds "${SCANOVATE_HOLDING_SECONDS:-}" \
         '.config |= (
           del(."base-url", ."client-id", ."client-secret", ."flow-id", ."execution-mode",
               ."save-option", ."link-params", ."doc-id", ."face-capture", ."max-retries",
-              ."max-video-bytes")
+              ."max-video-bytes", ."ocr-url", ."capture-sides", ."max-image-bytes")
           + {
-            "ocr-url": $ocr_url,
             "ocr-types": $ocr_types,
             "liveness-url": $liveness_url,
             "liveness-secret": $liveness_secret,
             "face-match-url": $face_match_url,
             "face-match-min-similarity": $min_similarity,
-            "capture-sides": $capture_sides
-          })' <<<"$config"
+            "document-liveness-url": $document_liveness_url,
+            "document-liveness-pipelines": $document_liveness_pipelines,
+            "holding-photo": $holding_photo
+          }
+          + (if $holding_seconds == "" then {} else {"video-seconds": $holding_seconds} end))' <<<"$config"
     )"
     curl -sSf -X PUT -H "Authorization: Bearer $token" -H "Content-Type: application/json" \
       --data "$updated" "$admin/config/$config_id"
-    echo "Updated $(jq -r .alias <<<"$config") in $realm: $SCANOVATE_OCR_URL, $SCANOVATE_LIVENESS_URL, $SCANOVATE_FACE_MATCH_URL"
+    echo "Updated $(jq -r .alias <<<"$config") in $realm: $SCANOVATE_LIVENESS_URL, $SCANOVATE_FACE_MATCH_URL, $SCANOVATE_DOCUMENT_LIVENESS_URL"
     # Rules written for B-Trust read processes that no longer exist and fail every voter
     if jq -e '[.config["attributes-to-validate"], .config["attributes-to-store"]]
         | map(select(. != null and . != "") | fromjson | .[][] | .process // empty)

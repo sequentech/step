@@ -18,9 +18,7 @@ import {
     cleanConditions,
     cleanMatrix,
     conditionLabels,
-    defaultEnrollment,
     deleteRule,
-    enrollmentFor,
     humanizeField,
     matrixChanges,
     moveRule,
@@ -405,28 +403,6 @@ describe("matrixChanges", () => {
         const draft = withComparedFields(comelec(), ["firstName", "lastName", "embassy"])
         draft.otherwise = {decision: PENDING, reason: EMatrixReason.NO_VOTER}
         expect(changes(draft)).toEqual(["The details compared changed", "The last rule changed"])
-    })
-})
-
-describe("test enrollment", () => {
-    it("starts from a verified voter whose fields match", () => {
-        expect(defaultEnrollment(["firstName", "embassy"])).toEqual({
-            identity: EIdentityMethod.VERIFIED,
-            voter_found: true,
-            already_enrolled: false,
-            valid_id: null,
-            fields: {firstName: EFieldMatch.MATCHES, embassy: EFieldMatch.MATCHES},
-        })
-    })
-
-    it("follows the compared fields", () => {
-        const enrollment = defaultEnrollment(["firstName", "embassy"])
-        enrollment.fields.embassy = EFieldMatch.DIFFERS
-
-        expect(enrollmentFor(enrollment, ["embassy", "lastName"]).fields).toEqual({
-            embassy: EFieldMatch.DIFFERS,
-            lastName: EFieldMatch.MATCHES,
-        })
     })
 })
 

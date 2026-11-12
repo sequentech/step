@@ -334,6 +334,9 @@ jobs:
 
   build-and-push:
     if: ${{ github.event.inputs.infra_only == 'false' }}
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/reusable_build_push.yml
     needs: release
     secrets:

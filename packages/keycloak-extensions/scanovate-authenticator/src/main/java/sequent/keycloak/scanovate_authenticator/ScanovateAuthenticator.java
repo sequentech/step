@@ -4,13 +4,11 @@
 package sequent.keycloak.scanovate_authenticator;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.MultivaluedMap;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -19,12 +17,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.events.EventBuilder;
-import org.keycloak.forms.login.LoginFormsProvider;
+import org.keycloak.headers.SecurityHeadersProvider;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
@@ -35,27 +34,34 @@ import org.keycloak.userprofile.UserProfileProvider;
 import sequent.keycloak.authenticator.StepBack;
 import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics;
 import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics.ConfigComponent;
+import sequent.keycloak.scanovate_authenticator.DocumentLivenessClient.DocumentLivenessOutcome;
+import sequent.keycloak.scanovate_authenticator.DocumentLivenessClient.DocumentLivenessResult;
 import sequent.keycloak.scanovate_authenticator.FaceMatchClient.FaceComparison;
 import sequent.keycloak.scanovate_authenticator.FaceMatchClient.FaceMatchOutcome;
-import sequent.keycloak.scanovate_authenticator.LivenessSessions.LivenessResult;
+import sequent.keycloak.scanovate_authenticator.OnPremSessions.SessionResult;
 import sequent.keycloak.voter_enrollment.IdentityMethod;
 import sequent.keycloak.voter_enrollment.LookupAndUpdateUser;
 import sequent.keycloak.voter_enrollment.Utils;
 
 /**
- * Verifies the voter's identity with the Scanovate services hosted on premise. Nothing is sent to
- * any third party.
+ * Verifies the voter's identity with the Scanovate services hosted on premise, integrated as
+ * Scanovate documents them. Nothing is sent to any third party.
  *
- * <p>The voter captures the photos in Keycloak's own page: the sides of their document, and a photo
- * of them holding it next to their face. The page uploads each photo to Keycloak on its own before
- * submitting the capture, see {@link CaptureUploads}. The page also checks the voter's liveness
- * with the Liveness Plus API, whose verdict and picture of the voter reach Keycloak server to
- * server, see {@link LivenessSessions}.
+ * <p>The voter goes through the services' own capture pages, which Keycloak's page embeds one after
+ * the other: OCR scans their document, and Liveness Plus checks that they are a live person in
+ * front of the camera. Each service starts its session with a one-time token issued by Keycloak and
+ * posts its result to Keycloak server to server, see {@link OnPremSessions}: the voter's browser
+ * never carries a verdict.
  *
- * <p>Keycloak then compares that picture with the photo of the document and with the photo holding
- * it, using Face Match, reads the document sides with the OCR service, validates the results
- * against the configured rules, and stores the extracted attributes as auth notes for the voter to
- * confirm.
+ * <p>Unless its {@link HoldingPhotoPolicy} is {@link HoldingPhotoPolicy#NONE}, the voter then takes
+ * a photo of themselves holding their document on Keycloak's page, which uploads it with a one-time
+ * token, see {@link HoldingPhotos}.
+ *
+ * <p>Keycloak checks the photo of the document OCR read with Document Liveness, which tells a
+ * physical document from one shown on a screen or, with its other checks, printed or edited. It
+ * then compares the portrait OCR read from the document, and the photo holding it, with the live
+ * face, using Face Match, validates what OCR read against the configured rules, and stores the
+ * extracted attributes as auth notes for the voter to confirm.
  *
  * <p>Only a verification this step completed, and the voter confirmed when there was something to
  * confirm, sets the {@link LookupAndUpdateUser#IDENTITY_METHOD} note to {@link
@@ -65,7 +71,8 @@ import sequent.keycloak.voter_enrollment.Utils;
 public class ScanovateAuthenticator implements Authenticator {
   static final String CASE_ID_NOTE = "scanovate-case-id";
   static final String LIVENESS_TOKEN_NOTE = "scanovate-liveness-token";
-  static final String CAPTURE_TOKEN_NOTE = "scanovate-capture-token";
+  static final String OCR_TOKEN_NOTE = "scanovate-ocr-token";
+  static final String HOLDING_TOKEN_NOTE = "scanovate-holding-token";
   static final String ATTEMPTS_NOTE = "scanovate-attempts";
 
   /**
@@ -87,56 +94,42 @@ public class ScanovateAuthenticator implements Authenticator {
   static final String FTL_ATTEMPTS_LEFT = "attemptsLeft";
   static final String FTL_MAX_ATTEMPTS = "maxAttempts";
   static final String FTL_SCANOVATE = "scanovate";
-  static final String FTL_SIDES = "sides";
-  static final String FTL_FORMAT = "format";
-  static final String FTL_VIDEO_SECONDS = "videoSeconds";
+  static final String FTL_OCR = "ocr";
   static final String FTL_LIVENESS = "liveness";
-  static final String FTL_LIVENESS_URL = "url";
-  static final String FTL_LIVENESS_TOKEN = "token";
-  static final String FTL_LIVENESS_CASE_ID = "caseId";
-  static final String FTL_UPLOAD = "upload";
-  static final String FTL_UPLOAD_URL = "url";
+  static final String FTL_HOLDING = "holding";
+  static final String FTL_PAGE_URL = "url";
   static final String FTL_UPLOAD_TOKEN = "token";
+  static final String FTL_HOLDING_SECONDS = "seconds";
   static final String EVENT_ERROR = "scanovate_verification_failed";
   static final String EVENT_DETAIL_ERROR = "scanovate_error";
   static final String EVENT_DETAIL_CASE_ID = "scanovate_case_id";
   static final String EVENT_DETAIL_FACE_MATCH_DOCUMENT = "scanovate_face_match_document";
   static final String EVENT_DETAIL_FACE_MATCH_HOLDING = "scanovate_face_match_holding";
+  static final String EVENT_DETAIL_DOCUMENT_LIVENESS = "scanovate_document_liveness";
+  static final String OCR_TYPE_PARAM = "ocr_type";
 
-  private final Function<OcrSettings, OcrClient> ocrFactory;
-  private final Function<KeycloakSession, LivenessSessions> livenessFactory;
+  private final BiFunction<OnPremService, KeycloakSession, OnPremSessions> sessionsFactory;
   private final Function<FaceMatchSettings, FaceMatchClient> faceMatchFactory;
-  private final Function<KeycloakSession, CaptureUploads> uploadsFactory;
+  private final Function<DocumentLivenessSettings, DocumentLivenessClient> documentLivenessFactory;
+  private final Function<KeycloakSession, HoldingPhotos> holdingFactory;
 
   public ScanovateAuthenticator() {
     this(
-        ScanovateAuthenticator::defaultOcr,
-        ScanovateAuthenticator::defaultLiveness,
+        ScanovateAuthenticator::defaultSessions,
         ScanovateAuthenticator::defaultFaceMatch,
-        ScanovateAuthenticator::defaultUploads);
+        ScanovateAuthenticator::defaultDocumentLiveness,
+        ScanovateAuthenticator::defaultHolding);
   }
 
   ScanovateAuthenticator(
-      Function<OcrSettings, OcrClient> ocrFactory,
-      Function<KeycloakSession, LivenessSessions> livenessFactory,
+      BiFunction<OnPremService, KeycloakSession, OnPremSessions> sessionsFactory,
       Function<FaceMatchSettings, FaceMatchClient> faceMatchFactory,
-      Function<KeycloakSession, CaptureUploads> uploadsFactory) {
-    this.ocrFactory = ocrFactory;
-    this.livenessFactory = livenessFactory;
+      Function<DocumentLivenessSettings, DocumentLivenessClient> documentLivenessFactory,
+      Function<KeycloakSession, HoldingPhotos> holdingFactory) {
+    this.sessionsFactory = sessionsFactory;
     this.faceMatchFactory = faceMatchFactory;
-    this.uploadsFactory = uploadsFactory;
-  }
-
-  static CaptureUploads defaultUploads(KeycloakSession session) {
-    return new CaptureUploads(new SingleUseLivenessStore(session));
-  }
-
-  static OcrClient defaultOcr(OcrSettings settings) {
-    return new OcrClient(
-        new JdkHttpTransport(),
-        settings.url(),
-        ScanovateAuthenticatorFactory.DEFAULT_MAX_RETRIES,
-        Thread::sleep);
+    this.documentLivenessFactory = documentLivenessFactory;
+    this.holdingFactory = holdingFactory;
   }
 
   static FaceMatchClient defaultFaceMatch(FaceMatchSettings settings) {
@@ -147,9 +140,30 @@ public class ScanovateAuthenticator implements Authenticator {
         Thread::sleep);
   }
 
-  static LivenessSessions defaultLiveness(KeycloakSession session) {
-    return new LivenessSessions(new SingleUseLivenessStore(session), Thread::sleep);
+  static DocumentLivenessClient defaultDocumentLiveness(DocumentLivenessSettings settings) {
+    return new DocumentLivenessClient(
+        new JdkHttpTransport(),
+        settings.url(),
+        ScanovateAuthenticatorFactory.DEFAULT_MAX_RETRIES,
+        Thread::sleep);
   }
+
+  static OnPremSessions defaultSessions(OnPremService service, KeycloakSession session) {
+    return new OnPremSessions(service, new SingleUseSessionStore(session), Thread::sleep);
+  }
+
+  static HoldingPhotos defaultHolding(KeycloakSession session) {
+    return new HoldingPhotos(new SingleUseSessionStore(session));
+  }
+
+  /** The settings of the services for the voter's document type. */
+  record Services(
+      OnPremSettings onPrem,
+      OcrSettings ocr,
+      FaceMatchSettings faceMatch,
+      DocumentLivenessSettings documentLiveness,
+      HoldingPhotoPolicy holding,
+      int holdingSeconds) {}
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
@@ -173,10 +187,6 @@ public class ScanovateAuthenticator implements Authenticator {
   @Override
   public void action(AuthenticationFlowContext context) {
     buildEventDetails(context);
-    if (isMultipart(context)) {
-      rejectMultipart(context);
-      return;
-    }
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
     if (StepBack.requested(formData) && StepBack.toPreviousStep(context)) {
       return;
@@ -200,34 +210,7 @@ public class ScanovateAuthenticator implements Authenticator {
       startVerification(context);
       return;
     }
-    settings(context).ifPresent(settings -> showCapture(context, settings, Optional.empty()));
-  }
-
-  /**
-   * Whether the request is a multipart form. Keycloak can't read its fields when it has files, so
-   * the capture page uploads its files beforehand and submits the capture as a plain form.
-   */
-  private static boolean isMultipart(AuthenticationFlowContext context) {
-    MediaType mediaType =
-        context.getHttpRequest().getHttpHeaders() == null
-            ? null
-            : context.getHttpRequest().getHttpHeaders().getMediaType();
-    return mediaType != null && MediaType.MULTIPART_FORM_DATA_TYPE.isCompatible(mediaType);
-  }
-
-  /** Shows the pending capture again as invalid, or starts a new verification without one. */
-  private void rejectMultipart(AuthenticationFlowContext context) {
-    if (context.getAuthenticationSession().getAuthNote(CASE_ID_NOTE) == null) {
-      log.warn("action: rejected a multipart form, starting a new capture");
-      startVerification(context);
-      return;
-    }
-    log.warn("action: rejected a multipart capture");
-    settings(context)
-        .ifPresent(
-            settings ->
-                showCapture(
-                    context, settings, Optional.of(ScanovateError.CAPTURE_INVALID.messageKey())));
+    settings(context).ifPresent(settings -> showCapture(context, settings));
   }
 
   private void startVerification(AuthenticationFlowContext context) {
@@ -242,33 +225,42 @@ public class ScanovateAuthenticator implements Authenticator {
         .getAuthenticationSession()
         .setAuthNote(ScanovateDiagnostics.ATTEMPT_NOTE, UUID.randomUUID().toString());
     buildEventDetails(context);
-    Optional<CaptureSettings> settings = settings(context);
+    Optional<Services> settings = settings(context);
     if (settings.isEmpty()) {
       return;
     }
     String caseId = UUID.randomUUID().toString();
     context.getAuthenticationSession().setAuthNote(CASE_ID_NOTE, caseId);
     log.infov("startVerification: started capture {0}", caseId);
-    showCapture(context, settings.get(), Optional.empty());
+    showCapture(context, settings.get());
   }
 
   /**
-   * Reads the capture settings for the voter's document type, checking that the services it needs
-   * are configured. Otherwise, shows a non retryable error and returns empty.
+   * Reads the settings of the services for the voter's document type. Otherwise, shows a non
+   * retryable error and returns empty.
    */
-  private Optional<CaptureSettings> settings(AuthenticationFlowContext context) {
+  private Optional<Services> settings(AuthenticationFlowContext context) {
     diagnostic(context, "stage", "configuration");
     Map<String, String> config = config(context);
     String docType = documentType(config, context.getAuthenticationSession());
     ConfigComponent component = ConfigComponent.LIVENESS;
     try {
-      LivenessSettings.fromConfig(config);
+      OnPremSettings onPrem = OnPremSettings.fromConfig(config);
       component = ConfigComponent.FACE_MATCH;
-      FaceMatchSettings.fromConfig(config, docType);
+      FaceMatchSettings faceMatch = FaceMatchSettings.fromConfig(config, docType);
+      component = ConfigComponent.DOCUMENT_LIVENESS;
+      DocumentLivenessSettings documentLiveness = DocumentLivenessSettings.fromConfig(config);
       component = ConfigComponent.OCR;
-      OcrSettings.fromConfig(config, docType);
+      OcrSettings ocr = OcrSettings.fromConfig(config, docType);
       component = ConfigComponent.CAPTURE;
-      return Optional.of(CaptureSettings.fromConfig(config, docType));
+      HoldingPhotoPolicy holding = HoldingPhotoPolicy.fromConfig(config);
+      int holdingSeconds =
+          OnPremSettings.positiveInt(
+              config,
+              ScanovateAuthenticatorFactory.HOLDING_SECONDS,
+              ScanovateAuthenticatorFactory.DEFAULT_HOLDING_SECONDS);
+      return Optional.of(
+          new Services(onPrem, ocr, faceMatch, documentLiveness, holding, holdingSeconds));
     } catch (ScanovateException e) {
       configurationFailure(context, component);
       showError(context, ScanovateError.INTERNAL, false);
@@ -276,71 +268,74 @@ public class ScanovateAuthenticator implements Authenticator {
     }
   }
 
-  /** The format of the voter's document, ID-1 when its OCR type isn't configured. */
-  private static DocumentFormat documentFormat(
-      Map<String, String> config, AuthenticationSessionModel authSession) {
-    try {
-      return OcrSettings.fromConfig(config, documentType(config, authSession)).format();
-    } catch (ScanovateException e) {
-      return DocumentFormat.ID_1;
-    }
-  }
-
-  private void showCapture(
-      AuthenticationFlowContext context, CaptureSettings settings, Optional<String> errorKey) {
+  /**
+   * Shows the capture page, which embeds the capture pages of OCR and then of Liveness Plus, and
+   * then takes the holding photo if the policy asks for it. Issues a new token for each, replacing
+   * any earlier one.
+   */
+  private void showCapture(AuthenticationFlowContext context, Services services) {
     Map<String, String> config = config(context);
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    String caseId = authSession.getAuthNote(CASE_ID_NOTE);
     int maxAttempts = maxAttempts(config);
     Map<String, Object> capture = new LinkedHashMap<>();
-    capture.put(
-        FTL_DOCUMENT_TYPE,
-        documentTypeName(documentType(config, context.getAuthenticationSession())));
-    capture.put(FTL_SIDES, settings.sides().stream().map(DocumentSide::name).toList());
-    capture.put(FTL_FORMAT, documentFormat(config, context.getAuthenticationSession()).name());
-    capture.put(FTL_VIDEO_SECONDS, settings.videoSeconds());
+    capture.put(FTL_DOCUMENT_TYPE, documentTypeName(documentType(config, authSession)));
     capture.put(FTL_ATTEMPTS_LEFT, attemptsLeft(context, maxAttempts));
     capture.put(FTL_MAX_ATTEMPTS, maxAttempts);
-    capture.put(FTL_UPLOAD, uploadPage(context));
-    LivenessSettings liveness;
-    try {
-      liveness = LivenessSettings.fromConfig(config);
-    } catch (ScanovateException e) {
-      configurationFailure(context, ConfigComponent.LIVENESS);
-      showError(context, ScanovateError.INTERNAL, false);
-      return;
+    capture.put(
+        FTL_OCR,
+        page(
+            context,
+            services.onPrem(),
+            OnPremService.OCR,
+            OCR_TOKEN_NOTE,
+            caseId,
+            Map.of(OCR_TYPE_PARAM, services.ocr().ocrType())));
+    capture.put(
+        FTL_LIVENESS,
+        page(
+            context,
+            services.onPrem(),
+            OnPremService.LIVENESS,
+            LIVENESS_TOKEN_NOTE,
+            caseId,
+            Map.of()));
+    HoldingPhotos photos = holdingFactory.apply(context.getSession());
+    photos.discard(authSession.getAuthNote(HOLDING_TOKEN_NOTE));
+    authSession.removeAuthNote(HOLDING_TOKEN_NOTE);
+    if (services.holding() == HoldingPhotoPolicy.REQUIRED) {
+      String token = photos.create();
+      authSession.setAuthNote(HOLDING_TOKEN_NOTE, token);
+      capture.put(
+          FTL_HOLDING,
+          Map.of(
+              FTL_PAGE_URL,
+              holdingUrl(context),
+              FTL_UPLOAD_TOKEN,
+              token,
+              FTL_HOLDING_SECONDS,
+              services.holdingSeconds()));
     }
-    capture.put(FTL_LIVENESS, livenessPage(context, liveness));
 
-    LoginFormsProvider form =
+    // Keycloak only lets its pages embed its own origin: the services' pages may be on another
+    SecurityHeadersProvider headers =
+        context.getSession().getProvider(SecurityHeadersProvider.class);
+    if (headers != null) {
+      headers.options().allowFrameSrc(services.onPrem().origin());
+    }
+    context.challenge(
         context
             .form()
             .setAttribute(FTL_SCANOVATE, capture)
-            .setAttribute(StepBack.ATTRIBUTE, StepBack.available(context));
-    errorKey.ifPresent(form::setError);
-    context.challenge(form.createForm(CAPTURE_FORM));
+            .setAttribute(StepBack.ATTRIBUTE, StepBack.available(context))
+            .createForm(CAPTURE_FORM));
   }
 
   /**
-   * Issues a new token for the capture page to upload its files with, replacing any earlier one and
-   * its files, see {@link CaptureUploads}.
+   * Root-relative URL of the holding photo upload, so that the page uploads to its own origin,
+   * whatever reverse proxy serves it.
    */
-  private Map<String, Object> uploadPage(AuthenticationFlowContext context) {
-    AuthenticationSessionModel authSession = context.getAuthenticationSession();
-    CaptureUploads uploads = uploadsFactory.apply(context.getSession());
-    uploads.discard(authSession.getAuthNote(CAPTURE_TOKEN_NOTE));
-    String token = uploads.create();
-    authSession.setAuthNote(CAPTURE_TOKEN_NOTE, token);
-
-    Map<String, Object> page = new LinkedHashMap<>();
-    page.put(FTL_UPLOAD_URL, uploadUrl(context));
-    page.put(FTL_UPLOAD_TOKEN, token);
-    return page;
-  }
-
-  /**
-   * Root-relative URL of the upload endpoint, so that the page uploads to its own origin, whatever
-   * reverse proxy serves it.
-   */
-  private static String uploadUrl(AuthenticationFlowContext context) {
+  private static String holdingUrl(AuthenticationFlowContext context) {
     String base = context.getUriInfo().getBaseUri().getRawPath();
     return (base.endsWith("/") ? base : base + "/")
         + "realms/"
@@ -349,27 +344,23 @@ public class ScanovateAuthenticator implements Authenticator {
         + "/"
         + IdentityVerificationResourceFactory.PROVIDER_ID
         + "/"
-        + IdentityVerificationResource.CAPTURE_PATH;
+        + IdentityVerificationResource.HOLDING_PATH;
   }
 
-  /**
-   * Issues a new token for the capture page to start its Liveness Plus sessions with, replacing any
-   * earlier one.
-   */
-  private Map<String, Object> livenessPage(
-      AuthenticationFlowContext context, LivenessSettings liveness) {
+  /** The capture page of a service, with a new token for the case. */
+  private Map<String, Object> page(
+      AuthenticationFlowContext context,
+      OnPremSettings settings,
+      OnPremService service,
+      String tokenNote,
+      String caseId,
+      Map<String, String> parameters) {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
-    String caseId = authSession.getAuthNote(CASE_ID_NOTE);
-    LivenessSessions sessions = livenessFactory.apply(context.getSession());
-    sessions.discard(authSession.getAuthNote(LIVENESS_TOKEN_NOTE));
-    String token = sessions.create(caseId, liveness.secret());
-    authSession.setAuthNote(LIVENESS_TOKEN_NOTE, token);
-
-    Map<String, Object> page = new LinkedHashMap<>();
-    page.put(FTL_LIVENESS_URL, liveness.apiUrl());
-    page.put(FTL_LIVENESS_TOKEN, token);
-    page.put(FTL_LIVENESS_CASE_ID, caseId);
-    return page;
+    OnPremSessions sessions = sessionsFactory.apply(service, context.getSession());
+    sessions.discard(authSession.getAuthNote(tokenNote));
+    String token = sessions.create(caseId, settings.secret());
+    authSession.setAuthNote(tokenNote, token);
+    return Map.of(FTL_PAGE_URL, settings.pageUrl(service, caseId, token, parameters));
   }
 
   private void capture(AuthenticationFlowContext context) {
@@ -382,98 +373,161 @@ public class ScanovateAuthenticator implements Authenticator {
       return;
     }
     context.getEvent().detail(EVENT_DETAIL_CASE_ID, caseId);
-    Optional<CaptureSettings> settings = settings(context);
-    if (settings.isEmpty()) {
+    Optional<Services> services = settings(context);
+    if (services.isEmpty()) {
       return;
     }
 
-    diagnostic(context, "stage", "capture");
-    CaptureUploads uploads = uploadsFactory.apply(context.getSession());
-    String uploadToken = authSession.getAuthNote(CAPTURE_TOKEN_NOTE);
-    Map<String, byte[]> parts = uploads.parts(uploadToken).orElse(Map.of());
-    uploads.discard(uploadToken);
-    authSession.removeAuthNote(CAPTURE_TOKEN_NOTE);
-    CaptureMedia media;
-    try {
-      media = CaptureMedia.fromUploads(parts, settings.get());
-    } catch (InvalidCaptureException e) {
-      log.warnv("capture: rejected capture {0}", ScanovateDiagnostics.caseId(caseId));
-      recordFailure(context, ScanovateError.CAPTURE_INVALID.messageKey(), true);
-      emitFailure(context);
-      showCapture(
-          context, settings.get(), Optional.of(ScanovateError.CAPTURE_INVALID.messageKey()));
+    diagnostic(context, "stage", "ocr");
+    Optional<SessionResult> document =
+        result(context, services.get().onPrem(), OnPremService.OCR, OCR_TOKEN_NOTE);
+    if (document.isEmpty()) {
+      return;
+    }
+    recordOcrStatus(context, document.get());
+    if (!document.get().passed()) {
+      log.warnv(
+          "capture: the document of {0} could not be read, status={1}",
+          ScanovateDiagnostics.caseId(caseId),
+          ScanovateDiagnostics.status(document.get().status()));
+      failAttempt(context, ScanovateError.DOCUMENT_UNREADABLE.messageKey());
+      return;
+    }
+    if (!documentIsPhysical(
+        context, services.get().documentLiveness(), document.get().document().orElseThrow())) {
       return;
     }
 
-    if (!checkFace(context, media)) {
+    diagnostic(context, "stage", "liveness");
+    Optional<SessionResult> liveness =
+        result(context, services.get().onPrem(), OnPremService.LIVENESS, LIVENESS_TOKEN_NOTE);
+    if (liveness.isEmpty()) {
       return;
     }
-    readDocument(context, settings.get(), media);
+    diagnostic(context, "liveness_status", ScanovateDiagnostics.status(liveness.get().status()));
+    diagnostic(context, "liveness_passed", Boolean.toString(liveness.get().passed()));
+    if (!liveness.get().passed()) {
+      log.warnv(
+          "capture: liveness of {0} did not pass, status={1}",
+          ScanovateDiagnostics.caseId(caseId),
+          ScanovateDiagnostics.status(liveness.get().status()));
+      failAttempt(context, ScanovateError.LIVENESS_FAILED.messageKey());
+      return;
+    }
+
+    FaceMatchClient client = faceMatchFactory.apply(services.get().faceMatch());
+    byte[] face = liveness.get().face().orElseThrow();
+    if (!facesMatch(
+        context,
+        client,
+        services.get().faceMatch(),
+        document.get().face().orElseThrow(),
+        face,
+        EVENT_DETAIL_FACE_MATCH_DOCUMENT)) {
+      return;
+    }
+    if (services.get().holding() == HoldingPhotoPolicy.REQUIRED
+        && !holdingPhotoMatches(context, client, services.get().faceMatch(), face)) {
+      return;
+    }
+    readDocument(context, document.get().reading().orElseThrow());
   }
 
   /**
-   * Checks the voter's face: the result callback of the voter's Liveness Plus session must confirm
-   * that it passed, and its picture of the voter must match the photo of the document and the photo
-   * of the voter holding it. Otherwise, shows the error and returns false.
+   * Checks with Document Liveness that the photo OCR read the document from shows a physical
+   * document, recording the lowest probability of its checks in the event. Otherwise, shows the
+   * error and returns false.
    */
-  private boolean checkFace(AuthenticationFlowContext context, CaptureMedia media) {
-    diagnostic(context, "stage", "liveness");
-    Map<String, String> config = config(context);
-    AuthenticationSessionModel authSession = context.getAuthenticationSession();
-    String caseId = authSession.getAuthNote(CASE_ID_NOTE);
-    LivenessSettings liveness;
-    FaceMatchSettings faceMatch;
-    ConfigComponent component = ConfigComponent.LIVENESS;
+  private boolean documentIsPhysical(
+      AuthenticationFlowContext context, DocumentLivenessSettings settings, byte[] photo) {
+    diagnostic(context, "stage", "document_liveness");
+    String caseId = context.getAuthenticationSession().getAuthNote(CASE_ID_NOTE);
+    DocumentLivenessResult result;
     try {
-      liveness = LivenessSettings.fromConfig(config);
-      component = ConfigComponent.FACE_MATCH;
-      faceMatch = FaceMatchSettings.fromConfig(config, documentType(config, authSession));
-    } catch (ScanovateException e) {
-      configurationFailure(context, component);
-      showError(context, ScanovateError.INTERNAL, false);
-      return false;
-    }
-
-    String token = authSession.getAuthNote(LIVENESS_TOKEN_NOTE);
-    LivenessSessions sessions = livenessFactory.apply(context.getSession());
-    Optional<LivenessResult> result =
-        token == null
-            ? Optional.empty()
-            : sessions.awaitResult(token, liveness.resultWaitSeconds());
-    if (result.isEmpty()) {
-      diagnostic(context, "liveness_status", "unknown");
-      log.errorv("capture: no liveness result for {0}", caseId);
+      result =
+          documentLivenessFactory
+              .apply(settings)
+              .check(photo, settings.pipelines(), settings.calibration());
+    } catch (IOException e) {
+      serviceFailure(context, e);
       showError(context, ScanovateError.INTERNAL, true);
       return false;
     }
-    sessions.discard(token);
-    authSession.removeAuthNote(LIVENESS_TOKEN_NOTE);
-    diagnostic(context, "liveness_status", ScanovateDiagnostics.status(result.get().status()));
-    diagnostic(context, "liveness_passed", Boolean.toString(result.get().passed()));
-    if (!result.get().passed() || result.get().image().isEmpty()) {
+    DocumentLivenessOutcome outcome = result.outcome(settings.minProbability());
+    if (outcome != DocumentLivenessOutcome.NOT_CHECKED) {
+      context
+          .getEvent()
+          .detail(
+              EVENT_DETAIL_DOCUMENT_LIVENESS,
+              ScanovateDiagnostics.score(result.lowestProbability()));
+    }
+    log.infov("capture: document liveness of {0}: {1}, {2}", caseId, outcome, result.checks());
+    switch (outcome) {
+      case GENUINE -> {
+        return true;
+      }
+      case NOT_GENUINE -> failAttempt(context, ScanovateError.DOCUMENT_AUTHENTICATION.messageKey());
+      case NOT_CHECKED -> failAttempt(context, ScanovateError.DOCUMENT_UNREADABLE.messageKey());
+    }
+    return false;
+  }
+
+  /**
+   * Compares the photo of the voter holding their document with their live face. Without a photo,
+   * shows a retryable error and returns false.
+   */
+  private boolean holdingPhotoMatches(
+      AuthenticationFlowContext context,
+      FaceMatchClient client,
+      FaceMatchSettings settings,
+      byte[] face) {
+    diagnostic(context, "stage", "face_holding");
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    String token = authSession.getAuthNote(HOLDING_TOKEN_NOTE);
+    HoldingPhotos photos = holdingFactory.apply(context.getSession());
+    Optional<byte[]> photo = photos.photo(token);
+    photos.discard(token);
+    authSession.removeAuthNote(HOLDING_TOKEN_NOTE);
+    if (photo.isEmpty()) {
       log.warnv(
-          "capture: liveness of {0} did not pass, status={1}",
-          ScanovateDiagnostics.caseId(caseId), ScanovateDiagnostics.status(result.get().status()));
-      failAttempt(context, ScanovateError.LIVENESS_FAILED.messageKey());
+          "capture: no holding photo for {0}",
+          ScanovateDiagnostics.caseId(authSession.getAuthNote(CASE_ID_NOTE)));
+      showError(context, ScanovateError.CAPTURE_INVALID, true);
       return false;
     }
-
-    byte[] face = result.get().image().get();
-    FaceMatchClient client = faceMatchFactory.apply(faceMatch);
     return facesMatch(
-            context,
-            client,
-            faceMatch,
-            media.files().get(MediaKind.FRONT_IMAGE),
-            face,
-            EVENT_DETAIL_FACE_MATCH_DOCUMENT)
-        && facesMatch(
-            context,
-            client,
-            faceMatch,
-            media.files().get(MediaKind.HOLDING_IMAGE),
-            face,
-            EVENT_DETAIL_FACE_MATCH_HOLDING);
+        context, client, settings, photo.get(), face, EVENT_DETAIL_FACE_MATCH_HOLDING);
+  }
+
+  /**
+   * Waits for the final result of the voter's last session of the service, and invalidates its
+   * token. Without a result, shows a retryable error and returns empty.
+   */
+  private Optional<SessionResult> result(
+      AuthenticationFlowContext context,
+      OnPremSettings settings,
+      OnPremService service,
+      String tokenNote) {
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    String token = authSession.getAuthNote(tokenNote);
+    OnPremSessions sessions = sessionsFactory.apply(service, context.getSession());
+    Optional<SessionResult> result =
+        token == null
+            ? Optional.empty()
+            : sessions.awaitResult(token, settings.resultWaitSeconds());
+    if (result.isEmpty()) {
+      if (service == OnPremService.LIVENESS) {
+        diagnostic(context, "liveness_status", "unknown");
+      }
+      log.errorv(
+          "capture: no {0} result for {1}",
+          service.path(), ScanovateDiagnostics.caseId(authSession.getAuthNote(CASE_ID_NOTE)));
+      showError(context, ScanovateError.INTERNAL, true);
+      return Optional.empty();
+    }
+    sessions.discard(token);
+    authSession.removeAuthNote(tokenNote);
+    return result;
   }
 
   /**
@@ -490,11 +544,12 @@ public class ScanovateAuthenticator implements Authenticator {
     diagnostic(
         context,
         "stage",
-        EVENT_DETAIL_FACE_MATCH_DOCUMENT.equals(eventDetail) ? "face_document" : "face_holding");
+        EVENT_DETAIL_FACE_MATCH_HOLDING.equals(eventDetail) ? "face_holding" : "face_document");
     String caseId = context.getAuthenticationSession().getAuthNote(CASE_ID_NOTE);
     FaceComparison comparison;
     try {
-      comparison = client.compare(photo, face);
+      // Only the holding photo shows a second face, the portrait of the document held.
+      comparison = client.compare(photo, face, EVENT_DETAIL_FACE_MATCH_HOLDING.equals(eventDetail));
     } catch (IOException e) {
       serviceFailure(context, e);
       showError(context, ScanovateError.INTERNAL, true);
@@ -522,49 +577,16 @@ public class ScanovateAuthenticator implements Authenticator {
   }
 
   /**
-   * Reads the document sides with the OCR service, validates the results against the rules and
-   * stores the attributes for the voter to confirm.
+   * Validates what OCR read from the document against the rules and stores the attributes for the
+   * voter to confirm.
    */
-  private void readDocument(
-      AuthenticationFlowContext context, CaptureSettings settings, CaptureMedia media) {
-    diagnostic(context, "stage", "ocr");
+  private void readDocument(AuthenticationFlowContext context, JsonNode reading) {
     Map<String, String> config = config(context);
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     String caseId = authSession.getAuthNote(CASE_ID_NOTE);
     String docType = documentType(config, authSession);
-    OcrSettings ocr;
-    try {
-      ocr = OcrSettings.fromConfig(config, docType);
-    } catch (ScanovateException e) {
-      configurationFailure(context, ConfigComponent.OCR);
-      showError(context, ScanovateError.INTERNAL, false);
-      return;
-    }
 
-    Optional<JsonNode> results;
-    try {
-      OcrClient client = ocrFactory.apply(ocr);
-      List<JsonNode> responses = new ArrayList<>();
-      for (MediaKind kind : settings.documentMedia()) {
-        JsonNode response =
-            client.recognize(
-                ocr.ocrType(), media.files().get(kind), caseId + "-" + kind.formPart());
-        recordOcrStatus(context, response, kind.formPart());
-        responses.add(response);
-      }
-      results = OcrResults.combine(responses, LocalDate.now());
-    } catch (IOException e) {
-      serviceFailure(context, e);
-      showError(context, ScanovateError.INTERNAL, true);
-      return;
-    }
-    if (results.isEmpty()) {
-      log.warnv("readDocument: the document of {0} could not be read", caseId);
-      failAttempt(context, ScanovateError.DOCUMENT_UNREADABLE.messageKey());
-      return;
-    }
-
-    recordReading(context, results.get());
+    recordReading(context, reading);
     diagnostic(context, "stage", "validation");
     List<StoredAttribute> storedAttributes;
     ConfigComponent component = ConfigComponent.VALIDATION_RULES;
@@ -579,7 +601,7 @@ public class ScanovateAuthenticator implements Authenticator {
       }
       Optional<String> validationError =
           AttributeRules.validate(
-              results.get(), validationRules.get(), authSession::getAuthNote, LocalDate.now());
+              reading, validationRules.get(), authSession::getAuthNote, LocalDate.now());
       if (validationError.isPresent()) {
         failAttempt(context, validationError.get());
         return;
@@ -589,9 +611,7 @@ public class ScanovateAuthenticator implements Authenticator {
           AttributeRules.rulesFor(
               config.get(ScanovateAuthenticatorFactory.ATTRIBUTES_TO_STORE), docType);
       storedAttributes =
-          storeRules.isPresent()
-              ? AttributeRules.extract(results.get(), storeRules.get())
-              : List.of();
+          storeRules.isPresent() ? AttributeRules.extract(reading, storeRules.get()) : List.of();
     } catch (ScanovateException e) {
       configurationFailure(context, component);
       showError(context, ScanovateError.INTERNAL, false);
@@ -680,13 +700,18 @@ public class ScanovateAuthenticator implements Authenticator {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     String livenessToken = authSession.getAuthNote(LIVENESS_TOKEN_NOTE);
     if (livenessToken != null) {
-      livenessFactory.apply(context.getSession()).discard(livenessToken);
+      sessionsFactory.apply(OnPremService.LIVENESS, context.getSession()).discard(livenessToken);
       authSession.removeAuthNote(LIVENESS_TOKEN_NOTE);
     }
-    String uploadToken = authSession.getAuthNote(CAPTURE_TOKEN_NOTE);
-    if (uploadToken != null) {
-      uploadsFactory.apply(context.getSession()).discard(uploadToken);
-      authSession.removeAuthNote(CAPTURE_TOKEN_NOTE);
+    String ocrToken = authSession.getAuthNote(OCR_TOKEN_NOTE);
+    if (ocrToken != null) {
+      sessionsFactory.apply(OnPremService.OCR, context.getSession()).discard(ocrToken);
+      authSession.removeAuthNote(OCR_TOKEN_NOTE);
+    }
+    String holdingToken = authSession.getAuthNote(HOLDING_TOKEN_NOTE);
+    if (holdingToken != null) {
+      holdingFactory.apply(context.getSession()).discard(holdingToken);
+      authSession.removeAuthNote(HOLDING_TOKEN_NOTE);
     }
     authSession.removeAuthNote(CASE_ID_NOTE);
     authSession.removeAuthNote(CONFIRMATION_CASE_NOTE);
@@ -811,22 +836,19 @@ public class ScanovateAuthenticator implements Authenticator {
         context.getAuthenticationSession().getAuthNote(attribute), options);
   }
 
-  private static void recordOcrStatus(
-      AuthenticationFlowContext context, JsonNode response, String side) {
-    if (response == null) return;
-    diagnostic(
-        context,
-        "ocr_" + side + "_status",
-        ScanovateDiagnostics.status(response.path("status").asText()));
-    for (String responseSide : OcrResults.SIDES) {
-      JsonNode result = response.path(responseSide).path("processing_result");
-      if (result.isObject()) {
-        diagnostic(
-            context,
-            "ocr_" + side + "_result",
-            ScanovateDiagnostics.status(result.path("status").asText()));
-        break;
-      }
+  /** Records the status of the OCR session, and the result of each side it processed. */
+  private static void recordOcrStatus(AuthenticationFlowContext context, SessionResult result) {
+    String status = ScanovateDiagnostics.status(result.status());
+    result
+        .sides()
+        .forEach(
+            (side, sideResult) -> {
+              diagnostic(context, "ocr_" + side + "_status", status);
+              diagnostic(
+                  context, "ocr_" + side + "_result", ScanovateDiagnostics.status(sideResult));
+            });
+    if (result.sides().isEmpty()) {
+      diagnostic(context, "ocr_front_status", status);
     }
   }
 

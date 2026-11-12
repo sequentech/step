@@ -104,24 +104,6 @@ export function IdCardIcon() {
     )
 }
 
-export function FaceIcon() {
-    return (
-        <Icon>
-            <path d="M3 8V5.5A2.5 2.5 0 0 1 5.5 3H8M16 3h2.5A2.5 2.5 0 0 1 21 5.5V8M21 16v2.5a2.5 2.5 0 0 1-2.5 2.5H16M8 21H5.5A2.5 2.5 0 0 1 3 18.5V16" />
-            <path d="M9 10h.01M15 10h.01M9.5 15c1.4 1 3.6 1 5 0" />
-        </Icon>
-    )
-}
-
-export function VideoIcon() {
-    return (
-        <Icon>
-            <rect x="2.5" y="6" width="13" height="12" rx="2.5" />
-            <path d="m15.5 10.5 6-3.5v10l-6-3.5" />
-        </Icon>
-    )
-}
-
 export function CheckIcon() {
     return (
         <Icon>
@@ -162,41 +144,6 @@ export function WarningIcon() {
         <Icon>
             <path d="M12 3.5 2.5 20h19L12 3.5Z" />
             <path d="M12 10v4.5M12 17.5h.01" />
-        </Icon>
-    )
-}
-
-export function LockIcon() {
-    return (
-        <Icon>
-            <rect x="4.5" y="10.5" width="15" height="10" rx="2.5" />
-            <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
-        </Icon>
-    )
-}
-
-export function CloseIcon() {
-    return (
-        <Icon>
-            <path d="M6 6l12 12M18 6 6 18" />
-        </Icon>
-    )
-}
-
-export function HelpIcon() {
-    return (
-        <Icon>
-            <circle cx="12" cy="12" r="9" />
-            <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01" />
-        </Icon>
-    )
-}
-
-export function LightIcon() {
-    return (
-        <Icon>
-            <circle cx="12" cy="12" r="4" />
-            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
         </Icon>
     )
 }
