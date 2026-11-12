@@ -99,9 +99,12 @@ pub async fn set_public_key_impl(
         )
         .await?;
     let manager_pk = strand::signature::StrandSignaturePk::from_sk(&manager.signing_key)?;
+    // `None` while the trustees are still posting their key statements; a
+    // board error is logged where it happens and leaves the key unset too.
     let public_key_opt = public_keys::get_public_key(board_name.clone(), &manager_pk)
         .await
-        .ok();
+        .ok()
+        .flatten();
     // verify trustee names and fetch their objects to get their ids
     let trustee_names = current_status
         .trustees
