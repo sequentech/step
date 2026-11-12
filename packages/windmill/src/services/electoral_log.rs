@@ -2395,18 +2395,42 @@ pub fn get_cols_match_count_and_select(
             ElectoralLogVarCharColumn::UserId,
             (SqlCompOperators::Equal, user_id.to_string()),
         );
+        // A hex filter holds no LIKE wildcards: this matches a prefix.
         cols_match_select.insert(
             ElectoralLogVarCharColumn::BallotId,
-            (SqlCompOperators::Like, ballot_id_filter.to_string()),
+            (SqlCompOperators::Like, format!("{ballot_id_filter}%")),
         );
     }
 
     (cols_match_count, cols_match_select)
 }
 
-/// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input
-/// ballot_id_filter is restricted to be an even number of characters, so that can be converted
-/// to a byte array
+/// Lowercases a Ballot ID prefix and checks that it is an even number of hex
+/// characters, no longer than a Ballot ID.
+fn normalize_ballot_id_filter(ballot_id_filter: &str) -> Result<String> {
+    let ballot_id_filter = ballot_id_filter.trim().to_ascii_lowercase();
+    ensure!(
+        ballot_id_filter.len() % 2 == 0
+            && ballot_id_filter.len() <= BALLOT_ID_LENGTH_CHARS
+            && ballot_id_filter.chars().all(|c| c.is_ascii_hexdigit()),
+        "Incorrect ballot_id, it must be an even number of hexadecimal characters, at most {BALLOT_ID_LENGTH_CHARS}"
+    );
+    Ok(ballot_id_filter)
+}
+
+/// Page size and offset of a voter's request, with the page size capped at
+/// MAX_ROWS_PER_PAGE.
+fn cast_vote_page(limit: Option<i64>, offset: Option<i64>) -> (i64, i64) {
+    let max_rows = MAX_ROWS_PER_PAGE as i64;
+    (
+        limit.unwrap_or(max_rows).clamp(0, max_rows),
+        offset.unwrap_or(0).max(0),
+    )
+}
+
+/// Returns the entries for statement_kind = "CastVote" or, with a ballot_id_filter, the
+/// voter's own entry which ballot_id starts with it. The filter is restricted to an even
+/// number of hex characters, so that can be converted to a byte array
 #[instrument(skip_all)]
 pub async fn list_cast_vote_messages(
     input: GetElectoralLogBody,
@@ -2414,14 +2438,11 @@ pub async fn list_cast_vote_messages(
     user_id: &str,
     username: &str,
 ) -> Result<CastVoteMessagesOutput> {
-    ensure!(
-        ballot_id_filter.chars().count() % 2 == 0 && ballot_id_filter.is_ascii(),
-        "Incorrect ballot_id, the length must be an even number of characters"
-    );
+    let ballot_id_filter = normalize_ballot_id_filter(ballot_id_filter)?;
+    let ballot_id_filter = ballot_id_filter.as_str();
     check_cast_vote_order_by(input.order_by.as_ref())?;
     // The limits are used to cut the output after filtering the ballot id.
-    // Because ballot_id cannot be filtered at SQL level the sql limit is constant
-    let output_limit: i64 = input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64);
+    let (output_limit, mut offset) = cast_vote_page(input.limit, input.offset);
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let board_name = get_event_board(
         input.tenant_id.as_str(),
@@ -2434,9 +2455,8 @@ pub async fn list_cast_vote_messages(
 
     let limit: i64 = match ballot_id_filter.is_empty() {
         false => ELECTORAL_LOG_ROWS_LIMIT as i64, // When there is a filter, need to fetch all entries by batches.
-        true => input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64),
+        true => output_limit,
     };
-    let mut offset: i64 = input.offset.unwrap_or(0);
     let mut list: Vec<CastVoteEntry> = Vec::with_capacity(MAX_ROWS_PER_PAGE); // Filtered messages.
     let (cols_match_count, cols_match_select) =
         get_cols_match_count_and_select(&election_id, user_id, ballot_id_filter);
@@ -2470,6 +2490,11 @@ pub async fn list_cast_vote_messages(
             if (list.len() as i64) >= output_limit || filter_matched {
                 break;
             }
+        }
+        // A short batch is the last one, so a filter without a match costs
+        // one read, not one per batch of the election's cast votes.
+        if (t_entries as i64) < limit {
+            break;
         }
         offset += limit;
     }
@@ -2679,6 +2704,130 @@ mod postgres_wiring_tests {
         assert!(!databases.has_event(&event).await?);
         Ok(())
     }
+
+    fn cast_vote(index: u8, user_id: &str) -> LogEntry {
+        LogEntry {
+            delivery_id: format!("cast-vote-{index}"),
+            message: ElectoralLogMessage {
+                id: 0,
+                created: 1_785_700_000 + i64::from(index),
+                sender_pk: "sender-public-key".to_string(),
+                statement_timestamp: 1_785_700_000 + i64::from(index),
+                statement_kind: StatementType::CastVote.to_string(),
+                message: vec![index],
+                version: "1".to_string(),
+                user_id: Some(user_id.to_string()),
+                username: Some(format!("{user_id}-name")),
+                election_id: Some("election-id".to_string()),
+                area_id: Some("area-id".to_string()),
+                ballot_id: Some(format!("{index:02x}").repeat(BALLOT_ID_LENGTH_BYTES)),
+            },
+        }
+    }
+
+    async fn cast_votes(
+        tenant: &str,
+        event: &str,
+        (limit, offset): (Option<i64>, Option<i64>),
+        ballot_id_filter: &str,
+        user_id: &str,
+    ) -> Result<CastVoteMessagesOutput> {
+        let input = GetElectoralLogBody {
+            tenant_id: tenant.to_string(),
+            election_event_id: event.to_string(),
+            election_id: Some("election-id".to_string()),
+            limit,
+            offset,
+            ..Default::default()
+        };
+        list_cast_vote_messages(input, ballot_id_filter, user_id, "voter-name").await
+    }
+
+    #[test]
+    #[ignore = "requires a disposable ELECTORAL_LOG_PG_* database and ENV_SLUG"]
+    fn cast_vote_log_pages_are_capped_and_a_filter_finds_the_voters_own_prefix() {
+        crate::services::electoral_log_board::test_runtime().block_on(
+            cast_vote_log_pages_are_capped_and_a_filter_finds_the_voters_own_prefix_on_runtime(),
+        );
+    }
+
+    async fn cast_vote_log_pages_are_capped_and_a_filter_finds_the_voters_own_prefix_on_runtime() {
+        let tenant = Uuid::new_v4().to_string();
+        let event = Uuid::new_v4().to_string();
+        let slug = std::env::var("ENV_SLUG").expect("ENV_SLUG");
+        let board = get_event_board(&tenant, &event, &slug);
+        let databases = crate::services::electoral_log_board::get_event_databases()
+            .await
+            .expect("electoral-log databases");
+        databases
+            .create_event(&tenant, &event)
+            .await
+            .expect("event database");
+        let client = get_board_client().await.expect("board client");
+        client.create_board(&board).await.expect("board");
+        // 60 cast votes of another voter, then the voter's own ballot abab...ab.
+        let mut entries: Vec<LogEntry> = (0..60u8)
+            .map(|index| cast_vote(index, "voter-two-id"))
+            .collect();
+        entries.push(cast_vote(0xab, "voter-one-id"));
+        let stored = client.append(&board, &entries).await.expect("cast votes");
+        assert_eq!(stored.len(), 61);
+
+        let page = cast_votes(
+            &tenant,
+            &event,
+            (Some(1_000_000), Some(-5)),
+            "",
+            "voter-one-id",
+        )
+        .await
+        .expect("a capped page");
+        assert_eq!(page.list.len(), MAX_ROWS_PER_PAGE);
+        assert_eq!(page.total, 61);
+        let last = cast_votes(&tenant, &event, (None, Some(60)), "", "voter-one-id")
+            .await
+            .expect("the last page");
+        assert_eq!(last.list.len(), 1);
+
+        let own_ballot_id = "ab".repeat(BALLOT_ID_LENGTH_BYTES);
+        for filter in ["ABAB", own_ballot_id.as_str()] {
+            let found = cast_votes(&tenant, &event, (None, None), filter, "voter-one-id")
+                .await
+                .expect("the voter's ballot");
+            assert_eq!(
+                found
+                    .list
+                    .iter()
+                    .map(|entry| entry.ballot_id.as_str())
+                    .collect::<Vec<_>>(),
+                vec![own_ballot_id.as_str()],
+                "filter {filter:?}"
+            );
+        }
+        // Another voter's ballot, a ballot ID that is not the prefix of any
+        // ballot, and LIKE wildcards find nothing.
+        for (filter, user_id) in [
+            ("abab", "voter-two-id"),
+            ("baba", "voter-one-id"),
+            ("cdcd", "voter-one-id"),
+        ] {
+            let found = cast_votes(&tenant, &event, (None, None), filter, user_id)
+                .await
+                .expect("no ballot");
+            assert!(found.list.is_empty(), "filter {filter:?} of {user_id}");
+        }
+        assert!(
+            cast_votes(&tenant, &event, (None, None), "%%", "voter-one-id")
+                .await
+                .is_err()
+        );
+
+        client.delete_board(&board).await.expect("delete board");
+        databases
+            .drop_event(&tenant, &event)
+            .await
+            .expect("drop event database");
+    }
 }
 
 #[cfg(test)]
@@ -2738,6 +2887,58 @@ mod cast_vote_entry_tests {
                 .to_string();
             assert!(error.contains(&field.to_string()), "{error}");
         }
+    }
+
+    #[test]
+    fn ballot_id_filter_accepts_an_even_length_hex_prefix() {
+        assert_eq!(normalize_ballot_id_filter("").expect("no filter"), "");
+        assert_eq!(
+            normalize_ballot_id_filter(" AB12 ").expect("a prefix"),
+            "ab12"
+        );
+        let full_ballot_id = "0a".repeat(BALLOT_ID_LENGTH_BYTES);
+        assert_eq!(
+            normalize_ballot_id_filter(&full_ballot_id).expect("a whole Ballot ID"),
+            full_ballot_id
+        );
+    }
+
+    #[test]
+    fn ballot_id_filter_rejects_wildcards_odd_or_overlong_input() {
+        let overlong = "0a".repeat(BALLOT_ID_LENGTH_BYTES + 1);
+        for filter in ["%%", "__", "a%", "zz", "abc", "ab 1", overlong.as_str()] {
+            assert!(
+                normalize_ballot_id_filter(filter).is_err(),
+                "accepted {filter:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn filtered_select_matches_the_voters_ballot_id_from_its_start() {
+        let (count, select) = get_cols_match_count_and_select("election-id", "voter-id", "ab12");
+        assert!(!count.contains_key(&ElectoralLogVarCharColumn::BallotId));
+        assert!(!count.contains_key(&ElectoralLogVarCharColumn::UserId));
+        assert_eq!(
+            select
+                .get(&ElectoralLogVarCharColumn::UserId)
+                .map(|(_, value)| value.as_str()),
+            Some("voter-id")
+        );
+        let (operator, pattern) = select
+            .get(&ElectoralLogVarCharColumn::BallotId)
+            .expect("a Ballot ID clause");
+        assert!(matches!(operator, SqlCompOperators::Like));
+        assert_eq!(pattern, "ab12%");
+    }
+
+    #[test]
+    fn cast_vote_page_is_capped_at_the_page_size() {
+        let max = MAX_ROWS_PER_PAGE as i64;
+        assert_eq!(cast_vote_page(None, None), (max, 0));
+        assert_eq!(cast_vote_page(Some(10), Some(20)), (10, 20));
+        assert_eq!(cast_vote_page(Some(1_000_000), Some(-5)), (max, 0));
+        assert_eq!(cast_vote_page(Some(-1), None), (0, 0));
     }
 }
 
