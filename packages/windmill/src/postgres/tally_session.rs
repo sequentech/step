@@ -346,6 +346,53 @@ pub async fn get_tally_session_by_id_for_update(
     row.try_into().map(|res: TallySessionWrapper| res.0)
 }
 
+/// The non-cancelled initialization-report sessions that cover any of the
+/// given elections, other than `exclude_session_id`. Every status but
+/// `CANCELLED` counts: a session that is still running will set the election's
+/// generated flag, and a finished one has set it. A missing status counts as
+/// `STARTED`.
+pub const FIND_BLOCKING_INITIALIZATION_REPORT_SQL: &str = r#"
+    SELECT *
+    FROM sequent_backend.tally_session
+    WHERE
+        tenant_id = $1 AND
+        election_event_id = $2 AND
+        tally_type = 'INITIALIZATION_REPORT' AND
+        COALESCE(execution_status, 'STARTED') <> 'CANCELLED' AND
+        election_ids && $3::uuid[] AND
+        ($4::uuid IS NULL OR id <> $4::uuid)
+"#;
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn find_blocking_initialization_report_sessions(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_ids: &[String],
+    exclude_session_id: Option<&str>,
+) -> Result<Vec<TallySession>> {
+    let election_uuids = election_ids
+        .iter()
+        .map(|id| parse_uuid_v4(id).map_err(|err| anyhow!("{:?}", err)))
+        .collect::<Result<Vec<Uuid>>>()?;
+    let exclude = exclude_session_id.map(parse_uuid_v4).transpose()?;
+    let rows = hasura_transaction
+        .query(
+            FIND_BLOCKING_INITIALIZATION_REPORT_SQL,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &election_uuids,
+                &exclude,
+            ],
+        )
+        .await
+        .with_context(|| "Error looking for other initialization report sessions")?;
+    rows.into_iter()
+        .map(|row| TallySessionWrapper::try_from(row).map(|wrapper| wrapper.0))
+        .collect()
+}
+
 /// Locks the tally-session row until the surrounding transaction completes.
 /// Recount creation and post-tally finalization use this short-lived lock to
 /// serialize changes to the execution-history head without holding the

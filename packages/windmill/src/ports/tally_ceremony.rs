@@ -120,6 +120,27 @@ pub trait TallySessions: Sync {
         tally_session_id: &str,
     ) -> impl Future<Output = anyhow::Result<()>> + Send;
 
+    /// Locks the election rows until the transaction ends: the voting-status
+    /// reads that follow wait for a status writer in flight, and a later
+    /// writer waits for the transaction to commit. Two admissions for the same
+    /// election run one at a time.
+    fn lock_elections(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+    ) -> impl Future<Output = anyhow::Result<()>> + Send;
+
+    /// The non-cancelled initialization-report sessions covering any of the
+    /// elections, except `exclude_session_id`.
+    fn blocking_initialization_report_sessions(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+        exclude_session_id: Option<&str>,
+    ) -> impl Future<Output = anyhow::Result<Vec<TallySession>>> + Send;
+
     fn last_execution(
         &self,
         tenant_id: &str,

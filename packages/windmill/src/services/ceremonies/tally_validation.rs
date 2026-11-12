@@ -4,9 +4,10 @@
 pub use crate::domain::tally_ceremony::TallyValidationError;
 use crate::ports::tally_ceremony::BallotBoxSealState;
 use crate::postgres::ballot_box_seal::BallotBoxSealStatus;
+use crate::services::initialization_record::initialization_area_filter;
 use sequent_core::ballot::{AllowTallyStatus, BallotBoxSealPolicy, ElectionStatus, InitReport};
 use sequent_core::types::ceremonies::TallyType;
-use sequent_core::types::hasura::core::{Election, VotingChannels};
+use sequent_core::types::hasura::core::{Election, TallySession, VotingChannels};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 pub fn validate_tally_elections(
@@ -132,6 +133,35 @@ pub fn validate_initialization_not_generated(
     match generated {
         Some(id) => Err(TallyValidationError::new(format!(
             "Election {id}: its initialization report was already generated."
+        ))),
+        None => Ok(()),
+    }
+}
+
+/// A second initialization report is refused while another non-cancelled
+/// initialization-report session (`blocking`) overlaps this one, because the
+/// generated flag is only written when that session finishes. A session
+/// without a country filter covers the whole Post and overlaps every other;
+/// two country-filtered sessions overlap when they share a country.
+pub fn validate_no_concurrent_initialization(
+    tally_type: &TallyType,
+    blocking: &[TallySession],
+    area_filter: Option<&[String]>,
+) -> Result<(), TallyValidationError> {
+    if *tally_type != TallyType::INITIALIZATION_REPORT {
+        return Ok(());
+    }
+    let overlapping =
+        blocking.iter().find(
+            |session| match (area_filter, initialization_area_filter(session)) {
+                (Some(areas), Some(other)) => other.iter().any(|area| areas.contains(area)),
+                _ => true,
+            },
+        );
+    match overlapping {
+        Some(session) => Err(TallyValidationError::new(format!(
+            "Another initialization report tally ({}) already exists for these elections.",
+            session.id
         ))),
         None => Ok(()),
     }
@@ -266,6 +296,55 @@ pub fn validate_sealed_boxes_tallied(
 mod tests {
     use super::*;
     use serde_json::json;
+
+    fn initialization_session(id: &str, areas: Option<&[&str]>) -> TallySession {
+        let annotations = areas.map(|areas| json!({"initialization_area_ids": areas}));
+        serde_json::from_value(json!({
+            "id": id, "tenant_id": "tenant", "election_event_id": "event",
+            "keys_ceremony_id": "keys", "threshold": 2, "is_execution_completed": false,
+            "tally_type": "INITIALIZATION_REPORT", "annotations": annotations,
+        }))
+        .expect("a tally session")
+    }
+
+    fn areas(areas: &[&str]) -> Vec<String> {
+        areas.iter().map(|area| area.to_string()).collect()
+    }
+
+    #[test]
+    fn concurrent_initialization_is_refused_unless_the_countries_are_disjoint() {
+        let whole_post = initialization_session("whole", None);
+        let north = initialization_session("north", Some(&["north"]));
+        let report = TallyType::INITIALIZATION_REPORT;
+        assert!(validate_no_concurrent_initialization(&report, &[], None).is_ok());
+        let refused = |blocking: &[TallySession], filter: Option<&[String]>| {
+            validate_no_concurrent_initialization(&report, blocking, filter)
+                .expect_err("refused")
+                .to_string()
+        };
+        assert_eq!(
+            refused(&[whole_post.clone()], None),
+            "Another initialization report tally (whole) already exists for these elections."
+        );
+        assert!(refused(&[north.clone()], None).contains("(north)"));
+        assert!(refused(&[whole_post], Some(&areas(&["north"]))).contains("(whole)"));
+        assert!(refused(&[north.clone()], Some(&areas(&["north", "south"]))).contains("(north)"));
+        assert!(
+            validate_no_concurrent_initialization(&report, &[north], Some(&areas(&["south"])))
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn electoral_results_ignore_concurrent_initialization_sessions() {
+        let whole_post = initialization_session("whole", None);
+        assert!(validate_no_concurrent_initialization(
+            &TallyType::ELECTORAL_RESULTS,
+            &[whole_post],
+            None
+        )
+        .is_ok());
+    }
 
     fn election(id: &str, voting_status: &str) -> Election {
         serde_json::from_value(json!({

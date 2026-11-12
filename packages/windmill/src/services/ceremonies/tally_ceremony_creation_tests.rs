@@ -1267,3 +1267,85 @@ async fn report_coverage_excludes_generated_styles_outside_the_actual_area_selec
         )
     );
 }
+
+fn initialization_session(id: &str, status: &str, areas: Option<&[&str]>) -> TallySession {
+    let mut session = serde_json::from_value::<TallySession>(json!({
+        "id": id, "tenant_id": TENANT, "election_event_id": EVENT,
+        "keys_ceremony_id": KEYS_CEREMONY, "threshold": 2, "is_execution_completed": false,
+        "election_ids": [ELECTION], "execution_status": status,
+        "tally_type": "INITIALIZATION_REPORT",
+    }))
+    .expect("a tally session");
+    session.annotations = areas.map(|areas| json!({INITIALIZATION_AREA_IDS_ANNOTATION: areas}));
+    session
+}
+
+#[tokio::test]
+async fn a_second_initialization_report_for_the_election_is_refused_until_the_first_is_cancelled() {
+    for status in [
+        "STARTED",
+        "CONNECTED",
+        "IN_PROGRESS",
+        "AWAITING_INPUT",
+        "SUCCESS",
+    ] {
+        let ceremony = unopened_event(json!({}));
+        ceremony.add_session(initialization_session("first", status, None));
+        let error = create_tally(&ceremony, "INITIALIZATION_REPORT", &[ELECTION], &[])
+            .await
+            .unwrap_err();
+        assert_eq!(
+            validation_message(error),
+            "Another initialization report tally (first) already exists for these elections.",
+            "{status}"
+        );
+        assert_eq!(ceremony.sessions().len(), 1, "{status}");
+    }
+    let ceremony = unopened_event(json!({}));
+    ceremony.add_session(initialization_session("first", "CANCELLED", None));
+    create_tally(&ceremony, "INITIALIZATION_REPORT", &[ELECTION], &[])
+        .await
+        .expect("a cancelled session does not block");
+    assert_eq!(ceremony.sessions().len(), 2);
+}
+
+#[tokio::test]
+async fn country_initializations_are_refused_only_when_they_share_a_country() {
+    let ceremony = unopened_event(per_country());
+    ceremony.add_session(initialization_session("north", "STARTED", Some(&["north"])));
+    let error = initialize_countries(&ceremony, "INITIALIZATION_REPORT", &["north"])
+        .await
+        .unwrap_err();
+    assert_eq!(
+        validation_message(error),
+        "Another initialization report tally (north) already exists for these elections."
+    );
+    initialize_countries(&ceremony, "INITIALIZATION_REPORT", &["south"])
+        .await
+        .expect("a different country");
+}
+
+#[tokio::test]
+async fn admission_locks_the_elections_before_it_reads_them() {
+    let ceremony = unopened_event(json!({}));
+    create_tally(&ceremony, "INITIALIZATION_REPORT", &[ELECTION], &[])
+        .await
+        .expect("an initialization report");
+    assert_eq!(
+        ceremony.admission_calls(),
+        vec![
+            TallyCall::LockElections,
+            TallyCall::BlockingInitializationSessions
+        ]
+    );
+
+    let ceremony = closed_event(json!({}));
+    create(&ceremony).await.expect("electoral results");
+    assert_eq!(ceremony.admission_calls(), vec![TallyCall::LockElections]);
+
+    let ceremony = closed_event(json!({}));
+    ceremony.fail(TallyCall::LockElections, "lock timeout");
+    let error = create(&ceremony).await.unwrap_err();
+    assert_eq!(error.to_string(), "lock timeout");
+    assert_nothing_written(&ceremony);
+}

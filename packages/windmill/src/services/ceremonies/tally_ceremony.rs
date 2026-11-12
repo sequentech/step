@@ -4,8 +4,8 @@
 use super::sealed_box_ballots::event_ballot_box_seal_policy;
 use super::tally_validation::{
     validate_ballot_boxes_sealed, validate_initialization_not_generated,
-    validate_sealed_boxes_tallied, validate_tally_elections, ExpectedBallotBox,
-    TallyValidationError,
+    validate_no_concurrent_initialization, validate_sealed_boxes_tallied, validate_tally_elections,
+    ExpectedBallotBox, TallyValidationError,
 };
 use crate::adapters::system::RandomIds;
 use crate::adapters::tally_ceremony::{
@@ -489,6 +489,40 @@ pub struct TallyCreation<'a> {
     pub area_ids: Option<Vec<String>>,
 }
 
+/// Serializes tally admission per election. It locks the election rows until
+/// the transaction ends, so the voting-status reads that follow wait for any
+/// status writer in flight and a later writer waits for the admission to
+/// commit. For an initialization report it then refuses the admission when
+/// another non-cancelled initialization-report session overlaps it, because
+/// the generated flag is only written when that session finishes. Call it
+/// before reading the election statuses, in the transaction that commits the
+/// admission or the move to IN_PROGRESS (`exclude_session_id`).
+pub async fn reserve_tally_admission(
+    sessions: &impl TallySessions,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_ids: &[String],
+    tally_type: &TallyType,
+    area_filter: Option<&[String]>,
+    exclude_session_id: Option<&str>,
+) -> Result<()> {
+    sessions
+        .lock_elections(tenant_id, election_event_id, election_ids)
+        .await?;
+    if *tally_type == TallyType::INITIALIZATION_REPORT {
+        let blocking = sessions
+            .blocking_initialization_report_sessions(
+                tenant_id,
+                election_event_id,
+                election_ids,
+                exclude_session_id,
+            )
+            .await?;
+        validate_no_concurrent_initialization(tally_type, &blocking, area_filter)?;
+    }
+    Ok(())
+}
+
 #[instrument(err, skip(transaction))]
 pub async fn create_tally_ceremony(
     transaction: &Transaction<'_>,
@@ -545,6 +579,18 @@ pub async fn create_tally_ceremony_with(
         username,
         area_ids: area_filter,
     } = request;
+    let parsed_tally_type = TallyType::try_from(tally_type.as_str())
+        .map_err(|_| TallyValidationError::new("Invalid tally type"))?;
+    reserve_tally_admission(
+        sessions,
+        &tenant_id,
+        &election_event_id,
+        &election_ids,
+        &parsed_tally_type,
+        area_filter.as_deref(),
+        None,
+    )
+    .await?;
     let TallyEventSnapshot {
         election_event,
         elections: all_elections,
@@ -554,8 +600,6 @@ pub async fn create_tally_ceremony_with(
     } = reader
         .event_snapshot(&tenant_id, &election_event_id)
         .await?;
-    let parsed_tally_type = TallyType::try_from(tally_type.as_str())
-        .map_err(|_| TallyValidationError::new("Invalid tally type"))?;
     validate_tally_elections(&all_elections, &election_ids, parsed_tally_type.clone())?;
     validate_initialization_not_generated(
         &all_elections,
@@ -921,8 +965,6 @@ pub async fn update_tally_ceremony_with(
     if new_execution_status == TallyExecutionStatus::IN_PROGRESS {
         let election_ids = tally_session.election_ids.clone().unwrap_or_default();
         let reader = elections;
-        let elections =
-            ElectionsById::get(reader, &tenant_id, &election_event_id, &election_ids).await?;
         let tally_type = tally_session
             .tally_type
             .as_deref()
@@ -930,6 +972,18 @@ pub async fn update_tally_ceremony_with(
             .transpose()
             .map_err(|_| TallyValidationError::new("Invalid tally type"))?
             .unwrap_or_default();
+        reserve_tally_admission(
+            sessions,
+            &tenant_id,
+            &election_event_id,
+            &election_ids,
+            &tally_type,
+            initialization_area_filter(&tally_session).as_deref(),
+            Some(&tally_session.id),
+        )
+        .await?;
+        let elections =
+            ElectionsById::get(reader, &tenant_id, &election_event_id, &election_ids).await?;
         validate_tally_elections(&elections, &election_ids, tally_type.clone())?;
         validate_initialization_not_generated(
             &elections,

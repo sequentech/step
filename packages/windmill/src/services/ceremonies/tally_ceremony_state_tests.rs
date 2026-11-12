@@ -1187,3 +1187,57 @@ async fn a_recount_of_an_execution_without_status_writes_nothing() {
     assert_eq!(ceremony.executions(SESSION).len(), 1);
     assert_eq!(stored_status(&ceremony), Some(SUCCESS.to_string()));
 }
+
+fn initialization_session(id: &str, status: &TallyExecutionStatus) -> TallySession {
+    let mut session = tally_session(status);
+    session.id = id.into();
+    session.tally_type = Some("INITIALIZATION_REPORT".into());
+    session
+}
+
+#[tokio::test]
+async fn starting_an_initialization_report_is_refused_while_another_one_is_not_cancelled() {
+    let ceremony = ceremony(&CONNECTED, &restored_pair());
+    ceremony.add_session(initialization_session("other", &STARTED));
+    let mut starting = tally_session(&CONNECTED);
+    starting.tally_type = Some("INITIALIZATION_REPORT".into());
+    let error = change_status(&ceremony, starting.clone(), IN_PROGRESS)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        validation_message(error),
+        "Another initialization report tally (other) already exists for these elections."
+    );
+    assert_nothing_written(&ceremony, &CONNECTED);
+
+    let ceremony = self::ceremony(&CONNECTED, &restored_pair());
+    ceremony.add_session(initialization_session("other", &CANCELLED));
+    let error = change_status(&ceremony, starting, IN_PROGRESS)
+        .await
+        .unwrap_err();
+    assert!(
+        !validation_message(error).contains("Another initialization report"),
+        "a cancelled session does not block"
+    );
+    assert_eq!(
+        ceremony.admission_calls(),
+        vec![
+            TallyCall::LockElections,
+            TallyCall::BlockingInitializationSessions
+        ]
+    );
+}
+
+#[tokio::test]
+async fn starting_the_tally_locks_the_elections_and_cancelling_does_not() {
+    let ceremony = ceremony(&CONNECTED, &restored_pair());
+    ceremony.fail(TallyCall::LockElections, "lock timeout");
+    let error = change_status(&ceremony, tally_session(&CONNECTED), IN_PROGRESS)
+        .await
+        .unwrap_err();
+    assert_eq!(error.to_string(), "lock timeout");
+    assert_nothing_written(&ceremony, &CONNECTED);
+    change_status(&ceremony, tally_session(&CONNECTED), CANCELLED)
+        .await
+        .expect("cancelling takes no election lock");
+}
