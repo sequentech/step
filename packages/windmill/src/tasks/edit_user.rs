@@ -1112,11 +1112,15 @@ mod postgres_wiring_tests {
             .status
     }
 
+    /// Applying the schema takes locks that deadlock with the appends of tests
+    /// running at the same time, so these tests apply it once.
+    static SCHEMA: tokio::sync::OnceCell<()> = tokio::sync::OnceCell::const_new();
+
     async fn store() -> PostgresStore {
         let url = std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")
             .expect("ELECTORAL_LOG_TEST_DATABASE_URL names a disposable database");
         let store = PostgresStore::new(url.parse().unwrap()).unwrap();
-        store.initialize().await.unwrap();
+        SCHEMA.get_or_try_init(|| store.initialize()).await.unwrap();
         store
     }
 
