@@ -722,6 +722,28 @@ class TemplateSyntaxTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
+  void sessionPollingScriptEmitsUrlsAsJavaScriptStringLiterals()
+      throws IOException, TemplateException {
+    // Mirrors Keycloak 26.8's base template.ftl: a quote or a closing script tag in the URL must
+    // not break out of the module script, and the query string must not be HTML-escaped there.
+    for (String portal : List.of("sequent.admin-portal", "sequent.voting-portal")) {
+      Map<String, Object> model = baseModel("standard");
+      Map<String, Object> url = new HashMap<>((Map<String, Object>) model.get("url"));
+      url.put("ssoLoginInOtherTabsUrl", "/sso?a=1&b=\"</script><script>alert(1)//");
+      model.put("url", url);
+
+      String html = renderLogin(portal, model);
+
+      assertFalse(html.contains("</script><script>alert(1)"), portal + " script breakout");
+      assertTrue(html.contains("\"/sso?a=1&b=\\\""), portal + " URL not emitted as JS literal");
+      assertTrue(
+          html.contains("import { startSessionPolling } from \"/resources/js/authChecker.js\";"),
+          portal + " authChecker import");
+    }
+  }
+
+  @Test
   void credentialIsMarkedRequiredWheneverTheRequiredNoticeIsShown()
       throws IOException, TemplateException {
     // The notice promises that required fields carry an asterisk, and the credential is always
