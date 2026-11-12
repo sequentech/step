@@ -186,8 +186,16 @@ pub async fn apply_voters_added_bulk(
         return Ok((applied_items, row_failures));
     }
 
+    let colliding_usernames = colliding_usernames(voters.keys());
     let mut pending = Vec::with_capacity(voters.len());
     for (voter_username, items) in voters {
+        if colliding_usernames.contains(&normalize_username(voter_username)) {
+            row_failures.push((
+                voter_username.clone(),
+                "VoterID differs only in letter case from another voter in this patch".to_string(),
+            ));
+            continue;
+        }
         let candidate = extract_pending_voter_add(voter_username, items);
         if candidate.voter_username.len() < KEYCLOAK_USERNAME_MIN_LEN
             || candidate.voter_username.len() > KEYCLOAK_USERNAME_MAX_LEN
@@ -289,6 +297,18 @@ pub async fn apply_voters_added_bulk(
     }
 
     Ok((applied_items, row_failures))
+}
+
+/// The usernames that more than one of `voter_ids` normalizes to. A patch
+/// generated before VoterIDs were matched in lowercase can hold both `AB12`
+/// and `ab12`; inserted together they would become one user carrying both
+/// rows' attributes, and neither row tells which attributes are right.
+fn colliding_usernames<'a>(voter_ids: impl Iterator<Item = &'a String>) -> HashSet<String> {
+    let mut seen = HashSet::new();
+    voter_ids
+        .map(|voter_id| normalize_username(voter_id))
+        .filter(|username| !seen.insert(username.clone()))
+        .collect()
 }
 
 #[instrument(skip(keycloak_transaction), err)]
@@ -443,6 +463,21 @@ mod tests {
             category: ReconciliationChangeCategory::VOTER_ADDED,
             failure_reason: None,
         }
+    }
+
+    #[test]
+    fn voter_ids_differing_only_in_case_collide() {
+        let voter_ids = ["AB12", "ab12", "cd34"].map(String::from);
+        assert_eq!(
+            colliding_usernames(voter_ids.iter()),
+            HashSet::from(["ab12".to_string()])
+        );
+    }
+
+    #[test]
+    fn distinct_voter_ids_do_not_collide() {
+        let voter_ids = ["AB12", "cd34"].map(String::from);
+        assert!(colliding_usernames(voter_ids.iter()).is_empty());
     }
 
     #[test]
