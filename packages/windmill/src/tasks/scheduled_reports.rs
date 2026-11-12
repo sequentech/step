@@ -537,6 +537,98 @@ mod tests {
     }
 
     #[test]
+    fn a_report_without_a_cron_config_has_no_next_run() {
+        let report = Report {
+            cron_config: None,
+            ..daily_at_eight("2028-04-07T23:00:00.000")
+        };
+        assert_eq!(get_next_scheduled_time(&report, Tz::UTC), None);
+    }
+
+    #[test]
+    fn a_report_with_an_invalid_cron_expression_has_no_next_run() {
+        let mut report = daily_at_eight("2028-04-07T23:00:00.000");
+        report
+            .cron_config
+            .as_mut()
+            .expect("a cron config")
+            .cron_expression = "not a cron".to_string();
+        assert_eq!(get_next_scheduled_time(&report, Tz::UTC), None);
+    }
+
+    #[test]
+    fn a_report_with_an_unreadable_last_document_time_has_no_next_run() {
+        let report = daily_at_eight("yesterday");
+        assert_eq!(get_next_scheduled_time(&report, Tz::UTC), None);
+    }
+
+    #[test]
+    fn a_report_never_produced_runs_after_its_creation() {
+        let mut report = daily_at_eight("2028-04-07T23:00:00.000");
+        report
+            .cron_config
+            .as_mut()
+            .expect("a cron config")
+            .last_document_produced = None;
+        report.created_at = Utc.with_ymd_and_hms(2028, 4, 7, 23, 0, 0).unwrap();
+        assert_eq!(
+            get_next_scheduled_time(&report, Tz::UTC),
+            Some(Utc.with_ymd_and_hms(2028, 4, 8, 8, 0, 0).unwrap())
+        );
+    }
+
+    #[test]
+    fn the_last_document_time_is_read_in_utc() {
+        let expected = Utc.with_ymd_and_hms(2028, 4, 7, 23, 30, 15).unwrap();
+        assert_eq!(
+            parse_last_document_produced("2028-04-07T23:30:15.000"),
+            Some(expected)
+        );
+        assert_eq!(parse_last_document_produced("2028-04-07 23:30"), None);
+    }
+
+    #[test]
+    fn an_event_without_a_known_zone_is_scheduled_in_utc() {
+        let report = daily_at_eight("2028-04-07T23:00:00.000");
+        let mut zones = HashMap::new();
+        assert_eq!(zone_of(&zones, &report), Tz::UTC);
+        let manila: Tz = "Asia/Manila".parse().expect("a zone");
+        zones.insert(
+            (report.tenant_id.clone(), report.election_event_id.clone()),
+            manila,
+        );
+        assert_eq!(zone_of(&zones, &report), manila);
+    }
+
+    #[tokio::test]
+    async fn a_schedule_without_a_username_has_no_executor() {
+        let executor = get_scheduled_report_executor("tenant", "")
+            .await
+            .expect("an empty username needs no lookup");
+        assert_eq!(executor, None);
+    }
+
+    #[test]
+    fn the_authorization_of_a_schedule_reads_as_a_reason() {
+        assert_eq!(
+            ScheduledReportAuthorization::Authorized.to_string(),
+            "authorized"
+        );
+        assert_eq!(
+            ScheduledReportAuthorization::ExecutorNotFound.to_string(),
+            "the schedule's user does not exist in the tenant"
+        );
+        assert_eq!(
+            ScheduledReportAuthorization::ExecutorDisabled.to_string(),
+            "the schedule's user is disabled"
+        );
+        assert_eq!(
+            ScheduledReportAuthorization::MissingPermission.to_string(),
+            "the schedule's user is not allowed to read reports"
+        );
+    }
+
+    #[test]
     fn the_cron_runs_at_the_wall_time_of_the_primary_zone() {
         // 23:00 UTC on 7 April: the next 08:00 depends on the zone.
         let report = daily_at_eight("2028-04-07T23:00:00.000");
