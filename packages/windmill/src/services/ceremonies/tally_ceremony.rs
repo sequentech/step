@@ -24,6 +24,7 @@ use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_trustee_log, generate_tally_initial_log,
 };
+use crate::services::ceremonies::tally_validation::validate_initialization_report;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_status;
 use crate::services::electoral_log::ElectoralLog;
@@ -297,6 +298,11 @@ pub async fn create_tally_ceremony(
         get_event_areas(&transaction, &tenant_id, &election_event_id),
         export_area_contests(&transaction, &tenant_id, &election_event_id),
     )?;
+    if TallyType::try_from(tally_type.as_str()).unwrap_or_default()
+        == TallyType::INITIALIZATION_REPORT
+    {
+        validate_initialization_report(&all_elections, &election_ids)?;
+    }
     let contest_encryption_policy = election_event.get_contest_encryption_policy();
     let mut final_configuration = configuration.clone().unwrap_or_default();
     final_configuration.contest_encryption_policy = Some(contest_encryption_policy);

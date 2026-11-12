@@ -158,6 +158,47 @@ pub async fn get_cast_votes(
     Ok(cast_votes)
 }
 
+/// Returns whether a contest area has any cast vote, whatever its status.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn has_area_cast_votes(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    area_id: &str,
+) -> Result<bool> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM sequent_backend.cast_vote
+                    WHERE
+                        tenant_id = $1 AND
+                        election_event_id = $2 AND
+                        election_id = $3 AND
+                        area_id = $4
+                ) AS found
+            "#,
+        )
+        .await?;
+
+    let row = hasura_transaction
+        .query_one(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
+                &parse_uuid_v4(area_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error checking for area cast votes: {}", err))?;
+
+    Ok(row.get("found"))
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_cast_votes_by_election_id(
     hasura_transaction: &Transaction<'_>,
