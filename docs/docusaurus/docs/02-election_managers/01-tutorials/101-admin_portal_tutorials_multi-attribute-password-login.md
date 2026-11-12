@@ -306,15 +306,18 @@ configurations that don't set this option use the default.
 
 The same applies to an outsider: with the default, a few wrong attempts for a shared value can
 lock out every voter who shares it. A [per-IP rate limit at the proxy](#rate-limiting-per-ip-address)
-keeps one source from doing that at scale.
+slows one source down, but doesn't stop it from doing that.
 
 ---
 
 ## Rate Limiting per IP Address
 
-The limits above can't tell who sends a request. Only a limit per client address keeps an
-outsider's attempts from using up the attempts of the voters they target. Configure it in the
-reverse proxy or CDN in front of Keycloak, for example as a Cloudflare rate limiting rule:
+The limits above can't tell who sends a request. A limit per client address slows down an outsider
+who uses up the attempts of the voters they target, but it's a mitigation, not a guarantee: with
+Brute Force Detection on, the accounts that share a value lock after the realm's failure factor,
+which can take fewer attempts than the address limit allows, and earlier failures and attempts
+from other addresses count toward it too. Configure it in the reverse proxy or CDN in front of
+Keycloak, for example as a Cloudflare rate limiting rule:
 
 - **Requests:** `POST` to `/realms/<realm>/login-actions/authenticate` (this login form) and to
   `/realms/<realm>/protocol/openid-connect/token` (Direct Grant, used by IVR), prefixed with
