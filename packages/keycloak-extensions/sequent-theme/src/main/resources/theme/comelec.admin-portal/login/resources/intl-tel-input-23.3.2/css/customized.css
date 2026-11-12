@@ -1,0 +1,14 @@
+input::placeholder {
+  color: #aaa !important;
+  font-size: 12px;
+}
+
+.iti__selected-country {
+  font-size: 12px;
+  color: #aaa;
+  cursor: initial;
+}
+
+.iti {
+  --iti-input-padding: 12px;
+}
