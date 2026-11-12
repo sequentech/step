@@ -1,0 +1,116 @@
+{
+  "deletion_timeout_in_minutes": 5,
+  "video_ocr_expiry_timeout_in_seconds": 90,
+  "image_ocr_expiry_timeout_in_seconds": 120,
+  "network_config": {
+    "required_bandwidth_in_kilobytes_per_second": 0,
+    "reconnect_duration_seconds": 20
+  },
+  "onprem": {
+    "callback_url": "http://keycloak:8090/realms/master/identity-verification/ocr/callback?secret=liveness-dev-callback-secret",
+    "token_verification_url": "http://keycloak:8090/realms/master/identity-verification/ocr/verify?secret=liveness-dev-callback-secret",
+    "send_results_to_server": true,
+    "send_debug_results_to_server": false,
+    "send_video_in_results": false,
+    "send_results_to_client": false,
+    "default_parameters": {
+      "ocr_type": "passport",
+      "scan_config": "scan_config",
+      "video_config": "video_config_no_mirror",
+      "translation_variant": "default",
+      "translation_language": "en",
+      "ui_theme": "sequent_ui"
+    }
+  },
+  "regula": {
+    "url": "",
+    "filter_list": [
+      "id card (1997)",
+      "id card (2005)",
+      "Israel - Id Card #1",
+      "Israel - Id Card #2",
+      "Israel - Id Card #4",
+      "passport",
+      "Israel - Entry Exit Permit #1",
+      "Israel - Driving License (2007)",
+      "Israel - Driving License (2018)",
+      "Israel - Id Card (2021)"
+    ],
+    "scan_delay_seconds": 2
+  },
+  "israel_id": {
+    "auth": {
+      "color_score_threshold": 0.6,
+      "chip_score_threshold": 0.5,
+      "side_stamps_min_count": 2,
+      "side_stamps_threshold": 0.2,
+      "face_yaw_threshold": 15.0,
+      "face_original_image_score_threshold": 0.8,
+      "distance_between_eyes_min_non_bio": 70,
+      "distance_between_eyes_max_non_bio": 150,
+      "distance_between_eyes_min_bio": 85,
+      "distance_between_eyes_max_bio": 135,
+      "nose_min_x_non_bio": 110,
+      "nose_max_x_non_bio": 250,
+      "nose_min_y_non_bio": 200,
+      "nose_max_y_non_bio": 360,
+      "nose_min_x_bio": 165,
+      "nose_max_x_bio": 220,
+      "nose_min_y_bio": 225,
+      "nose_max_y_bio": 325
+    }
+  },
+  "israel_dl": {
+    "auth": {
+      "face_yaw_threshold": 15.0,
+      "distance_between_eyes_min_old": 60,
+      "distance_between_eyes_max_old": 120,
+      "distance_between_eyes_min_new": 50,
+      "distance_between_eyes_max_new": 100,
+      "nose_min_x_old": 120,
+      "nose_max_x_old": 200,
+      "nose_min_y_old": 140,
+      "nose_max_y_old": 280,
+      "nose_min_x_new": 100,
+      "nose_max_x_new": 200,
+      "nose_min_y_new": 160,
+      "nose_max_y_new": 280
+    }
+  },
+  "passport": {
+    "auth": {
+      "face_yaw_threshold": 15.0,
+      "distance_between_eyes_min": 50,
+      "distance_between_eyes_max": 150,
+      "nose_min_x": 60,
+      "nose_max_x": 230,
+      "nose_min_y": 120,
+      "nose_max_y": 360
+    }
+  },
+  "israel_passport": {
+    "auth": {
+      "face_yaw_threshold": 15.0,
+      "distance_between_eyes_min": 50,
+      "distance_between_eyes_max": 150,
+      "nose_min_x": 60,
+      "nose_max_x": 230,
+      "nose_min_y": 120,
+      "nose_max_y": 360,
+      "suspicious_passport_number_patterns": [
+        "111111111",
+        "999999999",
+        "123456789",
+        "987654321",
+        "000000000"
+      ],
+      "suspicious_id_number_patterns": [
+        "111111111",
+        "999999999",
+        "123456789",
+        "987654321",
+        "000000000"
+      ]
+    }
+  }
+}

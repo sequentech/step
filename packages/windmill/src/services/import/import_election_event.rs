@@ -63,8 +63,8 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util::locale::iso_639_2t_to_bcp47;
 use sequent_core::util::mime::{get_mime_types, matches_mime};
 use sequent_core::util::version::{
-    check_version_compatibility, DEV_APP_VERSION, ENV_VAR_APP_VERSION, HISTORICAL_DEFAULT_VERSION,
-    VERSION_KEY,
+    check_version_compatibility, major_mismatch, DEV_APP_VERSION, ENV_VAR_APP_VERSION,
+    HISTORICAL_DEFAULT_VERSION, VERSION_KEY,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -145,7 +145,7 @@ use sequent_core::election_config;
 use sequent_core::election_config::package_verify::VerifiedPackage;
 use sequent_core::election_config::report::{parse_copies, parse_output_formats};
 pub use sequent_core::election_config::ImportElectionEventSchema;
-use sequent_core::election_config::{import_problems, Rejected};
+use sequent_core::election_config::{import_problems, Problem, Rejected};
 
 #[instrument(err)]
 pub async fn ensure_election_audit_boards(
@@ -922,8 +922,10 @@ pub async fn insert_election_event_db(
 ///
 /// This function is a thin wrapper around `replace_realm_ids()` that processes the election event
 /// import schema and replaces most UUIDs with new ones, while keeping certain IDs unchanged
-/// (like tenant_id and optionally election_event_id). It also automatically preserves UUIDs
-/// referenced in Keycloak authenticator configurations.
+/// (like tenant_id and optionally election_event_id). `replace_realm_ids` keeps the UUIDs of a
+/// top-level `authenticatorConfig` only, which an import document does not have, so the realm's
+/// authenticator settings are remapped too; the Scanovate secret and endpoint are put back
+/// afterwards (`restore_remapped_integration_secrets`).
 ///
 /// # Arguments
 /// * `data_str` - The original JSON string representation of the import data
@@ -952,7 +954,7 @@ pub fn replace_ids(
     ));
 
     // Use replace_realm_ids which handles:
-    // - Preserving UUIDs in Keycloak authenticator configurations
+    // - Preserving UUIDs of a top-level authenticatorConfig (none in an import document)
     // - Preserving tenant_id and election_event_id in the keep list before UUID replacement
     // - Applying explicit tenant_id and election_event_id replacements after UUID replacement
     let (mut new_data, mut replacement_map) = replace_realm_ids(
@@ -1000,6 +1002,10 @@ pub fn replace_ids(
 
     // Parse the modified JSON string back into the structured format
     let mut data: ImportElectionEventSchema = deserialize_str(&new_data)?;
+    crate::services::export::integration_secrets::restore_remapped_integration_secrets(
+        original_data.keycloak_event_realm.as_ref(),
+        data.keycloak_event_realm.as_mut(),
+    );
     validate_import_scope(&data, &tenant_id, &election_event_id)?;
     if let (Some(original_ceremonies), Some(imported_ceremonies), Some(boards)) = (
         &original_data.keys_ceremonies,
@@ -1190,12 +1196,41 @@ pub async fn decrypt_document(
 /// Get the election event schma and also:
 /// - Check version compatibility
 /// - Replace IDs and return a mapping of old to new IDs (for preserving references in other documents like voters)
+///
+/// The third value is what the read warns about without refusing: a file
+/// written by a different **major** version is imported with a
+/// `file.version-major-mismatch` warning (meta#14760), which each caller
+/// reports through its own channel. Every other version refusal (an unreadable
+/// version, `dev` on one side only, a newer minor of the same major) and every
+/// check after it still refuses.
 #[instrument(err, skip_all)]
 pub async fn get_election_event_schema(
     data_str: &str,
     event_id: Option<String>,
     tenant_id: String,
-) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
+) -> Result<(
+    ImportElectionEventSchema,
+    HashMap<String, String>,
+    Vec<Problem>,
+)> {
+    let current_version = std::env::var(ENV_VAR_APP_VERSION)
+        .map_err(|_| anyhow!("Environment variable {ENV_VAR_APP_VERSION} should be set"))?;
+    read_election_event_schema(data_str, event_id, tenant_id, &current_version).await
+}
+
+/// [`get_election_event_schema`] against a stated platform version, rather
+/// than the process's `APP_VERSION`: the same checks, testable without a
+/// process-wide variable other tests also set.
+async fn read_election_event_schema(
+    data_str: &str,
+    event_id: Option<String>,
+    tenant_id: String,
+    current_version: &str,
+) -> Result<(
+    ImportElectionEventSchema,
+    HashMap<String, String>,
+    Vec<Problem>,
+)> {
     // Catch a version missmatch early and return a clear error message about it, rather than having it fail later on
     // with a more obscure error when trying to deserialize data that is incompatible with the current version.
     let mut raw: serde_json::Value = serde_json::from_str(data_str).map_err(|e| {
@@ -1219,15 +1254,11 @@ pub async fn get_election_event_schema(
         .get(VERSION_KEY)
         .and_then(|v| v.as_str())
         .unwrap_or(&default_ver);
-    let current_version = std::env::var(ENV_VAR_APP_VERSION)
-        .map_err(|_| anyhow!("Environment variable {ENV_VAR_APP_VERSION} should be set"))?;
-    check_version_compatibility(imported_version, &current_version).map_err(|err| {
-        reject(
-            "election event file",
-            import_problems::incompatible_version(imported_version, &current_version),
-        )
-        .context(err.to_string())
-    })?;
+    let mut warnings = Vec::new();
+    if let Some(warning) = version_warning(imported_version, current_version)? {
+        event!(Level::WARN, "election event import: {warning}");
+        warnings.push(warning);
+    }
     let original_data: ImportElectionEventSchema = deserialize_str(data_str).map_err(|err| {
         let message = err.to_string();
         reject(
@@ -1237,7 +1268,46 @@ pub async fn get_election_event_schema(
         .context(message)
     })?;
     check_bundle(&original_data)?;
-    replace_ids(data_str, &original_data, event_id, tenant_id.clone())
+    reject_masked_integration_secrets(&original_data)?;
+    let (schema, replacement_map) =
+        replace_ids(data_str, &original_data, event_id, tenant_id.clone())?;
+    Ok((schema, replacement_map, warnings))
+}
+
+/// The import's version check: `None` when the versions are compatible, the
+/// `file.version-major-mismatch` warning when only the major differs (in either
+/// direction; meta#14760), and the `file.version-incompatible` refusal for
+/// everything else the strict check refuses: an unreadable version, `dev` on
+/// one side only, a newer minor of the same major.
+fn version_warning(imported_version: &str, current_version: &str) -> Result<Option<Problem>> {
+    match check_version_compatibility(imported_version, current_version) {
+        Ok(()) => Ok(None),
+        Err(_) if major_mismatch(imported_version, current_version) => Ok(Some(
+            import_problems::version_major_mismatch(imported_version, current_version),
+        )),
+        Err(err) => Err(reject(
+            "election event file",
+            import_problems::incompatible_version(imported_version, current_version),
+        )
+        .context(err.to_string())),
+    }
+}
+
+/// Refuses a bundle whose realm would install Keycloak's export placeholder
+/// as a Scanovate `liveness-secret`.
+///
+/// An export made without integration secrets carries `**********` in their
+/// place, and Keycloak stores an imported realm's authenticator settings as
+/// given. Nothing is stripped or taken from elsewhere: the operator exports
+/// the event again with integration secrets included. Names configurations,
+/// never values. Shared provider configurations are refused too: their settings
+/// cannot be preserved as opaque Scanovate data during ID remapping.
+fn reject_masked_integration_secrets(data: &ImportElectionEventSchema) -> Result<()> {
+    let Some(realm) = data.keycloak_event_realm.as_ref() else {
+        return Ok(());
+    };
+    sequent_core::election_config::scanovate::validate(realm)
+        .map_err(|problem| reject("election event file", problem))
 }
 
 /// Run the shared validation, refusing the import if it found anything fatal.
@@ -1305,13 +1375,18 @@ pub async fn process_election_event_file(
     Vec<String>,
 )> {
     let mut notes = vec![];
-    let (mut data, replacement_map) = get_election_event_schema(
+    let (mut data, replacement_map, warnings) = get_election_event_schema(
         file_election_event_schema,
         Some(election_event_id.clone()),
         tenant_id.clone(),
     )
     .await
-    .map_err(|err| anyhow!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}: {err}"))?;
+    // Context, not a re-formatted message: a refusal's structured problems
+    // must survive to the task's annotations (`problems_of`).
+    .with_context(|| format!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}"))?;
+    // In the task's log with the import's other notes, where the operator who
+    // started it reads what it did not do.
+    notes.extend(warnings.iter().map(ToString::to_string));
 
     let election_ids: Vec<String> = data
         .elections
@@ -2670,6 +2745,17 @@ pub async fn process_document(
         .await?;
     }
 
+    // Match normal event creation, after the archive has restored its system
+    // signing key and electoral log. Initializing earlier would either lack
+    // that key or append before the archived log is restored.
+    crate::services::monitoring::audit::initialize_new_event(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+    )
+    .await
+    .context("Failed to initialize the imported event's monitoring defaults")?;
+
     Ok(ImportedElectionEvent {
         notes,
         file_sha256,
@@ -3088,12 +3174,208 @@ mod tests {
         bundle["contests"][0]["election_id"] =
             serde_json::json!("e1000000-0000-5000-8000-000000000000");
 
-        let (_schema, ids) =
+        let (_schema, ids, _) =
             get_election_event_schema(&bundle.to_string(), None, TENANT.to_string())
                 .await
                 .expect("a bundle with no fatal problems should get past validation");
 
         assert!(!ids.is_empty());
+    }
+
+    /// meta#14760: the import's version policy, against a stated platform
+    /// version (no process-wide `APP_VERSION`). A different major, older or
+    /// newer, imports with a warning that does not claim compatibility;
+    /// everything else the strict check refuses still refuses; and a different
+    /// major never excuses a fatal problem found after it.
+    fn a_sound_bundle(version: Option<&str>) -> String {
+        let mut bundle: serde_json::Value =
+            serde_json::from_str(&a_bundle_with_a_dangling_election()).expect("the fixture parses");
+        bundle["contests"][0]["election_id"] =
+            serde_json::json!("e1000000-0000-5000-8000-000000000000");
+        match version {
+            Some(version) => bundle["version"] = serde_json::json!(version),
+            None => {
+                bundle.as_object_mut().expect("an object").remove("version");
+            }
+        }
+        bundle.to_string()
+    }
+
+    #[tokio::test]
+    async fn a_different_major_imports_with_a_warning() {
+        for (found, platform) in [("v10.0.0", "v11.0.0-rc.10"), ("v12.0.0", "v11.0.0")] {
+            let (_schema, _ids, warnings) = read_election_event_schema(
+                &a_sound_bundle(Some(found)),
+                None,
+                TENANT.to_string(),
+                platform,
+            )
+            .await
+            .unwrap_or_else(|error| panic!("{found} on {platform} must import: {error:#}"));
+            assert_eq!(warnings.len(), 1, "{warnings:?}");
+            let warning = &warnings[0];
+            assert_eq!(warning.id.as_deref(), Some("file.version-major-mismatch"));
+            assert_eq!(warning.severity, election_config::Severity::Warning);
+            assert_eq!(
+                warning.details.get("found").map(String::as_str),
+                Some(found)
+            );
+            assert!(warning.message.contains("does not block the import"));
+            assert!(warning.message.contains("may not be imported"));
+            assert!(!warning.message.contains("compatible"));
+            assert!(!warning.message.contains("imported anyway"));
+        }
+        // No version at all is the historical 9.0.0: also another major.
+        let (_, _, warnings) =
+            read_election_event_schema(&a_sound_bundle(None), None, TENANT.to_string(), "v11.0.0")
+                .await
+                .expect("a version-less export imports");
+        assert_eq!(
+            warnings[0].details.get("found").map(String::as_str),
+            Some("9.0.0")
+        );
+    }
+
+    #[tokio::test]
+    async fn the_same_major_imports_without_a_warning() {
+        let (_, _, warnings) = read_election_event_schema(
+            &a_sound_bundle(Some("v11.0.0")),
+            None,
+            TENANT.to_string(),
+            "v11.0.0-rc.10",
+        )
+        .await
+        .expect("the same major imports");
+        assert!(warnings.is_empty(), "{warnings:?}");
+    }
+
+    #[tokio::test]
+    async fn what_is_not_a_major_mismatch_is_still_refused() {
+        for (found, platform) in [
+            ("v11.2.0", "v11.0.0"),
+            ("dev", "v11.0.0"),
+            ("not-a-version", "v11.0.0"),
+            ("v12.bad.0", "v11.0.0"),
+        ] {
+            let error = read_election_event_schema(
+                &a_sound_bundle(Some(found)),
+                None,
+                TENANT.to_string(),
+                platform,
+            )
+            .await
+            .expect_err("still refused");
+            assert_eq!(
+                problem_id(&error).as_deref(),
+                Some("file.version-incompatible"),
+                "{found} on {platform}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn a_different_major_does_not_excuse_a_fatal_problem() {
+        let mut dangling: serde_json::Value =
+            serde_json::from_str(&a_bundle_with_a_dangling_election()).expect("the fixture parses");
+        dangling["version"] = serde_json::json!("v10.0.0");
+        let error =
+            read_election_event_schema(&dangling.to_string(), None, TENANT.to_string(), "v11.0.0")
+                .await
+                .expect_err("a dangling reference is still fatal");
+        assert_ne!(
+            problem_id(&error).as_deref(),
+            Some("file.version-incompatible")
+        );
+
+        let mut unreadable: serde_json::Value =
+            serde_json::from_str(&a_sound_bundle(Some("v10.0.0"))).expect("parses");
+        unreadable["elections"] = serde_json::json!("not a list");
+        let error = read_election_event_schema(
+            &unreadable.to_string(),
+            None,
+            TENANT.to_string(),
+            "v11.0.0",
+        )
+        .await
+        .expect_err("a schema error is still fatal");
+        assert_eq!(problem_id(&error).as_deref(), Some("file.not-a-bundle"));
+
+        // A masked integration secret is still refused, whatever the version.
+        let mut masked: serde_json::Value =
+            serde_json::from_str(&a_sound_bundle(Some("v10.0.0"))).expect("parses");
+        masked["keycloak_event_realm"] = serde_json::json!({
+            "authenticationFlows": [{"authenticationExecutions": [
+                {"authenticator": "scanovate-authenticator",
+                 "authenticatorConfig": "scanovate-registration"}]}],
+            "authenticatorConfig": [{"alias": "scanovate-registration", "config": {
+                "liveness-url": "https://liveness.example.test/callback",
+                "liveness-secret": "**********"}}]
+        });
+        let error =
+            read_election_event_schema(&masked.to_string(), None, TENANT.to_string(), "v11.0.0")
+                .await
+                .expect_err("a masked secret is still refused");
+        assert_eq!(
+            problem_id(&error).as_deref(),
+            Some("file.masked-integration-secret")
+        );
+    }
+
+    /// meta#14666: a bundle whose realm holds Keycloak's export placeholder as
+    /// the Scanovate secret is refused before anything is installed, naming
+    /// the configuration; the same bundle with a real secret gets through
+    /// with that secret unchanged.
+    #[tokio::test]
+    async fn a_masked_scanovate_secret_does_not_import() {
+        std::env::set_var(ENV_VAR_APP_VERSION, DEV_APP_VERSION);
+        // Synthetic values only.
+        let with_secret = |secret: &str| {
+            let mut bundle: serde_json::Value =
+                serde_json::from_str(&a_bundle_with_a_dangling_election())
+                    .expect("the fixture parses");
+            bundle["contests"][0]["election_id"] =
+                serde_json::json!("e1000000-0000-5000-8000-000000000000");
+            bundle["keycloak_event_realm"] = serde_json::json!({
+                "authenticationFlows": [{"authenticationExecutions": [
+                    {"authenticator": "scanovate-authenticator",
+                     "authenticatorConfig": "scanovate-registration"}]}],
+                "authenticatorConfig": [{"alias": "scanovate-registration", "config": {
+                    "liveness-url": "https://liveness.example.test/callback",
+                    "liveness-secret": secret}}]
+            });
+            bundle.to_string()
+        };
+
+        let error = get_election_event_schema(&with_secret("**********"), None, TENANT.to_string())
+            .await
+            .expect_err("a masked Scanovate secret must not be installed");
+        assert_eq!(
+            problem_id(&error).as_deref(),
+            Some("file.masked-integration-secret")
+        );
+        let problems = crate::services::import::rejection::problems_of(&error).unwrap();
+        assert_eq!(
+            problems[0].details.get("config").map(String::as_str),
+            Some("scanovate-registration")
+        );
+        assert_eq!(
+            problems[0].details.get("key").map(String::as_str),
+            Some("liveness-secret")
+        );
+        // The refusal names the configuration and setting, never a value.
+        let shown = format!("{error:#} {problems:?}");
+        assert!(!shown.contains("liveness.example.test"));
+
+        let secret = "synthetic-liveness-secret-imported";
+        let (schema, _, _) =
+            get_election_event_schema(&with_secret(secret), None, TENANT.to_string())
+                .await
+                .expect("a real secret imports");
+        let realm = schema.keycloak_event_realm.expect("the realm travels");
+        assert_eq!(
+            realm["authenticatorConfig"][0]["config"]["liveness-secret"],
+            secret
+        );
     }
 
     /// An export from before names moved into `presentation` keeps them.
@@ -3109,9 +3391,10 @@ mod tests {
         bundle["elections"][0]["name"] = serde_json::json!("Old election");
         bundle["contests"][0]["name"] = serde_json::json!("Old contest");
 
-        let (schema, _) = get_election_event_schema(&bundle.to_string(), None, TENANT.to_string())
-            .await
-            .expect("an old export imports");
+        let (schema, _, _) =
+            get_election_event_schema(&bundle.to_string(), None, TENANT.to_string())
+                .await
+                .expect("an old export imports");
 
         let name = |presentation: &Option<serde_json::Value>| {
             presentation.as_ref().expect("a presentation")["i18n"]["en"]["name"].clone()
@@ -3430,6 +3713,87 @@ mod import_scope_tests {
             tenant_id.to_string(),
         )
         .map(|(data, _)| data)
+    }
+
+    /// meta#14666: an authorized export carries the Scanovate secret, and
+    /// import must install it, with its endpoint, exactly as exported, even
+    /// when either is or contains a UUID the archive also uses as an id.
+    #[test]
+    fn an_exported_uuid_shaped_scanovate_secret_survives_id_remapping() {
+        // Synthetic values only.
+        let (source_tenant, source_event, config_id) = (new_id(), new_id(), new_id());
+        let uuid_secret = "5e0c7a1e-0000-4000-8000-00000000c0de";
+        let embedded_secret = "prefix-6f1d0000-0000-4000-8000-0000000000aa-suffix";
+        let endpoint = format!(
+            "https://liveness.example.test/t/{source_tenant}/e/{source_event}/c/{config_id}/{uuid_secret}"
+        );
+        let scanovate = |alias: &str, secret: &str| {
+            json!({"alias": alias, "config": {
+                "liveness-url": endpoint, "liveness-secret": secret,
+                "face-match-url": endpoint, "document-liveness-url": endpoint,
+                "future-setting": source_event}})
+        };
+        let mut input = bundle(&source_tenant, &source_event);
+        let mut configs = vec![
+            scanovate("uuid-secret", uuid_secret),
+            scanovate("tenant-id-secret", &source_tenant),
+            scanovate("event-id-secret", &source_event),
+            scanovate("config-id-secret", &config_id),
+            scanovate("embedded-uuid-secret", embedded_secret),
+            // Another authenticator's settings keep their remapping.
+            json!({"alias": "other", "config": {
+                "liveness-secret": uuid_secret, "unrelated-reference": uuid_secret}}),
+        ];
+        configs[0]["id"] = json!(config_id);
+        let executions: Vec<Value> = configs
+            .iter()
+            .map(|config| {
+                let alias = config["alias"].as_str().unwrap();
+                let authenticator = if alias == "other" {
+                    "conditional-user-attribute"
+                } else {
+                    "scanovate-authenticator"
+                };
+                json!({"authenticator": authenticator, "authenticatorConfig": alias})
+            })
+            .collect();
+        input["keycloak_event_realm"] = json!({
+            "authenticationFlows": [{"authenticationExecutions": executions}],
+            "authenticatorConfig": configs,
+            // The same UUIDs used as references elsewhere are still remapped.
+            "attributes": {"synthetic-reference": uuid_secret}
+        });
+        let target_tenant = new_id();
+        let imported = import(&input, None, &target_tenant).unwrap();
+
+        // The event's own ids are remapped as before.
+        assert_eq!(imported.tenant_id, target_tenant);
+        assert_ne!(imported.election_event.id, source_event);
+        let realm = imported.keycloak_event_realm.unwrap();
+        let configs = realm["authenticatorConfig"].as_array().unwrap();
+        assert_ne!(configs[0]["id"], config_id.as_str());
+        assert_ne!(realm["attributes"]["synthetic-reference"], uuid_secret);
+        assert_ne!(configs[5]["config"]["unrelated-reference"], uuid_secret);
+        assert_ne!(configs[5]["config"]["liveness-secret"], uuid_secret);
+        // The Scanovate settings arrive as exported.
+        let expected: [&str; 5] = [
+            uuid_secret,
+            &source_tenant,
+            &source_event,
+            &config_id,
+            embedded_secret,
+        ];
+        for (config, secret) in configs.iter().zip(expected) {
+            assert_eq!(
+                config["config"]["liveness-secret"], secret,
+                "{}",
+                config["alias"]
+            );
+            assert_eq!(config["config"]["liveness-url"], endpoint.as_str());
+            assert_eq!(config["config"]["face-match-url"], endpoint.as_str());
+            assert_eq!(config["config"]["document-liveness-url"], endpoint.as_str());
+            assert_eq!(config["config"]["future-setting"], source_event.as_str());
+        }
     }
 
     #[test]

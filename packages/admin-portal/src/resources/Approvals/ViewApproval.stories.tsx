@@ -9,7 +9,8 @@ import {GraphQLError} from "graphql"
 import {EVENT_ID, TENANT_ID} from "@/__stories__/AdminStoryProvider"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {STORY_IDS, eventRecord} from "@/__stories__/fixtures"
-import type {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import type {Sequent_Backend_Applications, Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {EStoryLocale} from "../../../../ui-essentials/.storybook/globals"
 import {ViewApproval} from "./ViewApproval"
 import {CAROL_VOTER_ID} from "./__stories__/ApprovalsFixture"
 import {
@@ -31,7 +32,7 @@ interface Scenario extends ApprovalServices {
     /** What approving or rejecting answers. */
     decides: "done" | "already-enrolled" | "error"
     goBack: Mock<() => void>
-    onViewRule: Mock<(decided: {version: number; rule: number | null}) => void>
+    onViewRule: Mock<(application: Sequent_Backend_Applications) => void>
 }
 
 const meta = {
@@ -214,11 +215,138 @@ export const OneDetailDiffers: Story = {
     },
 }
 
+/** Where the review's steps are drawn, relative to the list of steps and the width it has. */
+const stepLayout = (list: HTMLElement) => {
+    const box = list.getBoundingClientRect()
+    const items = within(list).getAllByRole("listitem")
+    const steps = items.map((step) => {
+        const range = document.createRange()
+        range.selectNodeContents(step)
+        const rects = Array.from(range.getClientRects()).filter((rect) => rect.width > 0)
+        return {
+            left: Math.min(...rects.map((rect) => rect.left)),
+            right: Math.max(...rects.map((rect) => rect.right)),
+        }
+    })
+    const container = list.parentElement as HTMLElement
+    const style = getComputedStyle(container)
+    const width =
+        container.getBoundingClientRect().width -
+        parseFloat(style.paddingLeft) -
+        parseFloat(style.paddingRight) -
+        parseFloat(style.borderLeftWidth) -
+        parseFloat(style.borderRightWidth)
+    return {box, width, items, steps}
+}
+
+/** The steps use the whole width, in order: the first at the left, the second centered, the last at the right. */
+const spansTheWidth = (list: HTMLElement) => {
+    const {box, width, items, steps} = stepLayout(list)
+    expect(steps).toHaveLength(3)
+    expect(box.width).toBeGreaterThanOrEqual(width - 1)
+    expect(Math.abs(steps[0].left - box.left)).toBeLessThanOrEqual(1)
+    expect(
+        Math.abs((steps[1].left + steps[1].right) / 2 - (box.left + box.right) / 2)
+    ).toBeLessThanOrEqual(2)
+    expect(Math.abs(steps[2].right - box.right)).toBeLessThanOrEqual(1)
+    // The steps don't overlap, and no label is cut or spills out of its step.
+    expect(steps[0].right).toBeLessThan(steps[1].left)
+    expect(steps[1].right).toBeLessThan(steps[2].left)
+    for (const item of items) {
+        expect(item.scrollWidth).toBeLessThanOrEqual(item.clientWidth + 1)
+    }
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+}
+
+const steps = (canvasElement: HTMLElement) =>
+    within(canvasElement).getByRole("list", {name: "Review steps"})
+
+const atWidth = (width: number) => ({
+    globals: {viewport: {value: `width-${width}`, isRotated: false}},
+    parameters: {
+        viewport: {
+            options: {
+                [`width-${width}`]: {
+                    name: `${width}px`,
+                    styles: {width: `${width}px`, height: "900px"},
+                },
+            },
+        },
+    },
+})
+
+export const TheStepsSpanTheWidth: Story = {
+    ...atWidth(1280),
+    play: async ({canvasElement}) => {
+        await opened(canvasElement, "Alice Example")
+        expect(window.innerWidth).toBe(1280)
+        spansTheWidth(steps(canvasElement))
+        expect(currentStep(canvasElement)).toBe("1Check the identity")
+    },
+}
+
+export const TheStepsOnANarrowScreen: Story = {
+    ...atWidth(360),
+    play: async ({canvasElement}) => {
+        await opened(canvasElement, "Alice Example")
+        expect(window.innerWidth).toBe(360)
+        spansTheWidth(steps(canvasElement))
+        await continueOn(canvasElement)
+        expect(currentStep(canvasElement)).toBe("2Find the voter")
+    },
+}
+
+/** Tagalog has the longest labels of the steps. */
+const inTagalog = (width: number): Story => ({
+    ...atWidth(width),
+    globals: {...atWidth(width).globals, locale: EStoryLocale.TAGALOG},
+    play: async ({canvasElement}) => {
+        let list: HTMLElement | undefined
+        await waitFor(() => {
+            list = within(canvasElement)
+                .getAllByRole("list")
+                .find((element) => element.textContent?.includes("Suriin ang pagkakakilanlan"))
+            expect(list).toBeDefined()
+        })
+        expect(window.innerWidth).toBe(width)
+        spansTheWidth(list as HTMLElement)
+    },
+})
+
+export const TheStepsInTagalogAtATabletWidth = inTagalog(820)
+export const TheStepsInTagalogOnANarrowScreen = inTagalog(360)
+
+/**
+ * In the portal the review sits beside the side menu, so its card can be much narrower than the
+ * window: 404 px at a 820 px window, about 215 px on a phone.
+ */
+const inACard = (width: number, card: number, locale = EStoryLocale.TAGALOG): Story => ({
+    ...inTagalog(width),
+    globals: {...atWidth(width).globals, locale},
+    decorators: [
+        (Story) => (
+            <div style={{maxWidth: `${card}px`}}>
+                <Story />
+            </div>
+        ),
+    ],
+})
+
+export const TheStepsInTagalogInATabletCard = inACard(1280, 404)
+export const TheStepsInTagalogInAPhoneCard = inACard(1280, 220)
+
 export const SeeTheRule: Story = {
     play: async ({canvasElement, args}) => {
         await opened(canvasElement, "Alice Example")
         await userEvent.click(within(canvasElement).getByRole("button", {name: "See the rule"}))
-        expect(args.onViewRule).toHaveBeenCalledWith({version: 1, rule: 5})
+        expect(args.onViewRule).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: APPLICATION_ID,
+                annotations: expect.objectContaining({
+                    decision: expect.objectContaining({matrix_version: 1, rule: 5}),
+                }),
+            })
+        )
     },
 }
 
@@ -580,7 +708,14 @@ export const RejectedEnrollment: Story = {
         ).toBeVisible()
         await expect(canvas.getByText("Last rule of matrix version 1")).toBeVisible()
         await userEvent.click(canvas.getByRole("button", {name: "See the rule"}))
-        expect(args.onViewRule).toHaveBeenCalledWith({version: 1, rule: null})
+        expect(args.onViewRule).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: REJECTED_APPLICATION_ID,
+                annotations: expect.objectContaining({
+                    decision: expect.objectContaining({matrix_version: 1, rule: null}),
+                }),
+            })
+        )
 
         // A rejected enrollment can still be approved, once its voter is found.
         await continueOn(canvasElement)
