@@ -5763,9 +5763,9 @@ dependencies = [
 
 [[package]]
 name = "lopdf"
-version = "0.38.0"
+version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7184fdea2bc3cd272a1acec4030c321a8f9875e877b3f92a53f2f6033fdc289"
+checksum = "f560f57dfb9142a02d673e137622fd515d4231e51feb8b4af28d92647d83f35b"
 dependencies = [
  "aes",
  "bitflags 2.10.0",
@@ -11875,7 +11875,7 @@ dependencies = [
  "hex",
  "keycloak",
  "lettre",
- "lopdf 0.38.0",
+ "lopdf 0.39.0",
  "num_cpus",
  "once_cell",
  "openssl",
