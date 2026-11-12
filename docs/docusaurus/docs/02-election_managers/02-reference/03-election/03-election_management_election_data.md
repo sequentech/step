@@ -121,6 +121,7 @@ Import advanced settings for this Election and define vote limits, confirmations
   - Assign a permission label to this Election, controlling which Admin Portal users can access/manage this Election.  
   - Only users who carry the label see or modify this Election and its contests, candidates, ballot styles, publications, results and tally data. Elections without a label are visible to every admin user of the tenant.  
   - You can only assign a label that your own user carries. Admin users have no permission labels by default, so add the label to your user first (see [Assigning a Permission Label](#assigning-a-permission-label)).
+  - Actions that apply to the whole Election Event, such as changing the event voting status or dates, publishing the event ballot or exporting the event logs, require a user whose permission labels cover every labelled Election of the event. The electoral log shows such a user only the entries of the Elections they can access and the entries that belong to no Election.
 
 - **Upload Advanced Configuration** (Optional):  
   - Drag and drop a configuration file (e.g., JSON or system-specific format) to apply pre-defined advanced settings.  
