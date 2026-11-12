@@ -368,6 +368,52 @@ pub async fn update_election_presentation(
     Ok(())
 }
 
+/// Row-lock statement for [`lock_elections_for_admission`]. `FOR NO KEY UPDATE`
+/// conflicts with the row lock `UPDATE ... SET status` takes in
+/// `update_election_voting_status` and with itself, but not with the
+/// `FOR KEY SHARE` locks that foreign-key inserts take. `ORDER BY id` keeps the
+/// lock order the same for every caller, so two admissions cannot deadlock.
+pub const LOCK_ELECTIONS_FOR_ADMISSION_SQL: &str = r#"
+    SELECT id
+    FROM sequent_backend.election
+    WHERE
+        tenant_id = $1 AND
+        election_event_id = $2 AND
+        id = ANY($3)
+    ORDER BY id
+    FOR NO KEY UPDATE
+"#;
+
+/// Locks the given election rows until the transaction ends. A voting-status
+/// writer that already holds a row makes this wait, and then the status reads
+/// that follow see its committed value. A writer that comes later waits for
+/// this transaction to commit. Two admissions for the same election run one
+/// at a time.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn lock_elections_for_admission(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_ids: &[String],
+) -> Result<()> {
+    let election_uuids = election_ids
+        .iter()
+        .map(|id| parse_uuid_v4(id).map_err(|err| anyhow!("{:?}", err)))
+        .collect::<Result<Vec<Uuid>>>()?;
+    hasura_transaction
+        .query(
+            LOCK_ELECTIONS_FOR_ADMISSION_SQL,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &election_uuids,
+            ],
+        )
+        .await
+        .with_context(|| "Error locking the elections")?;
+    Ok(())
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn update_election_voting_status(
     hasura_transaction: &Transaction<'_>,

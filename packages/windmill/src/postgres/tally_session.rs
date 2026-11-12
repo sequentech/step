@@ -297,6 +297,54 @@ pub async fn get_tally_session_by_id(
 /// Recount creation and post-tally finalization use this short-lived lock to
 /// serialize changes to the execution-history head without holding the
 /// long-running tally task lock.
+/// Finds a non-cancelled initialization-report session that covers any of the
+/// given elections, other than `exclude_session_id`. Every status but
+/// `CANCELLED` blocks: a session that is still running will set the election's
+/// generated flag, and a finished one has set it. A missing status counts as
+/// `STARTED`.
+pub const FIND_BLOCKING_INITIALIZATION_REPORT_SQL: &str = r#"
+    SELECT id
+    FROM sequent_backend.tally_session
+    WHERE
+        tenant_id = $1 AND
+        election_event_id = $2 AND
+        tally_type = 'INITIALIZATION_REPORT' AND
+        COALESCE(execution_status, 'STARTED') <> 'CANCELLED' AND
+        election_ids && $3::uuid[] AND
+        ($4::uuid IS NULL OR id <> $4::uuid)
+    LIMIT 1
+"#;
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn find_blocking_initialization_report_session(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_ids: &[String],
+    exclude_session_id: Option<&str>,
+) -> Result<Option<String>> {
+    let election_uuids = election_ids
+        .iter()
+        .map(|id| parse_uuid_v4(id).map_err(|err| anyhow!("{:?}", err)))
+        .collect::<Result<Vec<Uuid>>>()?;
+    let exclude = exclude_session_id.map(parse_uuid_v4).transpose()?;
+    let row = hasura_transaction
+        .query_opt(
+            FIND_BLOCKING_INITIALIZATION_REPORT_SQL,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &election_uuids,
+                &exclude,
+            ],
+        )
+        .await
+        .with_context(|| "Error looking for another initialization report session")?;
+    row.map(|row| row.try_get::<_, Uuid>("id").map(|id| id.to_string()))
+        .transpose()
+        .map_err(Into::into)
+}
+
 #[instrument(err, skip(hasura_transaction))]
 pub async fn lock_tally_session_for_update(
     hasura_transaction: &Transaction<'_>,
