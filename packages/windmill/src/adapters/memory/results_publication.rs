@@ -49,6 +49,7 @@ pub enum PublicationCall {
 struct PublicationsState {
     publications: Vec<TallyResultsPublication>,
     source_facts: Option<PublicationSourceFacts>,
+    locked_source_facts: Option<PublicationSourceFacts>,
     failure: Option<String>,
     call_failures: HashMap<PublicationCall, String>,
 }
@@ -98,6 +99,12 @@ impl InMemoryResultsPublications {
     /// Replaces the facts a consistent source would have.
     pub fn set_source_facts(&self, facts: PublicationSourceFacts) {
         self.state().source_facts = Some(facts);
+    }
+
+    /// Replaces the facts read under the lock, as if the source changed after
+    /// the unlocked read.
+    pub fn set_locked_source_facts(&self, facts: PublicationSourceFacts) {
+        self.state().locked_source_facts = Some(facts);
     }
 
     pub fn stored(&self) -> Vec<TallyResultsPublication> {
@@ -680,13 +687,32 @@ impl crate::ports::results_publication_lifecycle::ResultsPublicationLifecycle
         Ok(())
     }
     /// The facts `source_facts` gives for the publication's source.
+    async fn source_facts(
+        &self,
+        publication: &TallyResultsPublication,
+    ) -> Result<PublicationSourceFacts> {
+        let state = self.state();
+        state.check(PublicationCall::SourceFacts)?;
+        Ok(state.source_facts.clone().unwrap_or_else(|| {
+            consistent_facts(
+                &publication.election_ids,
+                &publication.published_contest_ids,
+            )
+        }))
+    }
+    /// The facts read under the lock: `set_locked_source_facts`, else those
+    /// of `source_facts`.
     async fn lock_source_facts(
         &self,
         publication: &TallyResultsPublication,
     ) -> Result<PublicationSourceFacts> {
         let state = self.state();
         state.check(PublicationCall::LockSourceFacts)?;
-        Ok(state.source_facts.clone().unwrap_or_else(|| {
+        let facts = state
+            .locked_source_facts
+            .clone()
+            .or_else(|| state.source_facts.clone());
+        Ok(facts.unwrap_or_else(|| {
             consistent_facts(
                 &publication.election_ids,
                 &publication.published_contest_ids,

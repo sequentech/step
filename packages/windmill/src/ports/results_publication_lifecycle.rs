@@ -37,6 +37,12 @@ pub trait ResultsPublicationLifecycle: ResultsPublicationReader {
         event_id: &str,
         publication_id: &str,
     ) -> impl Future<Output = Result<()>> + Send;
+    /// What the database holds for the publication's source, without locking
+    /// anything: enough to refuse early, not to activate.
+    fn source_facts(
+        &self,
+        publication: &TallyResultsPublication,
+    ) -> impl Future<Output = Result<PublicationSourceFacts>> + Send;
     /// What the database holds for the publication's source, with its tally
     /// session locked until the publication is stored, so the execution is
     /// still the latest one then.

@@ -1354,7 +1354,7 @@ pub(crate) async fn prepare_publication_source(
 
 pub async fn publish_results_website_artifacts_with(
     publications: &impl ResultsPublicationLifecycle,
-    renderer: &impl ResultsPublicationRenderer,
+    renderer: &(impl ResultsPublicationRenderer + ResultsPublicationArtifactStore),
     tenant_id: &str,
     election_event_id: &str,
     publication_id: &str,
@@ -1375,7 +1375,9 @@ pub async fn publish_results_website_artifacts_with(
         }
     }
     let selected_contests = selected_contest_ids(&publication)?;
-    let facts = publications.lock_source_facts(&publication).await?;
+    // Refuse early without the tally-session lock. The source is checked again
+    // under the lock right before activation.
+    let facts = publications.source_facts(&publication).await?;
     check_published_source(&publication, &facts)?;
     let source = renderer.prepare(&publication, &selected_contests).await?;
     let (documents, manifest) = if publication.access == ResultsWebsiteAccess::Public {
@@ -1387,6 +1389,30 @@ pub async fn publish_results_website_artifacts_with(
             .publish_private(&publication, &source, &selected_contests)
             .await?
     };
+    // The artifacts are uploaded without the tally-session row lock, which
+    // recount creation and post-tally finalization also take. Lock only now,
+    // check the source is still final and current, and activate.
+    let activation = async {
+        let facts = publications.lock_source_facts(&publication).await?;
+        check_published_source(&publication, &facts)
+    }
+    .await;
+    if let Err(err) = activation {
+        let uploaded = TallyResultsPublication {
+            documents: documents.clone(),
+            ..publication.clone()
+        };
+        if let Err(cleanup_err) =
+            delete_publication_artifacts_with(renderer, &uploaded, false).await
+        {
+            error!(
+                error = ?cleanup_err,
+                publication_id = publication.id,
+                "Failed to delete the artifacts of a publication whose source changed"
+            );
+        }
+        return Err(err);
+    }
     publications
         .mark_published(&publication, documents, serde_json::to_value(&manifest)?)
         .await?;

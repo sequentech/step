@@ -267,6 +267,25 @@ pub async fn get_publication_source_facts(
     })
 }
 
+/// What the database holds for a stored publication's source, read without
+/// locking its tally session.
+pub async fn publication_source_facts(
+    tx: &Transaction<'_>,
+    publication: &TallyResultsPublication,
+) -> Result<PublicationSourceFacts> {
+    let source = crate::domain::results_publication::publication_source_from_ids(
+        &publication.tenant_id,
+        &publication.election_event_id,
+        &publication.tally_session_id,
+        &publication.tally_session_execution_id,
+        &publication.results_event_id,
+        &publication.election_ids,
+        &publication.published_contest_ids,
+        publication.route_election_id.as_deref(),
+    )?;
+    get_publication_source_facts(tx, &source).await
+}
+
 /// What the database holds for a stored publication's source, read under a
 /// lock on its tally session that lasts until the transaction ends: no
 /// newer execution of the session can be recorded meanwhile.
