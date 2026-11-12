@@ -397,6 +397,7 @@ impl TemplateRenderer for OVUsersWhoVotedTemplate {
                     generate_mode,
                     task_execution.clone(),
                     &ext_cfg,
+                    zip_temp_dir_path,
                 )
                 .await
                 .map_err(|e| anyhow::anyhow!("Error in generate_single_report: {}", e))?,
