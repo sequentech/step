@@ -297,12 +297,12 @@ impl From<User> for UserRepresentation {
 
 /// A Keycloak error without the request's URL, whose query holds the search
 /// text and email of a voter search.
-fn error_without_url(error: KeycloakError) -> anyhow::Error {
+fn without_url(error: KeycloakError) -> KeycloakError {
     match error {
         KeycloakError::ReqwestFailure(error) => {
-            anyhow!("{:?}", error.without_url())
+            KeycloakError::ReqwestFailure(error.without_url())
         }
-        error => anyhow!("{:?}", error),
+        error => error,
     }
 }
 
@@ -339,14 +339,14 @@ impl KeycloakAdminClient {
                 None,
             )
             .await
-            .map_err(error_without_url)?;
+            .map_err(|err| anyhow!("{:?}", without_url(err)))?;
         let count: i32 = self
             .client
             .realm_users_count_get(
                 realm, email, None, None, None, None, None, search, None,
             )
             .await
-            .map_err(error_without_url)?;
+            .map_err(|err| anyhow!("{:?}", without_url(err)))?;
         let users = user_representations
             .clone()
             .into_iter()
