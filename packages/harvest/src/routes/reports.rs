@@ -5,7 +5,9 @@ use windmill::services::ceremonies::result_readiness::{
     require_complete_result_document, ORIGIN, POLICY,
 };
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_permission_labels,
+};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -352,6 +354,13 @@ pub async fn generate_report(
         )
     })?
     .ok_or_else(|| (Status::NotFound, "Report not found".to_string()))?;
+    authorize_election_permission_labels(
+        &hasura_transaction,
+        &claims,
+        &report.election_event_id,
+        report.election_id.as_ref().map(std::slice::from_ref),
+    )
+    .await?;
     let report_type =
         ReportType::from_str(&report.report_type).map_err(|error| {
             (Status::BadRequest, format!("Invalid report type: {error}"))
