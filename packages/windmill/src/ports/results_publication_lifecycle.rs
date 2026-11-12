@@ -37,6 +37,14 @@ pub trait ResultsPublicationLifecycle: ResultsPublicationReader {
         event_id: &str,
         publication_id: &str,
     ) -> impl Future<Output = Result<()>> + Send;
+    /// Serializes the attempts to publish one publication until the
+    /// transaction ends; the status is read after it.
+    fn lock_publication_for_publishing(
+        &self,
+        tenant_id: &str,
+        event_id: &str,
+        publication_id: &str,
+    ) -> impl Future<Output = Result<()>> + Send;
     /// What the database holds for the publication's source, without locking
     /// anything: enough to refuse early, not to activate.
     fn source_facts(

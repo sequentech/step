@@ -313,6 +313,34 @@ pub async fn lock_publication_source_facts(
     get_publication_source_facts(tx, &source).await
 }
 
+/// Advisory lock key that serializes the attempts to publish one publication.
+fn publication_publish_lock_key(
+    tenant_id: &str,
+    election_event_id: &str,
+    publication_id: &str,
+) -> String {
+    format!("tally-results-publication-publish:{tenant_id}:{election_event_id}:{publication_id}")
+}
+
+/// Serializes the attempts to publish one publication until the transaction
+/// ends, so a second worker waits, then sees the stored status, and a failed
+/// activation cleans up only artifacts no other attempt owns. It is not the
+/// tally-session lock: other publications and recounts are not blocked.
+pub async fn lock_publication_for_publishing(
+    tx: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    publication_id: &str,
+) -> Result<()> {
+    let lock_key = publication_publish_lock_key(tenant_id, election_event_id, publication_id);
+    tx.query_one(
+        "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+        &[&lock_key],
+    )
+    .await?;
+    Ok(())
+}
+
 pub async fn next_publication_version(
     tx: &Transaction<'_>,
     tenant_id: &str,
@@ -837,4 +865,18 @@ pub async fn revoke_publication(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod publish_lock_tests {
+    use super::*;
+
+    #[test]
+    fn publish_lock_key_is_per_publication() {
+        let key = publication_publish_lock_key("t", "e", "p1");
+        assert_eq!(key, publication_publish_lock_key("t", "e", "p1"));
+        assert_ne!(key, publication_publish_lock_key("t", "e", "p2"));
+        assert_ne!(key, publication_publish_lock_key("t", "e2", "p1"));
+        assert_ne!(key, publication_publish_lock_key("t2", "e", "p1"));
+    }
 }

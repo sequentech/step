@@ -60,6 +60,20 @@ impl ResultsPublicationLifecycle for PgResultsPublications<'_> {
         )
         .await
     }
+    async fn lock_publication_for_publishing(
+        &self,
+        tenant_id: &str,
+        event_id: &str,
+        publication_id: &str,
+    ) -> Result<()> {
+        publications::lock_publication_for_publishing(
+            self.transaction,
+            tenant_id,
+            event_id,
+            publication_id,
+        )
+        .await
+    }
     async fn source_facts(
         &self,
         publication: &TallyResultsPublication,

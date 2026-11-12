@@ -1359,6 +1359,12 @@ pub async fn publish_results_website_artifacts_with(
     election_event_id: &str,
     publication_id: &str,
 ) -> Result<()> {
+    // One attempt per publication at a time: a second worker waits here and
+    // then sees the stored status, so it never uploads to the same public
+    // paths or deletes artifacts another attempt published.
+    publications
+        .lock_publication_for_publishing(tenant_id, election_event_id, publication_id)
+        .await?;
     let publication = publications
         .get(tenant_id, election_event_id, publication_id)
         .await?;

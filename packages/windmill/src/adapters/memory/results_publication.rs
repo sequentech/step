@@ -43,6 +43,7 @@ pub enum PublicationCall {
     MarkSuperseded,
     ClearFinalizationError,
     LockSourceFacts,
+    LockPublication,
 }
 
 #[derive(Debug, Default)]
@@ -699,6 +700,14 @@ impl crate::ports::results_publication_lifecycle::ResultsPublicationLifecycle
                 &publication.published_contest_ids,
             )
         }))
+    }
+    async fn lock_publication_for_publishing(
+        &self,
+        _tenant_id: &str,
+        _event_id: &str,
+        _publication_id: &str,
+    ) -> Result<()> {
+        self.state().check(PublicationCall::LockPublication)
     }
     /// The facts read under the lock: `set_locked_source_facts`, else those
     /// of `source_facts`.

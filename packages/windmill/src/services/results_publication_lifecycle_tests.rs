@@ -286,6 +286,18 @@ fn superseded_by_a_recount() -> PublicationSourceFacts {
 }
 
 #[tokio::test]
+async fn a_failed_publication_lock_stops_publishing_before_anything_is_rendered() {
+    let store = InMemoryResultsPublications::with([public_publication()]);
+    store.fail_on(PublicationCall::LockPublication, "lock timeout");
+    let artifacts = artifacts();
+    assert_eq!(
+        publish(&store, &artifacts).await.unwrap_err().to_string(),
+        "lock timeout"
+    );
+    assert!(artifacts.snapshot().prepared_contests.is_none());
+}
+
+#[tokio::test]
 async fn artifacts_are_rendered_before_the_source_lock_and_activation_needs_it() {
     let store = InMemoryResultsPublications::with([TallyResultsPublication {
         publication_status: ResultsPublicationStatus::Failed,
