@@ -127,30 +127,27 @@ sequenceDiagram
 
 ## OCR capture resolution
 
-OCR requests a 1920 × 1080 camera stream. Its `input_image` is also used for
-Document Liveness, whose [image requirements](https://docs.idrnd.net/idlivedoc/)
-specify Full HD as the minimum. Keep the development OCR video configuration,
-the air-gap `scanovate-theme.yaml` copy and hosted capture configuration in sync.
-This is a capture-page setting, not an election Excel or realm threshold setting.
+OCR requests a 1280 × 720 camera stream, the only resolution Scanovate supports
+and validates for it. Scanovate's *On-Prem Full Onboarding Flow – Integration
+Guide (with Document Liveness)* gives 1280 × 720, with autofocus, as the
+minimum camera for the whole flow, Document Liveness included, which reads
+OCR's `input_image`. ID R&D's own [image requirements](https://docs.idrnd.net/idlivedoc/)
+for Document Liveness ask for Full HD, but asked whether 1920 × 1080 would
+help, Scanovate answered that it isn't supported or validated, and isn't a
+workaround for OCR's machine readable zone size or quality limits. Keep the
+development OCR video configuration, the air-gap `scanovate-theme.yaml` copy
+and the hosted capture configuration in sync. This is a capture-page setting,
+not an election Excel or realm threshold setting.
 
-The pinned vendor client passes width and height as numeric `getUserMedia`
-preferences, not mandatory minimum constraints. A browser may negotiate a lower
-resolution on limited hardware. It sends JPEG frames at the actual video-track
-settings dimensions, without upscaling; increasing the configured request does
-not prove every camera produces Full HD. Verify the actual frame dimensions on
-supported mobile and desktop cameras before rollout, including limited cameras
-and permission denial. Prefer a supported rear-facing camera for documents.
-Do not bypass failed document-liveness checks to accommodate a lower-resolution
-camera. The configurable score relaxation below is separate from resolution. Video compression settings are
-separate from the still-image capture and are unchanged.
-
-Scanovate supports and validates only 1280 × 720 for OCR's capture: asked
-whether 1920 × 1080 would make the machine readable zone easier to reach,
-they answered that it isn't supported or validated, and isn't a workaround
-for the MRZ size or quality limits. The Full HD request above isn't validated
-by them either way. From `version_3.9.0_bec7df8_295` on, the `mobile`,
-`desktop` and `kiosk` blocks of the video configuration can also set
-`video_width` and `video_height` for one device.
+The browser treats the width and height as preferences, so a camera may
+deliver less. Prefer a supported rear-facing camera for documents, and don't
+bypass failed document-liveness checks to accommodate a weaker camera. Watch
+Document Liveness's `image_quality_warnings` (such as `IMAGE_TOO_BLURRY`) when
+tuning with real passports. The configurable score relaxation below is
+separate from resolution. Video compression settings are separate from the
+still-image capture and are unchanged. From `version_3.9.0_bec7df8_295` on,
+the `mobile`, `desktop` and `kiosk` blocks of the video configuration could
+set `video_width` and `video_height` for one device; we set none.
 
 ## Access to the images
 
