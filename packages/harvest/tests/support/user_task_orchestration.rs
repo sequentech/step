@@ -161,7 +161,7 @@ async fn tenant_imports_store_an_empty_event_and_force_the_admin_flag() {
         json!({
             "tenant_id":"tenant-a", "document_id":"source-document", "election_event_id":null,
             "is_admin":true, "may_write_secret_attributes":false, "secret_write_initiator":null,
-            "privileges":{"group_assignment":"DefaultGroupOnly","permission_labels":"Forbidden"},
+            "privileges":{"group_assignment":"DefaultGroupOnly","permission_labels":"Forbidden","trustee":"Forbidden"},
             "sha256":"abababababababababababababababababababababababababababababababab",
             "audit_actor":{"user_id":"user-a", "username":"operator-a", "role":"user"}
         })

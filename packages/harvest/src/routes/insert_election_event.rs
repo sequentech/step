@@ -505,7 +505,8 @@ mod tests {
             "importer": {"user_id": "someone-else", "username": "someone-else"},
             "privileges": {
                 "group_assignment": "AnyGroup",
-                "permission_labels": "Allowed"
+                "permission_labels": "Allowed",
+                "trustee": "Allowed"
             },
         }))
         .unwrap()
