@@ -2659,8 +2659,6 @@ mod tests {
         );
     }
 
-    use sequent_core::types::permissions::Permissions;
-
     fn create_user_body(body: serde_json::Value) -> super::CreateUserBody {
         serde_json::from_value(body).expect("valid create-user body")
     }
