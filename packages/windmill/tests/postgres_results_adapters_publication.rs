@@ -815,7 +815,13 @@ async fn a_tally_that_has_not_finished_successfully_cannot_be_published() {
     set_session(&transaction, "execution_status", "text", Some("CANCELLED")).await;
     assert_eq!(validation_error(&transaction, source()).await, NOT_FINISHED);
     set_session(&transaction, "execution_status", "text", Some("SUCCESS")).await;
-    set_session(&transaction, "is_execution_completed", "boolean", None).await;
+    set_session(
+        &transaction,
+        "is_execution_completed",
+        "boolean",
+        Some("false"),
+    )
+    .await;
     assert_eq!(validation_error(&transaction, source()).await, NOT_FINISHED);
     transaction.rollback().await.unwrap();
 }
