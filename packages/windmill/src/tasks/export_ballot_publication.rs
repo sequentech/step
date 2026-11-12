@@ -47,6 +47,7 @@ pub async fn export_ballot_publication(
         &tenant_id,
         &election_event_id,
         &ballot_publication_id,
+        false,
     )
     .await
     {

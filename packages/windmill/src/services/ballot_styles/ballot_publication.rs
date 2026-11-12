@@ -332,6 +332,7 @@ pub async fn update_publish_ballot(
         &tenant_id,
         &election_event_id,
         &ballot_publication_id,
+        true,
     )
     .await?
     .with_context(|| "Can't find ballot publication")?;
@@ -505,6 +506,7 @@ pub async fn get_ballot_publication_diff(
         &tenant_id,
         &election_event_id,
         &ballot_publication_id,
+        false,
     )
     .await?
     .with_context(|| "Can't find ballot publication")?;
