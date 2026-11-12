@@ -918,14 +918,59 @@ pub async fn insert_election_event_db(
     Ok(())
 }
 
+/// Puts back the UUID values of the uploaded realm's authenticator settings
+/// after `replace_realm_ids` rewrote them. They are settings, such as an
+/// integration's API key, rather than ids of the realm's objects; the same UUIDs
+/// elsewhere in the document stay remapped. Values equal to one of `scope_ids`,
+/// the source tenant and event ids, keep following the imported event.
+fn restore_authenticator_config_uuids(
+    original: Option<&Value>,
+    remapped: Option<&mut Value>,
+    scope_ids: &[&str],
+) {
+    let (Some(original), Some(remapped)) = (original, remapped) else {
+        return;
+    };
+    let (Some(originals), Some(remapped)) = (
+        original
+            .get("authenticatorConfig")
+            .and_then(Value::as_array),
+        remapped
+            .get_mut("authenticatorConfig")
+            .and_then(Value::as_array_mut),
+    ) else {
+        return;
+    };
+    if originals.len() != remapped.len() {
+        return;
+    }
+    for (original, remapped) in originals.iter().zip(remapped.iter_mut()) {
+        let (Some(settings), Some(target)) = (
+            original.get("config").and_then(Value::as_object),
+            remapped.get_mut("config").and_then(Value::as_object_mut),
+        ) else {
+            continue;
+        };
+        for (key, value) in settings {
+            let is_setting_uuid = value
+                .as_str()
+                .is_some_and(|value| Uuid::parse_str(value).is_ok() && !scope_ids.contains(&value));
+            if is_setting_uuid {
+                target.insert(key.clone(), value.clone());
+            }
+        }
+    }
+}
+
 /// Replaces UUIDs in the import data while preserving specific IDs that should remain unchanged.
 ///
 /// This function is a thin wrapper around `replace_realm_ids()` that processes the election event
 /// import schema and replaces most UUIDs with new ones, while keeping certain IDs unchanged
 /// (like tenant_id and optionally election_event_id). `replace_realm_ids` keeps the UUIDs of a
 /// top-level `authenticatorConfig` only, which an import document does not have, so the realm's
-/// authenticator settings are remapped too; the Scanovate secret and endpoint are put back
-/// afterwards (`restore_remapped_integration_secrets`).
+/// authenticator settings are remapped too and put back afterwards: their UUID values
+/// (`restore_authenticator_config_uuids`) and, for Scanovate, every setting
+/// (`restore_remapped_integration_secrets`).
 ///
 /// # Arguments
 /// * `data_str` - The original JSON string representation of the import data
@@ -1002,6 +1047,14 @@ pub fn replace_ids(
 
     // Parse the modified JSON string back into the structured format
     let mut data: ImportElectionEventSchema = deserialize_str(&new_data)?;
+    restore_authenticator_config_uuids(
+        original_data.keycloak_event_realm.as_ref(),
+        data.keycloak_event_realm.as_mut(),
+        &[
+            original_data.tenant_id.as_str(),
+            original_data.election_event.id.as_str(),
+        ],
+    );
     crate::services::export::integration_secrets::restore_remapped_integration_secrets(
         original_data.keycloak_event_realm.as_ref(),
         data.keycloak_event_realm.as_mut(),
@@ -3740,7 +3793,7 @@ mod import_scope_tests {
             scanovate("event-id-secret", &source_event),
             scanovate("config-id-secret", &config_id),
             scanovate("embedded-uuid-secret", embedded_secret),
-            // Another authenticator's settings keep their remapping.
+            // Another authenticator keeps its UUID settings too (meta#14859).
             json!({"alias": "other", "config": {
                 "liveness-secret": uuid_secret, "unrelated-reference": uuid_secret}}),
         ];
@@ -3773,8 +3826,8 @@ mod import_scope_tests {
         let configs = realm["authenticatorConfig"].as_array().unwrap();
         assert_ne!(configs[0]["id"], config_id.as_str());
         assert_ne!(realm["attributes"]["synthetic-reference"], uuid_secret);
-        assert_ne!(configs[5]["config"]["unrelated-reference"], uuid_secret);
-        assert_ne!(configs[5]["config"]["liveness-secret"], uuid_secret);
+        assert_eq!(configs[5]["config"]["unrelated-reference"], uuid_secret);
+        assert_eq!(configs[5]["config"]["liveness-secret"], uuid_secret);
         // The Scanovate settings arrive as exported.
         let expected: [&str; 5] = [
             uuid_secret,
@@ -4028,6 +4081,85 @@ mod import_scope_tests {
                 "{kind} row of another event was accepted"
             );
         }
+    }
+
+    fn realm_with_authenticator_config(tenant: &str, event: &str, config: Value) -> Value {
+        json!({
+            "realm": format!("tenant-{tenant}-event-{event}"),
+            "authenticatorConfig": [{
+                "id": new_id(),
+                "alias": "inetum-registration",
+                "config": config
+            }]
+        })
+    }
+
+    #[test]
+    fn keeps_uuid_values_of_the_realm_authenticator_configs() {
+        let tenant = new_id();
+        let event = new_id();
+        let api_key = new_id();
+        let mut input = bundle(&tenant, &event);
+        input["keycloak_event_realm"] = realm_with_authenticator_config(
+            &tenant,
+            &event,
+            json!({"api-key": api_key, "base-url": "https://inetum.example.test"}),
+        );
+        let config_id = input["keycloak_event_realm"]["authenticatorConfig"][0]["id"].clone();
+
+        let realm = import(&input, None, &tenant)
+            .unwrap()
+            .keycloak_event_realm
+            .unwrap();
+        let config = &realm["authenticatorConfig"][0];
+
+        assert_eq!(config["config"]["api-key"], api_key.as_str());
+        assert_eq!(config["config"]["base-url"], "https://inetum.example.test");
+        assert!(config["id"].is_string());
+        assert_ne!(config["id"], config_id);
+    }
+
+    #[test]
+    fn keeps_uuid_settings_without_keeping_the_same_uuid_elsewhere() {
+        let tenant = new_id();
+        let event = new_id();
+        let shared = new_id();
+        let mut input = bundle(&tenant, &event);
+        input["keycloak_event_realm"] =
+            realm_with_authenticator_config(&tenant, &event, json!({"api-key": shared}));
+        input["keycloak_event_realm"]["attributes"] = json!({"reference": shared});
+
+        let realm = import(&input, None, &tenant)
+            .unwrap()
+            .keycloak_event_realm
+            .unwrap();
+
+        assert_eq!(
+            realm["authenticatorConfig"][0]["config"]["api-key"],
+            shared.as_str()
+        );
+        assert_ne!(realm["attributes"]["reference"], shared.as_str());
+    }
+
+    #[test]
+    fn authenticator_settings_equal_to_the_event_or_tenant_follow_the_import() {
+        let tenant = new_id();
+        let event = new_id();
+        let target_tenant = new_id();
+        let mut input = bundle(&tenant, &event);
+        input["keycloak_event_realm"] = realm_with_authenticator_config(
+            &tenant,
+            &event,
+            json!({"event": event, "tenant": tenant}),
+        );
+
+        let imported = import(&input, None, &target_tenant).unwrap();
+        let realm = imported.keycloak_event_realm.clone().unwrap();
+        let settings = &realm["authenticatorConfig"][0]["config"];
+
+        assert_eq!(settings["event"], imported.election_event.id.as_str());
+        assert_eq!(settings["tenant"], target_tenant.as_str());
+        assert!(!serde_json::to_string(&imported).unwrap().contains(&event));
     }
 }
 
