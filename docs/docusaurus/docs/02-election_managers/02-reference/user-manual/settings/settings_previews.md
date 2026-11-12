@@ -1,6 +1,7 @@
 ---
 id: settings_previews
 title: External Previews
+description: "The External Previews table provides a record of preview URLs generated via external API requests."
 ---
 
 <!--
