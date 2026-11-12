@@ -170,9 +170,6 @@ fn output_too_large_error(selected_channel: &VotingChannel) -> TallySheetImportV
     )
 }
 
-/// Writes the canonical CSV header row. Shared so every conversion path —
-/// including one refused before it reads a single contest — emits the same
-/// well-formed CSV shape.
 /// Bytes `field` takes in the CSV: wrapped in quotes when it needs them, with
 /// each of its own quotes doubled.
 fn csv_field_bytes(field: &str) -> u64 {
@@ -183,15 +180,31 @@ fn csv_field_bytes(field: &str) -> u64 {
     field.len() as u64 + quotes + if is_quoted { 2 } else { 0 }
 }
 
+/// Column names of the canonical CSV, in order.
+const CANONICAL_CSV_HEADER: [&str; 6] = [
+    "channel",
+    "area_name",
+    "contest_external_id",
+    "field",
+    "candidate_external_id",
+    "value",
+];
+
+/// Bytes the canonical CSV header row takes at most: its names, the
+/// separators between them and a two-byte line terminator.
+fn canonical_csv_header_bytes() -> u64 {
+    let names: u64 = CANONICAL_CSV_HEADER
+        .iter()
+        .map(|name| csv_field_bytes(name))
+        .sum();
+    names + CANONICAL_CSV_HEADER.len() as u64 - 1 + 2
+}
+
+/// Writes the canonical CSV header row. Shared so every conversion path —
+/// including one refused before it reads a single contest — emits the same
+/// well-formed CSV shape.
 fn write_canonical_csv_header(writer: &mut Writer<Vec<u8>>) -> Result<()> {
-    writer.write_record([
-        "channel",
-        "area_name",
-        "contest_external_id",
-        "field",
-        "candidate_external_id",
-        "value",
-    ])?;
+    writer.write_record(CANONICAL_CSV_HEADER)?;
     Ok(())
 }
 
@@ -666,7 +679,7 @@ fn convert_party_grouped(
     let party_names = party_names_by_id(document)?;
     let party_ballots_and_blanks = party_ballots_and_blanks_by_id(document)?;
     let channel_bytes = selected_channel.to_string().len() as u64;
-    let mut projected_csv_bytes: u64 = 0;
+    let mut projected_csv_bytes: u64 = canonical_csv_header_bytes();
 
     for contest in document
         .descendants()
@@ -2464,6 +2477,12 @@ mod tests {
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].code, "ess_output_too_large");
         assert!(csv_has_no_rows(&csv));
+    }
+
+    #[test]
+    fn the_projection_counts_at_least_the_header_the_csv_has() {
+        let header_only = empty_canonical_csv().unwrap();
+        assert!(canonical_csv_header_bytes() >= header_only.len() as u64);
     }
 
     #[test]
