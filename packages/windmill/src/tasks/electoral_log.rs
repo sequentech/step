@@ -653,11 +653,14 @@ mod tests {
 #[cfg(test)]
 mod internal_message_tests {
     use super::*;
+    use crate::services::insert_cast_vote::hash_voter_id;
     use electoral_log::messages::message::{Message, SigningData};
     use electoral_log::messages::newtypes::{
         CastVoteHash, ElectionIdString, EventIdString, PseudonymHash, VoterCountryString,
         VoterIpString, VotingChannelString,
     };
+    use strand::hash::HashWrapper;
+    use strand::serialization::{StrandDeserialize, StrandSerialize};
     use strand::signature::StrandSignatureSk;
 
     const EVENT_ID: &str = "event-id";
@@ -667,7 +670,7 @@ mod internal_message_tests {
         let message = Message::cast_vote_with_channel_message(
             EventIdString(EVENT_ID.to_string()),
             ElectionIdString(Some("election-id".to_string())),
-            PseudonymHash::new([1; 64]),
+            PseudonymHash(HashWrapper::new(hash_voter_id("voter-id")?)),
             CastVoteHash::new([2; 64]),
             &signing_data,
             VoterIpString("ip".to_string()),
@@ -720,6 +723,30 @@ mod internal_message_tests {
         };
 
         assert!(verified_internal_message(&input, &system_pk).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn internal_message_with_a_forged_voter_is_rejected() -> anyhow::Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let mut input = queued_cast_vote(&system_sk)?;
+        let mut row: ElectoralLogMessage = deserialize_str(&input.body.as_raw())?;
+        let mut message = Message::strand_deserialize(&row.message)?;
+        message.user_id = Some("other-voter-id".to_string());
+        row.message = message.strand_serialize()?;
+        input.body = LogEventBody::Plain(serde_json::to_string(&row)?);
+
+        assert!(verified_internal_message(&input, &system_pk).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn hash_voter_id_is_the_pseudonym_of_the_electoral_log() -> anyhow::Result<()> {
+        assert_eq!(
+            hash_voter_id("voter-id")?,
+            electoral_log::messages::message::hash_voter_id("voter-id")?
+        );
         Ok(())
     }
 
