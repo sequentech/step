@@ -10,7 +10,7 @@ use b3::messages::newtypes::BatchNumber;
 use b3::messages::newtypes::PublicKeyHash;
 use b3::messages::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
 use b3::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
-use b3::messages::statement::StatementType;
+use b3::messages::statement::{Statement, StatementType};
 use b3::messages::trusted_board::{self, BoardConfigurationState};
 use deadpool_postgres::Transaction;
 use strand::backend::ristretto::RistrettoCtx;
@@ -118,21 +118,53 @@ pub async fn add_config_to_board<C: Ctx>(
     init(&mut client, configuration, pm, board_name).await
 }
 
+/// The board's agreed election public key, or `None` while the keys ceremony
+/// is still running.
 #[instrument(err)]
 pub async fn get_board_public_key<C: Ctx>(
     board_name: &str,
     manager: &StrandSignaturePk,
-) -> Result<C::E> {
+) -> Result<Option<C::E>> {
     let board = get_b3_pgsql_client().await?;
     let messages = convert_b3(&board.get_messages(board_name, -1).await?)?;
     let config = trusted_board::verify_board::<C>(&messages, manager)?;
-    let message = trusted_board::agreed_public_key(&messages, &config)
-        .ok_or(anyhow!("Public key agreement is incomplete"))?;
+    agreed_board_public_key(&messages, &config)
+}
+
+/// The agreed public key of a verified board. `None` while some configured
+/// trustee hasn't posted its key statement yet: the ceremony is still running,
+/// which is not an error. Once every trustee has posted and the statements
+/// still don't agree, they never will, so that is an error.
+pub fn agreed_board_public_key<C: Ctx>(
+    messages: &[Message],
+    config: &Configuration<C>,
+) -> Result<Option<C::E>> {
+    let Some(message) = trusted_board::agreed_public_key(messages, config) else {
+        if public_key_statements_pending(messages, config) {
+            return Ok(None);
+        }
+        return Err(anyhow!(
+            "Public key agreement is incomplete: every trustee posted a key statement and they don't agree"
+        ));
+    };
     let bytes = message
         .artifact
         .as_ref()
         .ok_or(anyhow!("Public key artifact missing"))?;
-    Ok(DkgPublicKey::<C>::strand_deserialize(bytes)?.pk)
+    Ok(Some(DkgPublicKey::<C>::strand_deserialize(bytes)?.pk))
+}
+
+/// Whether some configured trustee hasn't posted a public key statement yet.
+fn public_key_statements_pending<C: Ctx>(messages: &[Message], config: &Configuration<C>) -> bool {
+    config.trustees.iter().any(|trustee| {
+        !messages.iter().any(|message| {
+            &message.sender.pk == trustee
+                && matches!(
+                    message.statement,
+                    Statement::PublicKey(..) | Statement::PublicKeySigned(..)
+                )
+        })
+    })
 }
 
 pub async fn check_configuration_exists(
@@ -487,17 +519,71 @@ mod tests {
     }
 
     fn post_public_key(board: &mut Board, trustee: usize, artifact: bool) {
+        post_public_key_with_shares(board, trustee, artifact, 1);
+    }
+
+    /// A public key statement whose shares hashes are all `shares`: statements
+    /// with different values disagree.
+    fn post_public_key_with_shares(board: &mut Board, trustee: usize, artifact: bool, shares: u8) {
         let public_key = DkgPublicKey::new(RistrettoCtx.generator().clone(), vec![]);
         let message = Message::public_key_msg(
             &board.configuration,
             &public_key,
-            &SharesHashes([[1; 64]; MAX_TRUSTEES]),
+            &SharesHashes([[shares; 64]; MAX_TRUSTEES]),
             &ChannelsHashes([[2; 64]; MAX_TRUSTEES]),
             artifact,
             &board.trustees[trustee],
         )
         .unwrap();
         board.messages.push(message);
+    }
+
+    #[test]
+    fn public_key_is_pending_while_a_trustee_has_not_posted() {
+        let mut board = board();
+        let pending = agreed_board_public_key(&board.messages, &board.configuration)
+            .expect("no key statement yet is not an error");
+        assert!(pending.is_none());
+
+        post_public_key(&mut board, 0, true);
+        post_public_key(&mut board, 1, false);
+        let pending = agreed_board_public_key(&board.messages, &board.configuration)
+            .expect("a trustee still to post is not an error");
+        assert!(pending.is_none());
+    }
+
+    #[test]
+    fn public_key_is_returned_once_every_trustee_agrees() {
+        let mut board = board();
+        post_public_key(&mut board, 0, true);
+        post_public_key(&mut board, 1, false);
+        post_public_key(&mut board, 2, false);
+
+        let key = agreed_board_public_key(&board.messages, &board.configuration)
+            .expect("an agreed key is not an error");
+        assert!(key.is_some());
+    }
+
+    #[test]
+    fn disagreeing_public_key_statements_are_an_error() {
+        let mut board = board();
+        post_public_key(&mut board, 0, true);
+        post_public_key(&mut board, 1, false);
+        post_public_key_with_shares(&mut board, 2, false, 3);
+
+        let error = agreed_board_public_key(&board.messages, &board.configuration)
+            .expect_err("statements that can never agree are an error");
+        assert!(error.to_string().contains("agreement is incomplete"));
+    }
+
+    #[test]
+    fn a_key_without_the_first_trustees_artifact_is_an_error() {
+        let mut board = board();
+        post_public_key(&mut board, 0, false);
+        post_public_key(&mut board, 1, true);
+        post_public_key(&mut board, 2, false);
+
+        assert!(agreed_board_public_key(&board.messages, &board.configuration).is_err());
     }
 
     #[test]
