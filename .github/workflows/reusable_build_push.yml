@@ -56,6 +56,9 @@ jobs:
     runs-on: ubuntu-24.04
     environment: release
     timeout-minutes: 360
+    permissions:
+      contents: read
+      id-token: write
     strategy:
       max-parallel: 15
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
@@ -95,6 +98,26 @@ jobs:
         echo "step $GITHUB_SHA packages $ours; beyond pins step $pinned packages $theirs"
         test "$ours" = "$theirs"
 
+    # The platform release the Architect's core contract holds its bundles to.
+    # The image's context is beyond/packages only, so the recipe takes it as a
+    # build argument. A release tag (v11.0.0-rc.12) is the release itself. Any
+    # other tag (a run number, a manual label) is not a platform version, so
+    # those builds use what the pinned beyond's airgap release states.
+    - name: Resolve the Architect's platform version
+      if: matrix.service == 'election-architect'
+      id: platform
+      env:
+        TAG: ${{ inputs.tag }}
+      run: |
+        if printf '%s\n' "$TAG" | grep -Eqx 'v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?'; then
+          version=$TAG source="the release tag"
+        else
+          version=$(beyond/airgap/docker/platform-app-version.sh beyond/airgap/kubernetes/config/step-env.yaml)
+          source="beyond's airgap step-env.yaml (tag '$TAG' is not a release version)"
+        fi
+        echo "Architect platform version: $version, from $source"
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+
     - name: Set short SHA
       run: echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c 1-7)" >> $GITHUB_ENV
 
@@ -130,16 +153,15 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build & Push to ECR
+    # Built to a local OCI layout and copied from there, so ECR and both Artifact
+    # Registries get the same digest from one build.
+    - name: Build
       id: image
       uses: docker/build-push-action@v6
       with:
         context: ${{ matrix.context }}
         file: ${{ matrix.file }}
-        push: ${{ inputs.push }}
-        tags: |
-          ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ env.SHORT_SHA }}
-          ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
+        outputs: ${{ inputs.push && format('type=oci,dest={0}/image,tar=false', runner.temp) || '' }}
         cache-from: type=registry,ref=${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:buildcache
         cache-to: ${{ inputs.push && format('type=registry,ref={0}/{1}:buildcache,mode=max', vars.AWS_ECR_REGISTRY_GLOBALDOT, matrix.service) || '' }}
         labels: |
@@ -150,6 +172,51 @@ jobs:
           SPA_NAME=${{ matrix.spa_name }}
           FEATURES=${{ matrix.features }}
           STEP_REVISION=${{ github.sha }}
+          PLATFORM_APP_VERSION=${{ steps.platform.outputs.version }}
+
+    # After the build: this token lasts an hour, and a build can take several.
+    - name: Authenticate to Google Cloud
+      if: inputs.push
+      id: gcp-auth
+      uses: google-github-actions/auth@v3
+      with:
+        workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+        service_account: ${{ vars.GCP_IMAGE_PUSH_SERVICE_ACCOUNT }}
+        token_format: access_token
+        create_credentials_file: false
+
+    - name: Login to Artifact Registry (dev)
+      if: inputs.push
+      uses: docker/login-action@v3
+      with:
+        registry: europe-west4-docker.pkg.dev
+        username: oauth2accesstoken
+        password: ${{ steps.gcp-auth.outputs.access_token }}
+
+    - name: Login to Artifact Registry (prod)
+      if: inputs.push
+      uses: docker/login-action@v3
+      with:
+        registry: us-east1-docker.pkg.dev
+        username: oauth2accesstoken
+        password: ${{ steps.gcp-auth.outputs.access_token }}
+
+    # The prod registry has immutable tags, and rebuilding a commit changes its
+    # digest. A short SHA tag there would stop a built commit getting a new tag.
+    - name: Push to ECR and Artifact Registry
+      if: inputs.push
+      env:
+        SERVICE: ${{ matrix.service }}
+        TAG: ${{ inputs.tag || github.run_number }}
+        ECR_REGISTRY: ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}
+      run: |
+        ecr="docker://$ECR_REGISTRY/$SERVICE"
+        dev="docker://europe-west4-docker.pkg.dev/sequentech-dev/sequent/$SERVICE"
+        prod="docker://us-east1-docker.pkg.dev/sequent-production/sequent/$SERVICE"
+        .github/scripts/push_image.sh "$RUNNER_TEMP/image" \
+          "$ecr:$SHORT_SHA" "$ecr:$TAG" \
+          "$dev:$SHORT_SHA" "$dev:$TAG" \
+          --immutable "$prod:$TAG"
 
     - name: Record immutable image provenance
       if: inputs.push

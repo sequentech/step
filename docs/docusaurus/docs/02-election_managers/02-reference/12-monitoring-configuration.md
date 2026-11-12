@@ -383,8 +383,20 @@ Notes:
   refused and not yet received enough).
 - **Final testing and lockdown.** A Post is `not_tested`, `tested` or
   `locked_down`.
-- **Enrollment decisions.** Each voter's latest application counts once; the
-  `reason` dimension is the recorded disapproval reason.
+- **Enrollment decisions.** Each voter's latest application counts once, by
+  when it was last updated; the `reason` dimension is the recorded disapproval
+  reason. An application counts for the voter it is stored under: the voter
+  an automatic decision accepted, or whose acceptance an email already in use
+  undid, and the voter a reviewer approved. A reviewer's rejection keeps the
+  voter the application was stored under. An application stored without a
+  voter counts for no voter: one that is pending review with no voter chosen
+  yet, one that matched no voter or several, and an attempt naming a voter who
+  is already enrolled.
+  Applications saved with the placeholder applicant id `null` or a blank one,
+  as the enrollment flow saved automatic decisions before it stored the
+  voter, count for no voter: the username they record may since belong to
+  another voter, so they are not matched by it. Dashboards of events with such
+  applications show fewer decisions than were made.
 - **Access and security.** Keycloak `LOGIN` events count as `logins`.
   `LOGIN_ERROR` counts as `login_failures` and, by whether the username
   named an account, as `login_failures_valid_user` or

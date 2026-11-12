@@ -79,7 +79,7 @@ use serde::{Deserialize, Serialize};
 /// into the workbook and into `export_voters-<id>.csv`. The members travel as a
 /// census now, and [`migrate_v3`] lifts them out of an older document so it opens
 /// with everybody still in it.
-pub const BLUEPRINT_VERSION: u32 = 4;
+pub const BLUEPRINT_VERSION: u32 = 5;
 
 /// Bring a version 1 plan up to date, in place.
 ///
@@ -251,6 +251,45 @@ fn migrate_v3(document: &mut serde_json::Value) -> Vec<PlannedVoter> {
     lifted
 }
 
+/// A plan as a writer puts it on disk: labelled with the version whose shape
+/// it has.
+///
+/// A `Blueprint` in memory always has this build's shape, whatever its
+/// `version` says — one built directly, or by a caller that never went through
+/// [`read_plan_value`], can still say 4 while carrying a v5 `signing`. Written
+/// as 4, a v4-only build would read it and drop `signing` silently. So an
+/// older, supported version is written as [`BLUEPRINT_VERSION`]. A newer one
+/// is never relabelled: that plan was refused by `validate_plan` and is
+/// written back as it said.
+pub fn as_written(plan: &Blueprint) -> std::borrow::Cow<'_, Blueprint> {
+    if plan.version < BLUEPRINT_VERSION {
+        let mut current = plan.clone();
+        current.version = BLUEPRINT_VERSION;
+        std::borrow::Cow::Owned(current)
+    } else {
+        std::borrow::Cow::Borrowed(plan)
+    }
+}
+
+/// v4 → v5: the plan gained [`Blueprint::signing`].
+///
+/// Nothing to move: a v4 plan never stated a signing configuration, which v5
+/// reads as `None` for each field. The bump is for the other direction. A
+/// build that only knows v4 would read a v5 plan, drop `signing` as an
+/// unknown field and compile a bundle without the event's signing rules; with
+/// the bump it refuses the plan as saved by a newer version instead
+/// (`plan.saved-by-newer-version`), which is the gate that exists for exactly
+/// this.
+fn migrate_v4(document: &mut serde_json::Value) {
+    let Some(object) = document.as_object_mut() else {
+        return;
+    };
+    if object.get("version").and_then(serde_json::Value::as_u64) != Some(4) {
+        return;
+    }
+    object.insert("version".to_string(), serde_json::json!(5));
+}
+
 /// A plan as it came off disk, and whatever came with it.
 pub struct ReadPlan {
     pub plan: Blueprint,
@@ -306,6 +345,7 @@ pub fn read_plan_value(
     migrate_v1(&mut value);
     migrate_v2(&mut value);
     let lifted = migrate_v3(&mut value);
+    migrate_v4(&mut value);
 
     let plan: Blueprint = serde_json::from_value(value).map_err(|error| {
         Problem::error(
@@ -421,7 +461,7 @@ impl VotingChannelSet {
 /// has no field for (the trustee threshold, the ceremony dates, the points of
 /// contact) and breaks whenever the bundle's shape changes. Saving the plan is both
 /// simpler and lossless.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct Blueprint {
     /// [`BLUEPRINT_VERSION`] at the time it was saved.
     pub version: u32,
@@ -759,6 +799,11 @@ pub struct Blueprint {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub annotations: BTreeMap<String, String>,
 
+    /// The ElectionEvent row's columns the wizard has no field for, by column
+    /// path. See [`PlannedElection::columns`].
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub columns: BTreeMap<String, serde_json::Value>,
+
     /// An export to build on, when the caller gives none.
     ///
     /// Set by `plan_from_event` to the export's event row and Keycloak realm,
@@ -768,6 +813,17 @@ pub struct Blueprint {
     /// rebuild. An explicit `BuildOptions::base_export` wins over this.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub base_export: Option<serde_json::Value>,
+
+    /// The event's signing rules and certificate checks, each `None` when the
+    /// source said nothing about it and `Some` (an empty rule list included)
+    /// when it did. Written to the workbook's `SigningRules`/`SigningChecks`
+    /// sheets, which `build` reads over any base export, field by field. See
+    /// [`super::signing_sheet`].
+    #[serde(
+        default,
+        skip_serializing_if = "super::signing_sheet::PlannedSigning::is_empty"
+    )]
+    pub signing: super::signing_sheet::PlannedSigning,
 }
 
 /// One report the platform generates.
@@ -1106,6 +1162,10 @@ pub struct PlannedArea {
     /// Annotations carried verbatim. See [`Blueprint::annotations`].
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub annotations: BTreeMap<String, String>,
+
+    /// Columns carried verbatim. See [`PlannedElection::columns`].
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub columns: BTreeMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1210,6 +1270,16 @@ pub struct PlannedElection {
     /// Annotations carried verbatim. See [`Blueprint::annotations`].
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub annotations: BTreeMap<String, String>,
+
+    /// The source row's columns the wizard has no field for, by column path,
+    /// written back by [`to_workbook`] wherever the plan leaves that column
+    /// blank. A historical conversion fills in far more of a row than the
+    /// wizard has screens for — sort orders, policies, display aliases — and
+    /// without these a configuration opened from it to be edited would build
+    /// a different event from the one it was opened from. An edit made on a
+    /// screen always wins over a carried value.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub columns: BTreeMap<String, serde_json::Value>,
 }
 
 /// The values `#[serde(default = "…")]` gives a plan that omits them.
@@ -1236,6 +1306,7 @@ impl Default for PlannedElection {
             shared: None,
             contests: Vec::new(),
             annotations: BTreeMap::new(),
+            columns: BTreeMap::new(),
         }
     }
 }
@@ -1320,6 +1391,10 @@ pub struct PlannedContest {
     /// Annotations carried verbatim. See [`Blueprint::annotations`].
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub annotations: BTreeMap<String, String>,
+
+    /// Columns carried verbatim. See [`PlannedElection::columns`].
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub columns: BTreeMap<String, serde_json::Value>,
 }
 
 /// Shown, because a voter being able to confirm their own ballot arrived is the
@@ -1426,6 +1501,10 @@ pub struct PlannedCandidate {
     /// Annotations carried verbatim. See [`Blueprint::annotations`].
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub annotations: BTreeMap<String, String>,
+
+    /// Columns carried verbatim. See [`PlannedElection::columns`].
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub columns: BTreeMap<String, serde_json::Value>,
 }
 
 /// One voter-facing help document in a plan.
@@ -1719,6 +1798,14 @@ pub fn resolve(
 pub const DEFAULT_AREA_EXTERNAL_ID: &str = "all-voters";
 pub const DEFAULT_AREA_NAME: &str = "All voters";
 
+fn election_identifier_problem(plan: &Blueprint) -> Option<Problem> {
+    plan.elections.iter().enumerate()
+        .find(|(_, election)| election.external_id.contains('|'))
+        .map(|(index, _)| Problem::error(Code::InvalidValue,
+            format!("elections[{index}].external_id"),
+            "an election external_id must not contain '|', the voter authorization separator"))
+}
+
 /// Check a plan, before anything is built from it.
 ///
 /// These are questions about the *plan*, in the wizard's own vocabulary — a
@@ -1728,6 +1815,9 @@ pub const DEFAULT_AREA_NAME: &str = "All voters";
 /// different questions and an author needs both answers.
 pub fn validate_plan(plan: &Blueprint, sources: &Sources) -> Report {
     let mut report = Report::default();
+    if let Some(problem) = election_identifier_problem(plan) {
+        report.push(problem);
+    }
 
     if plan.version > BLUEPRINT_VERSION {
         report.push(Problem::error(
@@ -1750,6 +1840,56 @@ pub fn validate_plan(plan: &Blueprint, sources: &Sources) -> Report {
              so without one nothing can be built twice the same way",
         )
 .id("event.no-identifier"));
+    }
+
+    if let Err(problem) = super::messaging_config::from_plan(plan) {
+        report.push(problem);
+    }
+
+    // The signing rules, as the importer will check them, on the plan's own
+    // paths: refused before compile, where the wizard can point at the row.
+    if let Some(rules) = plan.signing.rules.as_deref() {
+        super::validate::check_signing_rules(
+            rules,
+            "signing.rules",
+            &mut report,
+        );
+    }
+    // Trust configuration the opened archive had and the Architect does not
+    // carry: said on every validation, so it survives a save and a reopen and
+    // reaches the Final Review, rather than once on open.
+    for member in &plan.signing.trust_not_carried {
+        report.push(
+            Problem::warning(
+                Code::InvalidValue,
+                "signing.trust_not_carried",
+                format!(
+                    "the archive this plan was opened from had `{member}`, public \
+                     certificate trust configuration that the Architect does not \
+                     carry into its output. Signatures that rely on it may fail to \
+                     validate on the new event until it is restored through the \
+                     platform's authorized certificate setup."
+                ),
+            )
+            .id("signing.trust-not-carried")
+            .detail("member", member),
+        );
+    }
+    // The workbook is the one output an older Architect can still open: it
+    // ignores sheets it does not know, so it would drop these without a word.
+    if !plan.signing.is_policy_empty() {
+        report.push(
+            Problem::warning(
+                Code::InvalidValue,
+                "signing",
+                "election_workbook.xlsx carries this signing configuration in \
+                 its SigningRules, SigningChecks and ApprovalMatrix sheets, which \
+                 an Architect older than this one ignores. Reopen the plan from \
+                 blueprint.json or the delivery zip, or with an up-to-date \
+                 Architect, to keep it.",
+            )
+            .id("signing.workbook-needs-current-architect"),
+        );
     }
 
     if plan.name.is_empty() {
@@ -2749,6 +2889,17 @@ fn check_census(plan: &Blueprint, sources: &Sources, report: &mut Report) {
         }
 
         for voter in &batch {
+            if let Some(value) = voter.extra.get("authorized-election-ids") {
+                if let Err(message) =
+                    super::sheet::voter_restriction_text(value)
+                {
+                    report.push(Problem::error(
+                        Code::InvalidValue,
+                        format!("voters[{index}].authorized-election-ids"),
+                        message,
+                    ));
+                }
+            }
             let username = voter.username.trim();
             if username.is_empty() {
                 report.push(Problem::error(
@@ -3095,6 +3246,17 @@ pub fn to_workbook(
     plan: &Blueprint,
     sources: &Sources,
 ) -> Result<Workbook, Problem> {
+    to_workbook_with_base(plan, sources, plan.base_export.as_ref())
+}
+
+fn to_workbook_with_base(
+    plan: &Blueprint,
+    sources: &Sources,
+    base_export: Option<&serde_json::Value>,
+) -> Result<Workbook, Problem> {
+    if let Some(problem) = election_identifier_problem(plan) {
+        return Err(problem);
+    }
     let languages = plan.languages_or_english();
 
     let mut sheets = vec![
@@ -3105,6 +3267,7 @@ pub fn to_workbook(
         areas_sheet(plan)?,
         area_contests_sheet(plan)?,
     ];
+    write_carried_columns(&mut sheets, plan);
 
     if let Some(voters) = voters_sheet(plan, sources)? {
         sheets.push(voters);
@@ -3117,6 +3280,9 @@ pub fn to_workbook(
     if let Some(schedule) = scheduled_events_sheet(plan)? {
         sheets.push(schedule);
     }
+
+    // The signing configuration, one sheet per field the plan states.
+    sheets.extend(plan.signing.sheets());
 
     // What only a plan holds. `build` never reads these.
     for maybe in [
@@ -3136,7 +3302,7 @@ pub fn to_workbook(
     // its own — see `parameters_sheet`. Emitted before the carried sheets and
     // excluded from them below, because a plan opened from a workbook already has
     // that sheet and `Workbook::new` refuses a duplicate key.
-    let parameters = match parameters_sheet(plan) {
+    let parameters = match parameters_sheet(plan, base_export) {
         Some(Ok(sheet)) => Some(sheet),
         Some(Err(why)) => return Err(why),
         None => None,
@@ -3172,6 +3338,82 @@ pub fn to_workbook(
     );
 
     Workbook::new(sheets)
+}
+
+/// Each entity's carried columns back into its row, where the plan left the
+/// column blank. See [`PlannedElection::columns`].
+///
+/// After the sheets are shaped, so a carried column is one the writer did not
+/// produce or produced empty; a value the plan holds is never overwritten.
+fn write_carried_columns(sheets: &mut [Sheet], plan: &Blueprint) {
+    let mut by_entity: BTreeMap<
+        &str,
+        BTreeMap<&str, &BTreeMap<String, serde_json::Value>>,
+    > = BTreeMap::new();
+    for area in &plan.areas {
+        by_entity
+            .entry("areas")
+            .or_default()
+            .insert(&area.external_id, &area.columns);
+    }
+    for election in &plan.elections {
+        by_entity
+            .entry("elections")
+            .or_default()
+            .insert(&election.external_id, &election.columns);
+        for contest in &election.contests {
+            by_entity
+                .entry("contests")
+                .or_default()
+                .insert(&contest.external_id, &contest.columns);
+            for candidate in &contest.candidates {
+                by_entity
+                    .entry("candidates")
+                    .or_default()
+                    .insert(&candidate.external_id, &candidate.columns);
+            }
+        }
+    }
+    for sheet in sheets.iter_mut() {
+        let carried =
+            |row: &Row| -> Option<&BTreeMap<String, serde_json::Value>> {
+                if sheet.key == "electionevent" {
+                    return (row.number == 2).then_some(&plan.columns);
+                }
+                by_entity
+                    .get(sheet.key.as_str())?
+                    .get(row.text("external_id")?)
+                    .copied()
+            };
+        let mut added: Vec<String> = Vec::new();
+        let mut rows = std::mem::take(&mut sheet.rows);
+        for row in &mut rows {
+            let Some(columns) = carried(row) else {
+                continue;
+            };
+            for (column, value) in columns {
+                match row.cells.iter_mut().find(|(name, _)| name == column) {
+                    Some((_, cell)) if is_blank(cell) => *cell = value.clone(),
+                    Some(_) => {}
+                    None => row.cells.push((column.clone(), value.clone())),
+                }
+                if !sheet.headers.contains(column) && !added.contains(column) {
+                    added.push(column.clone());
+                }
+            }
+        }
+        sheet.rows = rows;
+        sheet.headers.extend(added);
+    }
+}
+
+/// A cell the writer left with nothing in it.
+fn is_blank(value: &serde_json::Value) -> bool {
+    match value {
+        serde_json::Value::Null => true,
+        serde_json::Value::String(text) => text.trim().is_empty(),
+        _ => false,
+    }
 }
 
 impl Blueprint {
@@ -3355,6 +3597,7 @@ fn event_sheet(
     columns.push("presentation.css".to_string());
     columns.push("presentation.elections_order".to_string());
     columns.push("presentation.show_cast_vote_logs".to_string());
+    columns.push("presentation.ceremonies_policy".to_string());
     columns
         .push("presentation.language_conf.enabled_language_codes".to_string());
     columns
@@ -3383,21 +3626,34 @@ fn event_sheet(
     row.push(Cell::text(plan.css.clone()));
     row.push(Cell::text(plan.elections_order.clone()));
     row.push(Cell::text(plan.show_cast_vote_logs.clone()));
-    // A JSON array in one cell: the reader parses bracketed text as JSON, which is
-    // how a list fits in a spreadsheet and therefore in a synthesised one too.
-    row.push(Cell::text(
-        serde_json::to_string(languages).unwrap_or_else(|_| "[]".to_string()),
-    ));
-    // The chosen default, or the first language when nobody chose. A default
-    // naming a language the ballot is not offered in is refused by
-    // `check_languages` rather than written here, so this cannot emit one.
-    row.push(Cell::text(
-        plan.default_language
-            .clone()
-            .filter(|chosen| languages.iter().any(|each| each == chosen))
-            .or_else(|| languages.first().cloned())
-            .unwrap_or_else(|| "en".to_string()),
-    ));
+    // The event's, which the Admin Portal's ceremony screens read: the
+    // ceremony itself is made there after import, so no other place reaches.
+    row.push(Cell::text(plan.ceremony_policy.to_string()));
+    // A plan that chose no language leaves both blank: the event then takes
+    // the template's, and the voter realm keeps the locales it already has,
+    // where writing the English fallback would replace them with English alone.
+    if plan.languages.iter().all(|code| code.trim().is_empty()) {
+        row.push(Cell::Blank);
+        row.push(Cell::Blank);
+    } else {
+        // A JSON array in one cell: the reader parses bracketed text as JSON,
+        // which is how a list fits in a spreadsheet and therefore in a
+        // synthesised one too.
+        row.push(Cell::text(
+            serde_json::to_string(languages)
+                .unwrap_or_else(|_| "[]".to_string()),
+        ));
+        // The chosen default, or the first language when nobody chose. A
+        // default naming a language the ballot is not offered in is refused by
+        // `check_languages` rather than written here, so this cannot emit one.
+        row.push(Cell::text(
+            plan.default_language
+                .clone()
+                .filter(|chosen| languages.iter().any(|each| each == chosen))
+                .or_else(|| languages.first().cloned())
+                .unwrap_or_else(|| "en".to_string()),
+        ));
+    }
 
     for (column, cell) in plan.voting_channels.columns_for_sheet() {
         columns.push(column.to_string());
@@ -3909,13 +4165,9 @@ fn candidates_sheet(
 /// different claim from "this plan does not carry the census" and produces a
 /// bundle that imports an election nobody can vote in.
 ///
-/// Columns are `VOTER_LEADING_COLUMNS` minus the two the builder answers on its
-/// own — `id` comes from `ids::uid`, and `authorized-election-ids` is left empty
-/// because a voter the wizard authored names no election restriction; the area
-/// carries their ballot — plus whatever else the client carries, in a stable
-/// order so two builds of one census diff cleanly. Everything unrecognised is
-/// passed through, which is how a reporting breakout column survives the round
-/// trip.
+/// Named identity/contact fields plus the census's other columns, in stable
+/// order. Account flags and election restrictions travel as `PlannedVoter::extra`
+/// values; only the platform-generated voter ID is omitted.
 fn voters_sheet(
     plan: &Blueprint,
     sources: &Sources,
@@ -3962,16 +4214,7 @@ fn voters_sheet(
         .columns()
         .iter()
         .map(String::as_str)
-        .filter(|key| {
-            !NAMED.contains(key)
-                && ![
-                    "id",
-                    "enabled",
-                    "email_verified",
-                    "authorized-election-ids",
-                ]
-                .contains(key)
-        })
+        .filter(|key| !NAMED.contains(key) && *key != "id")
         .collect();
 
     let mut columns: Vec<String> =
@@ -4006,7 +4249,7 @@ fn voters_sheet(
         if batch.is_empty() {
             break;
         }
-        rows.extend(batch.iter().map(|voter| {
+        for voter in &batch {
             let mut row = vec![
                 Cell::text(voter.username.clone()),
                 text_or_blank(&voter.email),
@@ -4014,13 +4257,27 @@ fn voters_sheet(
                 text_or_blank(&voter.last_name),
                 text_or_blank(&voter.area_external_id),
             ];
-            row.extend(extra.iter().map(|key| {
-                voter
-                    .extra
-                    .get(*key)
-                    .map(|value| Cell::text(value.clone()))
-                    .unwrap_or(Cell::Blank)
-            }));
+            for key in &extra {
+                let cell = match voter.extra.get(*key) {
+                    Some(value) if *key == "authorized-election-ids" => {
+                        let text = super::sheet::voter_restriction_text(value)
+                            .map_err(|message| {
+                                Problem::error(
+                                    Code::InvalidValue,
+                                    format!(
+                                        "voters[{}].authorized-election-ids",
+                                        rows.len()
+                                    ),
+                                    message,
+                                )
+                            })?;
+                        Cell::text(text)
+                    }
+                    Some(value) => Cell::text(value.clone()),
+                    None => Cell::Blank,
+                };
+                row.push(cell);
+            }
             if let Some(recipe) = generating {
                 // Derived from the seed and this voter's username, so the same
                 // plan built twice gives the same password. `ready()` was checked
@@ -4034,8 +4291,8 @@ fn voters_sheet(
                         .unwrap_or(Cell::Blank),
                 );
             }
-            row
-        }));
+            rows.push(row);
+        }
     }
 
     // A source that yields nothing is a census nobody loaded, and an empty tab is
@@ -4377,7 +4634,8 @@ fn reports_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
     Some(Ok(merged))
 }
 
-/// The parameters sheet the plan carries, with the sign-in wording added to it.
+/// The parameters sheet, with the supplied base realm and sign-in wording.
+/// A carried whole-realm parameter is explicit and wins over the base realm.
 ///
 /// Two shapes to reconcile: a plan opened from a workbook brings that workbook's
 /// own `parameters` sheet through `platform`, and a plan authored in the wizard has
@@ -4388,17 +4646,86 @@ fn reports_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
 /// The carried sheet's own columns are kept. Its rows are `key`/`value`/`type`, so
 /// the added rows are laid out to match by position, and a sheet whose columns are
 /// in another order is left alone with the wording appended by header name.
-fn parameters_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
-    let rows = keycloak_message_rows(plan);
-    if rows.is_empty() {
-        return None;
-    }
-
-    // The sheet a plan opened from a workbook brought with it, if any.
+fn parameters_sheet(
+    plan: &Blueprint,
+    base_export: Option<&serde_json::Value>,
+) -> Option<Result<Sheet, Problem>> {
+    let mut rows = keycloak_message_rows(plan);
     let carried = plan
         .platform
         .iter()
         .find(|sheet| sheet.key == SHEET_PARAMETERS);
+    let realm_key = "keycloak_event_realm";
+    let explicit =
+        carried
+            .into_iter()
+            .flat_map(|sheet| &sheet.rows)
+            .find(|row| {
+                row.get("value").is_some()
+                    && row
+                        .text("key")
+                        .is_some_and(|key| key.trim() == realm_key)
+            });
+    let realm = match explicit {
+        Some(row) => row.get("value"),
+        None => base_export.and_then(|base| base.get(realm_key)),
+    };
+    if let Some(realm) = realm {
+        if let Err(problem) = super::scanovate::validate_authoring(realm) {
+            return Some(Err(problem));
+        }
+        if explicit.is_none() && realm.is_object() {
+            // The existing whole-realm parameter also carries unknown settings.
+            // XLSX continuation columns preserve realms larger than one cell.
+            rows.push((realm_key.to_string(), realm.to_string()));
+            let source_key = "keycloak_event_realm_source_event_id";
+            let has_source = carried
+                .into_iter()
+                .flat_map(|sheet| &sheet.rows)
+                .any(|row| {
+                    row.get("value").is_some()
+                        && row
+                            .text("key")
+                            .is_some_and(|key| key.trim() == source_key)
+                });
+            if !has_source {
+                if let Some(id) = base_export
+                    .and_then(|base| base.get("election_event"))
+                    .and_then(|event| event.get("id"))
+                    .and_then(serde_json::Value::as_str)
+                {
+                    rows.push((source_key.to_string(), id.to_string()));
+                }
+            }
+        }
+    }
+    // Dotted configuration overrides and standalone patches are inputs too.
+    // Validate them before producing a workbook, not just when building it.
+    let mut patch = serde_json::Map::new();
+    for row in carried.into_iter().flat_map(|sheet| &sheet.rows) {
+        if let (Some(path), Some(value)) = (
+            row.text("key").and_then(|key| {
+                key.trim().strip_prefix("keycloak_event_realm.")
+            }),
+            row.get("value"),
+        ) {
+            if let Err(problem) = super::paths::set_path(
+                &mut patch,
+                &super::paths::split_path(path),
+                value.clone(),
+            ) {
+                return Some(Err(problem));
+            }
+        }
+    }
+    if let Err(problem) =
+        super::scanovate::validate_authoring(&serde_json::Value::Object(patch))
+    {
+        return Some(Err(problem));
+    }
+    if rows.is_empty() {
+        return None;
+    }
 
     let Some(carried) = carried else {
         return Some(sheet_of(
@@ -4433,7 +4760,7 @@ fn parameters_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
             Code::MissingField,
             "keycloak_messages",
             "the workbook this plan came from has a Parameters sheet without \
-             `key` and `value` columns, so the sign-in page's wording has \
+             `key` and `value` columns, so the realm settings and sign-in wording have \
              nowhere to go. Remove that sheet or give it those columns.",
         )));
     };
@@ -4441,13 +4768,18 @@ fn parameters_sheet(plan: &Blueprint) -> Option<Result<Sheet, Problem>> {
     let mut number =
         merged.rows.iter().map(|row| row.number).max().unwrap_or(1);
     for (key, value) in rows {
+        let value = if key == realm_key {
+            super::paths::coerce_scalar(&value)
+        } else {
+            serde_json::Value::String(value)
+        };
         number += 1;
         merged.rows.push(Row {
             sheet: merged.name.clone(),
             number,
             cells: vec![
                 (key_header.clone(), serde_json::Value::String(key)),
-                (value_header.clone(), serde_json::Value::String(value)),
+                (value_header.clone(), value),
             ],
         });
     }
@@ -4658,8 +4990,8 @@ fn scheduled_events_sheet(plan: &Blueprint) -> Result<Option<Sheet>, Problem> {
 pub fn side_files(plan: &Blueprint) -> Vec<(String, String)> {
     let mut files = Vec::new();
 
-    let plan_json =
-        serde_json::to_string_pretty(plan).unwrap_or_else(|_| "{}".to_string());
+    let plan_json = serde_json::to_string_pretty(&as_written(plan))
+        .unwrap_or_else(|_| "{}".to_string());
     files.push(("blueprint.json".to_string(), plan_json + "\n"));
 
     let ceremony = serde_json::json!({
@@ -4924,7 +5256,12 @@ pub fn compile_plan(request: Compile<'_>) -> Result<Compiled, Report> {
         return Err(report);
     }
 
-    let workbook = to_workbook(plan, sources).map_err(|problem| {
+    let workbook = to_workbook_with_base(
+        plan,
+        sources,
+        options.base_export.as_ref().or(plan.base_export.as_ref()),
+    )
+    .map_err(|problem| {
         let mut failed = Report::default();
         failed.push(problem);
         failed
@@ -5038,3 +5375,9 @@ pub fn compile_plan(request: Compile<'_>) -> Result<Compiled, Report> {
 #[cfg(test)]
 #[path = "architect_tests.rs"]
 mod architect_tests;
+
+impl std::fmt::Debug for Blueprint {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("Blueprint").finish_non_exhaustive()
+    }
+}

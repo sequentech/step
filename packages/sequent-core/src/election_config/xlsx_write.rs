@@ -40,7 +40,9 @@ use zip::write::SimpleFileOptions;
 
 use crate::election_config::paths::cell_text;
 use crate::election_config::problem::{Code, Problem};
-use crate::election_config::sheet::{multi_value_columns, Origin, Workbook};
+use crate::election_config::sheet::{
+    multi_value_columns, Origin, Row, Sheet, Workbook,
+};
 
 /// Excel's own limit on a tab name.
 const NAME_LIMIT: usize = 31;
@@ -160,6 +162,81 @@ fn cell_xml(
                 r#"<c r="{reference}"{s_attr} t="inlineStr"><is><t xml:space="preserve">{text}</t></is></c>"#
             )
         }
+    }
+}
+
+/// The most text a spreadsheet cell holds is 32,767 characters, counted in
+/// UTF-16 units; this stays under it.
+const CELL_TEXT_LIMIT: usize = 32_000;
+
+/// Marks a continuation's own key, so repeated `<column>+` headers stay apart
+/// in a row; the header cell is written without it.
+const CONTINUATION_KEY: char = '\u{0}';
+
+fn written_header(header: &str) -> &str {
+    header.split(CONTINUATION_KEY).next().unwrap_or(header)
+}
+
+/// `sheet` with any text too long for a cell continued in `<column>+` columns
+/// beside it, which the reader joins back ([`Sheet::from_grid`]).
+fn fit(sheet: &Sheet) -> Sheet {
+    let multi = multi_value_columns(&sheet.key);
+    let pieces = |row: &Row, header: &str| -> Vec<String> {
+        let Some(value) = row.get(header) else {
+            return Vec::new();
+        };
+        let text = cell_text(value, multi.contains(&header));
+        let mut pieces = vec![String::new()];
+        let mut units = 0;
+        for c in text.chars() {
+            if units + c.len_utf16() > CELL_TEXT_LIMIT {
+                pieces.push(String::new());
+                units = 0;
+            }
+            units += c.len_utf16();
+            if let Some(piece) = pieces.last_mut() {
+                piece.push(c);
+            }
+        }
+        pieces
+    };
+    let mut headers = Vec::new();
+    let mut rows = sheet.rows.clone();
+    for header in &sheet.headers {
+        headers.push(header.clone());
+        let needed = sheet
+            .rows
+            .iter()
+            .map(|row| pieces(row, header).len())
+            .max()
+            .unwrap_or(0);
+        if header.is_empty() || needed < 2 {
+            continue;
+        }
+        let keys: Vec<String> = (1..needed)
+            .map(|n| format!("{header}+{CONTINUATION_KEY}{n}"))
+            .collect();
+        headers.extend(keys.iter().cloned());
+        for (row, original) in rows.iter_mut().zip(&sheet.rows) {
+            let parts = pieces(original, header);
+            if parts.len() < 2 {
+                continue;
+            }
+            let mut parts = parts.into_iter();
+            for (key, value) in row.cells.iter_mut() {
+                if key == header {
+                    *value = Value::String(parts.next().unwrap_or_default());
+                }
+            }
+            for (key, part) in keys.iter().zip(parts) {
+                row.cells.push((key.clone(), Value::String(part)));
+            }
+        }
+    }
+    Sheet {
+        headers,
+        rows,
+        ..sheet.clone()
     }
 }
 
@@ -384,10 +461,11 @@ pub(crate) fn shapes(headers: &[String], values: &[Vec<String>]) -> Vec<Shape> {
 /// reason. A delivery somebody diffs against last week's is the point — and it is
 /// why nothing here consults a clock, including the styling.
 pub fn write_xlsx(workbook: &Workbook) -> Result<Vec<u8>, Problem> {
-    let sheets = workbook.sheets();
-    for sheet in sheets {
+    for sheet in workbook.sheets() {
         checked_name(&sheet.name)?;
     }
+    let fitted: Vec<Sheet> = workbook.sheets().iter().map(fit).collect();
+    let sheets: &[Sheet] = &fitted;
 
     let mut buffer = Vec::new();
     let outcome = (|| -> Result<(), zip::result::ZipError> {
@@ -521,7 +599,7 @@ pub fn write_xlsx(workbook: &Workbook) -> Result<Vec<u8>, Problem> {
                 }
                 xml.push_str(&cell_xml(
                     &format!("{}1", column_name(at)),
-                    &Value::String(header.clone()),
+                    &Value::String(written_header(header).to_string()),
                     false,
                     Some(HEADER_STYLE),
                 ));

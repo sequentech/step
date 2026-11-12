@@ -4120,7 +4120,7 @@ const dutchTranslation: TranslationType = {
                 differs: "Anders",
                 compareNote: "Bij namen tellen hoofdletters, accenten en koppeltekens niet mee.",
                 compareJoint:
-                    "Bij rijbewijzen en zeemansboekjes worden voornaam en tweede naam samen vergeleken.",
+                    "Bij rijbewijzen, zeemansboekjes en door de scanner gelezen paspoorten worden voornaam en tweede naam samen vergeleken.",
                 applicationId: "Aanvraag-ID",
                 copy: "Kopiëren",
                 copied: "Gekopieerd",
@@ -4218,8 +4218,7 @@ const dutchTranslation: TranslationType = {
                 noneApply: "Geen van de bovenstaande regels is van toepassing",
                 andWord: "en",
                 and: " en ",
-                appliesToExample: "Van toepassing op uw voorbeeld",
-                cameFrom: "Besliste over de inschrijving waar u vandaan komt",
+                appliesToExample: "Beslist in de simulatie",
                 voterIsTold: "De kiezer krijgt te horen: “{{reason}}”.",
                 sentence: "Als geldt: {{when}}, dan {{outcome}}.",
                 sentenceOtherwise:
@@ -4242,13 +4241,71 @@ const dutchTranslation: TranslationType = {
                     more: "+{{count}} meer",
                 },
                 test: "Een voorbeeld proberen",
-                testHelp:
-                    "Beschrijf een inschrijving om te zien welke regel erover beslist. Uw niet-opgeslagen wijzigingen tellen mee.",
+                example: {
+                    stateSample: "Voorbeeldinschrijving",
+                    sampleText:
+                        "Een geverifieerde kiezer uit het register, nog niet ingeschreven, bij wie alle vergeleken gegevens gelijk zijn.",
+                    stateCustom: "Uw voorbeeld",
+                    customText: "Uitgegaan van het voorbeeld.",
+                    recorded: "Vastgelegde beslissing",
+                    recordedRule: "Regel {{number}} van versie {{version}} · {{decision}}.",
+                    recordedLast: "Laatste regel van versie {{version}} · {{decision}}.",
+                    severalApproved: "Er pasten meerdere kiezers uit het register.",
+                    statusNow: "De status is nu {{status}}.",
+                    noChanges:
+                        "Een voorbeeld proberen wijzigt geen inschrijving en slaat niets op.",
+                    edit: "Voorbeeld bewerken",
+                    editing: "Voorbeeld bewerken — nog niet toegepast",
+                    editingHelp:
+                        "Uw wijzigingen tellen pas als u ze toepast. Tot dan gebruikt de simulatie het toegepaste voorbeeld met de regels op het scherm.",
+                    apply: "Toepassen",
+                    notRecorded: "Niet vastgelegd",
+                    withFirstName: "Vergeleken met de voornaam",
+                    notComparedForId: "Niet vergeleken voor dit document",
+                    noLongerOffered: "{{id}} (niet meer aangeboden)",
+                    simulation: "Huidige simulatie",
+                    rulesOnScreen: "Regels op het scherm",
+                    rulesUnsaved: "Regels op het scherm, inclusief niet-opgeslagen wijzigingen",
+                    goToRule: "Naar regel {{number}}",
+                    goToLast: "Naar de laatste regel",
+                    titleEnrollment: "Simulatie van de inschrijving van {{name}}",
+                    titleUnnamed: "Simulatie van een inschrijving",
+                    back: "Terug naar de inschrijving",
+                    backLabel: "Terug naar de inschrijving van {{name}}",
+                    noChangesEnrollment:
+                        "De simulatie wijzigt niets aan deze inschrijving en slaat niets op.",
+                    unreadable:
+                        "De vastgelegde beslissing van deze inschrijving is niet leesbaar, daarom gebruikt de simulatie de voorbeeldinschrijving.",
+                    stateRecorded: "Vastgelegde gegevens · in de simulatie",
+                    stateChanged: "Andere gegevens · in de simulatie",
+                    stateUnreadable: "Voorbeeldinschrijving — niet de vastgelegde gegevens",
+                    changedNote: "De inschrijving houdt haar vastgelegde gegevens.",
+                    editDetails: "Andere gegevens proberen",
+                    editingDetails: "Andere gegevens proberen — nog niet in de simulatie",
+                    editingDetailsHelp:
+                        "Deze gegevens beslissen niets tot u ze toepast. Tot dan gebruikt de simulatie de gegevens hierboven met de regels op het scherm.",
+                    restore: "De vastgelegde gegevens invullen",
+                    resetSample: "Het voorbeeld invullen",
+                    decides: "In de simulatie beslist regel {{number}}.",
+                    lastDecides: "In de simulatie past geen regel: de laatste regel beslist.",
+                    evaluating: "Bepalen welke regel over de simulatie beslist…",
+                    stillApplied: "De gemarkeerde regel beslist nog steeds over de simulatie.",
+                    comparison: {
+                        SAME: "De huidige simulatie geeft dezelfde beslissing als de vastgelegde.",
+                        DIFFERENT:
+                            "De huidige simulatie geeft een andere beslissing dan de vastgelegde.",
+                        EDITED: "Dit zijn niet de vastgelegde gegevens, daarom wordt de simulatie niet met de vastgelegde beslissing vergeleken.",
+                        NOT_RECORDED:
+                            "Een vergeleken gegeven is niet vastgelegd, daarom wordt de simulatie niet met de vastgelegde beslissing vergeleken.",
+                        SEVERAL_VOTERS:
+                            "Er zijn meerdere kiezers uit het register vergeleken, daarom wordt de simulatie niet met de vastgelegde beslissing vergeleken.",
+                        UNKNOWN_VOTERS:
+                            "Het aantal vergeleken kiezers uit het register is niet vastgelegd, daarom wordt de simulatie niet met de vastgelegde beslissing vergeleken.",
+                    },
+                },
                 testDetails: "Vergeleken gegevens",
-                applies: "Regel {{number}} is van toepassing",
-                otherwiseApplies: "De laatste regel is van toepassing",
-                testError: "Het voorbeeld kon niet worden geprobeerd.",
-                testInvalid: "Corrigeer deze regels om een voorbeeld te proberen:",
+                testError: "De simulatie kon niet worden uitgevoerd.",
+                testInvalid: "Herstel deze regels om de simulatie uit te voeren:",
                 ruleError: "Regel {{number}}: {{error}}",
                 invariants: {
                     MANUAL_ENTRY_NOT_ACCEPTED:
