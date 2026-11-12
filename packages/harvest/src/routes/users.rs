@@ -850,20 +850,15 @@ fn trustee_secret_attribute_permission(
 }
 
 /// Attributes for a new user: the client's ones plus the user's tenant as its
-/// only `tenant-id`. A client `tenant-id` naming another tenant is refused.
+/// only `tenant-id`. `create_user` has already refused any client `tenant-id`.
 fn new_user_attributes(
     tenant_id: &str,
     client_attributes: Option<HashMap<String, Vec<String>>>,
-) -> Result<HashMap<String, Vec<String>>, String> {
+) -> HashMap<String, Vec<String>> {
     let mut attributes = client_attributes.unwrap_or_default();
-    if let Some(values) = attributes.remove(TENANT_ID_ATTR_NAME) {
-        if values.iter().any(|value| value != tenant_id) {
-            return Err("Cannot set tenant-id attribute".to_string());
-        }
-    }
     attributes
         .insert(TENANT_ID_ATTR_NAME.to_string(), vec![tenant_id.to_string()]);
-    Ok(attributes)
+    attributes
 }
 
 #[derive(Deserialize, Debug)]
@@ -1036,14 +1031,7 @@ pub async fn create_user(
     };
 
     let mut user_attributes =
-        new_user_attributes(&input.tenant_id, input.user.attributes.clone())
-            .map_err(|message| {
-                ErrorResponse::new(
-                    Status::BadRequest,
-                    &message,
-                    ErrorCode::UnknownError,
-                )
-            })?;
+        new_user_attributes(&input.tenant_id, input.user.attributes.clone());
     let mut user = input.user.clone();
     user.email_verified = Some(true);
     let requested_enabled = user.enabled.unwrap_or(true);
@@ -2534,14 +2522,6 @@ mod tests {
     }
 
     #[test]
-    fn new_user_attributes_refuse_another_tenant_id() {
-        for values in [&["tenant-b"][..], &["tenant-a", "tenant-b"]] {
-            let requested = attributes(&[(TENANT_ID_ATTR_NAME, values)]);
-            assert!(new_user_attributes("tenant-a", Some(requested)).is_err());
-        }
-    }
-
-    #[test]
     fn new_user_attributes_keep_a_single_own_tenant_id() {
         let requested = attributes(&[
             (TENANT_ID_ATTR_NAME, &["tenant-a"]),
@@ -2549,10 +2529,10 @@ mod tests {
         ]);
         assert_eq!(
             new_user_attributes("tenant-a", Some(requested)),
-            Ok(attributes(&[
+            attributes(&[
                 (TENANT_ID_ATTR_NAME, &["tenant-a"]),
                 ("area-id", &["area"]),
-            ]))
+            ])
         );
     }
 
@@ -2560,7 +2540,7 @@ mod tests {
     fn new_user_attributes_set_the_tenant_id() {
         assert_eq!(
             new_user_attributes("tenant-a", None),
-            Ok(attributes(&[(TENANT_ID_ATTR_NAME, &["tenant-a"])]))
+            attributes(&[(TENANT_ID_ATTR_NAME, &["tenant-a"])])
         );
     }
 
