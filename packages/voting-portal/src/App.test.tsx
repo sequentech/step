@@ -94,6 +94,46 @@ const cases = [
     },
 ]
 
+test("leaves images from other origins out of the event styling", async () => {
+    const css = `${ballotCss} background-image: url(https://elsewhere.example/image.png);`
+    mockState = {
+        ...store.getState(),
+        elections: {first: {id: "first", presentation: {}}},
+        electionEvent: {event: {id: "event", presentation: {css: eventCss}}},
+        ballotStyles: {
+            first: {
+                id: "first",
+                election_id: "first",
+                ballot_eml: {election_event_presentation: {css}},
+            },
+        },
+    }
+    const router = createMemoryRouter(
+        [
+            {
+                path: "/tenant/:tenantId/event/:eventId",
+                element: <App />,
+                children: [{path: "election-chooser", element: <div>Route content</div>}],
+            },
+        ],
+        {initialEntries: ["/tenant/tenant/event/event/election-chooser"]}
+    )
+    const view = render(
+        <ThemeProvider theme={theme}>
+            <RouterProvider router={router} />
+        </ThemeProvider>
+    )
+    try {
+        await view.findByText("Route content")
+        const style = getComputedStyle(view.container.querySelector(".voting-portal-wrapper")!)
+        expect(style.color).toBe("rgb(4, 5, 6)")
+        expect(style.backgroundImage).not.toContain("elsewhere.example")
+    } finally {
+        view.unmount()
+        router.dispose()
+    }
+})
+
 describe.each(["election-chooser", "support-materials"])("event styling on %s", (route) => {
     test.each(cases)(
         "applies the appropriate presentation $name",
