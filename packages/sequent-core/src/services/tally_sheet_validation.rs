@@ -214,7 +214,11 @@ pub fn validate_area_contest_results(
     let max_marks = max_marks_per_ballot.unwrap_or(1).max(1);
     let lower_bound = u128::from(non_blank_valid_votes);
     // A product of two u64 values also fits in u128 without saturation.
-    let upper_bound = lower_bound.saturating_mul(u128::from(max_marks));
+    // Tally processing sums the marks in a u64, so a sum past u64::MAX is
+    // rejected here instead of failing the tally later.
+    let upper_bound = lower_bound
+        .saturating_mul(u128::from(max_marks))
+        .min(u128::from(u64::MAX));
 
     if candidate_votes_sum < lower_bound || candidate_votes_sum > upper_bound {
         errors.push(error(
@@ -625,6 +629,38 @@ mod tests {
 
         let errors = validate_area_contest_results(&content, Some(2));
         let codes = errors
+            .into_iter()
+            .map(|error| error.code)
+            .collect::<Vec<_>>();
+
+        assert_eq!(codes, vec!["invalid_total_valid_votes"]);
+    }
+
+    #[test]
+    fn rejects_marks_beyond_the_counter_range_within_the_mark_bound() {
+        let candidate = |id: &str, votes: u64| {
+            (
+                id.to_string(),
+                CandidateResults {
+                    candidate_id: id.to_string(),
+                    total_votes: Some(votes),
+                },
+            )
+        };
+        let content = AreaContestResults {
+            area_id: "area-1".to_string(),
+            contest_id: "contest-1".to_string(),
+            total_votes: Some(u64::MAX),
+            total_valid_votes: Some(u64::MAX),
+            census: Some(u64::MAX),
+            candidate_results: HashMap::from([
+                candidate("candidate-1", u64::MAX),
+                candidate("candidate-2", 1),
+            ]),
+            ..AreaContestResults::default()
+        };
+
+        let codes = validate_area_contest_results(&content, Some(2))
             .into_iter()
             .map(|error| error.code)
             .collect::<Vec<_>>();
