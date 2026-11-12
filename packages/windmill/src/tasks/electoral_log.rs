@@ -173,12 +173,21 @@ fn verified_internal_message(
     row.rebuild_verified(system_pk, &input.election_event_id)
 }
 
-/// The public key of each board's protocol manager, which signs the board's
-/// internal messages, as last read. A message that does not verify against
+/// The public key of each board's protocol manager (by tenant, election event
+/// and board), which signs the board's internal messages, as last read. A message that does not verify against
 /// the cached key is checked again with the key read anew, which replaces the
 /// cached one, so a board recreated under the same name with a new protocol
 /// manager is picked up without a restart.
-static BOARD_SYSTEM_PKS: Lazy<DashMap<String, StrandSignaturePk>> = Lazy::new(DashMap::new);
+static BOARD_SYSTEM_PKS: Lazy<DashMap<(String, String, String), StrandSignaturePk>> =
+    Lazy::new(DashMap::new);
+
+fn board_key(tenant_id: &str, election_event_id: &str, board: &str) -> (String, String, String) {
+    (
+        tenant_id.to_string(),
+        election_event_id.to_string(),
+        board.to_string(),
+    )
+}
 
 /// Reads the public key of the protocol manager that signs the internal
 /// messages of a board and caches it in place of the board's cached key.
@@ -194,7 +203,10 @@ async fn board_system_pk(
             .with_context(|| "Error getting protocol manager")?;
     let system_pk = StrandSignaturePk::from_sk(protocol_manager.get_signing_key())
         .with_context(|| "Error getting protocol manager public key")?;
-    BOARD_SYSTEM_PKS.insert(board.to_string(), system_pk.clone());
+    BOARD_SYSTEM_PKS.insert(
+        board_key(tenant_id, election_event_id, board),
+        system_pk.clone(),
+    );
     Ok(system_pk)
 }
 
@@ -254,7 +266,7 @@ async fn prepare_log_event(
     let messages = match &input.message_type {
         LogMessageType::Internal => {
             let cached_pk = BOARD_SYSTEM_PKS
-                .get(board.as_str())
+                .get(&board_key(&input.tenant_id, &election_event.id, &board))
                 .map(|system_pk| system_pk.value().clone());
             verify_with_cached_or_current_key(
                 cached_pk,
@@ -748,6 +760,14 @@ mod internal_message_tests {
             electoral_log::messages::message::hash_voter_id("voter-id")?
         );
         Ok(())
+    }
+
+    #[test]
+    fn the_key_cache_tells_tenants_with_the_same_board_name_apart() {
+        assert_ne!(
+            board_key("tenant-a", EVENT_ID, "board"),
+            board_key("tenant-b", EVENT_ID, "board")
+        );
     }
 
     #[tokio::test]
