@@ -974,6 +974,7 @@ mod tests {
             .expect_err("nothing listens on the port");
 
         let logs = capture.contents();
+        assert!(logs.contains("list_users"), "{logs}");
         let error = format!("{error:?}");
         for value in [SEARCH, EMAIL_NAME] {
             assert!(!logs.contains(value), "{value} in logs: {logs}");
@@ -1055,6 +1056,7 @@ mod tests {
             .expect("edit user");
 
         let logs = capture.contents();
+        assert!(logs.contains("list_users"), "{logs}");
         assert!(logs.contains("edit_user_with_credentials"), "{logs}");
         for value in [
             SEARCH,
