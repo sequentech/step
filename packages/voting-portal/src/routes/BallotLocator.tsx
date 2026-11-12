@@ -111,11 +111,15 @@ const MessageFailed = styled(Box)`
     overflow-wrap: anywhere;
 `
 
+// A whole Ballot ID in hexadecimal characters (BALLOT_ID_LENGTH_CHARS in windmill's
+// electoral_log.rs): the server rejects a longer filter.
+const BALLOT_ID_MAX_LENGTH = 64
+
 function isHex(str: string) {
     if (str.trim() === "") {
         return true
     }
-    if (str.length % 2 !== 0) {
+    if (str.length % 2 !== 0 || str.length > BALLOT_ID_MAX_LENGTH) {
         return false
     }
     const regex = /^[0-9a-fA-F]+$/
@@ -234,6 +238,7 @@ const BallotLocator: React.FC = () => {
                     offset,
                 })
                 console.log(data)
+                setSomethingWentWrongErr(false)
                 if (data?.list_cast_vote_messages) {
                     setRows((data?.list_cast_vote_messages?.list ?? []) as ICastVoteEntry[])
                     setTotal(data?.list_cast_vote_messages?.total)
