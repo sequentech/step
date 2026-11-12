@@ -18,7 +18,7 @@ use crate::tasks::generate_report::generate_report;
 use crate::types::error::Result;
 use crate::types::tasks::ETasksExecution;
 use anyhow::{anyhow, Context};
-use celery::{error::TaskError, Celery};
+use celery::{error::TaskError, task::Signature, Celery};
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use chrono_tz::Tz;
 use croner::Cron;
@@ -29,6 +29,7 @@ use sequent_core::types::permissions::Permissions;
 use std::collections::HashMap;
 use std::future::Future;
 use std::str::FromStr;
+use std::sync::Arc;
 use strum_macros::Display;
 use tracing::{error, event, info, instrument, warn, Level};
 use uuid::Uuid;
@@ -314,7 +315,7 @@ pub async fn scheduled_reports(rate_seconds: u64) -> Result<()> {
 
     // Schedule the task for each report that needs to run
     let scheduling = CeleryReportScheduling {
-        celery_app: &celery_app,
+        sender: &celery_app,
         zones: &zones,
     };
     schedule_due_reports(&mut hasura_transaction, &to_be_run_now, &scheduling).await?;
@@ -339,12 +340,29 @@ pub trait ReportScheduling: Sync {
 
 /// Sends a due report's `generate_report` task, reading its cron in the
 /// primary zone of its event.
-struct CeleryReportScheduling<'a> {
-    celery_app: &'a Celery,
+struct CeleryReportScheduling<'a, S: GenerateReportSender> {
+    sender: &'a S,
     zones: &'a HashMap<(String, String), Tz>,
 }
 
-impl ReportScheduling for CeleryReportScheduling<'_> {
+/// Where the `generate_report` tasks of the due reports are sent.
+pub trait GenerateReportSender: Sync {
+    fn send(
+        &self,
+        task: Signature<generate_report>,
+    ) -> impl Future<Output = anyhow::Result<()>> + Send;
+}
+
+impl GenerateReportSender for Arc<Celery> {
+    async fn send(&self, task: Signature<generate_report>) -> anyhow::Result<()> {
+        self.send_task(task)
+            .await
+            .map(|_task| ())
+            .map_err(|err| anyhow!("Error sending generate_report task: {err:?}"))
+    }
+}
+
+impl<S: GenerateReportSender> ReportScheduling for CeleryReportScheduling<'_, S> {
     async fn schedule(&self, hasura_transaction: &Transaction<'_>, report: &Report) -> Result<()> {
         let Some(datetime) = get_next_scheduled_time(report, zone_of(self.zones, report)) else {
             return Ok(());
@@ -437,9 +455,8 @@ impl ReportScheduling for CeleryReportScheduling<'_> {
         .await
         .map_err(|err| anyhow!("Error creating task execution record: {err:?}"))?;
 
-        let _task = self
-            .celery_app
-            .send_task(
+        self.sender
+            .send(
                 generate_report::new(
                     report.clone(),
                     document_id.clone(),
@@ -454,8 +471,7 @@ impl ReportScheduling for CeleryReportScheduling<'_> {
                 .with_eta(datetime.with_timezone(&Utc))
                 .with_expires_in(120),
             )
-            .await
-            .map_err(|err| anyhow!("Error sending generate_report task: {err:?}"))?;
+            .await?;
 
         update_report_last_document_time(hasura_transaction, &report.tenant_id, &report.id)
             .await
@@ -680,12 +696,17 @@ mod tests {
                     .expect_err("a division by zero");
                 return Err(anyhow::Error::from(error).into());
             }
+            if report.id.starts_with("aborting") {
+                hasura_transaction
+                    .batch_execute("SELECT 1 / 0")
+                    .await
+                    .expect_err("a division by zero");
+            }
             Ok(())
         }
     }
 
-    #[tokio::test]
-    async fn a_report_that_cannot_be_scheduled_is_rolled_back_alone() {
+    async fn test_client() -> deadpool_postgres::Object {
         let pool = crate::services::database::PgConfig::from_env()
             .expect("HASURA_DB__* names the test PostgreSQL server")
             .hasura_db
@@ -694,7 +715,106 @@ mod tests {
                 tokio_postgres::NoTls,
             )
             .expect("a test database pool");
-        let mut client = pool.get().await.expect("a test database connection");
+        pool.get().await.expect("a test database connection")
+    }
+
+    /// Never asked to send: the reports it is given are skipped before that.
+    struct UnusedSender;
+
+    impl GenerateReportSender for UnusedSender {
+        async fn send(&self, _task: Signature<generate_report>) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn a_report_without_a_cron_config_is_not_sent() {
+        let mut client = test_client().await;
+        let transaction = client.transaction().await.expect("a transaction");
+        let report = Report {
+            cron_config: None,
+            ..daily_at_eight("2028-04-07T23:00:00.000")
+        };
+        let zones = HashMap::new();
+        let scheduling = CeleryReportScheduling {
+            sender: &UnusedSender,
+            zones: &zones,
+        };
+
+        scheduling
+            .schedule(&transaction, &report)
+            .await
+            .expect("a report without a next run is skipped");
+        transaction.rollback().await.expect("a rollback");
+    }
+
+    #[tokio::test]
+    async fn a_report_whose_user_is_unknown_is_not_sent() {
+        let mut client = test_client().await;
+        let transaction = client.transaction().await.expect("a transaction");
+        let mut report = daily_at_eight("2028-04-07T23:00:00.000");
+        report
+            .cron_config
+            .as_mut()
+            .expect("a cron config")
+            .executer_username = String::new();
+        let zones = HashMap::new();
+        let scheduling = CeleryReportScheduling {
+            sender: &UnusedSender,
+            zones: &zones,
+        };
+
+        scheduling
+            .schedule(&transaction, &report)
+            .await
+            .expect("a report without an authorized user is skipped");
+        transaction.rollback().await.expect("a rollback");
+    }
+
+    #[tokio::test]
+    async fn a_transaction_that_cannot_open_a_savepoint_fails_the_tick() {
+        let mut client = test_client().await;
+        let mut transaction = client.transaction().await.expect("a transaction");
+        transaction
+            .batch_execute("SELECT 1 / 0")
+            .await
+            .expect_err("a division by zero aborts the transaction");
+        let report = daily_at_eight("2028-04-07T23:00:00.000");
+
+        let error = schedule_due_reports(&mut transaction, &[&report], &RecordingScheduling)
+            .await
+            .expect_err("no savepoint can be created");
+
+        assert!(format!("{error:?}").contains("Error creating savepoint"));
+        transaction.rollback().await.expect("a rollback");
+    }
+
+    #[tokio::test]
+    async fn a_report_that_aborts_the_transaction_fails_the_tick() {
+        let mut client = test_client().await;
+        let mut transaction = client.transaction().await.expect("a transaction");
+        transaction
+            .batch_execute(
+                "CREATE TEMPORARY TABLE scheduled (n serial, report_id text) ON COMMIT DROP",
+            )
+            .await
+            .expect("a table for the scheduled reports");
+        let report = Report {
+            id: "aborting".to_string(),
+            ..daily_at_eight("2028-04-07T23:00:00.000")
+        };
+
+        let error = schedule_due_reports(&mut transaction, &[&report], &RecordingScheduling)
+            .await
+            .expect_err("the savepoint cannot be released");
+
+        assert!(format!("{error:?}").contains("Error releasing savepoint"));
+        transaction.rollback().await.expect("a rollback");
+    }
+
+    #[tokio::test]
+    async fn a_report_that_cannot_be_scheduled_is_rolled_back_alone() {
+        let mut client = test_client().await;
         let mut transaction = client.transaction().await.expect("a transaction");
         transaction
             .batch_execute(
