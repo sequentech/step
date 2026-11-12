@@ -90,12 +90,20 @@ class HarvestMessageSenderProviderTest {
     responses.put(path, new Response(status, body, 0));
   }
 
+  /**
+   * A request that should succeed gets ten seconds, the token client's own read bound: a loaded CI
+   * runner can take more than half a second to answer a loopback request.
+   */
   private HarvestMessageSenderProvider sender(URI harvest) {
+    return sender(harvest, Duration.ofSeconds(10));
+  }
+
+  private HarvestMessageSenderProvider sender(URI harvest, Duration timeout) {
     return new HarvestMessageSenderProvider(
         harvest,
         Set.of(MessageChannel.WHATSAPP, MessageChannel.MESSENGER),
         new ServiceAccountTokenClient(base.toString(), "service-account", "synthetic-secret"),
-        Duration.ofMillis(500));
+        timeout);
   }
 
   private SendMessageRequest otp() {
@@ -177,7 +185,9 @@ class HarvestMessageSenderProviderTest {
   void aTimeoutAfterDispatchIsUnknownNotFailed() {
     responses.put(
         "/messages/send", new Response(200, "{\"message_id\":\"m\",\"state\":\"ACCEPTED\"}", 2000));
-    assertEquals(MessageAttemptState.UNKNOWN, sender(base).send(otp()).attemptState());
+    assertEquals(
+        MessageAttemptState.UNKNOWN,
+        sender(base, Duration.ofMillis(500)).send(otp()).attemptState());
   }
 
   @Test
