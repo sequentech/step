@@ -125,6 +125,10 @@ isn't used.
       Face Match threshold can be configured: they can't. OCR's quality limits
       are built in, only 1280×720 is supported, Face Match's threshold is fixed
       at 0.67, and its `success` only means the comparison ran.
+- [ ] Decide the capture resolution: we request 1920×1080 because Document
+      Liveness asks for Full HD (#4211), and Scanovate validates OCR only at
+      1280×720. Ask Scanovate which one to use for OCR's `input_image`
+      going to Document Liveness.
 - [x] Report that desktop browsers mirrored OCR's preview whatever
       `mirror_view` said: fixed in `version_3.9.0_bec7df8_295`.
 - [ ] Send Scanovate examples of passport scans refused on phones (log lines,

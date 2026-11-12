@@ -125,6 +125,33 @@ sequenceDiagram
 9. Only then, Keycloak validates what OCR read with the realm rules and stores
    the voter's data, which later steps compare with the voter registry.
 
+## OCR capture resolution
+
+OCR requests a 1920 × 1080 camera stream. Its `input_image` is also used for
+Document Liveness, whose [image requirements](https://docs.idrnd.net/idlivedoc/)
+specify Full HD as the minimum. Keep the development OCR video configuration,
+the air-gap `scanovate-theme.yaml` copy and hosted capture configuration in sync.
+This is a capture-page setting, not an election Excel or realm threshold setting.
+
+The pinned vendor client passes width and height as numeric `getUserMedia`
+preferences, not mandatory minimum constraints. A browser may negotiate a lower
+resolution on limited hardware. It sends JPEG frames at the actual video-track
+settings dimensions, without upscaling; increasing the configured request does
+not prove every camera produces Full HD. Verify the actual frame dimensions on
+supported mobile and desktop cameras before rollout, including limited cameras
+and permission denial. Prefer a supported rear-facing camera for documents.
+Do not bypass failed document-liveness checks to accommodate a lower-resolution
+camera. The configurable score relaxation below is separate from resolution. Video compression settings are
+separate from the still-image capture and are unchanged.
+
+Scanovate supports and validates only 1280 × 720 for OCR's capture: asked
+whether 1920 × 1080 would make the machine readable zone easier to reach,
+they answered that it isn't supported or validated, and isn't a workaround
+for the MRZ size or quality limits. The Full HD request above isn't validated
+by them either way. From `version_3.9.0_bec7df8_295` on, the `mobile`,
+`desktop` and `kiosk` blocks of the video configuration can also set
+`video_width` and `video_height` for one device.
+
 ## Access to the images
 
 We run the images from our own mirror on AWS ECR, in the `133529410358` account
@@ -558,7 +585,7 @@ Keycloak (see [Integration contract](#integration-contract)), without the video
 in the results (`send_video_in_results: false`), with English as the
 default language of the page, our theme as its default UI theme, and with
 `mask_threshold` raised from
-Scanovate's 0.5 to 0.8, like `sunglasses_threshold`: at 0.5, faces without
+Scanovate's 0.5 to 0.9, like `sunglasses_threshold`: at 0.5, faces without
 any covering (a beard, side light) scored 0.64–0.74 and were asked to remove
 a face covering on every frame. Both scores are only quality hints; the PAD
 server catches presentation attacks. Its `onprem` section:
@@ -577,13 +604,45 @@ server catches presentation attacks. Its `onprem` section:
 Other settings of the file: sessions expire after 90 seconds
 (`expiry_timeout_in_seconds`) and are deleted 5 minutes later
 (`deletion_timeout_in_minutes`). The PAD pipelines are `pad-r-2` (main,
-threshold `0.56`) and `dfd-3` (`0.5`): the check passes only if every pipeline
+threshold `0.46`) and `dfd-3` (`0.4`): the check passes only if every pipeline
 scores above its threshold. Exactly one pipeline must be `main`, and the names
 must match `IDFACE_SERVER_AVAILABLE_PIPELINES` of the PAD server. `face_config`
 sets the face quality a frame needs before PAD runs: a face of at least
 200×200 pixels, 60 pixels between the eyes, the nose near the centre of the
 frame, the head turned less than 15° and tilted less than 18°, sharp, lit, and
 without sunglasses or a mask.
+
+### Configurable acceptance scores
+
+The development configuration, offline template and hosted reference template
+relax the following scores by 0.1 points:
+
+| Check | Previous cutoff | New cutoff | Direction |
+| --- | --- | --- | --- |
+| Face presentation-attack probability (`pad-r-2`) | 0.56 | 0.46 | Lower minimum |
+| Deepfake probability (`dfd-3`) | 0.5 | 0.4 | Lower minimum |
+| Selfie detection and sharpness | 0.6 | 0.5 | Lower minimum |
+| Mask and sunglasses scores | 0.8 | 0.9 | Higher rejection ceiling |
+| Document-liveness default minimum | 0.5 | 0.4 | Lower minimum |
+
+Lower anti-spoofing cutoffs accept more borderline results and may accept more
+attacks. These are requested relaxations, not calibrated operating points.
+Validate genuine documents/faces and attack samples before production rollout.
+All enabled pipelines, injection detection, error handling and face-match
+service checks remain required.
+
+Explicit event settings are preserved, including a document-liveness minimum
+of 0.5; the new 0.4 fallback applies only when that setting is absent or blank.
+Hosted reference templates do not update the mounted secret automatically.
+Updating an existing event or service configuration and restarting its service
+are separate rollout steps.
+
+Illumination (0.2), MRZ detection (0.25), pixel dimensions, pose limits and SSIM
+(0.994) are unchanged. The pinned OCR library hard-codes passport image quality
+above 0.4, portrait detection at 0.4, a 40-pixel minimum face size and a 400-pixel
+minimum MRZ width. They are not exposed by our service configuration. Face Match
+still requires its service cutoff (0.67), even if the event minimum is lower.
+Vendor-supported controls are needed before changing these vendor limits.
 
 ### Face Match
 
@@ -640,15 +699,14 @@ name one with its `video_config` parameter. Its `mobile`, `desktop` and
 `kiosk` blocks override those settings for one device: `kiosk` when
 `kiosk_mode` is `true`, otherwise `mobile` on phones and tablets (an iPad
 counts as one) and `desktop` elsewhere. `sequent_video.json` is the
-`video_config.json` Scanovate delivered with `version_3.9.0_bec7df8_295`:
+`video_config.json` Scanovate delivered with `version_3.9.0_bec7df8_295`,
+with the resolution of [OCR capture resolution](#ocr-capture-resolution):
 phones and tablets show the rear camera unmirrored, and `desktop` sets
 `mirror_view` to `true`, so a laptop shows its front camera as a mirror, which
 is what a voter in front of it expects: the passport moves on screen the way
 it moves in the hand. Only the preview is mirrored, never the frames sent to
-the service (`mirror_buffer` stays `false`). Keep `video_width` and
-`video_height` at 1280×720: Scanovate supports and validates no other
-resolution, and a higher one isn't a way to make the machine readable zone
-large enough. Earlier releases mirrored the preview on desktop whatever
+the service (`mirror_buffer` stays `false`). Earlier releases mirrored the
+preview on desktop whatever
 `mirror_view` said. Serve the image's own page: a copy that showed the
 preview as the camera sees it made it look flipped on laptops
 (v11.0.0-rc.15). `scripts/dev/test_scanovate_ocr_page.py` checks that the dev
@@ -677,7 +735,7 @@ The authenticator's settings:
 | `document-liveness-url` | none (required); the presets write `http://scanovate-document-liveness:8080` | Internal base URL of the service. |
 | `document-liveness-pipelines` | `default-sr,default-pc,default-ps,default-dm` | The checks the document photo must pass. |
 | `document-liveness-calibration` | `REGULAR` | `SOFT` rejects fewer genuine documents, `HARD` misses fewer attacks. |
-| `document-liveness-min-probability` | `0.5` | Minimum `liveness_probability` of every pipeline. |
+| `document-liveness-min-probability` | `0.4` | Minimum `liveness_probability` of every pipeline. |
 
 Image sessions expire after 120 seconds (`image_ocr_expiry_timeout_in_seconds`),
 video sessions after 90 (`video_ocr_expiry_timeout_in_seconds`), and both are

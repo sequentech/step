@@ -7,7 +7,9 @@ per device.
 From OCR `version_3.9.0_bec7df8_295` on, `video_config.json` takes `mobile`,
 `desktop` and `kiosk` blocks that override its settings for one device, and
 the page honours `mirror_view` on desktop too. Our `sequent_video.json` is
-Scanovate's delivered `video_config.json`: phones and tablets show the rear
+Scanovate's delivered `video_config.json`, except that it requests Full HD
+for Document Liveness (#4211; Scanovate validates only 1280×720, see the
+on-premise guide): phones and tablets show the rear
 camera as it sees the passport, and laptops and desktops show the front camera
 as a mirror, which is what a voter in front of it expects: the passport moves
 on screen the way it moves in the hand. Only the preview is mirrored, never
@@ -65,12 +67,9 @@ class ScanovateOcrPageTest(unittest.TestCase):
         for device in ("mobile", "desktop", "kiosk"):
             self.assertFalse(config[device].get("mirror_buffer", False), device)
 
-    def test_the_camera_resolution_is_the_validated_one(self):
-        config = json.loads(VIDEO_CONFIG.read_text())
-        self.assertEqual((config["video_width"], config["video_height"]), (1280, 720))
-        for device in ("mobile", "desktop", "kiosk"):
-            self.assertNotIn("video_width", config[device], device)
-            self.assertNotIn("video_height", config[device], device)
+    def test_capture_requests_full_hd_for_document_liveness(self):
+        video = json.loads(VIDEO_CONFIG.read_text())
+        self.assertEqual((video["video_width"], video["video_height"]), (1920, 1080))
 
     def test_the_service_uses_our_video_config(self):
         service = json.loads((OCR / "service_config.json").read_text())
