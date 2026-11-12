@@ -2744,6 +2744,20 @@
             "name": "x-hasura-authorized-election-ids",
             "protocol": "openid-connect",
             "protocolMapper": "authorized-elections-oidc-usermodel-attribute-mapper"
+          },
+          {
+            "id": "b0b8243e-fe59-5c14-b463-6314740aa9a3",
+            "name": "harvest-audience",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-audience-mapper",
+            "consentRequired": false,
+            "config": {
+              "included.custom.audience": "harvest",
+              "id.token.claim": "false",
+              "access.token.claim": "true",
+              "introspection.token.claim": "true",
+              "lightweight.claim": "false"
+            }
           }
         ],
         "publicClient": false,
@@ -2893,6 +2907,20 @@
               "access.token.claim": "true",
               "claim.name": "auth_time",
               "jsonType.label": "long"
+            }
+          },
+          {
+            "id": "750e8a4a-4b5c-5839-90c5-a3203c88ff32",
+            "name": "harvest-audience",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-audience-mapper",
+            "consentRequired": false,
+            "config": {
+              "included.custom.audience": "harvest",
+              "id.token.claim": "false",
+              "access.token.claim": "true",
+              "introspection.token.claim": "true",
+              "lightweight.claim": "false"
             }
           }
         ],
@@ -3455,6 +3483,20 @@
               "claim.name": "auth_time",
               "jsonType.label": "long"
             }
+          },
+          {
+            "id": "a41003ee-04a5-5aa1-a3ce-b7ee41915c95",
+            "name": "harvest-audience",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-audience-mapper",
+            "consentRequired": false,
+            "config": {
+              "included.custom.audience": "harvest",
+              "id.token.claim": "false",
+              "access.token.claim": "true",
+              "introspection.token.claim": "true",
+              "lightweight.claim": "false"
+            }
           }
         ],
         "publicClient": true,
@@ -3654,6 +3696,20 @@
             "name": "x-hasura-user-id",
             "protocol": "openid-connect",
             "protocolMapper": "oidc-usermodel-property-mapper"
+          },
+          {
+            "id": "9d5a5b54-a1c2-5ac4-8ad2-60a58979b9da",
+            "name": "harvest-audience",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-audience-mapper",
+            "consentRequired": false,
+            "config": {
+              "included.custom.audience": "harvest",
+              "id.token.claim": "false",
+              "access.token.claim": "true",
+              "introspection.token.claim": "true",
+              "lightweight.claim": "false"
+            }
           }
         ],
         "publicClient": true,
