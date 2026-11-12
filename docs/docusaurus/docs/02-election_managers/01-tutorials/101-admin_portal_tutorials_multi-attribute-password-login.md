@@ -28,6 +28,15 @@ relies on the password to uniquely identify one of them. Configuring a second at
 a national ID) narrows the candidate set before the password check, and is recommended whenever a
 second identifying attribute is available.
 
+> ⚠️ **We strongly advise against logging voters in with a date of birth and a PIN.** A date of
+> birth is neither secret nor unique, so the login can't tell an outsider's attempt from a voter's.
+> Every limit on wrong PINs for a birth date lets anyone lock out all voters born that day, and
+> every looser limit lets them guess more PINs. No authenticator setting fixes both. Prefer an
+> identifier unique to each voter (a voter ID, or attributes that together match one voter) and a
+> long, random password or PIN. If a date of birth and PIN can't be avoided, use a long PIN (16
+> digits or more), keep the realm's **Brute Force Detection** on, and add a
+> [per-IP rate limit at the proxy](#rate-limiting-per-ip-address).
+
 ---
 
 ## Prerequisites
@@ -187,10 +196,11 @@ and explains where realm attributes are edited.
 | A configured attribute field is left blank | Generic "invalid credentials" error (no lookup performed). |
 | No user matches all configured attributes | Generic "invalid credentials" error. |
 | Exactly one candidate, correct password | Login succeeds. |
-| Exactly one candidate, wrong password | Generic "invalid credentials" error - this attempt **is** counted toward that account's Brute Force Detection lockout, same as a standard login. |
+| Exactly one candidate, wrong password | Generic "invalid credentials" error - this attempt **is** counted toward that account's Brute Force Detection lockout, same as a standard login. With Brute Force Detection on, it does not count toward **Max failures per attribute-value combination**. |
 | Exactly one candidate, currently locked out by Brute Force Detection | Generic "invalid credentials" error; the locked account cannot log in. |
 | Multiple candidates share the configured attribute(s), and the password matches exactly one | Login succeeds as that user. |
-| Multiple candidates match the password (or none do) | Generic "invalid credentials" error - see the brute-force note below. |
+| Multiple candidates match the password, with `FIRST_MATCH` | Login succeeds as the first candidate whose password matches; see [Multiple-Candidate Match Policy](#multiple-candidate-match-policy). |
+| Multiple candidates match the password with `REJECT_AMBIGUOUS`, or none do | Generic "invalid credentials" error - by default, when Brute Force Detection is on, the attempt is counted toward it for every candidate that is not locked out; see [Shared-Candidate Failure Policy](#shared-candidate-failure-policy). |
 
 Authentication failures use a generic message rather than identifying the incorrect attribute or
 credential. Dummy password-hash work on early rejection paths helps reduce timing differences;
@@ -198,15 +208,17 @@ it does **not** guarantee identical response times for an entire login request. 
 `SECRET_ATTRIBUTE` mode, fixed-size digest comparison is constant-time, while database lookup,
 the number of candidates and decryption still contribute to total request time.
 
-> **Note on brute-force protection:** Keycloak's built-in per-account lockout only engages once
+> **Note on brute-force protection:** Keycloak's built-in per-account lockout engages as usual once
 > resolution narrows to a single candidate - the same account that ends up locked out is also the
 > one whose failed attempts get counted, matching how the standard username/password form behaves.
-> When more than one candidate still shares the configured attribute(s), there is no single
-> account a failed attempt can honestly be attributed to, so the counter can't engage for that
-> specific request. In `PASSWORD` mode, locked accounts are excluded before password verification.
-> In `SECRET_ATTRIBUTE` mode, enabled but locked accounts still participate in ambiguity detection:
-> locking one account must not make a shared secret authenticate as another voter. A locked
-> account itself can never authenticate.
+> When more than one candidate still shares the configured attribute(s), no single account can be
+> blamed for a failed attempt; **Shared-candidate failure policy** decides how it is counted (see
+> [Shared-Candidate Failure Policy](#shared-candidate-failure-policy)). In `PASSWORD` mode, locked
+> accounts are excluded before password verification. In `SECRET_ATTRIBUTE` mode, enabled but
+> locked accounts still participate in ambiguity detection: locking one account must not make a
+> shared secret authenticate as another voter. A locked account itself can never authenticate, and
+> when several candidates match, a secret that matches only a locked account gets the same generic
+> error as any other failed attempt.
 > Configuring more attributes narrows the candidate set before the password check, making the
 > single-candidate (fully protected) case the common one; keep **Brute Force Detection** enabled
 > at the realm level regardless.
@@ -233,14 +245,14 @@ bound that cost per request, on top of Keycloak's standard Brute Force Detection
 - **Max failures per attribute-value combination** / **Failure window (seconds)**
   (`tupleMaxFailures` / `tupleFailureWindowSeconds`, defaults `10` / `60`): failures are also
   counted per distinct combination of submitted attribute values, independent of any single
-  account. This closes a gap that per-account Brute Force Detection can't cover on its own: when a
-  request matches more than one candidate, Keycloak has no single account to attribute the failure
-  to, so its lockout counter never engages for that request - an attacker could otherwise repeat a
-  common attribute value (e.g. a shared date of birth) indefinitely at full cost. Once a
-  combination's failures reach the configured maximum within the window, further attempts against
-  it are rejected without any user lookup at all, until the window elapses or a matching request
-  succeeds (which clears the count). This throttle is tracked cluster-wide, so it can't be evaded
-  by spreading requests across Keycloak nodes.
+  account, so repeated attempts with a common attribute value (e.g. a shared date of birth) can't
+  keep forcing password hashes at full cost. Once a combination's failures reach the configured
+  maximum within the window, further attempts against it are rejected without any user lookup at
+  all, until the window elapses or a matching request succeeds (which clears the count). This
+  throttle is tracked cluster-wide, so it can't be evaded by spreading requests across Keycloak
+  nodes. A failure blamed on a single account counts here only when the realm's Brute Force
+  Detection is off: with it on, that account's own lockout already limits guessing, and counting
+  the failure here too would let anyone who knows a voter's values keep that voter out.
 - **Max user-store rows per attribute lookup** (`maxAttributeLookupResults`, default `5000`): a
   hard ceiling on how many rows the underlying user-store query may return, applied before any
   candidate is even loaded into memory. This is deliberately much larger than **Max candidates per
@@ -249,6 +261,10 @@ bound that cost per request, on top of Keycloak's standard Brute Force Detection
   tighter candidate cap above. Keep it well above the largest realistic combined match count you'd
   expect a legitimate voter lookup to produce; setting it too low can make configuring a second
   identifying attribute (the recommended lever below) less effective at narrowing large buckets.
+
+These limits are keyed on the values a request submits, which anyone can send, so they can't
+separate an outsider's attempts from a voter's. Add a
+[per-IP rate limit at the proxy](#rate-limiting-per-ip-address) as well.
 
 Raising **Max candidates per request** trades this protection for looser matching (useful if a
 single attribute alone is expected to match unusually large groups); lowering the failure
@@ -261,6 +277,62 @@ If PINs or passwords used with this authenticator are short (e.g. a numeric PIN)
 compensate for guessability by weakening the password hash algorithm - that only makes offline
 cracking easier if hashes ever leak. Use the settings above instead; they bound CPU cost without
 touching hash strength.
+
+---
+
+## Shared-Candidate Failure Policy
+
+When the submitted attribute value(s) still match more than one enabled account that is not locked
+out, a failed attempt can't be attributed to a single account. **Shared-candidate failure policy**
+(`sharedCandidateFailurePolicy`) decides how it is counted:
+
+- **`CHARGE_VIABLE_CANDIDATES`** (default): when the realm has Brute Force Detection on, the failed
+  attempt counts toward it for every one of those accounts, so each of them follows the realm's
+  lockout settings exactly as it would behind the standard username/password form. With Brute Force
+  Detection off, no account is charged and only **Max failures per attribute-value combination**
+  limits repeated failures. Successful logins are never counted against
+  the other voters who share the same values, and voters who share them can still log in at the
+  same time.
+- **`TUPLE_ONLY`**: no account is charged; only **Max failures per attribute-value combination**
+  limits repeated failures for those values.
+
+With the default, a voter who mistypes their password also adds a failure to the other voters who
+share the same attribute value(s), and enough failures can lock them all out, as the realm's
+**Brute Force Detection** settings (failure factor, wait increment, maximum wait and permanent
+lockout) determine.
+Prefer tuning those realm settings, or configuring a second identifying attribute so that fewer
+voters share the same values, over switching to `TUPLE_ONLY`. Existing authenticator
+configurations that don't set this option use the default.
+
+The same applies to an outsider: with the default, a few wrong attempts for a shared value can
+lock out every voter who shares it. A [per-IP rate limit at the proxy](#rate-limiting-per-ip-address)
+keeps one source from doing that at scale.
+
+---
+
+## Rate Limiting per IP Address
+
+The limits above can't tell who sends a request. Only a limit per client address keeps an
+outsider's attempts from using up the attempts of the voters they target. Configure it in the
+reverse proxy or CDN in front of Keycloak, for example as a Cloudflare rate limiting rule:
+
+- **Requests:** `POST` to `/realms/<realm>/login-actions/authenticate` (this login form) and to
+  `/realms/<realm>/protocol/openid-connect/token` (Direct Grant, used by IVR), prefixed with
+  Keycloak's relative path if it has one (for example `/auth`).
+- **What to count:** on the token endpoint, only failed attempts (`400` and `401` responses). On
+  the form, every submission: a failed attempt and the next step of a successful one can both
+  answer `200`.
+- **Per client address**, with the proxy's NAT-aware option if it has one: voters at a polling
+  station, a kiosk or behind a mobile carrier can share one address.
+- **Starting values:** block an address for 10 minutes after 20 counted requests within 10
+  minutes, then adjust to the traffic the election expects.
+- **Every hostname that serves Keycloak.** A hostname that bypasses the proxy, such as one for
+  client-certificate login, needs an equivalent limit at its own ingress, or should require a
+  client certificate so that only enrolled devices reach it.
+- **IVR:** the IVR service calls the token endpoint from its own addresses, so a per-IP limit can't
+  tell callers apart there. Exempt those addresses and limit attempts per caller in the IVR
+  instead - see
+  [DOB + PIN Authentication (Direct Grant)](../../07-developers/12-ivr/dob-pin-direct-grant-authenticator.md#rate-limiting-per-ip-address).
 
 ---
 

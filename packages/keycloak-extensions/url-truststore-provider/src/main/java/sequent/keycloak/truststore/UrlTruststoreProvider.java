@@ -64,5 +64,20 @@ public class UrlTruststoreProvider implements TruststoreProvider {
   }
 
   @Override
+  public KeyStore getHttpsTruststore() {
+    return truststore;
+  }
+
+  @Override
+  public Map<X500Principal, List<X509Certificate>> getHttpsRootCertificates() {
+    return rootCertificates;
+  }
+
+  @Override
+  public Map<X500Principal, List<X509Certificate>> getHttpsIntermediateCertificates() {
+    return intermediateCertificates;
+  }
+
+  @Override
   public void close() {}
 }
