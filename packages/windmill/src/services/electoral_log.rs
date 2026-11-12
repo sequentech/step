@@ -2045,7 +2045,7 @@ pub fn get_cols_match_count_and_select(
 
 /// Lowercases a Ballot ID prefix and checks that it is an even number of hex
 /// characters, no longer than a Ballot ID.
-fn normalize_ballot_id_filter(ballot_id_filter: &str) -> Result<String> {
+pub fn normalize_ballot_id_filter(ballot_id_filter: &str) -> Result<String> {
     let ballot_id_filter = ballot_id_filter.trim().to_ascii_lowercase();
     ensure!(
         ballot_id_filter.len() % 2 == 0
@@ -2088,6 +2088,11 @@ fn public_cast_vote_order(
     (!public_order.is_empty()).then_some(public_order)
 }
 
+/// Whether a batch that returned `rows_fetched` rows from the board is past the last one.
+fn is_last_cast_vote_batch(rows_fetched: usize) -> bool {
+    rows_fetched == 0
+}
+
 /// Returns the entries for statement_kind = "CastVote" which ballot_id starts with the input
 /// ballot_id_filter, which is restricted to an even number of hex characters, so that can be
 /// converted to a byte array
@@ -2128,8 +2133,8 @@ pub async fn list_cast_vote_messages(
         .unwrap_or(0) as usize;
     let mut filter_matched = false; // Exit at the first match if the filter is not empty
     while (list.len() as i64) < output_limit && (offset < total as i64) && !filter_matched {
-        let electoral_log_messages = client
-            .get_electoral_log_messages_filtered(
+        let (electoral_log_messages, rows_fetched) = client
+            .get_electoral_log_messages_filtered_with_row_count(
                 &board_name,
                 Some(cols_match_select.clone()),
                 None,
@@ -2140,7 +2145,9 @@ pub async fn list_cast_vote_messages(
             )
             .await
             .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
-        if electoral_log_messages.is_empty() {
+        // Rows that fail conversion are skipped: only a query that returns no rows at all
+        // has reached the end, a batch of skipped rows doesn't.
+        if is_last_cast_vote_batch(rows_fetched) {
             break;
         }
 
@@ -2451,6 +2458,15 @@ mod cast_vote_entry_tests {
                 "accepted {filter:?}"
             );
         }
+    }
+
+    #[test]
+    fn a_batch_of_skipped_rows_is_not_the_last_cast_vote_batch() {
+        // rows_fetched counts the rows the board returned, including the ones that failed
+        // conversion and aren't among the messages.
+        assert!(is_last_cast_vote_batch(0));
+        assert!(!is_last_cast_vote_batch(1));
+        assert!(!is_last_cast_vote_batch(IMMUDB_ROWS_LIMIT as usize));
     }
 
     #[test]

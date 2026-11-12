@@ -120,3 +120,16 @@ test("the cast vote logs group the ballot count with commas by default", async (
     expect(screen.getByText("ballotLocator.pagination.displayedRows: 1|5|1,234,567")).toBeVisible()
     view.unmount()
 })
+
+test("the ballot id filter is rejected when longer than a ballot id", async () => {
+    mockEventPresentation.current = {show_cast_vote_logs: "show-logs-tab"}
+    const view = await renderCastVoteLogs()
+    const input = await screen.findByLabelText("a11y.ballotIdLabel")
+
+    fireEvent.change(input, {target: {value: "ab".repeat(32)}})
+    expect(screen.queryByText("ballotLocator.wrongFormatBallotId")).toBeNull()
+
+    fireEvent.change(input, {target: {value: "ab".repeat(33)}})
+    expect(await screen.findByText("ballotLocator.wrongFormatBallotId")).toBeVisible()
+    view.unmount()
+})
