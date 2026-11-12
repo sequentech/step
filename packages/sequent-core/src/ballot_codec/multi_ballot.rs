@@ -2877,6 +2877,156 @@ mod tests {
         assert!(!decoded.is_blank_ballot);
     }
 
+    fn decode_raw_choices(
+        contests: &Vec<Contest>,
+        include_blank_ballots: bool,
+        choices: Vec<u64>,
+    ) -> DecodedBallotChoices {
+        let bases = BallotChoices::get_bases(
+            contests,
+            false,
+            include_blank_ballots,
+            MultiContestEncodingMode::LEGACY,
+        )
+        .expect("get_bases should succeed");
+        let raw_ballot = RawBallotContest::new(bases, choices);
+
+        BallotChoices::decode(
+            &raw_ballot,
+            contests,
+            false,
+            include_blank_ballots,
+            MultiContestEncodingMode::LEGACY,
+            None,
+        )
+        .expect("decode should report content errors, not fail")
+    }
+
+    #[test]
+    fn test_decode_reports_candidate_repeated_across_slots() {
+        let contest = random_contest(
+            "1".to_string(),
+            vec![
+                random_candidate("a".to_string(), "1".to_string()),
+                random_candidate("b".to_string(), "1".to_string()),
+                random_candidate("c".to_string(), "1".to_string()),
+            ],
+            3,
+            3,
+        );
+        let contests = vec![contest];
+        // [contest invalid flag, three vote slots all holding candidate "a"]
+        let decoded = decode_raw_choices(&contests, false, vec![0, 1, 1, 1]);
+
+        assert_eq!(
+            decoded.choices[0].choices,
+            vec![DecodedContestChoice("a".to_string())]
+        );
+
+        let mapped =
+            map_decoded_ballot_choices_to_decoded_contests(decoded, &contests)
+                .expect("mapping should succeed");
+        assert!(mapped[0].is_invalid());
+        assert!(has_invalid_error(
+            &mapped[0],
+            "errors.encoding.duplicatedSelection"
+        ));
+        let min_error = mapped[0]
+            .invalid_errors
+            .iter()
+            .find(|error| {
+                error.message.as_deref() == Some("errors.implicit.selectedMin")
+            })
+            .expect("a repeated candidate counts as one selection");
+        assert_eq!(
+            min_error.message_map.get("numSelected").map(String::as_str),
+            Some("1")
+        );
+    }
+
+    #[test]
+    fn test_decode_keeps_distinct_selections_in_slot_order() {
+        let contest = random_contest(
+            "1".to_string(),
+            vec![
+                random_candidate("a".to_string(), "1".to_string()),
+                random_candidate("b".to_string(), "1".to_string()),
+                random_candidate("c".to_string(), "1".to_string()),
+            ],
+            2,
+            3,
+        );
+        let contests = vec![contest];
+        // [contest invalid flag, slots holding "c", "a" and unset]
+        let decoded = decode_raw_choices(&contests, false, vec![0, 3, 1, 0]);
+
+        assert_eq!(
+            decoded.choices[0].choices,
+            vec![
+                DecodedContestChoice("c".to_string()),
+                DecodedContestChoice("a".to_string())
+            ]
+        );
+        assert!(decoded.choices[0].invalid_errors.is_empty());
+    }
+
+    #[test]
+    fn test_decode_reports_blank_ballot_flag_with_selections() {
+        let contests = vec![test_contest("1", 2, 1), test_contest("2", 2, 1)];
+        // [blank flag, contest 1 invalid flag, contest 1 vote slot,
+        //  contest 2 invalid flag, contest 2 vote slot]
+        let decoded = decode_raw_choices(&contests, true, vec![1, 0, 1, 0, 0]);
+
+        assert!(!decoded.is_blank_ballot);
+
+        let mapped =
+            map_decoded_ballot_choices_to_decoded_contests(decoded, &contests)
+                .expect("mapping should succeed");
+        assert!(mapped.iter().all(|contest| !contest.is_blank_ballot));
+        assert!(mapped[0].is_invalid());
+        assert!(has_invalid_error(
+            &mapped[0],
+            "errors.encoding.blankBallotWithSelections"
+        ));
+        assert!(!has_invalid_error(
+            &mapped[1],
+            "errors.encoding.blankBallotWithSelections"
+        ));
+    }
+
+    #[test]
+    fn test_decode_reports_blank_ballot_flag_with_explicit_invalid_contest() {
+        let contests = vec![test_contest("1", 2, 1), test_contest("2", 2, 1)];
+        let decoded = decode_raw_choices(&contests, true, vec![1, 0, 0, 1, 0]);
+
+        assert!(!decoded.is_blank_ballot);
+        assert!(decoded.choices[1].invalid_errors.iter().any(|error| {
+            error.message.as_deref()
+                == Some("errors.encoding.blankBallotWithSelections")
+        }));
+
+        // What velvet's classify_ballot reads: invalid, but not explicitly.
+        let mapped =
+            map_decoded_ballot_choices_to_decoded_contests(decoded, &contests)
+                .expect("mapping should succeed");
+        assert!(mapped[1].is_invalid());
+        assert!(!mapped[1].is_explicit_invalid);
+    }
+
+    #[test]
+    fn test_decode_keeps_blank_ballot_flag_when_every_contest_is_empty() {
+        let contests = vec![test_contest("1", 2, 1), test_contest("2", 2, 1)];
+        let decoded = decode_raw_choices(&contests, true, vec![1, 0, 0, 0, 0]);
+
+        assert!(decoded.is_blank_ballot);
+        assert!(decoded.choices.iter().all(|contest| {
+            contest.invalid_errors.iter().all(|error| {
+                error.message.as_deref()
+                    != Some("errors.encoding.blankBallotWithSelections")
+            })
+        }));
+    }
+
     #[test]
     fn test_ballot_style_capacity_check_rejects_oversized_style() {
         let oversized_contest = test_contest("1", 64, 64);
