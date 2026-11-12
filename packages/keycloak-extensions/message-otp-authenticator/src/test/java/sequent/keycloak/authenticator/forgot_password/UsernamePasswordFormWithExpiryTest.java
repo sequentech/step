@@ -29,10 +29,29 @@ class UsernamePasswordFormWithExpiryTest {
     when(request.getDecodedFormParameters()).thenReturn(new MultivaluedHashMap<>());
     UsernamePasswordFormWithExpiry form = spy(new UsernamePasswordFormWithExpiry());
     doReturn(true).when(form).validateForm(eq(context), any());
+    doReturn(false).when(form).getDisablePassword(context);
 
     form.action(context);
 
     verify(context).success(PasswordCredentialModel.TYPE);
     verify(context, never()).success();
+  }
+
+  @Test
+  void action_validFormWithPasswordDisabled_recordsNoPasswordCredential() {
+    // With password validation disabled the form checks no password, so it must not claim one:
+    // conditional-credential steps and brute-force accounting read the recorded credential type.
+    AuthenticationFlowContext context = mock(AuthenticationFlowContext.class);
+    HttpRequest request = mock(HttpRequest.class);
+    when(context.getHttpRequest()).thenReturn(request);
+    when(request.getDecodedFormParameters()).thenReturn(new MultivaluedHashMap<>());
+    UsernamePasswordFormWithExpiry form = spy(new UsernamePasswordFormWithExpiry());
+    doReturn(true).when(form).validateForm(eq(context), any());
+    doReturn(true).when(form).getDisablePassword(context);
+
+    form.action(context);
+
+    verify(context).success();
+    verify(context, never()).success(any());
   }
 }
