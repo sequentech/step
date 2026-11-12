@@ -972,6 +972,11 @@ pub async fn update_tally_ceremony_with(
             .transpose()
             .map_err(|_| TallyValidationError::new("Invalid tally type"))?
             .unwrap_or_default();
+        // Same lock order as finalization and recounts: session row first,
+        // then the election rows.
+        sessions
+            .lock_for_update(&tenant_id, &election_event_id, &tally_session.id)
+            .await?;
         reserve_tally_admission(
             sessions,
             &tenant_id,

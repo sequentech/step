@@ -1241,3 +1241,15 @@ async fn starting_the_tally_locks_the_elections_and_cancelling_does_not() {
         .await
         .expect("cancelling takes no election lock");
 }
+
+#[tokio::test]
+async fn starting_the_tally_locks_the_session_before_the_elections() {
+    let ceremony = ceremony(&CONNECTED, &restored_pair());
+    ceremony.fail(TallyCall::LockSession, "lock timeout");
+    let error = change_status(&ceremony, tally_session(&CONNECTED), IN_PROGRESS)
+        .await
+        .expect_err("the session lock fails");
+    assert_eq!(error.to_string(), "lock timeout");
+    assert_eq!(ceremony.admission_calls(), vec![]);
+    assert_nothing_written(&ceremony, &CONNECTED);
+}
