@@ -721,10 +721,16 @@ impl ExplicitImplicitCount {
     }
 
     pub fn aggregate(&self, other: &ExplicitImplicitCount) -> Result<ExplicitImplicitCount> {
-        Ok(ExplicitImplicitCount {
+        let aggregate = ExplicitImplicitCount {
             explicit: checked_count_sum([self.explicit, other.explicit], "explicit")?,
             implicit: checked_count_sum([self.implicit, other.implicit], "implicit")?,
-        })
+        };
+        // `total()` adds the two fields: reject an aggregate it could not represent.
+        checked_count_sum(
+            [aggregate.explicit, aggregate.implicit],
+            "explicit + implicit",
+        )?;
+        Ok(aggregate)
     }
 
     pub fn total(&self) -> u64 {
@@ -1269,5 +1275,19 @@ mod tests {
         };
 
         assert!(validate_votes_by_channel(&result).is_err());
+    }
+
+    #[test]
+    fn explicit_implicit_aggregate_rejects_a_total_beyond_the_counter_range() {
+        let left = ExplicitImplicitCount::new(u64::MAX, 0);
+        let right = ExplicitImplicitCount::new(0, 1);
+
+        assert!(left.aggregate(&right).is_err());
+        assert!(InvalidVotes(left).aggregate(&InvalidVotes(right)).is_err());
+        assert!(BlankVotes(left).aggregate(&BlankVotes(right)).is_err());
+        let sum = ExplicitImplicitCount::new(2, 3)
+            .aggregate(&ExplicitImplicitCount::new(4, 5))
+            .expect("a small aggregate fits");
+        assert_eq!(sum.total(), 14);
     }
 }

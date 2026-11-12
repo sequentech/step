@@ -147,7 +147,10 @@ pub fn validate_area_contest_results(
         total_valid_votes.saturating_sub(total_blank_votes);
     let max_marks = max_marks_per_ballot.unwrap_or(1).max(1);
     let lower_bound = u128::from(non_blank_valid_votes);
-    let upper_bound = lower_bound * u128::from(max_marks);
+    // Tally processing sums the marks in a u64, so a sum past u64::MAX is
+    // rejected here instead of failing the tally later.
+    let upper_bound =
+        (lower_bound * u128::from(max_marks)).min(u128::from(u64::MAX));
 
     if candidate_votes_sum < lower_bound || candidate_votes_sum > upper_bound {
         errors.push(error(
@@ -713,6 +716,17 @@ mod tests {
 
         assert_eq!(
             error_codes(&content, None),
+            vec!["invalid_total_valid_votes"]
+        );
+    }
+
+    #[test]
+    fn rejects_marks_beyond_the_counter_range_within_the_mark_bound() {
+        let content =
+            sheet_with_candidate_votes(u64::MAX, u64::MAX, &[u64::MAX, 1]);
+
+        assert_eq!(
+            error_codes(&content, Some(2)),
             vec!["invalid_total_valid_votes"]
         );
     }
