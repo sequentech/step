@@ -3019,12 +3019,10 @@ mod tests {
         let decoded = decode_raw_choices(&contests, true, vec![1, 0, 0, 0, 0]);
 
         assert!(decoded.is_blank_ballot);
-        assert!(decoded.choices.iter().all(|contest| {
-            contest.invalid_errors.iter().all(|error| {
-                error.message.as_deref()
-                    != Some("errors.encoding.blankBallotWithSelections")
-            })
-        }));
+        assert!(decoded
+            .choices
+            .iter()
+            .all(|contest| contest.invalid_errors.is_empty()));
     }
 
     #[test]
