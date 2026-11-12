@@ -27,6 +27,24 @@ pub struct ExportTemplateOutput {
     error_msg: Option<String>,
     task_execution: TasksExecution,
 }
+
+/// Checks TEMPLATE_WRITE for the requested tenant and returns the caller's
+/// tenant, where the export runs and its task is recorded.
+fn authorized_export_tenant(
+    claims: &jwt::JwtClaims,
+    body: &ExportTemplateBody,
+) -> Result<String, (Status, String)> {
+    authorize(
+        claims,
+        true,
+        Some(body.tenant_id.clone()),
+        vec![Permissions::TEMPLATE_WRITE],
+    )?;
+    Ok(claims.hasura_claims.tenant_id.clone())
+}
+
+/// Queues a template export once the caller is authorized for the requested
+/// tenant.
 #[instrument(skip(claims))]
 #[post("/export-template", format = "json", data = "<input>")]
 pub async fn export_template(
@@ -34,7 +52,7 @@ pub async fn export_template(
     input: Json<ExportTemplateBody>,
 ) -> Result<Json<ExportTemplateOutput>, (Status, String)> {
     let body = input.into_inner();
-    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let tenant_id = authorized_export_tenant(&claims, &body)?;
 
     let executer_name = claims
         .name
@@ -43,7 +61,7 @@ pub async fn export_template(
 
     // Insert the task execution record
     let task_execution = post(
-        &body.tenant_id.clone(),
+        &tenant_id,
         None,
         ETasksExecution::EXPORT_TEMPLATES,
         &executer_name,
@@ -55,20 +73,6 @@ pub async fn export_template(
             format!("Failed to insert task execution record: {error:?}"),
         )
     })?;
-
-    if let Err(error) = authorize(
-        &claims,
-        true,
-        Some(body.tenant_id.clone()),
-        vec![Permissions::TEMPLATE_WRITE],
-    ) {
-        let _ = update_fail(
-            &task_execution,
-            &format!("Failed to authorize executing the task: {error:?}"),
-        )
-        .await;
-        return Err(error);
-    };
 
     let document_id = Uuid::new_v4().to_string();
 
@@ -101,4 +105,66 @@ pub async fn export_template(
     };
 
     Ok(Json(output))
+}
+
+#[cfg(test)]
+mod export_template_scope_tests {
+    use super::*;
+    use crate::services::authorization::test_claims::{
+        admin, SUPER_ADMIN_TENANT_ID,
+    };
+
+    /// Export request for the given tenant.
+    fn request(tenant_id: &str) -> ExportTemplateBody {
+        ExportTemplateBody {
+            tenant_id: tenant_id.into(),
+        }
+    }
+
+    /// Admin of the given tenant with TEMPLATE_WRITE.
+    fn template_writer(tenant_id: &str) -> jwt::JwtClaims {
+        admin(tenant_id, &[Permissions::TEMPLATE_WRITE.to_string()])
+    }
+
+    /// Another tenant, or a caller without TEMPLATE_WRITE, is refused before
+    /// the task is recorded.
+    #[test]
+    fn export_template_rejects_another_tenant_before_recording_the_task() {
+        assert_eq!(
+            authorized_export_tenant(
+                &template_writer("tenant-a"),
+                &request("tenant-b")
+            )
+            .unwrap_err()
+            .0,
+            Status::Unauthorized
+        );
+        assert!(authorized_export_tenant(
+            &admin("tenant-a", &[]),
+            &request("tenant-a")
+        )
+        .is_err());
+    }
+
+    /// The task is recorded in the caller's tenant, the one the export reads,
+    /// also when a super admin names another tenant.
+    #[test]
+    fn export_template_records_the_task_in_the_exported_tenant() {
+        assert_eq!(
+            authorized_export_tenant(
+                &template_writer("tenant-a"),
+                &request("tenant-a")
+            )
+            .unwrap(),
+            "tenant-a"
+        );
+        assert_eq!(
+            authorized_export_tenant(
+                &template_writer(SUPER_ADMIN_TENANT_ID),
+                &request("tenant-b")
+            )
+            .unwrap(),
+            SUPER_ADMIN_TENANT_ID
+        );
+    }
 }
