@@ -654,7 +654,7 @@ services:
   scanovate-ocr:
     profiles: ["scanovate"]
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}scanovate-ocr
-    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ocr:version_3.9.0_aefa131_285
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ocr:version_3.9.0_bec7df8_295
     restart: unless-stopped
     environment:
       MODE: onprem
@@ -663,12 +663,13 @@ services:
     ports:
       - ${SCANOVATE_OCR_PORT}:5040
     # Keycloak's token verification and result callback, as for Liveness Plus,
-    # and Sequent's theme of the capture page. The page itself is the image's
+    # Sequent's theme of the capture page and its camera settings per device
+    # (sequent_video.json). The page itself is the image's
     # own (scripts/dev/test_scanovate_ocr_page.py).
     volumes:
       - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/ocr/service_config.json:/app/config/service_config.json:ro,z
       - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/ocr/sequent_ui.json:/app/config/sequent_ui.json:ro,z
-      - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/ocr/video_config_no_mirror.json:/app/config/video_config_no_mirror.json:ro,z
+      - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/ocr/sequent_video.json:/app/config/sequent_video.json:ro,z
 
   harvest-edge:
     profiles: ["full", "base"]

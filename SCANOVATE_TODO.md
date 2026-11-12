@@ -72,6 +72,9 @@ isn't used.
 - [x] Run OCR, Liveness Plus, PAD, IAD and Face Match in the `scanovate`
       profile of the dev container, and point the dev realm and the sample
       election event to the services.
+- [x] Run OCR `version_3.9.0_bec7df8_295`, whose `video_config.json` sets the
+      preview per device: our `sequent_video.json` mirrors it on laptops and
+      not on phones, and never mirrors the frames sent for OCR.
 
 ## Testing
 
@@ -90,7 +93,10 @@ isn't used.
 - [ ] Check that a photo, a screen, a virtual camera, another person and a
       covered ID photo are rejected with the right message.
 - [ ] Tune `face-match-min-similarity` per document type with real documents:
-      printed portraits score lower than two selfies.
+      printed portraits score lower than two selfies. Keycloak applies the
+      higher of it and Face Match's own threshold, fixed at 0.67, for which
+      alone Scanovate has validated figures (0.01% false accepts, 99.5% true
+      matches); decide whether a realm may go below it.
 - [ ] Check that no service or page sends anything outside our network: run
       the profile on a network without internet access, and watch the
       browser's requests (the pages' analytics only load with
@@ -115,6 +121,14 @@ isn't used.
       Regula Document Reader server we don't have.
 - [ ] Track the license baked into the PAD image, which expires on 2027-10-04,
       and ask how it's renewed.
+- [x] Ask whether the passport scan limits, the camera resolution and the
+      Face Match threshold can be configured: they can't. OCR's quality limits
+      are built in, only 1280×720 is supported, Face Match's threshold is fixed
+      at 0.67, and its `success` only means the comparison ran.
+- [x] Report that desktop browsers mirrored OCR's preview whatever
+      `mirror_view` said: fixed in `version_3.9.0_bec7df8_295`.
+- [ ] Send Scanovate examples of passport scans refused on phones (log lines,
+      or a specimen passport, never a voter's), as they offered.
 
 ## COMELEC
 
@@ -127,6 +141,8 @@ isn't used.
 - [x] Stop writing the ignored `ocr-url` and `capture-sides` in the realm
       templates (sequent-core presets, COMELEC janitor template, step-cli
       sample data), and drop `keycloak_scanovate_ocr_url`.
+- [ ] Tell voters to scan their passport on a phone: Scanovate designs the
+      passport scan for phones, and on a computer the webcam needs autofocus.
 - [ ] Decide how voters enroll with the documents the OCR service can't read
       (only the passport is configured): a Regula server, manual entry with
       officer review, or passport only.
