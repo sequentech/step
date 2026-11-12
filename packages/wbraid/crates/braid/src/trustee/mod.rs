@@ -39,7 +39,7 @@ use cryptography::cryptosystem::elgamal::KeyPair;
 use cryptography::utils::serialization::Serializable;
 use cryptography::utils::signatures::SignatureScheme;
 
-use crate::messages::artifact::Configuration;
+use crate::messages::artifact::{Configuration, Shares};
 use crate::messages::newtypes::{
     ConfigurationHash, Timestamp, TrusteeIndex, PROTOCOL_MANAGER_INDEX,
 };
@@ -185,6 +185,17 @@ impl<C: Context> Trustee<C> {
             ),
         }
     }
+}
+
+/// This trustee's encrypted share in a dealer's `shares`, at its 0-based
+/// `slot`. The dealing is a peer's, so a dealing without that share is an
+/// error, not a panic.
+fn encrypted_share<C: Context>(shares: &Shares<C>, slot: usize) -> Result<&[u8]> {
+    shares
+        .encrypted_shares
+        .get(slot)
+        .map(Vec::as_slice)
+        .ok_or_else(|| anyhow!("the dealing has no share for trustee {}", slot + 1))
 }
 
 /// Purpose string of the domain label under which dealers prove knowledge of

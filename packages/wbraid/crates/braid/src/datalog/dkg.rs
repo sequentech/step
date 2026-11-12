@@ -62,10 +62,12 @@ pub mod infer {
             shares(cfg_hash, shares, 1);
 
         // We have shares up to trustee n if we have shares up to trustee n - 1
-        // and the shares from trustee n.
+        // and the shares from trustee n, unless an earlier trustee posted the
+        // same shares (an error below).
         shares_acc(cfg_hash, shares_hashes.add(*shares, *sender), sender) <--
             shares(cfg_hash, shares, sender),
-            shares_acc(cfg_hash, shares_hashes, sender - 1);
+            shares_acc(cfg_hash, shares_hashes, sender - 1),
+            if !shares_hashes.contains(shares);
 
         // All shares received once we have shares up to trustee_count.
         shares_all(cfg_hash, shares) <--
@@ -101,6 +103,12 @@ pub mod infer {
             public_key(cfg_hash, pk_hash1, sender1),
             public_key(cfg_hash, pk_hash2, sender2),
             if pk_hash1 != pk_hash2;
+
+        // Two trustees posted the same shares: a copied dealing.
+        error(format!("shares {:?} posted by trustees {} and {}", shares, sender1, sender2)) <--
+            shares(cfg_hash, shares, sender1),
+            shares(cfg_hash, shares, sender2),
+            if sender1 < sender2;
 
     }
 }

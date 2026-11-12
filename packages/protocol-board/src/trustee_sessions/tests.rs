@@ -38,14 +38,14 @@ use wbraid::board::transport::{
     MemoryBoard, MemoryTransport, StagedRef, Transport,
 };
 use wbraid::board::BoardClient;
-use wbraid::messages::artifact::{DkgPublicKey, Plaintexts};
-use wbraid::messages::newtypes::hash_bytes;
+use wbraid::messages::artifact::{DkgPublicKey, Plaintexts, Shares};
+use wbraid::messages::newtypes::{hash_bytes, ConfigurationHash};
 use wbraid::messages::wire::{MessageType, ProtocolMessage};
 use wbraid::native::persistence::SqlitePersistence;
 use wbraid::session::Session;
 use wbraid::trustee::{ballot_encryption_context, Trustee};
 
-use super::{BoardAccess, SessionSet, SessionStores};
+use super::{without_panics, BoardAccess, SessionSet, SessionStores};
 
 const THRESHOLD: usize = 2;
 
@@ -451,6 +451,37 @@ impl Harness {
             .unwrap()
     }
 
+    /// The dealing `from` posted on a board, signed by `by` as its own.
+    fn copied_dealing(
+        &self,
+        board: &BoardName,
+        from: usize,
+        by: usize,
+    ) -> ProtocolMessage<Ctx> {
+        let original = self.sent(board, from, MessageType::Shares).remove(0);
+        let shares =
+            Shares::<Ctx>::deser(original.body.as_ref().unwrap()).unwrap();
+        let configuration = configuration_of(&self.memory(board))
+            .verify_configuration()
+            .unwrap();
+        let member = &self.members[by];
+        let (signing_key, share_encryption) =
+            member.secrets.clone().into_parts();
+        let trustee = Trustee::new(
+            member.name.clone(),
+            signing_key,
+            share_encryption,
+            &configuration,
+        )
+        .unwrap();
+        ProtocolMessage::<Ctx>::shares(
+            &trustee,
+            0,
+            ConfigurationHash::from_configuration(&configuration).unwrap(),
+            &shares,
+        )
+    }
+
     /// The board service serves the board with the member's dealing replaced
     /// by another one: a rewrite of what it served before.
     async fn replace_dealing(&self, board: &BoardName, member: usize) {
@@ -626,6 +657,61 @@ async fn an_equivocation_halts_its_board_only_and_is_reported_until_settled() {
     assert_eq!(halted(set), vec![tampered.clone()]);
     set.settle(&tampered);
     assert!(halted(set).is_empty());
+}
+
+/// Beyond braid: a trustee that posts another trustee's dealing as its own
+/// halts that board in every trustee, with braid's error, while their
+/// sessions over another board go on.
+#[tokio::test]
+async fn a_copied_dealing_halts_its_board_only() {
+    let harness = Harness::new(3);
+    let tampered = harness.board(1, &[0, 1, 2]);
+    let clean = harness.board(2, &[0, 1, 2]);
+    let list = [dkg(&tampered), dkg(&clean)];
+    let mut sets = harness.start_all();
+
+    round(&mut sets[..1], &list).await;
+    let copy = harness.copied_dealing(&tampered, 0, 1);
+    harness.memory(&tampered).push(copy);
+    rounds_until_quiet(&harness, &mut sets, &list).await;
+
+    harness.assert_key_generated(&clean);
+    for set in &sets {
+        let reports = set.pending_reports();
+        assert_eq!(halted(set), vec![tampered.clone()], "{reports:?}");
+        let detail = &reports[0].detail;
+        assert!(detail.contains("posted by trustees 1 and 2"), "{detail}");
+    }
+}
+
+/// Beyond braid: a step that does not panic passes its result or error on.
+#[test]
+fn a_step_that_does_not_panic_passes_its_outcome_on() {
+    assert_eq!(without_panics(|| Ok(1)).unwrap(), 1);
+    let err =
+        without_panics(|| -> Result<()> { bail!("a verdict") }).unwrap_err();
+    assert_eq!(format!("{err:#}"), "a verdict");
+}
+
+/// Beyond braid: a panic in a step is an error with the panic's message,
+/// which halts the board instead of ending the trustee.
+#[test]
+fn a_panic_in_a_step_is_an_error_with_its_message() {
+    let panics: [fn() -> Result<()>; 3] = [
+        || panic!("a literal message"),
+        || std::panic::panic_any(String::from("a formatted message")),
+        || std::panic::panic_any(7),
+    ];
+    let messages =
+        panics.map(|step| without_panics(step).unwrap_err().to_string());
+    assert_eq!(
+        messages,
+        [
+            "braid panicked: a literal message",
+            "braid panicked: a formatted message",
+            "braid panicked: a panic without a message",
+        ]
+    );
 }
 
 /// Beyond braid: a transport failure in an update is an outage, not a halt:

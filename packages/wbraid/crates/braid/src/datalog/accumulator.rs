@@ -47,12 +47,18 @@ impl<T: Ord + std::fmt::Debug + Clone> AccumulatorSet<T> {
         .add(init, 1)
     }
 
+    /// Whether `value` is held at any index.
+    pub(crate) fn contains(&self, value: &T) -> bool {
+        self.value_set.contains(value)
+    }
+
     /// Add `rhs` at `index`, panicking if it violates a uniqueness invariant.
     ///
     /// Idempotent for an identical `(value, index)` pair; panics if `index`
     /// already holds a *different* value, or if `rhs` already appears at another
-    /// index. The panic mirrors the datalog `collides` halt: a well-formed,
-    /// non-equivocating input set can never trigger it.
+    /// index. The rules add each index once, to the accumulator of the indices
+    /// before it, and check [`contains`](Self::contains) first: two trustees
+    /// posting the same hash is a datalog error, never this panic.
     pub(crate) fn add(&self, rhs: T, index: TrusteeIndex) -> Self {
         let existing = self.values[index].clone();
         // If the slot at `index` is already set, it must match the supplied value.

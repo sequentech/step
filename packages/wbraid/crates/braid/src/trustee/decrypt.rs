@@ -20,7 +20,7 @@ use crate::messages::wire::ProtocolMessage;
 
 use crate::board::store::MessageStore;
 
-use super::{tally_label, Trustee, WIRE_DATE};
+use super::{encrypted_share, tally_label, Trustee, WIRE_DATE};
 
 impl<C: Context> Trustee<C> {
     /// `ComputePartialDecryptions` (§7): re-derive this trustee's secret from
@@ -66,7 +66,7 @@ impl<C: Context> Trustee<C> {
             let shares = Shares::<C>::deser(body)
                 .map_err(|e| anyhow!("failed to deserialize shares: {:?}", e))?;
             let share = C::G::decrypt_scalar(
-                &shares.encrypted_shares[self_slot],
+                encrypted_share(&shares, self_slot)?,
                 &self.share_encryption.skey,
             )
             .map_err(|e| anyhow!("failed to decrypt share: {:?}", e))?;
