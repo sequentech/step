@@ -1467,7 +1467,15 @@ pub async fn publish_results_website_artifacts(
         publication.route_election_id.as_deref(),
     )
     .await
-    .context("Invalid publication source")?;
+    .with_context(|| {
+        format!(
+            "Invalid source for publication {}: tally session {}, execution {}, results event {}",
+            publication.id,
+            publication.tally_session_id,
+            publication.tally_session_execution_id,
+            publication.results_event_id
+        )
+    })?;
     let source_sqlite = source_sqlite_file(tx, &publication).await?;
     let source_path: PathBuf = source_sqlite.path().to_path_buf();
     let current_presentation =
