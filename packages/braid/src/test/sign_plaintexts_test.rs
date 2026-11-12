@@ -162,6 +162,7 @@ fn signs_plaintexts_with_one_decryption_factor_per_selected_trustee() {
     let run = run_decryption(None);
 
     assert_eq!(run.plaintexts_signed, N_TRUSTEES - 1);
+    assert!(run.step_errors.is_empty(), "{:?}", run.step_errors);
 }
 
 #[test]
