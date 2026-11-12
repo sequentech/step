@@ -125,6 +125,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<scope>test</scope>
 		</dependency>
 
+		<!-- The real DefaultBruteForceProtector runs its off-thread work through
+			 KeycloakModelUtils, which links against jakarta.enterprise's
+			 ContextNotActiveException; a Keycloak server provides it, a unit test doesn't. -->
+		<dependency>
+			<groupId>jakarta.enterprise</groupId>
+			<artifactId>jakarta.enterprise.cdi-api</artifactId>
+			<version>4.0.1</version>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- Provides a jakarta.ws.rs.ext.RuntimeDelegate for tests exercising
 			 AbstractDirectGrantAuthenticator#errorResponse (Response.status(...)),
 			 not otherwise available outside a running Keycloak server. -->

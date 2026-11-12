@@ -724,6 +724,58 @@ class MultiAttributePasswordAuthenticatorTest {
   }
 
   @Test
+  void sharedTuple_soleViableCandidateIsReservedBeforeItsPasswordIsTested() {
+    UserModel alice = mockUser("alice", "alice-pw", true);
+    UserModel bob = mockUser("bob", "bob-pw", true);
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
+        .thenAnswer(invocation -> Stream.of(alice, bob));
+    ClaimingProtector claiming = claimingProtector();
+    claiming.request = "request";
+    lockTemporarily(bob);
+
+    Resolution result =
+        resolveDateOfBirth("alice-pw", MultiAttributeCredentialResolver.MatchPolicy.FIRST_MATCH);
+
+    assertEquals(alice, result.authenticatedUser().orElse(null));
+    verify(bruteForceProtector, org.mockito.Mockito.atLeastOnce())
+        .isTemporarilyDisabled(session, realm, alice);
+    verify(bruteForceProtector, never()).isTemporarilyDisabled(session, realm, bob);
+  }
+
+  @Test
+  void sharedTuple_soleViableCandidateBusyInAnotherRequest_isNotTestedOrCharged() {
+    for (String password : List.of("alice-pw", "wrong")) {
+      UserModel alice = mockUser("alice", "alice-pw", true);
+      UserModel bob = mockUser("bob", "bob-pw", true);
+      when(userProvider.searchForUserStream(
+              realm,
+              Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+              0,
+              DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
+          .thenAnswer(invocation -> Stream.of(alice, bob));
+      ClaimingProtector claiming = claimingProtector();
+      lockTemporarily(bob);
+      // Another request's guess against Alice is in flight.
+      claiming.request = "other-request";
+      claiming.isTemporarilyDisabled(alice);
+      claiming.request = "this-request";
+
+      Resolution result =
+          resolveDateOfBirth(password, MultiAttributeCredentialResolver.MatchPolicy.FIRST_MATCH);
+
+      // Neither a guess nor a failure: the attempt was never tested, so it counts for nothing.
+      assertTrue(result.authenticatedUser().isEmpty(), password);
+      assertTrue(result.attributableUser().isEmpty(), password);
+      assertEquals(LockoutState.NONE, result.lockoutState(), password);
+      verify(alice.credentialManager(), never()).isValid(any(CredentialInput.class));
+    }
+  }
+
+  @Test
   void multipleCandidatesAllLockedOut_ambiguous_staysGeneric() {
     UserModel alice = mockUser("alice", "alice-pw", true);
     UserModel bob = mockUser("bob", "bob-pw", true);
