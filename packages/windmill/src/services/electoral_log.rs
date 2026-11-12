@@ -2043,7 +2043,7 @@ pub fn get_cols_match_count_and_select(
 
 /// Lowercases a Ballot ID prefix and checks that it is an even number of hex
 /// characters, no longer than a Ballot ID.
-fn normalize_ballot_id_filter(ballot_id_filter: &str) -> Result<String> {
+pub fn normalize_ballot_id_filter(ballot_id_filter: &str) -> Result<String> {
     let ballot_id_filter = ballot_id_filter.trim().to_ascii_lowercase();
     ensure!(
         ballot_id_filter.len() % 2 == 0
