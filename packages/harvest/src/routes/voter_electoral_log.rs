@@ -140,20 +140,21 @@ mod tests {
 
     #[test]
     fn test_check_ballot_id_filter() {
-        for valid in ["", "ab12", "AB12"] {
-            check_ballot_id_filter(valid).expect("a valid filter");
+        for valid in ["", "ab12", "AB12", &"a".repeat(BALLOT_ID_LENGTH_CHARS)] {
+            assert!(check_ballot_id_filter(valid).is_ok(), "{valid}");
         }
-        check_ballot_id_filter(&"a".repeat(BALLOT_ID_LENGTH_CHARS))
-            .expect("a whole Ballot ID");
         for invalid in [
             "abc",
             "zz",
             "test-ballot",
             &"a".repeat(BALLOT_ID_LENGTH_CHARS + 2),
         ] {
-            let error =
-                check_ballot_id_filter(invalid).expect_err("an invalid filter");
-            assert_eq!(error.0, Status::BadRequest, "{invalid}");
+            match check_ballot_id_filter(invalid) {
+                Err(error) => {
+                    assert_eq!(error.0, Status::BadRequest, "{invalid}")
+                }
+                Ok(()) => panic!("accepted {invalid}"),
+            }
         }
     }
 }
