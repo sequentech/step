@@ -389,12 +389,12 @@ impl BallotChoices {
     /// * max_votes: Option<usize> = match usize::try_from(self.max_votes)
     /// * min_votes: Option<usize> = match usize::try_from(self.min_votes)
     /// * decoded_contest = handle_over_vote_policy(
-    /// * num_selected_candidates < min_votes
+    /// * num_distinct_selected_candidates < min_votes
     /// * under_vote_policy != EUnderVotePolicy::ALLOWED &&
-    ///   num_selected_candidates < max_votes && num_selected_candidates >=
+    ///   num_distinct_selected_candidates < max_votes && num_distinct_selected_candidates >=
     ///   min_votes
     /// * if let Some(blank_vote_policy) = presentation.blank_vote_policy { if
-    ///   num_selected_candidates == 0
+    ///   num_distinct_selected_candidates == 0
     /// =================================
     ///
     /// * The number of overall choices does not match the expected value
@@ -616,7 +616,7 @@ impl BallotChoices {
 
         // A candidate counts once towards the selection rules no matter how
         // many slots repeat it.
-        let num_selected_candidates = next_choices.len();
+        let num_distinct_selected_candidates = next_choices.len();
         decoded_contest.choices = next_choices;
         if has_repeated_candidate {
             // A repeated slot is a content error of this contest, not a
@@ -633,7 +633,9 @@ impl BallotChoices {
         // This can happen with unset (= 0) values
         // The opposite is impossible due to the above
         // loop's range 0..max_votes
-        if !has_repeated_candidate && num_selected_candidates < min_votes {
+        if !has_repeated_candidate
+            && num_distinct_selected_candidates < min_votes
+        {
             return Err(format!(
                 "Raw ballot vector contained fewer than min_votes choices"
             ));
@@ -652,20 +654,22 @@ impl BallotChoices {
         if let Some(max_votes_val) = max_votes_opt.clone() {
             let overvote_check = check_over_vote_policy(
                 &presentation,
-                num_selected_candidates,
+                num_distinct_selected_candidates,
                 max_votes_val,
             );
             decoded_contest.update(overvote_check);
         }
         if let Some(min_votes_val) = min_votes_opt.clone() {
-            let min_check =
-                check_min_vote_policy(num_selected_candidates, min_votes_val);
+            let min_check = check_min_vote_policy(
+                num_distinct_selected_candidates,
+                min_votes_val,
+            );
             decoded_contest.update(min_check);
         }
 
         let under_vote_check = check_under_vote_policy(
             &presentation,
-            num_selected_candidates,
+            num_distinct_selected_candidates,
             max_votes_opt.clone(),
             min_votes_opt.clone(),
         );
@@ -674,7 +678,7 @@ impl BallotChoices {
         // handle blank vote policy
         let blank_vote_check = check_blank_vote_policy(
             &presentation,
-            num_selected_candidates,
+            num_distinct_selected_candidates,
             is_explicit_invalid,
         );
         decoded_contest.update(blank_vote_check);
@@ -1251,7 +1255,7 @@ mod tests {
     }
 
     fn decode_raw_choices(
-        contests: &Vec<Contest>,
+        contests: &[Contest],
         choices: Vec<u64>,
     ) -> DecodedBallotChoices {
         let bases = BallotChoices::get_bases(contests)
@@ -1301,10 +1305,7 @@ mod tests {
             map_decoded_ballot_choices_to_decoded_contests(decoded, &contests)
                 .expect("mapping should succeed");
         assert!(mapped[0].is_invalid());
-        assert!(has_invalid_error(
-            &mapped[0],
-            "errors.encoding.duplicatedSelection"
-        ));
+        assert!(has_invalid_error(&mapped[0], DUPLICATED_SELECTION_ERROR));
         let min_error = mapped[0]
             .invalid_errors
             .iter()
