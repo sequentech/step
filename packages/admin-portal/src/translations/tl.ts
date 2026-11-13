@@ -1419,6 +1419,13 @@ const tagalogTranslation: TranslationType = {
                         enabled: "Ialok ang laki ng teksto, contrast, agwat at galaw",
                     },
                 },
+                instructionsStepPolicy: {
+                    policyLabel: "Mga tagubilin sa breadcrumb",
+                    options: {
+                        "merged-with-ballot": "Bahagi ng hakbang na Balota",
+                        "own-step": "Sariling hakbang",
+                    },
+                },
                 audioInstructionsPolicy: {
                     policyLabel: "Mga tagubiling audio",
                     options: {

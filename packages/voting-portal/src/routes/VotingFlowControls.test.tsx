@@ -75,6 +75,7 @@ jest.mock("@sequentech/ui-core", () => ({
 jest.mock("@sequentech/ui-essentials", () => ({
     // ElectionConfigService re-exports the shared presentation helpers.
     ...jest.requireActual("../../../ui-essentials/src/ballot/presentation"),
+    EBallotStep: jest.requireActual("../../../ui-essentials/src/ballot/BallotSteps").EBallotStep,
     PageLimit: jest.requireActual("../../../ui-essentials/src/components/PageLimit/PageLimit")
         .default,
     Icon: jest.requireActual("../../../ui-essentials/src/components/Icon/Icon").default,
@@ -1866,6 +1867,27 @@ describe("a ballot encrypted before the selections changed", () => {
 
         expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/review`)
     })
+})
+
+it("goes back from the start screen to the ballot list, keeping the query string", async () => {
+    const {router} = renderRoute(<StartScreen />, "start")
+
+    fireEvent.click(screen.getByRole("link", {name: "votingScreen.backButton"}))
+
+    await waitFor(() =>
+        expect(router.state.location.pathname).toBe(
+            "/tenant/tenant-1/event/event-1/election-chooser"
+        )
+    )
+    expect(router.state.location.search).toBe("?preview=true")
+})
+
+it("offers no way back from the start screen when the event skips the ballot list", () => {
+    mockState = {...mockState, extra: {...mockState.extra, bypassChooser: true}}
+    renderRoute(<StartScreen />, "start")
+
+    expect(screen.getByRole("button", {name: "startScreen.startButton"})).toBeEnabled()
+    expect(screen.queryByRole("link", {name: "votingScreen.backButton"})).toBeNull()
 })
 
 it("exposes the three instruction steps as a named ordered list", () => {

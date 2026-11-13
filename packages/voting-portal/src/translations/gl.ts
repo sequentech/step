@@ -72,6 +72,7 @@ const galegoTranslation: TranslationType = {
         },
         breadcrumbSteps: {
             electionList: "Papeletas",
+            instructions: "Instrucións",
             ballot: "Papeleta",
             review: "Revisión",
             confirmation: "Confirmar",

@@ -25,7 +25,7 @@ import i18next, {type i18n as I18n} from "i18next"
 import React from "react"
 import {I18nextProvider} from "react-i18next"
 
-import {BallotSteps} from "./BallotSteps"
+import {BallotSteps, EBallotStep} from "./BallotSteps"
 import {theme} from "../services/theme"
 
 /** A catalogue with the portal's own `breadcrumbSteps`, as a deployment has. */
@@ -39,6 +39,7 @@ const withCatalogue = (): I18n => {
                 translation: {
                     breadcrumbSteps: {
                         electionList: "Ballots",
+                        instructions: "Instructions",
                         ballot: "Ballot",
                         review: "Review",
                         confirmation: "Confirm",
@@ -163,6 +164,51 @@ describe("the voter's breadcrumb", () => {
         show(<BallotSteps selected={0} />, i18n)
 
         expect(steps()).toEqual(["Votaciones", "Papeleta", "Revisión", "Confirmar"])
+    })
+})
+
+describe("the instructions step", () => {
+    it("sits between the list and the ballot when the event gives it its own step", () => {
+        show(<BallotSteps selected={EBallotStep.INSTRUCTIONS} withInstructions />)
+
+        expect(steps()).toEqual(["Ballots", "Instructions", "Ballot", "Review", "Confirm"])
+        expect(current()).toEqual("Instructions")
+    })
+
+    it("leads the steps when the event has no list", () => {
+        show(
+            <BallotSteps
+                selected={EBallotStep.INSTRUCTIONS}
+                withElectionList={false}
+                withInstructions
+            />
+        )
+
+        expect(steps()).toEqual(["Instructions", "Ballot", "Review", "Confirm"])
+        expect(current()).toEqual("Instructions")
+    })
+
+    it("is drawn as the ballot step when the event has no such step", () => {
+        // The default, and every event before this step existed: the start screen
+        // and the ballot share a step.
+        show(<BallotSteps selected={EBallotStep.INSTRUCTIONS} />)
+
+        expect(steps()).toEqual(["Ballots", "Ballot", "Review", "Confirm"])
+        expect(current()).toEqual("Ballot")
+    })
+
+    it("keeps a caller's numbers on their own steps", () => {
+        // A host that still says review as 2 must not land on the ballot.
+        show(<BallotSteps selected={2} withInstructions />)
+
+        expect(current()).toEqual("Review")
+    })
+
+    it("marks no step on a screen outside the walk", () => {
+        // The audit screen passes 4, past the last of the four numbered steps.
+        show(<BallotSteps selected={4} withInstructions warning />)
+
+        expect(current()).toBeUndefined()
     })
 })
 

@@ -135,7 +135,7 @@ export {ReviewLayout} from "./ballot/ReviewLayout"
 export type {IReviewLayoutProps} from "./ballot/ReviewLayout"
 // The voter's breadcrumb. The portal's `Stepper` is a shim over this that answers
 // `withElectionList` from its store; the wizard's Ballot Preview draws it directly.
-export {BallotSteps} from "./ballot/BallotSteps"
+export {BallotSteps, EBallotStep} from "./ballot/BallotSteps"
 export type {IBallotStepsProps} from "./ballot/BallotSteps"
 // The ballot list screen, which the portal's `ElectionSelectionScreen` renders and
 // the wizard's preview draws.

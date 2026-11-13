@@ -95,3 +95,17 @@ export const NoDeclarationOrDecline: Story = {
         await expect(canvas.getByRole("button", {name: "Start Voting"})).toBeEnabled()
     },
 }
+
+export const BackToBallotList: Story = {
+    args: {
+        backTo: "/tenant/tenant-1/event/event-1/election-chooser?lang=en",
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(canvas.getByRole("button", {name: "Start Voting"})).toBeDisabled()
+        await userEvent.click(canvas.getByRole("link", {name: "Back"}))
+        await expect(canvas.getByLabelText("Current location")).toHaveTextContent(
+            "/tenant/tenant-1/event/event-1/election-chooser?lang=en"
+        )
+    },
+}

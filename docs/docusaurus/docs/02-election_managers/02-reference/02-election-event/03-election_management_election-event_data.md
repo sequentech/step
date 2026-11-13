@@ -64,6 +64,11 @@ Manage how the ballot appears in the Voting Portal.
 - **Disable Ballot Audit Support**: Enable or disable the ability for voters to verify ballot encryption.
 - **Skip Election List Screen**: Skip election selection in the portal.
 - **Show User Profile**: Show user profile information in the Voting Portal.
+- **Instructions in the breadcrumb**: Where the voter's progress breadcrumb puts the instructions screen shown before the ballot.
+  - **Part of the Ballot step** (default): the instructions and the ballot share one step, `Ballots → Ballot → Review → Confirm`.
+  - **A step of their own**: the instructions get a step between the ballot list and the ballot, `Ballots → Instructions → Ballot → Review → Confirm`.
+
+  Stored as `presentation.instructions_step_policy`, `merged-with-ballot` or `own-step`; an event without it behaves as `merged-with-ballot`. Events that skip the election list drop the first step either way. The step names can be changed per language in Localization, under `votingPortal:breadcrumbSteps.*` (for example `votingPortal:breadcrumbSteps.electionList`). Like every Voting Portal setting, it reaches voters when the event is published.
 - **Show Cast Vote Logs Tab**: Policy to enable the CastVote Immutable logs in the Ballot Locator. A voter sees the username and the signed statement only for their own entries; other voters' entries show the time and the Ballot ID.
 - **Logo URL (optional)**: Provide a link to a logo to display.
 - **Redirect Finish URL (optional)**: Redirect users to a URL after completing voting.

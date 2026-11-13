@@ -1399,6 +1399,13 @@ const basqueTranslation: TranslationType = {
                         enabled: "Eskaini testuaren tamaina, kontrastea, tartea eta mugimendua",
                     },
                 },
+                instructionsStepPolicy: {
+                    policyLabel: "Argibideak urratsen barran",
+                    options: {
+                        "merged-with-ballot": "Bozketa urratsaren barruan",
+                        "own-step": "Urrats propioa",
+                    },
+                },
                 audioInstructionsPolicy: {
                     policyLabel: "Audio-argibideak",
                     options: {

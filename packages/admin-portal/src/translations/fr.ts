@@ -1411,6 +1411,13 @@ const frenchTranslation: TranslationType = {
                             "Proposer la taille du texte, le contraste, l'espacement et les animations",
                     },
                 },
+                instructionsStepPolicy: {
+                    policyLabel: "Instructions dans le fil d'Ariane",
+                    options: {
+                        "merged-with-ballot": "Dans l'étape Bulletin de vote",
+                        "own-step": "Une étape à part",
+                    },
+                },
                 audioInstructionsPolicy: {
                     policyLabel: "Instructions audio",
                     options: {
