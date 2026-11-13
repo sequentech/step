@@ -48,7 +48,7 @@ contract between them, the capture page and Keycloak.
 
 | Service | Image | Role |
 | --- | --- | --- |
-| `scanovate-ocr` | `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ocr:version_3.9.0_aefa131_285` | OCR capture page and its API. Manages the sessions, reads the document, sends the callbacks. |
+| `scanovate-ocr` | `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ocr:version_3.9.0_bec7df8_295` | OCR capture page and its API. Manages the sessions, reads the document, sends the callbacks. |
 | `scanovate-liveness` | `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-plus-service:version_3.9.0_e0dc72e_115` | Liveness capture page and its API. Manages the sessions, checks the face quality of each frame, calls PAD and IAD, sends the callbacks. |
 | `scanovate-presentation-detection` | `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-presentation-detection-service:release_1.52.0` | PAD server, with the `pad-r-2` (presentation attacks) and `dfd-3` (deepfakes) pipelines. |
 | `scanovate-injection-detection` | `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-injection-detection-service:release-2.6.2` | IAD server: checks that the frames come from a real camera. |
@@ -127,22 +127,27 @@ sequenceDiagram
 
 ## OCR capture resolution
 
-OCR requests a 1920 × 1080 camera stream. Its `input_image` is also used for
-Document Liveness, whose [image requirements](https://docs.idrnd.net/idlivedoc/)
-specify Full HD as the minimum. Keep the development OCR video configuration,
-the air-gap `scanovate-theme.yaml` copy and hosted capture configuration in sync.
-This is a capture-page setting, not an election Excel or realm threshold setting.
+OCR requests a 1280 × 720 camera stream, the only resolution Scanovate supports
+and validates for it. Scanovate's *On-Prem Full Onboarding Flow – Integration
+Guide (with Document Liveness)* gives 1280 × 720, with autofocus, as the
+minimum camera for the whole flow, Document Liveness included, which reads
+OCR's `input_image`. ID R&D's own [image requirements](https://docs.idrnd.net/idlivedoc/)
+for Document Liveness ask for Full HD, but asked whether 1920 × 1080 would
+help, Scanovate answered that it isn't supported or validated, and isn't a
+workaround for OCR's machine readable zone size or quality limits. Keep the
+development OCR video configuration, the air-gap `scanovate-theme.yaml` copy
+and the hosted capture configuration in sync. This is a capture-page setting,
+not an election Excel or realm threshold setting.
 
-The pinned vendor client passes width and height as numeric `getUserMedia`
-preferences, not mandatory minimum constraints. A browser may negotiate a lower
-resolution on limited hardware. It sends JPEG frames at the actual video-track
-settings dimensions, without upscaling; increasing the configured request does
-not prove every camera produces Full HD. Verify the actual frame dimensions on
-supported mobile and desktop cameras before rollout, including limited cameras
-and permission denial. Prefer a supported rear-facing camera for documents.
-Do not bypass failed document-liveness checks to accommodate a lower-resolution
-camera. The configurable score relaxation below is separate from resolution. Video compression settings are
-separate from the still-image capture and are unchanged.
+The browser treats the width and height as preferences, so a camera may
+deliver less. Prefer a supported rear-facing camera for documents, and don't
+bypass failed document-liveness checks to accommodate a weaker camera. Watch
+Document Liveness's `image_quality_warnings` (such as `IMAGE_TOO_BLURRY`) when
+tuning with real passports. The configurable score relaxation below is
+separate from resolution. Video compression settings are separate from the
+still-image capture and are unchanged. From `version_3.9.0_bec7df8_295` on,
+the `mobile`, `desktop` and `kiosk` blocks of the video configuration could
+set `video_width` and `video_height` for one device; we set none.
 
 ## Access to the images
 
@@ -156,7 +161,7 @@ Docker Hub:
 | `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-presentation-detection-service` | `release_1.52.0` |
 | `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-injection-detection-service` | `release-2.6.2` |
 | `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ngfacematch` | `version_3.9.0_ba58397_79` |
-| `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ocr` | `version_3.9.0_aefa131_285` |
+| `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ocr` | `version_3.9.0_bec7df8_295` |
 | `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/document-liveness-service` | `release-3.5.5` (`sha256:5ed5717a1c6f60b12f01fbe3aa714ae857113639d2cf133a142ac4ed7e75c839`, `linux/amd64`) |
 
 Log in to the registry in the Docker client that pulls the images: your host,
@@ -307,7 +312,13 @@ checked (at most 30 minutes). No image is logged.
 - Access to our ECR mirror of the Scanovate images (see
   [Access to the images](#access-to-the-images)), and about 28 GB of memory for
   Docker on top of the dev container, on a CPU with AVX2.
-- A computer with a webcam of at least 1280×720, and Chrome or Firefox.
+- A computer with a webcam of at least 1280×720, and Chrome or Firefox, or a
+  phone that reaches the dev container. Scanovate's passport scan is designed
+  for phones: on a computer the webcam must have autofocus, or it can't
+  capture the machine readable zone sharply enough. Most laptop webcams,
+  such as a MacBook Air's, have a fixed focus, so expect the passport scan to
+  refuse more frames there. Its quality limits are built into the OCR service
+  and can't be configured.
 - Your passport: the data page, with your photo and the machine readable zone.
 - This branch checked out, and the dev container (`base` profile) working.
 
@@ -663,9 +674,8 @@ Environment variables:
 The dev container replaces `service_config.json`, with
 `.devcontainer/scanovate/ocr/service_config.json`, and adds our UI theme,
 `.devcontainer/scanovate/ocr/sequent_ui.json`, and
-`.devcontainer/scanovate/ocr/video_config_no_mirror.json`, and serves its own
-copy of the page, `.devcontainer/scanovate/ocr/index.html` (see below); the others
-(`scan_config.json`, which says which sides each OCR type scans,
+its camera settings, `.devcontainer/scanovate/ocr/sequent_video.json`; the
+others (`scan_config.json`, which says which sides each OCR type scans,
 `video_config.json`, `default_ui.json` and the texts) are the image's own. Our `service_config.json`
 is the image's with an `onprem` section like Liveness Plus's:
 
@@ -677,26 +687,27 @@ is the image's with an `onprem` section like Liveness Plus's:
 | `send_debug_results_to_server` | `false` | Also post the full internal session. |
 | `send_video_in_results` | `false` | No video in the result. |
 | `send_results_to_client` | `false` | Keep it `false`: the browser is never trusted. |
-| `default_parameters` | `passport`, `scan_config`, `video_config_no_mirror`, `default`, `en`, `sequent_ui` | OCR type, configuration files, texts and theme used when the page URL doesn't name them. Keycloak always sets `ocr_type`, from `ocr-types`. |
+| `default_parameters` | `passport`, `scan_config`, `sequent_video`, `default`, `en`, `sequent_ui` | OCR type, configuration files, texts and theme used when the page URL doesn't name them. Keycloak always sets `ocr_type`, from `ocr-types`. |
 
 `video_config` names the file of `/app/config` that rotates or mirrors the
 preview (`rotate_view`, `mirror_view`) and the frames sent to the service
 (`rotate_buffer`, `mirror_buffer`), as Scanovate advised; a page URL can also
-name one with its `video_config` parameter. `video_config_no_mirror.json` is
-the image's `video_config.json`, whose `mirror_view` is already `false`. In
-this image the page still mirrors the preview whenever the browser isn't a
-phone or a tablet (`mirror_view || !isMobile()` in its client), whatever the
-file says, which makes a passport hard to place on a laptop. We have reported
-it to Scanovate. Until it follows `video_config`, we serve the image's own
-page, `/app/static/index.html`, with one rule added,
-`.video-element { transform: none !important; }`, which shows the preview as
-the camera sees it on every device. It only changes what the voter sees: the
-frames sent to the service were never mirrored. `transform: none` also drops
-the page's rotation, so keep `rotate_view` at `0`. The page names the image's
-hashed scripts (`index-C243eWap.js`, `index-DTxKRzC9.css`), so it belongs to
-one OCR image: when the image changes, copy its `index.html` again and add the
-rule back. `scripts/dev/test_scanovate_ocr_page.py` checks the mount, the rule
-and the asset names against the pinned tag.
+name one with its `video_config` parameter. Its `mobile`, `desktop` and
+`kiosk` blocks override those settings for one device: `kiosk` when
+`kiosk_mode` is `true`, otherwise `mobile` on phones and tablets (an iPad
+counts as one) and `desktop` elsewhere. `sequent_video.json` is the
+`video_config.json` Scanovate delivered with `version_3.9.0_bec7df8_295`,
+with the resolution of [OCR capture resolution](#ocr-capture-resolution):
+phones and tablets show the rear camera unmirrored, and `desktop` sets
+`mirror_view` to `true`, so a laptop shows its front camera as a mirror, which
+is what a voter in front of it expects: the passport moves on screen the way
+it moves in the hand. Only the preview is mirrored, never the frames sent to
+the service (`mirror_buffer` stays `false`). Earlier releases mirrored the
+preview on desktop whatever
+`mirror_view` said. Serve the image's own page: a copy that showed the
+preview as the camera sees it made it look flipped on laptops
+(v11.0.0-rc.15). `scripts/dev/test_scanovate_ocr_page.py` checks that the dev
+container doesn't replace it.
 ### Document Liveness
 
 Environment variables, as in Scanovate's onboarding guide:
@@ -1081,8 +1092,7 @@ location / {
   `/realms/*/identity-verification/capture/holding` reachable for the voter's
   browser.
 - Mount the Sequent theme (`sequent_ui.json`) in both services, see
-  [Theming](#theming), and our OCR page (`index.html`), which shows the
-  preview unmirrored on desktop browsers, the one of the OCR image you run.
+  [Theming](#theming). Keep the images' own pages.
 - Pull the images from our ECR mirror (see
   [Access to the images](#access-to-the-images)).
 - Pin image tags, never `latest`.
