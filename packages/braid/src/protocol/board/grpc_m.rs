@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 use b3::grpc::{BoardMessages, GrpcB3Message};
 
@@ -36,6 +36,36 @@ impl GrpcB3 {
         let client = B3Client::new(url, MAX_MESSAGE_SIZE, GRPC_TIMEOUT);
 
         GrpcB3 { client }
+    }
+
+    /// Returns every message with an id greater than last_id, requesting
+    /// further pages while the board reports a truncated reply.
+    pub async fn get_all_messages(
+        &self,
+        board: &str,
+        mut last_id: i64,
+    ) -> Result<Vec<GrpcB3Message>> {
+        let mut messages = vec![];
+        loop {
+            let reply = self.client.get_messages(board, last_id).await?;
+            let reply = reply.into_inner();
+            let page_last_id = reply.messages.iter().map(|m| m.id).max();
+            messages.extend(reply.messages);
+
+            if !reply.truncated {
+                return Ok(messages);
+            }
+            last_id = match page_last_id {
+                Some(id) if id > last_id => id,
+                _ => {
+                    return Err(anyhow!(
+                        "Truncated reply for board '{}' did not advance past id {}",
+                        board,
+                        last_id
+                    ))
+                }
+            };
+        }
     }
 }
 
