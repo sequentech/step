@@ -3270,12 +3270,9 @@ mod tests {
             "../../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json"
         ))
         .unwrap();
-        let clean = sanitize_imported_event_realm(
-            &raw,
-            &template,
-            ImportedRealmReconciliation::default(),
-        )
-        .unwrap();
+        let clean =
+            sanitize_imported_event_realm(&raw, &template, ImportedRealmReconciliation::default())
+                .unwrap();
         assert_eq!(
             clean.events_listeners,
             Some(vec!["custom-event-listener".into()])
