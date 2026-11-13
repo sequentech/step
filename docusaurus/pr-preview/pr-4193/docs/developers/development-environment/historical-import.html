@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Historical SQL and workbook import | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4193/docs/developers/development-environment/historical-import"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Historical SQL and workbook import | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4193/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4193/docs/developers/development-environment/historical-import"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4193/docs/developers/development-environment/historical-import" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4193/docs/developers/development-environment/historical-import" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Historical SQL and workbook import","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4193/docs/developers/development-environment/historical-import"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4193/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4193/assets/js/runtime~main.d5620190.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4193/assets/js/runtime~main.82ec636e.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4193/assets/js/main.411ac095.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -248,10 +248,34 @@ and, from a legacy dump, <code>source_precinct</code> and <code>source_abroad_st
 post-qualification dump has neither column, so neither is emitted. The abroad
 status is never turned into eligibility.</li>
 </ul>
-<p>Email, mobile and password are left unset; enrollment collects them later, so the
-conversion does not warn that voters cannot be sent a one-time code. Every
-row is checked before the conversion is refused, and each failing voter is reported
-by row and column: a location with no in-scope area, a duplicate id, an incomplete
+<p>By default, email, mobile and password are left unset; enrollment collects them
+later, so the conversion does not warn that voters cannot be sent a one-time code.
+An optional supplemental <strong>Voters</strong> sheet can restore account values that are
+not in the SQL census. It requires <code>preserve-source-voters</code> and joins by the
+source <code>username</code>. Each username may occur once and must already be in the census.
+Only these columns are accepted:</p>
+<ul>
+<li class=""><code>username</code>: the source voter ID, used only as the join key.</li>
+<li class=""><code>email</code>: the account email address.</li>
+<li class=""><code>email_verified</code> and <code>enabled</code>: explicit account flags, including <code>false</code>.
+Use Excel booleans or <code>true</code>/<code>false</code>, <code>yes</code>/<code>no</code>, <code>1</code>/<code>0</code> (<code>x</code> means true).</li>
+<li class=""><code>authorized-election-ids</code>: election <strong>external IDs</strong>, separated by <code>||</code>.
+They must name generated elections, such as <code>center:P01:context:alias</code>.
+Duplicate IDs are removed in source order. Unknown elections block the build.
+Election external IDs cannot contain <code>|</code>. Explicit <code>null</code>, empty lists and
+malformed restriction members are rejected, rather than becoming unrestricted.</li>
+</ul>
+<p>Omitted rows and blank cells retain the existing defaults: no email or election
+restriction, enabled, and email verification based on whether an email is present.
+An explicit verification flag is preserved even without an email. SQL identity,
+location and audit fields cannot be overridden; other account, enrollment and
+credential columns are rejected. Source SQL contact columns are not copied
+implicitly. Direct builds, the Wizard, and saved/reopened plans preserve the
+supplied account values. The exported voters CSV uses a single <code>|</code> between
+canonical external IDs, which the Keycloak mapper resolves to platform IDs.
+A blank restriction stays blank and leaves the existing area-based rules in place.
+Every SQL census row is checked before the conversion is refused, and each failing
+voter is reported by row and column: a location with no in-scope area, a duplicate id, an incomplete
 or impossible date of birth, or an area without an embassy/country label. Nothing
 is dropped silently. The preserved count is reported in the summary and stored in
 provenance as <code>preservedVoters</code>.</p>
@@ -328,6 +352,28 @@ These are implementation limits, not a capacity certification.</p>
 <p>Historical compatibility does not establish compatibility with a later official
 EMS schema, resolve no-remapping procurement requirements or authorize live
 imports. A test association scenario demonstrates mechanics; issuer-approved
-seat, area, census and ballot semantics remain a separate decision.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/03-development-environment/historical-import.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-4193/docs/developers/development-environment/fast-feedback"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Fast feedback loops</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-4193/docs/developers/development-environment/nvd-api-key-setup"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">nvd-api-key-setup</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#opt-in-offline-admin-plugin" class="table-of-contents__link toc-highlight">Opt-in offline Admin plugin</a></li><li><a href="#source-contract" class="table-of-contents__link toc-highlight">Source contract</a><ul><li><a href="#defaults-workbook" class="table-of-contents__link toc-highlight">Defaults workbook</a></li></ul></li><li><a href="#historical-profile-defaults" class="table-of-contents__link toc-highlight">Historical profile defaults</a><ul><li><a href="#preserving-the-source-voters-as-the-census" class="table-of-contents__link toc-highlight">Preserving the source voters as the census</a></li></ul></li><li><a href="#cli" class="table-of-contents__link toc-highlight">CLI</a></li><li><a href="#editing-a-converted-event" class="table-of-contents__link toc-highlight">Editing a converted event</a></li><li><a href="#verification-and-limits" class="table-of-contents__link toc-highlight">Verification and limits</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+seat, area, census and ballot semantics remain a separate decision.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="event-messaging-configuration">Event messaging configuration<a href="#event-messaging-configuration" class="hash-link" aria-label="Direct link to Event messaging configuration" title="Direct link to Event messaging configuration" translate="no">​</a></h2>
+<p>A <code>Parameters</code> row with key <code>messaging_config</code> and a JSON object in <code>value</code>
+sets the native export&#x27;s top-level <code>messaging_config</code>. This is the same
+<code>EventMessagingConfig</code> used by the Admin Portal: <code>version</code>, <code>channels</code> (account
+references, purposes, template bindings and out-of-window policies), and
+<code>election_channels</code>. It survives direct SQL/XLSX conversion, Edit in the Wizard,
+plan save/reopen and opening a native event export.</p>
+<p>In workbook input, <code>election_channels</code> keys may be election <code>external_id</code>
+values or the generated election UUIDs. Native exports and base exports use
+UUIDs; these are mapped through their elections&#x27; external IDs to the rebuilt
+UUIDs. Unknown elections and conflicting references are refused, rather than
+silently dropping a restriction.</p>
+<p>An absent or blank parameter keeps a base export&#x27;s configuration. A literal
+<code>null</code> overrides the base and emits no event configuration. To explicitly
+configure no channels, use <code>{&quot;version&quot;:1,&quot;channels&quot;:[],&quot;election_channels&quot;:{}}</code>.
+The legacy <code>messaging:config</code> annotation and Keycloak&#x27;s public
+<code>sequent.messaging</code> projection do not substitute for the top-level field.</p>
+<p>The Architect validates the configuration shape and its local references. It
+cannot verify destination accounts: the referenced accounts must already exist
+in the target tenant, support the channel and be ready for the enabled purposes.
+The import still requires <code>messaging-config-write</code> and performs those checks.
+No provider accounts or credentials are created or exported by this parameter.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/03-development-environment/historical-import.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-4193/docs/developers/development-environment/fast-feedback"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Fast feedback loops</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-4193/docs/developers/development-environment/nvd-api-key-setup"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">nvd-api-key-setup</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#opt-in-offline-admin-plugin" class="table-of-contents__link toc-highlight">Opt-in offline Admin plugin</a></li><li><a href="#source-contract" class="table-of-contents__link toc-highlight">Source contract</a><ul><li><a href="#defaults-workbook" class="table-of-contents__link toc-highlight">Defaults workbook</a></li></ul></li><li><a href="#historical-profile-defaults" class="table-of-contents__link toc-highlight">Historical profile defaults</a><ul><li><a href="#preserving-the-source-voters-as-the-census" class="table-of-contents__link toc-highlight">Preserving the source voters as the census</a></li></ul></li><li><a href="#cli" class="table-of-contents__link toc-highlight">CLI</a></li><li><a href="#editing-a-converted-event" class="table-of-contents__link toc-highlight">Editing a converted event</a></li><li><a href="#verification-and-limits" class="table-of-contents__link toc-highlight">Verification and limits</a></li><li><a href="#event-messaging-configuration" class="table-of-contents__link toc-highlight">Event messaging configuration</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
 </body>
 </html>
