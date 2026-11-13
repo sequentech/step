@@ -16,9 +16,11 @@
 //! against what this trustee's own session over the parent committed to, as
 //! that session's store kept it.
 
+use std::any::Any;
 use std::collections::BTreeMap;
 #[cfg(feature = "native")]
 use std::fs;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 #[cfg(feature = "native")]
 use std::path::PathBuf;
 #[cfg(feature = "native")]
@@ -506,8 +508,34 @@ async fn cycle<T: Transport<Ctx>, P: Persistence>(
     session: &mut Session<Ctx, T, P>,
 ) -> Result<()> {
     session.update().await.context("updating from the board")?;
-    let messages = session.step().context("running the protocol")?;
+    let messages =
+        without_panics(|| session.step()).context("running the protocol")?;
     session.post(messages).await.context("posting to the board")
+}
+
+/// Backstop for native: a panic in a step becomes an error that halts that
+/// board only. The browser build aborts on panic and cannot recover, so a
+/// peer's message must fail with an error inside braid; this catches only
+/// what that misses. The step only reads the session, and a halted session
+/// is never used again.
+fn without_panics<T>(step: impl FnOnce() -> Result<T>) -> Result<T> {
+    catch_unwind(AssertUnwindSafe(step)).unwrap_or_else(|payload| {
+        Err(anyhow!(
+            "braid panicked: {}",
+            panic_message(payload.as_ref())
+        ))
+    })
+}
+
+/// The message a panic was raised with.
+fn panic_message(payload: &(dyn Any + Send)) -> &str {
+    if let Some(message) = payload.downcast_ref::<&str>() {
+        message
+    } else if let Some(message) = payload.downcast_ref::<String>() {
+        message
+    } else {
+        "a panic without a message"
+    }
 }
 
 #[cfg(all(test, feature = "native"))]

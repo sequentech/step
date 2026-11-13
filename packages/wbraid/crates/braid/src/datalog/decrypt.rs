@@ -65,11 +65,13 @@ pub mod infer {
             partial_decryptions(cfg_hash, pk_hash, _, partial_decryptions, trustee);
 
         // Partial decryptions up to trustee n if we have them up to n - 1 and
-        // trustee n's value.
+        // trustee n's value, unless an earlier trustee posted the same value
+        // (an error below).
         partial_decryptions_acc(cfg_hash, partial_decryptions_hashes.add(*partial_decryptions, *position), position) <--
             mixing_position(cfg_hash, pk_hash, ciphertexts_hash, position, trustee),
             partial_decryptions_acc(cfg_hash, partial_decryptions_hashes, position - 1),
-            partial_decryptions(cfg_hash, pk_hash, _, partial_decryptions, trustee);
+            partial_decryptions(cfg_hash, pk_hash, _, partial_decryptions, trustee),
+            if !partial_decryptions_hashes.contains(partial_decryptions);
 
         // All partial decryptions received once we have them up to the threshold.
         partial_decryptions_all(cfg_hash, partial_decryptions) <--
@@ -107,6 +109,12 @@ pub mod infer {
             plaintexts(cfg_hash, pk_hash, _, plaintexts_hash1, sender1),
             plaintexts(cfg_hash, pk_hash, _, plaintexts_hash2, sender2),
             if plaintexts_hash1 != plaintexts_hash2;
+
+        // Two trustees posted the same partial decryptions: a copied value.
+        error(format!("partial decryptions {:?} posted by trustees {} and {}", partial_decryptions, sender1, sender2)) <--
+            partial_decryptions(cfg_hash, _, _, partial_decryptions, sender1),
+            partial_decryptions(cfg_hash, _, _, partial_decryptions, sender2),
+            if sender1 < sender2;
 
     }
 }

@@ -52,9 +52,13 @@ mod tests {
     use super::run;
     use crate::datalog::Action;
     use crate::messages::newtypes::{
-        zero_hash, CiphertextsHash, ConfigurationHash, PublicKeyHash, TrusteeIndex,
+        hash_bytes, zero_hash, CiphertextsHash, ConfigurationHash, PartialDecryptionHash,
+        PublicKeyHash, SharesHash, TrusteeIndex,
     };
-    use crate::messages::predicate::{Ballots, ConfigurationValid, Predicate};
+    use crate::messages::predicate::{
+        Ballots, ConfigurationValid, Mix, MixSignature, PartialDecryptions, Predicate, PublicKey,
+        Shares,
+    };
 
     /// A lone `ConfigurationValid` predicate should make the trustee compute its
     /// DKG shares: the first action of the protocol.
@@ -130,5 +134,145 @@ mod tests {
                 "expected an out-of-range error, got: {err}"
             );
         }
+    }
+
+    /// A `ConfigurationValid` for trustee 1 of 3, threshold 2.
+    fn trustee_1_of_3() -> Predicate {
+        Predicate::ConfigurationValid(ConfigurationValid {
+            configuration: ConfigurationHash(zero_hash()),
+            threshold: 2,
+            trustee_count: 3,
+            self_index: 1,
+        })
+    }
+
+    /// The `Shares` of trustees 1, 2 and 3, with these hashes.
+    fn dealings(hashes: [SharesHash; 3]) -> Vec<Predicate> {
+        let mut predicates = vec![trustee_1_of_3()];
+        for (sender, shares) in (1..).zip(hashes) {
+            predicates.push(Predicate::Shares(Shares {
+                configuration: ConfigurationHash(zero_hash()),
+                shares,
+                sender,
+            }));
+        }
+        predicates
+    }
+
+    /// The trustees' shares are all in once every trustee has dealt.
+    #[test]
+    fn distinct_dealings_complete_the_shares() {
+        let hashes = [b"a", b"b", b"c"].map(|label| SharesHash(hash_bytes(label)));
+
+        let actions = run(&dealings(hashes)).expect("distinct dealings must not error");
+
+        assert!(
+            actions
+                .iter()
+                .any(|a| matches!(a, Action::ComputePublicKey(_, s, 1) if *s == hashes)),
+            "expected ComputePublicKey over the three dealings, got {:?}",
+            actions
+        );
+    }
+
+    /// A trustee that posts another trustee's dealing as its own halts the
+    /// DKG with an error; it used to panic in the shares accumulator.
+    #[test]
+    fn a_copied_dealing_halts_the_dkg() {
+        let [first, second] = [b"a", b"b"].map(|label| SharesHash(hash_bytes(label)));
+
+        let err = run(&dealings([first, second, first])).expect_err("a copied dealing must error");
+
+        assert!(
+            err.contains("posted by trustees 1 and 3"),
+            "expected a copied-shares error, got: {err}"
+        );
+    }
+
+    /// The predicates of a completed mix chain of ballots `M0` by trustees 1
+    /// then 2 (M0 -> M1 -> M2), each mix signed by the other trustee, under a
+    /// public key every trustee posted, plus the trustees' partial decryptions
+    /// of M2 with these hashes.
+    fn decrypted_mix(decryptions: [PartialDecryptionHash; 2]) -> Vec<Predicate> {
+        let cfg = ConfigurationHash(zero_hash());
+        let pk = PublicKeyHash(hash_bytes(b"pk"));
+        let [ballots, first_mix, second_mix] =
+            [b"M0", b"M1", b"M2"].map(|label| CiphertextsHash(hash_bytes(label)));
+        let mut predicates = vec![trustee_1_of_3()];
+        for sender in 1..=3 {
+            predicates.push(Predicate::PublicKey(PublicKey {
+                configuration: cfg,
+                public_key: pk,
+                sender,
+            }));
+        }
+        predicates.push(Predicate::Ballots(Ballots {
+            configuration: cfg,
+            public_key: pk,
+            ciphertexts: ballots,
+            trustees: vec![1, 2],
+            tally_id: 1,
+        }));
+        for (input, output, mixer, signer) in
+            [(ballots, first_mix, 1, 2), (first_mix, second_mix, 2, 1)]
+        {
+            predicates.push(Predicate::Mix(Mix {
+                configuration: cfg,
+                public_key: pk,
+                input,
+                output,
+                sender: mixer,
+            }));
+            predicates.push(Predicate::MixSignature(MixSignature {
+                configuration: cfg,
+                public_key: pk,
+                input,
+                output,
+                sender: signer,
+            }));
+        }
+        for (sender, decryptions) in (1..).zip(decryptions) {
+            predicates.push(Predicate::PartialDecryptions(PartialDecryptions {
+                configuration: cfg,
+                public_key: pk,
+                ciphertexts: second_mix,
+                decryptions,
+                sender,
+            }));
+        }
+        predicates
+    }
+
+    /// The mixing trustees' partial decryptions are combined once both are in.
+    #[test]
+    fn distinct_partial_decryptions_are_combined() {
+        let hashes = [b"d1", b"d2"].map(|label| PartialDecryptionHash(hash_bytes(label)));
+
+        let actions =
+            run(&decrypted_mix(hashes)).expect("distinct partial decryptions must not error");
+
+        assert!(
+            actions
+                .iter()
+                .any(|a| matches!(a, Action::ComputePlaintexts(_, _, _, d, 1) if *d == hashes)),
+            "expected ComputePlaintexts over both partial decryptions, got {:?}",
+            actions
+        );
+    }
+
+    /// A mixing trustee that posts another trustee's partial decryptions as
+    /// its own halts the tally with an error; it used to panic in the partial
+    /// decryptions accumulator.
+    #[test]
+    fn copied_partial_decryptions_halt_the_tally() {
+        let copied = PartialDecryptionHash(hash_bytes(b"d1"));
+
+        let err = run(&decrypted_mix([copied, copied]))
+            .expect_err("copied partial decryptions must error");
+
+        assert!(
+            err.contains("posted by trustees 1 and 2"),
+            "expected a copied partial decryptions error, got: {err}"
+        );
     }
 }

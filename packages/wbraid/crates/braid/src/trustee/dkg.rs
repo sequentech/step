@@ -16,7 +16,7 @@ use crate::messages::wire::ProtocolMessage;
 
 use crate::board::store::MessageStore;
 
-use super::{domain_label, Trustee, DKG_CHECKING_VALUE_PURPOSE, WIRE_DATE};
+use super::{domain_label, encrypted_share, Trustee, DKG_CHECKING_VALUE_PURPOSE, WIRE_DATE};
 
 impl<C: Context> Trustee<C> {
     /// `ComputeShares` (§7): deal a fresh Pedersen sharing and post the encrypted
@@ -104,10 +104,11 @@ impl<C: Context> Trustee<C> {
                 let shares = Shares::<C>::deser(body)
                     .map_err(|e| anyhow!("failed to deserialize shares: {:?}", e))?;
 
-                let encrypted_share = &shares.encrypted_shares[self_slot];
-                let share_scalar =
-                    C::G::decrypt_scalar(encrypted_share, &self.share_encryption.skey)
-                        .map_err(|e| anyhow!("failed to decrypt share: {:?}", e))?;
+                let share_scalar = C::G::decrypt_scalar(
+                    encrypted_share(&shares, self_slot)?,
+                    &self.share_encryption.skey,
+                )
+                .map_err(|e| anyhow!("failed to decrypt share: {:?}", e))?;
 
                 let checking_values: [CheckingValue<C>; T] = shares
                     .commitments
@@ -132,5 +133,89 @@ impl<C: Context> Trustee<C> {
             let message = ProtocolMessage::<C>::public_key(self, WIRE_DATE, *cfg_hash, &public_key);
             Ok(vec![message])
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::marker::PhantomData;
+
+    use cryptography::context::{Context, RistrettoCtx};
+    use cryptography::cryptosystem::elgamal::KeyPair;
+    use cryptography::utils::signatures::SignatureScheme;
+
+    use crate::board::store::MessageStore;
+    use crate::board::verify::verify;
+    use crate::messages::artifact::{Configuration, Shares};
+    use crate::messages::newtypes::{hash_bytes, ConfigurationHash, SharesHash};
+    use crate::messages::wire::ProtocolMessage;
+    use crate::protocol_manager::ProtocolManager;
+    use crate::trustee::Trustee;
+
+    /// What trustee 2 of three answers when it derives its key from a
+    /// dealing of trustee 1 that carries no shares.
+    fn derive_from_a_dealing_without_shares<C: Context>() -> anyhow::Result<()> {
+        let mut rng = C::get_rng();
+        let pm = ProtocolManager::<C>::new(C::SignatureScheme::gen_signing_key(&mut rng));
+        let signing_keys: Vec<_> = (0..3)
+            .map(|_| C::SignatureScheme::gen_signing_key(&mut rng))
+            .collect();
+        let share_keys: Vec<KeyPair<C>> = (0..3).map(|_| KeyPair::<C>::generate()).collect();
+        let cfg = Configuration::<C>::new(
+            0,
+            C::SignatureScheme::verifying_key(&pm.signing_key),
+            signing_keys
+                .iter()
+                .map(C::SignatureScheme::verifying_key)
+                .collect(),
+            2,
+            1,
+            share_keys.iter().map(|keys| keys.pkey.y.clone()).collect(),
+            PhantomData,
+        )
+        .expect("a valid configuration");
+        let cfg_hash = ConfigurationHash::from_configuration(&cfg).expect("a configuration hash");
+        let configuration = ProtocolMessage::<C>::configuration(&pm, 0, &cfg);
+        let mut store = MessageStore::<C>::from_configuration_message(&configuration)
+            .expect("an accepted configuration");
+        let mut trustees =
+            signing_keys
+                .into_iter()
+                .zip(share_keys)
+                .map(|(signing_key, share_keys)| {
+                    Trustee::<C>::new("trustee".into(), signing_key, share_keys, &cfg)
+                        .expect("a trustee of the configuration")
+                });
+        let dealer = trustees.next().expect("trustee 1");
+        let recipient = trustees.next().expect("trustee 2");
+        let no_shares = Shares::<C> {
+            commitments: vec![],
+            encrypted_shares: vec![],
+        };
+        let dealing = ProtocolMessage::<C>::shares(&dealer, 0, cfg_hash, &no_shares);
+        let shares_hash = SharesHash(hash_bytes(dealing.body.as_ref().expect("a body")));
+        let (predicate, body) = verify(&dealing, &cfg).expect("a signed dealing");
+        store.insert(predicate, body).expect("a stored dealing");
+
+        recipient
+            .compute_public_key(&store, &cfg_hash, &[shares_hash], 2)
+            .map(|_| ())
+    }
+
+    /// A dealing without the trustee's share is an error; it used to panic
+    /// on the index.
+    #[test]
+    fn a_dealing_without_the_trustees_share_is_an_error() {
+        let result = derive_from_a_dealing_without_shares::<RistrettoCtx>();
+
+        let err = match result {
+            Ok(()) => panic!("a dealing without the share must error"),
+            Err(err) => err,
+        };
+        assert!(
+            err.to_string()
+                .contains("the dealing has no share for trustee 2"),
+            "{err:#}"
+        );
     }
 }
