@@ -295,8 +295,19 @@ impl From<User> for UserRepresentation {
     }
 }
 
+/// A Keycloak error without the request's URL, whose query holds the search
+/// text and email of a voter search.
+fn without_url(error: KeycloakError) -> KeycloakError {
+    match error {
+        KeycloakError::ReqwestFailure(error) => {
+            KeycloakError::ReqwestFailure(error.without_url())
+        }
+        error => error,
+    }
+}
+
 impl KeycloakAdminClient {
-    #[instrument(skip(self), err)]
+    #[instrument(skip(self, search, email), err)]
     pub async fn list_users(
         self,
         tenant_id: &str,
@@ -328,14 +339,14 @@ impl KeycloakAdminClient {
                 None,
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{:?}", without_url(err)))?;
         let count: i32 = self
             .client
             .realm_users_count_get(
                 realm, email, None, None, None, None, None, search, None,
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{:?}", without_url(err)))?;
         let users = user_representations
             .clone()
             .into_iter()
@@ -356,7 +367,12 @@ impl KeycloakAdminClient {
         Ok(current_user.into())
     }
 
-    #[instrument(skip(self, password), err)]
+    #[instrument(
+        skip(
+            self, attributes, email, first_name, last_name, username, password
+        ),
+        err
+    )]
     pub async fn edit_user(
         self,
         realm: &str,
@@ -406,7 +422,18 @@ impl KeycloakAdminClient {
         .await
     }
 
-    #[instrument(skip(self, credentials), err)]
+    #[instrument(
+        skip(
+            self,
+            attributes,
+            email,
+            first_name,
+            last_name,
+            username,
+            credentials
+        ),
+        err
+    )]
     pub async fn edit_user_with_credentials(
         self,
         realm: &str,

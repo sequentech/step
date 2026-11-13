@@ -51,6 +51,7 @@ dependencies explicitly.
 | `contest_policy_contracts.rs` | Check candidate-type limits, warning channels, counting algorithms, tally operations and weighted batches. |
 | `keycloak_http.rs` | Inspect real HTTP paths, query parameters, payloads and rejected writes against a bounded local peer. |
 | `keycloak_configuration.rs` | Check realm configuration, credential encoding, cache isolation/expiry and confidentiality of token and request diagnostics. |
+| `log_confidentiality.rs` | Capture every event and span field at every level: the request guards log no header values, decoded claims are not logged, and voter searches and edits keep search text, names, emails, usernames and attribute values out of the logs and errors, also when Keycloak can't be reached or refuses. |
 | `keycloak_value_contracts.rs` | Validate password-generation limits and preserve user attributes and profile constraints. |
 | `keycloak_database.rs` | Map real PostgreSQL rows into users, preserving SQL nulls and flags; reject invalid JSON objects, missing columns and incompatible SQL types. |
 | `model_contracts.rs` | Validate persisted nested configuration and ceremony, tally, result and event-policy defaults. |
@@ -109,6 +110,7 @@ which additionally requires choosing a renderer feature such as `lambda_inplace`
 | --- | --- |
 | `sqlite_feature_boundaries.rs` | Literal SQLite cell expectations for entity and result mappings, null versus zero, Unicode metadata, CSV rejection, transaction rollback, translation overrides and document-update scope keys. |
 | `s3_feature_boundaries.rs` | Complete downloads preserve literal payloads; interrupted streams fail for both memory and temporary-file APIs against a local HTTP peer. |
+| `s3_upload_url_logging.rs` | A presigned upload URL and its signature stay out of the logs. |
 | `native_feature_boundaries.rs` | Area hierarchy completeness and cycle rejection, independent live/ready responses, bounded retries, template escaping/failures and temporary-file cleanup. |
 
 SQLite tests read the database directly rather than using a second production
