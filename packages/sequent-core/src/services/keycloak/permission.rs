@@ -4,6 +4,7 @@
 use super::validate_keycloak_path_segment;
 use crate::services::keycloak::KeycloakAdminClient;
 use crate::types::keycloak::*;
+use crate::types::permissions::RealmRolePolicy;
 use anyhow::{anyhow, Result};
 use keycloak::types::RoleRepresentation;
 use rocket::futures::future::join_all;
@@ -36,6 +37,15 @@ impl From<Permission> for RoleRepresentation {
             scope_param_required: None,
         }
     }
+}
+
+/// Checks the role as Keycloak stores it, which can be spelled differently
+/// from the name the role was requested by.
+fn require_ordinary_role(role: &RoleRepresentation) -> Result<()> {
+    if let Some(name) = role.name.as_deref() {
+        RealmRolePolicy::require_ordinary(name)?;
+    }
+    Ok(())
 }
 
 impl KeycloakAdminClient {
@@ -74,6 +84,7 @@ impl KeycloakAdminClient {
         role_id: &str,
         permission_name: &str,
     ) -> Result<()> {
+        RealmRolePolicy::require_ordinary(permission_name)?;
         validate_keycloak_path_segment(realm)?;
         validate_keycloak_path_segment(role_id)?;
         validate_keycloak_path_segment(permission_name)?;
@@ -82,6 +93,7 @@ impl KeycloakAdminClient {
             .realm_roles_with_role_name_get(realm, permission_name)
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
+        require_ordinary_role(&role_representation)?;
         self.client
             .realm_groups_with_group_id_role_mappings_realm_post(
                 realm,
@@ -100,6 +112,9 @@ impl KeycloakAdminClient {
         role_id: &str,
         permissions_name: &Vec<String>,
     ) -> Result<()> {
+        for permission_name in permissions_name {
+            RealmRolePolicy::require_ordinary(permission_name)?;
+        }
         validate_keycloak_path_segment(realm)?;
         validate_keycloak_path_segment(role_id)?;
         for permission_name in permissions_name {
@@ -127,6 +142,9 @@ impl KeycloakAdminClient {
                 }
             })
             .collect();
+        for role in &successful_results {
+            require_ordinary_role(role)?;
+        }
         self.client
             .realm_groups_with_group_id_role_mappings_realm_post(
                 realm,
@@ -184,12 +202,176 @@ impl KeycloakAdminClient {
         realm: &str,
         permission: &Permission,
     ) -> Result<Permission> {
+        let role: RoleRepresentation = permission.clone().into();
+        require_ordinary_role(&role)?;
         validate_keycloak_path_segment(realm)?;
         self.client
-            .realm_roles_post(realm, permission.clone().into())
+            .realm_roles_post(realm, role)
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
 
         Ok(permission.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::keycloak::test_support::FakeKeycloak;
+
+    const REALM: &str = "tenant-test";
+    const GROUP_ID: &str = "group-id";
+    const RESERVED_NAMES: [&str; 5] = [
+        "admin",
+        "service-account",
+        "datafix-account",
+        "super-admin-user",
+        "cli-account-admin",
+    ];
+    const ORDINARY_NAME: &str = "election-event-read";
+    const ALIAS: &str = "ordinary-alias";
+    const ROLE_PATH: &str = "/admin/realms/tenant-test/roles";
+    const MAPPING_PATH: &str =
+        "/admin/realms/tenant-test/groups/group-id/role-mappings/realm";
+
+    fn permission(name: &str) -> Permission {
+        Permission {
+            id: None,
+            attributes: None,
+            container_id: None,
+            description: None,
+            name: Some(name.to_string()),
+        }
+    }
+
+    fn assigned_to_a_group(requests: &[String]) -> bool {
+        requests
+            .iter()
+            .any(|request| request == &format!("POST {MAPPING_PATH}"))
+    }
+
+    #[rocket::async_test]
+    async fn reserved_permission_names_are_not_created() {
+        for name in RESERVED_NAMES
+            .into_iter()
+            .chain(["Service-Account", " admin "])
+        {
+            let keycloak = FakeKeycloak::start(&[]);
+            let result = keycloak
+                .client()
+                .create_permission(REALM, &permission(name))
+                .await;
+
+            assert!(result.is_err(), "{name:?} was created");
+            assert!(
+                keycloak.requests().is_empty(),
+                "{name:?} reached Keycloak"
+            );
+        }
+    }
+
+    #[rocket::async_test]
+    async fn ordinary_permission_is_created() {
+        let keycloak = FakeKeycloak::start(&[]);
+
+        keycloak
+            .client()
+            .create_permission(REALM, &permission(ORDINARY_NAME))
+            .await
+            .unwrap();
+
+        assert_eq!(keycloak.requests(), [format!("POST {ROLE_PATH}")]);
+    }
+
+    #[rocket::async_test]
+    async fn reserved_permission_names_are_not_attached_to_a_group() {
+        for name in RESERVED_NAMES {
+            let keycloak = FakeKeycloak::start(&[]);
+            let result = keycloak
+                .client()
+                .set_role_permission(REALM, GROUP_ID, name)
+                .await;
+
+            assert!(result.is_err(), "{name:?} was attached");
+            assert!(
+                keycloak.requests().is_empty(),
+                "{name:?} reached Keycloak"
+            );
+        }
+    }
+
+    #[rocket::async_test]
+    async fn a_reserved_role_reached_by_another_name_is_not_attached() {
+        let keycloak = FakeKeycloak::start(&[(ALIAS, "service-account")]);
+        let result = keycloak
+            .client()
+            .set_role_permission(REALM, GROUP_ID, ALIAS)
+            .await;
+
+        assert!(result.is_err());
+        assert_eq!(keycloak.requests(), [format!("GET {ROLE_PATH}/{ALIAS}")]);
+    }
+
+    #[rocket::async_test]
+    async fn ordinary_permission_is_attached_to_a_group() {
+        let keycloak = FakeKeycloak::start(&[]);
+
+        keycloak
+            .client()
+            .set_role_permission(REALM, GROUP_ID, ORDINARY_NAME)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            keycloak.requests(),
+            [
+                format!("GET {ROLE_PATH}/{ORDINARY_NAME}"),
+                format!("POST {MAPPING_PATH}")
+            ]
+        );
+    }
+
+    #[rocket::async_test]
+    async fn reserved_permission_names_are_not_attached_in_bulk() {
+        for name in RESERVED_NAMES {
+            let keycloak = FakeKeycloak::start(&[]);
+            let names = vec![ORDINARY_NAME.to_string(), name.to_string()];
+            let result = keycloak
+                .client()
+                .set_role_permissions(REALM, GROUP_ID, &names)
+                .await;
+
+            assert!(result.is_err(), "{name:?} was attached");
+            assert!(!assigned_to_a_group(&keycloak.requests()));
+        }
+    }
+
+    #[rocket::async_test]
+    async fn a_reserved_role_reached_by_another_name_is_not_attached_in_bulk() {
+        let keycloak = FakeKeycloak::start(&[(ALIAS, "service-account")]);
+        let names = vec![ORDINARY_NAME.to_string(), ALIAS.to_string()];
+        let result = keycloak
+            .client()
+            .set_role_permissions(REALM, GROUP_ID, &names)
+            .await;
+
+        assert!(result.is_err());
+        let requests = keycloak.requests();
+        assert!(requests.contains(&format!("GET {ROLE_PATH}/{ALIAS}")));
+        assert!(!assigned_to_a_group(&requests));
+    }
+
+    #[rocket::async_test]
+    async fn ordinary_permissions_are_attached_in_bulk() {
+        let keycloak = FakeKeycloak::start(&[]);
+        let names = vec![ORDINARY_NAME.to_string(), "tally-read".to_string()];
+
+        keycloak
+            .client()
+            .set_role_permissions(REALM, GROUP_ID, &names)
+            .await
+            .unwrap();
+
+        assert!(assigned_to_a_group(&keycloak.requests()));
     }
 }

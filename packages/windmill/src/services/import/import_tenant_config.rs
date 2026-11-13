@@ -6,7 +6,7 @@ use crate::postgres;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents;
 use crate::services::import::import_tenant::upsert_tenant;
-use crate::services::keycloak::read_roles_config_file;
+use crate::services::keycloak::{read_roles_config_file, require_ordinary_permissions};
 use crate::tasks::import_tenant_config::ImportOptions;
 use crate::types::documents::EDocuments;
 use anyhow::{anyhow, Context, Result};
@@ -22,6 +22,23 @@ use std::io::{Cursor, Read, Seek};
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 use zip::read::ZipArchive;
+
+/// Checks every roles file selected for import, before any entry is applied:
+/// the Keycloak changes of an earlier entry couldn't be rolled back.
+fn require_ordinary_roles_files(
+    zip_entries: &[(String, Vec<u8>)],
+    import_options: &ImportOptions,
+) -> Result<()> {
+    if import_options.include_roles != Some(true) {
+        return Ok(());
+    }
+    zip_entries
+        .iter()
+        .filter(|(file_name, _)| {
+            file_name.contains(&EDocuments::ROLES_PERMISSIONS_CONFIG.to_file_name())
+        })
+        .try_for_each(|(_, file_contents)| require_ordinary_permissions(file_contents.as_slice()))
+}
 
 pub async fn import_tenant_config_zip(
     import_options: ImportOptions,
@@ -75,6 +92,7 @@ pub async fn import_tenant_config_zip(
     let zip_entries = get_zip_entries(temp_zip_file)
         .await
         .context("Failed to get zip entries")?;
+    require_ordinary_roles_files(&zip_entries, &import_options)?;
 
     // Fetching realm
     let realm_name = get_tenant_realm(tenant_id);
@@ -205,4 +223,50 @@ pub async fn read_into_tmp_file(cursor: &mut Cursor<&mut [u8]>) -> Result<NamedT
     io::copy(cursor, &mut temp_file).context("Failed to copy contents to temporary file")?;
     temp_file.as_file_mut().rewind()?;
     Ok(temp_file)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn roles_entry(permission: &str) -> (String, Vec<u8>) {
+        (
+            format!(
+                "{}.csv",
+                EDocuments::ROLES_PERMISSIONS_CONFIG.to_file_name()
+            ),
+            format!("role,permissions\nauditors,logs-read|{permission}\n").into_bytes(),
+        )
+    }
+
+    fn options(include_roles: Option<bool>) -> ImportOptions {
+        ImportOptions {
+            include_tenant: None,
+            include_keycloak: Some(true),
+            include_roles,
+        }
+    }
+
+    #[test]
+    fn a_reserved_permission_stops_the_import_before_any_entry_is_applied() {
+        let entries = [
+            ("keycloak.json".to_string(), Vec::new()),
+            roles_entry("service-account"),
+        ];
+        let error = require_ordinary_roles_files(&entries, &options(Some(true)))
+            .expect_err("reserved permission should be rejected");
+        assert!(format!("{error}").contains("reserved"), "{error}");
+    }
+
+    #[test]
+    fn ordinary_permissions_pass_the_check() {
+        let entries = [roles_entry("tally-read")];
+        require_ordinary_roles_files(&entries, &options(Some(true))).expect("ordinary permissions");
+    }
+
+    #[test]
+    fn a_roles_file_that_is_not_imported_is_not_checked() {
+        let entries = [roles_entry("service-account")];
+        require_ordinary_roles_files(&entries, &options(None)).expect("roles not selected");
+    }
 }
