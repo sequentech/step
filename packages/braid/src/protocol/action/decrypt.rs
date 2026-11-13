@@ -240,11 +240,13 @@ fn compute_plaintexts_<C: Ctx>(
         num_ciphertexts,
     );
 
-    assert_eq!(
-        datalog::hashes_count(&dfactors_hs.0),
-        *threshold,
-        "Unexpected number of decryption factors"
-    );
+    let dfactors_count = datalog::hashes_count(&dfactors_hs.0);
+    if dfactors_count != *threshold {
+        return Err(ProtocolError::VerificationError(format!(
+            "Unexpected number of decryption factors: {}, expected {}",
+            dfactors_count, threshold
+        )));
+    }
 
     // Decryption factors for each trustee
     for (t, df_h) in dfactors_hs.0.iter().enumerate() {
