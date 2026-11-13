@@ -49,6 +49,24 @@ impl PgConfig {
             .try_deserialize()
             .map_err(|err| anyhow!("error deserializing PgConfig: {}", err))
     }
+
+    /// Bounds a requested page size to `low_sql_limit`, rejecting values that
+    /// are not positive, as well as a `low_sql_limit` that is not.
+    pub fn page_limit(&self, requested: i64) -> Result<usize> {
+        if requested <= 0 {
+            return Err(anyhow!(
+                "Invalid page limit {requested}: it must be positive"
+            ));
+        }
+        if self.low_sql_limit <= 0 {
+            return Err(anyhow!(
+                "Invalid low_sql_limit {}: it must be positive",
+                self.low_sql_limit
+            ));
+        }
+        let limit = std::cmp::min(requested, i64::from(self.low_sql_limit));
+        usize::try_from(limit).map_err(|err| anyhow!("Invalid page limit {limit}: {err}"))
+    }
 }
 
 #[instrument(err)]

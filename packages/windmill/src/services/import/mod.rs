@@ -12,3 +12,4 @@ pub mod import_tenant_config;
 pub mod import_users;
 
 mod realm_identity_providers;
+mod realm_user_credentials;

@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::{
+    types::hasura_types::*,
+    utils::{read_config::read_config, trustees::ceremony_read_request},
+};
 use graphql_client::{GraphQLQuery, Response};
 
 #[derive(GraphQLQuery)]
@@ -25,9 +28,7 @@ impl GetTrustees {
 
         let request_body = GetTrustees::build_query(variables);
 
-        let response = client
-            .post(&config.endpoint_url)
-            .bearer_auth(config.auth_token)
+        let response = ceremony_read_request(&client, &config.endpoint_url, &config.auth_token)
             .json(&request_body)
             .send()?;
 
