@@ -457,6 +457,9 @@ const catalanTranslation: TranslationType = {
                 bytesToUtf8Conversion:
                     "Error en convertir l'escriptura lliure de bytes a cadena UTF-8: {{errorMessage}}",
                 ballotTooLarge: "La papereta és més gran de l'esperada",
+                duplicatedSelection: "La mateixa opció s'ha seleccionat més d'una vegada",
+                blankBallotWithSelections:
+                    "La papereta està marcada com en blanc, però la pregunta té seleccions",
             },
             explicit: {
                 notAllowed:
