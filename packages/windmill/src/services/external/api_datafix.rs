@@ -22,7 +22,7 @@ use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{
-    User, AREA_ID_ATTR_NAME, ATTR_RESET_VALUE, DATE_OF_BIRTH, DISABLE_COMMENT,
+    normalize_username, User, AREA_ID_ATTR_NAME, ATTR_RESET_VALUE, DATE_OF_BIRTH, DISABLE_COMMENT,
     DISABLE_REASON_DELETE_CALL, DISABLE_REASON_MARKVOTED_CALL, TENANT_ID_ATTR_NAME, VOTED_CHANNEL,
     VOTED_CHANNEL_INTERNET_VALUE,
 };
@@ -358,7 +358,7 @@ pub async fn replace_voter_pin(
         tenant_id: tenant_id.to_string(),
         election_event_id: Some(election_event_id.to_string()),
         realm: realm.to_string(),
-        username: Some(FilterOption::IsEqual(username.to_string())),
+        username: Some(FilterOption::IsEqual(normalize_username(username))),
         ..ListUsersFilter::default()
     };
 
