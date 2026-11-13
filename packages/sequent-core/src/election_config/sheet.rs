@@ -89,6 +89,10 @@ pub const KNOWN_SHEETS: &[&str] = &[
     SHEET_MILESTONES,
     SHEET_MESSAGES,
     SHEET_NOTES,
+    super::signing_sheet::SHEET_SIGNING_RULES,
+    super::signing_sheet::SHEET_SIGNING_CHECKS,
+    super::signing_sheet::SHEET_APPROVAL_MATRIX,
+    super::signing_sheet::SHEET_SIGNING_NOTICES,
 ];
 
 /// Columns whose cells hold `||`-separated lists, for one sheet.
@@ -108,6 +112,59 @@ pub fn multi_value_columns(sheet_key: &str) -> &'static [&'static str] {
         SHEET_MESSAGES => &["weekly"],
         _ => &[],
     }
+}
+
+/// Validate an explicit voter restriction without turning malformed input into
+/// the absent restriction that enables area-based authorization.
+#[cfg(any(
+    feature = "election_config_templates",
+    all(feature = "election_config_xlsx", feature = "election_config_archive")
+))]
+pub(crate) fn voter_election_keys(
+    value: &Value,
+) -> Result<Vec<&str>, &'static str> {
+    const INVALID: &str = "an explicit voter restriction needs nonempty election identifiers; null, empty lists and malformed members are not blank restrictions";
+    let items = match value {
+        Value::String(text) if text.trim().is_empty() => return Ok(Vec::new()),
+        Value::String(_) => std::slice::from_ref(value),
+        Value::Array(items) if !items.is_empty() => items.as_slice(),
+        _ => return Err(INVALID),
+    };
+    items
+        .iter()
+        .map(|item| {
+            item.as_str()
+                .map(str::trim)
+                .filter(|key| !key.is_empty() && !key.contains('|'))
+                .ok_or(INVALID)
+        })
+        .collect()
+}
+
+/// Census CSV lists use `|`; authoring workbooks use `||`. Validate before
+/// normalization so an empty or typed-null member cannot disappear.
+#[cfg(feature = "election_config_templates")]
+pub(crate) fn voter_restriction_text(
+    value: &str,
+) -> Result<String, &'static str> {
+    if value.trim().is_empty() {
+        return Ok(String::new());
+    }
+    let separator = if value.contains(super::paths::MULTI_VALUE_SEPARATOR) {
+        super::paths::MULTI_VALUE_SEPARATOR
+    } else {
+        super::emit::MULTI_VALUE_SEPARATOR
+    };
+    let members = Value::Array(
+        value
+            .split(separator)
+            .map(super::paths::coerce_scalar)
+            .collect(),
+    );
+    Ok(
+        voter_election_keys(&members)?
+            .join(super::paths::MULTI_VALUE_SEPARATOR),
+    )
 }
 
 /// `"Admin Users"` -> `"adminusers"`.
@@ -174,7 +231,7 @@ impl fmt::Display for Origin {
 ///
 /// Serialisable because a plan can carry sheets the wizard has no screens for —
 /// see `Blueprint::platform` — and those live in `blueprint.json` verbatim.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct Row {
     pub sheet: String,
 
@@ -1036,5 +1093,11 @@ mod tests {
             workbook.sheet_names(),
             vec!["Elections", "Electons", "Read Me"]
         );
+    }
+}
+
+impl std::fmt::Debug for Row {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("Row").finish_non_exhaustive()
     }
 }

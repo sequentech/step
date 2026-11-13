@@ -298,6 +298,10 @@ export const changeLines = (changes: unknown): string[] => {
             if (values.length) parts.push(`${label}: ${values.join(", ")}`)
         }
         if (typeof change.censusSize === "number") parts.push(`census: ${change.censusSize}`)
+        // What the importer warns about without blocking, such as a file from a
+        // different major version (meta#14760): said on the line, not dropped.
+        const warnings = names(change.warnings)
+        if (warnings.length) parts.push(`warning: ${warnings.join("; ")}`)
         if (
             change.field === "displayName" &&
             (typeof change.to === "string" || change.to === null)

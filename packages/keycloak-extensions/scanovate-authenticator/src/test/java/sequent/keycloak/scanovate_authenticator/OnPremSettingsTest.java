@@ -17,6 +17,8 @@ class OnPremSettingsTest {
     config.put(ScanovateAuthenticatorFactory.LIVENESS_URL, "https://liveness.example.com:8443/");
     config.put(ScanovateAuthenticatorFactory.LIVENESS_SECRET, "callback-secret");
     config.put(ScanovateAuthenticatorFactory.FACE_MATCH_URL, "http://face-match:3000");
+    config.put(
+        ScanovateAuthenticatorFactory.DOCUMENT_LIVENESS_URL, "http://document-liveness:8080");
     return config;
   }
 

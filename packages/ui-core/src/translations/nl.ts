@@ -578,6 +578,10 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 file: {
+                    "shared-scanovate-config": {
+                        lead: "Gedeelde Scanovate-configuratie",
+                        text: "Gedeelde Scanovate-configuratie — een configuratie van de Scanovate-authenticator wordt gedeeld met een andere provider. Geef Scanovate een eigen configuratie voordat u deze exporteert of importeert.",
+                    },
                     "cannot-decrypt": {
                         lead: "Kon niet ontsleutelen",
                         text: "Kon niet ontsleutelen — het bestand is versleuteld en ging niet open. Controleer het wachtwoord.",
@@ -617,6 +621,10 @@ const dutchTranslation: TranslationType = {
                     "version-incompatible": {
                         lead: "Geëxporteerd door een andere versie",
                         text: "Geëxporteerd door een andere versie — het bestand komt van versie {{found}}, die versie {{current}} niet kan importeren.",
+                    },
+                    "version-major-mismatch": {
+                        lead: "Andere hoofdversie",
+                        text: "Andere hoofdversie — het bestand komt van versie {{found}}, een andere hoofdversie dan {{current}} van dit platform. Dat verschil blokkeert de import niet en de andere controles van het bestand blijven gelden; instellingen die deze versie niet ondersteunt, worden mogelijk niet geïmporteerd.",
                     },
                 },
                 identifier: {
@@ -928,6 +936,12 @@ const dutchTranslation: TranslationType = {
                         text: "Stemperiode onvolledig — de periode moet handmatig worden geopend of gesloten in het Beheerportaal.",
                     },
                 },
+                scanovate: {
+                    "credentials-included": {
+                        lead: "Bestanden bevatten inloggegevens",
+                        text: "Bestanden bevatten inloggegevens — de werkmap en de afgeleide plan-/importbestanden bevatten inloggegevens uit de realm, inclusief het echte Scanovate-geheim. Houd deze bestanden privé en versleuteld tijdens opslag en overdracht; deel ze alleen met beheerders die deze dienst mogen configureren.",
+                    },
+                },
                 signing: {
                     "duplicate-action": {
                         lead: "Twee regels voor één actie",
@@ -940,6 +954,42 @@ const dutchTranslation: TranslationType = {
                     "expiry-out-of-range": {
                         lead: "Vervaltijd buiten bereik",
                         text: "Vervaltijd buiten bereik — een '{{action}}'-verzoek moet na 1 tot 525.600 minuten (een jaar) vervallen, of nooit.",
+                    },
+                    "export-unreadable": {
+                        lead: "Onleesbare ondertekeningsinstellingen",
+                        text: "Onleesbare ondertekeningsinstellingen — de ondertekeningsregels of certificaatcontroles van de export zijn onleesbaar, dus de import zou ze weigeren.",
+                    },
+                    "unknown-column": {
+                        lead: "Onbekende ondertekeningskolom",
+                        text: "Onbekende ondertekeningskolom — een ondertekeningsblad heeft een kolom die het niet definieert. Hernoem of verwijder die, zodat geen instelling ongemerkt terugvalt op de standaardwaarde.",
+                    },
+                    "checks-not-one-row": {
+                        lead: "Controles niet in één rij",
+                        text: "Controles niet in één rij — het blad SigningChecks moet precies één rij bevatten.",
+                    },
+                    "matrix-unreadable": {
+                        lead: "Onleesbare goedkeuringsmatrix",
+                        text: "Onleesbare goedkeuringsmatrix — de ApprovalMatrix-cel is geen geldige JSON.",
+                    },
+                    "matrix-not-one-cell": {
+                        lead: "Matrix niet in één cel",
+                        text: "Matrix niet in één cel — het blad ApprovalMatrix moet één rij met één matrix-cel bevatten.",
+                    },
+                    "not-a-number": {
+                        lead: "Geen geheel getal",
+                        text: "Geen geheel getal — een ondertekeningsinstelling die handtekeningen, minuten of revisies telt, moet een geheel getal zijn.",
+                    },
+                    "row-unreadable": {
+                        lead: "Onleesbare ondertekeningsrij",
+                        text: "Onleesbare ondertekeningsrij — een ondertekeningsrij heeft een waarde die het platform niet accepteert, zoals een onbekende actie.",
+                    },
+                    "trust-not-carried": {
+                        lead: "Certificaatvertrouwen niet meegenomen",
+                        text: "Certificaatvertrouwen niet meegenomen — het geopende archief bevatte '{{member}}', dat de Architect niet meeneemt. Handtekeningen die ervan afhangen kunnen mislukken tot het via de geautoriseerde certificaatconfiguratie van het platform is hersteld.",
+                    },
+                    "workbook-needs-current-architect": {
+                        lead: "Werkmap vraagt een recente Architect",
+                        text: "Werkmap vraagt een recente Architect — de werkmap bewaart dit ondertekeningsbeleid in bladen die een oudere Architect negeert. Open haar opnieuw vanuit blueprint.json of de leveringszip om het te behouden.",
                     },
                 },
                 threshold: {

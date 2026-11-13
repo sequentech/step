@@ -372,6 +372,9 @@ impl PlatformTarget {
                 let event_id =
                     derived_event_id(&self.context.tenant_id, &self.context.package_sha256);
                 let mut problems = Vec::new();
+                // Said in the preview, never a blocker: a different major
+                // version imports with a warning (meta#14760).
+                let mut warnings: Vec<String> = Vec::new();
                 let mut db: DbClient = get_hasura_pool().await.get().await?;
                 let transaction = db.transaction().await?;
                 // The importer's own validation of the event, before anything
@@ -385,7 +388,8 @@ impl PlatformTarget {
                 )
                 .await
                 {
-                    Ok((schema, _)) => {
+                    Ok((schema, _, read_warnings)) => {
+                        warnings.extend(read_warnings.iter().map(ToString::to_string));
                         // The importer skips a messaging configuration its caller
                         // may not write and still reports the event imported.
                         problems.extend(messaging_problem(
@@ -448,7 +452,13 @@ impl PlatformTarget {
                     (false, Some(_)) => EventState::RealmOnly,
                     (false, None) => EventState::Absent,
                 };
-                Ok(event_changes(&event_id, &state, &census, problems))
+                let mut preview = event_changes(&event_id, &state, &census, problems);
+                if !warnings.is_empty() {
+                    if let Some(change) = preview.changes.get_mut(0) {
+                        change["warnings"] = serde_json::json!(warnings);
+                    }
+                }
+                Ok(preview)
             }
         }
     }

@@ -294,10 +294,34 @@ Each voter carries two kinds of attribute:
   post-qualification dump has neither column, so neither is emitted. The abroad
   status is never turned into eligibility.
 
-Email, mobile and password are left unset; enrollment collects them later, so the
-conversion does not warn that voters cannot be sent a one-time code. Every
-row is checked before the conversion is refused, and each failing voter is reported
-by row and column: a location with no in-scope area, a duplicate id, an incomplete
+By default, email, mobile and password are left unset; enrollment collects them
+later, so the conversion does not warn that voters cannot be sent a one-time code.
+An optional supplemental **Voters** sheet can restore account values that are
+not in the SQL census. It requires `preserve-source-voters` and joins by the
+source `username`. Each username may occur once and must already be in the census.
+Only these columns are accepted:
+
+- `username`: the source voter ID, used only as the join key.
+- `email`: the account email address.
+- `email_verified` and `enabled`: explicit account flags, including `false`.
+  Use Excel booleans or `true`/`false`, `yes`/`no`, `1`/`0` (`x` means true).
+- `authorized-election-ids`: election **external IDs**, separated by `||`.
+  They must name generated elections, such as `center:P01:context:alias`.
+  Duplicate IDs are removed in source order. Unknown elections block the build.
+  Election external IDs cannot contain `|`. Explicit `null`, empty lists and
+  malformed restriction members are rejected, rather than becoming unrestricted.
+
+Omitted rows and blank cells retain the existing defaults: no email or election
+restriction, enabled, and email verification based on whether an email is present.
+An explicit verification flag is preserved even without an email. SQL identity,
+location and audit fields cannot be overridden; other account, enrollment and
+credential columns are rejected. Source SQL contact columns are not copied
+implicitly. Direct builds, the Wizard, and saved/reopened plans preserve the
+supplied account values. The exported voters CSV uses a single `|` between
+canonical external IDs, which the Keycloak mapper resolves to platform IDs.
+A blank restriction stays blank and leaves the existing area-based rules in place.
+Every SQL census row is checked before the conversion is refused, and each failing
+voter is reported by row and column: a location with no in-scope area, a duplicate id, an incomplete
 or impossible date of birth, or an area without an embassy/country label. Nothing
 is dropped silently. The preserved count is reported in the summary and stored in
 provenance as `preservedVoters`.
@@ -424,3 +448,30 @@ Historical compatibility does not establish compatibility with a later official
 EMS schema, resolve no-remapping procurement requirements or authorize live
 imports. A test association scenario demonstrates mechanics; issuer-approved
 seat, area, census and ballot semantics remain a separate decision.
+
+## Event messaging configuration
+
+A `Parameters` row with key `messaging_config` and a JSON object in `value`
+sets the native export's top-level `messaging_config`. This is the same
+`EventMessagingConfig` used by the Admin Portal: `version`, `channels` (account
+references, purposes, template bindings and out-of-window policies), and
+`election_channels`. It survives direct SQL/XLSX conversion, Edit in the Wizard,
+plan save/reopen and opening a native event export.
+
+In workbook input, `election_channels` keys may be election `external_id`
+values or the generated election UUIDs. Native exports and base exports use
+UUIDs; these are mapped through their elections' external IDs to the rebuilt
+UUIDs. Unknown elections and conflicting references are refused, rather than
+silently dropping a restriction.
+
+An absent or blank parameter keeps a base export's configuration. A literal
+`null` overrides the base and emits no event configuration. To explicitly
+configure no channels, use `{"version":1,"channels":[],"election_channels":{}}`.
+The legacy `messaging:config` annotation and Keycloak's public
+`sequent.messaging` projection do not substitute for the top-level field.
+
+The Architect validates the configuration shape and its local references. It
+cannot verify destination accounts: the referenced accounts must already exist
+in the target tenant, support the channel and be ready for the enabled purposes.
+The import still requires `messaging-config-write` and performs those checks.
+No provider accounts or credentials are created or exported by this parameter.

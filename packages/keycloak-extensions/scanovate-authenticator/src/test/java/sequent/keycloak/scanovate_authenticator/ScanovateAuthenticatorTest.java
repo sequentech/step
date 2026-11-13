@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_SELF;
@@ -107,6 +108,7 @@ class ScanovateAuthenticatorTest {
   private final List<Event> failures = new ArrayList<>();
   private FaceMatchClient faceMatch;
   private final List<FaceMatchSettings> faceMatchSettings = new ArrayList<>();
+  private DocumentLivenessClient documentLiveness;
 
   @BeforeEach
   void setUp() throws IOException {
@@ -215,8 +217,10 @@ class ScanovateAuthenticatorTest {
     holdingPhotos = new HoldingPhotos(store);
     ocrResponse = json(PASSPORT_RESPONSE);
     faceMatch = mock(FaceMatchClient.class);
-    when(faceMatch.compare(any(), any())).thenReturn(match(0.9));
+    when(faceMatch.compare(any(), any(), anyBoolean())).thenReturn(match(0.9));
     faceMatchSettings.clear();
+    documentLiveness = mock(DocumentLivenessClient.class);
+    when(documentLiveness.check(any(), any(), anyString())).thenReturn(documentCheck("OK", 0.9));
     authenticator =
         new ScanovateAuthenticator(
             (service, ignored) -> service == OnPremService.OCR ? ocrSessions : livenessSessions,
@@ -224,6 +228,7 @@ class ScanovateAuthenticatorTest {
               faceMatchSettings.add(settings);
               return faceMatch;
             },
+            ignored -> documentLiveness,
             ignored -> holdingPhotos);
 
     KeycloakSession session = mock(KeycloakSession.class);
@@ -329,7 +334,7 @@ class ScanovateAuthenticatorTest {
 
   @Test
   void retryDoesNotCarryAReadingOrReasonFromThePreviousAttempt() throws IOException {
-    when(faceMatch.compare(any(), any())).thenReturn(match(0.1));
+    when(faceMatch.compare(any(), any(), anyBoolean())).thenReturn(match(0.1));
     passedCapture();
     authenticator.action(context);
     Map<String, String> first = lastFailure();
@@ -369,7 +374,7 @@ class ScanovateAuthenticatorTest {
     authNotes.put(Utils.USER_ID, "00000000-0000-4000-8000-000000000003");
     eventData.getDetails().put("auth_method", "openid-connect");
     when(execution.isAlternative()).thenReturn(true);
-    when(faceMatch.compare(any(), any()))
+    when(faceMatch.compare(any(), any(), anyBoolean()))
         .thenAnswer(
             call -> {
               eventData.getDetails().put("session_id", "synthetic-session");
@@ -413,7 +418,7 @@ class ScanovateAuthenticatorTest {
     authenticator.action(context);
     ocrResult();
     livenessResult(authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE), true);
-    when(faceMatch.compare(any(), any())).thenReturn(match(0.1));
+    when(faceMatch.compare(any(), any(), anyBoolean())).thenReturn(match(0.1));
     post(FormAction.CAPTURE);
     authenticator.action(context);
     assertEquals("missing", lastFailure().get("scanovate_entered_document_number_state"));
@@ -421,12 +426,69 @@ class ScanovateAuthenticatorTest {
 
   @Test
   void serviceFailuresKeepSafeCategoriesAndHttpStatus() throws IOException {
-    when(faceMatch.compare(any(), any())).thenThrow(ServiceFailure.http(401));
+    when(faceMatch.compare(any(), any(), anyBoolean())).thenThrow(ServiceFailure.http(401));
     passedCapture();
     authenticator.action(context);
     assertEquals("http_error", lastFailure().get("scanovate_service_error"));
     assertEquals("401", lastFailure().get("scanovate_http_status"));
     assertEquals("face_document", lastFailure().get("scanovate_stage"));
+  }
+
+  @Test
+  void theDocumentPhotoIsCheckedWithTheConfiguredPipelines() throws IOException {
+    config.put(ScanovateAuthenticatorFactory.DOCUMENT_LIVENESS_PIPELINES, "default-sr, default-pc");
+    passedCapture();
+    authenticator.action(context);
+    verify(documentLiveness)
+        .check(
+            "frame".getBytes(StandardCharsets.US_ASCII),
+            List.of("default-sr", "default-pc"),
+            "REGULAR");
+    assertEquals("0.9000", eventData.getDetails().get("scanovate_document_liveness"));
+  }
+
+  @Test
+  void aDocumentThatIsNotPhysicalFailsBeforeTheFaceIsCompared() throws IOException {
+    when(documentLiveness.check(any(), any(), anyString())).thenReturn(documentCheck("OK", 0.2));
+    passedCapture();
+    authenticator.action(context);
+    assertEquals(
+        "scanovateDocumentAuthenticationError", lastFailure().get("scanovate_failure_reason"));
+    assertEquals("document_liveness", lastFailure().get("scanovate_stage"));
+    assertEquals("0.2000", lastFailure().get("scanovate_document_liveness"));
+    verify(faceMatch, never()).compare(any(), any(), anyBoolean());
+    verify(context, never()).success();
+  }
+
+  @Test
+  void aDocumentPhotoTheServiceCannotCheckIsUnreadable() throws IOException {
+    when(documentLiveness.check(any(), any(), anyString()))
+        .thenReturn(documentCheck("DOCUMENT_TOO_CLOSE_TO_BORDER", 0));
+    passedCapture();
+    authenticator.action(context);
+    assertEquals("scanovateDocumentUnreadableError", lastFailure().get("scanovate_failure_reason"));
+    assertNull(lastFailure().get("scanovate_document_liveness"));
+    verify(faceMatch, never()).compare(any(), any(), anyBoolean());
+  }
+
+  @Test
+  void anUnreachableDocumentLivenessServiceIsARetryableInternalError() throws IOException {
+    when(documentLiveness.check(any(), any(), anyString())).thenThrow(new IOException("down"));
+    passedCapture();
+    authenticator.action(context);
+    verify(form)
+        .setAttribute(ScanovateAuthenticator.FTL_ERROR, ScanovateError.INTERNAL.messageKey());
+    verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, true);
+    verify(faceMatch, never()).compare(any(), any(), anyBoolean());
+    verify(context, never()).success();
+  }
+
+  private static DocumentLivenessClient.DocumentLivenessResult documentCheck(
+      String status, double probability) {
+    return new DocumentLivenessClient.DocumentLivenessResult(
+        List.of(
+            new DocumentLivenessClient.PipelineCheck(
+                "default-sr", status, probability, List.of())));
   }
 
   private static FaceComparison match(double similarity) {
@@ -649,7 +711,7 @@ class ScanovateAuthenticatorTest {
   void aFailedVerificationDropsAnEarlierVerifiedIdentity() throws IOException {
     authNotes.put(IDENTITY_METHOD, "VERIFIED");
     passedCapture();
-    when(faceMatch.compare(PORTRAIT, JPEG)).thenReturn(match(0.3));
+    when(faceMatch.compare(PORTRAIT, JPEG, false)).thenReturn(match(0.3));
 
     authenticator.action(context);
 
@@ -661,7 +723,7 @@ class ScanovateAuthenticatorTest {
   void aProviderErrorDropsAnEarlierVerifiedIdentity() throws IOException {
     authNotes.put(IDENTITY_METHOD, "VERIFIED");
     passedCapture();
-    when(faceMatch.compare(any(), any())).thenThrow(new IOException("down"));
+    when(faceMatch.compare(any(), any(), anyBoolean())).thenThrow(new IOException("down"));
 
     authenticator.action(context);
 
@@ -734,11 +796,11 @@ class ScanovateAuthenticatorTest {
   @Test
   void aRetryAfterAFailureCanStillEstablishAVerifiedIdentity() throws IOException {
     passedCapture();
-    when(faceMatch.compare(PORTRAIT, JPEG)).thenReturn(match(0.3));
+    when(faceMatch.compare(PORTRAIT, JPEG, false)).thenReturn(match(0.3));
     authenticator.action(context);
     assertEquals("1", authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
 
-    when(faceMatch.compare(PORTRAIT, JPEG)).thenReturn(match(0.9));
+    when(faceMatch.compare(PORTRAIT, JPEG, false)).thenReturn(match(0.9));
     post(FormAction.RETRY);
     authenticator.action(context);
     formParams.clear();
@@ -804,7 +866,7 @@ class ScanovateAuthenticatorTest {
     assertTrue(ocrSessions.verify(ocrToken, caseId(), "callback-secret"));
     // Each service only accepts its own token
     assertFalse(livenessSessions.verify(ocrToken, caseId(), "callback-secret"));
-    verify(faceMatch, never()).compare(any(), any());
+    verify(faceMatch, never()).compare(any(), any(), anyBoolean());
   }
 
   @Test
@@ -857,6 +919,9 @@ class ScanovateAuthenticatorTest {
             Map.entry(ScanovateAuthenticatorFactory.LIVENESS_SECRET, ""),
             Map.entry(ScanovateAuthenticatorFactory.FACE_MATCH_URL, ""),
             Map.entry(ScanovateAuthenticatorFactory.FACE_MATCH_MIN_SIMILARITY, "high"),
+            Map.entry(ScanovateAuthenticatorFactory.DOCUMENT_LIVENESS_URL, ""),
+            Map.entry(ScanovateAuthenticatorFactory.DOCUMENT_LIVENESS_MIN_PROBABILITY, "high"),
+            Map.entry(ScanovateAuthenticatorFactory.DOCUMENT_LIVENESS_PIPELINES, " , "),
             Map.entry(ScanovateAuthenticatorFactory.OCR_TYPES, "{\"iBP\": \"regula\"}"));
     for (Map.Entry<String, String> setting : broken) {
       Map<String, String> original = new HashMap<>(config);
@@ -895,8 +960,8 @@ class ScanovateAuthenticatorTest {
 
     authenticator.action(context);
 
-    verify(faceMatch).compare(PORTRAIT, JPEG);
-    verify(faceMatch).compare(HOLDING, JPEG);
+    verify(faceMatch).compare(PORTRAIT, JPEG, false);
+    verify(faceMatch).compare(HOLDING, JPEG, true);
     verify(event).detail(ScanovateAuthenticator.EVENT_DETAIL_CASE_ID, caseId);
     verify(event).detail(ScanovateAuthenticator.EVENT_DETAIL_FACE_MATCH_DOCUMENT, "0.9000");
     verify(event).detail(ScanovateAuthenticator.EVENT_DETAIL_FACE_MATCH_HOLDING, "0.9000");
@@ -936,7 +1001,7 @@ class ScanovateAuthenticatorTest {
   @Test
   void aHoldingPhotoOfSomeoneElseCountsAsAnAttempt() throws IOException {
     passedCapture();
-    when(faceMatch.compare(HOLDING, JPEG)).thenReturn(match(0.3));
+    when(faceMatch.compare(HOLDING, JPEG, true)).thenReturn(match(0.3));
 
     authenticator.action(context);
 
@@ -949,7 +1014,8 @@ class ScanovateAuthenticatorTest {
   @Test
   void aHoldingPhotoWithoutAFaceCountsAsAnAttempt() throws IOException {
     passedCapture();
-    when(faceMatch.compare(HOLDING, JPEG)).thenReturn(new FaceComparison(false, 0.0, 0.67, 0, 1));
+    when(faceMatch.compare(HOLDING, JPEG, true))
+        .thenReturn(new FaceComparison(false, 0.0, 0.67, 0, 1));
 
     authenticator.action(context);
 
@@ -966,8 +1032,8 @@ class ScanovateAuthenticatorTest {
 
     authenticator.action(context);
 
-    verify(faceMatch).compare(PORTRAIT, JPEG);
-    verify(faceMatch, never()).compare(HOLDING, JPEG);
+    verify(faceMatch).compare(PORTRAIT, JPEG, false);
+    verify(faceMatch, never()).compare(HOLDING, JPEG, true);
     verifyError(ScanovateError.CAPTURE_INVALID, true);
     assertNull(authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
     assertEquals("face_holding", lastFailure().get("scanovate_stage"));
@@ -978,11 +1044,11 @@ class ScanovateAuthenticatorTest {
   @Test
   void theDocumentFaceIsComparedBeforeTheHoldingPhoto() throws IOException {
     passedCapture();
-    when(faceMatch.compare(PORTRAIT, JPEG)).thenReturn(match(0.3));
+    when(faceMatch.compare(PORTRAIT, JPEG, false)).thenReturn(match(0.3));
 
     authenticator.action(context);
 
-    verify(faceMatch, never()).compare(HOLDING, JPEG);
+    verify(faceMatch, never()).compare(HOLDING, JPEG, true);
     verifyFailedAttempt(ScanovateError.FACE_MISMATCH.messageKey());
   }
 
@@ -999,8 +1065,8 @@ class ScanovateAuthenticatorTest {
     submitCapture();
     authenticator.action(context);
 
-    verify(faceMatch).compare(PORTRAIT, JPEG);
-    verify(faceMatch, never()).compare(HOLDING, JPEG);
+    verify(faceMatch).compare(PORTRAIT, JPEG, false);
+    verify(faceMatch, never()).compare(HOLDING, JPEG, true);
     assertEquals("VERIFIED", authNotes.get(STATUS_NOTE));
   }
 
@@ -1058,7 +1124,7 @@ class ScanovateAuthenticatorTest {
 
     authenticator.action(context);
 
-    verify(faceMatch, never()).compare(any(), any());
+    verify(faceMatch, never()).compare(any(), any(), anyBoolean());
     assertNull(authNotes.get(STATUS_NOTE));
     verifyError(ScanovateError.INTERNAL, true);
   }
@@ -1076,7 +1142,7 @@ class ScanovateAuthenticatorTest {
     authenticator.action(context);
 
     verifyFailedAttempt(ScanovateError.DOCUMENT_UNREADABLE.messageKey());
-    verify(faceMatch, never()).compare(any(), any());
+    verify(faceMatch, never()).compare(any(), any(), anyBoolean());
   }
 
   @Test
@@ -1091,7 +1157,7 @@ class ScanovateAuthenticatorTest {
     verify(form).setAttribute(ScanovateAuthenticator.FTL_ATTEMPTS_LEFT, 3);
     assertNull(authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
     assertNull(caseId());
-    verify(faceMatch, never()).compare(any(), any());
+    verify(faceMatch, never()).compare(any(), any(), anyBoolean());
   }
 
   @Test
@@ -1197,7 +1263,7 @@ class ScanovateAuthenticatorTest {
   @Test
   void theFacesAreComparedBeforeTheRulesApply() throws IOException {
     passedCapture();
-    when(faceMatch.compare(PORTRAIT, JPEG)).thenReturn(match(0.3));
+    when(faceMatch.compare(PORTRAIT, JPEG, false)).thenReturn(match(0.3));
 
     authenticator.action(context);
 
@@ -1214,7 +1280,7 @@ class ScanovateAuthenticatorTest {
         ScanovateAuthenticatorFactory.FACE_MATCH_MIN_SIMILARITY,
         "{\"driversLicense\": 0.9, \"default\": 0.5}");
     passedCapture();
-    when(faceMatch.compare(any(), any())).thenReturn(match(0.85));
+    when(faceMatch.compare(any(), any(), anyBoolean())).thenReturn(match(0.85));
 
     authenticator.action(context);
 
@@ -1227,7 +1293,7 @@ class ScanovateAuthenticatorTest {
   @Test
   void faceNotFoundCountsAsAnAttempt() throws IOException {
     passedCapture();
-    when(faceMatch.compare(PORTRAIT, JPEG))
+    when(faceMatch.compare(PORTRAIT, JPEG, false))
         .thenReturn(new FaceComparison(false, 0.0, 0.67, 1101, 0));
 
     authenticator.action(context);
@@ -1238,7 +1304,7 @@ class ScanovateAuthenticatorTest {
   @Test
   void unreachableFaceMatchIsARetryableInternalError() throws IOException {
     passedCapture();
-    when(faceMatch.compare(any(), any())).thenThrow(new IOException("down"));
+    when(faceMatch.compare(any(), any(), anyBoolean())).thenThrow(new IOException("down"));
 
     authenticator.action(context);
 
@@ -1258,7 +1324,7 @@ class ScanovateAuthenticatorTest {
     verifyFailedAttempt(ScanovateError.LIVENESS_FAILED.messageKey());
     assertEquals("false", lastFailure().get("scanovate_liveness_passed"));
     assertEquals("liveness", lastFailure().get("scanovate_stage"));
-    verify(faceMatch, never()).compare(any(), any());
+    verify(faceMatch, never()).compare(any(), any(), anyBoolean());
   }
 
   @Test
@@ -1269,7 +1335,7 @@ class ScanovateAuthenticatorTest {
 
     authenticator.action(context);
 
-    verify(faceMatch, never()).compare(any(), any());
+    verify(faceMatch, never()).compare(any(), any(), anyBoolean());
     assertNull(authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
     assertEquals("unknown", lastFailure().get("scanovate_liveness_status"));
     verifyError(ScanovateError.INTERNAL, true);
@@ -1281,7 +1347,7 @@ class ScanovateAuthenticatorTest {
 
     authenticator.action(context);
 
-    verify(faceMatch, never()).compare(any(), any());
+    verify(faceMatch, never()).compare(any(), any(), anyBoolean());
     verifyCapturePage(3);
   }
 
@@ -1322,7 +1388,7 @@ class ScanovateAuthenticatorTest {
     authenticator.action(context);
 
     verifyMaxRetriesWithoutNewCapture();
-    verify(faceMatch, never()).compare(any(), any());
+    verify(faceMatch, never()).compare(any(), any(), anyBoolean());
   }
 
   @Test

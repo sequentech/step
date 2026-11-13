@@ -16,7 +16,7 @@
     "default_parameters": {
       "ocr_type": "passport",
       "scan_config": "scan_config",
-      "video_config": "video_config",
+      "video_config": "sequent_video",
       "translation_variant": "default",
       "translation_language": "en",
       "ui_theme": "sequent_ui"

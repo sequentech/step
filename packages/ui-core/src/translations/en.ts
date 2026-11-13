@@ -580,6 +580,10 @@ const englishTranslation = {
                     },
                 },
                 file: {
+                    "shared-scanovate-config": {
+                        lead: "Shared Scanovate configuration",
+                        text: "Shared Scanovate configuration — a Scanovate authenticator configuration is shared with another provider. Give Scanovate its own configuration before exporting or importing it.",
+                    },
                     "cannot-decrypt": {
                         lead: "Could not decrypt",
                         text: "Could not decrypt — the file is encrypted and did not open. Check the password.",
@@ -619,6 +623,10 @@ const englishTranslation = {
                     "version-incompatible": {
                         lead: "Exported by another version",
                         text: "Exported by another version — the file comes from version {{found}}, which version {{current}} cannot import.",
+                    },
+                    "version-major-mismatch": {
+                        lead: "Different major version",
+                        text: "Different major version — the file comes from version {{found}}, a different major version from this platform's {{current}}. That difference does not block the import, and the file's other checks still apply; settings this version does not support may not be imported.",
                     },
                 },
                 identifier: {
@@ -930,6 +938,12 @@ const englishTranslation = {
                         text: "Voting window incomplete — the period will have to be opened or closed by hand in the Admin Portal.",
                     },
                 },
+                scanovate: {
+                    "credentials-included": {
+                        lead: "Files contain credentials",
+                        text: "Files contain credentials — the workbook and derived plan/import files include credentials supplied in the realm, including the real Scanovate secret. Keep these files private and encrypted in storage and transit; share them only with administrators authorized to configure this service.",
+                    },
+                },
                 signing: {
                     "duplicate-action": {
                         lead: "Two rules for one action",
@@ -942,6 +956,42 @@ const englishTranslation = {
                     "expiry-out-of-range": {
                         lead: "Expiry out of range",
                         text: "Expiry out of range — a '{{action}}' request must expire after 1 to 525,600 minutes (a year), or never.",
+                    },
+                    "export-unreadable": {
+                        lead: "Unreadable signing settings",
+                        text: "Unreadable signing settings — the export's signing rules or certificate checks do not read, so the import would refuse them.",
+                    },
+                    "unknown-column": {
+                        lead: "Unknown signing column",
+                        text: "Unknown signing column — a signing sheet has a column it does not define. Rename or remove it, so no setting silently falls back to its default.",
+                    },
+                    "checks-not-one-row": {
+                        lead: "Certificate checks not one row",
+                        text: "Certificate checks not one row — the SigningChecks sheet must hold exactly one row.",
+                    },
+                    "matrix-unreadable": {
+                        lead: "Unreadable approval matrix",
+                        text: "Unreadable approval matrix — the ApprovalMatrix cell is not valid JSON.",
+                    },
+                    "matrix-not-one-cell": {
+                        lead: "Approval matrix not one cell",
+                        text: "Approval matrix not one cell — the ApprovalMatrix sheet must hold one row with one matrix cell.",
+                    },
+                    "not-a-number": {
+                        lead: "Not a whole number",
+                        text: "Not a whole number — a signing setting that counts signatures, minutes or revisions must be a whole number.",
+                    },
+                    "row-unreadable": {
+                        lead: "Unreadable signing row",
+                        text: "Unreadable signing row — a signing row has a value the platform does not accept, such as an unknown action.",
+                    },
+                    "trust-not-carried": {
+                        lead: "Certificate trust not carried",
+                        text: "Certificate trust not carried — the opened archive had '{{member}}', which the Architect does not carry. Signatures relying on it may fail until it is restored through the platform's authorized certificate setup.",
+                    },
+                    "workbook-needs-current-architect": {
+                        lead: "Workbook needs current Architect",
+                        text: "Workbook needs current Architect — the workbook keeps this signing policy in sheets an older Architect ignores. Reopen it from blueprint.json or the delivery zip to keep it.",
                     },
                 },
                 threshold: {

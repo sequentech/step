@@ -131,25 +131,8 @@ impl CommunicationTemplate {
 impl Builder<'_> {
     // -- voters -----------------------------------------------------------
 
-    /// The voters CSV, from the workbook's Voters sheet.
-    ///
-    /// **Not from `Builder::census`, and that is a decision rather than an
-    /// oversight.** Two reasons, and only the second is temporary.
-    ///
-    /// The Voters tab stays in the workbook — that was the owner's call — so the
-    /// census is already in memory here whatever this function reads. Iterating a
-    /// source instead would move no bytes; it would only add a second walk.
-    ///
-    /// The blocking reason is that a source yields [`PlannedVoter`], which cannot
-    /// carry three columns this reads: `enabled`, `email_verified` and
-    /// `authorized-election-ids`. All three are in `RowShape::OWNED`, so they are
-    /// excluded from `extra`, and `PlannedVoter` has no field for them. Routing
-    /// this through a source today would silently switch on a voter the census
-    /// switched off, and drop the restriction from a voter who has one — handing
-    /// them ballots they should never see, with no problem reported anywhere.
-    ///
-    /// `a_source_cannot_yet_say_what_the_voters_sheet_says` pins that, so the day
-    /// the Voters tab does come out the change fails loudly instead.
+    /// The voters CSV, from the workbook's Voters sheet. Direct imports and
+    /// plans both use this boundary for account defaults and election references.
     pub(super) fn build_voters(&mut self) -> PlainTable {
         let Some(sheet) = self.workbook.sheet(SHEET_VOTERS).cloned() else {
             return PlainTable::default();
@@ -283,7 +266,8 @@ impl Builder<'_> {
         None
     }
 
-    /// Resolve `authorized-election-ids` from external ids to UUIDs.
+    /// Validate `authorized-election-ids`, retaining canonical election external IDs.
+    /// The Keycloak authorization mapper resolves those keys to platform UUIDs.
     ///
     /// **Blank stays blank.** A voter who names no election is not restricted to
     /// one, and the area already says which contests they see — an `AreaContests`
@@ -301,27 +285,23 @@ impl Builder<'_> {
             return String::new();
         };
 
-        // A cell holding only spaces means the same as an empty one — reported here
-        // rather than left to the loop below, which would reach the same answer by
-        // accident and stop doing so the day a blank grows a meaning.
-        if value_as_text(&raw).trim().is_empty() {
-            return String::new();
-        }
-
-        let requested: Vec<Value> = match raw {
-            Value::Array(items) => items,
-            single => vec![single],
-        };
-
+        let requested =
+            match crate::election_config::sheet::voter_election_keys(&raw) {
+                Ok(keys) => keys,
+                Err(message) => {
+                    self.problem(
+                        row.origin(Some("authorized-election-ids")),
+                        Code::InvalidValue,
+                        message,
+                    );
+                    return String::new();
+                }
+            };
         let mut resolved: Vec<String> = Vec::new();
-        for item in requested {
-            let key = value_as_text(&item).trim().to_string();
-            if key.is_empty() {
-                continue;
-            }
-            match self.election_ids.iter().find(|(id, _)| id == &key) {
-                Some((_, election_id)) => {
-                    let election_id = election_id.clone();
+        for key in requested {
+            match self.election_ids.iter().find(|(id, _)| id == key) {
+                Some((external_id, _)) => {
+                    let election_id = external_id.clone();
                     if !resolved.contains(&election_id) {
                         resolved.push(election_id);
                     }
