@@ -248,7 +248,7 @@ SPDX-License-Identifier: AGPL-3.0-only
  window.onload = function () {
       const ballotData = {{{to_json data.ballot_data}}};
       ballotData.forEach((ballot, index) => {
-        let qrText = '{{{extra_data.title}}}'
+        let qrText = {{{js_string extra_data.title}}};
         const qrcodeDiv = document.getElementById(`qrcode-${index}`);
         if (qrcodeDiv) {
           ballot.contest_choices.forEach((contest) => {

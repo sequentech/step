@@ -93,6 +93,7 @@ fn get_registry<'reg>(policy: NumberFormatPolicy) -> Handlebars<'reg> {
         helper_wrapper_or(Box::new(inc2), String::from("-")),
     );
     reg.register_helper("to_json", helper_wrapper(Box::new(to_json)));
+    reg.register_helper("js_string", helper_wrapper(Box::new(js_string)));
     reg.register_helper("url_encode", helper_wrapper(Box::new(url_encode)));
     reg.register_helper(
         "parse_i64",
@@ -787,6 +788,27 @@ pub fn inc2(
     Ok(())
 }
 
+/// Escapes the characters that let JSON end an HTML `<script>` element or a
+/// JavaScript string: `<`, `>` and `&`, and the line separators U+2028 and
+/// U+2029. The escapes are valid in JSON and JavaScript alike, and outside
+/// strings JSON never contains these characters, so the value is unchanged.
+fn script_safe_json(json: &str) -> String {
+    let mut escaped = String::with_capacity(json.len());
+    for character in json.chars() {
+        match character {
+            '<' => escaped.push_str("\\u003c"),
+            '>' => escaped.push_str("\\u003e"),
+            '&' => escaped.push_str("\\u0026"),
+            '\u{2028}' => escaped.push_str("\\u2028"),
+            '\u{2029}' => escaped.push_str("\\u2029"),
+            other => escaped.push(other),
+        }
+    }
+    escaped
+}
+
+/// Writes its parameter as JSON that is safe to embed in a `<script>` block
+/// with `{{{to_json value}}}`.
 pub fn to_json(
     h: &Helper,
     _: &Handlebars,
@@ -794,14 +816,31 @@ pub fn to_json(
     _: &mut RenderContext,
     out: &mut dyn Output,
 ) -> HelperResult {
-    // Get the first parameter (expected to be the data to serialize)
     if let Some(param) = h.param(0) {
-        // Serialize the parameter to JSON
         let json =
             to_string(param.value()).unwrap_or_else(|_| "null".to_string());
-        // Write the JSON to the template output
-        out.write(&json)?;
+        out.write(&script_safe_json(&json))?;
     }
+    Ok(())
+}
+
+/// Writes its parameter as a quoted JavaScript string literal, safe inside a
+/// `<script>` block: `const title = {{{js_string title}}};`. Values that are
+/// not strings are written as their JSON text; a missing value as `""`.
+pub fn js_string(
+    h: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
+    let text = match h.param(0).map(|param| param.value()) {
+        None | Some(Value::Null) => String::new(),
+        Some(Value::String(text)) => text.clone(),
+        Some(other) => other.to_string(),
+    };
+    let literal = to_string(&text).unwrap_or_else(|_| "\"\"".to_string());
+    out.write(&script_safe_json(&literal))?;
     Ok(())
 }
 
@@ -1004,5 +1043,63 @@ mod tests {
         assert!(
             render_template_text("{{url_encode value}}", variables).is_err()
         );
+    }
+
+    const WRITE_IN: &str = "</script><script>alert(1)</script>&\u{2028}x";
+
+    fn render(template: &str, value: serde_json::Value) -> String {
+        let mut variables = Map::new();
+        variables.insert("value".to_string(), value);
+        render_template_text(template, variables).expect("template renders")
+    }
+
+    /// The JavaScript value a script reads from `rendered`, decoded as JSON
+    /// (every escape the helpers write is also valid JSON).
+    fn decoded(rendered: &str) -> serde_json::Value {
+        let literal = rendered
+            .trim_start_matches("<script>const v = ")
+            .trim_end_matches(";</script>");
+        serde_json::from_str(literal).expect("valid JSON literal")
+    }
+
+    #[test]
+    fn to_json_cannot_close_a_script_block() {
+        let value = json!({"write_in_text": WRITE_IN});
+        let rendered = render(
+            "<script>const v = {{{to_json value}}};</script>",
+            value.clone(),
+        );
+        assert_eq!(rendered.matches("</script>").count(), 1, "{rendered}");
+        assert!(!rendered.contains('\u{2028}'), "{rendered}");
+        assert!(!rendered.contains('&'), "{rendered}");
+        assert_eq!(decoded(&rendered), value);
+    }
+
+    #[test]
+    fn js_string_writes_a_safe_quoted_literal() {
+        let rendered = render(
+            "<script>const v = {{{js_string value}}};</script>",
+            json!(WRITE_IN),
+        );
+        assert_eq!(rendered.matches("</script>").count(), 1, "{rendered}");
+        assert_eq!(decoded(&rendered), json!(WRITE_IN));
+    }
+
+    #[test]
+    fn js_string_quotes_the_output_of_a_subexpression() {
+        let rendered = render(
+            "<script>const v = {{{js_string (expr value)}}};</script>",
+            json!("O'Brien</script>"),
+        );
+        assert_eq!(decoded(&rendered), json!("O'Brien</script>"));
+    }
+
+    #[test]
+    fn js_string_writes_an_empty_string_for_a_missing_value() {
+        let rendered = render(
+            "<script>const v = {{{js_string missing}}};</script>",
+            json!(null),
+        );
+        assert_eq!(decoded(&rendered), json!(""));
     }
 }
