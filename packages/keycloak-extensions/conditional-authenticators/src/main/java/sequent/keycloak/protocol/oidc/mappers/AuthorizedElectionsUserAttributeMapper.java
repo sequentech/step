@@ -16,8 +16,11 @@ import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -65,8 +68,8 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
   private static final String CACHE_EXPIRE_LABEL = "Election Alias cache timeout";
   private static final String CACHE_EXPIRE_HELP_TEXT = "Number of Minutes before cache invalidates";
 
-  // User attribute name for area_id
-  private static final String AREA_ID_ATTRIBUTE = "area_id";
+  // User attribute holding the voter's area, as sequent-core's AREA_ID_ATTR_NAME
+  static final String AREA_ID_ATTRIBUTE = "area-id";
   static final String HASURA_CLAIMS = "https://hasura.io/jwt/claims";
   static final String HASURA_ELECTION_EVENT_ID = "x-hasura-election-event-id";
 
@@ -182,15 +185,14 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
           KeycloakModelUtils.resolveAttribute(user, AREA_ID_ATTRIBUTE, false);
 
       if (areaIdAttribute != null && !areaIdAttribute.isEmpty()) {
-        String areaId = areaIdAttribute.iterator().next(); // Take first area_id if multiple exist
-        log.infov("User has area_id: {0}, looking up area-based elections", areaId);
+        String areaId = areaIdAttribute.iterator().next(); // Take first area-id if multiple exist
+        log.infov("User has area-id: {0}, looking up area-based elections", areaId);
 
         try {
-          Map<String, List<String>> areaElectionsMap =
-              getElectionsByArea(electionEventId, tenantId);
-          List<String> areaElections = areaElectionsMap.get(areaId);
+          List<String> areaElections =
+              electionsForArea(areaId, getAreaElections(electionEventId, tenantId));
 
-          if (areaElections != null && !areaElections.isEmpty()) {
+          if (!areaElections.isEmpty()) {
             log.infov(
                 "Found elections for area {0}: {1}",
                 areaId, areaElections.stream().collect(Collectors.joining("|")));
@@ -206,15 +208,13 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
               authorizedElectionIds.add(external_id);
             }
           } else {
-            log.warnv("No elections found for area_id: {0}, falling back to all elections", areaId);
-            authorizedElectionIds.addAll(electionsExternalIds.keySet());
+            log.warnv("No elections found for area-id {0}, authorizing none", areaId);
           }
         } catch (Exception e) {
-          log.error("Error fetching area-based elections, falling back to all elections", e);
-          authorizedElectionIds.addAll(electionsExternalIds.keySet());
+          log.error("Error fetching area-based elections, authorizing none", e);
         }
       } else {
-        // Priority 3: No explicit elections and no area_id - authorize all elections
+        // Priority 3: No explicit elections and no area-id - authorize all elections
         log.infov(
             "No authorized elections or area_id found, authorizing all elections: {0}",
             electionsExternalIds.keySet().stream().collect(Collectors.joining("|")));
@@ -346,10 +346,26 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
   private final Cache<String, Map<String, String>> electionsCache =
       CacheBuilder.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).build();
 
-  // Cache for area-based elections mapping: key = "tenantId:electionEventId", value = Map<areaId,
-  // List<electionId>>
-  private final Cache<String, Map<String, List<String>>> areaElectionsCache =
+  /** The elections whose contests each area holds, and each area's parent. */
+  record AreaElections(Map<String, List<String>> electionsByArea, Map<String, String> parentByArea) {}
+
+  // Cache for area-based elections, key = "tenantId:electionEventId"
+  private final Cache<String, AreaElections> areaElectionsCache =
       CacheBuilder.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).build();
+
+  /**
+   * The elections a voter of {@code areaId} may vote in: those of the area and of every area above
+   * it, since an area inherits its ancestors' contests (as ballot styles are built).
+   */
+  static List<String> electionsForArea(String areaId, AreaElections areaElections) {
+    Set<String> elections = new LinkedHashSet<>();
+    Set<String> visited = new HashSet<>();
+    for (String area = areaId; area != null && visited.add(area); ) {
+      elections.addAll(areaElections.electionsByArea().getOrDefault(area, List.of()));
+      area = areaElections.parentByArea().get(area);
+    }
+    return new ArrayList<>(elections);
+  }
 
   public Map<String, String> getAllElectionsFromElectionEvent(
       String electionEventId, String tenantId) throws IOException, InterruptedException {
@@ -430,16 +446,15 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
   }
 
   /**
-   * Get elections mapped by area for a given tenant and election event. Returns a Map where key is
-   * area_id and value is List of election_ids for that area.
+   * Get the elections of each area of an election event and the area tree. Throws when they can't
+   * be read, so that callers fail closed.
    */
-  public Map<String, List<String>> getElectionsByArea(String electionEventId, String tenantId)
+  public AreaElections getAreaElections(String electionEventId, String tenantId)
       throws IOException, InterruptedException {
 
     String cacheKey = tenantId + ":" + electionEventId;
 
-    // Check cache first
-    Map<String, List<String>> cachedResult = areaElectionsCache.getIfPresent(cacheKey);
+    AreaElections cachedResult = areaElectionsCache.getIfPresent(cacheKey);
     if (cachedResult != null) {
       log.debugv("Using cached area elections for key: {0}", cacheKey);
       return cachedResult;
@@ -449,87 +464,73 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
         "Fetching area elections from Hasura for tenant: {0}, election event: {1}",
         tenantId, electionEventId);
 
-    try {
-      String token = authenticate(tenantId);
+    String token = authenticate(tenantId);
 
-      // GraphQL query to get area_contest with nested contest information
-      String query =
-          String.format(
-              """
-          query GetElectionsByArea {
-            sequent_backend_area_contest(where: {election_event_id: {_eq: "%s"}, tenant_id: {_eq: "%s"}}) {
-              area_id
-              contest_id
-              contest {
-                election_id
-              }
+    String query =
+        String.format(
+            """
+        query GetElectionsByArea {
+          sequent_backend_area_contest(where: {election_event_id: {_eq: "%s"}, tenant_id: {_eq: "%s"}}) {
+            area_id
+            contest {
+              election_id
             }
           }
-          """,
-              electionEventId, tenantId);
-
-      String requestBody =
-          String.format(
-              "{\"query\":\"%s\",\"variables\":null,\"operationName\":\"GetElectionsByArea\"}",
-              escapeJson(query));
-
-      log.debugv("Area elections query: {0}", requestBody);
-
-      HttpRequest request =
-          HttpRequest.newBuilder()
-              .uri(URI.create(hasuraEndpoint))
-              .header("Content-Type", "application/json")
-              .header("Authorization", "Bearer " + token)
-              .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-              .build();
-
-      HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
-      if (response.statusCode() != 200) {
-        log.errorv(
-            "HTTP error getting area elections: {0} Body: {1}",
-            response.statusCode(), response.body());
-        // Return empty map on error
-        return new HashMap<>();
-      }
-
-      // Parse the JSON response
-      JsonNode root = objectMapper.readTree(response.body());
-      JsonNode areaContestsNode = root.path("data").path("sequent_backend_area_contest");
-
-      if (areaContestsNode.isMissingNode() || !areaContestsNode.isArray()) {
-        log.warnv("No area contests found or unexpected structure: {0}", response.body());
-        return new HashMap<>();
-      }
-
-      // Build the map of area_id -> List<election_id>
-      Map<String, List<String>> areaElectionsMap = new HashMap<>();
-
-      for (JsonNode areaContest : areaContestsNode) {
-        String areaId = areaContest.path("area_id").asText();
-        JsonNode contestNode = areaContest.path("contest");
-
-        if (!contestNode.isMissingNode() && contestNode.hasNonNull("election_id")) {
-          String electionId = contestNode.path("election_id").asText();
-
-          // Add election to the area's list
-          areaElectionsMap.computeIfAbsent(areaId, k -> new ArrayList<>()).add(electionId);
-
-          log.debugv("Area {0} -> Election {1}", areaId, electionId);
+          sequent_backend_area(where: {election_event_id: {_eq: "%s"}, tenant_id: {_eq: "%s"}}) {
+            id
+            parent_id
+          }
         }
-      }
+        """,
+            electionEventId, tenantId, electionEventId, tenantId);
 
-      log.infov("Loaded elections for {0} areas", areaElectionsMap.size());
+    String requestBody =
+        String.format(
+            "{\"query\":\"%s\",\"variables\":null,\"operationName\":\"GetElectionsByArea\"}",
+            escapeJson(query));
 
-      // Cache the result
-      areaElectionsCache.put(cacheKey, areaElectionsMap);
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .uri(URI.create(hasuraEndpoint))
+            .header("Content-Type", "application/json")
+            .header("Authorization", "Bearer " + token)
+            .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+            .build();
 
-      return areaElectionsMap;
-
-    } catch (Exception e) {
-      log.error("Error fetching area elections, returning empty map", e);
-      return new HashMap<>();
+    HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+    if (response.statusCode() != 200) {
+      throw new IOException("HTTP " + response.statusCode() + " getting area elections");
     }
+    AreaElections areaElections = parseAreaElections(objectMapper.readTree(response.body()));
+    log.infov("Loaded elections for {0} areas", areaElections.electionsByArea().size());
+    areaElectionsCache.put(cacheKey, areaElections);
+    return areaElections;
+  }
+
+  static AreaElections parseAreaElections(JsonNode root) throws IOException {
+    JsonNode data = root.path("data");
+    JsonNode areaContests = data.path("sequent_backend_area_contest");
+    JsonNode areas = data.path("sequent_backend_area");
+    if (root.hasNonNull("errors") || !areaContests.isArray() || !areas.isArray()) {
+      throw new IOException("Unexpected area elections response");
+    }
+
+    Map<String, List<String>> electionsByArea = new HashMap<>();
+    for (JsonNode areaContest : areaContests) {
+      JsonNode contest = areaContest.path("contest");
+      if (contest.hasNonNull("election_id")) {
+        electionsByArea
+            .computeIfAbsent(areaContest.path("area_id").asText(), k -> new ArrayList<>())
+            .add(contest.path("election_id").asText());
+      }
+    }
+    Map<String, String> parentByArea = new HashMap<>();
+    for (JsonNode area : areas) {
+      if (area.hasNonNull("parent_id")) {
+        parentByArea.put(area.path("id").asText(), area.path("parent_id").asText());
+      }
+    }
+    return new AreaElections(electionsByArea, parentByArea);
   }
 
   // Utility method to escape double quotes in the JSON string
