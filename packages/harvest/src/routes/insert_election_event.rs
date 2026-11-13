@@ -141,7 +141,12 @@ pub async fn import_election_event_f(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
-    authorize(&claims, true, Some(input.tenant_id.clone()), vec![])?;
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::ELECTION_EVENT_CREATE],
+    )?;
     input.privileges = import_users_privileges(&claims, &input.tenant_id);
 
     let mut hasura_db_client: DbClient =
