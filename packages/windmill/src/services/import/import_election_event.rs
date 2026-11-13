@@ -49,8 +49,8 @@ use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::{
-    generate_client_secret, get_client_credentials, get_event_realm, replace_realm_ids,
-    KeycloakAdminClient,
+    authenticator_config_uuids, generate_client_secret, get_client_credentials, get_event_realm,
+    replace_realm_ids, KeycloakAdminClient,
 };
 use sequent_core::services::replace_uuids::replace_uuids;
 use sequent_core::slates::{check_election, InvalidSlates};
@@ -1202,8 +1202,8 @@ pub async fn insert_election_event_db(
 ///
 /// This function is a thin wrapper around `replace_realm_ids()` that processes the election event
 /// import schema and replaces most UUIDs with new ones, while keeping certain IDs unchanged
-/// (like tenant_id and optionally election_event_id). It also automatically preserves UUIDs
-/// referenced in Keycloak authenticator configurations.
+/// (like tenant_id and optionally election_event_id). It also preserves the UUID values of the
+/// authenticator configs in `keycloak_event_realm`.
 ///
 /// # Arguments
 /// * `data_str` - The original JSON string representation of the import data
@@ -1231,13 +1231,20 @@ pub fn replace_ids(
         election_event_id.clone(),
     ));
 
+    // `replace_realm_ids` reads authenticator configs at the top level of its
+    // input, but this document holds the realm under `keycloak_event_realm`.
+    let keep = original_data
+        .keycloak_event_realm
+        .as_ref()
+        .map(authenticator_config_uuids)
+        .unwrap_or_default();
+
     // Use replace_realm_ids which handles:
-    // - Preserving UUIDs in Keycloak authenticator configurations
     // - Preserving tenant_id and election_event_id in the keep list before UUID replacement
     // - Applying explicit tenant_id and election_event_id replacements after UUID replacement
     let (new_data, mut replacement_map) = replace_realm_ids(
         data_str,
-        vec![], // Empty keep list - replace_realm_ids will populate it automatically
+        keep,
         tenant_id_replacement,
         election_event_id_replacement,
     )?;
@@ -3492,6 +3499,78 @@ mod import_scope_tests {
             let mut input = bundle(&tenant, &event);
             input["authenticatorConfig"] =
                 json!([{"alias": "kept", "config": {"id": other_event}}]);
+            input[kind][0]["election_event_id"] = json!(other_event);
+            assert!(
+                import(&input, Some(new_id()), &tenant).is_err(),
+                "{kind} row of another event was accepted"
+            );
+        }
+    }
+
+    fn realm_with_authenticator_config(tenant: &str, event: &str, config: Value) -> Value {
+        json!({
+            "realm": format!("tenant-{tenant}-event-{event}"),
+            "authenticatorConfig": [{
+                "id": new_id(),
+                "alias": "inetum-registration",
+                "config": config
+            }]
+        })
+    }
+
+    #[test]
+    fn keeps_uuid_values_of_the_realm_authenticator_configs() {
+        let tenant = new_id();
+        let event = new_id();
+        let api_key = new_id();
+        let mut input = bundle(&tenant, &event);
+        input["keycloak_event_realm"] = realm_with_authenticator_config(
+            &tenant,
+            &event,
+            json!({"api-key": api_key, "base-url": "https://inetum.example.test"}),
+        );
+        let config_id = input["keycloak_event_realm"]["authenticatorConfig"][0]["id"]
+            .as_str()
+            .map(str::to_string);
+
+        let imported = import(&input, None, &tenant).unwrap();
+        let configs = imported
+            .keycloak_event_realm
+            .and_then(|realm| realm.authenticator_config)
+            .unwrap();
+
+        assert_eq!(
+            configs[0]
+                .config
+                .as_ref()
+                .and_then(|config| config.get("api-key")),
+            Some(&api_key)
+        );
+        assert!(configs[0].id.is_some());
+        assert_ne!(configs[0].id, config_id);
+    }
+
+    #[test]
+    fn picks_a_new_event_id_even_when_the_realm_lists_it_for_keeping() {
+        let tenant = new_id();
+        let event = new_id();
+        let mut input = bundle(&tenant, &event);
+        input["keycloak_event_realm"] =
+            realm_with_authenticator_config(&tenant, &event, json!({"id": event}));
+        let imported = import(&input, None, &tenant).unwrap();
+        assert_ne!(imported.election_event.id, event);
+        assert!(!serde_json::to_string(&imported).unwrap().contains(&event));
+    }
+
+    #[test]
+    fn rejects_rows_of_another_event_the_realm_lists_for_keeping() {
+        let tenant = new_id();
+        let event = new_id();
+        let other_event = new_id();
+        for kind in ROW_KINDS {
+            let mut input = bundle(&tenant, &event);
+            input["keycloak_event_realm"] =
+                realm_with_authenticator_config(&tenant, &event, json!({"id": other_event}));
             input[kind][0]["election_event_id"] = json!(other_event);
             assert!(
                 import(&input, Some(new_id()), &tenant).is_err(),
