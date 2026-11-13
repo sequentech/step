@@ -33,6 +33,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .settings import PORTAL_CLIENTS
+
 ROOT = Path(__file__).resolve().parents[3]
 DEV_REALM = (
     ROOT
@@ -468,6 +470,11 @@ def dev_event_realm(fixture_realm: dict[str, Any]) -> dict[str, Any]:
             added.pop("authenticationFlowBindingOverrides", None)
             realm.setdefault("clients", []).append(added)
     for client in realm.get("clients") or []:
+        if client["clientId"] in PORTAL_CLIENTS:
+            # The template's own portal clients may bind another browser flow
+            # (the kiosk's); the scenario's portals use the realm's
+            # single-channel sign-in like the ones added above.
+            client.pop("authenticationFlowBindingOverrides", None)
         source = fixture_clients.get(client["clientId"])
         if source is None:
             continue

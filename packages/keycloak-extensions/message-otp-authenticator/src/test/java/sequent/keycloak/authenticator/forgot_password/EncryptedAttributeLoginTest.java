@@ -18,6 +18,7 @@ import org.keycloak.credential.hash.PasswordHashProvider;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.http.HttpRequest;
 import org.keycloak.models.*;
+import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.representations.userprofile.config.UPConfig;
 import org.keycloak.services.managers.BruteForceProtector;
@@ -299,7 +300,7 @@ class EncryptedAttributeLoginTest {
         if (direct) new MultiAttributePasswordDirectGrantAuthenticator().authenticate(context);
         else new MultiAttributePasswordAuthenticator().action(context);
         verify(context).setUser(voter);
-        verify(context).success();
+        verify(context).success(PasswordCredentialModel.TYPE);
         verify(voter, never()).credentialManager();
       }
     }

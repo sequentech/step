@@ -151,7 +151,9 @@ public class MultiAttributePasswordDirectGrantAuthenticator
     result.attributableUser().ifPresent(context::setUser);
 
     if (result.authenticatedUser().isPresent()) {
-      context.success();
+      // Keycloak 26.7 clears a user's brute-force failures after a login only when the login
+      // recorded a counted credential type, so name the password, as ValidatePassword does.
+      context.success(PasswordCredentialModel.TYPE);
     } else if (result.lockoutState() != MultiAttributeCredentialResolver.LockoutState.NONE) {
       lockedOut(context, result.lockoutState());
     } else {

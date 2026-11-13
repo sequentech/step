@@ -1817,7 +1817,22 @@ class MultiAttributePasswordAuthenticatorTest {
     InOrder inOrder = inOrder(context);
     inOrder.verify(context).clearUser();
     inOrder.verify(context).setUser(resolvedUser);
-    inOrder.verify(context).success();
+    inOrder.verify(context).success(PasswordCredentialModel.TYPE);
+  }
+
+  @Test
+  void action_correctPassword_recordsThePasswordCredential() {
+    // Keycloak 26.7 clears a user's brute-force failures after a login only when the login
+    // recorded a counted credential type.
+    AuthenticationFlowContext context = mockActionContext();
+    UserModel resolvedUser = mock(UserModel.class);
+    MultiAttributePasswordAuthenticator actionAuthenticator =
+        actionAuthenticator(Resolution.success(resolvedUser), mock(Response.class));
+
+    actionAuthenticator.action(context);
+
+    verify(context).success(PasswordCredentialModel.TYPE);
+    verify(context, never()).success();
   }
 
   @Test

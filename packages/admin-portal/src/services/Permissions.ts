@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {IPermissions} from "@/types/keycloak"
+import {ETasksExecution} from "@/types/tasksExecution"
 import {GraphQLRequest} from "@apollo/client"
 
 const AdminOperationMap: Record<string, IPermissions> = {
@@ -277,6 +278,17 @@ const NonAdminOperationMap: Record<string, IPermissions> = {
     CreateTallyCeremony: IPermissions.ADMIN_CEREMONY,
 }
 
+// Operations that admin-user can also run, so only a user without it needs to send
+// these roles, in order of preference
+const RESTRICTED_OPERATION_ROLES = new Map<string, Array<IPermissions>>([
+    ["GenerateBallotPublication", [IPermissions.PUBLISH_WRITE]],
+    ["PublishBallot", [IPermissions.PUBLISH_WRITE]],
+    ["GetTaskById", [IPermissions.TASKS_READ, IPermissions.PUBLISH_READ]],
+    ["GetBallotPublicationChange", [IPermissions.PUBLISH_READ]],
+    ["GetDocument", [IPermissions.DOCUMENT_READ]],
+    ["FetchDocument", [IPermissions.DOCUMENT_DOWNLOAD]],
+])
+
 // Roles that operations without a mapped role run as, in order of preference
 const DEFAULT_OPERATION_ROLES: Array<IPermissions> = [
     IPermissions.ADMIN_USER,
@@ -305,6 +317,10 @@ export const getOperationRole = (
         return IPermissions.LOGS_READ
     }
     const defaultRole = DEFAULT_OPERATION_ROLES.find(hasRole)
+    const restrictedRole = RESTRICTED_OPERATION_ROLES.get(operationName ?? "")?.find(hasRole)
+    if (defaultRole !== IPermissions.ADMIN_USER && restrictedRole) {
+        return restrictedRole
+    }
     if (!defaultRole) {
         const role =
             mappedRoleOf(NonAdminOperationMap, operationName) ?? IPermissions.ELECTION_EVENT_READ
@@ -323,3 +339,29 @@ export const getOperationRole = (
     }
     return defaultRole === IPermissions.ADMIN_USER || hasRole(mappedRole) ? mappedRole : defaultRole
 }
+
+// A results publication task is readable only under the results publication role, which
+// the operation name can't tell apart from a ballot task.
+export const getTaskRole = (
+    type: ETasksExecution | undefined,
+    hasRole: (role: IPermissions) => boolean
+): IPermissions | undefined =>
+    type === ETasksExecution.PUBLISH_RESULTS_WEBSITE &&
+    !hasRole(IPermissions.ADMIN_USER) &&
+    !hasRole(IPermissions.TASKS_READ) &&
+    hasRole(IPermissions.PUBLISH_RESULTS_READ)
+        ? IPermissions.PUBLISH_RESULTS_READ
+        : undefined
+
+// Roles with data provider resources that no default role can read
+const SCHEMA_ROLES: Array<IPermissions> = [
+    ...DEFAULT_OPERATION_ROLES,
+    IPermissions.ELECTION_EVENT_READ,
+    IPermissions.PUBLISH_RESULTS_READ,
+    IPermissions.DOCUMENT_READ,
+]
+
+// The roles whose schema the data provider needs: admin-user sees what the portal loads,
+// but a restricted user can run operations under every profile they hold.
+export const getSchemaRoles = (hasRole: (role: IPermissions) => boolean): Array<IPermissions> =>
+    hasRole(IPermissions.ADMIN_USER) ? [IPermissions.ADMIN_USER] : SCHEMA_ROLES.filter(hasRole)

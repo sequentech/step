@@ -12,11 +12,13 @@ use crate::{
     utils::{
         publication::{generate::GenerateBallotPublication, get::GetBallotPublicationStatus},
         read_config::read_config,
+        trustees::held_role_request,
     },
 };
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
+use sequent_core::types::permissions::Permissions;
 
 #[derive(Args)]
 #[command(about = "Publish election event ballot changes", long_about = None)]
@@ -102,11 +104,14 @@ pub fn publish_changes(
 
     let request_body = PublishBallot::build_query(variables);
 
-    let response = client
-        .post(&config.endpoint_url)
-        .bearer_auth(config.auth_token)
-        .json(&request_body)
-        .send()?;
+    let response = held_role_request(
+        &client,
+        &config.endpoint_url,
+        &config.auth_token,
+        Permissions::PUBLISH_WRITE,
+    )
+    .json(&request_body)
+    .send()?;
 
     if response.status().is_success() {
         let response_body: Response<publish_ballot::ResponseData> = response.json()?;

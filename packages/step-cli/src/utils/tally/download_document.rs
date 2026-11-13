@@ -2,9 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::{
+    types::hasura_types::*,
+    utils::{read_config::read_config, trustees::held_role_request},
+};
 use graphql_client::{GraphQLQuery, Response};
 use reqwest::blocking::Client;
+use sequent_core::types::permissions::Permissions;
 use std::path::Path;
 use std::{fs, io};
 use url::Url;
@@ -37,11 +41,14 @@ pub fn fetch_document_url(
 
     let request_body = FetchDocument::build_query(variables);
 
-    let response = client
-        .post(&config.endpoint_url)
-        .bearer_auth(config.auth_token)
-        .json(&request_body)
-        .send()?;
+    let response = held_role_request(
+        &client,
+        &config.endpoint_url,
+        &config.auth_token,
+        Permissions::DOCUMENT_DOWNLOAD,
+    )
+    .json(&request_body)
+    .send()?;
 
     if response.status().is_success() {
         let response_body: Response<fetch_document::ResponseData> = response.json()?;
@@ -108,11 +115,14 @@ pub fn fetch_document(
 
     let request_body = FetchDocument::build_query(variables);
 
-    let response = client
-        .post(&config.endpoint_url)
-        .bearer_auth(config.auth_token)
-        .json(&request_body)
-        .send()?;
+    let response = held_role_request(
+        &client,
+        &config.endpoint_url,
+        &config.auth_token,
+        Permissions::DOCUMENT_DOWNLOAD,
+    )
+    .json(&request_body)
+    .send()?;
 
     if response.status().is_success() {
         let response_body: Response<fetch_document::ResponseData> = response.json()?;
