@@ -8,6 +8,7 @@ import static sequent.keycloak.authenticator.Utils.ACCESS_DENIED;
 import static sequent.keycloak.authenticator.Utils.AUTH_NOTE_DENY_TYPE;
 import static sequent.keycloak.authenticator.Utils.USER_NOT_FOUND;
 
+import java.security.cert.X509Certificate;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.authenticators.x509.X509ClientCertificateAuthenticator;
@@ -17,6 +18,9 @@ import org.keycloak.events.Errors;
  * Extends the built-in {@code auth-x509-client-username-form} authenticator to set the {@code
  * deny-type} auth note when user lookup fails. This allows the {@code Deny Subflow} to route to a
  * specific error (e.g. "User not found") rather than the generic access-denied fallback.
+ *
+ * <p>The forwarded certificate is read only when the request satisfies the {@code
+ * cert-header-trust-policy} config (see {@link X509CertHeaderTrust}).
  */
 @JBossLog
 public class X509UserResolutionAuthenticator extends X509ClientCertificateAuthenticator {
@@ -41,5 +45,13 @@ public class X509UserResolutionAuthenticator extends X509ClientCertificateAuthen
       context.getAuthenticationSession().setAuthNote(AUTH_NOTE_DENY_TYPE, denyType);
       context.getEvent().detail(AUTH_NOTE_DENY_TYPE, denyType);
     }
+  }
+
+  @Override
+  protected X509Certificate[] getCertificateChain(AuthenticationFlowContext context) {
+    if (!X509CertHeaderTrust.isTrusted(context)) {
+      return null;
+    }
+    return super.getCertificateChain(context);
   }
 }

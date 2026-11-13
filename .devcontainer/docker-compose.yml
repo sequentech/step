@@ -18,7 +18,7 @@ services:
         beyond: ../beyond
     restart: always
     ports:
-      - 8090:8090
+      - 127.0.0.1:8090:8090
     environment:
       AMQP_ADDR: ${AMQP_ADDR}
       # Use the same voter-secret encryption key as Harvest and Windmill.
