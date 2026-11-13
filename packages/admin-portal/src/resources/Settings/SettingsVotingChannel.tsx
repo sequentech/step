@@ -74,7 +74,6 @@ export const SettingsVotingChannels: React.FC<void> = () => {
     }
 
     useEffect(() => {
-        console.log(record)
         if (record?.voting_channels) {
             setVoting(toTenantVotingChannels(record.voting_channels))
         }
