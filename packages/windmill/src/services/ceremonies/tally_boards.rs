@@ -969,13 +969,14 @@ fn voters_replacing_their_delegation(
 #[cfg(test)]
 mod tests {
     use super::{
-        election_areas, election_voter_authorization_aliases, electorate_counts,
+        area_ballot, election_areas, election_voter_authorization_aliases, electorate_counts,
         published_for_session, recorded_election_areas, recorded_election_electorates,
         voters_replacing_their_delegation, ElectionElectorates, ElectorateCount,
         ELECTION_AREAS_ANNOTATION, ELECTION_ELECTORATES_ANNOTATION,
     };
     use crate::services::users::VoterMultiplicityColumn;
     use chrono::{DateTime, Local};
+    use sequent_core::ballot::ContestEncryptionPolicy;
     use sequent_core::types::hasura::core::{BallotStyle, TallySession, TallySessionContest};
     use std::collections::HashMap;
     use std::collections::{BTreeMap, BTreeSet};
@@ -1075,6 +1076,37 @@ mod tests {
             annotations,
             tally_session_id: "session".into(),
             election_id: election_id.into(),
+        }
+    }
+
+    #[test]
+    fn a_single_contest_area_naming_no_contest_is_refused_before_its_ballot_is_read() {
+        let mut area = contest_area("election", "area", "contest", None);
+        area.contest_id = None;
+        let error = area_ballot(
+            "not a ballot",
+            &ContestEncryptionPolicy::SINGLE_CONTEST,
+            &area,
+        )
+        .err()
+        .expect("an area that names no contest has no ciphertext to pick");
+        assert_eq!(
+            error.to_string(),
+            "tally session contest election-area-contest names no contest"
+        );
+    }
+
+    #[test]
+    fn an_unreadable_ballot_is_an_error_under_either_encryption_policy() {
+        let area = contest_area("election", "area", "contest", None);
+        for policy in [
+            ContestEncryptionPolicy::SINGLE_CONTEST,
+            ContestEncryptionPolicy::MULTIPLE_CONTESTS,
+        ] {
+            assert!(
+                area_ballot("not a ballot", &policy, &area).is_err(),
+                "{policy:?}"
+            );
         }
     }
 
