@@ -306,7 +306,6 @@ fn admin_export() -> Value {
                     "default_language_code": "en"
                 },
                 "audio_instructions_policy": "recorded-or-synthesized",
-                "batch_anonymity_policy": "enabled",
                 "receipts": {"checks_period_policy": "enabled"},
                 "voter_accessibility_settings_policy": "enabled",
                 "materials": {"activated": true, "policy": "show-on-start"}
@@ -853,7 +852,6 @@ fn an_admin_export_rebuilds_with_what_it_carried() {
     );
     for (path, value) in [
         ("audio_instructions_policy", "recorded-or-synthesized"),
-        ("batch_anonymity_policy", "enabled"),
         ("receipts/checks_period_policy", "enabled"),
         ("voter_accessibility_settings_policy", "enabled"),
         ("materials/policy", "show-on-start"),

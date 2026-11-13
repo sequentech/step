@@ -675,7 +675,6 @@ async fn create_tally_boards(
         configuration.get_contest_encryption_policy(),
         configuration.get_delegated_voting_policy(),
         configuration.get_weighted_voting_policy(),
-        configuration.get_batch_anonymity_policy(),
     )
     .await?;
 

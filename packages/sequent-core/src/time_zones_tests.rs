@@ -377,3 +377,38 @@ fn legacy_lifecycle_snapshots_load_without_new_initialization_evidence() {
     assert_eq!(authorized.signers.len(), 2);
     assert_eq!(serde_json::to_value(&authorized).unwrap(), authorization);
 }
+
+/// A writer that refuses every write, as a full or closed stream would.
+struct RefusingWriter;
+
+impl std::io::Write for RefusingWriter {
+    fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+        Err(std::io::Error::other("refused"))
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+#[test]
+fn signed_policies_refuse_bad_bytes_and_writer_errors() {
+    use borsh::BorshDeserialize;
+
+    assert!(InitializationScope::try_from_slice(&[]).is_err());
+    assert!(InitializationScope::try_from_slice(&[3]).is_err());
+    assert!(UnsignedScheduledClosePolicy::try_from_slice(&[]).is_err());
+    assert!(UnsignedScheduledClosePolicy::try_from_slice(&[2]).is_err());
+
+    assert!(
+        borsh::to_writer(RefusingWriter, &InitializationScope::EVENT).is_err()
+    );
+    assert!(borsh::to_writer(
+        RefusingWriter,
+        &UnsignedScheduledClosePolicy::RUN_AS_SYSTEM
+    )
+    .is_err());
+    assert!(
+        borsh::to_writer(RefusingWriter, &LogTimeZonePolicy::PRIMARY).is_err()
+    );
+}

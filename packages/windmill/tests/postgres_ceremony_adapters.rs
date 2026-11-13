@@ -1092,7 +1092,6 @@ fn configuration_json() -> Value {
         "delegated_voting_policy": null,
         "consolidated_report_policy": null,
         "weighted_voting_policy": null,
-        "batch_anonymity_policy": null,
     })
 }
 

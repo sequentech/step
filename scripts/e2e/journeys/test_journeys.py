@@ -1524,7 +1524,6 @@ class BackendJourneys(unittest.TestCase):
         document["election_event"]["presentation"].update(
             contest_encryption_policy="multiple-contests",
             weighted_voting_policy="voters-weighted-voting",
-            batch_anonymity_policy="warn",
         )
         # Area A receives both main-election contests in one ciphertext.
         document["area_contests"].append(
@@ -1696,7 +1695,7 @@ class BackendJourneys(unittest.TestCase):
             ENV["VOTING_PORTAL_URL"], self.tag + "-manual"
         )
         document["election_event"]["presentation"].update(
-            ceremonies_policy="manual-ceremonies", batch_anonymity_policy="warn"
+            ceremonies_policy="manual-ceremonies"
         )
         event_id = self.import_event(document, "manual-custody")
         ceremony_id = StepCli.last_id(
@@ -2358,7 +2357,7 @@ class BackendJourneys(unittest.TestCase):
             ENV["VOTING_PORTAL_URL"], self.tag + "-graphql-halt"
         )
         document["election_event"]["presentation"].update(
-            ceremonies_policy="manual-ceremonies", batch_anonymity_policy="warn"
+            ceremonies_policy="manual-ceremonies"
         )
         event_id = self.import_event(document, "graphql-halt")
         ceremony_id = StepCli.last_id(

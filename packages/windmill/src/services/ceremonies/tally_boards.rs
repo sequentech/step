@@ -14,9 +14,6 @@ use crate::postgres::tally_session::merge_tally_session_annotation;
 use crate::services::ballot_box_reads::count_unresolved_votes;
 use crate::services::cast_votes::find_area_ballots;
 use crate::services::celery_app::get_worker_threads;
-use crate::services::ceremonies::batch_anonymity::{
-    enforce_batch_anonymity, session_divergences, small_batch, PostedBatch,
-};
 use crate::services::ceremonies::sealed_box_ballots::{
     check_sealed_boxes_tallied, sealed_box_ballots, sealed_elections, SealedBox, SealedBoxLog,
 };
@@ -36,8 +33,7 @@ use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use protocol_board::BallotCiphertext;
 use sequent_core::ballot::{
-    BatchAnonymityPolicy, ContestEncryptionPolicy, DelegatedVotingPolicy, HashableBallot,
-    WeightedVotingPolicy,
+    ContestEncryptionPolicy, DelegatedVotingPolicy, HashableBallot, WeightedVotingPolicy,
 };
 use sequent_core::multi_ballot::HashableMultiBallot;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
@@ -46,7 +42,9 @@ use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{BallotStyle, TallySession};
 use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
-use sequent_core::types::keycloak::{MAX_TOTAL_VOTE_WEIGHT, VOTE_WEIGHT_BATCHES};
+use sequent_core::types::keycloak::{
+    MAX_TOTAL_VOTE_WEIGHT, MIN_WEIGHT_BATCH_ANONYMITY, VOTE_WEIGHT_BATCHES,
+};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
@@ -518,7 +516,6 @@ pub async fn extract_tally_boards(
     contest_encryption_policy: ContestEncryptionPolicy,
     delegated_voting_policy: DelegatedVotingPolicy,
     weighted_voting_policy: WeightedVotingPolicy,
-    batch_anonymity_policy: BatchAnonymityPolicy,
 ) -> Result<Vec<ExtractedContestArea>> {
     // A delegate's ballot has no defined weighted semantics, so refuse rather
     // than silently computing weight * (1 + delegate_count). This is a backstop:
@@ -567,7 +564,6 @@ pub async fn extract_tally_boards(
             let election_event_id_clone = election_event_id.to_string();
             let election_ids_alias_clone = election_ids_alias.clone();
             let contest_encryption_policy_clone = contest_encryption_policy.clone();
-            let batch_anonymity_policy_clone = batch_anonymity_policy.clone();
             let realm_clone = realm.clone();
             let multiplicity_column = if delegated_voting_policy == DelegatedVotingPolicy::ENABLED {
                 VoterMultiplicityColumn::DelegateCount
@@ -856,7 +852,6 @@ pub async fn extract_tally_boards(
                     // weights are; every other policy fills only the first.
                     let mut batches: Vec<Vec<BallotCiphertext>> =
                         vec![Vec::new(); VOTE_WEIGHT_BATCHES as usize];
-                    let mut batch_voters = vec![0usize; VOTE_WEIGHT_BATCHES as usize];
                     for (ballot_str, multiplicity) in merge_result.ballot_contents {
                         let ballot = area_ballot(
                             &ballot_str,
@@ -879,40 +874,13 @@ pub async fn extract_tally_boards(
                             // board shows no repetition to read a weight off.
                             for bit in weight_batch_offsets(multiplicity)? {
                                 batches[bit as usize].push(ballot.clone());
-                                batch_voters[bit as usize] += 1;
                             }
                         } else {
                             // Delegated voting still repeats within the one
                             // batch, exactly as it did before weighting.
                             batches[0].extend(std::iter::repeat_n(ballot, multiplicity as usize));
-                            batch_voters[0] += 1;
                         }
                     }
-
-                    let mut anonymity_issues: Vec<_> = batch_voters
-                        .iter()
-                        .enumerate()
-                        .filter_map(|(bit, voters)| small_batch(bit as u32, *voters))
-                        .collect();
-                    let posted =
-                        posted_by_other_sessions(&hasura_transaction_clone, &tally_session_contest)
-                            .await?;
-                    let ciphertexts: Vec<Vec<_>> = batches
-                        .iter()
-                        .map(|batch| {
-                            batch
-                                .iter()
-                                .map(|ballot| ballot.ciphertext.clone())
-                                .collect()
-                        })
-                        .collect();
-                    anonymity_issues.extend(session_divergences(&ciphertexts, &posted));
-                    enforce_batch_anonymity(
-                        &batch_anonymity_policy_clone,
-                        &tally_session_contest.election_id,
-                        &tally_session_contest.area_id,
-                        &anonymity_issues,
-                    )?;
 
                     let base_batch = i64::from(tally_session_contest.session_id);
                     let mut area_batches = Vec::new();
@@ -936,6 +904,34 @@ pub async fn extract_tally_boards(
                             ballots.len(),
                             bit
                         );
+                        // The mix hides a ballot among the others in its
+                        // batch, and a batch this small has few others, so
+                        // its decrypted votes are close to individually
+                        // attributable. This is one way a voter can be
+                        // isolated, not the only one -- comparing two
+                        // batches whose memberships differ by one voter
+                        // exposes that voter however large both are -- so a
+                        // silent run is not evidence of the opposite. Not a
+                        // refusal: the dump runs after voting has closed,
+                        // where refusing would leave no remedy, and this
+                        // policy already publishes the weights.
+                        if is_voter_weighted
+                            && !ballots.is_empty()
+                            && ballots.len() < MIN_WEIGHT_BATCH_ANONYMITY
+                        {
+                            event!(
+                                Level::WARN,
+                                "Weight batch offset {} for election {} area {} holds only \
+                                 {} ballot(s), so its decrypted votes are close to \
+                                 individually attributable to the voters whose weight sets \
+                                 bit {}",
+                                bit,
+                                tally_session_contest.election_id,
+                                tally_session_contest.area_id,
+                                ballots.len(),
+                                bit
+                            );
+                        }
                         area_batches.push((base_batch + bit as i64, ballots));
                     }
 
@@ -970,67 +966,17 @@ fn voters_replacing_their_delegation(
     }
 }
 
-async fn posted_by_other_sessions(
-    transaction: &Transaction<'_>,
-    contest: &TallySessionContest,
-) -> Result<Vec<PostedBatch>> {
-    use crate::postgres::protocol_board::{
-        get_dkg_board_by_keys_ceremony, get_tally_boards_by_session,
-    };
-    use crate::postgres::tally_session_contest::get_other_sessions_tally_session_contests;
-    use crate::services::weight_batches::contest_weight_batches;
-    let mut posted = Vec::new();
-    for other in get_other_sessions_tally_session_contests(transaction, contest).await? {
-        let boards = get_tally_boards_by_session(
-            transaction,
-            &other.tenant_id,
-            &other.election_event_id,
-            &other.tally_session_id,
-        )
-        .await?;
-        for (batch, _) in contest_weight_batches(&other)? {
-            let Some(row) = boards.iter().find(|row| row.batch == Some(batch)) else {
-                continue;
-            };
-            let parent = get_dkg_board_by_keys_ceremony(
-                transaction,
-                &other.tenant_id,
-                &other.election_event_id,
-                &row.keys_ceremony_id,
-            )
-            .await?
-            .context("tally board has no DKG parent")?;
-            let configuration =
-                protocol_board::SignedConfiguration::parse(&parent.manager_message)?;
-            let ballots =
-                protocol_board::SignedBallots::parse(&row.manager_message, &configuration)?;
-            let board_name = protocol_board::BoardName::parse(&row.name)?;
-            let messages = crate::services::protocol_board::board_handle(&board_name)?
-                .export_messages()
-                .await?;
-            if !messages.contains(&ballots.to_bytes()) {
-                continue;
-            }
-            posted.push(PostedBatch {
-                tally_session_id: other.tally_session_id.clone(),
-                offset: u32::try_from(batch - i64::from(other.session_id))?,
-                ciphertexts: ballots.ciphertexts()?,
-            });
-        }
-    }
-    Ok(posted)
-}
-
 #[cfg(test)]
 mod tests {
     use super::{
-        election_areas, election_voter_authorization_aliases, electorate_counts,
+        area_ballot, election_areas, election_voter_authorization_aliases, electorate_counts,
         published_for_session, recorded_election_areas, recorded_election_electorates,
         voters_replacing_their_delegation, ElectionElectorates, ElectorateCount,
         ELECTION_AREAS_ANNOTATION, ELECTION_ELECTORATES_ANNOTATION,
     };
     use crate::services::users::VoterMultiplicityColumn;
     use chrono::{DateTime, Local};
+    use sequent_core::ballot::ContestEncryptionPolicy;
     use sequent_core::types::hasura::core::{BallotStyle, TallySession, TallySessionContest};
     use std::collections::HashMap;
     use std::collections::{BTreeMap, BTreeSet};
@@ -1130,6 +1076,37 @@ mod tests {
             annotations,
             tally_session_id: "session".into(),
             election_id: election_id.into(),
+        }
+    }
+
+    #[test]
+    fn a_single_contest_area_naming_no_contest_is_refused_before_its_ballot_is_read() {
+        let mut area = contest_area("election", "area", "contest", None);
+        area.contest_id = None;
+        let error = area_ballot(
+            "not a ballot",
+            &ContestEncryptionPolicy::SINGLE_CONTEST,
+            &area,
+        )
+        .err()
+        .expect("an area that names no contest has no ciphertext to pick");
+        assert_eq!(
+            error.to_string(),
+            "tally session contest election-area-contest names no contest"
+        );
+    }
+
+    #[test]
+    fn an_unreadable_ballot_is_an_error_under_either_encryption_policy() {
+        let area = contest_area("election", "area", "contest", None);
+        for policy in [
+            ContestEncryptionPolicy::SINGLE_CONTEST,
+            ContestEncryptionPolicy::MULTIPLE_CONTESTS,
+        ] {
+            assert!(
+                area_ballot("not a ballot", &policy, &area).is_err(),
+                "{policy:?}"
+            );
         }
     }
 
