@@ -12,6 +12,7 @@ use super::ballot_box_reads::StoredBallot;
 use super::ballot_box_seal::sealed_or;
 use super::postgres::PostgresStore;
 use anyhow::{anyhow, ensure, Context, Result};
+use tokio_postgres::{GenericClient, Transaction};
 
 /// Which of a voter's ballots in an election event are pending or valid.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -66,13 +67,19 @@ WITH changed AS (
 SELECT count(*) FROM changed
 "#;
 
-/// Rejects a voter's pending and valid ballots in an event and gives back their
-/// votes, election by election.
+/// Rejects a voter's pending and valid ballots in an event, except those in the
+/// boxes whose elections and areas are given as two arrays, gives back their votes,
+/// election by election, and returns the rejected ballots' IDs.
 const REJECT_VOTER: &str = r#"
-WITH rejected AS (
-    UPDATE ballot_box_ballot SET status = $3
-    WHERE election_event_id = $1::text::uuid AND voter_id = $2 AND status = ANY($4)
-    RETURNING election_event_id, election_id, voter_id
+WITH kept (election_id, area_id) AS (
+    SELECT e::uuid, a::uuid FROM unnest($5::text[], $6::text[]) AS k (e, a)
+), rejected AS (
+    UPDATE ballot_box_ballot b SET status = $3
+    WHERE b.election_event_id = $1::text::uuid AND b.voter_id = $2 AND b.status = ANY($4)
+      AND NOT EXISTS (
+          SELECT 1 FROM kept WHERE kept.election_id = b.election_id AND kept.area_id = b.area_id
+      )
+    RETURNING b.id, b.election_event_id, b.election_id, b.voter_id
 ), per_election AS (
     SELECT election_event_id, election_id, voter_id, count(*) AS ballots
     FROM rejected GROUP BY 1, 2, 3
@@ -83,8 +90,58 @@ WITH rejected AS (
       AND v.election_id = p.election_id
       AND v.voter_id = p.voter_id
 )
-SELECT count(*) FROM rejected
+SELECT id::text FROM rejected ORDER BY rejected.id
 "#;
+
+/// Runs [`REJECT_VOTER`] on a connection or in a transaction.
+async fn reject_voter(
+    client: &impl GenericClient,
+    election_event_id: &str,
+    voter_id: &str,
+    kept: &[(String, String)],
+) -> Result<Vec<String>> {
+    let rejected = BallotStatus::Rejected.to_string();
+    let active = vec![
+        BallotStatus::Pending.to_string(),
+        BallotStatus::Valid.to_string(),
+    ];
+    let (elections, areas): (Vec<&str>, Vec<&str>) = kept
+        .iter()
+        .map(|(election_id, area_id)| (election_id.as_str(), area_id.as_str()))
+        .unzip();
+    let rows = client
+        .query(
+            REJECT_VOTER,
+            &[
+                &election_event_id,
+                &voter_id,
+                &rejected,
+                &active,
+                &elections,
+                &areas,
+            ],
+        )
+        .await
+        .map_err(|error| sealed_or(error, "Error rejecting the voter's ballots"))?;
+    rows.iter()
+        .map(|row| row.try_get(0).map_err(anyhow::Error::from))
+        .collect()
+}
+
+/// Rejects a voter's pending and valid ballots in an event, except those in the
+/// boxes `kept`, as `(election, area)`, and gives back their votes, in the caller's
+/// transaction, so that the rejection commits or rolls back with its other writes,
+/// such as its record on the event's board. Returns the rejected ballots' IDs. Fails
+/// with `BallotBoxSealedError`, rejecting none, when one of them is in a sealed box.
+/// The transaction must be READ COMMITTED, as the seal guard requires.
+pub async fn reject_voter_ballots_in(
+    tx: &Transaction<'_>,
+    election_event_id: &str,
+    voter_id: &str,
+    kept: &[(String, String)],
+) -> Result<Vec<String>> {
+    reject_voter(tx, election_event_id, voter_id, kept).await
+}
 
 fn stored_ballot(row: &tokio_postgres::Row) -> Result<StoredBallot> {
     let status: String = row.try_get(5)?;
@@ -169,21 +226,9 @@ impl PostgresStore {
         election_event_id: &str,
         voter_id: &str,
     ) -> Result<i64> {
-        let rejected = BallotStatus::Rejected.to_string();
-        let active = vec![
-            BallotStatus::Pending.to_string(),
-            BallotStatus::Valid.to_string(),
-        ];
-        let row = self
-            .client()
-            .await?
-            .query_one(
-                REJECT_VOTER,
-                &[&election_event_id, &voter_id, &rejected, &active],
-            )
-            .await
-            .map_err(|error| sealed_or(error, "Error rejecting the voter's ballots"))?;
-        Ok(row.try_get(0)?)
+        let client = self.client().await?;
+        let rejected = reject_voter(&**client, election_event_id, voter_id, &[]).await?;
+        Ok(rejected.len() as i64)
     }
 
     /// Whether a voter has pending or valid ballots in an event.

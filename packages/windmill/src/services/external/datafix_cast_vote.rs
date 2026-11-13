@@ -314,7 +314,8 @@ where
 
     /// Promotes an in-progress vote and then records the Internet channel. A
     /// Keycloak failure is traced and left for the reconciliation process; it
-    /// does not roll back the vote's terminal status.
+    /// does not roll back the vote's terminal status. A disable still owes
+    /// `SetNotVoted`, because the ballot is valid.
     #[instrument(skip(self, cast_vote), fields(cast_vote_id = %cast_vote.id), err)]
     async fn transition_cast_vote_and_mark_internet(
         &self,

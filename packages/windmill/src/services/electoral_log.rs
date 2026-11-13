@@ -175,6 +175,29 @@ fn voter_password_change_body(
     .context("Failed to serialize voter password-change electoral-log details")
 }
 
+/// Event type of the entry naming the ballots discarded when an admin disables a
+/// voter.
+const VOTER_BALLOTS_DISCARD_EVENT_TYPE: &str = "DISCARD_BALLOTS: VOTER_DISABLED";
+/// Prefix of the delivery IDs of ballot-discard entries.
+const VOTER_BALLOTS_DISCARD_DELIVERY_PREFIX: &str = "voter-ballots-discard:";
+
+/// The details of a ballot-discard entry: the voter, the admin who disabled the
+/// voter and every discarded ballot.
+fn voter_ballots_discard_body(
+    voter_id: &str,
+    voter_username: Option<&str>,
+    admin: &ElectoralLogAdminContext,
+    cast_vote_ids: &[String],
+) -> String {
+    serde_json::json!({
+        "action": "voter_ballots_discarded",
+        "voter": {"user_id": voter_id, "username": voter_username},
+        "initiated_by": {"user_id": admin.user_id, "username": admin.username},
+        "cast_vote_ids": cast_vote_ids,
+    })
+    .to_string()
+}
+
 /// A signed voter password-change log entry that can be persisted after the
 /// Hasura transaction which prepared it commits.
 ///
@@ -1716,6 +1739,32 @@ impl ElectoralLog {
         Ok(board_message)
     }
 
+    /// The entry naming the ballots discarded when `admin` disabled the voter,
+    /// signed by this log's sender. The caller appends it in the transaction of the
+    /// discard, so that both commit or roll back together.
+    pub fn voter_ballots_discard_entry(
+        &self,
+        election_event_id: &str,
+        voter_id: &str,
+        voter_username: Option<&str>,
+        admin: &ElectoralLogAdminContext,
+        cast_vote_ids: &[String],
+    ) -> Result<LogEntry> {
+        self.build_keycloak_event_message(
+            election_event_id.to_string(),
+            VOTER_BALLOTS_DISCARD_EVENT_TYPE.to_string(),
+            voter_ballots_discard_body(voter_id, voter_username, admin, cast_vote_ids),
+            Some(voter_id.to_string()),
+            voter_username.map(str::to_string),
+            None,
+        )
+        .map(|message| LogEntry {
+            delivery_id: format!("{VOTER_BALLOTS_DISCARD_DELIVERY_PREFIX}{}", Uuid::new_v4()),
+            message,
+        })
+        .context("Failed to build the voter ballot-discard electoral-log entry")
+    }
+
     /// Builds a send-template message and returns the resulting ElectoralLogMessage.
     pub fn build_send_template_message(
         &self,
@@ -2571,6 +2620,65 @@ mod password_change_tests {
         let restored: PreparedVoterPasswordChangeLog = serde_json::from_value(serialized).unwrap();
 
         assert_eq!(restored, prepared);
+    }
+}
+
+#[cfg(test)]
+mod voter_ballots_discard_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn admin() -> ElectoralLogAdminContext {
+        ElectoralLogAdminContext {
+            user_id: "admin-id".to_string(),
+            username: Some("admin".to_string()),
+            authorized_election_ids: None,
+            area_id: None,
+        }
+    }
+
+    #[test]
+    fn the_discard_body_names_the_voter_the_admin_and_every_discarded_ballot() {
+        let ids = vec!["ballot-1".to_string(), "ballot-2".to_string()];
+        let body = voter_ballots_discard_body("voter-id", Some("voter"), &admin(), &ids);
+        let body: serde_json::Value = serde_json::from_str(&body).expect("JSON body");
+
+        assert_eq!(
+            body,
+            json!({
+                "action": "voter_ballots_discarded",
+                "voter": {"user_id": "voter-id", "username": "voter"},
+                "initiated_by": {"user_id": "admin-id", "username": "admin"},
+                "cast_vote_ids": ["ballot-1", "ballot-2"],
+            })
+        );
+    }
+
+    #[test]
+    fn the_discard_entry_is_a_signed_keycloak_event_about_the_voter() {
+        let key = SigningKey::generate().expect("signing key");
+        let log = ElectoralLog::for_system_with_signing_key("board", &key);
+        let ids = vec!["ballot-1".to_string()];
+        let entry = log
+            .voter_ballots_discard_entry("event-id", "voter-id", Some("voter"), &admin(), &ids)
+            .expect("entry");
+
+        assert!(entry
+            .delivery_id
+            .starts_with(VOTER_BALLOTS_DISCARD_DELIVERY_PREFIX));
+        assert_eq!(entry.message.user_id.as_deref(), Some("voter-id"));
+        assert_eq!(entry.message.username.as_deref(), Some("voter"));
+        let message = Message::record_deserialize(&entry.message.message).expect("message");
+        message
+            .verify(&VerificationKey::from_sk(&key).expect("verification key"))
+            .expect("signature");
+        let StatementBody::KeycloakUserEvent(details, event_type) = &message.statement.body else {
+            panic!("not a Keycloak user event: {:?}", message.statement.body);
+        };
+        assert_eq!(event_type.0, VOTER_BALLOTS_DISCARD_EVENT_TYPE);
+        let details: serde_json::Value = serde_json::from_str(&details.0).expect("details");
+        assert_eq!(details["cast_vote_ids"], json!(["ballot-1"]));
+        assert_eq!(details["initiated_by"]["user_id"], "admin-id");
     }
 }
 
