@@ -3264,9 +3264,15 @@ mod tests {
             admin_events_details_enabled: Some(true),
             ..Default::default()
         };
+        // An import needs a template with a readable user profile to check
+        // the uploaded permissions against, so use the shipped one.
+        let template: RealmRepresentation = serde_json::from_str(include_str!(
+            "../../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json"
+        ))
+        .unwrap();
         let clean = sanitize_imported_event_realm(
             &raw,
-            &RealmRepresentation::default(),
+            &template,
             ImportedRealmReconciliation::default(),
         )
         .unwrap();
