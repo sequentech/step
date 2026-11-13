@@ -2,6 +2,20 @@
 # SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
 
+# Add two optional input params: <ezip_path> <password>
+# With an empty <password> or "-", the password is read without echo.
+ezip_path="$1"
+password="$2"
+
+if [[ -n "$ezip_path" && ( -z "$password" || "$password" == "-" ) ]]; then
+    read -rsp "Password for $ezip_path: " password
+    echo
+    if [[ -z "$password" ]]; then
+        echo "Error: a password is required to decrypt $ezip_path"
+        exit 1
+    fi
+fi
+
 cd janitor && source setup.sh; cd ..
 if [ "$3" ]; then
     TENANT_CONFIG=./keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json
@@ -19,13 +33,18 @@ docker system prune -f
 
 echo "Loading environment variables..."
 source .env
+# Host-side requests must target the address the ports are published on.
+HASURA_HOST="${BIND_ADDRESS:-127.0.0.1}"
+if [[ "$HASURA_HOST" == "0.0.0.0" ]]; then
+    HASURA_HOST=127.0.0.1
+fi
 echo "Creating resources..."
 mkdir -p simplesaml
 touch simplesaml/{authsources,saml20-sp-remote}.php
 echo "Loading images..."
 find images -type f -name "*.tar" | xargs -I{} docker load --input {}
 
-set -xeo pipefail
+set -eo pipefail
 
 # Function to cleanup docker containers
 cleanup() {
@@ -36,19 +55,15 @@ cleanup() {
 # Trap SIGINT and EXIT signals to ensure cleanup is performed
 trap cleanup SIGINT EXIT
 
-# Add two optional input params: <ezip_path> <password>
-ezip_path="$1"
-password="$2"
-
 if [[ -n "$ezip_path" && -n "$password" ]]; then
     echo "Decrypting trustees data..."
 
     # Delete (if it exists) folder trustees-data, and recreate it again
     rm -rf trustees-data
-    mkdir -p trustees-data
+    mkdir -m 700 trustees-data
 
     # Decrypt the file in ezip_path
-    openssl enc -d -aes-256-cbc -in "$ezip_path" -out trustees-data/trustees-export.zip -pass pass:"$password" -md md5
+    TRUSTEES_EXPORT_PASSWORD="$password" openssl enc -d -aes-256-cbc -in "$ezip_path" -out trustees-data/trustees-export.zip -pass env:TRUSTEES_EXPORT_PASSWORD -md md5
 
     # Extract the decrypted zip with unzip (inside the folder trustees-data)
     cd trustees-data
@@ -95,12 +110,12 @@ update_trustee_public_keys() {
                         }')
 
                     # Perform the curl request and capture response body and HTTP status code
-                    RESPONSE=$(curl -s -w "|||%{http_code}" 'http://localhost:8080/v2/query' \
+                    RESPONSE=$(curl -s -w "|||%{http_code}" "http://$HASURA_HOST:8080/v2/query" \
                         -H 'Accept: */*' \
                         -H 'Cache-Control: no-cache' \
                         -H 'Content-Type: application/json' \
                         -H 'Hasura-Client-Name: hasura-console' \
-                        -H 'Origin: http://localhost:8080' \
+                        -H "Origin: http://$HASURA_HOST:8080" \
                         -H "x-hasura-admin-secret: $KEYCLOAK_ADMIN_CLIENT_SECRET" \
                         --data-raw "$JSON_DATA")
 
@@ -143,7 +158,7 @@ if [[ -n "$ezip_path" && -n "$password" ]]; then
     RETRY_INTERVAL=10 # seconds
 
     for ((i=1;i<=MAX_RETRIES;i++)); do
-        if curl -s http://localhost:8080/healthz >/dev/null; then
+        if curl -s http://$HASURA_HOST:8080/healthz >/dev/null; then
             echo "GraphQL is up!"
             break
         else
