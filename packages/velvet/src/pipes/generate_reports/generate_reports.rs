@@ -60,6 +60,19 @@ pub const OUTPUT_JSON: &str = "report.json";
 pub const OUTPUT_ALL_AREAS_JSON: &str = "all_areas_results.json";
 pub const OUTPUT_ALL_AREAS_HTML: &str = "all_areas_results.html";
 pub const PARALLEL_CHUNK_SIZE: usize = 8;
+pub const RESULTS_HASH: &str = "results_hash";
+pub const RESULTS_CONTENT_HASH: &str = "results_content_hash";
+const TEMPLATE_DATA_REPORTS: &str = "reports";
+
+/// Hashes that identify the results of an election report.
+#[derive(Debug, Clone)]
+pub struct ResultsHashes {
+    /// Hash of the report JSON file, which includes the execution annotations.
+    pub results_hash: String,
+    /// Hash of the canonical JSON of the report results only, so counting the
+    /// same ballots again gives the same value.
+    pub results_content_hash: String,
+}
 
 #[derive(Debug)]
 pub struct GenerateReports {
@@ -276,10 +289,10 @@ impl GenerateReports {
         &self,
         reports: Vec<ReportData>,
         enable_pdfs: bool,
-        election_hash: Option<String>,
+        election_hashes: Option<ResultsHashes>,
         areas_map: &HashMap<String, TreeNodeArea>,
         is_consolidated: bool,
-    ) -> Result<(GeneratedReportsBytes, String)> {
+    ) -> Result<(GeneratedReportsBytes, ResultsHashes)> {
         let config = self.get_config()?;
         let mut execution_annotations = config.execution_annotations;
 
@@ -294,16 +307,26 @@ impl GenerateReports {
         let bytes_json = json_data.to_string().as_bytes().to_vec();
 
         // Hash the json results
-        let results_hash = if let Some(election_hash) = election_hash {
-            election_hash
+        let results_hashes = if let Some(election_hashes) = election_hashes {
+            election_hashes
         } else {
-            hash_b64(&bytes_json).map_err(|err| {
-                Error::UnexpectedError(format!("Error hashing the results file: {err:?}"))
-            })?
+            ResultsHashes {
+                results_hash: hash_b64(&bytes_json).map_err(|err| {
+                    Error::UnexpectedError(format!("Error hashing the results file: {err:?}"))
+                })?,
+                results_content_hash: results_content_hash(&json_data)?,
+            }
         };
 
-        // Insert the results_hash into the execution_annotations and re-render the template for both PDF and HTML
-        execution_annotations.insert("results_hash".to_string(), results_hash.clone());
+        // Insert the results hashes into the execution_annotations and re-render the template for both PDF and HTML
+        execution_annotations.insert(
+            RESULTS_HASH.to_string(),
+            results_hashes.results_hash.clone(),
+        );
+        execution_annotations.insert(
+            RESULTS_CONTENT_HASH.to_string(),
+            results_hashes.results_content_hash.clone(),
+        );
         let template_data = TemplateData {
             execution_annotations,
             reports: computed_reports,
@@ -404,7 +427,7 @@ impl GenerateReports {
             bytes_json: bytes_json,
         };
 
-        Ok((generated_report_bytes, results_hash))
+        Ok((generated_report_bytes, results_hashes))
     }
 
     #[instrument(skip(self))]
@@ -765,7 +788,7 @@ impl GenerateReports {
         tally_sheet_id: Option<String>,
         enable_pdfs: bool,
         is_write: bool,
-        election_hash: Option<String>,
+        election_hashes: Option<ResultsHashes>,
         areas_map: &HashMap<String, TreeNodeArea>,
     ) -> Result<ReportData> {
         let area_id = area
@@ -837,7 +860,7 @@ impl GenerateReports {
                 tally_sheet_id.clone(),
                 enable_pdfs,
                 false,
-                election_hash,
+                election_hashes,
                 areas_map,
                 false,
             )?;
@@ -857,14 +880,14 @@ impl GenerateReports {
         tally_sheet_id: Option<String>,
         enable_pdfs: bool,
         area_based: bool,
-        election_hash: Option<String>,
+        election_hashes: Option<ResultsHashes>,
         areas_map: &HashMap<String, TreeNodeArea>,
         is_consolidated: bool,
-    ) -> Result<String> {
-        let (reports, result_hash) = self.generate_report(
+    ) -> Result<ResultsHashes> {
+        let (reports, results_hashes) = self.generate_report(
             reports,
             enable_pdfs,
-            election_hash,
+            election_hashes,
             areas_map,
             is_consolidated.clone(),
         )?;
@@ -920,7 +943,7 @@ impl GenerateReports {
             .open(json_path)?;
         json_file.write_all(&reports.bytes_json)?;
 
-        Ok(result_hash)
+        Ok(results_hashes)
     }
 }
 
@@ -936,6 +959,40 @@ fn percentage_of(count: u64, base: u64) -> f64 {
     let safe_base = cmp::max(1, base);
 
     ((count as f64) * 100.0 / (safe_base as f64)).clamp(0.0, 100.0)
+}
+
+/// Copy of `value` with the keys of every object in sorted order, so that its
+/// serialization does not depend on map iteration order.
+fn canonical_json(value: &serde_json::Value) -> serde_json::Value {
+    match value {
+        serde_json::Value::Object(object) => {
+            let mut entries: Vec<(&String, &serde_json::Value)> = object.iter().collect();
+            entries.sort_by_key(|(key, _)| *key);
+            serde_json::Value::Object(
+                entries
+                    .into_iter()
+                    .map(|(key, value)| (key.clone(), canonical_json(value)))
+                    .collect(),
+            )
+        }
+        serde_json::Value::Array(items) => {
+            serde_json::Value::Array(items.iter().map(canonical_json).collect())
+        }
+        other => other.clone(),
+    }
+}
+
+/// Hash of the canonical JSON of the `reports` in a report JSON document. It
+/// leaves out the execution annotations, so it only depends on the results.
+pub fn results_content_hash(report_json: &serde_json::Value) -> Result<String> {
+    let reports = report_json.get(TEMPLATE_DATA_REPORTS).ok_or_else(|| {
+        Error::UnexpectedError(format!(
+            "Missing '{TEMPLATE_DATA_REPORTS}' in the results data"
+        ))
+    })?;
+    hash_b64(canonical_json(reports).to_string().as_bytes()).map_err(|err| {
+        Error::UnexpectedError(format!("Error hashing the results content: {err:?}"))
+    })
 }
 
 fn participation_by_channel_rows(result: &ContestResult) -> Vec<ParticipationByChannelRow> {
@@ -1250,7 +1307,7 @@ impl Pipe for GenerateReports {
                 }
 
                 // write report for the current election (remains sequential for this election_input task)
-                let result_hash = self.write_report(
+                let results_hashes = self.write_report(
                     &election_input.id,
                     None,
                     None,
@@ -1309,7 +1366,7 @@ impl Pipe for GenerateReports {
                                             None,
                                             config.enable_pdfs,
                                             false,
-                                            Some(result_hash.clone()),
+                                            Some(results_hashes.clone()),
                                             &areas_map,
                                         )
                                     })
@@ -1329,7 +1386,7 @@ impl Pipe for GenerateReports {
                             None,
                             config.enable_pdfs,
                             true,
-                            Some(result_hash.clone()),
+                            Some(results_hashes.clone()),
                             &areas_map,
                             false,
                         )?;
@@ -2247,5 +2304,151 @@ mod participation_by_channel_tests {
         assert!(!should_show_candidate_results(Some(&preferential)));
         assert!(should_show_candidate_results(Some(&acclaimed_preferential)));
         assert!(!should_show_candidate_results(None));
+    }
+}
+
+#[cfg(test)]
+mod results_hash_tests {
+    use super::*;
+    use crate::cli::{state::Stage, CliRun};
+    use crate::config::PipeConfig;
+    use crate::pipes::pipe_name::PipeName;
+
+    fn generate_reports_printed_at(date_printed: &str) -> GenerateReports {
+        let config = PipeConfigGenerateReports {
+            execution_annotations: HashMap::from([
+                ("date_printed".to_string(), date_printed.to_string()),
+                ("executer_username".to_string(), "admin".to_string()),
+            ]),
+            ..Default::default()
+        };
+        let stage = Stage {
+            name: "main".to_string(),
+            pipeline: vec![PipeConfig {
+                id: "gen-report".to_string(),
+                pipe: PipeName::GenerateReports,
+                config: Some(serde_json::to_value(config).unwrap()),
+            }],
+            current_pipe: Some(PipeName::GenerateReports),
+            previous_pipe: None,
+        };
+        let cli = CliRun {
+            stage: "main".to_string(),
+            pipe_id: "gen-report".to_string(),
+            config: PathBuf::new(),
+            input_dir: PathBuf::new(),
+            output_dir: PathBuf::new(),
+        };
+        GenerateReports::new(PipeInputs {
+            cli,
+            root_path_config: PathBuf::new(),
+            root_path_ballots: PathBuf::new(),
+            root_path_tally_sheets: PathBuf::new(),
+            root_path_database: PathBuf::new(),
+            stage,
+            election_list: vec![],
+        })
+    }
+
+    fn report_with_annotations(keys: Vec<usize>) -> ReportData {
+        let annotations: HashMap<String, String> = keys
+            .into_iter()
+            .map(|key| (format!("key-{key:02}"), format!("value-{key}")))
+            .collect();
+        ReportData {
+            election_name: "Election".to_string(),
+            election_alias: "Election".to_string(),
+            election_id: "election-1".to_string(),
+            election_event_id: "event-1".to_string(),
+            tenant_id: "tenant-1".to_string(),
+            election_description: String::new(),
+            election_dates: None,
+            election_annotations: annotations.clone(),
+            election_event_annotations: annotations,
+            contest: None,
+            area: None,
+            contest_result: None,
+            winners: vec![],
+            channel_type: None,
+            election_results: None,
+        }
+    }
+
+    #[test]
+    fn results_content_hash_is_reproducible_across_runs() {
+        let (first_bytes, first) = generate_reports_printed_at("2026-01-01 10:00:00")
+            .generate_report(
+                vec![report_with_annotations((0..16).collect())],
+                false,
+                None,
+                &HashMap::new(),
+                false,
+            )
+            .unwrap();
+        let (_, second) = generate_reports_printed_at("2026-01-02 11:30:00")
+            .generate_report(
+                vec![report_with_annotations((0..16).rev().collect())],
+                false,
+                None,
+                &HashMap::new(),
+                false,
+            )
+            .unwrap();
+
+        assert_eq!(first.results_content_hash, second.results_content_hash);
+        assert_ne!(first.results_hash, second.results_hash);
+
+        let first_json: serde_json::Value =
+            serde_json::from_slice(&first_bytes.bytes_json).unwrap();
+        assert_eq!(
+            results_content_hash(&first_json).unwrap(),
+            first.results_content_hash
+        );
+    }
+
+    #[test]
+    fn generate_report_keeps_the_given_election_hashes() {
+        let election_hashes = ResultsHashes {
+            results_hash: "file-hash".to_string(),
+            results_content_hash: "content-hash".to_string(),
+        };
+
+        let (_, hashes) = generate_reports_printed_at("2026-01-01 10:00:00")
+            .generate_report(
+                vec![report_with_annotations((0..4).collect())],
+                false,
+                Some(election_hashes),
+                &HashMap::new(),
+                false,
+            )
+            .unwrap();
+
+        assert_eq!(hashes.results_hash, "file-hash");
+        assert_eq!(hashes.results_content_hash, "content-hash");
+    }
+
+    #[test]
+    fn canonical_json_sorts_nested_object_keys() {
+        let mut inner = Map::new();
+        inner.insert("d".to_string(), serde_json::json!(4));
+        inner.insert("c".to_string(), serde_json::json!(3));
+        let mut outer = Map::new();
+        outer.insert(
+            "z".to_string(),
+            serde_json::Value::Array(vec![serde_json::Value::Object(inner)]),
+        );
+        outer.insert("a".to_string(), serde_json::json!(1));
+
+        assert_eq!(
+            canonical_json(&serde_json::Value::Object(outer)).to_string(),
+            r#"{"a":1,"z":[{"c":3,"d":4}]}"#
+        );
+    }
+
+    #[test]
+    fn results_content_hash_requires_reports() {
+        let report_json = serde_json::json!({ "execution_annotations": {} });
+
+        assert!(results_content_hash(&report_json).is_err());
     }
 }

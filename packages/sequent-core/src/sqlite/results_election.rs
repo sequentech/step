@@ -91,6 +91,7 @@ pub async fn update_results_election_documents_sqlite(
     election_id: &str,
     documents: &ResultDocuments,
     json_hash: &str,
+    results_content_hash: &str,
 ) -> Result<()> {
     let docs_json = to_string(documents)
         .map_err(|e| anyhow!("Failed to serialize documents to JSON: {}", e))?;
@@ -102,16 +103,19 @@ pub async fn update_results_election_documents_sqlite(
                annotations = json_set(
                    coalesce(annotations, '{}'),
                    '$.results_hash',
-                   ?2
+                   ?2,
+                   '$.results_content_hash',
+                   ?3
                )
-         WHERE tenant_id        = ?3
-           AND results_event_id = ?4
-           AND election_event_id= ?5
-           AND election_id      = ?6
+         WHERE tenant_id        = ?4
+           AND results_event_id = ?5
+           AND election_event_id= ?6
+           AND election_id      = ?7
         ",
         params![
             docs_json,
             json_hash,
+            results_content_hash,
             tenant_id,
             results_event_id,
             election_event_id,
@@ -213,5 +217,60 @@ mod tests {
             )
             .unwrap();
         assert_eq!(legacy_blank_ballots, None);
+    }
+
+    #[tokio::test]
+    async fn update_documents_stores_the_results_and_content_hashes() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        let transaction = connection.transaction().unwrap();
+
+        create_results_election_sqlite(
+            &transaction,
+            vec![ResultsElection {
+                id: "results-election-1".to_string(),
+                tenant_id: "tenant-1".to_string(),
+                election_event_id: "event-1".to_string(),
+                election_id: "election-1".to_string(),
+                results_event_id: "results-1".to_string(),
+                name: None,
+                elegible_census: None,
+                total_voters: None,
+                created_at: None,
+                last_updated_at: None,
+                labels: None,
+                annotations: None,
+                total_voters_percent: None,
+                documents: None,
+                blank_ballots: None,
+                blank_ballots_percent: None,
+            }],
+        )
+        .await
+        .unwrap();
+
+        update_results_election_documents_sqlite(
+            &transaction,
+            "tenant-1",
+            "results-1",
+            "event-1",
+            "election-1",
+            &ResultDocuments::default(),
+            "file-hash",
+            "content-hash",
+        )
+        .await
+        .unwrap();
+
+        let annotations: String = transaction
+            .query_row(
+                "SELECT annotations FROM results_election WHERE id = 'results-election-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let annotations: serde_json::Value =
+            serde_json::from_str(&annotations).unwrap();
+        assert_eq!(annotations["results_hash"], "file-hash");
+        assert_eq!(annotations["results_content_hash"], "content-hash");
     }
 }
