@@ -5,7 +5,7 @@ import React, {useContext, useEffect, useMemo, useState} from "react"
 import {Routes, Route, useNavigate, Navigate} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, NotFoundScreen, PageBanner} from "@sequentech/ui-essentials"
-import {IElectionEventPresentation} from "@sequentech/ui-core"
+import {IElectionEventPresentation, sanitizePresentationCss} from "@sequentech/ui-core"
 import {HomeScreen} from "./screens/HomeScreen"
 import {ConfirmationScreen} from "./screens/ConfirmationScreen"
 import Stack from "@mui/material/Stack"
@@ -92,10 +92,13 @@ const App = () => {
 
     const customCss = useMemo(
         () =>
-            confirmationBallot?.election_config?.election_event_presentation?.css ??
-            ballotStyle?.ballot_eml?.election_event_presentation?.css ??
-            "",
-        [confirmationBallot, ballotStyle]
+            sanitizePresentationCss(
+                confirmationBallot?.election_config?.election_event_presentation?.css ??
+                    ballotStyle?.ballot_eml?.election_event_presentation?.css ??
+                    "",
+                {baseUrl: document.baseURI, publicBucketUrl: globalSettings.PUBLIC_BUCKET_URL}
+            ),
+        [confirmationBallot, ballotStyle, globalSettings.PUBLIC_BUCKET_URL]
     )
 
     return (

@@ -234,6 +234,24 @@ permission in the platform. Sequent support uses this name.
 | **Edit voters email/phone fields** | `voter-email-tlf-edit` |
 | **Edit Country Blocking Rules in Cloudflare** | `cloudflare-write` |
 | **Generate Transmission Report** | `transmission-report-generate` |
+## Trustee and admin lockdown roles
+
+In a new tenant, the `trustee` and `admin-lockdown` roles do not have the `admin-user` permission:
+
+- Trustees use the permissions of the key and tally ceremonies.
+- Admin lockdown users use the publication permissions, and `document-read` and
+  `document-download` to download exports.
+
+The admin portal runs the requests of these users with these permissions.
+
+Tenants that were created before this change keep their roles. After an upgrade, do these steps in
+each tenant:
+
+1. Open **Users and Roles** > **Roles**.
+2. Edit the `trustee` role and the `admin-lockdown` role, and remove the `admin-user` permission.
+3. Add `document-read` and `document-download` to the `admin-lockdown` role.
+4. Tell the users to log in again. The change applies only after a new login.
+
 ## Related pages
 
 - [Roles](../Roles/admin_portal_reference_user-manual_users-and-roles_roles.md)

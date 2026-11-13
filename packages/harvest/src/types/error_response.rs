@@ -34,6 +34,7 @@ pub enum ErrorCode {
     InvalidEventProcessor,
     PrivateKeyDownloadUnavailable,
     BallotIdMismatch,
+    BallotStyleMismatch,
     // Add any other needed error codes
 }
 

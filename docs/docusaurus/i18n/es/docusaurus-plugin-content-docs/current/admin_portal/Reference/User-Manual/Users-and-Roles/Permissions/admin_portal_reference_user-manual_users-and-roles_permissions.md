@@ -237,6 +237,25 @@ permiso en la plataforma. El soporte de Sequent usa este nombre.
 | **Editar las reglas de bloqueo por país en Cloudflare** | `cloudflare-write` |
 | **Generar Informe de Transmisión** | `transmission-report-generate` |
 
+## Roles de fideicomisario y de bloqueo de administración {#trustee-and-admin-lockdown-roles}
+
+En un inquilino nuevo, los roles `trustee` y `admin-lockdown` no tienen el permiso `admin-user`:
+
+- Los fideicomisarios usan los permisos de las ceremonias de claves y de recuento.
+- Los usuarios de bloqueo de administración usan los permisos de publicación, y `document-read` y
+  `document-download` para descargar exportaciones.
+
+El portal de administración ejecuta las solicitudes de estos usuarios con estos permisos.
+
+Los inquilinos que se crearon antes de este cambio conservan sus roles. Después de una
+actualización, haga estos pasos en cada inquilino:
+
+1. Abra **Usuarios y Roles** > **Roles**.
+2. Edite el rol `trustee` y el rol `admin-lockdown`, y quite el permiso `admin-user`.
+3. Añada `document-read` y `document-download` al rol `admin-lockdown`.
+4. Pida a los usuarios que inicien sesión de nuevo. El cambio solo se aplica después de un nuevo
+   inicio de sesión.
+
 ## Páginas relacionadas {#related-pages}
 
 - [Roles](../Roles/admin_portal_reference_user-manual_users-and-roles_roles.md)
