@@ -29,8 +29,9 @@ use crate::services::tasks_execution::update_fail;
 use crate::tasks::insert_election_event::CreateElectionEventInput;
 use crate::types::documents::ETallyDocuments;
 use ::keycloak::types::{
-    ComponentExportRepresentation, GroupRepresentation, IdentityProviderMapperRepresentation,
-    ProtocolMapperRepresentation, RealmRepresentation,
+    ComponentExportRepresentation, Composites, GroupRepresentation,
+    IdentityProviderMapperRepresentation, ProtocolMapperRepresentation, RealmRepresentation,
+    RoleRepresentation,
 };
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use chrono::format;
@@ -202,6 +203,8 @@ pub async fn read_default_election_event_realm() -> Result<RealmRepresentation> 
 const HASURA_CLAIM_NAMESPACE: &str = "https://hasura.io/jwt/claims";
 /// Protocol-mapper config key holding the claim a mapper writes.
 const PROTOCOL_MAPPER_CLAIM_NAME_KEY: &str = "claim.name";
+/// Protocol mappers that add or rename a token's roles without naming a claim.
+const ROLE_CHANGING_MAPPERS: [&str; 2] = ["oidc-hardcoded-role-mapper", "oidc-role-name-mapper"];
 /// Prefix of the per-realm composite role Keycloak generates for every realm.
 const DEFAULT_REALM_ROLE_PREFIX: &str = "default-roles-";
 /// How an uploaded election-event realm's token-claim authority (realm roles,
@@ -221,13 +224,14 @@ pub enum ImportedRealmReconciliation {
     RejectForeignClaims,
 }
 
-/// True when a protocol mapper writes a Hasura session variable or runs a
-/// script, i.e. it can set the roles or tenant a token carries.
+/// True when a protocol mapper writes a Hasura session variable, runs a script
+/// or changes the token's roles, i.e. it can set the roles or tenant a token
+/// carries.
 fn is_claim_authority_mapper(mapper: &ProtocolMapperRepresentation) -> bool {
     if mapper
         .protocol_mapper
         .as_deref()
-        .is_some_and(|kind| kind.contains("script"))
+        .is_some_and(|kind| kind.contains("script") || ROLE_CHANGING_MAPPERS.contains(&kind))
     {
         return true;
     }
@@ -263,6 +267,85 @@ fn claim_mapper_key(
 /// defines it, or it is the realm's own default composite.
 fn realm_role_allowed(name: &str, allowed: &HashSet<String>) -> bool {
     allowed.contains(name)
+}
+
+/// Records the members of `composites` that `allowed` doesn't have.
+fn record_foreign_composites(
+    composites: Option<&Composites>,
+    allowed: Option<&Composites>,
+    role: &str,
+    discarded: &mut Vec<String>,
+) {
+    let Some(composites) = composites else {
+        return;
+    };
+    let allowed_realm_roles = allowed.and_then(|allowed| allowed.realm.as_ref());
+    for name in composites.realm.iter().flatten() {
+        if !allowed_realm_roles.is_some_and(|roles| roles.contains(name)) {
+            discarded.push(format!("realm role '{name}' composed into role '{role}'"));
+        }
+    }
+    let allowed_client_roles = allowed.and_then(|allowed| allowed.client.as_ref());
+    for (client_id, names) in composites.client.iter().flatten() {
+        let allowed_names = allowed_client_roles.and_then(|clients| clients.get(client_id));
+        for name in names {
+            if !allowed_names.is_some_and(|roles| roles.contains(name)) {
+                discarded.push(format!(
+                    "client role '{name}' of client '{client_id}' composed into role '{role}'"
+                ));
+            }
+        }
+    }
+}
+
+/// The realm and client role names a realm defines.
+struct DefinedRoles {
+    realm: HashSet<String>,
+    client: HashMap<String, HashSet<String>>,
+}
+
+impl DefinedRoles {
+    fn of(realm: &RealmRepresentation) -> Self {
+        let names = |roles: &Vec<RoleRepresentation>| -> HashSet<String> {
+            roles.iter().filter_map(|role| role.name.clone()).collect()
+        };
+        let roles = realm.roles.as_ref();
+        DefinedRoles {
+            realm: roles
+                .and_then(|roles| roles.realm.as_ref())
+                .map(names)
+                .unwrap_or_default(),
+            client: roles
+                .and_then(|roles| roles.client.as_ref())
+                .map(|clients| {
+                    clients
+                        .iter()
+                        .map(|(client_id, roles)| (client_id.clone(), names(roles)))
+                        .collect()
+                })
+                .unwrap_or_default(),
+        }
+    }
+
+    /// Keeps the members of `composites` that the realm defines. Keycloak
+    /// refuses a realm whose role composes a role it doesn't define, which a
+    /// template from a newer Keycloak would otherwise cause: an export from
+    /// before Keycloak 26.7 has no organization roles for `realm-admin`.
+    fn retain_defined(&self, composites: Option<Composites>) -> Option<Composites> {
+        composites.map(|mut composites| {
+            if let Some(names) = composites.realm.as_mut() {
+                names.retain(|name| self.realm.contains(name));
+            }
+            if let Some(clients) = composites.client.as_mut() {
+                clients.retain(|client_id, names| {
+                    let defined = self.client.get(client_id);
+                    names.retain(|name| defined.is_some_and(|defined| defined.contains(name)));
+                    !names.is_empty()
+                });
+            }
+            composites
+        })
+    }
 }
 
 /// Client-role assignments of a user or group, keyed by client id.
@@ -405,10 +488,154 @@ fn idp_mapper_key(
     )
 }
 
+/// Keycloak component holding a realm's declarative user profile.
+const USER_PROFILE_PROVIDER_COMPONENT: &str = "org.keycloak.userprofile.UserProfileProvider";
+/// Config key under which that component stores the profile as one JSON document.
+const USER_PROFILE_CONFIG_KEY: &str = "kc.user.profile.config";
+/// User-profile setting that lets users edit attributes the profile doesn't declare.
+const UNMANAGED_ATTRIBUTE_POLICY_KEY: &str = "unmanagedAttributePolicy";
+
+/// A realm's user-profile component, if it has one.
+fn user_profile_component(realm: &RealmRepresentation) -> Option<&ComponentExportRepresentation> {
+    realm
+        .components
+        .as_ref()?
+        .get(USER_PROFILE_PROVIDER_COMPONENT)?
+        .first()
+}
+
+/// The user profile a component stores, parsed. `None` when it is missing or
+/// isn't a profile (no `attributes` list). Keycloak keeps it as a single value.
+fn user_profile_config(component: &ComponentExportRepresentation) -> Option<serde_json::Value> {
+    let raw = component
+        .config
+        .as_ref()?
+        .get(USER_PROFILE_CONFIG_KEY)?
+        .first()?;
+    let profile: serde_json::Value = serde_json::from_str(raw).ok()?;
+    profile.get("attributes")?.as_array()?;
+    Some(profile)
+}
+
+/// Reconcile the uploaded realm's declarative user profile with the template's.
+/// Token claims come from user attributes (`tenant-id`, `area-id`,
+/// `authorized-election-ids`), so a profile that lets users edit them lets a
+/// voter choose the tenant or elections of their own tokens. Every attribute
+/// the template declares therefore gets the template's permissions, a template
+/// attribute missing from the upload is restored, and the template's
+/// unmanaged-attribute policy applies, since enabling it would make an
+/// undeclared attribute editable. Attributes only the upload declares stay:
+/// the claim mappers are already reduced to the template's, which read
+/// template attributes only. A missing or unreadable profile is replaced with
+/// the template's. A template without a readable profile fails the import,
+/// since it is the baseline the uploaded permissions are checked against.
+fn reconcile_user_profile(
+    realm: &mut RealmRepresentation,
+    template: &RealmRepresentation,
+    discarded: &mut Vec<String>,
+) -> Result<()> {
+    let Some((template_component, template_profile)) = user_profile_component(template)
+        .and_then(|component| Some((component, user_profile_config(component)?)))
+    else {
+        return Err(anyhow!(
+            "The realm template has no readable user profile, so the imported realm's \
+             user-profile permissions can't be checked"
+        ));
+    };
+
+    let Some(mut profile) = user_profile_component(realm).and_then(user_profile_config) else {
+        let mut component = template_component.clone();
+        component.id = None;
+        realm
+            .components
+            .get_or_insert_with(HashMap::new)
+            .insert(USER_PROFILE_PROVIDER_COMPONENT.to_string(), vec![component]);
+        discarded
+            .push("user profile (missing or unreadable, replaced with the template's)".to_string());
+        return Ok(());
+    };
+
+    let template_attributes: Vec<serde_json::Value> = template_profile["attributes"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let mut changed = false;
+    if let Some(attributes) = profile
+        .get_mut("attributes")
+        .and_then(serde_json::Value::as_array_mut)
+    {
+        for template_attribute in &template_attributes {
+            let Some(name) = template_attribute
+                .get("name")
+                .and_then(serde_json::Value::as_str)
+            else {
+                continue;
+            };
+            let template_permissions = template_attribute
+                .get("permissions")
+                .cloned()
+                .unwrap_or(serde_json::Value::Null);
+            match attributes.iter_mut().find(|attribute| {
+                attribute.get("name").and_then(serde_json::Value::as_str) == Some(name)
+            }) {
+                Some(attribute) => {
+                    if attribute
+                        .get("permissions")
+                        .cloned()
+                        .unwrap_or(serde_json::Value::Null)
+                        != template_permissions
+                    {
+                        attribute["permissions"] = template_permissions;
+                        discarded.push(format!("user-profile permissions of attribute '{name}'"));
+                        changed = true;
+                    }
+                }
+                None => {
+                    attributes.push(template_attribute.clone());
+                    discarded.push(format!(
+                        "user-profile attribute '{name}' missing (restored)"
+                    ));
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    let template_policy = template_profile
+        .get(UNMANAGED_ATTRIBUTE_POLICY_KEY)
+        .cloned();
+    if profile.get(UNMANAGED_ATTRIBUTE_POLICY_KEY).cloned() != template_policy {
+        if let Some(object) = profile.as_object_mut() {
+            match template_policy {
+                Some(policy) => object.insert(UNMANAGED_ATTRIBUTE_POLICY_KEY.to_string(), policy),
+                None => object.remove(UNMANAGED_ATTRIBUTE_POLICY_KEY),
+            };
+        }
+        discarded.push("user-profile unmanaged-attribute policy".to_string());
+        changed = true;
+    }
+
+    if changed {
+        if let Some(component) = realm
+            .components
+            .as_mut()
+            .and_then(|components| components.get_mut(USER_PROFILE_PROVIDER_COMPONENT))
+            .and_then(|components| components.first_mut())
+        {
+            component.config.get_or_insert_with(HashMap::new).insert(
+                USER_PROFILE_CONFIG_KEY.to_string(),
+                vec![profile.to_string()],
+            );
+        }
+    }
+    Ok(())
+}
+
 /// Reconcile an uploaded election-event realm against the platform template so
 /// that only the template's realm roles, Hasura claim mappers and
-/// identity-provider mappers survive. This prevents an imported realm from
-/// granting roles (such as `service-account` or `admin-user`) or minting
+/// identity-provider mappers survive, and its user profile doesn't let users
+/// edit the attributes token claims come from. This prevents an imported realm
+/// from granting roles (such as `service-account` or `admin-user`) or minting
 /// Hasura claims that the platform never intended an event realm to carry.
 #[instrument(skip(imported, template))]
 fn sanitize_imported_event_realm(
@@ -456,9 +683,17 @@ fn sanitize_imported_event_realm(
                 .collect()
         })
         .unwrap_or_default();
+    // The template's top-level default role only names it: its composites are
+    // on the full definition among the realm roles.
     if let Some(name) = imported_default_role_name {
-        template_composites.insert(name, template_default_role.and_then(|role| role.composites));
+        let composites = default_role_name(template)
+            .and_then(|template_name| template_composites.get(&template_name).cloned())
+            .flatten()
+            .or_else(|| template_default_role.and_then(|role| role.composites));
+        template_composites.insert(name, composites);
     }
+
+    let defined_roles = DefinedRoles::of(&realm);
 
     // 1. Realm roles: keep only the template's roles and the default composite.
     if let Some(roles) = realm.roles.as_mut() {
@@ -473,7 +708,14 @@ fn sanitize_imported_event_realm(
             });
             for role in realm_roles.iter_mut() {
                 let name = role.name.clone().unwrap_or_default();
-                role.composites = template_composites.get(&name).cloned().flatten();
+                let composites = template_composites.get(&name).cloned().flatten();
+                record_foreign_composites(
+                    role.composites.as_ref(),
+                    composites.as_ref(),
+                    &name,
+                    &mut discarded,
+                );
+                role.composites = defined_roles.retain_defined(composites);
             }
         }
     }
@@ -481,7 +723,47 @@ fn sanitize_imported_event_realm(
     // 2. Default role composites.
     if let Some(default_role) = realm.default_role.as_mut() {
         let name = default_role.name.clone().unwrap_or_default();
-        default_role.composites = template_composites.get(&name).cloned().flatten();
+        let composites = template_composites.get(&name).cloned().flatten();
+        record_foreign_composites(
+            default_role.composites.as_ref(),
+            composites.as_ref(),
+            &name,
+            &mut discarded,
+        );
+        default_role.composites = defined_roles.retain_defined(composites);
+    }
+
+    // 3. Client role composites: an allowed role could otherwise inherit
+    //    what the assignment checks below refuse to grant directly.
+    let template_client_composites: HashMap<(&str, &str), &Option<Composites>> = template
+        .roles
+        .iter()
+        .flat_map(|roles| roles.client.iter().flatten())
+        .flat_map(|(client_id, roles)| {
+            roles.iter().filter_map(move |role| {
+                Some((
+                    (client_id.as_str(), role.name.as_deref()?),
+                    &role.composites,
+                ))
+            })
+        })
+        .collect();
+    if let Some(client_roles) = realm.roles.as_mut().and_then(|roles| roles.client.as_mut()) {
+        for (client_id, roles) in client_roles.iter_mut() {
+            for role in roles.iter_mut() {
+                let name = role.name.clone().unwrap_or_default();
+                let composites = template_client_composites
+                    .get(&(client_id.as_str(), name.as_str()))
+                    .and_then(|composites| (*composites).clone());
+                record_foreign_composites(
+                    role.composites.as_ref(),
+                    composites.as_ref(),
+                    &format!("{client_id}/{name}"),
+                    &mut discarded,
+                );
+                role.composites = defined_roles.retain_defined(composites);
+            }
+        }
     }
 
     let template_user_client_roles: HashMap<String, ClientRoleAssignments> = template
@@ -496,7 +778,7 @@ fn sanitize_imported_event_realm(
         &mut template_group_client_roles,
     );
 
-    // 3. Role assignments on users.
+    // 4. Role assignments on users.
     if let Some(users) = realm.users.as_mut() {
         for user in users.iter_mut() {
             let username = user
@@ -522,7 +804,7 @@ fn sanitize_imported_event_realm(
         }
     }
 
-    // 4. Role assignments on groups.
+    // 5. Role assignments on groups.
     if let Some(groups) = realm.groups.as_mut() {
         for group in groups.iter_mut() {
             strip_group_roles(
@@ -534,7 +816,7 @@ fn sanitize_imported_event_realm(
         }
     }
 
-    // 5. Scope mappings that reference dropped roles.
+    // 6. Scope mappings that reference dropped roles.
     if let Some(scope_mappings) = realm.scope_mappings.as_mut() {
         for mapping in scope_mappings.iter_mut() {
             if let Some(roles) = mapping.roles.as_mut() {
@@ -543,7 +825,7 @@ fn sanitize_imported_event_realm(
         }
     }
 
-    // 6. Claim mappers on clients and client scopes: each keeps only the
+    // 7. Claim mappers on clients and client scopes: each keeps only the
     //    template's Hasura mappers for the client or scope of that name.
     let template_client_claim_mappers: HashMap<String, Vec<ProtocolMapperRepresentation>> =
         template
@@ -586,7 +868,7 @@ fn sanitize_imported_event_realm(
         }
     }
 
-    // 7. Identity-provider mappers: only the ones the template defines survive,
+    // 8. Identity-provider mappers: only the ones the template defines survive,
     //    as any of them can grant roles or set attributes the claims carry.
     let template_idp_mapper_keys: HashSet<_> = template
         .identity_provider_mappers
@@ -606,6 +888,10 @@ fn sanitize_imported_event_realm(
             keep
         });
     }
+
+    // 9. User profile: users must not be able to edit the attributes the
+    //    claims come from.
+    reconcile_user_profile(&mut realm, template, &mut discarded)?;
 
     if !discarded.is_empty() {
         match reconciliation {
@@ -2978,12 +3264,15 @@ mod tests {
             admin_events_details_enabled: Some(true),
             ..Default::default()
         };
-        let clean = sanitize_imported_event_realm(
-            &raw,
-            &RealmRepresentation::default(),
-            ImportedRealmReconciliation::default(),
-        )
+        // An import needs a template with a readable user profile to check
+        // the uploaded permissions against, so use the shipped one.
+        let template: RealmRepresentation = serde_json::from_str(include_str!(
+            "../../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json"
+        ))
         .unwrap();
+        let clean =
+            sanitize_imported_event_realm(&raw, &template, ImportedRealmReconciliation::default())
+                .unwrap();
         assert_eq!(
             clean.events_listeners,
             Some(vec!["custom-event-listener".into()])
@@ -4035,8 +4324,7 @@ mod import_scope_tests {
 mod imported_realm_sanitization_tests {
     use super::*;
     use ::keycloak::types::{
-        ClientRepresentation, ClientScopeRepresentation, Composites, RoleRepresentation,
-        UserRepresentation,
+        ClientRepresentation, ClientScopeRepresentation, RoleRepresentation, UserRepresentation,
     };
 
     const EVENT_REALM_TEMPLATE: &str = include_str!(
@@ -4248,6 +4536,165 @@ mod imported_realm_sanitization_tests {
         .is_err());
     }
 
+    fn user_profile(realm: &RealmRepresentation) -> serde_json::Value {
+        user_profile_component(realm)
+            .and_then(user_profile_config)
+            .expect("realm has a user profile")
+    }
+
+    fn profile_attribute<'a>(
+        profile: &'a serde_json::Value,
+        name: &str,
+    ) -> Option<&'a serde_json::Value> {
+        profile["attributes"]
+            .as_array()?
+            .iter()
+            .find(|attribute| attribute["name"] == name)
+    }
+
+    /// The template with its user profile edited as an uploaded export could be.
+    fn with_user_profile(edit: impl FnOnce(&mut serde_json::Value)) -> RealmRepresentation {
+        let mut realm = template_realm();
+        let mut profile = user_profile(&realm);
+        edit(&mut profile);
+        realm
+            .components
+            .as_mut()
+            .and_then(|components| components.get_mut(USER_PROFILE_PROVIDER_COMPONENT))
+            .and_then(|components| components.first_mut())
+            .and_then(|component| component.config.as_mut())
+            .expect("template has a user-profile config")
+            .insert(
+                USER_PROFILE_CONFIG_KEY.to_string(),
+                vec![profile.to_string()],
+            );
+        realm
+    }
+
+    #[test]
+    fn aligning_resets_user_profile_permissions_the_template_defines() {
+        let tampered = with_user_profile(|profile| {
+            for attribute in profile["attributes"].as_array_mut().unwrap() {
+                if attribute["name"] == "tenant-id" || attribute["name"] == "area-id" {
+                    attribute["permissions"]["edit"] = serde_json::json!(["admin", "user"]);
+                }
+            }
+        });
+
+        let profile = user_profile(&sanitize(&tampered));
+        let template_profile = user_profile(&template_realm());
+        for name in ["tenant-id", "area-id"] {
+            assert_eq!(
+                profile_attribute(&profile, name).expect("attribute kept")["permissions"],
+                profile_attribute(&template_profile, name).expect("template attribute")
+                    ["permissions"],
+                "{name} must have the template's permissions",
+            );
+        }
+
+        let error = sanitize_imported_event_realm(
+            &tampered,
+            &template_realm(),
+            ImportedRealmReconciliation::RejectForeignClaims,
+        )
+        .expect_err("a user-editable tenant-id is reported");
+        assert!(error
+            .to_string()
+            .contains("user-profile permissions of attribute 'tenant-id'"));
+    }
+
+    #[test]
+    fn aligning_restores_a_removed_attribute_and_the_unmanaged_policy() {
+        let tampered = with_user_profile(|profile| {
+            profile["attributes"]
+                .as_array_mut()
+                .unwrap()
+                .retain(|attribute| attribute["name"] != "tenant-id");
+            profile[UNMANAGED_ATTRIBUTE_POLICY_KEY] = serde_json::json!("ENABLED");
+        });
+
+        let profile = user_profile(&sanitize(&tampered));
+        let template_profile = user_profile(&template_realm());
+        assert_eq!(
+            profile_attribute(&profile, "tenant-id"),
+            profile_attribute(&template_profile, "tenant-id"),
+        );
+        assert_eq!(
+            profile.get(UNMANAGED_ATTRIBUTE_POLICY_KEY),
+            template_profile.get(UNMANAGED_ATTRIBUTE_POLICY_KEY),
+        );
+    }
+
+    #[test]
+    fn aligning_keeps_an_attribute_only_the_upload_declares() {
+        let tampered = with_user_profile(|profile| {
+            profile["attributes"]
+                .as_array_mut()
+                .unwrap()
+                .push(serde_json::json!({
+                    "name": "c31-extra",
+                    "permissions": {"view": ["admin", "user"], "edit": ["admin", "user"]}
+                }));
+        });
+
+        let profile = user_profile(&sanitize(&tampered));
+        assert!(profile_attribute(&profile, "c31-extra").is_some());
+    }
+
+    #[test]
+    fn aligning_replaces_a_missing_user_profile_with_the_template() {
+        let mut realm = template_realm();
+        realm
+            .components
+            .as_mut()
+            .unwrap()
+            .remove(USER_PROFILE_PROVIDER_COMPONENT);
+
+        assert_eq!(
+            user_profile(&sanitize(&realm)),
+            user_profile(&template_realm())
+        );
+    }
+
+    #[test]
+    fn a_template_without_a_readable_user_profile_fails_the_import() {
+        let tampered = with_user_profile(|profile| {
+            for attribute in profile["attributes"].as_array_mut().unwrap() {
+                if attribute["name"] == "tenant-id" {
+                    attribute["permissions"]["edit"] = serde_json::json!(["admin", "user"]);
+                }
+            }
+        });
+        let mut without_profile = template_realm();
+        without_profile
+            .components
+            .as_mut()
+            .unwrap()
+            .remove(USER_PROFILE_PROVIDER_COMPONENT);
+        let mut unreadable_profile = template_realm();
+        unreadable_profile
+            .components
+            .as_mut()
+            .and_then(|components| components.get_mut(USER_PROFILE_PROVIDER_COMPONENT))
+            .and_then(|components| components.first_mut())
+            .and_then(|component| component.config.as_mut())
+            .expect("template has a user-profile config")
+            .insert(
+                USER_PROFILE_CONFIG_KEY.to_string(),
+                vec!["not a profile".to_string()],
+            );
+
+        for template in [without_profile, unreadable_profile] {
+            let error = sanitize_imported_event_realm(
+                &tampered,
+                &template,
+                ImportedRealmReconciliation::AlignWithTemplate,
+            )
+            .expect_err("the uploaded permissions can't be checked without the template's");
+            assert!(error.to_string().contains("no readable user profile"));
+        }
+    }
+
     const REALM_ADMIN_CLIENT: &str = "realm-management";
     const REALM_ADMIN_ROLE: &str = "realm-admin";
 
@@ -4350,6 +4797,184 @@ mod imported_realm_sanitization_tests {
         assert_eq!(composites_of(&sanitized), composites_of(&template));
     }
 
+    fn default_role_composites(realm: &RealmRepresentation) -> Option<Composites> {
+        realm
+            .roles
+            .iter()
+            .flat_map(|roles| roles.realm.iter().flatten())
+            .find(|role| {
+                role.name
+                    .as_deref()
+                    .is_some_and(|name| name.starts_with(DEFAULT_REALM_ROLE_PREFIX))
+            })
+            .and_then(|role| role.composites.clone())
+    }
+
+    fn realm_admin_composites() -> Composites {
+        Composites {
+            client: Some(HashMap::from([(
+                REALM_ADMIN_CLIENT.to_string(),
+                vec![REALM_ADMIN_ROLE.to_string()],
+            )])),
+            ..Default::default()
+        }
+    }
+
+    fn reject(imported: &RealmRepresentation) -> Result<RealmRepresentation> {
+        sanitize_imported_event_realm(
+            imported,
+            &template_realm(),
+            ImportedRealmReconciliation::RejectForeignClaims,
+        )
+    }
+
+    #[test]
+    fn aligning_the_template_keeps_the_default_role_composites() {
+        let template = template_realm();
+        assert!(default_role_composites(&template).is_some());
+        assert_eq!(
+            default_role_composites(&sanitize(&template)),
+            default_role_composites(&template)
+        );
+    }
+
+    #[test]
+    fn aligning_the_template_does_not_duplicate_its_mappers() {
+        let mapper_names = |mappers: &Option<Vec<ProtocolMapperRepresentation>>| {
+            let mut names: Vec<_> = mappers
+                .iter()
+                .flatten()
+                .filter_map(|mapper| mapper.name.clone())
+                .collect();
+            names.sort();
+            names
+        };
+        let template = template_realm();
+        let sanitized = sanitize(&template);
+        for (sanitized_client, client) in sanitized
+            .clients
+            .iter()
+            .flatten()
+            .zip(template.clients.iter().flatten())
+        {
+            assert_eq!(
+                mapper_names(&sanitized_client.protocol_mappers),
+                mapper_names(&client.protocol_mappers)
+            );
+        }
+        for (sanitized_scope, scope) in sanitized
+            .client_scopes
+            .iter()
+            .flatten()
+            .zip(template.client_scopes.iter().flatten())
+        {
+            assert_eq!(
+                mapper_names(&sanitized_scope.protocol_mappers),
+                mapper_names(&scope.protocol_mappers)
+            );
+        }
+    }
+
+    #[test]
+    fn a_mapper_adding_a_role_to_the_token_is_claim_authority() {
+        let mut realm = template_realm();
+        let mapper = ProtocolMapperRepresentation {
+            name: Some("grant-realm-admin".to_string()),
+            protocol: Some("openid-connect".to_string()),
+            protocol_mapper: Some("oidc-hardcoded-role-mapper".to_string()),
+            config: Some(HashMap::from([(
+                "role".to_string(),
+                format!("{REALM_ADMIN_CLIENT}.{REALM_ADMIN_ROLE}"),
+            )])),
+            ..Default::default()
+        };
+        realm
+            .clients
+            .iter_mut()
+            .flatten()
+            .find(|client| client.client_id.as_deref() == Some("voting-portal"))
+            .expect("template has the voting portal")
+            .protocol_mappers
+            .get_or_insert_with(Vec::new)
+            .push(mapper);
+
+        assert!(reject(&realm).is_err());
+        let sanitized = sanitize(&realm);
+        assert!(!client(&sanitized, "voting-portal")
+            .protocol_mappers
+            .iter()
+            .flatten()
+            .any(|mapper| mapper.name.as_deref() == Some("grant-realm-admin")));
+    }
+
+    #[test]
+    fn a_foreign_composite_on_an_allowed_realm_role_is_reported() {
+        let mut realm = template_realm();
+        let allowed_role = realm_role_names(&realm)
+            .into_iter()
+            .find(|name| !name.starts_with(DEFAULT_REALM_ROLE_PREFIX))
+            .expect("template has a realm role");
+        for role in realm
+            .roles
+            .iter_mut()
+            .flat_map(|roles| roles.realm.iter_mut().flatten())
+        {
+            if role.name.as_deref() == Some(allowed_role.as_str()) {
+                role.composites = Some(realm_admin_composites());
+            }
+        }
+
+        let error = reject(&realm).expect_err("the composite is foreign");
+        assert!(error.to_string().contains(REALM_ADMIN_ROLE), "{error}");
+    }
+
+    #[test]
+    fn a_foreign_composite_on_the_default_role_is_reported() {
+        let mut realm = template_realm();
+        realm
+            .default_role
+            .as_mut()
+            .expect("template has a default role")
+            .composites = Some(realm_admin_composites());
+
+        let error = reject(&realm).expect_err("the composite is foreign");
+        assert!(error.to_string().contains(REALM_ADMIN_ROLE), "{error}");
+    }
+
+    #[test]
+    fn a_client_role_cannot_inherit_what_it_cannot_be_assigned() {
+        let mut realm = template_realm();
+        let manage_account = realm
+            .roles
+            .iter_mut()
+            .flat_map(|roles| roles.client.iter_mut().flatten())
+            .find(|(client_id, _)| client_id.as_str() == "account")
+            .expect("template has account roles")
+            .1
+            .iter_mut()
+            .find(|role| role.name.as_deref() == Some("manage-account"))
+            .expect("template has manage-account");
+        manage_account.composites = Some(realm_admin_composites());
+
+        let error = reject(&realm).expect_err("the composite is foreign");
+        assert!(error.to_string().contains(REALM_ADMIN_ROLE), "{error}");
+
+        let composites_of = |realm: &RealmRepresentation| {
+            realm
+                .roles
+                .iter()
+                .flat_map(|roles| roles.client.iter().flatten())
+                .filter(|(client_id, _)| client_id.as_str() == "account")
+                .flat_map(|(_, roles)| roles.iter())
+                .find(|role| role.name.as_deref() == Some("manage-account"))
+                .and_then(|role| role.composites.clone())
+        };
+        assert_eq!(
+            composites_of(&sanitize(&realm)),
+            composites_of(&template_realm())
+        );
+    }
+
     #[test]
     fn aligning_only_allows_the_realms_own_default_role() {
         let mut realm = template_realm();
@@ -4441,5 +5066,163 @@ mod imported_realm_sanitization_tests {
             .as_deref()
             .unwrap_or_default()
             .is_empty());
+    }
+
+    #[test]
+    fn aligning_restores_a_missing_template_claim_mapper() {
+        let mut realm = template_realm();
+        realm
+            .clients
+            .iter_mut()
+            .flatten()
+            .find(|client| client.client_id.as_deref() == Some("voting-portal"))
+            .and_then(|client| client.protocol_mappers.as_mut())
+            .expect("voting-portal mappers present")
+            .retain(|mapper| mapper.name.as_deref() != Some("x-hasura-tenant-id"));
+
+        let sanitized = sanitize(&realm);
+
+        assert_eq!(
+            client_claim_mapper_count(&sanitized, "voting-portal"),
+            client_claim_mapper_count(&template_realm(), "voting-portal"),
+        );
+    }
+
+    #[test]
+    fn aligning_leaves_other_mappers_as_uploaded() {
+        let mut realm = template_realm();
+        realm
+            .client_scopes
+            .iter_mut()
+            .flatten()
+            .find(|scope| scope.name.as_deref() == Some("email"))
+            .and_then(|scope| scope.protocol_mappers.as_mut())
+            .expect("email scope mappers present")
+            .retain(|mapper| mapper.name.as_deref() != Some("email verified"));
+
+        let sanitized = sanitize(&realm);
+
+        let names: Vec<_> = sanitized
+            .client_scopes
+            .iter()
+            .flatten()
+            .find(|scope| scope.name.as_deref() == Some("email"))
+            .and_then(|scope| scope.protocol_mappers.as_deref())
+            .unwrap_or_default()
+            .iter()
+            .filter_map(|mapper| mapper.name.as_deref())
+            .collect();
+        assert_eq!(names, vec!["email"]);
+    }
+
+    /// Composite members that name a role the realm does not define, which
+    /// Keycloak refuses when it creates the realm.
+    fn undefined_composite_members(realm: &RealmRepresentation) -> Vec<String> {
+        let realm_roles = realm_role_names(realm);
+        let client_roles: HashMap<String, HashSet<String>> = realm
+            .roles
+            .iter()
+            .flat_map(|roles| roles.client.iter().flatten())
+            .map(|(client_id, roles)| {
+                let names = roles.iter().filter_map(|role| role.name.clone()).collect();
+                (client_id.clone(), names)
+            })
+            .collect();
+        let roles = realm.roles.iter().flat_map(|roles| {
+            roles
+                .realm
+                .iter()
+                .flatten()
+                .chain(roles.client.iter().flatten().flat_map(|(_, roles)| roles))
+        });
+        let mut undefined = Vec::new();
+        for composites in roles.filter_map(|role| role.composites.as_ref()) {
+            for name in composites.realm.iter().flatten() {
+                if !realm_roles.contains(name) {
+                    undefined.push(name.clone());
+                }
+            }
+            for (client_id, names) in composites.client.iter().flatten() {
+                for name in names {
+                    if !client_roles
+                        .get(client_id)
+                        .is_some_and(|defined| defined.contains(name))
+                    {
+                        undefined.push(format!("{client_id}/{name}"));
+                    }
+                }
+            }
+        }
+        undefined
+    }
+
+    #[test]
+    fn aligning_keeps_only_the_composites_the_upload_defines() {
+        // Exports from before Keycloak 26.7 have no organization roles, which
+        // the template's realm-admin composes.
+        let organization_roles = [
+            "manage-organizations",
+            "query-organizations",
+            "view-organizations",
+        ];
+        let mut realm = template_realm();
+        let realm_management = realm
+            .roles
+            .as_mut()
+            .and_then(|roles| roles.client.as_mut())
+            .and_then(|clients| clients.get_mut(REALM_ADMIN_CLIENT))
+            .expect("template defines realm-management roles");
+        realm_management.retain(|role| {
+            !role
+                .name
+                .as_deref()
+                .is_some_and(|name| organization_roles.contains(&name))
+        });
+        for role in realm_management.iter_mut() {
+            if let Some(names) = role
+                .composites
+                .as_mut()
+                .and_then(|composites| composites.client.as_mut())
+                .and_then(|clients| clients.get_mut(REALM_ADMIN_CLIENT))
+            {
+                names.retain(|name| !organization_roles.contains(&name.as_str()));
+            }
+        }
+        assert!(undefined_composite_members(&realm).is_empty());
+
+        let sanitized = sanitize(&realm);
+
+        assert_eq!(
+            undefined_composite_members(&sanitized),
+            Vec::<String>::new()
+        );
+        let realm_admin_members = sanitized
+            .roles
+            .iter()
+            .flat_map(|roles| roles.client.iter().flatten())
+            .filter(|(client_id, _)| client_id.as_str() == REALM_ADMIN_CLIENT)
+            .flat_map(|(_, roles)| roles)
+            .find(|role| role.name.as_deref() == Some(REALM_ADMIN_ROLE))
+            .and_then(|role| role.composites.as_ref())
+            .and_then(|composites| composites.client.as_ref())
+            .and_then(|clients| clients.get(REALM_ADMIN_CLIENT))
+            .cloned()
+            .unwrap_or_default();
+        assert!(realm_admin_members.contains(&"manage-users".to_string()));
+    }
+
+    #[test]
+    fn aligning_keeps_the_kiosk_client_claim_mappers() {
+        let template = template_realm();
+        let kiosk_mappers = client_claim_mapper_count(&template, "voting-portal-kiosk");
+
+        assert_eq!(
+            kiosk_mappers,
+            client_claim_mapper_count(&template, "voting-portal")
+        );
+        assert_eq!(
+            client_claim_mapper_count(&sanitize(&template), "voting-portal-kiosk"),
+            kiosk_mappers
+        );
     }
 }
