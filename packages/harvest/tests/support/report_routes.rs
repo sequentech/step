@@ -243,7 +243,7 @@ async fn ballot_images_are_generated_by_a_task_for_their_event() {
         post(
             &client,
             "/generate-template",
-            &reader(&event, &[Permissions::REPORT_READ]),
+            &reader(&event, &[Permissions::REPORT_GENERATE]),
             &ballot_images(&event),
         )
         .await,
@@ -275,7 +275,7 @@ async fn ballot_images_that_cannot_be_enqueued_are_a_server_error() {
     let response = post(
         &client,
         "/generate-template",
-        &reader(&event, &[Permissions::REPORT_READ]),
+        &reader(&event, &[Permissions::REPORT_GENERATE]),
         &ballot_images(&event),
     )
     .await;
@@ -537,7 +537,7 @@ async fn report_routes_answer_500_when_the_database_is_unreachable() {
         ),
         (
             "/generate-template",
-            Permissions::REPORT_READ,
+            Permissions::REPORT_GENERATE,
             ballot_images(&event),
         ),
         (

@@ -6,6 +6,7 @@ import type {StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
 import {i18n} from "@sequentech/ui-core"
 import {ETallyType} from "@/types/ceremonies"
+import {IPermissions} from "@/types/keycloak"
 import {ETemplateType} from "@/types/templates"
 import {
     AdminStoryProvider,
@@ -32,6 +33,8 @@ interface Scenario {
     tallyType: ETallyType
     /** Whether the deployment enables the Miru transmission exports. */
     miru: boolean
+    /** The signed-in user's roles, for the exports that need a permission. */
+    roles?: string[]
     onCreateTransmissionPackage: (value: {area_id: string; election_id: string}) => void
 }
 
@@ -53,9 +56,13 @@ const DOCUMENTS: Record<Scenario["level"], IResultDocumentsData[]> = {
 let boundary: ReturnType<typeof graphqlBoundary>
 let downloads: RecordedDownload[]
 
-function Fixture({level, tallyType, miru, onCreateTransmissionPackage}: Scenario) {
+function Fixture({level, tallyType, miru, roles, onCreateTransmissionPackage}: Scenario) {
     return (
-        <AdminStoryProvider boundary={boundary} settings={{ACTIVATE_MIRU_EXPORT: miru}}>
+        <AdminStoryProvider
+            boundary={boundary}
+            roles={roles}
+            settings={{ACTIVATE_MIRU_EXPORT: miru}}
+        >
             <WidgetsContextProvider>
                 <TallyStoryContext data={tallyData()}>
                     <ExportElectionMenu
@@ -87,6 +94,7 @@ const meta = {
     argTypes: {
         level: {control: "inline-radio", options: ["event", "election"]},
         tallyType: {control: "inline-radio", options: Object.values(ETallyType)},
+        roles: {table: {disable: true}},
         onCreateTransmissionPackage: {table: {disable: true}},
     },
     beforeEach: async () => {
@@ -127,6 +135,11 @@ async function closeMenu() {
 
 const itemNames = (menu: ReturnType<typeof within>) =>
     menu.getAllByRole("menuitem").map((item: HTMLElement) => item.textContent)
+
+const ballotImagesLabel = () =>
+    i18n.t("tally.generateReport", {
+        name: i18n.t(`template.type.${ETemplateType.BALLOT_IMAGES}`),
+    })
 
 export const Populated: Story = {
     play: async ({canvasElement}) => {
@@ -187,17 +200,14 @@ export const ElectionOffersAllAreasExports: Story = {
 }
 
 export const MiruAddsTransmissionAndBallotImages: Story = {
-    args: {level: "election", miru: true},
+    args: {level: "election", miru: true, roles: [IPermissions.REPORT_GENERATE]},
     play: async ({canvasElement, args}) => {
         const menu = await openMenu(canvasElement)
         const areaItem = i18n.t("tally.exportElectionArea", {name: "North district"})
-        const report = i18n.t("tally.generateReport", {
-            name: i18n.t(`template.type.${ETemplateType.BALLOT_IMAGES}`),
-        })
         expect(itemNames(menu).slice(-3)).toEqual([
             areaItem,
             i18n.t("tally.exportElectionArea", {name: "South district"}),
-            report,
+            ballotImagesLabel(),
         ])
         await userEvent.click(menu.getByRole("menuitem", {name: areaItem}))
         expect(args.onCreateTransmissionPackage).toHaveBeenCalledWith({
@@ -208,8 +218,25 @@ export const MiruAddsTransmissionAndBallotImages: Story = {
     },
 }
 
+export const BallotImagesNeedReportGenerate: Story = {
+    args: {level: "election", miru: true, roles: [IPermissions.REPORT_READ]},
+    play: async ({canvasElement}) => {
+        const menu = await openMenu(canvasElement)
+        expect(itemNames(menu)).toContain(
+            i18n.t("tally.exportElectionArea", {name: "North district"})
+        )
+        expect(itemNames(menu)).not.toContain(ballotImagesLabel())
+        await closeMenu()
+    },
+}
+
 export const InitializationReportOmitsResultExports: Story = {
-    args: {level: "election", miru: true, tallyType: ETallyType.INITIALIZATION_REPORT},
+    args: {
+        level: "election",
+        miru: true,
+        roles: [IPermissions.REPORT_GENERATE],
+        tallyType: ETallyType.INITIALIZATION_REPORT,
+    },
     play: async ({canvasElement}) => {
         const menu = await openMenu(canvasElement)
         expect(itemNames(menu)).toEqual([

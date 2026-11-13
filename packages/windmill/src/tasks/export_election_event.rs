@@ -40,6 +40,11 @@ pub struct ExportOptions {
 }
 
 impl ExportOptions {
+    /// The export holds the protocol manager signing keys of the event's boards.
+    pub fn includes_protocol_manager_keys(&self) -> bool {
+        self.bulletin_board || self.activity_logs || self.publications
+    }
+
     pub fn validate_protocol_archive(&self) -> anyhow::Result<()> {
         anyhow::ensure!(!self.tally || self.bulletin_board,
             "Tally export requires bulletin_board so its native key and protocol history can be restored");
