@@ -10,18 +10,16 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use std::str::FromStr;
 use tracing::{event, instrument, Level};
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::custom_url::{
-    get_page_rule, set_custom_url, PageRule, PreviousCustomUrls, Target,
+    get_page_rule, set_custom_url, CustomUrlKind, DnsLabel,
 };
 use windmill::services::database::get_hasura_pool;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateCustomUrlInput {
-    pub origin: String,
-    pub redirect_to: String,
     pub dns_prefix: String,
     pub election_id: String,
     pub key: String,
@@ -45,6 +43,29 @@ struct UpdateCustomUrlOutput {
     message: String,
 }
 
+/// Kind of custom URL named by the key of the request; an unknown key is a bad
+/// request.
+fn parse_custom_url_kind(key: &str) -> Result<CustomUrlKind, (Status, String)> {
+    CustomUrlKind::from_str(key).map_err(|_| {
+        (
+            Status::BadRequest,
+            format!("Invalid custom URL key: {key:?}"),
+        )
+    })
+}
+
+/// Prefix named by the request. An invalid prefix is reported in the output of
+/// the update, like the other failures of the update, so that the admin portal
+/// can show the message of each custom URL.
+fn parse_custom_url_prefix(
+    dns_prefix: &str,
+) -> Result<DnsLabel, UpdateCustomUrlOutput> {
+    DnsLabel::from_str(dns_prefix).map_err(|error| UpdateCustomUrlOutput {
+        success: false,
+        message: format!("Error updating custom URL: {error}"),
+    })
+}
+
 #[instrument(skip(claims))]
 #[post("/set-custom-url", format = "json", data = "<input>")]
 pub async fn update_custom_url(
@@ -61,6 +82,12 @@ pub async fn update_custom_url(
         error!("Authorization failed: {:?}", err);
         return Err((Status::Forbidden, "Authorization failed".to_string()));
     }
+
+    let kind = parse_custom_url_kind(&body.key)?;
+    let dns_prefix = match parse_custom_url_prefix(&body.dns_prefix) {
+        Ok(dns_prefix) => dns_prefix,
+        Err(output) => return Ok(Json(output)),
+    };
 
     info!("Authorization succeeded, processing URL update");
     let mut hasura_db_client: DbClient = get_hasura_pool()
@@ -82,47 +109,11 @@ pub async fn update_custom_url(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    let prev_custom_urls =
-        if let Some(presentation) = &election_event.presentation {
-            if let Some(custom_urls_obj) = presentation.get("custom_urls") {
-                PreviousCustomUrls {
-                    login: custom_urls_obj
-                        .get("login")
-                        .and_then(Value::as_str)
-                        .unwrap_or("")
-                        .to_owned(),
-                    enrollment: custom_urls_obj
-                        .get("enrollment")
-                        .and_then(Value::as_str)
-                        .unwrap_or("")
-                        .to_owned(),
-                    saml: custom_urls_obj
-                        .get("saml")
-                        .and_then(Value::as_str)
-                        .unwrap_or("")
-                        .to_owned(),
-                }
-            } else {
-                PreviousCustomUrls {
-                    login: "".to_owned(),
-                    enrollment: "".to_owned(),
-                    saml: "".to_owned(),
-                }
-            }
-        } else {
-            PreviousCustomUrls {
-                login: "".to_owned(),
-                enrollment: "".to_owned(),
-                saml: "".to_owned(),
-            }
-        };
-
     match set_custom_url(
-        &body.redirect_to,
-        &body.origin,
-        &body.dns_prefix,
-        &prev_custom_urls,
-        &body.key,
+        &claims.hasura_claims.tenant_id,
+        &election_event.id,
+        kind,
+        &dns_prefix,
     )
     .await
     {
@@ -192,5 +183,45 @@ pub async fn get_custom_url(
             message: "No matching page rule found".to_string(),
             origin: "".to_string(),
         })),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn known_keys_are_custom_url_kinds() {
+        assert_eq!(
+            parse_custom_url_kind("login").ok(),
+            Some(CustomUrlKind::Login)
+        );
+        assert_eq!(
+            parse_custom_url_kind("enrollment").ok(),
+            Some(CustomUrlKind::Enrollment)
+        );
+        assert_eq!(
+            parse_custom_url_kind("saml").ok(),
+            Some(CustomUrlKind::Saml)
+        );
+    }
+
+    #[test]
+    fn unknown_key_is_a_bad_request() {
+        let (status, message) = parse_custom_url_kind("other").unwrap_err();
+
+        assert_eq!(status, Status::BadRequest);
+        assert!(message.contains("other"));
+    }
+
+    #[test]
+    fn prefix_must_be_a_single_label() {
+        assert!(parse_custom_url_prefix("my-vote").is_ok());
+        for prefix in ["", "my.vote", "*"] {
+            let output = parse_custom_url_prefix(prefix).unwrap_err();
+
+            assert!(!output.success, "{prefix:?}");
+            assert!(output.message.starts_with("Error updating custom URL"));
+        }
     }
 }
