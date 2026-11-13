@@ -1016,7 +1016,9 @@ impl BallotChoices {
 
         let num_selected_candidates = next_choices.len();
         // Explicit invalid and explicit blank flags count as selections
-        // for the min_votes, max_votes, undervote and blank-vote rules.
+        // for the min_votes, max_votes and blank-vote rules. Only the
+        // explicit invalid flag counts for the undervote rule, since a
+        // selected explicit blank skips it.
         let num_selected_with_markers = num_selected_candidates
             + usize::from(is_explicit_invalid)
             + usize::from(is_explicit_blank);
