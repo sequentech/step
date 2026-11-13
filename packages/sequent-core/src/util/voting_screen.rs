@@ -6,7 +6,6 @@ use crate::ballot::*;
 use crate::ballot_codec::multi_ballot::votable_contests;
 use crate::plaintext::*;
 use crate::types::ceremonies::CountingAlgType;
-use crate::util::console_log;
 
 use std::collections::HashMap;
 
@@ -187,8 +186,6 @@ pub fn check_voting_error_dialog_util(
         let max = contest.max_votes;
         let min = contest.min_votes;
 
-        console_log!("max={min:?}, min={min:?}, blank_policy={blank_policy:?}, under_vote_policy={under_vote_policy:?}");
-
         if let Some(decoded_contest) = decoded_contests.get(&contest.id) {
             let choices_selected = decoded_contest
                 .choices
@@ -198,8 +195,6 @@ pub fn check_voting_error_dialog_util(
             let invalid_errors: &Vec<InvalidPlaintextError> =
                 &decoded_contest.invalid_errors;
             let explicit_invalid = decoded_contest.is_explicit_invalid;
-
-            console_log!("choices_selected={choices_selected:?}, explicit_invalid={explicit_invalid:?}");
 
             // Selected explicit invalid/blank marker candidates count as
             // selections. Marker candidates present in the decoded choices
