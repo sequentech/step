@@ -22,6 +22,7 @@ pub const SCANOVATE_LIVENESS_SECRET_KEY: &str = "liveness-secret";
 /// The Scanovate setting naming the Liveness Plus endpoint.
 pub const SCANOVATE_LIVENESS_URL_KEY: &str = "liveness-url";
 /// What Keycloak's partial export writes in place of a secret setting.
+#[cfg(test)]
 const KEYCLOAK_MASKED_SECRET: &str = "**********";
 
 /// Whether an election event export carries the Scanovate `liveness-secret`.
@@ -175,7 +176,7 @@ pub fn embed_integration_secrets(
         if !exclusive
             || rows.any(|other| other != row)
             || secret.trim().is_empty()
-            || secret == KEYCLOAK_MASKED_SECRET
+            || sequent_core::election_config::scanovate::is_masked(secret)
         {
             return Err(unavailable);
         }
@@ -207,7 +208,7 @@ pub fn embed_integration_secrets(
 /// credential: Liveness Plus callbacks would then fail while Keycloak's
 /// console, which masks the setting either way, looks the same. An import
 /// refuses these instead (see `reject_masked_integration_secrets`). Only the
-/// exact placeholder counts; no value is read beyond comparing with it.
+/// nonempty all-asterisk placeholders count; no setting is printed.
 pub fn masked_integration_secret_configs(realm: &Value) -> Vec<String> {
     let providers = config_providers(realm);
     let configs = realm.get("authenticatorConfig").and_then(Value::as_array);
@@ -223,69 +224,23 @@ pub fn masked_integration_secret_configs(realm: &Value) -> Vec<String> {
                 return None;
             }
             let secret = config.get("config")?.get(SCANOVATE_LIVENESS_SECRET_KEY)?;
-            (secret.as_str() == Some(KEYCLOAK_MASKED_SECRET)).then(|| alias.to_string())
+            secret
+                .as_str()
+                .is_some_and(sequent_core::election_config::scanovate::is_masked)
+                .then(|| alias.to_string())
         })
         .collect()
 }
 
-/// Puts each `liveness-secret`, and the `liveness-url` it belongs to, of the
-/// archive's realm back after import has remapped the archive's UUIDs.
-///
-/// Import gives every UUID-shaped text in the archive a fresh UUID, so that
-/// rows and references do not collide with the source event's. The Scanovate
-/// secret and endpoint are neither: they are issued by the Liveness Plus
-/// service, and one that is, or contains, a UUID (even the source tenant's,
-/// event's or configuration's) must reach Keycloak exactly as exported, or
-/// the destination holds a credential or endpoint Scanovate never issued.
-/// Only these two settings of the configurations only Scanovate executions use
-/// are restored, together, in the configuration they came from; every other
-/// setting, and the same UUID elsewhere in the archive, is still remapped.
-/// The caller passes the same document before and after remapping, which
-/// rewrites text inside strings and keeps every array's order, so the
-/// configurations pair up by position; the length check is only a guard.
+/// Restore opaque Scanovate settings after import rewrites structural UUIDs.
+/// Service settings, including unknown future keys, are not platform references.
+/// Shared configurations remain excluded, as on authorized secret export.
 pub fn restore_remapped_integration_secrets(
     original: Option<&Value>,
     remapped: Option<&mut Value>,
 ) {
-    let Some(original) = original else {
-        return;
-    };
-    let providers = config_providers(original);
-    let originals = original
-        .get("authenticatorConfig")
-        .and_then(Value::as_array);
-    let remapped = remapped
-        .and_then(|realm| realm.get_mut("authenticatorConfig"))
-        .and_then(Value::as_array_mut);
-    let (Some(originals), Some(remapped)) = (originals, remapped) else {
-        return;
-    };
-    if originals.len() != remapped.len() {
-        return;
-    }
-    for (original, remapped) in originals.iter().zip(remapped.iter_mut()) {
-        // As on export: only configurations no other authenticator uses.
-        let scanovate_only = original
-            .get("alias")
-            .and_then(Value::as_str)
-            .and_then(|alias| providers.get(alias))
-            .is_some_and(|used_by| {
-                used_by.len() == 1 && used_by.contains(SCANOVATE_AUTHENTICATOR_PROVIDER)
-            });
-        if !scanovate_only {
-            continue;
-        }
-        let (Some(original), Some(settings)) = (
-            original.get("config").and_then(Value::as_object),
-            remapped.get_mut("config").and_then(Value::as_object_mut),
-        ) else {
-            continue;
-        };
-        for key in [SCANOVATE_LIVENESS_SECRET_KEY, SCANOVATE_LIVENESS_URL_KEY] {
-            if let Some(value @ Value::String(_)) = original.get(key) {
-                settings.insert(key.to_string(), value.clone());
-            }
-        }
+    if let (Some(original), Some(remapped)) = (original, remapped) {
+        sequent_core::election_config::scanovate::restore_settings(original, remapped);
     }
 }
 
@@ -414,6 +369,8 @@ mod tests {
             (realm(), vec![]),
             (realm(), vec![other_alias]),
             (realm(), vec![stored(KEYCLOAK_MASKED_SECRET)]),
+            (realm(), vec![stored("*****")]),
+            (realm(), vec![stored("  **********  ")]),
             (realm(), vec![stored(" ")]),
             (
                 realm(),
@@ -458,9 +415,8 @@ mod tests {
         let settings = &restored["authenticatorConfig"][0]["config"];
         assert_eq!(settings["liveness-secret"], SECRET);
         assert_eq!(settings["liveness-url"], ENDPOINT);
-        // Every other setting, and other authenticators' settings, keep
-        // their remapping.
-        assert_eq!(settings["max-attempts"], "remapped");
+        // Service settings are opaque; other authenticators keep remapping.
+        assert_eq!(settings["max-attempts"], "original");
         assert_eq!(
             restored["authenticatorConfig"][1]["config"]["liveness-secret"],
             "remapped"

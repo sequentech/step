@@ -53,9 +53,16 @@ pub use tables::{
 /// with no information in it, and the importer overwrites these anyway.
 pub const DEFAULT_CREATED_AT: &str = "2026-01-01T00:00:00.000000Z";
 
-/// Bundle format version written when neither a base export nor an option says
-/// otherwise.
-pub const DEFAULT_VERSION: &str = "v10.0.0";
+/// Bundle format version written when the base export does not say otherwise.
+///
+/// The platform line this crate belongs to ([`PLATFORM_VERSION`]), because the
+/// bundle has the shape this crate's importer reads. A base export's own string
+/// `version` is still carried verbatim: the Admin Portal's historical import
+/// passes the running platform's `APP_VERSION` that way, and an existing
+/// export keeps the version it was written by.
+///
+/// [`PLATFORM_VERSION`]: crate::util::version::PLATFORM_VERSION
+pub const DEFAULT_VERSION: &str = crate::util::version::PLATFORM_VERSION;
 
 /// The bundle's signing configuration, carried over from a base export.
 const SIGNING_RULES_KEY: &str = "signing_rules";
@@ -140,8 +147,13 @@ pub const PARAMETER_PREFIXES: &[&str] = &[
 ];
 
 /// Parameters the builder acts on directly rather than carrying as metadata.
-pub const HANDLED_PARAMETERS: &[&str] =
-    &["tenant_id", realm::PARAM_LOGIN_CUSTOM_CSS];
+pub const HANDLED_PARAMETERS: &[&str] = &[
+    "tenant_id",
+    super::messaging_config::PARAMETER,
+    realm::PARAM_LOGIN_CUSTOM_CSS,
+    realm::PARAM_EVENT_REALM,
+    realm::PARAM_EVENT_REALM_SOURCE_ID,
+];
 
 /// Fields of a base entity that describe *that* event rather than the platform's
 /// defaults, and so must not leak into a new one.
@@ -206,7 +218,7 @@ const SCRUB_AREA: &[&str] = &[
 ];
 
 /// What a caller may vary about a build.
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct BuildOptions {
     /// The tenant id to write into the file.
     ///
@@ -272,6 +284,13 @@ pub struct BuildOptions {
     /// `.unwrap_or_default()` and becomes an empty string, so the ceremony
     /// imports with a member who does not exist and nothing reports it.
     pub keys_ceremony: Option<KeysCeremonyPlan>,
+
+    /// Whether the census leaves voters' contact details to enrollment.
+    ///
+    /// A historical census carries no email or mobile: enrollment collects them.
+    /// Warning that such voters cannot be sent a one-time code would then be true
+    /// of every voter and say nothing.
+    pub census_contacts_at_enrollment: bool,
 
     /// Whether the key ceremony is run by people or by the platform.
     ///
@@ -364,7 +383,7 @@ impl ImageFile {
 }
 
 /// A built bundle: the JSON document and what was worth saying about it.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Bundle {
     pub slug: String,
     pub tenant_id: String,
@@ -481,6 +500,8 @@ struct Builder<'a> {
     contest_ids: Vec<(String, String)>,
     area_ids: Vec<(String, String)>,
     area_names: Vec<(String, String)>,
+    /// See [`BuildOptions::census_contacts_at_enrollment`].
+    census_contacts_at_enrollment: bool,
 }
 
 impl<'a> Builder<'a> {
@@ -550,6 +571,8 @@ impl<'a> Builder<'a> {
             contest_ids: Vec::new(),
             area_ids: Vec::new(),
             area_names: Vec::new(),
+            census_contacts_at_enrollment: options
+                .census_contacts_at_enrollment,
         };
 
         builder.parameters = builder.read_parameters();
@@ -576,6 +599,23 @@ impl<'a> Builder<'a> {
         // realm's URLs and that id comes from the base export.
         let realm = self.build_realm();
         let admin_realm_patch = self.admin_realm_patch();
+        // Validate the effective realm after explicit overrides; a standalone
+        // patch is checked too, before any artifact can carry a placeholder.
+        let credential_source = if realm.is_null() {
+            Value::Object(self.realm_patch.patch.clone())
+        } else {
+            realm.clone()
+        };
+        if let Err(problem) =
+            super::scanovate::validate_authoring(&credential_source)
+        {
+            self.report.push(problem);
+        }
+        if let Some(notice) =
+            super::scanovate::credential_notice(&credential_source)
+        {
+            self.report.push(notice);
+        }
 
         // **No keys ceremony, ever, from either path.**
         //
@@ -760,6 +800,18 @@ impl<'a> Builder<'a> {
             "version": version,
         });
 
+        match super::messaging_config::from_rows(
+            self.workbook.rows(SHEET_PARAMETERS),
+            &self.base_export,
+            &self.election_ids,
+        ) {
+            Ok(Some(config)) => {
+                export[super::messaging_config::PARAMETER] = config
+            }
+            Ok(None) => {}
+            Err(problem) => self.report.push(problem),
+        }
+
         // How the event signs its protected actions belongs to the event as a
         // whole, so a base export's configuration is carried over as it is:
         // that is how a client's preset (its rules and certificate checks)
@@ -771,6 +823,33 @@ impl<'a> Builder<'a> {
                 self.base_export.get(key).filter(|value| !value.is_null())
             {
                 export[key] = value.clone();
+            }
+        }
+
+        // The workbook's own signing sheets, field by field, over the base
+        // export: a sheet is what the author (or the plan, or the historical
+        // source) said, and a sheet with no rows says "no rules". An absent
+        // sheet leaves the base export's value, or nothing.
+        match crate::election_config::signing_sheet::PlannedSigning::from_workbook(
+            self.workbook,
+        ) {
+            Ok(signing) => {
+                if let Some(rules) = signing.rules {
+                    export[SIGNING_RULES_KEY] = serde_json::to_value(rules)
+                        .expect("signing rules serialize");
+                }
+                if let Some(checks) = signing.checks {
+                    export[SIGNING_CHECKS_KEY] = serde_json::to_value(checks)
+                        .expect("certificate checks serialize");
+                }
+                if let Some(matrix) = signing.approval_matrix {
+                    export[APPROVAL_MATRIX_KEY] = matrix;
+                }
+            }
+            Err(problems) => {
+                for problem in problems {
+                    self.report.push(problem);
+                }
             }
         }
 
@@ -1203,6 +1282,12 @@ impl<'a> Builder<'a> {
             else {
                 continue;
             };
+
+            if external_id.contains('|') {
+                self.problem(row.origin(Some("external_id")), Code::InvalidValue,
+                    "an election external_id must not contain '|', the voter authorization separator");
+                continue;
+            }
 
             let election_id = self.ids.uid("election", &[&external_id]);
             self.election_ids
@@ -1792,4 +1877,18 @@ pub(crate) fn has_error_saying(report: &Report, needle: &str) -> bool {
     report
         .errors()
         .any(|problem| problem.message.contains(needle))
+}
+
+impl std::fmt::Debug for BuildOptions {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("BuildOptions")
+            .finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Debug for Bundle {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("Bundle").finish_non_exhaustive()
+    }
 }

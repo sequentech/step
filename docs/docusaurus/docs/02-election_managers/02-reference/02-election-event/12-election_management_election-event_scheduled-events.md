@@ -15,6 +15,12 @@ CSV imports and timezone-rule changes. For voting authorization and retained
 signed close deadlines, read
 [Scheduled openings and closings with signatures](./18-signed-scheduled-transitions.md).
 
+### Viewing and editing Scheduled Events
+
+The list shows schedules for the selected Election Event. Clicking a row keeps
+that list in place. Use the row's pencil action to edit its schedule, or its
+trash action to remove it.
+
 ### Adding a Scheduled Event
 
 - Select **Add**.

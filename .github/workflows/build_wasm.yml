@@ -12,6 +12,10 @@ on:
     branches: [ 'main', 'ovcs', 'release/[0-9]+.[0-9]+', 'feat/use-arc-runner-java-test' ]
   release:
     types: [published]
+  # A full build of any branch on demand: a pull request that changes no core
+  # source skips the build, and beyond's vendor-core.sh then finds a
+  # successful run of the branch with no artifacts.
+  workflow_dispatch:
 
 permissions:
   contents: read

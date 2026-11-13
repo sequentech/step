@@ -920,29 +920,143 @@ fn an_admin_export_rebuilds_with_what_it_carried() {
     );
 }
 
-/// A preset's secret stays in the realm it came from, never in the plan.
+/// A caller already holding an authorized export must not lose its credential.
 #[test]
-fn the_liveness_secret_is_not_copied_into_the_plan() {
-    let mut export = admin_export();
-    export["keycloak_event_realm"]["authenticatorConfig"] = serde_json::json!([{
-        "alias": "scanovate-registration",
-        "config": {
-            "liveness-secret": "do-not-copy",
-            "ocr-url": "https://ocr.example.org",
-        },
-    }]);
+fn the_supplied_liveness_secret_is_preserved_without_diagnostic_values() {
+    let export = scanovate_export("synthetic-secret-not-for-diagnostics");
     let read = plan_from_event(&export).expect("a readable export");
-    let base = read.plan.base_export.clone().expect("a base export");
-    let config =
-        &base["keycloak_event_realm"]["authenticatorConfig"][0]["config"];
-    assert!(config.get("liveness-secret").is_none());
     assert_eq!(
-        config["ocr-url"],
-        serde_json::json!("https://ocr.example.org")
+        read.plan.base_export.as_ref().unwrap()["keycloak_event_realm"],
+        export["keycloak_event_realm"]
     );
-    assert!(!serde_json::to_string(&read.plan)
-        .unwrap()
-        .contains("do-not-copy"));
+    assert!(
+        !format!("{:?}", read).contains("synthetic-secret-not-for-diagnostics")
+    );
+    assert!(!read
+        .report
+        .to_string()
+        .contains("synthetic-secret-not-for-diagnostics"));
+    assert!(read
+        .report
+        .problems
+        .iter()
+        .any(|problem| problem.id.as_deref()
+            == Some("scanovate.credentials-included")));
+}
+
+fn scanovate_export(secret: &str) -> Value {
+    let mut export = admin_export();
+    export["keycloak_event_realm"] = serde_json::json!({
+        "realm": "tenant-test-event-event-uuid",
+        "authenticationFlows": [{"authenticationExecutions": [{
+            "authenticator": "scanovate-authenticator",
+            "authenticatorConfig": "custom-enrollment"
+        }]}],
+        "authenticatorConfig": [{"id": "config-id", "alias": "custom-enrollment", "config": {
+            "liveness-secret": secret,
+            "liveness-url": "https://biometric.example.test/event-uuid/biometric",
+            "face-match-url": "https://match.example.test/event-uuid",
+            "face-match-min-similarity": "{\"passport\":0.81}",
+            "document-liveness-url": "https://document.example.test/event-uuid",
+            "document-liveness-pipelines": "default-sr,default-dm",
+            "document-liveness-calibration": "REGULAR",
+            "document-liveness-min-probability": "0.75",
+            "ocr-types": "{\"passport\":\"passport\"}",
+            "attributes-to-validate": "{\"passport\":[]}",
+            "attributes-to-store": "{\"passport\":[]}",
+            "max-attempts": "4",
+            "holding-photo": "NONE",
+            "liveness-result-wait-seconds": "21",
+            "video-seconds": "7",
+            "doc-id-type": "sequent.read-only.id-card-type",
+            "user-status": "sequent.read-only.id-card-number-validated",
+            "future-setting": "event-uuid"
+        }}],
+        "clients": [{"clientId": "voting-portal", "rootUrl": "https://vote.example.test/event-uuid"}]
+    });
+    export
+}
+
+#[test]
+fn masked_scanovate_exports_are_refused_without_printing_settings() {
+    for mask in ["*****", "**********", "  **********  "] {
+        let mut export = scanovate_export(mask);
+        export["keycloak_event_realm"]["authenticatorConfig"][0]["config"]
+            ["future-setting"] =
+            serde_json::json!("synthetic-secret-not-for-diagnostics");
+        let report = plan_from_event(&export).unwrap_err();
+        assert!(report.problems.iter().any(|problem| problem.id.as_deref()
+            == Some("file.masked-integration-secret")));
+        assert!(!report
+            .to_string()
+            .contains("synthetic-secret-not-for-diagnostics"));
+    }
+}
+
+#[cfg(feature = "election_config_xlsx")]
+#[test]
+fn all_scanovate_settings_survive_an_actual_excel_round_trip() {
+    use crate::election_config::{
+        architect::to_workbook,
+        build::{build, BuildOptions},
+        plan_from_workbook::plan_from_workbook,
+        render::TemplateSet,
+        sources::Sources,
+        xlsx::read_xlsx,
+        xlsx_write::write_xlsx,
+    };
+    for secret in [
+        "  synthetic-secret-event-uuid  ",
+        "000123",
+        "true",
+        "{\"k\":1}",
+        "=not-a-formula",
+    ] {
+        let mut export = scanovate_export(secret);
+        // A nonstandard realm name cannot supply the original event identifier.
+        // The companion Parameters row must retain that provenance instead.
+        export["keycloak_event_realm"]["realm"] =
+            serde_json::json!("custom-realm");
+        // Exercise continuation columns with non-BMP text, not just ASCII bytes.
+        export["keycloak_event_realm"]["localizationTexts"] =
+            serde_json::json!({"en": {"large": "🗳".repeat(20_000)}});
+        let read = plan_from_event(&export).unwrap();
+        let workbook = to_workbook(&read.plan, &Sources::default()).unwrap();
+        let bytes = write_xlsx(&workbook).unwrap();
+        let workbook = read_xlsx(&bytes).unwrap();
+        let reopened = plan_from_workbook(&workbook).unwrap();
+        let rebuilt = to_workbook(&reopened.plan, &Sources::default()).unwrap();
+        let bundle = build(
+            &rebuilt,
+            &TemplateSet::builtin().unwrap(),
+            &BuildOptions::default(),
+            &Sources::default(),
+        )
+        .unwrap();
+        let realm = &bundle.export["keycloak_event_realm"];
+        assert!(bundle.export["election_event"]["annotations"]
+            .get("janitor.param.event.keycloak_event_realm_source_event_id")
+            .is_none());
+        assert_eq!(
+            realm["authenticatorConfig"][0]["config"],
+            export["keycloak_event_realm"]["authenticatorConfig"][0]["config"]
+        );
+        assert_eq!(
+            realm["localizationTexts"],
+            export["keycloak_event_realm"]["localizationTexts"]
+        );
+        assert_ne!(
+            realm["clients"][0]["rootUrl"],
+            export["keycloak_event_realm"]["clients"][0]["rootUrl"]
+        );
+        for printed in [
+            format!("{workbook:?}"),
+            format!("{bundle:?}"),
+            format!("{:?}", bundle.warnings),
+        ] {
+            assert!(!printed.contains("synthetic-secret-event-uuid"));
+        }
+    }
 }
 
 /// An export with no realm and an otherwise empty event gives no base.
@@ -951,4 +1065,123 @@ fn a_bare_export_gives_no_base() {
     let read = plan_from_event(&serde_json::json!({"election_event": {}}))
         .expect("a readable export");
     assert!(read.plan.base_export.is_none());
+}
+
+#[cfg(all(
+    feature = "election_config_archive",
+    feature = "election_config_xlsx"
+))]
+fn restriction_archive(document: &Value, csv: &str) -> Vec<u8> {
+    use crate::election_config::archive::{zip, Artifact};
+    zip(&[
+        Artifact {
+            name: "export_election_event-legacy.json".into(),
+            bytes: serde_json::to_vec(document).unwrap(),
+        },
+        Artifact {
+            name: "export_voters-legacy.csv".into(),
+            bytes: csv.as_bytes().to_vec(),
+        },
+    ])
+    .unwrap()
+}
+
+#[cfg(all(
+    feature = "election_config_archive",
+    feature = "election_config_xlsx"
+))]
+#[test]
+fn legacy_restriction_archive_normalizes_uuids_without_losing_unknown_ids() {
+    let mut document = awkward();
+    document["elections"][0]["id"] =
+        serde_json::json!("d25f0506-5e34-4eca-9368-2ee2f32915d0");
+    document["contests"][0]["election_id"] =
+        document["elections"][0]["id"].clone();
+    // Old builds emitted UUIDs here; canonical external IDs and unknown values
+    // must also survive mixed archives without widening any voter's access.
+    let bytes = restriction_archive(&document, "username,area_name,authorized-election-ids\nlegacy,North,d25f0506-5e34-4eca-9368-2ee2f32915d0\ncanonical,North,officers\nmixed,North,d25f0506-5e34-4eca-9368-2ee2f32915d0|unknown-election\nblank,North,\n");
+    let opened = crate::election_config::open::open(&bytes).unwrap();
+    let people = opened
+        .sources
+        .census
+        .as_ref()
+        .unwrap()
+        .next_batch(10)
+        .unwrap();
+    assert_eq!(people[0].extra["authorized-election-ids"], "officers");
+    assert_eq!(people[1].extra["authorized-election-ids"], "officers");
+    assert_eq!(
+        people[2].extra["authorized-election-ids"],
+        "officers|unknown-election"
+    );
+    assert!(!people[3].extra.contains_key("authorized-election-ids"));
+
+    let workbook = crate::election_config::architect::to_workbook(
+        &opened.plan,
+        &opened.sources,
+    )
+    .unwrap();
+    let report = crate::election_config::build::build(
+        &workbook,
+        &crate::election_config::render::TemplateSet::builtin().unwrap(),
+        &crate::election_config::build::BuildOptions::default(),
+        &opened.sources,
+    )
+    .unwrap_err();
+    assert!(report
+        .errors()
+        .any(|problem| problem.code == Code::DanglingReference
+            && problem.message.contains("unknown-election")));
+    assert!(!report
+        .errors()
+        .any(|problem| problem.code == Code::DanglingReference
+            && problem.message.contains("d25f0506")));
+}
+
+#[cfg(all(
+    feature = "election_config_archive",
+    feature = "election_config_xlsx"
+))]
+#[test]
+fn legacy_restriction_archive_rejects_ambiguous_election_identifiers() {
+    for second in [
+        serde_json::json!({"id": "e1", "external_id": "other"}),
+        serde_json::json!({"id": "e2", "external_id": "e1"}),
+    ] {
+        let mut document = awkward();
+        document["elections"].as_array_mut().unwrap().push(second);
+        let bytes = restriction_archive(
+            &document,
+            "username,area_name,authorized-election-ids\nada,North,e1\n",
+        );
+        let report = crate::election_config::open::open(&bytes).unwrap_err();
+        assert!(report
+            .errors()
+            .any(|problem| problem.code == Code::DuplicateId
+                && problem.path.contains("authorized-election-ids")));
+    }
+}
+
+#[cfg(all(
+    feature = "election_config_archive",
+    feature = "election_config_xlsx"
+))]
+#[test]
+fn legacy_restriction_archive_rejects_malformed_lists_before_normalizing() {
+    for raw in ["||", "officers|", "|officers", "officers||"] {
+        let bytes = restriction_archive(
+            &awkward(),
+            &format!(
+                "username,area_name,authorized-election-ids\nada,North,{raw}\n"
+            ),
+        );
+        let report = crate::election_config::open::open(&bytes).unwrap_err();
+        assert!(
+            report
+                .errors()
+                .any(|problem| problem.code == Code::InvalidValue
+                    && problem.path.contains("authorized-election-ids")),
+            "{raw}: {report:?}"
+        );
+    }
 }

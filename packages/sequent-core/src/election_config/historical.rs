@@ -7,12 +7,13 @@
 //! census eligibility and which records outside configured seats are in scope.
 //!
 //! The SQL may be in the legacy or the documented post-qualification schema
-//! ([`SourceSchema`]). The workbook is optional: without one, its sheets are
-//! derived from the SQL and a reviewed [`Supplement`] in the decisions.
+//! ([`SourceSchema`]). The workbook may be a full one, for one dump, or a
+//! defaults workbook without an `Elections` sheet, whose elections and areas are
+//! derived from the SQL so that one workbook serves any dump.
 
 use super::{
     problem::{Code, Problem, Report},
-    sheet::{Row, Sheet, Workbook},
+    sheet::{Origin, Row, Sheet, Workbook},
     sql_dump::{read_mysql_dump, SqlDump, SqlTable, SqlValue},
     xlsx::read_xlsx,
 };
@@ -22,14 +23,11 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
+#[path = "historical_defaults.rs"]
+mod defaults;
 #[path = "historical_schema.rs"]
 mod schema;
-#[path = "historical_supplement.rs"]
-mod supplement;
 pub use schema::SourceSchema;
-pub use supplement::{
-    Supplement, SupplementCcsServer, SupplementEvent, SupplementSchedule,
-};
 
 pub const PROFILE: &str = "legacy-seat-v1";
 /// The default language of the built-in event and election templates, used for
@@ -127,9 +125,7 @@ pub enum VoterAreaJoin {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct SourceDigests {
     pub sql_sha256: String,
-    /// Absent when the conversion has no workbook.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub workbook_sha256: Option<String>,
+    pub workbook_sha256: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -189,10 +185,6 @@ pub struct HistoricalOptions {
     pub affiliation: AffiliationPolicy,
     /// Offset for timezone-less historical Excel dates. No implicit local timezone.
     pub schedule_offset_minutes: Option<i32>,
-    /// What the workbook would add, when there is none. Exactly one of the two
-    /// is given.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub supplement: Option<Supplement>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -201,9 +193,11 @@ pub struct Summary {
     pub profile: String,
     pub source_schema: SourceSchema,
     pub sql_sha256: String,
-    /// Absent when the conversion has no workbook.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub workbook_sha256: Option<String>,
+    pub workbook_sha256: String,
+    /// The workbook was a defaults workbook: elections and areas came from the
+    /// SQL.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub defaults_workbook: bool,
     pub source_rows: BTreeMap<String, usize>,
     pub generated_rows: BTreeMap<String, usize>,
     pub selected_candidates: usize,
@@ -255,13 +249,13 @@ fn fail(summary: Summary, p: Problem) -> Refused {
 /// same `build`, `validate` and `archive::zip` as every other native import.
 pub fn adapt(
     sql: &[u8],
-    xlsx: Option<&[u8]>,
+    xlsx: &[u8],
     options: &HistoricalOptions,
 ) -> Result<Adapted, Refused> {
     let mut summary = Summary {
         profile: PROFILE.into(),
         sql_sha256: format!("{:x}", Sha256::digest(sql)),
-        workbook_sha256: xlsx.map(|xlsx| format!("{:x}", Sha256::digest(xlsx))),
+        workbook_sha256: format!("{:x}", Sha256::digest(xlsx)),
         ..Summary::default()
     };
     let dump = read_mysql_dump(sql).map_err(|e| {
@@ -293,64 +287,48 @@ pub fn adapt(
     let (dump, source_schema) =
         schema::normalize(dump).map_err(|p| fail(summary.clone(), p))?;
     summary.source_schema = source_schema;
-    let (workbook, derived, schedules) = match (xlsx, &options.supplement) {
-        (Some(xlsx), None) => (read_workbook(xlsx, &summary)?, None, vec![]),
-        (None, Some(supplement)) => {
-            let derived = supplement::derive(&dump, supplement).map_err(|p| {
-                fail(
-                    summary.clone(),
-                    schema::source_names(p.into(), source_schema)
-                        .problems
-                        .remove(0),
-                )
-            })?;
-            (
-                derived.workbook,
-                Some(derived.areas_by_precinct),
-                derived.schedules,
+    let workbook = read_workbook(xlsx, &summary)?;
+    let (workbook, derived) = if defaults::is_defaults(&workbook) {
+        summary.defaults_workbook = true;
+        let derived = defaults::derive(&dump, &workbook).map_err(|p| {
+            fail(
+                summary.clone(),
+                schema::source_names(p.into(), source_schema)
+                    .problems
+                    .remove(0),
             )
-        }
-        (Some(_), Some(_)) => {
-            return Err(fail(
-                summary,
-                Problem::error(
-                    Code::ConflictingColumns,
-                    "historical decisions supplement",
-                    "a supplement replaces the workbook; give one or the other",
-                ),
-            ))
-        }
-        (None, None) => {
-            return Err(fail(
-                summary,
-                Problem::error(
-                    Code::NotApproved,
-                    "historical decisions supplement",
-                    "without a workbook, the decisions must supply the event and its schedule",
-                ),
-            ))
-        }
+        })?;
+        (
+            derived.workbook,
+            Some((derived.areas_by_precinct, derived.schedule_rows)),
+        )
+    } else {
+        (workbook, None)
     };
+    // Enums, strings and numbers only: encoding them cannot fail.
     summary.decisions_sha256 = format!(
         "{:x}",
-        Sha256::digest(serde_json::to_vec(options).map_err(|_| fail(
-            summary.clone(),
-            Problem::error(
-                Code::InvalidValue,
-                "historical decisions",
-                "could not encode decisions"
-            )
-        ))?)
+        Sha256::digest(serde_json::to_vec(options).unwrap_or_default())
     );
-    let dates = || match xlsx {
-        Some(xlsx) => historical_dates(xlsx, options.schedule_offset_minutes),
-        None => supplement_dates(&schedules, options.schedule_offset_minutes),
+    let dates = || {
+        let dates = historical_dates(xlsx, options.schedule_offset_minutes)?;
+        Ok(match &derived {
+            // A derived schedule row takes the date of the row it came from.
+            Some((_, rows)) => rows
+                .iter()
+                .enumerate()
+                .filter_map(|(i, source)| {
+                    dates.get(source).map(|date| (i + 2, date.clone()))
+                })
+                .collect(),
+            None => dates,
+        })
     };
     let result = map(
         &dump,
         &workbook,
         dates,
-        derived.as_ref(),
+        derived.as_ref().map(|(areas, _)| areas),
         options,
         &mut summary,
     );
@@ -605,8 +583,14 @@ fn rows_sheet(name: &str, rows: Vec<Row>) -> Sheet {
     Sheet {
         name: name.into(),
         key: super::sheet::normalise_sheet_name(name),
-        headers: rows.first().map_or(Vec::new(), |r| {
-            r.cells.iter().map(|(k, _)| k.clone()).collect()
+        // Every row's columns: a derived area may carry one the first lacks.
+        headers: rows.iter().fold(Vec::new(), |mut headers, r| {
+            for (k, _) in &r.cells {
+                if !headers.contains(k) {
+                    headers.push(k.clone());
+                }
+            }
+            headers
         }),
         rows,
     }
@@ -715,6 +699,206 @@ fn historical_annotations(
         }
     }
     Ok(())
+}
+/// Sheets the dump has nothing to say about, carried to the build as they are:
+/// the same sheets, with the same columns, as any import workbook's.
+const PASSED_THROUGH: &[&str] = &[
+    "templates",
+    "reports",
+    "adminusers",
+    "permissions",
+    "contacts",
+    "trustees",
+    "ceremony",
+    "milestones",
+    "messages",
+    "notes",
+    super::signing_sheet::SHEET_SIGNING_RULES,
+    super::signing_sheet::SHEET_SIGNING_CHECKS,
+    super::signing_sheet::SHEET_APPROVAL_MATRIX,
+    super::signing_sheet::SHEET_SIGNING_NOTICES,
+];
+/// Account fields absent from the SQL census. Identity and area stay source-owned.
+fn apply_voter_rows(
+    sheet: Option<&Sheet>,
+    voters: &mut [Row],
+    census: CensusPolicy,
+) -> Result<(), Problem> {
+    let Some(sheet) = sheet else {
+        return Ok(());
+    };
+    const ALLOWED: &[&str] = &[
+        "username",
+        "email",
+        "email_verified",
+        "enabled",
+        "authorized-election-ids",
+    ];
+    for column in &sheet.headers {
+        if !column.is_empty() && !ALLOWED.contains(&column.as_str()) {
+            let origin = Origin::column(&sheet.name, column);
+            return Err(Problem::error(
+                Code::ConflictingColumns, origin.to_string(),
+                "historical Voters accepts only username, email, email_verified, enabled and authorized-election-ids; identity and area come from SQL",
+            ).at(&origin));
+        }
+    }
+    if !sheet.rows.is_empty() && census != CensusPolicy::PreserveSourceVoters {
+        return Err(Problem::error(
+            Code::NotApproved,
+            "sheet Voters",
+            "a supplemental voter account requires preserve-source-voters",
+        ));
+    }
+    let index = workbook_index(voters, "username")?;
+    let mut seen = BTreeSet::new();
+    for given in &sheet.rows {
+        let username = text(given, "username")?;
+        let origin = given.origin(Some("username"));
+        if !seen.insert(username.clone()) {
+            return Err(Problem::error(
+                Code::DuplicateId,
+                origin.to_string(),
+                "supplemental voter username is duplicated",
+            )
+            .at(&origin));
+        }
+        let Some(&at) = index.get(&username) else {
+            return Err(Problem::error(
+                Code::DanglingReference,
+                origin.to_string(),
+                "supplemental voter username has no source census row",
+            )
+            .at(&origin));
+        };
+        for (column, value) in &given.cells {
+            if column == "username" {
+                continue;
+            }
+            let valid = match column.as_str() {
+                "email" => matches!(value, Value::String(_) | Value::Null),
+                "enabled" | "email_verified" => match value {
+                    Value::Bool(_) => true,
+                    Value::String(text) => matches!(
+                        text.trim().to_lowercase().as_str(),
+                        "true" | "false" | "yes" | "no" | "x" | "1" | "0"
+                    ),
+                    Value::Number(number) => {
+                        number.as_i64().is_some_and(|n| n == 0 || n == 1)
+                    }
+                    _ => false,
+                },
+                // References are validated against the generated elections by the builder.
+                "authorized-election-ids" => {
+                    super::sheet::voter_election_keys(value).is_ok()
+                }
+                _ => false,
+            };
+            if !valid {
+                let origin = given.origin(Some(column));
+                return Err(Problem::error(
+                    Code::InvalidValue,
+                    origin.to_string(),
+                    "invalid supplemental voter account value",
+                )
+                .at(&origin));
+            }
+            set(&mut voters[at], column, value.clone());
+        }
+    }
+    Ok(())
+}
+
+/// What a `Contests` row may not change: the identity, the election and the
+/// counting the source's seats decide.
+const SOURCE_CONTEST_COLUMNS: &[&str] = &[
+    "external_id",
+    "election.external_id",
+    "min_votes",
+    "max_votes",
+    "winning_candidates_num",
+    "voting_type",
+    "counting_algorithm",
+];
+/// Give contests the columns the dump lacks, such as a description. A row
+/// without a `name` is every contest's; one with a `name` is the contest the
+/// source names so (its `CONTEST`), after the defaults. A name no contest has is
+/// not an error, so one workbook serves every dump. `{max_votes}` in a value is
+/// the contest's seat count.
+fn apply_contest_rows(
+    given: &[Row],
+    contests: &mut BTreeMap<String, Row>,
+) -> Result<(), Problem> {
+    for given in given {
+        for (column, _) in &given.cells {
+            if SOURCE_CONTEST_COLUMNS.contains(&column.as_str())
+                || column.starts_with("annotations.miru:")
+            {
+                return Err(Problem::error(
+                    Code::ConflictingColumns,
+                    given.origin(Some(column)).to_string(),
+                    "this contest column comes from the SQL source",
+                ));
+            }
+        }
+    }
+    let (defaults, named): (Vec<&Row>, Vec<&Row>) =
+        given.iter().partition(|r| r.get("name").is_none());
+    for contest in contests.values_mut() {
+        let source_name = contest
+            .text("annotations.miru:contest-name")
+            .unwrap_or_default()
+            .to_string();
+        let max_votes = contest
+            .get("max_votes")
+            .map(|v| v.to_string())
+            .unwrap_or_default();
+        let rows = defaults.iter().chain(
+            named
+                .iter()
+                .filter(|r| r.text("name") == Some(source_name.as_str())),
+        );
+        for given in rows {
+            for (column, value) in &given.cells {
+                if column == "name" {
+                    continue;
+                }
+                let value = match value {
+                    Value::String(text) => {
+                        json!(text.replace("{max_votes}", &max_votes))
+                    }
+                    other => other.clone(),
+                };
+                set(contest, column, value);
+            }
+        }
+    }
+    Ok(())
+}
+/// A `Reports` row names its election by alias, as a schedule does, since the
+/// author never sees the external ids the source decides.
+fn reports_by_alias(
+    sheet: &Sheet,
+    aliases: &BTreeMap<String, String>,
+) -> Result<Sheet, Problem> {
+    let mut sheet = sheet.clone();
+    for report in &mut sheet.rows {
+        let Some(alias) = report.text("election_alias").map(str::to_string)
+        else {
+            continue;
+        };
+        let id = aliases.get(&alias).ok_or_else(|| {
+            Problem::error(
+                Code::DanglingReference,
+                report.origin(Some("election_alias")).to_string(),
+                "report alias has no configured election",
+            )
+        })?;
+        report.cells.retain(|(c, _)| c != "election_alias");
+        set(report, "election.external_id", json!(id));
+    }
+    sheet.headers = rows_sheet(&sheet.name, sheet.rows.clone()).headers;
+    Ok(sheet)
 }
 fn sheet_row<'a>(
     rows: &'a [Row],
@@ -921,10 +1105,14 @@ fn map(
             "electionevent",
             "elections",
             "areas",
+            "contests",
             "scheduledevents",
             "ccsservers",
+            "parameters",
+            "voters",
         ]
         .contains(&sheet.key.as_str())
+            && !PASSED_THROUGH.contains(&sheet.key.as_str())
         {
             return Err(Problem::error(
                 Code::InvalidValue,
@@ -1127,7 +1315,7 @@ fn map(
         return Err(Problem::error(
             Code::InvalidValue,
             "historical decisions electionMappings + areaMappings",
-            "associations name workbook rows, and without a workbook there are none",
+            "associations name workbook rows, and a defaults workbook has no election or area rows",
         )
         .into());
     }
@@ -1697,17 +1885,23 @@ fn map(
             ],
         ));
     }
-    let voter_rows = match (options.census, options.voter_area_join) {
+    let mut voter_rows = match (options.census, options.voter_area_join) {
         (CensusPolicy::PreserveSourceVoters, Some(join)) => {
             build_source_voter_rows(dump, join, &precinct_area_index, summary)?
         }
         _ => Vec::new(),
     };
+    apply_voter_rows(
+        workbook.sheet("voters"),
+        &mut voter_rows,
+        options.census,
+    )?;
     let provenance = json!({
         "profile": PROFILE,
         "sourceSchema": summary.source_schema,
         "sqlSha256": summary.sql_sha256,
         "workbookSha256": summary.workbook_sha256,
+        "defaultsWorkbook": summary.defaults_workbook,
         "decisionsSha256": summary.decisions_sha256,
         "sourceRows": summary.source_rows,
         "selectedCandidates": summary.selected_candidates,
@@ -1731,6 +1925,16 @@ fn map(
         "annotations.import:provenance",
         json!(provenance),
     );
+    apply_contest_rows(workbook.rows("contests"), &mut output_contests)?;
+    let aliases: BTreeMap<String, String> = output_elections
+        .values()
+        .filter_map(|r| {
+            Some((
+                r.text("alias")?.to_string(),
+                r.text("external_id")?.to_string(),
+            ))
+        })
+        .collect();
     let mut sheets = vec![
         rows_sheet("ElectionEvent", vec![event]),
         rows_sheet("Elections", output_elections.into_values().collect()),
@@ -1742,6 +1946,19 @@ fn map(
     ];
     if !voter_rows.is_empty() {
         sheets.push(rows_sheet("Voters", voter_rows));
+    }
+    // What the dump cannot hold about the realm (its display name, the login
+    // stylesheet) is the build's to check, the same as for any workbook.
+    if let Some(parameters) = workbook.sheet("parameters") {
+        sheets.push(parameters.clone());
+    }
+    for key in PASSED_THROUGH {
+        if let Some(sheet) = workbook.sheet(key) {
+            sheets.push(match *key {
+                "reports" => reports_by_alias(sheet, &aliases)?,
+                _ => sheet.clone(),
+            });
+        }
     }
     summary.generated_rows = sheets
         .iter()
@@ -1803,23 +2020,34 @@ fn format_embassy(value: &str) -> String {
     let Some((last, head)) = words.split_last() else {
         return String::new();
     };
-    const SPECIAL: [&str; 4] = ["D.C.", "DC", "SAR", "ROC"];
-    let mut out: Vec<String> = head
-        .iter()
-        .map(|w| {
-            if SPECIAL.contains(&w.to_uppercase().as_str()) {
-                w.to_uppercase()
-            } else {
-                title_word(w)
-            }
-        })
-        .collect();
+    let mut out: Vec<String> = head.iter().map(|w| place_word(w)).collect();
     out.push(if last.chars().count() <= 3 {
         last.to_uppercase()
     } else {
         title_word(last)
     });
     out.join(" ")
+}
+
+/// Words a place name keeps in capitals.
+const SPECIAL: [&str; 4] = ["D.C.", "DC", "SAR", "ROC"];
+
+fn place_word(word: &str) -> String {
+    if SPECIAL.contains(&word.to_uppercase().as_str()) {
+        word.to_uppercase()
+    } else {
+        title_word(word)
+    }
+}
+
+/// A place as a voter reads it: `ABU DHABI` is `Abu Dhabi`, every word title-cased
+/// the way [`format_embassy`] does all but a post's last one.
+fn format_place(value: &str) -> String {
+    value
+        .split_whitespace()
+        .map(place_word)
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// Derive the canonical `(country, embassy)` attribute values from a resolved area
@@ -1885,12 +2113,13 @@ fn record_precinct_area(
 ///   `source_country`/`source_embassy` for audit.
 /// Alongside the canonical fields, the raw source values are kept for audit:
 /// `source_maternal_name`, `source_suffix`, `source_dob_year`/`_month`/`_day`,
-/// `source_country`/`source_embassy` (the SQL codes) and `source_precinct`. The
-/// abroad status is kept raw as `source_abroad_status` with no eligibility inference.
+/// `source_country`/`source_embassy` (the SQL codes) and, from a legacy dump,
+/// `source_precinct`. A legacy abroad status is kept raw as `source_abroad_status`
+/// with no eligibility inference; a post-qualification dump has neither column.
 /// A supplied date of birth that is incomplete or not a real calendar date, and an
 /// area with no embassy/country label, each raise a visible per-row problem rather
 /// than a silent blank. Email, mobile and password are intentionally left unset;
-/// enrollment collects them later. Source columns outside this mapping are not carried.
+/// enrollment collects them later, so the build is told not to warn about them. Source columns outside this mapping are not carried.
 ///
 /// Each voter joins to an area through the crosswalk recorded while the areas were
 /// built, keyed as the join decides: `(COUNTRY, EMBASSY, PRECINCT)` against
@@ -2039,43 +2268,48 @@ fn source_voter_row(
                 )
             })?
             .unwrap_or_default();
-        Ok(row(
-            "Voters",
-            v,
-            vec![
-                ("username", json!(username)),
-                ("area.external_id", json!(area.external_id)),
-                // Canonical COMELEC identity attributes, named exactly as the
-                // registration user profile and the enrollment approval matrix read
-                // them (keycloak.hbs user profile; approvalMatrix.json compares
-                // firstName/middleName/lastName/dateOfBirth/embassy). first_name and
-                // last_name become Keycloak firstName/lastName in build_voters.
-                ("first_name", json!(voters.text(v, "FIRSTNAME")?)),
-                ("last_name", json!(voters.text(v, "LASTNAME")?)),
-                ("middleName", json!(optional("MATERNALNAME")?)),
-                ("suffix", json!(optional("SUFFIX")?)),
-                ("dateOfBirth", json!(date_of_birth)),
-                // Location under the canonical keys the registration selects and the
-                // matrix compare. The values are derived from the voter's resolved
-                // area the same way the registration option lists are, so they match.
-                ("country", json!(area.country)),
-                ("embassy", json!(area.embassy)),
-                // Raw source values kept for audit (parent asked for raw preservation):
-                // the identity components as supplied, the post/country codes and
-                // precinct as they appear in the SQL, and the abroad status verbatim
-                // (never turned into eligibility). build_voters drops any all-blank one.
-                ("source_maternal_name", json!(optional("MATERNALNAME")?)),
-                ("source_suffix", json!(optional("SUFFIX")?)),
-                ("source_dob_year", json!(dob_year)),
-                ("source_dob_month", json!(dob_month)),
-                ("source_dob_day", json!(dob_day)),
-                ("source_country", json!(country)),
-                ("source_embassy", json!(embassy)),
-                ("source_precinct", json!(precinct)),
-                // Legacy only; the post-qualification voters have no status.
-                ("source_abroad_status", json!(optional("ABROADSTATUS")?)),
-            ],
-        ))
+        let mut columns = vec![
+            ("username", json!(username)),
+            ("area.external_id", json!(area.external_id)),
+            // Canonical COMELEC identity attributes, named exactly as the
+            // registration user profile and the enrollment approval matrix read
+            // them (keycloak.hbs user profile; approvalMatrix.json compares
+            // firstName/middleName/lastName/dateOfBirth/embassy). first_name and
+            // last_name become Keycloak firstName/lastName in build_voters.
+            ("first_name", json!(voters.text(v, "FIRSTNAME")?)),
+            ("last_name", json!(voters.text(v, "LASTNAME")?)),
+            ("middleName", json!(optional("MATERNALNAME")?)),
+            ("suffix", json!(optional("SUFFIX")?)),
+            ("dateOfBirth", json!(date_of_birth)),
+            // Location under the canonical keys the registration selects and the
+            // matrix compare. The values are derived from the voter's resolved
+            // area the same way the registration option lists are, so they match.
+            ("country", json!(area.country)),
+            ("embassy", json!(area.embassy)),
+            // Raw source values kept for audit (parent asked for raw preservation):
+            // the identity components as supplied, the post/country codes and
+            // precinct as they appear in the SQL, and the abroad status verbatim
+            // (never turned into eligibility). build_voters drops any all-blank one.
+            ("source_maternal_name", json!(optional("MATERNALNAME")?)),
+            ("source_suffix", json!(optional("SUFFIX")?)),
+            ("source_dob_year", json!(dob_year)),
+            ("source_dob_month", json!(dob_month)),
+            ("source_dob_day", json!(dob_day)),
+            ("source_country", json!(country)),
+            ("source_embassy", json!(embassy)),
+        ];
+        // Legacy only: a post-qualification dump has neither column, and an
+        // always-blank one would only be dropped again with a warning.
+        if precinct_column.is_some() {
+            columns.push(("source_precinct", json!(precinct)));
+        }
+        if voters.table.columns.iter().any(|c| c == "ABROADSTATUS") {
+            columns.push((
+                "source_abroad_status",
+                json!(optional("ABROADSTATUS")?),
+            ));
+        }
+        Ok(row("Voters", v, columns))
     }
 }
 
@@ -2101,51 +2335,6 @@ fn compose_date_of_birth(
             .ok_or(()),
         _ => Err(()),
     }
-}
-
-/// The supplement's schedule instants, by the row number each derived schedule row
-/// carries. Read as the workbook's text dates are; a problem names the supplement
-/// schedule the row came from.
-fn supplement_dates(
-    schedules: &[(usize, SupplementSchedule)],
-    offset: Option<i32>,
-) -> Result<BTreeMap<usize, String>, Problem> {
-    schedules
-        .iter()
-        .enumerate()
-        .map(|(i, (source, schedule))| {
-            let at = format!(
-                "historical decisions supplement schedules[{source}].date"
-            );
-            let instant = match DateTime::parse_from_rfc3339(&schedule.date) {
-                Ok(date) => date.to_rfc3339(),
-                Err(_) => {
-                    // With or without seconds: a browser's local date-time
-                    // field gives none.
-                    let naive = [
-                        "%Y-%m-%d %H:%M:%S",
-                        "%Y-%m-%dT%H:%M:%S",
-                        "%Y-%m-%d %H:%M",
-                        "%Y-%m-%dT%H:%M",
-                    ]
-                    .iter()
-                    .find_map(|f| {
-                        NaiveDateTime::parse_from_str(&schedule.date, f).ok()
-                    })
-                    .ok_or_else(|| {
-                        Problem::error(
-                            Code::InvalidValue,
-                            &at,
-                            "date must be an instant or a local date and time",
-                        )
-                    })?;
-                    offset_instant(naive, offset, &at)?
-                }
-            };
-            // `row` numbers rows from 2, as a spreadsheet below its header does.
-            Ok((i + 2, instant))
-        })
-        .collect()
 }
 
 /// A timezone-less date at the reviewed UTC offset. There is no implicit one.

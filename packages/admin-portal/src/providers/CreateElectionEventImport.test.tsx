@@ -153,3 +153,56 @@ it("does not announce submission when the backend omits the creation task ID", a
     expect(store.importDrawer).toBe(true)
     expect(mockNotify).not.toHaveBeenCalled()
 })
+
+// meta#14760: a different major version is a warning. The dry run keeps it
+// for the import's diagnostics and passes; an error beside it still refuses;
+// a later clean upload clears it.
+const majorMismatch = {
+    severity: "warning",
+    code: "incompatible_version",
+    path: "version",
+    message: "the file was exported by version v10.0.0, a different major version",
+    id: "file.version-major-mismatch",
+}
+it("keeps a dry run's warnings and passes it", async () => {
+    mockMutation.mockResolvedValue({
+        data: {import_election_event: {error: null, problems: [majorMismatch]}},
+    })
+    await act(async () => {
+        await store.uploadCallback("synthetic-document")
+    })
+    expect(store.problems).toEqual([majorMismatch])
+    expect(store.errors).toBeNull()
+})
+it("refuses a dry run with an error beside the version warning", async () => {
+    const fatal = {
+        severity: "error",
+        code: "dangling_reference",
+        path: "contests[0].election_id",
+        message: "Synthetic dangling election",
+    }
+    mockMutation.mockResolvedValue({
+        data: {import_election_event: {error: null, problems: [majorMismatch, fatal]}},
+    })
+    await act(async () => {
+        await expect(store.uploadCallback("synthetic-document")).rejects.toMatchObject({
+            stage: "validation",
+        })
+    })
+    expect(store.problems).toEqual([majorMismatch, fatal])
+})
+it("clears a previous upload's warnings when a clean file is checked", async () => {
+    mockMutation
+        .mockResolvedValueOnce({
+            data: {import_election_event: {error: null, problems: [majorMismatch]}},
+        })
+        .mockResolvedValueOnce({data: {import_election_event: {error: null}}})
+    await act(async () => {
+        await store.uploadCallback("first-document")
+    })
+    expect(store.problems).toEqual([majorMismatch])
+    await act(async () => {
+        await store.uploadCallback("second-document")
+    })
+    expect(store.problems).toBeNull()
+})

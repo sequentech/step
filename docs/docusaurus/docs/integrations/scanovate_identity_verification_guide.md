@@ -31,6 +31,7 @@ read the document, is no longer used.
 | --- | --- | --- |
 | The document's details (name, date of birth, number, nationality, expiry), its machine readable zone (MRZ) and its portrait | OCR, in its own capture page | The capture page embeds it; OCR posts the result to Keycloak |
 | The voter is a live person (not a photo, a screen, a mask or a deepfake) and the frames come from a real camera (not a virtual camera or a tampered browser) | Liveness Plus, in its own capture page, with its presentation (PAD) and injection (IAD) attack detection servers | The capture page embeds it; Liveness Plus posts the verdict to Keycloak |
+| The document is physical: not shown on a screen, a printed copy, a replaced portrait or an edited image | Document Liveness, with the photo OCR read the document from | Keycloak |
 | The live face matches the portrait on the document | Face Match | Keycloak |
 | The live face matches the photo of the voter holding the document (`holding-photo`) | Face Match | Keycloak; the capture page takes the photo and uploads it to Keycloak |
 
@@ -84,8 +85,9 @@ sequenceDiagram
    one-time token in the `X-Capture-Token` header.
 5. Once that is done, the page posts `action=capture`.
 6. Keycloak rejects the attempt unless OCR read the document and found its
-   portrait, and the liveness, presentation attack and injection attack checks
-   all passed.
+   portrait and the photo it read it from, Document Liveness finds that photo
+   shows a physical document, and the liveness, presentation attack and
+   injection attack checks all passed.
 7. Keycloak compares the live face with the portrait with Face Match, and then
    with the holding photo. A capture without the photo gets a retryable
    `scanovateCaptureInvalidError`, without using up an attempt.
@@ -142,7 +144,9 @@ Some design decisions to be aware of:
   no form can set). A `user-status` note alone doesn't confirm: it is a profile
   attribute, which a form could submit.
 - **Attempts.** An unreadable document (an OCR result that didn't complete, a
-  side it couldn't read, or no portrait), a failed liveness check, a face that
+  side it couldn't read, no portrait, or a photo Document Liveness can't
+  check), a document that isn't physical (`scanovateDocumentAuthenticationError`),
+  a failed liveness check, a face that
   doesn't match or can't be found (on the document or in the holding photo), and
   a failed rule each use up an attempt. Once
   the attempts of the authentication session reach `max-attempts`, no new
@@ -150,8 +154,8 @@ Some design decisions to be aware of:
   confirmation or a capture posted without one: the voter gets
   `scanovateMaxRetriesError` without a retry button.
 - **Errors of the services aren't attempts.** If OCR or Liveness Plus doesn't
-  post its result within `liveness-result-wait-seconds`, or Face Match can't
-  be reached or can't process an image, the voter gets a retryable
+  post its result within `liveness-result-wait-seconds`, or Document Liveness
+  or Face Match can't be reached or can't process an image, the voter gets a retryable
   `scanovateInternalError`.
 - **Problems in a page aren't attempts.** When an embedded page reports an
   error (no camera, a denied permission, an expired session, the page closed),
@@ -162,11 +166,12 @@ Some design decisions to be aware of:
   camera, a failed upload, an expired upload token) are handled the same way.
 - **Refresh.** Reloading the capture page renders it again for the same case,
   with new one-time tokens.
-- **Nothing is stored but the result.** The portrait, what OCR read, the live
-  face and the holding photo live in Keycloak's single-use object store until
+- **Nothing is stored but the result.** The portrait, the photo of the
+  document, what OCR read, the live face and the holding photo live in Keycloak's single-use object store until
   the capture is checked (at most 30 minutes), and are discarded then; the other images,
   screenshots and frames of the results are never kept. OCR and Liveness Plus
-  keep their sessions in memory for 5 minutes, and Face Match keeps nothing.
+  keep their sessions in memory for 5 minutes, and Document Liveness and Face
+  Match keep nothing.
   Keycloak stores the attributes the voter confirms, and logs and adds to its
   events the case id, the outcome and the face similarity
   (`scanovate_case_id`, `scanovate_face_match_document`,
@@ -205,6 +210,10 @@ steps that collect the document type, and configure it:
 | `liveness-secret` | Secret that OCR and Liveness Plus send as the `secret` query parameter of their `token_verification_url` and `callback_url`. The same for both services. | |
 | `liveness-result-wait-seconds` | How long to wait for the result callback of OCR or Liveness Plus once the voter is done. | `15` |
 | `face-match-url` | Face Match base URL as Keycloak reaches it, on the internal network, e.g. `http://scanovate-face-match:3000`. | |
+| `document-liveness-url` | Document Liveness base URL as Keycloak reaches it, on the internal network, e.g. `http://scanovate-document-liveness:8080`. | |
+| `document-liveness-pipelines` | Comma separated checks the photo of the document must pass: `default-sr` (screen replay), `default-pc` (printed copy), `default-ps` (portrait substitution), `default-dm` (digital manipulation). Each must be enabled in the service. | all four |
+| `document-liveness-calibration` | `REGULAR`, `SOFT` (fewer genuine documents rejected) or `HARD` (fewer attacks missed). | `REGULAR` |
+| `document-liveness-min-probability` | Minimum probability (above 0, up to 1) every check must give the photo. Explicit event values are preserved. | `0.4` |
 | `face-match-min-similarity` | JSON keyed by document type, with a `default` key for any other type, of the minimum similarity (0 to 1) of the voter's live face with the portrait OCR read from the document. The service's own threshold (`0.67`) applies if higher. | `{"default": 0.67}` |
 | `holding-photo` | `REQUIRED`: after the face check, the voter takes a photo of themselves holding the document, which must match their live face with the same minimum similarity. `NONE`: no such photo. | `REQUIRED` |
 | `video-seconds` | Holding time: seconds the image must stay still before the holding photo is taken. A positive whole number. | `5` |
@@ -262,10 +271,10 @@ is decided, leave them out of `ocr-types`: choosing them fails with
 :::
 
 :::warning Document authenticity
-Checking that a document is genuine (not a photocopy, a document shown on a
-screen, or an edited image) is out of scope for now: none of the on-premise
-images does it (Scanovate's document liveness is only part of its B-Trust
-cloud), and the
+Document Liveness checks that the document is physical: not shown on a screen,
+a printed copy, a replaced portrait or an edited image (see
+[Scanovate On-Premise Services](scanovate_on_premise_guide.md#document-liveness-1)).
+The OCR service itself doesn't check the document's security features: the
 `passport` type's `template_matching_valid` and `document_in_frame_valid`
 checks are always `true`, so rules on them prove nothing.
 :::
@@ -389,6 +398,7 @@ is registered, not their nationality.
 | `keycloak_scanovate_liveness_url` | empty |
 | `keycloak_scanovate_liveness_secret` | empty |
 | `keycloak_scanovate_face_match_url` | empty |
+| `keycloak_scanovate_document_liveness_url` | empty |
 | `keycloak_scanovate_min_biometric_score_<philis_id\|seaman_book\|passport\|driver_license\|ibp>` | `0.67` |
 
 The `min_biometric_score` settings are the minimum Face Match similarity of
@@ -504,3 +514,38 @@ personal documents in shared environments:
   typeface (e.g. the free `ocrb10.otf` of the CTAN `ocr-b-outline` package),
   is read by the `passport` OCR type. Check digits must be valid, and MRZ text
   in other typefaces is misread.
+
+## Carrying a configuration through Excel
+
+Election Architect preserves the Scanovate settings supplied in an election
+export, including the real `liveness-secret`. First export the source event with
+**integration secrets included**, using an authorized account and an encrypted
+export. Architect does not connect to Keycloak to retrieve or recover a secret.
+A source containing an asterisk mask is refused. Re-export it with the real
+credential rather than treating a mask as a usable value.
+
+The Excel **Parameters** sheet carries `keycloak_event_realm` as a complete JSON
+realm, including all authenticator settings and unknown future fields. The
+`keycloak_event_realm_source_event_id` row records the original event identifier
+so platform URLs can be rebuilt even if the source realm has a custom name.
+Long realm values use adjacent `value+` continuation columns. Keep these columns
+in order: together they form one value. This also preserves strings such as
+leading-zero credentials, whitespace, UUIDs and JSON-looking values exactly.
+
+A supplied whole-realm parameter takes precedence over the plan's base realm.
+An explicitly selected authentication preset still applies its configured
+behavior. To override preset settings, use the existing
+`keycloak_event_realm.authenticatorConfig` parameter with the desired alias and
+settings JSON. Inputs containing masked credentials are rejected before workbook
+export or build, including standalone configuration patches; start from a valid
+unmasked source rather than using another row to repair a masked source.
+Scanovate must have its own authenticator configuration, not one shared with
+another provider. Its settings are kept byte-for-byte when structural platform
+identifiers are rewritten during build and import.
+
+**The workbook, saved plan and derived import files contain credentials.** The
+whole realm can also contain other credentials already present in the source;
+no other credentials are fetched or unmasked. Protect all of these files with
+encryption in storage and transit and restrict them to authorized administrators.
+A generated `.xlsx` is not automatically password-encrypted. Do not attach these
+files to tickets, commit them, or include their contents in logs.

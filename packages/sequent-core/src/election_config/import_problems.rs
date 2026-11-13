@@ -101,6 +101,28 @@ pub fn incompatible_version(found: &str, current: &str) -> Problem {
     .detail("current", current)
 }
 
+/// Written by a different major version of the platform than the one
+/// importing it. A warning, not a refusal (meta#14760): the difference does not
+/// block the import (the file's other checks still do), and the operator is
+/// told that settings this version does not know may not be imported, rather
+/// than that the file is compatible. Said the same on a dry run and an import.
+pub fn version_major_mismatch(found: &str, current: &str) -> Problem {
+    Problem::warning(
+        Code::IncompatibleVersion,
+        "version",
+        format!(
+            "the file was exported by version {found}, a different major \
+             version from this platform's {current}. The major-version \
+             difference does not block the import, and the file's other \
+             checks still apply; settings this version does not support may \
+             not be imported"
+        ),
+    )
+    .id("file.version-major-mismatch")
+    .detail("found", found)
+    .detail("current", current)
+}
+
 /// The file's checksum is not the one the operator gave.
 pub fn checksum_mismatch(expected: &str, actual: &str) -> Problem {
     Problem::error(

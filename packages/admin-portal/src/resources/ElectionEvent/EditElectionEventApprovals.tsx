@@ -4,12 +4,12 @@
 
 import React, {useEffect, useState} from "react"
 import {ListApprovals} from "../Approvals/ListApprovals"
-import {Identifier, useDataProvider, useRecordContext} from "react-admin"
-import {decisionDetails} from "../Approvals/approvalReview"
+import {Identifier, useRecordContext} from "react-admin"
 import {ViewApproval} from "../Approvals/ViewApproval"
 import {ApprovalMatrix} from "../Approvals/ApprovalMatrix"
-import {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {Sequent_Backend_Applications, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import {useTenantStore} from "@/providers/TenantContextProvider"
 
 enum ViewMode {
     View,
@@ -30,67 +30,79 @@ export const EditElectionEventApprovals: React.FC<TApproval> = ({
 }) => {
     const electionEventRecord = useRecordContext<Sequent_Backend_Election_Event>()
     const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.List)
+    const [tenantId] = useTenantStore()
+    // The tenant and event the view, enrollment and matrix source belong to.
+    const context = `${tenantId}:${electionEventId}`
+    const [viewContext, setViewContext] = useState(context)
     const [currApprovalId, setCurrApprovalId] = useState<string | Identifier | null>(null)
-    // The rule that decided the enrollment the matrix was opened from.
-    const [cameFrom, setCameFrom] = useState<{version: number; rule: number | null} | undefined>()
-    const dataProvider = useDataProvider()
+    // The enrollment the matrix was opened from; none when it was opened from the toolbar.
+    const [source, setSource] = useState<Sequent_Backend_Applications | null>(null)
     const {taskId, setTaskId} = useElectionEventTallyStore()
 
     const onViewApproval = (id: Identifier) => {
+        setViewContext(context)
         setViewMode(ViewMode.View)
         setCurrApprovalId(id)
         setTaskId(id)
     }
 
     const onViewList = () => {
+        setViewContext(context)
         setViewMode(ViewMode.List)
-        // Back in the queue no enrollment is open: the matrix returns here, not to the last review.
+        // Back in the queue no enrollment is open.
         setCurrApprovalId(null)
+        setSource(null)
     }
 
-    const onViewMatrix = (decided?: {version: number; rule: number | null}) => {
-        setCameFrom(decided)
+    const onViewMatrix = (application?: Sequent_Backend_Applications) => {
+        setViewContext(context)
+        setSource(application ?? null)
+        setCurrApprovalId(null)
         setViewMode(ViewMode.Matrix)
-    }
-
-    const onViewRule = async (id: Identifier) => {
-        const {data} = await dataProvider.getOne("sequent_backend_applications", {id})
-        const decision = decisionDetails(data)
-        onViewMatrix(decision ? {version: decision.matrixVersion, rule: decision.rule} : undefined)
     }
 
     useEffect(() => {
         if (showList) {
-            setViewMode(ViewMode.List)
-            setCurrApprovalId(null)
+            onViewList()
         }
     }, [showList])
 
     useEffect(() => {
         if (!taskId) {
-            setViewMode(ViewMode.List)
-            setCurrApprovalId(null)
+            onViewList()
         }
     }, [taskId])
 
+    // Another tenant's or event's approvals never show this one's matrix or
+    // enrollment, not even for the render before the reset below.
+    const shown = viewContext === context ? viewMode : ViewMode.List
+    useEffect(() => {
+        if (viewContext !== context) {
+            onViewList()
+        }
+    }, [context, viewContext])
+
     return (
         <>
-            {viewMode === ViewMode.List ? (
+            {shown === ViewMode.List ? (
                 <ListApprovals
                     electionEventId={electionEventId}
                     electionId={electionId}
                     onViewApproval={onViewApproval}
                     onViewMatrix={() => onViewMatrix()}
-                    onViewRule={onViewRule}
+                    onViewRule={onViewMatrix}
                     electionEventRecord={electionEventRecord}
                 />
-            ) : viewMode === ViewMode.Matrix ? (
+            ) : shown === ViewMode.Matrix ? (
                 <ApprovalMatrix
+                    key={`${context}:${source?.id ?? ""}`}
                     electionEventId={electionEventId}
-                    goBack={
-                        currApprovalId && cameFrom ? () => setViewMode(ViewMode.View) : onViewList
+                    goBack={onViewList}
+                    source={
+                        source
+                            ? {application: source, onBack: () => onViewApproval(source.id)}
+                            : undefined
                     }
-                    cameFrom={cameFrom}
                 />
             ) : (
                 <ViewApproval

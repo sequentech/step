@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {useEffect} from "react"
+import {useEffect, useRef} from "react"
 import {useApolloClient} from "@apollo/client"
 import {useListContext, useNotify} from "react-admin"
 import {useTranslation} from "react-i18next"
@@ -33,6 +33,9 @@ export const SUPPORT_REFERENCE_DEBOUNCE_MS = 400
  */
 export const useSupportReferenceSearch = (scope: Record<string, unknown>) => {
     const {filterValues, setFilters} = useListContext()
+    // The list may change while the server answers: the answer is added to the latest one.
+    const latest = useRef({filterValues, setFilters})
+    latest.current = {filterValues, setFilters}
     const client = useApolloClient()
     const notify = useNotify()
     const {t} = useTranslation()
@@ -63,7 +66,10 @@ export const useSupportReferenceSearch = (scope: Record<string, unknown>) => {
                         reference,
                         ids: data?.find_applications_by_support_reference?.application_ids ?? [],
                     }
-                    setFilters({...filterValues, [SUPPORT_REFERENCE_FILTER]: match}, {})
+                    latest.current.setFilters({
+                        ...latest.current.filterValues,
+                        [SUPPORT_REFERENCE_FILTER]: match,
+                    })
                 })
                 .catch(() => {
                     if (!cancelled) {

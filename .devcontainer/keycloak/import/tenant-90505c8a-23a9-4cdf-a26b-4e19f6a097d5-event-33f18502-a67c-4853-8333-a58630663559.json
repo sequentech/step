@@ -3947,6 +3947,7 @@
         "liveness-url": "https://localhost:8443/biometric",
         "liveness-secret": "liveness-dev-callback-secret",
         "face-match-url": "http://scanovate-face-match:3000",
+        "document-liveness-url": "http://scanovate-document-liveness:8080",
         "doc-id-type": "sequent.read-only.id-card-type",
         "user-status": "sequent.read-only.id-card-number-validated",
         "attributes-to-validate": "{\n  \"default\": [\n    {\n      \"type\": \"isBeforeDateValue\",\n      \"isBeforeDateValue\": \"now\",\n      \"process\": \"ocr\",\n      \"attributePath\": \"/date_of_expiry\",\n      \"sourceDateFormat\": \"yyyy-MM-dd\",\n      \"errorMsg\": \"scanovateAttributesError\"\n    }\n  ]\n}",

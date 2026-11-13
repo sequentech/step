@@ -4243,8 +4243,7 @@ const frenchTranslation: TranslationType = {
                 noneApply: "Aucune des règles ci-dessus ne s'applique",
                 andWord: "et",
                 and: " et ",
-                appliesToExample: "S'applique à votre exemple",
-                cameFrom: "A décidé l'inscription d'où vous venez",
+                appliesToExample: "Décide dans la simulation",
                 voterIsTold: "L'électeur reçoit ce message : “{{reason}}”.",
                 sentence: "Quand {{when}}, {{outcome}}.",
                 sentenceOtherwise: "Si aucune des règles ci-dessus ne s'applique, {{outcome}}.",
@@ -4265,13 +4264,72 @@ const frenchTranslation: TranslationType = {
                     more: "+{{count}} de plus",
                 },
                 test: "Essayer un exemple",
-                testHelp:
-                    "Décrivez une inscription pour voir quelle règle en décide. Vos modifications non enregistrées comptent.",
+                example: {
+                    stateSample: "Inscription type",
+                    sampleText:
+                        "Un électeur vérifié du registre, pas encore inscrit, dont les données comparées sont toutes identiques.",
+                    stateCustom: "Votre exemple",
+                    customText: "Parti de l'inscription type.",
+                    recorded: "Décision enregistrée",
+                    recordedRule: "Règle {{number}} de la version {{version}} · {{decision}}.",
+                    recordedLast: "Dernière règle de la version {{version}} · {{decision}}.",
+                    severalApproved: "Plusieurs électeurs du registre correspondaient.",
+                    statusNow: "Son statut est maintenant {{status}}.",
+                    noChanges:
+                        "Essayer un exemple ne modifie aucune inscription et n'enregistre rien.",
+                    edit: "Modifier l'exemple",
+                    editing: "Modification de l'exemple — pas encore appliquée",
+                    editingHelp:
+                        "Vos modifications ne comptent qu'une fois appliquées. D'ici là, la simulation utilise l'exemple appliqué avec les règles à l'écran.",
+                    apply: "Appliquer",
+                    notRecorded: "Non enregistré",
+                    withFirstName: "Comparé avec le prénom",
+                    notComparedForId: "Non comparé pour ce document",
+                    noLongerOffered: "{{id}} (plus proposé)",
+                    simulation: "Simulation actuelle",
+                    rulesOnScreen: "Règles à l'écran",
+                    rulesUnsaved: "Règles à l'écran, modifications non enregistrées comprises",
+                    goToRule: "Aller à la règle {{number}}",
+                    goToLast: "Aller à la dernière règle",
+                    titleEnrollment: "Simulation de l'inscription de {{name}}",
+                    titleUnnamed: "Simulation d'une inscription",
+                    back: "Retour à l'inscription",
+                    backLabel: "Retour à l'inscription de {{name}}",
+                    noChangesEnrollment:
+                        "La simulation ne modifie rien dans cette inscription et n'enregistre rien.",
+                    unreadable:
+                        "La décision enregistrée de cette inscription est illisible, la simulation utilise donc l'inscription type.",
+                    stateRecorded: "Données enregistrées · dans la simulation",
+                    stateChanged: "Autres données · dans la simulation",
+                    stateUnreadable: "Inscription type — pas ses données enregistrées",
+                    changedNote: "L'inscription garde ses données enregistrées.",
+                    editDetails: "Essayer d'autres données",
+                    editingDetails: "Essai d'autres données — pas encore dans la simulation",
+                    editingDetailsHelp:
+                        "Ces données ne décident rien tant que vous ne les appliquez pas. D'ici là, la simulation utilise les données ci-dessus avec les règles à l'écran.",
+                    restore: "Remplir avec les données enregistrées",
+                    resetSample: "Remplir avec l'inscription type",
+                    decides: "Dans la simulation, la règle {{number}} décide.",
+                    lastDecides:
+                        "Dans la simulation, aucune règle ne convient : la dernière règle décide.",
+                    evaluating: "Recherche de la règle qui décide de la simulation…",
+                    stillApplied: "La règle mise en évidence décide toujours de la simulation.",
+                    comparison: {
+                        SAME: "La simulation actuelle donne la même décision que celle enregistrée.",
+                        DIFFERENT:
+                            "La simulation actuelle donne une décision différente de celle enregistrée.",
+                        EDITED: "Ce ne sont pas les données enregistrées, la simulation n'est donc pas comparée avec la décision enregistrée.",
+                        NOT_RECORDED:
+                            "Une donnée comparée n'a pas été enregistrée, la simulation n'est donc pas comparée avec la décision enregistrée.",
+                        SEVERAL_VOTERS:
+                            "Plusieurs électeurs du registre ont été comparés, la simulation n'est donc pas comparée avec la décision enregistrée.",
+                        UNKNOWN_VOTERS:
+                            "Le nombre d'électeurs du registre comparés n'a pas été enregistré, la simulation n'est donc pas comparée avec la décision enregistrée.",
+                    },
+                },
                 testDetails: "Données comparées",
-                applies: "La règle {{number}} s'applique",
-                otherwiseApplies: "La dernière règle s'applique",
-                testError: "L'exemple n'a pas pu être essayé.",
-                testInvalid: "Corrigez ces règles pour essayer un exemple :",
+                testError: "La simulation n'a pas pu être lancée.",
+                testInvalid: "Corrigez ces règles pour lancer la simulation :",
                 ruleError: "Règle {{number}} : {{error}}",
                 invariants: {
                     MANUAL_ENTRY_NOT_ACCEPTED:

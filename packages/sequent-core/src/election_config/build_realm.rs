@@ -6,9 +6,11 @@
 //!
 //! A realm is ~165 kB of interdependent Keycloak configuration — authentication
 //! flows, clients, a user profile carried as a stringified JSON blob — none of
-//! which can be authored from a spreadsheet, and whose client URLs belong to the
+//! which can be authored cell by cell, and whose client URLs belong to the
 //! environment it came from. So a realm someone exported from a working event is
-//! patched, or none is emitted and the platform loads its own provisioned default.
+//! patched — carried whole in the document's `keycloak_event_realm` parameter, or
+//! taken from a base export — or none is emitted and the platform loads its own
+//! provisioned default.
 //!
 //! Emitting an invented realm would be worse than emitting none: the importer
 //! takes `keycloak_event_realm` **wholesale**, so a present realm *replaces* the
@@ -33,6 +35,14 @@ use serde_json::{Map, Value};
 
 /// The parameter carrying the login page's stylesheet.
 pub const PARAM_LOGIN_CUSTOM_CSS: &str = "login_custom_css";
+
+/// The parameter carrying a whole event realm, the one the patch applies to in
+/// place of a base export's.
+pub const PARAM_EVENT_REALM: &str = "keycloak_event_realm";
+
+/// Original event identifier carried beside a realm through a workbook.
+pub const PARAM_EVENT_REALM_SOURCE_ID: &str =
+    "keycloak_event_realm_source_event_id";
 
 impl Builder<'_> {
     /// The preset named by the caller, else by the document's `auth_type`.
@@ -206,25 +216,106 @@ impl Builder<'_> {
         }
     }
 
-    /// Patch the base export's realm, or emit none.
-    pub(super) fn build_realm(&mut self) -> Value {
-        let Some(Value::Object(realm)) =
-            self.base_export.get("keycloak_event_realm").cloned()
-        else {
-            if !self.realm_patch.patch.is_empty() {
-                let mut keys: Vec<&str> =
-                    self.realm_patch.patch.keys().map(String::as_str).collect();
-                keys.sort_unstable();
-                let message = format!(
-                    "no base export, so nothing here configures the login page: \
-                     {} are kept as a realm patch instead of being applied. Until \
-                     that patch reaches the realm, voters see the platform's \
-                     default login page.",
-                    keys.join(", ")
+    /// The realm the document carries itself, in its `keycloak_event_realm`
+    /// parameter: a whole realm as an export holds it, so a document needs no
+    /// base export to configure the login page. Refused unless it is an object.
+    fn document_realm(&mut self) -> Option<Map<String, Value>> {
+        match self.parameter(PARAM_EVENT_REALM).cloned()? {
+            Value::Object(realm) => Some(realm),
+            _ => {
+                self.problem(
+                    Origin::sheet("Parameters"),
+                    Code::InvalidValue,
+                    format!(
+                        "the '{PARAM_EVENT_REALM}' parameter must be a whole \
+                         realm as JSON, as an export's keycloak_event_realm holds it"
+                    ),
                 );
-                self.warn("keycloak_event_realm", message);
+                None
             }
-            return Value::Null;
+        }
+    }
+
+    /// Patch the document's realm or the base export's, or emit none.
+    pub(super) fn build_realm(&mut self) -> Value {
+        let base_realm = match self.base_export.get("keycloak_event_realm") {
+            Some(Value::Object(realm)) => Some(realm.clone()),
+            _ => None,
+        };
+        let document_realm = self.document_realm();
+        if document_realm.is_some()
+            && base_realm.is_some()
+            && document_realm != base_realm
+        {
+            self.warn(
+                "keycloak_event_realm",
+                format!(
+                    "the '{PARAM_EVENT_REALM}' parameter is used as the realm, \
+                     not the base export's"
+                ),
+            );
+        }
+        // The event id the realm's URLs embed: the one it was exported with.
+        let (realm, source_event_id) = match (
+            document_realm,
+            base_realm.clone(),
+        ) {
+            (Some(realm), _) => {
+                // A workbook carries the source event id separately. A matching
+                // base export also knows it; the realm name is a legacy fallback.
+                let matching_base_id = if base_realm.as_ref() == Some(&realm) {
+                    self.base_export
+                        .get("election_event")
+                        .and_then(|event| event.get("id"))
+                        .and_then(Value::as_str)
+                } else {
+                    None
+                };
+                let id = self
+                    .parameter(PARAM_EVENT_REALM_SOURCE_ID)
+                    .and_then(Value::as_str)
+                    .filter(|id| !id.is_empty())
+                    .or(matching_base_id)
+                    .or_else(|| {
+                        realm
+                            .get("realm")
+                            .and_then(Value::as_str)
+                            .and_then(|name| name.rsplit_once("-event-"))
+                            .map(|(_, event)| event)
+                    })
+                    .map(str::to_string);
+                (realm, id)
+            }
+            (None, Some(realm)) => {
+                let id = self
+                    .base_export
+                    .get("election_event")
+                    .and_then(|event| event.get("id"))
+                    .and_then(Value::as_str)
+                    .map(str::to_string);
+                (realm, id)
+            }
+            (None, None) => {
+                if !self.realm_patch.patch.is_empty() {
+                    let mut keys: Vec<&str> = self
+                        .realm_patch
+                        .patch
+                        .keys()
+                        .map(String::as_str)
+                        .collect();
+                    keys.sort_unstable();
+                    let message = format!(
+                        "no base export, so nothing here configures the login page: \
+                         {} are kept as a realm patch instead of being applied. Until \
+                         that patch reaches the realm, voters see the platform's \
+                         default login page. A whole realm under the Parameters \
+                         key '{PARAM_EVENT_REALM}' applies it instead.",
+                        keys.join(", ")
+                    );
+                    self.warn("keycloak_event_realm", message);
+                }
+                return Value::Null;
+            }
         };
 
         let mut realm = realm;
@@ -243,17 +334,10 @@ impl Builder<'_> {
         let realm = self.apply_realm_patch(realm);
 
         // Hosts in rootUrl/redirectUris belong to the environment and stay, but a
-        // base export also embeds its OWN event id in those URLs. Import remaps
-        // every UUID it finds, so a stale id would be remapped to something
-        // unrelated; swapping it first makes the remap land right.
-        let base_event_id = self
-            .base_export
-            .get("election_event")
-            .and_then(|event| event.get("id"))
-            .and_then(Value::as_str)
-            .map(str::to_string);
-
-        match base_event_id {
+        // realm also embeds the event id it was exported with in those URLs.
+        // Import remaps every UUID it finds, so a stale id would be remapped to
+        // something unrelated; swapping it first makes the remap land right.
+        match source_event_id {
             Some(base_event_id) if base_event_id != self.event_id => {
                 let encoded = Value::Object(realm.clone()).to_string();
                 let swapped = encoded.replace(&base_event_id, &self.event_id);
@@ -262,12 +346,18 @@ impl Builder<'_> {
                 // an object, and it takes it wholesale. Keeping the base event's ids
                 // is the lesser fault, and it is said out loud.
                 match serde_json::from_str(&swapped) {
-                    Ok(reparsed) => reparsed,
+                    Ok(mut reparsed) => {
+                        super::super::scanovate::restore_settings(
+                            &Value::Object(realm.clone()),
+                            &mut reparsed,
+                        );
+                        reparsed
+                    }
                     Err(error) => {
                         self.warn(
                             "keycloak_event_realm",
                             format!(
-                                "the base export's realm could not be re-read after \
+                                "the realm could not be re-read after \
                                  swapping the event id ({error}), so it is carried \
                                  over unchanged"
                             ),
@@ -339,8 +429,8 @@ impl Builder<'_> {
     /// Report each secret or deployment setting the preset needs and the realm
     /// does not hold.
     ///
-    /// A preset never writes one, so the only place it can come from is the
-    /// target realm itself: whoever deploys the event sets it in Keycloak.
+    /// A preset has no secret default. A supplied realm may carry the credential;
+    /// otherwise an administrator must configure it in the destination realm.
     fn warn_missing_secrets(&mut self, realm: &Map<String, Value>) {
         let Some(preset) = self.auth_preset else {
             return;
@@ -350,8 +440,8 @@ impl Builder<'_> {
             if !holds_config_value(realm, secret.config_alias, secret.key) {
                 warnings.push(format!(
                     "the '{}' preset needs '{}' on the realm's '{}' authenticator \
-                     config, and it is never written into a plan or a bundle. Set \
-                     it in Keycloak after the import.",
+                     config. Supply a whole realm with the real credential in the \
+                     Parameters sheet, or set it in Keycloak after import.",
                     preset.name, secret.key, secret.config_alias
                 ));
             }

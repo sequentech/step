@@ -43,7 +43,7 @@ class OcrResultsTest {
               "last_name_english": "DELA CRUZ",
               "personal_number": ""
             },
-            "images": {"face_image": "aGVsbG8="}
+            "images": {"face_image": "aGVsbG8=", "input_image": "ZnJhbWU="}
           }
         },
         "auth": {
