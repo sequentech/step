@@ -61,9 +61,7 @@ pub async fn export_election_event_route(
     export_config.contains_voter_secrets = false;
     export_config.is_encrypted = export_config.is_encrypted
         || export_config.encrypt_with_password
-        || export_config.bulletin_board
-        || export_config.reports
-        || export_config.applications;
+        || export_config.requires_encryption();
 
     if (export_config.include_voters || export_config.s3_files)
         && export_config.encrypt_with_password
@@ -133,15 +131,10 @@ pub async fn export_election_event_route(
 
     let celery_app = get_celery_app().await;
 
-    // todo: generarate only if encrypted
     let charset: String =
         "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
             .into();
-    let password: Option<String> = if export_config.is_encrypted
-        || export_config.bulletin_board
-        || export_config.reports
-        || export_config.applications
-    {
+    let password: Option<String> = if export_config.is_encrypted {
         Some(password::generate_random_string_with_charset(64, &charset))
     } else {
         None

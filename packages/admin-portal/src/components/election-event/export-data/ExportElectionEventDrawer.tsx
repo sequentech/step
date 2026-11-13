@@ -12,6 +12,7 @@ import {IPermissions} from "@/types/keycloak"
 import {Dialog} from "@sequentech/ui-essentials"
 import {Checkbox, FormControlLabel, FormGroup} from "@mui/material"
 import {styled} from "@mui/material/styles"
+import {requiresEncryption} from "./exportEncryption"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {WidgetProps} from "@/components/Widget"
@@ -80,7 +81,9 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         setOpenExport(false)
         const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_ELECTION_EVENT, true)
         setLoadingExport(true)
-        const isEncrypted = encryptWithPassword || bulletinBoard || reports || applications
+        const isEncrypted =
+            encryptWithPassword ||
+            requiresEncryption({bulletinBoard, activityLogs, publications, reports, applications})
 
         try {
             const {data: exportElectionEventData, errors} = await exportElectionEvent({
