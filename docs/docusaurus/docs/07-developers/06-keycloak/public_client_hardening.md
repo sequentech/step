@@ -41,9 +41,10 @@ and deployment environment files set `KEYCLOAK_CLI_CLIENT_ID=cli-account-admin`;
 ## Existing realms
 
 Realms created before this change keep their old client settings until they
-are migrated. `scripts/keycloak/harden_public_clients.py` applies the same
-settings through the Keycloak admin API. It only prints what it would change
-unless `--apply` is given:
+are migrated. `scripts/keycloak/harden_public_clients.py`, in the `beyond`
+repository, applies the same settings through the Keycloak admin API. It only
+prints what it would change unless `--apply` is given. From a `beyond`
+checkout:
 
 ```bash
 export KEYCLOAK_URL=https://keycloak.example.sequent.vote
