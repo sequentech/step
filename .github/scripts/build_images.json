@@ -3,36 +3,42 @@
     "service": "keycloak",
     "context": "packages",
     "file": "packages/Dockerfile.keycloak",
-    "build_contexts": "beyond=./beyond\nscripts=./scripts\n"
+    "build_contexts": "beyond=./beyond\nscripts=./scripts\n",
+    "root_ecr": true
   },
   {
     "service": "voting-portal",
     "context": "packages",
     "file": "packages/Dockerfile.prod",
-    "spa_name": "voting-portal"
+    "spa_name": "voting-portal",
+    "root_ecr": true
   },
   {
     "service": "admin-portal",
     "context": "packages",
     "file": "packages/Dockerfile.prod",
-    "spa_name": "admin-portal"
+    "spa_name": "admin-portal",
+    "root_ecr": true
   },
   {
     "service": "ballot-verifier",
     "context": "packages",
     "file": "packages/Dockerfile.prod",
-    "spa_name": "ballot-verifier"
+    "spa_name": "ballot-verifier",
+    "root_ecr": true
   },
   {
     "service": "results-portal",
     "context": "packages",
     "file": "packages/Dockerfile.prod",
-    "spa_name": "results-portal"
+    "spa_name": "results-portal",
+    "root_ecr": true
   },
   {
     "service": "harvest",
     "context": "packages",
-    "file": "packages/harvest/Dockerfile.prod"
+    "file": "packages/harvest/Dockerfile.prod",
+    "root_ecr": true
   },
   {
     "service": "monitoring-renderer",
@@ -57,17 +63,20 @@
   {
     "service": "windmill",
     "context": "packages",
-    "file": "packages/windmill/Dockerfile.prod"
+    "file": "packages/windmill/Dockerfile.prod",
+    "root_ecr": true
   },
   {
     "service": "hasura",
     "context": "hasura",
-    "file": "packages/Dockerfile.hasura"
+    "file": "packages/Dockerfile.hasura",
+    "root_ecr": true
   },
   {
     "service": "loadtesting",
     "context": ".",
-    "file": "packages/loadtesting/Dockerfile"
+    "file": "packages/loadtesting/Dockerfile",
+    "root_ecr": true
   },
   {
     "service": "election-architect",
