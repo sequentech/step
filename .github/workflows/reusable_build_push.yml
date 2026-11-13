@@ -15,10 +15,20 @@ on:
         description: 'Whether to push the images'
         required: true
         type: boolean
+    secrets:
+      PAT:
+        required: false
+      DOCKERHUB_TOKEN:
+        required: false
+      AWS_ACCESS_KEY_ID_GLOBALDOT:
+        required: false
+      AWS_SECRET_ACCESS_KEY_GLOBALDOT:
+        required: false
 
 jobs:
   build-and-push:
     runs-on: ubuntu-24.04
+    environment: release
     timeout-minutes: 360
     strategy:
       max-parallel: 13
@@ -144,7 +154,7 @@ jobs:
           ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ env.SHORT_SHA }}
           ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
         cache-from: type=registry,ref=${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:buildcache
-        cache-to: type=registry,ref=${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:buildcache,mode=max
+        cache-to: ${{ inputs.push && format('type=registry,ref={0}/{1}:buildcache,mode=max', vars.AWS_ECR_REGISTRY_GLOBALDOT, matrix.service) || '' }}
         build-contexts: ${{ matrix.build_contexts }}
         build-args: |
           SPA_NAME=${{ matrix.spa_name }}
