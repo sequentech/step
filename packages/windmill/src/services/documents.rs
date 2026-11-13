@@ -295,3 +295,32 @@ pub async fn get_document_as_temp_file(
     // Return the temporary file and the separator as a tuple
     Ok(file)
 }
+
+/// Import sources can hold voter passwords and secret attributes. The
+/// restriction is committed on its own so that it stays when the import fails.
+#[instrument(err)]
+pub async fn restrict_import_source(tenant_id: &str, document_id: &str) -> AnyhowResult<()> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error getting hasura db pool")?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error starting hasura transaction")?;
+
+    postgres::document::restrict_document_to_voter_secret_readers(
+        &hasura_transaction,
+        tenant_id,
+        document_id,
+    )
+    .await?;
+
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "Error committing the import source restriction")?;
+
+    Ok(())
+}
