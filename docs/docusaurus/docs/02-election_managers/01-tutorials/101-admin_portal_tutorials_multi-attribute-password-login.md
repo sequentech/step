@@ -317,7 +317,7 @@ who uses up the attempts of the voters they target, but it's a mitigation, not a
 Brute Force Detection on, the accounts that share a value lock after the realm's failure factor,
 which can take fewer attempts than the address limit allows, and earlier failures and attempts
 from other addresses count toward it too. Configure it in the reverse proxy or CDN in front of
-Keycloak, for example as a Cloudflare rate limiting rule:
+Keycloak, for example as a Cloudflare rate-limiting rule:
 
 - **Requests:** `POST` to `/realms/<realm>/login-actions/authenticate` (this login form) and to
   `/realms/<realm>/protocol/openid-connect/token` (Direct Grant, used by IVR), prefixed with
