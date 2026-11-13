@@ -127,7 +127,7 @@ pub(super) fn compute_shares<C: Ctx>(
     let mut s = vec![];
 
     for i in 0..*num_trustees {
-        let share = strand::threshold::eval_poly(i + 1, *threshold, &coeffs, &ctx);
+        let share = strand::threshold::eval_poly(i + 1, *threshold, &coeffs, &ctx)?;
 
         // Obtain the public key for the recipient of the share
         let target_channel_h = channels_hs.0.get(i).ok_or(ProtocolError::InternalError(
@@ -275,8 +275,12 @@ fn compute_pk_<C: Ctx>(
 
         // Iterate over receiver trustees to compute their verification key
         for (j, vk) in verification_keys.iter_mut().enumerate().take(*num_t) {
-            let vkf =
-                strand::threshold::verification_key_factor(&share.commitments, *threshold, j, &ctx);
+            let vkf = strand::threshold::verification_key_factor(
+                &share.commitments,
+                *threshold,
+                j,
+                &ctx,
+            )?;
 
             *vk = vk.mul(&vkf).modp(&ctx);
 
