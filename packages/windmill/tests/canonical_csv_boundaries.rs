@@ -96,7 +96,7 @@ fn duplicate_scalar_and_candidate_rows_are_rejected_instead_of_silently_overwrit
 }
 
 #[test]
-fn parsed_vote_counts_reach_shared_validation_without_overflowing() {
+fn parsed_vote_counts_summing_beyond_u64_are_rejected_by_shared_validation() {
     let contest: Contest = serde_json::from_value(json!({
         "id": CONTEST,
         "tenant_id": "tenant-1",
@@ -107,8 +107,8 @@ fn parsed_vote_counts_reach_shared_validation_without_overflowing() {
     }))
     .unwrap();
 
-    // Both cells fit u64. Their sum does not, but two marks per ballot make
-    // this a valid tally. Exercise the same parse-to-validation handoff used
+    // Both cells fit u64. Their sum does not, so tally processing could not
+    // represent it even with two marks per ballot. Exercise the same parse-to-validation handoff used
     // by import preview, including its translation of shared error details.
     let csv = format!(
         "{HEADER}\
@@ -126,27 +126,20 @@ fn parsed_vote_counts_reach_shared_validation_without_overflowing() {
     assert!(parse_errors.is_empty(), "{parse_errors:?}");
     assert_eq!(imports.len(), 1);
     let content = &imports[0].content;
-    assert!(
-        validate_import_content(&VotingChannel::PAPER, AREA, CONTEST, content, &contest).is_empty()
-    );
-
     let single_mark_contest = Contest {
         max_votes: Some(1),
-        ..contest
+        ..contest.clone()
     };
-    let errors = validate_import_content(
-        &VotingChannel::PAPER,
-        AREA,
-        CONTEST,
-        content,
-        &single_mark_contest,
-    );
-    assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].code, "invalid_total_valid_votes");
-    assert_eq!(errors[0].area_name.as_deref(), Some(AREA));
-    assert_eq!(errors[0].contest_external_id.as_deref(), Some(CONTEST));
-    assert_eq!(
-        errors[0].params["candidateVotesSum"],
-        "18446744073709551616"
-    );
+    for contest in [&contest, &single_mark_contest] {
+        let errors =
+            validate_import_content(&VotingChannel::PAPER, AREA, CONTEST, content, contest);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "invalid_total_valid_votes");
+        assert_eq!(errors[0].area_name.as_deref(), Some(AREA));
+        assert_eq!(errors[0].contest_external_id.as_deref(), Some(CONTEST));
+        assert_eq!(
+            errors[0].params["candidateVotesSum"],
+            "18446744073709551616"
+        );
+    }
 }

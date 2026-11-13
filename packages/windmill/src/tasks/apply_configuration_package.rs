@@ -449,11 +449,13 @@ mod tests {
         drop(held);
         let mut free = false;
         for _ in 0..50 {
+            // Always waits once, so that the server has seen the closed
+            // connection whichever way the race goes.
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
             if import_lock_is_free(&pool, &tenant).await {
                 free = true;
                 break;
             }
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         }
         assert!(free, "the lock outlived its hold");
 

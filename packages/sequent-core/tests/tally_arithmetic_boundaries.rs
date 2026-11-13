@@ -68,23 +68,24 @@ fn valid_and_invalid_ballots_cannot_wrap_to_a_zero_turnout() {
 }
 
 #[test]
-fn candidate_mark_sums_above_u64_are_valid_only_when_the_contest_allows_them() {
+fn candidate_mark_sums_above_u64_are_rejected_whatever_the_mark_bound() {
     let sheet = AreaContestResults {
         total_votes: Some(u64::MAX),
         total_valid_votes: Some(u64::MAX),
         candidate_results: candidate_results(&[u64::MAX, 1]),
         ..Default::default()
     };
-    // MAX + 1 marks fit a two-mark contest with MAX ballots. Saturating the
-    // sum would also wrongly accept it when only one mark is permitted.
-    assert!(validate_area_contest_results(&sheet, Some(2)).is_empty());
-    let errors = validate_area_contest_results(&sheet, Some(1));
-    assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].code, "invalid_total_valid_votes");
-    assert_eq!(
-        errors[0].params["candidateVotesSum"],
-        "18446744073709551616"
-    );
+    // Tally processing cannot represent MAX + 1 marks, even when a two-mark
+    // contest would otherwise allow them, so the sheet is refused up front.
+    for max_marks in [Some(2), Some(1)] {
+        let errors = validate_area_contest_results(&sheet, max_marks);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "invalid_total_valid_votes");
+        assert_eq!(
+            errors[0].params["candidateVotesSum"],
+            "18446744073709551616"
+        );
+    }
 }
 
 #[test]
