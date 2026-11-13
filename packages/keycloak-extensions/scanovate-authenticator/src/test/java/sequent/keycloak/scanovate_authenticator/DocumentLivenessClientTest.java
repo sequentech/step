@@ -80,6 +80,24 @@ class DocumentLivenessClientTest {
   }
 
   @Test
+  void theRelaxedDefaultStillRequiresEveryPipelineToReachItsMinimum() throws IOException {
+    double minimum = DocumentLivenessSettings.DEFAULT_MIN_PROBABILITY;
+    for (double probability : List.of(0.4, 0.45)) {
+      FakeTransport transport = new FakeTransport().reply(200, response("OK", 0.99, probability));
+      assertEquals(
+          DocumentLivenessOutcome.GENUINE,
+          client(transport).check(JPEG, PIPELINES, "REGULAR").outcome(minimum));
+    }
+    for (double[] probabilities : new double[][] {{0.3999, 0.99}, {0.99, 0.3999}}) {
+      FakeTransport transport =
+          new FakeTransport().reply(200, response("OK", probabilities[0], probabilities[1]));
+      assertEquals(
+          DocumentLivenessOutcome.NOT_GENUINE,
+          client(transport).check(JPEG, PIPELINES, "REGULAR").outcome(minimum));
+    }
+  }
+
+  @Test
   void aValidationErrorIsNeverGenuine() throws IOException {
     FakeTransport transport =
         new FakeTransport().reply(200, response("DOCUMENT_TOO_CLOSE_TO_BORDER", 0.99, 0.99));

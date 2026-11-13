@@ -18,5 +18,10 @@
     "frame_rate": 10,
     "output_format": "mp4",
     "keep_last_seconds": 20
-  }
+  },
+  "mobile": {},
+  "desktop": {
+    "mirror_view": true
+  },
+  "kiosk": {}
 }

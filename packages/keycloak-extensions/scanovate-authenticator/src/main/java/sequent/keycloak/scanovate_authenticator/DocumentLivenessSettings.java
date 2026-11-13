@@ -25,7 +25,7 @@ public record DocumentLivenessSettings(
 
   static final String DEFAULT_CALIBRATION = "REGULAR";
   static final List<String> CALIBRATIONS = List.of("REGULAR", "SOFT", "HARD");
-  static final double DEFAULT_MIN_PROBABILITY = 0.5;
+  static final double DEFAULT_MIN_PROBABILITY = 0.4;
 
   private static final Pattern PIPELINE = Pattern.compile("[a-z0-9][a-z0-9_.-]{0,63}");
 
