@@ -1448,6 +1448,8 @@ pub async fn get_document(
     Ok((temp_file, document, document_type, package))
 }
 
+/// Decrypts the imported file with `password` into a new temp file, removed
+/// when it is dropped. Without a password the file is returned as it is.
 #[instrument(err, skip_all)]
 pub async fn decrypt_document(
     password: Option<String>,
@@ -3254,6 +3256,8 @@ pub async fn maybe_create_scheduled_event(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::io::Write;
 
     #[test]
     fn imported_event_realms_do_not_reenable_raw_network_logging() {
@@ -5224,5 +5228,56 @@ mod imported_realm_sanitization_tests {
             client_claim_mapper_count(&sanitize(&template), "voting-portal-kiosk"),
             kiosk_mappers
         );
+    }
+}
+
+#[cfg(test)]
+mod decrypt_document_tests {
+    use super::*;
+    use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
+    use std::fs;
+    use std::io::Write;
+
+    /// Whether a regular file of the system temp dir holds exactly `content`.
+    fn temp_dir_holds_content(content: &[u8]) -> Result<bool> {
+        for entry in fs::read_dir(env::temp_dir())? {
+            let Ok(entry) = entry else { continue };
+            let Ok(metadata) = entry.metadata() else {
+                continue;
+            };
+            if !metadata.is_file() || metadata.len() != content.len() as u64 {
+                continue;
+            }
+            if fs::read(entry.path()).is_ok_and(|bytes| bytes == content) {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// The decrypted content lives only in the returned file: once that is
+    /// dropped no copy of it remains in the temp dir.
+    #[tokio::test]
+    async fn decrypt_document_leaves_no_plaintext_in_temp_dir() -> Result<()> {
+        let password = "import-password";
+        let plaintext = format!("election-event-{}", Uuid::new_v4()).into_bytes();
+
+        let mut plain_file = NamedTempFile::new()?;
+        plain_file.write_all(&plaintext)?;
+        let encrypted_file = NamedTempFile::new()?;
+        encrypt_file_aes_256_cbc(
+            &plain_file.path().to_string_lossy(),
+            &encrypted_file.path().to_string_lossy(),
+            password,
+        )?;
+        drop(plain_file);
+
+        let decrypted_file = decrypt_document(Some(password.to_string()), encrypted_file).await?;
+        assert_eq!(fs::read(decrypted_file.path())?, plaintext);
+
+        drop(decrypted_file);
+
+        assert!(!temp_dir_holds_content(&plaintext)?);
+        Ok(())
     }
 }
