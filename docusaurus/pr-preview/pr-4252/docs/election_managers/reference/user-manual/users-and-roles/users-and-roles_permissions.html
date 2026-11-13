@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Permissions | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4252/docs/election_managers/reference/user-manual/users-and-roles/users-and-roles_permissions"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Permissions | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4252/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4252/docs/election_managers/reference/user-manual/users-and-roles/users-and-roles_permissions"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4252/docs/election_managers/reference/user-manual/users-and-roles/users-and-roles_permissions" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4252/docs/election_managers/reference/user-manual/users-and-roles/users-and-roles_permissions" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Permissions","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4252/docs/election_managers/reference/user-manual/users-and-roles/users-and-roles_permissions"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4252/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4252/assets/js/runtime~main.4141e768.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4252/assets/js/runtime~main.5197de0d.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4252/assets/js/main.acfaa0c6.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -18,10 +18,12 @@ it.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="trustee-and-admin-lockdown-roles">Trustee and Admin Lockdown Roles<a href="#trustee-and-admin-lockdown-roles" class="hash-link" aria-label="Direct link to Trustee and Admin Lockdown Roles" title="Direct link to Trustee and Admin Lockdown Roles" translate="no">​</a></h2>
 <p>The <code>trustee</code> and <code>admin-lockdown</code> roles of a new tenant do not include the <code>admin-user</code>
 permission. Trustees work with the key and tally ceremony permissions, and admin lockdown users
-with the publication permissions; the admin portal runs their requests with those permissions.</p>
+with the publication permissions and <code>document-read</code> and <code>document-download</code>, which let them
+download exports. The admin portal runs their requests with those permissions.</p>
 <p>Tenants created before this change keep the roles they were created with. After upgrading, open
 <strong>Users and Roles</strong> &gt; <strong>Roles</strong>, edit the <code>trustee</code> and <code>admin-lockdown</code> roles of each tenant, and
-remove the <code>admin-user</code> permission from them. Users must log in again for the change to apply.</p>
+remove the <code>admin-user</code> permission from them. Add <code>document-read</code> and <code>document-download</code> to
+<code>admin-lockdown</code>. Users must log in again for the change to apply.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="secret-voter-field-permissions">Secret Voter Field Permissions<a href="#secret-voter-field-permissions" class="hash-link" aria-label="Direct link to Secret Voter Field Permissions" title="Direct link to Secret Voter Field Permissions" translate="no">​</a></h2>
 <p>Secret voter fields have independent read and write permissions so an operator can manage a value
 without necessarily being able to see it.</p>
