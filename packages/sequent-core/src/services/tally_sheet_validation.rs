@@ -357,6 +357,7 @@ mod tests {
 
     use super::{
         effective_max_marks_per_ballot_typed, validate_area_contest_results,
+        MAX_TALLY_COUNT,
     };
 
     #[test]
