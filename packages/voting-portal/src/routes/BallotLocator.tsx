@@ -240,6 +240,8 @@ const BallotLocator: React.FC = () => {
         if (globalSettings.DISABLE_AUTH || tooQuick || !validatedBallotId) {
             return
         }
+        // An immediate fetch supersedes any deferred one still pending.
+        clearTimeout(fetchTimeout.current)
         await tryFetchMessages()
     }
 
