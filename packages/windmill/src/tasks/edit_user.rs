@@ -82,8 +82,10 @@ pub struct EditUserOutput {
 /// which backs the operator's task widget. A Datafix voter's ballots are
 /// discarded and its voted-channel attribute reset after the Keycloak
 /// disable. A retry also resumes a partial disable when Keycloak is already
-/// disabled but active ballots remain. Whether `SetNotVoted` converges is
-/// still handled by the separate manual reconciliation process.
+/// disabled but active ballots remain. A voter owed a `SetNotVoted` carries
+/// the Internet voted-channel attribute from before the discard until VoterView
+/// agrees, so a run that stops or fails in between is completed by the next
+/// save of the disabled voter.
 #[instrument(
     skip_all,
     fields(
@@ -180,6 +182,19 @@ fn plan_voter_release(
         release_attempt,
         owes_set_not_voted: release_attempt && may_be_voted_in_voterview,
     })
+}
+
+impl VoterReleasePlan {
+    /// The voter owes a `SetNotVoted` but nothing but its ballots says so: with
+    /// no Internet voted-channel attribute, a run that stops after the discard
+    /// commits would leave the next run no signal to resend it. The attribute
+    /// is set before the discard and reset only once VoterView agrees.
+    fn needs_voted_channel_marker(
+        &self,
+        current_attributes: &HashMap<String, Vec<String>>,
+    ) -> bool {
+        self.owes_set_not_voted && !voted_via_internet(current_attributes)
+    }
 }
 
 /// The admin a release's ballot discard is attributed to in the electoral log.
@@ -460,11 +475,14 @@ async fn reject_and_record(
 /// `INTERNET` value or a no-op.
 #[instrument(skip(ctx))]
 async fn clear_voted_channel(ctx: &DatafixEditCtx<'_>) -> anyhow::Result<()> {
+    set_voted_channel(ctx, ATTR_RESET_VALUE).await
+}
+
+/// Writes the voter's `VOTED_CHANNEL` attribute.
+#[instrument(skip(ctx))]
+async fn set_voted_channel(ctx: &DatafixEditCtx<'_>, value: &str) -> anyhow::Result<()> {
     let client = KeycloakAdminClient::new().await?;
-    let attributes = HashMap::from([(
-        VOTED_CHANNEL.to_string(),
-        vec![ATTR_RESET_VALUE.to_string()],
-    )]);
+    let attributes = HashMap::from([(VOTED_CHANNEL.to_string(), vec![value.to_string()])]);
     client
         .edit_user(
             &ctx.realm,
@@ -522,15 +540,16 @@ fn set_not_voted_converged(response: &SoapRequestResponse) -> bool {
 /// Sends `SetNotVoted` to VoterView for the already-disabled, already-released
 /// voter and records the outcome in the electoral log. Every outcome —
 /// success, an application rejection, a SOAP fault, or a transport failure —
-/// is only logged: the ballots are already discarded, so nothing here can or
-/// should be rolled back. A divergence between the platform and VoterView is
-/// left for the manual reconciliation process to resolve.
+/// is logged and nothing is rolled back: the ballots are already discarded.
+/// Returns whether VoterView agrees the voter has not voted; when it does not,
+/// the caller keeps the voted-channel attribute so a later save of the
+/// disabled voter plans the release, and so the `SetNotVoted`, again.
 #[instrument(skip(ctx, election_event))]
 async fn send_set_not_voted(
     ctx: &DatafixEditCtx<'_>,
     election_event: ElectionEvent,
     username: &str,
-) {
+) -> bool {
     let prepared = match external::voterview_requests::prepare(
         SoapRequest::SetNotVoted,
         ElectionEventDatafix(election_event),
@@ -547,15 +566,17 @@ async fn send_set_not_voted(
                 "SetNotVoted NotDispatched: pre-dispatch-error".to_string(),
             )
             .await;
-            return;
+            return false;
         }
     };
     let template_sha256 = prepared.template_sha256().to_string();
+    let mut converged = false;
     let operation = match external::voterview_requests::send_prepared(prepared).await {
         Ok(SoapRequestResult {
             response,
             template_sha256,
         }) if set_not_voted_converged(&response) => {
+            converged = true;
             format!("SetNotVoted Succeeded (template_sha256={template_sha256})")
         }
         Ok(SoapRequestResult {
@@ -581,6 +602,7 @@ async fn send_set_not_voted(
         }
     };
     audit_datafix_user_operation(ctx, username, operation).await;
+    converged
 }
 
 /// Runs the voter edit while the per-voter lock is held: validates the edit,
@@ -661,6 +683,14 @@ async fn run_datafix_voter_edit(
         .map_err(|err| {
             format!("The Datafix voter lock was lost before discarding ballots: {err}")
         })?;
+    if plan.needs_voted_channel_marker(&current_attributes) {
+        // Nothing is discarded yet, so a failure here changes nothing.
+        set_voted_channel(ctx, VOTED_CHANNEL_INTERNET_VALUE)
+            .await
+            .map_err(|err| {
+                format!("Could not mark the voter's voted channel before the discard: {err}")
+            })?;
+    }
     let discarded = discard_voter_ballots(
         &body.tenant_id,
         &body.election_event_id,
@@ -675,21 +705,23 @@ async fn run_datafix_voter_edit(
         // voter stays marked as voted, here and in VoterView.
         return Ok(());
     }
-    // A failed reset is reported only after `SetNotVoted`: the ballots are gone
-    // by now, so a retry may no longer see that the voter is owed one.
-    let channel_reset = clear_voted_channel(ctx).await.map_err(|err| {
-        format!("Could not reset the voter's voted-channel attribute after discard: {err}")
-    });
-
     if !plan.owes_set_not_voted {
-        return channel_reset;
+        return clear_voted_channel(ctx).await.map_err(|err| {
+            format!("Could not reset the voter's voted-channel attribute after discard: {err}")
+        });
     }
     let username = current_user
         .username
         .clone()
         .ok_or("Datafix voter has no username")?;
-    send_set_not_voted(ctx, election_event, &username).await;
-    channel_reset
+    if !send_set_not_voted(ctx, election_event, &username).await {
+        // The attribute stays Internet: it is what makes the next save of this
+        // disabled voter plan the release, and the `SetNotVoted`, again.
+        return Ok(());
+    }
+    clear_voted_channel(ctx).await.map_err(|err| {
+        format!("Could not reset the voter's voted-channel attribute after discard: {err}")
+    })
 }
 
 /// Applies an admin edit to a Datafix voter under the per-voter lock. On a
@@ -844,6 +876,44 @@ mod tests {
         .unwrap();
         assert!(plan.release_attempt);
         assert!(plan.owes_set_not_voted);
+    }
+
+    #[test]
+    fn a_run_stopped_after_the_discard_commits_is_resent_by_the_next_run() {
+        let valid_ballot = VoterBallotState {
+            has_valid: true,
+            ..no_cast_votes()
+        };
+        let first = plan_voter_release(Some(true), Some(false), &valid_ballot, &HashMap::new())
+            .expect("plan");
+        assert!(first.owes_set_not_voted);
+        assert!(first.needs_voted_channel_marker(&HashMap::new()));
+
+        // The marker is written, Keycloak is disabled and the discard commits;
+        // the task stops before the SOAP call.
+        let second = plan_voter_release(
+            Some(false),
+            Some(false),
+            &no_cast_votes(),
+            &internet_voter(),
+        )
+        .expect("plan");
+        assert!(second.release_attempt);
+        assert!(second.owes_set_not_voted);
+        assert!(!second.needs_voted_channel_marker(&internet_voter()));
+
+        // Without the marker the same state plans nothing.
+        let unmarked =
+            plan_voter_release(Some(false), Some(false), &no_cast_votes(), &HashMap::new())
+                .expect("plan");
+        assert!(!unmarked.release_attempt);
+    }
+
+    #[test]
+    fn a_voter_owing_nothing_needs_no_voted_channel_marker() {
+        let plan = plan_voter_release(Some(true), Some(false), &no_cast_votes(), &HashMap::new())
+            .expect("plan");
+        assert!(!plan.needs_voted_channel_marker(&HashMap::new()));
     }
 
     #[test]
