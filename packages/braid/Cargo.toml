@@ -55,6 +55,7 @@ serde = "1.0"
 toml = "0.8"
 anyhow = "1.0"
 thiserror = "2.0"
+zeroize = { version = "1.8", features = ["derive"] }
 
 # wasm
 wasm-bindgen-rayon = {version = "1.0", features = ["no-bundler"], optional = true}
