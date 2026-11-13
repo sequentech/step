@@ -4,8 +4,8 @@
   "mirror_view": false,
   "rotate_buffer": 0,
   "mirror_buffer": false,
-  "video_width": 1920,
-  "video_height": 1080,
+  "video_width": 1280,
+  "video_height": 720,
   "video_bitrate": {
     "webm": 300000,
     "mp4": 1200000,
@@ -18,5 +18,10 @@
     "frame_rate": 10,
     "output_format": "mp4",
     "keep_last_seconds": 20
-  }
+  },
+  "mobile": {},
+  "desktop": {
+    "mirror_view": true
+  },
+  "kiosk": {}
 }
