@@ -13,6 +13,7 @@ import {
     setCookie,
     USER_LANGUAGE_COOKIE_NAME,
     getValueFromCookie,
+    sanitizePresentationCss,
 } from "@sequentech/ui-core"
 import {HomeScreen} from "./screens/HomeScreen"
 import {ConfirmationScreen} from "./screens/ConfirmationScreen"
@@ -158,10 +159,13 @@ const App = () => {
 
     const customCss = useMemo(
         () =>
-            confirmationBallot?.election_config?.election_event_presentation?.css ??
-            ballotStyle?.ballot_eml?.election_event_presentation?.css ??
-            "",
-        [confirmationBallot, ballotStyle]
+            sanitizePresentationCss(
+                confirmationBallot?.election_config?.election_event_presentation?.css ??
+                    ballotStyle?.ballot_eml?.election_event_presentation?.css ??
+                    "",
+                {baseUrl: document.baseURI, publicBucketUrl: globalSettings.PUBLIC_BUCKET_URL}
+            ),
+        [confirmationBallot, ballotStyle, globalSettings.PUBLIC_BUCKET_URL]
     )
 
     return (
