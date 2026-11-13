@@ -662,6 +662,7 @@ type Mutation {
     manage_election_dates(
         election_event_id: String!
         election_id: String
+        scheduled_event_id: String
         scheduled_date: String
         event_processor: String!
         voting_channels: [VotingStatusChannel!]
