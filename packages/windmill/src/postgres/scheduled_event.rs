@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
-use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::scheduled_event::*;
@@ -13,7 +12,7 @@ use sequent_core::{
 use serde_json::Value;
 use std::str::FromStr;
 use tokio_postgres::row::Row;
-use tracing::{info, instrument};
+use tracing::instrument;
 use uuid::Uuid;
 
 pub struct ScheduledEventWrapper(pub ScheduledEvent);
@@ -272,7 +271,8 @@ pub async fn update_scheduled_event(
     id: &str,
     cron_config: CronConfig,
     voting_channels: Option<&Vec<sequent_core::ballot::VotingStatusChannel>>,
-) -> Result<()> {
+    task_id: Option<&str>,
+) -> Result<u64> {
     let tenant_uuid: uuid::Uuid =
         parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let id_uuid: uuid::Uuid =
@@ -287,30 +287,33 @@ pub async fn update_scheduled_event(
                 "sequent_backend".scheduled_event
             SET
                 cron_config = $3,
+                task_id = COALESCE($5, task_id),
                 event_payload = CASE WHEN $4::jsonb IS NULL THEN event_payload
                     ELSE COALESCE(event_payload, '{}'::jsonb) || jsonb_build_object('voting_channels', $4::jsonb) END
             WHERE
                 tenant_id = $1
                 AND id = $2
                 AND stopped_at IS NULL
+                AND archived_at IS NULL
             "#,
         )
         .await?;
 
-    let _rows: Vec<Row> = hasura_transaction
-        .query(
+    let updated = hasura_transaction
+        .execute(
             &statement,
             &[
                 &tenant_uuid,
                 &id_uuid,
                 &cron_config_js,
                 &voting_channels.map(serde_json::to_value).transpose()?,
+                &task_id,
             ],
         )
         .await
         .map_err(|err| anyhow!("Error running the update_scheduled_event query: {err}"))?;
 
-    Ok(())
+    Ok(updated)
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -430,8 +433,6 @@ pub async fn find_scheduled_event_by_election_event_id(
         .await
         .map_err(|err| anyhow!("Error running the find_scheduled_event_by_task_id query: {err}"))?;
 
-    info!("rows: {:?}", rows);
-
     let scheduled_events = rows
         .into_iter()
         .map(|row| -> Result<ScheduledEvent> {
@@ -475,8 +476,6 @@ pub async fn find_scheduled_event_by_election_event_id_and_event_processor(
         .query(&statement, &[&tenant_uuid, &election_event_uuid])
         .await
         .map_err(|err| anyhow!("Error running the find_scheduled_event_by_task_id query: {err}"))?;
-
-    info!("rows: {:?}", rows);
 
     let scheduled_events = rows
         .into_iter()
@@ -588,4 +587,34 @@ pub async fn insert_new_scheduled_event(
             rows.len()
         ))
     }
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn lock_scheduling_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<()> {
+    let rows = hasura_transaction.query(
+        "SELECT id FROM sequent_backend.election_event WHERE tenant_id = $1 AND id = $2 FOR UPDATE",
+        &[&parse_uuid_v4(tenant_id)?, &parse_uuid_v4(election_event_id)?],
+    ).await?;
+    if rows.len() != 1 {
+        return Err(anyhow!("Election event not found"));
+    }
+    Ok(())
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn rename_scheduled_event_task(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    id: &str,
+    task_id: &str,
+) -> Result<()> {
+    hasura_transaction.execute(
+        "UPDATE sequent_backend.scheduled_event SET task_id = $3 WHERE tenant_id = $1 AND id = $2 AND archived_at IS NULL AND task_id IS DISTINCT FROM $3",
+        &[&parse_uuid_v4(tenant_id)?, &parse_uuid_v4(id)?, &task_id],
+    ).await?;
+    Ok(())
 }
