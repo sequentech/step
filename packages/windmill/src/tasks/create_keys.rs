@@ -68,9 +68,29 @@ pub async fn create_keys_impl(
         return Ok(());
     }
 
-    let configuration_exists = check_configuration_exists(board_name.as_str()).await?;
-
-    if !configuration_exists {
+    let manager = crate::services::protocol_manager::get_protocol_manager::<
+        strand::backend::ristretto::RistrettoCtx,
+    >(
+        &hasura_transaction,
+        &tenant_id,
+        Some(&election_event_id),
+        &board_name,
+    )
+    .await?;
+    let manager_pk = strand::signature::StrandSignaturePk::from_sk(&manager.signing_key)?;
+    let configuration_state = check_configuration_exists(board_name.as_str(), &manager_pk).await?;
+    if matches!(
+        configuration_state,
+        b3::messages::trusted_board::BoardConfigurationState::Foreign
+    ) {
+        return Err(anyhow!(
+            "Board configuration does not match the trusted manager"
+        ));
+    }
+    if matches!(
+        configuration_state,
+        b3::messages::trusted_board::BoardConfigurationState::Missing
+    ) {
         // create config/keys for board
         public_keys::create_keys(
             &hasura_transaction,

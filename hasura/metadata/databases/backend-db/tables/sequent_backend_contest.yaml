@@ -471,6 +471,44 @@ select_permissions:
       role: election-event-write
     - comment: ""
       permission:
+          columns:
+              - is_acclaimed
+              - is_active
+              - is_encrypted
+              - counting_algorithm
+              - name
+              - voting_type
+              - max_votes
+              - min_votes
+              - winning_candidates_num
+              - annotations
+              - conditions
+              - labels
+              - presentation
+              - tally_configuration
+              - alias
+              - description
+              - image_document_id
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
+          allow_aggregations: true
+      role: publish-read
+    - comment: ""
+      permission:
           allow_aggregations: true
           columns:
               - is_acclaimed
@@ -498,6 +536,44 @@ select_permissions:
               - tenant_id
           filter: {}
       role: service-account
+    - comment: ""
+      permission:
+          columns:
+              - is_acclaimed
+              - is_active
+              - is_encrypted
+              - counting_algorithm
+              - name
+              - voting_type
+              - max_votes
+              - min_votes
+              - winning_candidates_num
+              - annotations
+              - conditions
+              - labels
+              - presentation
+              - tally_configuration
+              - alias
+              - description
+              - image_document_id
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
+          allow_aggregations: true
+      role: trustee-ceremony
     - comment: ""
       permission:
           columns:

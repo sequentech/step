@@ -91,6 +91,22 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+      role: trustee-ceremony
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - name
+              - annotations
+              - labels
+              - public_key
+              - created_at
+              - last_updated_at
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
       role: trustee-read
     - comment: ""
       permission:

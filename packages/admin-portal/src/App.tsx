@@ -13,7 +13,6 @@ import React, {useContext, useEffect, useState} from "react"
 import {ElectionEventBaseTabs} from "./resources/ElectionEvent/ElectionEventBaseTabs"
 
 import {CreateAreaContest} from "./resources/AreaContest/CreateAreaContest"
-import {CreateBallotStyle} from "./resources/BallotStyle/CreateBallotStyle"
 import {CreateCandidate} from "./resources/Candidate/CreateCandidate"
 import {CreateContest} from "./resources/Contest/CreateContest"
 import {CreateDocument} from "./resources/Document/CreateDocument"
@@ -30,13 +29,13 @@ import {Messages} from "./screens/Messages"
 import {Navigate, Route, useLocation} from "react-router-dom"
 import {ShowDocument} from "./resources/Document/ShowDocument"
 import {UserAndRoles} from "./screens/UserAndRoles"
+import {IntrospectionSchema} from "graphql"
 import buildHasuraProvider from "ra-data-hasura"
 import {customBuildQuery} from "./queries/customBuildQuery"
 import {fullAdminTheme} from "./services/AdminTheme"
 import {SettingsScreen} from "./screens/SettingsScreen"
 import {ListUsers} from "./resources/User/ListUsers"
 import {CustomLayout} from "./components/CustomLayout"
-import {EditBallotStyle} from "./resources/BallotStyle/EditBallotStyle"
 import {EditAreaContest} from "./resources/AreaContest/EditAreaContest"
 import {EditTenant} from "./resources/Tenant/EditTenant"
 import {CreateTenant} from "./resources/Tenant/CreateTenant"
@@ -60,6 +59,8 @@ import {TemplateCreate} from "./resources/Template/TemplateCreate"
 import ListReports from "./resources/Reports/ListReports"
 import {SelectTenant} from "./screens/SelectTenant"
 import {AuthContext} from "./providers/AuthContextProvider"
+import {fetchHeldRolesSchema} from "./services/heldRolesSchema"
+import {getSchemaRoles} from "./services/Permissions"
 import {customSortData} from "./lib/helpers"
 import {UpsertArea} from "./resources/Area/UpsertArea"
 
@@ -79,10 +80,14 @@ export const StyledAppAtom: React.FC<{children: React.ReactNode}> = ({children})
 }
 
 // This function builds and wraps your Hasura data provider.
-export const buildWrappedHasuraProvider = async (apolloClient: any): Promise<DataProvider> => {
+export const buildWrappedHasuraProvider = async (
+    apolloClient: any,
+    schema?: IntrospectionSchema
+): Promise<DataProvider> => {
     const options = {
         client: apolloClient,
         buildQuery: customBuildQuery,
+        ...(schema && {introspection: {schema}}),
     }
     const buildGqlQueryOverrides = {}
     const dataProviderHasura: DataProvider = await buildHasuraProvider(
@@ -120,11 +125,14 @@ const App: React.FC<AppProps> = () => {
     const {i18n, t} = useTranslation()
     adminI18nProvider.changeLocale(i18n.language)
     i18n.on("languageChanged", (lng) => adminI18nProvider.changeLocale(lng))
-    const {isAuthenticated} = useContext(AuthContext)
+    const {isAuthenticated, hasRole} = useContext(AuthContext)
 
     useEffect(() => {
         const buildDataProvider = async (): Promise<void> => {
-            const wrappedProvider = await buildWrappedHasuraProvider(apolloClient)
+            const schema = apolloClient
+                ? await fetchHeldRolesSchema(apolloClient, getSchemaRoles(hasRole))
+                : undefined
+            const wrappedProvider = await buildWrappedHasuraProvider(apolloClient, schema)
             setDataProvider(wrappedProvider)
         }
         buildDataProvider()
@@ -209,9 +217,7 @@ const App: React.FC<AppProps> = () => {
                 />
                 <Resource
                     name="sequent_backend_ballot_style"
-                    edit={EditBallotStyle}
                     list={ListBallotStyle}
-                    create={CreateBallotStyle}
                     options={{label: "Ballot Styles"}}
                 />
                 <Resource

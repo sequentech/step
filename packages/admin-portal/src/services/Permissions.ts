@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {IPermissions} from "@/types/keycloak"
 import {GraphQLRequest} from "@apollo/client"
-import {isUndefined} from "@sequentech/ui-core"
 
 const AdminOperationMap: Record<string, IPermissions> = {
     // area
@@ -36,12 +35,6 @@ const AdminOperationMap: Record<string, IPermissions> = {
     // ballot_style
     sequent_backend_ballot_style: IPermissions.PUBLISH_READ,
     sequent_backend_ballot_styles: IPermissions.PUBLISH_READ,
-    insert_sequent_backend_ballot_style: IPermissions.PUBLISH_WRITE,
-    insert_sequent_backend_ballot_styles: IPermissions.PUBLISH_WRITE,
-    update_sequent_backend_ballot_style: IPermissions.PUBLISH_WRITE,
-    update_sequent_backend_ballot_styles: IPermissions.PUBLISH_WRITE,
-    delete_sequent_backend_ballot_style: IPermissions.PUBLISH_WRITE,
-    delete_sequent_backend_ballot_styles: IPermissions.PUBLISH_WRITE,
     // candidate
     sequent_backend_candidate: IPermissions.CANDIDATE_READ,
     sequent_backend_candidates: IPermissions.CANDIDATE_READ,
@@ -187,11 +180,48 @@ const TrusteeOperationMap: Record<string, IPermissions> = {
     getUsers: IPermissions.VOTER_READ,
 }
 
-export const getOperationRole = (operation: GraphQLRequest, isTrustee = false): IPermissions => {
-    let operationName = operation?.operationName
-    if (isUndefined(operationName)) {
-        return IPermissions.ADMIN_USER
+// Operations that admin-user can also run, so only a user without it needs to send
+// these roles, in order of preference
+const RESTRICTED_OPERATION_ROLES = new Map<string, Array<IPermissions>>([
+    ["GenerateBallotPublication", [IPermissions.PUBLISH_WRITE]],
+    ["PublishBallot", [IPermissions.PUBLISH_WRITE]],
+    ["GetTaskById", [IPermissions.TASKS_READ, IPermissions.PUBLISH_READ]],
+    ["GetBallotPublicationChange", [IPermissions.PUBLISH_READ]],
+    ["GetDocument", [IPermissions.DOCUMENT_READ]],
+    ["FetchDocument", [IPermissions.DOCUMENT_DOWNLOAD]],
+])
+
+// Roles that operations without a mapped role run as, in order of preference
+const DEFAULT_OPERATION_ROLES: Array<IPermissions> = [
+    IPermissions.ADMIN_USER,
+    IPermissions.TRUSTEE_CEREMONY,
+    IPermissions.PUBLISH_READ,
+]
+
+export const getOperationRole = (
+    operation: GraphQLRequest,
+    hasRole: (role: IPermissions) => boolean
+): IPermissions => {
+    const defaultRole = DEFAULT_OPERATION_ROLES.find(hasRole) ?? IPermissions.ADMIN_USER
+    const operationMap = hasRole(IPermissions.TRUSTEE_CEREMONY)
+        ? TrusteeOperationMap
+        : AdminOperationMap
+    const operationName = operation?.operationName
+    const restrictedRole = RESTRICTED_OPERATION_ROLES.get(operationName ?? "")?.find(hasRole)
+    if (defaultRole !== IPermissions.ADMIN_USER && restrictedRole) {
+        return restrictedRole
     }
-    let OperationMap = isTrustee ? TrusteeOperationMap : AdminOperationMap
-    return OperationMap[operationName] ?? IPermissions.ADMIN_USER
+    const mappedRole = operationName ? operationMap[operationName] : undefined
+    if (!mappedRole) {
+        return defaultRole
+    }
+    return defaultRole === IPermissions.ADMIN_USER || hasRole(mappedRole) ? mappedRole : defaultRole
 }
+
+// Roles with data provider resources that no default role can read
+const SCHEMA_ROLES: Array<IPermissions> = [...DEFAULT_OPERATION_ROLES, IPermissions.DOCUMENT_READ]
+
+// The roles whose schema the data provider needs: admin-user sees what the portal loads,
+// but a restricted user can run operations under every profile they hold.
+export const getSchemaRoles = (hasRole: (role: IPermissions) => boolean): Array<IPermissions> =>
+    hasRole(IPermissions.ADMIN_USER) ? [IPermissions.ADMIN_USER] : SCHEMA_ROLES.filter(hasRole)

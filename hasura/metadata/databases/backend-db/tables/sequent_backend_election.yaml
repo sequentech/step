@@ -496,6 +496,44 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
+              - is_consolidated_ballot_encoding
+              - initialization_report_generated
+              - is_kiosk
+              - spoil_ballot_option
+              - name
+              - num_allowed_revotes
+              - annotations
+              - labels
+              - presentation
+              - receipts
+              - statistics
+              - status
+              - voting_channels
+              - alias
+              - description
+              - eml
+              - image_document_id
+              - permission_label
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - keys_ceremony_id
+              - tenant_id
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
+      role: publish-read
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
               - alias
               - annotations
               - created_at
@@ -522,6 +560,44 @@ select_permissions:
               - voting_channels
           filter: {}
       role: service-account
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - is_consolidated_ballot_encoding
+              - initialization_report_generated
+              - is_kiosk
+              - spoil_ballot_option
+              - name
+              - num_allowed_revotes
+              - annotations
+              - labels
+              - presentation
+              - receipts
+              - statistics
+              - status
+              - voting_channels
+              - alias
+              - description
+              - eml
+              - image_document_id
+              - permission_label
+              - created_at
+              - last_updated_at
+              - election_event_id
+              - id
+              - keys_ceremony_id
+              - tenant_id
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
+      role: trustee-ceremony
     - comment: ""
       permission:
           columns:
