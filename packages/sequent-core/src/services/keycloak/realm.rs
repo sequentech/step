@@ -1180,8 +1180,8 @@ mod tests {
         ACCOUNT_CONSOLE_CLIENT_ID, ADMIN_PORTAL_CLIENT_ID, AUTH_BASE_URL,
         CLI_ACCOUNT_ADMIN_CLIENT_ID, HASURA_DEFAULT_ROLE_MAPPER,
         PKCE_CODE_CHALLENGE_METHOD_ATTR, PKCE_S256_METHOD,
-        POST_LOGOUT_REDIRECT_URIS_ATTR, REQUEST_URIS_ATTR,
-        SAME_AS_REDIRECT_URIS,
+        POST_LOGOUT_REDIRECT_URIS_ATTR, PUBLIC_BROWSER_CLIENT_IDS,
+        REQUEST_URIS_ATTR, SAME_AS_REDIRECT_URIS,
     };
     use crate::serialization::deserialize_with_path::deserialize_str;
     use keycloak::types::{ClientRepresentation, RealmRepresentation};
@@ -1189,6 +1189,9 @@ mod tests {
 
     const TENANT_REALM_TEMPLATE: &str = include_str!(
         "../../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json"
+    );
+    const EVENT_REALM_TEMPLATE: &str = include_str!(
+        "../../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json"
     );
     const TENANT_REALM: &str = "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
     const EVENT_REALM: &str = "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559";
@@ -1397,6 +1400,41 @@ mod tests {
                 ),
                 Some(PKCE_S256_METHOD),
                 "{client_id} PKCE method"
+            );
+        }
+    }
+
+    /// The development templates must already be what `upsert_realm` makes
+    /// of them: a template change that undoes the hardening fails here.
+    #[test]
+    fn development_realm_templates_are_already_hardened() {
+        for (template, realm_name) in [
+            (TENANT_REALM_TEMPLATE, TENANT_REALM),
+            (EVENT_REALM_TEMPLATE, EVENT_REALM),
+        ] {
+            let realm: RealmRepresentation =
+                deserialize_str(template).expect("realm template");
+            let clients = realm.clients.unwrap_or_default();
+            for client in &clients {
+                let client_id = client.client_id.as_deref().unwrap_or_default();
+                if PUBLIC_BROWSER_CLIENT_IDS.contains(&client_id) {
+                    assert_eq!(
+                        client.public_client,
+                        Some(true),
+                        "{realm_name}: {client_id} public"
+                    );
+                    assert_eq!(
+                        client.standard_flow_enabled,
+                        Some(true),
+                        "{realm_name}: {client_id} code flow"
+                    );
+                }
+            }
+            let mut hardened = clients.clone();
+            harden_realm_clients(&mut hardened, realm_name);
+            assert!(
+                hardened == clients,
+                "{realm_name}: upsert_realm would change the template's clients"
             );
         }
     }
