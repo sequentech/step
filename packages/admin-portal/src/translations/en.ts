@@ -1103,6 +1103,7 @@ const englishTranslation = {
             },
             new: {
                 subtitle: "Create new tenant",
+                numTrustees: "Number of trustees",
             },
             createSuccess: "Tenant created",
             createError: "Error creating tenant",

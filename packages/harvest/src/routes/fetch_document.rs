@@ -81,7 +81,7 @@ pub async fn fetch_document(
     )
     .await
     .map_err(|error| (Status::Conflict, error.to_string()))?;
-    let requires_secret_read = document
+    let annotations = document
         .annotations
         .map(serde_json::from_value::<DocumentAnnotations>)
         .transpose()
@@ -90,17 +90,22 @@ pub async fn fetch_document(
                 Status::InternalServerError,
                 format!("Error reading document access policy: {error}"),
             )
-        })?
-        .is_some_and(|annotations| {
-            annotations.requires_voter_secret_attribute_read()
-        });
-    if requires_secret_read {
+        })?;
+    if annotations.as_ref().is_some_and(|annotations| {
+        annotations.requires_voter_secret_attribute_read()
+    }) {
         authorize(
             &claims,
             true,
             Some(claims.hasura_claims.tenant_id.clone()),
             vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
         )?;
+    }
+    if annotations
+        .as_ref()
+        .is_some_and(|annotations| annotations.requires_tenant_create())
+    {
+        authorize(&claims, true, None, vec![Permissions::TENANT_CREATE])?;
     }
 
     let url = documents::get_document_url(

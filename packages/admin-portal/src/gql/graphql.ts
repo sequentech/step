@@ -649,8 +649,10 @@ export type InsertCastVoteOutput = {
 
 export type InsertTenantOutput = {
   __typename?: 'InsertTenantOutput';
+  document_id?: Maybe<Scalars['String']['output']>;
   error_msg?: Maybe<Scalars['String']['output']>;
   id: Scalars['uuid']['output'];
+  password?: Maybe<Scalars['String']['output']>;
   slug: Scalars['String']['output'];
   task_execution?: Maybe<Tasks_Execution_Type>;
 };
@@ -3183,6 +3185,7 @@ export type Mutation_RootInsertElectionEventArgs = {
 
 /** mutation root */
 export type Mutation_RootInsertTenantArgs = {
+  num_trustees?: InputMaybe<Scalars['Int']['input']>;
   slug: Scalars['String']['input'];
 };
 
@@ -26620,10 +26623,11 @@ export type InsertTemplateMutation = { __typename?: 'mutation_root', insert_sequ
 
 export type InsertTenantMutationVariables = Exact<{
   slug: Scalars['String']['input'];
+  numTrustees?: InputMaybe<Scalars['Int']['input']>;
 }>;
 
 
-export type InsertTenantMutation = { __typename?: 'mutation_root', insertTenant?: { __typename?: 'InsertTenantOutput', id: any, slug: string, error_msg?: string | null, task_execution?: { __typename?: 'tasks_execution_type', id: any, name: string, execution_status: string, created_at: any, start_at: any, end_at?: any | null, logs?: any | null, annotations?: any | null, labels?: any | null, executed_by_user: string, tenant_id: any, election_event_id: any, type: string } | null } | null };
+export type InsertTenantMutation = { __typename?: 'mutation_root', insertTenant?: { __typename?: 'InsertTenantOutput', id: any, slug: string, error_msg?: string | null, document_id?: string | null, password?: string | null, task_execution?: { __typename?: 'tasks_execution_type', id: any, name: string, execution_status: string, created_at: any, start_at: any, end_at?: any | null, logs?: any | null, annotations?: any | null, labels?: any | null, executed_by_user: string, tenant_id: any, election_event_id: any, type: string } | null } | null };
 
 export type ListElectoralLogQueryVariables = Exact<{
   limit?: InputMaybe<Scalars['Int']['input']>;

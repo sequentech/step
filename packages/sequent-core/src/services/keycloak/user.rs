@@ -482,6 +482,62 @@ impl KeycloakAdminClient {
         Ok(current_user.into())
     }
 
+    /// Find a user id by its exact username.
+    #[instrument(skip(self), err)]
+    pub async fn get_user_id_by_username(
+        &self,
+        realm: &str,
+        username: &str,
+    ) -> Result<Option<String>> {
+        let users = self
+            .client
+            .realm_users_get(
+                realm,
+                Some(true),
+                None,
+                None,
+                None,
+                Some(true),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some(username.to_string()),
+            )
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(users.into_iter().find_map(|user| user.id))
+    }
+
+    /// Replace a user's password.
+    #[instrument(skip(self, password), err)]
+    pub async fn set_user_password(
+        &self,
+        realm: &str,
+        user_id: &str,
+        password: &str,
+        temporary: bool,
+    ) -> Result<()> {
+        self.client
+            .realm_users_with_user_id_reset_password_put(
+                realm,
+                user_id,
+                CredentialRepresentation {
+                    type_: Some("password".to_string()),
+                    temporary: Some(temporary),
+                    value: Some(password.to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(())
+    }
+
     #[instrument(skip(self), err)]
     pub async fn delete_user(&self, realm: &str, user_id: &str) -> Result<()> {
         self.client

@@ -1114,6 +1114,7 @@ const galegoTranslation: TranslationType = {
             },
             new: {
                 subtitle: "Crear novo arrendatario",
+                numTrustees: "Número de fiduciarios",
             },
             createSuccess: "Arrendatario creado",
             createError: "Erro ao crear o arrendatario",

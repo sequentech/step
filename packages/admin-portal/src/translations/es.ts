@@ -1118,6 +1118,7 @@ const spanishTranslation: TranslationType = {
             },
             new: {
                 subtitle: "Crear nuevo inquilino",
+                numTrustees: "Número de autoridades",
             },
             createSuccess: "Inquilino creado",
             createError: "Error al crear el inquilino",

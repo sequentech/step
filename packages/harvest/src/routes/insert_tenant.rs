@@ -13,11 +13,13 @@ use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::*;
+use windmill::services::tenant_credentials::TenantCredentialsRequest;
 use windmill::tasks;
 use windmill::types::tasks::ETasksExecution;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateTenantInput {
     slug: String,
+    num_trustees: Option<usize>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -26,6 +28,8 @@ pub struct CreateTenantOutput {
     slug: String,
     error_msg: Option<String>,
     task_execution: TasksExecution,
+    document_id: Option<String>,
+    password: Option<String>,
 }
 
 #[instrument(skip(claims))]
@@ -69,12 +73,14 @@ pub async fn insert_tenant(
 
     // always set an id;
     let id = Uuid::new_v4().to_string();
+    let credentials = body.num_trustees.map(TenantCredentialsRequest::new);
 
     let celery_task_result = celery_app
         .send_task(tasks::insert_tenant::insert_tenant::new(
             id.clone(),
             body.slug.clone(),
             Some(task_execution.clone()),
+            credentials.clone(),
         ))
         .await;
 
@@ -88,6 +94,8 @@ pub async fn insert_tenant(
                 error_msg: Some(format!(
                     "Failed to send task to Celery: {error:?}"
                 )),
+                document_id: None,
+                password: None,
             }));
         }
     };
@@ -97,5 +105,9 @@ pub async fn insert_tenant(
         slug: body.slug.clone(),
         task_execution: task_execution.clone(),
         error_msg: None,
+        document_id: credentials
+            .as_ref()
+            .map(|request| request.document_id.clone()),
+        password: credentials.map(|request| request.file_password),
     }))
 }

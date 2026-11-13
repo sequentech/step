@@ -4,11 +4,13 @@
 import {gql} from "@apollo/client"
 
 export const INSERT_TENANT = gql`
-    mutation InsertTenant($slug: String!) {
-        insertTenant(slug: $slug) {
+    mutation InsertTenant($slug: String!, $numTrustees: Int) {
+        insertTenant(slug: $slug, num_trustees: $numTrustees) {
             id
             slug
             error_msg
+            document_id
+            password
             task_execution {
                 id
                 name

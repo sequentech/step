@@ -218,6 +218,7 @@ impl DocumentAnnotations {
             access: Some(DocumentAccess {
                 password_secret_id: Some(password_secret_id.into()),
                 voter_secret_attributes: false,
+                tenant_credentials: false,
             }),
         }
     }
@@ -233,6 +234,17 @@ impl DocumentAnnotations {
             access: Some(DocumentAccess {
                 password_secret_id: None,
                 voter_secret_attributes: true,
+                tenant_credentials: false,
+            }),
+        }
+    }
+
+    pub fn tenant_credentials() -> Self {
+        Self {
+            access: Some(DocumentAccess {
+                password_secret_id: None,
+                voter_secret_attributes: false,
+                tenant_credentials: true,
             }),
         }
     }
@@ -242,6 +254,12 @@ impl DocumentAnnotations {
             .as_ref()
             .is_some_and(|access| access.voter_secret_attributes)
     }
+
+    pub fn requires_tenant_create(&self) -> bool {
+        self.access
+            .as_ref()
+            .is_some_and(|access| access.tenant_credentials)
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
@@ -250,6 +268,8 @@ pub struct DocumentAccess {
     pub password_secret_id: Option<String>,
     #[serde(default, skip_serializing_if = "is_false")]
     pub voter_secret_attributes: bool,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub tenant_credentials: bool,
 }
 
 fn is_false(value: &bool) -> bool {
@@ -299,6 +319,18 @@ mod document_annotations_tests {
         assert_eq!(
             serde_json::to_value(&annotations).unwrap(),
             json!({"access": {"voter_secret_attributes": true}})
+        );
+    }
+
+    #[test]
+    fn marks_tenant_credentials_as_restricted() {
+        let annotations = DocumentAnnotations::tenant_credentials();
+
+        assert!(annotations.requires_tenant_create());
+        assert!(!annotations.requires_voter_secret_attribute_read());
+        assert_eq!(
+            serde_json::to_value(&annotations).unwrap(),
+            json!({"access": {"tenant_credentials": true}})
         );
     }
 }
