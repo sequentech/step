@@ -120,6 +120,16 @@ Configure advanced system behaviors for this Election Event.
   - Configure the countdown warning and logout alert thresholds.
 - **Keys/Tally Ceremonies Policy**:
   - Allow for the automatic generation of keys and tallies, eliminating the need for trustees involvement.
+- **Include decoded ballots in the results database and the tally archive**:
+  - **Include**: The tally keeps the decoded ballots in the results database and
+    in the tally archive. Ballot images are generated from the decoded ballots
+    in the tally archive, so generating them needs this option.
+  - **Don't include** (default): The tally leaves the decoded ballots out of the
+    results database, and leaves both the ballots it counted and the decoded
+    ballots out of the tally archive. Generating ballot images for such a tally
+    fails with a message asking to include the decoded ballots and run the tally
+    again. Archives of tallies run on earlier versions keep their contents.
+    This is the only option allowed with Weighted Voting for Voters.
 - **Weighted Voting Policy**:
   - **Weighted Voting for Areas**: Enable weighted voting for areas.
   - **Weighted Voting for Voters**: Give each voter their own weight, so that a

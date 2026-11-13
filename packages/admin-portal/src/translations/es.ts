@@ -596,7 +596,7 @@ const spanishTranslation: TranslationType = {
                 },
                 decodedBallots: {
                     policyLabel:
-                        "Incluir papeletas decodificadas en la base de datos de resultados",
+                        "Incluir papeletas decodificadas en la base de datos de resultados y en el archivo del recuento",
                     options: {"included": "Incluir", "not-included": "No incluir"},
                 },
                 contestEncryptionPolicy: {

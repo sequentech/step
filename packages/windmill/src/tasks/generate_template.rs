@@ -9,6 +9,7 @@ use crate::services::ceremonies::encrypter::encrypt_file;
 use crate::services::ceremonies::velvet_tally::build_ballot_images_pipe_config;
 use crate::services::ceremonies::velvet_tally::call_velvet;
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
+use crate::services::ceremonies::velvet_tally::VELVET_OUTPUT_DIR;
 use crate::services::compress::extract_archive_to_temp_dir;
 use crate::services::consolidation::create_transmission_package_service::download_tally_tar_gz_to_file;
 use crate::services::consolidation::zip::compress_folder_to_zip;
@@ -19,7 +20,7 @@ use crate::services::tasks_execution::{update, update_complete, update_fail};
 use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::types::error::Error;
 use crate::types::error::Result;
-use anyhow::{anyhow, Context, Result as AnyhowResult};
+use anyhow::{anyhow, ensure, Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use hex;
@@ -37,7 +38,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use strand::hash::hash_sha256;
 use tempfile::tempdir;
 use tracing::{info, instrument};
@@ -121,6 +122,26 @@ async fn create_config(
     Ok(first_pipe_id.to_string())
 }
 
+fn ensure_decoded_ballots_archived(
+    tally_path: &Path,
+    contest_encryption_policy: &ContestEncryptionPolicy,
+) -> AnyhowResult<()> {
+    let decoded_ballots_dir = match contest_encryption_policy {
+        ContestEncryptionPolicy::MULTIPLE_CONTESTS => PipeNameOutputDir::DecodeMCBallots,
+        ContestEncryptionPolicy::SINGLE_CONTEST => PipeNameOutputDir::DecodeBallots,
+    };
+    ensure!(
+        tally_path
+            .join(VELVET_OUTPUT_DIR)
+            .join(decoded_ballots_dir.as_ref())
+            .is_dir(),
+        "The tally archive does not include the decoded ballots that ballot images \
+         are made from. Set the decoded ballots inclusion policy to included and run \
+         the tally again"
+    );
+    Ok(())
+}
+
 #[instrument(err, skip(hasura_transaction))]
 async fn generate_template_document(
     hasura_transaction: &Transaction<'_>,
@@ -164,6 +185,7 @@ async fn generate_template_document(
     let tally_path = extract_archive_to_temp_dir(tar_gz_file.path(), false)?;
 
     let tally_path_path = tally_path.into_path();
+    ensure_decoded_ballots_archived(&tally_path_path, &contest_encryption_policy)?;
 
     let pipe_name = if contest_encryption_policy == ContestEncryptionPolicy::MULTIPLE_CONTESTS {
         PipeNameOutputDir::MCBallotImages
@@ -375,4 +397,36 @@ pub async fn generate_template(
     }?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ballot_images_require_decoded_ballots_in_tally_archive() -> AnyhowResult<()> {
+        let tally_dir = tempdir()?;
+        let decoded_ballots_dir = tally_dir
+            .path()
+            .join(VELVET_OUTPUT_DIR)
+            .join(PipeNameOutputDir::DecodeBallots.as_ref());
+
+        assert!(ensure_decoded_ballots_archived(
+            tally_dir.path(),
+            &ContestEncryptionPolicy::SINGLE_CONTEST
+        )
+        .is_err());
+
+        fs::create_dir_all(&decoded_ballots_dir)?;
+        ensure_decoded_ballots_archived(
+            tally_dir.path(),
+            &ContestEncryptionPolicy::SINGLE_CONTEST,
+        )?;
+        assert!(ensure_decoded_ballots_archived(
+            tally_dir.path(),
+            &ContestEncryptionPolicy::MULTIPLE_CONTESTS
+        )
+        .is_err());
+        Ok(())
+    }
 }
