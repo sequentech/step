@@ -11,8 +11,9 @@ use crate::ports::database::DatabasePools;
 use crate::ports::identity::IdentityAdmin;
 use crate::services::access::{
     create_user_permissions, delete_permission, edit_user_access,
-    read_permission, writes_secret_attributes, UserEdit, UserEditAccess,
-    UserScope,
+    read_permission, same_attribute_values, sets_trustee,
+    trustee_edit_permission, writes_secret_attributes, UserEdit,
+    UserEditAccess, UserScope,
 };
 use crate::services::audit::{self, PasswordEdit};
 use crate::services::authorization::{authorize, permitted_event_election_ids};
@@ -1492,17 +1493,6 @@ impl VoterEditScope {
     }
 }
 
-fn same_attribute_values(
-    requested: &[String],
-    current: Option<&Vec<String>>,
-) -> bool {
-    let mut requested = requested.to_vec();
-    let mut current = current.cloned().unwrap_or_default();
-    requested.sort();
-    current.sort();
-    requested == current
-}
-
 /// Fields the request would change besides the email and mobile number.
 /// A field counts only when it is supplied and differs from the current
 /// value, so a form that sends every field back unchanged passes.
@@ -1682,6 +1672,32 @@ pub async fn edit_user(
         }
         None => get_tenant_realm(&input.tenant_id),
     };
+    if sets_trustee(input.attributes.as_ref()) {
+        let current_user = services
+            .identity
+            .client()
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+            .get_user(&realm, &input.user_id)
+            .await
+            .map_err(|error| {
+                EditUserError::from_keycloak(
+                    error,
+                    "Error reading user in Keycloak",
+                )
+            })?;
+        if let Some(permission) = trustee_edit_permission(
+            &mut input.attributes,
+            current_user.attributes.as_ref(),
+        ) {
+            authorize(
+                &claims,
+                true,
+                Some(input.tenant_id.clone()),
+                vec![permission],
+            )?;
+        }
+    }
     let secret_names = if let Some(election_event_id) =
         input.election_event_id.as_deref()
     {

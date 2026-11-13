@@ -10,6 +10,7 @@ use serde_json::json;
 use windmill::services::audit_log::AuditActor;
 use windmill::services::import::import_users::{
     GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
+    TrusteePolicy,
 };
 
 fn claims(roles: &[Permissions]) -> JwtClaims {
@@ -160,7 +161,7 @@ async fn tenant_imports_store_an_empty_event_and_force_the_admin_flag() {
         json!({
             "tenant_id":"tenant-a", "document_id":"source-document", "election_event_id":null,
             "is_admin":true, "may_write_secret_attributes":false, "secret_write_initiator":null,
-            "privileges":{"group_assignment":"DefaultGroupOnly","permission_labels":"Forbidden"},
+            "privileges":{"group_assignment":"DefaultGroupOnly","permission_labels":"Forbidden","trustee":"Forbidden"},
             "sha256":"abababababababababababababababababababababababababababababababab",
             "audit_actor":{"user_id":"user-a", "username":"operator-a", "role":"user"}
         })
@@ -201,6 +202,7 @@ async fn voter_imports_replace_untrusted_admin_and_secret_write_flags() {
     input.privileges = ImportUsersPrivileges {
         group_assignment: GroupAssignmentPolicy::AnyGroup,
         permission_labels: PermissionLabelPolicy::Allowed,
+        trustee: TrusteePolicy::Allowed,
     };
     input.audit_actor = Some(AuditActor {
         user_id: Some("forged-user".into()),
@@ -249,49 +251,43 @@ async fn permitted_voter_imports_bind_secret_writes_to_the_authenticated_actor()
 }
 
 /// The privileges sent with the import follow the permissions of the caller:
-/// the create permission alone grants neither other groups nor labels.
+/// the create permission alone grants neither other groups, labels nor the
+/// trustee.
 #[tokio::test]
 async fn imports_carry_the_privileges_the_callers_permissions_give() {
+    use GroupAssignmentPolicy::{AnyGroup, DefaultGroupOnly};
+    use PermissionLabelPolicy as Labels;
+    use TrusteePolicy as Trustee;
     for (roles, event_id, expected) in [
         (
             vec![USER_CREATE],
             None,
-            (
-                GroupAssignmentPolicy::DefaultGroupOnly,
-                PermissionLabelPolicy::Forbidden,
-            ),
+            (DefaultGroupOnly, Labels::Forbidden, Trustee::Forbidden),
         ),
         (
             vec![USER_CREATE, USER_WRITE],
             None,
-            (
-                GroupAssignmentPolicy::DefaultGroupOnly,
-                PermissionLabelPolicy::Forbidden,
-            ),
+            (DefaultGroupOnly, Labels::Forbidden, Trustee::Forbidden),
         ),
         (
             vec![USER_CREATE, USER_WRITE, ROLE_WRITE],
             None,
-            (
-                GroupAssignmentPolicy::AnyGroup,
-                PermissionLabelPolicy::Forbidden,
-            ),
+            (AnyGroup, Labels::Forbidden, Trustee::Forbidden),
         ),
         (
             vec![USER_CREATE, PERMISSION_LABEL_WRITE],
             None,
-            (
-                GroupAssignmentPolicy::DefaultGroupOnly,
-                PermissionLabelPolicy::Allowed,
-            ),
+            (DefaultGroupOnly, Labels::Allowed, Trustee::Forbidden),
+        ),
+        (
+            vec![USER_CREATE, TRUSTEE_WRITE],
+            None,
+            (DefaultGroupOnly, Labels::Forbidden, Trustee::Allowed),
         ),
         (
             vec![VOTER_CREATE, USER_WRITE, ROLE_WRITE, PERMISSION_LABEL_WRITE],
             Some("event-a"),
-            (
-                GroupAssignmentPolicy::AnyGroup,
-                PermissionLabelPolicy::Allowed,
-            ),
+            (AnyGroup, Labels::Allowed, Trustee::Forbidden),
         ),
     ] {
         let tasks = InMemoryUserTasks::default();
@@ -300,7 +296,7 @@ async fn imports_carry_the_privileges_the_callers_permissions_give() {
             .unwrap();
         let sent = tasks.snapshot().import_attempts[0].0.privileges;
         assert_eq!(
-            (sent.group_assignment, sent.permission_labels),
+            (sent.group_assignment, sent.permission_labels, sent.trustee),
             expected,
             "{roles:?}"
         );

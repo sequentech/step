@@ -505,7 +505,8 @@ mod tests {
             "importer": {"user_id": "someone-else", "username": "someone-else"},
             "privileges": {
                 "group_assignment": "AnyGroup",
-                "permission_labels": "Allowed"
+                "permission_labels": "Allowed",
+                "trustee": "Allowed"
             },
         }))
         .unwrap()
@@ -558,7 +559,8 @@ mod tests {
     fn the_import_privileges_come_from_the_token() {
         use crate::test_claims::Claims;
         use windmill::services::import::import_users::{
-            GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
+            GroupAssignmentPolicy, ImportUsersPrivileges,
+            PermissionLabelPolicy, TrusteePolicy,
         };
 
         let mut input = body("tenant");
@@ -574,6 +576,7 @@ mod tests {
                 Permissions::USER_WRITE,
                 Permissions::ROLE_WRITE,
                 Permissions::PERMISSION_LABEL_WRITE,
+                Permissions::TRUSTEE_WRITE,
             ])
             .build();
         stamp_initiators(&mut input, &administrator);
@@ -582,6 +585,7 @@ mod tests {
             ImportUsersPrivileges {
                 group_assignment: GroupAssignmentPolicy::AnyGroup,
                 permission_labels: PermissionLabelPolicy::Allowed,
+                trustee: TrusteePolicy::Allowed,
             }
         );
 

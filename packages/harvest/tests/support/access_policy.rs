@@ -21,6 +21,13 @@ fn labels() -> Attributes {
     HashMap::from([(PERMISSION_LABELS.to_string(), vec!["north".to_string()])])
 }
 
+fn trustee(values: &[&str]) -> Attributes {
+    HashMap::from([(
+        TRUSTEE_ATTR_NAME.to_string(),
+        values.iter().map(|value| value.to_string()).collect(),
+    )])
+}
+
 fn roles(permissions: &[Permissions]) -> Vec<String> {
     permissions.iter().map(ToString::to_string).collect()
 }
@@ -105,6 +112,76 @@ fn creating_a_user_adds_the_secret_and_label_permissions_its_body_needs() {
     }
 }
 
+/// A new user's trustee needs trustee-write in both scopes, after the label
+/// and secret permissions and before the role ones. An empty `trustee` sets
+/// nothing.
+#[test]
+fn creating_a_user_with_a_trustee_needs_trustee_write() {
+    let named = trustee(&["trustee1"]);
+    let empty = trustee(&[]);
+    let mut labelled = labels();
+    labelled.extend(trustee(&["trustee1"]));
+    let secret: SecretAttributes =
+        HashMap::from([(TRUSTEE_ATTR_NAME.to_string(), None)]);
+    let role_ids = vec!["group-a".to_string()];
+    for (scope, secret_attributes, attributes, user_roles_ids, expected) in [
+        (
+            UserScope::Tenant,
+            None,
+            Some(&named),
+            None,
+            vec![USER_CREATE, TRUSTEE_WRITE],
+        ),
+        (
+            UserScope::Voters,
+            None,
+            Some(&named),
+            None,
+            vec![VOTER_CREATE, TRUSTEE_WRITE],
+        ),
+        (
+            UserScope::Tenant,
+            None,
+            Some(&empty),
+            None,
+            vec![USER_CREATE],
+        ),
+        (
+            UserScope::Tenant,
+            None,
+            Some(&labelled),
+            None,
+            vec![USER_CREATE, PERMISSION_LABEL_WRITE, TRUSTEE_WRITE],
+        ),
+        // An encrypted trustee can't be compared, so even clearing it counts.
+        (
+            UserScope::Voters,
+            Some(&secret),
+            None,
+            None,
+            vec![VOTER_CREATE, VOTER_SECRET_ATTRIBUTE_WRITE, TRUSTEE_WRITE],
+        ),
+        (
+            UserScope::Tenant,
+            None,
+            Some(&named),
+            Some(&role_ids),
+            vec![USER_CREATE, TRUSTEE_WRITE, USER_WRITE, ROLE_WRITE],
+        ),
+    ] {
+        assert_eq!(
+            create_user_permissions(
+                scope,
+                secret_attributes,
+                attributes,
+                user_roles_ids.map(Vec::as_slice),
+            ),
+            Ok(expected),
+            "{scope:?} {secret_attributes:?} {attributes:?}"
+        );
+    }
+}
+
 /// Setting roles on a new user needs the permissions of the set-user-role
 /// route in both scopes, after the ones for permission labels, and an empty
 /// list sets nothing.
@@ -160,8 +237,9 @@ fn creating_a_user_with_roles_adds_the_set_user_role_permissions() {
 }
 
 /// What an import may set follows the permissions the caller holds: any group
-/// needs both permissions of the set-user-role route, and permission labels
-/// need permission-label-write; the create permissions grant neither.
+/// needs both permissions of the set-user-role route, permission labels need
+/// permission-label-write and the trustee trustee-write; the create
+/// permissions grant none of them.
 #[test]
 fn an_import_may_set_what_the_callers_permissions_allow() {
     let privileges = |held: &[Permissions]| {
@@ -172,6 +250,7 @@ fn an_import_may_set_what_the_callers_permissions_allow() {
     let restricted = ImportUsersPrivileges {
         group_assignment: GroupAssignmentPolicy::DefaultGroupOnly,
         permission_labels: PermissionLabelPolicy::Forbidden,
+        trustee: TrusteePolicy::Forbidden,
     };
     assert_eq!(restricted, ImportUsersPrivileges::default());
     for held in [
@@ -188,6 +267,7 @@ fn an_import_may_set_what_the_callers_permissions_allow() {
         ImportUsersPrivileges {
             group_assignment: GroupAssignmentPolicy::AnyGroup,
             permission_labels: PermissionLabelPolicy::Forbidden,
+            trustee: TrusteePolicy::Forbidden,
         }
     );
     assert_eq!(
@@ -195,6 +275,7 @@ fn an_import_may_set_what_the_callers_permissions_allow() {
         ImportUsersPrivileges {
             group_assignment: GroupAssignmentPolicy::DefaultGroupOnly,
             permission_labels: PermissionLabelPolicy::Allowed,
+            trustee: TrusteePolicy::Forbidden,
         }
     );
     assert_eq!(
@@ -202,6 +283,14 @@ fn an_import_may_set_what_the_callers_permissions_allow() {
         ImportUsersPrivileges {
             group_assignment: GroupAssignmentPolicy::AnyGroup,
             permission_labels: PermissionLabelPolicy::Allowed,
+            trustee: TrusteePolicy::Forbidden,
+        }
+    );
+    assert_eq!(
+        privileges(&[USER_CREATE, TRUSTEE_WRITE]),
+        ImportUsersPrivileges {
+            trustee: TrusteePolicy::Allowed,
+            ..restricted
         }
     );
 }
@@ -301,6 +390,85 @@ fn a_voter_edit_needs_voter_write_or_the_email_and_phone_permission() {
         assert_eq!(access.permissions, expected, "holding {held:?}");
         assert!(!access.password_only);
     }
+}
+
+/// An encrypted trustee can't be compared with the stored one, so a voter
+/// edit naming it among the secret attributes needs trustee-write, even to
+/// clear it.
+#[test]
+fn a_secret_trustee_in_a_voter_edit_needs_trustee_write() {
+    for value in [Some(vec!["trustee1".to_string()]), None] {
+        let secret_attributes =
+            HashMap::from([(TRUSTEE_ATTR_NAME.to_string(), value)]);
+        let edit = UserEdit {
+            secret_attributes: Some(&secret_attributes),
+            ..no_changes(UserScope::Voters)
+        };
+        assert_eq!(
+            edit_user_access(&edit, &roles(&[VOTER_WRITE]))
+                .expect("a voter edit")
+                .permissions,
+            vec![VOTER_WRITE, VOTER_SECRET_ATTRIBUTE_WRITE, TRUSTEE_WRITE]
+        );
+    }
+}
+
+#[test]
+fn only_a_request_naming_the_trustee_sets_it() {
+    assert!(sets_trustee(Some(&trustee(&[]))));
+    assert!(!sets_trustee(Some(&labels())));
+    assert!(!sets_trustee(None));
+}
+
+/// A new value for a user's trustee needs trustee-write and stays in the
+/// edit.
+#[test]
+fn changing_a_users_trustee_needs_trustee_write() {
+    let current = trustee(&["trustee1"]);
+    for (requested, current) in [
+        (trustee(&["trustee2"]), Some(&current)),
+        (trustee(&["trustee1", "trustee2"]), Some(&current)),
+        (trustee(&[]), Some(&current)),
+        (trustee(&["trustee1"]), None),
+        (trustee(&["trustee1"]), Some(&labels())),
+    ] {
+        let mut edit = Some(requested.clone());
+        assert_eq!(
+            trustee_edit_permission(&mut edit, current),
+            Some(TRUSTEE_WRITE),
+            "{requested:?} over {current:?}"
+        );
+        assert_eq!(edit, Some(requested));
+    }
+}
+
+/// The user's own trustee, in any order, needs no trustee-write and is left
+/// out of the edit, so the edit can't undo a change made after the read.
+#[test]
+fn an_unchanged_trustee_is_left_out_of_the_edit() {
+    let current = trustee(&["trustee1", "trustee2"]);
+    for values in [&["trustee1", "trustee2"][..], &["trustee2", "trustee1"]] {
+        let mut requested = trustee(values);
+        requested.extend(labels());
+        let mut edit = Some(requested);
+        assert_eq!(trustee_edit_permission(&mut edit, Some(&current)), None);
+        assert_eq!(edit, Some(labels()), "{values:?}");
+    }
+    // Clearing a trustee the user doesn't have changes nothing.
+    let mut edit = Some(trustee(&[]));
+    assert_eq!(trustee_edit_permission(&mut edit, None), None);
+    assert_eq!(edit, Some(Attributes::new()));
+}
+
+#[test]
+fn an_edit_without_a_trustee_is_left_as_it_is() {
+    let current = trustee(&["trustee1"]);
+    let mut edit = None;
+    assert_eq!(trustee_edit_permission(&mut edit, Some(&current)), None);
+    assert_eq!(edit, None);
+    let mut edit = Some(labels());
+    assert_eq!(trustee_edit_permission(&mut edit, Some(&current)), None);
+    assert_eq!(edit, Some(labels()));
 }
 
 #[test]

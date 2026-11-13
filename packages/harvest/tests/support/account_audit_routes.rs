@@ -5,7 +5,7 @@
 //! once Keycloak made the change and never for one it refused.
 
 use crate::adapters::memory::identity::LocalIdentityAdmin;
-use crate::route_services::http::{Exchange, HttpServer};
+use crate::route_services::http::{Exchange, HttpServer, Request};
 use crate::route_services::rows::{self, Event};
 use crate::route_services::{json, post, text, Services};
 use crate::test_claims::Claims;
@@ -299,6 +299,145 @@ async fn an_edit_keycloak_refuses_leaves_no_entry() {
     .await;
     assert_eq!(response.status(), Status::InternalServerError);
     peer.finish();
+    assert_eq!(audited(&services, &event).await, vec![]);
+}
+
+/// The account with a `trustee` attribute.
+fn trustee_account(event: &Event, trustee: &str) -> Exchange {
+    Exchange::json(
+        "GET",
+        &user_path(event, USER_ID),
+        200,
+        json!({
+            "id": USER_ID, "username": "grace", "enabled": true,
+            "attributes": {"trustee": [trustee]},
+        }),
+    )
+}
+
+/// An edit that sets the account's `trustee`.
+fn trustee_edit(event: &Event, trustee: &str) -> Value {
+    json!({
+        "tenant_id": event.tenant_id, "user_id": USER_ID,
+        "attributes": {"trustee": [trustee]},
+    })
+}
+
+/// The `trustee` the edit wrote to Keycloak.
+fn written_trustee(requests: &[Request]) -> Value {
+    let put = requests
+        .iter()
+        .find(|request| request.method == "PUT")
+        .expect("the edit is written");
+    put.json()["attributes"]["trustee"].clone()
+}
+
+/// Sending back the account's own trustee needs only user-write, and the
+/// edit leaves it out, so it can't undo a change made after the check.
+#[rocket::async_test]
+async fn an_unchanged_trustee_needs_only_user_write_and_is_not_written_back() {
+    let base = Services::on_test_database().await;
+    let event = rows::event(&base.hasura).await;
+    let peer = HttpServer::start(vec![
+        trustee_account(&event, "trustee-a"),
+        trustee_account(&event, "trustee-a"),
+        // Another admin changes the trustee before this edit is written.
+        trustee_account(&event, "trustee-b"),
+        answer("PUT", &user_path(&event, USER_ID), 204),
+    ]);
+    let services = base.with_identity(keycloak(&peer));
+    let client = services.client().await;
+
+    let (status, body) = json(
+        post(
+            &client,
+            "/edit-user",
+            &admin(&event),
+            &trustee_edit(&event, "trustee-a"),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(written_trustee(&peer.finish()), json!(["trustee-b"]));
+}
+
+#[rocket::async_test]
+async fn a_new_trustee_needs_trustee_write() {
+    let base = Services::on_test_database().await;
+    let event = rows::event(&base.hasura).await;
+    let peer = HttpServer::start(vec![trustee_account(&event, "trustee-a")]);
+    let services = base.with_identity(keycloak(&peer));
+    let client = services.client().await;
+
+    let (status, body) = json(
+        post(
+            &client,
+            "/edit-user",
+            &admin(&event),
+            &trustee_edit(&event, "trustee-b"),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Unauthorized, "{body}");
+    assert_eq!(body["extensions"]["code"], json!("Unauthorized"));
+    // Only the account was read: nothing was written.
+    assert_eq!(peer.finish().len(), 1);
+    assert_eq!(audited(&services, &event).await, vec![]);
+}
+
+#[rocket::async_test]
+async fn trustee_write_sets_a_new_trustee() {
+    let base = Services::on_test_database().await;
+    let event = rows::event(&base.hasura).await;
+    let peer = HttpServer::start(vec![
+        trustee_account(&event, "trustee-a"),
+        trustee_account(&event, "trustee-a"),
+        trustee_account(&event, "trustee-a"),
+        answer("PUT", &user_path(&event, USER_ID), 204),
+    ]);
+    let services = base.with_identity(keycloak(&peer));
+    let client = services.client().await;
+    let claims = admin(&event)
+        .roles([Permissions::USER_WRITE, Permissions::TRUSTEE_WRITE]);
+
+    let (status, body) = json(
+        post(
+            &client,
+            "/edit-user",
+            &claims,
+            &trustee_edit(&event, "trustee-b"),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(written_trustee(&peer.finish()), json!(["trustee-b"]));
+}
+
+/// Without the account's current trustee the edit can't be checked.
+#[rocket::async_test]
+async fn a_trustee_edit_keycloak_cannot_read_is_refused() {
+    let base = Services::on_test_database().await;
+    let event = rows::event(&base.hasura).await;
+    // The read gets the peer's HTTP 500.
+    let peer = HttpServer::start(vec![]);
+    let services = base.with_identity(keycloak(&peer));
+    let client = services.client().await;
+
+    let (status, body) = json(
+        post(
+            &client,
+            "/edit-user",
+            &admin(&event),
+            &trustee_edit(&event, "trustee-a"),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::InternalServerError, "{body}");
+    assert_eq!(peer.finish().len(), 1);
     assert_eq!(audited(&services, &event).await, vec![]);
 }
 
