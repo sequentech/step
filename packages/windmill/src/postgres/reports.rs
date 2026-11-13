@@ -342,6 +342,8 @@ async fn get_reports_by_condition(
                 WHERE
                     tenant_id = $1
                     AND {condition_column} = $2
+                ORDER BY
+                    created_at, id
                 "#
         ))
         .await
