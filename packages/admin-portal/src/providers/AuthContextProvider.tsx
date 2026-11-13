@@ -268,6 +268,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             const keycloakInitOptions: KeycloakInitOptions = {
                 onLoad: "login-required", // Force login if not authenticated
                 checkLoginIframe: false,
+                pkceMethod: "S256", // keycloak-js 22 sends a code challenge only when asked
                 // redirectUri: window.location.origin // + "/?tenant=" + tenantId
             }
 
@@ -290,6 +291,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 const fallbackOptions: KeycloakInitOptions = {
                     onLoad: "check-sso",
                     checkLoginIframe: false,
+                    pkceMethod: "S256", // keycloak-js 22 sends a code challenge only when asked
                 }
 
                 const fallbackResponse = await newKeycloak.init(fallbackOptions)
@@ -390,6 +392,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 checkLoginIframe: false,
                 flow: "standard", // Use standard flow instead of implicit
                 responseMode: "fragment", // Use fragment response mode
+                pkceMethod: "S256", // keycloak-js 22 sends a code challenge only when asked
             }
             const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)
 
