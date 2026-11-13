@@ -58,6 +58,8 @@ pub enum ErrorCode {
     LockedDown,
     /// A sort key that isn't a column (the log list's range filter keys).
     InvalidOrderBy,
+    /// A ballot-id filter that isn't an even number of hex characters, at most a Ballot ID long.
+    InvalidBallotId,
     /// The document's row, or its stored file, is gone (fetchDocument).
     DocumentNotFound,
     InvalidCastVoteOrder,
