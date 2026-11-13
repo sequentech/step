@@ -36,7 +36,12 @@ import {TenantEventContext} from ".."
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {GetBallotStylesQuery} from "../gql/graphql"
 import {useAppDispatch} from "../store/hooks"
-import {updateBallotStyleAndSelection} from "../services/BallotStyles"
+import {
+    EPublishedBallotStyleLookup,
+    PublishedBallotStyleLookup,
+    findPublishedBallotStyle,
+    updateBallotStyleAndSelection,
+} from "../services/BallotStyles"
 
 const ActionsContainer = styled(Box)`
     display: flex;
@@ -142,7 +147,7 @@ export const HomeScreen: React.FC<IProps> = ({
 }) => {
     const {t} = useTranslation()
     const [showError, setShowError] = useState(false)
-    const [showCiphertextError, setShowCiphertextError] = useState(false)
+    const [failedCheck, setFailedCheck] = useState<EBallotCiphertextCheck | null>(null)
     const [openStep1Help, setOpenStep1Help] = useState(false)
     const [openStep2Help, setOpenStep2Help] = useState(false)
     const [isNextActive, setNextActive] = useState(false)
@@ -164,31 +169,49 @@ export const HomeScreen: React.FC<IProps> = ({
         }
     }, [dataBallotStyles])
 
-    const handleAuditableBallot = (auditableBallot: IAuditableBallot | null) => {
+    const handleAuditableBallot = (
+        auditableBallot: IAuditableBallot | null,
+        ballotStyleLookup: PublishedBallotStyleLookup
+    ) => {
+        if (!auditableBallot?.config?.id) {
+            setShowError(true)
+            setFailedCheck(null)
+            setConfirmationBallot(null)
+            return
+        }
+        if (EPublishedBallotStyleLookup.FOUND !== ballotStyleLookup.status) {
+            setShowError(false)
+            setFailedCheck(
+                EPublishedBallotStyleLookup.NOT_PUBLISHED === ballotStyleLookup.status
+                    ? EBallotCiphertextCheck.UNPUBLISHED_STYLE
+                    : EBallotCiphertextCheck.UNAVAILABLE_STYLE
+            )
+            setConfirmationBallot(null)
+            return
+        }
+        const {ballotStyle} = ballotStyleLookup
+        // The ballot is decoded and checked with the given ballot style, never
+        // with the copy of it that the file carries.
+        const publishedBallot: IAuditableBallot = {...auditableBallot, config: ballotStyle}
         let isMultiContest = false
         let decodedBallot = null
         try {
             decodedBallot =
-                (auditableBallot &&
-                    ballotService.decodeAuditableBallot(
-                        auditableBallot as IAuditableSingleBallot
-                    )) ||
+                ballotService.decodeAuditableBallot(publishedBallot as IAuditableSingleBallot) ||
                 null
         } catch (error) {
             const decodedMultiBallot =
                 (!decodedBallot &&
-                    auditableBallot &&
                     ballotService.decodeAuditableMultiBallot(
-                        auditableBallot as IAuditableMultiBallot
+                        publishedBallot as IAuditableMultiBallot
                     )) ||
                 null
             isMultiContest = true
             decodedBallot = decodedMultiBallot
         }
-        const ballotStyle = auditableBallot?.config ?? null
-        if (null === auditableBallot || null === decodedBallot || null === ballotStyle) {
+        if (null === decodedBallot) {
             setShowError(true)
-            setShowCiphertextError(false)
+            setFailedCheck(null)
             setConfirmationBallot(null)
             return
         }
@@ -199,16 +222,15 @@ export const HomeScreen: React.FC<IProps> = ({
             : EBallotEncoding.SINGLE_CONTEST
         const ciphertextCheck = checkAuditableBallotCiphertext(
             ballotService,
-            auditableBallot,
+            publishedBallot,
             encoding
         )
         if (EBallotCiphertextCheck.VERIFIED !== ciphertextCheck) {
             // Only a ciphertext that fails to reproduce is a failed
             // verification. A ballot that could not be checked at all is a
             // problem with the file, and reports the generic import error.
-            const isMismatch = EBallotCiphertextCheck.MISMATCH === ciphertextCheck
-            setShowError(!isMismatch)
-            setShowCiphertextError(isMismatch)
+            setShowError(EBallotCiphertextCheck.NOT_VERIFIABLE === ciphertextCheck)
+            setFailedCheck(ciphertextCheck)
             setConfirmationBallot(null)
             return
         }
@@ -221,17 +243,23 @@ export const HomeScreen: React.FC<IProps> = ({
             decoded_questions: decodedBallot,
         })
         setShowError(false)
-        setShowCiphertextError(false)
+        setFailedCheck(null)
     }
 
     const handleFiles = async (files: FileList) => {
         try {
             setFileName(files[0].name)
             const auditableBallotString = await parseAuditableBallotFile(files[0], ballotService)
-            auditableBallotString && handleAuditableBallot(JSON.parse(auditableBallotString))
+            if (auditableBallotString) {
+                const auditableBallot: IAuditableBallot | null = JSON.parse(auditableBallotString)
+                handleAuditableBallot(
+                    auditableBallot,
+                    findPublishedBallotStyle(dataBallotStyles, auditableBallot?.config?.id, eventId)
+                )
+            }
         } catch (e) {
             setShowError(true)
-            setShowCiphertextError(false)
+            setFailedCheck(null)
             setConfirmationBallot(null)
         }
     }
@@ -243,7 +271,12 @@ export const HomeScreen: React.FC<IProps> = ({
         if (!auditableBallot) {
             return
         }
-        handleAuditableBallot(auditableBallot)
+        // The sample is generated here rather than uploaded, so the ballot
+        // style it carries is the one to check it against.
+        handleAuditableBallot(auditableBallot, {
+            status: EPublishedBallotStyleLookup.FOUND,
+            ballotStyle: auditableBallot.config,
+        })
         let ballotHash = ballotService.hashBallot512(auditableBallot)
         setBallotId(ballotHash)
     }
@@ -301,12 +334,44 @@ export const HomeScreen: React.FC<IProps> = ({
             </Alert>
             <Alert
                 severity="error"
-                style={{display: showCiphertextError ? undefined : "none"}}
+                style={{
+                    display: EBallotCiphertextCheck.MISMATCH === failedCheck ? undefined : "none",
+                }}
                 data-testid="ciphertext-error"
             >
                 <AlertTitle>{t("homeScreen.ciphertextErrorTitle")}</AlertTitle>
                 <Typography variant="body2">
                     {t("homeScreen.ciphertextErrorDescription")}
+                </Typography>
+            </Alert>
+            <Alert
+                severity="error"
+                style={{
+                    display:
+                        EBallotCiphertextCheck.UNPUBLISHED_STYLE === failedCheck
+                            ? undefined
+                            : "none",
+                }}
+                data-testid="unpublished-style-error"
+            >
+                <AlertTitle>{t("homeScreen.ciphertextErrorTitle")}</AlertTitle>
+                <Typography variant="body2">
+                    {t("homeScreen.unpublishedStyleErrorDescription")}
+                </Typography>
+            </Alert>
+            <Alert
+                severity="error"
+                style={{
+                    display:
+                        EBallotCiphertextCheck.UNAVAILABLE_STYLE === failedCheck
+                            ? undefined
+                            : "none",
+                }}
+                data-testid="unavailable-style-error"
+            >
+                <AlertTitle>{t("homeScreen.ciphertextErrorTitle")}</AlertTitle>
+                <Typography variant="body2">
+                    {t("homeScreen.unavailableStyleErrorDescription")}
                 </Typography>
             </Alert>
             <DropFile handleFiles={handleFiles} />
