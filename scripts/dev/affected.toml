@@ -144,8 +144,8 @@ test_inputs = ["hasura/migrations/backend-db/**", ".devcontainer/postgresql/init
 test_inputs = [".devcontainer/minio/public-assets/**", "hasura/migrations/backend-db/**", "packages/windmill/external-bin/janitor/templates/*/approvalMatrix.json", ".devcontainer/postgresql/init.sh", "packages/admin-portal/src/translations/en.ts", ".devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json", "scripts/dev/scenario/signing-organizations/**"]
 
 [units.sequent-core]
-# The permission tests read the realm templates.
-test_inputs = [".devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json", "packages/windmill/external-bin/janitor/templates/COMELEC/keycloakAdmin.hbs"]
+# The permission and client hardening tests read the realm templates.
+test_inputs = [".devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json", ".devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json", "packages/windmill/external-bin/janitor/templates/COMELEC/keycloakAdmin.hbs"]
 
 [units.velvet]
 test_inputs = [".devcontainer/minio/public-assets/**"]
