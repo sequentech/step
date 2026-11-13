@@ -459,4 +459,116 @@ impl CountingAlgType {
             TallyOperation::ProcessBallotsAll
         }
     }
+
+    /// Rejects the scope operations this counting algorithm cannot tally:
+    /// the contest result must carry candidate results, preferential
+    /// results cannot be obtained by adding up per-area results, and areas
+    /// have no lower-level results to aggregate.
+    pub fn validate_tally_operation(
+        &self,
+        scope_operation: &ScopeOperation,
+    ) -> Result<(), String> {
+        let is_supported = match scope_operation {
+            ScopeOperation::Contest(TallyOperation::ProcessBallotsAll) => true,
+            ScopeOperation::Contest(TallyOperation::AggregateResults) => {
+                !self.is_preferential()
+            }
+            ScopeOperation::Contest(TallyOperation::SkipCandidateResults) => {
+                false
+            }
+            ScopeOperation::Area(TallyOperation::AggregateResults) => false,
+            ScopeOperation::Area(_) => true,
+        };
+        if is_supported {
+            Ok(())
+        } else {
+            Err(format!(
+                "Tally operation {scope_operation:?} is not supported for \
+                 counting algorithm {self}"
+            ))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const COUNTING_ALGORITHMS: [CountingAlgType; 10] = [
+        CountingAlgType::PluralityAtLarge,
+        CountingAlgType::InstantRunoff,
+        CountingAlgType::BordaNauru,
+        CountingAlgType::Borda,
+        CountingAlgType::BordaMasMadrid,
+        CountingAlgType::PairwiseBeta,
+        CountingAlgType::Desborda3,
+        CountingAlgType::Desborda2,
+        CountingAlgType::Desborda,
+        CountingAlgType::Cumulative,
+    ];
+
+    #[test]
+    fn validate_tally_operation_matrix() {
+        for counting_algorithm in COUNTING_ALGORITHMS {
+            let preferential = counting_algorithm.is_preferential();
+            for (scope_operation, expected) in [
+                (
+                    ScopeOperation::Contest(TallyOperation::ProcessBallotsAll),
+                    true,
+                ),
+                (
+                    ScopeOperation::Contest(TallyOperation::AggregateResults),
+                    !preferential,
+                ),
+                (
+                    ScopeOperation::Contest(
+                        TallyOperation::SkipCandidateResults,
+                    ),
+                    false,
+                ),
+                (
+                    ScopeOperation::Area(TallyOperation::ProcessBallotsAll),
+                    true,
+                ),
+                (
+                    ScopeOperation::Area(TallyOperation::AggregateResults),
+                    false,
+                ),
+                (
+                    ScopeOperation::Area(TallyOperation::SkipCandidateResults),
+                    true,
+                ),
+            ] {
+                assert_eq!(
+                    counting_algorithm
+                        .validate_tally_operation(&scope_operation)
+                        .is_ok(),
+                    expected,
+                    "{counting_algorithm} {scope_operation:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn default_tally_operations_are_supported() {
+        for counting_algorithm in COUNTING_ALGORITHMS {
+            for scope_operation in [
+                ScopeOperation::Contest(
+                    counting_algorithm
+                        .get_default_tally_operation_for_contest(),
+                ),
+                ScopeOperation::Area(
+                    counting_algorithm.get_default_tally_operation_for_area(),
+                ),
+            ] {
+                assert!(
+                    counting_algorithm
+                        .validate_tally_operation(&scope_operation)
+                        .is_ok(),
+                    "{counting_algorithm} {scope_operation:?}"
+                );
+            }
+        }
+    }
 }
