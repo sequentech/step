@@ -358,7 +358,7 @@ ELECTORAL_LOG_PG_PASSWORD = "test"
 ELECTORAL_LOG_PG_DATABASE = "test"
 ELECTORAL_LOG_PG_SSLMODE = "disable"
 ENV_SLUG = "electoral-log-tests"
-WBRAID_BOARD_DATABASE_URL = "postgres://test:test@127.0.0.1:3322/test"
+WBRAID_BOARD_DATABASE_URL = "postgres://test:test@127.0.0.1:3322/test?sslmode=disable"
 WBRAID_B4_PG_PASSWORD = "test"
 
 [profiles.windmill.excluded_files]
@@ -562,7 +562,7 @@ ELECTORAL_LOG_PG_PASSWORD = "test"
 ELECTORAL_LOG_PG_DATABASE = "test"
 ELECTORAL_LOG_PG_SSLMODE = "disable"
 ENV_SLUG = "electoral-log-tests"
-WBRAID_BOARD_DATABASE_URL = "postgres://test:test@127.0.0.1:3322/test"
+WBRAID_BOARD_DATABASE_URL = "postgres://test:test@127.0.0.1:3322/test?sslmode=disable"
 WBRAID_B4_PG_PASSWORD = "test"
 
 [profiles.voting-crypto]
