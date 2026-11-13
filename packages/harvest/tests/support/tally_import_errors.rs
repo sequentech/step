@@ -39,3 +39,26 @@ fn an_untyped_import_error_is_internal_even_when_its_message_looks_like_a_domain
     assert_eq!(mapped.0, Status::InternalServerError);
     assert!(mapped.1.starts_with("Document document-1 not found"));
 }
+
+#[tokio::test]
+async fn an_unreadable_ess_file_fails_in_the_conversion_not_the_pool() {
+    let conversion = convert_ess_xml_in_blocking_pool(
+        b"not xml".to_vec(),
+        VotingChannel::PAPER,
+        HashMap::new(),
+        HashSet::new(),
+    )
+    .await
+    .expect("the blocking pool runs the conversion");
+    assert!(conversion.is_err());
+}
+
+#[tokio::test]
+async fn a_failed_blocking_task_is_an_internal_error() {
+    let error = tokio::task::spawn_blocking(|| {
+        panic!("conversion panicked");
+    })
+    .await
+    .expect_err("the task panicked");
+    assert_eq!(blocking_task_error(error).0, Status::InternalServerError);
+}
