@@ -4,7 +4,10 @@
 use super::types::*;
 use super::utils::*;
 
-use crate::services::users::{list_users, FilterOption, ListUsersFilter};
+use crate::services::users::{
+    census_change_refusal, changed_census_attributes, list_users, voter_has_cast_ballot,
+    FilterOption, ListUsersFilter,
+};
 use anyhow::Result;
 use deadpool_postgres::Transaction;
 
@@ -175,9 +178,27 @@ pub async fn update_datafix_voter(
         })?;
         hash_map.insert(DATE_OF_BIRTH.to_string(), vec![birthdate]);
     }
-    let attributes = Some(hash_map);
 
     let user_id = get_user_id(keycloak_transaction, &realm, &username).await?;
+    let previous_user = client.get_user(&realm, &user_id).await.map_err(|e| {
+        error!("Error loading user before updating it: {e:?}");
+        DatafixResponse::new(Status::InternalServerError)
+    })?;
+    let changed = changed_census_attributes(&previous_user, voter_info.enabled, &hash_map);
+    if !changed.is_empty() {
+        let has_ballot =
+            voter_has_cast_ballot(hasura_transaction, tenant_id, &election_event_id, &user_id)
+                .await
+                .map_err(|e| {
+                    error!("Error checking the voter's ballots before updating it: {e:?}");
+                    DatafixResponse::new(Status::InternalServerError)
+                })?;
+        if let Some(reason) = census_change_refusal(has_ballot, &changed) {
+            error!("{reason}");
+            return Err(DatafixResponse::new(Status::Conflict));
+        }
+    }
+    let attributes = Some(hash_map);
     let _user = client
         .edit_user(
             &realm,
