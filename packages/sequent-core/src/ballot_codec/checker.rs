@@ -6,13 +6,16 @@ use crate::ballot_codec::multi_ballot::DecodedContestChoices;
 use crate::plaintext::DecodedVoteContest;
 use crate::{
     ballot::{
-        Contest, ContestPresentation, EBlankVotePolicy, EDuplicatedRankPolicy,
-        EOverVotePolicy, EPreferenceGapsPolicy, EUnderVotePolicy,
-        InvalidVotePolicy,
+        Candidate, Contest, ContestPresentation, EBlankVotePolicy,
+        EDuplicatedRankPolicy, EOverVotePolicy, EPreferenceGapsPolicy,
+        EUnderVotePolicy, InvalidVotePolicy,
     },
     plaintext::{InvalidPlaintextError, InvalidPlaintextErrorType},
 };
 use std::collections::HashMap;
+
+pub const SELECTED_DISABLED_CANDIDATE_ERROR: &str =
+    "errors.implicit.selectedDisabledCandidate";
 
 #[derive(Default, PartialEq, Eq, Debug, Clone)]
 pub struct CheckerResult {
@@ -82,6 +85,26 @@ pub fn check_contest_configuration(contest: &Contest) -> CheckerResult {
     }
 
     checker_result
+}
+
+/// Reports an implicit invalid error for each selected candidate that is
+/// disabled, as disabled candidates cannot be selected by voters.
+pub fn check_disabled_candidate_selections<'a>(
+    selected_candidates: impl IntoIterator<Item = &'a Candidate>,
+) -> CheckerResult {
+    CheckerResult {
+        invalid_errors: selected_candidates
+            .into_iter()
+            .filter(|candidate| candidate.is_disabled())
+            .map(|candidate| InvalidPlaintextError {
+                error_type: InvalidPlaintextErrorType::Implicit,
+                candidate_id: Some(candidate.id.clone()),
+                message: Some(SELECTED_DISABLED_CANDIDATE_ERROR.to_string()),
+                message_map: HashMap::new(),
+            })
+            .collect(),
+        invalid_alerts: vec![],
+    }
 }
 
 pub fn check_max_min_votes_policy(

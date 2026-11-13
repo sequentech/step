@@ -117,6 +117,7 @@ const englishTranslation = {
                     "Invalid vote! The order of preference has one or more gaps.",
                 duplicatedPosition:
                     "Invalid vote! The same position was selected for two or more candidates.",
+                selectedDisabledCandidate: "Invalid vote! A disabled candidate was selected.",
             },
             explicit: {
                 notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
