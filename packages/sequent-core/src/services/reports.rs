@@ -14,6 +14,8 @@ use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use tracing::{info, instrument, warn};
 
+mod template_limits;
+
 use crate::types::number_format::{
     NumberFormatPolicy, NUMBER_FORMAT_POLICY_VARIABLE,
 };
@@ -144,6 +146,7 @@ pub fn render_template_text(
     variables_map: Map<String, Value>,
 ) -> Result<String, RenderError> {
     let reg = get_registry(number_format_policy(&variables_map));
+    template_limits::check_template(template)?;
 
     // render handlebars template
     reg.render_template(template, &json!(variables_map))
@@ -158,8 +161,10 @@ pub fn render_template(
     let mut reg = get_registry(number_format_policy(&variables_map));
 
     for (name, file) in template_map {
+        template_limits::check_nesting(&file)?;
         reg.register_template_string(&name, &file)?;
     }
+    template_limits::check_registered(&reg, template_name)?;
 
     // render handlebars template
     reg.render(template_name, &json!(variables_map))
