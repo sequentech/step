@@ -61,4 +61,7 @@ pub mod trustee;
 
 pub use trusted_write::trusted_write;
 
+pub mod unparseable_rows;
+pub use unparseable_rows::skip_unparseable_rows;
+
 pub mod voter_import;

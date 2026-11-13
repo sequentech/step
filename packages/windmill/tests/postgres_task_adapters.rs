@@ -686,6 +686,35 @@ async fn find_all_active_events_excludes_stopped_and_archived_schedules() {
 }
 
 #[tokio::test]
+async fn find_all_active_events_skips_a_schedule_it_cannot_read() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    schedule_row(&tx, Some(&w.tenant), Some(&w.event), &w.id(10), "task-10").await;
+    schedule_row(&tx, Some(&w.tenant), Some(&w.event), &w.id(11), "task-11").await;
+    set(
+        &tx,
+        "scheduled_event",
+        &w.id(11),
+        "event_processor = 'CLOSE_EVERYTHING'",
+    )
+    .await;
+
+    let active = scheduled_event::find_all_active_events(&tx).await.unwrap();
+
+    assert_eq!(
+        schedule_ids(
+            active
+                .into_iter()
+                .filter(|schedule| w.owns(&schedule.id))
+                .collect()
+        ),
+        [w.id(10)]
+    );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
 async fn find_scheduled_event_by_id_maps_the_schedule_columns() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
@@ -1562,6 +1591,39 @@ async fn get_all_active_reports_returns_the_reports_with_an_active_cron_config()
                 .collect()
         ),
         [w.id(10), w.id(11)]
+    );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn get_all_active_reports_skips_a_report_whose_cron_config_cannot_be_read() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    for (n, cron_config) in [
+        (10, "'{\"is_active\": true}'"),
+        (11, "'{\"is_active\": true, \"cron_expression\": 42}'"),
+    ] {
+        report_row(&tx, &w.tenant, &w.event, &w.id(n), "ELECTORAL_RESULTS").await;
+        set(
+            &tx,
+            "report",
+            &w.id(n),
+            &format!("cron_config = {cron_config}"),
+        )
+        .await;
+    }
+
+    let active = reports::get_all_active_reports(&tx).await.unwrap();
+
+    assert_eq!(
+        report_ids(
+            active
+                .into_iter()
+                .filter(|report| w.owns(&report.id))
+                .collect()
+        ),
+        [w.id(10)]
     );
     tx.rollback().await.unwrap();
 }
