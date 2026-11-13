@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Scanovate On-Premise Services | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/integrations/scanovate_on_premise_guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Scanovate On-Premise Services | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4110/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/integrations/scanovate_on_premise_guide"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/integrations/scanovate_on_premise_guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/integrations/scanovate_on_premise_guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Scanovate On-Premise Services","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4110/docs/integrations/scanovate_on_premise_guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4110/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4110/assets/js/runtime~main.a9bb5dec.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4110/assets/js/runtime~main.73e2ef7c.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4110/assets/js/main.a2a6e731.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -45,7 +45,7 @@ been still for the holding time, which it uploads to Keycloak (the
 authenticator&#x27;s <code>holding-photo</code> policy and <code>video-seconds</code>).</p>
 <p>This page describes how to run the services, how to configure them, and the
 contract between them, the capture page and Keycloak.</p>
-<table><thead><tr><th>Service</th><th>Image</th><th>Role</th></tr></thead><tbody><tr><td><code>scanovate-ocr</code></td><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ocr:version_3.9.0_aefa131_285</code></td><td>OCR capture page and its API. Manages the sessions, reads the document, sends the callbacks.</td></tr><tr><td><code>scanovate-liveness</code></td><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-plus-service:version_3.9.0_e0dc72e_115</code></td><td>Liveness capture page and its API. Manages the sessions, checks the face quality of each frame, calls PAD and IAD, sends the callbacks.</td></tr><tr><td><code>scanovate-presentation-detection</code></td><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-presentation-detection-service:release_1.52.0</code></td><td>PAD server, with the <code>pad-r-2</code> (presentation attacks) and <code>dfd-3</code> (deepfakes) pipelines.</td></tr><tr><td><code>scanovate-injection-detection</code></td><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-injection-detection-service:release-2.6.2</code></td><td>IAD server: checks that the frames come from a real camera.</td></tr><tr><td><code>scanovate-face-match</code></td><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ngfacematch:version_3.9.0_ba58397_79</code></td><td>Face Match API. We use its 1:1 API (<code>/facematch11</code>).</td></tr><tr><td><code>scanovate-document-liveness</code></td><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/document-liveness-service:release-3.5.5</code></td><td>Document Liveness API (ID R&amp;D&#x27;s IDLive Doc Server 3.5.5), with the <code>default-sr</code> (screen replay), <code>default-pc</code> (printed copy), <code>default-ps</code> (portrait substitution) and <code>default-dm</code> (digital manipulation) pipelines.</td></tr></tbody></table>
+<table><thead><tr><th>Service</th><th>Image</th><th>Role</th></tr></thead><tbody><tr><td><code>scanovate-ocr</code></td><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ocr:version_3.9.0_bec7df8_295</code></td><td>OCR capture page and its API. Manages the sessions, reads the document, sends the callbacks.</td></tr><tr><td><code>scanovate-liveness</code></td><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-plus-service:version_3.9.0_e0dc72e_115</code></td><td>Liveness capture page and its API. Manages the sessions, checks the face quality of each frame, calls PAD and IAD, sends the callbacks.</td></tr><tr><td><code>scanovate-presentation-detection</code></td><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-presentation-detection-service:release_1.52.0</code></td><td>PAD server, with the <code>pad-r-2</code> (presentation attacks) and <code>dfd-3</code> (deepfakes) pipelines.</td></tr><tr><td><code>scanovate-injection-detection</code></td><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-injection-detection-service:release-2.6.2</code></td><td>IAD server: checks that the frames come from a real camera.</td></tr><tr><td><code>scanovate-face-match</code></td><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ngfacematch:version_3.9.0_ba58397_79</code></td><td>Face Match API. We use its 1:1 API (<code>/facematch11</code>).</td></tr><tr><td><code>scanovate-document-liveness</code></td><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/document-liveness-service:release-3.5.5</code></td><td>Document Liveness API (ID R&amp;D&#x27;s IDLive Doc Server 3.5.5), with the <code>default-sr</code> (screen replay), <code>default-pc</code> (printed copy), <code>default-ps</code> (portrait substitution) and <code>default-dm</code> (digital manipulation) pipelines.</td></tr></tbody></table>
 <p>The Face Match image also has a 1<!-- -->:N<!-- --> API, which we don&#x27;t use, see
 <a href="#face-match" class="">Face Match</a>.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="what-runs-where">What runs where<a href="#what-runs-where" class="hash-link" aria-label="Direct link to What runs where" title="Direct link to What runs where" translate="no">​</a></h3>
@@ -81,26 +81,31 @@ document is the live face.</li>
 the voter&#x27;s data, which later steps compare with the voter registry.</li>
 </ol>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="ocr-capture-resolution">OCR capture resolution<a href="#ocr-capture-resolution" class="hash-link" aria-label="Direct link to OCR capture resolution" title="Direct link to OCR capture resolution" translate="no">​</a></h2>
-<p>OCR requests a 1920 × 1080 camera stream. Its <code>input_image</code> is also used for
-Document Liveness, whose <a href="https://docs.idrnd.net/idlivedoc/" target="_blank" rel="noopener noreferrer" class="">image requirements</a>
-specify Full HD as the minimum. Keep the development OCR video configuration,
-the air-gap <code>scanovate-theme.yaml</code> copy and hosted capture configuration in sync.
-This is a capture-page setting, not an election Excel or realm threshold setting.</p>
-<p>The pinned vendor client passes width and height as numeric <code>getUserMedia</code>
-preferences, not mandatory minimum constraints. A browser may negotiate a lower
-resolution on limited hardware. It sends JPEG frames at the actual video-track
-settings dimensions, without upscaling; increasing the configured request does
-not prove every camera produces Full HD. Verify the actual frame dimensions on
-supported mobile and desktop cameras before rollout, including limited cameras
-and permission denial. Prefer a supported rear-facing camera for documents.
-Do not bypass failed document-liveness checks to accommodate a lower-resolution
-camera. The configurable score relaxation below is separate from resolution. Video compression settings are
-separate from the still-image capture and are unchanged.</p>
+<p>OCR requests a 1280 × 720 camera stream, the only resolution Scanovate supports
+and validates for it. Scanovate&#x27;s <em>On-Prem Full Onboarding Flow – Integration
+Guide (with Document Liveness)</em> gives 1280 × 720, with autofocus, as the
+minimum camera for the whole flow, Document Liveness included, which reads
+OCR&#x27;s <code>input_image</code>. ID R&amp;D&#x27;s own <a href="https://docs.idrnd.net/idlivedoc/" target="_blank" rel="noopener noreferrer" class="">image requirements</a>
+for Document Liveness ask for Full HD, but asked whether 1920 × 1080 would
+help, Scanovate answered that it isn&#x27;t supported or validated, and isn&#x27;t a
+workaround for OCR&#x27;s machine readable zone size or quality limits. Keep the
+development OCR video configuration, the air-gap <code>scanovate-theme.yaml</code> copy
+and the hosted capture configuration in sync. This is a capture-page setting,
+not an election Excel or realm threshold setting.</p>
+<p>The browser treats the width and height as preferences, so a camera may
+deliver less. Prefer a supported rear-facing camera for documents, and don&#x27;t
+bypass failed document-liveness checks to accommodate a weaker camera. Watch
+Document Liveness&#x27;s <code>image_quality_warnings</code> (such as <code>IMAGE_TOO_BLURRY</code>) when
+tuning with real passports. The configurable score relaxation below is
+separate from resolution. Video compression settings are separate from the
+still-image capture and are unchanged. From <code>version_3.9.0_bec7df8_295</code> on,
+the <code>mobile</code>, <code>desktop</code> and <code>kiosk</code> blocks of the video configuration could
+set <code>video_width</code> and <code>video_height</code> for one device; we set none.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="access-to-the-images">Access to the images<a href="#access-to-the-images" class="hash-link" aria-label="Direct link to Access to the images" title="Direct link to Access to the images" translate="no">​</a></h2>
 <p>We run the images from our own mirror on AWS ECR, in the <code>133529410358</code> account
 (<code>eu-west-1</code>), with the same tags and digests as Scanovate&#x27;s private images on
 Docker Hub:</p>
-<table><thead><tr><th>Repository</th><th>Tag</th></tr></thead><tbody><tr><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-plus-service</code></td><td><code>version_3.9.0_e0dc72e_115</code></td></tr><tr><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-presentation-detection-service</code></td><td><code>release_1.52.0</code></td></tr><tr><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-injection-detection-service</code></td><td><code>release-2.6.2</code></td></tr><tr><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ngfacematch</code></td><td><code>version_3.9.0_ba58397_79</code></td></tr><tr><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ocr</code></td><td><code>version_3.9.0_aefa131_285</code></td></tr><tr><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/document-liveness-service</code></td><td><code>release-3.5.5</code> (<code>sha256:5ed5717a1c6f60b12f01fbe3aa714ae857113639d2cf133a142ac4ed7e75c839</code>, <code>linux/amd64</code>)</td></tr></tbody></table>
+<table><thead><tr><th>Repository</th><th>Tag</th></tr></thead><tbody><tr><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-plus-service</code></td><td><code>version_3.9.0_e0dc72e_115</code></td></tr><tr><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-presentation-detection-service</code></td><td><code>release_1.52.0</code></td></tr><tr><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-injection-detection-service</code></td><td><code>release-2.6.2</code></td></tr><tr><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ngfacematch</code></td><td><code>version_3.9.0_ba58397_79</code></td></tr><tr><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ocr</code></td><td><code>version_3.9.0_bec7df8_295</code></td></tr><tr><td><code>133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/document-liveness-service</code></td><td><code>release-3.5.5</code> (<code>sha256:5ed5717a1c6f60b12f01fbe3aa714ae857113639d2cf133a142ac4ed7e75c839</code>, <code>linux/amd64</code>)</td></tr></tbody></table>
 <p>Log in to the registry in the Docker client that pulls the images: your host,
 since the dev container talks to the host&#x27;s Docker daemon, or each server that
 runs them. With an AWS SSO profile for that account (e.g. <code>sequent-ecr</code>, role
@@ -166,7 +171,13 @@ checked (at most 30 minutes). No image is logged.</p>
 <li class="">Access to our ECR mirror of the Scanovate images (see
 <a href="#access-to-the-images" class="">Access to the images</a>), and about 28 GB of memory for
 Docker on top of the dev container, on a CPU with AVX2.</li>
-<li class="">A computer with a webcam of at least 1280×720, and Chrome or Firefox.</li>
+<li class="">A computer with a webcam of at least 1280×720, and Chrome or Firefox, or a
+phone that reaches the dev container. Scanovate&#x27;s passport scan is designed
+for phones: on a computer the webcam must have autofocus, or it can&#x27;t
+capture the machine readable zone sharply enough. Most laptop webcams,
+such as a MacBook Air&#x27;s, have a fixed focus, so expect the passport scan to
+refuse more frames there. Its quality limits are built into the OCR service
+and can&#x27;t be configured.</li>
 <li class="">Your passport: the data page, with your photo and the machine readable zone.</li>
 <li class="">This branch checked out, and the dev container (<code>base</code> profile) working.</li>
 </ul>
@@ -367,30 +378,30 @@ whichever is higher.</p>
 <p>The dev container replaces <code>service_config.json</code>, with
 <code>.devcontainer/scanovate/ocr/service_config.json</code>, and adds our UI theme,
 <code>.devcontainer/scanovate/ocr/sequent_ui.json</code>, and
-<code>.devcontainer/scanovate/ocr/video_config_no_mirror.json</code>, and serves its own
-copy of the page, <code>.devcontainer/scanovate/ocr/index.html</code> (see below); the others
-(<code>scan_config.json</code>, which says which sides each OCR type scans,
+its camera settings, <code>.devcontainer/scanovate/ocr/sequent_video.json</code>; the
+others (<code>scan_config.json</code>, which says which sides each OCR type scans,
 <code>video_config.json</code>, <code>default_ui.json</code> and the texts) are the image&#x27;s own. Our <code>service_config.json</code>
 is the image&#x27;s with an <code>onprem</code> section like Liveness Plus&#x27;s:</p>
-<table><thead><tr><th>Key</th><th>Our value</th><th>Description</th></tr></thead><tbody><tr><td><code>callback_url</code></td><td>Keycloak&#x27;s <code>.../identity-verification/ocr/callback?secret=...</code></td><td>Where the start and the result are posted.</td></tr><tr><td><code>token_verification_url</code></td><td>Keycloak&#x27;s <code>.../identity-verification/ocr/verify?secret=...</code></td><td>Where the session token is verified. <strong>Empty accepts any token</strong>, never do it.</td></tr><tr><td><code>send_results_to_server</code></td><td><code>true</code></td><td>Post the result to <code>callback_url</code>.</td></tr><tr><td><code>send_debug_results_to_server</code></td><td><code>false</code></td><td>Also post the full internal session.</td></tr><tr><td><code>send_video_in_results</code></td><td><code>false</code></td><td>No video in the result.</td></tr><tr><td><code>send_results_to_client</code></td><td><code>false</code></td><td>Keep it <code>false</code>: the browser is never trusted.</td></tr><tr><td><code>default_parameters</code></td><td><code>passport</code>, <code>scan_config</code>, <code>video_config_no_mirror</code>, <code>default</code>, <code>en</code>, <code>sequent_ui</code></td><td>OCR type, configuration files, texts and theme used when the page URL doesn&#x27;t name them. Keycloak always sets <code>ocr_type</code>, from <code>ocr-types</code>.</td></tr></tbody></table>
+<table><thead><tr><th>Key</th><th>Our value</th><th>Description</th></tr></thead><tbody><tr><td><code>callback_url</code></td><td>Keycloak&#x27;s <code>.../identity-verification/ocr/callback?secret=...</code></td><td>Where the start and the result are posted.</td></tr><tr><td><code>token_verification_url</code></td><td>Keycloak&#x27;s <code>.../identity-verification/ocr/verify?secret=...</code></td><td>Where the session token is verified. <strong>Empty accepts any token</strong>, never do it.</td></tr><tr><td><code>send_results_to_server</code></td><td><code>true</code></td><td>Post the result to <code>callback_url</code>.</td></tr><tr><td><code>send_debug_results_to_server</code></td><td><code>false</code></td><td>Also post the full internal session.</td></tr><tr><td><code>send_video_in_results</code></td><td><code>false</code></td><td>No video in the result.</td></tr><tr><td><code>send_results_to_client</code></td><td><code>false</code></td><td>Keep it <code>false</code>: the browser is never trusted.</td></tr><tr><td><code>default_parameters</code></td><td><code>passport</code>, <code>scan_config</code>, <code>sequent_video</code>, <code>default</code>, <code>en</code>, <code>sequent_ui</code></td><td>OCR type, configuration files, texts and theme used when the page URL doesn&#x27;t name them. Keycloak always sets <code>ocr_type</code>, from <code>ocr-types</code>.</td></tr></tbody></table>
 <p><code>video_config</code> names the file of <code>/app/config</code> that rotates or mirrors the
 preview (<code>rotate_view</code>, <code>mirror_view</code>) and the frames sent to the service
 (<code>rotate_buffer</code>, <code>mirror_buffer</code>), as Scanovate advised; a page URL can also
-name one with its <code>video_config</code> parameter. <code>video_config_no_mirror.json</code> is
-the image&#x27;s <code>video_config.json</code>, whose <code>mirror_view</code> is already <code>false</code>. In
-this image the page still mirrors the preview whenever the browser isn&#x27;t a
-phone or a tablet (<code>mirror_view || !isMobile()</code> in its client), whatever the
-file says, which makes a passport hard to place on a laptop. We have reported
-it to Scanovate. Until it follows <code>video_config</code>, we serve the image&#x27;s own
-page, <code>/app/static/index.html</code>, with one rule added,
-<code>.video-element { transform: none !important; }</code>, which shows the preview as
-the camera sees it on every device. It only changes what the voter sees: the
-frames sent to the service were never mirrored. <code>transform: none</code> also drops
-the page&#x27;s rotation, so keep <code>rotate_view</code> at <code>0</code>. The page names the image&#x27;s
-hashed scripts (<code>index-C243eWap.js</code>, <code>index-DTxKRzC9.css</code>), so it belongs to
-one OCR image: when the image changes, copy its <code>index.html</code> again and add the
-rule back. <code>scripts/dev/test_scanovate_ocr_page.py</code> checks the mount, the rule
-and the asset names against the pinned tag.</p>
+name one with its <code>video_config</code> parameter. Its <code>mobile</code>, <code>desktop</code> and
+<code>kiosk</code> blocks override those settings for one device: <code>kiosk</code> when
+<code>kiosk_mode</code> is <code>true</code>, otherwise <code>mobile</code> on phones and tablets (an iPad
+counts as one) and <code>desktop</code> elsewhere. <code>sequent_video.json</code> is the
+<code>video_config.json</code> Scanovate delivered with <code>version_3.9.0_bec7df8_295</code>,
+with the resolution of <a href="#ocr-capture-resolution" class="">OCR capture resolution</a>:
+phones and tablets show the rear camera unmirrored, and <code>desktop</code> sets
+<code>mirror_view</code> to <code>true</code>, so a laptop shows its front camera as a mirror, which
+is what a voter in front of it expects: the passport moves on screen the way
+it moves in the hand. Only the preview is mirrored, never the frames sent to
+the service (<code>mirror_buffer</code> stays <code>false</code>). Earlier releases mirrored the
+preview on desktop whatever
+<code>mirror_view</code> said. Serve the image&#x27;s own page: a copy that showed the
+preview as the camera sees it made it look flipped on laptops
+(v11.0.0-rc.15). <code>scripts/dev/test_scanovate_ocr_page.py</code> checks that the dev
+container doesn&#x27;t replace it.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="document-liveness">Document Liveness<a href="#document-liveness" class="hash-link" aria-label="Direct link to Document Liveness" title="Direct link to Document Liveness" translate="no">​</a></h3>
 <p>Environment variables, as in Scanovate&#x27;s onboarding guide:</p>
 <table><thead><tr><th>Variable</th><th>Description</th></tr></thead><tbody><tr><td><code>IDLIVEDOC_SERVER_AVAILABLE_PIPELINES</code></td><td><code>default-sr,default-pc,default-ps,default-dm</code>. The pipelines it loads: each pipeline in the authenticator&#x27;s <code>document-liveness-pipelines</code> must be one of them, or the service answers <code>500</code> (<em>unsupported pipeline</em>). Each one loaded takes memory: 1.9 GB idle with <code>default-sr</code> alone, 6.6 GB with all four.</td></tr><tr><td><code>HASP_RTE_STARTUP_TIMEOUT</code></td><td><code>10</code>: seconds to wait for the licence manager the image starts.</td></tr><tr><td><code>SERVER_ALLOW_CORS</code></td><td><code>true</code>.</td></tr></tbody></table>
@@ -630,8 +641,7 @@ them before going live. The services reach Keycloak on the internal network.</li
 <code>/realms/*/identity-verification/capture/holding</code> reachable for the voter&#x27;s
 browser.</li>
 <li class="">Mount the Sequent theme (<code>sequent_ui.json</code>) in both services, see
-<a href="#theming" class="">Theming</a>, and our OCR page (<code>index.html</code>), which shows the
-preview unmirrored on desktop browsers, the one of the OCR image you run.</li>
+<a href="#theming" class="">Theming</a>. Keep the images&#x27; own pages.</li>
 <li class="">Pull the images from our ECR mirror (see
 <a href="#access-to-the-images" class="">Access to the images</a>).</li>
 <li class="">Pin image tags, never <code>latest</code>.</li>
