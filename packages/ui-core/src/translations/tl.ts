@@ -579,6 +579,10 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 file: {
+                    "shared-scanovate-config": {
+                        lead: "Pinagsasaluhang configuration ng Scanovate",
+                        text: "Pinagsasaluhang configuration ng Scanovate — ang configuration ng Scanovate authenticator ay ginagamit din ng ibang provider. Bigyan ang Scanovate ng sarili nitong configuration bago ito i-export o i-import.",
+                    },
                     "cannot-decrypt": {
                         lead: "Hindi ma-decrypt",
                         text: "Hindi ma-decrypt — naka-encrypt ang file at hindi ito nabuksan. Tingnan ang password.",
@@ -618,6 +622,10 @@ const tagalogTranslation: TranslationType = {
                     "version-incompatible": {
                         lead: "Na-export ng ibang bersyon",
                         text: "Na-export ng ibang bersyon — galing ang file sa bersyon {{found}}, na hindi maiimport ng bersyon {{current}}.",
+                    },
+                    "version-major-mismatch": {
+                        lead: "Ibang major version",
+                        text: "Ibang major version — galing ang file sa version {{found}}, ibang major version kaysa sa {{current}} ng platform na ito. Hindi hinaharangan ng pagkakaibang iyon ang import, at nalalapat pa rin ang iba pang check ng file; maaaring hindi ma-import ang mga setting na hindi suportado ng version na ito.",
                     },
                 },
                 identifier: {
@@ -932,6 +940,12 @@ const tagalogTranslation: TranslationType = {
                         text: "Kulang ang panahon ng botohan — kailangang manu-manong buksan o isara ang panahon sa Admin Portal.",
                     },
                 },
+                scanovate: {
+                    "credentials-included": {
+                        lead: "May mga kredensyal ang mga file",
+                        text: "May mga kredensyal ang mga file — ang workbook at mga hinangong plan/import file ay may mga kredensyal na ibinigay sa realm, kabilang ang tunay na secret ng Scanovate. Panatilihing pribado at naka-encrypt ang mga file na ito habang nakaimbak at inililipat; ibahagi lamang sa mga administrator na awtorisadong mag-configure ng serbisyong ito.",
+                    },
+                },
                 signing: {
                     "duplicate-action": {
                         lead: "Dalawang tuntunin sa isang aksyon",
@@ -944,6 +958,42 @@ const tagalogTranslation: TranslationType = {
                     "expiry-out-of-range": {
                         lead: "Pag-expire wala sa saklaw",
                         text: "Pag-expire wala sa saklaw — ang kahilingang '{{action}}' ay dapat mag-expire pagkalipas ng 1 hanggang 525,600 minuto (isang taon), o hindi kailanman.",
+                    },
+                    "export-unreadable": {
+                        lead: "Hindi mabasa ang signing settings",
+                        text: "Hindi mabasa ang signing settings — hindi mabasa ang signing rules o certificate checks ng export, kaya tatanggihan ito ng import.",
+                    },
+                    "unknown-column": {
+                        lead: "Hindi kilalang signing column",
+                        text: "Hindi kilalang signing column — may column ang isang signing sheet na hindi nito tinutukoy. Palitan ang pangalan o alisin ito, para walang setting na tahimik na bumalik sa default.",
+                    },
+                    "checks-not-one-row": {
+                        lead: "Hindi isang row ang certificate checks",
+                        text: "Hindi isang row ang certificate checks — dapat eksaktong isang row lang ang SigningChecks sheet.",
+                    },
+                    "matrix-unreadable": {
+                        lead: "Hindi mabasa ang approval matrix",
+                        text: "Hindi mabasa ang approval matrix — hindi valid na JSON ang ApprovalMatrix cell.",
+                    },
+                    "matrix-not-one-cell": {
+                        lead: "Hindi isang cell ang approval matrix",
+                        text: "Hindi isang cell ang approval matrix — dapat may isang row at isang matrix cell ang ApprovalMatrix sheet.",
+                    },
+                    "not-a-number": {
+                        lead: "Hindi buong numero",
+                        text: "Hindi buong numero — dapat buong numero ang signing setting na nagbibilang ng pirma, minuto o rebisyon.",
+                    },
+                    "row-unreadable": {
+                        lead: "Hindi mabasa ang signing row",
+                        text: "Hindi mabasa ang signing row — may value ang isang signing row na hindi tinatanggap ng platform, gaya ng hindi kilalang action.",
+                    },
+                    "trust-not-carried": {
+                        lead: "Hindi dinala ang certificate trust",
+                        text: "Hindi dinala ang certificate trust — may '{{member}}' ang binuksang archive, na hindi dinadala ng Architect. Maaaring pumalya ang mga pirmang umaasa rito hanggang maibalik ito sa awtorisadong certificate setup ng platform.",
+                    },
+                    "workbook-needs-current-architect": {
+                        lead: "Kailangan ng bagong Architect ang workbook",
+                        text: "Kailangan ng bagong Architect ang workbook — itinatago ng workbook ang signing policy na ito sa mga sheet na binabalewala ng mas lumang Architect. Buksan muli mula sa blueprint.json o sa delivery zip para mapanatili ito.",
                     },
                 },
                 threshold: {

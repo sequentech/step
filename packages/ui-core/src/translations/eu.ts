@@ -577,6 +577,10 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 file: {
+                    "shared-scanovate-config": {
+                        lead: "Scanovateren konfigurazio partekatua",
+                        text: "Scanovateren konfigurazio partekatua — Scanovate autentifikatzailearen konfigurazioa beste hornitzaile batekin partekatzen da. Eman Scanovateri bere konfigurazioa esportatu edo inportatu aurretik.",
+                    },
                     "cannot-decrypt": {
                         lead: "Ezin izan da deszifratu",
                         text: "Ezin izan da deszifratu — fitxategia zifratuta dago eta ez da ireki. Egiaztatu pasahitza.",
@@ -616,6 +620,10 @@ const basqueTranslation: TranslationType = {
                     "version-incompatible": {
                         lead: "Beste bertsio batekin esportatua",
                         text: "Beste bertsio batekin esportatua — fitxategia {{found}} bertsiotik dator, eta {{current}} bertsioak ezin du inportatu.",
+                    },
+                    "version-major-mismatch": {
+                        lead: "Beste bertsio nagusi bat",
+                        text: "Beste bertsio nagusi bat — fitxategia {{found}} bertsiotik dator, plataforma honen {{current}} bertsioaz bestelako bertsio nagusi batetik. Desberdintasun horrek ez du inportazioa blokeatzen, eta fitxategiaren gainerako egiaztapenek bere horretan jarraitzen dute; bertsio honek onartzen ez dituen ezarpenak agian ez dira inportatuko.",
                     },
                 },
                 identifier: {
@@ -927,6 +935,12 @@ const basqueTranslation: TranslationType = {
                         text: "Bozketa-leihoa osatu gabe — aldia eskuz ireki edo itxi beharko da Administrazio Atarian.",
                     },
                 },
+                scanovate: {
+                    "credentials-included": {
+                        lead: "Fitxategiek kredentzialak dituzte",
+                        text: "Fitxategiek kredentzialak dituzte — lan-liburuak eta eratorritako plan/inportazio fitxategiek realmean emandako kredentzialak dituzte, Scanovateren benetako sekretua barne. Mantendu fitxategi hauek pribatu eta zifratuta biltegiratzean eta transferitzean; partekatu zerbitzu hau konfiguratzeko baimena duten administratzaileekin soilik.",
+                    },
+                },
                 signing: {
                     "duplicate-action": {
                         lead: "Bi arau ekintza baterako",
@@ -939,6 +953,42 @@ const basqueTranslation: TranslationType = {
                     "expiry-out-of-range": {
                         lead: "Iraungitzea tartetik kanpo",
                         text: "Iraungitzea tartetik kanpo — '{{action}}' eskaera bat 1 eta 525.600 minutu (urtebete) artean iraungi behar da, edo inoiz ez.",
+                    },
+                    "export-unreadable": {
+                        lead: "Sinadura-ezarpen irakurtezinak",
+                        text: "Sinadura-ezarpen irakurtezinak — esportazioko sinadura-arauak edo ziurtagiri-egiaztapenak ezin dira irakurri, eta inportazioak baztertu egingo lituzke.",
+                    },
+                    "unknown-column": {
+                        lead: "Sinadura-zutabe ezezaguna",
+                        text: "Sinadura-zutabe ezezaguna — sinaduren orri batek definitzen ez duen zutabe bat du. Aldatu izena edo kendu, ezarpenik ohartarazi gabe lehenetsitako baliora itzul ez dadin.",
+                    },
+                    "checks-not-one-row": {
+                        lead: "Egiaztapenak ez dira errenkada bat",
+                        text: "Egiaztapenak ez dira errenkada bat — SigningChecks orriak errenkada bakarra izan behar du.",
+                    },
+                    "matrix-unreadable": {
+                        lead: "Onarpen-matrize irakurtezina",
+                        text: "Onarpen-matrize irakurtezina — ApprovalMatrix gelaxka ez da JSON baliozkoa.",
+                    },
+                    "matrix-not-one-cell": {
+                        lead: "Matrizea ez da gelaxka bat",
+                        text: "Matrizea ez da gelaxka bat — ApprovalMatrix orriak errenkada bat eta matrix gelaxka bat izan behar ditu.",
+                    },
+                    "not-a-number": {
+                        lead: "Ez da zenbaki osoa",
+                        text: "Ez da zenbaki osoa — sinadurak, minutuak edo berrikuspenak zenbatzen dituen sinadura-ezarpen batek zenbaki osoa izan behar du.",
+                    },
+                    "row-unreadable": {
+                        lead: "Sinadura-errenkada irakurtezina",
+                        text: "Sinadura-errenkada irakurtezina — sinaduren errenkada batek plataformak onartzen ez duen balio bat du, ekintza ezezagun bat adibidez.",
+                    },
+                    "trust-not-carried": {
+                        lead: "Ziurtagiri-konfiantza ez da gordetzen",
+                        text: "Ziurtagiri-konfiantza ez da gordetzen — irekitako artxiboak '{{member}}' zuen, eta Architect-ek ez du gordetzen. Horren mende dauden sinadurek huts egin dezakete plataformaren ziurtagiri-konfigurazio baimenduaren bidez berrezarri arte.",
+                    },
+                    "workbook-needs-current-architect": {
+                        lead: "Liburuak Architect berria behar du",
+                        text: "Liburuak Architect berria behar du — liburuak sinadura-politika hau Architect zaharrago batek baztertzen dituen orrietan gordetzen du. Ireki berriro blueprint.json edo entrega-zip-etik gordetzeko.",
                     },
                 },
                 threshold: {

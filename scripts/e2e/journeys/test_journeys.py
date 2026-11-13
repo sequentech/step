@@ -197,6 +197,20 @@ class BackendJourneys(unittest.TestCase):
         )["listElectoralLog"]
         return collections.Counter(item["statement_kind"] for item in data["items"])
 
+    def assert_imported_monitoring_defaults(self, event_id):
+        """Imports expose the same configured dashboards as normal creation."""
+        data = Hasura(token=self.admin_token(), role="monitoring-view").query(
+            """query ($event: uuid!) {
+              monitoringListDashboards(election_event_id: $event) {
+                mode preset { id } dashboards { id }
+              }
+            }""",
+            {"event": event_id},
+        )["monitoringListDashboards"]
+        self.assertEqual(data["mode"], "CONFIGURED")
+        self.assertEqual(data["preset"]["id"], "comelec")
+        self.assertIn("overview", [dashboard["id"] for dashboard in data["dashboards"]])
+
     def wait_for_log(self, event_id, expected, timeout=120):
         """Wait until the electoral log holds at least `expected` entries per kind."""
 
@@ -409,9 +423,12 @@ class BackendJourneys(unittest.TestCase):
             self.keycloak.admin("GET", event_realm(event_id))["realm"],
             event_realm(event_id),
         )
-        # The event's electoral log starts empty. An event without an electoral-log
-        # database reads as empty too, never as another event's records.
-        self.assertEqual(self.electoral_log(event_id), collections.Counter())
+        # Initial dashboards are recorded once using the new event's system key.
+        self.assert_imported_monitoring_defaults(event_id)
+        self.assertEqual(
+            self.electoral_log(event_id), collections.Counter({"MonitoringConfigChanged": 1})
+        )
+        # An unknown event never reads another event's records.
         self.assertEqual(self.electoral_log(str(uuid.uuid4())), collections.Counter())
         self.passed("journey 2")
 
@@ -1476,6 +1493,8 @@ class BackendJourneys(unittest.TestCase):
             {"event": imported["id"]},
         )
         self.assertNotEqual(imported["id"], self.state.event_id)
+        # Key-bearing archives must initialize only after their keys are restored.
+        self.assert_imported_monitoring_defaults(imported["id"])
         self.assertEqual(
             recovered["sequent_backend_protocol_board_aggregate"]["aggregate"]["count"],
             self.state.archive_board_count,

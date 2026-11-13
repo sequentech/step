@@ -123,9 +123,20 @@ pub fn plan_from_workbook(workbook: &Workbook) -> Result<ReadPlan, Report> {
     plan.contacts = read_contacts(workbook);
     plan.trustees = read_trustees(workbook);
     plan.notes = read_notes(workbook);
+    match super::signing_sheet::PlannedSigning::from_workbook(workbook) {
+        Ok(signing) => plan.signing = signing,
+        Err(problems) => {
+            for problem in problems {
+                report.push(problem);
+            }
+        }
+    }
     let (reports, platform) = lift_reports(carried(workbook));
     plan.reports = reports;
     plan.platform = platform;
+    if let Err(problem) = super::messaging_config::from_plan(&plan) {
+        report.push(problem);
+    }
 
     if report.has_errors() {
         return Err(report);
@@ -1164,7 +1175,14 @@ fn read_voters(
                     Value::String(text) => {
                         Some((header.clone(), text.to_string()))
                     }
-                    other => Some((header.clone(), cell_text(other, false))),
+                    other => Some((
+                        header.clone(),
+                        cell_text(
+                            other,
+                            super::sheet::multi_value_columns("voters")
+                                .contains(&header.as_str()),
+                        ),
+                    )),
                 })
                 .collect();
 

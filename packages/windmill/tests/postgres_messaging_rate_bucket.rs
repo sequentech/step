@@ -712,6 +712,43 @@ async fn a_due_retry_without_capacity_stays_due_and_the_pass_goes_on() {
     let failed = due_retry(&mut client, &delivery).await;
     let renderer = RetryOf { tenant, delivery };
 
+    // Exercise both sweep limits without relying on a slow send or another
+    // test's due row to make the next iteration run out of time.
+    struct MustNotRender;
+    #[async_trait::async_trait]
+    impl RetryRenderer for MustNotRender {
+        async fn render(&self, _record: &MessageRecord) -> anyhow::Result<RetryContent> {
+            panic!("an exhausted sweep must stop before rendering a retry");
+        }
+    }
+    let before = attempts_of(&mut client, &tenant, "application:busy-retry").await;
+    assert_eq!(before.len(), 1);
+    for exhausted in [
+        SweepLimits {
+            max_retries: 0,
+            ..SweepLimits::default()
+        },
+        SweepLimits {
+            retry_budget: Duration::ZERO,
+            ..SweepLimits::default()
+        },
+    ] {
+        let (summary, _) = tokio::time::timeout(
+            Duration::from_secs(10),
+            sweep_messages_with(&mut client, &dispatcher, &MustNotRender, &exhausted),
+        )
+        .await
+        .expect("an exhausted sweep returns without sending")
+        .unwrap();
+        assert_eq!(summary.retried, 0);
+        assert!(server.requests().is_empty());
+        let attempts = attempts_of(&mut client, &tenant, "application:busy-retry").await;
+        assert_eq!(attempts.len(), 1);
+        assert_eq!(attempts[0].state, MessageAttemptState::FAILED);
+        assert_eq!(attempts[0].error, before[0].error);
+        assert_eq!(attempts[0].next_retry_at, before[0].next_retry_at);
+    }
+
     let started = Instant::now();
     sweep_retry(&mut client, &dispatcher, &renderer).await;
     assert!(started.elapsed() < Duration::from_secs(5));

@@ -144,7 +144,11 @@ afterAll(() => {
     globalThis.fetch = originalFetch
 })
 
-function renderImport(allowHistoricalSource = false, fileIntegrityPolicy?: EFileIntegrityPolicy) {
+function renderImport(
+    allowHistoricalSource = false,
+    fileIntegrityPolicy?: EFileIntegrityPolicy,
+    problems: Array<Record<string, string>> | null = null
+) {
     const uploadCallback = jest.fn(async () => {})
     const doImport = jest.fn(async () => {})
     const doCancel = jest.fn()
@@ -154,6 +158,7 @@ function renderImport(allowHistoricalSource = false, fileIntegrityPolicy?: EFile
             doImport={doImport}
             doCancel={doCancel}
             errors={null}
+            problems={problems as never}
             fileIntegrityPolicy={fileIntegrityPolicy}
             allowHistoricalSource={allowHistoricalSource}
         />
@@ -729,4 +734,50 @@ it("imports a reviewed historical package with its generated hash under the requ
         expect(callbacks.doImport).toHaveBeenCalledWith(DOCUMENT_ID, "ab".repeat(32), "")
     )
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+})
+
+// meta#14760: a file from a different major version is a warning in the
+// import's existing diagnostics, never a reason to disable the import; an
+// error beside it still disables it.
+const MAJOR_MISMATCH = {
+    severity: "warning",
+    code: "incompatible_version",
+    path: "version",
+    message: "the file was exported by version v10.0.0, a different major version",
+    id: "file.version-major-mismatch",
+}
+
+it("lists a major-version warning and keeps the import available", async () => {
+    const callbacks = renderImport(false, undefined, [MAJOR_MISMATCH])
+    fireEvent.change(screen.getByLabelText("electionEventScreen.import.sha"), {
+        target: {value: CHECKSUM},
+    })
+    uploadFile()
+    await waitFor(() => expect(callbacks.uploadCallback).toHaveBeenCalledTimes(1))
+    expect(screen.getByRole("list", {name: "Problems"})).toHaveTextContent(
+        "file.version-major-mismatch"
+    )
+    const importButton = screen.getByRole("button", {name: "electionEventScreen.import.import"})
+    expect(importButton).toBeEnabled()
+    fireEvent.click(importButton)
+    await waitFor(() => expect(callbacks.doImport).toHaveBeenCalledWith(DOCUMENT_ID, CHECKSUM, ""))
+})
+
+it("still disables the import when an error stands beside the version warning", async () => {
+    const callbacks = renderImport(false, undefined, [
+        MAJOR_MISMATCH,
+        {
+            severity: "error",
+            code: "dangling_reference",
+            path: "contests[0].election_id",
+            message: "the contest names an election the file does not have",
+            id: "contest.dangling-election",
+        },
+    ])
+    uploadFile()
+    await waitFor(() => expect(callbacks.uploadCallback).toHaveBeenCalledTimes(1))
+    expect(screen.getByRole("list", {name: "Problems"})).toHaveTextContent(
+        "file.version-major-mismatch"
+    )
+    expect(screen.getByRole("button", {name: "electionEventScreen.import.import"})).toBeDisabled()
 })

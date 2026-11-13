@@ -182,6 +182,21 @@ pub struct ClientProfile {
     #[serde(default)]
     pub defaults: BTreeMap<String, Value>,
 
+    /// Values only a **new** plan starts with, written by [`seed_new_plan`]
+    /// and never by [`apply_profile`].
+    ///
+    /// `defaults` are written wherever a plan says nothing, and a plan opened
+    /// from an export or a workbook goes through [`apply_profile`] too. Some
+    /// settings must not work that way: an imported event that states no
+    /// signing rules meant the platform's defaults, and filling them from a
+    /// client preset would change what the import enforces without anybody
+    /// choosing it. A seed is the client's starting point for a plan started
+    /// from nothing, and nothing else. Same paths and checks as `defaults`; a
+    /// seeded path may not also be locked or hidden, since a lock would force
+    /// it onto every plan after all.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub seeds: BTreeMap<String, Value>,
+
     /// Shown, but not editable.
     #[serde(default)]
     pub locked: Vec<String>,
@@ -307,6 +322,7 @@ pub struct Profile {
     /// See [`ClientProfile::preview_slim`].
     pub preview_slim: bool,
     defaults: Vec<(PlanPath, Value)>,
+    seeds: Vec<(PlanPath, Value)>,
     locked: Vec<PlanPath>,
     hidden: Vec<PlanPath>,
     required: Vec<PlanPath>,
@@ -501,6 +517,45 @@ impl Profile {
             }
         }
 
+        let mut seeds = Vec::new();
+        for (text, value) in document.seeds.iter() {
+            match PlanPath::parse(text) {
+                Ok(path) => {
+                    if !reaches_anything(&path, &shape) {
+                        report.push(Problem::error(
+                            Code::DanglingReference,
+                            format!("seeds.{text}"),
+                            format!("'{path}' names nothing a plan has"),
+                        ));
+                    }
+                    if derives_its_own_value(text) {
+                        report.push(Problem::error(
+                            Code::InvalidValue,
+                            format!("seeds.{text}"),
+                            format!("'{path}' is derived per row, so it cannot be seeded"),
+                        ));
+                    }
+                    if locked.contains(&path) || hidden.contains(&path) {
+                        report.push(Problem::error(
+                            Code::InvalidValue,
+                            format!("seeds.{text}"),
+                            format!(
+                                "'{path}' is locked or hidden, which forces it on \
+                                 every plan; a seed only starts a new one. Use \
+                                 `defaults` for a value every plan must have."
+                            ),
+                        ));
+                    }
+                    seeds.push((path, value.clone()));
+                }
+                Err(why) => report.push(Problem::error(
+                    Code::InvalidValue,
+                    format!("seeds.{text}"),
+                    why,
+                )),
+            }
+        }
+
         if document.id.trim().is_empty() {
             report.push(Problem::error(
                 Code::MissingField,
@@ -594,7 +649,7 @@ impl Profile {
             return Err(report);
         }
 
-        Ok(Profile {
+        let profile = Profile {
             id: document.id.clone(),
             display_name: document.display_name.clone(),
             warnings: report,
@@ -602,10 +657,17 @@ impl Profile {
             only_our_presets: document.only_our_presets,
             preview_slim: document.preview_slim,
             defaults,
+            seeds,
             locked,
             hidden,
             required,
-        })
+        };
+        // A seed of the wrong shape would otherwise surface only when somebody
+        // starts a plan. Refused here, where the profile is loaded.
+        if !profile.seeds.is_empty() {
+            seed_new_plan(&Blueprint::default(), &profile)?;
+        }
+        Ok(profile)
     }
 
     /// The paths the wizard should not draw, for the front end to act on.
@@ -682,6 +744,70 @@ pub fn apply_profile(
             ),
         ))
     })
+}
+
+/// Start a new plan: the profile's seeds where the plan says nothing, then
+/// [`apply_profile`].
+///
+/// For a plan started from nothing only. A plan opened from an export, a
+/// workbook or a save file goes through [`apply_profile`] alone, so a seed can
+/// never fill in what an imported event left to the platform's defaults.
+pub fn seed_new_plan(
+    plan: &Blueprint,
+    profile: &Profile,
+) -> Result<Blueprint, Report> {
+    let mut document = serde_json::to_value(plan).map_err(|error| {
+        one(Problem::error(
+            Code::InvalidValue,
+            "plan",
+            format!(
+                "this plan cannot be read as JSON, which is a bug: {error}"
+            ),
+        ))
+    })?;
+    for (path, value) in &profile.seeds {
+        // A plan skips a field that says nothing, so the object a seed lands
+        // in may not be there yet: make the plain fields on the way.
+        let mut at = &mut document;
+        if let Some((_, parents)) = path.segments.split_last() {
+            for segment in parents {
+                let Segment::Field(name) = segment else { break };
+                let Some(object) = at.as_object_mut() else {
+                    break;
+                };
+                let next = object
+                    .entry(name.clone())
+                    .or_insert_with(|| Value::Object(Default::default()));
+                if next.is_null() {
+                    *next = Value::Object(Default::default());
+                }
+                at = next;
+            }
+        }
+        // Only absent or null is unstated here. An empty list is an answer:
+        // "no rules" is not "nothing said".
+        for target in path.resolve(&mut document) {
+            if target.is_null() {
+                *target = value.clone();
+            }
+        }
+    }
+    // Through the one reader of plans, like every other door.
+    let seeded = super::architect::read_plan_value(document)
+        .map_err(|problem| {
+            one(Problem::error(
+                Code::InvalidValue,
+                "profile.seeds",
+                format!(
+                    "seeding a plan from this profile produced something that \
+                     is not a plan, so one of its seeds is the wrong shape for \
+                     where it was put: {}",
+                    problem.message
+                ),
+            ))
+        })?
+        .plan;
+    apply_profile(&seeded, profile)
 }
 
 /// The profile's own required fields, as problems on the paths that own them.
@@ -780,6 +906,14 @@ fn shape_of_a_plan() -> Value {
     // trap every `Option` field on the plan falls into, and the reason this
     // function is hand-written rather than derived.
     plan.passwords = Some(Default::default());
+    // `signing` is skipped while it says nothing, and both of its fields are
+    // `Option`s: filled, so `seeds.signing` and its parts can be named.
+    plan.signing = super::signing_sheet::PlannedSigning {
+        rules: Some(Vec::new()),
+        checks: Some(Default::default()),
+        approval_matrix: Some(serde_json::json!({})),
+        trust_not_carried: Vec::new(),
+    };
     plan.trustees.push(Default::default());
     plan.areas.push(Default::default());
     plan.schedule.milestones.push(Default::default());

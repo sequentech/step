@@ -211,8 +211,8 @@ pub struct RowShape {
     extra: Vec<(usize, String)>,
 }
 
-/// Columns a [`PlannedVoter`] has a field of its own for, plus the ones the
-/// platform regenerates and a plan must never carry.
+/// Platform-owned census columns, not custom user-profile attributes.
+/// Account state is preserved in `PlannedVoter::extra` rather than regenerated.
 pub const OWNED: &[&str] = &[
     "username",
     "email",
@@ -240,7 +240,14 @@ impl RowShape {
                 .iter()
                 .enumerate()
                 .filter(|(_, name)| {
-                    !name.is_empty() && !OWNED.contains(&name.as_str())
+                    !name.is_empty()
+                        && (!OWNED.contains(&name.as_str())
+                            || [
+                                "enabled",
+                                "email_verified",
+                                "authorized-election-ids",
+                            ]
+                            .contains(&name.as_str()))
                 })
                 .map(|(at, name)| (at, name.clone()))
                 .collect(),
@@ -547,7 +554,17 @@ impl CensusSource for SheetCensus {
                     .columns()
                     .iter()
                     .map(|column| {
-                        row.get(column).map(cell_text).unwrap_or_default()
+                        row.get(column)
+                            .map(|value| {
+                                if super::sheet::multi_value_columns("voters")
+                                    .contains(&column.as_str())
+                                {
+                                    super::paths::cell_text(value, true)
+                                } else {
+                                    cell_text(value)
+                                }
+                            })
+                            .unwrap_or_default()
                     })
                     .collect();
                 self.shape.voter(&values, &self.by_area_name)
@@ -680,10 +697,16 @@ mod tests {
         .expect("reads");
 
         // `enabled` and `email_verified` are account state the census owns, so
-        // they survive; only `id` and the authorised elections are dropped.
+        // they and election restrictions survive; only `id` is dropped.
         assert_eq!(
             source.columns(),
-            ["username", "enabled", "email_verified", "branch"]
+            [
+                "username",
+                "enabled",
+                "email_verified",
+                "authorized-election-ids",
+                "branch"
+            ]
         );
         assert!(!source.notes().is_empty(), "and it says why");
 

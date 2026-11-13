@@ -580,6 +580,10 @@ const spanishTranslation: TranslationType = {
                     },
                 },
                 file: {
+                    "shared-scanovate-config": {
+                        lead: "Configuración compartida de Scanovate",
+                        text: "Configuración compartida de Scanovate — una configuración del autenticador Scanovate se comparte con otro proveedor. Asigna a Scanovate su propia configuración antes de exportarla o importarla.",
+                    },
                     "cannot-decrypt": {
                         lead: "No se pudo descifrar",
                         text: "No se pudo descifrar — el archivo está cifrado y no se ha abierto. Comprueba la contraseña.",
@@ -619,6 +623,10 @@ const spanishTranslation: TranslationType = {
                     "version-incompatible": {
                         lead: "Exportado con otra versión",
                         text: "Exportado con otra versión — el archivo viene de la versión {{found}}, que la versión {{current}} no puede importar.",
+                    },
+                    "version-major-mismatch": {
+                        lead: "Otra versión principal",
+                        text: "Otra versión principal — el archivo viene de la versión {{found}}, de una versión principal distinta de la {{current}} de esta plataforma. Esa diferencia no bloquea la importación y el resto de comprobaciones del archivo siguen aplicándose; los ajustes que esta versión no admite pueden no importarse.",
                     },
                 },
                 identifier: {
@@ -930,6 +938,12 @@ const spanishTranslation: TranslationType = {
                         text: "Ventana de votación incompleta — el periodo habrá que abrirlo o cerrarlo a mano en el Portal de Administración.",
                     },
                 },
+                scanovate: {
+                    "credentials-included": {
+                        lead: "Archivos con credenciales",
+                        text: "Archivos con credenciales — el libro y los archivos de plan/importación derivados incluyen credenciales proporcionadas en el realm, incluido el secreto real de Scanovate. Mantén estos archivos privados y cifrados al almacenarlos y transferirlos; compártelos solo con administradores autorizados para configurar este servicio.",
+                    },
+                },
                 signing: {
                     "duplicate-action": {
                         lead: "Dos reglas para una acción",
@@ -942,6 +956,42 @@ const spanishTranslation: TranslationType = {
                     "expiry-out-of-range": {
                         lead: "Caducidad fuera de rango",
                         text: "Caducidad fuera de rango — una solicitud de '{{action}}' debe caducar tras 1 a 525.600 minutos (un año), o nunca.",
+                    },
+                    "export-unreadable": {
+                        lead: "Ajustes de firma ilegibles",
+                        text: "Ajustes de firma ilegibles — las reglas de firma o las comprobaciones de certificados de la exportación no se pueden leer, así que la importación las rechazaría.",
+                    },
+                    "unknown-column": {
+                        lead: "Columna de firma desconocida",
+                        text: "Columna de firma desconocida — una hoja de firmas tiene una columna que no define. Renómbrala o quítala para que ningún ajuste vuelva sin aviso a su valor por defecto.",
+                    },
+                    "checks-not-one-row": {
+                        lead: "Las comprobaciones no son una fila",
+                        text: "Las comprobaciones no son una fila — la hoja SigningChecks debe tener exactamente una fila.",
+                    },
+                    "matrix-unreadable": {
+                        lead: "Matriz de aprobación ilegible",
+                        text: "Matriz de aprobación ilegible — la celda de ApprovalMatrix no es JSON válido.",
+                    },
+                    "matrix-not-one-cell": {
+                        lead: "La matriz no es una celda",
+                        text: "La matriz no es una celda — la hoja ApprovalMatrix debe tener una fila con una celda matrix.",
+                    },
+                    "not-a-number": {
+                        lead: "No es un número entero",
+                        text: "No es un número entero — un ajuste de firma que cuenta firmas, minutos o revisiones debe ser un número entero.",
+                    },
+                    "row-unreadable": {
+                        lead: "Fila de firma ilegible",
+                        text: "Fila de firma ilegible — una fila de firmas tiene un valor que la plataforma no acepta, como una acción desconocida.",
+                    },
+                    "trust-not-carried": {
+                        lead: "Confianza de certificados no conservada",
+                        text: "Confianza de certificados no conservada — el archivo abierto tenía '{{member}}', que el Architect no conserva. Las firmas que dependan de ello pueden fallar hasta que se restaure con la configuración de certificados autorizada de la plataforma.",
+                    },
+                    "workbook-needs-current-architect": {
+                        lead: "El libro necesita un Architect actual",
+                        text: "El libro necesita un Architect actual — el libro guarda esta política de firmas en hojas que un Architect anterior ignora. Reábrelo desde blueprint.json o el zip de entrega para conservarla.",
                     },
                 },
                 threshold: {
