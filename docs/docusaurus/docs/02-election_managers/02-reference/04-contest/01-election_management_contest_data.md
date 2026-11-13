@@ -119,6 +119,8 @@ When voter selects fewer options than the minimum required:
 - **Warn in Review**: Warning only in review phase.
 - **Warn and Alert**: Warning during ballot; confirmation required to proceed.
 
+Selecting the contest's explicit blank option is not an undervote. With any of these policies, a contest where the voter selects the blank option shows no undervote warning or alert.
+
 #### Over Vote Policy
 When voter selects more options than allowed:
 - **Allowed**: Submit without warning.
