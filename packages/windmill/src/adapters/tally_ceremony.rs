@@ -167,7 +167,7 @@ impl TallySessions for PgTallySessions<'_> {
         election_event_id: &str,
         tally_session_id: &str,
         execution_status: TallyExecutionStatus,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         set_tally_session_completed(
             self.transaction,
             tenant_id,

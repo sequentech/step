@@ -1277,7 +1277,9 @@ pub async fn set_tally_session_completed(
 }
 
 /// An error marking the session completed is swallowed: nothing is posted to
-/// the electoral log and `Ok` is returned.
+/// the electoral log and `Ok` is returned. The same holds for a session that
+/// is no longer `IN_PROGRESS`, such as one cancelled while the tally ran: it
+/// keeps its status.
 pub async fn set_tally_session_completed_with(
     sessions: &impl TallySessions,
     election_events: &impl ElectionEventReader,
@@ -1294,7 +1296,7 @@ pub async fn set_tally_session_completed_with(
             TallyExecutionStatus::SUCCESS,
         )
         .await
-        .is_ok();
+        .unwrap_or(false);
 
     if is_updated {
         let election_event = election_events.get(tenant_id, election_event_id).await?;

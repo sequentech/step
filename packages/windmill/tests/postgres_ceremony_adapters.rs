@@ -1708,11 +1708,11 @@ async fn set_tally_session_completed_records_completion_and_a_pending_post_task(
         &tx,
         "tally_session",
         &w.id(10),
-        "annotations = '{\"note\": 1}'",
+        "annotations = '{\"note\": 1}', execution_status = 'IN_PROGRESS'",
     )
     .await;
 
-    tally_session::set_tally_session_completed(
+    let completed = tally_session::set_tally_session_completed(
         &tx,
         &w.tenant,
         &w.event,
@@ -1722,6 +1722,7 @@ async fn set_tally_session_completed_records_completion_and_a_pending_post_task(
     .await
     .unwrap();
 
+    assert!(completed);
     let updated = stored_in(&tx, "tally_session", &w.event, &w.id(10)).await;
     assert_eq!(
         (
@@ -1752,8 +1753,15 @@ async fn set_tally_session_completed_without_annotations_queues_the_post_task() 
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
     tally_session_row(&tx, &w.tenant, &w.event, &w.id(10), H10).await;
+    set(
+        &tx,
+        "tally_session",
+        &w.id(10),
+        "execution_status = 'IN_PROGRESS'",
+    )
+    .await;
 
-    tally_session::set_tally_session_completed(
+    let completed = tally_session::set_tally_session_completed(
         &tx,
         &w.tenant,
         &w.event,
@@ -1763,6 +1771,7 @@ async fn set_tally_session_completed_without_annotations_queues_the_post_task() 
     .await
     .unwrap();
 
+    assert!(completed);
     let row = stored(&tx, "tally_session", &w.id(10)).await;
     assert_eq!(
         (&row["is_execution_completed"], &row["annotations"]),
@@ -1779,6 +1788,44 @@ async fn set_tally_session_completed_without_annotations_queues_the_post_task() 
             .map(|session| session.id)
             .collect::<Vec<_>>(),
         [w.id(10)]
+    );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn set_tally_session_completed_leaves_a_session_that_is_no_longer_running() {
+    // Cancelled while the tally task ran: the task's completion is ignored.
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    tally_session_row(&tx, &w.tenant, &w.event, &w.id(10), H10).await;
+    set(
+        &tx,
+        "tally_session",
+        &w.id(10),
+        "execution_status = 'CANCELLED'",
+    )
+    .await;
+
+    let completed = tally_session::set_tally_session_completed(
+        &tx,
+        &w.tenant,
+        &w.event,
+        &w.id(10),
+        TallyExecutionStatus::SUCCESS,
+    )
+    .await
+    .unwrap();
+
+    assert!(!completed);
+    let row = stored(&tx, "tally_session", &w.id(10)).await;
+    assert_eq!(
+        (
+            &row["execution_status"],
+            &row["is_execution_completed"],
+            &row["annotations"]
+        ),
+        (&json!("CANCELLED"), &json!(false), &json!(null))
     );
     tx.rollback().await.unwrap();
 }

@@ -495,10 +495,18 @@ impl TallySessions for InMemoryTallyCeremony {
         election_event_id: &str,
         tally_session_id: &str,
         execution_status: TallyExecutionStatus,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         let mut state = self.state();
         state.check(TallyCall::MarkCompleted)?;
+        let mut updated = false;
         state.update_session(tenant_id, election_event_id, tally_session_id, |session| {
+            // Like the `execution_status` predicate of the `UPDATE`.
+            if session.execution_status.as_deref()
+                != Some(TallyExecutionStatus::IN_PROGRESS.to_string().as_str())
+            {
+                return;
+            }
+            updated = true;
             session.execution_status = Some(execution_status.to_string());
             session.is_execution_completed = true;
             let annotations = session
@@ -520,7 +528,7 @@ impl TallySessions for InMemoryTallyCeremony {
                 }
             });
         });
-        Ok(())
+        Ok(updated)
     }
 
     async fn insert(

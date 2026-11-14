@@ -31,7 +31,9 @@ use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::postgres::tally_session::get_tally_session_by_id;
 use windmill::services::ceremonies::tally_ceremony::{self};
-use windmill::services::ceremonies::tally_resolution;
+use windmill::services::ceremonies::tally_resolution::{
+    self, ResolutionSubmission, ResolutionSubmissionNotPermitted,
+};
 use windmill::services::ceremonies::tally_validation::TallyValidationError;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 use windmill::services::signing::actions::initialize::gate_tally_creation;
@@ -58,6 +60,36 @@ fn tally_response_error((status, message): (Status, String)) -> JsonError {
         );
     };
     ErrorResponse::new(status, &message, code)
+}
+
+/// Kinds of tie-break submission the caller may make. Changing a decision on
+/// a completed tally recounts it, so it also needs the recount permission.
+fn permitted_resolution_submissions(
+    claims: &JwtClaims,
+) -> Vec<ResolutionSubmission> {
+    let mut permitted = vec![ResolutionSubmission::ResumePausedTally];
+    if authorize(
+        claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::TALLY_RECOUNT_EXECUTE],
+    )
+    .is_ok()
+    {
+        permitted.push(ResolutionSubmission::RecountCompletedTally);
+    }
+    permitted
+}
+
+fn tally_resolution_error(error: anyhow::Error) -> (Status, String) {
+    if error
+        .downcast_ref::<ResolutionSubmissionNotPermitted>()
+        .is_some()
+    {
+        (Status::Unauthorized, error.to_string())
+    } else {
+        tally_service_error(error)
+    }
 }
 
 fn tally_service_error(error: anyhow::Error) -> (Status, String) {
@@ -587,6 +619,16 @@ pub async fn submit_tally_resolution(
     body: Json<SubmitTallyResolutionInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
+) -> Result<Json<SubmitTallyResolutionOutput>, JsonError> {
+    submit_tally_resolution_response(body, claims, services)
+        .await
+        .map_err(tally_response_error)
+}
+
+async fn submit_tally_resolution_response(
+    body: Json<SubmitTallyResolutionInput>,
+    claims: JwtClaims,
+    services: &HarvestServices,
 ) -> Result<Json<SubmitTallyResolutionOutput>, (Status, String)> {
     authorize(
         &claims,
@@ -644,9 +686,10 @@ pub async fn submit_tally_resolution(
         &input.resolutions,
         &user_id,
         claims.preferred_username.clone(),
+        &permitted_resolution_submissions(&claims),
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    .map_err(tally_resolution_error)?;
 
     hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
@@ -683,6 +726,30 @@ mod tally_error_tests {
         ))
     }
 
+    #[get("/tally-resolution-error")]
+    fn rejected_resolution() -> JsonError {
+        tally_response_error(tally_resolution_error(
+            TallyValidationError::new("Tally session is not awaiting input")
+                .into(),
+        ))
+    }
+
+    #[rocket::async_test]
+    async fn resolution_response_has_the_json_contract_required_by_hasura() {
+        let client = Client::tracked(
+            rocket::build().mount("/", routes![rejected_resolution]),
+        )
+        .await
+        .expect("a local client");
+        let response = client.get("/tally-resolution-error").dispatch().await;
+        assert_eq!(response.status(), Status::BadRequest);
+        assert_eq!(response.content_type(), Some(ContentType::JSON));
+        let body: serde_json::Value =
+            response.into_json().await.expect("a JSON body");
+        assert_eq!(body["message"], "Tally session is not awaiting input");
+        assert_eq!(body["extensions"]["code"], "TallyValidation");
+    }
+
     #[rocket::async_test]
     async fn validation_response_has_the_json_contract_required_by_hasura() {
         let client =
@@ -698,6 +765,69 @@ mod tally_error_tests {
             "Election selected: end its voting period before tallying."
         );
         assert_eq!(body["extensions"]["code"], "TallyValidation");
+    }
+
+    fn claims_with_roles(roles: &[Permissions]) -> JwtClaims {
+        let roles: Vec<String> =
+            roles.iter().map(|role| role.to_string()).collect();
+        let roles: Vec<&str> = roles.iter().map(String::as_str).collect();
+        crate::services::authorization::test_claims::admin_claims(
+            "tenant", &roles,
+        )
+    }
+
+    #[test]
+    fn completed_tally_resolution_requires_recount_permission() {
+        let submit_only =
+            claims_with_roles(&[Permissions::TALLY_RESOLUTION_SUBMIT]);
+        assert_eq!(
+            permitted_resolution_submissions(&submit_only),
+            vec![ResolutionSubmission::ResumePausedTally]
+        );
+
+        let submit_and_recount = claims_with_roles(&[
+            Permissions::TALLY_RESOLUTION_SUBMIT,
+            Permissions::TALLY_RECOUNT_EXECUTE,
+        ]);
+        assert_eq!(
+            permitted_resolution_submissions(&submit_and_recount),
+            vec![
+                ResolutionSubmission::ResumePausedTally,
+                ResolutionSubmission::RecountCompletedTally,
+            ]
+        );
+    }
+
+    #[test]
+    fn resolution_submission_errors_map_to_client_statuses() {
+        let not_permitted = tally_resolution_error(
+            ResolutionSubmissionNotPermitted(
+                ResolutionSubmission::RecountCompletedTally,
+            )
+            .into(),
+        );
+        assert_eq!(not_permitted.0, Status::Unauthorized);
+
+        let invalid = tally_resolution_error(
+            TallyValidationError::new("Tally session is not awaiting input")
+                .into(),
+        );
+        assert_eq!(
+            invalid,
+            (
+                Status::BadRequest,
+                "Tally session is not awaiting input".to_string()
+            )
+        );
+
+        let failed = tally_resolution_error(anyhow!("database unavailable"));
+        assert_eq!(
+            failed,
+            (
+                Status::InternalServerError,
+                "Could not complete the tally operation.".to_string()
+            )
+        );
     }
 
     #[test]

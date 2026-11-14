@@ -969,6 +969,18 @@ async fn completing_a_session_marks_it_successful_and_completed() {
 }
 
 #[tokio::test]
+async fn a_session_that_is_no_longer_running_is_not_completed() {
+    // For example, the session was cancelled while the tally task ran.
+    for status in ALL_STATUSES.iter().filter(|status| **status != IN_PROGRESS) {
+        let ceremony = ceremony(status, &restored_pair());
+        complete(&ceremony)
+            .await
+            .expect("completion is not an error");
+        assert_nothing_written(&ceremony, status);
+    }
+}
+
+#[tokio::test]
 async fn completion_marks_post_processing_pending_and_preserves_other_annotations() {
     for (before, expected) in [
         (None, Some(json!({"is_post_task_completed": false}))),

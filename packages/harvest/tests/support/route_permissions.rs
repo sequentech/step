@@ -457,7 +457,7 @@ fn cases() -> Vec<Case> {
         case!(UuidTenant, "/signing-issuers", {"election_event_id": UUID_EVENT_ID, "pem": PEM}, [SIGNING_ISSUERS_WRITE], Reply::Json(Status::BadRequest), FORBIDDEN_JSON),
         case!(UuidTenant, "/staff-certificates", {"election_event_id": UUID_EVENT_ID, "user_id": USER_ID, "pem": PEM}, [SIGNING_CERTIFICATES_REGISTER], BACKEND, FORBIDDEN_JSON),
         case!(UuidTenant, "/staff-certificates/<id>/revoke", {"election_event_id": UUID_EVENT_ID, "reason": "token lost"}, [SIGNING_CERTIFICATES_REVOKE], BACKEND, FORBIDDEN_JSON),
-        case!(Admin, "/submit-tally-resolution", {"election_event_id": EVENT_ID, "tally_session_id": "test-session", "resolutions": [{"contest_id": "test-contest", "selected_candidate_id": "test-candidate"}]}, [TALLY_RESOLUTION_SUBMIT], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/submit-tally-resolution", {"election_event_id": EVENT_ID, "tally_session_id": "test-session", "resolutions": [{"contest_id": "test-contest", "selected_candidate_id": "test-candidate"}]}, [TALLY_RESOLUTION_SUBMIT], BACKEND, UNAUTHORIZED_JSON),
         // Harvest enqueues the operation; the child process has no task-queue database.
         case!(SuperAdmin, "/task-queues/dead-letters", {"operation": "replay", "message_ids": ["1"]}, [TASK_QUEUES_READ, TASK_QUEUES_WRITE], BACKEND, UNAUTHORIZED_JSON),
         // Inspection reads as the task-queue reader, which the child process leaves unconfigured.
