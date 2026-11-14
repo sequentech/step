@@ -35,6 +35,7 @@ RUN npm install --save-exact @playwright/test@${PLAYWRIGHT_VERSION} && npx playw
 COPY --from=worker-build /build/packages/step-cli/target/release/step-load-worker /usr/local/bin/step-load-worker
 COPY packages/voting-portal/playwright.scale.config.ts /runner/packages/voting-portal/
 COPY packages/voting-portal/test/load/flow.ts packages/voting-portal/test/load/scale.spec.ts /runner/packages/voting-portal/test/load/
+COPY packages/voting-load/credentials.js /runner/packages/voting-load/
 RUN chmod -R a+rX /runner/packages
 ENV HOME=/tmp STEP_LOAD_CONTAINER=1
 USER 1000:1000

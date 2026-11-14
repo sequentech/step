@@ -54,6 +54,21 @@ pub enum UploadMode {
     Direct,
 }
 
+/// Fixed census columns; match attributes are appended and must not reuse these names.
+pub const CENSUS_COLUMNS: [&str; 8] = [
+    "username",
+    "area_name",
+    "email",
+    "email_verified",
+    "authorized-election-ids",
+    "hashed_password",
+    "password_salt",
+    "num_of_iterations",
+];
+
+/// Each group position has its own password hash, computed once during census generation.
+const MAX_VOTERS_PER_VALUE: usize = 1000;
+
 /// JavaScript workers must represent every voter suffix exactly.
 const MAX_EXACT_VOTER_INDEX: u64 = (1_u64 << 53) - 1;
 
@@ -73,6 +88,8 @@ pub struct Target {
     pub storage_origins: Vec<String>,
     /// Rewrite upload hosts for the devcontainer's local storage network only.
     pub upload_mode: UploadMode,
+    /// Kiosk portal base URL; when set, the synthetic realm's kiosk client redirects there.
+    pub kiosk_url: Option<String>,
 }
 impl Default for Target {
     fn default() -> Self {
@@ -83,6 +100,7 @@ impl Default for Target {
             graphql_url: "http://graphql-engine:8080/v1/graphql".into(),
             storage_origins: vec!["http://minio-proxy:9002".into()],
             upload_mode: UploadMode::Local,
+            kiosk_url: None,
         }
     }
 }
@@ -125,6 +143,8 @@ pub struct Workload {
     pub action_timeout_ms: u64,
     /// Retain sanitized per-fetch diagnostics in private logs.
     pub trace_http: bool,
+    /// Keycloak voter matching installed in the synthetic realm and mirrored by the census.
+    pub login: Login,
 }
 impl Default for Workload {
     fn default() -> Self {
@@ -146,7 +166,57 @@ impl Default for Workload {
             journey_timeout_ms: 180000,
             action_timeout_ms: 15000,
             trace_http: false,
+            login: Login::default(),
         }
+    }
+}
+
+/// Candidate resolution when several voters share every submitted match attribute.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum MatchPolicy {
+    /// Verify candidates in store order and accept the first password match.
+    FirstMatch,
+    /// Verify every candidate and accept only a single password match.
+    RejectAmbiguous,
+}
+
+/// Multi-attribute voter login. Without match attributes, voters log in by exact username.
+///
+/// Voters are grouped consecutively by absolute suffix: `voters_per_value` voters share
+/// each synthetic attribute value, so one login costs up to that many password
+/// verifications. Group members get distinct passwords (the shared password followed
+/// by `-` and the voter's position in its group) because the authenticator could not
+/// otherwise tell them apart. `dateOfBirth` values are `YYYY-MM-DD` dates counted
+/// from 1900-01-01; any other attribute receives an opaque `g<group>` value and must
+/// be declared in the realm's user profile. Groups larger than `max_candidates` are
+/// rejected by Keycloak, which a run can use to verify that failure deliberately.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Login {
+    /// Keycloak user attributes rendered on the login form, for example `[dateOfBirth]`.
+    pub match_attributes: Vec<String>,
+    /// Voters sharing each attribute value; this is the collision depth.
+    pub voters_per_value: usize,
+    /// Authenticator candidate cap; larger groups cannot log in.
+    pub max_candidates: usize,
+    /// Authenticator resolution among colliding candidates.
+    pub match_policy: MatchPolicy,
+}
+impl Default for Login {
+    fn default() -> Self {
+        Self {
+            match_attributes: Vec::new(),
+            voters_per_value: 1,
+            max_candidates: 10,
+            match_policy: MatchPolicy::FirstMatch,
+        }
+    }
+}
+impl Login {
+    /// Username login is the baseline: one candidate and one password verification.
+    pub fn username(&self) -> bool {
+        self.match_attributes.is_empty()
     }
 }
 
@@ -219,6 +289,8 @@ pub struct Preparation {
     pub ceremony_timeout_seconds: u64,
     /// Optional application publication writer for deployments with separate S3 preparation.
     pub publication_preparer: Option<PathBuf>,
+    /// Annotations added to a new synthetic event, e.g. Datafix settings; VoterView must be a mock.
+    pub annotations: BTreeMap<String, String>,
 }
 impl Default for Preparation {
     fn default() -> Self {
@@ -230,6 +302,7 @@ impl Default for Preparation {
             poll_interval_seconds: 5,
             ceremony_timeout_seconds: 600,
             publication_preparer: None,
+            annotations: BTreeMap::new(),
         }
     }
 }
@@ -405,6 +478,32 @@ impl Settings {
             w.hash_iterations > 0 && w.journey_timeout_ms > 0 && w.action_timeout_ms > 0,
             "Hash rounds and timeouts must be positive"
         );
+        let login = &w.login;
+        ensure!(
+            login.voters_per_value > 0 && login.voters_per_value <= MAX_VOTERS_PER_VALUE,
+            "login.voters_per_value must be between 1 and {MAX_VOTERS_PER_VALUE}"
+        );
+        ensure!(
+            login.max_candidates > 0,
+            "login.max_candidates must be positive"
+        );
+        ensure!(
+            !login.username() || login.voters_per_value == 1,
+            "login.voters_per_value requires login.match_attributes"
+        );
+        let mut seen = std::collections::BTreeSet::new();
+        for attribute in &login.match_attributes {
+            ensure!(
+                !attribute.is_empty()
+                    && attribute
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
+                    && !CENSUS_COLUMNS.contains(&attribute.as_str())
+                    && attribute != "password"
+                    && seen.insert(attribute),
+                "login.match_attributes must be distinct user attribute names: {attribute}"
+            );
+        }
         ensure!(
             !w.password_env.is_empty() && !w.username_prefix.is_empty(),
             "password_env and username_prefix must not be empty"
@@ -424,6 +523,23 @@ impl Settings {
             ),
             "Unknown executor"
         );
+        for (key, value) in &self.preparation.annotations {
+            ensure!(
+                !key.is_empty(),
+                "preparation.annotations keys must not be empty"
+            );
+            if key == "datafix:voterview_request" {
+                let request: serde_json::Value = serde_json::from_str(value)
+                    .context("datafix:voterview_request must be a JSON object")?;
+                let url = url::Url::parse(request["url"].as_str().unwrap_or_default())
+                    .context("datafix:voterview_request needs a url")?;
+                ensure!(
+                    !url.host_str()
+                        .is_some_and(|host| host == "voterview.ca" || host.ends_with(".voterview.ca")),
+                    "Synthetic events must never notify the real VoterView; point datafix:voterview_request at a mock"
+                );
+            }
+        }
         ensure!(
             self.preparation.threshold > 0
                 && self.preparation.poll_interval_seconds > 0
@@ -437,6 +553,7 @@ impl Settings {
         ]
         .into_iter()
         .chain(self.target.storage_origins.iter())
+        .chain(self.target.kiosk_url.iter())
         {
             let url = url::Url::parse(endpoint).context("Invalid target URL")?;
             ensure!(
@@ -520,6 +637,52 @@ mod tests {
         assert!(s.validate().is_err());
         s.execution.workers = 1;
         s.workload.start = u64::MAX;
+        assert!(s.validate().is_err());
+    }
+    #[test]
+    fn invalid_login_matching_is_rejected() {
+        let mut s = valid();
+        s.workload.login.voters_per_value = 15;
+        assert!(s.validate().is_err(), "collisions need match attributes");
+        s.workload.login.match_attributes = vec!["dateOfBirth".into()];
+        s.validate().unwrap();
+        for attributes in [vec!["email"], vec!["password"], vec!["a b"], vec!["x", "x"]] {
+            s.workload.login.match_attributes = attributes.into_iter().map(Into::into).collect();
+            assert!(s.validate().is_err());
+        }
+        s.workload.login.match_attributes = vec!["dateOfBirth".into()];
+        s.workload.login.voters_per_value = 0;
+        assert!(s.validate().is_err());
+        s.workload.login.voters_per_value = 1;
+        s.workload.login.max_candidates = 0;
+        assert!(s.validate().is_err());
+        let yaml = "workload:\n  login:\n    match_attributes: [dateOfBirth]\n    match_policy: REJECT_AMBIGUOUS";
+        let parsed: Settings = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(
+            parsed.workload.login.match_policy,
+            MatchPolicy::RejectAmbiguous
+        );
+        assert!(
+            serde_yaml::from_str::<Settings>("workload:\n  login:\n    voters_per_valu: 2")
+                .is_err()
+        );
+    }
+    #[test]
+    fn real_voterview_is_never_attached_to_a_synthetic_event() {
+        let mut s = valid();
+        s.preparation.annotations.insert(
+            "datafix:voterview_request".into(),
+            r#"{"url":"https://www.voterview.ca/mvvservices/election.asmx","usr":"x","psw":"x","county_mun":"0000"}"#.into(),
+        );
+        assert!(s.validate().is_err());
+        s.preparation.annotations.insert(
+            "datafix:voterview_request".into(),
+            r#"{"url":"http://mock.example/voterview","usr":"mock","psw":"mock","county_mun":"MOCK"}"#.into(),
+        );
+        s.validate().unwrap();
+        s.preparation
+            .annotations
+            .insert("datafix:voterview_request".into(), "not json".into());
         assert!(s.validate().is_err());
     }
     #[test]

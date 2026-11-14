@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
+import { voterCredentials } from "./credentials.js";
 import { replayJourney } from "./replay.k6.js";
 
 const input = JSON.parse(open(__ENV.LOAD_CONFIG));
@@ -9,11 +10,7 @@ export const options = { vus: 1, iterations: 1 };
 export default function () {
   const ballot = {
     election_event_id: input.election_event_id,
-    credentials: {
-      ...input.login_fields,
-      username: input.username_prefix + input.start,
-      password: __ENV.LOAD_PASSWORD,
-    },
+    credentials: voterCredentials(input, input.start, __ENV.LOAD_PASSWORD),
     payload: { variables: { electionId: input.election_id } },
   };
   const result = replayJourney(

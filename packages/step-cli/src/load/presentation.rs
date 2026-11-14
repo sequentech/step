@@ -252,20 +252,121 @@ pub fn render(directory: &Path, db: &Connection, input: &Input, result: &Summary
         )
     };
     let browser = matches!(result.engine, super::Engine::Chromium);
+    let login = login_summary(&result.login);
     let mut html = include_str!("../../../voting-load/report.html").to_owned();
-    for (name,value) in [
-        ("verdict",verdict.to_owned()),("title",if status {"Voter status performance"} else {"Voting journey performance"}.into()),
-        ("subtitle",format!("{} · {} concurrent voters per worker",if browser {"Chromium · Browser journey"} else {"k6 · HTTP journey"},input.settings.workload.concurrency)),
-        ("badge_background",if result.errors.is_empty() {"#e5f4ee"} else {"#fce9e4"}.into()),
-        ("badge_color",if result.errors.is_empty() {"#14704b"} else {"#a6372c"}.into()),
-        ("cards",cards),("chart",svg),("latency_rows",latency_rows),("goals",goals),("errors",errors),
-        ("coverage",if browser {"Includes login, rendering, ballot encryption and cast acceptance."} else if status {"Includes login and voter-status responses."} else {"Includes login, voter status, publication downloads and cast acceptance. Encryption is prepared beforehand."}.into()),
-        ("verification",escape(&result.persistence_verification)),
-        ("regular_font",STANDARD.encode(include_bytes!("../../../admin-portal/public/roboto/Roboto_latin_400.woff2"))),
-        ("bold_font",STANDARD.encode(include_bytes!("../../../admin-portal/public/roboto/Roboto_latin_700.woff2"))),
-        ("font_license",escape(concat!("Roboto Copyright 2015 Google Inc.\n",include_str!("../../../../LICENSES/Apache-2.0.txt")))),
-    ] { html=html.replace(&format!("${name}"),&value); }
+    for (name, value) in [
+        ("verdict", verdict.to_owned()),
+        (
+            "title",
+            if status {
+                "Voter status performance"
+            } else {
+                "Voting journey performance"
+            }
+            .into(),
+        ),
+        (
+            "subtitle",
+            format!(
+                "{} · {} concurrent voters per worker",
+                if browser {
+                    "Chromium · Browser journey"
+                } else {
+                    "k6 · HTTP journey"
+                },
+                input.settings.workload.concurrency
+            ),
+        ),
+        (
+            "badge_background",
+            if result.errors.is_empty() {
+                "#e5f4ee"
+            } else {
+                "#fce9e4"
+            }
+            .into(),
+        ),
+        (
+            "badge_color",
+            if result.errors.is_empty() {
+                "#14704b"
+            } else {
+                "#a6372c"
+            }
+            .into(),
+        ),
+        ("cards", cards),
+        ("chart", svg),
+        ("latency_rows", latency_rows),
+        ("goals", goals),
+        ("errors", errors),
+        (
+            "coverage",
+            format!(
+                "{} {}",
+                if browser {
+                    "Includes login, rendering, ballot encryption and cast acceptance."
+                } else if status {
+                    "Includes login and voter-status responses."
+                } else {
+                    "Includes login, voter status, publication downloads and cast acceptance. Encryption is prepared beforehand."
+                },
+                escape(&login)
+            ),
+        ),
+        ("verification", escape(&result.persistence_verification)),
+        (
+            "regular_font",
+            STANDARD.encode(include_bytes!(
+                "../../../admin-portal/public/roboto/Roboto_latin_400.woff2"
+            )),
+        ),
+        (
+            "bold_font",
+            STANDARD.encode(include_bytes!(
+                "../../../admin-portal/public/roboto/Roboto_latin_700.woff2"
+            )),
+        ),
+        (
+            "font_license",
+            escape(concat!(
+                "Roboto Copyright 2015 Google Inc.\n",
+                include_str!("../../../../LICENSES/Apache-2.0.txt")
+            )),
+        ),
+    ] {
+        html = html.replace(&format!("${name}"), &value);
+    }
     std::fs::write(directory.join("report.html"), html)?;
-    std::fs::write(directory.join("performance.md"),format!("# Voting performance · {verdict}\n\n{}/{} successful journeys.\n\n![Performance](performance.svg)\n",result.passed,result.planned))?;
+    std::fs::write(directory.join("performance.md"),format!("# Voting performance · {verdict}\n\n{}/{} successful journeys.\n\n{login}\n\n![Performance](performance.svg)\n",result.passed,result.planned))?;
     Ok(())
+}
+
+/// State which Keycloak login path a run measured, so reports stay comparable.
+pub fn login_summary(login: &serde_json::Value) -> String {
+    let attributes: Vec<&str> = login["match_attributes"]
+        .as_array()
+        .map(|items| items.iter().filter_map(|item| item.as_str()).collect())
+        .unwrap_or_default();
+    if attributes.is_empty() {
+        return "Login matched voters by exact username: one password verification per login."
+            .into();
+    }
+    let depth = login["voters_per_value"].as_u64().unwrap_or(1);
+    let cap = login["max_candidates"].as_u64().unwrap_or(0);
+    let mut text = format!(
+        "Login matched voters by {} with {} voters per value across {} values ({}, maxCandidates {}): up to {} password verifications per login.",
+        attributes.join(" + "),
+        depth,
+        login["values"].as_u64().unwrap_or(0),
+        login["match_policy"].as_str().unwrap_or("FIRST_MATCH"),
+        cap,
+        login["largest_group"].as_u64().unwrap_or(depth).min(cap.max(1)),
+    );
+    if login["exceeds_max_candidates"].as_bool() == Some(true) {
+        text.push_str(
+            " Groups exceed maxCandidates, so Keycloak is expected to reject those voters.",
+        );
+    }
+    text
 }
