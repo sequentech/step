@@ -2,9 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Delivery of the signed CastVote of an accepted vote. The event is stored
-//! in `sequent_backend.electoral_log_outbox` in the transaction that inserts
-//! the vote, so an accepted vote always has it. It is then published to the
+//! Delivery of signed electoral log events that must commit with the change
+//! they record: the CastVote of an accepted vote, and the entry naming the
+//! ballots discarded when a Datafix voter is disabled. The event is stored in
+//! `sequent_backend.electoral_log_outbox` in the transaction that makes the
+//! change, so a committed change always has it. It is then published to the
 //! electoral log event queue under the outbox row's ID and the row is
 //! deleted; rows left behind, for example because RabbitMQ was unavailable
 //! or the process stopped, are published again by
@@ -178,8 +180,8 @@ pub async fn within<T>(limit: Duration, work: impl Future<Output = Result<T>>) -
         .map_err(|_| anyhow!("Timed out after {limit:?} delivering electoral log events"))?
 }
 
-/// Publishes an event stored by an accepted vote, after its commit. On error
-/// or timeout the event stays in the outbox for the relay.
+/// Publishes an event stored in the outbox, after the transaction that stored
+/// it commits. On error or timeout the event stays in the outbox for the relay.
 pub async fn deliver_log_event(event: &PendingLogEvent) {
     let delivered = within(OUTBOX_DELIVERY_TIMEOUT, async {
         let connection = get_celery_connection().await?;
