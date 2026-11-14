@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 // use crate::hasura::trustee::get_trustees_by_name;
+use crate::postgres::cast_vote::has_area_cast_votes;
 use crate::postgres::election::get_elections;
 use crate::postgres::trustee::get_trustees_by_name;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
@@ -30,6 +31,7 @@ use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
 use serde_json::json;
 use std::collections::HashMap;
@@ -55,6 +57,7 @@ pub async fn insert_ballots_messages(
     tally_session_contests: Vec<TallySessionContest>,
     contest_encryption_policy: ContestEncryptionPolicy,
     skip_board_posting: bool,
+    tally_type: TallyType,
 ) -> Result<Vec<TallySessionContest>> {
     let trustees = get_trustees_by_name(hasura_transaction, &tenant_id, &trustee_names).await?;
 
@@ -124,6 +127,7 @@ pub async fn insert_ballots_messages(
             let election_ids_alias_clone = election_ids_alias.clone();
             let contest_encryption_policy_clone = contest_encryption_policy.clone();
             let realm_clone = realm.clone();
+            let tally_type_clone = tally_type.clone();
             let board_messages_clone = Arc::clone(&board_messages); // board_messages also needs to be cloned if it's not Sync + Send
 
             let task = tokio::task::spawn_blocking(move || {
@@ -165,15 +169,38 @@ pub async fn insert_ballots_messages(
                         ballots_temp_file.path()
                     );
 
-                    find_area_ballots(
-                        &hasura_transaction_clone,
-                        &tenant_id_clone,
-                        &election_event_id_clone,
-                        &tally_session_contest.area_id,
-                        &tally_session_contest.election_id,
-                        &ballots_temp_file.path().to_path_buf(),
-                    )
-                    .await?;
+                    // An initialization report never reads ballots, so its
+                    // file stays empty: a vote committed after the checks on
+                    // the tally session could otherwise still reach the
+                    // extraction below.
+                    if tally_type_clone == TallyType::INITIALIZATION_REPORT {
+                        if has_area_cast_votes(
+                            &hasura_transaction_clone,
+                            &tenant_id_clone,
+                            &election_event_id_clone,
+                            &tally_session_contest.election_id,
+                            &tally_session_contest.area_id,
+                        )
+                        .await?
+                        {
+                            return Err(anyhow!(
+                                "Refusing to extract ballots for the initialization report of \
+                                 election {} area {}: the area already has cast votes",
+                                tally_session_contest.election_id,
+                                tally_session_contest.area_id,
+                            ));
+                        }
+                    } else {
+                        find_area_ballots(
+                            &hasura_transaction_clone,
+                            &tenant_id_clone,
+                            &election_event_id_clone,
+                            &tally_session_contest.area_id,
+                            &tally_session_contest.election_id,
+                            &ballots_temp_file.path().to_path_buf(),
+                        )
+                        .await?;
+                    }
 
                     let ballots_temp_file = ballots_temp_file.reopen()?;
 

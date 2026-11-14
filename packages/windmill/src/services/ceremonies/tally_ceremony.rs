@@ -5,13 +5,16 @@ use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_style::get_ballot_styles_by_elections;
 use crate::postgres::contest::export_contests;
-use crate::postgres::election::{export_elections, get_election_by_id};
+use crate::postgres::election::{
+    export_elections, get_election_by_id, lock_elections_for_admission,
+};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::tally_session::{
-    get_tally_session_by_id, insert_tally_session, lock_tally_session_for_update,
+    find_blocking_initialization_report_session, get_tally_session_by_id, insert_tally_session,
+    lock_tally_session_for_update,
     set_tally_session_completed as set_tally_session_completed_in_db, update_tally_session_status,
 };
 use crate::postgres::tally_session_contest::{
@@ -23,6 +26,9 @@ use crate::postgres::tally_session_execution::{
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_trustee_log, generate_tally_initial_log,
+};
+use crate::services::ceremonies::tally_validation::{
+    duplicate_initialization_report_error, validate_initialization_report,
 };
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_status;
@@ -278,6 +284,39 @@ fn get_area_contests_for_election_ids(
     area_contests_tree.get_contest_matches(&contest_ids)
 }
 
+/// Serializes tally admission per election. It locks the election rows until
+/// the transaction ends, which makes the voting-status reads that follow wait
+/// for any status writer in flight and holds off new writers until the
+/// admission commits. For an initialization report it then rejects the
+/// admission when another non-cancelled initialization-report session covers
+/// one of the elections, because the generated flag is only written when that
+/// session finishes. Call it before reading the election statuses, in the
+/// transaction that commits the admission or the move out of STARTED
+/// (`exclude_session_id` is the session being moved).
+#[instrument(err, skip(transaction))]
+pub async fn reserve_tally_admission(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_ids: &[String],
+    tally_type: TallyType,
+    exclude_session_id: Option<&str>,
+) -> Result<()> {
+    lock_elections_for_admission(transaction, tenant_id, election_event_id, election_ids).await?;
+    if tally_type == TallyType::INITIALIZATION_REPORT {
+        let conflict = find_blocking_initialization_report_session(
+            transaction,
+            tenant_id,
+            election_event_id,
+            election_ids,
+            exclude_session_id,
+        )
+        .await?;
+        duplicate_initialization_report_error(conflict)?;
+    }
+    Ok(())
+}
+
 #[instrument(err)]
 pub async fn create_tally_ceremony(
     transaction: &Transaction<'_>,
@@ -290,6 +329,15 @@ pub async fn create_tally_ceremony(
     permission_labels: &Vec<String>,
     username: String,
 ) -> Result<String> {
+    reserve_tally_admission(
+        transaction,
+        &tenant_id,
+        &election_event_id,
+        &election_ids,
+        TallyType::try_from(tally_type.as_str()).unwrap_or_default(),
+        None,
+    )
+    .await?;
     let (election_event, all_elections, all_contests, areas, all_area_contests) = try_join!(
         get_election_event_by_id(&transaction, &tenant_id, &election_event_id),
         export_elections(&transaction, &tenant_id, &election_event_id),
@@ -297,6 +345,11 @@ pub async fn create_tally_ceremony(
         get_event_areas(&transaction, &tenant_id, &election_event_id),
         export_area_contests(&transaction, &tenant_id, &election_event_id),
     )?;
+    if TallyType::try_from(tally_type.as_str()).unwrap_or_default()
+        == TallyType::INITIALIZATION_REPORT
+    {
+        validate_initialization_report(&all_elections, &election_ids)?;
+    }
     let contest_encryption_policy = election_event.get_contest_encryption_policy();
     let mut final_configuration = configuration.clone().unwrap_or_default();
     final_configuration.contest_encryption_policy = Some(contest_encryption_policy);

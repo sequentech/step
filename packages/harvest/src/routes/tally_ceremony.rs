@@ -7,9 +7,7 @@ use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::ballot::{
-    AllowTallyStatus, ElectionStatus, InitReport, VotingStatus,
-};
+use sequent_core::ballot::{AllowTallyStatus, ElectionStatus, VotingStatus};
 use sequent_core::serialization::deserialize_with_path;
 use sequent_core::services::jwt::decode_permission_labels;
 use sequent_core::types::ceremonies::TallyType;
@@ -24,10 +22,21 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::postgres::election::get_elections_by_ids;
 use windmill::postgres::tally_session::get_tally_session_by_id;
+use windmill::services::ceremonies::tally_validation::{
+    validate_initialization_report, TallyValidationError,
+};
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 use windmill::services::{
     ceremonies::tally_ceremony, database::get_hasura_pool,
 };
+
+/// A refused tally request is the client's error; anything else is ours.
+fn tally_service_error(error: anyhow::Error) -> (Status, String) {
+    match error.downcast_ref::<TallyValidationError>() {
+        Some(validation) => (Status::BadRequest, validation.to_string()),
+        None => (Status::InternalServerError, format!("{:?}", error)),
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateTallyCeremonyInput {
@@ -92,7 +101,7 @@ pub async fn create_tally_ceremony(
         username,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(tally_service_error)?;
 
     let _commit = hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
@@ -170,7 +179,24 @@ pub async fn update_tally_ceremony(
         })
         .unwrap_or_default();
 
-    let is_tally_allowed = get_elections_by_ids(
+    // Cancelling reads no election state. Anything else locks the elections
+    // first, so the status reads below wait for a status writer in flight and
+    // a later writer waits for this transaction, and refuses a second
+    // initialization report for the same elections.
+    if input.status != TallyExecutionStatus::CANCELLED {
+        tally_ceremony::reserve_tally_admission(
+            &hasura_transaction,
+            &tenant_id,
+            &input.election_event_id,
+            &tally_session.election_ids.clone().unwrap_or_default(),
+            tally_type.clone(),
+            Some(&tally_session.id),
+        )
+        .await
+        .map_err(tally_service_error)?;
+    }
+
+    let elections = get_elections_by_ids(
         &hasura_transaction,
         &tenant_id,
         &input.election_event_id,
@@ -185,9 +211,21 @@ pub async fn update_tally_ceremony(
                 input.election_event_id
             ),
         )
-    })?
-    .iter()
-    .all(|election| {
+    })?;
+
+    // Cancelling decrypts nothing, so a stale initialization report can
+    // always be cancelled.
+    if tally_type == TallyType::INITIALIZATION_REPORT
+        && input.status != TallyExecutionStatus::CANCELLED
+    {
+        validate_initialization_report(
+            &elections,
+            &tally_session.election_ids.clone().unwrap_or_default(),
+        )
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
+    }
+
+    let is_tally_allowed = elections.iter().all(|election| {
         if let Some(election_status) = &election.status {
             deserialize_with_path::deserialize_value::<ElectionStatus>(
                 election_status.clone(),
@@ -200,9 +238,7 @@ pub async fn update_tally_ceremony(
                             && election_status.voting_status
                                 == VotingStatus::CLOSED)
                 }
-                TallyType::INITIALIZATION_REPORT => {
-                    election_status.init_report == InitReport::ALLOWED
-                }
+                TallyType::INITIALIZATION_REPORT => true,
             })
             .unwrap_or(true)
         } else {

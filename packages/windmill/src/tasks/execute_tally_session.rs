@@ -515,6 +515,13 @@ pub async fn upsert_ballots_messages(
         .clone()
         .unwrap_or_default()
         .get_contest_encryption_policy();
+    // Parsed as in execute_tally_session_wrapped, so a session is treated
+    // as an initialization report in both places or in neither.
+    let tally_type = tally_session_hasura
+        .tally_type
+        .as_deref()
+        .map(|val| TallyType::try_from(val).unwrap_or_default())
+        .unwrap_or_default();
     let expected_batch_ids: HashSet<i64> = tally_session_contests
         .iter()
         .map(|tally_session_contest| tally_session_contest.session_id as i64)
@@ -582,6 +589,7 @@ pub async fn upsert_ballots_messages(
             missing_ballots_batches.clone(),
             contest_encryption_policy.clone(),
             false,
+            tally_type.clone(),
         )
         .await?
     } else {
@@ -601,6 +609,7 @@ pub async fn upsert_ballots_messages(
             missing_annotations_batches,
             contest_encryption_policy,
             true,
+            tally_type,
         )
         .await?;
         tally_session_contests_updated.extend(recovered);
