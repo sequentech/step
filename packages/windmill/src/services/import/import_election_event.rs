@@ -86,8 +86,11 @@ use zip::read::ZipArchive;
 
 const KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY: &str =
     "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY";
+/// Client attribute holding the previous secret while a secret rotates.
+const CLIENT_ROTATED_SECRET_ATTRIBUTE: &str = "client.secret.rotated";
 
 use super::import_users::{import_users_file, ImportUsersPrivileges};
+use super::realm_masked_secrets::{remove_masked_secrets, MaskedSecret};
 use crate::postgres;
 use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contests;
@@ -1006,6 +1009,13 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
                             secret
                         })
                 });
+                // Both belong to the client's previous credentials: the
+                // previous secret kept valid during rotation, and the token
+                // Keycloak issued for dynamic client registration.
+                client_copy.registration_access_token = None;
+                if let Some(attributes) = client_copy.attributes.as_mut() {
+                    attributes.remove(CLIENT_ROTATED_SECRET_ATTRIBUTE);
+                }
                 client_copy
             })
             .collect()
@@ -1040,13 +1050,15 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
     Ok(realm_copy)
 }
 
+/// Creates the event realm and returns the secrets it was created without,
+/// because the realm held Keycloak's secret mask instead of their value.
 #[instrument(err, skip(keycloak_event_realm))]
 pub async fn upsert_keycloak_realm(
     tenant_id: &str,
     election_event_id: &str,
     keycloak_event_realm: Option<RealmRepresentation>,
     default_locale: Option<String>,
-) -> Result<()> {
+) -> Result<Vec<MaskedSecret>> {
     let mut realm = if let Some(uploaded) = keycloak_event_realm.clone() {
         let template = read_default_election_event_realm().await?;
         sanitize_imported_event_realm(&uploaded, &template, ImportedRealmReconciliation::default())?
@@ -1070,6 +1082,10 @@ pub async fn upsert_keycloak_realm(
 
     require_enrollment_window_checks(&mut realm)?;
     realm = remove_keycloak_realm_secrets(&realm)?;
+    let masked_secrets = remove_masked_secrets(&mut realm);
+    for masked_secret in &masked_secrets {
+        warn!(%tenant_id, %election_event_id, "{masked_secret}");
+    }
     let client = KeycloakAdminClient::new().await?;
     let realm_name = get_event_realm(tenant_id, election_event_id);
     let registration_allowed = match realm.registration_allowed {
@@ -1124,7 +1140,7 @@ pub async fn upsert_keycloak_realm(
     upsert_realm_jwks(realm_name.as_str()).await?;
     crate::tasks::migrate_registration_flows::finish_registration_setup(&client, &realm_name)
         .await?;
-    Ok(())
+    Ok(masked_secrets)
 }
 
 /// Fails when an election event with this id already exists in any tenant, so
@@ -1766,7 +1782,7 @@ pub async fn process_election_event_file(
 
     ensure_new_election_event(hasura_transaction, &election_event_id).await?;
 
-    upsert_keycloak_realm(
+    let masked_secrets = upsert_keycloak_realm(
         tenant_id.as_str(),
         &election_event_id,
         keycloak_event_realm,
@@ -1774,6 +1790,7 @@ pub async fn process_election_event_file(
     )
     .await
     .with_context(|| format!("Error upserting Keycloak realm for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
+    notes.extend(masked_secrets.iter().map(ToString::to_string));
 
     // The import keeps an exported lockdown, which only the server may set.
     trusted_write(hasura_transaction).await?;
