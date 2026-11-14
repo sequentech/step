@@ -32,6 +32,7 @@ use sequent_core::types::hasura::core::{ElectionEvent, TasksExecution};
 use sequent_core::types::keycloak::{
     User, AREA_ID_ATTR_NAME, ATTR_RESET_VALUE, VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE,
 };
+use sequent_core::types::secret::SecretString;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{error, info, instrument};
@@ -51,7 +52,7 @@ pub struct EditUserTaskBody {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub username: Option<String>,
-    pub password: Option<String>,
+    pub password: Option<SecretString>,
     pub temporary: Option<bool>,
     #[serde(default)]
     pub password_change_initiator: Option<ElectoralLogAdminContext>,
@@ -238,7 +239,9 @@ async fn edit_keycloak_voter(
             body.first_name.clone(),
             body.last_name.clone(),
             body.username.clone(),
-            body.password.clone(),
+            body.password
+                .as_ref()
+                .map(|password| password.expose_secret().to_string()),
             body.temporary,
         )
         .await

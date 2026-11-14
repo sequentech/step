@@ -26,6 +26,7 @@ use sequent_core::types::keycloak::{
     TENANT_ID_ATTR_NAME,
 };
 use sequent_core::types::permissions::Permissions;
+use sequent_core::types::secret::SecretString;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
@@ -1654,7 +1655,7 @@ pub async fn edit_user(
                 first_name: input.first_name.clone(),
                 last_name: input.last_name.clone(),
                 username: input.username.clone(),
-                password: input.password.clone(),
+                password: input.password.clone().map(SecretString::from),
                 temporary: input.temporary,
                 password_change_initiator: input.password.as_ref().map(|_| {
                     ElectoralLogAdminContext {

@@ -10,6 +10,7 @@ use sequent_core::services::jwt;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
+use sequent_core::types::secret::SecretString;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
@@ -146,7 +147,7 @@ pub async fn export_election_event_route(
     } else {
         None
     };
-    export_config.password = password.clone();
+    export_config.password = password.clone().map(SecretString::from);
 
     let _celery_task = match celery_app
         .send_task(export_election_event::export_election_event::new(

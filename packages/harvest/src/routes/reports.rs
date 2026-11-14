@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use sequent_core::types::secret::SecretString;
 use windmill::services::ceremonies::result_readiness::{
     require_complete_result_document, ORIGIN, POLICY,
 };
@@ -447,7 +448,7 @@ pub async fn generate_report(
 pub struct EncryptReportBody {
     election_event_id: String,
     report_id: Option<String>,
-    password: String,
+    password: SecretString,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ExportTemplateOutput {
@@ -487,12 +488,10 @@ pub async fn encrypt_report_route(
         tenant_id,
         body.election_event_id.clone(),
         body.report_id.clone(),
-        body.password.clone(),
+        body.password.expose_secret().to_string(),
     )
     .await
     .map_err(|err| (Status::InternalServerError, err.to_string()))?;
-
-    info!("body {:?}", body);
 
     let document_id = Uuid::new_v4().to_string();
 

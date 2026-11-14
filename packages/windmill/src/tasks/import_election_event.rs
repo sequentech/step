@@ -14,6 +14,7 @@ use crate::{
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::secret::SecretString;
 use serde::{Deserialize, Serialize};
 use tracing::{event, info, instrument, Level};
 
@@ -21,7 +22,7 @@ use tracing::{event, info, instrument, Level};
 pub struct ImportElectionEventBody {
     pub tenant_id: String,
     pub document_id: String,
-    pub password: Option<String>,
+    pub password: Option<SecretString>,
     pub check_only: Option<bool>,
     pub sha256: Option<String>,
     #[serde(default)]
