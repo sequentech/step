@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize_voter_election;
+use crate::services::authorization::{
+    attested_voting_channel, authorize_voter_election,
+};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
 use rocket::http::Status;
@@ -75,6 +77,7 @@ pub async fn insert_cast_vote(
                 &claims.hasura_claims.user_id,
                 &area_id,
                 voting_channel,
+                attested_voting_channel(&claims),
                 auth_time,
                 &user_info.ip.map(|ip| ip.to_string()),
                 &user_info
