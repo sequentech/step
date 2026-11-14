@@ -202,6 +202,16 @@ export type VotingPortalDateTimeFormat =
     | EVotingPortalDateTimeFormat
     | IVotingPortalCustomDateTimeFormat
 
+/**
+ * Whether the pages a voter sees carry the platform's own branding: its logo
+ * and favicon where the election event sets none, the "powered by" footer and
+ * the version label. Mirrors the Rust `PlatformBrandingPolicy`.
+ */
+export enum EPlatformBrandingPolicy {
+    SHOW = "show",
+    HIDE = "hide",
+}
+
 export interface IElectionEventPresentation {
     i18n?: Record<string, Record<string, string>>
     materials?: IElectionEventMaterials
@@ -230,4 +240,14 @@ export interface IElectionEventPresentation {
     results_website?: string
     delegated_voting_policy: EElectionEventDelegatedVotingPolicy
     voting_portal_datetime_format?: VotingPortalDateTimeFormat
+    /** The browser tab's icon for the event's voter pages. */
+    favicon_url?: string | null
+    /** The browser tab's title for the event's voter pages. */
+    page_title?: string | null
+    /**
+     * An `EPlatformBrandingPolicy` code. Events saved before the policy
+     * existed have none, which reads as `SHOW`, as does a code this version
+     * doesn't know.
+     */
+    platform_branding_policy?: string | null
 }

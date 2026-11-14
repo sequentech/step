@@ -43,7 +43,12 @@ jest.mock("./providers/ApolloContextProvider", () => ({
 jest.mock("./components/WaterMark/Watermark", () => ({__esModule: true, default: () => null}))
 jest.mock("./hooks/useElectionClassName", () => ({useElectionClassName: () => []}))
 jest.mock("./services/ElectionEventConfig", () => ({
-    createElectionEventConfigLoader: () => jest.fn(),
+    createElectionEventConfigLoader: () => async () => ({
+        id: "config",
+        tenant_id: "tenant",
+        election_event_id: "event",
+        election_event_presentation: {},
+    }),
 }))
 jest.mock("./store/hooks", () => ({
     useAppSelector: (selector: any) => selector(mockState),

@@ -586,6 +586,17 @@ const catalanTranslation: TranslationType = {
                 materialTitle: "Títol",
                 materialSubTitle: "Subtítol",
                 logoUrl: "URL del Logotip",
+                faviconUrl: "URL de la icona de la pestanya del navegador",
+                pageTitle: "Títol de la pestanya del navegador",
+                platformBrandingPolicy: {
+                    policyLabel: "Marca de la plataforma",
+                    helperText:
+                        "S'aplica al portal de votació: el logotip i la icona de pestanya de la plataforma quan l'esdeveniment no en defineix, el peu «desenvolupat per» i l'etiqueta de versió.",
+                    options: {
+                        show: "Mostra",
+                        hide: "Amaga",
+                    },
+                },
                 userVerification:
                     "Podeu introduir una plantilla personalitzada que s'utilitzarà per verificar manualment els votants",
                 redirectFinishUrl: "URL de redirecció en finalitzar",

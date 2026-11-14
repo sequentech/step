@@ -586,6 +586,17 @@ const frenchTranslation: TranslationType = {
                 materialTitle: "Titre",
                 materialSubTitle: "Sous-titre",
                 logoUrl: "URL du Logo",
+                faviconUrl: "URL de l'icône de l'onglet du navigateur",
+                pageTitle: "Titre de l'onglet du navigateur",
+                platformBrandingPolicy: {
+                    policyLabel: "Marque de la plateforme",
+                    helperText:
+                        "S'applique au portail de vote : le logo et l'icône d'onglet de la plateforme lorsque l'événement n'en définit pas, le pied de page « propulsé par » et le libellé de version.",
+                    options: {
+                        show: "Afficher",
+                        hide: "Masquer",
+                    },
+                },
                 userVerification:
                     "Vous pouvez introduire un modèle personnalisé qui sera utilisé pour vérifier manuellement les électeurs",
                 redirectFinishUrl: "URL de redirection à la fin",
