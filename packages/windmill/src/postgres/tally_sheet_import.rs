@@ -30,6 +30,7 @@ pub struct TallySheetImportItemReviewSnapshot {
     pub baseline_approved_tally_sheet_id: Option<String>,
     pub baseline_approved_version: Option<i32>,
     pub baseline_content_hash: Option<String>,
+    pub incoming_content_hash: String,
     pub status: TallySheetImportItemStatus,
 }
 
@@ -88,6 +89,7 @@ impl TryFrom<Row> for TallySheetImportItemReviewSnapshot {
                 .map(|value| value.to_string()),
             baseline_approved_version: row.try_get("baseline_approved_version")?,
             baseline_content_hash: row.try_get("baseline_content_hash")?,
+            incoming_content_hash: row.try_get("incoming_content_hash")?,
             status: TallySheetImportItemStatus::from_str(&status)
                 .map_err(|err| anyhow!("Invalid import item status: {err}"))?,
         })
@@ -420,7 +422,8 @@ pub async fn get_tally_sheet_import_items_for_review(
             SELECT
                 id, election_id, area_id, contest_id, channel,
                 generated_tally_sheet_id, baseline_approved_tally_sheet_id,
-                baseline_approved_version, baseline_content_hash, status
+                baseline_approved_version, baseline_content_hash,
+                incoming_content_hash, status
             FROM sequent_backend.tally_sheet_import_item
             WHERE tenant_id = $1 AND election_event_id = $2 AND import_id = $3
             ORDER BY area_id, contest_id, channel;
