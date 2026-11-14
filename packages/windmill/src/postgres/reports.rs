@@ -16,6 +16,7 @@ use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+use crate::postgres::skip_unparseable_rows;
 use crate::services::reports::template_renderer::EReportEncryption;
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
@@ -94,7 +95,9 @@ impl TryFrom<Row> for ReportWrapper {
             report_type: item.get("report_type"),
             template_alias: item.get("template_alias"),
             cron_config: cron_config,
-            created_at: item.get("created_at"),
+            created_at: item
+                .try_get("created_at")
+                .map_err(|err| anyhow!("Error deserializing created_at: {err}"))?,
             encryption_policy: EReportEncryption::from_str(
                 item.get::<_, String>("encryption_policy").as_str(),
             )
@@ -119,7 +122,7 @@ pub async fn get_all_active_reports(hasura_transaction: &Transaction<'_>) -> Res
             FROM
                 "sequent_backend".report
             WHERE
-                (cron_config->>'is_active')::boolean = true
+                cron_config @> '{"is_active": true}'::jsonb
             "#,
         )
         .await
@@ -130,14 +133,37 @@ pub async fn get_all_active_reports(hasura_transaction: &Transaction<'_>) -> Res
         .await
         .map_err(|err| anyhow!("Error running get_all_active_reports query: {err}"))?;
 
-    let reports = rows
-        .into_iter()
-        .map(|row| -> Result<Report> {
-            row.try_into().map(|res: ReportWrapper| -> Report { res.0 })
-        })
-        .collect::<Result<Vec<Report>>>()
-        .with_context(|| "Error converting rows into Report")?;
+    let reports = skip_unparseable_rows(rows.into_iter().map(|row| {
+        let id = row
+            .try_get::<_, Uuid>("id")
+            .map(|id| id.to_string())
+            .unwrap_or_default();
+        let cron_config = row
+            .try_get::<_, Option<Value>>("cron_config")
+            .map_err(|err| anyhow!("Error deserializing cron_config: {err}"))
+            .and_then(parse_cron_config_strictly);
+        cron_config
+            .and_then(|cron_config| {
+                ReportWrapper::try_from(row).map(|res| Report {
+                    cron_config,
+                    ..res.0
+                })
+            })
+            .with_context(|| format!("Skipping report id={id}"))
+    }));
     Ok(reports)
+}
+
+/// Reads a report's cron_config, failing on a value that is not a valid
+/// ReportCronConfig. ReportWrapper turns such a value into the default config,
+/// so that a bad schedule does not stop the report itself from being read;
+/// get_all_active_reports reads it with this instead, so that the row is
+/// logged and skipped.
+fn parse_cron_config_strictly(cron_config: Option<Value>) -> Result<Option<ReportCronConfig>> {
+    cron_config
+        .map(deserialize_value::<ReportCronConfig>)
+        .transpose()
+        .map_err(|err| anyhow!("Error deserializing cron_config: {err}"))
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -503,4 +529,42 @@ pub async fn get_report_by_type(
         .map_err(|err| anyhow!("Error converting rows into Report: {err:?}"))?;
 
     Ok(reports.get(0).cloned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn parse_cron_config_strictly_reads_a_valid_config() {
+        let cron_config = json!({
+            "is_active": true,
+            "cron_expression": "0 * * * *",
+            "email_recipients": ["admin@example.com"]
+        });
+        assert_eq!(
+            parse_cron_config_strictly(Some(cron_config)).unwrap(),
+            Some(ReportCronConfig {
+                is_active: true,
+                cron_expression: "0 * * * *".to_string(),
+                email_recipients: vec!["admin@example.com".to_string()],
+                ..Default::default()
+            })
+        );
+    }
+
+    #[test]
+    fn parse_cron_config_strictly_fails_on_a_malformed_config() {
+        let cron_config = json!({ "is_active": true, "cron_expression": 42 });
+        let err = parse_cron_config_strictly(Some(cron_config)).unwrap_err();
+        let err = err.to_string();
+        assert!(err.starts_with("Error deserializing cron_config"), "{err}");
+        assert!(err.contains("cron_expression"), "{err}");
+    }
+
+    #[test]
+    fn parse_cron_config_strictly_without_a_config() {
+        assert_eq!(parse_cron_config_strictly(None).unwrap(), None);
+    }
 }
