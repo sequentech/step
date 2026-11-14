@@ -9,10 +9,15 @@ import {
 } from "@sequentech/ui-core"
 import {eventLogo, eventStylesClassName} from "./EventBranding"
 
-jest.mock("@sequentech/ui-essentials/public/Sequent_logo.svg", () => "platform-logo", {
-    virtual: true,
+// Every image resolves to the same stub here, so the two logos are told apart by name.
+jest.mock("@sequentech/ui-core", () => {
+    const core = jest.requireActual("@sequentech/ui-core")
+    return {
+        ...core,
+        eventLogo: (presentation: unknown) =>
+            core.eventLogo(presentation, {platform: "platform-logo", blank: "blank-logo"}),
+    }
 })
-jest.mock("@sequentech/ui-essentials/public/blank_logo.svg", () => "blank-logo", {virtual: true})
 jest.mock("../../providers/SettingsContextProvider", () => ({
     SettingsContext: require("react").createContext({globalSettings: {}}),
 }))

@@ -14,6 +14,7 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {AuthContext} from "../providers/AuthContextProvider"
+import {ReactReduxContext} from "react-redux"
 import {useAppSelector} from "../store/hooks"
 import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {selectKnownElectionEvent} from "../store/electionEvents/electionEventsSlice"
@@ -23,7 +24,7 @@ import {
     eventStylesClassName,
     useEventCss,
 } from "../components/EventBranding/EventBranding"
-import {usePageBranding} from "@sequentech/ui-core"
+import {IElectionEventPresentation, usePageBranding} from "@sequentech/ui-core"
 
 const StyledLink = styled(Link)`
     text-decoration: none;
@@ -39,16 +40,31 @@ const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     justify-content: center;
 `
 
+const StoreErrorPage: React.FC = () => {
+    const ballotStyle = useAppSelector(selectFirstBallotStyle)
+    const electionEvent = useAppSelector(selectKnownElectionEvent)
+    return (
+        <ErrorPageView
+            presentation={
+                ballotStyle?.ballot_eml.election_event_presentation ??
+                electionEvent?.presentation ??
+                undefined
+            }
+        />
+    )
+}
+
+// A route error can surface above the store provider, where no event is known.
 export function ErrorPage() {
+    return useContext(ReactReduxContext) ? <StoreErrorPage /> : <ErrorPageView />
+}
+
+const ErrorPageView: React.FC<{presentation?: IElectionEventPresentation}> = ({presentation}) => {
     const error = useRouteError()
     const {t} = useTranslation()
     const backLink = useRootBackLink()
     const {globalSettings} = useContext(SettingsContext)
     const authContext = useContext(AuthContext)
-    const ballotStyle = useAppSelector(selectFirstBallotStyle)
-    const electionEvent = useAppSelector(selectKnownElectionEvent)
-    const presentation =
-        ballotStyle?.ballot_eml.election_event_presentation ?? electionEvent?.presentation
     const customCss = useEventCss(presentation)
     usePageBranding(presentation)
 

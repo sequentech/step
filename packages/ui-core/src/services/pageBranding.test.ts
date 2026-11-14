@@ -93,5 +93,6 @@ describe("the browser tab", () => {
         expect(
             pageHeadLinks(presentationWith({favicon_url: "data:image/png;base64,AAAA"}))
         ).toHaveLength(5)
+        expect(hrefs(presentationWith({...hidden, favicon_url: "https://["}))).toEqual(["data:,"])
     })
 })

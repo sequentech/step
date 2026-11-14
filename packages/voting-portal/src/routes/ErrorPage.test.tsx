@@ -5,24 +5,26 @@
 import React from "react"
 import {render} from "@testing-library/react"
 import {createMemoryRouter, RouterProvider} from "react-router-dom"
+import {Provider} from "react-redux"
 import {store} from "../store/store"
 import {ErrorPage} from "./ErrorPage"
 
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({t: (key: string) => key, i18n: {language: "en"}}),
 }))
-jest.mock(
-    "@sequentech/ui-essentials",
-    () => ({
-        Header: ({logoUrl}: {logoUrl?: string}) => <header data-logo={logoUrl} />,
-        HeaderErrorVariant: {HIDE_PROFILE: "hide-profile"},
-    }),
-    {virtual: true}
-)
-jest.mock("@sequentech/ui-essentials/public/Sequent_logo.svg", () => "platform-logo", {
-    virtual: true,
+jest.mock("@sequentech/ui-essentials", () => ({
+    Header: ({logoUrl}: {logoUrl?: string}) => <header data-logo={logoUrl} />,
+    HeaderErrorVariant: {HIDE_PROFILE: "hide-profile"},
+}))
+// Every image resolves to the same stub here, so the two logos are told apart by name.
+jest.mock("@sequentech/ui-core", () => {
+    const core = jest.requireActual("@sequentech/ui-core")
+    return {
+        ...core,
+        eventLogo: (presentation: unknown) =>
+            core.eventLogo(presentation, {platform: "platform-logo", blank: "blank-logo"}),
+    }
 })
-jest.mock("@sequentech/ui-essentials/public/blank_logo.svg", () => "blank-logo", {virtual: true})
 jest.mock("../providers/AuthContextProvider", () => ({
     AuthContext: require("react").createContext({isAuthenticated: false}),
 }))
@@ -42,12 +44,13 @@ const Failing = (): React.ReactElement => {
     throw new Error("broken")
 }
 
-const renderErrorPage = () => {
+const renderErrorPage = (withStore = true) => {
     const router = createMemoryRouter(
         [{path: "/", element: <Failing />, errorElement: <ErrorPage />}],
         {initialEntries: ["/"]}
     )
-    const view = render(<RouterProvider router={router} />)
+    const routes = <RouterProvider router={router} />
+    const view = render(withStore ? <Provider store={store}>{routes}</Provider> : routes)
     return {
         view,
         dispose: () => {
@@ -112,6 +115,17 @@ test("prefers the presentation frozen in a loaded ballot", () => {
 test("shows no logo and no event styling while no event is known", () => {
     mockState = store.getState()
     const {view, dispose} = renderErrorPage()
+    try {
+        expect(view.container.querySelector("header")?.getAttribute("data-logo")).toBe("blank-logo")
+        expect(view.getByText("errors.page.oopsWithoutStatus")).toBeTruthy()
+    } finally {
+        dispose()
+    }
+})
+
+test("shows without a store, as when the error surfaces above it", () => {
+    mockState = undefined
+    const {view, dispose} = renderErrorPage(false)
     try {
         expect(view.container.querySelector("header")?.getAttribute("data-logo")).toBe("blank-logo")
         expect(view.getByText("errors.page.oopsWithoutStatus")).toBeTruthy()

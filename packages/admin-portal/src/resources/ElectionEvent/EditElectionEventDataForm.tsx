@@ -623,7 +623,6 @@ export const EditElectionEventDataForm: React.FC<{
             }
 
             temp.presentation.elections_order ??= ElectionsOrder.ALPHABETICAL
-            temp.presentation.platform_branding_policy ??= EPlatformBrandingPolicy.SHOW
 
             if (!temp.presentation.voting_portal_countdown_policy) {
                 temp.presentation.voting_portal_countdown_policy = {
@@ -986,13 +985,6 @@ export const EditElectionEventDataForm: React.FC<{
         return Object.values(EElectionEventContestEncryptionPolicy).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.contestEncryptionPolicy.options.${value}`),
-        }))
-    }
-
-    const platformBrandingPolicyChoices = () => {
-        return Object.values(EPlatformBrandingPolicy).map((value) => ({
-            id: value,
-            name: t(`electionEventScreen.field.platformBrandingPolicy.options.${value}`),
         }))
     }
 
@@ -1782,13 +1774,18 @@ export const EditElectionEventDataForm: React.FC<{
                         />
                         <SelectInput
                             source={"presentation.platform_branding_policy"}
-                            choices={platformBrandingPolicyChoices()}
+                            choices={policyOptions(
+                                Object.values(EPlatformBrandingPolicy),
+                                "electionEventScreen.field.platformBrandingPolicy.options",
+                                t
+                            )}
                             label={String(
                                 t("electionEventScreen.field.platformBrandingPolicy.policyLabel")
                             )}
                             helperText={String(
                                 t("electionEventScreen.field.platformBrandingPolicy.helperText")
                             )}
+                            defaultValue={EPlatformBrandingPolicy.SHOW}
                             emptyText={undefined}
                             validate={required()}
                         />
