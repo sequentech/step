@@ -1718,14 +1718,14 @@
         "http://127.0.0.1:3000/*"
       ],
       "webOrigins": [
-        "*"
+        "+"
       ],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
-      "directAccessGrantsEnabled": true,
+      "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "publicClient": true,
       "frontchannelLogout": true,
@@ -1748,7 +1748,8 @@
         "display.on.consent.screen": "false",
         "account_theme": "sequent.voting-portal",
         "token.response.type.bearer.lower-case": "false",
-        "dpop.bound.access.tokens": "false"
+        "dpop.bound.access.tokens": "false",
+        "pkce.code.challenge.method": "S256"
       },
       "authenticationFlowBindingOverrides": {
         "browser": "9ab56303-701f-4862-92a2-c32f630e0366"
