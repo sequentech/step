@@ -240,4 +240,26 @@ describe("event routes once the page can be shown", () => {
             dispose()
         }
     })
+
+    test("keep the page when a ballot is already loaded, as in a publication preview", () => {
+        mockSettings.globalSettings.DISABLE_AUTH = true
+        mockState = {
+            ...store.getState(),
+            elections: {first: {id: "first"}},
+            ballotStyles: {
+                first: {
+                    id: "first",
+                    election_id: "first",
+                    ballot_eml: {election_event_presentation: {css: eventCss}},
+                },
+            },
+        }
+        const {view, dispose} = renderApp()
+        try {
+            expect(view.queryByText("Route content")).not.toBeNull()
+            expect(view.container.querySelector(".neutral-loader")).toBeNull()
+        } finally {
+            dispose()
+        }
+    })
 })

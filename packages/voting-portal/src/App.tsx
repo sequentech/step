@@ -321,7 +321,9 @@ const App = () => {
     const awaitingLogin = !globalSettings.DISABLE_AUTH && !isAuthenticated
     // The platform's footer waits until the event is known to show it.
     const showFooter = !hidesPlatformBranding(presentation) && (!eventId || !!presentation)
-    const awaitingEventConfig = settledEventConfigUrl !== electionEventConfigUrl
+    // A ballot already in the store, as in a publication preview, carries the
+    // event's presentation, and replacing the page would discard that ballot.
+    const awaitingEventConfig = !ballotStyle && settledEventConfigUrl !== electionEventConfigUrl
 
     if (eventId && (awaitingLogin || awaitingEventConfig)) {
         return (
