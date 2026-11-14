@@ -12,7 +12,7 @@ use braid::protocol::board::grpc_m::GrpcB3;
 use braid::protocol::trustee2::Trustee;
 use braid::verify::verifier::Verifier;
 
-use b3::messages::newtypes::BatchNumber;
+use b3::messages::newtypes::{BatchNumber, ConfigurationHash};
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
@@ -35,11 +35,14 @@ struct Cli {
     #[arg(long, value_delimiter = ',')]
     batches: Option<Vec<BatchNumber>>,
 
-    /// Checks inclusion of the given ballot
-    ///
-    /// NOT YET IMPLEMENTED
-    #[arg(long)]
-    ballot_hash: Option<String>,
+    /// Hex encoded hash of the configuration the board must use
+    #[arg(long, value_parser = parse_cfg_hash)]
+    expected_cfg_hash: Option<ConfigurationHash>,
+}
+
+fn parse_cfg_hash(value: &str) -> Result<ConfigurationHash> {
+    let bytes = hex::decode(value)?;
+    Ok(ConfigurationHash(braid::util::hash_from_vec(&bytes)?))
 }
 
 /// Entry point for the braid verifier.
@@ -72,6 +75,9 @@ async fn main() -> Result<()> {
     let mut session = Verifier::new(trustee, board, &args.board);
     if let Some(batches) = args.batches {
         session = session.with_expected_batches(batches);
+    }
+    if let Some(cfg_h) = args.expected_cfg_hash {
+        session = session.with_expected_cfg_hash(cfg_h);
     }
     session.run().await?;
 

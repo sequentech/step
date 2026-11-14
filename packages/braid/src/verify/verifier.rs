@@ -4,11 +4,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use colored::*;
 use serde::Serialize;
 use strum::Display;
-use tracing::info;
+use tracing::{info, warn};
 
 use b3::messages::artifact::Configuration;
 use b3::messages::message::Message;
@@ -17,7 +17,6 @@ use b3::messages::newtypes::*;
 use b3::messages::statement::StatementType;
 
 use crate::protocol::board::grpc_m::GrpcB3;
-use crate::protocol::board::Board;
 use crate::protocol::predicate::Predicate;
 use crate::protocol::trustee2::Trustee;
 
@@ -126,6 +125,7 @@ pub struct Verifier<C: Ctx> {
     board: GrpcB3,
     board_name: String,
     expected_batches: Option<Vec<BatchNumber>>,
+    expected_cfg_h: Option<ConfigurationHash>,
 }
 impl<C: Ctx> Verifier<C> {
     pub fn new(trustee: Trustee<C>, board: GrpcB3, board_name: &str) -> Verifier<C> {
@@ -134,6 +134,7 @@ impl<C: Ctx> Verifier<C> {
             board,
             board_name: board_name.to_string(),
             expected_batches: None,
+            expected_cfg_h: None,
         }
     }
 
@@ -143,13 +144,19 @@ impl<C: Ctx> Verifier<C> {
         self
     }
 
+    /// Requires the board's configuration to have the given hash.
+    pub fn with_expected_cfg_hash(mut self, cfg_h: ConfigurationHash) -> Verifier<C> {
+        self.expected_cfg_h = Some(cfg_h);
+        self
+    }
+
     pub async fn run(&mut self) -> Result<()> {
         info!(
             "{}",
             format!("Verifying board '{}'", self.board_name).bold()
         );
 
-        let messages = self.board.get_messages(&self.board_name, -1).await?;
+        let messages = self.board.get_all_messages(&self.board_name, -1).await?;
         let messages: Vec<(Message, i64)> = messages
             .iter()
             .map(|m| (Message::strand_deserialize(&m.message).unwrap(), m.id))
@@ -160,6 +167,7 @@ impl<C: Ctx> Verifier<C> {
             &self.board_name,
             messages,
             self.expected_batches.as_deref(),
+            self.expected_cfg_h.as_ref(),
         )
     }
 }
@@ -169,6 +177,7 @@ fn verify_messages<C: Ctx>(
     board_name: &str,
     messages: Vec<(Message, i64)>,
     expected_batches: Option<&[BatchNumber]>,
+    expected_cfg_h: Option<&ConfigurationHash>,
 ) -> Result<()> {
     let mut vr = VerificationResult::new(board_name);
     vr.add_target(Check::CONFIGURATION_VALID);
@@ -194,6 +203,21 @@ fn verify_messages<C: Ctx>(
         .unwrap();
     let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
     let cfg = Configuration::<C>::strand_deserialize(&cfg_bytes)?;
+    let cfg_hex = hex::encode(cfg_h);
+    match expected_cfg_h {
+        Some(expected) if expected.0 != cfg_h => {
+            return Err(anyhow!(
+                "Board configuration hash {} does not match the expected hash {}",
+                cfg_hex,
+                hex::encode(expected.0)
+            ));
+        }
+        Some(_) => info!("Configuration matches the expected hash [{}]", cfg_hex),
+        None => warn!(
+            "No expected configuration hash given, compare the board configuration hash [{}] with its published value",
+            cfg_hex
+        ),
+    }
     info!("Verifying configuration [{}]", dbg_hash(&cfg_h));
 
     vr.add_result(
@@ -228,7 +252,10 @@ fn verify_messages<C: Ctx>(
     let mut predicates = vec![];
     let mut ballot_batches = BTreeSet::new();
     // Skip the configuration message
-    for message in &vmessages[1..] {
+    for message in vmessages
+        .iter()
+        .filter(|m| m.statement.get_kind() != StatementType::Configuration)
+    {
         let predicate =
             Predicate::from_statement::<C>(&message.statement, message.signer_position, &cfg)?;
         if let Predicate::Ballots(_, batch, _, _, _) = predicate {
@@ -764,7 +791,7 @@ mod tests {
             None,
             None,
         );
-        verify_messages(&mut trustee, "board", messages, expected_batches)
+        verify_messages(&mut trustee, "board", messages, expected_batches, None)
     }
 
     fn assert_incomplete(result: anyhow::Result<()>) {
