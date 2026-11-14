@@ -979,5 +979,261 @@ fn a_configured_revocation_list_revokes_a_v2_approver() {
     verify_package_at(&bytes, &trust_v2(&settings), now()).unwrap();
 }
 
+/// The custodian's genuine approvals and signature over a manifest changed
+/// by `change` after it was approved.
+fn changed(
+    v2: &V2,
+    settings: &ConfigurationSigning,
+    change: impl Fn(&mut Manifest),
+) -> Vec<u8> {
+    let mut manifest = v2_manifest(
+        settings,
+        TENANT,
+        &[
+            (&v2.approver_1, "approver-1"),
+            (&v2.approver_2, "approver-2"),
+        ],
+        "custodian",
+    );
+    change(&mut manifest);
+    signed_by(&manifest, &v2.custodian)
+}
+
+#[test]
+fn a_v2_manifest_must_say_whom_it_is_signed_for_and_as_what() {
+    let v2 = v2_world();
+    let settings = policy(&v2);
+    let trust = trust_v2(&settings);
+    let unbound = changed(&v2, &settings, |m| m.signing = None);
+    assert_eq!(refused_v2(&unbound, &trust), vec!["package.mixed-format"]);
+    let as_approver = changed(&v2, &settings, |m| {
+        m.signing.as_mut().unwrap().role = "approver".to_string()
+    });
+    assert!(refused_v2(&as_approver, &trust)
+        .contains(&"package.final-signer-role".to_string()));
+}
+
+#[test]
+fn the_final_signature_must_be_by_the_signer_the_package_names() {
+    let v2 = v2_world();
+    let settings = policy(&v2);
+    // The custodian signs a package that names an approver as its signer.
+    let misnamed = changed(&v2, &settings, |m| {
+        m.signing.as_mut().unwrap().final_signer_id = "approver-1".to_string()
+    });
+    assert!(refused_v2(&misnamed, &trust_v2(&settings))
+        .contains(&"package.final-signer-id-mismatch".to_string()));
+}
+
+#[test]
+fn a_v2_content_digest_that_is_not_its_contents_is_refused() {
+    let v2 = v2_world();
+    let settings = policy(&v2);
+    let wrong = changed(&v2, &settings, |m| m.content_sha256 = "0".repeat(64));
+    assert!(refused_v2(&wrong, &trust_v2(&settings))
+        .contains(&"package.content-digest".to_string()));
+}
+
+#[test]
+fn a_v2_package_carrying_an_unreadable_revocation_list_is_refused() {
+    let v2 = v2_world();
+    let settings = policy(&v2);
+    let trust = trust_v2(&settings);
+    for list in [
+        "-----BEGIN X509 CRL-----\n%%%%\n-----END X509 CRL-----\n",
+        "-----BEGIN X509 CRL-----\nAAAA\n-----END X509 CRL-----\n",
+    ] {
+        let bytes = changed(&v2, &settings, |m| {
+            m.revocation_lists = vec![list.to_string()]
+        });
+        assert_eq!(
+            refused_v2(&bytes, &trust),
+            vec!["package.unreadable-revocation-list"],
+            "{list}"
+        );
+    }
+}
+
+#[test]
+fn a_v2_approval_without_a_signer_from_the_future_or_unreadable_does_not_count()
+{
+    let v2 = v2_world();
+    let settings = policy(&v2);
+    let trust = trust_v2(&settings);
+    let changes: [(&str, fn(&mut Approval)); 3] = [
+        ("it names no signer ID", |a| a.signer_id = None),
+        ("which is after now", |a| {
+            a.signed_at = "2027-01-01T00:00:00Z".to_string()
+        }),
+        ("not base64", |a| a.signature = "%%%".to_string()),
+    ];
+    for (reason, change) in changes {
+        let bytes = changed(&v2, &settings, |m| change(&mut m.approvals[0]));
+        let report = verify_package_at(&bytes, &trust, now()).unwrap_err();
+        let invalid = report
+            .errors()
+            .find(|p| p.id.as_deref() == Some("package.approval-invalid"))
+            .unwrap_or_else(|| panic!("{reason}: {:?}", ids(&report)));
+        assert!(invalid.message.contains(reason), "{}", invalid.message);
+    }
+}
+
+#[test]
+fn a_v2_package_whose_signing_chain_is_unreadable_is_refused() {
+    let v2 = v2_world();
+    let settings = policy(&v2);
+    let manifest = v2_manifest(
+        &settings,
+        TENANT,
+        &[
+            (&v2.approver_1, "approver-1"),
+            (&v2.approver_2, "approver-2"),
+        ],
+        "custodian",
+    );
+    let bytes = manifest.to_bytes().unwrap();
+    let package = package(
+        "p.zip",
+        &members(),
+        &bytes,
+        &(v2.custodian.sign)(&bytes),
+        "-----BEGIN CERTIFICATE-----\n%%%%\n-----END CERTIFICATE-----\n",
+    )
+    .unwrap()
+    .bytes;
+    assert_eq!(
+        refused_v2(&package, &trust_v2(&settings)),
+        vec!["package.unreadable-chain"]
+    );
+}
+
+#[test]
+fn checking_a_v2_setting_reports_its_digest_and_its_policy_problems() {
+    let v2 = v2_world();
+    let settings = policy(&v2);
+    let check = settings.check(now());
+    assert!(!check.report.has_errors(), "{:?}", ids(&check.report));
+    assert_eq!(check.policy_sha256, Some(settings.policy_sha256().unwrap()));
+    // A key enrolled for two people.
+    let mut shared = settings.clone();
+    let custodian_pin = shared.signers[2].keys[0].clone();
+    shared.signers[0].keys.push(custodian_pin);
+    assert!(ids(&shared.check(now()).report)
+        .contains(&"configuration-signing.shared-key".to_string()));
+}
+
+#[test]
+fn the_canonical_setting_orders_signers_roles_and_keys() {
+    let v2 = v2_world();
+    let mut settings = policy(&v2);
+    settings.signers.reverse();
+    settings.signers[0].roles = vec![
+        SignerRole::FinalSigner,
+        SignerRole::Approver,
+        SignerRole::FinalSigner,
+    ];
+    settings.signers[0].keys.push(EnrolledKey {
+        spki_sha256: "0".repeat(64),
+        label: String::new(),
+    });
+    let canonical = settings.canonical().unwrap();
+    let ids: Vec<_> = canonical.signers.iter().map(|s| s.id.as_str()).collect();
+    assert_eq!(ids, vec!["approver-1", "approver-2", "custodian"]);
+    let custodian = &canonical.signers[2];
+    assert_eq!(
+        custodian.roles,
+        vec![SignerRole::Approver, SignerRole::FinalSigner]
+    );
+    assert_eq!(custodian.keys[0].spki_sha256, "0".repeat(64));
+}
+
+#[test]
+fn an_importer_admits_a_v2_package_for_its_own_tenant_only() {
+    let v2 = v2_world();
+    let settings = policy(&v2);
+    let bytes = genuine(&v2, &settings);
+    assert!(matches!(
+        admit_for_tenant_at(&bytes, Some(&settings), TENANT, Vec::new(), now()),
+        Ok(Admission::Verified(_))
+    ));
+    let elsewhere = admit_for_tenant_at(
+        &bytes,
+        Some(&settings),
+        "00000000-0000-0000-0000-000000000000",
+        Vec::new(),
+        now(),
+    )
+    .unwrap_err();
+    assert!(ids(&elsewhere).contains(&"package.wrong-tenant".to_string()));
+}
+
+#[test]
+fn format_1_does_not_accept_rsa_pss_approvals() {
+    let v2 = v2_world();
+    let pss = rsa(
+        "DEMO PSS Approver",
+        &v2.world.staff_root,
+        31,
+        APPROVER_RSA,
+        true,
+    );
+    let approval = Approval {
+        name: "DEMO PSS".to_string(),
+        role: "approver".to_string(),
+        signed_at: "2026-11-13T10:00:00Z".to_string(),
+        algorithm: pss.algorithm,
+        certificate_chain: pss.chain_pem.clone(),
+        signature: STANDARD.encode((pss.sign)(b"payload")),
+        signer_id: None,
+    };
+    let staff = certificates_from_pem(&v2.world.staff_root.pem()).unwrap();
+    assert_eq!(
+        verify_approval(&approval, "payload", &staff, &[]).unwrap_err(),
+        "format 1 doesn't accept RSA-PSS approvals"
+    );
+}
+
+#[test]
+fn certificate_text_that_is_not_certificates_is_refused() {
+    // A block opened inside another one.
+    assert_eq!(
+        canonical_certificates_pem(
+            "-----BEGIN CERTIFICATE-----\nAAAA\n-----BEGIN CERTIFICATE-----\n"
+        )
+        .unwrap_err(),
+        "a CERTIFICATE block is not closed"
+    );
+    // A well-formed block whose contents are no certificate.
+    let mut settings = policy(&v2_world());
+    settings.package_roots =
+        "-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----\n"
+            .to_string();
+    assert!(ids(&settings.check(now()).report)
+        .contains(&"package.unreadable-trust".to_string()));
+    // Roots that are not only certificates have no policy digest and no
+    // canonical form.
+    let nested =
+        "-----BEGIN CERTIFICATE-----\nAAAA\n-----BEGIN CERTIFICATE-----\n";
+    settings.package_roots = nested.to_string();
+    assert_eq!(
+        settings.policy_sha256().unwrap_err().id.as_deref(),
+        Some("package.unreadable-trust")
+    );
+    let mut staff = policy(&v2_world());
+    staff.staff_roots = nested.to_string();
+    assert_eq!(
+        staff.canonical().unwrap_err().id.as_deref(),
+        Some("package.unreadable-trust")
+    );
+    assert!(spki_sha256_of_certificate(
+        "-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----\n"
+    )
+    .unwrap_err()
+    .starts_with("the certificate is unreadable"));
+    assert!(rsa_modulus_allowed(&[1, 2, 3])
+        .unwrap_err()
+        .starts_with("the public key is unreadable"));
+}
+
 #[path = "standalone_signing_flow_tests.rs"]
 mod standalone;

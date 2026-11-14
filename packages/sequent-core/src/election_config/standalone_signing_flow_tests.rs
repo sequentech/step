@@ -332,3 +332,23 @@ fn one_approval_is_checked_as_the_importer_will_count_it() {
         "{found:?}"
     );
 }
+
+#[test]
+fn an_installed_policy_names_its_tenant() {
+    let mut nobody = installed(&v2_world());
+    nobody.tenant_id = " ".to_string();
+    let report =
+        InstalledSigning::read(&serde_json::to_string(&nobody).unwrap())
+            .unwrap_err();
+    assert!(ids(&report).contains(&"signing-policy.no-tenant".to_string()));
+}
+
+#[test]
+fn a_request_in_another_format_is_refused() {
+    let installed = installed(&v2_world());
+    let mut request =
+        approval_request(&installed, configuration(), &revision()).unwrap();
+    request.format = "sequent.approval-request/1".to_string();
+    let report = check_request(&installed, &request, &delivery()).unwrap_err();
+    assert_eq!(ids(&report), vec!["request.format"]);
+}

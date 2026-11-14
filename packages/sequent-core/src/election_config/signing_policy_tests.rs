@@ -267,3 +267,30 @@ fn the_policy_digest_ignores_root_order_wrapping_and_repeats() {
     fewer.package_roots = a.clone();
     assert_ne!(policy_sha256(&one).unwrap(), policy_sha256(&fewer).unwrap());
 }
+
+#[test]
+fn a_signer_needs_a_name_and_enrolls_each_key_once() {
+    let mut policy = v2_policy();
+    policy.signers[0].name = "  ".to_string();
+    policy.signers[1].keys.push(EnrolledKey {
+        spki_sha256: pin(2),
+        label: "again".to_string(),
+    });
+    let found = check_signers(&policy.signers);
+    assert_eq!(
+        ids(&found),
+        vec![
+            "configuration-signing.signer-name",
+            "configuration-signing.duplicate-key"
+        ]
+    );
+    assert!(found[1].message.contains("'approver-2' enrolls key"));
+}
+
+#[test]
+fn an_enrollment_without_signers_is_empty() {
+    assert!(Enrollment::from_signers(&[]).unwrap().is_empty());
+    assert!(!Enrollment::from_signers(&v2_policy().signers)
+        .unwrap()
+        .is_empty());
+}
