@@ -73,6 +73,7 @@ const tagalogTranslation: TranslationType = {
                 bytesToUtf8Conversion:
                     "Error sa pag-convert ng write-in mula sa bytes patungo sa UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Ang balota ay mas malaki kaysa sa inaasahan",
+                duplicatedSelection: "Ang parehong pagpipilian ay napili nang higit sa isang beses",
             },
             implicit: {
                 selectedMax:

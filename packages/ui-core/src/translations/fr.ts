@@ -73,6 +73,7 @@ const frenchTranslation: TranslationType = {
                 bytesToUtf8Conversion:
                     "Erreur de conversion des octets de l'option de vote écrite en chaîne UTF-8 : {{errorMessage}}",
                 ballotTooLarge: "Vote plus grand que prévu",
+                duplicatedSelection: "La même option a été sélectionnée plus d'une fois",
             },
             implicit: {
                 selectedMax:
