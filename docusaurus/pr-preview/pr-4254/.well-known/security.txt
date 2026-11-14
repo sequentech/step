@@ -1,0 +1,20 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+# Sequent Tech - coordinated vulnerability disclosure (RFC 9116)
+
+Canonical: https://docs.sequentech.io/docusaurus/main/.well-known/security.txt
+Contact: mailto:security@sequentech.io
+Encryption: https://keys.openpgp.org/vks/v1/by-fingerprint/DB6B035E872AB5DA90C7194A60D3CBE30BAC91ED
+Policy: https://docs.sequentech.io/docusaurus/main/docs/technology/vulnerability-disclosure-policy
+Acknowledgments: https://docs.sequentech.io/docusaurus/main/docs/technology/vulnerability-disclosure-policy#recognition
+Preferred-Languages: en
+Expires: 2028-07-01T00:00:00.000Z
+-----BEGIN PGP SIGNATURE-----
+
+iJEEARYKADkWIQTbawNehyq12pDHGUpg08vjC6yR7QUCanBJbBsUgAAAAAAEAA5t
+YW51MiwyLjUrMS4xMiwwLDMACgkQYNPL4wuske1G6wD+NziZBacawZPZkYPb3FW8
+RJn48xotxfMRfZsuhaH3zbUBAMxdPqZE5a9ZLpN0gHUvRpUOzKVLeo3lT6y+P1aS
+6zwB
+=H7TJ
+-----END PGP SIGNATURE-----

@@ -1,0 +1,26 @@
+{
+  "canonical_url": "https://docs.sequentech.io/docusaurus/main/.well-known/csaf/provider-metadata.json",
+  "distributions": [
+    {
+      "directory_url": "https://docs.sequentech.io/docusaurus/main/.well-known/csaf/"
+    }
+  ],
+  "last_updated": "2026-09-02T00:00:00.000Z",
+  "list_on_CSAF_aggregators": false,
+  "metadata_version": "2.0",
+  "mirror_on_CSAF_aggregators": false,
+  "public_openpgp_keys": [
+    {
+      "fingerprint": "DB6B035E872AB5DA90C7194A60D3CBE30BAC91ED",
+      "url": "https://docs.sequentech.io/docusaurus/main/security/pgp-key.txt"
+    }
+  ],
+  "publisher": {
+    "category": "vendor",
+    "name": "Sequent Tech Inc",
+    "namespace": "https://sequentech.io",
+    "contact_details": "security@sequentech.io",
+    "issuing_authority": "Sequent Tech Inc issues security advisories for the Sequent Voting Platform. Advisories are clear-signed with the OpenPGP key listed in public_openpgp_keys."
+  },
+  "role": "csaf_publisher"
+}
