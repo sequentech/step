@@ -3,6 +3,7 @@
 import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, within, waitFor} from "storybook/test"
+import {i18n} from "@sequentech/ui-core"
 import {AdminStoryProvider, TENANT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import {resourceBoundary} from "@/__stories__/resourceBoundary"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
@@ -100,12 +101,22 @@ type Story = StoryObj<Scenario>
 
 /** A format-2 policy as installed: enrolled signers, format 2 and separation. */
 export const InstalledFormat2Policy: Story = {
+    parameters: {widgets: ["PickFile"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByTestId("configuration-signing-signers")).toBeVisible()
         await expect(
             canvas.getByTestId("configuration-signing-signer-custodian")
         ).toHaveTextContent("final-signer")
+        // The policy picker is a plain button that opens its labelled file input.
+        const name = i18n.t("configurationSigning.loadPolicy")
+        const input = canvas.getByTestId("configuration-signing-policy-file")
+        await expect(input).toHaveAttribute("aria-label", name)
+        const opened = new Promise((resolve) =>
+            input.addEventListener("click", resolve, {once: true})
+        )
+        await userEvent.click(canvas.getByRole("button", {name}))
+        await expect(opened).resolves.toBeDefined()
     },
 }
 

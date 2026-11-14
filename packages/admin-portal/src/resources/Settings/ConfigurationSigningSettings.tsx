@@ -28,6 +28,8 @@ import {
     TableRow,
     TextField,
     Typography,
+    type SxProps,
+    type Theme,
 } from "@mui/material"
 import {GET_TENANT_SETTINGS, SET_CONFIGURATION_SIGNING} from "@/queries/SetConfigurationSigning"
 import {
@@ -54,6 +56,46 @@ interface SetConfigurationSigningResult {
 type RootField = "packageRoots" | "staffRoots"
 
 /** A file's text: `Blob.text()` where the browser has it, else a FileReader. */
+/**
+ * A button that opens the file chooser of its hidden file input. A plain
+ * button rather than `<Button component="label">`: a label given
+ * `role="button"` is an ARIA role a label may not take (axe aria-allowed-role).
+ */
+const PickFile: React.FC<{
+    label: string
+    accept: string
+    testId: string
+    disabled: boolean
+    size?: "small" | "medium"
+    variant?: "text" | "outlined"
+    sx?: SxProps<Theme>
+    onChange: (event: React.ChangeEvent<HTMLInputElement>) => void
+}> = ({label, accept, testId, disabled, size, variant, sx, onChange}) => {
+    const input = useRef<HTMLInputElement>(null)
+    return (
+        <>
+            <Button
+                size={size}
+                variant={variant}
+                sx={sx}
+                disabled={disabled}
+                onClick={() => input.current?.click()}
+            >
+                {label}
+            </Button>
+            <input
+                ref={input}
+                hidden
+                type="file"
+                accept={accept}
+                aria-label={label}
+                data-testid={testId}
+                onChange={onChange}
+            />
+        </>
+    )
+}
+
 const readText = (file: Blob): Promise<string> =>
     typeof file.text === "function"
         ? file.text()
@@ -208,6 +250,8 @@ export const ConfigurationSigningSettings: React.FC<{tenantId: string}> = ({tena
                 <Chip
                     data-testid="configuration-signing-state"
                     color={stateColor}
+                    // White on the warning colour fails axe color-contrast.
+                    sx={stateColor === "warning" ? {color: "common.black"} : undefined}
                     label={t(`configurationSigning.states.${installed.state}`, {
                         approvals: installed.form?.requiredApprovals ?? 0,
                     })}
@@ -282,16 +326,15 @@ export const ConfigurationSigningSettings: React.FC<{tenantId: string}> = ({tena
                         )}`}
                         onChange={(event) => setForm({...form, [field]: event.target.value})}
                     />
-                    <Button component="label" size="small" sx={{mt: 0.5}} disabled={!ready}>
-                        {t("configurationSigning.loadFile")}
-                        <input
-                            hidden
-                            type="file"
-                            accept=".pem,.crt,.cer,text/plain"
-                            data-testid={`configuration-signing-${field}-file`}
-                            onChange={loadFile(field)}
-                        />
-                    </Button>
+                    <PickFile
+                        label={t("configurationSigning.loadFile")}
+                        accept=".pem,.crt,.cer,text/plain"
+                        testId={`configuration-signing-${field}-file`}
+                        disabled={!ready}
+                        size="small"
+                        sx={{mt: 0.5}}
+                        onChange={loadFile(field)}
+                    />
                 </Box>
             ))}
 
@@ -341,16 +384,14 @@ export const ConfigurationSigningSettings: React.FC<{tenantId: string}> = ({tena
                         ))}
                     </Select>
                 </FormControl>
-                <Button component="label" variant="outlined" disabled={!ready}>
-                    {t("configurationSigning.loadPolicy")}
-                    <input
-                        hidden
-                        type="file"
-                        accept=".json,application/json"
-                        data-testid="configuration-signing-policy-file"
-                        onChange={(event) => void loadPolicy(event)}
-                    />
-                </Button>
+                <PickFile
+                    label={t("configurationSigning.loadPolicy")}
+                    accept=".json,application/json"
+                    testId="configuration-signing-policy-file"
+                    disabled={!ready}
+                    variant="outlined"
+                    onChange={(event) => void loadPolicy(event)}
+                />
             </Box>
             {form.signers.length > 0 ? (
                 <Table size="small" sx={{mb: 2}} data-testid="configuration-signing-signers">
