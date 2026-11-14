@@ -9,6 +9,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ResultsWebsiteAccess, ResultsWebsiteVisibilityScope};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
+use sequent_core::types::ceremonies::{TallyExecutionStatus, TallyType};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -112,6 +113,15 @@ pub struct PublicationSourceFacts {
     /// The execution belongs to the session and the results event, and the
     /// session covers every source election.
     pub valid_execution: bool,
+    /// The session's execution status; `None` without a valid execution.
+    pub execution_status: Option<TallyExecutionStatus>,
+    /// The session finished its tally.
+    pub is_execution_completed: bool,
+    /// The session's tally type; a session without one tallies electoral
+    /// results, as its tally run reads it.
+    pub tally_type: TallyType,
+    /// The execution is the session's newest: by creation time, then id.
+    pub is_latest_execution: bool,
     /// Distinct source elections in the election event.
     pub election_count: i64,
     /// Distinct source contests in the source elections.
@@ -153,25 +163,45 @@ pub async fn get_publication_source_facts(
     let statement = tx
         .prepare(
             r#"
+                WITH publication_source AS (
+                    SELECT
+                        TRUE AS valid_execution,
+                        session.execution_status,
+                        session.is_execution_completed,
+                        session.tally_type,
+                        execution.id = (
+                            SELECT latest.id
+                            FROM sequent_backend.tally_session_execution latest
+                            WHERE latest.tenant_id = execution.tenant_id
+                              AND latest.election_event_id = execution.election_event_id
+                              AND latest.tally_session_id = execution.tally_session_id
+                            ORDER BY latest.created_at DESC, latest.id DESC
+                            LIMIT 1
+                        ) AS is_latest_execution
+                    FROM sequent_backend.tally_session_execution execution
+                    JOIN sequent_backend.tally_session session
+                      ON session.id = execution.tally_session_id
+                     AND session.tenant_id = execution.tenant_id
+                     AND session.election_event_id = execution.election_event_id
+                    JOIN sequent_backend.results_event results_event
+                      ON results_event.id = execution.results_event_id
+                     AND results_event.tenant_id = execution.tenant_id
+                     AND results_event.election_event_id = execution.election_event_id
+                    WHERE execution.id = $4
+                      AND execution.tenant_id = $1
+                      AND execution.election_event_id = $2
+                      AND execution.tally_session_id = $3
+                      AND execution.results_event_id = $5
+                      AND $6::uuid[] <@ session.election_ids
+                )
                 SELECT
-                    EXISTS (
-                        SELECT 1
-                        FROM sequent_backend.tally_session_execution execution
-                        JOIN sequent_backend.tally_session session
-                          ON session.id = execution.tally_session_id
-                         AND session.tenant_id = execution.tenant_id
-                         AND session.election_event_id = execution.election_event_id
-                        JOIN sequent_backend.results_event results_event
-                          ON results_event.id = execution.results_event_id
-                         AND results_event.tenant_id = execution.tenant_id
-                         AND results_event.election_event_id = execution.election_event_id
-                        WHERE execution.id = $4
-                          AND execution.tenant_id = $1
-                          AND execution.election_event_id = $2
-                          AND execution.tally_session_id = $3
-                          AND execution.results_event_id = $5
-                          AND $6::uuid[] <@ session.election_ids
-                    ) AS valid_execution,
+                    COALESCE(publication_source.valid_execution, FALSE) AS valid_execution,
+                    publication_source.execution_status,
+                    COALESCE(publication_source.is_execution_completed, FALSE)
+                        AS is_execution_completed,
+                    publication_source.tally_type,
+                    COALESCE(publication_source.is_latest_execution, FALSE)
+                        AS is_latest_execution,
                     (
                         SELECT COUNT(DISTINCT election.id)
                         FROM sequent_backend.election election
@@ -195,7 +225,9 @@ pub async fn get_publication_source_facts(
                           AND results.results_event_id = $5
                           AND results.election_id = ANY($6::uuid[])
                           AND results.contest_id = ANY($7::uuid[])
-                    ) AS tallied_contest_count;
+                    ) AS tallied_contest_count
+                FROM (SELECT 1) AS anchor
+                LEFT JOIN publication_source ON TRUE;
             "#,
         )
         .await?;
@@ -216,10 +248,97 @@ pub async fn get_publication_source_facts(
 
     Ok(PublicationSourceFacts {
         valid_execution: row.try_get("valid_execution")?,
+        execution_status: row
+            .try_get::<_, Option<String>>("execution_status")?
+            .map(|status| status.parse::<TallyExecutionStatus>())
+            .transpose()
+            .context("Invalid tally session execution_status")?,
+        is_execution_completed: row.try_get("is_execution_completed")?,
+        tally_type: row
+            .try_get::<_, Option<String>>("tally_type")?
+            .map(|tally_type| tally_type.parse::<TallyType>())
+            .transpose()
+            .context("Invalid tally session tally_type")?
+            .unwrap_or_default(),
+        is_latest_execution: row.try_get("is_latest_execution")?,
         election_count: row.try_get("election_count")?,
         contest_count: row.try_get("contest_count")?,
         tallied_contest_count: row.try_get("tallied_contest_count")?,
     })
+}
+
+/// What the database holds for a stored publication's source, read without
+/// locking its tally session.
+pub async fn publication_source_facts(
+    tx: &Transaction<'_>,
+    publication: &TallyResultsPublication,
+) -> Result<PublicationSourceFacts> {
+    let source = crate::domain::results_publication::publication_source_from_ids(
+        &publication.tenant_id,
+        &publication.election_event_id,
+        &publication.tally_session_id,
+        &publication.tally_session_execution_id,
+        &publication.results_event_id,
+        &publication.election_ids,
+        &publication.published_contest_ids,
+        publication.route_election_id.as_deref(),
+    )?;
+    get_publication_source_facts(tx, &source).await
+}
+
+/// What the database holds for a stored publication's source, read under a
+/// lock on its tally session that lasts until the transaction ends: no
+/// newer execution of the session can be recorded meanwhile.
+pub async fn lock_publication_source_facts(
+    tx: &Transaction<'_>,
+    publication: &TallyResultsPublication,
+) -> Result<PublicationSourceFacts> {
+    let source = crate::domain::results_publication::publication_source_from_ids(
+        &publication.tenant_id,
+        &publication.election_event_id,
+        &publication.tally_session_id,
+        &publication.tally_session_execution_id,
+        &publication.results_event_id,
+        &publication.election_ids,
+        &publication.published_contest_ids,
+        publication.route_election_id.as_deref(),
+    )?;
+    crate::postgres::tally_session::lock_tally_session_for_update(
+        tx,
+        &publication.tenant_id,
+        &publication.election_event_id,
+        &publication.tally_session_id,
+    )
+    .await?;
+    get_publication_source_facts(tx, &source).await
+}
+
+/// Advisory lock key that serializes the attempts to publish one publication.
+fn publication_publish_lock_key(
+    tenant_id: &str,
+    election_event_id: &str,
+    publication_id: &str,
+) -> String {
+    format!("tally-results-publication-publish:{tenant_id}:{election_event_id}:{publication_id}")
+}
+
+/// Serializes the attempts to publish one publication until the transaction
+/// ends, so a second worker waits, then sees the stored status, and a failed
+/// activation cleans up only artifacts no other attempt owns. It is not the
+/// tally-session lock: other publications and recounts are not blocked.
+pub async fn lock_publication_for_publishing(
+    tx: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    publication_id: &str,
+) -> Result<()> {
+    let lock_key = publication_publish_lock_key(tenant_id, election_event_id, publication_id);
+    tx.query_one(
+        "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+        &[&lock_key],
+    )
+    .await?;
+    Ok(())
 }
 
 pub async fn next_publication_version(
@@ -746,4 +865,18 @@ pub async fn revoke_publication(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod publish_lock_tests {
+    use super::*;
+
+    #[test]
+    fn publish_lock_key_is_per_publication() {
+        let key = publication_publish_lock_key("t", "e", "p1");
+        assert_eq!(key, publication_publish_lock_key("t", "e", "p1"));
+        assert_ne!(key, publication_publish_lock_key("t", "e", "p2"));
+        assert_ne!(key, publication_publish_lock_key("t", "e2", "p1"));
+        assert_ne!(key, publication_publish_lock_key("t2", "e", "p1"));
+    }
 }

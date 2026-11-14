@@ -11,16 +11,17 @@ mod schema;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ResultsWebsiteAccess, ResultsWebsiteVisibilityScope};
+use sequent_core::types::ceremonies::{TallyExecutionStatus, TallyType};
 use serde_json::{json, Value};
 use tokio_postgres::error::{DbError, SqlState};
 use uuid::Uuid;
 use windmill::postgres::tally_results_publication::{
     get_active_publication_for_route, get_publication_by_id, get_publication_source_facts,
     insert_publishing_publication, list_active_public_publications, list_superseded_publications,
-    mark_publication_failed, mark_publication_published, mark_publication_superseded,
-    next_publication_version, revoke_publication, set_publication_finalization_error,
-    validate_new_publication_source, NewTallyResultsPublication, PublicationSource,
-    PublicationSourceFacts, TallyResultsPublication,
+    lock_publication_source_facts, mark_publication_failed, mark_publication_published,
+    mark_publication_superseded, next_publication_version, revoke_publication,
+    set_publication_finalization_error, validate_new_publication_source,
+    NewTallyResultsPublication, PublicationSource, PublicationSourceFacts, TallyResultsPublication,
 };
 use windmill::types::results_publication::ResultsRouteScope;
 
@@ -47,8 +48,10 @@ const SESSION: &str = "60000000-0000-4000-8000-000000000001";
 const OTHER_SESSION: &str = "60000000-0000-4000-8000-000000000002";
 const RESULTS: &str = "70000000-0000-4000-8000-000000000001";
 const OTHER_RESULTS: &str = "70000000-0000-4000-8000-000000000002";
-// EXECUTION runs SESSION into RESULTS, OTHER_EXECUTION runs OTHER_SESSION
-// into OTHER_RESULTS, and UNLINKED_EXECUTION runs SESSION with no results yet.
+// SESSION and OTHER_SESSION are finished electoral results tallies.
+// EXECUTION, their latest, runs SESSION into RESULTS, OTHER_EXECUTION runs
+// OTHER_SESSION into OTHER_RESULTS, and UNLINKED_EXECUTION, an earlier one,
+// ran SESSION without results.
 const EXECUTION: &str = "80000000-0000-4000-8000-000000000001";
 const OTHER_EXECUTION: &str = "80000000-0000-4000-8000-000000000002";
 const UNLINKED_EXECUTION: &str = "80000000-0000-4000-8000-000000000003";
@@ -67,6 +70,7 @@ const CONTESTS_OUTSIDE: &str =
     "One or more publication contests are outside the selected elections";
 const NOT_TALLIED: &str =
     "Every selected contest must have results in the selected tally execution";
+const NOT_FINISHED: &str = "The tally session has not completed successfully";
 
 fn uuid(id: &str) -> Uuid {
     Uuid::parse_str(id).unwrap()
@@ -180,8 +184,9 @@ async fn tally(tx: &Transaction<'_>, tenant: &str, event: &str) {
         let elections: Vec<Uuid> = elections.into_iter().map(uuid).collect();
         tx.execute(
             "INSERT INTO sequent_backend.tally_session
-                 (id, tenant_id, election_event_id, keys_ceremony_id, threshold, election_ids)
-             VALUES ($1, $2, $3, $4, 1, $5)",
+                 (id, tenant_id, election_event_id, keys_ceremony_id, threshold, election_ids,
+                  execution_status, is_execution_completed, tally_type)
+             VALUES ($1, $2, $3, $4, 1, $5, 'SUCCESS', TRUE, 'ELECTORAL_RESULTS')",
             &[
                 &uuid(id),
                 &uuid(tenant),
@@ -202,26 +207,12 @@ async fn tally(tx: &Transaction<'_>, tenant: &str, event: &str) {
         .await
         .unwrap();
     }
-    for (id, session, results) in [
-        (EXECUTION, SESSION, Some(RESULTS)),
-        (OTHER_EXECUTION, OTHER_SESSION, Some(OTHER_RESULTS)),
-        (UNLINKED_EXECUTION, SESSION, None),
+    for (id, session, results, age) in [
+        (EXECUTION, SESSION, Some(RESULTS), "0"),
+        (OTHER_EXECUTION, OTHER_SESSION, Some(OTHER_RESULTS), "0"),
+        (UNLINKED_EXECUTION, SESSION, None, "1 hour"),
     ] {
-        tx.execute(
-            "INSERT INTO sequent_backend.tally_session_execution
-                 (id, tenant_id, election_event_id, current_message_id,
-                  tally_session_id, results_event_id)
-             VALUES ($1, $2, $3, 0, $4, $5)",
-            &[
-                &uuid(id),
-                &uuid(tenant),
-                &uuid(event),
-                &uuid(session),
-                &results.map(uuid),
-            ],
-        )
-        .await
-        .unwrap();
+        execution(tx, tenant, event, id, session, results, age).await;
     }
     for (results, election, contest) in [
         (RESULTS, ELECTION, CONTEST),
@@ -231,6 +222,46 @@ async fn tally(tx: &Transaction<'_>, tenant: &str, event: &str) {
     ] {
         contest_results(tx, tenant, event, results, election, contest).await;
     }
+}
+
+/// An execution of `session` into `results`, created `age` (an interval)
+/// before the transaction started.
+async fn execution(
+    tx: &Transaction<'_>,
+    tenant: &str,
+    event: &str,
+    id: &str,
+    session: &str,
+    results: Option<&str>,
+    age: &str,
+) {
+    tx.execute(
+        "INSERT INTO sequent_backend.tally_session_execution
+             (id, tenant_id, election_event_id, current_message_id,
+              tally_session_id, results_event_id, created_at)
+         VALUES ($1, $2, $3, 0, $4, $5, now() - $6::text::interval)",
+        &[
+            &uuid(id),
+            &uuid(tenant),
+            &uuid(event),
+            &uuid(session),
+            &results.map(uuid),
+            &age,
+        ],
+    )
+    .await
+    .unwrap();
+}
+
+/// Sets `column` of TENANT's SESSION in EVENT to `value`, of `kind`.
+async fn set_session(tx: &Transaction<'_>, column: &str, kind: &str, value: Option<&str>) {
+    let statement = format!(
+        "UPDATE sequent_backend.tally_session SET {column} = $3::text::{kind}
+         WHERE tenant_id = $1 AND id = $2"
+    );
+    tx.execute(statement.as_str(), &[&uuid(TENANT), &uuid(SESSION), &value])
+        .await
+        .unwrap();
 }
 
 /// The tally of TENANT's EVENT, which every test builds first.
@@ -744,11 +775,152 @@ async fn source_facts_count_the_distinct_source_records_of_the_election_event() 
             .unwrap(),
         PublicationSourceFacts {
             valid_execution: true,
+            execution_status: Some(TallyExecutionStatus::SUCCESS),
+            is_execution_completed: true,
+            tally_type: TallyType::ELECTORAL_RESULTS,
+            is_latest_execution: true,
             election_count: 2,
             contest_count: 3,
             tallied_contest_count: 2,
         }
     );
+    transaction.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_tally_that_has_not_finished_successfully_cannot_be_published() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+    home(&transaction).await;
+
+    for status in ["IN_PROGRESS", "AWAITING_INPUT"] {
+        set_session(
+            &transaction,
+            "is_execution_completed",
+            "boolean",
+            Some("false"),
+        )
+        .await;
+        set_session(&transaction, "execution_status", "text", Some(status)).await;
+        assert_eq!(validation_error(&transaction, source()).await, NOT_FINISHED);
+    }
+    // Completed, but not successfully, or successful but not completed.
+    set_session(
+        &transaction,
+        "is_execution_completed",
+        "boolean",
+        Some("true"),
+    )
+    .await;
+    set_session(&transaction, "execution_status", "text", Some("CANCELLED")).await;
+    assert_eq!(validation_error(&transaction, source()).await, NOT_FINISHED);
+    set_session(&transaction, "execution_status", "text", Some("SUCCESS")).await;
+    set_session(
+        &transaction,
+        "is_execution_completed",
+        "boolean",
+        Some("false"),
+    )
+    .await;
+    assert_eq!(validation_error(&transaction, source()).await, NOT_FINISHED);
+    transaction.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn only_an_electoral_results_tally_can_be_published() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+    home(&transaction).await;
+
+    set_session(
+        &transaction,
+        "tally_type",
+        "text",
+        Some("INITIALIZATION_REPORT"),
+    )
+    .await;
+    assert_eq!(
+        validation_error(&transaction, source()).await,
+        "Only electoral results tally sessions can be published"
+    );
+    // Older sessions have no tally type: their tally run reads them as
+    // electoral results, and so does the publication.
+    set_session(&transaction, "tally_type", "text", None).await;
+    validate(&transaction, source()).await.unwrap();
+    transaction.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn only_the_latest_execution_of_the_tally_can_be_published() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+    home(&transaction).await;
+
+    // Created at the same time as EXECUTION, with a lower id: older.
+    execution(
+        &transaction,
+        TENANT,
+        EVENT,
+        "80000000-0000-4000-8000-000000000000",
+        SESSION,
+        None,
+        "0",
+    )
+    .await;
+    validate(&transaction, source()).await.unwrap();
+    // A recount's execution, created later.
+    execution(
+        &transaction,
+        TENANT,
+        EVENT,
+        "80000000-0000-4000-8000-000000000008",
+        SESSION,
+        None,
+        "-1 second",
+    )
+    .await;
+    assert_eq!(
+        validation_error(&transaction, source()).await,
+        "Only the latest tally session execution can be published"
+    );
+    transaction.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_stored_publication_source_is_read_with_its_tally_session_locked() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+    home(&transaction).await;
+    let elections = strings(&[ELECTION, OTHER_ELECTION]);
+    let contests = strings(&[CONTEST, OTHER_CONTEST]);
+    let publication =
+        insert_publishing_publication(&transaction, new_publication(&elections, &contests))
+            .await
+            .unwrap();
+
+    let facts = lock_publication_source_facts(&transaction, &publication)
+        .await
+        .unwrap();
+    assert!(
+        facts.valid_execution && facts.is_latest_execution,
+        "{facts:?}"
+    );
+    assert_eq!((facts.election_count, facts.tallied_contest_count), (2, 2));
+    // A recount's execution, recorded after the publication was requested.
+    execution(
+        &transaction,
+        TENANT,
+        EVENT,
+        "80000000-0000-4000-8000-000000000008",
+        SESSION,
+        None,
+        "-1 second",
+    )
+    .await;
+    let facts = lock_publication_source_facts(&transaction, &publication)
+        .await
+        .unwrap();
+    assert!(!facts.is_latest_execution, "{facts:?}");
     transaction.rollback().await.unwrap();
 }
 
