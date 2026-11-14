@@ -628,6 +628,7 @@ own:
 | An admin event of an event realm made by Step's service account | Nothing: what made the change records it |
 | A Keycloak event whose election event does not exist, has no board or has no protocol-manager key | A `KeycloakUserEvent` record in the tenant log with log type `ERROR` and `unplaced` in its text. The rest of the batch is stored |
 | An internal message (built by the backend) without an election event, or whose event does not exist | Dead-lettered, as before |
+| An internal message whose signed message does not verify with its election event's protocol-manager key, whose statement belongs to another election event, or whose event has no such key | Dead-lettered. One that verifies is stored with the columns of its signed message |
 | A message without a delivery ID, with an invalid tenant ID or with a malformed body | Dead-lettered, as before |
 
 The dispatcher still sends a message it cannot parse to `electoral_log_dead_letter_queue` in its
