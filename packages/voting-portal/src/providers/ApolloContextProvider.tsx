@@ -70,7 +70,7 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
             className="apollo-loading"
             sx={{flex: 1, display: "flex", justifyContent: "center", alignItems: "center"}}
         >
-            <CircularProgress className="apollo-loading-progress" />
+            <CircularProgress className="apollo-loading-progress" color="inherit" />
         </Box>
     ) : (
         <ApolloProvider client={client}>{children}</ApolloProvider>
