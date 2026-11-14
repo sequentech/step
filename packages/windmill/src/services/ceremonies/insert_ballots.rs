@@ -14,6 +14,7 @@ use crate::services::ceremonies::auditable_ballots::{
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::get_election_event_elections;
 use crate::services::join::merge_join_csv;
+use crate::services::join::read_valid_ballot_voter_ids;
 use crate::services::join::MultiplicitySource;
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
@@ -240,6 +241,18 @@ pub async fn insert_ballots_messages(
                     )
                     .await?;
 
+                    // A delegator's own valid ballot replaces their delegation.
+                    let voters_with_valid_ballot = match multiplicity_column {
+                        VoterMultiplicityColumn::DelegateCount => read_valid_ballot_voter_ids(
+                            &ballots_temp_file.reopen()?,
+                            0, // voter id
+                            3, // cast-vote status
+                        )?,
+                        VoterMultiplicityColumn::VoteWeight | VoterMultiplicityColumn::None => {
+                            Vec::new()
+                        }
+                    };
+
                     let ballots_temp_file = ballots_temp_file.reopen()?;
 
                     // Create a temporary file (auto-deleted when dropped)
@@ -265,6 +278,7 @@ pub async fn insert_ballots_messages(
                         &election_alias,
                         &users_temp_file.path().to_path_buf(),
                         multiplicity_column,
+                        &voters_with_valid_ballot,
                     )
                     .await?;
 
