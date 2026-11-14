@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_create-voters
 title: Create Voters
+description: "Create voters one by one in the admin portal, protect secret voter fields and export the voters."
 ---
 
 <!--

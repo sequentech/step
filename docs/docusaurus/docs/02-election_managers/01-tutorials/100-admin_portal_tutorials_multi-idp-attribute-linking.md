@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_multi_idp_attribute_linking
 title: Linking Multiple IdP Identities to a Single User via Custom Attribute
+description: "By default, Keycloak's identity brokering links an external Identity Provider (IdP) user to a Keycloak user on a 1-to-1 basis, usually by matching email or username."
 ---
 
 <!--

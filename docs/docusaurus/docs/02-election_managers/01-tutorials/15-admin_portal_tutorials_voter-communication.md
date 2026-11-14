@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_voter-communication
 title: Voter Communication
+description: "Send messages to voters by email or SMS from the admin portal, with templates and per-voter variables."
 ---
 
 <!--
