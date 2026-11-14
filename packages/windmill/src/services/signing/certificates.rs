@@ -420,6 +420,15 @@ pub fn is_ca(certificate: &X509Ref) -> Result<bool> {
 
 // Signatures
 
+/// The algorithms the platform's own signing flow verifies and stores in its
+/// signing tables (whose CHECK constraints allow exactly these). RSA-PSS is
+/// in [`SignatureAlgorithm`] for format-2 configuration packages only, which
+/// sequent-core's package verifier checks; it never reaches these tables.
+pub const PLATFORM_SIGNING_ALGORITHMS: [SignatureAlgorithm; 2] = [
+    SignatureAlgorithm::RsaPkcs1Sha256,
+    SignatureAlgorithm::EcdsaP256Sha256,
+];
+
 /// Whether `signature` is a signature of `data` by `certificate`'s key with
 /// `algorithm`. An algorithm that doesn't fit the key, or a malformed
 /// signature, is not a valid signature.
@@ -429,6 +438,9 @@ pub fn verify_signature(
     data: &[u8],
     signature: &[u8],
 ) -> Result<bool> {
+    if !PLATFORM_SIGNING_ALGORITHMS.contains(&algorithm) {
+        return Ok(false);
+    }
     let key = certificate.public_key()?;
     if key_algorithm(&key) != Some(algorithm) {
         return Ok(false);
