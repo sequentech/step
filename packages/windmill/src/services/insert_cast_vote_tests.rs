@@ -262,7 +262,7 @@ fn scheduled_grace_preserves_deadline_and_authentication_boundaries() {
     };
     for seconds_after_close in [-1, 0, 1, 119, 120, 121] {
         for auth_offset in [-1, 0, 1] {
-            let status = ElectionStatus {
+            let mut status = ElectionStatus {
                 voting_status: if seconds_after_close <= 0 {
                     VotingStatus::OPEN
                 } else {
@@ -270,6 +270,10 @@ fn scheduled_grace_preserves_deadline_and_authentication_boundaries() {
                 },
                 ..Default::default()
             };
+            if seconds_after_close > 0 {
+                // Closed by the scheduled end.
+                status.voting_period_dates.last_stopped_at = Some(close.into());
+            }
             let result = check_status_with_loaded_election(
                 close + Duration::seconds(seconds_after_close),
                 close + Duration::seconds(auth_offset),
@@ -814,5 +818,116 @@ mod ballot_style_contests {
             error.into_cast_vote_result(),
             Err(CastVoteError::CheckStatusInternalFailed(_))
         ));
+    }
+}
+
+fn grace_presentation() -> ElectionPresentation {
+    ElectionPresentation {
+        grace_period_policy: Some(EGracePeriodPolicy::GRACE_PERIOD_WITHOUT_ALERT),
+        grace_period_secs: Some(120),
+        ..Default::default()
+    }
+}
+
+fn scheduled_close_dates() -> VotingPeriodDates {
+    VotingPeriodDates {
+        start_date: None,
+        end_date: Some("2026-01-01T12:00:00Z".into()),
+    }
+}
+
+#[test]
+fn grace_rejects_voting_closed_by_hand_before_the_scheduled_close() {
+    let close = ISO8601::to_date("2026-01-01T12:00:00Z").unwrap();
+    let mut status = ElectionStatus {
+        voting_status: VotingStatus::CLOSED,
+        ..Default::default()
+    };
+    status.voting_period_dates.last_stopped_at = Some((close - Duration::hours(1)).into());
+
+    let result = check_status_with_loaded_election(
+        close + Duration::seconds(30),
+        close - Duration::hours(2),
+        VotingStatusChannel::ONLINE,
+        false,
+        scheduled_close_dates(),
+        &status,
+        &grace_presentation(),
+        "election",
+    );
+
+    assert!(matches!(result, Err(CastVoteError::CheckStatusFailed(_))));
+}
+
+#[test]
+fn grace_rejects_voting_that_never_opened() {
+    let close = ISO8601::to_date("2026-01-01T12:00:00Z").unwrap();
+    let status = ElectionStatus {
+        voting_status: VotingStatus::NOT_STARTED,
+        ..Default::default()
+    };
+
+    let result = check_status_with_loaded_election(
+        close + Duration::seconds(30),
+        close - Duration::minutes(1),
+        VotingStatusChannel::ONLINE,
+        false,
+        scheduled_close_dates(),
+        &status,
+        &grace_presentation(),
+        "election",
+    );
+
+    assert!(matches!(result, Err(CastVoteError::CheckStatusFailed(_))));
+}
+
+#[test]
+fn grace_accepts_voting_still_open_after_the_scheduled_close() {
+    let close = ISO8601::to_date("2026-01-01T12:00:00Z").unwrap();
+    let status = ElectionStatus {
+        voting_status: VotingStatus::OPEN,
+        ..Default::default()
+    };
+
+    let result = check_status_with_loaded_election(
+        close + Duration::seconds(30),
+        close - Duration::minutes(1),
+        VotingStatusChannel::ONLINE,
+        false,
+        scheduled_close_dates(),
+        &status,
+        &grace_presentation(),
+        "election",
+    );
+
+    assert_eq!(result.unwrap(), VotingStatusChannel::ONLINE);
+}
+
+#[test]
+fn early_voting_does_not_open_unstarted_kiosk_or_telephone_channels() {
+    let election_status = ElectionStatus {
+        voting_status: VotingStatus::NOT_STARTED,
+        kiosk_voting_status: VotingStatus::NOT_STARTED,
+        early_voting_status: VotingStatus::OPEN,
+        telephone_voting_status: VotingStatus::NOT_STARTED,
+        ..Default::default()
+    };
+    let now = ISO8601::to_date("2026-01-01T12:00:00Z").unwrap();
+
+    for channel in [VotingStatusChannel::KIOSK, VotingStatusChannel::TELEPHONE] {
+        let result = check_status_with_loaded_election(
+            now,
+            now - Duration::minutes(1),
+            channel,
+            true,
+            VotingPeriodDates::default(),
+            &election_status,
+            &ElectionPresentation::default(),
+            "election",
+        );
+        assert!(
+            matches!(result, Err(CastVoteError::CheckStatusFailed(_))),
+            "channel={channel:?}"
+        );
     }
 }
