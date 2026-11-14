@@ -21,7 +21,7 @@ use sequent_core::{
     ballot_style,
     services::area_tree::TreeNodeArea,
     sqlite::election_event,
-    types::ceremonies::{ScopeOperation, TallyOperation},
+    types::ceremonies::{CountingAlgType, ScopeOperation, TallyOperation},
     types::hasura::core::TallySheet,
     types::participation::VotesByChannel,
     types::tally_sheets::VotingChannel,
@@ -483,7 +483,7 @@ impl Pipe for DoTally {
                                 aggregate_result = aggregate_tally_sheet_results.iter().fold(
                                     aggregate_result,
                                     |result, (tally_sheet_result, _)| {
-                                        result.aggregate(tally_sheet_result, false)
+                                        result.aggregate_tally_sheet(tally_sheet_result)
                                     },
                                 );
                                 if !has_complete_electronic_channels {
@@ -571,7 +571,7 @@ impl Pipe for DoTally {
                                 area_specific_tally_sheet_results.iter().fold(
                                     area_tally_results.clone(),
                                     |result, (tally_sheet_result, _)| {
-                                        result.aggregate(tally_sheet_result, false)
+                                        result.aggregate_tally_sheet(tally_sheet_result)
                                     },
                                 );
                             if !has_complete_electronic_channels {
@@ -973,6 +973,23 @@ impl ContestResult {
 
         aggregate.calculate_percentages()
     }
+
+    /// Adds a tally sheet to this result. A tally sheet records unranked
+    /// candidate counts, which cannot take part in an instant-runoff count,
+    /// so for that algorithm only its participation figures are added.
+    #[instrument(skip_all)]
+    pub fn aggregate_tally_sheet(&self, tally_sheet_result: &ContestResult) -> ContestResult {
+        match self.contest.get_counting_algorithm() {
+            CountingAlgType::InstantRunoff => {
+                let participation = ContestResult {
+                    candidate_result: vec![],
+                    ..tally_sheet_result.clone()
+                };
+                self.aggregate(&participation, false)
+            }
+            _ => self.aggregate(tally_sheet_result, false),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1017,6 +1034,63 @@ mod tests {
             .expect_err("acclaimed tally sheets must be rejected");
 
         assert!(error.to_string().contains("cannot have tally sheets"));
+    }
+
+    fn result_with_candidate_count(
+        counting_algorithm: CountingAlgType,
+        total_count: u64,
+    ) -> ContestResult {
+        let candidate = Candidate {
+            id: "candidate".to_string(),
+            ..Candidate::default()
+        };
+        ContestResult {
+            contest: Contest {
+                counting_algorithm: Some(counting_algorithm),
+                candidates: vec![candidate.clone()],
+                ..Contest::default()
+            },
+            total_votes: total_count,
+            total_valid_votes: total_count,
+            candidate_result: vec![CandidateResult {
+                candidate,
+                percentage_votes: 0.0,
+                total_count,
+            }],
+            ..ContestResult::default()
+        }
+    }
+
+    fn candidate_count(result: &ContestResult) -> Option<u64> {
+        result
+            .candidate_result
+            .iter()
+            .find(|candidate_result| candidate_result.candidate.id == "candidate")
+            .map(|candidate_result| candidate_result.total_count)
+    }
+
+    #[test]
+    fn tally_sheet_adds_only_participation_to_an_instant_runoff_result() {
+        let result =
+            result_with_candidate_count(CountingAlgType::InstantRunoff, 3).aggregate_tally_sheet(
+                &result_with_candidate_count(CountingAlgType::InstantRunoff, 2),
+            );
+
+        assert_eq!(result.total_votes, 5);
+        assert_eq!(result.total_valid_votes, 5);
+        assert_eq!(candidate_count(&result), Some(3));
+    }
+
+    #[test]
+    fn tally_sheet_adds_candidate_counts_to_a_plurality_result() {
+        let result = result_with_candidate_count(CountingAlgType::PluralityAtLarge, 3)
+            .aggregate_tally_sheet(&result_with_candidate_count(
+                CountingAlgType::PluralityAtLarge,
+                2,
+            ));
+
+        assert_eq!(result.total_votes, 5);
+        assert_eq!(candidate_count(&result), Some(5));
     }
 
     #[test]

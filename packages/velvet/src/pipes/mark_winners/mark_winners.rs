@@ -5,12 +5,17 @@
 use std::path::PathBuf;
 use std::{cmp::Ordering, fs};
 
-use sequent_core::ballot::Candidate;
+use rand::seq::SliceRandom;
+use sequent_core::ballot::{Candidate, TieBreakingPolicy};
+use sequent_core::types::ceremonies::CountingAlgType;
 use sequent_core::util::path::list_subfolders;
 use serde::Serialize;
 use tracing::{event, instrument, Level};
 
-use crate::pipes::do_tally::{list_tally_sheet_subfolders, OUTPUT_BREAKDOWNS_FOLDER};
+use crate::pipes::do_tally::counting_algorithm::instant_runoff::RunoffStatus;
+use crate::pipes::do_tally::{
+    list_tally_sheet_subfolders, CandidateResult, OUTPUT_BREAKDOWNS_FOLDER,
+};
 use crate::pipes::error::{Error, Result};
 use crate::pipes::{
     do_tally::{
@@ -35,13 +40,13 @@ impl MarkWinners {
         Self { pipe_inputs }
     }
 
-    #[instrument(skip_all)]
-    pub fn get_winners(contest_result: &ContestResult) -> Vec<WinnerResult> {
+    #[instrument(err, skip_all)]
+    pub fn get_winners(contest_result: &ContestResult) -> Result<Vec<WinnerResult>> {
         if contest_result.contest.is_acclaimed() {
             // There are no vote totals to sort. Preserve the configured
             // candidate order so positions 1..N are deterministic and match
             // the ballot/results ordering rather than alphabetical tie logic.
-            return contest_result
+            return Ok(contest_result
                 .candidate_result
                 .iter()
                 .filter(|result| result.candidate.is_acclamation_eligible())
@@ -51,7 +56,37 @@ impl MarkWinners {
                     total_count: 0,
                     winning_position: index + 1,
                 })
-                .collect();
+                .collect());
+        }
+
+        let winning_candidates_num = contest_result.contest.winning_candidates_num as usize;
+
+        if let (CountingAlgType::InstantRunoff, Some(process_results)) = (
+            contest_result.contest.get_counting_algorithm(),
+            &contest_result.process_results,
+        ) {
+            let runoff: RunoffStatus = serde_json::from_value(process_results.clone())?;
+            let Some(runoff_winner) = runoff.get_winner() else {
+                return Ok(vec![]);
+            };
+            let winner = contest_result
+                .candidate_result
+                .iter()
+                .find(|result| result.candidate.id == runoff_winner.id)
+                .ok_or_else(|| {
+                    Error::UnexpectedError(format!(
+                        "Runoff winner {} is not a candidate of contest {}",
+                        runoff_winner.id, contest_result.contest.id
+                    ))
+                })?;
+            return Ok(std::iter::once(winner)
+                .take(winning_candidates_num)
+                .map(|w| WinnerResult {
+                    candidate: w.candidate.clone(),
+                    total_count: w.total_count,
+                    winning_position: 1,
+                })
+                .collect());
         }
 
         let mut winners = contest_result.candidate_result.clone();
@@ -60,22 +95,67 @@ impl MarkWinners {
 
         winners.sort_by(|a, b| {
             match b.total_count.cmp(&a.total_count) {
-                // ties resolution
+                // order of candidates elected with the same count
                 Ordering::Equal => a.candidate.name.cmp(&b.candidate.name),
                 other => other,
             }
         });
 
-        winners
-            .into_iter()
-            .take(contest_result.contest.winning_candidates_num as usize)
-            .enumerate()
-            .map(|(index, w)| WinnerResult {
-                candidate: w.candidate.clone(),
-                total_count: w.total_count,
-                winning_position: index + 1,
-            })
-            .collect()
+        Ok(Self::fill_seats(
+            winners,
+            winning_candidates_num,
+            &contest_result.contest.get_tie_breaking_policy(),
+        )
+        .into_iter()
+        .enumerate()
+        .map(|(index, w)| WinnerResult {
+            candidate: w.candidate,
+            total_count: w.total_count,
+            winning_position: index + 1,
+        })
+        .collect())
+    }
+
+    /// Takes the first `seats` candidates of a list ranked by count. When
+    /// candidates with the same count straddle the last seat, the seats
+    /// left for them are drawn by lot, or stay unassigned until an external
+    /// procedure decides them.
+    fn fill_seats(
+        mut ranked: Vec<CandidateResult>,
+        seats: usize,
+        tie_breaking_policy: &TieBreakingPolicy,
+    ) -> Vec<CandidateResult> {
+        let tied_count = match (
+            seats
+                .checked_sub(1)
+                .and_then(|last_seat| ranked.get(last_seat)),
+            ranked.get(seats),
+        ) {
+            (Some(last_elected), Some(first_not_elected))
+                if last_elected.total_count == first_not_elected.total_count =>
+            {
+                last_elected.total_count
+            }
+            _ => {
+                ranked.truncate(seats);
+                return ranked;
+            }
+        };
+
+        let tie_start = ranked.partition_point(|result| result.total_count > tied_count);
+        let tie_end = ranked.partition_point(|result| result.total_count >= tied_count);
+        ranked.truncate(tie_end);
+        let mut tied = ranked.split_off(tie_start);
+
+        match tie_breaking_policy {
+            TieBreakingPolicy::RANDOM => {
+                tied.shuffle(&mut rand::rng());
+                tied.truncate(seats.saturating_sub(tie_start));
+                ranked.append(&mut tied);
+            }
+            TieBreakingPolicy::EXTERNAL_PROCEDURE => {}
+        }
+        ranked
     }
 
     #[instrument(err, skip_all)]
@@ -92,7 +172,7 @@ impl MarkWinners {
                 .map_err(|e| Error::FileAccess(contest_results_file_path.clone(), e))?;
             let contest_result: ContestResult = parse_file(contest_results_file)?;
 
-            let winners = MarkWinners::get_winners(&contest_result);
+            let winners = MarkWinners::get_winners(&contest_result)?;
 
             let subfolder_name = subfolder.file_name().unwrap();
             let output_subfolder = base_output_breakdown_path.join(subfolder_name);
@@ -148,7 +228,7 @@ impl Pipe for MarkWinners {
                             .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
                         let contest_result: ContestResult = parse_file(contest_results_file)?;
 
-                        let winners = MarkWinners::get_winners(&contest_result);
+                        let winners = MarkWinners::get_winners(&contest_result)?;
 
                         let aggregate_output_path = base_output_path
                             .join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
@@ -170,7 +250,7 @@ impl Pipe for MarkWinners {
                             .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
                         let contest_result: ContestResult = parse_file(contest_results_file)?;
 
-                        let winners = MarkWinners::get_winners(&contest_result);
+                        let winners = MarkWinners::get_winners(&contest_result)?;
 
                         let Some(tally_sheet_id) =
                             PipeInputs::get_tally_sheet_id_from_path(&tally_sheet_folder)
@@ -197,7 +277,7 @@ impl Pipe for MarkWinners {
                         .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
                     let contest_result: ContestResult = parse_file(contest_results_file)?;
 
-                    let winners = MarkWinners::get_winners(&contest_result);
+                    let winners = MarkWinners::get_winners(&contest_result)?;
 
                     fs::create_dir_all(&base_output_path)?;
                     let winners_file_path = base_output_path.join(OUTPUT_WINNERS);
@@ -218,7 +298,7 @@ impl Pipe for MarkWinners {
                     .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
                 let contest_result: ContestResult = parse_file(f)?;
 
-                let winner = MarkWinners::get_winners(&contest_result);
+                let winner = MarkWinners::get_winners(&contest_result)?;
 
                 let winner_folder = PipeInputs::build_path(
                     &output_dir,
@@ -251,10 +331,11 @@ pub struct WinnerResult {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use sequent_core::ballot::{CandidatePresentation, Contest};
 
     use super::*;
-    use crate::pipes::do_tally::CandidateResult;
 
     fn candidate_result(
         id: &str,
@@ -293,7 +374,7 @@ mod tests {
             ..ContestResult::default()
         };
 
-        let winners = MarkWinners::get_winners(&contest_result);
+        let winners = MarkWinners::get_winners(&contest_result).expect("winners");
 
         assert_eq!(
             winners
@@ -310,5 +391,94 @@ mod tests {
             vec![1, 2]
         );
         assert!(winners.iter().all(|winner| winner.total_count == 0));
+    }
+
+    fn plurality_result(
+        tie_breaking_policy: TieBreakingPolicy,
+        winning_candidates_num: i64,
+        counts: &[(&str, &str, u64)],
+    ) -> ContestResult {
+        ContestResult {
+            contest: Contest {
+                winning_candidates_num,
+                tie_breaking_policy: Some(tie_breaking_policy),
+                ..Contest::default()
+            },
+            candidate_result: counts
+                .iter()
+                .map(|(id, name, total_count)| CandidateResult {
+                    total_count: *total_count,
+                    ..candidate_result(id, name, |_| {})
+                })
+                .collect(),
+            ..ContestResult::default()
+        }
+    }
+
+    fn winner_ids(contest_result: &ContestResult) -> Vec<String> {
+        MarkWinners::get_winners(contest_result)
+            .expect("winners")
+            .into_iter()
+            .map(|winner| winner.candidate.id)
+            .collect()
+    }
+
+    #[test]
+    fn plurality_last_seat_tie_is_drawn_by_lot() {
+        let contest_result = plurality_result(
+            TieBreakingPolicy::RANDOM,
+            2,
+            &[("a", "A", 10), ("b", "B", 7), ("c", "C", 7)],
+        );
+
+        let mut last_seat_winners = HashSet::new();
+        for _ in 0..64 {
+            let winners = winner_ids(&contest_result);
+            assert_eq!(winners.len(), 2);
+            assert_eq!(winners[0], "a");
+            last_seat_winners.insert(winners[1].clone());
+        }
+
+        assert_eq!(
+            last_seat_winners,
+            HashSet::from(["b".to_string(), "c".to_string()])
+        );
+    }
+
+    #[test]
+    fn plurality_last_seat_tie_stays_open_under_external_procedure() {
+        let contest_result = plurality_result(
+            TieBreakingPolicy::EXTERNAL_PROCEDURE,
+            2,
+            &[("a", "A", 10), ("b", "B", 7), ("c", "C", 7)],
+        );
+
+        assert_eq!(winner_ids(&contest_result), vec!["a"]);
+    }
+
+    #[test]
+    fn plurality_tie_within_the_seats_elects_every_tied_candidate() {
+        let contest_result = plurality_result(
+            TieBreakingPolicy::EXTERNAL_PROCEDURE,
+            2,
+            &[("a", "A", 7), ("b", "B", 7), ("c", "C", 3)],
+        );
+
+        let winners = MarkWinners::get_winners(&contest_result).expect("winners");
+
+        assert_eq!(
+            winners
+                .iter()
+                .map(|winner| winner.candidate.id.as_str())
+                .collect::<HashSet<_>>(),
+            HashSet::from(["a", "b"])
+        );
+        assert_eq!(
+            winners
+                .iter()
+                .map(|winner| winner.winning_position)
+                .collect::<Vec<_>>(),
+            vec![1, 2]
+        );
     }
 }
