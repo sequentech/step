@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {
+    Alert,
+    type AlertColor,
     Box,
     styled,
     Button,
@@ -50,30 +52,32 @@ interface ImportScreenProps {
 }
 
 const stageLabels = {
-    "select": "Select a native file to import.",
+    "select": "Choose a file to import.",
     "local-ready":
-        "Local validation passed. Create uploads the generated ZIP, validates it with the backend and requests creation.",
-    "local":
-        "2. Local conversion and validation. No backend request has been made for these sources.",
-    "uploading": "3. Upload transport: sending the accepted native package to the backend.",
-    "validating": "3. Backend dry-run validation: checkOnly. The event has not been created.",
-    "ready":
-        "3. Backend dry-run passed. Final Import/Create submits a separate creation task and can still fail.",
-    "uploaded": "File upload completed. Import has not started.",
-    "creating": "4. Backend creation request in progress.",
-    "submitted":
-        "4. Backend creation task submitted. Follow the import task for final success or errors.",
-    "transport-error":
-        "Upload transport failed. No backend dry-run or creation was completed. Retry the upload.",
+        "The file was converted and checked. Select Import to upload it and create the event.",
+    "local": "Converting and checking the file on this computer.",
+    "uploading": "Uploading the file…",
+    "validating": "Checking the file…",
+    "ready": "The file passed the checks. Select Import to create the election event.",
+    "uploaded": "The file was uploaded. Select Import to continue.",
+    "creating": "Creating the election event…",
+    "submitted": "The import has started. Follow its progress in the task list.",
+    "transport-error": "The file could not be uploaded. Try again.",
     "validation-transport-error":
-        "Backend dry-run request failed. Validation was not confirmed; retry the upload and check the backend connection.",
+        "The file could not be checked because the server did not respond. Try again.",
     "validation-error":
-        "Backend dry-run validation refused this package. Review the backend diagnostics below; no event was created.",
+        "The file has problems and cannot be imported. See the details below. No event was created.",
     "creation-transport-error":
-        "Backend creation request failed. Its outcome is unconfirmed; check the import task and event list before retrying.",
+        "The server did not respond, so it is not known whether the event was created. Check the task list and the election events before trying again.",
     "creation-error":
-        "Backend creation failed after dry-run validation. Review the import task and backend diagnostics below.",
+        "The election event could not be created. See the details below and the task list.",
 } as const
+
+const stageSeverity = (stage: keyof typeof stageLabels): AlertColor => {
+    if (stage.endsWith("error")) return "error"
+    if (stage === "ready" || stage === "local-ready" || stage === "submitted") return "success"
+    return "info"
+}
 
 export const ImportStyles = {
     CancelButton: styled(Button)`
@@ -449,10 +453,10 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     ))}
 
                 {stage !== "select" && (
-                    <Typography
+                    <Alert
                         role="status"
                         data-testid="import-stage"
-                        color={stage.endsWith("error") ? "error" : undefined}
+                        severity={stageSeverity(stage)}
                         sx={{mt: 2}}
                     >
                         {String(
@@ -460,7 +464,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                                 defaultValue: stageLabels[stage],
                             })
                         )}
-                    </Typography>
+                    </Alert>
                 )}
                 {downloadError && (
                     <Typography role="alert" color="error">
