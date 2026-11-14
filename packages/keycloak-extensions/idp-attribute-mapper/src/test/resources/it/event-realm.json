@@ -1,0 +1,176 @@
+{
+  "realm": "event",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "portal",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "redirectUris": ["http://portal.test/*"]
+    }
+  ],
+  "authenticatorConfig": [
+    {
+      "alias": "first-invalid-voter-id-condition",
+      "config": {
+        "target": "USERNAME",
+        "regex": "^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        "negate": "true"
+      }
+    },
+    {
+      "alias": "first-invalid-voter-id-deny",
+      "config": { "denyErrorMessage": "Your voter ID is not valid." }
+    },
+    {
+      "alias": "first-unknown-precinct-condition",
+      "config": { "target": "USER_ATTRIBUTE", "attribute": "area-id", "negate": "true" }
+    },
+    {
+      "alias": "first-unknown-precinct-deny",
+      "config": { "denyErrorMessage": "Your precinct is not part of this election." }
+    },
+    {
+      "alias": "post-unknown-precinct-condition",
+      "config": { "target": "USER_ATTRIBUTE", "attribute": "area-id", "negate": "true" }
+    },
+    {
+      "alias": "post-unknown-precinct-deny",
+      "config": { "denyErrorMessage": "Your precinct is not part of this election." }
+    }
+  ],
+  "authenticationFlows": [
+    {
+      "alias": "voter first broker login",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "flowAlias": "first invalid voter id",
+          "requirement": "CONDITIONAL",
+          "priority": 10,
+          "authenticatorFlow": true
+        },
+        {
+          "flowAlias": "first unknown precinct",
+          "requirement": "CONDITIONAL",
+          "priority": 20,
+          "authenticatorFlow": true
+        },
+        {
+          "flowAlias": "first create or link",
+          "requirement": "REQUIRED",
+          "priority": 30,
+          "authenticatorFlow": true
+        }
+      ]
+    },
+    {
+      "alias": "first invalid voter id",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-brokered-value",
+          "authenticatorConfig": "first-invalid-voter-id-condition",
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "authenticatorFlow": false
+        },
+        {
+          "authenticator": "deny-access-authenticator",
+          "authenticatorConfig": "first-invalid-voter-id-deny",
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "authenticatorFlow": false
+        }
+      ]
+    },
+    {
+      "alias": "first unknown precinct",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-brokered-value",
+          "authenticatorConfig": "first-unknown-precinct-condition",
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "authenticatorFlow": false
+        },
+        {
+          "authenticator": "deny-access-authenticator",
+          "authenticatorConfig": "first-unknown-precinct-deny",
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "authenticatorFlow": false
+        }
+      ]
+    },
+    {
+      "alias": "first create or link",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "idp-create-user-if-unique",
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "authenticatorFlow": false
+        },
+        {
+          "authenticator": "idp-auto-link",
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "authenticatorFlow": false
+        }
+      ]
+    },
+    {
+      "alias": "voter post login",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "flowAlias": "post unknown precinct",
+          "requirement": "CONDITIONAL",
+          "priority": 10,
+          "authenticatorFlow": true
+        },
+        {
+          "authenticator": "allow-access-authenticator",
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "authenticatorFlow": false
+        }
+      ]
+    },
+    {
+      "alias": "post unknown precinct",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-brokered-value",
+          "authenticatorConfig": "post-unknown-precinct-condition",
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "authenticatorFlow": false
+        },
+        {
+          "authenticator": "deny-access-authenticator",
+          "authenticatorConfig": "post-unknown-precinct-deny",
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "authenticatorFlow": false
+        }
+      ]
+    }
+  ]
+}
