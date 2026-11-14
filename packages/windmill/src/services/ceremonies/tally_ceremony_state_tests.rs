@@ -523,17 +523,17 @@ async fn an_invalid_tally_type_cannot_be_started() {
 
 #[tokio::test]
 async fn a_session_without_a_tally_type_is_validated_as_electoral_results() {
-    // An open election can produce an initialization report but not results,
-    // so only the electoral results rules refuse it.
+    // An election that has not opened can produce an initialization report
+    // but not results, so only the electoral results rules refuse it.
     let ceremony = ceremony(&CONNECTED, &restored_pair());
-    let open = InMemoryTallyCeremony::default();
-    open.add_election(election("OPEN"));
+    let unopened = InMemoryTallyCeremony::default();
+    unopened.add_election(election("NOT_STARTED"));
     let start = |tally_type: Option<&str>| {
         let mut tally_session = tally_session(&CONNECTED);
         tally_session.tally_type = tally_type.map(str::to_string);
         update_tally_ceremony_with(
             &ceremony,
-            &open,
+            &unopened,
             &ceremony,
             &ceremony,
             TallyStatusChange {
@@ -1186,4 +1186,70 @@ async fn a_recount_of_an_execution_without_status_writes_nothing() {
     assert_eq!(error.to_string(), "Missing tally ceremony status");
     assert_eq!(ceremony.executions(SESSION).len(), 1);
     assert_eq!(stored_status(&ceremony), Some(SUCCESS.to_string()));
+}
+
+fn initialization_session(id: &str, status: &TallyExecutionStatus) -> TallySession {
+    let mut session = tally_session(status);
+    session.id = id.into();
+    session.tally_type = Some("INITIALIZATION_REPORT".into());
+    session
+}
+
+#[tokio::test]
+async fn starting_an_initialization_report_is_refused_while_another_one_is_not_cancelled() {
+    let ceremony = ceremony(&CONNECTED, &restored_pair());
+    ceremony.add_session(initialization_session("other", &STARTED));
+    let mut starting = tally_session(&CONNECTED);
+    starting.tally_type = Some("INITIALIZATION_REPORT".into());
+    let error = change_status(&ceremony, starting.clone(), IN_PROGRESS)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        validation_message(error),
+        "Another initialization report tally (other) already exists for these elections."
+    );
+    assert_nothing_written(&ceremony, &CONNECTED);
+
+    let ceremony = self::ceremony(&CONNECTED, &restored_pair());
+    ceremony.add_session(initialization_session("other", &CANCELLED));
+    let error = change_status(&ceremony, starting, IN_PROGRESS)
+        .await
+        .unwrap_err();
+    assert!(
+        !validation_message(error).contains("Another initialization report"),
+        "a cancelled session does not block"
+    );
+    assert_eq!(
+        ceremony.admission_calls(),
+        vec![
+            TallyCall::LockElections,
+            TallyCall::BlockingInitializationSessions
+        ]
+    );
+}
+
+#[tokio::test]
+async fn starting_the_tally_locks_the_elections_and_cancelling_does_not() {
+    let ceremony = ceremony(&CONNECTED, &restored_pair());
+    ceremony.fail(TallyCall::LockElections, "lock timeout");
+    let error = change_status(&ceremony, tally_session(&CONNECTED), IN_PROGRESS)
+        .await
+        .unwrap_err();
+    assert_eq!(error.to_string(), "lock timeout");
+    assert_nothing_written(&ceremony, &CONNECTED);
+    change_status(&ceremony, tally_session(&CONNECTED), CANCELLED)
+        .await
+        .expect("cancelling takes no election lock");
+}
+
+#[tokio::test]
+async fn starting_the_tally_locks_the_session_before_the_elections() {
+    let ceremony = ceremony(&CONNECTED, &restored_pair());
+    ceremony.fail(TallyCall::LockSession, "lock timeout");
+    let error = change_status(&ceremony, tally_session(&CONNECTED), IN_PROGRESS)
+        .await
+        .expect_err("the session lock fails");
+    assert_eq!(error.to_string(), "lock timeout");
+    assert_eq!(ceremony.admission_calls(), vec![]);
+    assert_nothing_written(&ceremony, &CONNECTED);
 }

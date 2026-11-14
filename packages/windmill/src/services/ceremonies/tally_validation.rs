@@ -4,9 +4,10 @@
 pub use crate::domain::tally_ceremony::TallyValidationError;
 use crate::ports::tally_ceremony::BallotBoxSealState;
 use crate::postgres::ballot_box_seal::BallotBoxSealStatus;
+use crate::services::initialization_record::initialization_area_filter;
 use sequent_core::ballot::{AllowTallyStatus, BallotBoxSealPolicy, ElectionStatus, InitReport};
 use sequent_core::types::ceremonies::TallyType;
-use sequent_core::types::hasura::core::{Election, VotingChannels};
+use sequent_core::types::hasura::core::{Election, TallySession, VotingChannels};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 pub fn validate_tally_elections(
@@ -45,6 +46,18 @@ pub fn validate_tally_elections(
             match tally_type {
                 TallyType::INITIALIZATION_REPORT if status.init_report != InitReport::ALLOWED => {
                     Some("initialization reports are not allowed")
+                }
+                TallyType::INITIALIZATION_REPORT
+                    if ![
+                        &status.voting_status,
+                        &status.kiosk_voting_status,
+                        &status.early_voting_status,
+                        &status.telephone_voting_status,
+                    ]
+                    .iter()
+                    .all(|channel_status| channel_status.is_not_started()) =>
+                {
+                    Some("generate its initialization report before any voting channel opens")
                 }
                 TallyType::INITIALIZATION_REPORT => None,
                 TallyType::ELECTORAL_RESULTS => match status.allow_tally {
@@ -96,6 +109,62 @@ pub fn validate_tally_elections(
         }
     }
     Ok(())
+}
+
+/// A Post gets one initialization report: once it is generated
+/// (`initialization_report_generated`), another one is refused. A report of
+/// some of its countries (`per_country`, initialization scope Post and
+/// country) is not: a country published after the Post was initialized
+/// still needs its own.
+pub fn validate_initialization_not_generated(
+    elections: &[Election],
+    selected_ids: &[String],
+    tally_type: &TallyType,
+    per_country: bool,
+) -> Result<(), TallyValidationError> {
+    if *tally_type != TallyType::INITIALIZATION_REPORT || per_country {
+        return Ok(());
+    }
+    let generated = selected_ids.iter().find(|id| {
+        elections.iter().any(|election| {
+            election.id == **id && election.initialization_report_generated == Some(true)
+        })
+    });
+    match generated {
+        Some(id) => Err(TallyValidationError::new(format!(
+            "Election {id}: its initialization report was already generated."
+        ))),
+        None => Ok(()),
+    }
+}
+
+/// A second initialization report is refused while another non-cancelled
+/// initialization-report session (`blocking`) overlaps this one, because the
+/// generated flag is only written when that session finishes. A session
+/// without a country filter covers the whole Post and overlaps every other;
+/// two country-filtered sessions overlap when they share a country.
+pub fn validate_no_concurrent_initialization(
+    tally_type: &TallyType,
+    blocking: &[TallySession],
+    area_filter: Option<&[String]>,
+) -> Result<(), TallyValidationError> {
+    if *tally_type != TallyType::INITIALIZATION_REPORT {
+        return Ok(());
+    }
+    let overlapping =
+        blocking.iter().find(
+            |session| match (area_filter, initialization_area_filter(session)) {
+                (Some(areas), Some(other)) => other.iter().any(|area| areas.contains(area)),
+                _ => true,
+            },
+        );
+    match overlapping {
+        Some(session) => Err(TallyValidationError::new(format!(
+            "Another initialization report tally ({}) already exists for these elections.",
+            session.id
+        ))),
+        None => Ok(()),
+    }
 }
 
 /// A ballot box the tally counts: one area of one election, with the names
@@ -228,6 +297,55 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    fn initialization_session(id: &str, areas: Option<&[&str]>) -> TallySession {
+        let annotations = areas.map(|areas| json!({"initialization_area_ids": areas}));
+        serde_json::from_value(json!({
+            "id": id, "tenant_id": "tenant", "election_event_id": "event",
+            "keys_ceremony_id": "keys", "threshold": 2, "is_execution_completed": false,
+            "tally_type": "INITIALIZATION_REPORT", "annotations": annotations,
+        }))
+        .expect("a tally session")
+    }
+
+    fn areas(areas: &[&str]) -> Vec<String> {
+        areas.iter().map(|area| area.to_string()).collect()
+    }
+
+    #[test]
+    fn concurrent_initialization_is_refused_unless_the_countries_are_disjoint() {
+        let whole_post = initialization_session("whole", None);
+        let north = initialization_session("north", Some(&["north"]));
+        let report = TallyType::INITIALIZATION_REPORT;
+        assert!(validate_no_concurrent_initialization(&report, &[], None).is_ok());
+        let refused = |blocking: &[TallySession], filter: Option<&[String]>| {
+            validate_no_concurrent_initialization(&report, blocking, filter)
+                .expect_err("refused")
+                .to_string()
+        };
+        assert_eq!(
+            refused(&[whole_post.clone()], None),
+            "Another initialization report tally (whole) already exists for these elections."
+        );
+        assert!(refused(&[north.clone()], None).contains("(north)"));
+        assert!(refused(&[whole_post], Some(&areas(&["north"]))).contains("(whole)"));
+        assert!(refused(&[north.clone()], Some(&areas(&["north", "south"]))).contains("(north)"));
+        assert!(
+            validate_no_concurrent_initialization(&report, &[north], Some(&areas(&["south"])))
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn electoral_results_ignore_concurrent_initialization_sessions() {
+        let whole_post = initialization_session("whole", None);
+        assert!(validate_no_concurrent_initialization(
+            &TallyType::ELECTORAL_RESULTS,
+            &[whole_post],
+            None
+        )
+        .is_ok());
+    }
+
     fn election(id: &str, voting_status: &str) -> Election {
         serde_json::from_value(json!({
             "id": id, "tenant_id": "tenant", "election_event_id": "open-event",
@@ -356,6 +474,7 @@ mod tests {
             TallyType::ELECTORAL_RESULTS
         )
         .is_err());
+        selected.status.as_mut().unwrap()["voting_status"] = json!("NOT_STARTED");
         assert!(validate_tally_elections(
             &[selected.clone()],
             &["selected".into()],
@@ -369,6 +488,64 @@ mod tests {
             TallyType::INITIALIZATION_REPORT
         )
         .is_err());
+    }
+
+    #[test]
+    fn initialization_report_requires_every_channel_not_started() {
+        for channel in [
+            "voting_status",
+            "kiosk_voting_status",
+            "early_voting_status",
+            "telephone_voting_status",
+        ] {
+            for status in ["OPEN", "PAUSED", "CLOSED"] {
+                let mut selected = election("selected", "NOT_STARTED");
+                selected.status.as_mut().unwrap()[channel] = json!(status);
+                selected.voting_channels = Some(json!({}));
+                let error = validate_tally_elections(
+                    &[selected],
+                    &["selected".into()],
+                    TallyType::INITIALIZATION_REPORT,
+                )
+                .unwrap_err();
+                assert!(
+                    error.to_string().contains(
+                        "Election selected: generate its initialization report before any voting channel opens"
+                    ),
+                    "{channel}: {status}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn initialization_report_is_generated_only_once() {
+        let mut selected = election("selected", "NOT_STARTED");
+        let other = election("other", "NOT_STARTED");
+        let ids = ["other".to_string(), "selected".to_string()];
+        let check = |selected: &Election, tally_type: TallyType, per_country: bool| {
+            validate_initialization_not_generated(
+                &[other.clone(), selected.clone()],
+                &ids,
+                &tally_type,
+                per_country,
+            )
+        };
+        for generated in [None, Some(false)] {
+            selected.initialization_report_generated = generated;
+            assert!(check(&selected, TallyType::INITIALIZATION_REPORT, false).is_ok());
+        }
+        selected.initialization_report_generated = Some(true);
+        let error = check(&selected, TallyType::INITIALIZATION_REPORT, false)
+            .expect_err("a second report of the Post is refused");
+        assert_eq!(
+            error.to_string(),
+            "Election selected: its initialization report was already generated."
+        );
+        // A country published after the Post was initialized gets its own
+        // report, and electoral results aren't initialization reports.
+        assert!(check(&selected, TallyType::INITIALIZATION_REPORT, true).is_ok());
+        assert!(check(&selected, TallyType::ELECTORAL_RESULTS, false).is_ok());
     }
 
     #[test]

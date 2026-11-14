@@ -160,9 +160,25 @@ fn approved_tally_sheet(election_id: &str) -> TallySheet {
 /// An event with `presentation` whose `ELECTION` has closed. Its contest is
 /// published in two areas and its keys ceremony has finished.
 fn closed_event(presentation: Value) -> InMemoryTallyCeremony {
+    event_with(presentation, election(ELECTION, Some(KEYS_CEREMONY), None))
+}
+
+/// The same event before `ELECTION` opens, as its initialization report
+/// needs it.
+fn unopened_event(presentation: Value) -> InMemoryTallyCeremony {
+    event_with(presentation, unopened_post())
+}
+
+fn unopened_post() -> Election {
+    let mut post = election(ELECTION, Some(KEYS_CEREMONY), None);
+    post.status.as_mut().unwrap()["voting_status"] = json!("NOT_STARTED");
+    post
+}
+
+fn event_with(presentation: Value, post: Election) -> InMemoryTallyCeremony {
     let ceremony = InMemoryTallyCeremony::default();
     ceremony.add_election_event(election_event(presentation, event_board()));
-    ceremony.add_election(election(ELECTION, Some(KEYS_CEREMONY), None));
+    ceremony.add_election(post);
     ceremony.add_contest(contest("mayor", ELECTION));
     for area_id in ["north", "south"] {
         ceremony.add_area(area(area_id));
@@ -1086,7 +1102,7 @@ fn per_country() -> Value {
 
 #[tokio::test]
 async fn a_country_initialization_covers_only_that_country() {
-    let ceremony = closed_event(per_country());
+    let ceremony = unopened_event(per_country());
     initialize_countries(&ceremony, "INITIALIZATION_REPORT", &["north"])
         .await
         .unwrap();
@@ -1138,7 +1154,7 @@ async fn a_country_initialization_needs_the_post_and_country_scope_and_a_country
             "Choose at least one country to initialize",
         ),
     ] {
-        let ceremony = closed_event(presentation);
+        let ceremony = unopened_event(presentation);
         let error = initialize_countries(&ceremony, tally_type, &areas)
             .await
             .unwrap_err();
@@ -1148,8 +1164,47 @@ async fn a_country_initialization_needs_the_post_and_country_scope_and_a_country
 }
 
 #[tokio::test]
+async fn an_initialized_post_gets_no_other_report_but_a_country_initialization_does() {
+    let mut post = unopened_post();
+    post.initialization_report_generated = Some(true);
+    let ceremony = event_with(per_country(), post);
+    let error = create_tally(&ceremony, "INITIALIZATION_REPORT", &[ELECTION], &[])
+        .await
+        .unwrap_err();
+    assert_eq!(
+        validation_message(error),
+        format!("Election {ELECTION}: its initialization report was already generated.")
+    );
+    assert_nothing_written(&ceremony);
+    // A country published after the Post was initialized needs its own.
+    initialize_countries(&ceremony, "INITIALIZATION_REPORT", &["north"])
+        .await
+        .unwrap();
+    assert_eq!(
+        stored_session(&ceremony).area_ids,
+        Some(vec!["north".to_string()])
+    );
+}
+
+#[tokio::test]
+async fn an_initialization_report_needs_every_voting_channel_not_started() {
+    let ceremony = closed_event(json!({}));
+    let error = create_tally(&ceremony, "INITIALIZATION_REPORT", &[ELECTION], &[])
+        .await
+        .unwrap_err();
+    assert_eq!(
+        validation_message(error),
+        format!(
+            "Election {ELECTION}: generate its initialization report before any voting \
+             channel opens."
+        )
+    );
+    assert_nothing_written(&ceremony);
+}
+
+#[tokio::test]
 async fn retained_country_without_execution_material_cannot_be_claimed_by_a_whole_report() {
-    let ceremony = closed_event(per_country());
+    let ceremony = unopened_event(per_country());
     ceremony.set_initialization_countries(
         TENANT,
         EVENT,
@@ -1192,7 +1247,7 @@ async fn retained_country_without_execution_material_cannot_be_claimed_by_a_whol
 
 #[tokio::test]
 async fn report_coverage_excludes_generated_styles_outside_the_actual_area_selection() {
-    let ceremony = closed_event(per_country());
+    let ceremony = unopened_event(per_country());
     ceremony.remove_country_material(TENANT, EVENT, ELECTION, "south");
     // Generated material can remain while the editable live link is absent.
     ceremony.add_ballot_style(published(ELECTION, "south", vec![plurality("mayor")], None));
@@ -1211,4 +1266,86 @@ async fn report_coverage_excludes_generated_styles_outside_the_actual_area_selec
                 .collect()
         )
     );
+}
+
+fn initialization_session(id: &str, status: &str, areas: Option<&[&str]>) -> TallySession {
+    let mut session = serde_json::from_value::<TallySession>(json!({
+        "id": id, "tenant_id": TENANT, "election_event_id": EVENT,
+        "keys_ceremony_id": KEYS_CEREMONY, "threshold": 2, "is_execution_completed": false,
+        "election_ids": [ELECTION], "execution_status": status,
+        "tally_type": "INITIALIZATION_REPORT",
+    }))
+    .expect("a tally session");
+    session.annotations = areas.map(|areas| json!({INITIALIZATION_AREA_IDS_ANNOTATION: areas}));
+    session
+}
+
+#[tokio::test]
+async fn a_second_initialization_report_for_the_election_is_refused_until_the_first_is_cancelled() {
+    for status in [
+        "STARTED",
+        "CONNECTED",
+        "IN_PROGRESS",
+        "AWAITING_INPUT",
+        "SUCCESS",
+    ] {
+        let ceremony = unopened_event(json!({}));
+        ceremony.add_session(initialization_session("first", status, None));
+        let error = create_tally(&ceremony, "INITIALIZATION_REPORT", &[ELECTION], &[])
+            .await
+            .unwrap_err();
+        assert_eq!(
+            validation_message(error),
+            "Another initialization report tally (first) already exists for these elections.",
+            "{status}"
+        );
+        assert_eq!(ceremony.sessions().len(), 1, "{status}");
+    }
+    let ceremony = unopened_event(json!({}));
+    ceremony.add_session(initialization_session("first", "CANCELLED", None));
+    create_tally(&ceremony, "INITIALIZATION_REPORT", &[ELECTION], &[])
+        .await
+        .expect("a cancelled session does not block");
+    assert_eq!(ceremony.sessions().len(), 2);
+}
+
+#[tokio::test]
+async fn country_initializations_are_refused_only_when_they_share_a_country() {
+    let ceremony = unopened_event(per_country());
+    ceremony.add_session(initialization_session("north", "STARTED", Some(&["north"])));
+    let error = initialize_countries(&ceremony, "INITIALIZATION_REPORT", &["north"])
+        .await
+        .unwrap_err();
+    assert_eq!(
+        validation_message(error),
+        "Another initialization report tally (north) already exists for these elections."
+    );
+    initialize_countries(&ceremony, "INITIALIZATION_REPORT", &["south"])
+        .await
+        .expect("a different country");
+}
+
+#[tokio::test]
+async fn admission_locks_the_elections_before_it_reads_them() {
+    let ceremony = unopened_event(json!({}));
+    create_tally(&ceremony, "INITIALIZATION_REPORT", &[ELECTION], &[])
+        .await
+        .expect("an initialization report");
+    assert_eq!(
+        ceremony.admission_calls(),
+        vec![
+            TallyCall::LockElections,
+            TallyCall::BlockingInitializationSessions
+        ]
+    );
+
+    let ceremony = closed_event(json!({}));
+    create(&ceremony).await.expect("electoral results");
+    assert_eq!(ceremony.admission_calls(), vec![TallyCall::LockElections]);
+
+    let ceremony = closed_event(json!({}));
+    ceremony.fail(TallyCall::LockElections, "lock timeout");
+    let error = create(&ceremony).await.unwrap_err();
+    assert_eq!(error.to_string(), "lock timeout");
+    assert_nothing_written(&ceremony);
 }

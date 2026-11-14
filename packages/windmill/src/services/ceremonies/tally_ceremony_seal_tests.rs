@@ -71,6 +71,10 @@ fn published_with(area_id: &str, is_acclaimed: bool) -> BallotStyle {
 /// contest published in two areas, a finished keys ceremony and a tally
 /// session (`SESSION`) ready to start.
 fn closed_event(presentation: Value) -> InMemoryTallyCeremony {
+    event_with(presentation, "CLOSED")
+}
+
+fn event_with(presentation: Value, voting_status: &str) -> InMemoryTallyCeremony {
     let ceremony = InMemoryTallyCeremony::default();
     ceremony.add_election_event(
         serde_json::from_value(json!({
@@ -84,7 +88,7 @@ fn closed_event(presentation: Value) -> InMemoryTallyCeremony {
     ceremony.add_election(
         serde_json::from_value(json!({
             "id": ELECTION, "tenant_id": TENANT, "election_event_id": EVENT,
-            "status": {"is_published": true, "voting_status": "CLOSED",
+            "status": {"is_published": true, "voting_status": voting_status,
                        "allow_tally": "allowed", "init_report": "allowed"},
             "keys_ceremony_id": KEYS_CEREMONY,
         }))
@@ -274,9 +278,13 @@ async fn a_seal_row_outside_the_published_styles_must_be_published_too() {
 
 #[tokio::test]
 async fn initialization_reports_do_not_read_the_seals() {
-    let ceremony = closed_event(seal_at_close());
+    // Before the election opens, as an initialization report needs it.
+    let ceremony = event_with(seal_at_close(), "NOT_STARTED");
     ceremony.fail(TallyCall::BallotBoxSeals, "seals are unavailable");
-    create(&ceremony, INITIALIZATION_REPORT).await.unwrap();
+    let created = create(&ceremony, INITIALIZATION_REPORT).await.unwrap();
+    // `start` moves the fixture session, so the one just created must not
+    // count as another initialization report.
+    ceremony.cancel_session(&created);
     start(&ceremony, Some(INITIALIZATION_REPORT)).await.unwrap();
     assert_eq!(stored_status(&ceremony), Some("IN_PROGRESS".into()));
 }

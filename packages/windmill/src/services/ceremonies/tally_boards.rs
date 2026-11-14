@@ -11,7 +11,7 @@ use crate::ports::tally_ceremony::TallyCreationReader;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::tally_session::merge_tally_session_annotation;
-use crate::services::ballot_box_reads::count_unresolved_votes;
+use crate::services::ballot_box_reads::{count_unresolved_votes, get_event_ballot_box};
 use crate::services::cast_votes::find_area_ballots;
 use crate::services::celery_app::get_worker_threads;
 use crate::services::ceremonies::batch_anonymity::{
@@ -26,6 +26,7 @@ use crate::services::initialization_record::initialization_area_filter;
 use crate::services::join::merge_join_csv;
 use crate::services::join::read_ballot_voter_ids;
 use crate::services::join::{MergeJoinResult, MultiplicitySource};
+use crate::services::signing::actions::initialize::is_initialization;
 use crate::services::users::{
     census_voters_from_ballot_identities, count_keycloak_enabled_voters_of_areas,
     list_keycloak_enabled_users_with_identity, CensusIdentity, VoterMultiplicityColumn,
@@ -505,6 +506,54 @@ fn area_ballot(
     }
 }
 
+/// Refuses an initialization report for a contest area whose ballot box
+/// holds a ballot: one of `areas_with_ballots` (in any status).
+fn check_initialization_area(
+    contest: &TallySessionContest,
+    areas_with_ballots: &[String],
+) -> Result<()> {
+    if areas_with_ballots.contains(&contest.area_id) {
+        return Err(anyhow!(
+            "Refusing to extract ballots for the initialization report of election {} area {}: \
+             the area already has cast votes",
+            contest.election_id,
+            contest.area_id,
+        ));
+    }
+    Ok(())
+}
+
+/// Whether `tally_session` is an initialization report, which counts no
+/// ballots: its contest areas read none (see [`extract_tally_boards`]), so a
+/// vote cast after this check can't reach it, and it refuses to run once one
+/// of `tally_session_contests` has a ballot, in any status.
+pub async fn initialization_report_reads_no_ballots(
+    hasura_transaction: &Transaction<'_>,
+    tally_session: &TallySession,
+    tally_session_contests: &[TallySessionContest],
+) -> Result<bool> {
+    if !tally_session
+        .tally_type
+        .as_deref()
+        .is_some_and(is_initialization)
+    {
+        return Ok(false);
+    }
+    for contest in tally_session_contests {
+        let areas_with_ballots = get_event_ballot_box(
+            hasura_transaction,
+            &tally_session.tenant_id,
+            &tally_session.election_event_id,
+        )
+        .await?
+        .store
+        .ballot_box_areas(&tally_session.election_event_id, &contest.election_id)
+        .await?;
+        check_initialization_area(contest, &areas_with_ballots)?;
+    }
+    Ok(true)
+}
+
 /// Every contest area's ballots, by batch, with the annotations the area gets.
 /// Nothing is written: the caller records the boards and the annotations
 /// together.
@@ -553,6 +602,12 @@ pub async fn extract_tally_boards(
     )
     .await?
     .map(Arc::new);
+    let reads_no_ballots = initialization_report_reads_no_ballots(
+        hasura_transaction,
+        tally_session,
+        &tally_session_contests,
+    )
+    .await?;
 
     let mut extracted = Vec::with_capacity(tally_session_contests.len());
 
@@ -685,15 +740,18 @@ pub async fn extract_tally_boards(
                                 ballots_temp_file.path()
                             );
 
-                            find_area_ballots(
-                                &hasura_transaction_clone,
-                                &tenant_id_clone,
-                                &election_event_id_clone,
-                                &tally_session_contest.area_id,
-                                &tally_session_contest.election_id,
-                                &ballots_temp_file.path().to_path_buf(),
-                            )
-                            .await?;
+                            // An initialization report's file stays empty.
+                            if !reads_no_ballots {
+                                find_area_ballots(
+                                    &hasura_transaction_clone,
+                                    &tenant_id_clone,
+                                    &election_event_id_clone,
+                                    &tally_session_contest.area_id,
+                                    &tally_session_contest.election_id,
+                                    &ballots_temp_file.path().to_path_buf(),
+                                )
+                                .await?;
+                            }
 
                             // A delegator's own valid ballot replaces their delegation.
                             let voters_with_valid_ballot = voters_replacing_their_delegation(
@@ -1024,10 +1082,10 @@ async fn posted_by_other_sessions(
 #[cfg(test)]
 mod tests {
     use super::{
-        election_areas, election_voter_authorization_aliases, electorate_counts,
-        published_for_session, recorded_election_areas, recorded_election_electorates,
-        voters_replacing_their_delegation, ElectionElectorates, ElectorateCount,
-        ELECTION_AREAS_ANNOTATION, ELECTION_ELECTORATES_ANNOTATION,
+        check_initialization_area, election_areas, election_voter_authorization_aliases,
+        electorate_counts, published_for_session, recorded_election_areas,
+        recorded_election_electorates, voters_replacing_their_delegation, ElectionElectorates,
+        ElectorateCount, ELECTION_AREAS_ANNOTATION, ELECTION_ELECTORATES_ANNOTATION,
     };
     use crate::services::users::VoterMultiplicityColumn;
     use chrono::{DateTime, Local};
@@ -1046,6 +1104,21 @@ mod tests {
         .unwrap();
         ballots.flush().unwrap();
         ballots
+    }
+
+    #[test]
+    fn an_initialization_report_refuses_an_area_with_ballots() {
+        let contest = contest_area("mayor-election", "north", "mayor", None);
+        assert!(check_initialization_area(&contest, &["south".to_string()]).is_ok());
+        let error =
+            check_initialization_area(&contest, &["south".to_string(), "north".to_string()])
+                .expect_err("an area with ballots is refused")
+                .to_string();
+        assert_eq!(
+            error,
+            "Refusing to extract ballots for the initialization report of election \
+             mayor-election area north: the area already has cast votes"
+        );
     }
 
     #[test]

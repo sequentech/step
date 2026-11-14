@@ -26,6 +26,8 @@ use std::sync::{Mutex, MutexGuard};
 pub enum TallyCall {
     GetSession,
     LockSession,
+    LockElections,
+    BlockingInitializationSessions,
     LastExecution,
     LastExecutionAndSession,
     AppendExecution,
@@ -127,6 +129,8 @@ struct State {
     election_events: Vec<ElectionEvent>,
     env_slug: String,
     audit: Vec<TallyAuditEntry>,
+    /// Every call that took a lock or read admission state, in order.
+    calls: Vec<TallyCall>,
     failures: HashMap<TallyCall, String>,
     on_lock: Option<LockHook>,
 }
@@ -214,6 +218,23 @@ impl InMemoryTallyCeremony {
 
     fn state(&self) -> MutexGuard<'_, State> {
         self.state.lock().expect("tally ceremony state lock")
+    }
+
+    /// The admission calls made so far, in order.
+    pub fn admission_calls(&self) -> Vec<TallyCall> {
+        self.state().calls.clone()
+    }
+
+    /// Marks a stored session `CANCELLED`, as cancelling it does.
+    pub fn cancel_session(&self, tally_session_id: &str) {
+        for session in self
+            .state()
+            .sessions
+            .iter_mut()
+            .filter(|session| session.id == tally_session_id)
+        {
+            session.execution_status = Some("CANCELLED".into());
+        }
     }
 
     pub fn add_session(&self, session: TallySession) {
@@ -409,6 +430,47 @@ impl TallySessions for InMemoryTallyCeremony {
             state.update_session(tenant_id, election_event_id, tally_session_id, hook);
         }
         Ok(())
+    }
+
+    async fn lock_elections(
+        &self,
+        _tenant_id: &str,
+        _election_event_id: &str,
+        _election_ids: &[String],
+    ) -> Result<()> {
+        let mut state = self.state();
+        state.check(TallyCall::LockElections)?;
+        state.calls.push(TallyCall::LockElections);
+        Ok(())
+    }
+
+    async fn blocking_initialization_report_sessions(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+        exclude_session_id: Option<&str>,
+    ) -> Result<Vec<TallySession>> {
+        let mut state = self.state();
+        state.check(TallyCall::BlockingInitializationSessions)?;
+        state.calls.push(TallyCall::BlockingInitializationSessions);
+        Ok(state
+            .sessions
+            .iter()
+            .filter(|session| {
+                session.tenant_id == tenant_id
+                    && session.election_event_id == election_event_id
+                    && session.tally_type.as_deref() == Some("INITIALIZATION_REPORT")
+                    && session.execution_status.as_deref() != Some("CANCELLED")
+                    && Some(session.id.as_str()) != exclude_session_id
+                    && session
+                        .election_ids
+                        .iter()
+                        .flatten()
+                        .any(|id| election_ids.contains(id))
+            })
+            .cloned()
+            .collect())
     }
 
     async fn last_execution(

@@ -13,12 +13,14 @@ use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_box_seal::list_for_elections;
 use crate::postgres::ballot_style::get_ballot_styles_by_elections;
 use crate::postgres::contest::export_contests;
-use crate::postgres::election::{export_elections, get_elections_by_ids};
+use crate::postgres::election::{
+    export_elections, get_elections_by_ids, lock_elections_for_admission,
+};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::tally_session::{
-    get_tally_session_by_id, insert_tally_session, lock_tally_session_for_update,
-    set_tally_session_completed, update_tally_session_status,
+    find_blocking_initialization_report_sessions, get_tally_session_by_id, insert_tally_session,
+    lock_tally_session_for_update, set_tally_session_completed, update_tally_session_status,
 };
 use crate::postgres::tally_session_contest::{
     get_tally_session_highest_batch, insert_tally_session_contest,
@@ -80,6 +82,33 @@ impl TallySessions for PgTallySessions<'_> {
             tenant_id,
             election_event_id,
             tally_session_id,
+        )
+        .await
+    }
+
+    async fn lock_elections(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+    ) -> Result<()> {
+        lock_elections_for_admission(self.transaction, tenant_id, election_event_id, election_ids)
+            .await
+    }
+
+    async fn blocking_initialization_report_sessions(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+        exclude_session_id: Option<&str>,
+    ) -> Result<Vec<TallySession>> {
+        find_blocking_initialization_report_sessions(
+            self.transaction,
+            tenant_id,
+            election_event_id,
+            election_ids,
+            exclude_session_id,
         )
         .await
     }

@@ -34,7 +34,7 @@ use electoral_log::{Filter, LogEntry, LogQuery, SqlCompOperators, TextColumn};
 use event_database::{EventDatabase, Vote};
 use sequent_core::ballot::WeightedVotingPolicy;
 use sequent_core::types::ceremonies::TallyType;
-use sequent_core::types::hasura::core::ElectionEvent;
+use sequent_core::types::hasura::core::{ElectionEvent, TallySession, TallySessionContest};
 use sequent_core::types::participation::ParticipationChannel;
 use serde_json::json;
 use std::collections::HashMap;
@@ -55,7 +55,9 @@ use windmill::services::ceremonies::sealed_box_ballots::{
     check_sealed_boxes_tallied, sealed_box_ballots, sealed_elections, SealedBox, SealedBoxBallots,
     SealedBoxLog,
 };
-use windmill::services::ceremonies::tally_boards::sealed_boxes_for_execution;
+use windmill::services::ceremonies::tally_boards::{
+    initialization_report_reads_no_ballots, sealed_boxes_for_execution,
+};
 use windmill::services::election::get_election_event_elections;
 use windmill::services::electoral_log_board::create_protocol_manager_keys;
 
@@ -830,6 +832,96 @@ fn an_execution_whose_contest_was_removed_after_creation_is_refused() {
                 .await
                 .unwrap()
                 .is_none()
+        );
+        w.finish().await;
+    })
+}
+
+/// An initialization report counts no ballots: a ballot of its contest area,
+/// in any status, refuses it; another area's doesn't. Electoral results read
+/// their ballots and aren't checked.
+#[test]
+fn an_initialization_report_refuses_an_area_with_ballots() {
+    event_database::run(async {
+        let pool = schema::pool().await;
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let w = World::new(&tx, "do-not-seal").await;
+        let mut session: TallySession = serde_json::from_value(json!({
+            "id": SESSION, "tenant_id": w.tenant.to_string(),
+            "election_event_id": w.event.to_string(), "is_execution_completed": false,
+            "keys_ceremony_id": "keys-ceremony", "threshold": 1,
+        }))
+        .unwrap();
+        let contests = [TallySessionContest {
+            id: Uuid::new_v4().to_string(),
+            tenant_id: w.tenant.to_string(),
+            election_event_id: w.event.to_string(),
+            area_id: w.area.to_string(),
+            contest_id: None,
+            session_id: 1,
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations: None,
+            tally_session_id: SESSION.into(),
+            election_id: w.election.to_string(),
+        }];
+        // Electoral results don't read the ballot box here: the event has no
+        // board yet.
+        assert!(
+            !initialization_report_reads_no_ballots(&tx, &session, &contests)
+                .await
+                .unwrap()
+        );
+        session.tally_type = Some("INITIALIZATION_REPORT".into());
+        let error = initialization_report_reads_no_ballots(&tx, &session, &contests)
+            .await
+            .unwrap_err()
+            .to_string();
+        assert_eq!(error, "Election event has no electoral-log board");
+        tx.execute(
+            "UPDATE sequent_backend.election_event SET bulletin_board_reference = $2 WHERE id = $1",
+            &[
+                &w.event,
+                &json!({"id": 1, "database_name": w.board(), "is_archived": false}),
+            ],
+        )
+        .await
+        .unwrap();
+        assert!(
+            initialization_report_reads_no_ballots(&tx, &session, &contests)
+                .await
+                .unwrap()
+        );
+        w.database
+            .cast(&Vote {
+                election: w.election,
+                area: Uuid::new_v4(),
+                voter: "eve",
+                content: "eve",
+                ballot_id: "id-eve",
+                channel: "ONLINE",
+            })
+            .await;
+        assert!(
+            initialization_report_reads_no_ballots(&tx, &session, &contests)
+                .await
+                .unwrap()
+        );
+        w.accept(&Stored::new("carol", "discarded", "carol", "ONLINE"))
+            .await;
+        let error = initialization_report_reads_no_ballots(&tx, &session, &contests)
+            .await
+            .unwrap_err()
+            .to_string();
+        assert_eq!(
+            error,
+            format!(
+                "Refusing to extract ballots for the initialization report of election {} \
+                 area {}: the area already has cast votes",
+                w.election, w.area
+            )
         );
         w.finish().await;
     })
