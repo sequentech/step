@@ -91,6 +91,9 @@ Manage how the ballot appears in the Voting Portal.
 - **Show User Profile**: Show user profile information in the Voting Portal.
 - **Show Cast Vote Logs Tab**: Policy to enable the CastVote Immutable logs in the Ballot Locator.
 - **Logo URL (optional)**: Provide a link to a logo to display.
+- **Browser tab icon URL (optional)**: A link to the icon shown in the browser tab of the Voting Portal. It must be an `http` or `https` address.
+- **Browser tab title (optional)**: The title shown in the browser tab of the Voting Portal. Without one, the tab reads "Voting Portal".
+- **Platform branding**: **Show** (the default) or **Hide**. With **Hide**, the Voting Portal leaves out the platform's own logo and tab icon where the event sets none, the "powered by" footer and the version label. See [Branding from the first page](../09-voting-portal-custom-css.md#branding-from-the-first-page).
 - **Redirect Finish URL (optional)**: Redirect users to a URL after completing voting.
 - **Custom CSS**: Apply custom styles to the ballot design. Ballot error and warning messages expose stable CSS classes that can be targeted here — see [Styling Ballot Errors and Warnings with Custom CSS](../08-ballot-errors-custom-css.md).
 

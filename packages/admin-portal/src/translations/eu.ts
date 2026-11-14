@@ -571,6 +571,17 @@ const basqueTranslation: TranslationType = {
                 materialTitle: "Izenburua",
                 materialSubTitle: "Azpititulua",
                 logoUrl: "Logo URLa",
+                faviconUrl: "Nabigatzailearen fitxaren ikonoaren URLa",
+                pageTitle: "Nabigatzailearen fitxaren izenburua",
+                platformBrandingPolicy: {
+                    policyLabel: "Plataformaren marka",
+                    helperText:
+                        "Bozketa-atariari aplikatzen zaio: plataformaren logotipoa eta fitxaren ikonoa ekitaldiak bereak zehazten ez dituenean, «honek garatua» oina eta bertsio-etiketa.",
+                    options: {
+                        show: "Erakutsi",
+                        hide: "Ezkutatu",
+                    },
+                },
                 userVerification:
                     "Bozkatzaileak eskuz egiaztatzeko erabiliko den txantiloi pertsonalizatu bat sar dezakezu",
                 redirectFinishUrl: "Berbideratu Amaiera URLa",
