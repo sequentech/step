@@ -24,7 +24,7 @@ In IRV, if no candidate receives a majority of first-preference votes, the candi
 - **Elimination rounds** - Candidates with the fewest votes are eliminated sequentially
 - **Vote redistribution** - When a candidate is eliminated, their votes transfer to the next-ranked active candidate
 - **Exhausted ballots** - Ballots with no remaining valid choices become exhausted and are removed from the count
-- **Tie-breaking** - Look-back rule attempts to break ties by examining previous rounds
+- **Tie-breaking** - Look-back rule attempts to break ties by examining previous rounds; the contest's tie-breaking policy settles the ties it cannot break
 
 ## Implementation Details
 
@@ -141,7 +141,8 @@ When eliminating candidates:
 - Find the candidate(s) with the fewest votes
 - If there's a tie for fewest votes, apply the look-back rule
 - If all remaining candidates are tied, no elimination occurs (tie for winner)
-- Simultaneous elimination can occur when multiple candidates have the same fewest votes and can't be broken by look-back
+- Candidates still tied after look-back are eliminated together only when their combined votes are fewer than those of every other active candidate, because eliminating them one at a time would give the same result
+- Otherwise the contest's tie-breaking policy picks the single candidate to eliminate (see Tie-Breaking Policy below)
 
 #### 5. Tie-Breaking (Look-Back Rule)
 
@@ -155,7 +156,19 @@ When multiple candidates are tied for elimination:
 2. Compare vote counts in that round for the tied candidates
 3. Eliminate the candidate with fewer votes in that round
 4. If still tied, continue looking back through earlier rounds
-5. If all rounds are exhausted and tie persists, all tied candidates may be eliminated simultaneously
+5. If all rounds are exhausted and the tie persists, the elimination rules above apply
+
+#### 6. Tie-Breaking Policy
+
+Ties that look-back cannot break are settled by the contest's `tie_breaking_policy`. Each tie-break picks the tied candidate that advances:
+
+- In a tie for the win, the advancing candidate wins and the others are eliminated.
+- In a tie for the fewest votes, the advancing candidate is removed from the tie and tie-breaks repeat until one candidate is left, who is eliminated.
+
+The policies are:
+
+- `RANDOM` (default): the advancing candidate is drawn deterministically. Each tied candidate gets a SHA-256 hash of a digest of the contest's ballots, the round number, the sorted tied candidate IDs and the candidate's own ID, and the candidate with the lowest hash advances. The digest does not depend on the order of the ballots. Counting the same ballots again repeats the draw. Every draw is recorded in `tie_resolutions` with method `Random`.
+- `EXTERNAL_PROCEDURE`: the count stops and reports the tie in `pending_tie_resolution` until a resolution is stored for that round. A stored resolution applies only when its tied candidates are exactly the tied candidates of that round and the candidate it names is one of them.
 
 ### Winner Determination
 
@@ -208,17 +221,15 @@ When a ballot's ranked preferences are exhausted (all preferred candidates elimi
 
 When multiple candidates are tied for fewest votes and the tie cannot be broken:
 
-- All tied candidates may be eliminated simultaneously
-- This can create corner cases in some scenarios
-- Some electoral systems handle this differently (e.g., random selection)
+- They are eliminated together only when their combined votes are fewer than those of every other active candidate
+- Otherwise the tie-breaking policy picks a single candidate to eliminate
 
 #### Winner Tie
 
 If all remaining candidates have equal votes and cannot be separated:
 
-- No eliminations occur
-- The algorithm terminates
-- Winner determination is left to manual tie-breaking procedures
+- The tie-breaking policy picks the winner
+- With `EXTERNAL_PROCEDURE`, the algorithm stops until a resolution for that round is provided
 
 #### Maximum Rounds
 

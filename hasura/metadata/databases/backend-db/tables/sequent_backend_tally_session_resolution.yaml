@@ -27,30 +27,6 @@ object_relationships:
 insert_permissions:
     - comment: ""
       permission:
-          check:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - tally_session:
-                        _or:
-                            - permission_label:
-                                  _is_null: true
-                            - permission_label:
-                                  _contained_in: X-Hasura-Permission-Labels
-          columns:
-              - annotations
-              - election_event_id
-              - labels
-              - resolution_data
-              - resolution_type
-              - resolved_at
-              - resolved_by_user
-              - status
-              - tally_session_id
-              - tenant_id
-      role: admin-user
-    - comment: ""
-      permission:
           check: {}
           columns:
               - annotations
@@ -144,36 +120,6 @@ select_permissions:
                                   _contained_in: X-Hasura-Permission-Labels
       role: tally-resolution-submit
 update_permissions:
-    - comment: ""
-      permission:
-          check:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - tally_session:
-                        _or:
-                            - permission_label:
-                                  _is_null: true
-                            - permission_label:
-                                  _contained_in: X-Hasura-Permission-Labels
-          columns:
-              - annotations
-              - labels
-              - resolution_data
-              - resolved_at
-              - resolved_by_user
-              - status
-          filter:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - tally_session:
-                        _or:
-                            - permission_label:
-                                  _is_null: true
-                            - permission_label:
-                                  _contained_in: X-Hasura-Permission-Labels
-      role: admin-user
     - comment: ""
       permission:
           check: {}
