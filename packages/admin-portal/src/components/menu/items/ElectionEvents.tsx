@@ -224,6 +224,7 @@ export default function ElectionEvents() {
     const [isArchivedElectionEvents, setArchivedElectionEvents] = useAtom(
         archivedElectionEventSelection
     )
+    const [isTrash, setIsTrash] = useState(false)
     const {openCreateDrawer, openImportDrawer} = useCreateElectionEventStore()
     const {election_event_id, election_id, contest_id, candidate_id} = useUrlParams()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
@@ -441,6 +442,7 @@ export default function ElectionEvents() {
     let resultData = {...data}
 
     function changeArchiveSelection(val: number) {
+        setIsTrash(false)
         setArchivedElectionEvents(val === 1)
         resultData = {}
         navigate("/sequent_backend_election_event/")
@@ -664,7 +666,9 @@ export default function ElectionEvents() {
             data={finalResultData}
             treeResourceNames={TREE_RESOURCE_NAMES}
             isArchivedElectionEvents={isArchivedElectionEvents}
+            isTrash={isTrash}
             onArchiveElectionEventsSelect={changeArchiveSelection}
+            onTrashSelect={() => setIsTrash(true)}
             reloadTree={reloadTreeMenu}
         />
     )
@@ -701,16 +705,18 @@ export default function ElectionEvents() {
 
                 {isOpenSidebar && (
                     <>
-                        <SideBarContainer dir={i18n.dir(i18n.language)}>
-                            <TextField
-                                dir={i18n.dir(i18n.language)}
-                                label={String(t("sideMenu.search"))}
-                                size="small"
-                                value={instantSearchInput}
-                                onChange={(e) => debouncedSearchChange(e.target.value)}
-                            />
-                            <SearchIcon />
-                        </SideBarContainer>
+                        {!isTrash && (
+                            <SideBarContainer dir={i18n.dir(i18n.language)}>
+                                <TextField
+                                    dir={i18n.dir(i18n.language)}
+                                    label={String(t("sideMenu.search"))}
+                                    size="small"
+                                    value={instantSearchInput}
+                                    onChange={(e) => debouncedSearchChange(e.target.value)}
+                                />
+                                <SearchIcon />
+                            </SideBarContainer>
+                        )}
 
                         {treeMenu}
                     </>

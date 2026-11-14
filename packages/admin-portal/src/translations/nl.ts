@@ -279,6 +279,7 @@ const dutchTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Sjablonen Exporteren",
                 IMPORT_TEMPLATES: "Sjablonen Importeren",
                 DELETE_ELECTION_EVENT: "Verkiezingsevenement Verwijderen",
+                RESTORE_ELECTION_EVENT: "Verkiezingsevenement Herstellen",
                 DELETE_VOTERS: "Kiezers verwijderen",
                 PREPARE_PUBLICATION_PREVIEW: "De publicatievoorbeeldweergave voorbereiden",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporteer de telresultaten in XLSX-indeling",
@@ -1811,6 +1812,45 @@ const dutchTranslation: TranslationType = {
             templates: "Sjablonen",
             active: "Actief",
             archived: "Gearchiveerd",
+            trash: {
+                tab: "Prullenbak",
+                loading: "Prullenbak laden",
+                error: "De prullenbak kon niet worden geladen.",
+                retry: "Opnieuw proberen",
+                empty: "De prullenbak is leeg",
+                emptyHint_one:
+                    "Verwijderde verkiezingsevenementen blijven hier {{count}} dag en kunnen worden hersteld.",
+                emptyHint_other:
+                    "Verwijderde verkiezingsevenementen blijven hier {{count}} dagen en kunnen worden hersteld.",
+                emptyHintNoDays:
+                    "Verwijderde verkiezingsevenementen blijven hier een tijd en kunnen worden hersteld.",
+                deletedOn: "Verwijderd op {{date}}",
+                purgeOn: "Definitief verwijderd op {{date}}",
+                purging: "Definitieve verwijdering bezig",
+                wasArchived: "Was gearchiveerd",
+                showing: "{{count}} van {{total}}",
+                loadMore: "Meer laden",
+                refresh: "Vernieuwen",
+                refreshError:
+                    "De prullenbak kon niet worden vernieuwd; mogelijk is deze niet actueel.",
+                restore: "Herstellen",
+                restoreNamed: "{{name}} herstellen",
+                restoreTitle: "Verkiezingsevenement herstellen",
+                restoreConfirm: '"{{name}}" herstellen?',
+                restoreToActive: "Het gaat terug naar Actief.",
+                restoreToArchived:
+                    "Het gaat terug naar Gearchiveerd, zoals voordat het werd verwijderd.",
+                restoreVoting: "De stemstatus verandert niet.",
+                restored: '"{{name}}" hersteld',
+                restoreError: "Het verkiezingsevenement kon niet worden hersteld: {{message}}",
+                moveToTrash: "Naar prullenbak",
+                deleteExplanation_one:
+                    "Het blijft {{count}} dag in de prullenbak, waar het kan worden hersteld. Daarna wordt het definitief verwijderd.",
+                deleteExplanation_other:
+                    "Het blijft {{count}} dagen in de prullenbak, waar het kan worden hersteld. Daarna wordt het definitief verwijderd.",
+                deleteExplanationNoDays:
+                    "Het blijft in de prullenbak, waar het kan worden hersteld tot het definitief wordt verwijderd.",
+            },
             addResource: {
                 electionEvent: "Een Verkiezingsevenement aanmaken",
                 election: "Een Verkiezing aanmaken",
@@ -1834,6 +1874,9 @@ const dutchTranslation: TranslationType = {
                     candidate: "Deze Kandidaat verwijderen",
                     slate: "Deze Lijst verwijderen",
                 },
+                trash: {
+                    electionEvent: "Dit Verkiezingsevenement naar de prullenbak verplaatsen",
+                },
                 messages: {
                     confirm: {
                         archive: "Weet u zeker dat u dit item wilt archiveren?",
@@ -1842,6 +1885,9 @@ const dutchTranslation: TranslationType = {
                         archiveNamed: 'Weet u zeker dat u "{{name}}" wilt archiveren?',
                         unarchiveNamed: 'Weet u zeker dat u "{{name}}" wilt dearchiveren?',
                         deleteNamed: 'Weet u zeker dat u "{{name}}" wilt verwijderen?',
+                        trash: "Weet u zeker dat u dit item naar de prullenbak wilt verplaatsen?",
+                        trashNamed:
+                            'Weet u zeker dat u "{{name}}" naar de prullenbak wilt verplaatsen?',
                     },
                     notification: {
                         success: {

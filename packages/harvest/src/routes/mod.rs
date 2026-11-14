@@ -15,6 +15,7 @@ pub mod delete_tenant;
 pub mod document_password;
 pub mod election_dates;
 pub mod election_event_stats;
+pub mod election_event_trash;
 pub mod election_stats;
 pub mod elections;
 pub mod electoral_log;

@@ -109,17 +109,24 @@ impl TryFrom<Row> for ReportWrapper {
     }
 }
 
+/// The scheduled reports to run, except those of election events in Trash.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_all_active_reports(hasura_transaction: &Transaction<'_>) -> Result<Vec<Report>> {
     let statement = hasura_transaction
         .prepare(
             r#"
             SELECT
-                *
+                report.*
             FROM
                 "sequent_backend".report
             WHERE
                 (cron_config->>'is_active')::boolean = true
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM "sequent_backend".election_event
+                    WHERE election_event.id = report.election_event_id
+                        AND election_event.trashed_at IS NOT NULL
+                )
             "#,
         )
         .await

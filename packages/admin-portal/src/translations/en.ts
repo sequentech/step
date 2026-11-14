@@ -275,6 +275,7 @@ const englishTranslation = {
                 EXPORT_TEMPLATES: "Export Templates",
                 IMPORT_TEMPLATES: "Import Templates",
                 DELETE_ELECTION_EVENT: "Delete Election Event",
+                RESTORE_ELECTION_EVENT: "Restore Election Event",
                 DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "Prepare Publication Preview",
                 EXPORT_TALLY_RESULTS_XLSX: "Export Tally Results in XLSX format",
@@ -1788,6 +1789,43 @@ const englishTranslation = {
             templates: "Templates",
             active: "Active",
             archived: "Archived",
+            trash: {
+                tab: "Trash",
+                loading: "Loading Trash",
+                error: "Trash could not be loaded.",
+                retry: "Retry",
+                empty: "Trash is empty",
+                emptyHint_one:
+                    "Deleted election events stay here for {{count}} day and can be restored.",
+                emptyHint_other:
+                    "Deleted election events stay here for {{count}} days and can be restored.",
+                emptyHintNoDays:
+                    "Deleted election events stay here for a while and can be restored.",
+                deletedOn: "Deleted {{date}}",
+                purgeOn: "Permanently deleted on {{date}}",
+                purging: "Permanent deletion in progress",
+                wasArchived: "Was archived",
+                showing: "Showing {{count}} of {{total}}",
+                loadMore: "Load more",
+                refresh: "Refresh",
+                refreshError: "Trash could not be refreshed; it may be out of date.",
+                restore: "Restore",
+                restoreNamed: "Restore {{name}}",
+                restoreTitle: "Restore election event",
+                restoreConfirm: 'Restore "{{name}}"?',
+                restoreToActive: "It returns to Active.",
+                restoreToArchived: "It returns to Archived, as it was before it was deleted.",
+                restoreVoting: "Its voting status does not change.",
+                restored: '"{{name}}" restored',
+                restoreError: "The election event could not be restored: {{message}}",
+                moveToTrash: "Move to Trash",
+                deleteExplanation_one:
+                    "It stays in Trash for {{count}} day, where it can be restored. Then it is deleted permanently.",
+                deleteExplanation_other:
+                    "It stays in Trash for {{count}} days, where it can be restored. Then it is deleted permanently.",
+                deleteExplanationNoDays:
+                    "It stays in Trash, where it can be restored until it is deleted permanently.",
+            },
             addResource: {
                 electionEvent: "Create an Election Event",
                 election: "Create an Election",
@@ -1811,6 +1849,9 @@ const englishTranslation = {
                     candidate: "Remove this Candidate",
                     slate: "Remove this Slate",
                 },
+                trash: {
+                    electionEvent: "Move this Election Event to Trash",
+                },
                 messages: {
                     confirm: {
                         archive: "Are you sure to archive this item?",
@@ -1819,6 +1860,8 @@ const englishTranslation = {
                         archiveNamed: 'Are you sure you want to archive "{{name}}"?',
                         unarchiveNamed: 'Are you sure you want to unarchive "{{name}}"?',
                         deleteNamed: 'Are you sure you want to delete "{{name}}"?',
+                        trash: "Are you sure you want to move this item to Trash?",
+                        trashNamed: 'Are you sure you want to move "{{name}}" to Trash?',
                     },
                     notification: {
                         success: {

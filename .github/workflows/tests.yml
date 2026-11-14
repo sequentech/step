@@ -138,6 +138,13 @@ jobs:
           -- --ignored
         working-directory: packages/windmill
 
+      - name: Run PostgreSQL-backed election event Trash regression
+        run: >-
+          cargo test
+          services::election_event_trash::database_tests
+          -- --ignored
+        working-directory: packages/windmill
+
   # ===========================================================================
   # JOB: run-frontend-tests
   # ===========================================================================

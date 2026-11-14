@@ -278,6 +278,7 @@ const spanishTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exportar Plantillas",
                 IMPORT_TEMPLATES: "Importar Plantillas",
                 DELETE_ELECTION_EVENT: "Eliminar evento electoral",
+                RESTORE_ELECTION_EVENT: "Restaurar evento electoral",
                 DELETE_VOTERS: "Eliminar votantes",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista previa de la publicación",
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar los resultados del escrutinio en formato XLSX",
@@ -1816,6 +1817,43 @@ const spanishTranslation: TranslationType = {
             templates: "Plantillas",
             active: "Activos",
             archived: "Archivados",
+            trash: {
+                tab: "Papelera",
+                loading: "Cargando la papelera",
+                error: "No se pudo cargar la papelera.",
+                retry: "Reintentar",
+                empty: "La papelera está vacía",
+                emptyHint_one:
+                    "Los eventos electorales eliminados se conservan aquí {{count}} día y se pueden restaurar.",
+                emptyHint_other:
+                    "Los eventos electorales eliminados se conservan aquí {{count}} días y se pueden restaurar.",
+                emptyHintNoDays:
+                    "Los eventos electorales eliminados se conservan aquí un tiempo y se pueden restaurar.",
+                deletedOn: "Eliminado el {{date}}",
+                purgeOn: "Se eliminará definitivamente el {{date}}",
+                purging: "Eliminación definitiva en curso",
+                wasArchived: "Estaba archivado",
+                showing: "Mostrando {{count}} de {{total}}",
+                loadMore: "Cargar más",
+                refresh: "Actualizar",
+                refreshError: "No se pudo actualizar la papelera; puede no estar al día.",
+                restore: "Restaurar",
+                restoreNamed: "Restaurar {{name}}",
+                restoreTitle: "Restaurar evento electoral",
+                restoreConfirm: '¿Restaurar "{{name}}"?',
+                restoreToActive: "Vuelve a Activos.",
+                restoreToArchived: "Vuelve a Archivados, como estaba antes de eliminarlo.",
+                restoreVoting: "Su estado de votación no cambia.",
+                restored: '"{{name}}" restaurado',
+                restoreError: "No se pudo restaurar el evento electoral: {{message}}",
+                moveToTrash: "Mover a la papelera",
+                deleteExplanation_one:
+                    "Se conserva en la papelera {{count}} día, durante el cual se puede restaurar. Después se elimina definitivamente.",
+                deleteExplanation_other:
+                    "Se conserva en la papelera {{count}} días, durante los cuales se puede restaurar. Después se elimina definitivamente.",
+                deleteExplanationNoDays:
+                    "Se conserva en la papelera, donde se puede restaurar hasta que se elimine definitivamente.",
+            },
             addResource: {
                 electionEvent: "Crear un Evento Electoral",
                 election: "Crear una Elección",
@@ -1839,6 +1877,9 @@ const spanishTranslation: TranslationType = {
                     candidate: "Eliminar este Candidato",
                     slate: "Eliminar esta Candidatura",
                 },
+                trash: {
+                    electionEvent: "Mover este Evento Electoral a la papelera",
+                },
                 messages: {
                     confirm: {
                         archive: "¿Está seguro de que desea archivar este elemento?",
@@ -1847,6 +1888,8 @@ const spanishTranslation: TranslationType = {
                         archiveNamed: '¿Está seguro de que desea archivar "{{name}}"?',
                         unarchiveNamed: '¿Está seguro de que desea desarchivar "{{name}}"?',
                         deleteNamed: '¿Está seguro de que desea eliminar "{{name}}"?',
+                        trash: "¿Está seguro de que desea mover este elemento a la papelera?",
+                        trashNamed: '¿Está seguro de que desea mover "{{name}}" a la papelera?',
                     },
                     notification: {
                         success: {

@@ -17,9 +17,14 @@ import {useActionPermissions, useTreeMenuData} from "../use-tree-menu-hook"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 import {divContainer} from "@/components/styles/Menu"
-import {useMutation} from "@apollo/client"
-import {DeleteElectionEvent, DeleteElectionEventMutation} from "@/gql/graphql"
+import {useLazyQuery, useMutation} from "@apollo/client"
+import {
+    DeleteElectionEvent,
+    DeleteElectionEventMutation,
+    ListTrashedElectionEventsQuery,
+} from "@/gql/graphql"
 import {DELETE_ELECTION_EVENT} from "@/queries/DeleteElectionEvent"
+import {LIST_TRASHED_ELECTION_EVENTS} from "@/queries/ListTrashedElectionEvents"
 import {IPermissions} from "@/types/keycloak"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
@@ -29,7 +34,7 @@ import {ETasksExecution} from "@/types/tasksExecution"
 import {getMenuActionConfirmMessage} from "./menuActionConfirmMessage"
 
 const mapRemoveResource: Record<ResourceName, string> = {
-    sequent_backend_election_event: "sideMenu.menuActions.remove.electionEvent",
+    sequent_backend_election_event: "sideMenu.menuActions.trash.electionEvent",
     sequent_backend_election: "sideMenu.menuActions.remove.election",
     sequent_backend_contest: "sideMenu.menuActions.remove.contest",
     sequent_backend_candidate: "sideMenu.menuActions.remove.candidate",
@@ -99,6 +104,16 @@ export default function MenuAction({
         }
     )
 
+    const [loadTrash, {data: trashData}] = useLazyQuery<ListTrashedElectionEventsQuery>(
+        LIST_TRASHED_ELECTION_EVENTS,
+        {
+            variables: {limit: 1, offset: 0},
+            fetchPolicy: "network-only",
+            context: {headers: {"x-hasura-role": IPermissions.ELECTION_EVENT_DELETE}},
+        }
+    )
+    const retentionDays = trashData?.list_trashed_election_events?.retention_days
+
     const notify = useNotify()
 
     const {refetch} = useTreeMenuData(isArchivedTab)
@@ -133,6 +148,9 @@ export default function MenuAction({
         } else if (action === Action.Remove) {
             setSelectedActionModal({action, payload})
             setOpenDeleteModal(true)
+            if (payload.type === "sequent_backend_election_event") {
+                loadTrash()
+            }
         }
     }
 
@@ -271,6 +289,9 @@ export default function MenuAction({
             )
         }
     }
+
+    const isDeletingElectionEvent =
+        selectedActionModal?.payload.type === "sequent_backend_election_event"
 
     const openActionMenu = Boolean(anchorEl)
     const idActionMenu = openActionMenu ? "action-menu" : undefined
@@ -475,7 +496,11 @@ export default function MenuAction({
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
-                ok={String(t("common.label.delete"))}
+                ok={String(
+                    isDeletingElectionEvent
+                        ? t("sideMenu.trash.moveToTrash")
+                        : t("common.label.delete")
+                )}
                 cancel={String(t("common.label.cancel"))}
                 title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
@@ -485,7 +510,24 @@ export default function MenuAction({
                     setOpenDeleteModal(false)
                 }}
             >
-                {getMenuActionConfirmMessage(t, "delete", selectedActionModal?.payload.name)}
+                {isDeletingElectionEvent ? (
+                    <>
+                        <p>
+                            {getMenuActionConfirmMessage(
+                                t,
+                                "trash",
+                                selectedActionModal?.payload.name
+                            )}
+                        </p>
+                        <p>
+                            {retentionDays
+                                ? t("sideMenu.trash.deleteExplanation", {count: retentionDays})
+                                : t("sideMenu.trash.deleteExplanationNoDays")}
+                        </p>
+                    </>
+                ) : (
+                    getMenuActionConfirmMessage(t, "delete", selectedActionModal?.payload.name)
+                )}
             </Dialog>
         </>
     )

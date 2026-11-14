@@ -279,6 +279,7 @@ const basqueTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Txantiloiak Esportatu",
                 IMPORT_TEMPLATES: "Txantiloiak Inportatu",
                 DELETE_ELECTION_EVENT: "Ezabatu Hauteskunde Gertaera",
+                RESTORE_ELECTION_EVENT: "Leheneratu Hauteskunde Gertaera",
                 DELETE_VOTERS: "Ezabatu bozkatzaileak",
                 PREPARE_PUBLICATION_PREVIEW: "Argitalpenaren aurrebista prestatu",
                 EXPORT_TALLY_RESULTS_XLSX: "Esportatu zenbaketa-emaitzak XLSX formatuan",
@@ -1805,6 +1806,43 @@ const basqueTranslation: TranslationType = {
             templates: "Txantiloiak",
             active: "Aktiboa",
             archived: "Artxibatua",
+            trash: {
+                tab: "Zakarrontzia",
+                loading: "Zakarrontzia kargatzen",
+                error: "Ezin izan da zakarrontzia kargatu.",
+                retry: "Saiatu berriro",
+                empty: "Zakarrontzia hutsik dago",
+                emptyHint_one:
+                    "Ezabatutako hauteskunde gertaerak egun {{count}}ez gordetzen dira hemen, eta leheneratu daitezke.",
+                emptyHint_other:
+                    "Ezabatutako hauteskunde gertaerak {{count}} egunez gordetzen dira hemen, eta leheneratu daitezke.",
+                emptyHintNoDays:
+                    "Ezabatutako hauteskunde gertaerak denbora batez gordetzen dira hemen, eta leheneratu daitezke.",
+                deletedOn: "Ezabatua: {{date}}",
+                purgeOn: "Behin betiko ezabatuko da: {{date}}",
+                purging: "Behin betiko ezabatzea abian",
+                wasArchived: "Artxibatuta zegoen",
+                showing: "{{total}}(e)tik {{count}} erakusten",
+                loadMore: "Kargatu gehiago",
+                refresh: "Freskatu",
+                refreshError: "Ezin izan da zakarrontzia freskatu; baliteke eguneratuta ez egotea.",
+                restore: "Leheneratu",
+                restoreNamed: "Leheneratu {{name}}",
+                restoreTitle: "Leheneratu hauteskunde gertaera",
+                restoreConfirm: '"{{name}}" leheneratu?',
+                restoreToActive: "Aktiboetara itzultzen da.",
+                restoreToArchived: "Artxibatuetara itzultzen da, ezabatu aurretik zegoen bezala.",
+                restoreVoting: "Bere bozketa egoera ez da aldatzen.",
+                restored: '"{{name}}" leheneratuta',
+                restoreError: "Ezin izan da hauteskunde gertaera leheneratu: {{message}}",
+                moveToTrash: "Bota zakarrontzira",
+                deleteExplanation_one:
+                    "Egun {{count}}ez geratzen da zakarrontzian, eta bitartean leheneratu daiteke. Ondoren behin betiko ezabatzen da.",
+                deleteExplanation_other:
+                    "{{count}} egunez geratzen da zakarrontzian, eta bitartean leheneratu daiteke. Ondoren behin betiko ezabatzen da.",
+                deleteExplanationNoDays:
+                    "Zakarrontzian geratzen da, eta behin betiko ezabatu arte leheneratu daiteke.",
+            },
             addResource: {
                 electionEvent: "Sortu Hauteskunde Gertaera",
                 election: "Sortu Hauteskundea",
@@ -1828,6 +1866,9 @@ const basqueTranslation: TranslationType = {
                     candidate: "Kendu Hautagaia hau",
                     slate: "Kendu Hautagai-zerrenda hau",
                 },
+                trash: {
+                    electionEvent: "Bota Hauteskunde Gertaera hau zakarrontzira",
+                },
                 messages: {
                     confirm: {
                         archive: "Ziur zaude elementu hau artxibatu nahi duzula?",
@@ -1836,6 +1877,8 @@ const basqueTranslation: TranslationType = {
                         archiveNamed: 'Ziur zaude "{{name}}" artxibatu nahi duzula?',
                         unarchiveNamed: 'Ziur zaude "{{name}}" desartxibatu nahi duzula?',
                         deleteNamed: 'Ziur zaude "{{name}}" ezabatu nahi duzula?',
+                        trash: "Ziur zaude elementu hau zakarrontzira bota nahi duzula?",
+                        trashNamed: 'Ziur zaude "{{name}}" zakarrontzira bota nahi duzula?',
                     },
                     notification: {
                         success: {

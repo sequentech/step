@@ -22,6 +22,7 @@ import {
 import {useTranslation} from "react-i18next"
 
 import MenuActions from "./MenuActions"
+import {ElectionEventTrash} from "./ElectionEventTrash"
 import {SlateTreeLeaves} from "./SlateTreeLeaves"
 import {useActionPermissions} from "../use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -580,14 +581,17 @@ function TreeMenuItem({
 }
 
 /**
- * TreeMenu component renders a side menu with options to toggle between active and archived election events,
- * and displays a tree structure of election events data.
+ * TreeMenu component renders a side menu with tabs for active, archived and,
+ * for users who can delete election events, trashed election events, and
+ * displays the tree of the active or archived ones or the Trash.
  *
  * @param {Object} props - The props for the TreeMenu component.
  * @param {DynEntityType} props.data - The data object containing election events and related information.
  * @param {ResourceName[]} props.treeResourceNames - An array of resource names used for the tree structure.
  * @param {boolean} props.isArchivedElectionEvents - A flag indicating whether the archived election events are being viewed.
+ * @param {boolean} props.isTrash - A flag indicating whether the Trash is being viewed.
  * @param {(val: number) => void} props.onArchiveElectionEventsSelect - Callback function triggered when toggling between active and archived election events.
+ * @param {() => void} props.onTrashSelect - Callback function triggered when the Trash tab is selected.
  * @param {() => void} props.reloadTree - Callback function to reload the tree structure.
  *
  * @returns {JSX.Element} The rendered TreeMenu component.
@@ -597,40 +601,75 @@ export function TreeMenu({
     data,
     treeResourceNames,
     isArchivedElectionEvents,
+    isTrash,
     onArchiveElectionEventsSelect,
+    onTrashSelect,
     reloadTree,
 }: {
     data: DynEntityType
     treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
+    isTrash: boolean
     onArchiveElectionEventsSelect: (val: number) => void
+    onTrashSelect: () => void
     reloadTree: () => void
 }) {
     const {t} = useTranslation()
+    const {canDeleteElectionEvent} = useActionPermissions()
     const isEmpty =
         (!data?.electionEvents || data.electionEvents.length === 0) && isArchivedElectionEvents
+    const tabs = [
+        {
+            key: "active",
+            label: t("sideMenu.active"),
+            selected: !isTrash && !isArchivedElectionEvents,
+            select: () => onArchiveElectionEventsSelect(0),
+        },
+        {
+            key: "archived",
+            label: t("sideMenu.archived"),
+            selected: !isTrash && isArchivedElectionEvents,
+            select: () => onArchiveElectionEventsSelect(1),
+        },
+        ...(canDeleteElectionEvent
+            ? [
+                  {
+                      key: "trash",
+                      label: t("sideMenu.trash.tab"),
+                      selected: isTrash,
+                      select: onTrashSelect,
+                  },
+              ]
+            : []),
+    ]
     return (
         <>
-            <MenuStyles.SideMenuContainer>
-                <MenuStyles.SideMenuActiveItem
-                    onClick={() => onArchiveElectionEventsSelect(0)}
-                    isArchivedElectionEvents={isArchivedElectionEvents}
-                >
-                    {t("sideMenu.active")}
-                </MenuStyles.SideMenuActiveItem>
-                <MenuStyles.SideMenuArchiveItem
-                    onClick={() => onArchiveElectionEventsSelect(1)}
-                    isArchivedElectionEvents={isArchivedElectionEvents}
-                >
-                    {t("sideMenu.archived")}
-                </MenuStyles.SideMenuArchiveItem>
+            <MenuStyles.SideMenuContainer
+                as="div"
+                role="group"
+                aria-label={String(t("sideMenu.electionEvents"))}
+            >
+                {tabs.map((tab) => (
+                    <MenuStyles.SideMenuTab
+                        key={tab.key}
+                        type="button"
+                        aria-pressed={tab.selected}
+                        className={`election-event-tab-${tab.key}`}
+                        isSelected={tab.selected}
+                        onClick={tab.select}
+                    >
+                        {tab.label}
+                    </MenuStyles.SideMenuTab>
+                ))}
                 {/* TODO: not working well
                 <MenuStyles.RefreshAction>
                     <RefreshIcon onClick={reloadTree} />
                 </MenuStyles.RefreshAction>*/}
             </MenuStyles.SideMenuContainer>
             <Box sx={{paddingY: 1}}>
-                {isEmpty ? (
+                {isTrash ? (
+                    <ElectionEventTrash onRestored={reloadTree} />
+                ) : isEmpty ? (
                     <MenuStyles.EmptyStateContainer>No Result</MenuStyles.EmptyStateContainer>
                 ) : (
                     <TreeLeaves

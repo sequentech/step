@@ -131,8 +131,11 @@ select_permissions:
               - user_boards
               - voting_channels
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - trashed_at:
+                        _is_null: true
           allow_aggregations: true
       role: admin-user
     - comment: ""
@@ -157,8 +160,11 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - trashed_at:
+                        _is_null: true
           allow_aggregations: true
       role: election-event-archive
     - comment: ""
@@ -183,8 +189,11 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - trashed_at:
+                        _is_null: true
           allow_aggregations: true
       role: election-event-create
     - comment: ""
@@ -209,8 +218,11 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - trashed_at:
+                        _is_null: true
           allow_aggregations: true
       role: election-event-delete
     - comment: ""
@@ -235,8 +247,11 @@ select_permissions:
               - user_boards
               - voting_channels
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - trashed_at:
+                        _is_null: true
           allow_aggregations: true
       role: election-event-read
     - comment: ""
@@ -261,8 +276,11 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - trashed_at:
+                        _is_null: true
           allow_aggregations: true
       role: election-event-write
     - comment: ""
@@ -287,8 +305,11 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - trashed_at:
+                        _is_null: true
           allow_aggregations: true
       role: localization-create
     - comment: ""
@@ -313,8 +334,11 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - trashed_at:
+                        _is_null: true
           allow_aggregations: true
       role: localization-delete
     - comment: ""
@@ -339,8 +363,11 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - trashed_at:
+                        _is_null: true
       role: localization-read
     - comment: ""
       permission:
@@ -364,8 +391,11 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - trashed_at:
+                        _is_null: true
           allow_aggregations: true
       role: localization-write
     - comment: ""
@@ -469,6 +499,8 @@ select_permissions:
                         _eq: X-Hasura-Tenant-Id
                   - id:
                         _eq: X-Hasura-Election-Event-Id
+                  - trashed_at:
+                        _is_null: true
       role: user
 update_permissions:
     - comment: ""
@@ -493,8 +525,11 @@ update_permissions:
               - user_boards
               - voting_channels
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - trashed_at:
+                        _is_null: true
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -506,8 +541,11 @@ update_permissions:
               - is_archived
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - trashed_at:
+                        _is_null: true
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -534,8 +572,11 @@ update_permissions:
               - user_boards
               - voting_channels
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - trashed_at:
+                        _is_null: true
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -562,8 +603,11 @@ update_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - trashed_at:
+                        _is_null: true
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -592,16 +636,3 @@ update_permissions:
           filter: {}
           check: {}
       role: service-account
-delete_permissions:
-    - comment: ""
-      permission:
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: election-event-delete
-    - comment: ""
-      permission:
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: localization-delete

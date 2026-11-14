@@ -25,6 +25,7 @@ pub mod election_event_dates;
 pub mod election_event_presentation;
 pub mod election_event_statistics;
 pub mod election_event_status;
+pub mod election_event_trash;
 pub mod election_statistics;
 pub mod electoral_log;
 pub mod electoral_log_outbox;

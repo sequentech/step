@@ -319,6 +319,40 @@ actions:
       permissions:
           - role: election-event-delete
           - role: admin-user
+    - name: restore_election_event
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/restore-election-event
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value_from_env: ACTIONS_ADMIN_SECRET
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: election-event-delete
+          - role: admin-user
+    - name: list_trashed_election_events
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/list-trashed-election-events
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value_from_env: ACTIONS_ADMIN_SECRET
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: election-event-delete
+          - role: admin-user
     - name: delete_tenant
       definition:
           kind: synchronous
@@ -1967,6 +2001,9 @@ custom_types:
         - name: SetCustomUrlOutput
         - name: SetCustomUrlsOutput
         - name: DeleteElectionEvent
+        - name: RestoreElectionEventOutput
+        - name: TrashedElectionEvent
+        - name: TrashedElectionEventsOutput
         - name: ExportTasksExecutionOutput
         - name: createTransmissionPackageOutput
         - name: GetEventListOutput
