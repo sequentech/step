@@ -57,6 +57,12 @@ SPDX-License-Identifier: AGPL-3.0-only
             <script src="${script}" type="text/javascript"></script>
         </#list>
     </#if>
+    <#if authenticationSession??>
+    <script src="${url.resourcesPath}/js/login-timeout.js"
+            data-login-action="${(url.loginAction)!""}"
+            data-restart-url="${url.ssoLoginInOtherTabsUrl}"
+            defer></script>
+    </#if>
     <script type="module">
         import { startSessionPolling } from "${url.resourcesPath}/js/authChecker.js";
 
@@ -171,7 +177,7 @@ SPDX-License-Identifier: AGPL-3.0-only
           <#-- App-initiated actions should not see warning messages about the need to complete the action -->
           <#-- during login.                                                                               -->
           <#if displayMessage && message?has_content && (message.type != 'warning' || !isAppInitiatedAction??)>
-              <div class="alert-${message.type} ${properties.kcAlertClass!} pf-m-<#if message.type = 'error'>danger<#else>${message.type}</#if>">
+              <div <#if message.summary == msg("loginTimeout")>data-login-timeout-notice</#if> class="alert-${message.type} ${properties.kcAlertClass!} pf-m-<#if message.type = 'error'>danger<#else>${message.type}</#if>">
                   <div class="pf-c-alert__icon">
                       <#if message.type = 'success'><span class="${properties.kcFeedbackSuccessIcon!}"></span></#if>
                       <#if message.type = 'warning'><span class="${properties.kcFeedbackWarningIcon!}"></span></#if>
