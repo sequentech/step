@@ -4,6 +4,64 @@
 
 const englishTranslation = {
     translations: {
+        configurationSigning: {
+            title: "Package signing trust",
+            description:
+                "Which configuration packages this tenant imports: whether a package must be signed, the roots its signing key and its approvers' certificates must chain to, and how many approvals from distinct people it needs. Only certificates are accepted here, never keys.",
+            current: "Now:",
+            policy: "Signatures",
+            requiredApprovals: "Approvals required",
+            requiredApprovalsHelp:
+                "Valid approvals from distinct people a package needs (0 to 16).",
+            packageRoots: "Package signing roots (PEM)",
+            packageRootsHelp:
+                "The certificate authorities that issue the key signing the packages.",
+            staffRoots: "Approver roots (PEM)",
+            staffRootsHelp: "The certificate authorities that issue the approvers' certificates.",
+            certificates_one: "{{count}} certificate.",
+            certificates_other: "{{count}} certificates.",
+            loadFile: "Load a PEM file",
+            save: "Check and save",
+            saved: "Saved. Imports are checked against this from now on.",
+            refused: "Not saved: fix the problems below.",
+            invalidApprovals: "Approvals must be a whole number from 0 to {{max}}.",
+            noAnswer: "The platform gave no answer; nothing is known to have been saved.",
+            states: {
+                "not-configured":
+                    "Not configured: unsigned files import, signed packages are refused",
+                "optional": "Optional: signed packages are checked, unsigned files import",
+                "required": "Required: only signed packages with {{approvals}} approvals import",
+                "unreadable": "Unreadable: every import fails until it is saved again",
+            },
+            policies: {
+                optional: "Optional",
+                required: "Required",
+            },
+            columns: {
+                setting: "Setting",
+                subject: "Subject",
+                validUntil: "Valid until",
+                fingerprint: "SHA-256 fingerprint",
+                signerId: "Signer ID",
+                name: "Name",
+                roles: "Roles",
+                keys: "Key pins (SPKI SHA-256)",
+            },
+            minimumFormat: "Oldest package format",
+            formats: {v1: "Format 1 (no enrolled signers)", v2: "Format 2 (enrolled signers only)"},
+            separation: "Final signer",
+            separations: {separate: "Separate from the approvers", allowed: "May also have approved"},
+            loadPolicy: "Load the signing policy file",
+            policyDigest: "Policy SHA-256:",
+            policyErrors: {
+                "not-json": "The file is not JSON.",
+                "not-a-policy": "The file is not a signing policy.",
+                "other-tenant": "The file is for another tenant.",
+                "no-minimum": "The policy file must state its minimum package format.",
+                "unknown-field": "The file has a field the signing policy does not define (misspelled?).",
+                "no-tenant": "The file must name its tenant (tenant_id).",
+            },
+        },
         configurationPackage: {
             tab: "Configuration package",
             title: "Import a configuration package",

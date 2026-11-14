@@ -5,6 +5,68 @@ import englishTranslation, {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        configurationSigning: {
+            title: "Confiance dans la signature des paquets",
+            description:
+                "Les paquets de configuration que ce locataire importe : si un paquet doit être signé, les racines auxquelles sa clé de signature et les certificats de ses approbateurs doivent remonter, et combien d'approbations de personnes distinctes il lui faut. Seuls des certificats sont acceptés ici, jamais de clés.",
+            current: "Actuellement :",
+            policy: "Signatures",
+            requiredApprovals: "Approbations requises",
+            requiredApprovalsHelp:
+                "Approbations valides de personnes distinctes nécessaires à un paquet (0 à 16).",
+            packageRoots: "Racines de signature des paquets (PEM)",
+            packageRootsHelp:
+                "Les autorités de certification qui émettent la clé signant les paquets.",
+            staffRoots: "Racines des approbateurs (PEM)",
+            staffRootsHelp:
+                "Les autorités de certification qui émettent les certificats des approbateurs.",
+            certificates_one: "{{count}} certificat.",
+            certificates_other: "{{count}} certificats.",
+            loadFile: "Charger un fichier PEM",
+            save: "Vérifier et enregistrer",
+            saved: "Enregistré. Les importations sont désormais vérifiées selon ce paramètre.",
+            refused: "Non enregistré : corrigez les problèmes ci-dessous.",
+            invalidApprovals: "Les approbations doivent être un nombre entier de 0 à {{max}}.",
+            noAnswer: "La plateforme n'a pas répondu ; rien n'est connu comme enregistré.",
+            states: {
+                "not-configured":
+                    "Non configuré : les fichiers non signés s'importent, les paquets signés sont refusés",
+                "optional":
+                    "Facultatif : les paquets signés sont vérifiés, les fichiers non signés s'importent",
+                "required":
+                    "Requis : seuls les paquets signés avec {{approvals}} approbations s'importent",
+                "unreadable":
+                    "Illisible : toute importation échoue jusqu'à un nouvel enregistrement",
+            },
+            policies: {
+                optional: "Facultatif",
+                required: "Requis",
+            },
+            columns: {
+                setting: "Paramètre",
+                subject: "Sujet",
+                validUntil: "Valide jusqu'au",
+                fingerprint: "Empreinte SHA-256",
+                signerId: "ID du signataire",
+                name: "Nom",
+                roles: "Rôles",
+                keys: "Empreintes de clé (SPKI SHA-256)",
+            },
+            minimumFormat: "Format de paquet le plus ancien",
+            formats: {v1: "Format 1 (sans signataires inscrits)", v2: "Format 2 (signataires inscrits seulement)"},
+            separation: "Signataire final",
+            separations: {separate: "Distinct des approbateurs", allowed: "Peut aussi avoir approuvé"},
+            loadPolicy: "Charger le fichier de politique de signature",
+            policyDigest: "SHA-256 de la politique :",
+            policyErrors: {
+                "not-json": "Le fichier n'est pas du JSON.",
+                "not-a-policy": "Le fichier n'est pas une politique de signature.",
+                "other-tenant": "Le fichier concerne un autre locataire.",
+                "no-minimum": "La politique doit indiquer son format de paquet minimal.",
+                "unknown-field": "Le fichier contient un champ que la politique de signature ne définit pas (faute de frappe ?).",
+                "no-tenant": "Le fichier doit indiquer son tenant (tenant_id).",
+            },
+        },
         configurationPackage: englishTranslation.translations.configurationPackage,
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {

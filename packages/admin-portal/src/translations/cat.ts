@@ -5,6 +5,67 @@ import englishTranslation, {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        configurationSigning: {
+            title: "Confiança en la signatura de paquets",
+            description:
+                "Quins paquets de configuració importa aquest inquilí: si un paquet ha d'estar signat, les arrels a les quals han d'encadenar la seva clau de signatura i els certificats dels aprovadors, i quantes aprovacions de persones diferents necessita. Aquí només s'accepten certificats, mai claus.",
+            current: "Ara:",
+            policy: "Signatures",
+            requiredApprovals: "Aprovacions requerides",
+            requiredApprovalsHelp:
+                "Aprovacions vàlides de persones diferents que necessita un paquet (0 a 16).",
+            packageRoots: "Arrels de signatura de paquets (PEM)",
+            packageRootsHelp:
+                "Les autoritats de certificació que emeten la clau que signa els paquets.",
+            staffRoots: "Arrels d'aprovadors (PEM)",
+            staffRootsHelp:
+                "Les autoritats de certificació que emeten els certificats dels aprovadors.",
+            certificates_one: "{{count}} certificat.",
+            certificates_other: "{{count}} certificats.",
+            loadFile: "Carregar un fitxer PEM",
+            save: "Comprovar i desar",
+            saved: "Desat. Les importacions es comproven amb això a partir d'ara.",
+            refused: "No desat: corregiu els problemes següents.",
+            invalidApprovals: "Les aprovacions han de ser un nombre enter de 0 a {{max}}.",
+            noAnswer: "La plataforma no ha respost; no consta que s'hagi desat res.",
+            states: {
+                "not-configured":
+                    "Sense configurar: els fitxers sense signar s'importen, els paquets signats es rebutgen",
+                "optional":
+                    "Opcional: els paquets signats es comproven, els fitxers sense signar s'importen",
+                "required":
+                    "Requerida: només s'importen paquets signats amb {{approvals}} aprovacions",
+                "unreadable": "Il·legible: tota importació falla fins que es torni a desar",
+            },
+            policies: {
+                optional: "Opcional",
+                required: "Requerida",
+            },
+            columns: {
+                setting: "Paràmetre",
+                subject: "Subjecte",
+                validUntil: "Vàlid fins a",
+                fingerprint: "Empremta SHA-256",
+                signerId: "ID del signant",
+                name: "Nom",
+                roles: "Funcions",
+                keys: "Empremtes de clau (SPKI SHA-256)",
+            },
+            minimumFormat: "Format de paquet més antic",
+            formats: {v1: "Format 1 (sense signants inscrits)", v2: "Format 2 (només signants inscrits)"},
+            separation: "Signant final",
+            separations: {separate: "Diferent dels aprovadors", allowed: "Pot haver aprovat també"},
+            loadPolicy: "Carrega el fitxer de política de signatura",
+            policyDigest: "SHA-256 de la política:",
+            policyErrors: {
+                "not-json": "El fitxer no és JSON.",
+                "not-a-policy": "El fitxer no és una política de signatura.",
+                "other-tenant": "El fitxer és d'un altre inquilí.",
+                "no-minimum": "La política ha d'indicar el format mínim de paquet.",
+                "unknown-field": "El fitxer té un camp que la política de signatura no defineix (mal escrit?).",
+                "no-tenant": "El fitxer ha d'indicar el seu tenant (tenant_id).",
+            },
+        },
         configurationPackage: englishTranslation.translations.configurationPackage,
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
