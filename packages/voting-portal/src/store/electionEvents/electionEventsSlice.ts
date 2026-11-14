@@ -45,7 +45,12 @@ export const electionEventSlice = createSlice({
             state: ElectionEventState,
             action: PayloadAction<IElectionEvent>
         ): ElectionEventState => {
-            state[action.payload.id] = action.payload
+            // Published event records may carry no presentation; keep the one
+            // already known so the event's branding never drops mid-session.
+            state[action.payload.id] = {
+                ...action.payload,
+                presentation: action.payload.presentation ?? state[action.payload.id]?.presentation,
+            }
             return state
         },
         seedElectionEvent: (
@@ -69,5 +74,10 @@ export const selectElectionEventById =
         }
         return undefined
     }
+
+// The portal serves one election event per page load, so outside the event's
+// own routes (the error page) the event is whichever one is known.
+export const selectKnownElectionEvent = (state: RootState): IElectionEvent | undefined =>
+    Object.values(state.electionEvent).find((event) => event !== undefined)
 
 export default electionEventSlice.reducer

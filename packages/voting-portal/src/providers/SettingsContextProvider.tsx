@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {createContext, useContext, useEffect, useState} from "react"
 import {StartupError} from "../components/StartupError"
-import {Loader} from "@sequentech/ui-essentials"
+import NeutralLoader from "../components/NeutralLoader/NeutralLoader"
 
 export interface GlobalSettings {
     DISABLE_AUTH: boolean
@@ -125,7 +125,7 @@ export const SettingsGate: React.FC<React.PropsWithChildren> = ({children}) => {
     const {loaded, failed} = useContext(SettingsContext)
     if (failed) return <StartupError />
 
-    return loaded ? <>{children}</> : <Loader />
+    return loaded ? <>{children}</> : <NeutralLoader />
 }
 
 export const SettingsWrapper: React.FC<React.PropsWithChildren> = ({children}) => (

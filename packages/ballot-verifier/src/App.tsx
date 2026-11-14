@@ -14,6 +14,10 @@ import {
     USER_LANGUAGE_COOKIE_NAME,
     getValueFromCookie,
     sanitizePresentationCss,
+    eventLogo,
+    hidesPlatformBranding,
+    PLATFORM_BRANDING_HIDDEN_CLASS,
+    usePageBranding,
 } from "@sequentech/ui-core"
 import {HomeScreen} from "./screens/HomeScreen"
 import {ConfirmationScreen} from "./screens/ConfirmationScreen"
@@ -29,7 +33,13 @@ import {selectBallotStyleByElectionEventId} from "./store/ballotStyles/ballotSty
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
 
-const StyledAppWrapper = styled(Stack)<{customCss: string}>`
+const StyledAppWrapper = styled(Stack, {
+    shouldForwardProp: (prop) => prop !== "customCss",
+})<{customCss: string}>`
+    &.${PLATFORM_BRANDING_HIDDEN_CLASS} .app-version {
+        display: none;
+    }
+
     ${({customCss}) => customCss}
 `
 
@@ -51,12 +61,7 @@ const HeaderWithContext: React.FC = () => {
     let languagesList = presentation?.language_conf?.enabled_language_codes ?? ["en"]
     let showUserProfile = presentation?.show_user_profile ?? true
 
-    const logoImg =
-        presentation?.logo_url === undefined
-            ? BlankLogoImg
-            : presentation?.logo_url === null
-              ? SequentLogo
-              : presentation?.logo_url
+    const logoImg = eventLogo(presentation, {platform: SequentLogo, blank: BlankLogoImg})
 
     const onChangeLanguage = (lang: string) => {
         if (getValueFromCookie(USER_LANGUAGE_COOKIE_NAME) !== lang) {
@@ -157,6 +162,12 @@ const App = () => {
         }
     }, [presentation])
 
+    const brandingPresentation =
+        confirmationBallot?.election_config?.election_event_presentation ?? presentation
+    usePageBranding(brandingPresentation)
+    const awaitingEvent = !globalSettings.DISABLE_AUTH && !brandingPresentation
+    const showFooter = !awaitingEvent && !hidesPlatformBranding(brandingPresentation)
+
     const customCss = useMemo(
         () =>
             sanitizePresentationCss(
@@ -169,7 +180,14 @@ const App = () => {
     )
 
     return (
-        <StyledAppWrapper customCss={customCss}>
+        <StyledAppWrapper
+            className={
+                hidesPlatformBranding(brandingPresentation)
+                    ? PLATFORM_BRANDING_HIDDEN_CLASS
+                    : undefined
+            }
+            customCss={customCss}
+        >
             <StyledApp className="ballot-verifier app-root">
                 {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
                 <PageBanner marginBottom="auto" component="main" id="main-content" tabIndex={-1}>
@@ -233,7 +251,7 @@ const App = () => {
                         />
                     </Routes>
                 </PageBanner>
-                <Footer />
+                {showFooter && <Footer />}
             </StyledApp>
         </StyledAppWrapper>
     )

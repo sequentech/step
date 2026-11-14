@@ -11,9 +11,10 @@ import {SettingsContext} from "./providers/SettingsContextProvider"
 import {TenantEventType} from "."
 import {ApolloWrapper} from "./providers/ApolloContextProvider"
 import {VotingPortalError, VotingPortalErrorType} from "./services/VotingPortalError"
-import {useAppDispatch} from "./store/hooks"
+import {useAppDispatch, useAppSelector} from "./store/hooks"
+import {selectFirstBallotStyle} from "./store/ballotStyles/ballotStylesSlice"
 import {seedElectionEvent} from "./store/electionEvents/electionEventsSlice"
-import {PortalChrome} from "./components/PortalChrome"
+import {PortalChrome, PortalLoading} from "./components/PortalChrome"
 import {
     InvalidLoginHintsError,
     parseLoginHints,
@@ -30,7 +31,9 @@ const App = () => {
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
     const dispatch = useAppDispatch()
+    const ballotLoaded = useAppSelector(selectFirstBallotStyle) !== undefined
     const [loadElectionEventConfig] = useState(createElectionEventConfigLoader)
+    const [settledEventConfigUrl, setSettledEventConfigUrl] = useState<string>()
     const [loginHintRequest] = useState(() => {
         const acceptsLoginHints = routeAcceptsLoginHints(location.pathname)
 
@@ -104,18 +107,7 @@ const App = () => {
                 if (!isCurrent()) {
                     return
                 }
-                const presentation = config.election_event_presentation
-                const languageConf = presentation?.language_conf
-
-                // Seed early routes from the public config, but never downgrade a
-                // full query result or frozen preview publication already stored.
-                dispatch(
-                    seedElectionEvent({
-                        id: config.election_event_id,
-                        tenant_id: config.tenant_id,
-                        presentation,
-                    })
-                )
+                const languageConf = config.election_event_presentation?.language_conf
 
                 const defaultLocale =
                     languageConf?.language_detection_policy ===
@@ -140,9 +132,46 @@ const App = () => {
             location.pathname,
             loginHintsForCurrentRoute,
             setTenantEvent,
-            dispatch,
         ]
     )
+
+    // The public config is read on every load of an event route, also when the
+    // voter comes back already logged in, so the event's presentation is known
+    // before the first full page is shown.
+    useEffect(() => {
+        if (!tenantId || !eventId) {
+            return
+        }
+
+        let active = true
+        const seedFromConfig = async () => {
+            try {
+                const config = await loadElectionEventConfig(electionEventConfigUrl)
+                if (!active) {
+                    return
+                }
+                // Seed early routes from the public config, but never downgrade a
+                // full query result or frozen preview publication already stored.
+                dispatch(
+                    seedElectionEvent({
+                        id: config.election_event_id,
+                        tenant_id: config.tenant_id,
+                        presentation: config.election_event_presentation,
+                    })
+                )
+            } catch (error) {
+                if (!active) {
+                    return
+                }
+                console.error("Error loading election event config:", error)
+            }
+            setSettledEventConfigUrl(electionEventConfigUrl)
+        }
+        void seedFromConfig()
+        return () => {
+            active = false
+        }
+    }, [tenantId, eventId, electionEventConfigUrl, loadElectionEventConfig, dispatch])
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -177,6 +206,19 @@ const App = () => {
             active = false
         }
     }, [isAuthenticated, globalSettings.DISABLE_AUTH, navigate, tenantId, setupTenantEvent])
+
+    // Event routes always end in a login. Until it completes, the voter may be
+    // bounced through the identity provider several times, so show one page
+    // without the default header, footer or colours across those loads, and
+    // keep it until the event's own presentation has been looked up.
+    const awaitingLogin = !globalSettings.DISABLE_AUTH && !isAuthenticated
+    // A ballot already in the store, as in a publication preview, carries the
+    // event's presentation, and replacing the page would discard that ballot.
+    const awaitingEventConfig = !ballotLoaded && settledEventConfigUrl !== electionEventConfigUrl
+
+    if (eventId && (awaitingLogin || awaitingEventConfig)) {
+        return <PortalLoading />
+    }
 
     return (
         <PortalChrome Wrapper={ApolloWrapper} before={<ScrollRestoration />}>

@@ -85,7 +85,6 @@ module.exports = function (env, argv) {
             }),
             new HtmlWebpackPlugin({
                 template: path.resolve(__dirname, "public/index.html"),
-                favicon: path.resolve(__dirname, "public/favicon.ico"),
                 filename: "./index.html",
                 // pass variables to the template
                 templateParameters: {
@@ -100,11 +99,7 @@ module.exports = function (env, argv) {
                         from: path.resolve(__dirname, "public"), // Source folder
                         to: path.resolve(__dirname, "dist"), // Destination folder
                         globOptions: {
-                            ignore: [
-                                // Ignore all .html and .ico files (as examples, you can modify as needed)
-                                "**/index.html",
-                                "**/favicon.ico",
-                            ],
+                            ignore: ["**/index.html"],
                         },
                     },
                 ],

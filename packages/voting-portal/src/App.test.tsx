@@ -47,7 +47,12 @@ jest.mock("./components/BallotSelectionAdapter", () => ({
 }))
 jest.mock("./hooks/useElectionClassName", () => ({useElectionClassName: () => []}))
 jest.mock("./services/ElectionEventConfig", () => ({
-    createElectionEventConfigLoader: () => jest.fn(),
+    createElectionEventConfigLoader: () => async () => ({
+        id: "config",
+        tenant_id: "tenant",
+        election_event_id: "event",
+        election_event_presentation: {},
+    }),
 }))
 jest.mock("./store/hooks", () => ({
     useAppSelector: (selector: any) => selector(mockState),
