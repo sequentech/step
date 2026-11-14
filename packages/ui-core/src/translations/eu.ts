@@ -244,7 +244,7 @@ const basqueTranslation: TranslationType = {
             warningsStrict:
                 "Modu zorrotza aktibatuta dago, beraz, hauek eraikuntza geldiarazten dute.",
             messages: {
-                area: {
+                "area": {
                     "cycle": {
                         lead: "Barrutiak bata bestearen barruan",
                         text: 'Barrutiak bata bestearen barruan — "{{area}}" barrutia gurasoen begizta baten parte da, eta horrek Administrazio Ataria blokeatuko luke.',
@@ -282,13 +282,13 @@ const basqueTranslation: TranslationType = {
                         text: 'Barruti gurasoa ezezaguna — ezerk ez du "{{parent}}" identifikatzailea.',
                     },
                 },
-                ballot: {
+                "ballot": {
                     "no-elections": {
                         lead: "Hauteskunderik ez",
                         text: "Hauteskunderik ez — hauteskunde-gertaera batek gutxienez bat behar du.",
                     },
                 },
-                bundle: {
+                "bundle": {
                     "duplicate-id": {
                         lead: "Identifikatzailea bi aldiz",
                         text: "Identifikatzailea bi aldiz — {{kind}} barruko {{id}} {{previous}}(e)k ere erabiltzen du.",
@@ -318,7 +318,7 @@ const basqueTranslation: TranslationType = {
                         text: 'Tenanta ez da identifikatzaile bat — "{{value}}" ez da tenant ID baliozkoa.',
                     },
                 },
-                candidate: {
+                "candidate": {
                     "contest-missing": {
                         lead: "Hautagaiaren bozketa falta da",
                         text: "Hautagaiaren bozketa falta da — hautagaia fitxategi honetan ez dagoen bozketa batena da.",
@@ -340,7 +340,7 @@ const basqueTranslation: TranslationType = {
                         text: "Irudia erregistratu gabe — hautagai baten irudia boto-txartelean dago eta ezerk ez du erregistratzen zein dokumentu den, beraz, gero ezin izango da plataforman aldatu edo kendu.",
                     },
                 },
-                census: {
+                "census": {
                     "column-not-declared": {
                         lead: "Errolda-zutabea deklaratu gabe",
                         text: "Errolda-zutabea deklaratu gabe — {{message}}",
@@ -362,7 +362,7 @@ const basqueTranslation: TranslationType = {
                         text: "Zip barruko errolda ezin da irakurri — {{message}}",
                     },
                 },
-                channels: {
+                "channels": {
                     "early-voting-closed": {
                         lead: "Aurretiazko botoa desaktibatuta",
                         text: "Aurretiazko botoa desaktibatuta — {{areas}}(e)k aurretiazko botoa baimentzen dute eta gertaerak ez du kanal hori irekitzen, beraz, ezarpenak ez du ezer egiten.",
@@ -388,13 +388,13 @@ const basqueTranslation: TranslationType = {
                         text: 'Bozkatzeko modu ezezaguna — ezerk ez du "{{name}}" irakurtzen. Plataformak kontuan hartzen dituen bozkatzeko moduak {{allowed}} dira.',
                     },
                 },
-                contacts: {
+                "contacts": {
                     none: {
                         lead: "Harremanetarako punturik ez",
                         text: "Harremanetarako punturik ez — hauteskunde egunean hauei deitzen zaie.",
                     },
                 },
-                contest: {
+                "contest": {
                     "algorithm-unknown": {
                         lead: "Zenbaketa-metodo ezezaguna",
                         text: 'Zenbaketa-metodo ezezaguna — "{{value}}" ez da zenbaketa-algoritmo bat. Plataformak {{allowed}} onartzen ditu.',
@@ -508,13 +508,13 @@ const basqueTranslation: TranslationType = {
                         text: "Idatzizko botoa idazteko lekurik gabe — idatzizko hautagaiak baimenduta daude eta bozketak ez du horretarako tarterik, beraz, hautesle batek ez du izen bat idazteko lekurik.",
                     },
                 },
-                delivery: {
+                "delivery": {
                     "no-importable": {
                         lead: "Artxibo inportagarririk ez",
                         text: "Artxibo inportagarririk ez — zip honek plan bat du, baina ez Administrazio Atariak inportatzen duen artxiboa, beraz, ez ditu errolda eta hark aipatzen dituen fitxategiak.",
                     },
                 },
-                design: {
+                "design": {
                     "no-stable-key": {
                         lead: "Gakorik gabeko boto-txartel diseinua",
                         text: "Gakorik gabeko boto-txartel diseinua — {{kind}} {{id}} elementuak ez du izenik ez kanpoko IDrik, beraz, bere boto-txartel diseinuak ezin dira ezagutu inportazio baten ondoren.",
@@ -524,7 +524,7 @@ const basqueTranslation: TranslationType = {
                         text: "Boto-txartel estiloa ezin da irakurri — ezin izan da plataformaren boto-txartel estiloa irakurri bere diseinuaren laburpena kalkulatzeko: {{reason}}",
                     },
                 },
-                election: {
+                "election": {
                     "channels-differ": {
                         lead: "Hauteskundea eta gertaera ez datoz bat",
                         text: "Hauteskundea eta gertaera ez datoz bat — {{channels}} gertaerarenaren desberdina da, beraz, hauteskunde honen hasiera-kontrolak ez lirateke bat etorriko.",
@@ -558,7 +558,7 @@ const basqueTranslation: TranslationType = {
                         text: "Baliogabetzea bigarren aukerarik gabe — hautesle batek emandako boto-txartel bat baztertu dezake eta ez du hura ordezkatzeko bigarren saiakerarik.",
                     },
                 },
-                event: {
+                "event": {
                     "checks-period-invalid": {
                         lead: "Egiaztatze-epea ez da baliozkoa",
                         text: "Egiaztatze-epea ez da baliozkoa — ezin izan da irakurri hautesleek emandako botoa egiaztatzeko duten epea: {{reason}}",
@@ -576,7 +576,7 @@ const basqueTranslation: TranslationType = {
                         text: 'Gertaeraren ezarpen ezezaguna — "{{value}}" ez da {{key}}(r)entzako balio baliozkoa. Plataformak {{allowed}} onartzen ditu.',
                     },
                 },
-                file: {
+                "file": {
                     "shared-scanovate-config": {
                         lead: "Scanovateren konfigurazio partekatua",
                         text: "Scanovateren konfigurazio partekatua — Scanovate autentifikatzailearen konfigurazioa beste hornitzaile batekin partekatzen da. Eman Scanovateri bere konfigurazioa esportatu edo inportatu aurretik.",
@@ -626,13 +626,13 @@ const basqueTranslation: TranslationType = {
                         text: "Beste bertsio nagusi bat — fitxategia {{found}} bertsiotik dator, plataforma honen {{current}} bertsioaz bestelako bertsio nagusi batetik. Desberdintasun horrek ez du inportazioa blokeatzen, eta fitxategiaren gainerako egiaztapenek bere horretan jarraitzen dute; bertsio honek onartzen ez dituen ezarpenak agian ez dira inportatuko.",
                     },
                 },
-                identifier: {
+                "identifier": {
                     duplicate: {
                         lead: "Identifikatzailea bi aldiz",
                         text: 'Identifikatzailea bi aldiz — "{{identifier}}" {{first}}(e)k erabiltzen du dagoeneko. Identifikatzaileak bakarrak dira hauteskunde-gertaera osoan, beraz, bigarrenak lehena ordezkatzen du, gehitu beharrean.',
                     },
                 },
-                ivr: {
+                "ivr": {
                     "language-not-spoken": {
                         lead: "Hizkuntza ez dago telefonoz eskuragarri",
                         text: "Hizkuntza ez dago telefonoz eskuragarri — deiak ingelesez, frantsesez eta gaztelaniaz baino ez du hitz egiten, beraz {{languages}} ez zaie deitzaileei eskaintzen.",
@@ -645,13 +645,13 @@ const basqueTranslation: TranslationType = {
                             "Deiaren mezu bat falta da — {{prompts}} ez du testurik «{{language}}» hizkuntzan, eta sistema telefonikoak dei guztiak baztertzen ditu izan arte.",
                     },
                 },
-                labels: {
+                "labels": {
                     "in-use": {
                         lead: "Baimen-etiketak erabilita",
                         text: "Baimen-etiketak erabilita — {{labels}}. Etiketa bat duen guztia ezkutatuta geratzen da etiketa hori ez duen administratzaile ororentzat, beraz, hau inportatzen duenak horietako bat behar du bere kontuan; bestela, Administrazio Atariak zerrenda hutsa erakutsiko dio.",
                     },
                 },
-                languages: {
+                "languages": {
                     "default-not-offered": {
                         lead: "Hizkuntza lehenetsia ez dago eskainita",
                         text: 'Hizkuntza lehenetsia ez dago eskainita — "{{chosen}}" ez dago {{offered}} artean, beraz, hautesleek lehenengoa jasoko lukete.',
@@ -665,7 +665,7 @@ const basqueTranslation: TranslationType = {
                         text: "Hizkuntzarik ez — boto-txartelak ingelesera jotzen du, eta hori segurtasun-sare bat da, ez aukera bat.",
                     },
                 },
-                link: {
+                "link": {
                     "area-missing": {
                         lead: "Falta den barruti baterako boto-txartel esteka",
                         text: "Falta den barruti baterako boto-txartel esteka — bozketa bat fitxategi honetan ez dagoen barruti baten boto-txartelean jartzen da.",
@@ -675,7 +675,7 @@ const basqueTranslation: TranslationType = {
                         text: "Falta den bozketa baterako boto-txartel esteka — barruti baten boto-txartelak fitxategi honetan ez dagoen bozketa bat zerrendatzen du.",
                     },
                 },
-                logo: {
+                "logo": {
                     "file-and-link": {
                         lead: "Bi logotipo",
                         text: 'Bi logotipo — plan honek igotako logotipo bat ("{{file}}") eta esteka bat ("{{url}}") ditu. Fitxategia bidaltzen da; esteka ez da kontuan hartzen.',
@@ -689,7 +689,7 @@ const basqueTranslation: TranslationType = {
                         text: 'Logotipoaren fitxategia hutsik — "{{file}}" logotipo gisa adierazten da eta ez du byterik. Artxiboko sarrera huts batek inportazioa huts eginarazten du, irudi bat galdu beharrean.',
                     },
                 },
-                material: {
+                "material": {
                     "empty-document": {
                         lead: "Dokumentu hutsa duen materiala",
                         text: "Dokumentu hutsa duen materiala — ezerezerako esteka gisa inportatuko litzateke. Fitxategirik ez duen material baterako, utzi dokumentua guztiz kanpo.",
@@ -715,13 +715,13 @@ const basqueTranslation: TranslationType = {
                         text: "Beste gertaera bateko materiala — laguntza-material hau beste hauteskunde-gertaera batena da.",
                     },
                 },
-                messages: {
+                "messages": {
                     "weekly-no-time": {
                         lead: "Ordurik gabeko errepikapena",
                         text: "Ordurik gabeko errepikapena — mezu bat astero errepikatzen da, baina ez du esaten zer ordutan, beraz, bidaltzen duenak inork idatzi ez duen ordu bat aukeratu beharko du.",
                     },
                 },
-                passwords: {
+                "passwords": {
                     "column-already-there": {
                         lead: "Pasahitzak bi aldiz emanda",
                         text: "Pasahitzak bi aldiz emanda — erroldak badu dagoeneko pasahitz-zutabe bat, beraz, sortutako pasahitzak galdera berari emandako bigarren erantzuna lirateke. Kendu zutabea edo desaktibatu sorkuntza.",
@@ -735,7 +735,7 @@ const basqueTranslation: TranslationType = {
                         text: "Hazirik gabeko pasahitzak — haziak eragiten du berreraikuntza batek pasahitz berak sortzea, berriak sortu beharrean.",
                     },
                 },
-                package: {
+                "package": {
                     "already-imported": {
                         lead: "Dagoeneko inportatuta",
                         text: "Dagoeneko inportatuta — konfigurazio honen {{revision}} berrikuspena lehenago inportatu zen; inportatu berrikuspen berriago bat.",
@@ -880,8 +880,68 @@ const basqueTranslation: TranslationType = {
                         lead: "Manifestua ezin da idatzi",
                         text: "Manifestua ezin da idatzi — ezin izan da manifestua idatzi: {{reason}}",
                     },
+                    "needs-clock": {
+                        lead: "Konfiantzazko ordurik ez",
+                        text: "Konfiantzazko ordurik ez — egiaztapen honek plataformaren erlojua behar du, eta ez da bat ere eman.",
+                    },
+                    "no-signing-policy": {
+                        lead: "Sinadura-politikarik ez",
+                        text: "Sinadura-politikarik ez — 2. formatuko paketeek tenantaren sinadura-politika instalatua behar dute, eta tenant honek ez du.",
+                    },
+                    "mixed-format": {
+                        lead: "Pakete-formatu nahasia",
+                        text: "Pakete-formatu nahasia — manifestuaren formatua eta sinadura-datuak ez datoz bat: 2. formatuko manifestu batek norentzat sinatuta dagoen dio, eta 1. formatukoak ez.",
+                    },
+                    "wrong-tenant": {
+                        lead: "Beste tenant baten paketea",
+                        text: "Beste tenant baten paketea — paketea beste tenant batentzat onetsi eta sinatu zen.",
+                    },
+                    "policy-changed": {
+                        lead: "Sinadura-politika aldatu da",
+                        text: "Sinadura-politika aldatu da — paketea tenant honen egungoa ez den sinadura-politika batekin onetsi eta sinatu zen.",
+                    },
+                    "final-signer-role": {
+                        lead: "Azken sinaduraren rol okerra",
+                        text: "Azken sinaduraren rol okerra — azken sinaduraren rolak final-signer izan behar du.",
+                    },
+                    "final-signer-not-enrolled": {
+                        lead: "Azken sinatzailea ez dago erregistratuta",
+                        text: "Azken sinatzailea ez dago erregistratuta — azken sinadura egin duen gakoa ez dago tenant honetarako erregistratuta.",
+                    },
+                    "final-signer-id-mismatch": {
+                        lead: "Azken sinatzaile okerra",
+                        text: "Azken sinatzaile okerra — paketeak azken sinatzaile bat izendatzen du, eta haren gakoa beste batena da.",
+                    },
+                    "final-signer-approved": {
+                        lead: "Azken sinatzaileak onetsi ere egin du",
+                        text: "Azken sinatzaileak onetsi ere egin du — azken sinatzaileak pakete hau onetsi ere egin du, eta tenant honek bereizita mantentzen ditu.",
+                    },
+                    "approval-algorithm": {
+                        lead: "Onespen-algoritmoa ukatuta",
+                        text: "Onespen-algoritmoa ukatuta — 2. formatuak RSA-PSS edo ECDSA P-256 bidezko onespenak bakarrik onartzen ditu.",
+                    },
+                    "approval-role-label": {
+                        lead: "Onespenaren rola ez da approver",
+                        text: "Onespenaren rola ez da approver — 2. formatuko onespen orok approver rola eraman behar du.",
+                    },
+                    "approver-id-mismatch": {
+                        lead: "Onesle-gakoa ez dago erregistratuta",
+                        text: "Onesle-gakoa ez dago erregistratuta — onespen baten gakoa ez dago izendatzen duen sinatzailearentzat edo tenant honetarako erregistratuta.",
+                    },
+                    "approver-role": {
+                        lead: "Sinatzaileak ezin du onetsi",
+                        text: "Sinatzaileak ezin du onetsi — onespen bat onesle gisa erregistratuta ez dagoen norbaitena da.",
+                    },
+                    "duplicate-signer": {
+                        lead: "Pertsona berak bi aldiz onetsi du",
+                        text: "Pertsona berak bi aldiz onetsi du — erregistratutako pertsona batek behin baino gehiagotan onetsi du, ziurtagiri desberdinekin; pertsona bakoitzak behin onesten du.",
+                    },
+                    "downgrade-refused": {
+                        lead: "1. formatuko paketea ukatuta",
+                        text: "1. formatuko paketea ukatuta — tenant honek 2. formatuko paketeak bakarrik inportatzen ditu.",
+                    },
                 },
-                plan: {
+                "plan": {
                     "not-a-plan": {
                         lead: "Ez da hauteskunde-plan bat",
                         text: "Ez da hauteskunde-plan bat — fitxategia ezin izan da plan gisa irakurri: {{error}}",
@@ -895,7 +955,7 @@ const basqueTranslation: TranslationType = {
                         text: "Plana ezin da irakurri — {{error}}",
                     },
                 },
-                reports: {
+                "reports": {
                     "duplicate": {
                         lead: "Txostena bi aldiz ezarria",
                         text: "Txostena bi aldiz ezarria — {{report}} txostena behin baino gehiagotan ezarri da hauteskunde berarentzat.",
@@ -913,7 +973,7 @@ const basqueTranslation: TranslationType = {
                         text: "Formatua ez dago erabilgarri — {{report}} txostena ezin da {{format}} formatuan sortu.",
                     },
                 },
-                schedule: {
+                "schedule": {
                     "closes-before-opens": {
                         lead: "Ireki aurretik ixten da",
                         text: "Ireki aurretik ixten da — bozketa ez litzateke inoiz irekita egongo.",
@@ -935,13 +995,13 @@ const basqueTranslation: TranslationType = {
                         text: "Bozketa-leihoa osatu gabe — aldia eskuz ireki edo itxi beharko da Administrazio Atarian.",
                     },
                 },
-                scanovate: {
+                "scanovate": {
                     "credentials-included": {
                         lead: "Fitxategiek kredentzialak dituzte",
                         text: "Fitxategiek kredentzialak dituzte — lan-liburuak eta eratorritako plan/inportazio fitxategiek realmean emandako kredentzialak dituzte, Scanovateren benetako sekretua barne. Mantendu fitxategi hauek pribatu eta zifratuta biltegiratzean eta transferitzean; partekatu zerbitzu hau konfiguratzeko baimena duten administratzaileekin soilik.",
                     },
                 },
-                signing: {
+                "signing": {
                     "duplicate-action": {
                         lead: "Bi arau ekintza baterako",
                         text: "Bi arau ekintza baterako — '{{action}}' ekintzak sinadura-arau bat baino gehiago du. Utzi bakarra.",
@@ -991,7 +1051,7 @@ const basqueTranslation: TranslationType = {
                         text: "Liburuak Architect berria behar du — liburuak sinadura-politika hau Architect zaharrago batek baztertzen dituen orrietan gordetzen du. Ireki berriro blueprint.json edo entrega-zip-etik gordetzeko.",
                     },
                 },
-                threshold: {
+                "threshold": {
                     "above-trustees": {
                         lead: "Atalase altuegia",
                         text: "Atalase altuegia — {{trustees}} gako-zaintzaileetatik {{threshold}} behar dira, eta hori ezin da bete. Gakoa sortuko litzateke eta emaitza ezin izango litzateke inoiz deszifratu.",
@@ -1005,7 +1065,7 @@ const basqueTranslation: TranslationType = {
                         text: "Zeroko atalasea — zenbaketa inor gabe ireki liteke.",
                     },
                 },
-                trustee: {
+                "trustee": {
                     "email-malformed": {
                         lead: "Ez da helbide elektroniko bat",
                         text: 'Ez da helbide elektroniko bat — "{{email}}" ez dirudi halakoa.',
@@ -1019,7 +1079,7 @@ const basqueTranslation: TranslationType = {
                         text: "Gako-zaintzailea izenik gabe — inportatzaileak gako-zeremoniako kideak izenaren bidez ebazten ditu, tenantean dagoeneko alta emanda dauden gako-zaintzaileekin alderatuta, eta izen huts bat isilean existitzen ez den kide bihurtzen da.",
                     },
                 },
-                trustees: {
+                "trustees": {
                     "none": {
                         lead: "Gako-zaintzailerik ez",
                         text: "Gako-zaintzailerik ez — hauteskunde-gako batek gutxienez bi pertsona behar ditu hura gordetzeko. Bakarrarekin, pertsona horrek bere kabuz deszifra ditzake boto-txartel guztiak, eta hori da, hain zuzen, zifratzeak ematen duen bermea.",
@@ -1029,7 +1089,7 @@ const basqueTranslation: TranslationType = {
                         text: "Gako-zaintzaile bakarra — hauteskunde-gako batek gutxienez bi pertsona behar ditu hura gordetzeko. Bakarrarekin, pertsona horrek bere kabuz deszifra ditzake boto-txartel guztiak, eta hori da, hain zuzen, zifratzeak ematen duen bermea.",
                     },
                 },
-                voter: {
+                "voter": {
                     "area-unknown": {
                         lead: "Hauteslearen barrutia ezezaguna",
                         text: 'Hauteslearen barrutia ezezaguna — ezerk ez du "{{area}}" izena. Hautesleak beren barrutiarekin izenaren bidez lotzen dira, beraz, hautesle honek ez luke boto-txartelik jasoko. Kopiatu barrutiaren izena, berriro idatzi beharrean.',
@@ -1047,7 +1107,7 @@ const basqueTranslation: TranslationType = {
                         text: "Hauteslea erabiltzaile-izenik gabe — horrekin hasten du saioa eta horretatik eratortzen da bere kontua.",
                     },
                 },
-                voters: {
+                "voters": {
                     "duplicate-column": {
                         lead: "Zutabea bi aldiz emanda",
                         text: 'Zutabea bi aldiz emanda — bi zutabek "{{column}}" ezartzen dute. Utzi horietako bat bakarrik.',
@@ -1067,6 +1127,68 @@ const basqueTranslation: TranslationType = {
                     "vote-weight-out-of-range": {
                         lead: "Botoaren pisua tartetik kanpo",
                         text: "Botoaren pisua tartetik kanpo — {{row}}. errenkadako {{value}} {{min}} eta {{max}} artean egon behar da.",
+                    },
+                },
+                "configuration-signing": {
+                    "invalid-stored-policy": {
+                        lead: "Sinadura-politika irakurtezina",
+                        text: "Sinadura-politika irakurtezina — tenant honen sinadura-politika gordea ez da baliozkoa; ez da ezer inportatzen administratzaile batek baliozko bat gorde arte.",
+                    },
+                    "no-package-roots": {
+                        lead: "Pakete-sinadurako errorik ez",
+                        text: "Pakete-sinadurako errorik ez — sinadurak behar dira, baina ez dago erakundearen sinadura-gakoaren ziurtagiri-agintaritzarik.",
+                    },
+                    "no-staff-roots": {
+                        lead: "Onesleen errorik ez",
+                        text: "Onesleen errorik ez — onespenak behar dira, baina ez dago onesleen ziurtagirien ziurtagiri-agintaritzarik.",
+                    },
+                    "too-many-approvals": {
+                        lead: "Onespen gehiegi eskatuta",
+                        text: "Onespen gehiegi eskatuta — tenant batek gehienez 16 onespen eska ditzake.",
+                    },
+                    "no-approvals": {
+                        lead: "Ez da onespenik eskatzen",
+                        text: "Ez da onespenik eskatzen — sinadurak behar dira, baina onespenik ez; beraz, paketeak azken sinadura baino ez du behar.",
+                    },
+                    "not-only-certificates": {
+                        lead: "Ez ziurtagiriak bakarrik",
+                        text: "Ez ziurtagiriak bakarrik — konfiantzako errotan PEM ziurtagiriak bakarrik egon daitezke; beste edozer, batez ere gako pribatu bat, ukatzen da.",
+                    },
+                    "not-a-ca": {
+                        lead: "Erroa ez da agintaritza bat",
+                        text: "Erroa ez da agintaritza bat — konfiantzako erro batek ziurtagiri-agintaritza izan behar du.",
+                    },
+                    "root-expired": {
+                        lead: "Erro-ziurtagiria iraungita",
+                        text: "Erro-ziurtagiria iraungita — konfiantzako erro bat iraungi da eta ezin du sinadurarik bermatu.",
+                    },
+                    "root-not-yet-valid": {
+                        lead: "Erroa oraindik ez da baliozkoa",
+                        text: "Erroa oraindik ez da baliozkoa — konfiantzako erro baten baliozkotasuna ez da oraindik hasi.",
+                    },
+                },
+                "signing-policy": {
+                    "unreadable": {
+                        lead: "Politika-fitxategi irakurtezina",
+                        text: "Politika-fitxategi irakurtezina — sinadura-politikaren fitxategia ezin da tenant baten sinadura-politika gisa irakurri.",
+                    },
+                    "no-tenant": {
+                        lead: "Tenantik gabeko politika",
+                        text: "Tenantik gabeko politika — sinadura-politikaren fitxategiak bere tenanta adierazi behar du.",
+                    },
+                    "not-v2": {
+                        lead: "Politika ez da 2. formatukoa",
+                        text: "Politika ez da 2. formatukoa — orri honek 2. formatuko paketeak eskatzen dituen sinadura-politika bat behar du.",
+                    },
+                },
+                "request": {
+                    "unreadable": {
+                        lead: "Onespen-eskaera irakurtezina",
+                        text: "Onespen-eskaera irakurtezina — onespen-eskaeraren fitxategia ezin da irakurri.",
+                    },
+                    "unreadable-approvals": {
+                        lead: "Onespen irakurtezinak",
+                        text: "Onespen irakurtezinak — onespen-fitxategi bat edo gehiago ezin dira irakurri.",
                     },
                 },
             },

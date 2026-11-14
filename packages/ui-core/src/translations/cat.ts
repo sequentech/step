@@ -245,7 +245,7 @@ const catalanTranslation: TranslationType = {
             warningsStrict:
                 "El mode estricte està activat, així que aquests punts impedeixen la construcció.",
             messages: {
-                area: {
+                "area": {
                     "cycle": {
                         lead: "Circumscripcions l'una dins de l'altra",
                         text: "Circumscripcions l'una dins de l'altra — la circumscripció «{{area}}» forma part d'un cicle de mares, que bloquejaria el Portal d'Administració.",
@@ -283,13 +283,13 @@ const catalanTranslation: TranslationType = {
                         text: "Circumscripció mare desconeguda — res no té l'identificador «{{parent}}».",
                     },
                 },
-                ballot: {
+                "ballot": {
                     "no-elections": {
                         lead: "Sense eleccions",
                         text: "Sense eleccions — un esdeveniment electoral en necessita almenys una.",
                     },
                 },
-                bundle: {
+                "bundle": {
                     "duplicate-id": {
                         lead: "Identificador repetit",
                         text: "Identificador repetit — {{id}} a {{kind}} també l'utilitza {{previous}}.",
@@ -319,7 +319,7 @@ const catalanTranslation: TranslationType = {
                         text: "El tenant no és un identificador — «{{value}}» no és un id de tenant vàlid.",
                     },
                 },
-                candidate: {
+                "candidate": {
                     "contest-missing": {
                         lead: "Falta la votació de la candidatura",
                         text: "Falta la votació de la candidatura — la candidatura pertany a una votació que no és en aquest fitxer.",
@@ -341,7 +341,7 @@ const catalanTranslation: TranslationType = {
                         text: "Imatge no registrada — la imatge d'una candidatura és a la papereta i res no registra quin document és, així que després no es podrà canviar ni eliminar a la plataforma.",
                     },
                 },
-                census: {
+                "census": {
                     "column-not-declared": {
                         lead: "Columna del cens no declarada",
                         text: "Columna del cens no declarada — {{message}}",
@@ -363,7 +363,7 @@ const catalanTranslation: TranslationType = {
                         text: "Cens del zip il·legible — {{message}}",
                     },
                 },
-                channels: {
+                "channels": {
                     "early-voting-closed": {
                         lead: "Vot anticipat desactivat",
                         text: "Vot anticipat desactivat — {{areas}} permeten el vot anticipat i l'esdeveniment no obre aquest canal, així que la configuració no fa res.",
@@ -389,13 +389,13 @@ const catalanTranslation: TranslationType = {
                         text: "Forma de votar desconeguda — res no llegeix «{{name}}». Les formes de votar amb què treballa la plataforma són {{allowed}}.",
                     },
                 },
-                contacts: {
+                "contacts": {
                     none: {
                         lead: "Sense punts de contacte",
                         text: "Sense punts de contacte — el dia de l'elecció és a qui es truca.",
                     },
                 },
-                contest: {
+                "contest": {
                     "algorithm-unknown": {
                         lead: "Mètode de recompte desconegut",
                         text: "Mètode de recompte desconegut — «{{value}}» no és un algorisme de recompte. La plataforma accepta {{allowed}}.",
@@ -509,13 +509,13 @@ const catalanTranslation: TranslationType = {
                         text: "Vot lliure sense on escriure — es permeten candidatures escrites pel votant i la votació no té cap espai per fer-ho, així que un votant no té on escriure un nom.",
                     },
                 },
-                delivery: {
+                "delivery": {
                     "no-importable": {
                         lead: "Sense arxiu importable",
                         text: "Sense arxiu importable — aquest zip té un pla però no l'arxiu que importa el Portal d'Administració, així que no conté el cens ni els fitxers que esmenta.",
                     },
                 },
-                design: {
+                "design": {
                     "no-stable-key": {
                         lead: "Disseny de papereta sense clau",
                         text: "Disseny de papereta sense clau — {{kind}} {{id}} no té nom ni identificador extern, així que els seus dissenys de papereta no es poden reconèixer després d'una importació.",
@@ -525,7 +525,7 @@ const catalanTranslation: TranslationType = {
                         text: "Estil de papereta il·legible — no s'ha pogut llegir l'estil de papereta de la plataforma per calcular l'empremta del seu disseny: {{reason}}",
                     },
                 },
-                election: {
+                "election": {
                     "channels-differ": {
                         lead: "L'elecció i l'esdeveniment no coincideixen",
                         text: "L'elecció i l'esdeveniment no coincideixen — {{channels}} és diferent del de l'esdeveniment, així que els controls d'inici d'aquesta elecció no hi coincidirien.",
@@ -559,7 +559,7 @@ const catalanTranslation: TranslationType = {
                         text: "Anul·lar sense segona oportunitat — un votant pot descartar una papereta emesa i no té cap segon intent per substituir-la.",
                     },
                 },
-                event: {
+                "event": {
                     "checks-period-invalid": {
                         lead: "Període de comprovació no vàlid",
                         text: "Període de comprovació no vàlid — no s'ha pogut llegir el període en què els votants poden comprovar el seu vot emès: {{reason}}",
@@ -577,7 +577,7 @@ const catalanTranslation: TranslationType = {
                         text: "Configuració de l'esdeveniment desconeguda — «{{value}}» no és un valor vàlid per a {{key}}. La plataforma accepta {{allowed}}.",
                     },
                 },
-                file: {
+                "file": {
                     "shared-scanovate-config": {
                         lead: "Configuració compartida de Scanovate",
                         text: "Configuració compartida de Scanovate — una configuració de l’autenticador Scanovate es comparteix amb un altre proveïdor. Assigna a Scanovate una configuració pròpia abans d’exportar-la o importar-la.",
@@ -627,13 +627,13 @@ const catalanTranslation: TranslationType = {
                         text: "Una altra versió principal — el fitxer prové de la versió {{found}}, d'una versió principal diferent de la {{current}} d'aquesta plataforma. Aquesta diferència no bloqueja la importació i la resta de comprovacions del fitxer continuen aplicant-se; els ajustos que aquesta versió no admet poden no importar-se.",
                     },
                 },
-                identifier: {
+                "identifier": {
                     duplicate: {
                         lead: "Identificador repetit",
                         text: "Identificador repetit — «{{identifier}}» ja l'utilitza {{first}}. Els identificadors són únics en tot l'esdeveniment electoral, així que el segon substitueix el primer en lloc d'afegir-se.",
                     },
                 },
-                ivr: {
+                "ivr": {
                     "language-not-spoken": {
                         lead: "Idioma no disponible per telèfon",
                         text: "Idioma no disponible per telèfon — la trucada només parla anglès, francès i castellà, així que no s'ofereix {{languages}} a qui truca.",
@@ -646,13 +646,13 @@ const catalanTranslation: TranslationType = {
                             "Falta un missatge de la trucada — {{prompts}} no té text en «{{language}}», i el sistema telefònic rebutja totes les trucades fins que en tingui.",
                     },
                 },
-                labels: {
+                "labels": {
                     "in-use": {
                         lead: "Etiquetes de permís en ús",
                         text: "Etiquetes de permís en ús — {{labels}}. Tot el que porta una etiqueta queda ocult per a qualsevol administrador que no la tingui, així que qui importi això necessita una d'aquestes etiquetes al seu propi compte o el Portal d'Administració li mostrarà una llista buida.",
                     },
                 },
-                languages: {
+                "languages": {
                     "default-not-offered": {
                         lead: "Idioma per defecte no oferit",
                         text: "Idioma per defecte no oferit — «{{chosen}}» no és entre {{offered}}, així que els votants rebrien el primer.",
@@ -666,7 +666,7 @@ const catalanTranslation: TranslationType = {
                         text: "Sense idiomes — la papereta recorre a l'anglès, que és una xarxa de seguretat i no una elecció.",
                     },
                 },
-                link: {
+                "link": {
                     "area-missing": {
                         lead: "Enllaç de papereta a una circumscripció que falta",
                         text: "Enllaç de papereta a una circumscripció que falta — una votació es posa a la papereta d'una circumscripció que no és en aquest fitxer.",
@@ -676,7 +676,7 @@ const catalanTranslation: TranslationType = {
                         text: "Enllaç de papereta a una votació que falta — la papereta d'una circumscripció inclou una votació que no és en aquest fitxer.",
                     },
                 },
-                logo: {
+                "logo": {
                     "file-and-link": {
                         lead: "Dos logotips",
                         text: "Dos logotips — aquest pla porta alhora un logotip pujat («{{file}}») i un enllaç («{{url}}»). S'envia el fitxer; l'enllaç s'ignora.",
@@ -690,7 +690,7 @@ const catalanTranslation: TranslationType = {
                         text: "Fitxer del logotip buit — «{{file}}» s'indica com a logotip i no té cap byte. Una entrada d'arxiu buida fa fallar la importació en lloc de perdre una imatge.",
                     },
                 },
-                material: {
+                "material": {
                     "empty-document": {
                         lead: "Material amb un document buit",
                         text: "Material amb un document buit — s'importaria com un enllaç a res. Si el material no té fitxer, deixeu fora el document del tot.",
@@ -716,13 +716,13 @@ const catalanTranslation: TranslationType = {
                         text: "Material d'un altre esdeveniment — aquest material de suport pertany a un altre esdeveniment electoral.",
                     },
                 },
-                messages: {
+                "messages": {
                     "weekly-no-time": {
                         lead: "Una repetició sense hora",
                         text: "Una repetició sense hora — un missatge es repeteix cada setmana però no diu a quina hora, així que qui l'enviï haurà de triar una hora que ningú no va escriure.",
                     },
                 },
-                passwords: {
+                "passwords": {
                     "column-already-there": {
                         lead: "Contrasenyes indicades dues vegades",
                         text: "Contrasenyes indicades dues vegades — el cens ja té una columna de contrasenya, així que les contrasenyes generades serien una segona resposta a la mateixa pregunta. Elimineu la columna o desactiveu la generació.",
@@ -736,7 +736,7 @@ const catalanTranslation: TranslationType = {
                         text: "Contrasenyes sense llavor — la llavor és el que fa que una reconstrucció produeixi les mateixes contrasenyes en lloc de noves.",
                     },
                 },
-                package: {
+                "package": {
                     "already-imported": {
                         lead: "Ja importada",
                         text: "Ja importada — la revisió {{revision}} d'aquesta configuració ja s'havia importat; importeu una revisió més recent.",
@@ -881,8 +881,68 @@ const catalanTranslation: TranslationType = {
                         lead: "No es pot escriure el manifest",
                         text: "No es pot escriure el manifest — no s'ha pogut escriure el manifest: {{reason}}",
                     },
+                    "needs-clock": {
+                        lead: "Sense hora de confiança",
+                        text: "Sense hora de confiança — aquesta comprovació necessita el rellotge de la plataforma i no se n'ha donat cap.",
+                    },
+                    "no-signing-policy": {
+                        lead: "Sense política de signatura",
+                        text: "Sense política de signatura — els paquets de format 2 necessiten la política de signatura instal·lada del tenant, i aquest no en té cap.",
+                    },
+                    "mixed-format": {
+                        lead: "Format de paquet barrejat",
+                        text: "Format de paquet barrejat — el format del manifest i les seves dades de signatura no concorden: un manifest de format 2 diu per a qui està signat, i un de format 1 no.",
+                    },
+                    "wrong-tenant": {
+                        lead: "Paquet d'un altre tenant",
+                        text: "Paquet d'un altre tenant — el paquet es va aprovar i signar per a un altre tenant.",
+                    },
+                    "policy-changed": {
+                        lead: "La política de signatura ha canviat",
+                        text: "La política de signatura ha canviat — el paquet es va aprovar i signar amb una política de signatura que no és l'actual d'aquest tenant.",
+                    },
+                    "final-signer-role": {
+                        lead: "Rol de signatura final incorrecte",
+                        text: "Rol de signatura final incorrecte — el rol de la signatura final ha de ser final-signer.",
+                    },
+                    "final-signer-not-enrolled": {
+                        lead: "Signant final no inscrit",
+                        text: "Signant final no inscrit — la clau que ha fet la signatura final no està inscrita per a aquest tenant.",
+                    },
+                    "final-signer-id-mismatch": {
+                        lead: "Signant final equivocat",
+                        text: "Signant final equivocat — el paquet anomena un signant final, i la seva clau pertany a un altre.",
+                    },
+                    "final-signer-approved": {
+                        lead: "El signant final també ha aprovat",
+                        text: "El signant final també ha aprovat — el signant final també ha aprovat aquest paquet, i aquest tenant els manté separats.",
+                    },
+                    "approval-algorithm": {
+                        lead: "Algorisme d'aprovació rebutjat",
+                        text: "Algorisme d'aprovació rebutjat — el format 2 només accepta aprovacions fetes amb RSA-PSS o ECDSA P-256.",
+                    },
+                    "approval-role-label": {
+                        lead: "El rol d'aprovació no és approver",
+                        text: "El rol d'aprovació no és approver — tota aprovació de format 2 ha de portar el rol approver.",
+                    },
+                    "approver-id-mismatch": {
+                        lead: "Clau d'aprovador no inscrita",
+                        text: "Clau d'aprovador no inscrita — la clau d'una aprovació no està inscrita per al signant que anomena, o per a aquest tenant.",
+                    },
+                    "approver-role": {
+                        lead: "El signant no pot aprovar",
+                        text: "El signant no pot aprovar — una aprovació ve d'algú que no està inscrit com a aprovador.",
+                    },
+                    "duplicate-signer": {
+                        lead: "La mateixa persona ha aprovat dues vegades",
+                        text: "La mateixa persona ha aprovat dues vegades — una persona inscrita ha aprovat més d'una vegada, amb certificats diferents; cada persona aprova una vegada.",
+                    },
+                    "downgrade-refused": {
+                        lead: "Paquet de format 1 rebutjat",
+                        text: "Paquet de format 1 rebutjat — aquest tenant només importa paquets de format 2.",
+                    },
                 },
-                plan: {
+                "plan": {
                     "not-a-plan": {
                         lead: "No és un pla electoral",
                         text: "No és un pla electoral — el fitxer no s'ha pogut llegir com a tal: {{error}}",
@@ -896,7 +956,7 @@ const catalanTranslation: TranslationType = {
                         text: "Pla il·legible — {{error}}",
                     },
                 },
-                reports: {
+                "reports": {
                     "duplicate": {
                         lead: "Informe configurat dues vegades",
                         text: "Informe configurat dues vegades — l'informe {{report}} està configurat més d'una vegada per a la mateixa elecció.",
@@ -914,7 +974,7 @@ const catalanTranslation: TranslationType = {
                         text: "Format no disponible — l'informe {{report}} no es pot generar en {{format}}.",
                     },
                 },
-                schedule: {
+                "schedule": {
                     "closes-before-opens": {
                         lead: "Tanca abans d'obrir",
                         text: "Tanca abans d'obrir — la votació no estaria mai oberta.",
@@ -936,13 +996,13 @@ const catalanTranslation: TranslationType = {
                         text: "Finestra de votació incompleta — caldrà obrir o tancar el període a mà al Portal d'Administració.",
                     },
                 },
-                scanovate: {
+                "scanovate": {
                     "credentials-included": {
                         lead: "Fitxers amb credencials",
                         text: "Fitxers amb credencials — el llibre i els fitxers de pla/importació derivats inclouen credencials proporcionades al realm, inclòs el secret real de Scanovate. Mantén aquests fitxers privats i xifrats durant l’emmagatzematge i la transferència; comparteix-los només amb administradors autoritzats per configurar aquest servei.",
                     },
                 },
-                signing: {
+                "signing": {
                     "duplicate-action": {
                         lead: "Dues regles per a una acció",
                         text: "Dues regles per a una acció — '{{action}}' té més d'una regla de signatura. Deixa'n només una.",
@@ -992,7 +1052,7 @@ const catalanTranslation: TranslationType = {
                         text: "El llibre necessita un Architect actual — el llibre desa aquesta política de signatura en fulls que un Architect anterior ignora. Torneu-lo a obrir des de blueprint.json o el zip de lliurament per conservar-la.",
                     },
                 },
-                threshold: {
+                "threshold": {
                     "above-trustees": {
                         lead: "Llindar massa alt",
                         text: "Llindar massa alt — s'exigeixen {{threshold}} de {{trustees}} persones dipositàries, cosa que no es pot complir. La clau es generaria i el resultat no es podria desxifrar mai.",
@@ -1006,7 +1066,7 @@ const catalanTranslation: TranslationType = {
                         text: "Llindar de zero — el recompte es podria obrir sense ningú.",
                     },
                 },
-                trustee: {
+                "trustee": {
                     "email-malformed": {
                         lead: "No és una adreça electrònica",
                         text: "No és una adreça electrònica — «{{email}}» no ho sembla.",
@@ -1020,7 +1080,7 @@ const catalanTranslation: TranslationType = {
                         text: "Persona dipositària sense nom — l'importador resol pel nom els membres de la cerimònia de claus, comparant-los amb les persones dipositàries ja donades d'alta al tenant, i un nom buit es converteix en silenci en un membre que no existeix.",
                     },
                 },
-                trustees: {
+                "trustees": {
                     "none": {
                         lead: "Sense persones dipositàries",
                         text: "Sense persones dipositàries — una clau d'elecció necessita almenys dues persones que la custodiïn. Amb una de sola, aquesta persona pot desxifrar totes les paperetes pel seu compte, que és just la garantia que aporta el xifratge.",
@@ -1030,7 +1090,7 @@ const catalanTranslation: TranslationType = {
                         text: "Només una persona dipositària — una clau d'elecció necessita almenys dues persones que la custodiïn. Amb una de sola, aquesta persona pot desxifrar totes les paperetes pel seu compte, que és just la garantia que aporta el xifratge.",
                     },
                 },
-                voter: {
+                "voter": {
                     "area-unknown": {
                         lead: "Circumscripció del votant desconeguda",
                         text: "Circumscripció del votant desconeguda — res no es diu «{{area}}». Els votants s'associen a la seva circumscripció pel nom, així que aquest votant no rebria cap papereta. Copieu el nom de la circumscripció en lloc de tornar-lo a escriure.",
@@ -1048,7 +1108,7 @@ const catalanTranslation: TranslationType = {
                         text: "Votant sense nom d'usuari — és amb què inicia la sessió i d'on es deriva el seu compte.",
                     },
                 },
-                voters: {
+                "voters": {
                     "duplicate-column": {
                         lead: "Columna indicada dues vegades",
                         text: "Columna indicada dues vegades — dues columnes defineixen «{{column}}». Mantingueu-ne només una.",
@@ -1068,6 +1128,68 @@ const catalanTranslation: TranslationType = {
                     "vote-weight-out-of-range": {
                         lead: "Pes del vot fora de rang",
                         text: "Pes del vot fora de rang — {{value}} a la fila {{row}} ha d'estar entre {{min}} i {{max}}.",
+                    },
+                },
+                "configuration-signing": {
+                    "invalid-stored-policy": {
+                        lead: "Política de signatura il·legible",
+                        text: "Política de signatura il·legible — la política de signatura desada d'aquest tenant no és vàlida, així que no s'importa res fins que un administrador en desi una de vàlida.",
+                    },
+                    "no-package-roots": {
+                        lead: "Sense arrels de signatura de paquets",
+                        text: "Sense arrels de signatura de paquets — cal signatura, però no hi ha cap autoritat de certificació per a la clau de signatura de l'organització.",
+                    },
+                    "no-staff-roots": {
+                        lead: "Sense arrels d'aprovadors",
+                        text: "Sense arrels d'aprovadors — calen aprovacions, però no hi ha cap autoritat de certificació per als certificats dels aprovadors.",
+                    },
+                    "too-many-approvals": {
+                        lead: "Massa aprovacions exigides",
+                        text: "Massa aprovacions exigides — un tenant pot exigir com a màxim 16 aprovacions.",
+                    },
+                    "no-approvals": {
+                        lead: "Cap aprovació exigida",
+                        text: "Cap aprovació exigida — cal signatura, però cap aprovació, així que a un paquet li n'hi ha prou amb la signatura final.",
+                    },
+                    "not-only-certificates": {
+                        lead: "No només certificats",
+                        text: "No només certificats — les arrels de confiança només poden contenir certificats PEM; qualsevol altra cosa, sobretot una clau privada, es rebutja.",
+                    },
+                    "not-a-ca": {
+                        lead: "L'arrel no és una autoritat",
+                        text: "L'arrel no és una autoritat — una arrel de confiança ha de ser una autoritat de certificació.",
+                    },
+                    "root-expired": {
+                        lead: "Certificat arrel caducat",
+                        text: "Certificat arrel caducat — una arrel de confiança ha caducat i ja no pot avalar cap signatura.",
+                    },
+                    "root-not-yet-valid": {
+                        lead: "Arrel encara no vàlida",
+                        text: "Arrel encara no vàlida — la validesa d'una arrel de confiança encara no ha començat.",
+                    },
+                },
+                "signing-policy": {
+                    "unreadable": {
+                        lead: "Fitxer de política il·legible",
+                        text: "Fitxer de política il·legible — el fitxer de política de signatura no es pot llegir com la política de signatura d'un tenant.",
+                    },
+                    "no-tenant": {
+                        lead: "Política sense tenant",
+                        text: "Política sense tenant — el fitxer de política de signatura ha d'indicar el seu tenant.",
+                    },
+                    "not-v2": {
+                        lead: "La política no és de format 2",
+                        text: "La política no és de format 2 — aquesta pàgina necessita una política de signatura que exigeixi paquets de format 2.",
+                    },
+                },
+                "request": {
+                    "unreadable": {
+                        lead: "Sol·licitud d'aprovació il·legible",
+                        text: "Sol·licitud d'aprovació il·legible — el fitxer de sol·licitud d'aprovació no es pot llegir.",
+                    },
+                    "unreadable-approvals": {
+                        lead: "Aprovacions il·legibles",
+                        text: "Aprovacions il·legibles — un o més fitxers d'aprovació no es poden llegir.",
                     },
                 },
             },

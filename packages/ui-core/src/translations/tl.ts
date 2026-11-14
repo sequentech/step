@@ -246,7 +246,7 @@ const tagalogTranslation: TranslationType = {
                 "Maiimport ito. Malamang na hindi ito ang talagang ibig sabihin ng bawat isa sa mga ito.",
             warningsStrict: "Naka-on ang strict mode, kaya pinahihinto ng mga ito ang build.",
             messages: {
-                area: {
+                "area": {
                     "cycle": {
                         lead: "Mga area na nasa loob ng isa't isa",
                         text: "Mga area na nasa loob ng isa't isa — bahagi ang area na '{{area}}' ng paikot na mga parent, na magpapa-hang sa Admin Portal.",
@@ -284,13 +284,13 @@ const tagalogTranslation: TranslationType = {
                         text: "Hindi kilala ang parent area — walang may identifier na '{{parent}}'.",
                     },
                 },
-                ballot: {
+                "ballot": {
                     "no-elections": {
                         lead: "Walang halalan",
                         text: "Walang halalan — kailangan ng election event ng kahit isa.",
                     },
                 },
-                bundle: {
+                "bundle": {
                     "duplicate-id": {
                         lead: "Dalawang beses ginamit ang identifier",
                         text: "Dalawang beses ginamit ang identifier — ginagamit din ng {{previous}} ang {{id}} sa {{kind}}.",
@@ -320,7 +320,7 @@ const tagalogTranslation: TranslationType = {
                         text: "Hindi identifier ang tenant — ang '{{value}}' ay hindi wastong tenant id.",
                     },
                 },
-                candidate: {
+                "candidate": {
                     "contest-missing": {
                         lead: "Nawawala ang contest ng kandidato",
                         text: "Nawawala ang contest ng kandidato — kabilang ang kandidato sa contest na wala sa file na ito.",
@@ -342,7 +342,7 @@ const tagalogTranslation: TranslationType = {
                         text: "Hindi naitala ang larawan — nasa balota ang larawan ng isang kandidato at walang nakatalang aling dokumento ito, kaya hindi na ito mapapalitan o maaalis sa platform pagkatapos.",
                     },
                 },
-                census: {
+                "census": {
                     "column-not-declared": {
                         lead: "Hindi idineklara ang column ng census",
                         text: "Hindi idineklara ang column ng census — {{message}}",
@@ -364,7 +364,7 @@ const tagalogTranslation: TranslationType = {
                         text: "Hindi mabasa ang census sa zip — {{message}}",
                     },
                 },
-                channels: {
+                "channels": {
                     "early-voting-closed": {
                         lead: "Naka-off ang early voting",
                         text: "Naka-off ang early voting — pinapayagan ng {{areas}} ang early voting at hindi binubuksan ng event ang channel na iyon, kaya walang epekto ang setting.",
@@ -390,13 +390,13 @@ const tagalogTranslation: TranslationType = {
                         text: "Hindi kilalang paraan ng pagboto — walang bumabasa sa '{{name}}'. Ang mga paraan ng pagboto na kinikilala ng platform ay {{allowed}}.",
                     },
                 },
-                contacts: {
+                "contacts": {
                     none: {
                         lead: "Walang contact person",
                         text: "Walang contact person — sila ang tatawagan sa araw ng halalan.",
                     },
                 },
-                contest: {
+                "contest": {
                     "algorithm-unknown": {
                         lead: "Hindi kilalang paraan ng pagbilang",
                         text: "Hindi kilalang paraan ng pagbilang — ang '{{value}}' ay hindi counting algorithm. Tinatanggap ng platform ang {{allowed}}.",
@@ -510,13 +510,13 @@ const tagalogTranslation: TranslationType = {
                         text: "Write-in na walang mapagsusulatan — pinapayagan ang write-in at walang write-in slot ang contest, kaya walang mapagta-type-an ng pangalan ang botante.",
                     },
                 },
-                delivery: {
+                "delivery": {
                     "no-importable": {
                         lead: "Walang maiimport na archive",
                         text: "Walang maiimport na archive — may plan ang zip na ito pero wala ang archive na iniimport ng Admin Portal, kaya wala rito ang census at ang mga file na binabanggit nito.",
                     },
                 },
-                design: {
+                "design": {
                     "no-stable-key": {
                         lead: "Disenyo ng balota na walang key",
                         text: "Disenyo ng balota na walang key — walang pangalan o external id ang {{kind}} {{id}}, kaya hindi makikilala ang mga disenyo ng balota nito pagkatapos ng import.",
@@ -526,7 +526,7 @@ const tagalogTranslation: TranslationType = {
                         text: "Hindi mabasa ang ballot style — hindi mabasa ang ballot style ng platform para kalkulahin ang design digest nito: {{reason}}",
                     },
                 },
-                election: {
+                "election": {
                     "channels-differ": {
                         lead: "Hindi magkatugma ang halalan at event",
                         text: "Hindi magkatugma ang halalan at event — iba ang {{channels}} sa event, kaya hindi magtutugma ang mga start control para sa halalang ito.",
@@ -560,7 +560,7 @@ const tagalogTranslation: TranslationType = {
                         text: "Pag-spoil na walang pangalawang pagkakataon — puwedeng itapon ng botante ang naibotong balota at wala siyang pangalawang pagkakataon para palitan ito.",
                     },
                 },
-                event: {
+                "event": {
                     "checks-period-invalid": {
                         lead: "Hindi wasto ang panahon ng pagsusuri",
                         text: "Hindi wasto ang panahon ng pagsusuri — hindi mabasa ang panahon kung kailan masusuri ng mga botante ang kanilang naihulog na balota: {{reason}}",
@@ -578,7 +578,7 @@ const tagalogTranslation: TranslationType = {
                         text: "Hindi kilalang setting ng event — ang '{{value}}' ay hindi wastong {{key}}. Tinatanggap ng platform ang {{allowed}}.",
                     },
                 },
-                file: {
+                "file": {
                     "shared-scanovate-config": {
                         lead: "Pinagsasaluhang configuration ng Scanovate",
                         text: "Pinagsasaluhang configuration ng Scanovate — ang configuration ng Scanovate authenticator ay ginagamit din ng ibang provider. Bigyan ang Scanovate ng sarili nitong configuration bago ito i-export o i-import.",
@@ -628,13 +628,13 @@ const tagalogTranslation: TranslationType = {
                         text: "Ibang major version — galing ang file sa version {{found}}, ibang major version kaysa sa {{current}} ng platform na ito. Hindi hinaharangan ng pagkakaibang iyon ang import, at nalalapat pa rin ang iba pang check ng file; maaaring hindi ma-import ang mga setting na hindi suportado ng version na ito.",
                     },
                 },
-                identifier: {
+                "identifier": {
                     duplicate: {
                         lead: "Dalawang beses ginamit ang identifier",
                         text: "Dalawang beses ginamit ang identifier — ginagamit na ng {{first}} ang '{{identifier}}'. Natatangi ang mga identifier sa buong election event, kaya papalitan ng pangalawa ang una sa halip na maidagdag.",
                     },
                 },
-                ivr: {
+                "ivr": {
                     "language-not-spoken": {
                         lead: "Wikang hindi available sa telepono",
                         text: "Wikang hindi available sa telepono — Ingles, Pranses at Espanyol lang ang sinasalita ng tawag, kaya hindi iniaalok ang {{languages}} sa mga tumatawag.",
@@ -650,13 +650,13 @@ const tagalogTranslation: TranslationType = {
                             "Kulang ang mga mensahe ng tawag — walang teksto sa '{{language}}' ang {{prompts}}, kaya tinatanggihan ng sistema ng telepono ang bawat tawag hanggang magkaroon.",
                     },
                 },
-                labels: {
+                "labels": {
                     "in-use": {
                         lead: "May ginagamit na permission label",
                         text: "May ginagamit na permission label — {{labels}}. Nakatago ang anumang may label sa bawat administrator na wala nito, kaya kailangan ng mag-iimport nito ng isa sa mga ito sa sarili niyang account, kung hindi ay walang laman na listahan ang ipapakita sa kanila ng Admin Portal.",
                     },
                 },
-                languages: {
+                "languages": {
                     "default-not-offered": {
                         lead: "Hindi kasama ang default na wika",
                         text: "Hindi kasama ang default na wika — wala ang '{{chosen}}' sa {{offered}}, kaya ang una ang matatanggap ng mga botante.",
@@ -670,7 +670,7 @@ const tagalogTranslation: TranslationType = {
                         text: "Walang wika — babalik sa English ang balota, na pansalo lang at hindi isang pinili.",
                     },
                 },
-                link: {
+                "link": {
                     "area-missing": {
                         lead: "Ballot link sa nawawalang area",
                         text: "Ballot link sa nawawalang area — inilagay ang isang contest sa balota ng area na wala sa file na ito.",
@@ -680,7 +680,7 @@ const tagalogTranslation: TranslationType = {
                         text: "Ballot link sa nawawalang contest — may nakalistang contest sa balota ng isang area na wala sa file na ito.",
                     },
                 },
-                logo: {
+                "logo": {
                     "file-and-link": {
                         lead: "Dalawang logo",
                         text: "Dalawang logo — may parehong in-upload na logo ('{{file}}') at link ('{{url}}') ang plan na ito. Ang file ang ipapadala; hindi papansinin ang link.",
@@ -694,7 +694,7 @@ const tagalogTranslation: TranslationType = {
                         text: "Walang laman ang logo file — itinalaga ang '{{file}}' bilang logo at wala itong laman. Pinapabigo ng walang lamang entry sa archive ang import sa halip na mawalan ng larawan.",
                     },
                 },
-                material: {
+                "material": {
                     "empty-document": {
                         lead: "Material na walang lamang dokumento",
                         text: "Material na walang lamang dokumento — maiimport ito bilang link sa wala. Huwag nang isama ang dokumento para sa material na walang file.",
@@ -720,13 +720,13 @@ const tagalogTranslation: TranslationType = {
                         text: "Material mula sa ibang event — kabilang ang support material na ito sa ibang election event.",
                     },
                 },
-                messages: {
+                "messages": {
                     "weekly-no-time": {
                         lead: "Pag-ulit na walang oras",
                         text: "Pag-ulit na walang oras — inuulit linggo-linggo ang isang mensahe pero hindi sinasabi kung anong oras, kaya ang magpapadala nito ang kailangang pumili ng oras na walang sumulat.",
                     },
                 },
-                passwords: {
+                "passwords": {
                     "column-already-there": {
                         lead: "Dalawang beses ibinigay ang mga password",
                         text: "Dalawang beses ibinigay ang mga password — may column na para sa password ang census, kaya magiging pangalawang sagot sa parehong tanong ang mga nabuong password. Alisin ang column, o i-off ang pagbuo ng password.",
@@ -740,7 +740,7 @@ const tagalogTranslation: TranslationType = {
                         text: "Mga password na walang seed — ang seed ang nagpapatiyak na parehong mga password ang mabubuo sa muling pag-build sa halip na mga bago.",
                     },
                 },
-                package: {
+                "package": {
                     "already-imported": {
                         lead: "Na-import na",
                         text: "Na-import na — na-import na dati ang revision {{revision}} ng configuration na ito; mag-import ng mas bagong revision.",
@@ -885,8 +885,68 @@ const tagalogTranslation: TranslationType = {
                         lead: "Hindi maisulat ang manifest",
                         text: "Hindi maisulat ang manifest — hindi maisulat ang manifest: {{reason}}",
                     },
+                    "needs-clock": {
+                        lead: "Walang pinagkakatiwalaang oras",
+                        text: "Walang pinagkakatiwalaang oras — kailangan ng pagsusuring ito ang sariling orasan ng platform, at walang naibigay.",
+                    },
+                    "no-signing-policy": {
+                        lead: "Walang signing policy",
+                        text: "Walang signing policy — kailangan ng mga format-2 package ang naka-install na signing policy ng tenant, at wala nito ang tenant na ito.",
+                    },
+                    "mixed-format": {
+                        lead: "Halo-halong format ng package",
+                        text: "Halo-halong format ng package — hindi magkatugma ang format ng manifest at ang mga detalye ng lagda nito: sinasabi ng format-2 manifest kung para kanino ito nilagdaan, at hindi ng format-1.",
+                    },
+                    "wrong-tenant": {
+                        lead: "Package para sa ibang tenant",
+                        text: "Package para sa ibang tenant — inaprubahan at nilagdaan ang package para sa ibang tenant.",
+                    },
+                    "policy-changed": {
+                        lead: "Nagbago ang signing policy",
+                        text: "Nagbago ang signing policy — inaprubahan at nilagdaan ang package sa ilalim ng signing policy na hindi ang kasalukuyan ng tenant na ito.",
+                    },
+                    "final-signer-role": {
+                        lead: "Maling papel ng huling lagda",
+                        text: "Maling papel ng huling lagda — dapat final-signer ang papel ng huling lagda.",
+                    },
+                    "final-signer-not-enrolled": {
+                        lead: "Hindi naka-enroll ang huling lumagda",
+                        text: "Hindi naka-enroll ang huling lumagda — hindi naka-enroll para sa tenant na ito ang key na gumawa ng huling lagda.",
+                    },
+                    "final-signer-id-mismatch": {
+                        lead: "Maling huling lumagda ang nakapangalan",
+                        text: "Maling huling lumagda ang nakapangalan — isang huling lumagda ang nakapangalan sa package, pero sa iba nakatalaga ang key nito.",
+                    },
+                    "final-signer-approved": {
+                        lead: "Nag-apruba rin ang huling lumagda",
+                        text: "Nag-apruba rin ang huling lumagda — inaprubahan din ng huling lumagda ang package na ito, at pinaghihiwalay sila ng tenant na ito.",
+                    },
+                    "approval-algorithm": {
+                        lead: "Tinanggihan ang algorithm ng apruba",
+                        text: "Tinanggihan ang algorithm ng apruba — tumatanggap lang ang format 2 ng mga apruba na gawa sa RSA-PSS o ECDSA P-256.",
+                    },
+                    "approval-role-label": {
+                        lead: "Hindi approver ang papel ng apruba",
+                        text: "Hindi approver ang papel ng apruba — dapat may papel na approver ang bawat format-2 na apruba.",
+                    },
+                    "approver-id-mismatch": {
+                        lead: "Hindi naka-enroll ang key ng approver",
+                        text: "Hindi naka-enroll ang key ng approver — hindi naka-enroll ang key ng isang apruba para sa lumagdang nakapangalan, o para sa tenant na ito.",
+                    },
+                    "approver-role": {
+                        lead: "Hindi maaaring mag-apruba ang lumagda",
+                        text: "Hindi maaaring mag-apruba ang lumagda — galing ang isang apruba sa taong hindi naka-enroll bilang approver.",
+                    },
+                    "duplicate-signer": {
+                        lead: "Dalawang beses nag-apruba ang iisang tao",
+                        text: "Dalawang beses nag-apruba ang iisang tao — higit sa isang beses nag-apruba ang isang naka-enroll na tao, gamit ang magkaibang certificate; isang beses lang mag-aapruba ang bawat tao.",
+                    },
+                    "downgrade-refused": {
+                        lead: "Tinanggihan ang format-1 package",
+                        text: "Tinanggihan ang format-1 package — format-2 package lang ang ini-import ng tenant na ito.",
+                    },
                 },
-                plan: {
+                "plan": {
                     "not-a-plan": {
                         lead: "Hindi election plan",
                         text: "Hindi election plan — hindi mabasa ang file bilang isang plan: {{error}}",
@@ -900,7 +960,7 @@ const tagalogTranslation: TranslationType = {
                         text: "Hindi mabasa ang plan — {{error}}",
                     },
                 },
-                reports: {
+                "reports": {
                     "duplicate": {
                         lead: "Dalawang beses itinakda ang report",
                         text: "Dalawang beses itinakda ang report — itinakda nang higit sa isang beses ang report na {{report}} para sa iisang halalan.",
@@ -918,7 +978,7 @@ const tagalogTranslation: TranslationType = {
                         text: "Hindi available ang format — hindi magagawa ang report na {{report}} bilang {{format}}.",
                     },
                 },
-                schedule: {
+                "schedule": {
                     "closes-before-opens": {
                         lead: "Nagsasara bago magbukas",
                         text: "Nagsasara bago magbukas — hindi kailanman magbubukas ang botohan.",
@@ -940,13 +1000,13 @@ const tagalogTranslation: TranslationType = {
                         text: "Kulang ang panahon ng botohan — kailangang manu-manong buksan o isara ang panahon sa Admin Portal.",
                     },
                 },
-                scanovate: {
+                "scanovate": {
                     "credentials-included": {
                         lead: "May mga kredensyal ang mga file",
                         text: "May mga kredensyal ang mga file — ang workbook at mga hinangong plan/import file ay may mga kredensyal na ibinigay sa realm, kabilang ang tunay na secret ng Scanovate. Panatilihing pribado at naka-encrypt ang mga file na ito habang nakaimbak at inililipat; ibahagi lamang sa mga administrator na awtorisadong mag-configure ng serbisyong ito.",
                     },
                 },
-                signing: {
+                "signing": {
                     "duplicate-action": {
                         lead: "Dalawang tuntunin sa isang aksyon",
                         text: "Dalawang tuntunin sa isang aksyon — ang '{{action}}' ay may higit sa isang tuntunin sa paglagda. Isa lang ang itira.",
@@ -996,7 +1056,7 @@ const tagalogTranslation: TranslationType = {
                         text: "Kailangan ng bagong Architect ang workbook — itinatago ng workbook ang signing policy na ito sa mga sheet na binabalewala ng mas lumang Architect. Buksan muli mula sa blueprint.json o sa delivery zip para mapanatili ito.",
                     },
                 },
-                threshold: {
+                "threshold": {
                     "above-trustees": {
                         lead: "Masyadong mataas ang threshold",
                         text: "Masyadong mataas ang threshold — {{threshold}} sa {{trustees}} na trustee ang kailangan, na hindi maaabot. Mabubuo ang key pero hindi kailanman ma-decrypt ang resulta.",
@@ -1010,7 +1070,7 @@ const tagalogTranslation: TranslationType = {
                         text: "Threshold na zero — mabubuksan ang tally nang walang sinuman.",
                     },
                 },
-                trustee: {
+                "trustee": {
                     "email-malformed": {
                         lead: "Hindi email address",
                         text: "Hindi email address — mukhang hindi email address ang '{{email}}'.",
@@ -1024,7 +1084,7 @@ const tagalogTranslation: TranslationType = {
                         text: "Trustee na walang pangalan — itinutugma ng importer ang mga miyembro ng key ceremony ayon sa pangalan sa mga trustee na naka-set up na sa tenant, at ang walang laman ay tahimik na nagiging miyembrong hindi umiiral.",
                     },
                 },
-                trustees: {
+                "trustees": {
                     "none": {
                         lead: "Walang trustee",
                         text: "Walang trustee — kailangan ng election key ng kahit dalawang taong hahawak nito. Kung iisa, kaya ng taong iyon na i-decrypt ang bawat balota nang mag-isa, na siyang dapat pigilan ng encryption.",
@@ -1034,7 +1094,7 @@ const tagalogTranslation: TranslationType = {
                         text: "Iisa lang ang trustee — kailangan ng election key ng kahit dalawang taong hahawak nito. Kung iisa, kaya ng taong iyon na i-decrypt ang bawat balota nang mag-isa, na siyang dapat pigilan ng encryption.",
                     },
                 },
-                voter: {
+                "voter": {
                     "area-unknown": {
                         lead: "Hindi kilala ang area ng botante",
                         text: "Hindi kilala ang area ng botante — walang nagngangalang '{{area}}'. Itinutugma ang mga botante sa kanilang area ayon sa pangalan, kaya walang balotang matatanggap ang botanteng ito. Kopyahin ang pangalan mula sa area sa halip na i-type ulit.",
@@ -1052,7 +1112,7 @@ const tagalogTranslation: TranslationType = {
                         text: "Botanteng walang username — ito ang ginagamit nila sa pag-sign in at dito hinahango ang kanilang account.",
                     },
                 },
-                voters: {
+                "voters": {
                     "duplicate-column": {
                         lead: "Dalawang beses ibinigay ang column",
                         text: "Dalawang beses ibinigay ang column — parehong nagse-set ng '{{column}}' ang dalawang column. Isa lang ang panatilihin.",
@@ -1072,6 +1132,68 @@ const tagalogTranslation: TranslationType = {
                     "vote-weight-out-of-range": {
                         lead: "Lampas sa saklaw ang vote weight",
                         text: "Lampas sa saklaw ang vote weight — ang {{value}} sa row {{row}} ay dapat nasa pagitan ng {{min}} at {{max}}.",
+                    },
+                },
+                "configuration-signing": {
+                    "invalid-stored-policy": {
+                        lead: "Hindi mabasang signing policy",
+                        text: "Hindi mabasang signing policy — hindi wasto ang naka-save na signing policy ng tenant na ito, kaya walang maii-import hangga't hindi nagse-save ang administrator ng wasto.",
+                    },
+                    "no-package-roots": {
+                        lead: "Walang root para sa package signing",
+                        text: "Walang root para sa package signing — kailangan ang mga lagda, pero walang certificate authority para sa signing key ng organisasyon.",
+                    },
+                    "no-staff-roots": {
+                        lead: "Walang root para sa mga approver",
+                        text: "Walang root para sa mga approver — kailangan ang mga pag-apruba, pero walang certificate authority para sa mga certificate ng mga approver.",
+                    },
+                    "too-many-approvals": {
+                        lead: "Sobrang dami ng hinihinging apruba",
+                        text: "Sobrang dami ng hinihinging apruba — hanggang 16 na pag-apruba lang ang maaaring hingin ng isang tenant.",
+                    },
+                    "no-approvals": {
+                        lead: "Walang hinihinging apruba",
+                        text: "Walang hinihinging apruba — kailangan ang lagda pero walang pag-apruba, kaya ang huling lagda lang ang kailangan ng package.",
+                    },
+                    "not-only-certificates": {
+                        lead: "Hindi lang mga certificate",
+                        text: "Hindi lang mga certificate — PEM certificate lang ang maaaring nasa mga pinagkakatiwalaang root; tinatanggihan ang iba, lalo na ang private key.",
+                    },
+                    "not-a-ca": {
+                        lead: "Hindi CA ang root",
+                        text: "Hindi CA ang root — dapat certificate authority ang isang pinagkakatiwalaang root.",
+                    },
+                    "root-expired": {
+                        lead: "Nag-expire ang root certificate",
+                        text: "Nag-expire ang root certificate — nag-expire na ang isang pinagkakatiwalaang root at hindi na nito mapapatunayan ang anumang lagda.",
+                    },
+                    "root-not-yet-valid": {
+                        lead: "Hindi pa wasto ang root",
+                        text: "Hindi pa wasto ang root — hindi pa nagsisimula ang bisa ng isang pinagkakatiwalaang root.",
+                    },
+                },
+                "signing-policy": {
+                    "unreadable": {
+                        lead: "Hindi mabasang signing policy file",
+                        text: "Hindi mabasang signing policy file — hindi mabasa ang signing policy file bilang signing policy ng isang tenant.",
+                    },
+                    "no-tenant": {
+                        lead: "Policy na walang tenant",
+                        text: "Policy na walang tenant — dapat pangalanan ng signing policy file ang tenant nito.",
+                    },
+                    "not-v2": {
+                        lead: "Hindi format 2 ang policy",
+                        text: "Hindi format 2 ang policy — kailangan ng pahinang ito ang signing policy na humihingi ng format-2 package.",
+                    },
+                },
+                "request": {
+                    "unreadable": {
+                        lead: "Hindi mabasang approval request",
+                        text: "Hindi mabasang approval request — hindi mabasa ang approval request file.",
+                    },
+                    "unreadable-approvals": {
+                        lead: "Hindi mabasang mga apruba",
+                        text: "Hindi mabasang mga apruba — hindi mabasa ang isa o higit pang approval file.",
                     },
                 },
             },

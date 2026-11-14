@@ -248,7 +248,7 @@ const galegoTranslation: TranslationType = {
             warningsStrict:
                 "O modo estrito está activado, así que estes puntos impiden a construción.",
             messages: {
-                area: {
+                "area": {
                     "cycle": {
                         lead: "Circunscricións unha dentro doutra",
                         text: "Circunscricións unha dentro doutra — a circunscrición «{{area}}» forma parte dun ciclo de nais, que bloquearía o Portal de Administración.",
@@ -286,13 +286,13 @@ const galegoTranslation: TranslationType = {
                         text: "Circunscrición nai descoñecida — nada ten o identificador «{{parent}}».",
                     },
                 },
-                ballot: {
+                "ballot": {
                     "no-elections": {
                         lead: "Sen eleccións",
                         text: "Sen eleccións — un evento electoral necesita polo menos unha.",
                     },
                 },
-                bundle: {
+                "bundle": {
                     "duplicate-id": {
                         lead: "Identificador repetido",
                         text: "Identificador repetido — {{id}} en {{kind}} tamén o usa {{previous}}.",
@@ -322,7 +322,7 @@ const galegoTranslation: TranslationType = {
                         text: "O tenant non é un identificador — «{{value}}» non é un id de tenant válido.",
                     },
                 },
-                candidate: {
+                "candidate": {
                     "contest-missing": {
                         lead: "Falta a votación da candidatura",
                         text: "Falta a votación da candidatura — a candidatura pertence a unha votación que non está neste ficheiro.",
@@ -344,7 +344,7 @@ const galegoTranslation: TranslationType = {
                         text: "Imaxe non rexistrada — a imaxe dunha candidatura está na papeleta e nada rexistra que documento é, así que despois non se poderá cambiar nin eliminar na plataforma.",
                     },
                 },
-                census: {
+                "census": {
                     "column-not-declared": {
                         lead: "Columna do censo non declarada",
                         text: "Columna do censo non declarada — {{message}}",
@@ -366,7 +366,7 @@ const galegoTranslation: TranslationType = {
                         text: "Censo do zip ilexible — {{message}}",
                     },
                 },
-                channels: {
+                "channels": {
                     "early-voting-closed": {
                         lead: "Voto anticipado desactivado",
                         text: "Voto anticipado desactivado — {{areas}} permiten o voto anticipado e o evento non abre esa canle, así que a configuración non fai nada.",
@@ -392,13 +392,13 @@ const galegoTranslation: TranslationType = {
                         text: "Forma de votar descoñecida — nada le «{{name}}». As formas de votar coas que traballa a plataforma son {{allowed}}.",
                     },
                 },
-                contacts: {
+                "contacts": {
                     none: {
                         lead: "Sen puntos de contacto",
                         text: "Sen puntos de contacto — o día da elección é a quen se chama.",
                     },
                 },
-                contest: {
+                "contest": {
                     "algorithm-unknown": {
                         lead: "Método de reconto descoñecido",
                         text: "Método de reconto descoñecido — «{{value}}» non é un algoritmo de reconto. A plataforma acepta {{allowed}}.",
@@ -512,13 +512,13 @@ const galegoTranslation: TranslationType = {
                         text: "Voto libre sen onde escribir — permítense candidaturas escritas polo votante e a votación non ten ningún espazo para iso, así que un votante non ten onde escribir un nome.",
                     },
                 },
-                delivery: {
+                "delivery": {
                     "no-importable": {
                         lead: "Sen arquivo importable",
                         text: "Sen arquivo importable — este zip ten un plan pero non o arquivo que importa o Portal de Administración, así que non contén o censo nin os ficheiros que nomea.",
                     },
                 },
-                design: {
+                "design": {
                     "no-stable-key": {
                         lead: "Deseño de papeleta sen clave",
                         text: "Deseño de papeleta sen clave — {{kind}} {{id}} non ten nome nin id externo, así que os seus deseños de papeleta non se poden recoñecer despois dunha importación.",
@@ -528,7 +528,7 @@ const galegoTranslation: TranslationType = {
                         text: "Estilo de papeleta ilexible — non se puido ler o estilo de papeleta da plataforma para calcular a pegada do seu deseño: {{reason}}",
                     },
                 },
-                election: {
+                "election": {
                     "channels-differ": {
                         lead: "A elección e o evento non coinciden",
                         text: "A elección e o evento non coinciden — {{channels}} é distinto do do evento, así que os controis de inicio desta elección non coincidirían.",
@@ -562,7 +562,7 @@ const galegoTranslation: TranslationType = {
                         text: "Anular sen segunda oportunidade — un votante pode descartar unha papeleta emitida e non ten un segundo intento para substituíla.",
                     },
                 },
-                event: {
+                "event": {
                     "checks-period-invalid": {
                         lead: "Período de comprobación non válido",
                         text: "Período de comprobación non válido — non se puido ler o período no que os votantes poden comprobar o seu voto emitido: {{reason}}",
@@ -580,7 +580,7 @@ const galegoTranslation: TranslationType = {
                         text: "Configuración do evento descoñecida — «{{value}}» non é un valor válido para {{key}}. A plataforma acepta {{allowed}}.",
                     },
                 },
-                file: {
+                "file": {
                     "shared-scanovate-config": {
                         lead: "Configuración compartida de Scanovate",
                         text: "Configuración compartida de Scanovate — unha configuración do autenticador Scanovate compártese con outro provedor. Asigna a Scanovate a súa propia configuración antes de exportala ou importala.",
@@ -630,13 +630,13 @@ const galegoTranslation: TranslationType = {
                         text: "Outra versión principal — o ficheiro vén da versión {{found}}, dunha versión principal distinta da {{current}} desta plataforma. Esa diferenza non bloquea a importación e as demais comprobacións do ficheiro seguen aplicándose; os axustes que esta versión non admite poden non importarse.",
                     },
                 },
-                identifier: {
+                "identifier": {
                     duplicate: {
                         lead: "Identificador repetido",
                         text: "Identificador repetido — «{{identifier}}» xa o usa {{first}}. Os identificadores son únicos en todo o evento electoral, así que o segundo substitúe o primeiro en vez de engadirse.",
                     },
                 },
-                ivr: {
+                "ivr": {
                     "language-not-spoken": {
                         lead: "Idioma non dispoñible por teléfono",
                         text: "Idioma non dispoñible por teléfono — a chamada só fala inglés, francés e español, así que non se ofrece {{languages}} a quen chama.",
@@ -649,13 +649,13 @@ const galegoTranslation: TranslationType = {
                             "Falta unha mensaxe da chamada — {{prompts}} non ten texto en «{{language}}», e o sistema telefónico rexeita todas as chamadas ata que o teña.",
                     },
                 },
-                labels: {
+                "labels": {
                     "in-use": {
                         lead: "Etiquetas de permiso en uso",
                         text: "Etiquetas de permiso en uso — {{labels}}. Todo o que leva unha etiqueta queda oculto para calquera administrador que non a teña, así que quen importe isto necesita unha desas etiquetas na súa propia conta ou o Portal de Administración mostraralle unha lista baleira.",
                     },
                 },
-                languages: {
+                "languages": {
                     "default-not-offered": {
                         lead: "Idioma por defecto non ofrecido",
                         text: "Idioma por defecto non ofrecido — «{{chosen}}» non está entre {{offered}}, así que os votantes recibirían o primeiro.",
@@ -669,7 +669,7 @@ const galegoTranslation: TranslationType = {
                         text: "Sen idiomas — a papeleta recorre ao inglés, que é unha rede de seguridade e non unha elección.",
                     },
                 },
-                link: {
+                "link": {
                     "area-missing": {
                         lead: "Ligazón de papeleta a unha circunscrición que falta",
                         text: "Ligazón de papeleta a unha circunscrición que falta — unha votación ponse na papeleta dunha circunscrición que non está neste ficheiro.",
@@ -679,7 +679,7 @@ const galegoTranslation: TranslationType = {
                         text: "Ligazón de papeleta a unha votación que falta — a papeleta dunha circunscrición inclúe unha votación que non está neste ficheiro.",
                     },
                 },
-                logo: {
+                "logo": {
                     "file-and-link": {
                         lead: "Dous logotipos",
                         text: "Dous logotipos — este plan leva á vez un logotipo subido («{{file}}») e unha ligazón («{{url}}»). Envíase o ficheiro; a ligazón ignórase.",
@@ -693,7 +693,7 @@ const galegoTranslation: TranslationType = {
                         text: "Ficheiro do logotipo baleiro — «{{file}}» indícase como logotipo e non ten ningún byte. Unha entrada de arquivo baleira fai fallar a importación en vez de perder unha imaxe.",
                     },
                 },
-                material: {
+                "material": {
                     "empty-document": {
                         lead: "Material cun documento baleiro",
                         text: "Material cun documento baleiro — importaríase como unha ligazón a nada. Se o material non ten ficheiro, deixe o documento fóra de todo.",
@@ -719,13 +719,13 @@ const galegoTranslation: TranslationType = {
                         text: "Material doutro evento — este material de apoio pertence a outro evento electoral.",
                     },
                 },
-                messages: {
+                "messages": {
                     "weekly-no-time": {
                         lead: "Unha repetición sen hora",
                         text: "Unha repetición sen hora — unha mensaxe repítese cada semana pero non di a que hora, así que quen a envíe terá que escoller unha hora que ninguén escribiu.",
                     },
                 },
-                passwords: {
+                "passwords": {
                     "column-already-there": {
                         lead: "Contrasinais indicados dúas veces",
                         text: "Contrasinais indicados dúas veces — o censo xa ten unha columna de contrasinal, así que os contrasinais xerados serían unha segunda resposta á mesma pregunta. Elimine a columna ou desactive a xeración.",
@@ -739,7 +739,7 @@ const galegoTranslation: TranslationType = {
                         text: "Contrasinais sen semente — a semente é o que fai que unha reconstrución produza os mesmos contrasinais en vez de novos.",
                     },
                 },
-                package: {
+                "package": {
                     "already-imported": {
                         lead: "Xa importada",
                         text: "Xa importada — a revisión {{revision}} desta configuración xa se importou; importe unha revisión máis recente.",
@@ -884,8 +884,68 @@ const galegoTranslation: TranslationType = {
                         lead: "Non se pode escribir o manifesto",
                         text: "Non se pode escribir o manifesto — non se puido escribir o manifesto: {{reason}}",
                     },
+                    "needs-clock": {
+                        lead: "Sen hora de confianza",
+                        text: "Sen hora de confianza — esta comprobación precisa o reloxo da propia plataforma e non se deu ningún.",
+                    },
+                    "no-signing-policy": {
+                        lead: "Sen política de sinatura",
+                        text: "Sen política de sinatura — os paquetes de formato 2 precisan a política de sinatura instalada do tenant, e este non ten ningunha.",
+                    },
+                    "mixed-format": {
+                        lead: "Formato de paquete mesturado",
+                        text: "Formato de paquete mesturado — o formato do manifesto e os seus datos de sinatura non concordan: un manifesto de formato 2 di para quen está asinado, e un de formato 1 non.",
+                    },
+                    "wrong-tenant": {
+                        lead: "Paquete doutro tenant",
+                        text: "Paquete doutro tenant — o paquete aprobouse e asinouse para outro tenant.",
+                    },
+                    "policy-changed": {
+                        lead: "A política de sinatura cambiou",
+                        text: "A política de sinatura cambiou — o paquete aprobouse e asinouse cunha política de sinatura que non é a actual deste tenant.",
+                    },
+                    "final-signer-role": {
+                        lead: "Rol de sinatura final incorrecto",
+                        text: "Rol de sinatura final incorrecto — o rol da sinatura final debe ser final-signer.",
+                    },
+                    "final-signer-not-enrolled": {
+                        lead: "Asinante final non inscrito",
+                        text: "Asinante final non inscrito — a clave que fixo a sinatura final non está inscrita para este tenant.",
+                    },
+                    "final-signer-id-mismatch": {
+                        lead: "Asinante final equivocado",
+                        text: "Asinante final equivocado — o paquete nomea un asinante final, e a súa clave pertence a outro.",
+                    },
+                    "final-signer-approved": {
+                        lead: "O asinante final tamén aprobou",
+                        text: "O asinante final tamén aprobou — o asinante final tamén aprobou este paquete, e este tenant mantenos separados.",
+                    },
+                    "approval-algorithm": {
+                        lead: "Algoritmo de aprobación rexeitado",
+                        text: "Algoritmo de aprobación rexeitado — o formato 2 só acepta aprobacións feitas con RSA-PSS ou ECDSA P-256.",
+                    },
+                    "approval-role-label": {
+                        lead: "O rol de aprobación non é approver",
+                        text: "O rol de aprobación non é approver — toda aprobación de formato 2 debe levar o rol approver.",
+                    },
+                    "approver-id-mismatch": {
+                        lead: "Clave de aprobador non inscrita",
+                        text: "Clave de aprobador non inscrita — a clave dunha aprobación non está inscrita para o asinante que nomea, ou para este tenant.",
+                    },
+                    "approver-role": {
+                        lead: "O asinante non pode aprobar",
+                        text: "O asinante non pode aprobar — unha aprobación vén de alguén que non está inscrito como aprobador.",
+                    },
+                    "duplicate-signer": {
+                        lead: "A mesma persoa aprobou dúas veces",
+                        text: "A mesma persoa aprobou dúas veces — unha persoa inscrita aprobou máis dunha vez, con certificados distintos; cada persoa aproba unha vez.",
+                    },
+                    "downgrade-refused": {
+                        lead: "Paquete de formato 1 rexeitado",
+                        text: "Paquete de formato 1 rexeitado — este tenant só importa paquetes de formato 2.",
+                    },
                 },
-                plan: {
+                "plan": {
                     "not-a-plan": {
                         lead: "Non é un plan electoral",
                         text: "Non é un plan electoral — o ficheiro non se puido ler como tal: {{error}}",
@@ -899,7 +959,7 @@ const galegoTranslation: TranslationType = {
                         text: "Plan ilexible — {{error}}",
                     },
                 },
-                reports: {
+                "reports": {
                     "duplicate": {
                         lead: "Informe configurado dúas veces",
                         text: "Informe configurado dúas veces — o informe {{report}} está configurado máis dunha vez para a mesma elección.",
@@ -917,7 +977,7 @@ const galegoTranslation: TranslationType = {
                         text: "Formato non dispoñible — o informe {{report}} non se pode xerar en {{format}}.",
                     },
                 },
-                schedule: {
+                "schedule": {
                     "closes-before-opens": {
                         lead: "Pecha antes de abrir",
                         text: "Pecha antes de abrir — a votación nunca estaría aberta.",
@@ -939,13 +999,13 @@ const galegoTranslation: TranslationType = {
                         text: "Xanela de votación incompleta — haberá que abrir ou pechar o período a man no Portal de Administración.",
                     },
                 },
-                scanovate: {
+                "scanovate": {
                     "credentials-included": {
                         lead: "Ficheiros con credenciais",
                         text: "Ficheiros con credenciais — o libro e os ficheiros de plan/importación derivados inclúen credenciais proporcionadas no realm, incluído o segredo real de Scanovate. Mantén estes ficheiros privados e cifrados ao almacenalos e transferilos; compárteos só con administradores autorizados para configurar este servizo.",
                     },
                 },
-                signing: {
+                "signing": {
                     "duplicate-action": {
                         lead: "Dúas regras para unha acción",
                         text: "Dúas regras para unha acción — '{{action}}' ten máis dunha regra de sinatura. Deixa só unha.",
@@ -995,7 +1055,7 @@ const galegoTranslation: TranslationType = {
                         text: "O libro precisa un Architect actual — o libro garda esta política de sinatura en follas que un Architect anterior ignora. Reábreo desde blueprint.json ou o zip de entrega para conservala.",
                     },
                 },
-                threshold: {
+                "threshold": {
                     "above-trustees": {
                         lead: "Limiar demasiado alto",
                         text: "Limiar demasiado alto — esíxense {{threshold}} de {{trustees}} persoas depositarias, o que non se pode cumprir. A clave xeraríase e o resultado non se podería descifrar nunca.",
@@ -1009,7 +1069,7 @@ const galegoTranslation: TranslationType = {
                         text: "Limiar de cero — o reconto poderíase abrir sen ninguén.",
                     },
                 },
-                trustee: {
+                "trustee": {
                     "email-malformed": {
                         lead: "Non é un enderezo de correo",
                         text: "Non é un enderezo de correo — «{{email}}» non o parece.",
@@ -1023,7 +1083,7 @@ const galegoTranslation: TranslationType = {
                         text: "Persoa depositaria sen nome — o importador resolve polo nome os membros da cerimonia de claves, comparándoos coas persoas depositarias xa dadas de alta no tenant, e un nome baleiro convértese en silencio nun membro que non existe.",
                     },
                 },
-                trustees: {
+                "trustees": {
                     "none": {
                         lead: "Sen persoas depositarias",
                         text: "Sen persoas depositarias — unha clave de elección necesita polo menos dúas persoas que a custodien. Cunha soa, esa persoa pode descifrar todas as papeletas pola súa conta, que é xusto a garantía que achega o cifrado.",
@@ -1033,7 +1093,7 @@ const galegoTranslation: TranslationType = {
                         text: "Só unha persoa depositaria — unha clave de elección necesita polo menos dúas persoas que a custodien. Cunha soa, esa persoa pode descifrar todas as papeletas pola súa conta, que é xusto a garantía que achega o cifrado.",
                     },
                 },
-                voter: {
+                "voter": {
                     "area-unknown": {
                         lead: "Circunscrición do votante descoñecida",
                         text: "Circunscrición do votante descoñecida — nada se chama «{{area}}». Os votantes emparéllanse coa súa circunscrición polo nome, así que este votante non recibiría papeleta. Copie o nome da circunscrición en vez de volver escribilo.",
@@ -1051,7 +1111,7 @@ const galegoTranslation: TranslationType = {
                         text: "Votante sen nome de usuario — é co que accede e do que se deriva a súa conta.",
                     },
                 },
-                voters: {
+                "voters": {
                     "duplicate-column": {
                         lead: "Columna indicada dúas veces",
                         text: "Columna indicada dúas veces — dúas columnas definen «{{column}}». Conserve só unha delas.",
@@ -1071,6 +1131,68 @@ const galegoTranslation: TranslationType = {
                     "vote-weight-out-of-range": {
                         lead: "Peso do voto fóra de rango",
                         text: "Peso do voto fóra de rango — {{value}} na fila {{row}} debe estar entre {{min}} e {{max}}.",
+                    },
+                },
+                "configuration-signing": {
+                    "invalid-stored-policy": {
+                        lead: "Política de sinatura ilexible",
+                        text: "Política de sinatura ilexible — a política de sinatura gardada deste tenant non é válida, así que non se importa nada ata que un administrador garde unha válida.",
+                    },
+                    "no-package-roots": {
+                        lead: "Sen raíces de sinatura de paquetes",
+                        text: "Sen raíces de sinatura de paquetes — esíxense sinaturas, pero non hai ningunha autoridade de certificación para a clave de sinatura da organización.",
+                    },
+                    "no-staff-roots": {
+                        lead: "Sen raíces de aprobadores",
+                        text: "Sen raíces de aprobadores — esíxense aprobacións, pero non hai ningunha autoridade de certificación para os certificados dos aprobadores.",
+                    },
+                    "too-many-approvals": {
+                        lead: "Demasiadas aprobacións esixidas",
+                        text: "Demasiadas aprobacións esixidas — un tenant pode esixir como máximo 16 aprobacións.",
+                    },
+                    "no-approvals": {
+                        lead: "Ningunha aprobación esixida",
+                        text: "Ningunha aprobación esixida — esíxense sinaturas, pero ningunha aprobación, así que a un paquete abóndalle a sinatura final.",
+                    },
+                    "not-only-certificates": {
+                        lead: "Non só certificados",
+                        text: "Non só certificados — as raíces de confianza só poden conter certificados PEM; calquera outra cousa, sobre todo unha clave privada, rexéitase.",
+                    },
+                    "not-a-ca": {
+                        lead: "A raíz non é unha autoridade",
+                        text: "A raíz non é unha autoridade — unha raíz de confianza debe ser unha autoridade de certificación.",
+                    },
+                    "root-expired": {
+                        lead: "Certificado raíz caducado",
+                        text: "Certificado raíz caducado — unha raíz de confianza caducou e xa non pode avalar ningunha sinatura.",
+                    },
+                    "root-not-yet-valid": {
+                        lead: "Raíz aínda non válida",
+                        text: "Raíz aínda non válida — a validez dunha raíz de confianza aínda non comezou.",
+                    },
+                },
+                "signing-policy": {
+                    "unreadable": {
+                        lead: "Ficheiro de política ilexible",
+                        text: "Ficheiro de política ilexible — o ficheiro de política de sinatura non se pode ler como a política de sinatura dun tenant.",
+                    },
+                    "no-tenant": {
+                        lead: "Política sen tenant",
+                        text: "Política sen tenant — o ficheiro de política de sinatura debe indicar o seu tenant.",
+                    },
+                    "not-v2": {
+                        lead: "A política non é de formato 2",
+                        text: "A política non é de formato 2 — esta páxina precisa unha política de sinatura que esixa paquetes de formato 2.",
+                    },
+                },
+                "request": {
+                    "unreadable": {
+                        lead: "Solicitude de aprobación ilexible",
+                        text: "Solicitude de aprobación ilexible — o ficheiro de solicitude de aprobación non se pode ler.",
+                    },
+                    "unreadable-approvals": {
+                        lead: "Aprobacións ilexibles",
+                        text: "Aprobacións ilexibles — un ou máis ficheiros de aprobación non se poden ler.",
                     },
                 },
             },
