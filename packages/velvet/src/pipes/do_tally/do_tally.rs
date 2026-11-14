@@ -712,7 +712,7 @@ impl Pipe for DoTally {
 /// Hasura) or JavaScript numbers (from SQLite), so a larger count would be
 /// shown rounded. Reaching it takes over two million voters at the maximum
 /// vote weight.
-pub const MAX_COUNT: u64 = (1 << 53) - 1;
+pub const MAX_COUNT: u64 = sequent_core::services::tally_sheet_validation::MAX_TALLY_COUNT;
 
 /// A count above [`MAX_COUNT`]. Returned instead of wrapping or rounding,
 /// which would publish a wrong count as if it were right.
@@ -795,10 +795,17 @@ impl ExplicitImplicitCount {
         &self,
         other: &ExplicitImplicitCount,
     ) -> Result<ExplicitImplicitCount, CountOverflow> {
-        Ok(ExplicitImplicitCount {
+        let aggregate = ExplicitImplicitCount {
             explicit: add_count(self.explicit, other.explicit, "explicit count")?,
             implicit: add_count(self.implicit, other.implicit, "implicit count")?,
-        })
+        };
+        // `total()` adds the two fields: keep that sum a count published exactly too.
+        add_count(
+            aggregate.explicit,
+            aggregate.implicit,
+            "explicit and implicit count",
+        )?;
+        Ok(aggregate)
     }
 
     pub fn total(&self) -> u64 {
@@ -1538,5 +1545,19 @@ mod tests {
                 weight
             )]
         );
+    }
+
+    #[test]
+    fn explicit_implicit_aggregate_rejects_a_total_beyond_the_counter_range() {
+        let left = ExplicitImplicitCount::new(MAX_COUNT, 0);
+        let right = ExplicitImplicitCount::new(0, 1);
+
+        assert!(left.aggregate(&right).is_err());
+        assert!(InvalidVotes(left).aggregate(&InvalidVotes(right)).is_err());
+        assert!(BlankVotes(left).aggregate(&BlankVotes(right)).is_err());
+        let sum = ExplicitImplicitCount::new(2, 3)
+            .aggregate(&ExplicitImplicitCount::new(4, 5))
+            .expect("a small aggregate fits");
+        assert_eq!(sum.total(), 14);
     }
 }
