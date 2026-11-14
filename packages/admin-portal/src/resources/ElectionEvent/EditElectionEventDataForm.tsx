@@ -59,6 +59,7 @@ import {
     EFileIntegrityPolicy,
     EBallotBoxSealPolicy,
     EBallotBoxSealRecordPolicy,
+    EPlatformBrandingPolicy,
     EElectionEventEnrollment,
     EElectionEventOTP,
     EElectionEventContestEncryptionPolicy,
@@ -622,6 +623,7 @@ export const EditElectionEventDataForm: React.FC<{
             }
 
             temp.presentation.elections_order ??= ElectionsOrder.ALPHABETICAL
+            temp.presentation.platform_branding_policy ??= EPlatformBrandingPolicy.SHOW
 
             if (!temp.presentation.voting_portal_countdown_policy) {
                 temp.presentation.voting_portal_countdown_policy = {
@@ -984,6 +986,13 @@ export const EditElectionEventDataForm: React.FC<{
         return Object.values(EElectionEventContestEncryptionPolicy).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.contestEncryptionPolicy.options.${value}`),
+        }))
+    }
+
+    const platformBrandingPolicyChoices = () => {
+        return Object.values(EPlatformBrandingPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.platformBrandingPolicy.options.${value}`),
         }))
     }
 
@@ -1760,6 +1769,28 @@ export const EditElectionEventDataForm: React.FC<{
                             resettable={true}
                             source={"presentation.logo_url"}
                             label={String(t("electionEventScreen.field.logoUrl"))}
+                        />
+                        <TextInput
+                            resettable={true}
+                            source={"presentation.favicon_url"}
+                            label={String(t("electionEventScreen.field.faviconUrl"))}
+                        />
+                        <TextInput
+                            resettable={true}
+                            source={"presentation.page_title"}
+                            label={String(t("electionEventScreen.field.pageTitle"))}
+                        />
+                        <SelectInput
+                            source={"presentation.platform_branding_policy"}
+                            choices={platformBrandingPolicyChoices()}
+                            label={String(
+                                t("electionEventScreen.field.platformBrandingPolicy.policyLabel")
+                            )}
+                            helperText={String(
+                                t("electionEventScreen.field.platformBrandingPolicy.helperText")
+                            )}
+                            emptyText={undefined}
+                            validate={required()}
                         />
                         <TextInput
                             resettable={true}

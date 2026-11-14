@@ -17,10 +17,11 @@ import {
     USER_LANGUAGE_COOKIE_NAME,
     setCookie,
     getValueFromCookie,
-    sanitizePresentationCss,
+    hidesPlatformBranding,
+    usePageBranding,
 } from "@sequentech/ui-core"
-import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
-import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
+import NeutralLoader from "./NeutralLoader/NeutralLoader"
+import {EventStyles, eventLogo, eventStylesClassName, useEventCss} from "./EventBranding/EventBranding"
 import {
     AuthContext,
     AuthContextValues,
@@ -60,9 +61,39 @@ const StyledApp = styled(Stack)`
     }
 `
 
-const StyledAppWrapper = styled(Stack)<{customCss: string}>`
-    ${({customCss}) => customCss}
-`
+const useEventPresentation = (): IElectionEventPresentation | undefined => {
+    const {eventId} = useParams<TenantEventType>()
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const electionIds = useAppSelector(selectElectionIds)
+    const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
+
+    const ballotStyle = useAppSelector((state) => {
+        const electionId = electionIds[0] ?? ballotStyleElectionIds[0]
+
+        return electionId ? selectBallotStyleByElectionId(String(electionId))(state) : undefined
+    })
+
+    return ballotStyle?.ballot_eml.election_event_presentation ?? electionEvent?.presentation
+}
+
+/**
+ * Shown on an event route until the voter is logged in and the event's presentation has been
+ * looked up: the event's stylesheet when it is known, and nothing of the default header, footer
+ * or colours.
+ */
+export const PortalLoading: React.FC = () => {
+    const presentation = useEventPresentation()
+    const customCss = useEventCss(presentation)
+    usePageBranding(presentation)
+
+    return (
+        <EventStyles className={eventStylesClassName(presentation)} customCss={customCss}>
+            <StyledApp className="voting-portal app-root app-awaiting-login">
+                <NeutralLoader />
+            </StyledApp>
+        </EventStyles>
+    )
+}
 
 const OUTCOME_NOTICES: Record<ContactChangeOutcome, {key: string; severity: AlertColor}> = {
     [ContactChangeOutcome.Success]: {key: "contactChannel.updated", severity: "success"},
@@ -132,13 +163,6 @@ const HeaderWithContext: React.FC = () => {
         return presentation?.voting_portal_countdown_policy
     }, [presentation])
 
-    const logoImg =
-        presentation?.logo_url === undefined
-            ? BlankLogoImg
-            : presentation?.logo_url === null
-              ? SequentLogo
-              : presentation?.logo_url
-
     const onChangeLanguage = (lang: string) => {
         if (getValueFromCookie(USER_LANGUAGE_COOKIE_NAME) !== lang) {
             setCookie(USER_LANGUAGE_COOKIE_NAME, lang)
@@ -172,7 +196,7 @@ const HeaderWithContext: React.FC = () => {
             }}
             languagesList={languagesList}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
-            logoUrl={logoImg}
+            logoUrl={eventLogo(presentation)}
             expiry={{
                 alertAt: countdownPolicy?.countdown_alert_anticipation_secs,
                 countdown: countdownPolicy?.policy ?? EVotingPortalCountdownPolicy.NO_COUNTDOWN,
@@ -206,34 +230,17 @@ export const PortalChrome: React.FC<PortalChromeProps> = ({
     children,
 }) => {
     const {t} = useTranslation()
-    const {globalSettings} = useContext(SettingsContext)
     const {eventId} = useParams<TenantEventType>()
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
-    const electionIds = useAppSelector(selectElectionIds)
-    const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
-
-    const ballotStyle = useAppSelector((state) => {
-        const electionId = electionIds[0] ?? ballotStyleElectionIds[0]
-
-        return electionId ? selectBallotStyleByElectionId(String(electionId))(state) : undefined
-    })
-
-    const presentation =
-        ballotStyle?.ballot_eml.election_event_presentation ?? electionEvent?.presentation
-    const css = presentation?.css ?? ""
-    const customCss = useMemo(
-        () =>
-            sanitizePresentationCss(css, {
-                baseUrl: document.baseURI,
-                publicBucketUrl: globalSettings.PUBLIC_BUCKET_URL,
-            }),
-        [css, globalSettings.PUBLIC_BUCKET_URL]
-    )
+    const presentation = useEventPresentation()
+    const customCss = useEventCss(presentation)
+    usePageBranding(presentation)
+    // The platform's footer waits until the event is known to show it.
+    const showFooter = !hidesPlatformBranding(presentation) && (!eventId || !!presentation)
 
     useElectionClassName()
 
     return (
-        <StyledAppWrapper className="voting-portal-wrapper" customCss={customCss}>
+        <EventStyles className={eventStylesClassName(presentation)} customCss={customCss}>
             <StyledApp className="voting-portal app-root">
                 {before}
                 <nav className="skip-navigation" aria-label={t("a11y.skipToContent")}>
@@ -269,8 +276,8 @@ export const PortalChrome: React.FC<PortalChromeProps> = ({
                         <BallotSelectionAdapter>{children}</BallotSelectionAdapter>
                     </PageBanner>
                 </Wrapper>
-                <Footer />
+                {showFooter && <Footer />}
             </StyledApp>
-        </StyledAppWrapper>
+        </EventStyles>
     )
 }

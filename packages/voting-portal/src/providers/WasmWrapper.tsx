@@ -4,14 +4,14 @@
 import React from "react"
 import {StartupError} from "../components/StartupError"
 import {useWasm, WasmContextProvider, WasmStatus} from "@sequentech/ui-core"
-import {Loader} from "@sequentech/ui-essentials"
+import NeutralLoader from "../components/NeutralLoader/NeutralLoader"
 
 export const WasmGate: React.FC<React.PropsWithChildren> = ({children}) => {
     const {status} = useWasm()
 
     if (status === WasmStatus.ERROR) return <StartupError />
 
-    return WasmStatus.READY === status ? <>{children}</> : <Loader />
+    return WasmStatus.READY === status ? <>{children}</> : <NeutralLoader />
 }
 
 export const WasmWrapper: React.FC<React.PropsWithChildren> = ({children}) => (
