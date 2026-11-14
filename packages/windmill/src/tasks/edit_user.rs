@@ -15,8 +15,10 @@ use crate::services::datafix::utils::{
 };
 use crate::services::datafix::voterview_requests::SoapSendError;
 use crate::services::electoral_log::{
-    post_voter_password_change, ElectoralLogAdminContext, VoterPasswordChangeSource,
+    post_voter_password_change, prepare_voter_ballots_discard, ElectoralLogAdminContext,
+    VoterPasswordChangeSource,
 };
+use crate::services::electoral_log_outbox::{deliver_log_event, store_log_event};
 use crate::services::pg_lock::PgLock;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};
@@ -53,8 +55,10 @@ pub struct EditUserTaskBody {
     pub username: Option<String>,
     pub password: Option<String>,
     pub temporary: Option<bool>,
-    #[serde(default)]
-    pub password_change_initiator: Option<ElectoralLogAdminContext>,
+    /// The admin who requested the edit. Tasks queued by older versions name
+    /// it only for a password change, as `password_change_initiator`.
+    #[serde(default, alias = "password_change_initiator")]
+    pub initiator: Option<ElectoralLogAdminContext>,
 }
 
 /// Response of the `/edit-user` route. For Datafix election events the edit is
@@ -74,8 +78,10 @@ pub struct EditUserOutput {
 /// which backs the operator's task widget. A Datafix voter's ballots are
 /// discarded and its voted-channel attribute reset after the Keycloak
 /// disable. A retry also resumes a partial disable when Keycloak is already
-/// disabled but active ballots remain. Whether `SetNotVoted` converges is
-/// still handled by the separate manual reconciliation process.
+/// disabled but active ballots remain. A voter owed a `SetNotVoted` carries
+/// the Internet voted-channel attribute from before the discard until VoterView
+/// agrees, so a run that stops or fails in between is completed by the next
+/// save of the disabled voter.
 #[instrument(
     skip_all,
     fields(
@@ -131,7 +137,8 @@ struct VoterReleasePlan {
     /// The edit disables the voter, so its non-discarded ballots must be
     /// discarded.
     release_attempt: bool,
-    /// The voter voted online, so the release owes VoterView a `SetNotVoted`.
+    /// The voter has an active ballot or is marked as having voted online, so
+    /// VoterView may hold it as voted and the release owes it a `SetNotVoted`.
     owes_set_not_voted: bool,
 }
 
@@ -148,11 +155,10 @@ fn plan_voter_release(
     let disable_transition = is_disable_transition(current_enabled, requested_enabled);
     let reenable_transition = is_reenable_transition(current_enabled, requested_enabled);
     let disable_requested = requested_enabled == Some(false);
-    let release_attempt = disable_transition
-        || (disable_requested
-            && (cast_vote_state.has_unresolved_vote
-                || cast_vote_state.has_valid_vote
-                || voted_via_internet(current_attributes)));
+    let may_be_voted_in_voterview = cast_vote_state.has_unresolved_vote
+        || cast_vote_state.has_valid_vote
+        || voted_via_internet(current_attributes);
+    let release_attempt = disable_transition || (disable_requested && may_be_voted_in_voterview);
 
     if reenable_transition
         && (cast_vote_state.has_unresolved_vote
@@ -171,8 +177,38 @@ fn plan_voter_release(
 
     Ok(VoterReleasePlan {
         release_attempt,
-        owes_set_not_voted: release_attempt && voted_via_internet(current_attributes),
+        owes_set_not_voted: release_attempt && may_be_voted_in_voterview,
     })
+}
+
+impl VoterReleasePlan {
+    /// The voter owes a `SetNotVoted` but nothing but its ballots says so: with
+    /// no Internet voted-channel attribute, a run that stops after the discard
+    /// commits would leave the next run no signal to resend it. The attribute
+    /// is set before the discard and reset only once VoterView agrees.
+    fn needs_voted_channel_marker(
+        &self,
+        current_attributes: &HashMap<String, Vec<String>>,
+    ) -> bool {
+        self.owes_set_not_voted && !voted_via_internet(current_attributes)
+    }
+}
+
+/// The admin a release's ballot discard is attributed to in the electoral log.
+/// Checked before Keycloak is edited, so a task that names no admin changes
+/// nothing.
+#[instrument(skip_all, err)]
+fn release_initiator<'a>(
+    body: &'a EditUserTaskBody,
+    plan: &VoterReleasePlan,
+) -> std::result::Result<Option<&'a ElectoralLogAdminContext>, String> {
+    if !plan.release_attempt {
+        return Ok(None);
+    }
+    body.initiator
+        .as_ref()
+        .map(Some)
+        .ok_or_else(|| "Missing initiating admin for the ballot-discard audit".to_string())
 }
 
 /// Rejects edits to the fields an admin may not change on a Datafix voter: the
@@ -246,23 +282,52 @@ async fn edit_keycloak_voter(
         .map_err(|err| format!("Error editing Datafix voter in Keycloak: {err:?}"))
 }
 
-/// Discards the voter's active ballots in its own Hasura transaction. Keycloak
-/// and Hasura are updated sequentially; failures are traced by the caller and
-/// left for the existing reconciliation process.
-#[instrument(err)]
+/// Discards the voter's active ballots and stores an electoral-log entry
+/// naming them and the admin who released the voter in the electoral-log
+/// outbox, in one Hasura transaction, so the discard and its entry commit or
+/// roll back together. The entry is published after the commit; if that
+/// fails, the outbox relay publishes it later.
+#[instrument(skip(admin), err)]
 async fn discard_voter_ballots(
     tenant_id: &str,
     election_event_id: &str,
     voter_id: &str,
+    voter_username: Option<String>,
+    admin: &ElectoralLogAdminContext,
 ) -> anyhow::Result<()> {
-    let tenant_id = parse_uuid_v4(tenant_id)?;
-    let election_event_id = parse_uuid_v4(election_event_id)?;
+    let tenant_uuid = parse_uuid_v4(tenant_id)?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)?;
     let mut client: DbClient = get_hasura_pool().await.get().await?;
     let transaction = client.transaction().await?;
     let discarded =
-        discard_voter_cast_votes(&transaction, &tenant_id, &election_event_id, voter_id).await?;
+        discard_voter_cast_votes(&transaction, &tenant_uuid, &election_event_uuid, voter_id)
+            .await?;
+    let pending_log = if discarded.is_empty() {
+        None
+    } else {
+        let log_event = prepare_voter_ballots_discard(
+            &transaction,
+            tenant_id,
+            election_event_id,
+            voter_id,
+            voter_username,
+            admin,
+            &discarded,
+        )
+        .await?
+        .to_log_event(tenant_id, election_event_id)?;
+        Some(
+            store_log_event(&transaction, &tenant_uuid, &election_event_uuid, log_event)
+                .await
+                .context("Failed to store the voter ballot-discard electoral-log entry")?,
+        )
+    };
     transaction.commit().await?;
-    info!(discarded, "Discarded active Datafix cast votes");
+    drop(client);
+    info!(?discarded, "Discarded active Datafix cast votes");
+    if let Some(pending_log) = pending_log {
+        deliver_log_event(&pending_log).await;
+    }
     Ok(())
 }
 
@@ -278,11 +343,14 @@ async fn discard_voter_ballots(
 /// `INTERNET` value or a no-op.
 #[instrument(skip(ctx))]
 async fn clear_voted_channel(ctx: &DatafixEditCtx<'_>) -> anyhow::Result<()> {
+    set_voted_channel(ctx, ATTR_RESET_VALUE).await
+}
+
+/// Writes the voter's `VOTED_CHANNEL` attribute.
+#[instrument(skip(ctx))]
+async fn set_voted_channel(ctx: &DatafixEditCtx<'_>, value: &str) -> anyhow::Result<()> {
     let client = KeycloakAdminClient::new().await?;
-    let attributes = HashMap::from([(
-        VOTED_CHANNEL.to_string(),
-        vec![ATTR_RESET_VALUE.to_string()],
-    )]);
+    let attributes = HashMap::from([(VOTED_CHANNEL.to_string(), vec![value.to_string()])]);
     client
         .edit_user(
             &ctx.realm,
@@ -346,16 +414,17 @@ fn set_not_voted_converged(response: &SoapRequestResponse) -> bool {
 /// Sends `SetNotVoted` to VoterView for the already-disabled, already-released
 /// voter and records the outcome in the electoral log. Every outcome —
 /// success, an application rejection, a SOAP fault, or a transport failure —
-/// is only logged: the ballots are already discarded, so nothing here can or
-/// should be rolled back. A divergence between the platform and VoterView is
-/// left for the manual reconciliation process to resolve.
+/// is logged and nothing is rolled back: the ballots are already discarded.
+/// Returns whether VoterView agrees the voter has not voted; when it does not,
+/// the caller keeps the voted-channel attribute so a later save of the
+/// disabled voter plans the release, and so the `SetNotVoted`, again.
 #[instrument(skip(ctx, election_event))]
 async fn send_set_not_voted(
     ctx: &DatafixEditCtx<'_>,
     election_event: ElectionEvent,
     username: &str,
     area_id: Option<&str>,
-) {
+) -> bool {
     let prepared = match datafix::voterview_requests::prepare(
         SoapRequest::SetNotVoted,
         ElectionEventDatafix(election_event),
@@ -373,15 +442,17 @@ async fn send_set_not_voted(
                 "SetNotVoted NotDispatched: pre-dispatch-error".to_string(),
             )
             .await;
-            return;
+            return false;
         }
     };
     let template_sha256 = prepared.template_sha256().to_string();
+    let mut converged = false;
     let operation = match datafix::voterview_requests::send_prepared(prepared).await {
         Ok(SoapRequestResult {
             response,
             template_sha256,
         }) if set_not_voted_converged(&response) => {
+            converged = true;
             format!("SetNotVoted Succeeded (template_sha256={template_sha256})")
         }
         Ok(SoapRequestResult {
@@ -407,6 +478,7 @@ async fn send_set_not_voted(
         }
     };
     audit_datafix_user_operation(ctx, username, area_id, operation).await;
+    converged
 }
 
 /// Runs the voter edit while the per-voter lock is held: validates the edit,
@@ -450,13 +522,14 @@ async fn run_datafix_voter_edit(
 
     let password_change_initiator = if body.password.is_some() {
         Some(
-            body.password_change_initiator
+            body.initiator
                 .as_ref()
                 .ok_or("Missing initiating admin for voter password-change audit")?,
         )
     } else {
         None
     };
+    let discard_initiator = release_initiator(body, &plan)?;
 
     edit_keycloak_voter(ctx, client).await?;
 
@@ -475,9 +548,9 @@ async fn run_datafix_voter_edit(
         })?;
     }
 
-    if !plan.release_attempt {
+    let Some(admin) = discard_initiator else {
         return Ok(());
-    }
+    };
 
     ctx.lock
         .update_expiry_for(DATAFIX_VOTER_LOCK_SECS)
@@ -485,15 +558,27 @@ async fn run_datafix_voter_edit(
         .map_err(|err| {
             format!("The Datafix voter lock was lost before discarding ballots: {err}")
         })?;
-    discard_voter_ballots(&body.tenant_id, &body.election_event_id, &body.user_id)
-        .await
-        .map_err(|err| format!("Error discarding Datafix cast votes: {err:?}"))?;
-    clear_voted_channel(ctx).await.map_err(|err| {
-        format!("Could not reset the voter's voted-channel attribute after discard: {err}")
-    })?;
-
+    if plan.needs_voted_channel_marker(&current_attributes) {
+        // Nothing is discarded yet, so a failure here changes nothing.
+        set_voted_channel(ctx, VOTED_CHANNEL_INTERNET_VALUE)
+            .await
+            .map_err(|err| {
+                format!("Could not mark the voter's voted channel before the discard: {err}")
+            })?;
+    }
+    discard_voter_ballots(
+        &body.tenant_id,
+        &body.election_event_id,
+        &body.user_id,
+        current_user.username.clone(),
+        admin,
+    )
+    .await
+    .map_err(|err| format!("Error discarding Datafix cast votes: {err:?}"))?;
     if !plan.owes_set_not_voted {
-        return Ok(());
+        return clear_voted_channel(ctx).await.map_err(|err| {
+            format!("Could not reset the voter's voted-channel attribute after discard: {err}")
+        });
     }
     let username = current_user
         .username
@@ -506,16 +591,22 @@ async fn run_datafix_voter_edit(
         .get(AREA_ID_ATTR_NAME)
         .and_then(|values| values.first().cloned())
         .or_else(|| current_user.get_area_id());
-    send_set_not_voted(ctx, election_event, &username, area_id.as_deref()).await;
-    Ok(())
+    if !send_set_not_voted(ctx, election_event, &username, area_id.as_deref()).await {
+        // The attribute stays Internet: it is what makes the next save of this
+        // disabled voter plan the release, and the `SetNotVoted`, again.
+        return Ok(());
+    }
+    clear_voted_channel(ctx).await.map_err(|err| {
+        format!("Could not reset the voter's voted-channel attribute after discard: {err}")
+    })
 }
 
 /// Applies an admin edit to a Datafix voter under the per-voter lock. On a
-/// disable of a voter who voted online, it discards the voter's ballots and
-/// sends `SetNotVoted`, logging whatever VoterView answers; a re-enable is
-/// refused while the voter's Datafix voting state is unresolved. Returns
-/// `Ok(())` on success or a human-readable failure reason recorded on the task
-/// widget.
+/// disable it discards the voter's ballots and, when VoterView may hold the
+/// voter as voted, sends `SetNotVoted`, logging whatever VoterView answers; a
+/// re-enable is refused while the voter's Datafix voting state is unresolved.
+/// Returns `Ok(())` on success or a human-readable failure reason recorded on
+/// the task widget.
 #[instrument(skip(body), err)]
 async fn apply_datafix_voter_edit(body: &EditUserTaskBody) -> std::result::Result<(), String> {
     let realm = get_event_realm(&body.tenant_id, &body.election_event_id);
@@ -626,7 +717,29 @@ mod tests {
         };
         let plan = plan_voter_release(Some(false), Some(false), &state, &HashMap::new()).unwrap();
         assert!(plan.release_attempt);
-        assert!(!plan.owes_set_not_voted);
+        assert!(plan.owes_set_not_voted);
+    }
+
+    #[test]
+    fn disabling_a_voter_with_a_valid_ballot_owes_set_not_voted() {
+        let state = VoterCastVoteState {
+            has_valid_vote: true,
+            ..no_cast_votes()
+        };
+        let plan = plan_voter_release(Some(true), Some(false), &state, &HashMap::new()).unwrap();
+        assert!(plan.release_attempt);
+        assert!(plan.owes_set_not_voted);
+    }
+
+    #[test]
+    fn disabling_a_voter_with_an_in_progress_ballot_owes_set_not_voted() {
+        let state = VoterCastVoteState {
+            has_unresolved_vote: true,
+            ..no_cast_votes()
+        };
+        let plan = plan_voter_release(Some(true), Some(false), &state, &HashMap::new()).unwrap();
+        assert!(plan.release_attempt);
+        assert!(plan.owes_set_not_voted);
     }
 
     #[test]
@@ -640,6 +753,46 @@ mod tests {
         .unwrap();
         assert!(plan.release_attempt);
         assert!(plan.owes_set_not_voted);
+    }
+
+    #[test]
+    fn a_run_stopped_after_the_discard_commits_is_resent_by_the_next_run() {
+        let valid_ballot = VoterCastVoteState {
+            has_valid_vote: true,
+            ..no_cast_votes()
+        };
+        // First run: enabled voter with a valid ballot and no voted channel.
+        let first =
+            plan_voter_release(Some(true), Some(false), &valid_ballot, &HashMap::new()).unwrap();
+        assert!(first.owes_set_not_voted);
+        assert!(first.needs_voted_channel_marker(&HashMap::new()));
+
+        // The marker is written, Keycloak is disabled and the discard commits;
+        // the task stops before the SOAP call. The next run sees no ballot,
+        // a disabled voter and the Internet attribute.
+        let second = plan_voter_release(
+            Some(false),
+            Some(false),
+            &no_cast_votes(),
+            &internet_voter(),
+        )
+        .unwrap();
+        assert!(second.release_attempt);
+        assert!(second.owes_set_not_voted);
+        assert!(!second.needs_voted_channel_marker(&internet_voter()));
+
+        // Without the marker the same state plans nothing.
+        let unmarked =
+            plan_voter_release(Some(false), Some(false), &no_cast_votes(), &HashMap::new())
+                .unwrap();
+        assert!(!unmarked.release_attempt);
+    }
+
+    #[test]
+    fn a_voter_owing_nothing_needs_no_voted_channel_marker() {
+        let plan =
+            plan_voter_release(Some(true), Some(false), &no_cast_votes(), &HashMap::new()).unwrap();
+        assert!(!plan.needs_voted_channel_marker(&HashMap::new()));
     }
 
     #[test]
@@ -706,8 +859,90 @@ mod tests {
             username: username.map(str::to_string),
             password: None,
             temporary: None,
-            password_change_initiator: None,
+            initiator: None,
         }
+    }
+
+    fn admin() -> ElectoralLogAdminContext {
+        ElectoralLogAdminContext {
+            user_id: "admin-id".to_string(),
+            username: Some("admin".to_string()),
+            authorized_election_ids: None,
+            area_id: None,
+        }
+    }
+
+    #[test]
+    fn a_release_without_an_initiating_admin_is_refused() {
+        let plan =
+            plan_voter_release(Some(true), Some(false), &no_cast_votes(), &HashMap::new()).unwrap();
+        let body = edit_body(None, HashMap::new());
+        assert!(release_initiator(&body, &plan).is_err());
+    }
+
+    #[test]
+    fn a_release_is_attributed_to_the_initiating_admin() {
+        let plan =
+            plan_voter_release(Some(true), Some(false), &no_cast_votes(), &HashMap::new()).unwrap();
+        let body = EditUserTaskBody {
+            initiator: Some(admin()),
+            ..edit_body(None, HashMap::new())
+        };
+        let initiator = release_initiator(&body, &plan).unwrap();
+        assert_eq!(
+            initiator.map(|admin| admin.user_id.as_str()),
+            Some("admin-id")
+        );
+    }
+
+    #[test]
+    fn an_edit_without_a_release_needs_no_initiating_admin() {
+        let plan =
+            plan_voter_release(Some(true), Some(true), &no_cast_votes(), &HashMap::new()).unwrap();
+        let body = edit_body(None, HashMap::new());
+        assert!(release_initiator(&body, &plan).unwrap().is_none());
+    }
+
+    #[test]
+    fn a_queued_body_with_a_password_change_initiator_still_names_the_admin() {
+        let body: EditUserTaskBody = serde_json::from_value(serde_json::json!({
+            "tenant_id": "tenant",
+            "user_id": "voter",
+            "election_event_id": "event",
+            "enabled": null,
+            "attributes": {},
+            "email": null,
+            "first_name": null,
+            "last_name": null,
+            "username": null,
+            "password": "secret",
+            "temporary": null,
+            "password_change_initiator": admin(),
+        }))
+        .unwrap();
+        assert_eq!(
+            body.initiator.map(|admin| admin.user_id),
+            Some("admin-id".to_string())
+        );
+    }
+
+    #[test]
+    fn a_queued_body_without_an_initiator_still_deserializes() {
+        let body: EditUserTaskBody = serde_json::from_value(serde_json::json!({
+            "tenant_id": "tenant",
+            "user_id": "voter",
+            "election_event_id": "event",
+            "enabled": false,
+            "attributes": {},
+            "email": null,
+            "first_name": null,
+            "last_name": null,
+            "username": null,
+            "password": null,
+            "temporary": null,
+        }))
+        .unwrap();
+        assert!(body.initiator.is_none());
     }
 
     #[test]
