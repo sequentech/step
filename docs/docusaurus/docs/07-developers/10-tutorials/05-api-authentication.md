@@ -39,13 +39,15 @@ Set up the following environment variables with your instance details:
 |----------|-------------|---------|
 | `KEYCLOAK_URL` | Base URL of your Keycloak instance | `https://keycloak.example.sequent.vote` |
 | `TENANT_ID` | Your tenant identifier | `my-tenant-123` |
-| `CLIENT_ID` | OAuth2 client ID for CLI/admin operations | `admin-portal` |
-| `CLIENT_SECRET` | OAuth2 client secret | `admin-portal-client-secret` |
+| `CLIENT_ID` | OAuth2 client ID for CLI/admin operations | `cli-account-admin` |
+| `CLIENT_SECRET` | Secret of that client (Keycloak admin console → Clients → `cli-account-admin` → Credentials) | `cli-account-admin-client-secret` |
 | `USERNAME` | Your username | `user@example.com` |
 | `PASSWORD` | Your password | `your-secure-password` |
 
 **Important Notes:**
-- For **CLI and administrative operations** (like importing election events, managing users), use the `admin-portal` client ID which has the necessary permissions
+- For **CLI and administrative operations** (like importing election events, managing users), use the confidential `cli-account-admin` client and its secret. Its tokens carry the same Hasura claims as the Admin Portal's.
+- Publishing an election event and changing its voting status need a token with the `gold` level of assurance. `cli-account-admin` tokens get Keycloak's default `silver` level, so for those operations use `api-key-client` and its secret (Keycloak admin console → tenant realm → Clients → `api-key-client` → Credentials), whose tokens default to `gold`.
+- The browser clients (`admin-portal`, `voting-portal`, `onsite-voting-portal`, `voting-portal-kiosk`, `results-portal`) do not accept the password grant: they only allow browser logins with PKCE, so a password alone never yields a token for them. See [Public realm client hardening](../06-keycloak/public_client_hardening.md).
 - **Security Note:** Never commit credentials to version control. Use environment variables or a secure secrets management system.
 
 ### Setting Up Environment Variables
@@ -56,8 +58,8 @@ For **bash/CURL** (Linux/macOS):
 # Export environment variables in your terminal
 export KEYCLOAK_URL="https://keycloak.example.sequent.vote"
 export TENANT_ID="my-tenant-123"
-export CLIENT_ID="admin-portal"
-export CLIENT_SECRET="admin-portal-client-secret"
+export CLIENT_ID="cli-account-admin"
+export CLIENT_SECRET="cli-account-admin-client-secret"
 export USERNAME="user@example.com"
 export PASSWORD="your-secure-password"
 ```
@@ -69,8 +71,8 @@ Alternatively, create a `.env` file and source it:
 cat > .env <<EOF
 export KEYCLOAK_URL="https://keycloak.example.sequent.vote"
 export TENANT_ID="my-tenant-123"
-export CLIENT_ID="admin-portal"
-export CLIENT_SECRET="admin-portal-client-secret"
+export CLIENT_ID="cli-account-admin"
+export CLIENT_SECRET="cli-account-admin-client-secret"
 export USERNAME="user@example.com"
 export PASSWORD="your-secure-password"
 EOF
@@ -343,16 +345,16 @@ print(result)
 **Possible Causes:**
 - User lacks required permissions
 - Client lacks required scopes
-- Using wrong client ID (e.g., `service-account` instead of `admin-portal` for administrative operations)
+- Using wrong client ID (e.g., `service-account` instead of `cli-account-admin` for administrative operations)
 - Incorrect tenant ID
 
 **Solution:**
-- **Use the correct client ID**: For administrative operations like importing election events or managing users, use `admin-portal`
+- **Use the correct client ID**: For administrative operations like importing election events or managing users, use `cli-account-admin`
 - Verify the user has appropriate roles in Keycloak
 - Check client scope configuration in Keycloak
 - Confirm you're using the correct tenant ID
 
-**Example:** If you receive an error like `"field 'get_upload_url' not found"`, ensure you're using the `admin-portal` client credentials.
+**Example:** If you receive an error like `"field 'get_upload_url' not found"`, ensure you're using the `cli-account-admin` client credentials.
 
 ### Token Expiration
 
