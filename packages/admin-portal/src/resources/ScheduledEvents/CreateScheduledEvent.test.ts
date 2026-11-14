@@ -18,6 +18,14 @@ jest.mock("@apollo/client", () => ({
 }))
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: mockT})}))
 jest.mock("@/providers/TenantContextProvider", () => ({useTenantStore: () => ["tenant"]}))
+let mockIsGold = true
+const mockReauthWithGold = jest.fn().mockResolvedValue(undefined)
+jest.mock("@/providers/AuthContextProvider", () => ({
+    AuthContext: require("react").createContext({
+        isGoldUser: () => mockIsGold,
+        reauthWithGold: (redirectUri: string) => mockReauthWithGold(redirectUri),
+    }),
+}))
 jest.mock("@/components/election/SelectElection", () => ({__esModule: true, default: () => null}))
 jest.mock("react-admin", () => ({
     Create: ({children}: React.PropsWithChildren) => children,
@@ -48,6 +56,8 @@ jest.mock("react-admin", () => ({
 const props = {electionEventId: "event", setIsOpenDrawer: jest.fn(), getElectionName: () => "El1"}
 beforeEach(() => {
     mockEvent = undefined
+    mockIsGold = true
+    mockReauthWithGold.mockClear()
     mockSave.mockClear()
     mockNotify.mockClear()
 })
@@ -167,4 +177,12 @@ it("shows the reason when the API rejects a schedule and lets the admin retry", 
     fireEvent.click(screen.getByText("Save"))
     await waitFor(() => expect(mockNotify).toHaveBeenCalledWith(reason, {type: "error"}))
     expect(checkbox("kiosk").disabled).toBe(false)
+})
+
+it("asks for a fresh gold login before saving a schedule", async () => {
+    mockIsGold = false
+    render(React.createElement(CreateEvent, props))
+    fireEvent.click(screen.getByText("Save"))
+    await waitFor(() => expect(mockReauthWithGold).toHaveBeenCalledWith(window.location.href))
+    expect(mockSave).not.toHaveBeenCalled()
 })

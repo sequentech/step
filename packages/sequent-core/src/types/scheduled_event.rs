@@ -7,6 +7,7 @@ use crate::ballot::ScheduledEventDates;
 use crate::ballot::VotingPeriodDates;
 use crate::ballot::{format_date, VotingStatusChannel};
 use crate::types::hasura::core::VotingChannels;
+use crate::types::permissions::Permissions;
 use anyhow::{anyhow, Result};
 use chrono::DateTime;
 use chrono::Utc;
@@ -50,6 +51,72 @@ pub enum EventProcessors {
     END_LOCKDOWN_PERIOD,
     #[strum(serialize = "ALLOW_TALLY")]
     ALLOW_TALLY,
+}
+
+/// Which scheduled dates an event processor accepts.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum ScheduledDatePolicy {
+    /// Any date. A past date fires on the next scheduler tick.
+    ANY_DATE,
+    /// Only dates in the future. Changes that should happen now go through
+    /// the action itself, with its own checks.
+    FUTURE_ONLY,
+}
+
+impl EventProcessors {
+    /// The permissions needed to schedule this event, besides
+    /// `SCHEDULED_EVENT_WRITE`: those of the action it performs when it fires.
+    /// Opening, closing, locking down or allowing the tally of an election is
+    /// a change of election state.
+    pub fn required_permissions(&self) -> Vec<Permissions> {
+        if self.changes_election_state() {
+            vec![Permissions::ELECTION_STATE_WRITE]
+        } else {
+            vec![]
+        }
+    }
+
+    /// Whether firing this event changes the state of an election or event,
+    /// which also needs a fresh ("gold") authentication.
+    pub fn changes_election_state(&self) -> bool {
+        match self {
+            EventProcessors::CREATE_REPORT | EventProcessors::SEND_TEMPLATE => {
+                false
+            }
+            EventProcessors::ALLOW_INIT_REPORT
+            | EventProcessors::START_VOTING_PERIOD
+            | EventProcessors::END_VOTING_PERIOD
+            | EventProcessors::ALLOW_VOTING_PERIOD_END
+            | EventProcessors::START_ENROLLMENT_PERIOD
+            | EventProcessors::END_ENROLLMENT_PERIOD
+            | EventProcessors::START_LOCKDOWN_PERIOD
+            | EventProcessors::END_LOCKDOWN_PERIOD
+            | EventProcessors::ALLOW_TALLY => true,
+        }
+    }
+
+    pub fn scheduled_date_policy(&self) -> ScheduledDatePolicy {
+        if self.changes_election_state() {
+            ScheduledDatePolicy::FUTURE_ONLY
+        } else {
+            ScheduledDatePolicy::ANY_DATE
+        }
+    }
+
+    /// Checks `scheduled_date` against [`Self::scheduled_date_policy`].
+    pub fn validate_scheduled_date(
+        &self,
+        scheduled_date: DateTime<Utc>,
+        now: DateTime<Utc>,
+    ) -> Result<()> {
+        match self.scheduled_date_policy() {
+            ScheduledDatePolicy::ANY_DATE => Ok(()),
+            ScheduledDatePolicy::FUTURE_ONLY if scheduled_date > now => Ok(()),
+            ScheduledDatePolicy::FUTURE_ONLY => Err(anyhow!(
+                "{self} can only be scheduled in the future; use the election status actions to change it now"
+            )),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
@@ -304,6 +371,52 @@ pub fn prepare_scheduled_dates(
 
 #[cfg(test)]
 mod voting_channel_tests {
+
+    #[test]
+    fn lifecycle_events_need_election_state_write_and_future_dates() {
+        let now = Utc::now();
+        for processor in [
+            EventProcessors::START_VOTING_PERIOD,
+            EventProcessors::END_VOTING_PERIOD,
+            EventProcessors::ALLOW_TALLY,
+            EventProcessors::END_LOCKDOWN_PERIOD,
+            EventProcessors::ALLOW_INIT_REPORT,
+        ] {
+            assert_eq!(
+                processor.required_permissions(),
+                vec![Permissions::ELECTION_STATE_WRITE]
+            );
+            assert!(processor.changes_election_state());
+            assert!(processor
+                .validate_scheduled_date(
+                    now - chrono::Duration::minutes(1),
+                    now
+                )
+                .is_err());
+            assert!(processor.validate_scheduled_date(now, now).is_err());
+            assert!(processor
+                .validate_scheduled_date(
+                    now + chrono::Duration::minutes(1),
+                    now
+                )
+                .is_ok());
+        }
+    }
+
+    #[test]
+    fn reports_and_templates_keep_their_permissions_and_any_date() {
+        let now = Utc::now();
+        for processor in [
+            EventProcessors::CREATE_REPORT,
+            EventProcessors::SEND_TEMPLATE,
+        ] {
+            assert!(processor.required_permissions().is_empty());
+            assert!(processor
+                .validate_scheduled_date(now - chrono::Duration::days(1), now)
+                .is_ok());
+        }
+    }
+
     use super::*;
     use serde_json::json;
     #[test]

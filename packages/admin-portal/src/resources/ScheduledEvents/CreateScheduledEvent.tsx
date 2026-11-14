@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {FC, useEffect, useState} from "react"
+import React, {FC, useContext, useEffect, useState} from "react"
 import {
     Create,
     DateTimeInput,
@@ -35,6 +35,7 @@ import {
     Sequent_Backend_Scheduled_Event,
 } from "@/gql/graphql"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {AuthContext} from "@/providers/AuthContextProvider"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {IPermissions} from "@/types/keycloak"
 import {ICronConfig, IManageElectionDatePayload} from "@/types/scheduledEvents"
@@ -124,6 +125,7 @@ const CreateEvent: FC<CreateEventProps> = ({
         {enabled: !!selectedEventId}
     )
     const notify = useNotify()
+    const {isGoldUser, reauthWithGold} = useContext(AuthContext)
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES, {
         context: {
             headers: {
@@ -181,6 +183,12 @@ const CreateEvent: FC<CreateEventProps> = ({
 
     const onSubmit = async () => {
         if (opensOnlineWithEarlyVoting) {
+            return
+        }
+        // Every schedule here changes election state when it fires, which
+        // needs the same fresh gold authentication as the status actions.
+        if (!isGoldUser()) {
+            await reauthWithGold(window.location.href)
             return
         }
         setIsLoading(true)

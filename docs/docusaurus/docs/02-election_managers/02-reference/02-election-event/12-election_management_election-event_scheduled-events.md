@@ -11,6 +11,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 Allows the automation of an Election Event by scheduling key actions to occur automatically at specified times during the event lifecycle.
 
+### Who can schedule events
+
+Every scheduled event type in this form changes the state of an election or of the Election Event when it runs: it opens or closes voting, locks or unlocks it, or allows the tally or the initialization report. Scheduling one therefore needs, besides `scheduled-event-write`:
+
+- `election-state-write`, the permission of the election status actions, and
+- a recent login at the Gold level. If yours is not, saving the schedule takes you through a new login first; then save it again.
+
+The date must be in the future. To make one of these changes now, use the election status actions instead.
+
 ### Adding a Scheduled Event
 
 - Select **Add**.
