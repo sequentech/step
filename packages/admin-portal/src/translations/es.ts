@@ -52,9 +52,15 @@ const spanishTranslation: TranslationType = {
                 keys: "Huellas de clave (SPKI SHA-256)",
             },
             minimumFormat: "Formato de paquete más antiguo",
-            formats: {v1: "Formato 1 (sin firmantes inscritos)", v2: "Formato 2 (solo firmantes inscritos)"},
+            formats: {
+                v1: "Formato 1 (sin firmantes inscritos)",
+                v2: "Formato 2 (solo firmantes inscritos)",
+            },
             separation: "Firmante final",
-            separations: {separate: "Distinto de los aprobadores", allowed: "Puede haber aprobado también"},
+            separations: {
+                separate: "Distinto de los aprobadores",
+                allowed: "Puede haber aprobado también",
+            },
             loadPolicy: "Cargar el archivo de política de firma",
             policyDigest: "SHA-256 de la política:",
             policyErrors: {
@@ -62,7 +68,8 @@ const spanishTranslation: TranslationType = {
                 "not-a-policy": "El archivo no es una política de firma.",
                 "other-tenant": "El archivo es de otro inquilino.",
                 "no-minimum": "La política debe indicar su formato mínimo de paquete.",
-                "unknown-field": "El archivo tiene un campo que la política de firma no define (¿mal escrito?).",
+                "unknown-field":
+                    "El archivo tiene un campo que la política de firma no define (¿mal escrito?).",
                 "no-tenant": "El archivo debe indicar su tenant (tenant_id).",
             },
         },

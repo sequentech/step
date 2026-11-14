@@ -427,7 +427,10 @@ async fn format_2_policies_save_only_when_complete_and_legacy_ones_stay_legacy()
 
     let refused_with = |outcome: SaveOutcome, expected: &str| match outcome {
         SaveOutcome::Refused { check } => assert!(
-            check.report.errors().any(|p| p.id.as_deref() == Some(expected)),
+            check
+                .report
+                .errors()
+                .any(|p| p.id.as_deref() == Some(expected)),
             "{expected} missing"
         ),
         other => panic!("expected {expected}, got {other:?}"),
@@ -435,24 +438,36 @@ async fn format_2_policies_save_only_when_complete_and_legacy_ones_stay_legacy()
     let mut no_minimum = v2.clone();
     no_minimum.minimum_package_format = None;
     refused_with(
-        save(&tx, &tenant_id, &no_minimum, chrono::Utc::now()).await.unwrap(),
+        save(&tx, &tenant_id, &no_minimum, chrono::Utc::now())
+            .await
+            .unwrap(),
         "configuration-signing.minimum-format-required",
     );
     let mut optional = v2.clone();
     optional.policy = ConfigurationSigningPolicy::Optional;
     refused_with(
-        save(&tx, &tenant_id, &optional, chrono::Utc::now()).await.unwrap(),
+        save(&tx, &tenant_id, &optional, chrono::Utc::now())
+            .await
+            .unwrap(),
         "configuration-signing.optional-with-v2",
     );
     let mut shared = v2.clone();
     shared.signers[1].keys[0].spki_sha256 = "01".repeat(32);
     refused_with(
-        save(&tx, &tenant_id, &shared, chrono::Utc::now()).await.unwrap(),
+        save(&tx, &tenant_id, &shared, chrono::Utc::now())
+            .await
+            .unwrap(),
         "configuration-signing.shared-key",
     );
-    assert_eq!(settings(&tx, id).await, json!({}), "nothing refused was written");
+    assert_eq!(
+        settings(&tx, id).await,
+        json!({}),
+        "nothing refused was written"
+    );
 
-    let outcome = save(&tx, &tenant_id, &v2, chrono::Utc::now()).await.unwrap();
+    let outcome = save(&tx, &tenant_id, &v2, chrono::Utc::now())
+        .await
+        .unwrap();
     assert!(matches!(outcome, SaveOutcome::Saved { .. }), "{outcome:?}");
     let stored = settings(&tx, id).await["configuration_signing"].clone();
     assert_eq!(stored["minimum_package_format"], "v2");
@@ -463,7 +478,11 @@ async fn format_2_policies_save_only_when_complete_and_legacy_ones_stay_legacy()
         .iter()
         .map(|s| s["id"].as_str().unwrap())
         .collect();
-    assert_eq!(ids, ["approver-1", "approver-2", "custodian"], "stored canonically");
+    assert_eq!(
+        ids,
+        ["approver-1", "approver-2", "custodian"],
+        "stored canonically"
+    );
     let read: ConfigurationSigning = serde_json::from_value(stored).unwrap();
     assert_eq!(read.policy_sha256().unwrap(), v2.policy_sha256().unwrap());
 
@@ -475,11 +494,19 @@ async fn format_2_policies_save_only_when_complete_and_legacy_ones_stay_legacy()
         required_approvals: 2,
         ..ConfigurationSigning::default()
     };
-    let outcome = save(&tx, &tenant_id, &legacy, chrono::Utc::now()).await.unwrap();
+    let outcome = save(&tx, &tenant_id, &legacy, chrono::Utc::now())
+        .await
+        .unwrap();
     assert!(matches!(outcome, SaveOutcome::Saved { .. }), "{outcome:?}");
     let stored = settings(&tx, id).await["configuration_signing"].clone();
     for field in ["minimum_package_format", "final_signer_separation"] {
-        assert!(stored.get(field).is_none(), "{field} stored for a legacy setting");
+        assert!(
+            stored.get(field).is_none(),
+            "{field} stored for a legacy setting"
+        );
     }
-    assert!(stored.get("signers").is_none(), "signers stored for a legacy setting");
+    assert!(
+        stored.get("signers").is_none(),
+        "signers stored for a legacy setting"
+    );
 }

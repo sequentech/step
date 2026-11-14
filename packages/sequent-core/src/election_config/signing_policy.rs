@@ -25,11 +25,22 @@ use super::package_verify::{canonical_certificates_pem, ConfigurationSigning};
 use crate::signing::canonical_json;
 
 /// What [`policy_sha256`] hashes, named so a future form can't collide.
-pub const SIGNING_POLICY_FORMAT: &str = "sequent.configuration-signing-policy/2";
+pub const SIGNING_POLICY_FORMAT: &str =
+    "sequent.configuration-signing-policy/2";
 
 /// The oldest package format a tenant still imports.
 #[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum PackageFormat {
@@ -41,7 +52,18 @@ pub enum PackageFormat {
 }
 
 /// What an enrolled signer may do.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum SignerRole {
     Approver,
@@ -58,7 +80,9 @@ impl SignerRole {
 }
 
 /// Whether the final signer may also be one of the approvers.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum FinalSignerSeparation {
     /// The final signer is not one of the package's approvers.
@@ -107,13 +131,20 @@ fn problem(id: &'static str, message: impl Into<String>) -> PolicyProblem {
 fn valid_id(id: &str) -> bool {
     !id.is_empty()
         && id.len() <= 64
-        && id
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_' || c == '.')
+        && id.chars().all(|c| {
+            c.is_ascii_lowercase()
+                || c.is_ascii_digit()
+                || c == '-'
+                || c == '_'
+                || c == '.'
+        })
 }
 
 fn valid_pin(pin: &str) -> bool {
-    pin.len() == 64 && pin.chars().all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
+    pin.len() == 64
+        && pin
+            .chars()
+            .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
 }
 
 /// The enrolled signers, indexed by key and by ID. Built only from a policy
@@ -125,7 +156,9 @@ pub struct Enrollment {
 }
 
 impl Enrollment {
-    pub fn from_signers(signers: &[EnrolledSigner]) -> Result<Self, Vec<PolicyProblem>> {
+    pub fn from_signers(
+        signers: &[EnrolledSigner],
+    ) -> Result<Self, Vec<PolicyProblem>> {
         let problems = check_signers(signers);
         if !problems.is_empty() {
             return Err(problems);
@@ -133,7 +166,9 @@ impl Enrollment {
         let mut enrollment = Enrollment::default();
         for signer in signers {
             for key in &signer.keys {
-                enrollment.by_pin.insert(key.spki_sha256.clone(), signer.id.clone());
+                enrollment
+                    .by_pin
+                    .insert(key.spki_sha256.clone(), signer.id.clone());
             }
             enrollment.by_id.insert(signer.id.clone(), signer.clone());
         }
@@ -142,7 +177,9 @@ impl Enrollment {
 
     /// The signer a key belongs to, by its SPKI pin.
     pub fn signer_of(&self, spki_sha256: &str) -> Option<&EnrolledSigner> {
-        self.by_pin.get(spki_sha256).and_then(|id| self.by_id.get(id))
+        self.by_pin
+            .get(spki_sha256)
+            .and_then(|id| self.by_id.get(id))
     }
 
     pub fn is_empty(&self) -> bool {
@@ -228,7 +265,8 @@ pub fn check_policy(settings: &ConfigurationSigning) -> Vec<PolicyProblem> {
     // A new policy states its minimum format: leaving it out must never
     // quietly let format 1 bypass the enrollment it sets up.
     if settings.minimum_package_format.is_none()
-        && (!settings.signers.is_empty() || settings.final_signer_separation.is_some())
+        && (!settings.signers.is_empty()
+            || settings.final_signer_separation.is_some())
     {
         problems.push(problem(
             "configuration-signing.minimum-format-required",
@@ -239,7 +277,8 @@ pub fn check_policy(settings: &ConfigurationSigning) -> Vec<PolicyProblem> {
     // Optional signatures with format 2 required: an unsigned file would
     // bypass the enrollment, so the two can't be set together.
     if minimum == PackageFormat::V2
-        && settings.policy == super::package_verify::ConfigurationSigningPolicy::Optional
+        && settings.policy
+            == super::package_verify::ConfigurationSigningPolicy::Optional
     {
         problems.push(problem(
             "configuration-signing.optional-with-v2",
@@ -267,7 +306,8 @@ pub fn check_policy(settings: &ConfigurationSigning) -> Vec<PolicyProblem> {
             && !finals.is_empty()
             && approvers >= required
             && !finals.iter().any(|f| {
-                approver_ids.iter().filter(|id| **id != f.id).count() >= required
+                approver_ids.iter().filter(|id| **id != f.id).count()
+                    >= required
             })
         {
             problems.push(problem(
@@ -318,7 +358,9 @@ pub fn check_policy(settings: &ConfigurationSigning) -> Vec<PolicyProblem> {
 ///
 /// Two installations holding the same policy compute the same digest, whatever
 /// the order or formatting of their files.
-pub fn policy_sha256(settings: &ConfigurationSigning) -> Result<String, String> {
+pub fn policy_sha256(
+    settings: &ConfigurationSigning,
+) -> Result<String, String> {
     let roots = |pem: &str| -> Result<Vec<String>, String> {
         if pem.trim().is_empty() {
             return Ok(Vec::new());
@@ -326,10 +368,11 @@ pub fn policy_sha256(settings: &ConfigurationSigning) -> Result<String, String> 
         // Read the same way the verifier reads them; refuse what isn't only
         // certificates.
         canonical_certificates_pem(pem)?;
-        let set: BTreeSet<String> = super::package_verify::certificates_from_pem(pem)?
-            .iter()
-            .map(|der| sha256_hex(der))
-            .collect();
+        let set: BTreeSet<String> =
+            super::package_verify::certificates_from_pem(pem)?
+                .iter()
+                .map(|der| sha256_hex(der))
+                .collect();
         Ok(set.into_iter().collect())
     };
     let mut signers = settings.signers.clone();
@@ -337,8 +380,10 @@ pub fn policy_sha256(settings: &ConfigurationSigning) -> Result<String, String> 
     let signers: Vec<_> = signers
         .into_iter()
         .map(|signer| {
-            let roles: BTreeSet<_> = signer.roles.iter().map(|r| r.as_str()).collect();
-            let keys: BTreeSet<_> = signer.keys.iter().map(|k| k.spki_sha256.clone()).collect();
+            let roles: BTreeSet<_> =
+                signer.roles.iter().map(|r| r.as_str()).collect();
+            let keys: BTreeSet<_> =
+                signer.keys.iter().map(|k| k.spki_sha256.clone()).collect();
             json!({
                 "id": signer.id,
                 "name": signer.name,

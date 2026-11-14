@@ -51,7 +51,10 @@ const basqueTranslation: TranslationType = {
                 keys: "Gako-pinak (SPKI SHA-256)",
             },
             minimumFormat: "Pakete-formatu zaharrena",
-            formats: {v1: "1. formatua (sinatzaile inskribaturik gabe)", v2: "2. formatua (sinatzaile inskribatuak soilik)"},
+            formats: {
+                v1: "1. formatua (sinatzaile inskribaturik gabe)",
+                v2: "2. formatua (sinatzaile inskribatuak soilik)",
+            },
             separation: "Azken sinatzailea",
             separations: {separate: "Onesleengandik bereizia", allowed: "Onetsi ere egin dezake"},
             loadPolicy: "Kargatu sinadura-politikaren fitxategia",
@@ -61,7 +64,8 @@ const basqueTranslation: TranslationType = {
                 "not-a-policy": "Fitxategia ez da sinadura-politika bat.",
                 "other-tenant": "Fitxategia beste maizter batena da.",
                 "no-minimum": "Politikak pakete-formatu minimoa adierazi behar du.",
-                "unknown-field": "Fitxategiak sinadura-politikak definitzen ez duen eremu bat du (gaizki idatzita?).",
+                "unknown-field":
+                    "Fitxategiak sinadura-politikak definitzen ez duen eremu bat du (gaizki idatzita?).",
                 "no-tenant": "Fitxategiak bere tenanta adierazi behar du (tenant_id).",
             },
         },

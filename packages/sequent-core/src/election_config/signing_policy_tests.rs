@@ -47,7 +47,11 @@ fn ids(problems: &[PolicyProblem]) -> Vec<&'static str> {
 
 #[test]
 fn a_well_formed_v2_policy_has_no_problems() {
-    assert!(check_policy(&v2_policy()).is_empty(), "{:?}", check_policy(&v2_policy()));
+    assert!(
+        check_policy(&v2_policy()).is_empty(),
+        "{:?}",
+        check_policy(&v2_policy())
+    );
 }
 
 #[test]
@@ -63,9 +67,10 @@ fn a_legacy_record_without_minimum_or_signers_stays_format_1() {
     let json = serde_json::to_value(&legacy).unwrap();
     assert!(json.get("minimum_package_format").is_none());
     assert!(json.get("final_signer_separation").is_none());
-    let read: ConfigurationSigning =
-        serde_json::from_value(serde_json::json!({"policy": "required", "required_approvals": 2}))
-            .unwrap();
+    let read: ConfigurationSigning = serde_json::from_value(
+        serde_json::json!({"policy": "required", "required_approvals": 2}),
+    )
+    .unwrap();
     assert_eq!(read, legacy);
 }
 
@@ -73,7 +78,8 @@ fn a_legacy_record_without_minimum_or_signers_stays_format_1() {
 fn signers_without_an_explicit_minimum_format_are_refused() {
     let mut policy = v2_policy();
     policy.minimum_package_format = None;
-    assert!(ids(&check_policy(&policy)).contains(&"configuration-signing.minimum-format-required"));
+    assert!(ids(&check_policy(&policy))
+        .contains(&"configuration-signing.minimum-format-required"));
     // Separation alone, too.
     let separation_only = ConfigurationSigning {
         policy: ConfigurationSigningPolicy::Required,
@@ -88,7 +94,8 @@ fn signers_without_an_explicit_minimum_format_are_refused() {
 fn optional_signatures_with_format_2_required_are_contradictory() {
     let mut policy = v2_policy();
     policy.policy = ConfigurationSigningPolicy::Optional;
-    assert!(ids(&check_policy(&policy)).contains(&"configuration-signing.optional-with-v2"));
+    assert!(ids(&check_policy(&policy))
+        .contains(&"configuration-signing.optional-with-v2"));
 }
 
 #[test]
@@ -98,18 +105,31 @@ fn a_key_belongs_to_one_signer_only() {
         spki_sha256: pin(1),
         label: "taken from approver-1".to_string(),
     });
-    assert!(ids(&check_policy(&policy)).contains(&"configuration-signing.shared-key"));
+    assert!(ids(&check_policy(&policy))
+        .contains(&"configuration-signing.shared-key"));
     assert!(Enrollment::from_signers(&policy.signers).is_err());
 }
 
 #[test]
 fn ids_are_unique_well_formed_and_signers_complete() {
     let mut policy = v2_policy();
-    policy.signers.push(signer("approver-1", &[SignerRole::Approver], &[pin(9)]));
-    policy.signers.push(signer("Bad ID!", &[SignerRole::Approver], &[pin(10)]));
+    policy.signers.push(signer(
+        "approver-1",
+        &[SignerRole::Approver],
+        &[pin(9)],
+    ));
+    policy
+        .signers
+        .push(signer("Bad ID!", &[SignerRole::Approver], &[pin(10)]));
     policy.signers.push(signer("no-roles", &[], &[pin(11)]));
-    policy.signers.push(signer("no-keys", &[SignerRole::Approver], &[]));
-    policy.signers.push(signer("bad-pin", &[SignerRole::Approver], &["ABCD".to_string()]));
+    policy
+        .signers
+        .push(signer("no-keys", &[SignerRole::Approver], &[]));
+    policy.signers.push(signer(
+        "bad-pin",
+        &[SignerRole::Approver],
+        &["ABCD".to_string()],
+    ));
     let found = ids(&check_policy(&policy));
     for id in [
         "configuration-signing.duplicate-signer",
@@ -126,15 +146,18 @@ fn ids_are_unique_well_formed_and_signers_complete() {
 fn a_v2_policy_must_be_satisfiable() {
     let mut too_few = v2_policy();
     too_few.required_approvals = 3;
-    assert!(ids(&check_policy(&too_few)).contains(&"configuration-signing.too-few-approvers"));
+    assert!(ids(&check_policy(&too_few))
+        .contains(&"configuration-signing.too-few-approvers"));
     let mut no_final = v2_policy();
     no_final.signers.retain(|s| s.id != "custodian");
-    assert!(ids(&check_policy(&no_final)).contains(&"configuration-signing.no-final-signer"));
+    assert!(ids(&check_policy(&no_final))
+        .contains(&"configuration-signing.no-final-signer"));
     let no_signers = ConfigurationSigning {
         signers: Vec::new(),
         ..v2_policy()
     };
-    assert!(ids(&check_policy(&no_signers)).contains(&"configuration-signing.no-signers"));
+    assert!(ids(&check_policy(&no_signers))
+        .contains(&"configuration-signing.no-signers"));
 }
 
 #[test]
@@ -167,7 +190,11 @@ fn the_policy_digest_ignores_order_and_changes_with_what_matters() {
     c.signers[0].id = "approver-x".to_string();
     changes.push(c);
     for (index, changed) in changes.iter().enumerate() {
-        assert_ne!(policy_sha256(changed).unwrap(), digest, "change {index} kept the digest");
+        assert_ne!(
+            policy_sha256(changed).unwrap(),
+            digest,
+            "change {index} kept the digest"
+        );
     }
     // A key label is a note, not policy.
     let mut labelled = v2_policy();
@@ -201,19 +228,32 @@ fn separation_needs_a_final_signer_with_enough_other_approvers() {
     let mut three = v2_policy();
     three.signers.retain(|s| s.id != "custodian");
     three.signers[0].roles.push(SignerRole::FinalSigner);
-    three.signers.push(signer("approver-3", &[SignerRole::Approver], &[pin(30)]));
-    assert!(check_policy(&three).is_empty(), "{:?}", check_policy(&three));
+    three.signers.push(signer(
+        "approver-3",
+        &[SignerRole::Approver],
+        &[pin(30)],
+    ));
+    assert!(
+        check_policy(&three).is_empty(),
+        "{:?}",
+        check_policy(&three)
+    );
 }
 
 #[test]
 fn the_policy_digest_ignores_root_order_wrapping_and_repeats() {
-    use rcgen::{CertificateParams, DnType, IsCa, BasicConstraints, KeyPair, PKCS_ECDSA_P256_SHA256};
+    use rcgen::{
+        BasicConstraints, CertificateParams, DnType, IsCa, KeyPair,
+        PKCS_ECDSA_P256_SHA256,
+    };
     let root = |name: &str| {
         let mut params = CertificateParams::new(Vec::<String>::new()).unwrap();
         params.distinguished_name.push(DnType::CommonName, name);
         params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
         params
-            .self_signed(&KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap())
+            .self_signed(
+                &KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap(),
+            )
             .unwrap()
             .pem()
     };

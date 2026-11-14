@@ -20,11 +20,15 @@ use crate::election_config::signing_policy::{
 };
 
 const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
-const APPROVER_RSA: &str = include_str!("package_verify_fixtures/approver-rsa-2048.pk8.pem");
-const SIGNER_RSA: &str = include_str!("package_verify_fixtures/signer-rsa-2048.pk8.pem");
+const APPROVER_RSA: &str =
+    include_str!("package_verify_fixtures/approver-rsa-2048.pk8.pem");
+const SIGNER_RSA: &str =
+    include_str!("package_verify_fixtures/signer-rsa-2048.pk8.pem");
 
 fn now() -> DateTime<Utc> {
-    DateTime::parse_from_rfc3339("2026-11-14T00:00:00Z").unwrap().with_timezone(&Utc)
+    DateTime::parse_from_rfc3339("2026-11-14T00:00:00Z")
+        .unwrap()
+        .with_timezone(&Utc)
 }
 
 /// A signing key: ECDSA P-256 (rcgen) or RSA (a fixture), with its chain.
@@ -35,7 +39,12 @@ struct Key {
     algorithm: SignatureAlgorithm,
 }
 
-fn ecdsa(name: &str, issuer: &Ca, serial: u64, not_after: (i32, u8, u8)) -> Key {
+fn ecdsa(
+    name: &str,
+    issuer: &Ca,
+    serial: u64,
+    not_after: (i32, u8, u8),
+) -> Key {
     let signer = leaf(
         name,
         issuer,
@@ -51,18 +60,28 @@ fn ecdsa(name: &str, issuer: &Ca, serial: u64, not_after: (i32, u8, u8)) -> Key 
         certificate_pem: signer.certificate_pem,
         sign: Box::new(move |message| {
             let rng = SystemRandom::new();
-            EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, &der, &rng)
-                .unwrap()
-                .sign(&rng, message)
-                .unwrap()
-                .as_ref()
-                .to_vec()
+            EcdsaKeyPair::from_pkcs8(
+                &ECDSA_P256_SHA256_ASN1_SIGNING,
+                &der,
+                &rng,
+            )
+            .unwrap()
+            .sign(&rng, message)
+            .unwrap()
+            .as_ref()
+            .to_vec()
         }),
         algorithm: SignatureAlgorithm::EcdsaP256Sha256,
     }
 }
 
-fn rsa(name: &str, issuer: &Ca, serial: u64, pem: &'static str, pss: bool) -> Key {
+fn rsa(
+    name: &str,
+    issuer: &Ca,
+    serial: u64,
+    pem: &'static str,
+    pss: bool,
+) -> Key {
     let key = KeyPair::from_pem_and_sign_algo(pem, &PKCS_RSA_SHA256).unwrap();
     let mut params = CertificateParams::new(Vec::<String>::new()).unwrap();
     params.distinguished_name.push(DnType::CommonName, name);
@@ -78,9 +97,13 @@ fn rsa(name: &str, issuer: &Ca, serial: u64, pem: &'static str, pss: bool) -> Ke
         sign: Box::new(move |message| {
             let pair = RsaKeyPair::from_pkcs8(&der).unwrap();
             let mut out = vec![0u8; pair.public().modulus_len()];
-            let padding: &'static dyn ring::signature::RsaEncoding =
-                if pss { &RSA_PSS_SHA256 } else { &RSA_PKCS1_SHA256 };
-            pair.sign(padding, &SystemRandom::new(), message, &mut out).unwrap();
+            let padding: &'static dyn ring::signature::RsaEncoding = if pss {
+                &RSA_PSS_SHA256
+            } else {
+                &RSA_PKCS1_SHA256
+            };
+            pair.sign(padding, &SystemRandom::new(), message, &mut out)
+                .unwrap();
             out
         }),
         algorithm: if pss {
@@ -104,8 +127,10 @@ struct V2 {
 
 fn v2_world() -> V2 {
     let world = world();
-    let approver_1 = ecdsa("DEMO Approver One", &world.staff_root, 21, (2035, 1, 1));
-    let approver_2 = ecdsa("DEMO Approver Two", &world.staff_root, 22, (2035, 1, 1));
+    let approver_1 =
+        ecdsa("DEMO Approver One", &world.staff_root, 21, (2035, 1, 1));
+    let approver_2 =
+        ecdsa("DEMO Approver Two", &world.staff_root, 22, (2035, 1, 1));
     let custodian = ecdsa("DEMO Custodian Key", &world.root, 23, (2035, 1, 1));
     V2 {
         world,
@@ -146,7 +171,11 @@ fn policy(v2: &V2) -> ConfigurationSigning {
     }
 }
 
-fn binding(manifest: &Manifest, settings: &ConfigurationSigning, tenant: &str) -> ApprovalBinding {
+fn binding(
+    manifest: &Manifest,
+    settings: &ConfigurationSigning,
+    tenant: &str,
+) -> ApprovalBinding {
     ApprovalBinding {
         tenant_id: tenant.to_string(),
         external_id: manifest.configuration.external_id.clone(),
@@ -156,7 +185,12 @@ fn binding(manifest: &Manifest, settings: &ConfigurationSigning, tenant: &str) -
     }
 }
 
-fn approve_v2(manifest: &mut Manifest, bind: &ApprovalBinding, key: &Key, signer_id: &str) {
+fn approve_v2(
+    manifest: &mut Manifest,
+    bind: &ApprovalBinding,
+    key: &Key,
+    signer_id: &str,
+) {
     let payload = approval_payload_v2(bind, signer_id).unwrap();
     manifest.approvals.push(Approval {
         name: format!("DEMO {signer_id}"),
@@ -195,16 +229,25 @@ fn v2_manifest(
 
 fn signed_by(manifest: &Manifest, key: &Key) -> Vec<u8> {
     let bytes = manifest.to_bytes().unwrap();
-    package("p.zip", &members(), &bytes, &(key.sign)(&bytes), &key.chain_pem)
-        .unwrap()
-        .bytes
+    package(
+        "p.zip",
+        &members(),
+        &bytes,
+        &(key.sign)(&bytes),
+        &key.chain_pem,
+    )
+    .unwrap()
+    .bytes
 }
 
 fn genuine(v2: &V2, settings: &ConfigurationSigning) -> Vec<u8> {
     let manifest = v2_manifest(
         settings,
         TENANT,
-        &[(&v2.approver_1, "approver-1"), (&v2.approver_2, "approver-2")],
+        &[
+            (&v2.approver_1, "approver-1"),
+            (&v2.approver_2, "approver-2"),
+        ],
         "custodian",
     );
     signed_by(&manifest, &v2.custodian)
@@ -222,10 +265,16 @@ fn refused_v2(bytes: &[u8], trust: &PackageTrust) -> Vec<String> {
 }
 
 #[test]
-fn a_v2_package_approved_by_two_enrolled_people_and_signed_by_the_custodian_verifies() {
+fn a_v2_package_approved_by_two_enrolled_people_and_signed_by_the_custodian_verifies(
+) {
     let v2 = v2_world();
     let settings = policy(&v2);
-    let verified = verify_package_at(&genuine(&v2, &settings), &trust_v2(&settings), now()).unwrap();
+    let verified = verify_package_at(
+        &genuine(&v2, &settings),
+        &trust_v2(&settings),
+        now(),
+    )
+    .unwrap();
     assert_eq!(verified.manifest.format, ManifestFormat::V2);
     assert_eq!(verified.signer_id.as_deref(), Some("custodian"));
     assert_eq!(verified.approver_ids, vec!["approver-1", "approver-2"]);
@@ -234,49 +283,96 @@ fn a_v2_package_approved_by_two_enrolled_people_and_signed_by_the_custodian_veri
 #[test]
 fn rsa_pss_approvals_and_final_signature_verify_with_exact_parameters() {
     let v2 = v2_world();
-    let approver_rsa = rsa("DEMO RSA Approver", &v2.world.staff_root, 31, APPROVER_RSA, true);
-    let custodian_rsa = rsa("DEMO RSA Custodian", &v2.world.root, 32, SIGNER_RSA, true);
+    let approver_rsa = rsa(
+        "DEMO RSA Approver",
+        &v2.world.staff_root,
+        31,
+        APPROVER_RSA,
+        true,
+    );
+    let custodian_rsa =
+        rsa("DEMO RSA Custodian", &v2.world.root, 32, SIGNER_RSA, true);
     let mut settings = policy(&v2);
-    settings.signers[1] = enrolled("approver-2", &[SignerRole::Approver], &[&approver_rsa]);
-    settings.signers[2] = enrolled("custodian", &[SignerRole::FinalSigner], &[&custodian_rsa]);
+    settings.signers[1] =
+        enrolled("approver-2", &[SignerRole::Approver], &[&approver_rsa]);
+    settings.signers[2] =
+        enrolled("custodian", &[SignerRole::FinalSigner], &[&custodian_rsa]);
     let manifest = v2_manifest(
         &settings,
         TENANT,
-        &[(&v2.approver_1, "approver-1"), (&approver_rsa, "approver-2")],
+        &[
+            (&v2.approver_1, "approver-1"),
+            (&approver_rsa, "approver-2"),
+        ],
         "custodian",
     );
-    let verified =
-        verify_package_at(&signed_by(&manifest, &custodian_rsa), &trust_v2(&settings), now()).unwrap();
+    let verified = verify_package_at(
+        &signed_by(&manifest, &custodian_rsa),
+        &trust_v2(&settings),
+        now(),
+    )
+    .unwrap();
     assert_eq!(verified.approver_ids.len(), 2);
 }
 
 #[test]
 fn rsa_pkcs1_v1_5_is_refused_in_format_2() {
     let v2 = v2_world();
-    let approver_pkcs1 = rsa("DEMO PKCS1 Approver", &v2.world.staff_root, 33, APPROVER_RSA, false);
-    let custodian_pkcs1 = rsa("DEMO PKCS1 Custodian", &v2.world.root, 34, SIGNER_RSA, false);
+    let approver_pkcs1 = rsa(
+        "DEMO PKCS1 Approver",
+        &v2.world.staff_root,
+        33,
+        APPROVER_RSA,
+        false,
+    );
+    let custodian_pkcs1 = rsa(
+        "DEMO PKCS1 Custodian",
+        &v2.world.root,
+        34,
+        SIGNER_RSA,
+        false,
+    );
     let mut settings = policy(&v2);
-    settings.signers[1] = enrolled("approver-2", &[SignerRole::Approver], &[&approver_pkcs1]);
+    settings.signers[1] =
+        enrolled("approver-2", &[SignerRole::Approver], &[&approver_pkcs1]);
     // An approval with PKCS#1 v1.5 doesn't count.
     let manifest = v2_manifest(
         &settings,
         TENANT,
-        &[(&v2.approver_1, "approver-1"), (&approver_pkcs1, "approver-2")],
+        &[
+            (&v2.approver_1, "approver-1"),
+            (&approver_pkcs1, "approver-2"),
+        ],
         "custodian",
     );
-    let found = refused_v2(&signed_by(&manifest, &v2.custodian), &trust_v2(&settings));
-    assert!(found.contains(&"package.approval-algorithm".to_string()), "{found:?}");
+    let found =
+        refused_v2(&signed_by(&manifest, &v2.custodian), &trust_v2(&settings));
+    assert!(
+        found.contains(&"package.approval-algorithm".to_string()),
+        "{found:?}"
+    );
     // A final signature with PKCS#1 v1.5 doesn't verify.
-    settings.signers[1] = enrolled("approver-2", &[SignerRole::Approver], &[&v2.approver_2]);
-    settings.signers[2] = enrolled("custodian", &[SignerRole::FinalSigner], &[&custodian_pkcs1]);
+    settings.signers[1] =
+        enrolled("approver-2", &[SignerRole::Approver], &[&v2.approver_2]);
+    settings.signers[2] =
+        enrolled("custodian", &[SignerRole::FinalSigner], &[&custodian_pkcs1]);
     let manifest = v2_manifest(
         &settings,
         TENANT,
-        &[(&v2.approver_1, "approver-1"), (&v2.approver_2, "approver-2")],
+        &[
+            (&v2.approver_1, "approver-1"),
+            (&v2.approver_2, "approver-2"),
+        ],
         "custodian",
     );
-    let found = refused_v2(&signed_by(&manifest, &custodian_pkcs1), &trust_v2(&settings));
-    assert!(found.contains(&"package.bad-signature".to_string()), "{found:?}");
+    let found = refused_v2(
+        &signed_by(&manifest, &custodian_pkcs1),
+        &trust_v2(&settings),
+    );
+    assert!(
+        found.contains(&"package.bad-signature".to_string()),
+        "{found:?}"
+    );
 }
 
 #[test]
@@ -286,8 +382,11 @@ fn rsa_keys_outside_2048_to_4096_bits_are_refused() {
     assert!(rsa_modulus_allowed(small).is_err());
     assert!(rsa_modulus_allowed(large).is_err());
     let ok = x509_parser::prelude::X509Certificate::from_der(
-        &certificates_from_pem(&rsa("x", &world().staff_root, 1, APPROVER_RSA, true).certificate_pem)
-            .unwrap()[0],
+        &certificates_from_pem(
+            &rsa("x", &world().staff_root, 1, APPROVER_RSA, true)
+                .certificate_pem,
+        )
+        .unwrap()[0],
     )
     .unwrap()
     .1
@@ -300,7 +399,8 @@ fn rsa_keys_outside_2048_to_4096_bits_are_refused() {
 #[test]
 fn an_unenrolled_approver_or_custodian_is_refused() {
     let v2 = v2_world();
-    let stranger = ecdsa("DEMO Stranger", &v2.world.staff_root, 41, (2035, 1, 1));
+    let stranger =
+        ecdsa("DEMO Stranger", &v2.world.staff_root, 41, (2035, 1, 1));
     let settings = policy(&v2);
     // A valid certificate under the trusted root, but its key is not enrolled.
     let manifest = v2_manifest(
@@ -309,19 +409,34 @@ fn an_unenrolled_approver_or_custodian_is_refused() {
         &[(&v2.approver_1, "approver-1"), (&stranger, "approver-2")],
         "custodian",
     );
-    let found = refused_v2(&signed_by(&manifest, &v2.custodian), &trust_v2(&settings));
-    assert!(found.contains(&"package.approver-id-mismatch".to_string()), "{found:?}");
-    assert!(found.contains(&"package.too-few-approvals".to_string()), "{found:?}");
+    let found =
+        refused_v2(&signed_by(&manifest, &v2.custodian), &trust_v2(&settings));
+    assert!(
+        found.contains(&"package.approver-id-mismatch".to_string()),
+        "{found:?}"
+    );
+    assert!(
+        found.contains(&"package.too-few-approvals".to_string()),
+        "{found:?}"
+    );
 
-    let other_key = ecdsa("DEMO Other Custodian", &v2.world.root, 42, (2035, 1, 1));
+    let other_key =
+        ecdsa("DEMO Other Custodian", &v2.world.root, 42, (2035, 1, 1));
     let manifest = v2_manifest(
         &settings,
         TENANT,
-        &[(&v2.approver_1, "approver-1"), (&v2.approver_2, "approver-2")],
+        &[
+            (&v2.approver_1, "approver-1"),
+            (&v2.approver_2, "approver-2"),
+        ],
         "custodian",
     );
-    let found = refused_v2(&signed_by(&manifest, &other_key), &trust_v2(&settings));
-    assert!(found.contains(&"package.final-signer-not-enrolled".to_string()), "{found:?}");
+    let found =
+        refused_v2(&signed_by(&manifest, &other_key), &trust_v2(&settings));
+    assert!(
+        found.contains(&"package.final-signer-not-enrolled".to_string()),
+        "{found:?}"
+    );
 }
 
 #[test]
@@ -329,31 +444,52 @@ fn roles_are_the_policys_not_the_packages() {
     let v2 = v2_world();
     // A key under the approvers' root, enrolled only to make final
     // signatures: its approval doesn't count.
-    let final_only = ecdsa("DEMO Final Only", &v2.world.staff_root, 71, (2035, 1, 1));
+    let final_only =
+        ecdsa("DEMO Final Only", &v2.world.staff_root, 71, (2035, 1, 1));
     let mut settings = policy(&v2);
-    settings.signers.push(enrolled("final-only", &[SignerRole::FinalSigner], &[&final_only]));
+    settings.signers.push(enrolled(
+        "final-only",
+        &[SignerRole::FinalSigner],
+        &[&final_only],
+    ));
     let manifest = v2_manifest(
         &settings,
         TENANT,
         &[(&v2.approver_1, "approver-1"), (&final_only, "final-only")],
         "custodian",
     );
-    let found = refused_v2(&signed_by(&manifest, &v2.custodian), &trust_v2(&settings));
-    assert!(found.contains(&"package.approver-role".to_string()), "{found:?}");
+    let found =
+        refused_v2(&signed_by(&manifest, &v2.custodian), &trust_v2(&settings));
+    assert!(
+        found.contains(&"package.approver-role".to_string()),
+        "{found:?}"
+    );
 
     // A key under the package root, enrolled only to approve: its final
     // signature doesn't count.
-    let approve_only = ecdsa("DEMO Approve Only", &v2.world.root, 72, (2035, 1, 1));
+    let approve_only =
+        ecdsa("DEMO Approve Only", &v2.world.root, 72, (2035, 1, 1));
     let mut settings = policy(&v2);
-    settings.signers.push(enrolled("approve-only", &[SignerRole::Approver], &[&approve_only]));
+    settings.signers.push(enrolled(
+        "approve-only",
+        &[SignerRole::Approver],
+        &[&approve_only],
+    ));
     let manifest = v2_manifest(
         &settings,
         TENANT,
-        &[(&v2.approver_1, "approver-1"), (&v2.approver_2, "approver-2")],
+        &[
+            (&v2.approver_1, "approver-1"),
+            (&v2.approver_2, "approver-2"),
+        ],
         "approve-only",
     );
-    let found = refused_v2(&signed_by(&manifest, &approve_only), &trust_v2(&settings));
-    assert!(found.contains(&"package.final-signer-role".to_string()), "{found:?}");
+    let found =
+        refused_v2(&signed_by(&manifest, &approve_only), &trust_v2(&settings));
+    assert!(
+        found.contains(&"package.final-signer-role".to_string()),
+        "{found:?}"
+    );
 }
 
 #[test]
@@ -364,20 +500,35 @@ fn an_approval_must_name_the_signer_its_key_belongs_to() {
     let manifest = v2_manifest(
         &settings,
         TENANT,
-        &[(&v2.approver_1, "approver-1"), (&v2.approver_1, "approver-2")],
+        &[
+            (&v2.approver_1, "approver-1"),
+            (&v2.approver_1, "approver-2"),
+        ],
         "custodian",
     );
-    let found = refused_v2(&signed_by(&manifest, &v2.custodian), &trust_v2(&settings));
-    assert!(found.contains(&"package.approver-id-mismatch".to_string()), "{found:?}");
+    let found =
+        refused_v2(&signed_by(&manifest, &v2.custodian), &trust_v2(&settings));
+    assert!(
+        found.contains(&"package.approver-id-mismatch".to_string()),
+        "{found:?}"
+    );
 }
 
 #[test]
 fn two_certificates_of_one_person_count_once_and_fail_closed() {
     let v2 = v2_world();
-    let reissued = ecdsa("DEMO Approver One (new key)", &v2.world.staff_root, 51, (2035, 1, 1));
+    let reissued = ecdsa(
+        "DEMO Approver One (new key)",
+        &v2.world.staff_root,
+        51,
+        (2035, 1, 1),
+    );
     let mut settings = policy(&v2);
-    settings.signers[0] =
-        enrolled("approver-1", &[SignerRole::Approver], &[&v2.approver_1, &reissued]);
+    settings.signers[0] = enrolled(
+        "approver-1",
+        &[SignerRole::Approver],
+        &[&v2.approver_1, &reissued],
+    );
     // Both of approver-1's keys approve; approver-2 does not.
     let manifest = v2_manifest(
         &settings,
@@ -385,9 +536,16 @@ fn two_certificates_of_one_person_count_once_and_fail_closed() {
         &[(&v2.approver_1, "approver-1"), (&reissued, "approver-1")],
         "custodian",
     );
-    let found = refused_v2(&signed_by(&manifest, &v2.custodian), &trust_v2(&settings));
-    assert!(found.contains(&"package.duplicate-signer".to_string()), "{found:?}");
-    assert!(found.contains(&"package.too-few-approvals".to_string()), "{found:?}");
+    let found =
+        refused_v2(&signed_by(&manifest, &v2.custodian), &trust_v2(&settings));
+    assert!(
+        found.contains(&"package.duplicate-signer".to_string()),
+        "{found:?}"
+    );
+    assert!(
+        found.contains(&"package.too-few-approvals".to_string()),
+        "{found:?}"
+    );
     // The reissued key alone stands for the same person.
     let manifest = v2_manifest(
         &settings,
@@ -395,7 +553,12 @@ fn two_certificates_of_one_person_count_once_and_fail_closed() {
         &[(&reissued, "approver-1"), (&v2.approver_2, "approver-2")],
         "custodian",
     );
-    verify_package_at(&signed_by(&manifest, &v2.custodian), &trust_v2(&settings), now()).unwrap();
+    verify_package_at(
+        &signed_by(&manifest, &v2.custodian),
+        &trust_v2(&settings),
+        now(),
+    )
+    .unwrap();
 }
 
 #[test]
@@ -403,25 +566,41 @@ fn the_final_signer_may_not_have_approved_unless_the_policy_allows_it() {
     let v2 = v2_world();
     let mut settings = policy(&v2);
     // One CA for both, so approver-1's key can make a final signature at all.
-    settings.package_roots = format!("{}{}", v2.world.root.pem(), v2.world.staff_root.pem());
+    settings.package_roots =
+        format!("{}{}", v2.world.root.pem(), v2.world.staff_root.pem());
     settings.signers[0].roles.push(SignerRole::FinalSigner);
     let manifest = v2_manifest(
         &settings,
         TENANT,
-        &[(&v2.approver_1, "approver-1"), (&v2.approver_2, "approver-2")],
+        &[
+            (&v2.approver_1, "approver-1"),
+            (&v2.approver_2, "approver-2"),
+        ],
         "approver-1",
     );
-    let found = refused_v2(&signed_by(&manifest, &v2.approver_1), &trust_v2(&settings));
-    assert!(found.contains(&"package.final-signer-approved".to_string()), "{found:?}");
+    let found =
+        refused_v2(&signed_by(&manifest, &v2.approver_1), &trust_v2(&settings));
+    assert!(
+        found.contains(&"package.final-signer-approved".to_string()),
+        "{found:?}"
+    );
 
     settings.final_signer_separation = Some(FinalSignerSeparation::Allowed);
     let manifest = v2_manifest(
         &settings,
         TENANT,
-        &[(&v2.approver_1, "approver-1"), (&v2.approver_2, "approver-2")],
+        &[
+            (&v2.approver_1, "approver-1"),
+            (&v2.approver_2, "approver-2"),
+        ],
         "approver-1",
     );
-    verify_package_at(&signed_by(&manifest, &v2.approver_1), &trust_v2(&settings), now()).unwrap();
+    verify_package_at(
+        &signed_by(&manifest, &v2.approver_1),
+        &trust_v2(&settings),
+        now(),
+    )
+    .unwrap();
 }
 
 #[test]
@@ -431,18 +610,28 @@ fn a_package_for_another_tenant_or_policy_is_refused() {
     let manifest = v2_manifest(
         &settings,
         "00000000-0000-0000-0000-000000000000",
-        &[(&v2.approver_1, "approver-1"), (&v2.approver_2, "approver-2")],
+        &[
+            (&v2.approver_1, "approver-1"),
+            (&v2.approver_2, "approver-2"),
+        ],
         "custodian",
     );
-    let found = refused_v2(&signed_by(&manifest, &v2.custodian), &trust_v2(&settings));
-    assert!(found.contains(&"package.wrong-tenant".to_string()), "{found:?}");
+    let found =
+        refused_v2(&signed_by(&manifest, &v2.custodian), &trust_v2(&settings));
+    assert!(
+        found.contains(&"package.wrong-tenant".to_string()),
+        "{found:?}"
+    );
 
     // Approved under the policy, then the tenant's policy changed.
     let bytes = genuine(&v2, &settings);
     let mut changed = settings.clone();
     changed.required_approvals = 1;
     let found = refused_v2(&bytes, &trust_v2(&changed));
-    assert!(found.contains(&"package.policy-changed".to_string()), "{found:?}");
+    assert!(
+        found.contains(&"package.policy-changed".to_string()),
+        "{found:?}"
+    );
 }
 
 #[test]
@@ -452,7 +641,10 @@ fn an_approval_from_another_revision_does_not_count() {
     let mut manifest = v2_manifest(
         &settings,
         TENANT,
-        &[(&v2.approver_1, "approver-1"), (&v2.approver_2, "approver-2")],
+        &[
+            (&v2.approver_1, "approver-1"),
+            (&v2.approver_2, "approver-2"),
+        ],
         "custodian",
     );
     // approver-2's approval of revision 2, replayed into revision 3.
@@ -461,9 +653,16 @@ fn an_approval_from_another_revision_does_not_count() {
     let bind = binding(&older, &settings, TENANT);
     approve_v2(&mut older, &bind, &v2.approver_2, "approver-2");
     manifest.approvals[1] = older.approvals[0].clone();
-    let found = refused_v2(&signed_by(&manifest, &v2.custodian), &trust_v2(&settings));
-    assert!(found.contains(&"package.approval-invalid".to_string()), "{found:?}");
-    assert!(found.contains(&"package.too-few-approvals".to_string()), "{found:?}");
+    let found =
+        refused_v2(&signed_by(&manifest, &v2.custodian), &trust_v2(&settings));
+    assert!(
+        found.contains(&"package.approval-invalid".to_string()),
+        "{found:?}"
+    );
+    assert!(
+        found.contains(&"package.too-few-approvals".to_string()),
+        "{found:?}"
+    );
 }
 
 #[test]
@@ -474,7 +673,10 @@ fn format_1_is_refused_where_the_tenant_requires_format_2() {
     let world = &v2.world;
     let v1 = signed(&approved(world, 8), &world.key, &members());
     let found = refused_v2(&v1, &trust_v2(&settings));
-    assert!(found.contains(&"package.downgrade-refused".to_string()), "{found:?}");
+    assert!(
+        found.contains(&"package.downgrade-refused".to_string()),
+        "{found:?}"
+    );
 }
 
 #[test]
@@ -488,7 +690,12 @@ fn format_1_still_imports_where_the_tenant_allows_it() {
         required_approvals: 2,
         ..ConfigurationSigning::default()
     };
-    let verified = verify_package_at(&v1, &legacy.trust_for(TENANT, Vec::new()).unwrap(), now()).unwrap();
+    let verified = verify_package_at(
+        &v1,
+        &legacy.trust_for(TENANT, Vec::new()).unwrap(),
+        now(),
+    )
+    .unwrap();
     assert_eq!(verified.manifest.format, ManifestFormat::V1);
     assert_eq!(verified.signer_id, None);
 }
@@ -511,8 +718,12 @@ fn a_format_1_manifest_carrying_format_2_fields_is_refused() {
         ..ConfigurationSigning::default()
     };
     let bytes = signed(&manifest, &world.key, &members());
-    let found = refused_v2(&bytes, &legacy.trust_for(TENANT, Vec::new()).unwrap());
-    assert!(found.contains(&"package.mixed-format".to_string()), "{found:?}");
+    let found =
+        refused_v2(&bytes, &legacy.trust_for(TENANT, Vec::new()).unwrap());
+    assert!(
+        found.contains(&"package.mixed-format".to_string()),
+        "{found:?}"
+    );
 }
 
 #[test]
@@ -528,12 +739,18 @@ fn a_v2_package_needs_an_enrolling_policy_and_the_verifiers_clock() {
         required_approvals: 2,
         ..ConfigurationSigning::default()
     };
-    let found = refused_v2(&bytes, &legacy.trust_for(TENANT, Vec::new()).unwrap());
-    assert!(found.contains(&"package.no-signing-policy".to_string()), "{found:?}");
+    let found =
+        refused_v2(&bytes, &legacy.trust_for(TENANT, Vec::new()).unwrap());
+    assert!(
+        found.contains(&"package.no-signing-policy".to_string()),
+        "{found:?}"
+    );
     // Without a clock, nothing to check certificates at.
     match verify_package(&bytes, &trust_v2(&settings)) {
         Ok(_) => panic!("a format-2 package needs the verifier's clock"),
-        Err(report) => assert!(ids(&report).contains(&"package.needs-clock".to_string())),
+        Err(report) => {
+            assert!(ids(&report).contains(&"package.needs-clock".to_string()))
+        }
     }
 }
 
@@ -541,9 +758,15 @@ fn a_v2_package_needs_an_enrolling_policy_and_the_verifiers_clock() {
 fn certificates_are_checked_at_the_verifiers_time_not_the_claimed_one() {
     let v2 = v2_world();
     // Valid when it claims to have approved (2026-11-13), expired by now.
-    let expired = ecdsa("DEMO Approver Expiring", &v2.world.staff_root, 61, (2026, 11, 13));
+    let expired = ecdsa(
+        "DEMO Approver Expiring",
+        &v2.world.staff_root,
+        61,
+        (2026, 11, 13),
+    );
     let mut settings = policy(&v2);
-    settings.signers[1] = enrolled("approver-2", &[SignerRole::Approver], &[&expired]);
+    settings.signers[1] =
+        enrolled("approver-2", &[SignerRole::Approver], &[&expired]);
     let mut manifest = v2_manifest(
         &settings,
         TENANT,
@@ -551,8 +774,12 @@ fn certificates_are_checked_at_the_verifiers_time_not_the_claimed_one() {
         "custodian",
     );
     manifest.approvals[1].signed_at = "2026-11-12T10:00:00Z".to_string();
-    let found = refused_v2(&signed_by(&manifest, &v2.custodian), &trust_v2(&settings));
-    assert!(found.contains(&"package.approval-invalid".to_string()), "{found:?}");
+    let found =
+        refused_v2(&signed_by(&manifest, &v2.custodian), &trust_v2(&settings));
+    assert!(
+        found.contains(&"package.approval-invalid".to_string()),
+        "{found:?}"
+    );
 }
 
 #[test]
@@ -560,18 +787,35 @@ fn an_unsigned_file_is_refused_by_a_v2_tenant_whatever_its_signature_policy() {
     let v2 = v2_world();
     let settings = policy(&v2);
     let unsigned = crate::election_config::archive::zip(&members()).unwrap();
-    match admit_for_tenant_at(&unsigned, Some(&settings), TENANT, Vec::new(), now()) {
+    match admit_for_tenant_at(
+        &unsigned,
+        Some(&settings),
+        TENANT,
+        Vec::new(),
+        now(),
+    ) {
         Ok(_) => panic!("an unsigned file must not bypass a format-2 policy"),
-        Err(report) => assert!(ids(&report).contains(&"package.unsigned".to_string())),
+        Err(report) => {
+            assert!(ids(&report).contains(&"package.unsigned".to_string()))
+        }
     }
     // A contradictory optional + v2 record that somehow got stored is
     // refused before that, as an invalid policy (see the malformed-policy test).
     let mut contradictory = settings.clone();
     contradictory.policy = ConfigurationSigningPolicy::Optional;
-    match admit_for_tenant_at(&unsigned, Some(&contradictory), TENANT, Vec::new(), now()) {
-        Ok(_) => panic!("an unsigned file must not bypass a contradictory policy"),
-        Err(report) => assert!(ids(&report)
-            .contains(&"configuration-signing.invalid-stored-policy".to_string())),
+    match admit_for_tenant_at(
+        &unsigned,
+        Some(&contradictory),
+        TENANT,
+        Vec::new(),
+        now(),
+    ) {
+        Ok(_) => {
+            panic!("an unsigned file must not bypass a contradictory policy")
+        }
+        Err(report) => assert!(ids(&report).contains(
+            &"configuration-signing.invalid-stored-policy".to_string()
+        )),
     }
 }
 
@@ -582,15 +826,24 @@ fn tampering_after_signing_is_still_caught_in_format_2() {
     let manifest = v2_manifest(
         &settings,
         TENANT,
-        &[(&v2.approver_1, "approver-1"), (&v2.approver_2, "approver-2")],
+        &[
+            (&v2.approver_1, "approver-1"),
+            (&v2.approver_2, "approver-2"),
+        ],
         "custodian",
     );
     let bytes = manifest.to_bytes().unwrap();
     let mut other = members();
     other[1].bytes = b"{\"version\":5}".to_vec();
-    let tampered = package("p.zip", &other, &bytes, &(v2.custodian.sign)(&bytes), &v2.custodian.chain_pem)
-        .unwrap()
-        .bytes;
+    let tampered = package(
+        "p.zip",
+        &other,
+        &bytes,
+        &(v2.custodian.sign)(&bytes),
+        &v2.custodian.chain_pem,
+    )
+    .unwrap()
+    .bytes;
     assert!(!refused_v2(&tampered, &trust_v2(&settings)).is_empty());
 }
 
@@ -606,10 +859,18 @@ fn a_malformed_stored_policy_refuses_every_file_signed_or_not() {
     let unsigned = crate::election_config::archive::zip(&members()).unwrap();
     let v1 = signed(&approved(world, 8), &world.key, &members());
     for (what, bytes) in [("unsigned", &unsigned), ("format 1", &v1)] {
-        match admit_for_tenant_at(bytes, Some(&malformed), TENANT, Vec::new(), now()) {
+        match admit_for_tenant_at(
+            bytes,
+            Some(&malformed),
+            TENANT,
+            Vec::new(),
+            now(),
+        ) {
             Ok(_) => panic!("{what} admitted under a malformed stored policy"),
             Err(report) => assert!(
-                ids(&report).contains(&"configuration-signing.invalid-stored-policy".to_string()),
+                ids(&report).contains(
+                    &"configuration-signing.invalid-stored-policy".to_string()
+                ),
                 "{what}: {:?}",
                 ids(&report)
             ),
@@ -619,7 +880,14 @@ fn a_malformed_stored_policy_refuses_every_file_signed_or_not() {
     // Optional with format 2 stored: refused the same way.
     let mut contradictory = policy(&v2);
     contradictory.policy = ConfigurationSigningPolicy::Optional;
-    assert!(admit_for_tenant_at(&unsigned, Some(&contradictory), TENANT, Vec::new(), now()).is_err());
+    assert!(admit_for_tenant_at(
+        &unsigned,
+        Some(&contradictory),
+        TENANT,
+        Vec::new(),
+        now()
+    )
+    .is_err());
     // A truly legacy record (no format-2 field) keeps its old behaviour:
     // optional admits an unsigned file.
     let legacy = ConfigurationSigning {
@@ -627,7 +895,13 @@ fn a_malformed_stored_policy_refuses_every_file_signed_or_not() {
         ..ConfigurationSigning::default()
     };
     assert!(matches!(
-        admit_for_tenant_at(&unsigned, Some(&legacy), TENANT, Vec::new(), now()),
+        admit_for_tenant_at(
+            &unsigned,
+            Some(&legacy),
+            TENANT,
+            Vec::new(),
+            now()
+        ),
         Ok(Admission::Unsigned)
     ));
 }
@@ -639,13 +913,23 @@ fn a_v2_approval_labelled_with_another_role_does_not_count() {
     let mut manifest = v2_manifest(
         &settings,
         TENANT,
-        &[(&v2.approver_1, "approver-1"), (&v2.approver_2, "approver-2")],
+        &[
+            (&v2.approver_1, "approver-1"),
+            (&v2.approver_2, "approver-2"),
+        ],
         "custodian",
     );
     manifest.approvals[1].role = "final-signer".to_string();
-    let found = refused_v2(&signed_by(&manifest, &v2.custodian), &trust_v2(&settings));
-    assert!(found.contains(&"package.approval-role-label".to_string()), "{found:?}");
-    assert!(found.contains(&"package.too-few-approvals".to_string()), "{found:?}");
+    let found =
+        refused_v2(&signed_by(&manifest, &v2.custodian), &trust_v2(&settings));
+    assert!(
+        found.contains(&"package.approval-role-label".to_string()),
+        "{found:?}"
+    );
+    assert!(
+        found.contains(&"package.too-few-approvals".to_string()),
+        "{found:?}"
+    );
 }
 
 #[test]
@@ -663,9 +947,18 @@ fn a_key_withdrawn_from_the_current_policy_is_refused() {
     let found = refused_v2(&bytes, &trust_v2(&withdrawn));
     // The approvals bound the old policy's digest, so under the current one
     // none of them verifies, before enrollment is even consulted.
-    assert!(found.contains(&"package.policy-changed".to_string()), "{found:?}");
-    assert!(found.contains(&"package.approval-invalid".to_string()), "{found:?}");
-    assert!(found.contains(&"package.too-few-approvals".to_string()), "{found:?}");
+    assert!(
+        found.contains(&"package.policy-changed".to_string()),
+        "{found:?}"
+    );
+    assert!(
+        found.contains(&"package.approval-invalid".to_string()),
+        "{found:?}"
+    );
+    assert!(
+        found.contains(&"package.too-few-approvals".to_string()),
+        "{found:?}"
+    );
 }
 
 #[test]
@@ -677,7 +970,10 @@ fn a_configured_revocation_list_revokes_a_v2_approver() {
     let lists = crls_from_pem(&crl(&v2.world.staff_root, &[22])).unwrap();
     let trust = settings.trust_for(TENANT, lists).unwrap();
     let found = refused_v2(&bytes, &trust);
-    assert!(found.contains(&"package.approval-invalid".to_string()), "{found:?}");
+    assert!(
+        found.contains(&"package.approval-invalid".to_string()),
+        "{found:?}"
+    );
     // Without that list the same package verifies: a missing list is not
     // treated as revocation (no freshness is claimed).
     verify_package_at(&bytes, &trust_v2(&settings), now()).unwrap();

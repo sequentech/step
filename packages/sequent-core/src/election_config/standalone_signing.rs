@@ -29,9 +29,9 @@ use serde::{Deserialize, Serialize};
 
 use super::archive::Artifact;
 use super::manifest::{
-    approval_code_v2, file_entries, package, payload, Approval, ApprovalBinding,
-    ConfigurationRevision, Content, Manifest, ManifestFormat, Produced,
-    RevisionContent, SigningBinding,
+    approval_code_v2, file_entries, package, payload, Approval,
+    ApprovalBinding, ConfigurationRevision, Content, Manifest, ManifestFormat,
+    Produced, RevisionContent, SigningBinding,
 };
 use super::package_verify::{
     check_approvals_v2, ConfigurationSigning, ConfigurationSigningPolicy,
@@ -69,8 +69,12 @@ impl InstalledSigning {
         let mut report = Report::default();
         if installed.tenant_id.trim().is_empty() {
             report.push(
-                Problem::error(Code::MissingField, "tenant_id", "the policy names no tenant")
-                    .id("signing-policy.no-tenant"),
+                Problem::error(
+                    Code::MissingField,
+                    "tenant_id",
+                    "the policy names no tenant",
+                )
+                .id("signing-policy.no-tenant"),
             );
         }
         if installed.signing.minimum_package_format != Some(PackageFormat::V2)
@@ -88,7 +92,14 @@ impl InstalledSigning {
             );
         }
         for found in check_policy(&installed.signing) {
-            report.push(Problem::error(Code::InvalidValue, "signing.signers", found.message).id(found.id));
+            report.push(
+                Problem::error(
+                    Code::InvalidValue,
+                    "signing.signers",
+                    found.message,
+                )
+                .id(found.id),
+            );
         }
         if report.has_errors() {
             Err(report)
@@ -126,8 +137,13 @@ pub fn approval_request(
         tenant_id: installed.tenant_id.clone(),
         external_id: configuration.external_id.clone(),
         revision: configuration.revision,
-        content_sha256: revision.content.sha256().map_err(Report::from_problem)?,
-        policy_sha256: installed.policy_sha256().map_err(Report::from_problem)?,
+        content_sha256: revision
+            .content
+            .sha256()
+            .map_err(Report::from_problem)?,
+        policy_sha256: installed
+            .policy_sha256()
+            .map_err(Report::from_problem)?,
     };
     let code = approval_code_v2(&binding).map_err(Report::from_problem)?;
     Ok(ApprovalRequest {
@@ -140,7 +156,11 @@ pub fn approval_request(
     })
 }
 
-fn request_problem(id: &str, path: &str, message: impl Into<String>) -> Problem {
+fn request_problem(
+    id: &str,
+    path: &str,
+    message: impl Into<String>,
+) -> Problem {
     Problem::error(Code::InvalidValue, path, message).id(id)
 }
 
@@ -173,7 +193,11 @@ pub fn check_request(
 ) -> Result<CheckedRequest, Report> {
     let mut report = Report::default();
     if request.format != APPROVAL_REQUEST_FORMAT {
-        report.push(request_problem("request.format", "format", "this is not a format-2 approval request"));
+        report.push(request_problem(
+            "request.format",
+            "format",
+            "this is not a format-2 approval request",
+        ));
     }
     let expanded = payload(delivery).map_err(Report::from_problem)?;
     if expanded.files != request.content.files {
@@ -219,7 +243,11 @@ pub fn check_request(
     }
     match approval_code_v2(&request.binding) {
         Ok(code) if code == request.code => {}
-        Ok(_) => report.push(request_problem("request.code", "code", "the request's code is not its binding's")),
+        Ok(_) => report.push(request_problem(
+            "request.code",
+            "code",
+            "the request's code is not its binding's",
+        )),
         Err(problem) => report.push(problem),
     }
     if report.has_errors() {
@@ -246,7 +274,9 @@ pub struct FinalSigner {
 }
 
 fn unix(now: DateTime<Utc>) -> UnixTime {
-    UnixTime::since_unix_epoch(Duration::from_secs(u64::try_from(now.timestamp()).unwrap_or(0)))
+    UnixTime::since_unix_epoch(Duration::from_secs(
+        u64::try_from(now.timestamp()).unwrap_or(0),
+    ))
 }
 
 /// The format-2 manifest for `request`, once every approval counts under the
@@ -262,7 +292,8 @@ pub fn assemble_manifest(
 ) -> Result<Manifest, Report> {
     // Re-checked against *this* installed policy: a request checked under
     // another one doesn't pass.
-    let checked = check_request(installed, &checked.request, &checked.delivery)?;
+    let checked =
+        check_request(installed, &checked.request, &checked.delivery)?;
     let request = checked.request();
     let trust = installed
         .signing
@@ -310,9 +341,18 @@ pub fn assemble_manifest(
             role: SignerRole::FinalSigner.as_str().to_string(),
         }),
     };
-    let (_, approver_ids) =
-        check_approvals_v2(&manifest, &request.binding, &trust, v2, &[], unix(now), now, &mut report);
-    if installed.signing.effective_separation() == super::signing_policy::FinalSignerSeparation::Separate
+    let (_, approver_ids) = check_approvals_v2(
+        &manifest,
+        &request.binding,
+        &trust,
+        v2,
+        &[],
+        unix(now),
+        now,
+        &mut report,
+    );
+    if installed.signing.effective_separation()
+        == super::signing_policy::FinalSignerSeparation::Separate
         && approver_ids.contains(&final_signer.signer_id)
     {
         report.push(request_problem(
@@ -341,7 +381,8 @@ pub fn check_approval(
     approval: &Approval,
     now: DateTime<Utc>,
 ) -> Result<String, Report> {
-    let checked = check_request(installed, &checked.request, &checked.delivery)?;
+    let checked =
+        check_request(installed, &checked.request, &checked.delivery)?;
     let request = checked.request();
     let mut trust = installed
         .signing
@@ -372,15 +413,26 @@ pub fn check_approval(
         signing: None,
     };
     let mut report = Report::default();
-    let (_, ids) =
-        check_approvals_v2(&manifest, &request.binding, &trust, &v2, &[], unix(now), now, &mut report);
+    let (_, ids) = check_approvals_v2(
+        &manifest,
+        &request.binding,
+        &trust,
+        &v2,
+        &[],
+        unix(now),
+        now,
+        &mut report,
+    );
     match (report.has_errors(), ids.into_iter().next()) {
         (false, Some(id)) => Ok(id),
         _ => Err(report),
     }
 }
 
-fn v2_signer<'a>(installed: &'a InstalledSigning, id: &str) -> Option<&'a super::signing_policy::EnrolledSigner> {
+fn v2_signer<'a>(
+    installed: &'a InstalledSigning,
+    id: &str,
+) -> Option<&'a super::signing_policy::EnrolledSigner> {
     installed.signing.signers.iter().find(|s| s.id == id)
 }
 
@@ -396,9 +448,12 @@ pub fn assemble_verified_package(
     chain_pem: &str,
     now: DateTime<Utc>,
 ) -> Result<Artifact, Report> {
-    let checked = check_request(installed, &checked.request, &checked.delivery)?;
+    let checked =
+        check_request(installed, &checked.request, &checked.delivery)?;
     let request = checked.request();
-    if file_entries(checked.members()).map_err(Report::from_problem)? != request.content.files {
+    if file_entries(checked.members()).map_err(Report::from_problem)?
+        != request.content.files
+    {
         return Err(Report::from_problem(request_problem(
             "request.files-differ",
             "content.files",
@@ -410,8 +465,14 @@ pub fn assemble_verified_package(
         request.delivery_name.trim_end_matches(".zip"),
         request.configuration.revision
     );
-    let artifact = package(&name, checked.members(), manifest_bytes, signature, chain_pem)
-        .map_err(Report::from_problem)?;
+    let artifact = package(
+        &name,
+        checked.members(),
+        manifest_bytes,
+        signature,
+        chain_pem,
+    )
+    .map_err(Report::from_problem)?;
     let trust = installed
         .signing
         .trust_for(&installed.tenant_id, Vec::new())

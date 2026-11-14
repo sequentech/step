@@ -54,8 +54,8 @@ use super::manifest::{
     sha256_hex, signature_members, Approval, FileEntry, Manifest,
     ManifestFormat,
 };
-use super::problem::{Code, Problem, Report};
 use super::manifest::{approval_payload_v2, ApprovalBinding};
+use super::problem::{Code, Problem, Report};
 use super::signing_policy::{
     EnrolledSigner, Enrollment, FinalSignerSeparation, PackageFormat,
     SignerRole,
@@ -228,8 +228,12 @@ impl ConfigurationSigning {
         let mut report = Report::default();
         for found in problems {
             report.push(
-                Problem::error(Code::InvalidValue, "configuration_signing", found.message)
-                    .id(found.id),
+                Problem::error(
+                    Code::InvalidValue,
+                    "configuration_signing",
+                    found.message,
+                )
+                .id(found.id),
             );
         }
         report.push(
@@ -419,7 +423,8 @@ impl ConfigurationSigning {
         // The digest approvers and final signers bind to, for an
         // administrator to compare with the Architect installation's.
         if self.has_v2_fields() {
-            check.policy_sha256 = super::signing_policy::policy_sha256(self).ok();
+            check.policy_sha256 =
+                super::signing_policy::policy_sha256(self).ok();
         }
         check
     }
@@ -610,7 +615,9 @@ impl ConfigurationSigning {
                 for signer in &mut signers {
                     signer.roles.sort();
                     signer.roles.dedup();
-                    signer.keys.sort_by(|a, b| a.spki_sha256.cmp(&b.spki_sha256));
+                    signer
+                        .keys
+                        .sort_by(|a, b| a.spki_sha256.cmp(&b.spki_sha256));
                 }
                 signers
             },
@@ -690,7 +697,13 @@ pub fn admit_for_tenant_at(
     revocation_lists: Vec<Vec<u8>>,
     now: DateTime<Utc>,
 ) -> Result<Admission, Report> {
-    admission_for(bytes, settings, Some(tenant_id), revocation_lists, Some(now))
+    admission_for(
+        bytes,
+        settings,
+        Some(tenant_id),
+        revocation_lists,
+        Some(now),
+    )
 }
 
 fn admission(
@@ -1047,21 +1060,20 @@ pub fn verify_approval(
     let signature = STANDARD
         .decode(approval.signature.trim())
         .map_err(|error| format!("the signature is not base64: {error}"))?;
-    let algorithms: &[&dyn SignatureVerificationAlgorithm] =
-        match approval.algorithm {
-            SignatureAlgorithm::EcdsaP256Sha256 => {
-                &[webpki::ring::ECDSA_P256_SHA256]
-            }
-            SignatureAlgorithm::RsaPkcs1Sha256 => {
-                &[webpki::ring::RSA_PKCS1_2048_8192_SHA256]
-            }
-            // Format 1 is kept exactly as it was: no RSA-PSS approvals.
-            SignatureAlgorithm::RsaPssSha256 => {
-                return Err(
-                    "format 1 doesn't accept RSA-PSS approvals".to_string()
-                );
-            }
-        };
+    let algorithms: &[&dyn SignatureVerificationAlgorithm] = match approval
+        .algorithm
+    {
+        SignatureAlgorithm::EcdsaP256Sha256 => {
+            &[webpki::ring::ECDSA_P256_SHA256]
+        }
+        SignatureAlgorithm::RsaPkcs1Sha256 => {
+            &[webpki::ring::RSA_PKCS1_2048_8192_SHA256]
+        }
+        // Format 1 is kept exactly as it was: no RSA-PSS approvals.
+        SignatureAlgorithm::RsaPssSha256 => {
+            return Err("format 1 doesn't accept RSA-PSS approvals".to_string());
+        }
+    };
     verify_with(&chain[0], algorithms, payload.as_bytes(), &signature)?;
     Ok(identity)
 }
@@ -1304,7 +1316,10 @@ fn verify_v2(
                     Problem::error(
                         Code::UntrustedSigner,
                         super::manifest::CHAIN_MEMBER,
-                        format!("{} may not make the final signature", enrolled.id),
+                        format!(
+                            "{} may not make the final signature",
+                            enrolled.id
+                        ),
                     )
                     .id("package.final-signer-role"),
                 );
@@ -1390,7 +1405,10 @@ pub(crate) fn check_approvals_v2(
             Problem::error(
                 Code::NotApproved,
                 path.clone(),
-                format!("the approval by {} doesn't count: {reason}", approval.name),
+                format!(
+                    "the approval by {} doesn't count: {reason}",
+                    approval.name
+                ),
             )
             .id("package.approval-invalid")
             .detail("name", &approval.name)
@@ -1410,10 +1428,10 @@ pub(crate) fn check_approvals_v2(
                             Code::NotApproved,
                             path.clone(),
                             format!(
-                                "the approval by {} uses RSA PKCS#1 v1.5, which \
+                            "the approval by {} uses RSA PKCS#1 v1.5, which \
                                  format 2 doesn't accept",
-                                approval.name
-                            ),
+                            approval.name
+                        ),
                         )
                         .id("package.approval-algorithm"),
                     );
@@ -1462,10 +1480,16 @@ pub(crate) fn check_approvals_v2(
                 )
                 .map_err(|problem| problem.message)?;
                 rsa_key_allowed(&chain[0])?;
-                let signature = STANDARD
-                    .decode(approval.signature.trim())
-                    .map_err(|error| format!("the signature is not base64: {error}"))?;
-                verify_with(&chain[0], algorithms, payload.as_bytes(), &signature)?;
+                let signature =
+                    STANDARD.decode(approval.signature.trim()).map_err(
+                        |error| format!("the signature is not base64: {error}"),
+                    )?;
+                verify_with(
+                    &chain[0],
+                    algorithms,
+                    payload.as_bytes(),
+                    &signature,
+                )?;
                 Ok(identity)
             });
         let identity = match checked {
@@ -1475,7 +1499,8 @@ pub(crate) fn check_approvals_v2(
                 continue;
             }
         };
-        let Some(enrolled) = v2.enrollment.signer_of(&identity.spki_sha256) else {
+        let Some(enrolled) = v2.enrollment.signer_of(&identity.spki_sha256)
+        else {
             report.push(
                 Problem::error(
                     Code::NotApproved,

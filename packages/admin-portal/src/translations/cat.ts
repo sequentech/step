@@ -52,7 +52,10 @@ const catalanTranslation: TranslationType = {
                 keys: "Empremtes de clau (SPKI SHA-256)",
             },
             minimumFormat: "Format de paquet més antic",
-            formats: {v1: "Format 1 (sense signants inscrits)", v2: "Format 2 (només signants inscrits)"},
+            formats: {
+                v1: "Format 1 (sense signants inscrits)",
+                v2: "Format 2 (només signants inscrits)",
+            },
             separation: "Signant final",
             separations: {separate: "Diferent dels aprovadors", allowed: "Pot haver aprovat també"},
             loadPolicy: "Carrega el fitxer de política de signatura",
@@ -62,7 +65,8 @@ const catalanTranslation: TranslationType = {
                 "not-a-policy": "El fitxer no és una política de signatura.",
                 "other-tenant": "El fitxer és d'un altre inquilí.",
                 "no-minimum": "La política ha d'indicar el format mínim de paquet.",
-                "unknown-field": "El fitxer té un camp que la política de signatura no defineix (mal escrit?).",
+                "unknown-field":
+                    "El fitxer té un camp que la política de signatura no defineix (mal escrit?).",
                 "no-tenant": "El fitxer ha d'indicar el seu tenant (tenant_id).",
             },
         },

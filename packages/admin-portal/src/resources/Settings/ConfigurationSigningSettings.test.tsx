@@ -352,9 +352,24 @@ describe("ConfigurationSigningSettings", () => {
 
     describe("format 2", () => {
         const SIGNERS = [
-            {id: "approver-1", name: "DEMO approver-1", roles: ["approver"], keys: [{spki_sha256: "a".repeat(64)}]},
-            {id: "approver-2", name: "DEMO approver-2", roles: ["approver"], keys: [{spki_sha256: "b".repeat(64)}]},
-            {id: "custodian", name: "DEMO custodian", roles: ["final-signer"], keys: [{spki_sha256: "c".repeat(64)}]},
+            {
+                id: "approver-1",
+                name: "DEMO approver-1",
+                roles: ["approver"],
+                keys: [{spki_sha256: "a".repeat(64)}],
+            },
+            {
+                id: "approver-2",
+                name: "DEMO approver-2",
+                roles: ["approver"],
+                keys: [{spki_sha256: "b".repeat(64)}],
+            },
+            {
+                id: "custodian",
+                name: "DEMO custodian",
+                roles: ["final-signer"],
+                keys: [{spki_sha256: "c".repeat(64)}],
+            },
         ]
         const policyFile = (tenant: string) =>
             new File(
@@ -376,7 +391,9 @@ describe("ConfigurationSigningSettings", () => {
             )
         const upload = async (file: File) => {
             await act(async () => {
-                fireEvent.change(screen.getByTestId("configuration-signing-policy-file"), {target: {files: [file]}})
+                fireEvent.change(screen.getByTestId("configuration-signing-policy-file"), {
+                    target: {files: [file]},
+                })
             })
         }
 
@@ -392,15 +409,29 @@ describe("ConfigurationSigningSettings", () => {
             })
             render(<ConfigurationSigningSettings tenantId="tenant-a" />)
             await upload(policyFile("tenant-a"))
-            await waitFor(() => expect(screen.getByTestId("configuration-signing-signers")).toBeInTheDocument())
-            expect(screen.getByTestId("configuration-signing-signer-custodian")).toHaveTextContent("final-signer")
+            await waitFor(() =>
+                expect(screen.getByTestId("configuration-signing-signers")).toBeInTheDocument()
+            )
+            expect(screen.getByTestId("configuration-signing-signer-custodian")).toHaveTextContent(
+                "final-signer"
+            )
             save()
-            await waitFor(() => expect(screen.getByTestId("configuration-signing-policy-digest")).toBeInTheDocument())
-            expect(screen.getByTestId("configuration-signing-policy-digest")).toHaveTextContent("d".repeat(64))
+            await waitFor(() =>
+                expect(
+                    screen.getByTestId("configuration-signing-policy-digest")
+                ).toBeInTheDocument()
+            )
+            expect(screen.getByTestId("configuration-signing-policy-digest")).toHaveTextContent(
+                "d".repeat(64)
+            )
             const sent = mockSet.mock.calls[0][0].variables.configurationSigning
             expect(sent.minimum_package_format).toBe("v2")
             expect(sent.final_signer_separation).toBe("separate")
-            expect(sent.signers.map((s: {id: string}) => s.id)).toEqual(["approver-1", "approver-2", "custodian"])
+            expect(sent.signers.map((s: {id: string}) => s.id)).toEqual([
+                "approver-1",
+                "approver-2",
+                "custodian",
+            ])
         })
 
         it("refuses another tenant's policy file and keeps what was there", async () => {
@@ -418,9 +449,16 @@ describe("ConfigurationSigningSettings", () => {
             mockGetOne.mockReturnValue(loaded(tenantA))
             render(<ConfigurationSigningSettings tenantId="tenant-a" />)
             await upload(policyFile("tenant-a"))
-            await waitFor(() => expect(screen.getByTestId("configuration-signing-signers")).toBeInTheDocument())
+            await waitFor(() =>
+                expect(screen.getByTestId("configuration-signing-signers")).toBeInTheDocument()
+            )
             const misspelled = new File(
-                [JSON.stringify({tenant_id: "tenant-a", signing: {policy: "required", minimum_package_format: "v2", signerz: []}})],
+                [
+                    JSON.stringify({
+                        tenant_id: "tenant-a",
+                        signing: {policy: "required", minimum_package_format: "v2", signerz: []},
+                    }),
+                ],
                 "signing-policy.json"
             )
             await upload(misspelled)
@@ -428,7 +466,9 @@ describe("ConfigurationSigningSettings", () => {
                 "configurationSigning.policyErrors.unknown-field"
             )
             expect(screen.getByTestId("configuration-signing-signer-custodian")).toBeInTheDocument()
-            await upload(new File([JSON.stringify({signing: {policy: "required"}})], "signing-policy.json"))
+            await upload(
+                new File([JSON.stringify({signing: {policy: "required"}})], "signing-policy.json")
+            )
             // The error already shown changes in place: wait for the new one.
             await waitFor(() =>
                 expect(screen.getByTestId("configuration-signing-error")).toHaveTextContent(

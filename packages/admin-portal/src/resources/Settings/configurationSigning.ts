@@ -113,7 +113,8 @@ export const policyProblems = (form: ConfigurationSigningForm): string[] => {
     }
     if (minimumFormat === undefined) problems.push("minimum-format-required")
     const v2 = minimumFormat === EPackageFormat.V2
-    if (v2 && form.policy === EConfigurationSigningPolicy.OPTIONAL) problems.push("optional-with-v2")
+    if (v2 && form.policy === EConfigurationSigningPolicy.OPTIONAL)
+        problems.push("optional-with-v2")
     if (v2 || signers.length > 0) {
         const required = form.requiredApprovals
         const approverIds = signers.filter((s) => s.roles.includes("approver")).map((s) => s.id)
@@ -169,9 +170,12 @@ export const readSetting = (
     const separation = field("final_signer_separation", undefined)
     const signers = field("signers", [])
     if (
-        (minimum !== undefined && !Object.values(EPackageFormat).includes(minimum as EPackageFormat)) ||
+        (minimum !== undefined &&
+            !Object.values(EPackageFormat).includes(minimum as EPackageFormat)) ||
         (separation !== undefined &&
-            !Object.values(EFinalSignerSeparation).includes(separation as EFinalSignerSeparation)) ||
+            !Object.values(EFinalSignerSeparation).includes(
+                separation as EFinalSignerSeparation
+            )) ||
         !Array.isArray(signers) ||
         !signers.every(isSigner)
     ) {

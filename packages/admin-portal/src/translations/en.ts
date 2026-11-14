@@ -50,7 +50,10 @@ const englishTranslation = {
             minimumFormat: "Oldest package format",
             formats: {v1: "Format 1 (no enrolled signers)", v2: "Format 2 (enrolled signers only)"},
             separation: "Final signer",
-            separations: {separate: "Separate from the approvers", allowed: "May also have approved"},
+            separations: {
+                separate: "Separate from the approvers",
+                allowed: "May also have approved",
+            },
             loadPolicy: "Load the signing policy file",
             policyDigest: "Policy SHA-256:",
             policyErrors: {
@@ -58,7 +61,8 @@ const englishTranslation = {
                 "not-a-policy": "The file is not a signing policy.",
                 "other-tenant": "The file is for another tenant.",
                 "no-minimum": "The policy file must state its minimum package format.",
-                "unknown-field": "The file has a field the signing policy does not define (misspelled?).",
+                "unknown-field":
+                    "The file has a field the signing policy does not define (misspelled?).",
                 "no-tenant": "The file must name its tenant (tenant_id).",
             },
         },

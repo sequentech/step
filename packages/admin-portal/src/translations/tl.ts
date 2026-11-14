@@ -52,7 +52,10 @@ const tagalogTranslation: TranslationType = {
                 keys: "Mga key pin (SPKI SHA-256)",
             },
             minimumFormat: "Pinakalumang format ng package",
-            formats: {v1: "Format 1 (walang naka-enroll na signer)", v2: "Format 2 (naka-enroll na signer lamang)"},
+            formats: {
+                v1: "Format 1 (walang naka-enroll na signer)",
+                v2: "Format 2 (naka-enroll na signer lamang)",
+            },
             separation: "Huling signer",
             separations: {separate: "Hiwalay sa mga approver", allowed: "Maaari ring nag-approve"},
             loadPolicy: "I-load ang file ng signing policy",
@@ -62,7 +65,8 @@ const tagalogTranslation: TranslationType = {
                 "not-a-policy": "Hindi signing policy ang file.",
                 "other-tenant": "Para sa ibang tenant ang file.",
                 "no-minimum": "Dapat sabihin ng policy ang minimum na format ng package.",
-                "unknown-field": "May field ang file na hindi tinutukoy ng signing policy (mali ang baybay?).",
+                "unknown-field":
+                    "May field ang file na hindi tinutukoy ng signing policy (mali ang baybay?).",
                 "no-tenant": "Dapat pangalanan ng file ang tenant nito (tenant_id).",
             },
         },

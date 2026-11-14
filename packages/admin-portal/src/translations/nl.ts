@@ -52,9 +52,15 @@ const dutchTranslation: TranslationType = {
                 keys: "Sleutelpins (SPKI SHA-256)",
             },
             minimumFormat: "Oudste pakketformaat",
-            formats: {v1: "Formaat 1 (geen ingeschreven ondertekenaars)", v2: "Formaat 2 (alleen ingeschreven ondertekenaars)"},
+            formats: {
+                v1: "Formaat 1 (geen ingeschreven ondertekenaars)",
+                v2: "Formaat 2 (alleen ingeschreven ondertekenaars)",
+            },
             separation: "Laatste ondertekenaar",
-            separations: {separate: "Gescheiden van de goedkeurders", allowed: "Mag ook hebben goedgekeurd"},
+            separations: {
+                separate: "Gescheiden van de goedkeurders",
+                allowed: "Mag ook hebben goedgekeurd",
+            },
             loadPolicy: "Ondertekeningsbeleid laden",
             policyDigest: "SHA-256 van het beleid:",
             policyErrors: {
@@ -62,7 +68,8 @@ const dutchTranslation: TranslationType = {
                 "not-a-policy": "Het bestand is geen ondertekeningsbeleid.",
                 "other-tenant": "Het bestand is voor een andere tenant.",
                 "no-minimum": "Het beleid moet zijn minimale pakketformaat vermelden.",
-                "unknown-field": "Het bestand bevat een veld dat het ondertekeningsbeleid niet kent (verkeerd gespeld?).",
+                "unknown-field":
+                    "Het bestand bevat een veld dat het ondertekeningsbeleid niet kent (verkeerd gespeld?).",
                 "no-tenant": "Het bestand moet zijn tenant vermelden (tenant_id).",
             },
         },

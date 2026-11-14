@@ -364,12 +364,17 @@ export const ConfigurationSigningSettings: React.FC<{tenantId: string}> = ({tena
                     </TableHead>
                     <TableBody>
                         {form.signers.map((signer) => (
-                            <TableRow key={signer.id} data-testid={`configuration-signing-signer-${signer.id}`}>
+                            <TableRow
+                                key={signer.id}
+                                data-testid={`configuration-signing-signer-${signer.id}`}
+                            >
                                 <TableCell sx={{fontFamily: "monospace"}}>{signer.id}</TableCell>
                                 <TableCell>{signer.name}</TableCell>
                                 <TableCell>{signer.roles.join(", ")}</TableCell>
                                 <TableCell sx={{fontFamily: "monospace"}}>
-                                    {signer.keys.map((key) => `${key.spki_sha256.slice(0, 16)}…`).join(" ")}
+                                    {signer.keys
+                                        .map((key) => `${key.spki_sha256.slice(0, 16)}…`)
+                                        .join(" ")}
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -414,7 +419,11 @@ const CheckResult: React.FC<{saved: boolean; check: TrustCheck}> = ({saved, chec
                 </Alert>
             ))}
             {check.policySha256 ? (
-                <Typography variant="body2" sx={{mt: 1}} data-testid="configuration-signing-policy-digest">
+                <Typography
+                    variant="body2"
+                    sx={{mt: 1}}
+                    data-testid="configuration-signing-policy-digest"
+                >
                     {t("configurationSigning.policyDigest")}{" "}
                     <Box component="span" sx={{fontFamily: "monospace"}}>
                         {check.policySha256}

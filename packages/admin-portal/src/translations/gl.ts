@@ -52,7 +52,10 @@ const galegoTranslation: TranslationType = {
                 keys: "Pegadas de clave (SPKI SHA-256)",
             },
             minimumFormat: "Formato de paquete máis antigo",
-            formats: {v1: "Formato 1 (sen asinantes inscritos)", v2: "Formato 2 (só asinantes inscritos)"},
+            formats: {
+                v1: "Formato 1 (sen asinantes inscritos)",
+                v2: "Formato 2 (só asinantes inscritos)",
+            },
             separation: "Asinante final",
             separations: {separate: "Distinto dos aprobadores", allowed: "Pode ter aprobado tamén"},
             loadPolicy: "Cargar o ficheiro de política de sinatura",
@@ -62,7 +65,8 @@ const galegoTranslation: TranslationType = {
                 "not-a-policy": "O ficheiro non é unha política de sinatura.",
                 "other-tenant": "O ficheiro é doutro inquilino.",
                 "no-minimum": "A política debe indicar o seu formato mínimo de paquete.",
-                "unknown-field": "O ficheiro ten un campo que a política de sinatura non define (mal escrito?).",
+                "unknown-field":
+                    "O ficheiro ten un campo que a política de sinatura non define (mal escrito?).",
                 "no-tenant": "O ficheiro debe indicar o seu tenant (tenant_id).",
             },
         },

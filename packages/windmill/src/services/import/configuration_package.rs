@@ -69,7 +69,13 @@ pub async fn admit_document(
     let lists = configuration_packages::revocation_lists(hasura_transaction, tenant_id).await?;
 
     // Format 2 is bound to this tenant and its current policy digest.
-    let verified = match admit_for_tenant_at(&bytes, setting.as_ref(), tenant_id, lists, chrono::Utc::now()) {
+    let verified = match admit_for_tenant_at(
+        &bytes,
+        setting.as_ref(),
+        tenant_id,
+        lists,
+        chrono::Utc::now(),
+    ) {
         Ok(Admission::Unsigned) => return Ok((temp_file, None)),
         Ok(Admission::Verified(verified)) => verified,
         Err(report) => return Err(anyhow::Error::new(Rejected::new(WHAT, report))),

@@ -53,9 +53,15 @@ const frenchTranslation: TranslationType = {
                 keys: "Empreintes de clé (SPKI SHA-256)",
             },
             minimumFormat: "Format de paquet le plus ancien",
-            formats: {v1: "Format 1 (sans signataires inscrits)", v2: "Format 2 (signataires inscrits seulement)"},
+            formats: {
+                v1: "Format 1 (sans signataires inscrits)",
+                v2: "Format 2 (signataires inscrits seulement)",
+            },
             separation: "Signataire final",
-            separations: {separate: "Distinct des approbateurs", allowed: "Peut aussi avoir approuvé"},
+            separations: {
+                separate: "Distinct des approbateurs",
+                allowed: "Peut aussi avoir approuvé",
+            },
             loadPolicy: "Charger le fichier de politique de signature",
             policyDigest: "SHA-256 de la politique :",
             policyErrors: {
@@ -63,7 +69,8 @@ const frenchTranslation: TranslationType = {
                 "not-a-policy": "Le fichier n'est pas une politique de signature.",
                 "other-tenant": "Le fichier concerne un autre locataire.",
                 "no-minimum": "La politique doit indiquer son format de paquet minimal.",
-                "unknown-field": "Le fichier contient un champ que la politique de signature ne définit pas (faute de frappe ?).",
+                "unknown-field":
+                    "Le fichier contient un champ que la politique de signature ne définit pas (faute de frappe ?).",
                 "no-tenant": "Le fichier doit indiquer son tenant (tenant_id).",
             },
         },
