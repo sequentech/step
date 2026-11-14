@@ -6,11 +6,14 @@ use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_style::get_ballot_styles_by_elections;
 use crate::postgres::contest::export_contests;
-use crate::postgres::election::{export_elections, get_election_by_id};
+use crate::postgres::election::{
+    export_elections, get_election_by_id, lock_elections_for_admission,
+};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::tally_session::{
-    get_tally_session_by_id, insert_tally_session, lock_tally_session_for_update,
+    find_blocking_initialization_report_session, get_tally_session_by_id, insert_tally_session,
+    lock_tally_session_for_update,
     set_tally_session_completed as set_tally_session_completed_in_db, update_tally_session_status,
 };
 use crate::postgres::tally_session_contest::{
@@ -293,6 +296,51 @@ fn get_area_contests_for_election_ids(
     area_contests_tree.get_contest_matches(&contest_ids)
 }
 
+/// Error for an election that another initialization-report session already
+/// covers.
+pub fn duplicate_initialization_report_error(
+    conflicting_session_id: Option<String>,
+) -> Result<(), TallyValidationError> {
+    match conflicting_session_id {
+        Some(id) => Err(TallyValidationError::new(format!(
+            "Another initialization report tally ({id}) already exists for these elections."
+        ))),
+        None => Ok(()),
+    }
+}
+
+/// Serializes tally admission per election. It locks the election rows until
+/// the transaction ends, which makes the voting-status reads that follow wait
+/// for any status writer in flight and holds off new writers until the
+/// admission commits. For an initialization report it then rejects the
+/// admission when another non-cancelled initialization-report session covers
+/// one of the elections, because the generated flag is only written when that
+/// session finishes. Call it before reading the election statuses, in the
+/// transaction that commits the admission or the move to IN_PROGRESS.
+#[instrument(err, skip(transaction))]
+pub async fn reserve_tally_admission(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_ids: &[String],
+    tally_type: TallyType,
+    exclude_session_id: Option<&str>,
+) -> Result<()> {
+    lock_elections_for_admission(transaction, tenant_id, election_event_id, election_ids).await?;
+    if tally_type == TallyType::INITIALIZATION_REPORT {
+        let conflict = find_blocking_initialization_report_session(
+            transaction,
+            tenant_id,
+            election_event_id,
+            election_ids,
+            exclude_session_id,
+        )
+        .await?;
+        duplicate_initialization_report_error(conflict)?;
+    }
+    Ok(())
+}
+
 #[instrument(err, skip(transaction))]
 pub async fn create_tally_ceremony(
     transaction: &Transaction<'_>,
@@ -305,6 +353,17 @@ pub async fn create_tally_ceremony(
     permission_labels: &Vec<String>,
     username: String,
 ) -> Result<String> {
+    let parsed_tally_type = TallyType::try_from(tally_type.as_str())
+        .map_err(|_| TallyValidationError::new("Invalid tally type"))?;
+    reserve_tally_admission(
+        transaction,
+        &tenant_id,
+        &election_event_id,
+        &election_ids,
+        parsed_tally_type.clone(),
+        None,
+    )
+    .await?;
     let (election_event, all_elections, all_contests, areas, all_area_contests) = try_join!(
         get_election_event_by_id(&transaction, &tenant_id, &election_event_id),
         export_elections(&transaction, &tenant_id, &election_event_id),
@@ -312,8 +371,6 @@ pub async fn create_tally_ceremony(
         get_event_areas(&transaction, &tenant_id, &election_event_id),
         export_area_contests(&transaction, &tenant_id, &election_event_id),
     )?;
-    let parsed_tally_type = TallyType::try_from(tally_type.as_str())
-        .map_err(|_| TallyValidationError::new("Invalid tally type"))?;
     validate_tally_elections(&all_elections, &election_ids, parsed_tally_type)?;
     let contest_encryption_policy = election_event.get_contest_encryption_policy();
     let decoded_ballots_inclusion_policy = election_event.get_decoded_ballots_inclusion_policy();
@@ -690,13 +747,6 @@ pub async fn update_tally_ceremony(
     }
 
     if new_execution_status == TallyExecutionStatus::IN_PROGRESS {
-        let elections = crate::postgres::election::get_elections_by_ids(
-            hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            &tally_session.election_ids.clone().unwrap_or_default(),
-        )
-        .await?;
         let tally_type = tally_session
             .tally_type
             .as_deref()
@@ -704,6 +754,31 @@ pub async fn update_tally_ceremony(
             .transpose()
             .map_err(|_| TallyValidationError::new("Invalid tally type"))?
             .unwrap_or_default();
+        // Same lock order as finalization and recounts: session row first,
+        // then the election rows.
+        lock_tally_session_for_update(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &tally_session.id,
+        )
+        .await?;
+        reserve_tally_admission(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &tally_session.election_ids.clone().unwrap_or_default(),
+            tally_type.clone(),
+            Some(&tally_session.id),
+        )
+        .await?;
+        let elections = crate::postgres::election::get_elections_by_ids(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &tally_session.election_ids.clone().unwrap_or_default(),
+        )
+        .await?;
         validate_tally_elections(
             &elections,
             &tally_session.election_ids.clone().unwrap_or_default(),
@@ -1180,7 +1255,43 @@ pub async fn begin_tally_session_recount(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::postgres::election::LOCK_ELECTIONS_FOR_ADMISSION_SQL;
+    use crate::postgres::tally_session::FIND_BLOCKING_INITIALIZATION_REPORT_SQL;
     use sequent_core::ballot::Contest as SequentContest;
+
+    #[test]
+    fn moving_to_in_progress_locks_the_session_before_the_elections() {
+        let source = include_str!("tally_ceremony.rs");
+        let body = &source[source.find("pub async fn update_tally_ceremony(").unwrap()..];
+        let session_lock = body.find("lock_tally_session_for_update(").unwrap();
+        let election_lock = body.find("reserve_tally_admission(").unwrap();
+        assert!(session_lock < election_lock);
+    }
+
+    #[test]
+    fn admission_locks_election_rows_in_a_fixed_order() {
+        let sql = LOCK_ELECTIONS_FOR_ADMISSION_SQL;
+        assert!(sql.contains("FOR NO KEY UPDATE"));
+        assert!(sql.contains("ORDER BY id"));
+        assert!(sql.contains("id = ANY($3)"));
+    }
+
+    #[test]
+    fn blocking_session_lookup_ignores_only_cancelled_and_the_excluded_session() {
+        let sql = FIND_BLOCKING_INITIALIZATION_REPORT_SQL;
+        assert!(sql.contains("tally_type = 'INITIALIZATION_REPORT'"));
+        assert!(sql.contains("COALESCE(execution_status, 'STARTED') <> 'CANCELLED'"));
+        assert!(sql.contains("election_ids && $3::uuid[]"));
+        assert!(sql.contains("id <> $4::uuid"));
+    }
+
+    #[test]
+    fn a_second_initialization_report_session_is_rejected() {
+        assert!(duplicate_initialization_report_error(None).is_ok());
+        let error =
+            duplicate_initialization_report_error(Some("session-1".to_string())).unwrap_err();
+        assert!(error.to_string().contains("session-1"));
+    }
 
     fn contest(id: &str, is_acclaimed: bool) -> SequentContest {
         SequentContest {
