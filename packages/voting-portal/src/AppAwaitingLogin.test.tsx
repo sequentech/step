@@ -174,13 +174,15 @@ describe("event routes for a voter who comes back logged in", () => {
         }
     })
 
-    test("show the full page when the event configuration cannot be loaded", async () => {
+    test("show the page without the platform footer when the event configuration cannot be loaded", async () => {
         mockAuth.isAuthenticated = true
+        mockState = store.getState()
         mockLoadConfig.mockRejectedValue(new Error("HTTP 500"))
         const {view, dispose} = renderApp()
         try {
             await view.findByText("Route content")
             expect(view.container.querySelector(".neutral-loader")).toBeNull()
+            expect(view.queryByText("Default footer")).toBeNull()
         } finally {
             dispose()
         }

@@ -319,6 +319,8 @@ const App = () => {
     // without the default header, footer or colours across those loads, and
     // keep it until the event's own presentation has been looked up.
     const awaitingLogin = !globalSettings.DISABLE_AUTH && !isAuthenticated
+    // The platform's footer waits until the event is known to show it.
+    const showFooter = !hidesPlatformBranding(presentation) && (!eventId || !!presentation)
     const awaitingEventConfig = settledEventConfigUrl !== electionEventConfigUrl
 
     if (eventId && (awaitingLogin || awaitingEventConfig)) {
@@ -354,7 +356,7 @@ const App = () => {
                         <Outlet />
                     </PageBanner>
                 </ApolloWrapper>
-                {!hidesPlatformBranding(presentation) && <Footer />}
+                {showFooter && <Footer />}
             </StyledApp>
         </EventStyles>
     )
