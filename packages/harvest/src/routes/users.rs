@@ -23,7 +23,7 @@ use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
 use sequent_core::types::keycloak::{
     User, UserProfileAttribute, UserProfileConfiguration,
     EMAIL_AND_OR_MOBILE_ATTR_NAME, MOBILE_PHONE_ATTR_NAME, PERMISSION_LABELS,
-    TENANT_ID_ATTR_NAME,
+    TENANT_ID_ATTR_NAME, TRUSTEE_ATTR_NAME,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
@@ -808,6 +808,59 @@ fn keycloak_user_error(error: anyhow::Error, context: &str) -> JsonError {
     user_profile_error(&validations)
 }
 
+/// The `trustee` attribute is the trustee a user acts as in the key and tally
+/// ceremonies, so giving it a new value needs trustee write permission. The
+/// values are compared in any order, as a form may send them back reordered.
+fn trustee_attribute_permission(
+    requested: Option<&HashMap<String, Vec<String>>>,
+    current: Option<&HashMap<String, Vec<String>>>,
+) -> Option<Permissions> {
+    let requested = requested?.get(TRUSTEE_ATTR_NAME)?;
+    let current =
+        current.and_then(|attributes| attributes.get(TRUSTEE_ATTR_NAME));
+    (!same_attribute_values(requested, current))
+        .then_some(Permissions::TRUSTEE_WRITE)
+}
+
+/// `trustee_attribute_permission` for an edit, which also leaves an unchanged
+/// `trustee` out of the update: a later write of the value read here would
+/// undo a change made in between.
+fn trustee_edit_permission(
+    requested: &mut Option<HashMap<String, Vec<String>>>,
+    current: Option<&HashMap<String, Vec<String>>>,
+) -> Option<Permissions> {
+    let permission = trustee_attribute_permission(requested.as_ref(), current);
+    if permission.is_none() {
+        if let Some(requested) = requested {
+            requested.remove(TRUSTEE_ATTR_NAME);
+        }
+    }
+    permission
+}
+
+/// A profile can mark `trustee` as encrypted, and then it arrives among the
+/// secret attributes. Those can't be compared with the stored value, so any
+/// request naming it needs trustee write permission.
+fn trustee_secret_attribute_permission(
+    secret_attributes: Option<&HashMap<String, Option<Vec<String>>>>,
+) -> Option<Permissions> {
+    secret_attributes?
+        .contains_key(TRUSTEE_ATTR_NAME)
+        .then_some(Permissions::TRUSTEE_WRITE)
+}
+
+/// Attributes for a new user: the client's ones plus the user's tenant as its
+/// only `tenant-id`. `create_user` has already refused any client `tenant-id`.
+fn new_user_attributes(
+    tenant_id: &str,
+    client_attributes: Option<HashMap<String, Vec<String>>>,
+) -> HashMap<String, Vec<String>> {
+    let mut attributes = client_attributes.unwrap_or_default();
+    attributes
+        .insert(TENANT_ID_ATTR_NAME.to_string(), vec![tenant_id.to_string()]);
+    attributes
+}
+
 #[derive(Deserialize, Debug)]
 pub struct CreateUserBody {
     tenant_id: String,
@@ -847,6 +900,13 @@ fn create_user_permissions(
             }
         }
     };
+    required_perms.extend(trustee_attribute_permission(
+        input.user.attributes.as_ref(),
+        None,
+    ));
+    required_perms.extend(trustee_secret_attribute_permission(
+        input.secret_attributes.as_ref(),
+    ));
     if input
         .user_roles_ids
         .as_ref()
@@ -956,7 +1016,7 @@ pub async fn create_user(
             ErrorCode::UnknownError,
         ));
     }
-    let (tenant_id_attribute, groups) = if input.election_event_id.is_some() {
+    let groups = if input.election_event_id.is_some() {
         let voter_group_name =
             env::var("KEYCLOAK_VOTER_GROUP_NAME").map_err(|error| {
                 ErrorResponse::new(
@@ -965,41 +1025,13 @@ pub async fn create_user(
                     ErrorCode::InternalServerError,
                 )
             })?;
-        (
-            Some(HashMap::from([(
-                TENANT_ID_ATTR_NAME.to_string(),
-                vec![input.tenant_id.clone()],
-            )])),
-            Some(vec![voter_group_name]),
-        )
+        Some(vec![voter_group_name])
     } else {
-        (
-            Some(HashMap::from([(
-                TENANT_ID_ATTR_NAME.to_string(),
-                vec![input.tenant_id.clone()],
-            )])),
-            None,
-        )
+        None
     };
 
     let mut user_attributes =
-        match (&tenant_id_attribute, input.user.attributes.clone()) {
-            (Some(tenant_id_attribute), Some(user_attributes)) => {
-                let mut attributes = tenant_id_attribute.clone();
-                for (key, mut values) in user_attributes {
-                    attributes
-                        .entry(key.clone())
-                        .or_insert_with(Vec::new)
-                        .append(&mut values);
-                }
-                Some(attributes)
-            }
-            (Some(tenant_id_attribute), None) => {
-                Some(tenant_id_attribute.clone())
-            }
-            (None, Some(user_attributes)) => Some(user_attributes.clone()),
-            (None, None) => None,
-        };
+        new_user_attributes(&input.tenant_id, input.user.attributes.clone());
     let mut user = input.user.clone();
     user.email_verified = Some(true);
     let requested_enabled = user.enabled.unwrap_or(true);
@@ -1049,14 +1081,12 @@ pub async fn create_user(
                     ErrorCode::InternalServerError,
                 )
             })?;
-            user_attributes
-                .get_or_insert_with(HashMap::new)
-                .extend(encrypted);
+            user_attributes.extend(encrypted);
         }
     }
 
     let mut user = client
-        .create_user(&realm, &user, user_attributes, groups)
+        .create_user(&realm, &user, Some(user_attributes), groups)
         .await
         .map_err(|error| {
             keycloak_user_error(error, "Error creating user in Keycloak")
@@ -1390,6 +1420,9 @@ pub async fn edit_user(
             }
         }
     };
+    required_perms.extend(trustee_secret_attribute_permission(
+        input.secret_attributes.as_ref(),
+    ));
 
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
     let realm = match input.election_event_id.clone() {
@@ -1398,6 +1431,34 @@ pub async fn edit_user(
         }
         None => get_tenant_realm(&input.tenant_id),
     };
+    if input
+        .attributes
+        .as_ref()
+        .is_some_and(|attributes| attributes.contains_key(TRUSTEE_ATTR_NAME))
+    {
+        let current_user = KeycloakAdminClient::new()
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+            .get_user(&realm, &input.user_id)
+            .await
+            .map_err(|error| {
+                EditUserError::from_keycloak(
+                    error,
+                    "Error reading user in Keycloak",
+                )
+            })?;
+        if let Some(permission) = trustee_edit_permission(
+            &mut input.attributes,
+            current_user.attributes.as_ref(),
+        ) {
+            authorize(
+                &claims,
+                true,
+                Some(input.tenant_id.clone()),
+                vec![permission],
+            )?;
+        }
+    }
     let secret_names = if let Some(election_event_id) =
         input.election_event_id.as_deref()
     {
@@ -2327,6 +2388,163 @@ mod tests {
     }
 
     use super::{
+        new_user_attributes, trustee_attribute_permission,
+        trustee_edit_permission, trustee_secret_attribute_permission,
+    };
+    use sequent_core::types::keycloak::{
+        TENANT_ID_ATTR_NAME, TRUSTEE_ATTR_NAME,
+    };
+    use sequent_core::types::permissions::Permissions;
+    use std::collections::HashMap;
+
+    fn attributes(entries: &[(&str, &[&str])]) -> HashMap<String, Vec<String>> {
+        entries
+            .iter()
+            .map(|(name, values)| {
+                (
+                    name.to_string(),
+                    values.iter().map(|value| value.to_string()).collect(),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn setting_the_trustee_attribute_requires_trustee_write() {
+        let requested = attributes(&[(TRUSTEE_ATTR_NAME, &["trustee1"])]);
+        assert_eq!(
+            trustee_attribute_permission(Some(&requested), None),
+            Some(Permissions::TRUSTEE_WRITE)
+        );
+    }
+
+    #[test]
+    fn changing_the_trustee_attribute_requires_trustee_write() {
+        let current = attributes(&[(TRUSTEE_ATTR_NAME, &["trustee1"])]);
+        for requested in [
+            attributes(&[(TRUSTEE_ATTR_NAME, &["trustee2"])]),
+            attributes(&[(TRUSTEE_ATTR_NAME, &["trustee1", "trustee2"])]),
+            attributes(&[(TRUSTEE_ATTR_NAME, &[])]),
+        ] {
+            assert_eq!(
+                trustee_attribute_permission(Some(&requested), Some(&current)),
+                Some(Permissions::TRUSTEE_WRITE)
+            );
+        }
+    }
+
+    #[test]
+    fn an_unchanged_trustee_attribute_needs_no_trustee_write() {
+        let current = attributes(&[
+            (TRUSTEE_ATTR_NAME, &["trustee1"]),
+            ("area-id", &["area"]),
+        ]);
+        let requested = attributes(&[(TRUSTEE_ATTR_NAME, &["trustee1"])]);
+        assert_eq!(
+            trustee_attribute_permission(Some(&requested), Some(&current)),
+            None
+        );
+    }
+
+    #[test]
+    fn reordered_trustee_values_need_no_trustee_write() {
+        let current =
+            attributes(&[(TRUSTEE_ATTR_NAME, &["trustee1", "trustee2"])]);
+        let mut requested = Some(attributes(&[
+            (TRUSTEE_ATTR_NAME, &["trustee2", "trustee1"]),
+            ("other", &["value"]),
+        ]));
+        assert_eq!(
+            trustee_attribute_permission(requested.as_ref(), Some(&current)),
+            None
+        );
+        assert_eq!(
+            trustee_edit_permission(&mut requested, Some(&current)),
+            None
+        );
+        assert_eq!(requested, Some(attributes(&[("other", &["value"])])));
+    }
+
+    #[test]
+    fn an_edit_leaves_an_unchanged_trustee_out_of_the_update() {
+        let current = attributes(&[(TRUSTEE_ATTR_NAME, &["trustee1"])]);
+        let mut requested = Some(attributes(&[
+            (TRUSTEE_ATTR_NAME, &["trustee1"]),
+            ("other", &["value"]),
+        ]));
+        assert_eq!(
+            trustee_edit_permission(&mut requested, Some(&current)),
+            None
+        );
+        assert_eq!(requested, Some(attributes(&[("other", &["value"])])));
+    }
+
+    #[test]
+    fn an_edit_keeps_a_changed_trustee_in_the_update() {
+        let current = attributes(&[(TRUSTEE_ATTR_NAME, &["trustee1"])]);
+        let changed = attributes(&[(TRUSTEE_ATTR_NAME, &["trustee2"])]);
+        let mut requested = Some(changed.clone());
+        assert_eq!(
+            trustee_edit_permission(&mut requested, Some(&current)),
+            Some(Permissions::TRUSTEE_WRITE)
+        );
+        assert_eq!(requested, Some(changed));
+    }
+
+    #[test]
+    fn a_secret_trustee_attribute_requires_trustee_write() {
+        for value in [None, Some(vec!["trustee1".to_string()])] {
+            let secret_attributes =
+                HashMap::from([(TRUSTEE_ATTR_NAME.to_string(), value)]);
+            assert_eq!(
+                trustee_secret_attribute_permission(Some(&secret_attributes)),
+                Some(Permissions::TRUSTEE_WRITE)
+            );
+        }
+    }
+
+    #[test]
+    fn other_secret_attributes_need_no_trustee_write() {
+        let secret_attributes =
+            HashMap::from([("national-id".to_string(), None)]);
+        assert_eq!(
+            trustee_secret_attribute_permission(Some(&secret_attributes)),
+            None
+        );
+        assert_eq!(trustee_secret_attribute_permission(None), None);
+    }
+
+    #[test]
+    fn other_attributes_need_no_trustee_write() {
+        let requested = attributes(&[("area-id", &["area"])]);
+        assert_eq!(trustee_attribute_permission(Some(&requested), None), None);
+        assert_eq!(trustee_attribute_permission(None, None), None);
+    }
+
+    #[test]
+    fn new_user_attributes_keep_a_single_own_tenant_id() {
+        let requested = attributes(&[
+            (TENANT_ID_ATTR_NAME, &["tenant-a"]),
+            ("area-id", &["area"]),
+        ]);
+        assert_eq!(
+            new_user_attributes("tenant-a", Some(requested)),
+            attributes(&[
+                (TENANT_ID_ATTR_NAME, &["tenant-a"]),
+                ("area-id", &["area"]),
+            ])
+        );
+    }
+
+    #[test]
+    fn new_user_attributes_set_the_tenant_id() {
+        assert_eq!(
+            new_user_attributes("tenant-a", None),
+            attributes(&[(TENANT_ID_ATTR_NAME, &["tenant-a"])])
+        );
+    }
+
+    use super::{
         user_profile_error, EditUserError, MAX_REPORTED_USER_PROFILE_ERRORS,
     };
     use rocket::http::Status;
@@ -2420,8 +2638,6 @@ mod tests {
             "Password does not contain enough digits"
         );
     }
-
-    use sequent_core::types::permissions::Permissions;
 
     fn create_user_body(body: serde_json::Value) -> super::CreateUserBody {
         serde_json::from_value(body).expect("valid create-user body")
