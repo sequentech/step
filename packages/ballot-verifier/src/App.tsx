@@ -162,12 +162,11 @@ const App = () => {
         }
     }, [presentation])
 
-    const presentation: IElectionEventPresentation | undefined =
-        confirmationBallot?.election_config?.election_event_presentation ??
-        ballotStyle?.ballot_eml?.election_event_presentation
-    usePageBranding(presentation)
-    const awaitingEvent = !globalSettings.DISABLE_AUTH && !presentation
-    const showFooter = !awaitingEvent && !hidesPlatformBranding(presentation)
+    const brandingPresentation =
+        confirmationBallot?.election_config?.election_event_presentation ?? presentation
+    usePageBranding(brandingPresentation)
+    const awaitingEvent = !globalSettings.DISABLE_AUTH && !brandingPresentation
+    const showFooter = !awaitingEvent && !hidesPlatformBranding(brandingPresentation)
 
     const customCss = useMemo(
         () =>
@@ -183,7 +182,9 @@ const App = () => {
     return (
         <StyledAppWrapper
             className={
-                hidesPlatformBranding(presentation) ? PLATFORM_BRANDING_HIDDEN_CLASS : undefined
+                hidesPlatformBranding(brandingPresentation)
+                    ? PLATFORM_BRANDING_HIDDEN_CLASS
+                    : undefined
             }
             customCss={customCss}
         >

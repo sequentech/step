@@ -21,7 +21,12 @@ import {
     usePageBranding,
 } from "@sequentech/ui-core"
 import NeutralLoader from "./NeutralLoader/NeutralLoader"
-import {EventStyles, eventLogo, eventStylesClassName, useEventCss} from "./EventBranding/EventBranding"
+import {
+    EventStyles,
+    eventLogo,
+    eventStylesClassName,
+    useEventCss,
+} from "./EventBranding/EventBranding"
 import {
     AuthContext,
     AuthContextValues,
@@ -73,7 +78,11 @@ const useEventPresentation = (): IElectionEventPresentation | undefined => {
         return electionId ? selectBallotStyleByElectionId(String(electionId))(state) : undefined
     })
 
-    return ballotStyle?.ballot_eml.election_event_presentation ?? electionEvent?.presentation
+    return (
+        ballotStyle?.ballot_eml.election_event_presentation ??
+        electionEvent?.presentation ??
+        undefined
+    )
 }
 
 /**
