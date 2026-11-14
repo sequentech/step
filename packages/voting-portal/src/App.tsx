@@ -11,7 +11,8 @@ import {SettingsContext} from "./providers/SettingsContextProvider"
 import {TenantEventType} from "."
 import {ApolloWrapper} from "./providers/ApolloContextProvider"
 import {VotingPortalError, VotingPortalErrorType} from "./services/VotingPortalError"
-import {useAppDispatch} from "./store/hooks"
+import {useAppDispatch, useAppSelector} from "./store/hooks"
+import {selectFirstBallotStyle} from "./store/ballotStyles/ballotStylesSlice"
 import {seedElectionEvent} from "./store/electionEvents/electionEventsSlice"
 import {PortalChrome, PortalLoading} from "./components/PortalChrome"
 import {
@@ -30,6 +31,7 @@ const App = () => {
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
     const dispatch = useAppDispatch()
+    const ballotLoaded = useAppSelector(selectFirstBallotStyle) !== undefined
     const [loadElectionEventConfig] = useState(createElectionEventConfigLoader)
     const [settledEventConfigUrl, setSettledEventConfigUrl] = useState<string>()
     const [loginHintRequest] = useState(() => {
@@ -210,7 +212,9 @@ const App = () => {
     // without the default header, footer or colours across those loads, and
     // keep it until the event's own presentation has been looked up.
     const awaitingLogin = !globalSettings.DISABLE_AUTH && !isAuthenticated
-    const awaitingEventConfig = settledEventConfigUrl !== electionEventConfigUrl
+    // A ballot already in the store, as in a publication preview, carries the
+    // event's presentation, and replacing the page would discard that ballot.
+    const awaitingEventConfig = !ballotLoaded && settledEventConfigUrl !== electionEventConfigUrl
 
     if (eventId && (awaitingLogin || awaitingEventConfig)) {
         return <PortalLoading />
