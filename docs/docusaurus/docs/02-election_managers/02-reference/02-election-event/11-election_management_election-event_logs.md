@@ -1,6 +1,7 @@
 ---
 id: election_management_election_event_logs
 title: Logs
+description: "The Logs tab provides a holistic view of all ongoing activities, offering detailed insights into the system's operations."
 ---
 
 <!--

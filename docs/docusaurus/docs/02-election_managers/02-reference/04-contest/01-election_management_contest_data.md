@@ -1,6 +1,7 @@
 ---
 id: election_management_contest_data
 title: Data
+description: "The Contest Data tab allows administrators to manage core settings and configurations for a specific contest within an Election."
 ---
 
 <!--

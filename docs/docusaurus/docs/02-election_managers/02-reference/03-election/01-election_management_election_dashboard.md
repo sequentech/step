@@ -1,6 +1,7 @@
 ---
 id: election_management_election_dashboard
 title: Dashboard
+description: "The Dashboard provides administrators with a snapshot of an individual Election’s progress and key statistics."
 ---
 
 <!--

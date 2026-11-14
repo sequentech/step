@@ -2,6 +2,7 @@
 id: blank_ballots
 title: Blank Ballots
 sidebar_position: 9
+description: "The Blank Ballots policy lets a voter deliberately cast a ballot with every contest left empty, and reports that count as a distinct, verifiable figure — Total Blank Ballots — separate from…"
 ---
 
 <!--

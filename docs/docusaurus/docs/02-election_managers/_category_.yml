@@ -1,2 +1,5 @@
 label: 'Election Managers'
 position: 2
+link:
+  type: doc
+  id: election_management
