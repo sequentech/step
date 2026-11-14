@@ -38,7 +38,7 @@ public class CorsResource {
 
   public static void setupCors(KeycloakSession session, AdminAuth auth) {
     Cors cors = session.getProvider(Cors.class);
-    cors.allowedOrigins(auth.getToken())
+    cors.checkAllowedOrigins(auth.getToken())
         .allowedMethods(METHODS)
         .exposedHeaders("Location")
         .auth()

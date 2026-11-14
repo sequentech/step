@@ -34,6 +34,7 @@ pub async fn generate_tally_progress(
     tally_session: TallySession,
     tally_session_contest: Vec<TallySessionContest>,
     messages: &Vec<Message>,
+    agreed_plaintexts: &[&Message],
 ) -> Result<Vec<TallyElection>> {
     let mut complete_map: HashMap<String, Vec<i64>> = HashMap::new();
     // let tally_session = tally_session_data
@@ -66,7 +67,13 @@ pub async fn generate_tally_progress(
         batch_ids.dedup();
         complete_map.insert(contest.election_id.clone(), batch_ids.clone());
     }
-    let finished_batch_ids: Vec<i64> = get_session_ids_by_type(messages, StatementType::Plaintexts);
+    // A batch whose results still wait for trustee signatures isn't finished.
+    let mut finished_batch_ids: Vec<i64> = agreed_plaintexts
+        .iter()
+        .map(|message| message.statement.get_batch_number() as i64)
+        .collect();
+    finished_batch_ids.sort_unstable();
+    finished_batch_ids.dedup();
 
     let mut decrypting_batch_ids: Vec<i64> =
         get_session_ids_by_type(messages, StatementType::DecryptionFactors);

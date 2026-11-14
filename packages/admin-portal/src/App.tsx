@@ -29,6 +29,7 @@ import {Messages} from "./screens/Messages"
 import {Navigate, Route} from "react-router-dom"
 import {ShowDocument} from "./resources/Document/ShowDocument"
 import {UserAndRoles} from "./screens/UserAndRoles"
+import {IntrospectionSchema} from "graphql"
 import buildHasuraProvider from "ra-data-hasura"
 import {customBuildQuery} from "./queries/customBuildQuery"
 import {fullAdminTheme} from "./services/AdminTheme"
@@ -58,6 +59,8 @@ import {TemplateCreate} from "./resources/Template/TemplateCreate"
 import ListReports from "./resources/Reports/ListReports"
 import {SelectTenant} from "./screens/SelectTenant"
 import {AuthContext} from "./providers/AuthContextProvider"
+import {fetchHeldRolesSchema} from "./services/heldRolesSchema"
+import {getSchemaRoles} from "./services/Permissions"
 import {customSortData} from "./lib/helpers"
 import {UpsertArea} from "./resources/Area/UpsertArea"
 
@@ -79,10 +82,14 @@ export const StyledAppAtom: React.FC<{children: React.ReactNode}> = ({children})
 }
 
 // This function builds and wraps your Hasura data provider.
-export const buildWrappedHasuraProvider = async (apolloClient: any): Promise<DataProvider> => {
+export const buildWrappedHasuraProvider = async (
+    apolloClient: any,
+    schema?: IntrospectionSchema
+): Promise<DataProvider> => {
     const options = {
         client: apolloClient,
         buildQuery: customBuildQuery,
+        ...(schema && {introspection: {schema}}),
     }
     const buildGqlQueryOverrides = {}
     const dataProviderHasura: DataProvider = await buildHasuraProvider(
@@ -120,11 +127,14 @@ const App: React.FC<AppProps> = () => {
     const {i18n, t} = useTranslation()
     adminI18nProvider.changeLocale(i18n.language)
     i18n.on("languageChanged", (lng: string) => adminI18nProvider.changeLocale(lng))
-    const {isAuthenticated} = useContext(AuthContext)
+    const {isAuthenticated, hasRole} = useContext(AuthContext)
 
     useEffect(() => {
         const buildDataProvider = async (): Promise<void> => {
-            const wrappedProvider = await buildWrappedHasuraProvider(apolloClient)
+            const schema = apolloClient
+                ? await fetchHeldRolesSchema(apolloClient, getSchemaRoles(hasRole))
+                : undefined
+            const wrappedProvider = await buildWrappedHasuraProvider(apolloClient, schema)
             setDataProvider(wrappedProvider)
         }
         buildDataProvider()
