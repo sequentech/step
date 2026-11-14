@@ -99,6 +99,12 @@ pub fn derived_event_id(tenant_id: &str, package_sha256: &str) -> String {
 
 pub struct PlatformTarget {
     pub context: ApplyContext,
+    /// Set only when THIS invocation's election-event submission succeeded
+    /// (its import ran and its task row is SUCCESS). A format-2 package that
+    /// is already imported is admitted again only for this run's own
+    /// convergence re-preview after that; never because an earlier record or
+    /// the deterministic event id matches.
+    pub event_imported_by_this_run: std::sync::atomic::AtomicBool,
 }
 
 fn one<'a>(files: &'a [Artifact], what: &str) -> Result<&'a Artifact> {
@@ -172,6 +178,10 @@ impl PlatformTarget {
                 (freshness(verified, Some(last)), imported_into.as_str())
             }),
             &event_id,
+            verified.manifest.format,
+            verified.manifest.configuration.revision,
+            self.event_imported_by_this_run
+                .load(std::sync::atomic::Ordering::SeqCst),
         ))
     }
 
@@ -686,6 +696,8 @@ impl PackageTarget for PlatformTarget {
                 )
                 .await;
                 let mut submission = self.terminal(&task, ran).await?;
+                self.event_imported_by_this_run
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
                 submission.detail["electionEventId"] = json!(event_id);
                 Ok(submission)
             }

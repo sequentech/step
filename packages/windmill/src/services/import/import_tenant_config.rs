@@ -145,7 +145,8 @@ pub async fn import_tenant_config_zip(
 
             // Convert file contents to a string
             let data_str = String::from_utf8_lossy(cursor.get_ref());
-            info!("Keycloak config file contents: {:?}", data_str);
+            // The realm export holds credentials: log its size, never its contents.
+            info!(bytes = data_str.len(), "read the Keycloak config file");
             // Deserialize the JSON into a RealmRepresentation
             let imported_realm: RealmRepresentation =
                 deserialize_str(&data_str).with_context(|| {

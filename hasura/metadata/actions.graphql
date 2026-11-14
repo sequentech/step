@@ -747,6 +747,13 @@ type Mutation {
 }
 
 type Mutation {
+    set_configuration_signing(
+        tenant_id: String!
+        configuration_signing: jsonb!
+    ): SetConfigurationSigningOutput
+}
+
+type Mutation {
     apply_configuration_package(
         tenant_id: String!
         document_id: String!
@@ -2123,6 +2130,11 @@ type ExportTrusteesOutput {
 type SetVoterAuthenticationOutput {
     success: Boolean!
     message: String
+}
+
+type SetConfigurationSigningOutput {
+    saved: Boolean!
+    check: jsonb!
 }
 
 type ApplyConfigurationPackageOutput {

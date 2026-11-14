@@ -113,6 +113,7 @@ fn approval(
         algorithm,
         certificate_chain: chain(who),
         signature: STANDARD.encode(who.sign(payload.as_bytes())),
+        signer_id: None,
     }
 }
 
@@ -140,6 +141,7 @@ fn signed_package(reports: Vec<ReportSetting>) -> Vec<u8> {
             producer: BTreeMap::new(),
         },
         revocation_lists: Vec::new(),
+        signing: None,
     };
     let pki = Pki::get();
     manifest.approvals = vec![
@@ -176,6 +178,10 @@ fn file_of(bytes: &[u8]) -> NamedTempFile {
 
 async fn tenant(tx: &Transaction<'_>) -> String {
     let id = Uuid::new_v4();
+    // Only the setter's transaction may write configuration_signing.
+    windmill::postgres::tenant::allow_configuration_signing_change(tx, &id.to_string())
+        .await
+        .unwrap();
     let root = Pki::get().root.pem();
     tx.execute(
         "INSERT INTO sequent_backend.tenant (id, slug, settings) VALUES ($1, $2, $3)",

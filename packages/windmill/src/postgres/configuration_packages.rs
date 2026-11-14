@@ -32,6 +32,39 @@ pub async fn lock_imports(hasura_transaction: &Transaction<'_>, tenant_id: &str)
     Ok(())
 }
 
+/// The key of a tenant's package-application claim, which the
+/// apply_configuration_package task holds for its whole run.
+pub fn application_lock_key(tenant_id: &str) -> String {
+    match parse_uuid_v4(tenant_id) {
+        Ok(tenant) => format!("package-application:{tenant}"),
+        Err(_) => format!("package-application:{tenant_id}"),
+    }
+}
+
+/// Takes, until the transaction ends, both locks that package work on the
+/// tenant holds: the application claim and the import lock. Returns false,
+/// taking neither, when either is held, so whoever asks can refuse instead
+/// of changing what a running application or import trusts.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn try_lock_package_work(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+) -> Result<bool> {
+    let locked: bool = hasura_transaction
+        .query_one(
+            "SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))
+                AND pg_try_advisory_xact_lock(hashtextextended($2, 0))",
+            &[
+                &application_lock_key(tenant_id),
+                &import_lock_key(tenant_id)?,
+            ],
+        )
+        .await
+        .context("could not check the tenant's package work")?
+        .get(0);
+    Ok(locked)
+}
+
 pub(crate) fn import_lock_key(tenant_id: &str) -> Result<String> {
     Ok(format!(
         "{IMPORT_LOCK_NAMESPACE}:{}",

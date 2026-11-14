@@ -73,7 +73,8 @@ pub async fn get_tenant_by_id(
     Ok(tenant)
 }
 
-#[instrument(skip(hasura_transaction), err)]
+// The tenant's settings may hold secrets: the span names the tenant only.
+#[instrument(skip(hasura_transaction, new_tenant), err)]
 pub async fn update_tenant(
     hasura_transaction: &Transaction<'_>,
     new_tenant: Tenant,
@@ -281,6 +282,9 @@ impl TenantCleanupTable {
 #[instrument(skip(hasura_transaction), err)]
 pub async fn delete_tenant(hasura_transaction: &Transaction<'_>, tenant_id: &str) -> Result<()> {
     let tenant_uuid = parse_uuid_v4(tenant_id)?;
+    // Deleting the tenant (super-admin TENANT_DELETE, checked by the caller)
+    // removes its configuration_signing with it; nothing else may.
+    allow_configuration_signing_change(hasura_transaction, tenant_id).await?;
 
     // Tables scoped to the tenant but not to any election event — anything
     // election-event-scoped is already gone by the time this runs, since the
@@ -449,4 +453,60 @@ pub async fn update_tenant_configuration(
         .await
         .with_context(|| format!("Error updating tenant {}", tenant.id))?;
     Ok(())
+}
+
+/// Lets this transaction, and only it, change `tenant_id`'s
+/// `settings.configuration_signing`, which the database otherwise refuses
+/// (migration `configuration_signing_guard`). The permission is a
+/// transaction-local setting naming the one tenant: it ends with the
+/// transaction and never stays on a pooled connection. Only the validated
+/// setter, and tests that build tenants, call this.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn allow_configuration_signing_change(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+) -> Result<()> {
+    let tenant = parse_uuid_v4(tenant_id)?;
+    hasura_transaction
+        .execute(
+            "SELECT set_config('sequent.configuration_signing_tenant', $1, true)",
+            &[&tenant.to_string()],
+        )
+        .await
+        .context("Error allowing the configuration signing change")?;
+    Ok(())
+}
+
+/// Writes `value` as the tenant's `settings.configuration_signing`, keeping
+/// every other setting, and returns the value it replaced. The caller has
+/// checked `value`.
+#[instrument(skip(hasura_transaction, value), err)]
+pub async fn write_configuration_signing(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    value: &serde_json::Value,
+) -> Result<Option<serde_json::Value>> {
+    let current = lock_tenant(hasura_transaction, tenant_id).await?;
+    let previous = current
+        .settings
+        .as_ref()
+        .and_then(|settings| settings.get("configuration_signing"))
+        .cloned();
+    allow_configuration_signing_change(hasura_transaction, tenant_id).await?;
+    let updated = hasura_transaction
+        .execute(
+            "UPDATE sequent_backend.tenant
+             SET settings = jsonb_set(
+                     CASE WHEN jsonb_typeof(settings) = 'object' THEN settings ELSE '{}'::jsonb END,
+                     '{configuration_signing}', $2),
+                 updated_at = now()
+             WHERE id = $1",
+            &[&parse_uuid_v4(tenant_id)?, value],
+        )
+        .await
+        .with_context(|| format!("Error writing tenant {tenant_id}'s configuration signing"))?;
+    if updated != 1 {
+        return Err(anyhow!("tenant {tenant_id} was not updated"));
+    }
+    Ok(previous)
 }

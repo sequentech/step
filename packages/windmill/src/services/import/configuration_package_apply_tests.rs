@@ -1273,3 +1273,180 @@ async fn the_admin_portal_fixture_is_what_the_task_records() {
         "the Admin Portal fixture is out of date; regenerate with SEQUENT_WRITE_PACKAGE_GOLDEN=1"
     );
 }
+
+// ---- format 2: a package is imported exactly once --------------------------
+//
+// `V2Admission` adds the platform's real admission rule
+// (configuration_package_sections::admission_problem) to the fake target:
+// `recorded` is the tenant's import record of this package (shared, as the
+// database is between invocations), and `by_this_run` is set only when THIS
+// invocation's event submission succeeded, as PlatformTarget does.
+
+const DERIVED: &str = "00000000-0000-4000-8000-0000000000e9";
+
+struct V2Admission {
+    fake: Fake,
+    recorded: Arc<Mutex<Option<String>>>,
+    by_this_run: AtomicBool,
+    /// Another invocation commits the import when this section is applied.
+    concurrent_commit_at: Option<Section>,
+    format: sequent_core::election_config::manifest::ManifestFormat,
+}
+
+impl V2Admission {
+    fn new(recorded: Arc<Mutex<Option<String>>>) -> Self {
+        V2Admission {
+            fake: Fake::default(),
+            recorded,
+            by_this_run: AtomicBool::new(false),
+            concurrent_commit_at: None,
+            format: sequent_core::election_config::manifest::ManifestFormat::V2,
+        }
+    }
+}
+
+#[async_trait]
+impl PackageTarget for V2Admission {
+    async fn preview(&self, section: Section, files: &[Artifact]) -> Result<SectionPreview> {
+        use sequent_core::election_config::package_verify::Freshness;
+        let mut preview = self.fake.preview(section, files).await?;
+        let last = self
+            .recorded
+            .lock()
+            .unwrap()
+            .clone()
+            .map(|into| (Ok(Freshness::AlreadyImported), into));
+        if let Some(blocker) = crate::services::import::configuration_package_sections::admission_problem(
+            last.as_ref().map(|(f, into)| (f.clone(), into.as_str())),
+            DERIVED,
+            self.format,
+            1,
+            self.by_this_run.load(Ordering::SeqCst),
+        ) {
+            preview.blockers.insert(0, blocker);
+        }
+        Ok(preview)
+    }
+    async fn begin(&self, section: Section) -> Result<Option<String>> {
+        self.fake.begin(section).await
+    }
+    async fn apply(&self, s: Section, f: &[Artifact], t: Option<&str>) -> Result<SectionSubmission> {
+        let submission = self.fake.apply(s, f, t).await?;
+        if self.concurrent_commit_at == Some(s) {
+            *self.recorded.lock().unwrap() = Some(DERIVED.to_string());
+        }
+        if s == Section::ElectionEvent {
+            // The event import records the package, and this run knows it did.
+            *self.recorded.lock().unwrap() = Some(DERIVED.to_string());
+            self.by_this_run.store(true, Ordering::SeqCst);
+        }
+        Ok(submission)
+    }
+    async fn submission_state(&self, t: &str) -> Result<TaskState> {
+        self.fake.submission_state(t).await
+    }
+    async fn settle(&self, t: &str, ok: bool) -> Result<()> {
+        self.fake.settle(t, ok).await
+    }
+}
+
+fn applied_everything(target: &V2Admission) {
+    *target.fake.applied.lock().unwrap() = Section::APPLY_ORDER.iter().copied().collect();
+}
+
+#[tokio::test]
+async fn format_2_the_same_run_completes_after_its_own_event_import_records_the_package() {
+    // run() re-previews the event section after applying it; that re-preview
+    // sees the package recorded, by THIS run, and must converge.
+    let recorded = Arc::new(Mutex::new(None));
+    let target = V2Admission::new(recorded.clone());
+    let record = run(&plan(), "t1", ApplyMode::Apply, None, &target, &Saved::default())
+        .await
+        .unwrap();
+    assert_eq!(record.outcome, Outcome::Applied);
+    assert!(matches!(status(&record, Section::ElectionEvent), SectionStatus::Applied { .. }));
+    assert_eq!(recorded.lock().unwrap().as_deref(), Some(DERIVED));
+}
+
+#[tokio::test]
+async fn format_2_a_fresh_replay_is_refused_before_any_write_preview_and_apply() {
+    let recorded = Arc::new(Mutex::new(Some(DERIVED.to_string())));
+    for mode in [ApplyMode::Preview, ApplyMode::Apply] {
+        let target = V2Admission::new(recorded.clone());
+        applied_everything(&target);
+        let record = run(&plan(), "t1", mode, None, &target, &Saved::default()).await.unwrap();
+        assert_eq!(record.outcome, Outcome::Refused, "{mode:?}");
+        assert!(target.fake.submissions.lock().unwrap().is_empty(), "{mode:?}: nothing submitted");
+        let blocked = match status(&record, Section::TenantConfiguration) {
+            SectionStatus::Blocked { preview } => preview.blockers[0].clone(),
+            other => panic!("{mode:?}: {other:?}"),
+        };
+        assert!(blocked.contains("a format-2 package is imported exactly once"), "{blocked}");
+    }
+}
+
+#[tokio::test]
+async fn format_2_a_retry_after_the_import_committed_is_refused_and_writes_nothing() {
+    // An earlier run committed the event import and stopped before settling.
+    let earlier_recorded = Arc::new(Mutex::new(None));
+    let earlier = V2Admission::new(earlier_recorded.clone());
+    let mut interrupted = run(&plan(), "t1", ApplyMode::Apply, None, &earlier, &Saved::default())
+        .await
+        .unwrap();
+    interrupt(&mut interrupted, Section::ElectionEvent);
+    // The retry, resuming that record (choose_prior), is a new invocation.
+    let retry = V2Admission::new(earlier_recorded.clone());
+    applied_everything(&retry);
+    retry
+        .fake
+        .tasks
+        .lock()
+        .unwrap()
+        .insert("task-ElectionEvent".into(), TaskState::Interrupted);
+    let record = run(&plan(), "t1", ApplyMode::Apply, Some(&interrupted), &retry, &Saved::default())
+        .await
+        .unwrap();
+    assert_eq!(record.outcome, Outcome::Refused);
+    assert!(retry.fake.submissions.lock().unwrap().is_empty(), "no new writes");
+}
+
+#[tokio::test]
+async fn format_2_an_import_committed_by_another_invocation_stops_this_run_before_its_event() {
+    // Another invocation records the package while this one is applying its
+    // tenant sections: the event section's re-preview refuses it.
+    let recorded = Arc::new(Mutex::new(None));
+    let mut target = V2Admission::new(recorded.clone());
+    target.concurrent_commit_at = Some(Section::Trustees);
+    let record = run(&plan(), "t1", ApplyMode::Apply, None, &target, &Saved::default())
+        .await
+        .unwrap();
+    assert_eq!(record.outcome, Outcome::Failed);
+    assert!(!target.fake.submissions.lock().unwrap().contains(&Section::ElectionEvent));
+    // It stops at the first re-preview after the other commit (here the
+    // trustees section's own convergence check), never reaching the event.
+    assert!(!matches!(status(&record, Section::ElectionEvent), SectionStatus::Applied { .. }));
+    let blocked_for_replay = Section::APPLY_ORDER.iter().any(|s| match record.status(*s) {
+        Some(SectionStatus::Blocked { preview }) => preview
+            .blockers
+            .iter()
+            .any(|b| b.contains("a format-2 package is imported exactly once")),
+        Some(SectionStatus::Failed { error, .. }) => {
+            error.contains("a format-2 package is imported exactly once")
+        }
+        _ => false,
+    });
+    assert!(blocked_for_replay, "a section is blocked because the package was imported elsewhere");
+}
+
+#[tokio::test]
+async fn format_1_keeps_its_same_event_resume() {
+    let recorded = Arc::new(Mutex::new(Some(DERIVED.to_string())));
+    let mut target = V2Admission::new(recorded);
+    target.format = sequent_core::election_config::manifest::ManifestFormat::V1;
+    applied_everything(&target);
+    let record = run(&plan(), "t1", ApplyMode::Apply, None, &target, &Saved::default())
+        .await
+        .unwrap();
+    assert_ne!(record.outcome, Outcome::Refused);
+    assert!(target.fake.submissions.lock().unwrap().is_empty());
+}

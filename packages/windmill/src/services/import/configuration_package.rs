@@ -12,9 +12,8 @@ use std::io::Write;
 
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::election_config::manifest::open_package;
 use sequent_core::election_config::package_verify::{
-    admit_at, already_imported, crls_from_pem, freshness, importable_member, Admission,
+    admit_for_tenant_at, already_imported, crls_from_pem, freshness, importable_member, Admission,
     ConfigurationSigning, Freshness, VerifiedPackage, CONFIGURATION_SIGNING_SETTING,
 };
 use sequent_core::election_config::Rejected;
@@ -60,16 +59,17 @@ pub async fn admit_document(
     temp_file: NamedTempFile,
 ) -> Result<(NamedTempFile, Option<Box<VerifiedPackage>>)> {
     let bytes = std::fs::read(temp_file.path()).context("could not read the uploaded file")?;
-    // One package import per tenant at a time, from here until the importer
-    // records it: a concurrent one would not see this one's revision or the
-    // revocation lists it brings. An unsigned file reads neither.
-    if open_package(&bytes).is_ok_and(|opened| opened.is_signed()) {
-        configuration_packages::lock_imports(hasura_transaction, tenant_id).await?;
-    }
+    // One import per tenant at a time, from here until the importer records
+    // it: a concurrent package would not see this one's revision or the
+    // revocation lists it brings, and the tenant's signing setting can't
+    // change under any import, signed or not, while it runs (the setter
+    // takes the same lock).
+    configuration_packages::lock_imports(hasura_transaction, tenant_id).await?;
     let setting = tenant_setting(hasura_transaction, tenant_id).await?;
     let lists = configuration_packages::revocation_lists(hasura_transaction, tenant_id).await?;
 
-    let verified = match admit_at(&bytes, setting.as_ref(), lists, chrono::Utc::now()) {
+    // Format 2 is bound to this tenant and its current policy digest.
+    let verified = match admit_for_tenant_at(&bytes, setting.as_ref(), tenant_id, lists, chrono::Utc::now()) {
         Ok(Admission::Unsigned) => return Ok((temp_file, None)),
         Ok(Admission::Verified(verified)) => verified,
         Err(report) => return Err(anyhow::Error::new(Rejected::new(WHAT, report))),
@@ -204,9 +204,12 @@ mod tests {
             manifest_sha256: "ab".repeat(32),
             signer: sequent_core::election_config::package_verify::CertificateIdentity {
                 subject: "Signer".into(), issuer: "Issuer".into(), serial: "1".into(), fingerprint_sha256: "ef".repeat(32),
+                spki_sha256: "12".repeat(32),
             },
             approvers: vec![],
             members: vec![],
+            signer_id: None,
+            approver_ids: vec![],
         };
         let details = import_log_details(&package);
         assert_eq!(details.content_hash, "cd".repeat(32));

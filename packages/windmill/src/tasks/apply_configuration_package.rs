@@ -28,7 +28,7 @@ use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::election_config::manifest::read_zip;
 use sequent_core::election_config::package_contract::{Requirements, Section};
-use sequent_core::election_config::package_verify::{admit_at, Admission};
+use sequent_core::election_config::package_verify::{admit_for_tenant_at, Admission};
 use sequent_core::election_config::tenant_package::TrusteePublic;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
@@ -190,7 +190,9 @@ async fn execute(
     let claimed: bool = claim
         .query_one(
             "SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))",
-            &[&format!("package-application:{}", body.tenant_id)],
+            &[&configuration_packages::application_lock_key(
+                &body.tenant_id,
+            )],
         )
         .await
         .map_err(unclaimed)?
@@ -227,7 +229,9 @@ async fn execute(
     let lists = configuration_packages::revocation_lists(&transaction, &body.tenant_id).await?;
     transaction.commit().await?;
     let (members, signed_package, verified) =
-        match admit_at(&bytes, setting.as_ref(), lists, chrono::Utc::now()) {
+        // Revalidated against the tenant's current policy immediately
+        // before any section applies: a policy changed since preview refuses.
+        match admit_for_tenant_at(&bytes, setting.as_ref(), &body.tenant_id, lists, chrono::Utc::now()) {
             Ok(Admission::Unsigned) => (
                 read_zip(&bytes, "package").map_err(|p| anyhow!("{p}"))?,
                 None,
@@ -270,6 +274,7 @@ async fn execute(
         None => BTreeSet::new(),
     };
     let target = PlatformTarget {
+        event_imported_by_this_run: Default::default(),
         context: ApplyContext {
             tenant_id: body.tenant_id.clone(),
             executed_by: body.executed_by.clone(),
@@ -471,6 +476,9 @@ mod tests {
         let mut client = pool.get().await.unwrap();
         let tx = client.transaction().await.unwrap();
         let tenant = uuid::Uuid::new_v4();
+        crate::postgres::tenant::allow_configuration_signing_change(&tx, &tenant.to_string())
+            .await
+            .unwrap();
         tx.execute(
             "INSERT INTO sequent_backend.tenant (id, slug, is_active, settings, test) VALUES ($1, $2, true, $3, 1)",
             &[&tenant, &format!("keep-{tenant}"), &json!({"configuration_signing": {"policy": "required"}, "gapi_key": {"k": "v"}})],

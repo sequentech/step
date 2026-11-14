@@ -310,6 +310,7 @@ fn build_application_with(
                 routes::export_tally_results::export_tally_results_route,
                 routes::google_meet::generate_google_meeting,
                 routes::google_meet::set_google_service_account_key,
+                routes::configuration_signing::set_configuration_signing,
                 routes::generate_preview_url::generate_preview_url,
                 routes::import_certificate_authority::import_certificate_authority,
                 routes::delete_certificate_authority::delete_certificate_authority_route,
