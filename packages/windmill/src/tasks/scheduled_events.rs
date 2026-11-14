@@ -8,6 +8,7 @@ use crate::postgres::{
 use crate::services::{
     celery_app::get_celery_app,
     database::{get_hasura_pool, get_keycloak_pool},
+    election_event_trash::dispatch_expired_election_events,
     tasks_execution::update_fail,
 };
 use crate::tasks::{
@@ -562,6 +563,13 @@ pub fn due_events(
 #[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
 pub async fn scheduled_events(rate_seconds: u64) -> Result<()> {
     let celery_app = get_celery_app().await;
+    // Its own transaction: a failure here doesn't hold back the schedules.
+    if let Err(err) = dispatch_expired_election_events(celery_app.clone()).await {
+        event!(
+            Level::ERROR,
+            "Error purging expired election events from Trash: {err:#}"
+        );
+    }
     let now = ISO8601::now();
     let nsecs_later = now + Duration::seconds(rate_seconds as i64);
     let mut hasura_db_client: DbClient = get_hasura_pool()

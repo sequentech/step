@@ -168,6 +168,8 @@ fn build_application_with(
                 routes::import_candidates::import_candidates_route,
                 routes::insert_election_event::import_election_event_f,
                 routes::delete_election_event::delete_election_event_f,
+                routes::election_event_trash::list_trashed_election_events_f,
+                routes::election_event_trash::restore_election_event_f,
                 routes::delete_tenant::delete_tenant_f,
                 routes::import_tenant_config::import_tenant_config_route,
                 routes::apply_configuration_package::apply_configuration_package_route,

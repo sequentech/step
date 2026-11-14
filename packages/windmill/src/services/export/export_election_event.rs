@@ -16,6 +16,7 @@ use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::approval_matrix::store::get_latest_approval_matrix;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::election_event_trash::refuse_trashed_election_event;
 use crate::services::electoral_log_transfer::{
     export_electoral_log, manifest_file_name, records_file_name,
 };
@@ -72,6 +73,7 @@ pub async fn read_export_data(
     election_event_id: &str,
     export_config: &ExportOptions,
 ) -> Result<(ImportElectionEventSchema, Vec<TempPath>)> {
+    refuse_trashed_election_event(transaction, tenant_id, election_event_id).await?;
     let client = KeycloakAdminClient::new().await?;
     let other_client = KeycloakAdminClient::pub_new().await?;
     let board_name = get_event_realm(tenant_id, election_event_id);

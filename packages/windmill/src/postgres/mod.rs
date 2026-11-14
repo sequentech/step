@@ -16,6 +16,7 @@ pub mod contest;
 pub mod document;
 pub mod election;
 pub mod election_event;
+pub mod election_event_trash;
 pub mod election_initialization;
 pub mod electoral_log_checkpoint;
 pub mod keycloak_realm;

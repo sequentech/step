@@ -5,7 +5,7 @@
 import type {useTranslation} from "react-i18next"
 import {MISSING_ALIAS} from "@/hooks/useAliasRenderer"
 
-export type MenuActionConfirm = "archive" | "unarchive" | "delete"
+export type MenuActionConfirm = "archive" | "unarchive" | "delete" | "trash"
 
 // Names the item by the alias the tree shows, or keeps the generic message
 // when the item has neither an alias nor a name.

@@ -17,9 +17,14 @@ import {useActionPermissions, useTreeMenuData} from "../use-tree-menu-hook"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 import {divContainer} from "@/components/styles/Menu"
-import {useApolloClient, useMutation} from "@apollo/client"
-import {DeleteElectionEvent, DeleteElectionEventMutation} from "@/gql/graphql"
+import {useApolloClient, useLazyQuery, useMutation} from "@apollo/client"
+import {
+    DeleteElectionEvent,
+    DeleteElectionEventMutation,
+    ListTrashedElectionEventsQuery,
+} from "@/gql/graphql"
 import {DELETE_ELECTION_EVENT} from "@/queries/DeleteElectionEvent"
+import {LIST_TRASHED_ELECTION_EVENTS} from "@/queries/ListTrashedElectionEvents"
 import {IPermissions} from "@/types/keycloak"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
@@ -48,7 +53,7 @@ enum ESealCheck {
 }
 
 const mapRemoveResource: Record<ResourceName, string> = {
-    sequent_backend_election_event: "sideMenu.menuActions.remove.electionEvent",
+    sequent_backend_election_event: "sideMenu.menuActions.trash.electionEvent",
     sequent_backend_election: "sideMenu.menuActions.remove.election",
     sequent_backend_contest: "sideMenu.menuActions.remove.contest",
     sequent_backend_candidate: "sideMenu.menuActions.remove.candidate",
@@ -125,6 +130,16 @@ export default function MenuAction({
             },
         }
     )
+
+    const [loadTrash, {data: trashData}] = useLazyQuery<ListTrashedElectionEventsQuery>(
+        LIST_TRASHED_ELECTION_EVENTS,
+        {
+            variables: {limit: 1, offset: 0},
+            fetchPolicy: "network-only",
+            context: {headers: {"x-hasura-role": IPermissions.ELECTION_EVENT_DELETE}},
+        }
+    )
+    const retentionDays = trashData?.list_trashed_election_events?.retention_days
 
     const notify = useNotify()
 
@@ -211,6 +226,9 @@ export default function MenuAction({
             setSelectedActionModal({action, payload})
             setOpenArchiveModal(true)
         } else if (action === Action.Remove) {
+            if (payload.type === "sequent_backend_election_event") {
+                loadTrash()
+            }
             setSealCheck(await checkSeals(payload))
             setSelectedActionModal({action, payload})
             setOpenDeleteModal(true)
@@ -369,6 +387,9 @@ export default function MenuAction({
             )
         }
     }
+
+    const isDeletingElectionEvent =
+        selectedActionModal?.payload.type === "sequent_backend_election_event"
 
     const openActionMenu = Boolean(anchorEl)
     const idActionMenu = openActionMenu ? "action-menu" : undefined
@@ -580,7 +601,15 @@ export default function MenuAction({
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
-                ok={sealCheck === ESealCheck.SEALED ? undefined : String(t("common.label.delete"))}
+                ok={
+                    sealCheck === ESealCheck.SEALED
+                        ? undefined
+                        : String(
+                              isDeletingElectionEvent
+                                  ? t("sideMenu.trash.moveToTrash")
+                                  : t("common.label.delete")
+                          )
+                }
                 cancel={String(t("common.label.cancel"))}
                 title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
@@ -590,17 +619,39 @@ export default function MenuAction({
                     setOpenDeleteModal(false)
                 }}
             >
-                {sealCheck === ESealCheck.SEALED
-                    ? t(
-                          selectedActionModal?.payload.type === "sequent_backend_election_event"
-                              ? "sideMenu.menuActions.messages.notification.error.deleteSealedEvent"
-                              : "sideMenu.menuActions.messages.notification.error.deleteSealedElection"
-                      )
-                    : sealCheck === ESealCheck.UNKNOWN
-                      ? `${getMenuActionConfirmMessage(t, "delete", selectedActionModal?.payload.name)} ${t(
-                            "sideMenu.menuActions.messages.confirm.sealsUnknown"
-                        )}`
-                      : getMenuActionConfirmMessage(t, "delete", selectedActionModal?.payload.name)}
+                {sealCheck === ESealCheck.SEALED ? (
+                    t(
+                        selectedActionModal?.payload.type === "sequent_backend_election_event"
+                            ? "sideMenu.menuActions.messages.notification.error.deleteSealedEvent"
+                            : "sideMenu.menuActions.messages.notification.error.deleteSealedElection"
+                    )
+                ) : isDeletingElectionEvent ? (
+                    <>
+                        <p>
+                            {getMenuActionConfirmMessage(
+                                t,
+                                "trash",
+                                selectedActionModal?.payload.name
+                            )}
+                            {sealCheck === ESealCheck.UNKNOWN
+                                ? ` ${t("sideMenu.menuActions.messages.confirm.sealsUnknown")}`
+                                : null}
+                        </p>
+                        <p>
+                            {retentionDays
+                                ? t("sideMenu.trash.deleteExplanation", {
+                                      count: retentionDays,
+                                  })
+                                : t("sideMenu.trash.deleteExplanationNoDays")}
+                        </p>
+                    </>
+                ) : sealCheck === ESealCheck.UNKNOWN ? (
+                    `${getMenuActionConfirmMessage(t, "delete", selectedActionModal?.payload.name)} ${t(
+                        "sideMenu.menuActions.messages.confirm.sealsUnknown"
+                    )}`
+                ) : (
+                    getMenuActionConfirmMessage(t, "delete", selectedActionModal?.payload.name)
+                )}
             </Dialog>
         </>
     )

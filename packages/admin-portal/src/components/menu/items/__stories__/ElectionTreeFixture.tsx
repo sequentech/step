@@ -37,6 +37,9 @@ export const SECOND_EVENT_ID = storyId(2, 3)
 export const ARCHIVED_EVENT_ID = storyId(2, 4)
 export const IMAGE_DOCUMENT_ID = storyId(6, 4)
 export const DELETE_TASK_ID = storyId(5, 4)
+export const TRASHED_EVENT_ID = storyId(2, 5)
+export const TRASHED_ARCHIVED_EVENT_ID = storyId(2, 6)
+export const PURGING_EVENT_ID = storyId(2, 7)
 
 const budgetPresentation = {
     ...eventPresentation,
@@ -46,6 +49,44 @@ const archivedPresentation = {
     ...eventPresentation,
     i18n: {en: {name: "Old council event", alias: "Old council"}},
 }
+
+/** Synthetic election events in Trash: one active and one archived before
+ * they were deleted, and one whose permanent deletion has started. */
+export const trashRows = () => [
+    {
+        id: TRASHED_EVENT_ID,
+        presentation: {
+            ...eventPresentation,
+            i18n: {en: {name: "Spring by-election", alias: "Spring by-election"}},
+        },
+        trashed_at: "2026-11-03T09:30:00Z",
+        purge_after: "2026-11-10T09:30:00Z",
+        purge_started_at: null,
+        archived_before_trash: false,
+    },
+    {
+        id: TRASHED_ARCHIVED_EVENT_ID,
+        presentation: {
+            ...eventPresentation,
+            i18n: {en: {name: "Library levy referendum", alias: "Library levy"}},
+        },
+        trashed_at: "2026-11-01T16:05:00Z",
+        purge_after: "2026-11-08T16:05:00Z",
+        purge_started_at: null,
+        archived_before_trash: true,
+    },
+    {
+        id: PURGING_EVENT_ID,
+        presentation: {
+            ...eventPresentation,
+            i18n: {en: {name: "Ward 4 recall vote", alias: "Ward 4 recall"}},
+        },
+        trashed_at: "2026-10-27T08:00:00Z",
+        purge_after: "2026-11-03T08:00:00Z",
+        purge_started_at: "2026-11-03T08:00:10Z",
+        archived_before_trash: false,
+    },
+]
 
 /** The tenant's election event rows, as the event tree query selects them. */
 export const eventRows = () => [
@@ -170,6 +211,14 @@ export const archivedTreeData = (): DynEntityType => ({
     electionEvents: [eventNode(eventRows()[2], false)],
 })
 
+/** The tree of the services' current event rows, active or archived, so an
+ * event restored from Trash shows up in its tab. */
+export const recordsTreeData = (services: TreeServices, archived: boolean): DynEntityType => ({
+    electionEvents: services.data.records.sequent_backend_election_event
+        .filter(({is_archived}) => is_archived === archived)
+        .map((row) => eventNode(row, false)),
+})
+
 /**
  * A row whose texts exist only in `language`, which its event and elections
  * make their default: the shape a historical import with that default writes.
@@ -218,6 +267,10 @@ export interface TreeServicesOptions {
     deleteTask?: ETaskExecutionStatus
     /** More GraphQL operations, e.g. a screen's, answered beside the tree's. */
     handlers?: Parameters<typeof graphqlBoundary>[0]
+    /** The election events in Trash; restoring one moves it back to the tree. */
+    trash?: ReturnType<typeof trashRows>
+    /** Days an election event stays in Trash; null when misconfigured. */
+    retentionDays?: number | null
 }
 
 export interface TreeServices {
@@ -246,6 +299,8 @@ export function treeServices({
     deleteTask = ETaskExecutionStatus.SUCCESS,
     handlers = {},
     onlyLanguage,
+    trash = [],
+    retentionDays = 7,
 }: TreeServicesOptions = {}): TreeServices {
     const texts = <T extends {presentation?: unknown}>(rows: T[]): T[] =>
         onlyLanguage ? rows.map((row) => onlyIn(onlyLanguage, row)) : rows
@@ -364,6 +419,39 @@ export function treeServices({
                     ],
                 },
             }),
+            ListTrashedElectionEvents: ({variables}) => {
+                const offset = Number(variables.offset ?? 0)
+                const limit = Number(variables.limit ?? 50)
+                return {
+                    data: {
+                        list_trashed_election_events: {
+                            items: trash.slice(offset, offset + limit),
+                            total: trash.length,
+                            retention_days: retentionDays,
+                        },
+                    },
+                }
+            },
+            RestoreElectionEvent: ({variables}) => {
+                if (writeFailure) throw new Error("Synthetic restore service unavailable")
+                const index = trash.findIndex(({id}) => id === variables.electionEventId)
+                const [restored] = trash.splice(index, 1)
+                data.records.sequent_backend_election_event.push(
+                    eventRecord(undefined, {
+                        id: restored.id,
+                        presentation: restored.presentation,
+                        is_archived: restored.archived_before_trash,
+                    })
+                )
+                return {
+                    data: {
+                        restore_election_event: {
+                            id: restored.id,
+                            is_archived: restored.archived_before_trash,
+                        },
+                    },
+                }
+            },
             ...handlers,
         },
         {schema: true}

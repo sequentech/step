@@ -26,9 +26,11 @@ type Tree = TreeDepth | "archived" | "none"
 interface Scenario {
     tree: Tree
     isArchivedElectionEvents: boolean
+    isTrash: boolean
     sidebarOpen: boolean
     roles?: string[]
     onArchiveElectionEventsSelect: (val: number) => void
+    onTrashSelect: () => void
     reloadTree: () => void
 }
 
@@ -58,8 +60,10 @@ const meta = {
     args: {
         tree: "contest",
         isArchivedElectionEvents: false,
+        isTrash: false,
         sidebarOpen: true,
         onArchiveElectionEventsSelect: fn(),
+        onTrashSelect: fn(),
         reloadTree: fn(),
     },
     argTypes: {tree: {control: "select", options: Object.keys(TREES)}},

@@ -136,8 +136,11 @@ type Story = StoryObj<Scenario>
 
 const body = () => within(document.body)
 // The actions read the event tree to refresh it after a change.
+// The delete confirmation reads the Trash retention to explain it.
 const operations = () =>
-    services.graphql.calls.map(({name}) => name).filter((name) => name !== "election_events_tree")
+    services.graphql.calls
+        .map(({name}) => name)
+        .filter((name) => name !== "election_events_tree" && name !== "ListTrashedElectionEvents")
 const notified = (message: string | RegExp) =>
     waitFor(() => expect(body().getByText(message)).toBeVisible())
 const currentLocation = (canvasElement: HTMLElement) =>
@@ -159,6 +162,9 @@ const actionNames = (menu: HTMLElement) =>
 const asked = (action: "archive" | "unarchive" | "delete", name: string) =>
     `Are you sure you want to ${action} "${name}"?`
 
+/** The question the election event's deletion asks: it moves to Trash. */
+const askedTrash = (name: string) => `Are you sure you want to move "${name}" to Trash?`
+
 async function confirm(action: string, prompt: string | RegExp) {
     const dialog = await body().findByRole("dialog")
     await waitFor(() => expect(within(dialog).getByText(prompt)).toBeVisible())
@@ -175,7 +181,7 @@ export const EventActions: Story = {
             "Create an Election Event",
             "Import an Election Event",
             "Archive this Election Event",
-            "Remove this Election Event",
+            "Move this Election Event to Trash",
         ])
         expect(operations()).toEqual([])
     },
@@ -247,7 +253,7 @@ export const ArchivedEvent: Story = {
         const menu = await openActions(canvasElement)
         expect(actionNames(menu)).toEqual([
             "Unarchive this Election Event",
-            "Remove this Election Event",
+            "Move this Election Event to Trash",
         ])
         await userEvent.click(
             within(menu).getByRole("menuitem", {name: "Unarchive this Election Event"})
@@ -273,10 +279,18 @@ export const DeleteTheEvent: Story = {
     play: async ({canvasElement, args}) => {
         const menu = await openActions(canvasElement)
         await userEvent.click(
-            within(menu).getByRole("menuitem", {name: "Remove this Election Event"})
+            within(menu).getByRole("menuitem", {name: "Move this Election Event to Trash"})
         )
-        await confirm("Delete", asked("delete", "Council"))
-        // The deletion runs as a task, which the widget stack follows.
+        const dialog = await body().findByRole("dialog")
+        await waitFor(() =>
+            expect(
+                within(dialog).getByText(
+                    "It stays in Trash for 7 days, where it can be restored. Then it is deleted permanently."
+                )
+            ).toBeVisible()
+        )
+        await confirm("Move to Trash", askedTrash("Council"))
+        // Moving to Trash runs as a task, which the widget stack follows.
         await waitFor(() => expect(args.reloadTree).toHaveBeenCalledTimes(1))
         expect(services.graphql.calls.find(({name}) => name === "DeleteElectionEvent")).toEqual(
             expect.objectContaining({
@@ -295,9 +309,9 @@ export const DeletionTaskFails: Story = {
     play: async ({canvasElement, args}) => {
         const menu = await openActions(canvasElement)
         await userEvent.click(
-            within(menu).getByRole("menuitem", {name: "Remove this Election Event"})
+            within(menu).getByRole("menuitem", {name: "Move this Election Event to Trash"})
         )
-        await confirm("Delete", asked("delete", "Council"))
+        await confirm("Move to Trash", askedTrash("Council"))
         await waitFor(() => expect(operations()).toContain("GetTaskById"))
         await notified(/Delete election event/i)
         expect(args.reloadTree).not.toHaveBeenCalled()
@@ -309,9 +323,9 @@ export const DeletionServiceFails: Story = {
     play: async ({canvasElement, args}) => {
         const menu = await openActions(canvasElement)
         await userEvent.click(
-            within(menu).getByRole("menuitem", {name: "Remove this Election Event"})
+            within(menu).getByRole("menuitem", {name: "Move this Election Event to Trash"})
         )
-        await confirm("Delete", asked("delete", "Council"))
+        await confirm("Move to Trash", askedTrash("Council"))
         // A policy-off event: no seal pre-check, as before.
         await waitFor(() => expect(operations()).toEqual(["DeleteElectionEvent"]))
         await notified(/Delete election event/i)
@@ -323,9 +337,9 @@ export const CancelTheDeletion: Story = {
     play: async ({canvasElement, args}) => {
         const menu = await openActions(canvasElement)
         await userEvent.click(
-            within(menu).getByRole("menuitem", {name: "Remove this Election Event"})
+            within(menu).getByRole("menuitem", {name: "Move this Election Event to Trash"})
         )
-        await confirm("Cancel", asked("delete", "Council"))
+        await confirm("Cancel", askedTrash("Council"))
         await waitFor(() => expect(body().queryByRole("dialog")).toBeNull())
         // A policy-off event: nothing ran, not even a seal pre-check.
         expect(operations()).toEqual([])
@@ -441,11 +455,11 @@ export const RemoveASealedEvent: Story = {
     play: async ({canvasElement}) => {
         const menu = await openActions(canvasElement)
         await userEvent.click(
-            within(menu).getByRole("menuitem", {name: "Remove this Election Event"})
+            within(menu).getByRole("menuitem", {name: "Move this Election Event to Trash"})
         )
         const dialog = await body().findByRole("dialog")
         await waitFor(() => expect(within(dialog).getByText(EVENT_SEALED)).toBeVisible())
-        expect(within(dialog).queryByRole("button", {name: "Delete"})).toBeNull()
+        expect(within(dialog).queryByRole("button", {name: "Move to Trash"})).toBeNull()
         await userEvent.click(within(dialog).getByRole("button", {name: "Cancel"}))
         expect(operations()).not.toContain("DeleteElectionEvent")
     },
@@ -462,9 +476,9 @@ export const EventDeleteRefusedWithItsReason: Story = {
     play: async ({canvasElement}) => {
         const menu = await openActions(canvasElement)
         await userEvent.click(
-            within(menu).getByRole("menuitem", {name: "Remove this Election Event"})
+            within(menu).getByRole("menuitem", {name: "Move this Election Event to Trash"})
         )
-        await confirm("Delete", asked("delete", "Council"))
+        await confirm("Move to Trash", askedTrash("Council"))
         await notified(EVENT_SEALED)
     },
 }
@@ -499,7 +513,7 @@ export const CreateAndDeleteOnlyEvents: Story = {
         expect(actionNames(menu)).toEqual([
             "Create an Election Event",
             "Import an Election Event",
-            "Remove this Election Event",
+            "Move this Election Event to Trash",
         ])
     },
 }

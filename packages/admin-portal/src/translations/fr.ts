@@ -642,6 +642,8 @@ const frenchTranslation: TranslationType = {
                     export: "Exporté",
                     archive: "Archivé",
                     unarchive: "Désarchivé",
+                    trash: "Mis à la corbeille",
+                    restore: "Restauré depuis la corbeille",
                     enable: "Activé",
                     disable: "Désactivé",
                     reset_password: "Mot de passe réinitialisé",
@@ -956,6 +958,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exporter les Modèles",
                 IMPORT_TEMPLATES: "Importer les Modèles",
                 DELETE_ELECTION_EVENT: "Supprimer l'événement électoral",
+                RESTORE_ELECTION_EVENT: "Restaurer l'événement électoral",
                 DELETE_VOTERS: "Supprimer les électeurs",
                 PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
@@ -2782,6 +2785,44 @@ const frenchTranslation: TranslationType = {
             templates: "Modèles",
             active: "Actifs",
             archived: "Archivés",
+            trash: {
+                tab: "Corbeille",
+                loading: "Chargement de la corbeille",
+                error: "La corbeille n'a pas pu être chargée.",
+                retry: "Réessayer",
+                empty: "La corbeille est vide",
+                emptyHint_one:
+                    "Les événements électoraux supprimés restent ici {{count}} jour et peuvent être restaurés.",
+                emptyHint_other:
+                    "Les événements électoraux supprimés restent ici {{count}} jours et peuvent être restaurés.",
+                emptyHintNoDays:
+                    "Les événements électoraux supprimés restent ici un certain temps et peuvent être restaurés.",
+                deletedOn: "Supprimé le {{date}}",
+                purgeOn: "Supprimé définitivement le {{date}}",
+                purging: "Suppression définitive en cours",
+                wasArchived: "Était archivé",
+                showing: "{{count}} sur {{total}}",
+                loadMore: "Afficher plus",
+                refresh: "Actualiser",
+                refreshError:
+                    "La corbeille n'a pas pu être actualisée ; elle n'est peut-être pas à jour.",
+                restore: "Restaurer",
+                restoreNamed: "Restaurer {{name}}",
+                restoreTitle: "Restaurer l'événement électoral",
+                restoreConfirm: "Restaurer « {{name}} » ?",
+                restoreToActive: "Il revient dans Actifs.",
+                restoreToArchived: "Il revient dans Archivés, comme avant sa suppression.",
+                restoreVoting: "Son statut de vote ne change pas.",
+                restored: "« {{name}} » restauré",
+                restoreError: "L'événement électoral n'a pas pu être restauré : {{message}}",
+                moveToTrash: "Mettre à la corbeille",
+                deleteExplanation_one:
+                    "Il reste {{count}} jour dans la corbeille, où il peut être restauré. Ensuite, il est supprimé définitivement.",
+                deleteExplanation_other:
+                    "Il reste {{count}} jours dans la corbeille, où il peut être restauré. Ensuite, il est supprimé définitivement.",
+                deleteExplanationNoDays:
+                    "Il reste dans la corbeille, où il peut être restauré jusqu'à sa suppression définitive.",
+            },
             addResource: {
                 electionEvent: "Créer un Événement Électoral",
                 election: "Créer une Élection",
@@ -2804,6 +2845,9 @@ const frenchTranslation: TranslationType = {
                     contest: "Supprimer ce Scrutin",
                     candidate: "Supprimer ce Candidat",
                 },
+                trash: {
+                    electionEvent: "Mettre cet événement électoral à la corbeille",
+                },
                 messages: {
                     confirm: {
                         archive: "Êtes-vous sûr de vouloir archiver cet élément ?",
@@ -2814,6 +2858,8 @@ const frenchTranslation: TranslationType = {
                         archiveNamed: 'Êtes-vous sûr de vouloir archiver "{{name}}" ?',
                         unarchiveNamed: 'Êtes-vous sûr de vouloir désarchiver "{{name}}" ?',
                         deleteNamed: 'Êtes-vous sûr de vouloir supprimer "{{name}}" ?',
+                        trash: "Êtes-vous sûr de vouloir mettre cet élément à la corbeille ?",
+                        trashNamed: "Êtes-vous sûr de vouloir mettre « {{name}} » à la corbeille ?",
                     },
                     notification: {
                         success: {
