@@ -20,6 +20,9 @@ use crate::types::hasura::core::{Area, ElectionEvent};
 use crate::types::number_format::{
     deserialize_lenient_number_format_policy, NumberFormatPolicy,
 };
+use crate::types::platform_branding::{
+    deserialize_lenient_platform_branding_policy, PlatformBrandingPolicy,
+};
 use ::core::convert::TryInto;
 use anyhow::anyhow;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -1198,6 +1201,22 @@ pub struct ElectionEventPresentation {
         deserialize_with = "deserialize_lenient_number_format_policy"
     )]
     pub number_format_policy: Option<NumberFormatPolicy>,
+    /// The browser tab's icon and title for the event's voter pages, and
+    /// whether those pages carry the platform's own branding. Absent in
+    /// events created before they existed, and left out of Borsh for the
+    /// same reason as the number format.
+    #[borsh(skip)]
+    #[serde(default)]
+    pub favicon_url: Option<String>,
+    #[borsh(skip)]
+    #[serde(default)]
+    pub page_title: Option<String>,
+    #[borsh(skip)]
+    #[serde(
+        default,
+        deserialize_with = "deserialize_lenient_platform_branding_policy"
+    )]
+    pub platform_branding_policy: Option<PlatformBrandingPolicy>,
 }
 
 impl ElectionEvent {
@@ -3179,10 +3198,20 @@ mod presentation_borsh_compat_tests {
         assert_eq!(borsh::to_vec(&event_with_results).unwrap(), event_bytes);
         let event_with_number_format = ElectionEventPresentation {
             number_format_policy: Some(NumberFormatPolicy::PeriodComma),
-            ..event_presentation
+            ..event_presentation.clone()
         };
         assert_eq!(
             borsh::to_vec(&event_with_number_format).unwrap(),
+            event_bytes
+        );
+        let event_with_page_branding = ElectionEventPresentation {
+            favicon_url: Some("https://example.org/favicon.png".to_string()),
+            page_title: Some("Members' vote".to_string()),
+            platform_branding_policy: Some(PlatformBrandingPolicy::Hide),
+            ..event_presentation.clone()
+        };
+        assert_eq!(
+            borsh::to_vec(&event_with_page_branding).unwrap(),
             event_bytes
         );
 
@@ -3193,6 +3222,53 @@ mod presentation_borsh_compat_tests {
             ..election_presentation
         };
         assert_eq!(borsh::to_vec(&election_with_css).unwrap(), election_bytes);
+    }
+}
+
+#[cfg(test)]
+mod page_branding_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn a_presentation_reads_its_page_branding() {
+        let presentation: ElectionEventPresentation =
+            serde_json::from_value(json!({
+                "platform_branding_policy": "hide",
+                "favicon_url": "https://example.org/favicon.png",
+                "page_title": "Members' vote",
+            }))
+            .unwrap();
+        assert_eq!(
+            presentation.platform_branding_policy,
+            Some(PlatformBrandingPolicy::Hide)
+        );
+        assert_eq!(
+            presentation.favicon_url.as_deref(),
+            Some("https://example.org/favicon.png")
+        );
+        assert_eq!(presentation.page_title.as_deref(), Some("Members' vote"));
+    }
+
+    #[test]
+    fn an_older_presentation_has_no_page_branding() {
+        let presentation: ElectionEventPresentation =
+            serde_json::from_value(json!({"logo_url": null})).unwrap();
+        assert_eq!(presentation.platform_branding_policy, None);
+        assert_eq!(presentation.favicon_url, None);
+        assert_eq!(presentation.page_title, None);
+    }
+
+    #[test]
+    fn an_unknown_policy_reads_as_none_and_keeps_the_presentation() {
+        let presentation: ElectionEventPresentation =
+            serde_json::from_value(json!({
+                "platform_branding_policy": "a-newer-policy",
+                "page_title": "Members' vote",
+            }))
+            .unwrap();
+        assert_eq!(presentation.platform_branding_policy, None);
+        assert_eq!(presentation.page_title.as_deref(), Some("Members' vote"));
     }
 }
 

@@ -13,7 +13,6 @@ import {
     USER_LANGUAGE_COOKIE_NAME,
     setCookie,
     getValueFromCookie,
-    sanitizePresentationCss,
 } from "@sequentech/ui-core"
 import Stack from "@mui/material/Stack"
 import {useTranslation} from "react-i18next"
@@ -35,8 +34,6 @@ import {
     selectElectionEventById,
 } from "./store/electionEvents/electionEventsSlice"
 import WatermarkBackground from "./components/WaterMark/Watermark"
-import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
-import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
 import {useElectionClassName} from "./hooks/useElectionClassName"
 import {
     InvalidLoginHintsError,
@@ -45,6 +42,14 @@ import {
     routeAcceptsLoginHints,
 } from "./utils/loginHints"
 import {createElectionEventConfigLoader} from "./services/ElectionEventConfig"
+import NeutralLoader from "./components/NeutralLoader/NeutralLoader"
+import {
+    EventStyles,
+    eventLogo,
+    eventStylesClassName,
+    useEventCss,
+} from "./components/EventBranding/EventBranding"
+import {hidesPlatformBranding, usePageBranding} from "@sequentech/ui-core"
 const StyledApp = styled(Stack)`
     min-height: 100vh;
 
@@ -62,10 +67,6 @@ const StyledApp = styled(Stack)`
     .skip-link:focus {
         top: 0;
     }
-`
-
-const StyledAppWrapper = styled(Stack)<{customCss: string}>`
-    ${({customCss}) => customCss}
 `
 
 const StyledMain = styled(`main`)`
@@ -94,13 +95,6 @@ const HeaderWithContext: React.FC = () => {
         return presentation?.voting_portal_countdown_policy
     }, [presentation])
 
-    const logoImg =
-        presentation?.logo_url === undefined
-            ? BlankLogoImg
-            : presentation?.logo_url === null
-              ? SequentLogo
-              : presentation?.logo_url
-
     const onChangeLanguage = (lang: string) => {
         if (getValueFromCookie(USER_LANGUAGE_COOKIE_NAME) !== lang) {
             setCookie(USER_LANGUAGE_COOKIE_NAME, lang)
@@ -119,7 +113,7 @@ const HeaderWithContext: React.FC = () => {
             }}
             languagesList={languagesList}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
-            logoUrl={logoImg}
+            logoUrl={eventLogo(presentation)}
             expiry={{
                 alertAt: countdownPolicy?.countdown_alert_anticipation_secs,
                 countdown: countdownPolicy?.policy ?? EVotingPortalCountdownPolicy.NO_COUNTDOWN,
@@ -141,6 +135,7 @@ const App = () => {
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
     const dispatch = useAppDispatch()
     const [loadElectionEventConfig] = useState(createElectionEventConfigLoader)
+    const [settledEventConfigUrl, setSettledEventConfigUrl] = useState<string>()
     const [loginHintRequest] = useState(() => {
         const acceptsLoginHints = routeAcceptsLoginHints(location.pathname)
 
@@ -178,14 +173,8 @@ const App = () => {
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const presentation =
         ballotStyle?.ballot_eml.election_event_presentation ?? electionEvent?.presentation
-    const customCss = useMemo(
-        () =>
-            sanitizePresentationCss(presentation?.css ?? "", {
-                baseUrl: document.baseURI,
-                publicBucketUrl: globalSettings.PUBLIC_BUCKET_URL,
-            }),
-        [presentation?.css, globalSettings.PUBLIC_BUCKET_URL]
-    )
+    const customCss = useEventCss(presentation)
+    usePageBranding(presentation)
 
     useElectionClassName()
 
@@ -236,18 +225,7 @@ const App = () => {
                 if (!isCurrent()) {
                     return
                 }
-                const presentation = config.election_event_presentation
-                const languageConf = presentation?.language_conf
-
-                // Seed early routes from the public config, but never downgrade a
-                // full query result or frozen preview publication already stored.
-                dispatch(
-                    seedElectionEvent({
-                        id: config.election_event_id,
-                        tenant_id: config.tenant_id,
-                        presentation,
-                    })
-                )
+                const languageConf = config.election_event_presentation?.language_conf
 
                 const defaultLocale =
                     languageConf?.language_detection_policy ===
@@ -260,7 +238,6 @@ const App = () => {
                 if (!isCurrent()) {
                     return
                 }
-                console.error("Error loading election event config:", error)
                 setTenantEvent(tenantId, eventId, mode, undefined, loginHintsForCurrentRoute)
             }
         },
@@ -272,9 +249,46 @@ const App = () => {
             location.pathname,
             loginHintsForCurrentRoute,
             setTenantEvent,
-            dispatch,
         ]
     )
+
+    // The public config is read on every load of an event route, also when the
+    // voter comes back already logged in, so the event's presentation is known
+    // before the first full page is shown.
+    useEffect(() => {
+        if (!tenantId || !eventId) {
+            return
+        }
+
+        let active = true
+        const seedFromConfig = async () => {
+            try {
+                const config = await loadElectionEventConfig(electionEventConfigUrl)
+                if (!active) {
+                    return
+                }
+                // Seed early routes from the public config, but never downgrade a
+                // full query result or frozen preview publication already stored.
+                dispatch(
+                    seedElectionEvent({
+                        id: config.election_event_id,
+                        tenant_id: config.tenant_id,
+                        presentation: config.election_event_presentation,
+                    })
+                )
+            } catch (error) {
+                if (!active) {
+                    return
+                }
+                console.error("Error loading election event config:", error)
+            }
+            setSettledEventConfigUrl(electionEventConfigUrl)
+        }
+        void seedFromConfig()
+        return () => {
+            active = false
+        }
+    }, [tenantId, eventId, electionEventConfigUrl, loadElectionEventConfig, dispatch])
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -300,8 +314,27 @@ const App = () => {
         }
     }, [isAuthenticated, globalSettings.DISABLE_AUTH, navigate, tenantId, setupTenantEvent])
 
+    // Event routes always end in a login. Until it completes, the voter may be
+    // bounced through the identity provider several times, so show one page
+    // without the default header, footer or colours across those loads, and
+    // keep it until the event's own presentation has been looked up.
+    const awaitingLogin = !globalSettings.DISABLE_AUTH && !isAuthenticated
+    // The platform's footer waits until the event is known to show it.
+    const showFooter = !hidesPlatformBranding(presentation) && (!eventId || !!presentation)
+    const awaitingEventConfig = settledEventConfigUrl !== electionEventConfigUrl
+
+    if (eventId && (awaitingLogin || awaitingEventConfig)) {
+        return (
+            <EventStyles className={eventStylesClassName(presentation)} customCss={customCss}>
+                <StyledApp className="voting-portal app-root app-awaiting-login">
+                    <NeutralLoader />
+                </StyledApp>
+            </EventStyles>
+        )
+    }
+
     return (
-        <StyledAppWrapper className="voting-portal-wrapper" customCss={customCss}>
+        <EventStyles className={eventStylesClassName(presentation)} customCss={customCss}>
             <StyledApp className="voting-portal app-root">
                 <ScrollRestoration />
                 <nav className="skip-navigation" aria-label={t("a11y.skipToContent")}>
@@ -323,9 +356,9 @@ const App = () => {
                         <Outlet />
                     </PageBanner>
                 </ApolloWrapper>
-                <Footer />
+                {showFooter && <Footer />}
             </StyledApp>
-        </StyledAppWrapper>
+        </EventStyles>
     )
 }
 

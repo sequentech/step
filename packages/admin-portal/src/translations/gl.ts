@@ -576,6 +576,17 @@ const galegoTranslation: TranslationType = {
                 materialTitle: "Título",
                 materialSubTitle: "Subtítulo",
                 logoUrl: "URL do Logo",
+                faviconUrl: "URL da icona da lapela do navegador",
+                pageTitle: "Título da lapela do navegador",
+                platformBrandingPolicy: {
+                    policyLabel: "Marca da plataforma",
+                    helperText:
+                        "Aplícase ao portal de votación: o logotipo e a icona de lapela da plataforma cando o evento non define os seus, o pé «desenvolvido por» e a etiqueta de versión.",
+                    options: {
+                        show: "Amosar",
+                        hide: "Agochar",
+                    },
+                },
                 userVerification:
                     "Pode introducir un modelo personalizado que se utilizará para verificar manualmente os votantes",
                 redirectFinishUrl: "URL de Redirección ao Finalizar",
