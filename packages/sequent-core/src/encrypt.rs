@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use strand::backend::ristretto::RistrettoCtx;
-use strand::context::Ctx;
+use strand::context::{Ctx, Element};
 use strand::elgamal::*;
 use strand::hash;
 use strand::hash::Hash;
@@ -94,7 +94,14 @@ pub fn parse_public_key<C: Ctx>(
         .ok_or(BallotError::ConsistencyCheck(
             "Missing Public Key".to_string(),
         ))?;
-    Base64Deserialize::deserialize(public_key_config.public_key)
+    let public_key: C::E =
+        Base64Deserialize::deserialize(public_key_config.public_key)?;
+    if public_key == <C::E as Element<C>>::mul_identity() {
+        return Err(BallotError::ConsistencyCheck(
+            "The public key is the identity element".to_string(),
+        ));
+    }
+    Ok(public_key)
 }
 
 /// Re-encrypts every contest of a single-contest auditable ballot from the
@@ -788,10 +795,13 @@ mod tests {
 
     mod ciphertext_reconstruction {
         use crate::ballot::BallotStyle;
-        use crate::ballot::{AuditableBallot, PublicKeyConfig};
+        use crate::ballot::{
+            AuditableBallot, PublicKeyConfig, ReplicationChoice,
+        };
         use crate::encrypt::{
             encrypt_decoded_contest, encrypt_decoded_multi_contest,
-            encrypt_plaintext_candidate, recreate_encrypt_cyphertext,
+            encrypt_plaintext_candidate, parse_public_key,
+            recreate_encrypt_cyphertext,
             recreate_encrypt_multi_ballot_cyphertext,
             verify_auditable_ballot_ciphertexts,
             verify_auditable_multi_ballot_ciphertext, DEFAULT_PLAINTEXT_LABEL,
@@ -802,8 +812,9 @@ mod tests {
             get_writein_ballot_style,
         };
         use crate::multi_ballot::AuditableMultiBallot;
+        use crate::serialization::base64::Base64Serialize;
         use strand::backend::ristretto::RistrettoCtx;
-        use strand::context::Ctx;
+        use strand::context::{Ctx, Element, Exponent};
         use strand::rng::StrandRng;
 
         /// A plurality contest with three candidates under a ballot style
@@ -847,6 +858,33 @@ mod tests {
                 Err(BallotError::ConsistencyCheck(_)) => {}
                 other => panic!("expected a consistency error, got {other:?}"),
             }
+        }
+
+        /// Returns a plaintext other than the one `choice` encrypts and a
+        /// public key under which that plaintext and the recorded randomness
+        /// give the same ciphertext: h' = h * (m / m')^(1/r).
+        fn other_plaintext_and_matching_key(
+            choice: &ReplicationChoice<RistrettoCtx>,
+        ) -> (<RistrettoCtx as Ctx>::P, PublicKeyConfig) {
+            let ctx = RistrettoCtx;
+            let public_key =
+                parse_public_key::<RistrettoCtx>(&ballot_style()).unwrap();
+            let mut other_plaintext = choice.plaintext;
+            other_plaintext[0] ^= 0x01;
+            let encoded = ctx.encode(&choice.plaintext).unwrap();
+            let other_encoded = ctx.encode(&other_plaintext).unwrap();
+            let matching_key = public_key.mul(&ctx.emod_pow(
+                &encoded.divp(&other_encoded, &ctx),
+                &choice.randomness.invq(&ctx),
+            ));
+            (
+                other_plaintext,
+                PublicKeyConfig {
+                    public_key: Base64Serialize::serialize(&matching_key)
+                        .unwrap(),
+                    is_demo: false,
+                },
+            )
         }
 
         #[test]
@@ -1142,6 +1180,100 @@ mod tests {
                 &RistrettoCtx,
                 &ballot,
             ));
+        }
+
+        /// The check re-encrypts with the public key of the ballot style the
+        /// ballot carries, so it only holds against a ballot style that comes
+        /// from the published one.
+        #[test]
+        fn single_ballot_with_other_public_key_fails_against_published_style() {
+            let ballot = single_ballot();
+            let mut contests =
+                ballot.deserialize_contests::<RistrettoCtx>().unwrap();
+            let (other_plaintext, matching_key) =
+                other_plaintext_and_matching_key(&contests[0].choice);
+            contests[0].choice.plaintext = other_plaintext;
+            let mut rewritten = AuditableBallot {
+                contests: AuditableBallot::serialize_contests(&contests)
+                    .unwrap(),
+                ..ballot
+            };
+            rewritten.config.public_key = Some(matching_key);
+
+            assert!(verify_auditable_ballot_ciphertexts(
+                &RistrettoCtx,
+                &rewritten
+            )
+            .is_ok());
+            assert_cryptographic_check(verify_auditable_ballot_ciphertexts(
+                &RistrettoCtx,
+                &AuditableBallot {
+                    config: ballot_style(),
+                    ..rewritten
+                },
+            ));
+        }
+
+        /// Same on the multi-contest side.
+        #[test]
+        fn multi_ballot_with_other_public_key_fails_against_published_style() {
+            let ballot = multi_ballot();
+            let mut contests =
+                ballot.deserialize_contests::<RistrettoCtx>().unwrap();
+            let (other_plaintext, matching_key) =
+                other_plaintext_and_matching_key(&contests.choice);
+            contests.choice.plaintext = other_plaintext;
+            let mut rewritten = AuditableMultiBallot {
+                contests: AuditableMultiBallot::serialize_contests(&contests)
+                    .unwrap(),
+                ..ballot
+            };
+            rewritten.config.public_key = Some(matching_key);
+
+            assert!(verify_auditable_multi_ballot_ciphertext(
+                &RistrettoCtx,
+                &rewritten
+            )
+            .is_ok());
+            assert_cryptographic_check(
+                verify_auditable_multi_ballot_ciphertext(
+                    &RistrettoCtx,
+                    &AuditableMultiBallot {
+                        config: ballot_style(),
+                        ..rewritten
+                    },
+                ),
+            );
+        }
+
+        #[test]
+        fn identity_public_key_is_rejected() {
+            let identity = <<RistrettoCtx as Ctx>::E as Element<
+                RistrettoCtx,
+            >>::mul_identity();
+            let style = BallotStyle {
+                public_key: Some(PublicKeyConfig {
+                    public_key: Base64Serialize::serialize(&identity).unwrap(),
+                    is_demo: false,
+                }),
+                ..ballot_style()
+            };
+
+            assert_consistency_check(
+                parse_public_key::<RistrettoCtx>(&style).map(|_| ()),
+            );
+            assert!(encrypt_decoded_contest::<RistrettoCtx>(
+                &RistrettoCtx,
+                &vec![get_test_decoded_vote_contest()],
+                &style,
+            )
+            .is_err());
+            assert!(encrypt_decoded_multi_contest::<RistrettoCtx>(
+                &RistrettoCtx,
+                &vec![get_test_decoded_vote_contest()],
+                &style,
+            )
+            .is_err());
         }
     }
 

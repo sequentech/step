@@ -33,6 +33,10 @@ const tagalogTranslation = {
             ciphertextErrorTitle: "Nabigo ang pagberipika ng balota",
             ciphertextErrorDescription:
                 "Ang ciphertext ng sinisiyasat na balotang ito ay hindi ang pag-encrypt ng plaintext at randomness na nilalaman nito. Hindi mapagkakatiwalaan ang balota.",
+            unpublishedStyleErrorDescription:
+                "Ang sinisiyasat na balotang ito ay hindi tumutugma sa alinmang balotang inilathala para sa election event na ito, kaya hindi ito maberipika.",
+            unavailableStyleErrorDescription:
+                "Hindi ma-load ang mga balotang inilathala para sa election event na ito, kaya hindi pa maberipika ang sinisiyasat na balotang ito. Pakisubukang muli.",
             useSampleLink: "Gamitin ang sample na balota",
             nextButton: "Susunod",
             ballotIdLabel: "ID ng Balota",
