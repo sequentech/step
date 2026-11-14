@@ -54,8 +54,7 @@ use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use strand::backend::ristretto::RistrettoCtx;
-use strand::hash::{hash_to_array, Hash, HashWrapper};
-use strand::serialization::StrandSerialize;
+use strand::hash::{Hash, HashWrapper};
 use strand::signature::StrandSignatureSk;
 use strand::util::StrandError;
 use strand::zkp::Zkp;
@@ -709,8 +708,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
 }
 
 pub(crate) fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
-    let bytes = voter_id.to_string().strand_serialize()?;
-    hash_to_array(&bytes)
+    electoral_log::messages::message::hash_voter_id(voter_id)
 }
 
 #[instrument(skip_all, err)]

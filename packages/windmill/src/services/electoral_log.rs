@@ -217,6 +217,8 @@ impl ElectoralLog {
         let input = LogEventInput {
             election_event_id: event_id.to_string(),
             message_type: LogMessageType::Internal,
+            attempts: 0,
+            retry_at: None,
             user_id: Some(user_id.to_string()),
             username: None,
             tenant_id: tenant_id.to_string(),
@@ -329,6 +331,8 @@ impl ElectoralLog {
         let input = LogEventInput {
             election_event_id: event_id,
             message_type: LogMessageType::Internal,
+            attempts: 0,
+            retry_at: None,
             user_id: Some(voter_id),
             username: voter_username,
             tenant_id,
@@ -381,6 +385,8 @@ impl ElectoralLog {
         let input = LogEventInput {
             election_event_id: event_id,
             message_type: LogMessageType::Internal,
+            attempts: 0,
+            retry_at: None,
             user_id: Some(voter_id),
             username: voter_username.clone(),
             tenant_id,
