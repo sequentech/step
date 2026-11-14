@@ -18,7 +18,8 @@
 # 6. slack-report: Always runs to report workflow status to Slack
 #
 # REQUIRED SECRETS:
-# - PAT: Personal Access Token with repo permissions for cross-repo dispatches
+# - PAT (release environment): Personal Access Token with repo permissions for
+#   cross-repo dispatches
 # - SLACK_WEBHOOK_URL: Slack webhook URL for notifications
 #
 # =============================================================================
@@ -119,7 +120,11 @@ jobs:
   build-and-push:
     needs: [resolve-target-commit]
     uses: ./.github/workflows/reusable_build_push.yml
-    secrets: inherit
+    secrets:
+      PAT: ${{ secrets.PAT }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      AWS_ACCESS_KEY_ID_GLOBALDOT: ${{ secrets.AWS_ACCESS_KEY_ID_GLOBALDOT }}
+      AWS_SECRET_ACCESS_KEY_GLOBALDOT: ${{ secrets.AWS_SECRET_ACCESS_KEY_GLOBALDOT }}
     with:
       tag: ${{ inputs.tag_name }}
       push: ${{ inputs.push }}
@@ -136,6 +141,7 @@ jobs:
   trigger-beyond-release:
     needs: [resolve-target-commit, build-and-push]
     runs-on: ubuntu-24.04
+    environment: release
     steps:
       - name: Trigger Beyond Release Workflow
         uses: the-actions-org/workflow-dispatch@v4
@@ -159,6 +165,7 @@ jobs:
     needs: [resolve-target-commit, build-and-push, trigger-beyond-release]
     if: ${{ always() && needs.build-and-push.result == 'success' }}
     runs-on: ubuntu-24.04
+    environment: release
     steps:
       - name: Trigger Deployer Workflow
         uses: the-actions-org/workflow-dispatch@v4
