@@ -85,7 +85,7 @@ crepe! {
     let hashes = super::hashes_init(hash.0);
 
     SharesAll(cfg_h, SharesHashes(hashes.0)) <-
-    ConfigurationSignedAll(_config_hash, _self_position, num_t, _threshold),
+    ConfigurationSignedAll(cfg_h, _self_position, num_t, _threshold),
     // We subtract 1 since trustees positions are 0 based
     SharesUpTo(cfg_h, hashes, num_t - 1);
 
@@ -100,6 +100,8 @@ crepe! {
 
     A(Action::SignPublicKey(cfg_h, pk_h, shares_hs, channels_hs, self_p, num_t, threshold)) <-
     PublicKey(cfg_h, pk_h, shares_hs, channels_hs, 0),
+    SharesAll(cfg_h, shares_hs),
+    ChannelsAllSignedAll(cfg_h, channels_hs),
     ConfigurationSignedAll(cfg_h, self_p, num_t, threshold),
     !PublicKeySigned(cfg_h, _, shares_hs, channels_hs, self_p);
 
