@@ -217,6 +217,7 @@ pub(crate) fn sign_mix<C: Ctx>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::protocol::datalog::NULL_HASH;
     use std::marker::PhantomData;
 
     use b3::messages::artifact::{Ballots, Configuration};

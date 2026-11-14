@@ -31,6 +31,11 @@ import {ETasksExecution} from "@/types/tasksExecution"
 import {useLogsPermissions} from "@/resources/ElectionEvent/useLogsPermissions"
 import {MessageField} from "./MessageField"
 import {ThreeStateDatagridHeader} from "./ThreeStateDatagridHeader"
+import {
+    getLogMessageField,
+    getLogMessageHeadField,
+    parseLogMessage,
+} from "@/services/parseLogMessage"
 
 enum ExportFormat {
     CSV = "CSV",
@@ -139,16 +144,11 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     const {canExportLogs, showLogsColumns} = useLogsPermissions()
 
     const getHeadField = (record: any, field: string) => {
-        const message = JSON.parse(record?.message)
-        if (
-            !message ||
-            !message.statement ||
-            !message.statement.head ||
-            !message.statement.head[field]
-        ) {
+        const value = getLogMessageHeadField(parseLogMessage(record?.message), field)
+        if (!value) {
             return <span>-</span>
         }
-        return message.statement.head[field]
+        return value
     }
 
     const [openExport, setOpenExport] = React.useState(false)
@@ -237,7 +237,10 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                         source="user_id"
                         label={String(t("logsScreen.column.user_id"))}
                         render={(record: any) => {
-                            const userId = JSON.parse(record.message).user_id
+                            const userId = getLogMessageField(
+                                parseLogMessage(record.message),
+                                "user_id"
+                            )
                             return (
                                 <span style={{display: "block", textAlign: "center"}}>
                                     {!userId || userId === "null" ? <span>-</span> : userId}
@@ -249,7 +252,10 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                         source="username"
                         label={String(t("logsScreen.column.username"))}
                         render={(record: any) => {
-                            const username = JSON.parse(record.message).username
+                            const username = getLogMessageField(
+                                parseLogMessage(record.message),
+                                "username"
+                            )
                             return (
                                 <span style={{display: "block", textAlign: "center"}}>
                                     {!username || username === "null" ? <span>-</span> : username}
@@ -285,7 +291,12 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                         label={String(t("logsScreen.column.description"))}
                         render={(record: any) => (
                             <MessageField
-                                content={getHeadField(record, "description")}
+                                content={String(
+                                    getLogMessageHeadField(
+                                        parseLogMessage(record.message),
+                                        "description"
+                                    ) || "-"
+                                )}
                                 initialLength={50}
                             />
                         )}
