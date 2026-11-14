@@ -12,8 +12,8 @@ use crate::services::datafix::types::{
 };
 use crate::services::users::VoterSnapshot;
 use sequent_core::types::keycloak::{
-    ATTR_RESET_VALUE, DATE_OF_BIRTH, DISABLE_COMMENT, DISABLE_REASON_DELETE_CALL,
-    DISABLE_REASON_MARKVOTED_CALL, VOTED_CHANNEL,
+    normalize_username, ATTR_RESET_VALUE, DATE_OF_BIRTH, DISABLE_COMMENT,
+    DISABLE_REASON_DELETE_CALL, DISABLE_REASON_MARKVOTED_CALL, VOTED_CHANNEL,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -134,6 +134,29 @@ pub fn index_datafix_area_fields(
     }
 }
 
+/// Adds this batch's VoterIDs, as Keycloak usernames (`normalize_username`),
+/// to `all_file_usernames`, the set the reverse pass checks Sequent's voters
+/// against, and returns them in row order for the batch's snapshot lookup.
+/// A VoterID already seen in this file is an error, including one that only
+/// differs in letter case, since both name the same Keycloak user.
+pub fn record_file_usernames(
+    all_file_usernames: &mut HashSet<String>,
+    file_rows: &[ParsedDatafixReconciliationRow],
+) -> Result<Vec<String>, String> {
+    let mut usernames = Vec::with_capacity(file_rows.len());
+    for row in file_rows {
+        let username = normalize_username(&row.external_voter_id);
+        if !all_file_usernames.insert(username.clone()) {
+            return Err(format!(
+                "Reconciliation file contains duplicate VoterID '{}'",
+                row.external_voter_id
+            ));
+        }
+        usernames.push(username);
+    }
+    Ok(usernames)
+}
+
 /// Runs the forward pass for one batch of file rows (see
 /// `services::datafix::reconciliation::csv::ReconciliationRowBatches`):
 /// classifies each row against its Sequent snapshot, if this batch's
@@ -143,7 +166,8 @@ pub fn index_datafix_area_fields(
 /// Sequent at all (D, forward direction, handled inside `classify_file_row`
 /// same as before). `source` carries whatever config the file's own origin
 /// needs for classification (for Datafix, its `CountyMun`, from the event's
-/// own `VoterviewRequest::county_mun`).
+/// own `VoterviewRequest::county_mun`). Rows are looked up by Keycloak
+/// username (`normalize_username`).
 #[instrument(skip_all, fields(batch_size = file_rows.len()))]
 pub fn diff_file_row_batch(
     file_rows: &[ParsedDatafixReconciliationRow],
@@ -155,7 +179,7 @@ pub fn diff_file_row_batch(
         .flat_map(|row| {
             classify_file_row(
                 row,
-                snapshots_by_username.get(&row.external_voter_id),
+                snapshots_by_username.get(&normalize_username(&row.external_voter_id)),
                 source,
             )
         })
@@ -169,7 +193,8 @@ pub fn diff_file_row_batch(
 /// in the file at all is reported into the Datafix patch via
 /// `voter_missing_from_file`. Disabled voters need no report here — if
 /// Sequent already considers them gone, there's nothing for Datafix to
-/// catch up on regardless of whether the file mentions them.
+/// catch up on regardless of whether the file mentions them. Usernames are
+/// compared in Keycloak's form (`normalize_username`).
 #[instrument(skip_all, fields(page_size = snapshots_page.len()))]
 pub fn diff_unmatched_sequent_voters(
     snapshots_page: &[VoterSnapshot],
@@ -179,7 +204,10 @@ pub fn diff_unmatched_sequent_voters(
 ) -> Vec<DiffItem> {
     snapshots_page
         .iter()
-        .filter(|snapshot| snapshot.enabled && !all_file_usernames.contains(&snapshot.username))
+        .filter(|snapshot| {
+            snapshot.enabled
+                && !all_file_usernames.contains(&normalize_username(&snapshot.username))
+        })
         .flat_map(|snapshot| {
             voter_missing_from_file(&snapshot.username, snapshot, source, area_fields_by_name)
         })
@@ -1381,5 +1409,89 @@ mod tests {
 
         file_row.poll = ATTR_RESET_VALUE.to_string();
         assert_eq!(composed_area_name(&file_row), "01-000");
+    }
+
+    #[test]
+    fn record_file_usernames_returns_keycloak_usernames() {
+        let mut all_file_usernames = HashSet::new();
+        let usernames = record_file_usernames(
+            &mut all_file_usernames,
+            &[
+                row("AB12", ATTR_RESET_VALUE, "false"),
+                row("17695", ATTR_RESET_VALUE, "false"),
+            ],
+        )
+        .expect("distinct VoterIDs");
+        assert_eq!(usernames, vec!["ab12".to_string(), "17695".to_string()]);
+        assert_eq!(
+            all_file_usernames,
+            HashSet::from(["ab12".to_string(), "17695".to_string()])
+        );
+    }
+
+    #[test]
+    fn record_file_usernames_rejects_voterids_that_differ_only_in_case() {
+        let mut all_file_usernames = HashSet::new();
+        record_file_usernames(
+            &mut all_file_usernames,
+            &[row("AB12", ATTR_RESET_VALUE, "false")],
+        )
+        .expect("first batch");
+        let result = record_file_usernames(
+            &mut all_file_usernames,
+            &[row("ab12", ATTR_RESET_VALUE, "false")],
+        );
+        assert_eq!(
+            result,
+            Err("Reconciliation file contains duplicate VoterID 'ab12'".to_string())
+        );
+    }
+
+    #[test]
+    fn diff_file_row_batch_matches_a_voter_whose_username_differs_only_in_case() {
+        let snapshot = VoterSnapshot {
+            username: "ab12".to_string(),
+            ..enabled_snapshot()
+        };
+        let voter_id = snapshot.voter_id;
+        let snapshots_by_username = HashMap::from([(snapshot.username.clone(), snapshot)]);
+        let items = diff_file_row_batch(
+            &[row("AB12", "PAPER", "false")],
+            &snapshots_by_username,
+            &datafix_source("0014"),
+        );
+        assert!(!items.is_empty());
+        assert!(items.iter().all(|item| {
+            item.category == ReconciliationChangeCategory::VOTED_OTHER_CHANNEL
+                && item.voter_id == Some(voter_id)
+                && item.voter_username == "AB12"
+        }));
+    }
+
+    #[test]
+    fn a_voter_named_in_the_file_in_another_case_is_not_reported_as_missing() {
+        let mut all_file_usernames = HashSet::new();
+        record_file_usernames(
+            &mut all_file_usernames,
+            &[row("AB12", ATTR_RESET_VALUE, "false")],
+        )
+        .expect("one VoterID");
+        let page = [
+            VoterSnapshot {
+                username: "ab12".to_string(),
+                ..enabled_snapshot()
+            },
+            VoterSnapshot {
+                username: "AB12".to_string(),
+                ..enabled_snapshot()
+            },
+        ];
+        let items = diff_unmatched_sequent_voters(
+            &page,
+            &all_file_usernames,
+            &datafix_source("0014"),
+            &HashMap::new(),
+        );
+        assert!(items.is_empty());
     }
 }
