@@ -7,8 +7,8 @@ use std::time::Duration;
 use crate::messages::message::Message;
 
 use strand::serialization::StrandSerialize;
-use tonic::transport::Endpoint;
 
+use crate::grpc::transport::{TransportConfig, CLIENT_ENV_PREFIX};
 use crate::grpc::{
     B3Client as B3ClientInner, GetBoardsReply, GetBoardsRequest, GetMessagesMultiReply,
     GetMessagesMultiRequest, GetMessagesReply, GetMessagesRequest, GrpcB3Message,
@@ -183,7 +183,7 @@ impl B3Client {
     }
 
     pub(crate) async fn get_grpc_client(&self) -> Result<B3ClientInner<Channel>> {
-        let endpoint = Endpoint::from_shared(self.url.clone())?;
+        let endpoint = TransportConfig::from_env(CLIENT_ENV_PREFIX)?.endpoint(&self.url)?;
         let endpoint = endpoint.timeout(Duration::from_secs(self.timeout_secs));
         let client = B3ClientInner::connect(endpoint).await?;
         let client = client

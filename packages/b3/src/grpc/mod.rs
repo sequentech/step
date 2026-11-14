@@ -22,6 +22,8 @@ pub use proto::PutMessagesRequest;
 
 #[cfg(feature = "server")]
 pub mod server;
+#[cfg(feature = "client")]
+pub mod transport;
 
 /// The maximum grpc message used for chunking.
 ///
