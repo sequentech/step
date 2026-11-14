@@ -55,6 +55,11 @@ use super::manifest::{
     ManifestFormat,
 };
 use super::problem::{Code, Problem, Report};
+use super::manifest::{approval_payload_v2, ApprovalBinding};
+use super::signing_policy::{
+    EnrolledSigner, Enrollment, FinalSignerSeparation, PackageFormat,
+    SignerRole,
+};
 
 /// Extended key usages that sign documents, besides anyExtendedKeyUsage,
 /// clientAuth and emailProtection: documentSigning (RFC 9336), Adobe
@@ -88,6 +93,25 @@ static MANIFEST_ALGORITHMS: &[&dyn SignatureVerificationAlgorithm] = &[
     webpki::ring::RSA_PSS_2048_8192_SHA256_LEGACY_KEY,
 ];
 
+/// Format 2: the final signature is ECDSA P-256 with SHA-256, or RSA-PSS
+/// exactly (SHA-256, MGF1-SHA-256, 32-byte salt; the key's 2048–4096 bits are
+/// checked separately). Nothing else, so no substitution is accepted.
+static MANIFEST_ALGORITHMS_V2: &[&dyn SignatureVerificationAlgorithm] = &[
+    webpki::ring::ECDSA_P256_SHA256,
+    webpki::ring::RSA_PSS_2048_8192_SHA256_LEGACY_KEY,
+];
+
+/// The format-2 part of a verifier's trust: the importing tenant, its
+/// current policy digest, its enrolled signers and its separation rule. Only
+/// ever built from the tenant's own setting ([`ConfigurationSigning::trust_for`]).
+#[derive(Debug, Clone, Default)]
+pub struct V2Trust {
+    pub tenant_id: String,
+    pub policy_sha256: String,
+    pub separation: FinalSignerSeparation,
+    pub enrollment: Enrollment,
+}
+
 /// What a verifier trusts, set when it is deployed.
 #[derive(Debug, Clone, Default)]
 pub struct PackageTrust {
@@ -100,6 +124,11 @@ pub struct PackageTrust {
     pub revocation_lists: Vec<Vec<u8>>,
     /// How many approvals from distinct people a package needs.
     pub required_approvals: u16,
+    /// The oldest format accepted: `v2` refuses format 1 and unsigned files.
+    pub minimum_format: PackageFormat,
+    /// Format 2: the tenant's enrollment. Without it a format-2 package is
+    /// refused, since nobody is enrolled to approve or sign it.
+    pub v2: Option<V2Trust>,
 }
 
 impl PackageTrust {
@@ -123,6 +152,8 @@ impl PackageTrust {
                 .map_err(|reason| unreadable_trust("staff_roots", reason))?,
             revocation_lists: lists,
             required_approvals,
+            minimum_format: PackageFormat::V1,
+            v2: None,
         })
     }
 }
@@ -157,9 +188,62 @@ pub struct ConfigurationSigning {
     pub staff_roots: String,
     #[serde(default)]
     pub required_approvals: u16,
+    /// The oldest package format this tenant imports. Absent only in a
+    /// legacy record, which reads as `v1`; a policy that enrolls signers must
+    /// state it (see [`super::signing_policy::check_policy`]). `v2` refuses
+    /// format 1 and any unsigned file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub minimum_package_format: Option<PackageFormat>,
+    /// Format 2: who may approve and sign, by stable signer ID. Not written
+    /// when empty, so a legacy record serializes exactly as before.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub signers: Vec<EnrolledSigner>,
+    /// Format 2: whether the final signer may also have approved. Absent
+    /// means `separate`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub final_signer_separation: Option<FinalSignerSeparation>,
 }
 
 impl ConfigurationSigning {
+    /// Whether the record has any format-2 field. A record with none is a
+    /// legacy one and is read exactly as before.
+    pub fn has_v2_fields(&self) -> bool {
+        self.minimum_package_format.is_some()
+            || self.final_signer_separation.is_some()
+            || !self.signers.is_empty()
+    }
+
+    /// A stored record with format-2 fields must pass the same policy check
+    /// a save does: a malformed one (signers without a minimum, optional with
+    /// format 2, shared keys...) is refused for every file, signed or not,
+    /// rather than read with legacy defaults.
+    pub fn check_stored(&self) -> Result<(), Report> {
+        if !self.has_v2_fields() {
+            return Ok(());
+        }
+        let problems = super::signing_policy::check_policy(self);
+        if problems.is_empty() {
+            return Ok(());
+        }
+        let mut report = Report::default();
+        for found in problems {
+            report.push(
+                Problem::error(Code::InvalidValue, "configuration_signing", found.message)
+                    .id(found.id),
+            );
+        }
+        report.push(
+            Problem::error(
+                Code::InvalidValue,
+                "configuration_signing",
+                "this tenant's signing policy is not valid, so nothing imports \
+                 until an administrator fixes it",
+            )
+            .id("configuration-signing.invalid-stored-policy"),
+        );
+        Err(report)
+    }
+
     /// The trust these settings describe, with the revocation lists (DER)
     /// the installation has seen.
     pub fn trust(
@@ -179,8 +263,386 @@ impl ConfigurationSigning {
             staff_roots: read(&self.staff_roots, "staff_roots")?,
             revocation_lists,
             required_approvals: self.required_approvals,
+            minimum_format: self.effective_minimum_format(),
+            v2: None,
         })
     }
+
+    /// The trust of `tenant_id`'s setting: [`ConfigurationSigning::trust`]
+    /// plus, where it enrolls signers, the format-2 part bound to this tenant
+    /// and the policy's current digest.
+    pub fn trust_for(
+        &self,
+        tenant_id: &str,
+        revocation_lists: Vec<Vec<u8>>,
+    ) -> Result<PackageTrust, Problem> {
+        if let Err(report) = self.check_stored() {
+            let message = report
+                .errors()
+                .map(|p| p.message.clone())
+                .collect::<Vec<_>>()
+                .join("; ");
+            return Err(unreadable_trust("configuration_signing", message)
+                .id("configuration-signing.invalid-stored-policy"));
+        }
+        let mut trust = self.trust(revocation_lists)?;
+        if !self.signers.is_empty() {
+            let enrollment = Enrollment::from_signers(&self.signers).map_err(
+                |problems| {
+                    unreadable_trust(
+                        "signers",
+                        problems
+                            .into_iter()
+                            .map(|p| p.message)
+                            .collect::<Vec<_>>()
+                            .join("; "),
+                    )
+                },
+            )?;
+            trust.v2 = Some(V2Trust {
+                tenant_id: tenant_id.to_string(),
+                policy_sha256: self.policy_sha256()?,
+                separation: self.effective_separation(),
+                enrollment,
+            });
+        }
+        Ok(trust)
+    }
+}
+
+/// The most approvals a tenant may require of a package.
+pub const MAX_REQUIRED_APPROVALS: u16 = 16;
+
+/// One root certificate a setting trusts, as an administrator checks it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TrustAnchor {
+    /// `package_roots` or `staff_roots`.
+    pub setting: String,
+    pub subject: String,
+    /// RFC 3339.
+    pub not_before: String,
+    /// RFC 3339.
+    pub not_after: String,
+    /// SHA-256 of the certificate's DER, lowercase hex.
+    pub fingerprint_sha256: String,
+}
+
+/// A setting as [`ConfigurationSigning::check`] found it: the roots it
+/// trusts, and what stops it from being saved (errors) or deserves a look
+/// (warnings).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TrustCheck {
+    pub anchors: Vec<TrustAnchor>,
+    pub report: Report,
+    /// Format 2: the policy's digest, which approvals and final signatures
+    /// bind to. Absent for a legacy setting.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub policy_sha256: Option<String>,
+}
+
+impl ConfigurationSigning {
+    /// Checks the setting before it is saved, at `now`. A setting with
+    /// errors is not saved: it would trust nothing that can sign, trust a
+    /// certificate that is not an authority, or ask for approvals no one
+    /// could give.
+    pub fn check(&self, now: DateTime<Utc>) -> TrustCheck {
+        let mut check = TrustCheck::default();
+        let package_roots =
+            check_roots(PACKAGE_ROOTS, &self.package_roots, now, &mut check);
+        let staff_roots =
+            check_roots(STAFF_ROOTS, &self.staff_roots, now, &mut check);
+
+        if self.policy == ConfigurationSigningPolicy::Required
+            && package_roots == Some(0)
+        {
+            check.report.push(
+                Problem::error(
+                    Code::MissingField,
+                    PACKAGE_ROOTS,
+                    "signatures are required, and no root is trusted to sign \
+                     packages, so nothing could be imported",
+                )
+                .id("configuration-signing.no-package-roots"),
+            );
+        }
+        if self.required_approvals > 0 && staff_roots == Some(0) {
+            check.report.push(
+                Problem::error(
+                    Code::MissingField,
+                    STAFF_ROOTS,
+                    format!(
+                        "{} approvals are required, and no root is trusted \
+                         to issue approvers' certificates",
+                        self.required_approvals
+                    ),
+                )
+                .id("configuration-signing.no-staff-roots")
+                .detail("required", self.required_approvals),
+            );
+        }
+        if self.required_approvals > MAX_REQUIRED_APPROVALS {
+            check.report.push(
+                Problem::error(
+                    Code::InvalidValue,
+                    "required_approvals",
+                    format!(
+                        "{} approvals are required, and at most \
+                         {MAX_REQUIRED_APPROVALS} may be",
+                        self.required_approvals
+                    ),
+                )
+                .id("configuration-signing.too-many-approvals")
+                .detail("required", self.required_approvals)
+                .detail("maximum", MAX_REQUIRED_APPROVALS),
+            );
+        }
+        if self.policy == ConfigurationSigningPolicy::Required
+            && self.required_approvals == 0
+        {
+            check.report.push(
+                Problem::warning(
+                    Code::InvalidValue,
+                    "required_approvals",
+                    "a package needs its signature and no approvals",
+                )
+                .id("configuration-signing.no-approvals"),
+            );
+        }
+        // Format 2: the enrolled signers are well formed, a key belongs to one
+        // signer, and the policy can be satisfied.
+        for found in super::signing_policy::check_policy(self) {
+            check.report.push(
+                Problem::error(Code::InvalidValue, "signers", found.message)
+                    .id(found.id),
+            );
+        }
+        // The digest approvers and final signers bind to, for an
+        // administrator to compare with the Architect installation's.
+        if self.has_v2_fields() {
+            check.policy_sha256 = super::signing_policy::policy_sha256(self).ok();
+        }
+        check
+    }
+}
+
+/// Reads and checks one root setting; returns how many roots it holds, or
+/// `None` where it can't be read.
+fn check_roots(
+    setting: &str,
+    pem: &str,
+    now: DateTime<Utc>,
+    check: &mut TrustCheck,
+) -> Option<usize> {
+    if pem.trim().is_empty() {
+        return Some(0);
+    }
+    // Only certificates belong here: anything else (a private key above
+    // all) would be stored and shown with the setting.
+    let normalized = match only_certificates(pem) {
+        Ok(normalized) => normalized,
+        Err(reason) => {
+            check.report.push(
+                Problem::error(
+                    Code::InvalidValue,
+                    setting,
+                    format!("the trusted {setting} may hold only certificates: {reason}"),
+                )
+                .id("configuration-signing.not-only-certificates")
+                .detail("setting", setting)
+                .detail("reason", reason),
+            );
+            return None;
+        }
+    };
+    let ders = match certificates_from_pem(&normalized) {
+        Ok(ders) => ders,
+        Err(reason) => {
+            check.report.push(unreadable_trust(setting, reason));
+            return None;
+        }
+    };
+    for der in &ders {
+        let parsed = match X509Certificate::from_der(der) {
+            Ok((_, parsed)) => parsed,
+            Err(error) => {
+                check
+                    .report
+                    .push(unreadable_trust(setting, error.to_string()));
+                continue;
+            }
+        };
+        let subject = parsed.subject().to_string();
+        let validity = parsed.validity();
+        let not_before = validity.not_before.timestamp();
+        let not_after = validity.not_after.timestamp();
+        let is_ca = matches!(
+            parsed.basic_constraints(),
+            Ok(Some(constraints)) if constraints.value.ca
+        );
+        if !is_ca {
+            check.report.push(
+                Problem::error(
+                    Code::UntrustedSigner,
+                    setting,
+                    format!(
+                        "{subject} is not a certificate authority, so it \
+                             can't be a root"
+                    ),
+                )
+                .id("configuration-signing.not-a-ca")
+                .detail("subject", &subject),
+            );
+        }
+        if now.timestamp() > not_after {
+            check.report.push(
+                Problem::error(
+                    Code::UntrustedSigner,
+                    setting,
+                    format!("{subject} expired at {}", rfc3339(not_after)),
+                )
+                .id("configuration-signing.root-expired")
+                .detail("subject", &subject)
+                .detail("not_after", rfc3339(not_after)),
+            );
+        } else if now.timestamp() < not_before {
+            check.report.push(
+                Problem::error(
+                    Code::UntrustedSigner,
+                    setting,
+                    format!(
+                        "{subject} is not valid until {}",
+                        rfc3339(not_before)
+                    ),
+                )
+                .id("configuration-signing.root-not-yet-valid")
+                .detail("subject", &subject)
+                .detail("not_before", rfc3339(not_before)),
+            );
+        }
+        check.anchors.push(TrustAnchor {
+            setting: setting.to_string(),
+            subject,
+            not_before: rfc3339(not_before),
+            not_after: rfc3339(not_after),
+            fingerprint_sha256: sha256_hex(der),
+        });
+    }
+    Some(ders.len())
+}
+
+/// Whether `pem` is certificates and nothing else: every block is a
+/// `CERTIFICATE`, and there is nothing but whitespace between them.
+///
+/// Returns the text with each line trimmed and blank lines dropped, which is
+/// what is parsed: a block indented in the original is read, not skipped.
+fn only_certificates(pem: &str) -> Result<String, String> {
+    let mut inside: Option<&str> = None;
+    let mut normalized = String::new();
+    for line in pem.lines().map(str::trim).filter(|line| !line.is_empty()) {
+        normalized.push_str(line);
+        normalized.push('\n');
+        match inside {
+            None => {
+                let label = line
+                    .strip_prefix("-----BEGIN ")
+                    .and_then(|rest| rest.strip_suffix("-----"))
+                    .ok_or_else(|| {
+                        "there is text outside the certificates".to_string()
+                    })?;
+                if label != "CERTIFICATE" {
+                    return Err(format!("it holds a {label} block"));
+                }
+                inside = Some(label);
+            }
+            Some(label) => {
+                if line == format!("-----END {label}-----") {
+                    inside = None;
+                } else if line.starts_with("-----") {
+                    return Err(format!("a {label} block is not closed"));
+                }
+            }
+        }
+    }
+    match inside {
+        Some(label) => Err(format!("a {label} block is not closed")),
+        None => Ok(normalized),
+    }
+}
+
+/// `pem`'s certificates, written again one after another: what is stored is
+/// what was checked, and nothing else that came with it.
+pub fn canonical_certificates_pem(pem: &str) -> Result<String, String> {
+    if pem.trim().is_empty() {
+        return Ok(String::new());
+    }
+    let normalized = only_certificates(pem)?;
+    Ok(certificates_from_pem(&normalized)?
+        .iter()
+        .map(|der| {
+            let body = STANDARD.encode(der);
+            let lines: Vec<&str> = body
+                .as_bytes()
+                .chunks(64)
+                .map(|chunk| std::str::from_utf8(chunk).unwrap_or_default())
+                .collect();
+            format!(
+                "-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----\n",
+                lines.join("\n")
+            )
+        })
+        .collect())
+}
+
+impl ConfigurationSigning {
+    /// The setting with its roots written as [`canonical_certificates_pem`].
+    pub fn canonical(&self) -> Result<ConfigurationSigning, Problem> {
+        Ok(ConfigurationSigning {
+            policy: self.policy,
+            package_roots: canonical_certificates_pem(&self.package_roots)
+                .map_err(|reason| unreadable_trust(PACKAGE_ROOTS, reason))?,
+            staff_roots: canonical_certificates_pem(&self.staff_roots)
+                .map_err(|reason| unreadable_trust(STAFF_ROOTS, reason))?,
+            required_approvals: self.required_approvals,
+            minimum_package_format: self.minimum_package_format,
+            signers: {
+                let mut signers = self.signers.clone();
+                signers.sort_by(|a, b| a.id.cmp(&b.id));
+                for signer in &mut signers {
+                    signer.roles.sort();
+                    signer.roles.dedup();
+                    signer.keys.sort_by(|a, b| a.spki_sha256.cmp(&b.spki_sha256));
+                }
+                signers
+            },
+            final_signer_separation: self.final_signer_separation,
+        })
+    }
+
+    /// The minimum format in effect: a legacy record without one is `v1`.
+    pub fn effective_minimum_format(&self) -> PackageFormat {
+        self.minimum_package_format.unwrap_or(PackageFormat::V1)
+    }
+
+    /// The separation in effect: `separate` unless stated otherwise.
+    pub fn effective_separation(&self) -> FinalSignerSeparation {
+        self.final_signer_separation.unwrap_or_default()
+    }
+
+    /// The digest a format-2 package's approvals and final signature bind
+    /// to: [`super::signing_policy::policy_sha256`].
+    pub fn policy_sha256(&self) -> Result<String, Problem> {
+        super::signing_policy::policy_sha256(self)
+            .map_err(|reason| unreadable_trust("signers", reason))
+    }
+}
+
+const PACKAGE_ROOTS: &str = "package_roots";
+const STAFF_ROOTS: &str = "staff_roots";
+
+fn rfc3339(seconds: i64) -> String {
+    DateTime::<Utc>::from_timestamp(seconds, 0)
+        .map(|at| at.to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
+        .unwrap_or_else(|| seconds.to_string())
 }
 
 /// What an importer may do with a file it was handed.
@@ -219,14 +681,44 @@ pub fn admit_at(
     admission(bytes, settings, revocation_lists, Some(now))
 }
 
+/// [`admit_at`] for `tenant_id`: format-2 packages are checked against this
+/// tenant's enrollment and current policy digest. What an importer calls.
+pub fn admit_for_tenant_at(
+    bytes: &[u8],
+    settings: Option<&ConfigurationSigning>,
+    tenant_id: &str,
+    revocation_lists: Vec<Vec<u8>>,
+    now: DateTime<Utc>,
+) -> Result<Admission, Report> {
+    admission_for(bytes, settings, Some(tenant_id), revocation_lists, Some(now))
+}
+
 fn admission(
     bytes: &[u8],
     settings: Option<&ConfigurationSigning>,
     revocation_lists: Vec<Vec<u8>>,
     now: Option<DateTime<Utc>>,
 ) -> Result<Admission, Report> {
+    admission_for(bytes, settings, None, revocation_lists, now)
+}
+
+fn admission_for(
+    bytes: &[u8],
+    settings: Option<&ConfigurationSigning>,
+    tenant_id: Option<&str>,
+    revocation_lists: Vec<Vec<u8>>,
+    now: Option<DateTime<Utc>>,
+) -> Result<Admission, Report> {
+    // A stored policy with format-2 fields is checked before anything else,
+    // so a malformed one can't fall back to legacy defaults for any file.
+    if let Some(settings) = settings {
+        settings.check_stored()?;
+    }
+    // Format 2 required means signatures required, whatever the policy says:
+    // an unsigned file must never get round the enrollment.
     let required = settings.is_some_and(|settings| {
         settings.policy == ConfigurationSigningPolicy::Required
+            || settings.effective_minimum_format() == PackageFormat::V2
     });
     if !has_signature_members(bytes) {
         return if required {
@@ -239,11 +731,12 @@ fn admission(
             Ok(Admission::Unsigned)
         };
     }
-    let trust = settings
-        .cloned()
-        .unwrap_or_default()
-        .trust(revocation_lists)
-        .map_err(Report::from_problem)?;
+    let settings = settings.cloned().unwrap_or_default();
+    let trust = match tenant_id {
+        Some(tenant_id) => settings.trust_for(tenant_id, revocation_lists),
+        None => settings.trust(revocation_lists),
+    }
+    .map_err(Report::from_problem)?;
     verify(bytes, &trust, now)
         .map(|verified| Admission::Verified(Box::new(verified)))
 }
@@ -290,6 +783,10 @@ pub struct CertificateIdentity {
     pub serial: String,
     /// SHA-256 of the certificate's DER, lowercase hex.
     pub fingerprint_sha256: String,
+    /// SHA-256 of its SubjectPublicKeyInfo, lowercase hex: the pin a format-2
+    /// policy enrolls.
+    #[serde(default)]
+    pub spki_sha256: String,
 }
 
 /// A package that passed every check. Only now may its members be read.
@@ -301,6 +798,10 @@ pub struct VerifiedPackage {
     pub approvers: Vec<CertificateIdentity>,
     /// The delivery's members, as checked.
     pub members: Vec<Artifact>,
+    /// Format 2: the final signer's enrolled ID.
+    pub signer_id: Option<String>,
+    /// Format 2: the approvers' enrolled IDs, in approval order.
+    pub approver_ids: Vec<String>,
 }
 
 /// The last package imported for a configuration.
@@ -366,6 +867,25 @@ fn verify(
 
     let manifest =
         read_manifest(manifest_bytes).map_err(Report::from_problem)?;
+    if manifest.format == ManifestFormat::V2 {
+        return verify_v2(
+            bytes,
+            manifest_bytes,
+            signature,
+            chain,
+            manifest,
+            trust,
+            now,
+        );
+    }
+    if trust.minimum_format == PackageFormat::V2 {
+        return Err(Report::from_problem(downgrade_refused()));
+    }
+    if manifest.signing.is_some()
+        || manifest.approvals.iter().any(|a| a.signer_id.is_some())
+    {
+        return Err(Report::from_problem(mixed_format()));
+    }
     let produced_at =
         unix_time(&manifest.produced.at).map_err(Report::from_problem)?;
     if let Some(now) = now {
@@ -426,6 +946,8 @@ fn verify(
         signer,
         approvers,
         members: delivery.members,
+        signer_id: None,
+        approver_ids: Vec::new(),
     })
 }
 
@@ -533,6 +1055,12 @@ pub fn verify_approval(
             SignatureAlgorithm::RsaPkcs1Sha256 => {
                 &[webpki::ring::RSA_PKCS1_2048_8192_SHA256]
             }
+            // Format 1 is kept exactly as it was: no RSA-PSS approvals.
+            SignatureAlgorithm::RsaPssSha256 => {
+                return Err(
+                    "format 1 doesn't accept RSA-PSS approvals".to_string()
+                );
+            }
         };
     verify_with(&chain[0], algorithms, payload.as_bytes(), &signature)?;
     Ok(identity)
@@ -620,6 +1148,469 @@ fn check_approvals(
         );
     }
     approvers
+}
+
+/// Format 2. Certificates, enrollment and revocation are checked at the
+/// verifier's own time, never at a time the package claims; the package's
+/// tenant and policy digest must be this tenant's current ones; every
+/// approval and the final signature must come from an enrolled key, under
+/// the signer ID it names, with the role the policy gives it.
+fn verify_v2(
+    bytes: &[u8],
+    manifest_bytes: &[u8],
+    signature: &[u8],
+    chain: &[u8],
+    manifest: Manifest,
+    trust: &PackageTrust,
+    now: Option<DateTime<Utc>>,
+) -> Result<VerifiedPackage, Report> {
+    let fail = |problem: Problem| Report::from_problem(problem);
+    let Some(now) = now else {
+        return Err(fail(
+            Problem::error(
+                Code::UntrustedSigner,
+                super::manifest::MANIFEST_MEMBER,
+                "a format-2 package is checked at the verifier's own time, \
+                 and this verifier has no clock",
+            )
+            .id("package.needs-clock"),
+        ));
+    };
+    let Some(v2) = trust.v2.as_ref() else {
+        return Err(fail(
+            Problem::error(
+                Code::UntrustedSigner,
+                super::manifest::MANIFEST_MEMBER,
+                "this tenant enrolls no signers, so it can't check a format-2 \
+                 package",
+            )
+            .id("package.no-signing-policy"),
+        ));
+    };
+    let Some(binding) = manifest.signing.clone() else {
+        return Err(fail(
+            Problem::error(
+                Code::InvalidValue,
+                "manifest.signing",
+                "a format-2 manifest says who it is signed for",
+            )
+            .id("package.mixed-format"),
+        ));
+    };
+    let produced_at =
+        unix_time(&manifest.produced.at).map_err(Report::from_problem)?;
+    if is_after(produced_at, now) {
+        return Err(fail(signed_in_the_future(&manifest.produced.at, now)));
+    }
+    let at = UnixTime::since_unix_epoch(Duration::from_secs(
+        u64::try_from(now.timestamp()).unwrap_or(0),
+    ));
+
+    let mut crls = trust.revocation_lists.clone();
+    for list in &manifest.revocation_lists {
+        crls.extend(crls_from_pem(list).map_err(|reason| {
+            Report::from_problem(unreadable_revocation_list(reason))
+        })?);
+    }
+    for der in &crls {
+        check_revocation_list(der).map_err(|reason| {
+            Report::from_problem(unreadable_revocation_list(reason))
+        })?;
+    }
+
+    // The final signature, on the three small members alone.
+    let chain = certificates_from_pem(&String::from_utf8_lossy(chain))
+        .map_err(|reason| Report::from_problem(unreadable_chain(reason)))?;
+    let signer = check_certificate(
+        &chain,
+        &trust.package_roots,
+        &crls,
+        at,
+        Role::PackageSigner,
+    )
+    .map_err(Report::from_problem)?;
+    rsa_key_allowed(&chain[0])
+        .map_err(|reason| Report::from_problem(bad_signature(reason)))?;
+    verify_with(&chain[0], MANIFEST_ALGORITHMS_V2, manifest_bytes, signature)
+        .map_err(|reason| Report::from_problem(bad_signature(reason)))?;
+
+    let mut report = Report::default();
+    // What it is signed for: this tenant, this policy.
+    if binding.tenant_id != v2.tenant_id {
+        report.push(
+            Problem::error(
+                Code::UntrustedSigner,
+                "manifest.signing.tenant_id",
+                "the package is for another tenant",
+            )
+            .id("package.wrong-tenant")
+            .detail("package", &binding.tenant_id),
+        );
+    }
+    if binding.policy_sha256 != v2.policy_sha256 {
+        report.push(
+            Problem::error(
+                Code::UntrustedSigner,
+                "manifest.signing.policy_sha256",
+                "the package was approved and signed under a signing policy \
+                 that is not this tenant's current one",
+            )
+            .id("package.policy-changed")
+            .detail("package", &binding.policy_sha256)
+            .detail("current", &v2.policy_sha256),
+        );
+    }
+    if binding.role != SignerRole::FinalSigner.as_str() {
+        report.push(
+            Problem::error(
+                Code::InvalidValue,
+                "manifest.signing.role",
+                "the final signature's role must be final-signer",
+            )
+            .id("package.final-signer-role"),
+        );
+    }
+    // Who signed it: an enrolled key, of the final signer it names.
+    let signer_id = match v2.enrollment.signer_of(&signer.spki_sha256) {
+        None => {
+            report.push(
+                Problem::error(
+                    Code::UntrustedSigner,
+                    super::manifest::CHAIN_MEMBER,
+                    "the package signer's key is not enrolled for this tenant",
+                )
+                .id("package.final-signer-not-enrolled")
+                .detail("spki_sha256", &signer.spki_sha256),
+            );
+            None
+        }
+        Some(enrolled) => {
+            if enrolled.id != binding.final_signer_id {
+                report.push(
+                    Problem::error(
+                        Code::UntrustedSigner,
+                        "manifest.signing.final_signer_id",
+                        format!(
+                            "the package names {} as its final signer, and \
+                             its key is {}'s",
+                            binding.final_signer_id, enrolled.id
+                        ),
+                    )
+                    .id("package.final-signer-id-mismatch"),
+                );
+            }
+            if !enrolled.roles.contains(&SignerRole::FinalSigner) {
+                report.push(
+                    Problem::error(
+                        Code::UntrustedSigner,
+                        super::manifest::CHAIN_MEMBER,
+                        format!("{} may not make the final signature", enrolled.id),
+                    )
+                    .id("package.final-signer-role"),
+                );
+            }
+            Some(enrolled.id.clone())
+        }
+    };
+
+    let delivery = payload(bytes).map_err(Report::from_problem)?;
+    compare_entries(&delivery.files, &manifest.content.files, "", &mut report);
+    match manifest.content.sha256() {
+        Ok(digest) if digest == manifest.content_sha256 => {}
+        Ok(digest) => {
+            report.push(content_mismatch(&manifest.content_sha256, &digest))
+        }
+        Err(problem) => report.push(problem),
+    }
+
+    let approval_binding = ApprovalBinding {
+        tenant_id: v2.tenant_id.clone(),
+        external_id: manifest.configuration.external_id.clone(),
+        revision: manifest.configuration.revision,
+        content_sha256: manifest.content_sha256.clone(),
+        policy_sha256: v2.policy_sha256.clone(),
+    };
+    let (approvers, approver_ids) = check_approvals_v2(
+        &manifest,
+        &approval_binding,
+        trust,
+        v2,
+        &crls,
+        at,
+        now,
+        &mut report,
+    );
+    if v2.separation == FinalSignerSeparation::Separate {
+        if let Some(id) = &signer_id {
+            if approver_ids.contains(id) {
+                report.push(
+                    Problem::error(
+                        Code::NotApproved,
+                        "manifest.signing.final_signer_id",
+                        format!(
+                            "{id} approved this package and made its final \
+                             signature, and this tenant keeps them separate"
+                        ),
+                    )
+                    .id("package.final-signer-approved"),
+                );
+            }
+        }
+    }
+    if report.has_errors() {
+        return Err(report);
+    }
+    Ok(VerifiedPackage {
+        manifest_sha256: sha256_hex(manifest_bytes),
+        manifest,
+        signer,
+        approvers,
+        members: delivery.members,
+        signer_id,
+        approver_ids,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn check_approvals_v2(
+    manifest: &Manifest,
+    binding: &ApprovalBinding,
+    trust: &PackageTrust,
+    v2: &V2Trust,
+    crls: &[Vec<u8>],
+    at: UnixTime,
+    now: DateTime<Utc>,
+    report: &mut Report,
+) -> (Vec<CertificateIdentity>, Vec<String>) {
+    let mut identities = Vec::new();
+    let mut ids: Vec<String> = Vec::new();
+    for (index, approval) in manifest.approvals.iter().enumerate() {
+        let path = format!("manifest.approvals[{index}]");
+        let invalid = |reason: String| {
+            Problem::error(
+                Code::NotApproved,
+                path.clone(),
+                format!("the approval by {} doesn't count: {reason}", approval.name),
+            )
+            .id("package.approval-invalid")
+            .detail("name", &approval.name)
+            .detail("reason", reason)
+        };
+        let algorithms: &[&dyn SignatureVerificationAlgorithm] =
+            match approval.algorithm {
+                SignatureAlgorithm::EcdsaP256Sha256 => {
+                    &[webpki::ring::ECDSA_P256_SHA256]
+                }
+                SignatureAlgorithm::RsaPssSha256 => {
+                    &[webpki::ring::RSA_PSS_2048_8192_SHA256_LEGACY_KEY]
+                }
+                SignatureAlgorithm::RsaPkcs1Sha256 => {
+                    report.push(
+                        Problem::error(
+                            Code::NotApproved,
+                            path.clone(),
+                            format!(
+                                "the approval by {} uses RSA PKCS#1 v1.5, which \
+                                 format 2 doesn't accept",
+                                approval.name
+                            ),
+                        )
+                        .id("package.approval-algorithm"),
+                    );
+                    continue;
+                }
+            };
+        let Some(claimed) = approval.signer_id.as_deref() else {
+            report.push(invalid("it names no signer ID".to_string()));
+            continue;
+        };
+        // The signed payload says `approver`; the record must not say else.
+        if approval.role != SignerRole::Approver.as_str() {
+            report.push(
+                Problem::error(
+                    Code::NotApproved,
+                    path.clone(),
+                    format!(
+                        "the approval by {} is labelled '{}', and a format-2 \
+                         approval's role is approver",
+                        approval.name, approval.role
+                    ),
+                )
+                .id("package.approval-role-label"),
+            );
+            continue;
+        }
+        if let Err(problem) = not_from_the_future(approval, Some(now)) {
+            report.push(invalid(problem));
+            continue;
+        }
+        let payload = match approval_payload_v2(binding, claimed) {
+            Ok(payload) => payload,
+            Err(problem) => {
+                report.push(problem);
+                continue;
+            }
+        };
+        let checked = certificates_from_pem(&approval.certificate_chain)
+            .and_then(|chain| {
+                let identity = check_certificate(
+                    &chain,
+                    &trust.staff_roots,
+                    crls,
+                    at,
+                    Role::Approver,
+                )
+                .map_err(|problem| problem.message)?;
+                rsa_key_allowed(&chain[0])?;
+                let signature = STANDARD
+                    .decode(approval.signature.trim())
+                    .map_err(|error| format!("the signature is not base64: {error}"))?;
+                verify_with(&chain[0], algorithms, payload.as_bytes(), &signature)?;
+                Ok(identity)
+            });
+        let identity = match checked {
+            Ok(identity) => identity,
+            Err(reason) => {
+                report.push(invalid(reason));
+                continue;
+            }
+        };
+        let Some(enrolled) = v2.enrollment.signer_of(&identity.spki_sha256) else {
+            report.push(
+                Problem::error(
+                    Code::NotApproved,
+                    path.clone(),
+                    format!(
+                        "{}'s key is not enrolled for this tenant",
+                        approval.name
+                    ),
+                )
+                .id("package.approver-id-mismatch")
+                .detail("spki_sha256", &identity.spki_sha256),
+            );
+            continue;
+        };
+        if enrolled.id != claimed {
+            report.push(
+                Problem::error(
+                    Code::NotApproved,
+                    path.clone(),
+                    format!(
+                        "the approval names {claimed}, and its key is {}'s",
+                        enrolled.id
+                    ),
+                )
+                .id("package.approver-id-mismatch"),
+            );
+            continue;
+        }
+        if !enrolled.roles.contains(&SignerRole::Approver) {
+            report.push(
+                Problem::error(
+                    Code::NotApproved,
+                    path.clone(),
+                    format!("{} may not approve", enrolled.id),
+                )
+                .id("package.approver-role"),
+            );
+            continue;
+        }
+        if ids.contains(&enrolled.id) {
+            report.push(
+                Problem::error(
+                    Code::NotApproved,
+                    path.clone(),
+                    format!(
+                        "{} approved more than once (with another certificate); \
+                         a person approves once",
+                        enrolled.id
+                    ),
+                )
+                .id("package.duplicate-signer"),
+            );
+            continue;
+        }
+        ids.push(enrolled.id.clone());
+        identities.push(identity);
+    }
+    let required = usize::from(trust.required_approvals);
+    if ids.len() < required {
+        report.push(
+            Problem::error(
+                Code::NotApproved,
+                "manifest.approvals",
+                format!(
+                    "{} valid approvals from different enrolled people, and \
+                     {required} are needed",
+                    ids.len()
+                ),
+            )
+            .id("package.too-few-approvals")
+            .detail("count", ids.len())
+            .detail("required", required),
+        );
+    }
+    (identities, ids)
+}
+
+/// RSA keys sign format-2 packages only with 2048 to 4096 bits.
+fn rsa_key_allowed(certificate_der: &[u8]) -> Result<(), String> {
+    let (_, parsed) = X509Certificate::from_der(certificate_der)
+        .map_err(|error| format!("the certificate is unreadable: {error}"))?;
+    rsa_modulus_allowed(parsed.public_key().raw)
+}
+
+/// For a SubjectPublicKeyInfo (DER): an RSA modulus must be 2048–4096 bits;
+/// any other key type is left to the signature check.
+pub fn rsa_modulus_allowed(spki_der: &[u8]) -> Result<(), String> {
+    use x509_parser::public_key::PublicKey;
+    use x509_parser::x509::SubjectPublicKeyInfo;
+    let (_, spki) = SubjectPublicKeyInfo::from_der(spki_der)
+        .map_err(|error| format!("the public key is unreadable: {error}"))?;
+    match spki.parsed() {
+        Ok(PublicKey::RSA(rsa)) => {
+            let bits = rsa.key_size();
+            if (2048..=4096).contains(&bits) {
+                Ok(())
+            } else {
+                Err(format!(
+                    "the RSA key has {bits} bits, and format 2 accepts 2048 to 4096"
+                ))
+            }
+        }
+        Ok(_) => Ok(()),
+        Err(error) => Err(format!("the public key is unreadable: {error}")),
+    }
+}
+
+/// The SPKI pin of a certificate (PEM, the first one): what a format-2 policy
+/// enrolls for a key.
+pub fn spki_sha256_of_certificate(pem: &str) -> Result<String, String> {
+    let ders = certificates_from_pem(pem)?;
+    let Some(first) = ders.first() else {
+        return Err("there is no certificate".to_string());
+    };
+    let (_, parsed) = X509Certificate::from_der(first)
+        .map_err(|error| format!("the certificate is unreadable: {error}"))?;
+    Ok(sha256_hex(parsed.public_key().raw))
+}
+
+fn downgrade_refused() -> Problem {
+    Problem::error(
+        Code::Rollback,
+        super::manifest::MANIFEST_MEMBER,
+        "this tenant imports format-2 packages only, and this is format 1",
+    )
+    .id("package.downgrade-refused")
+}
+
+fn mixed_format() -> Problem {
+    Problem::error(
+        Code::InvalidValue,
+        super::manifest::MANIFEST_MEMBER,
+        "a format-1 manifest carries format-2 fields",
+    )
+    .id("package.mixed-format")
 }
 
 /// An approval dated later than `now` is refused, as a package is.
@@ -718,7 +1709,9 @@ fn compare_entries(
 
 fn read_manifest(bytes: &[u8]) -> Result<Manifest, Problem> {
     match declared_format(bytes) {
-        Some(format) if format == ManifestFormat::V1.as_str() => {}
+        Some(format)
+            if format == ManifestFormat::V1.as_str()
+                || format == ManifestFormat::V2.as_str() => {}
         Some(format) => {
             return Err(Problem::error(
                 Code::IncompatibleVersion,
@@ -840,6 +1833,7 @@ fn check_certificate(
         issuer: parsed.issuer().to_string(),
         serial: hex::encode(parsed.raw_serial()),
         fingerprint_sha256: sha256_hex(leaf),
+        spki_sha256: sha256_hex(parsed.public_key().raw),
     })
 }
 
