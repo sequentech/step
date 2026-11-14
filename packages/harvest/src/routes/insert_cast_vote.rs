@@ -258,13 +258,12 @@ pub async fn insert_cast_vote(
                     ErrorCode::InternalServerError,
                 )
             }
-            CastVoteError::PokValidationFailed(_) => {
-                ErrorResponse::new(
-                    Status::BadRequest,
-                    ErrorCode::PokValidationFailed.to_string().as_str(),
-                    ErrorCode::PokValidationFailed,
-                )
-            }
+            CastVoteError::PokValidationFailed(_)
+            | CastVoteError::CiphertextAlreadyCast => ErrorResponse::new(
+                Status::BadRequest,
+                ErrorCode::PokValidationFailed.to_string().as_str(),
+                ErrorCode::PokValidationFailed,
+            ),
             CastVoteError::BallotSignFailed(_) => ErrorResponse::new(
                 Status::InternalServerError,
                 ErrorCode::InternalServerError.to_string().as_str(),
