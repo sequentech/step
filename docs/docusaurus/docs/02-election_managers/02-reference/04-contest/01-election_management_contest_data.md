@@ -120,6 +120,8 @@ When voter selects fewer options than the maximum allowed:
 - **Warn and Alert**: Warning during ballot; confirmation required to proceed.
 - **Warn and Confirm in Review**: Warning only in review phase. When the voter casts the ballot, a dialog lists every contest with this policy that has unfilled positions, with the number of options selected out of the maximum. The voter can go back to review and edit the selections, or continue and cast the ballot as it is.
 
+Selecting the contest's explicit blank option is not an undervote. With any of these policies, a contest where the voter selects the blank option shows no undervote warning or alert, and isn't listed in the **Warn and Confirm in Review** dialog.
+
 With **Warn and Confirm in Review** the undervote remains a valid vote: the voter is never forced to fill a position. The confirmation is asked each time the voter casts, so it is asked again after editing the ballot if positions are still unfilled. A contest left empty is listed as well, as long as its Blank Vote Policy allows it. When the dialog is shown it replaces the election's cast confirmation dialog, so the voter confirms once.
 
 #### Over Vote Policy

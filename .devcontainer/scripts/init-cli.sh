@@ -24,4 +24,5 @@ pushd packages/step-cli
 cargo build --release
 popd
 
+source .devcontainer/scripts/set-dev-passwords.sh
 source .devcontainer/scripts/config-cli.sh

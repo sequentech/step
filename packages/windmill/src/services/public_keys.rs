@@ -53,9 +53,19 @@ pub async fn create_keys(
     Ok(())
 }
 
+/// The board's agreed election public key, or `None` while the keys ceremony
+/// is still running.
 #[instrument(err)]
-pub async fn get_public_key(board_name: String) -> Result<String> {
-    let pk = protocol_manager::get_board_public_key::<RistrettoCtx>(board_name.as_str()).await?;
+pub async fn get_public_key(
+    board_name: String,
+    manager: &StrandSignaturePk,
+) -> Result<Option<String>> {
+    let Some(pk) =
+        protocol_manager::get_board_public_key::<RistrettoCtx>(board_name.as_str(), manager)
+            .await?
+    else {
+        return Ok(None);
+    };
     let pk_bytes = pk.strand_serialize()?;
-    Ok(general_purpose::STANDARD_NO_PAD.encode(pk_bytes))
+    Ok(Some(general_purpose::STANDARD_NO_PAD.encode(pk_bytes)))
 }

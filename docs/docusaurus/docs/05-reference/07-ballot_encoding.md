@@ -334,6 +334,11 @@ For the minimum-selections rule, a set explicit invalid flag or a set explicit
 blank flag counts as one selection: a contest that is deliberately marked
 invalid or blank must not additionally be reported as under the minimum.
 
+The undervote rule does not apply when the explicit blank flag is set: selecting
+explicit blank is a deliberate choice, not an undervote, so no undervote alert is
+raised. A set explicit invalid flag still counts as one selection for the
+undervote rule.
+
 ## 9. Error conditions
 
 Compatible implementations must detect and report at least the following error

@@ -863,6 +863,18 @@ async fn map_plaintext_data(
 
     // convert board messages into messages
     let messages: Vec<Message> = protocol_manager::convert_board_messages(&board_messages)?;
+    let manager =
+        protocol_manager::get_protocol_manager::<strand::backend::ristretto::RistrettoCtx>(
+            hasura_transaction,
+            &tenant_id,
+            Some(&election_event_id),
+            &bulletin_board,
+        )
+        .await?;
+    let manager_pk = strand::signature::StrandSignaturePk::from_sk(&manager.signing_key)?;
+    let trusted_config = b3::messages::trusted_board::verify_board::<
+        strand::backend::ristretto::RistrettoCtx,
+    >(&messages, &manager_pk)?;
     print_messages(&messages, &bulletin_board)?;
 
     // `create_tally_ceremony` refuses this combination when a session is
@@ -1114,10 +1126,12 @@ async fn map_plaintext_data(
 
     event!(Level::INFO, "Num batch_ids {}", batch_ids.len());
 
+    let agreed_plaintexts =
+        b3::messages::trusted_board::agreed_plaintexts(&messages, &trusted_config);
+
     // find if there are new plaintexs (= with equal/higher timestamp) that have the batch ids we need
-    let has_next_plaintext = messages.iter().any(|message| {
+    let has_next_plaintext = agreed_plaintexts.iter().any(|message| {
         message.statement.get_timestamp() >= next_timestamp
-            && message.statement.get_kind() == StatementType::Plaintexts
             && batch_ids.contains(&(message.statement.get_batch_number() as i64))
     });
 
@@ -1133,6 +1147,7 @@ async fn map_plaintext_data(
         tally_session.clone(),
         tally_session_contest.clone(),
         &messages,
+        &agreed_plaintexts,
     )
     .await?;
     let mut new_logs = generate_logs(&messages, next_timestamp, &batch_ids)?;
@@ -1170,12 +1185,10 @@ async fn map_plaintext_data(
     event!(Level::INFO, "Num ballot_styles {}", ballot_styles.len());
 
     // find all plaintexs (even with lower ids/timestamps) for this tally session/batch ids
-    let relevant_plaintexts: Vec<&Message> = messages
+    let relevant_plaintexts: Vec<&Message> = agreed_plaintexts
         .iter()
-        .filter(|message| {
-            message.statement.get_kind() == StatementType::Plaintexts
-                && batch_ids.contains(&(message.statement.get_batch_number() as i64))
-        })
+        .copied()
+        .filter(|message| batch_ids.contains(&(message.statement.get_batch_number() as i64)))
         .collect();
     event!(
         Level::INFO,

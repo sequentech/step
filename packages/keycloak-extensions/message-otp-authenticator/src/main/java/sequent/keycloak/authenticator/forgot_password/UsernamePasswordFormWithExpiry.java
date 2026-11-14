@@ -70,7 +70,15 @@ public class UsernamePasswordFormWithExpiry extends AbstractUsernameFormAuthenti
     if (!validateForm(context, formData)) {
       return;
     }
-    context.success();
+    if (getDisablePassword(context)) {
+      // No password was checked, so record none: conditional-credential steps and brute-force
+      // accounting read the credential type a login recorded.
+      context.success();
+    } else {
+      // Keycloak 26.7 clears a user's brute-force failures after a login only when the login
+      // recorded a counted credential type, so name the password, as UsernamePasswordForm does.
+      context.success(PasswordCredentialModel.TYPE);
+    }
   }
 
   protected boolean validateForm(

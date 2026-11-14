@@ -219,6 +219,17 @@ pub fn check_voting_error_dialog_util(
                     explicit_invalid && !explicit_invalid_marker_selected,
                 );
 
+            // A selected explicit blank is a deliberate choice, not an
+            // undervote.
+            let explicit_blank_selected =
+                decoded_contest.choices.iter().any(|choice| {
+                    choice.selected == 0
+                        && contest.candidates.iter().any(|candidate| {
+                            candidate.id == choice.id
+                                && candidate.is_explicit_blank()
+                        })
+                });
+
             // Show Alert dialog if:
             // - there are invalid error and it's not allowed. ALLOWED_WITH_EXCLUSIVE_EXPLICIT
             //   behaves like ALLOWED here: it only changes how the explicit-invalid
@@ -242,9 +253,11 @@ pub fn check_voting_error_dialog_util(
                     && over_vote_policy
                         == EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT)
             // - it's not a blank vote because there is at least one selection,
-            //   the selection is less than the maximum (i.e. undervote) and
-            //   undervote policy is WARN_AND_ALERT
+            //   the selection is less than the maximum (i.e. undervote), the
+            //   explicit blank option isn't selected and undervote policy is
+            //   WARN_AND_ALERT
                 || ((selections_with_markers > 0
+                    && !explicit_blank_selected
                     && (selections_with_markers as i64) >= min
                     && (selections_with_markers as i64) < max)
                     && under_vote_policy == EUnderVotePolicy::WARN_AND_ALERT)
@@ -509,5 +522,82 @@ pub fn get_decoded_contest_plurality(contest: &Contest) -> DecodedVoteContest {
             selected: -1,
             write_in_text: None,
         }],
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const EXPLICIT_BLANK_ID: &str = "4";
+
+    /// Plurality contest (max 3, min 0) whose last candidate is the explicit
+    /// blank option, with the undervote policy set to WARN_AND_ALERT.
+    fn undervote_alert_contest() -> Contest {
+        let mut contest = get_contest_plurality(
+            EOverVotePolicy::ALLOWED,
+            EBlankVotePolicy::ALLOWED,
+            InvalidVotePolicy::ALLOWED,
+            Some(0),
+        );
+        contest
+            .presentation
+            .as_mut()
+            .expect("fixture has a presentation")
+            .under_vote_policy = Some(EUnderVotePolicy::WARN_AND_ALERT);
+        contest
+            .candidates
+            .iter_mut()
+            .find(|candidate| candidate.id == EXPLICIT_BLANK_ID)
+            .expect("fixture has the explicit blank candidate")
+            .presentation
+            .as_mut()
+            .expect("fixture candidate has a presentation")
+            .is_explicit_blank = Some(true);
+        contest
+    }
+
+    fn decoded_with_selected(
+        contest: &Contest,
+        selected_ids: &[&str],
+    ) -> HashMap<String, DecodedVoteContest> {
+        let decoded = DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: contest
+                .candidates
+                .iter()
+                .map(|candidate| DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: if selected_ids.contains(&candidate.id.as_str()) {
+                        0
+                    } else {
+                        -1
+                    },
+                    write_in_text: None,
+                })
+                .collect(),
+        };
+        HashMap::from([(contest.id.clone(), decoded)])
+    }
+
+    #[test]
+    fn test_explicit_blank_does_not_raise_under_vote_dialog() {
+        let contest = undervote_alert_contest();
+        let decoded = decoded_with_selected(&contest, &[EXPLICIT_BLANK_ID]);
+
+        assert!(!check_voting_error_dialog_util(vec![contest], decoded));
+    }
+
+    #[test]
+    fn test_under_vote_still_raises_dialog() {
+        let contest = undervote_alert_contest();
+        let decoded = decoded_with_selected(&contest, &["0"]);
+
+        assert!(check_voting_error_dialog_util(vec![contest], decoded));
     }
 }

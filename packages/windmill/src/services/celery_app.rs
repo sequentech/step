@@ -20,7 +20,8 @@ use crate::tasks::delete_tenant::delete_tenant_t;
 use crate::tasks::delete_users::delete_users;
 use crate::tasks::edit_user::edit_user;
 use crate::tasks::electoral_log::{
-    electoral_log_batch_dispatcher, enqueue_electoral_log_event, process_electoral_log_events_batch,
+    electoral_log_batch_dispatcher, enqueue_electoral_log_event,
+    process_electoral_log_events_batch, relay_electoral_log_outbox,
 };
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::export_application::export_application;
@@ -90,6 +91,29 @@ pub enum Queue {
     ElectoralLogBatch,
     #[strum(serialize = "electoral_log_event_queue")]
     ElectoralLogEvent,
+    #[strum(serialize = "electoral_log_dead_letter_queue")]
+    ElectoralLogDeadLetter,
+}
+
+/// Audit event/batch queues are consumed only by the durable dispatcher. Keep
+/// existing deployment queue arguments compatible without Celery acknowledging
+/// audit failures before persistence. Caller validates duplicate input first.
+pub fn durable_electoral_log_consumer_queues(queues: Vec<String>, slug: &str) -> Vec<String> {
+    let event = Queue::ElectoralLogEvent.queue_name(slug);
+    let batch = Queue::ElectoralLogBatch.queue_name(slug);
+    let beat = Queue::ElectoralLogBeat.queue_name(slug);
+    let mut selected = Vec::new();
+    for queue in queues {
+        let queue = if queue == event || queue == batch {
+            beat.clone()
+        } else {
+            queue
+        };
+        if !selected.contains(&queue) {
+            selected.push(queue);
+        }
+    }
+    selected
 }
 
 impl Queue {
@@ -306,6 +330,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             enqueue_electoral_log_event,
             process_electoral_log_events_batch,
             electoral_log_batch_dispatcher,
+            relay_electoral_log_outbox,
             process_cast_vote,
             edit_user,
             render_document_pdf,
@@ -368,6 +393,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             enqueue_electoral_log_event::NAME => &Queue::ElectoralLogEvent.queue_name(&slug),
             process_electoral_log_events_batch::NAME => &Queue::ElectoralLogBatch.queue_name(&slug),
             electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
+            relay_electoral_log_outbox::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
             execute_plugin_task::NAME => &Queue::Short.queue_name(&slug),
             prepare_publication_preview::NAME => &Queue::Beat.queue_name(&slug),
             export_tally_results_to_xlsx_task::NAME => &Queue::ImportExport.queue_name(&slug),
@@ -417,4 +443,33 @@ pub async fn get_celery_connection() -> Result<Arc<Connection>> {
 
     // No connection exists, create a new one
     create_connection().await.map(|(connection, _)| connection)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn electoral_log_queues_are_left_to_the_dispatcher() {
+        let queues = [
+            "beat",
+            "electoral_log_batch_queue",
+            "electoral_log_beat_queue",
+        ]
+        .iter()
+        .map(|queue| format!("dev_{queue}"))
+        .collect();
+
+        assert_eq!(
+            durable_electoral_log_consumer_queues(queues, "dev"),
+            vec!["dev_beat", "dev_electoral_log_beat_queue"]
+        );
+        assert_eq!(
+            durable_electoral_log_consumer_queues(
+                vec!["dev_electoral_log_event_queue".into()],
+                "dev"
+            ),
+            vec!["dev_electoral_log_beat_queue"]
+        );
+    }
 }

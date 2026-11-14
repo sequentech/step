@@ -1,0 +1,3 @@
+table:
+    name: electoral_log_outbox
+    schema: sequent_backend

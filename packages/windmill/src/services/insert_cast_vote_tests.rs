@@ -212,7 +212,7 @@ fn early_voting_area_does_not_overwrite_transport_channels() {
 }
 
 #[path = "insert_cast_vote_database_tests.rs"]
-mod database;
+pub(super) mod database;
 
 #[test]
 fn kiosk_and_telephone_use_their_own_status_and_ignore_online_schedule() {
