@@ -47,6 +47,7 @@ export const getElectoralLog = (fields: any) => {
                     statement_kind
                     message
                     user_id
+                    verification_status
                 }
                 total {
                     aggregate {

@@ -543,8 +543,11 @@ pub async fn process_export_zip(
         // in batches (same path used by ActivityLogsTemplate::execute_report for
         // the CSV report type), since prepare_user_data is not implemented for
         // this report type.
+        let system_pk = activity_logs_template
+            .electoral_log_system_pk(&hasura_transaction)
+            .await?;
         let temp_activity_logs_file = activity_logs_template
-            .generate_export_csv_data(&activity_logs_filename)
+            .generate_export_csv_data(&activity_logs_filename, &system_pk)
             .await
             .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
 

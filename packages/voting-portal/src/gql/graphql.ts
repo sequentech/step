@@ -352,6 +352,7 @@ export type ElectoralLogRow = {
   statement_kind: Scalars['String']['output'];
   statement_timestamp: Scalars['Int']['output'];
   user_id: Scalars['String']['output'];
+  verification_status?: Maybe<Scalars['String']['output']>;
 };
 
 export type EncryptReportOutput = {

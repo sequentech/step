@@ -18,7 +18,11 @@ import {
 } from "react-admin"
 import {ListActions} from "@/components/ListActions"
 import {useTranslation} from "react-i18next"
-import {Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {
+    ElectoralLogRow,
+    Sequent_Backend_Election,
+    Sequent_Backend_Election_Event,
+} from "@/gql/graphql"
 import {Dialog} from "@sequentech/ui-essentials"
 import {FormStyles} from "./styles/FormStyles"
 import {EXPORT_ELECTION_EVENT_LOGS} from "@/queries/ExportElectionEventLogs"
@@ -289,6 +293,16 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                                 initialLength={50}
                             />
                         )}
+                    />
+                    <FunctionField
+                        source="verification_status"
+                        label={String(t("logsScreen.column.verification_status"))}
+                        sortable={false}
+                        render={(record: ElectoralLogRow) =>
+                            record.verification_status
+                                ? t(`logsScreen.verificationStatus.${record.verification_status}`)
+                                : "-"
+                        }
                     />
                     <MessageField source="message" />
                 </DatagridConfigurable>
