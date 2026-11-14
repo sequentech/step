@@ -69,18 +69,7 @@ impl DoTally {
         base_file_path: &PathBuf,
     ) -> Result<()> {
         let base_breakdown_path = base_file_path.join(OUTPUT_BREAKDOWNS_FOLDER);
-        let mut breakdown_map: HashMap<VotingChannel, ContestResult> = HashMap::new();
-
-        for (contest_result, tally_sheet) in tally_sheet_results {
-            let channel: VotingChannel = tally_sheet.channel.clone().into();
-
-            breakdown_map
-                .entry(channel)
-                .and_modify(|current_result| {
-                    current_result.aggregate(&contest_result, true);
-                })
-                .or_insert_with(|| contest_result.clone());
-        }
+        let breakdown_map = aggregate_by_channel(tally_sheet_results)?;
 
         for (channel, contest_result) in breakdown_map {
             let breakdown_folder_path = base_breakdown_path.join(&channel.to_string());
@@ -92,6 +81,42 @@ impl DoTally {
 
         Ok(())
     }
+}
+
+/// Adds up the tally sheet results of each voting channel.
+#[instrument(err, skip_all)]
+fn aggregate_by_channel(
+    tally_sheet_results: &Vec<(ContestResult, TallySheet)>,
+) -> Result<HashMap<VotingChannel, ContestResult>> {
+    let mut breakdown_map: HashMap<VotingChannel, ContestResult> = HashMap::new();
+
+    for (contest_result, tally_sheet) in tally_sheet_results {
+        let channel: VotingChannel = tally_sheet.channel.clone().into();
+
+        match breakdown_map.get_mut(&channel) {
+            Some(current_result) => {
+                *current_result = current_result.aggregate(contest_result, true)?;
+            }
+            None => {
+                breakdown_map.insert(channel, contest_result.clone());
+            }
+        }
+    }
+
+    Ok(breakdown_map)
+}
+
+/// Adds up vote counts, failing instead of wrapping when the total does not
+/// fit in u64: release builds don't check overflow, and tally sheet counts
+/// are typed in by hand.
+pub(crate) fn checked_count_sum(
+    counts: impl IntoIterator<Item = u64>,
+    counter: &str,
+) -> Result<u64> {
+    counts
+        .into_iter()
+        .try_fold(0u64, u64::checked_add)
+        .ok_or_else(|| Error::UnexpectedError(format!("Tally count overflow for {counter}")))
 }
 
 impl Pipe for DoTally {
@@ -409,12 +434,11 @@ pub struct InvalidVotes {
 
 impl InvalidVotes {
     #[instrument]
-    pub fn aggregate(&self, other: &InvalidVotes) -> InvalidVotes {
-        let mut sum = self.clone();
-
-        sum.explicit += other.explicit;
-        sum.implicit += other.implicit;
-        sum
+    pub fn aggregate(&self, other: &InvalidVotes) -> Result<InvalidVotes> {
+        Ok(InvalidVotes {
+            explicit: checked_count_sum([self.explicit, other.explicit], "explicit")?,
+            implicit: checked_count_sum([self.implicit, other.implicit], "implicit")?,
+        })
     }
 }
 
@@ -436,15 +460,23 @@ pub struct ExtendedMetricsContest {
 
 impl ExtendedMetricsContest {
     #[instrument(skip_all)]
-    pub fn aggregate(&self, other: &ExtendedMetricsContest) -> ExtendedMetricsContest {
-        let mut result = self.clone();
-        result.over_votes += other.over_votes;
-        result.under_votes += other.under_votes;
-        result.votes_actually += other.votes_actually;
-        result.expected_votes += other.expected_votes;
-        result.total_ballots += other.total_ballots;
-
-        result
+    pub fn aggregate(&self, other: &ExtendedMetricsContest) -> Result<ExtendedMetricsContest> {
+        Ok(ExtendedMetricsContest {
+            over_votes: checked_count_sum([self.over_votes, other.over_votes], "over_votes")?,
+            under_votes: checked_count_sum([self.under_votes, other.under_votes], "under_votes")?,
+            votes_actually: checked_count_sum(
+                [self.votes_actually, other.votes_actually],
+                "votes_actually",
+            )?,
+            expected_votes: checked_count_sum(
+                [self.expected_votes, other.expected_votes],
+                "expected_votes",
+            )?,
+            total_ballots: checked_count_sum(
+                [self.total_ballots, other.total_ballots],
+                "total_ballots",
+            )?,
+        })
     }
 }
 
@@ -480,7 +512,9 @@ pub struct ContestResult {
 impl ContestResult {
     #[instrument(skip_all)]
     pub fn calculate_percentages(&self) -> ContestResult {
-        let valid_not_blank = self.total_valid_votes - self.total_blank_votes;
+        let valid_not_blank = self
+            .total_valid_votes
+            .saturating_sub(self.total_blank_votes);
         let candidate_result: Vec<CandidateResult> = self
             .candidate_result
             .clone()
@@ -536,19 +570,29 @@ impl ContestResult {
     }
 
     #[instrument(skip_all)]
-    pub fn aggregate(&self, other: &ContestResult, add_census: bool) -> ContestResult {
+    pub fn aggregate(&self, other: &ContestResult, add_census: bool) -> Result<ContestResult> {
         let mut aggregate = self.clone();
         if add_census {
-            aggregate.census += other.census;
+            aggregate.census = checked_count_sum([aggregate.census, other.census], "census")?;
         }
         let aggregate_metrics = aggregate.extended_metrics.unwrap_or_default();
         aggregate.extended_metrics =
-            Some(aggregate_metrics.aggregate(&other.extended_metrics.clone().unwrap_or_default()));
-        aggregate.total_votes += other.total_votes;
-        aggregate.total_valid_votes += other.total_valid_votes;
-        aggregate.total_invalid_votes += other.total_invalid_votes;
-        aggregate.total_blank_votes += other.total_blank_votes;
-        aggregate.invalid_votes = aggregate.invalid_votes.aggregate(&other.invalid_votes);
+            Some(aggregate_metrics.aggregate(&other.extended_metrics.clone().unwrap_or_default())?);
+        aggregate.total_votes =
+            checked_count_sum([aggregate.total_votes, other.total_votes], "total_votes")?;
+        aggregate.total_valid_votes = checked_count_sum(
+            [aggregate.total_valid_votes, other.total_valid_votes],
+            "total_valid_votes",
+        )?;
+        aggregate.total_invalid_votes = checked_count_sum(
+            [aggregate.total_invalid_votes, other.total_invalid_votes],
+            "total_invalid_votes",
+        )?;
+        aggregate.total_blank_votes = checked_count_sum(
+            [aggregate.total_blank_votes, other.total_blank_votes],
+            "total_blank_votes",
+        )?;
+        aggregate.invalid_votes = aggregate.invalid_votes.aggregate(&other.invalid_votes)?;
 
         let mut candidate_map: HashMap<String, CandidateResult> = HashMap::new();
 
@@ -560,15 +604,23 @@ impl ContestResult {
         }
 
         for candidate_result in &other.candidate_result {
-            candidate_map
-                .entry(candidate_result.candidate.id.clone())
-                .and_modify(|entry| entry.total_count += candidate_result.total_count)
-                .or_insert_with(|| candidate_result.clone());
+            let candidate_id = &candidate_result.candidate.id;
+            match candidate_map.get_mut(candidate_id) {
+                Some(entry) => {
+                    entry.total_count = checked_count_sum(
+                        [entry.total_count, candidate_result.total_count],
+                        candidate_id,
+                    )?;
+                }
+                None => {
+                    candidate_map.insert(candidate_id.clone(), candidate_result.clone());
+                }
+            }
         }
 
         aggregate.candidate_result = candidate_map.into_values().collect();
 
-        aggregate.calculate_percentages()
+        Ok(aggregate.calculate_percentages())
     }
 }
 
@@ -588,5 +640,141 @@ impl HasId for Contest {
 impl HasId for Candidate {
     fn id(&self) -> &str {
         &self.id
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn candidate(id: &str) -> Candidate {
+        Candidate {
+            id: id.to_string(),
+            ..Candidate::default()
+        }
+    }
+
+    fn contest_result(candidate_votes: u64, total_votes: u64) -> ContestResult {
+        ContestResult {
+            census: total_votes,
+            total_votes,
+            total_valid_votes: total_votes,
+            candidate_result: vec![CandidateResult {
+                candidate: candidate("candidate"),
+                percentage_votes: 0.0,
+                total_count: candidate_votes,
+            }],
+            ..ContestResult::default()
+        }
+    }
+
+    fn tally_sheet(id: &str, channel: Option<&str>) -> TallySheet {
+        TallySheet {
+            id: id.to_string(),
+            tenant_id: "tenant".to_string(),
+            election_event_id: "event".to_string(),
+            election_id: "election".to_string(),
+            contest_id: "contest".to_string(),
+            area_id: "area".to_string(),
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations: None,
+            published_at: None,
+            published_by_user_id: None,
+            content: None,
+            channel: channel.map(str::to_string),
+            deleted_at: None,
+            created_by_user_id: "user".to_string(),
+        }
+    }
+
+    #[test]
+    fn contest_result_aggregate_adds_counts_that_fit() {
+        let aggregate = contest_result(500, 600)
+            .aggregate(&contest_result(100, 150), true)
+            .expect("counts fit");
+
+        assert_eq!(aggregate.census, 750);
+        assert_eq!(aggregate.total_votes, 750);
+        assert_eq!(aggregate.candidate_result[0].total_count, 600);
+    }
+
+    #[test]
+    fn contest_result_aggregate_rejects_candidate_counts_beyond_the_counter_range() {
+        // 500 + (2^64 - 100) would wrap to 400.
+        let electronic = contest_result(500, 600);
+        let tally_sheet = contest_result(u64::MAX - 99, 0);
+
+        assert!(electronic.aggregate(&tally_sheet, false).is_err());
+    }
+
+    #[test]
+    fn contest_result_aggregate_rejects_totals_beyond_the_counter_range() {
+        let electronic = contest_result(0, 1);
+        let tally_sheet = contest_result(0, u64::MAX);
+
+        assert!(electronic.aggregate(&tally_sheet, false).is_err());
+    }
+
+    #[test]
+    fn contest_result_aggregate_rejects_census_beyond_the_counter_range() {
+        let mut tally_sheet = contest_result(0, 0);
+        tally_sheet.census = u64::MAX;
+
+        assert!(contest_result(0, 1).aggregate(&tally_sheet, false).is_ok());
+        assert!(contest_result(0, 1).aggregate(&tally_sheet, true).is_err());
+    }
+
+    #[test]
+    fn invalid_and_extended_counts_reject_sums_beyond_the_counter_range() {
+        let invalid = InvalidVotes {
+            explicit: u64::MAX,
+            implicit: 0,
+        };
+        let one_explicit = InvalidVotes {
+            explicit: 1,
+            implicit: 0,
+        };
+        assert!(invalid.aggregate(&one_explicit).is_err());
+
+        let metrics = ExtendedMetricsContest {
+            total_ballots: u64::MAX,
+            ..Default::default()
+        };
+        let one_ballot = ExtendedMetricsContest {
+            total_ballots: 1,
+            ..Default::default()
+        };
+        assert!(metrics.aggregate(&one_ballot).is_err());
+    }
+
+    #[test]
+    fn calculate_percentages_handles_more_blank_than_valid_votes() {
+        // A tally sheet's valid votes are its candidate votes, so its blank
+        // votes may exceed them.
+        let mut result = contest_result(3, 3);
+        result.total_blank_votes = 10;
+
+        let result = result.calculate_percentages();
+
+        assert_eq!(result.candidate_result[0].percentage_votes, 100.0);
+    }
+
+    #[test]
+    fn breakdown_adds_up_the_tally_sheets_of_each_channel() {
+        let results = vec![
+            (contest_result(4, 5), tally_sheet("paper-1", Some("PAPER"))),
+            (contest_result(2, 3), tally_sheet("paper-2", None)),
+            (contest_result(1, 1), tally_sheet("postal", Some("POSTAL"))),
+        ];
+
+        let breakdown = aggregate_by_channel(&results).expect("counts fit");
+
+        assert_eq!(breakdown.len(), 2);
+        let paper = &breakdown[&VotingChannel::PAPER];
+        assert_eq!(paper.total_votes, 8);
+        assert_eq!(paper.candidate_result[0].total_count, 6);
+        assert_eq!(breakdown[&VotingChannel::POSTAL].total_votes, 1);
     }
 }
