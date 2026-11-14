@@ -1,16 +1,23 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::ballot_publication::get_previous_publication_election;
 use crate::postgres::election::{get_election_by_id, get_elections, update_election_voting_status};
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
+use crate::postgres::keys_ceremony::get_keys_ceremonies;
+use crate::services::ballot_styles::ballot_publication::{
+    demo_key_election_ids, get_publication_json,
+};
 use anyhow::{anyhow, Context, Result};
+use chrono::{Local, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::*;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
-use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
+use sequent_core::types::hasura::core::{Election, ElectionEvent, KeysCeremony, VotingChannels};
 use serde_json::value::Value;
+use strum_macros::Display;
 use tracing::{event, info, instrument, warn, Level};
 
 use super::voting_status::update_board_on_status_change;
@@ -21,6 +28,130 @@ pub fn get_election_event_status(status_json_opt: Option<Value>) -> Option<Elect
 
 pub fn get_election_status(status_json_opt: Option<Value>) -> Option<ElectionStatus> {
     status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
+}
+
+/// Why an election cannot open voting under `UnkeyedVotingPolicy::REFUSE`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+pub enum ElectionKeyIssue {
+    #[strum(to_string = "it has no keys ceremony")]
+    NoKeysCeremony,
+    #[strum(to_string = "its keys ceremony has no public key")]
+    NoPublicKey,
+    #[strum(
+        to_string = "its published ballot styles use the demo public key, publish again after the keys ceremony"
+    )]
+    DemoKeyPublished,
+}
+
+pub fn unkeyed_voting_policy(election_event: &ElectionEvent) -> Result<UnkeyedVotingPolicy> {
+    Ok(election_event
+        .get_presentation()
+        .map_err(|err| anyhow!("Error parsing election event presentation: {err:?}"))?
+        .unwrap_or_default()
+        .unkeyed_voting_policy
+        .unwrap_or_default())
+}
+
+/// Returns why the election cannot open voting with its election public key,
+/// or `None` when it can.
+pub fn election_key_issue(
+    election: &Election,
+    keys_ceremonies: &[KeysCeremony],
+    published_with_demo_key: bool,
+) -> Option<ElectionKeyIssue> {
+    let Some(keys_ceremony_id) = election.keys_ceremony_id.as_deref() else {
+        return Some(ElectionKeyIssue::NoKeysCeremony);
+    };
+    let public_key = keys_ceremonies
+        .iter()
+        .find(|keys_ceremony| keys_ceremony.id == keys_ceremony_id)
+        .and_then(|keys_ceremony| keys_ceremony.status().ok())
+        .and_then(|status| status.public_key);
+    if public_key.is_none() {
+        return Some(ElectionKeyIssue::NoPublicKey);
+    }
+    published_with_demo_key.then_some(ElectionKeyIssue::DemoKeyPublished)
+}
+
+/// Refuses opening voting for any of `election_ids` listed in `issues`.
+fn ensure_elections_key_ready(
+    issues: &BTreeMap<String, ElectionKeyIssue>,
+    election_ids: &[String],
+) -> Result<()> {
+    let reasons: Vec<String> = election_ids
+        .iter()
+        .filter_map(|election_id| {
+            issues
+                .get(election_id)
+                .map(|issue| format!("election {election_id}: {issue}"))
+        })
+        .collect();
+    if reasons.is_empty() {
+        return Ok(());
+    }
+    Err(anyhow!("Cannot open voting, {}", reasons.join("; ")))
+}
+
+/// Finds the elections that cannot open voting with their election public
+/// key, unless the election event allows demo voting.
+async fn find_election_key_issues(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event: &ElectionEvent,
+    elections: &[Election],
+) -> Result<BTreeMap<String, ElectionKeyIssue>> {
+    if elections.is_empty()
+        || unkeyed_voting_policy(election_event)? == UnkeyedVotingPolicy::ALLOW_DEMO
+    {
+        return Ok(BTreeMap::new());
+    }
+    let keys_ceremonies = get_keys_ceremonies(hasura_transaction, tenant_id, &election_event.id)
+        .await
+        .with_context(|| "Error obtaining keys ceremonies")?;
+    let now = Utc::now().with_timezone(&Local);
+    let mut demo_key_elections: HashMap<String, BTreeSet<String>> = HashMap::new();
+    let mut issues = BTreeMap::new();
+
+    for election in elections {
+        let publication = get_previous_publication_election(
+            hasura_transaction,
+            tenant_id,
+            &election_event.id,
+            Some(now),
+            &election.id,
+        )
+        .await
+        .with_context(|| "Error obtaining the published ballot publication")?;
+        let published_with_demo_key = match publication {
+            Some(publication) => {
+                if !demo_key_elections.contains_key(&publication.id) {
+                    let ballot_styles = get_publication_json(
+                        hasura_transaction,
+                        tenant_id.to_string(),
+                        election_event.id.clone(),
+                        publication.id.clone(),
+                        None,
+                        None,
+                    )
+                    .await?;
+                    demo_key_elections.insert(
+                        publication.id.clone(),
+                        demo_key_election_ids(&ballot_styles)?,
+                    );
+                }
+                demo_key_elections
+                    .get(&publication.id)
+                    .is_some_and(|election_ids| election_ids.contains(&election.id))
+            }
+            None => false,
+        };
+        if let Some(issue) = election_key_issue(election, &keys_ceremonies, published_with_demo_key)
+        {
+            issues.insert(election.id.clone(), issue);
+        }
+    }
+
+    Ok(issues)
 }
 
 /// Who requested an event-wide voting status change. Scheduled changes only
@@ -162,6 +293,12 @@ async fn update_event_voting_status_impl(
         return Ok(election_event);
     }
 
+    let open_key_issues = if *new_status == VotingStatus::OPEN {
+        find_election_key_issues(hasura_transaction, tenant_id, &election_event, &elections).await?
+    } else {
+        BTreeMap::new()
+    };
+
     let configured: HashMap<String, VotingChannels> = elections
         .iter()
         .filter(|_| source == VotingStatusUpdateSource::Scheduled)
@@ -189,6 +326,7 @@ async fn update_event_voting_status_impl(
                 info!("No election needs {channel:?} set to {new_status:?}, skipping");
                 continue;
             }
+            ensure_elections_key_ready(&open_key_issues, &elections_ids)?;
             update_board_on_status_change(
                 hasura_transaction,
                 &tenant_id,
@@ -255,6 +393,7 @@ async fn update_event_voting_status_impl(
                 elections_ids.push(election.id.clone());
             }
         }
+        ensure_elections_key_ready(&open_key_issues, &elections_ids)?;
 
         update_board_on_status_change(
             hasura_transaction,
@@ -397,6 +536,17 @@ pub async fn update_election_voting_status_impl(
         return Err(anyhow!(
             "It is not allowed to start EARLY_VOTING channel because ONLINE channel was already started in the past.",
         ));
+    }
+
+    if new_status == VotingStatus::OPEN {
+        let issues = find_election_key_issues(
+            hasura_transaction,
+            &tenant_id,
+            &election_event,
+            std::slice::from_ref(&election),
+        )
+        .await?;
+        ensure_elections_key_ready(&issues, std::slice::from_ref(&election_id))?;
     }
 
     status.close_early_voting_if_online_status_change(channel, new_status.clone());
@@ -724,5 +874,144 @@ mod scheduled_channel_tests {
             elections["unstarted"].early_voting_status,
             VotingStatus::OPEN
         );
+    }
+}
+
+#[cfg(test)]
+mod election_key_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn election(keys_ceremony_id: Option<&str>) -> Election {
+        serde_json::from_value(json!({
+            "id": "election-1",
+            "tenant_id": "tenant",
+            "election_event_id": "event",
+            "keys_ceremony_id": keys_ceremony_id
+        }))
+        .unwrap()
+    }
+
+    fn keys_ceremony(id: &str, public_key: Option<&str>) -> KeysCeremony {
+        serde_json::from_value(json!({
+            "id": id,
+            "tenant_id": "tenant",
+            "election_event_id": "event",
+            "trustee_ids": [],
+            "threshold": 2,
+            "status": {
+                "stop_date": null,
+                "public_key": public_key,
+                "logs": [],
+                "trustees": []
+            }
+        }))
+        .unwrap()
+    }
+
+    fn election_event(presentation: Option<Value>) -> ElectionEvent {
+        let mut event: ElectionEvent = serde_json::from_value(json!({
+            "id": "event",
+            "tenant_id": "tenant",
+            "is_archived": false,
+            "encryption_protocol": "RSA256"
+        }))
+        .unwrap();
+        event.presentation = presentation;
+        event
+    }
+
+    #[test]
+    fn opening_voting_without_a_keys_ceremony_is_refused() {
+        let ceremonies = [keys_ceremony("ceremony-1", Some("key"))];
+
+        assert_eq!(
+            election_key_issue(&election(None), &ceremonies, false),
+            Some(ElectionKeyIssue::NoKeysCeremony)
+        );
+    }
+
+    #[test]
+    fn opening_voting_with_a_ceremony_without_public_key_is_refused() {
+        let ceremonies = [keys_ceremony("ceremony-1", None)];
+
+        assert_eq!(
+            election_key_issue(&election(Some("ceremony-1")), &ceremonies, false),
+            Some(ElectionKeyIssue::NoPublicKey)
+        );
+    }
+
+    #[test]
+    fn opening_voting_with_a_ceremony_outside_the_event_is_refused() {
+        let ceremonies = [keys_ceremony("ceremony-2", Some("key"))];
+
+        assert_eq!(
+            election_key_issue(&election(Some("ceremony-1")), &ceremonies, false),
+            Some(ElectionKeyIssue::NoPublicKey)
+        );
+    }
+
+    #[test]
+    fn opening_voting_with_demo_key_ballot_styles_published_is_refused() {
+        let ceremonies = [keys_ceremony("ceremony-1", Some("key"))];
+
+        assert_eq!(
+            election_key_issue(&election(Some("ceremony-1")), &ceremonies, true),
+            Some(ElectionKeyIssue::DemoKeyPublished)
+        );
+    }
+
+    #[test]
+    fn opening_voting_with_a_finished_ceremony_is_allowed() {
+        let ceremonies = [keys_ceremony("ceremony-1", Some("key"))];
+
+        assert_eq!(
+            election_key_issue(&election(Some("ceremony-1")), &ceremonies, false),
+            None
+        );
+    }
+
+    #[test]
+    fn unkeyed_voting_is_refused_unless_the_event_allows_demo_voting() {
+        assert_eq!(
+            unkeyed_voting_policy(&election_event(None)).unwrap(),
+            UnkeyedVotingPolicy::REFUSE
+        );
+        assert_eq!(
+            unkeyed_voting_policy(&election_event(Some(json!({})))).unwrap(),
+            UnkeyedVotingPolicy::REFUSE
+        );
+        assert_eq!(
+            unkeyed_voting_policy(&election_event(Some(
+                json!({"unkeyed_voting_policy": "allow-demo"})
+            )))
+            .unwrap(),
+            UnkeyedVotingPolicy::ALLOW_DEMO
+        );
+    }
+
+    #[test]
+    fn opening_names_every_opened_election_without_a_key() {
+        let issues = BTreeMap::from([
+            ("election-b".to_string(), ElectionKeyIssue::NoKeysCeremony),
+            ("election-c".to_string(), ElectionKeyIssue::NoPublicKey),
+        ]);
+        let opened = ["election-a", "election-b", "election-c"].map(String::from);
+
+        let message = ensure_elections_key_ready(&issues, &opened)
+            .unwrap_err()
+            .to_string();
+
+        assert!(message.contains("election-b"));
+        assert!(message.contains("election-c"));
+        assert!(!message.contains("election-a"));
+    }
+
+    #[test]
+    fn opening_elections_that_all_have_a_key_is_allowed() {
+        let issues = BTreeMap::from([("election-b".to_string(), ElectionKeyIssue::NoPublicKey)]);
+        let opened = ["election-a".to_string()];
+
+        assert!(ensure_elections_key_ready(&issues, &opened).is_ok());
     }
 }

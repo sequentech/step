@@ -23,6 +23,7 @@ All publications and their respective changes can be viewed in the table using t
 **Any action performed in this tab will effect all Elections associated with the Election Event.**
 
 - **Start Election**: Begin the Election Event.
+  Each election needs a keys ceremony with a public key and a publication generated after that ceremony; otherwise it can only start in [demo mode](../../../07-developers/05-voting-portal/demo_mode.md).
 - **Pause**: Temporarily halt the Election Event.
 - **Stop Election**: End the Election Event.
 - **Publish Changes**: Apply any changes to this Election Event.  

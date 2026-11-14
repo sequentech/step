@@ -977,6 +977,35 @@ pub enum KeysCeremonyPolicy {
     ELECTION,
 }
 
+/// Whether voting can open for an election without a public key from its
+/// keys ceremony. Such an election publishes ballot styles with the demo
+/// public key, and the voting portal does not record demo ballots.
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    Copy,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum UnkeyedVotingPolicy {
+    #[default]
+    #[strum(serialize = "refuse")]
+    #[serde(rename = "refuse")]
+    REFUSE,
+    #[strum(serialize = "allow-demo")]
+    #[serde(rename = "allow-demo")]
+    ALLOW_DEMO,
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -1186,6 +1215,8 @@ pub struct ElectionEventPresentation {
     #[serde(default, deserialize_with = "deserialize_optional_json_string")]
     pub results_website: Option<String>,
     pub voting_portal_datetime_format: Option<VotingPortalDateTimeFormat>,
+    #[borsh(skip)]
+    pub unkeyed_voting_policy: Option<UnkeyedVotingPolicy>,
 }
 
 impl ElectionEvent {
