@@ -36,6 +36,10 @@ const frenchTranslation: TranslationType = {
             ciphertextErrorTitle: "La vérification du vote a échoué",
             ciphertextErrorDescription:
                 "Le texte chiffré de ce vote auditable ne correspond pas au chiffrement du texte en clair et de l'aléa qu'il contient. Ce vote n'est pas fiable.",
+            unpublishedStyleErrorDescription:
+                "Ce vote auditable ne correspond à aucun bulletin publié pour cet événement électoral ; il ne peut donc pas être vérifié.",
+            unavailableStyleErrorDescription:
+                "Les bulletins publiés pour cet événement électoral n'ont pas pu être chargés ; ce vote auditable ne peut donc pas encore être vérifié. Veuillez réessayer.",
             useSampleLink: "Utiliser un vote exemple",
             nextButton: "Continuer",
             ballotIdLabel: "ID du bulletin",

@@ -3,7 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {AppDispatch} from "../store/store"
-import {GetPublishedBallotStylesQuery, updateBallotStyleAndSelection} from "./BallotStyles"
+import {
+    EPublishedBallotStyleLookup,
+    GetPublishedBallotStylesQuery,
+    findPublishedBallotStyle,
+    updateBallotStyleAndSelection,
+} from "./BallotStyles"
 
 jest.mock("@sequentech/ui-core", () => ({
     isString: (value: unknown) => typeof value === "string",
@@ -67,5 +72,63 @@ describe("updateBallotStyleAndSelection", () => {
         expect(dispatch).toHaveBeenCalledTimes(2)
         expect(dispatch.mock.calls[0][0].payload.id).toBe("older-style")
         expect(dispatch.mock.calls[1][0].payload.id).toBe("newer-style")
+    })
+})
+
+describe("findPublishedBallotStyle", () => {
+    const data = {
+        sequent_backend_ballot_publication: [
+            {id: "published", published_at: "2026-08-18T01:00:00Z"},
+            {id: "published-elsewhere", published_at: "2026-08-18T01:00:00Z"},
+        ],
+        sequent_backend_ballot_style: [
+            {
+                ...ballotStyle("published-style", "published"),
+                ballot_eml: '{"id":"published-style"}',
+            },
+            {...ballotStyle("draft-style", "generated-draft"), ballot_eml: '{"id":"draft-style"}'},
+            {...ballotStyle("unreadable-style", "published"), ballot_eml: "{"},
+            {
+                ...ballotStyle("other-event-style", "published-elsewhere"),
+                election_event_id: "event-b",
+                ballot_eml: '{"id":"other-event-style"}',
+            },
+        ],
+    } as GetPublishedBallotStylesQuery
+
+    it("finds the ballot style with that id from a published publication", () => {
+        expect(findPublishedBallotStyle(data, "published-style", "event-a")).toEqual({
+            status: EPublishedBallotStyleLookup.FOUND,
+            ballotStyle: {id: "published-style"},
+        })
+    })
+
+    it.each([
+        ["of a publication that is not published", "draft-style"],
+        ["that is not listed", "unknown-style"],
+        ["that is missing", undefined],
+        ["of another election event", "other-event-style"],
+    ])("reports an id %s as not published", (_, ballotStyleId) => {
+        expect(findPublishedBallotStyle(data, ballotStyleId, "event-a")).toEqual({
+            status: EPublishedBallotStyleLookup.NOT_PUBLISHED,
+        })
+    })
+
+    it("reports a published ballot style that cannot be read apart from an unpublished one", () => {
+        expect(findPublishedBallotStyle(data, "unreadable-style", "event-a")).toEqual({
+            status: EPublishedBallotStyleLookup.UNREADABLE,
+        })
+    })
+
+    it("reports ballot styles that have not loaded apart from an unpublished one", () => {
+        expect(findPublishedBallotStyle(undefined, "published-style", "event-a")).toEqual({
+            status: EPublishedBallotStyleLookup.NOT_LOADED,
+        })
+    })
+
+    it("reports a published ballot style as not published without an election event", () => {
+        expect(findPublishedBallotStyle(data, "published-style", null)).toEqual({
+            status: EPublishedBallotStyleLookup.NOT_PUBLISHED,
+        })
     })
 })

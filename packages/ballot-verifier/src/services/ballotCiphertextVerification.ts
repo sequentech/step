@@ -15,12 +15,17 @@ export enum EBallotEncoding {
  * auditable ballot and comparing the result with the ciphertext it carries.
  * A ballot that could not be checked at all is kept apart from one whose
  * ciphertext does not match, because only the latter says anything about the
- * ballot itself.
+ * ballot itself. UNPUBLISHED_STYLE means no published ballot style has the id
+ * the ballot names, so there is nothing to check it against. UNAVAILABLE_STYLE
+ * means the published ballot styles could not be loaded or the one with that
+ * id could not be read, so the ballot cannot be checked yet.
  */
 export enum EBallotCiphertextCheck {
     VERIFIED = "VERIFIED",
     MISMATCH = "MISMATCH",
     NOT_VERIFIABLE = "NOT_VERIFIABLE",
+    UNPUBLISHED_STYLE = "UNPUBLISHED_STYLE",
+    UNAVAILABLE_STYLE = "UNAVAILABLE_STYLE",
 }
 
 /**

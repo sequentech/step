@@ -38,6 +38,10 @@ const catalanTranslation: TranslationType = {
             ciphertextErrorTitle: "La verificació del vot ha fallat",
             ciphertextErrorDescription:
                 "El text xifrat d'aquest vot auditable no és el xifratge del text en clar i l'aleatorietat que conté. No es pot confiar en el vot.",
+            unpublishedStyleErrorDescription:
+                "Aquest vot auditable no correspon a cap papereta publicada per a aquest esdeveniment electoral, per la qual cosa no es pot verificar.",
+            unavailableStyleErrorDescription:
+                "No s'han pogut carregar les paperetes publicades per a aquest esdeveniment electoral, per la qual cosa aquest vot auditable encara no es pot verificar. Torneu-ho a provar.",
             useSampleLink: "Utilitza vot d'exemple",
             nextButton: "Continuar",
             ballotIdLabel: "ID de papereta",
