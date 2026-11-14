@@ -1008,6 +1008,11 @@ export type SetCustomUrlsOutput = {
     success: Scalars["Boolean"]["output"]
 }
 
+export type SetGoogleServiceAccountKeyOutput = {
+    __typename?: "SetGoogleServiceAccountKeyOutput"
+    client_email: Scalars["String"]["output"]
+}
+
 export type SetRolePermissionOutput = {
     __typename?: "SetRolePermissionOutput"
     id?: Maybe<Scalars["String"]["output"]>
@@ -1788,6 +1793,8 @@ export type Mutation_Root = {
     revokeResultsPublication: RevokeResultsPublicationOutput
     send_transmission_package?: Maybe<OptionalId>
     set_custom_urls?: Maybe<SetCustomUrlsOutput>
+    /** store the tenant Google service account key in the vault */
+    set_google_service_account_key?: Maybe<SetGoogleServiceAccountKeyOutput>
     set_role_permission?: Maybe<SetRolePermissionOutput>
     set_user_role?: Maybe<SetUserRoleOutput>
     set_voter_authentication?: Maybe<SetVoterAuthenticationOutput>
@@ -3757,6 +3764,11 @@ export type Mutation_RootSet_Custom_UrlsArgs = {
     key: Scalars["String"]["input"]
     origin: Scalars["String"]["input"]
     redirect_to: Scalars["String"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootSet_Google_Service_Account_KeyArgs = {
+    service_account_key: Scalars["jsonb"]["input"]
 }
 
 /** mutation root */
