@@ -225,6 +225,8 @@ services:
       APP_HASH: ${APP_HASH}
       KC_OTP_RESEND_INTERVAL: ${KC_OTP_RESEND_INTERVAL}
       HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+      HARVEST_URL: ${HARVEST_URL:-}
+      HARVEST_TLS_POLICY: ${HARVEST_TLS_POLICY:-PLAINTEXT_ALLOWED}
     # Below we're using the dummy email email sender provider but that's just for
     # development, in production we should still use the default SMTP email provider
     #

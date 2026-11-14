@@ -33,7 +33,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
-import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
@@ -47,16 +47,17 @@ import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RealmModel;
 import org.keycloak.truststore.TruststoreProvider;
 import org.keycloak.truststore.TruststoreProviderFactory;
+import sequent.keycloak.harvest.HarvestEndpoint;
 
 /**
  * TruststoreProviderFactory that loads CA certificates from a remote URL (HTTP/HTTPS, S3 pre-signed
  * URLs). Supports optional background refresh at a configurable interval.
  *
- * <p>Per-realm CA certificates are fetched from the harvest service using the {@code
- * HARVEST_DOMAIN} environment variable. The election event id is extracted from the realm name
- * (realms follow the pattern {@code tenant-<tenantId>-event-<electionEventId>}) and the URL is
- * constructed as: {@code
- * http://<HARVEST_DOMAIN>/election-event/<electionEventId>/certificate-authorities/pem}
+ * <p>Per-realm CA certificates are fetched from the harvest service, whose base URL comes from
+ * {@link HarvestEndpoint} ({@code HARVEST_URL}, or {@code http://<HARVEST_DOMAIN>}, checked against
+ * {@code HARVEST_TLS_POLICY}). The election event id is extracted from the realm name (realms
+ * follow the pattern {@code tenant-<tenantId>-event-<electionEventId>}) and the URL is constructed
+ * as: {@code <harvest base URL>/election-event/<electionEventId>/certificate-authorities/pem}
  *
  * <p>{@code --spi-truststore-url-url} is optional. When omitted, the JVM default truststore
  * (cacerts) is used as the global fallback for sessions without a matching realm CA.
@@ -67,7 +68,8 @@ import org.keycloak.truststore.TruststoreProviderFactory;
  *   --spi-truststore-provider=url
  *   --spi-truststore-url-refresh-interval-seconds=3600   (optional)
  *   --spi-truststore-url-url=https://example.com/global-ca.pem  (optional)
- *   HARVEST_DOMAIN=harvest:8000
+ *   HARVEST_URL=https://harvest:8000   (or HARVEST_DOMAIN=harvest:8000)
+ *   HARVEST_TLS_POLICY=REQUIRE_TLS     (optional, PLAINTEXT_ALLOWED by default)
  * </pre>
  */
 @AutoService(TruststoreProviderFactory.class)
@@ -81,24 +83,13 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
   private static final String MASTER_REALM_NAME = "master";
   private static final String EVENT_REALM_INFIX = "-event-";
 
-  /**
-   * Environment variable containing the harvest service domain (host[:port]). Used to construct
-   * per-election-event CA certificate URLs as: {@code
-   * http://<HARVEST_DOMAIN>/election-event/<electionEventId>/certificate-authorities/pem}
-   */
-  static final String ENV_HARVEST_DOMAIN = "HARVEST_DOMAIN";
-
   // package-private for testing — overridden in unit tests to avoid reading real env vars
-  Supplier<String> harvestDomainSupplier = () -> System.getenv(ENV_HARVEST_DOMAIN);
+  UnaryOperator<String> environment = System::getenv;
 
   // package-private for testing — overridden to redirect URL construction to local test resources
-  BiFunction<String, String, String> realmUrlBuilder =
-      (domain, electionEventId) ->
-          "http://"
-              + domain
-              + "/election-event/"
-              + electionEventId
-              + "/certificate-authorities/pem";
+  BiFunction<HarvestEndpoint, String, String> realmUrlBuilder =
+      (harvest, electionEventId) ->
+          harvest.url("/election-event/" + electionEventId + "/certificate-authorities/pem");
 
   private record RealmTruststoreEntry(String url, UrlTruststoreProvider provider) {}
 
@@ -108,9 +99,11 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
   private ScheduledExecutorService scheduler;
   private String certUrl;
   private HostnameVerificationPolicy policy;
+  private HarvestEndpoint harvestEndpoint;
 
   @Override
   public void init(Config.Scope config) {
+    harvestEndpoint = HarvestEndpoint.fromEnvironment(environment).orElse(null);
     certUrl = config.get(CFG_URL);
 
     String policyValue =
@@ -156,9 +149,7 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
     if (ctx != null) {
       RealmModel realm = ctx.getRealm();
       if (realm != null) {
-        String harvestDomain = harvestDomainSupplier.get();
-        log.debugf("ENV %s = %s", ENV_HARVEST_DOMAIN, harvestDomain);
-        if (harvestDomain != null && !harvestDomain.isBlank()) {
+        if (harvestEndpoint != null) {
           String realmName = realm.getName();
           if (MASTER_REALM_NAME.equals(realmName)) {
             log.debugf(
@@ -173,7 +164,7 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
             return provider;
           }
           String electionEventId = realmName.substring(eventIdx + EVENT_REALM_INFIX.length());
-          String realmUrl = realmUrlBuilder.apply(harvestDomain, electionEventId);
+          String realmUrl = realmUrlBuilder.apply(harvestEndpoint, electionEventId);
           log.debugf(
               "Constructed realm-specific truststore URL for realm '%s'"
                   + " (election event '%s'): %s",

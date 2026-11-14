@@ -33,6 +33,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.jbosslog.JBossLog;
@@ -67,6 +68,7 @@ import sequent.keycloak.authenticator.Utils.MessageCourier;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
 import sequent.keycloak.authenticator.harvest.ServiceAccountTokenClient;
+import sequent.keycloak.harvest.HarvestEndpoint;
 
 /** Lookups an user using a field */
 @JBossLog
@@ -88,6 +90,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   static final String VERIFICATION_REJECTION_REASON = "verificationRejectionReason";
   static final String VERIFICATION_MISMATCHED_FIELDS = "verificationMismatchedFields";
   static final String FIELDS_MATCH = "fields_match";
+  private static final String VERIFY_APPLICATION_PATH = "/verify-application";
+  private static final String ERROR_VERIFIED_USER_MISMATCH =
+      "Verified user does not match the applicant data";
 
   // Enumerate the rejection reasons
   private enum VerificationRejectionReason {
@@ -117,16 +122,25 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   }
 
   private final ServiceAccountTokenClient tokenClient;
-  private final String harvestUrl;
 
   public LookupAndUpdateUser() {
-    this(ServiceAccountTokenClient.fromEnvironment(), System.getenv("HARVEST_DOMAIN"));
+    this(ServiceAccountTokenClient.fromEnvironment(), System::getenv);
   }
 
-  LookupAndUpdateUser(ServiceAccountTokenClient tokenClient, String harvestUrl) {
-    this.tokenClient = tokenClient;
-    this.harvestUrl = harvestUrl;
+  /** Resolves the harvest endpoint from {@code harvestDomain} alone, as HARVEST_DOMAIN would. */
+  LookupAndUpdateUser(ServiceAccountTokenClient tokenClient, String harvestDomain) {
+    this(
+        tokenClient,
+        name -> HarvestEndpoint.ENV_HARVEST_DOMAIN.equals(name) ? harvestDomain : null);
   }
+
+  LookupAndUpdateUser(ServiceAccountTokenClient tokenClient, UnaryOperator<String> environment) {
+    this.tokenClient = tokenClient;
+    this.environment = environment;
+  }
+
+  /** Environment variable lookup used to resolve the harvest endpoint; replaced in tests. */
+  UnaryOperator<String> environment;
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
@@ -458,6 +472,21 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                 .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
         return;
       }
+    }
+
+    if (!ApplicantMatcher.matchesApplicant(
+        user, applicantDataMap, parseAttributesList(searchAttributes))) {
+      log.error("authenticate(): verified user does not match the applicant data");
+      context.getAuthenticationSession().removeAuthNote(VERIFICATION_COMPLETED);
+      context.getEvent().error(ERROR_VERIFIED_USER_MISMATCH);
+      context.attempted();
+      context.failureChallenge(
+          AuthenticationFlowError.INTERNAL_ERROR,
+          context
+              .form()
+              .setError(Utils.ERROR_GENERATING_APPROVAL, sessionId)
+              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+      return;
     }
 
     // If an user was found proceed with the normal flow. Set the current user.
@@ -983,7 +1012,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String labels)
       throws IOException, InterruptedException {
     HttpClient client = HttpClient.newHttpClient();
-    String url = "http://" + this.harvestUrl + "/verify-application";
+    String url = verifyApplicationUrl(environment);
     String requestBody =
         String.format(
             "{\"tenant_id\": \"%s\", \"election_event_id\": \"%s\", \"area_id\": \"%s\", \"applicant_id\": \"%s\", \"applicant_data\" : %s, \"annotations\": %s, \"labels\": \"%s\"}",
@@ -1006,6 +1035,19 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     log.infov("Verification response: {0}", response);
 
     return response;
+  }
+
+  static String verifyApplicationUrl(UnaryOperator<String> environment) throws IOException {
+    return HarvestEndpoint.fromEnvironment(environment)
+        .orElseThrow(
+            () ->
+                new IOException(
+                    "Neither "
+                        + HarvestEndpoint.ENV_HARVEST_URL
+                        + " nor "
+                        + HarvestEndpoint.ENV_HARVEST_DOMAIN
+                        + " is set"))
+        .url(VERIFY_APPLICATION_PATH);
   }
 
   private String getElectionEventId(KeycloakSession session, String realmId) {
