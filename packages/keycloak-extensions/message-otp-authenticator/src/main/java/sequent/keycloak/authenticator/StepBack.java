@@ -77,8 +77,15 @@ public final class StepBack {
   /** A position in the flow, with the subflow executions it is in. */
   private record Step(AuthenticationExecutionModel execution, boolean single, List<String> in) {}
 
-  /** The executions with a status to run again, or none without a previous step. */
+  /**
+   * The executions with a status to run again, or none without a previous step or once the
+   * enrollment's decision is recorded.
+   */
   private static List<String> toRedo(AuthenticationFlowContext context) {
+    if (Boolean.parseBoolean(
+        context.getAuthenticationSession().getAuthNote(Utils.DECISION_RECORDED))) {
+      return List.of();
+    }
     AuthenticationExecutionModel current = context.getExecution();
     AuthenticationFlowModel top = context.getTopLevelFlow();
     if (current == null || top == null) {

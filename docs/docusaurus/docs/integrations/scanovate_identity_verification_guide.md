@@ -437,6 +437,24 @@ The COMELEC template and the sample election event use `PENDING_APPROVAL`.
 Approving a pending enrollment links it to a voter of the census, so a voter
 missing from it is added to the census first.
 
+### Codes only after the decision
+
+Every code is an SMS or email the election pays for. So that nobody can spend
+that budget by starting enrollments they can't finish, the COMELEC flow sends
+codes only to voters the decision lets continue. It runs the lookup twice, with
+the code step between them, chosen by the step's `lookup-stage`:
+
+| Value | What the lookup step does |
+| --- | --- |
+| `DECIDE_AND_FINISH` (default) | Decides and finishes the enrollment in one step, as before. |
+| `DECIDE` | Only decides. A rejected voter sees the result and is sent nothing. An accepted or pending voter goes on to the next step. |
+| `FINISH` | Finishes what the `DECIDE` lookup decided: updates the voter, shows the result and sends the confirmation. It needs the same settings as the `DECIDE` lookup. |
+
+The COMELEC registration flow is: details, identity verification, lookup
+(`DECIDE`), code, lookup (`FINISH`). A voter who abandons or fails the identity
+verification, or whom the decision rejects, gets no code and no message. Once
+the decision is recorded, the code page doesn't offer Back.
+
 ### Several codes in a row
 
 The COMELEC registration flow asks for a code by email if the voter gave an

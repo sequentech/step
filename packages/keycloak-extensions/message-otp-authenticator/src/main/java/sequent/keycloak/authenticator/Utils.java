@@ -118,6 +118,12 @@ public class Utils {
    */
   public final String CODE_PACED = "code-paced";
 
+  /**
+   * Set once the enrollment's decision is recorded: an application exists, so Back ({@link
+   * StepBack}) can't take the voter to the steps before it.
+   */
+  public final String DECISION_RECORDED = "verificationCompleted";
+
   public static final String EMAIL_VERIFIED = "Email verified";
   public static final String USER_ID = "userId";
   public final String TEL_USER_ATTRIBUTE = "telUserAttribute";
