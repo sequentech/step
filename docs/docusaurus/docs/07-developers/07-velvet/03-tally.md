@@ -168,9 +168,21 @@ When in doubt or when configuration is missing, the tally engine will always cho
 Each cast vote carries a `status` (`in-progress`, `valid`, or `discarded`).
 Ordinary election events store votes as `valid` immediately. A Datafix vote
 enters as `in-progress` and is promoted to `valid` or `discarded` by
-`process_cast_vote`. A vote whose `SetVoted` request could not be delivered, or
-whose outcome is ambiguous, stays `in-progress` and is retried automatically by
-the `review_cast_votes` beat.
+`process_cast_vote`. A vote whose `SetVoted` request could not be delivered,
+whose outcome is ambiguous, or that VoterView answered with a SOAP fault, stays
+`in-progress` and is retried automatically by the `review_cast_votes` beat.
+
+VoterView can also refuse `SetVoted`: it answers that the voter has already
+voted, or it rejects the request. An "already voted" answer that follows an
+earlier `SetVoted` for the same voter that ended without a usable reply
+confirms that earlier request, and the vote becomes `valid`. Any other refusal
+follows the event's `datafix:set_voted_conflict_policy` annotation:
+
+| Value | Outcome |
+| ----- | ------- |
+| `hold-for-review` (default) | The vote stays `in-progress` and the beat sends `SetVoted` again. It becomes `valid` once VoterView accepts it, and `discarded` if an operator disables the voter. |
+| `validate-and-reconcile` | The vote becomes `valid`, and the next reconciliation reports the conflict. |
+| `discard` | The vote becomes `discarded`. |
 
 Only `valid` votes are extracted. To avoid silently under-counting, a tally
 session refuses to proceed while its election and area contain an `in-progress`
@@ -178,8 +190,9 @@ vote. A second check runs immediately before ballot extraction.
 
 Wait for `in-progress` votes to drain, then re-run the tally. A vote that stays
 `in-progress` needs an operator to investigate why `SetVoted` keeps failing to
-be delivered or keeps ending in an ambiguous outcome. See the Datafix /
-VoterView integration reference in the `beyond` repository
+be delivered, keeps ending in an ambiguous outcome or a SOAP fault, or is held
+by the `hold-for-review` policy. The electoral log records each attempt. See
+the Datafix / VoterView integration reference in the `beyond` repository
 (`docs/docusaurus/docs/engineering/datafix_voterview_integration.md`) for the
 state machine and runbook.
 
