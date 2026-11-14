@@ -11,7 +11,7 @@ use crate::services::audit;
 use crate::services::authorization::authorize;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::election_config::package_verify::TrustCheck;
+use sequent_core::election_config::package_verify::{TrustAnchor, TrustCheck};
 use sequent_core::election_config::problem::{Code, Problem, Report};
 use sequent_core::services::jwt::JwtClaims;
 use serde::{Deserialize, Serialize};
@@ -60,6 +60,23 @@ fn busy() -> TrustCheck {
     }
 }
 
+/// Maps a failure of the database or the audit outbox to a 500 that says
+/// which step failed, with the error's causes (`{:#}`), never a backtrace.
+fn internal<E: std::fmt::Display>(
+    context: &'static str,
+) -> impl FnOnce(E) -> (Status, String) {
+    move |error| (Status::InternalServerError, format!("{context}: {error:#}"))
+}
+
+/// One trusted root as the audit entry records it: public certificate data.
+fn anchor_summary(anchor: &TrustAnchor) -> Value {
+    json!({
+        "setting": anchor.setting,
+        "subject": anchor.subject,
+        "fingerprint_sha256": anchor.fingerprint_sha256,
+    })
+}
+
 /// Whoever may apply configuration packages to a tenant may set what those
 /// packages must be signed by: the same six permissions, on that tenant.
 fn authorize_setting(
@@ -85,20 +102,15 @@ pub async fn set_configuration_signing(
     let setting = read_input(input.configuration_signing)
         .map_err(|error| (Status::BadRequest, error))?;
 
-    let mut hasura_db_client =
-        get_hasura_pool().await.get().await.map_err(|err| {
-            (
-                Status::InternalServerError,
-                format!("Error getting hasura db pool: {err}"),
-            )
-        })?;
-    let hasura_transaction =
-        hasura_db_client.transaction().await.map_err(|err| {
-            (
-                Status::InternalServerError,
-                format!("Error starting hasura transaction: {err}"),
-            )
-        })?;
+    let mut hasura_db_client = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(internal("Error getting hasura db pool"))?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(internal("Error starting hasura transaction"))?;
 
     let outcome = save(
         &hasura_transaction,
@@ -107,12 +119,7 @@ pub async fn set_configuration_signing(
         chrono::Utc::now(),
     )
     .await
-    .map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error saving the configuration signing setting: {err:#}"),
-        )
-    })?;
+    .map_err(internal("Error saving the configuration signing setting"))?;
 
     let (check, previous, saved) = match outcome {
         SaveOutcome::Busy => {
@@ -151,32 +158,17 @@ pub async fn set_configuration_signing(
     .with_extra(json!({
         "policy": setting.policy,
         "required_approvals": setting.required_approvals,
-        "anchors": check
-            .anchors
-            .iter()
-            .map(|anchor| json!({
-                "setting": anchor.setting,
-                "subject": anchor.subject,
-                "fingerprint_sha256": anchor.fingerprint_sha256,
-            }))
-            .collect::<Vec<_>>(),
+        "anchors": check.anchors.iter().map(anchor_summary).collect::<Vec<_>>(),
     }))
     .with_description("Updated the tenant's configuration package signing");
     audit_log::stage(&hasura_transaction, &change)
         .await
-        .map_err(|err| {
-            (
-                Status::InternalServerError,
-                format!("Error queueing the audit entry: {err:?}"),
-            )
-        })?;
+        .map_err(internal("Error queueing the audit entry"))?;
 
-    hasura_transaction.commit().await.map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error committing hasura transaction: {err}"),
-        )
-    })?;
+    hasura_transaction
+        .commit()
+        .await
+        .map_err(internal("Error committing hasura transaction"))?;
     windmill::tasks::audit_log_outbox::kick_audit_log_outbox();
 
     Ok(Json(SetConfigurationSigningOutput { saved: true, check }))
@@ -232,5 +224,67 @@ mod tests {
             }))
             .unwrap();
         assert_eq!(input.configuration_signing["policy"], "required");
+    }
+
+    #[tokio::test]
+    async fn a_setting_that_is_not_one_is_refused_before_the_database() {
+        let all: Vec<&Permissions> = PACKAGE_PERMISSIONS.iter().collect();
+        let refused = set_configuration_signing(
+            Json(SetConfigurationSigningInput {
+                tenant_id: CALLER_TENANT_ID.to_string(),
+                configuration_signing: json!({"policy": 7}),
+            }),
+            claims_holding(&all),
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(refused.0, Status::BadRequest);
+    }
+
+    #[test]
+    fn a_busy_tenant_is_told_to_save_again_and_nothing_is_trusted() {
+        let check = busy();
+        assert!(check.anchors.is_empty());
+        assert_eq!(check.policy_sha256, None);
+        let ids: Vec<_> = check
+            .report
+            .errors()
+            .map(|problem| problem.id.clone())
+            .collect();
+        assert_eq!(ids, vec![Some("configuration-signing.busy".to_string())]);
+        assert!(check.report.has_errors());
+    }
+
+    #[test]
+    fn internal_failures_name_the_step_and_the_causes() {
+        let error = anyhow::anyhow!("connection reset")
+            .context("Error queueing an administrative change");
+        let (status, message) =
+            internal("Error queueing the audit entry")(error);
+        assert_eq!(status, Status::InternalServerError);
+        assert_eq!(
+            message,
+            "Error queueing the audit entry: Error queueing an administrative \
+             change: connection reset"
+        );
+    }
+
+    #[test]
+    fn the_audit_entry_keeps_each_roots_public_identity_only() {
+        let anchor = TrustAnchor {
+            setting: "package_roots".into(),
+            subject: "CN=DEMO root".into(),
+            not_before: "2026-01-01T00:00:00Z".into(),
+            not_after: "2036-01-01T00:00:00Z".into(),
+            fingerprint_sha256: "ab".repeat(32),
+        };
+        assert_eq!(
+            anchor_summary(&anchor),
+            json!({
+                "setting": "package_roots",
+                "subject": "CN=DEMO root",
+                "fingerprint_sha256": "ab".repeat(32),
+            })
+        );
     }
 }
