@@ -69,8 +69,8 @@ crepe! {
     PublicKeySignedAll(cfg_h, pk_h, _shares_hs),
     Ballots(cfg_h, batch, _, pk_h, selected),
     MixComplete(cfg_h, batch, _mix_n, ciphertexts_h, mix_signer),
-    Plaintexts(cfg_h, batch, plaintexts_h, dfactors_hs, cipher_h, _pk_h, selected[0] - 1),
-    !PlaintextsSigned(cfg_h, batch, plaintexts_h, dfactors_hs, cipher_h, _pk_h, self_p);
+    Plaintexts(cfg_h, batch, plaintexts_h, dfactors_hs, ciphertexts_h, pk_h, selected[0] - 1),
+    !PlaintextsSigned(cfg_h, batch, plaintexts_h, dfactors_hs, ciphertexts_h, pk_h, self_p);
 
     ///////////////////////////////////////////////////////////////////////////
     // Input relations.
@@ -170,5 +170,97 @@ impl D {
                 .map(|i| i.0)
                 .collect::<HashSet<DatalogError>>(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const BATCH: BatchNumber = 1;
+    const NUM_TRUSTEES: TrusteeCount = 3;
+    const THRESHOLD: Threshold = 2;
+    const SELF_POSITION: TrusteePosition = 1;
+    const LAST_MIX_SIGNER: TrusteePosition = 1;
+
+    const CFG_H: ConfigurationHash = ConfigurationHash([1u8; 64]);
+    const PK_H: PublicKeyHash = PublicKeyHash([2u8; 64]);
+    const BALLOTS_H: CiphertextsHash = CiphertextsHash([4u8; 64]);
+    const LAST_MIX_H: CiphertextsHash = CiphertextsHash([6u8; 64]);
+    const PLAINTEXTS_H: PlaintextsHash = PlaintextsHash([7u8; 64]);
+
+    /// Predicates under which trustee `SELF_POSITION` may sign the plaintexts
+    /// of `BATCH`: configuration and public key signed by all, the batch's
+    /// ballots, and `LAST_MIX_H` as the completed mix.
+    fn mix_complete() -> Vec<Predicate> {
+        let selected = trustees_add(trustees_init(1), 2);
+        vec![
+            Predicate::ConfigurationSignedAll(CFG_H, SELF_POSITION, NUM_TRUSTEES, THRESHOLD),
+            Predicate::PublicKeySignedAll(CFG_H, PK_H, SharesHashes(hashes_init([3u8; 64]))),
+            Predicate::Ballots(CFG_H, BATCH, BALLOTS_H, PK_H, selected),
+            Predicate::MixComplete(CFG_H, BATCH, THRESHOLD, LAST_MIX_H, LAST_MIX_SIGNER),
+        ]
+    }
+
+    /// A `Plaintexts` statement for `BATCH` from the first selected trustee,
+    /// decrypted from `cipher_h` under `pk_h`.
+    fn plaintexts(cipher_h: CiphertextsHash, pk_h: PublicKeyHash) -> Predicate {
+        let dfactors_hs = DecryptionFactorsHashes(hashes_add(hashes_init([8u8; 64]), [9u8; 64]));
+        Predicate::Plaintexts(CFG_H, BATCH, PLAINTEXTS_H, dfactors_hs, cipher_h, pk_h, 0)
+    }
+
+    /// Runs the decryption datalog and keeps only its `SignPlaintexts` actions.
+    fn sign_plaintexts_actions(predicates: &Vec<Predicate>) -> Vec<Action> {
+        let (_, actions, _) = D.run(predicates);
+        actions
+            .into_iter()
+            .filter(|a| matches!(a, Action::SignPlaintexts(..)))
+            .collect()
+    }
+
+    /// Plaintexts decrypted from the completed mix under the ballots key are
+    /// signed, and the action names that mix and its producer.
+    #[test]
+    fn sign_plaintexts_over_completed_mix() {
+        let mut predicates = mix_complete();
+        predicates.push(plaintexts(LAST_MIX_H, PK_H));
+
+        let actions = sign_plaintexts_actions(&predicates);
+
+        assert_eq!(actions.len(), 1);
+        assert!(matches!(
+            actions[0],
+            Action::SignPlaintexts(
+                _,
+                BATCH,
+                PK_H,
+                PLAINTEXTS_H,
+                _,
+                LAST_MIX_H,
+                LAST_MIX_SIGNER,
+                _,
+                THRESHOLD
+            )
+        ));
+    }
+
+    /// Plaintexts that name ciphertexts other than the completed mix are not
+    /// signed.
+    #[test]
+    fn sign_plaintexts_requires_matching_ciphertexts() {
+        let mut predicates = mix_complete();
+        predicates.push(plaintexts(CiphertextsHash([10u8; 64]), PK_H));
+
+        assert!(sign_plaintexts_actions(&predicates).is_empty());
+    }
+
+    /// Plaintexts that name a key other than the ballots public key are not
+    /// signed.
+    #[test]
+    fn sign_plaintexts_requires_matching_public_key() {
+        let mut predicates = mix_complete();
+        predicates.push(plaintexts(LAST_MIX_H, PublicKeyHash([11u8; 64])));
+
+        assert!(sign_plaintexts_actions(&predicates).is_empty());
     }
 }
