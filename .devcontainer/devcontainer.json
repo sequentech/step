@@ -9,6 +9,8 @@
   "forwardPorts": [
     // Admin portal, including the browser trustee dashboard and WASM workers
     3002,
+    // Election Architect (start.architect / start.build.architect)
+    5176,
     "minio-proxy:9002",
     "minio:9001",
     "minio:9000",
