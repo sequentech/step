@@ -2394,8 +2394,9 @@
       "subGroups": [],
       "attributes": {},
       "realmRoles": [
+        "document-download",
+        "document-read",
         "election-event-publish-tab",
-        "admin-user",
         "publish-write",
         "election-event-read",
         "publish-read"
@@ -2548,7 +2549,6 @@
         "trustee-read",
         "keys-read",
         "logs-read",
-        "admin-user",
         "election-event-read",
         "election-event-keys-tab",
         "election-event-tally-tab",
@@ -3528,7 +3528,7 @@
           "protocolMapper": "oidc-hardcoded-claim-mapper",
           "consentRequired": false,
           "config": {
-            "claim.value": "cli-account-admin",
+            "claim.value": "admin-user",
             "userinfo.token.claim": "true",
             "id.token.claim": "true",
             "access.token.claim": "true",
