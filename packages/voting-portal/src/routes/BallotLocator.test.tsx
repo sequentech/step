@@ -54,6 +54,17 @@ const MOCK_CAST_VOTES_TOTAL = 3
 const castVotes = (total: number) => ({data: {list_cast_vote_messages: {list: [], total}}})
 // The cast-vote list request; a test can hold its answer back.
 const mockRefetch = jest.fn()
+// Like Apollo, the same data object until the query's result changes: a new one on
+// every render would re-run the page's request effect with each render's state.
+const mockElectionEvents = new WeakMap<object, object>()
+const mockElectionEventData = (presentation: object) => {
+    let data = mockElectionEvents.get(presentation)
+    if (!data) {
+        data = {sequent_backend_election_event: [{id: "event", presentation}]}
+        mockElectionEvents.set(presentation, data)
+    }
+    return data
+}
 
 jest.mock("@apollo/client/react", () => ({
     useQuery: (query: DocumentNode) => {
@@ -65,11 +76,7 @@ jest.mock("@apollo/client/react", () => ({
         return {
             data:
                 name === "GetElectionEvent"
-                    ? {
-                          sequent_backend_election_event: [
-                              {id: "event", presentation: mockEventPresentation.current},
-                          ],
-                      }
+                    ? mockElectionEventData(mockEventPresentation.current)
                     : undefined,
             loading: false,
             refetch: (variables: unknown) => mockRefetch(variables),
@@ -218,5 +225,30 @@ test("a filter pasted without a key press is sent and supersedes a deferred requ
     fireEvent.change(input, {target: {value: "abcd"}})
     await waitFor(() => expect(mockRefetch).toHaveBeenCalledTimes(2))
     expect(mockRefetch).toHaveBeenLastCalledWith(expect.objectContaining({ballotId: "abcd"}))
+    view.unmount()
+})
+
+test("a new filter starts at the first page", async () => {
+    mockEventPresentation.current = {show_cast_vote_logs: "show-logs-tab"}
+    const clock = jest.spyOn(Date, "now").mockReturnValue(4_000_000)
+    mockRefetch.mockImplementation(async () => castVotes(100))
+    const view = await renderCastVoteLogs()
+    expect(
+        await screen.findByRole("heading", {name: "ballotLocator.totalBallots: 100"})
+    ).toBeVisible()
+
+    clock.mockReturnValue(4_001_000)
+    fireEvent.click(screen.getByRole("button", {name: /next ?page/i}))
+    await waitFor(() =>
+        expect(mockRefetch).toHaveBeenLastCalledWith(expect.objectContaining({offset: 5}))
+    )
+
+    clock.mockReturnValue(4_002_000)
+    fireEvent.change(screen.getByLabelText("a11y.ballotIdLabel"), {target: {value: "abcd"}})
+    await waitFor(() =>
+        expect(mockRefetch).toHaveBeenLastCalledWith(
+            expect.objectContaining({ballotId: "abcd", offset: 0})
+        )
+    )
     view.unmount()
 })
