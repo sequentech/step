@@ -107,14 +107,16 @@ const MessageFailed = styled(Box)`
 const BALLOT_ID_MAX_LENGTH = 64
 
 function isHex(str: string) {
-    if (str.trim() === "") {
+    // Surrounding spaces don't count, as on the server.
+    const text = str.trim()
+    if (text === "") {
         return true
     }
-    if (str.length % 2 !== 0 || str.length > BALLOT_ID_MAX_LENGTH) {
+    if (text.length % 2 !== 0 || text.length > BALLOT_ID_MAX_LENGTH) {
         return false
     }
     const regex = /^[0-9a-fA-F]+$/
-    return regex.test(str)
+    return regex.test(text)
 }
 
 interface TabPanelProps {
@@ -208,12 +210,13 @@ const BallotLocator: React.FC = () => {
         // even while it waits for its deferred start.
         const requestId = ++latestRequestId.current
         clearTimeout(fetchTimeout.current)
+        const ballotIdFilter = inputBallotId.trim()
         async function tryFetchMessages() {
             try {
                 let limit = rowsPerPage
                 let offset = page * rowsPerPage
                 const {data} = await refetch({
-                    ballotId: inputBallotId,
+                    ballotId: ballotIdFilter,
                     orderBy: {[headerName ?? "id"]: newOrder ?? "desc"},
                     limit,
                     offset,
@@ -227,7 +230,8 @@ const BallotLocator: React.FC = () => {
                     setRows((data?.list_cast_vote_messages?.list ?? []) as ICastVoteEntry[])
                     setTotal(data?.list_cast_vote_messages?.total)
                     setBallotIdNotFoundErr(
-                        inputBallotId.length > 0 && data?.list_cast_vote_messages?.list.length === 0
+                        ballotIdFilter.length > 0 &&
+                            data?.list_cast_vote_messages?.list.length === 0
                     )
                 }
             } catch (e) {
@@ -812,7 +816,7 @@ const BallotLocatorLogic = () => {
     const lookupLoading = loadingElections || loading
 
     const locate = (withBallotId = false) => {
-        let id = withBallotId ? inputBallotId : ""
+        let id = withBallotId ? inputBallotId.trim() : ""
 
         setInputBallotId("")
 
