@@ -190,6 +190,8 @@ const BallotLocator: React.FC = () => {
     let fetchTimeout: any = useRef(undefined)
     // Only the latest cast-vote request may update the table or the error.
     const latestRequestId = useRef(0)
+    // A deferred fetch doesn't outlive the page.
+    useEffect(() => () => clearTimeout(fetchTimeout.current), [])
 
     const requestCVMsgs = async (headerName?: string, newOrder?: string) => {
         let duration = lastCVRequestTimestamp.current
@@ -288,8 +290,10 @@ const BallotLocator: React.FC = () => {
         setValue(newValue)
     }
 
-    const captureEnter: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
+    // Every change of the filter, typed or pasted, is a new request.
+    const changeFilter = (value: string) => {
         allowSendRequest.current = true
+        setInputBallotId(value)
     }
 
     return (
@@ -336,10 +340,9 @@ const BallotLocator: React.FC = () => {
                     <Box className="cast-vote-logs-filter" marginTop="48px">
                         <BallotIdInput
                             inputBallotId={inputBallotId}
-                            setInputBallotId={setInputBallotId}
+                            setInputBallotId={changeFilter}
                             validatedBallotId={validatedBallotId}
                             ballotIdNotFoundErr={ballotIdNotFoundErr}
-                            captureEnter={captureEnter}
                             placeholderLabel="ballotLocator.filterByBallotId"
                         />
                     </Box>
@@ -730,7 +733,7 @@ interface BallotIdInputProps {
     setInputBallotId: (value: string) => void
     validatedBallotId: boolean
     ballotIdNotFoundErr?: boolean
-    captureEnter: React.KeyboardEventHandler<HTMLDivElement>
+    captureEnter?: React.KeyboardEventHandler<HTMLDivElement>
     placeholderLabel: string
 }
 

@@ -221,3 +221,28 @@ test("a malformed ballot id filter typed too quickly is never sent", async () =>
     expect(mockRefetch).toHaveBeenCalledTimes(1)
     view.unmount()
 })
+
+test("a filter pasted without a key press is sent and supersedes a deferred request", async () => {
+    mockEventPresentation.current = {show_cast_vote_logs: "show-logs-tab"}
+    const clock = jest.spyOn(Date, "now").mockReturnValue(3_000_000)
+    const view = await renderCastVoteLogs()
+    expect(mockRefetch).toHaveBeenCalledTimes(1)
+    const input = screen.getByLabelText("a11y.ballotIdLabel")
+
+    // 100 ms later the voter types "ab": too quick, so it waits a second...
+    clock.mockReturnValue(3_000_100)
+    fireEvent.keyDown(input, {key: "b"})
+    fireEvent.change(input, {target: {value: "ab"}})
+    // ...and before it is sent pastes "abc" with the mouse, without a key press.
+    clock.mockReturnValue(3_000_200)
+    fireEvent.change(input, {target: {value: "abc"}})
+    await act(() => new Promise((resolve) => setTimeout(resolve, 1500)))
+    expect(mockRefetch).toHaveBeenCalledTimes(1)
+
+    // A well-formed pasted filter is sent.
+    clock.mockReturnValue(3_005_000)
+    fireEvent.change(input, {target: {value: "abcd"}})
+    await waitFor(() => expect(mockRefetch).toHaveBeenCalledTimes(2))
+    expect(mockRefetch).toHaveBeenLastCalledWith(expect.objectContaining({ballotId: "abcd"}))
+    view.unmount()
+})
