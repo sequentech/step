@@ -891,6 +891,24 @@ class ComposeFilesTest(unittest.TestCase):
                         "${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}", line
                     )
 
+    def test_architect_tasks_use_the_beyond_workspace(self):
+        tasks = load_jsonc(ROOT / ".vscode" / "tasks.shared.json")["tasks"]
+        by_label = {task["label"]: task for task in tasks}
+        expected = {
+            "start.architect": "cd beyond/packages/election-architect && yarn start",
+            "start.build.architect": (
+                "cd beyond/packages && yarn install --frozen-lockfile "
+                "&& yarn --cwd election-architect start"
+            ),
+        }
+        for label, command in expected.items():
+            with self.subTest(task=label):
+                task = by_label[label]
+                self.assertEqual(task["command"], "devenv")
+                self.assertEqual(task["args"], ["shell", "bash", "--", "-c", command])
+                self.assertEqual(task["options"]["cwd"], "${workspaceFolder}")
+        self.assertIn(5176, load_jsonc(DEVCONTAINER / "devcontainer.json")["forwardPorts"])
+
     def test_vscode_tasks_do_not_pin_the_canonical_project(self):
         tasks = (ROOT / ".vscode" / "tasks.shared.json").read_text()
         self.assertNotIn("COMPOSE_PROJECT_NAME", tasks)
