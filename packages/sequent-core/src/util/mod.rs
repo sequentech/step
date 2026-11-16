@@ -8,7 +8,7 @@ pub mod external_config;
 pub mod integrity_check;
 pub mod mime;
 pub mod normalize_vote;
-#[cfg(feature = "reports")]
+#[cfg(any(feature = "reports", feature = "signatures"))]
 pub mod temp_path;
 
 #[cfg(feature = "reports")]
@@ -27,3 +27,9 @@ pub mod voting_screen;
 
 #[cfg(any(feature = "probe", feature = "reports"))]
 pub mod retry;
+
+#[cfg(all(test, any(feature = "keycloak", feature = "reports")))]
+pub(crate) mod log_capture;
+
+#[cfg(all(test, feature = "keycloak"))]
+pub(crate) mod http_stub;
