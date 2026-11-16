@@ -252,3 +252,18 @@ test("a new filter starts at the first page", async () => {
     )
     view.unmount()
 })
+
+test("the ballot id filter drops surrounding spaces, as the server does", async () => {
+    mockEventPresentation.current = {show_cast_vote_logs: "show-logs-tab"}
+    const clock = jest.spyOn(Date, "now").mockReturnValue(5_000_000)
+    const view = await renderCastVoteLogs()
+    expect(mockRefetch).toHaveBeenCalledTimes(1)
+
+    clock.mockReturnValue(5_001_000)
+    fireEvent.change(screen.getByLabelText("a11y.ballotIdLabel"), {target: {value: " AB12 "}})
+    expect(screen.queryByText("ballotLocator.wrongFormatBallotId")).toBeNull()
+    await waitFor(() =>
+        expect(mockRefetch).toHaveBeenLastCalledWith(expect.objectContaining({ballotId: "AB12"}))
+    )
+    view.unmount()
+})
