@@ -11,7 +11,6 @@ const variables = {
     tenantId: "tenant",
     electionEventId: "event",
     electionId: "election",
-    electionAlias: "election-alias",
     startDate: "2026-09-01",
     endDate: "2026-09-14",
     userTimezone: "UTC",
@@ -23,7 +22,6 @@ interface CountBody {
     tenant_id: string
     election_event_id: string
     election_id: string
-    authorized_to_election_alias?: string
     enabled?: boolean
 }
 
@@ -55,7 +53,6 @@ describe.each([
             tenant_id: variables.tenantId,
             election_event_id: variables.electionEventId,
             election_id: variables.electionId,
-            authorized_to_election_alias: variables.electionAlias,
             enabled: true,
         })
         voters[2].enabled = true
@@ -64,20 +61,17 @@ describe.each([
         expect(await count()).toEqual({count: 0})
     })
 
-    it("keeps the enabled filter when the election has no alias", async () => {
-        const countUsers = jest.fn(() => ({count: 0}))
-        const {electionAlias, ...withoutAlias} = variables
+    it("leaves the authorized-election key to the server", async () => {
+        const countUsers = jest.fn((_: {body: CountBody}) => ({count: 0}))
         const result = await execute({
             schema,
             document,
-            variableValues: withoutAlias,
+            variableValues: {...variables, electionAlias: "Display alias"},
             rootValue: {count_users: countUsers, sequent_backend_election: []},
         })
         expect(result.errors).toBeUndefined()
-        expect(countUsers).toHaveBeenCalledWith(
-            {body: expect.objectContaining({enabled: true, election_id: variables.electionId})},
-            undefined,
-            expect.anything()
+        expect(countUsers.mock.calls[0]?.[0].body).not.toHaveProperty(
+            "authorized_to_election_alias"
         )
     })
 })
