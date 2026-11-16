@@ -26,21 +26,18 @@ jest.mock("@sequentech/ui-core", () => ({
 // jest.config.cjs maps @sequentech/ui-essentials, so this mock isn't virtual, as in
 // the other suites: jest caches how a module resolves per worker, and a virtual mock
 // breaks the suites that import it after this one in the same process.
-jest.mock(
-    "@sequentech/ui-essentials",
-    () => ({
-        theme: jest.requireActual<typeof import("../../../ui-essentials/src/services/theme")>(
-            "../../../ui-essentials/src/services/theme"
-        ).default,
-        PageLimit: ({children}: {children: React.ReactNode}) => <div>{children}</div>,
-        InfoDataBox: ({children}: {children: React.ReactNode}) => <div>{children}</div>,
-        BreadCrumbSteps: () => null,
-        Icon: () => null,
-        IconButton: () => null,
-        Dialog: () => null,
-        ExpandableText: () => null,
-    })
-)
+jest.mock("@sequentech/ui-essentials", () => ({
+    theme: jest.requireActual<typeof import("../../../ui-essentials/src/services/theme")>(
+        "../../../ui-essentials/src/services/theme"
+    ).default,
+    PageLimit: ({children}: {children: React.ReactNode}) => <div>{children}</div>,
+    InfoDataBox: ({children}: {children: React.ReactNode}) => <div>{children}</div>,
+    BreadCrumbSteps: () => null,
+    Icon: () => null,
+    IconButton: () => null,
+    Dialog: () => null,
+    ExpandableText: () => null,
+}))
 jest.mock("../providers/SettingsContextProvider", () => ({
     SettingsContext: jest
         .requireActual<typeof import("react")>("react")
