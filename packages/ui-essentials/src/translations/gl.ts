@@ -71,6 +71,7 @@ const galegoTranslation = {
                 bytesToUtf8Conversion:
                     "Erro ao converter a opción por escrito de bytes a cadea UTF-8: {{errorMessage}}",
                 ballotTooLarge: "A papeleta é máis grande do esperado",
+                duplicatedSelection: "A mesma opción foi seleccionada máis dunha vez",
             },
             implicit: {
                 selectedMax:

@@ -71,6 +71,7 @@ const englishTranslation = {
                 bytesToUtf8Conversion:
                     "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Ballot larger than expected",
+                duplicatedSelection: "The same choice was selected more than once",
             },
             implicit: {
                 selectedMax:
