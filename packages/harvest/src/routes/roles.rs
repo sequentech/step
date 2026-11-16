@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::authorize;
+use crate::services::authorization::{authorize, require_ordinary_permission};
 
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
@@ -35,6 +35,9 @@ pub async fn create_role(
         Some(input.tenant_id.clone()),
         vec![Permissions::ROLE_READ],
     )?;
+    for permission in input.role.permissions.iter().flatten() {
+        require_ordinary_permission(permission)?;
+    }
     let realm = get_tenant_realm(&input.tenant_id);
     let client = KeycloakAdminClient::new()
         .await
@@ -235,4 +238,53 @@ pub async fn delete_role(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     Ok(Json(Default::default()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TENANT_ID: &str = "tenant";
+
+    fn tenant_admin() -> jwt::JwtClaims {
+        serde_json::from_value(serde_json::json!({
+            "exp": 1, "iat": 0, "jti": "test", "iss": "test",
+            "sub": "admin", "typ": "Bearer", "azp": "admin-portal",
+            "acr": "1", "allowed-origins": [], "scope": "openid",
+            "email_verified": false,
+            "https://hasura.io/jwt/claims": {
+                "x-hasura-default-role": "admin-user",
+                "x-hasura-tenant-id": TENANT_ID,
+                "x-hasura-user-id": "admin",
+                "x-hasura-allowed-roles": [Permissions::ROLE_READ.to_string()]
+            }
+        }))
+        .unwrap()
+    }
+
+    #[rocket::async_test]
+    async fn a_role_with_a_reserved_permission_is_not_created() {
+        for name in ["admin", "service-account"] {
+            let body = Json(CreateRoleBody {
+                tenant_id: TENANT_ID.to_string(),
+                role: Role {
+                    id: None,
+                    name: Some("auditors".to_string()),
+                    permissions: Some(vec![
+                        "election-event-read".to_string(),
+                        name.to_string(),
+                    ]),
+                    access: None,
+                    attributes: None,
+                    client_roles: None,
+                },
+            });
+
+            let (status, message) =
+                create_role(tenant_admin(), body).await.unwrap_err();
+
+            assert_eq!(status, Status::BadRequest, "{name}");
+            assert!(message.contains(name), "{message}");
+        }
+    }
 }

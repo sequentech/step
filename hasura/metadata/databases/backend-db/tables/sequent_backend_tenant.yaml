@@ -54,6 +54,23 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
+              - annotations
+              - created_at
+              - id
+              - is_active
+              - labels
+              - settings
+              - slug
+              - updated_at
+              - voting_channels
+          filter:
+              id:
+                  _eq: X-Hasura-Tenant-Id
+      role: publish-read
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
               - is_active
               - annotations
               - labels
@@ -65,6 +82,23 @@ select_permissions:
               - id
           filter: {}
       role: service-account
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - created_at
+              - id
+              - is_active
+              - labels
+              - settings
+              - slug
+              - updated_at
+              - voting_channels
+          filter:
+              id:
+                  _eq: X-Hasura-Tenant-Id
+      role: trustee-ceremony
     - comment: ""
       permission:
           columns:

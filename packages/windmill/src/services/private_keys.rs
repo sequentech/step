@@ -18,12 +18,14 @@ use super::public_keys::deserialize_public_key;
 pub async fn get_trustee_encrypted_private_key(
     board_name: &str,
     trustee_pub_key: &str,
+    manager: &StrandSignaturePk,
 ) -> Result<String> {
     let trustee_deserialized_pub_key: StrandSignaturePk =
         deserialize_public_key(trustee_pub_key.to_string())?;
     let private_key = protocol_manager::get_trustee_encrypted_private_key::<RistrettoCtx>(
         board_name,
         &trustee_deserialized_pub_key,
+        manager,
     )
     .await?;
 
