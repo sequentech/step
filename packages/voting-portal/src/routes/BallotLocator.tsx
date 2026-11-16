@@ -290,10 +290,11 @@ const BallotLocator: React.FC = () => {
         setValue(newValue)
     }
 
-    // Every change of the filter, typed or pasted, is a new request.
+    // Every change of the filter, typed or pasted, is a new request from the first page.
     const changeFilter = (value: string) => {
         allowSendRequest.current = true
         setInputBallotId(value)
+        setPage(0)
     }
 
     return (
