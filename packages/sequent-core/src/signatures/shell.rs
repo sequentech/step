@@ -14,7 +14,9 @@ pub fn run_shell_command(command: &str) -> Result<String> {
 
     // Check if the command was successful
     if !output.status.success() {
-        return Err(anyhow::anyhow!("Shell command failed: {:?}", output));
+        // The exit status only: stdout and stderr may echo the command's
+        // secrets, and the error is logged.
+        return Err(anyhow::anyhow!("Shell command failed: {}", output.status));
     }
 
     // Convert the output to a string

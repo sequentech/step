@@ -44,15 +44,18 @@ fn shell_commands_and_their_output_stay_out_of_the_logs() {
             run_shell_command(&format!(
                 "printf {OUTPUT} # -passin pass:{PASSWORD}"
             )),
-            run_shell_command(&format!("false # -passin pass:{PASSWORD}")),
+            run_shell_command(&format!(
+                "printf {OUTPUT}; printf {PASSWORD} >&2; exit 1 # -passin pass:{PASSWORD}"
+            )),
         )
     });
 
     assert_eq!(output.expect("the command runs"), OUTPUT);
-    assert!(failure.is_err());
+    let failure = format!("{:?}", failure.expect_err("the command fails"));
     assert!(logs.contains("run_shell_command"), "{logs}");
     for value in [PASSWORD, OUTPUT] {
         assert!(!logs.contains(value), "{value} in logs: {logs}");
+        assert!(!failure.contains(value), "{value} in error: {failure}");
     }
 }
 
