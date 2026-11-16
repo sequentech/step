@@ -73,6 +73,7 @@ const frenchTranslation: TranslationType = {
                 bytesToUtf8Conversion:
                     "Erreur lors de la conversion des octets de l'entrée en saisie libre en chaîne UTF-8 : {{errorMessage}}",
                 ballotTooLarge: "La taille du bulletin dépasse la limite prévue",
+                duplicatedSelection: "La même option a été sélectionnée plus d'une fois",
             },
             implicit: {
                 selectedMax:
