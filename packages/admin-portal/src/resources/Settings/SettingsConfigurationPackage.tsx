@@ -169,7 +169,6 @@ export const SettingsConfigurationPackage: React.FC = () => {
             })
         }
         // refreshHistory is a fresh closure each render; the task finishing is the trigger.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [submitted, finished, view, stopPolling, tenantId])
 
     if (!allowed || !tenantId) {
