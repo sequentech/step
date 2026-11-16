@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {fireEvent, render, screen} from "@testing-library/react"
+import {act, fireEvent, render, screen, waitFor} from "@testing-library/react"
 import {ThemeProvider} from "@mui/material/styles"
 import {createMemoryRouter, RouterProvider} from "react-router-dom"
 import type {DocumentNode} from "graphql"
@@ -21,6 +21,7 @@ jest.mock("react-i18next", () => ({
 jest.mock("@sequentech/ui-core", () => ({
     ...jest.requireActual<typeof import("@sequentech/ui-core")>("@sequentech/ui-core"),
     stringToHtml: (value: string) => value,
+    normalizeBallotId: () => null,
 }))
 jest.mock(
     "@sequentech/ui-essentials",
@@ -50,6 +51,9 @@ jest.mock("../store/hooks", () => ({
 
 const mockEventPresentation: {current: Record<string, string>} = {current: {}}
 const MOCK_CAST_VOTES_TOTAL = 3
+const castVotes = (total: number) => ({data: {list_cast_vote_messages: {list: [], total}}})
+// The cast-vote list request; a test can hold its answer back.
+const mockRefetch = jest.fn()
 
 jest.mock("@apollo/client/react", () => ({
     useQuery: (query: DocumentNode) => {
@@ -68,28 +72,42 @@ jest.mock("@apollo/client/react", () => ({
                       }
                     : undefined,
             loading: false,
-            refetch: async () => ({
-                data: {list_cast_vote_messages: {list: [], total: MOCK_CAST_VOTES_TOTAL}},
-            }),
+            refetch: (variables: unknown) => mockRefetch(variables),
         }
     },
 }))
 
-const renderCastVoteLogs = async () => {
+const LOOKUP_PATH = "/tenant/tenant/event/event/election/election/ballot-locator"
+
+beforeEach(() => {
+    mockRefetch.mockReset()
+    mockRefetch.mockImplementation(async () => castVotes(MOCK_CAST_VOTES_TOTAL))
+})
+
+afterEach(() => {
+    jest.restoreAllMocks()
+})
+
+const renderBallotLocator = () => {
     const router = createMemoryRouter(
         [
             {
-                path: "/tenant/:tenantId/event/:eventId/election/:electionId/ballot-locator",
+                path: "/tenant/:tenantId/event/:eventId/election/:electionId/ballot-locator/:ballotId?",
                 element: <BallotLocator />,
             },
         ],
-        {initialEntries: ["/tenant/tenant/event/event/election/election/ballot-locator"]}
+        {initialEntries: [LOOKUP_PATH]}
     )
     const view = render(
         <ThemeProvider theme={theme}>
             <RouterProvider router={router} />
         </ThemeProvider>
     )
+    return {router, view}
+}
+
+const renderCastVoteLogs = async () => {
+    const {view} = renderBallotLocator()
     fireEvent.click(await screen.findByRole("tab", {name: "ballotLocator.tabs.logs"}))
     return view
 }
@@ -104,5 +122,76 @@ test("the ballot id filter is rejected when longer than a ballot id", async () =
 
     fireEvent.change(input, {target: {value: "ab".repeat(33)}})
     expect(await screen.findByText("ballotLocator.wrongFormatBallotId")).toBeVisible()
+    view.unmount()
+})
+
+test("enter does not look up a ballot id the locate button rejects", async () => {
+    mockEventPresentation.current = {}
+    const {router, view} = renderBallotLocator()
+    const input = await screen.findByLabelText("a11y.ballotIdLabel")
+
+    fireEvent.change(input, {target: {value: "abc"}})
+    fireEvent.keyDown(input, {key: "Enter"})
+    await act(async () => {})
+    expect(router.state.location.pathname).toBe(LOOKUP_PATH)
+    expect(input).toHaveValue("abc")
+    expect(screen.getByText("ballotLocator.wrongFormatBallotId")).toBeVisible()
+
+    fireEvent.change(input, {target: {value: "abcd"}})
+    fireEvent.keyDown(input, {key: "Enter"})
+    await waitFor(() => expect(router.state.location.pathname).toBe(`${LOOKUP_PATH}/abcd`))
+    view.unmount()
+})
+
+test("a deferred cast-vote request supersedes the one still in flight", async () => {
+    mockEventPresentation.current = {show_cast_vote_logs: "show-logs-tab"}
+    const clock = jest.spyOn(Date, "now").mockReturnValue(1_000_000)
+    let answerFirst: (answer: ReturnType<typeof castVotes>) => void = () => {}
+    mockRefetch.mockImplementationOnce(
+        () =>
+            new Promise((resolve) => {
+                answerFirst = resolve
+            })
+    )
+    mockRefetch.mockImplementation(async () => castVotes(222))
+    const view = await renderCastVoteLogs()
+    expect(mockRefetch).toHaveBeenCalledTimes(1)
+
+    // 100 ms later the voter sorts by ballot id: too quick, so that request
+    // waits a second before it is sent.
+    clock.mockReturnValue(1_000_100)
+    fireEvent.click(screen.getByText("ballotLocator.column.ballot_id"))
+    expect(mockRefetch).toHaveBeenCalledTimes(1)
+
+    // The first request answers while the second one waits: its rows are stale.
+    await act(async () => answerFirst(castVotes(111)))
+    expect(screen.getByRole("heading", {name: "ballotLocator.totalBallots: 0"})).toBeVisible()
+
+    await waitFor(() => expect(mockRefetch).toHaveBeenCalledTimes(2), {timeout: 2000})
+    expect(mockRefetch).toHaveBeenLastCalledWith(
+        expect.objectContaining({orderBy: {ballot_id: "asc"}})
+    )
+    expect(
+        await screen.findByRole("heading", {name: "ballotLocator.totalBallots: 222"})
+    ).toBeVisible()
+    view.unmount()
+})
+
+test("a malformed ballot id filter typed too quickly is never sent", async () => {
+    mockEventPresentation.current = {show_cast_vote_logs: "show-logs-tab"}
+    const clock = jest.spyOn(Date, "now").mockReturnValue(2_000_000)
+    const view = await renderCastVoteLogs()
+    expect(mockRefetch).toHaveBeenCalledTimes(1)
+    const input = screen.getByLabelText("a11y.ballotIdLabel")
+
+    // 100 ms later the voter has typed an odd number of characters.
+    clock.mockReturnValue(2_000_100)
+    fireEvent.keyDown(input, {key: "c"})
+    fireEvent.change(input, {target: {value: "abc"}})
+    expect(screen.getByText("ballotLocator.wrongFormatBallotId")).toBeVisible()
+
+    // Longer than the second a deferred request waits.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 1500)))
+    expect(mockRefetch).toHaveBeenCalledTimes(1)
     view.unmount()
 })
