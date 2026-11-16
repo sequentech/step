@@ -5,7 +5,9 @@ use anyhow::{anyhow, Context, Result};
 use std::process::Command;
 use tracing::{info, instrument};
 
-#[instrument(err, ret)]
+/// Runs `command` with `sh -c`. Callers pass passwords and key paths in the
+/// command, so neither the command nor its output is recorded in the logs.
+#[instrument(skip(command), err)]
 pub fn run_shell_command(command: &str) -> Result<String> {
     // Run the shell command
     let output = Command::new("sh").arg("-c").arg(command).output()?;

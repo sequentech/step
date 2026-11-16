@@ -442,7 +442,7 @@ pub struct DeleteUsersBody {
     authorized_to_election_alias: Option<String>,
 }
 
-#[instrument(skip(claims, services))]
+#[instrument(skip(claims, body, services))]
 #[post("/delete-users", format = "json", data = "<body>")]
 pub async fn delete_users(
     claims: jwt::JwtClaims,
@@ -830,7 +830,7 @@ fn keep_permitted_votes(user: &mut User, elections: Option<&[String]>) {
     }
 }
 
-#[instrument(skip(claims, body), ret)]
+#[instrument(skip(claims, body))]
 #[post("/get-users", format = "json", data = "<body>")]
 pub async fn get_users(
     claims: jwt::JwtClaims,
@@ -1619,7 +1619,7 @@ impl<'r> Responder<'r, 'static> for EditUserError {
     }
 }
 
-#[instrument(skip(claims, body, services), ret)]
+#[instrument(skip(claims, body, services))]
 #[post("/edit-user", format = "json", data = "<body>")]
 pub async fn edit_user(
     claims: jwt::JwtClaims,

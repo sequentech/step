@@ -111,6 +111,7 @@ which additionally requires choosing a renderer feature such as `lambda_inplace`
 | `sqlite_feature_boundaries.rs` | Literal SQLite cell expectations for entity and result mappings, null versus zero, Unicode metadata, CSV rejection, transaction rollback, translation overrides and document-update scope keys. |
 | `s3_feature_boundaries.rs` | Complete downloads preserve literal payloads; interrupted streams fail for both memory and temporary-file APIs against a local HTTP peer. |
 | `s3_upload_url_logging.rs` | A presigned upload URL and its signature stay out of the logs. |
+| `signature_log_confidentiality.rs` | Shell commands, their passwords and output stay out of the logs; the ACM private key is neither logged while signing nor shown by `Debug`. |
 | `native_feature_boundaries.rs` | Area hierarchy completeness and cycle rejection, independent live/ready responses, bounded retries, template escaping/failures and temporary-file cleanup. |
 
 SQLite tests read the database directly rather than using a second production
