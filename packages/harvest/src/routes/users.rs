@@ -297,7 +297,7 @@ pub struct DeleteUsersBody {
     authorized_to_election_alias: Option<String>,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, body))]
 #[post("/delete-users", format = "json", data = "<body>")]
 pub async fn delete_users(
     claims: jwt::JwtClaims,
@@ -587,7 +587,7 @@ pub async fn count_users(
     }))
 }
 
-#[instrument(skip(claims, body), ret)]
+#[instrument(skip(claims, body))]
 #[post("/get-users", format = "json", data = "<body>")]
 pub async fn get_users(
     claims: jwt::JwtClaims,
@@ -1321,7 +1321,7 @@ impl<'r> Responder<'r, 'static> for EditUserError {
     }
 }
 
-#[instrument(skip(claims, body), ret)]
+#[instrument(skip(claims, body))]
 #[post("/edit-user", format = "json", data = "<body>")]
 pub async fn edit_user(
     claims: jwt::JwtClaims,
