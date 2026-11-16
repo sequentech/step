@@ -9,7 +9,7 @@ import {Provider} from "react-redux"
 import {MemoryRouter, useLocation, useNavigate} from "react-router-dom"
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
-import {ELanguageDetectionPolicy} from "@sequentech/ui-core"
+import {ELanguageDetectionPolicy, IElectionEventPresentation} from "@sequentech/ui-core"
 import {electionFixture, FIXED_TIME} from "@sequentech/ui-test-kit/fixtures"
 import App from "./App"
 import {KeycloakProviderContainer} from "./index"
@@ -58,7 +58,7 @@ const voterEvent = eventPath(IDS.tenant, IDS.event)
 /** Answers the verifier's HTTP requests as the journeys' S3 and Hasura mocks do. */
 function serve(
     overrides: Partial<GlobalSettings> = {},
-    {eventConfig = true, eventPresentation = {}} = {}
+    {eventConfig = true, eventPresentation = {}, publishedPresentation = {}} = {}
 ) {
     const served = {...settings, ...overrides}
     const unexpected: string[] = []
@@ -93,7 +93,9 @@ function serve(
             const {operationName} = JSON.parse(String(init.body))
             const headers = init.headers as Record<string, string>
             graphql.push({operationName, authorization: headers.authorization})
-            if (operationName === "GetBallotStyles") return reply({data: publishedBallotStyles()})
+            if (operationName === "GetBallotStyles") {
+                return reply({data: publishedBallotStyles(publishedPresentation)})
+            }
         }
         unexpected.push(`${init?.method ?? "GET"} ${url}`)
         throw new Error(`Unexpected request: ${url}`)
@@ -101,7 +103,7 @@ function serve(
     return {unexpected, graphql}
 }
 
-const publishedBallotStyles = () => ({
+const publishedBallotStyles = (presentation: object) => ({
     sequent_backend_ballot_publication: [
         {
             __typename: "sequent_backend_ballot_publication",
@@ -113,6 +115,13 @@ const publishedBallotStyles = () => ({
         {
             __typename: "sequent_backend_ballot_style",
             ...electionFixture().style,
+            ballot_eml: JSON.stringify({
+                ...electionFixture().ballot,
+                election_event_presentation: {
+                    ...electionFixture().ballot.election_event_presentation,
+                    ...presentation,
+                },
+            }),
             ballot_publication_id: "publication",
             status: null,
             deleted_at: null,
@@ -154,8 +163,7 @@ const location = () => screen.getByLabelText("Current location").textContent
 const expectLocation = (path: string) => waitFor(() => expect(location()).toBe(path))
 const importStep = () => screen.findByRole("heading", {name: /Step 1: Import your ballot/})
 
-async function importAndContinue() {
-    const single = singleContestBallot()
+async function importAndContinue(single = singleContestBallot()) {
     recordSequentCore(single)
     await importStep()
     userEvent.upload(
@@ -181,6 +189,50 @@ afterEach(() => {
     jest.restoreAllMocks()
     document.cookie = "USER_LANGUAGE=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/"
     window.history.replaceState(null, "", "/?lang=en")
+})
+
+describe("event CSS", () => {
+    const unsafeCss = (source: string) => `
+        background-image: url(https://${source}.example/image.png);
+        .candidate::after { content: "${source}"; }
+    `
+    // Emotion adds rules through the CSSOM here, so <style> elements have no text to read.
+    const appliedCss = () =>
+        Array.from(document.styleSheets)
+            .flatMap((sheet) => Array.from(sheet.cssRules))
+            .map((rule) => rule.cssText)
+            .join("\n")
+    const expectOnlySafeCss = async (color: string, source: string) => {
+        const wrapper = () => document.querySelector(".ballot-verifier")?.parentElement as Element
+        await waitFor(() => expect(getComputedStyle(wrapper()).color).toBe(color))
+        expect(appliedCss()).toContain(color)
+        expect(appliedCss()).not.toContain(source)
+    }
+
+    it("filters the CSS of the published ballot style", async () => {
+        services = serve(
+            {},
+            {publishedPresentation: {css: `color: rgb(1, 2, 3); ${unsafeCss("published")}`}}
+        )
+        launch(`${voterEvent}/start`)
+
+        await expectOnlySafeCss("rgb(1, 2, 3)", "published")
+    })
+
+    // Signed in, the verifier uses the published style; only offline does the file's apply.
+    it("filters the CSS inside an imported auditable ballot", async () => {
+        services = serve({DISABLE_AUTH: true})
+        launch("/")
+        const single = singleContestBallot()
+        single.ballot.config.election_event_presentation = {
+            css: `color: rgb(4, 5, 6); ${unsafeCss("imported")}`,
+        } as IElectionEventPresentation
+
+        await importAndContinue(single)
+
+        await expectLocation(`${eventPath(defaultEvent.tenant, defaultEvent.event)}/confirmation`)
+        await expectOnlySafeCss("rgb(4, 5, 6)", "imported")
+    })
 })
 
 describe("event routes", () => {

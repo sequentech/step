@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {readFileSync} from "fs"
 import {resolve} from "path"
-import {getOperationRole} from "./Permissions"
+import {getOperationRole, getSchemaRoles, getTaskRole} from "./Permissions"
+import {ETasksExecution} from "@/types/tasksExecution"
 import {IPermissions} from "@/types/keycloak"
 import type {GraphQLRequest} from "@apollo/client"
 
@@ -167,9 +168,19 @@ const TRUSTEE_OPERATIONS = [
     "GetCustodyRequest",
     "ConfirmKeyCustody",
     "AuthorizeTallyCustody",
+    "GetDocument",
+    "FetchDocument",
 ]
 
-const LOCKDOWN_OPERATIONS = [...SHELL_OPERATIONS, "sequent_backend_ballot_publication"]
+const LOCKDOWN_OPERATIONS = [
+    ...SHELL_OPERATIONS,
+    "sequent_backend_ballot_publication",
+    "GetTaskById",
+    "GenerateBallotPublication",
+    "PublishBallot",
+    "GetDocument",
+    "FetchDocument",
+]
 
 const groupRoles = (template: string, groupName: string): Array<string> => {
     const realm: RealmTemplate = JSON.parse(readFileSync(resolve(REPO_ROOT, template), "utf8"))
@@ -254,6 +265,22 @@ describe("getOperationRole", () => {
         )
     })
 
+    it.each(["GenerateBallotPublication", "PublishBallot"])(
+        "runs %s as publish-write for publishers without admin-user",
+        (operation) => {
+            const roles = [IPermissions.PUBLISH_READ, IPermissions.PUBLISH_WRITE]
+            expect(roleFor(operation, roles)).toBe(IPermissions.PUBLISH_WRITE)
+        }
+    )
+
+    it.each(["GenerateBallotPublication", "PublishBallot"])(
+        "keeps %s on admin-user for admins",
+        (operation) => {
+            const roles = [IPermissions.ADMIN_USER, IPermissions.PUBLISH_WRITE]
+            expect(roleFor(operation, roles)).toBe(IPermissions.ADMIN_USER)
+        }
+    )
+
     it("uses a mapped role only when a trustee holds it", () => {
         const roles = [IPermissions.TRUSTEE_CEREMONY, IPermissions.ELECTION_READ]
         expect(roleFor("sequent_backend_election", roles)).toBe(IPermissions.ELECTION_READ)
@@ -269,4 +296,120 @@ test("forensic actions never fall back to the broad administrator role", () => {
         IPermissions.FORENSIC_READ
     )
     expect(getOperationRole(operation("BallotBoxEntry"), () => true)).toBe(IPermissions.LOGS_READ)
+})
+
+describe("getSchemaRoles", () => {
+    const holding = (roles: Array<IPermissions>) => (role: IPermissions) => roles.includes(role)
+
+    it("uses admin-user alone for admins", () => {
+        const roles = [
+            IPermissions.ADMIN_USER,
+            IPermissions.TRUSTEE_CEREMONY,
+            IPermissions.PUBLISH_READ,
+        ]
+        expect(getSchemaRoles(holding(roles))).toEqual([IPermissions.ADMIN_USER])
+    })
+
+    it("uses every profile a restricted user holds", () => {
+        const roles = [IPermissions.PUBLISH_READ, IPermissions.TRUSTEE_CEREMONY]
+        expect(getSchemaRoles(holding(roles))).toEqual([
+            IPermissions.TRUSTEE_CEREMONY,
+            IPermissions.PUBLISH_READ,
+        ])
+    })
+
+    it("adds the results publication schema to a lockdown user", () => {
+        const roles = [IPermissions.PUBLISH_READ, IPermissions.PUBLISH_RESULTS_READ]
+        expect(getSchemaRoles(holding(roles))).toEqual(roles)
+    })
+
+    it("adds the document schema to a user who can read documents", () => {
+        const roles = [IPermissions.PUBLISH_READ, IPermissions.DOCUMENT_READ]
+        expect(getSchemaRoles(holding(roles))).toEqual(roles)
+    })
+
+    it("adds the fallback schema next to the results publication one", () => {
+        const roles = [IPermissions.ELECTION_EVENT_READ, IPermissions.PUBLISH_RESULTS_READ]
+        expect(getSchemaRoles(holding(roles))).toEqual(roles)
+    })
+
+    it("has no role for a user without a profile", () => {
+        expect(getSchemaRoles(holding([IPermissions.LOGS_READ]))).toEqual([])
+    })
+})
+
+describe("staff without a default profile", () => {
+    it("uses the restricted role they hold", () => {
+        const roles = [
+            IPermissions.ELECTION_EVENT_READ,
+            IPermissions.DOCUMENT_READ,
+            IPermissions.DOCUMENT_DOWNLOAD,
+        ]
+        expect(roleFor("GetDocument", roles)).toBe(IPermissions.DOCUMENT_READ)
+        expect(roleFor("FetchDocument", roles)).toBe(IPermissions.DOCUMENT_DOWNLOAD)
+        expect(roleFor("GetTaskById", [IPermissions.TASKS_READ])).toBe(IPermissions.TASKS_READ)
+    })
+})
+
+describe("document reads", () => {
+    it("runs them under the document roles for a restricted user", () => {
+        const roles = [
+            IPermissions.PUBLISH_READ,
+            IPermissions.DOCUMENT_READ,
+            IPermissions.DOCUMENT_DOWNLOAD,
+        ]
+        expect(roleFor("GetDocument", roles)).toBe(IPermissions.DOCUMENT_READ)
+        expect(roleFor("FetchDocument", roles)).toBe(IPermissions.DOCUMENT_DOWNLOAD)
+    })
+
+    it("keeps them on admin-user for admins", () => {
+        const roles = [IPermissions.ADMIN_USER, IPermissions.DOCUMENT_DOWNLOAD]
+        expect(roleFor("FetchDocument", roles)).toBe(IPermissions.ADMIN_USER)
+    })
+})
+
+describe("task reads", () => {
+    const holding = (roles: Array<IPermissions>) => (role: IPermissions) => roles.includes(role)
+    const results = ETasksExecution.PUBLISH_RESULTS_WEBSITE
+
+    it("prefers tasks-read for a restricted user who holds it", () => {
+        const roles = [IPermissions.PUBLISH_READ, IPermissions.TASKS_READ]
+        expect(roleFor("GetTaskById", roles)).toBe(IPermissions.TASKS_READ)
+        expect(getTaskRole(results, holding(roles))).toBeUndefined()
+    })
+
+    it("reads a results publication task as publish-results-read", () => {
+        const roles = [IPermissions.PUBLISH_READ, IPermissions.PUBLISH_RESULTS_READ]
+        expect(getTaskRole(results, holding(roles))).toBe(IPermissions.PUBLISH_RESULTS_READ)
+    })
+
+    it("leaves other tasks and admins to the operation's role", () => {
+        const lockdown = [IPermissions.PUBLISH_READ, IPermissions.PUBLISH_RESULTS_READ]
+        expect(
+            getTaskRole(ETasksExecution.EXPORT_BALLOT_PUBLICATION, holding(lockdown))
+        ).toBeUndefined()
+        expect(
+            getTaskRole(results, holding([...lockdown, IPermissions.ADMIN_USER]))
+        ).toBeUndefined()
+    })
+})
+
+describe("publication reads", () => {
+    const reads = ["GetTaskById", "GetBallotPublicationChange"]
+
+    it.each(reads)("runs %s as publish-read for a user with both profiles", (operation) => {
+        const roles = [IPermissions.TRUSTEE_CEREMONY, IPermissions.PUBLISH_READ]
+        expect(roleFor(operation, roles)).toBe(IPermissions.PUBLISH_READ)
+    })
+
+    it.each(reads)("keeps %s on admin-user for admins", (operation) => {
+        const roles = [IPermissions.ADMIN_USER, IPermissions.PUBLISH_READ]
+        expect(roleFor(operation, roles)).toBe(IPermissions.ADMIN_USER)
+    })
+
+    it.each(reads)("keeps %s on the ceremony role for a trustee", (operation) => {
+        expect(roleFor(operation, [IPermissions.TRUSTEE_CEREMONY])).toBe(
+            IPermissions.TRUSTEE_CEREMONY
+        )
+    })
 })
