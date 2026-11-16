@@ -14,7 +14,9 @@ pub fn run_shell_command(command: &str) -> Result<String> {
 
     // Check if the command was successful
     if !output.status.success() {
-        return Err(anyhow::anyhow!("Shell command failed: {:?}", output));
+        // The exit status only: stdout and stderr may echo the command's
+        // secrets, and the error is logged.
+        return Err(anyhow::anyhow!("Shell command failed: {}", output.status));
     }
 
     // Convert the output to a string
@@ -40,15 +42,18 @@ mod tests {
             "printf {OUTPUT} # -passin pass:{PASSWORD}"
         ))
         .expect("the command runs");
-        let failure =
-            run_shell_command(&format!("false # -passin pass:{PASSWORD}"));
+        let failure = run_shell_command(&format!(
+            "printf {OUTPUT}; printf {PASSWORD} >&2; exit 1 # -passin pass:{PASSWORD}"
+        ))
+        .expect_err("the command fails");
 
         assert_eq!(output, OUTPUT);
-        assert!(failure.is_err());
+        let failure = format!("{failure:?}");
         let logs = capture.contents();
         assert!(logs.contains("run_shell_command"), "{logs}");
         for value in [PASSWORD, OUTPUT] {
             assert!(!logs.contains(value), "{value} in logs: {logs}");
+            assert!(!failure.contains(value), "{value} in error: {failure}");
         }
     }
 }
