@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {act, fireEvent, render, screen, waitFor} from "@testing-library/react"
+import {act, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {ThemeProvider} from "@mui/material/styles"
 import {createMemoryRouter, RouterProvider} from "react-router-dom"
 import type {DocumentNode} from "graphql"
@@ -21,6 +21,7 @@ jest.mock("react-i18next", () => ({
 jest.mock("@sequentech/ui-core", () => ({
     ...jest.requireActual<typeof import("@sequentech/ui-core")>("@sequentech/ui-core"),
     stringToHtml: (value: string) => value,
+    formatVotingPortalDateTime: () => "date",
 }))
 jest.mock(
     "@sequentech/ui-essentials",
@@ -302,5 +303,30 @@ test("the lookup drops surrounding spaces from the ballot id", async () => {
     fireEvent.change(input, {target: {value: " abcd "}})
     fireEvent.keyDown(input, {key: "Enter"})
     await waitFor(() => expect(router.state.location.pathname).toBe(`${LOOKUP_PATH}/abcd`))
+    view.unmount()
+})
+
+test("an empty message shows its dash centered, like an empty username", async () => {
+    mockEventPresentation.current = {show_cast_vote_logs: "show-logs-tab"}
+    const entry = {
+        statement_timestamp: 1,
+        statement_kind: "CastVote",
+        ballot_id: "ab",
+        username: null,
+        message: null,
+    }
+    mockRefetch.mockImplementation(async () => ({
+        data: {list_cast_vote_messages: {list: [entry], total: 1}},
+    }))
+    const view = await renderCastVoteLogs()
+
+    await waitFor(() =>
+        expect(view.container.querySelector(".cast-vote-logs-message-cell")).not.toBeNull()
+    )
+    const messageCell = view.container.querySelector(".cast-vote-logs-message-cell")!
+    const usernameCell = view.container.querySelector(".cast-vote-logs-username-cell")!
+    expect(usernameCell).toHaveTextContent("-")
+    expect(usernameCell).toHaveStyle({textAlign: "center"})
+    expect(within(messageCell as HTMLElement).getByText("-")).toHaveStyle({textAlign: "center"})
     view.unmount()
 })
