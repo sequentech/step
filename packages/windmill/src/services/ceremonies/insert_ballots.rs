@@ -655,7 +655,7 @@ pub async fn get_elections_end_dates(
 /// The value of a voter's `authorized-election-ids` attribute that authorizes them
 /// for an election, as Keycloak's authorized-elections mapper reads it: the election's
 /// external ID, or its ID when it has none.
-fn census_election_key(id: &str, external_id: Option<&str>) -> String {
+pub(crate) fn census_election_key(id: &str, external_id: Option<&str>) -> String {
     external_id
         .filter(|external_id| !external_id.is_empty())
         .unwrap_or(id)
