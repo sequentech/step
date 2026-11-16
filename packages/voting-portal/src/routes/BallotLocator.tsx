@@ -197,8 +197,22 @@ const BallotLocator: React.FC = () => {
             : undefined
         let tooQuick = duration ? duration < 500 : false
         lastCVRequestTimestamp.current = Date.now()
+        if (!validatedBallotId) {
+            // A malformed filter is never sent, and it supersedes the earlier
+            // requests: a deferred one is dropped, an in-flight one is ignored.
+            clearTimeout(fetchTimeout.current)
+            latestRequestId.current++
+            return
+        }
+        // With DISABLE_AUTH only the deferred path fetches.
+        if (globalSettings.DISABLE_AUTH && !tooQuick) {
+            return
+        }
+        // This request supersedes the earlier ones as soon as it is accepted,
+        // even while it waits for its deferred start.
+        const requestId = ++latestRequestId.current
+        clearTimeout(fetchTimeout.current)
         async function tryFetchMessages() {
-            const requestId = ++latestRequestId.current
             try {
                 let limit = rowsPerPage
                 let offset = page * rowsPerPage
@@ -229,19 +243,11 @@ const BallotLocator: React.FC = () => {
         }
 
         if (tooQuick) {
-            // Start interval
-            // if timeout is already running, destroy it and create a new one.
-            clearTimeout(fetchTimeout.current)
             fetchTimeout.current = setTimeout(async () => {
                 await tryFetchMessages()
             }, 1000)
-        }
-
-        if (globalSettings.DISABLE_AUTH || tooQuick || !validatedBallotId) {
             return
         }
-        // An immediate fetch supersedes any deferred one still pending.
-        clearTimeout(fetchTimeout.current)
         await tryFetchMessages()
     }
 
@@ -836,7 +842,9 @@ const BallotLocatorLogic = () => {
     }
 
     const captureEnter: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
-        if ("Enter" === event.key) {
+        // Same condition as the locate button: a rejected id stays in the input
+        // with its error.
+        if ("Enter" === event.key && validatedBallotId && inputBallotId.trim() !== "") {
             locate(true)
         }
     }
