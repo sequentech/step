@@ -878,7 +878,7 @@ async fn authorized_election_key(
     )))
 }
 
-#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+#[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
 pub async fn count_keycloak_users(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -1026,13 +1026,12 @@ pub async fn count_keycloak_users(
     Ok(count)
 }
 
-#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+#[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
 pub async fn list_users(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
 ) -> Result<(Vec<User>, i32)> {
-    info!("filter: {filter:?}");
     let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
     let query_limit: i64 =
@@ -1171,7 +1170,6 @@ pub async fn list_users(
     }
 
     debug!("parameters count: {}", next_param_number - 1);
-    debug!("params {:?}", params);
     let scope_clause = voter_scope_clause(&filters_clause, realm_id_param, user_ids_param);
     let statement_str = format!(
         r#"
@@ -1387,7 +1385,7 @@ pub async fn count_keycloak_enabled_users(
 }
 
 /// Use only for verifying application!, does not work as it seems for other situations, then use list_users instead.
-#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+#[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
 pub async fn lookup_users(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -1476,7 +1474,6 @@ pub async fn lookup_users(
     let no_service_accounts = service_account_exclusion("u");
 
     debug!("parameters count: {}", next_param_number - 1);
-    debug!("params {:?}", params);
 
     let statement_str = format!(
         r#"
@@ -1856,7 +1853,7 @@ pub async fn get_user_area_id(
     }
 }
 
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip(hasura_transaction, filter), err)]
 pub async fn count_have_voted(
     hasura_transaction: &Transaction<'_>,
     filter: &ListUsersFilter,
@@ -1914,7 +1911,7 @@ fn has_voted_page_limit(filter: &ListUsersFilter, pg_config: &PgConfig) -> Resul
     pg_config.page_limit(limit.into())
 }
 
-#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+#[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
 pub async fn list_users_has_voted(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
