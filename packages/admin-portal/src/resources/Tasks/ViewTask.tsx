@@ -55,6 +55,7 @@ export interface ViewTaskProps {
     goBack: () => void
     electionEventRecord?: Sequent_Backend_Election_Event
     isModal?: boolean
+    taskRole?: IPermissions
 }
 
 export const ViewTask: React.FC<ViewTaskProps> = ({
@@ -62,6 +63,7 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
     goBack,
     electionEventRecord,
     isModal = false,
+    taskRole,
 }) => {
     const {t} = useTranslation()
     const notify = useNotify()
@@ -91,6 +93,7 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
     const {data: taskData} = useQuery<GetTaskByIdQuery>(GET_TASK_BY_ID, {
         variables: {task_id: currTaskId},
         skip: !currTaskId,
+        context: taskRole ? {headers: {"x-hasura-role": taskRole}} : undefined,
         pollInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
     })
 

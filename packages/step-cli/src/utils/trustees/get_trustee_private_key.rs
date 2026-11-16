@@ -6,7 +6,10 @@ use crate::{
     types::hasura_types::*,
     utils::{
         read_config::read_config,
-        trustees::get_trustee_private_key::{self, get_private_key::GetPrivateKeyInput},
+        trustees::{
+            get_trustee_private_key::{self, get_private_key::GetPrivateKeyInput},
+            trustee_graphql_request,
+        },
     },
 };
 use graphql_client::{GraphQLQuery, Response};
@@ -62,9 +65,7 @@ impl GetTrusteePrivateKey {
 
         let request_body = GetPrivateKey::build_query(variables);
 
-        let response = client
-            .post(&config.endpoint_url)
-            .bearer_auth(config.auth_token)
+        let response = trustee_graphql_request(&client, &config.endpoint_url, &config.auth_token)
             .json(&request_body)
             .send()?;
 
