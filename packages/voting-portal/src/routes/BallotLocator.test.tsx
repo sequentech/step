@@ -23,6 +23,9 @@ jest.mock("@sequentech/ui-core", () => ({
     stringToHtml: (value: string) => value,
     normalizeBallotId: () => null,
 }))
+// jest.config.cjs maps @sequentech/ui-essentials, so this mock isn't virtual, as in
+// the other suites: jest caches how a module resolves per worker, and a virtual mock
+// breaks the suites that import it after this one in the same process.
 jest.mock(
     "@sequentech/ui-essentials",
     () => ({
@@ -36,8 +39,7 @@ jest.mock(
         IconButton: () => null,
         Dialog: () => null,
         ExpandableText: () => null,
-    }),
-    {virtual: true}
+    })
 )
 jest.mock("../providers/SettingsContextProvider", () => ({
     SettingsContext: jest
