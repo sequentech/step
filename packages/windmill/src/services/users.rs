@@ -780,6 +780,30 @@ fn get_sort_clause_and_field_param(
     }
 }
 
+/// Keeps voters without `authorized-election-ids`, or with a value that is
+/// the election's key or NULL, matching the census in
+/// `count_keycloak_enabled_voters_of_areas`.
+fn authorized_election_where_clause(name_param: i32) -> String {
+    let key_param = name_param + 1;
+    format!(
+        r#"
+        AND (
+            NOT EXISTS (
+                SELECT 1 FROM user_attribute AS authorization_attr
+                WHERE authorization_attr.user_id = u.id AND
+                    authorization_attr.name = ${name_param}
+            ) OR
+            EXISTS (
+                SELECT 1 FROM user_attribute AS authorization_attr
+                WHERE authorization_attr.user_id = u.id AND
+                    authorization_attr.name = ${name_param} AND
+                    (authorization_attr.value = ${key_param} OR authorization_attr.value IS NULL)
+            )
+        )
+        "#
+    )
+}
+
 /// The `authorized-election-ids` value that authorizes a voter for the election
 /// the filter is scoped to: its external id, or its id when it has none, as the
 /// Keycloak mapper and the tally census read it. Without an election, the
@@ -863,26 +887,11 @@ pub async fn count_keycloak_users(
     }
 
     // Handle optional authorized election alias filtering.
-    let (election_alias, authorized_alias_join_clause, authorized_alias_where_clause) =
-        match authorized_election_key(hasura_transaction, &filter).await? {
-            Some(election_alias) => (
-                Some(election_alias),
-                format!(
-                    r#"
-                    LEFT JOIN 
-                        user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = ${}
-                    "#,
-                    next_param_number
-                ),
-                format!(
-                    r#"
-                    AND (authorization_attr.value = ${} OR authorization_attr.user_id IS NULL)
-                    "#,
-                    next_param_number + 1
-                ),
-            ),
-            None => (None, String::new(), String::new()),
-        };
+    let election_alias = authorized_election_key(hasura_transaction, &filter).await?;
+    let authorized_alias_where_clause = match election_alias {
+        Some(_) => authorized_election_where_clause(next_param_number),
+        None => String::new(),
+    };
     if election_alias.is_some() {
         params.push(&AUTHORIZED_ELECTION_IDS_NAME);
         params.push(&election_alias);
@@ -931,7 +940,6 @@ pub async fn count_keycloak_users(
         FROM user_entity AS u
         INNER JOIN realm AS ra ON ra.id = u.realm_id
         {area_ids_join_clause}
-        {authorized_alias_join_clause}
         WHERE
             {scope_clause}
             {area_ids_where_clause}
@@ -1018,28 +1026,11 @@ pub async fn list_users(
         next_param_number += 1;
     }
 
-    let (election_alias, authorized_alias_join_clause, authorized_alias_where_clause) =
-        match authorized_election_key(hasura_transaction, &filter).await? {
-            Some(election_alias) => (
-                Some(election_alias),
-                format!(
-                    r#"
-            LEFT JOIN 
-                user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = ${}
-            "#,
-                    next_param_number
-                ),
-                format!(
-                    r#"
-            AND (
-                authorization_attr.value = ${} OR authorization_attr.user_id IS NULL
-            )
-            "#,
-                    next_param_number + 1
-                ),
-            ),
-            None => (None, "".to_string(), "".to_string()),
-        };
+    let election_alias = authorized_election_key(hasura_transaction, &filter).await?;
+    let authorized_alias_where_clause = match election_alias {
+        Some(_) => authorized_election_where_clause(next_param_number),
+        None => String::new(),
+    };
 
     if election_alias.is_some() {
         params.push(&AUTHORIZED_ELECTION_IDS_NAME);
@@ -1115,7 +1106,6 @@ pub async fn list_users(
             INNER JOIN
                 realm AS ra ON ra.id = u.realm_id
             {area_ids_join_clause}
-            {authorized_alias_join_clause}
             WHERE
                 {scope_clause}
                 {area_ids_where_clause}
@@ -1175,7 +1165,6 @@ pub async fn list_users(
     INNER JOIN
         realm AS ra ON ra.id = u.realm_id
     {area_ids_join_clause}
-    {authorized_alias_join_clause}
     WHERE
         {scope_clause}
         {area_ids_where_clause}
@@ -2029,6 +2018,8 @@ mod tests {
                        ('external-id', 'realm', 'external-id', true, false),
                        ('election-id', 'realm', 'election-id', true, false),
                        ('display-alias', 'realm', 'display-alias', true, false),
+                       ('null-value', 'realm', 'null-value', true, false),
+                       ('null-and-key', 'realm', 'null-and-key', true, false),
                        ('no-area', 'realm', 'no-area', true, false);
                 INSERT INTO user_attribute (user_id, name, value)
                 VALUES ('unrestricted', '{AREA_ID_ATTR_NAME}', '{area}'),
@@ -2038,6 +2029,11 @@ mod tests {
                        ('election-id', '{AUTHORIZED_ELECTION_IDS_NAME}', '{by_id}'),
                        ('display-alias', '{AREA_ID_ATTR_NAME}', '{area}'),
                        ('display-alias', '{AUTHORIZED_ELECTION_IDS_NAME}', 'Mayor'),
+                       ('null-value', '{AREA_ID_ATTR_NAME}', '{area}'),
+                       ('null-value', '{AUTHORIZED_ELECTION_IDS_NAME}', NULL),
+                       ('null-and-key', '{AREA_ID_ATTR_NAME}', '{area}'),
+                       ('null-and-key', '{AUTHORIZED_ELECTION_IDS_NAME}', NULL),
+                       ('null-and-key', '{AUTHORIZED_ELECTION_IDS_NAME}', 'election-a'),
                        ('no-area', '{AUTHORIZED_ELECTION_IDS_NAME}', 'election-a');
                 "#
             ))
@@ -2063,18 +2059,19 @@ mod tests {
 
         // The election's display alias is not what the attribute holds, so a
         // caller passing it must not hide the voters authorized by external id.
+        // A NULL value authorizes the voter, as in the census, and a voter with
+        // several values is listed once.
+        let by_external_id_voters =
+            vec!["external-id", "null-and-key", "null-value", "unrestricted"];
         assert_eq!(
             voters(by_external_id, Some("Mayor")).await?,
-            vec!["external-id", "unrestricted"]
+            by_external_id_voters
         );
-        assert_eq!(
-            voters(by_external_id, None).await?,
-            vec!["external-id", "unrestricted"]
-        );
+        assert_eq!(voters(by_external_id, None).await?, by_external_id_voters);
         // Without an external id, Keycloak names the election by its id.
         assert_eq!(
             voters(by_id, None).await?,
-            vec!["election-id", "unrestricted"]
+            vec!["election-id", "null-and-key", "null-value", "unrestricted"]
         );
         transaction.rollback().await?;
         Ok(())
