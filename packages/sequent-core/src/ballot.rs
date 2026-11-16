@@ -29,11 +29,23 @@ pub type I18nContent<T = Option<String>> = HashMap<String, T>;
 
 pub type Annotations = HashMap<String, String>;
 
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Clone)]
 pub struct ReplicationChoice<C: Ctx> {
     pub ciphertext: Ciphertext<C>,
     pub plaintext: C::P,
     pub randomness: C::X,
+}
+
+/// Shows the ciphertext only: the plaintext and the randomness reveal the
+/// vote.
+impl<C: Ctx> std::fmt::Debug for ReplicationChoice<C> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ReplicationChoice")
+            .field("ciphertext", &self.ciphertext)
+            .field("plaintext", &"<redacted>")
+            .field("randomness", &"<redacted>")
+            .finish()
+    }
 }
 
 #[derive(

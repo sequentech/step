@@ -59,7 +59,9 @@ pub struct JwtClaims {
     pub nonce: Option<String>,
     pub session_state: Option<String>,
     pub acr: String,
-    #[serde(rename = "allowed-origins")]
+    // Keycloak omits this claim for a client with no web origins. Nothing reads
+    // it, so a token without it stays valid.
+    #[serde(rename = "allowed-origins", default)]
     pub allowed_origins: Vec<String>,
     pub realm_access: Option<JwtRolesAccess>,
     pub resource_access: Option<HashMap<String, JwtRolesAccess>>,
@@ -181,5 +183,76 @@ mod tests {
 
         let header = decode_header(token);
         assert!(true);
+    }
+
+    #[test]
+    fn decode_jwt_logs_no_claims() {
+        const NAME: &str = "VoterNameValue2c7d";
+        const EMAIL: &str = "voter-email-value-8a1f@example.test";
+        let payload = serde_json::json!({
+            "exp": 0,
+            "iat": 0,
+            "jti": "jti",
+            "iss": "issuer",
+            "sub": "subject",
+            "typ": "Bearer",
+            "azp": "voting-portal",
+            "acr": "1",
+            "allowed-origins": [],
+            "scope": "openid",
+            "email_verified": true,
+            "https://hasura.io/jwt/claims": {
+                "x-hasura-default-role": "user",
+                "x-hasura-tenant-id": "tenant",
+                "x-hasura-user-id": "user",
+                "x-hasura-allowed-roles": ["user"]
+            },
+            "name": NAME,
+            "email": EMAIL
+        });
+        let token = format!(
+            "header.{}.signature",
+            general_purpose::URL_SAFE_NO_PAD.encode(payload.to_string())
+        );
+        let (capture, _guard) = crate::util::log_capture::LogCapture::install();
+
+        let claims = decode_jwt(&token).expect("claims");
+
+        assert_eq!(claims.name.as_deref(), Some(NAME));
+        let logs = capture.contents();
+        assert!(logs.contains("decode_jwt"), "{logs}");
+        for value in [NAME, EMAIL] {
+            assert!(!logs.contains(value), "{value} in logs: {logs}");
+        }
+    }
+
+    fn keycloak_claims() -> serde_json::Value {
+        serde_json::json!({
+            "exp": 0, "iat": 0, "jti": "id", "iss": "issuer", "sub": "user",
+            "typ": "Bearer", "azp": "api-key-client", "acr": "1",
+            "scope": "openid", "email_verified": false,
+            "https://hasura.io/jwt/claims": {
+                "x-hasura-default-role": "admin-user",
+                "x-hasura-tenant-id": "tenant",
+                "x-hasura-user-id": "user",
+                "x-hasura-allowed-roles": ["admin-user"],
+            },
+        })
+    }
+
+    #[test]
+    fn claims_without_allowed_origins_decode_to_an_empty_list() {
+        let claims: JwtClaims = serde_json::from_value(keycloak_claims())
+            .expect("a token without allowed-origins is valid");
+        assert!(claims.allowed_origins.is_empty());
+    }
+
+    #[test]
+    fn claims_keep_the_allowed_origins_they_carry() {
+        let mut token = keycloak_claims();
+        token["allowed-origins"] = serde_json::json!(["https://admin.example"]);
+        let claims: JwtClaims =
+            serde_json::from_value(token).expect("the claims decode");
+        assert_eq!(claims.allowed_origins, ["https://admin.example"]);
     }
 }
