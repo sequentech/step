@@ -3831,3 +3831,177 @@ fn voter_restriction_review_rejects_null_and_malformed_historical_members() {
         );
     }
 }
+
+#[test]
+fn candidate_supplements_preserve_localization_and_zero_order() {
+    let mut candidates = BTreeMap::from([(
+        "candidate-1".to_string(),
+        row(
+            "Candidates",
+            0,
+            vec![
+                ("external_id", json!("candidate-1")),
+                ("annotations.miru:candidate-id", json!("0007")),
+                ("presentation.sort_order", json!(1)),
+            ],
+        ),
+    )]);
+    let supplement = row(
+        "Candidates",
+        0,
+        vec![
+            ("source_candidate_id", json!("0007")),
+            ("presentation.sort_order", json!(0)),
+            ("presentation.i18n.tl.name", json!("Pangalan")),
+        ],
+    );
+    apply_candidate_rows(&[supplement], &mut candidates).unwrap();
+    let candidate = &candidates["candidate-1"];
+    assert_eq!(candidate.get("presentation.sort_order"), Some(&json!(0)));
+    assert_eq!(
+        candidate.get("presentation.i18n.tl.name"),
+        Some(&json!("Pangalan"))
+    );
+    assert_eq!(candidate.text("external_id"), Some("candidate-1"));
+}
+
+#[test]
+fn candidate_supplements_reject_unknown_duplicate_and_source_overrides() {
+    let make = || {
+        BTreeMap::from([(
+            "candidate-1".to_string(),
+            row(
+                "Candidates",
+                0,
+                vec![("annotations.miru:candidate-id", json!("0007"))],
+            ),
+        )])
+    };
+    let row_for = |id: &str| {
+        row(
+            "Candidates",
+            0,
+            vec![
+                ("source_candidate_id", json!(id)),
+                ("presentation.sort_order", json!(0)),
+            ],
+        )
+    };
+    assert!(apply_candidate_rows(&[row_for("missing")], &mut make()).is_err());
+    assert!(apply_candidate_rows(
+        &[row_for("0007"), row_for("0007")],
+        &mut make()
+    )
+    .is_err());
+    let mut forbidden = row_for("0007");
+    set(&mut forbidden, "external_id", json!("replacement"));
+    assert!(apply_candidate_rows(&[forbidden], &mut make()).is_err());
+}
+
+#[test]
+fn candidate_supplements_survive_historical_conversion_and_build() {
+    let (sql, bytes) = fixture();
+    let workbook = read_xlsx(&bytes).unwrap();
+    let mut sheets = workbook.sheets().to_vec();
+    sheets.push(rows_sheet(
+        "Candidates",
+        vec![row(
+            "Candidates",
+            0,
+            vec![
+                ("source_candidate_id", json!("0007")),
+                ("presentation.sort_order", json!(0)),
+                ("presentation.i18n.tl.name", json!("Pangalan")),
+            ],
+        )],
+    ));
+    let xlsx = write_xlsx(&Workbook::new(sheets).unwrap()).unwrap();
+    let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    let bundle = build(
+        &adapted.workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap();
+    let candidate = &bundle.export["candidates"][0];
+    assert_eq!(candidate["presentation"]["sort_order"], json!(0));
+    assert_eq!(
+        candidate["presentation"]["i18n"]["tl"]["name"],
+        json!("Pangalan")
+    );
+    assert_eq!(candidate["annotations"]["miru:candidate-id"], json!("0007"));
+}
+
+#[test]
+fn historical_voter_overlay_preserves_reviewed_document_attributes() {
+    let (sql, _) = overseas_voter_fixture("", "");
+    let xlsx = voter_overlay(vec![row(
+        "Voters",
+        0,
+        vec![
+            ("username", json!("v-0000")),
+            ("sequent.read-only.id-card-type", json!("sample-document")),
+            ("sequent.read-only.id-card-number", json!("TEST-ONLY-0001")),
+            ("sequent.read-only.id-card-number-validated", json!("true")),
+        ],
+    )]);
+    let adapted = adapt(&sql, &xlsx, &preserving()).unwrap();
+    let built = build(
+        &adapted.workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap();
+    let username = built.voters.column("username").unwrap();
+    let voter = built
+        .voters
+        .rows
+        .iter()
+        .find(|r| r[username] == "v-0000")
+        .unwrap();
+    for (key, expected) in [
+        ("sequent.read-only.id-card-type", "sample-document"),
+        ("sequent.read-only.id-card-number", "TEST-ONLY-0001"),
+        ("sequent.read-only.id-card-number-validated", "true"),
+    ] {
+        assert_eq!(voter[built.voters.column(key).unwrap()], expected);
+    }
+}
+
+#[test]
+fn historical_document_attributes_reject_nontext_and_keep_source_owned_fields()
+{
+    let (sql, _) = overseas_voter_fixture("", "");
+    for field in [
+        "sequent.read-only.id-card-type",
+        "sequent.read-only.id-card-number",
+        "sequent.read-only.id-card-number-validated",
+    ] {
+        for value in [json!(123), json!([]), json!({"value": "test"})] {
+            let xlsx = voter_overlay(vec![row(
+                "Voters",
+                0,
+                vec![("username", json!("v-0000")), (field, value)],
+            )]);
+            assert!(adapt(&sql, &xlsx, &preserving()).is_err());
+        }
+    }
+    for field in [
+        "first_name",
+        "last_name",
+        "area_name",
+        "source_date_of_birth",
+    ] {
+        let xlsx = voter_overlay(vec![row(
+            "Voters",
+            0,
+            vec![
+                ("username", json!("v-0000")),
+                (field, json!("must-not-override")),
+            ],
+        )]);
+        assert!(adapt(&sql, &xlsx, &preserving()).is_err());
+    }
+}

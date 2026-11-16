@@ -416,12 +416,9 @@ fn administrator_files_carry_only_the_producers_columns() {
             "the administrators file carries column 'hashed_password', which a package may not set",
         ]
     );
-    // Even so, the import file never carries them.
-    let written = String::from_utf8(absent_admin_rows(csv, &BTreeMap::new()).unwrap()).unwrap();
-    assert_eq!(
-        written,
-        "username,email,first_name,last_name,group_name\na,,,,admin\n"
-    );
+    // Do not silently strip credentials and make an altered request: reject
+    // the whole invalid roster before it can be staged for import.
+    assert!(absent_admin_rows(csv, &BTreeMap::new()).is_err());
     assert!(admin_column_problems(b"username,group_name\na,admin\n")
         .unwrap()
         .is_empty());
@@ -510,4 +507,92 @@ fn realm_only_messaging_channels_need_the_permission_when_the_import_publishes_t
         &[]
     ));
     assert!(!carries_messaging(None, None, &[]));
+}
+
+#[test]
+fn admin_roster_supported_attributes_survive_and_secrets_are_rejected() {
+    let csv = b"username,group_name,permission_labels,trustee,title,sequent.read-only.mobile-number\nnew,admin,area-a|area-b,native-trustee,Officer,+123456\n";
+    assert!(admin_column_problems(csv).unwrap().is_empty());
+    let rows = read_admin_rows(csv).unwrap();
+    assert_eq!(rows[0].fields["title"], "Officer");
+    assert_eq!(absent_admin_rows(csv, &BTreeMap::new()).unwrap(), csv);
+    for column in ["password", "hashed_password", "private_key", "unknown"] {
+        let csv = format!("username,group_name,{column}\na,admin,\n");
+        assert!(!admin_column_problems(csv.as_bytes()).unwrap().is_empty());
+    }
+}
+
+#[test]
+fn admin_roster_existing_attributes_and_privileges_are_checked() {
+    use super::super::import_users::{
+        GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
+    };
+    let rows = read_admin_rows(b"username,group_name,permission_labels,trustee,title\none,admin,label-a,native-trustee,Officer\n").unwrap();
+    let denied = ImportUsersPrivileges::default();
+    let allowed = ImportUsersPrivileges {
+        group_assignment: GroupAssignmentPolicy::AnyGroup,
+        permission_labels: PermissionLabelPolicy::Allowed,
+    };
+    assert!(!admin_detail_problems(&rows, &BTreeMap::new(), &BTreeSet::new(), &denied).is_empty());
+    assert!(
+        admin_detail_problems(&rows, &BTreeMap::new(), &set(&["native-trustee"]), &allowed)
+            .is_empty()
+    );
+    let mut current = BTreeMap::from([(
+        "one".to_string(),
+        ExistingAdmin {
+            service_account: false,
+            fields: BTreeMap::from([
+                ("permission_labels".into(), set(&["label-a"])),
+                ("trustee".into(), set(&["native-trustee"])),
+                ("title".into(), set(&["Officer"])),
+            ]),
+        },
+    )]);
+    assert!(admin_detail_problems(&rows, &current, &set(&["native-trustee"]), &allowed).is_empty());
+    current
+        .get_mut("one")
+        .unwrap()
+        .fields
+        .insert("title".into(), set(&["Different"]));
+    let problems = admin_detail_problems(&rows, &current, &set(&["native-trustee"]), &allowed);
+    assert!(problems.iter().any(|p| p.contains("title")));
+    assert!(!problems.iter().any(|p| p.contains("Different")));
+}
+
+#[test]
+fn admin_roster_account_flags_are_typed_and_existing_values_must_match() {
+    use super::super::import_users::{
+        GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
+    };
+    let csv = b"username,group_name,enabled,email_verified\nOne,admin,TRUE,false\n";
+    let rows = read_admin_rows(csv).unwrap();
+    assert_eq!(rows[0].fields["enabled"], "true");
+    assert_eq!(rows[0].fields["email_verified"], "false");
+    let privileges = ImportUsersPrivileges {
+        group_assignment: GroupAssignmentPolicy::AnyGroup,
+        permission_labels: PermissionLabelPolicy::Allowed,
+    };
+    let mut current = BTreeMap::from([(
+        "one".into(),
+        ExistingAdmin {
+            service_account: false,
+            fields: BTreeMap::from([
+                ("enabled".into(), set(&["true"])),
+                ("email_verified".into(), set(&["false"])),
+            ]),
+        },
+    )]);
+    assert!(admin_detail_problems(&rows, &current, &BTreeSet::new(), &privileges).is_empty());
+    current.get_mut("one").unwrap().service_account = true;
+    assert!(!admin_detail_problems(&rows, &current, &BTreeSet::new(), &privileges).is_empty());
+    for csv in [
+        "username,group_name,enabled\na,admin,yes\n",
+        "username,group_name,email_verified\na,admin,\n",
+        "username,group_name\na,admin\nA,admin\n",
+        "username,group_name,group_name\na,admin,admin\n",
+        "username,group_name,permission_labels\na,admin,a||b\n",
+    ] {
+        assert!(read_admin_rows(csv.as_bytes()).is_err(), "{csv}");
+    }
 }
