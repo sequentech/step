@@ -102,7 +102,7 @@ pub struct DeleteUsersBody {
     users_id: Vec<String>,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, body))]
 #[post("/delete-users", format = "json", data = "<body>")]
 pub async fn delete_users(
     claims: jwt::JwtClaims,
@@ -165,7 +165,7 @@ pub struct CountUserOutput {
     count: i64,
 }
 
-#[instrument(skip(claims), ret)]
+#[instrument(skip(claims, body), ret)]
 #[post("/count-users", format = "json", data = "<body>")]
 pub async fn count_users(
     claims: jwt::JwtClaims,
@@ -260,7 +260,7 @@ pub async fn count_users(
     }))
 }
 
-#[instrument(skip(claims), ret)]
+#[instrument(skip(claims, body))]
 #[post("/get-users", format = "json", data = "<body>")]
 pub async fn get_users(
     claims: jwt::JwtClaims,
@@ -454,7 +454,7 @@ fn reject_tenant_id_attribute(user: &User) -> Result<(), (Status, String)> {
     Ok(())
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, body))]
 #[post("/create-user", format = "json", data = "<body>")]
 pub async fn create_user(
     claims: jwt::JwtClaims,
@@ -638,7 +638,7 @@ fn keep_only_email_tlf(
     attributes.retain(|name, _| EMAIL_TLF_ATTRIBUTES.contains(&name.as_str()));
 }
 
-#[instrument(skip(claims), ret)]
+#[instrument(skip(claims, body))]
 #[post("/edit-user", format = "json", data = "<body>")]
 pub async fn edit_user(
     claims: jwt::JwtClaims,

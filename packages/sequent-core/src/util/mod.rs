@@ -8,7 +8,7 @@ pub mod external_config;
 pub mod integrity_check;
 pub mod mime;
 pub mod normalize_vote;
-#[cfg(feature = "reports")]
+#[cfg(any(feature = "reports", feature = "signatures"))]
 pub mod temp_path;
 
 #[cfg(feature = "reports")]
