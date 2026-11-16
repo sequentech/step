@@ -490,10 +490,9 @@ impl BoardClient {
                     }
                 }
                 Err(e) => {
-                    error!(error = %e, "Error receiving batch from Immudb stream.");
-                    // Depending on the error, you might want to break or continue.
-                    // For now, we'll log and break for stream errors to avoid infinite loops on persistent errors.
-                    break;
+                    // A read that fails part-way must not pass for the end of the
+                    // log: callers stop at an empty batch or export what they got.
+                    return Err(anyhow!("Error receiving batch from Immudb stream: {e}"));
                 }
             }
         }
