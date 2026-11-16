@@ -11,7 +11,10 @@ pub mod mime;
 pub mod normalize_vote;
 pub mod version;
 
-#[cfg(feature = "reports")]
+#[cfg(any(
+    feature = "reports",
+    all(feature = "signatures", feature = "default_features")
+))]
 pub mod temp_path;
 
 #[cfg(feature = "reports")]

@@ -680,6 +680,36 @@ mod tests {
     use strand::rng::StrandRng;
 
     #[test]
+    fn replication_choice_debug_hides_the_plaintext_and_randomness() {
+        let mut csprng = StrandRng;
+        let ctx = RistrettoCtx;
+        let (_, pk_element) = encrypt::default_public_key_ristretto();
+        let plaintext = ctx.rnd_plaintext(&mut csprng);
+        let (choice, _) = encrypt::encrypt_plaintext_candidate(
+            &ctx,
+            pk_element,
+            plaintext,
+            &encrypt::DEFAULT_PLAINTEXT_LABEL,
+        )
+        .expect("encrypted choice");
+
+        let debug = format!("{choice:?}");
+
+        assert!(
+            debug.contains(&format!("{:?}", choice.ciphertext)),
+            "{debug}"
+        );
+        assert!(
+            !debug.contains(&format!("{:?}", choice.plaintext)),
+            "{debug}"
+        );
+        assert!(
+            !debug.contains(&format!("{:?}", choice.randomness)),
+            "{debug}"
+        );
+    }
+
+    #[test]
     fn test_encrypt_plaintext_candidate() {
         let mut csprng = StrandRng;
         let ctx = RistrettoCtx;
