@@ -105,15 +105,21 @@ const MessageFailed = styled(Box)`
     overflow-wrap: anywhere;
 `
 
+// A whole Ballot ID in hexadecimal characters (BALLOT_ID_LENGTH_CHARS in windmill's
+// electoral_log.rs): the server rejects a longer filter.
+const BALLOT_ID_MAX_LENGTH = 64
+
 function isHex(str: string) {
-    if (str.trim() === "") {
+    // Surrounding spaces don't count, as on the server.
+    const text = str.trim()
+    if (text === "") {
         return true
     }
-    if (str.length % 2 !== 0) {
+    if (text.length % 2 !== 0 || text.length > BALLOT_ID_MAX_LENGTH) {
         return false
     }
     const regex = /^[0-9a-fA-F]+$/
-    return regex.test(str)
+    return regex.test(text)
 }
 
 interface TabPanelProps {
@@ -184,6 +190,10 @@ const BallotLocator: React.FC = () => {
     })
 
     let fetchTimeout: any = useRef(undefined)
+    // Only the latest cast-vote request may update the table or the error.
+    const latestRequestId = useRef(0)
+    // A deferred fetch doesn't outlive the page.
+    useEffect(() => () => clearTimeout(fetchTimeout.current), [])
 
     const requestCVMsgs = async (headerName?: string, newOrder?: string) => {
         let duration = lastCVRequestTimestamp.current
@@ -191,39 +201,57 @@ const BallotLocator: React.FC = () => {
             : undefined
         let tooQuick = duration ? duration < 500 : false
         lastCVRequestTimestamp.current = Date.now()
+        if (!validatedBallotId) {
+            // A malformed filter is never sent, and it supersedes the earlier
+            // requests: a deferred one is dropped, an in-flight one is ignored.
+            clearTimeout(fetchTimeout.current)
+            latestRequestId.current++
+            return
+        }
+        // With DISABLE_AUTH only the deferred path fetches.
+        if (globalSettings.DISABLE_AUTH && !tooQuick) {
+            return
+        }
+        // This request supersedes the earlier ones as soon as it is accepted,
+        // even while it waits for its deferred start.
+        const requestId = ++latestRequestId.current
+        clearTimeout(fetchTimeout.current)
+        const ballotIdFilter = inputBallotId.trim()
         async function tryFetchMessages() {
             try {
                 let limit = rowsPerPage
                 let offset = page * rowsPerPage
                 const {data} = await refetch({
-                    ballotId: inputBallotId,
+                    ballotId: ballotIdFilter,
                     orderBy: {[headerName ?? "id"]: newOrder ?? "desc"},
                     limit,
                     offset,
                 })
+                if (requestId !== latestRequestId.current) {
+                    return
+                }
                 console.log(data)
+                setSomethingWentWrongErr(false)
                 if (data?.list_cast_vote_messages) {
                     setRows((data?.list_cast_vote_messages?.list ?? []) as ICastVoteEntry[])
                     setTotal(data?.list_cast_vote_messages?.total)
                     setBallotIdNotFoundErr(
-                        inputBallotId.length > 0 && data?.list_cast_vote_messages?.list.length === 0
+                        ballotIdFilter.length > 0 &&
+                            data?.list_cast_vote_messages?.list.length === 0
                     )
                 }
             } catch (e) {
+                if (requestId !== latestRequestId.current) {
+                    return
+                }
                 setSomethingWentWrongErr(true)
             }
         }
 
         if (tooQuick) {
-            // Start interval
-            // if timeout is already running, destroy it and create a new one.
-            clearTimeout(fetchTimeout.current)
             fetchTimeout.current = setTimeout(async () => {
                 await tryFetchMessages()
             }, 1000)
-        }
-
-        if (globalSettings.DISABLE_AUTH || tooQuick || !validatedBallotId) {
             return
         }
         await tryFetchMessages()
@@ -266,8 +294,11 @@ const BallotLocator: React.FC = () => {
         setValue(newValue)
     }
 
-    const captureEnter: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
+    // Every change of the filter, typed or pasted, is a new request from the first page.
+    const changeFilter = (value: string) => {
         allowSendRequest.current = true
+        setInputBallotId(value)
+        setPage(0)
     }
 
     return (
@@ -314,10 +345,9 @@ const BallotLocator: React.FC = () => {
                     <Box className="cast-vote-logs-filter" marginTop="48px">
                         <BallotIdInput
                             inputBallotId={inputBallotId}
-                            setInputBallotId={setInputBallotId}
+                            setInputBallotId={changeFilter}
                             validatedBallotId={validatedBallotId}
                             ballotIdNotFoundErr={ballotIdNotFoundErr}
-                            captureEnter={captureEnter}
                             placeholderLabel="ballotLocator.filterByBallotId"
                         />
                     </Box>
@@ -393,7 +423,12 @@ const MessageCell: React.FC<MessageCellProps> = ({message, initialLength}) => {
     }
 
     if (!message) {
-        return <div className="cast-vote-log-empty-message">-</div>
+        // The message column is justified; center the dash as in the other columns.
+        return (
+            <Box className="cast-vote-log-empty-message" sx={{textAlign: "center"}}>
+                -
+            </Box>
+        )
     }
 
     const formattedMessage = formatJson(message)
@@ -503,24 +538,9 @@ const LogsTable: React.FC<LogsTableProps> = ({
                             <TableCell
                                 className="cast-vote-logs-username-header"
                                 align="center"
-                                sortDirection={orderBy === "username" ? order : false}
                                 sx={{fontWeight: "bold", padding: "2px 4px"}}
                             >
-                                <TableSortLabel
-                                    className="cast-vote-logs-sort-button"
-                                    active={orderBy === "username"}
-                                    direction={orderBy === "username" ? order : "asc"}
-                                    onClick={() => onClickHeader("username")}
-                                    sx={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        textAlign: "center",
-                                    }}
-                                >
-                                    {t("ballotLocator.column.username")}
-                                </TableSortLabel>
+                                {t("ballotLocator.column.username")}
                             </TableCell>
                             <TableCell
                                 className="cast-vote-logs-ballot-id-header"
@@ -723,7 +743,7 @@ interface BallotIdInputProps {
     setInputBallotId: (value: string) => void
     validatedBallotId: boolean
     ballotIdNotFoundErr?: boolean
-    captureEnter: React.KeyboardEventHandler<HTMLDivElement>
+    captureEnter?: React.KeyboardEventHandler<HTMLDivElement>
     placeholderLabel: string
 }
 
@@ -825,7 +845,7 @@ const BallotLocatorLogic = () => {
     const lookupLoading = loadingElections || loading
 
     const locate = (withBallotId = false) => {
-        let id = withBallotId ? inputBallotId : ""
+        let id = withBallotId ? inputBallotId.trim() : ""
 
         setInputBallotId("")
 
@@ -835,7 +855,9 @@ const BallotLocatorLogic = () => {
     }
 
     const captureEnter: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
-        if ("Enter" === event.key) {
+        // Same condition as the locate button: a rejected id stays in the input
+        // with its error.
+        if ("Enter" === event.key && validatedBallotId && inputBallotId.trim() !== "") {
             locate(true)
         }
     }

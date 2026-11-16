@@ -849,7 +849,7 @@ fn get_sort_clause_and_field_param(
     }
 }
 
-#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+#[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
 pub async fn count_keycloak_users(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -998,13 +998,12 @@ pub async fn count_keycloak_users(
     Ok(count)
 }
 
-#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+#[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
 pub async fn list_users(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
 ) -> Result<(Vec<User>, i32)> {
-    info!("filter: {filter:?}");
     let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
     let query_limit: i64 =
@@ -1144,7 +1143,6 @@ pub async fn list_users(
     }
 
     debug!("parameters count: {}", next_param_number - 1);
-    debug!("params {:?}", params);
     let scope_clause = voter_scope_clause(&filters_clause, realm_id_param, user_ids_param);
     let statement_str = format!(
         r#"
@@ -1360,7 +1358,7 @@ pub async fn count_keycloak_enabled_users(
 }
 
 /// Use only for verifying application!, does not work as it seems for other situations, then use list_users instead.
-#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+#[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
 pub async fn lookup_users(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -1449,7 +1447,6 @@ pub async fn lookup_users(
     let no_service_accounts = service_account_exclusion("u");
 
     debug!("parameters count: {}", next_param_number - 1);
-    debug!("params {:?}", params);
 
     let statement_str = format!(
         r#"
@@ -1829,7 +1826,7 @@ pub async fn get_user_area_id(
     }
 }
 
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip(hasura_transaction, filter), err)]
 pub async fn count_have_voted(
     hasura_transaction: &Transaction<'_>,
     filter: &ListUsersFilter,
@@ -1882,17 +1879,21 @@ pub async fn count_have_voted(
     Ok(count)
 }
 
-#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+fn has_voted_page_limit(filter: &ListUsersFilter, pg_config: &PgConfig) -> Result<usize> {
+    let limit = filter.limit.ok_or(anyhow!("Limit not specified."))?;
+    pg_config.page_limit(limit.into())
+}
+
+#[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
 pub async fn list_users_has_voted(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
     tenant_id: &str,
 ) -> Result<(Vec<User>, i32)> {
-    let limit = filter.limit.ok_or(anyhow!("Limit not specified."))? as usize;
-    let batch_size = PgConfig::from_env()
-        .map_err(|e| anyhow!("Error getting default_sql_batch_size {e:?}"))?
-        .default_sql_batch_size;
+    let pg_config = PgConfig::from_env().map_err(|e| anyhow!("Error getting PgConfig {e:?}"))?;
+    let limit = has_voted_page_limit(&filter, &pg_config)?;
+    let batch_size = pg_config.default_sql_batch_size;
     info!("batch_size {batch_size}");
     let real_offset = filter.offset.unwrap_or(0);
 
@@ -1994,6 +1995,34 @@ pub async fn list_users_has_voted(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn has_voted_filter(limit: Option<i32>) -> ListUsersFilter {
+        ListUsersFilter {
+            limit,
+            has_voted: Some(true),
+            ..ListUsersFilter::new("tenant-id", "realm")
+        }
+    }
+
+    #[test]
+    fn has_voted_page_limit_is_capped_by_low_sql_limit() {
+        let pg_config = PgConfig::default();
+        assert_eq!(
+            has_voted_page_limit(&has_voted_filter(Some(i32::MAX)), &pg_config).unwrap(),
+            usize::try_from(pg_config.low_sql_limit).unwrap()
+        );
+        assert_eq!(
+            has_voted_page_limit(&has_voted_filter(Some(50)), &pg_config).unwrap(),
+            50
+        );
+    }
+
+    #[test]
+    fn has_voted_page_limit_rejects_missing_zero_and_negative_values() {
+        for limit in [None, Some(0), Some(-1), Some(i32::MIN)] {
+            assert!(has_voted_page_limit(&has_voted_filter(limit), &PgConfig::default()).is_err());
+        }
+    }
 
     #[test]
     fn test_sql_boolean_operator_and_format() {
