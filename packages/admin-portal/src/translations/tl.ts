@@ -1119,6 +1119,7 @@ const tagalogTranslation: TranslationType = {
             },
             new: {
                 subtitle: "Lumikha ng bagong nangungupahan",
+                numTrustees: "Bilang ng mga tagapangalaga",
             },
             createSuccess: "Nangungupahan na nilikha",
             createError: "Error sa paglikha ng nangungupahan",

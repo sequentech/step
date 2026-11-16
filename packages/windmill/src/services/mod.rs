@@ -62,6 +62,7 @@ pub mod tally_sheets;
 pub mod tasks_execution;
 pub mod tasks_semaphore;
 pub mod temp_path;
+pub mod tenant_credentials;
 pub mod to_result;
 pub mod transmission;
 pub mod users;

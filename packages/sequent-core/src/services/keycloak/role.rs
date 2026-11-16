@@ -115,6 +115,32 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    /// Give a user realm roles by name.
+    #[instrument(skip(self), err)]
+    pub async fn add_realm_roles_to_user(
+        &self,
+        realm: &str,
+        user_id: &str,
+        role_names: &[&str],
+    ) -> Result<()> {
+        let mut roles = Vec::with_capacity(role_names.len());
+        for role_name in role_names {
+            roles.push(
+                self.client
+                    .realm_roles_with_role_name_get(realm, role_name)
+                    .await
+                    .map_err(|err| anyhow!("{:?}", err))?,
+            );
+        }
+        self.client
+            .realm_users_with_user_id_role_mappings_realm_post(
+                realm, user_id, roles,
+            )
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(())
+    }
+
     #[instrument(skip(self), err)]
     pub async fn delete_user_role(
         self,

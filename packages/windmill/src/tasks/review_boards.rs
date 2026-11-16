@@ -46,8 +46,13 @@ pub async fn review_boards() -> Result<()> {
             .to_lowercase();
         let task = celery_app
             .send_task(
-                insert_tenant::new(default_tenant_id.clone(), default_tenant_slug.clone(), None)
-                    .with_expires_in(30),
+                insert_tenant::new(
+                    default_tenant_id.clone(),
+                    default_tenant_slug.clone(),
+                    None,
+                    None,
+                )
+                .with_expires_in(30),
             )
             .await?;
         event!(
