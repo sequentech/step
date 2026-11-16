@@ -3,9 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::area::get_areas;
+use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::ballot_box_reads::get_event_ballot_box;
 use crate::services::cast_votes::get_users_with_vote_info_in_elections;
+use crate::services::ceremonies::tally_boards::election_voter_authorization_alias;
 use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
@@ -1287,6 +1289,33 @@ mod privacy_sort_regressions {
     }
 }
 
+/// The `authorized-election-ids` value that authorizes a voter for the election
+/// the filter is scoped to: its external id, or its id when it has none, as the
+/// Keycloak mapper and the tally census read it. Without an election, the
+/// caller's alias is used as given.
+async fn authorized_election_key(
+    hasura_transaction: &Transaction<'_>,
+    filter: &ListUsersFilter,
+) -> Result<Option<String>> {
+    let (Some(election_event_id), Some(election_id)) =
+        (&filter.election_event_id, &filter.election_id)
+    else {
+        return Ok(filter.authorized_to_election_alias.clone());
+    };
+    let election = get_election_by_id(
+        hasura_transaction,
+        &filter.tenant_id,
+        election_event_id,
+        election_id,
+    )
+    .await?
+    .ok_or_else(|| anyhow!("Election {election_id} not found"))?;
+    Ok(Some(election_voter_authorization_alias(
+        &election.id,
+        election.external_id.as_deref(),
+    )))
+}
+
 #[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
 pub async fn count_keycloak_users(
     hasura_transaction: &Transaction<'_>,
@@ -1356,27 +1385,26 @@ pub async fn count_keycloak_users(
     }
 
     // Handle optional authorized election alias filtering.
-    let (election_alias, authorized_alias_join_clause, authorized_alias_where_clause) = match filter
-        .authorized_to_election_alias
-    {
-        Some(election_alias) => (
-            Some(election_alias),
-            format!(
-                r#"
+    let (election_alias, authorized_alias_join_clause, authorized_alias_where_clause) =
+        match authorized_election_key(hasura_transaction, &filter).await? {
+            Some(election_alias) => (
+                Some(election_alias),
+                format!(
+                    r#"
                     LEFT JOIN 
                         user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = ${}
                     "#,
-                next_param_number
-            ),
-            format!(
-                r#"
+                    next_param_number
+                ),
+                format!(
+                    r#"
                     AND (authorization_attr.value = ${} OR authorization_attr.user_id IS NULL)
                     "#,
-                next_param_number + 1
+                    next_param_number + 1
+                ),
             ),
-        ),
-        None => (None, String::new(), String::new()),
-    };
+            None => (None, String::new(), String::new()),
+        };
     if election_alias.is_some() {
         params.push(&AUTHORIZED_ELECTION_IDS_NAME);
         params.push(&election_alias);
@@ -1535,29 +1563,28 @@ async fn list_users_page(
         next_param_number += 1;
     }
 
-    let (election_alias, authorized_alias_join_clause, authorized_alias_where_clause) = match filter
-        .authorized_to_election_alias
-    {
-        Some(election_alias) => (
-            Some(election_alias),
-            format!(
-                r#"
+    let (election_alias, authorized_alias_join_clause, authorized_alias_where_clause) =
+        match authorized_election_key(hasura_transaction, &filter).await? {
+            Some(election_alias) => (
+                Some(election_alias),
+                format!(
+                    r#"
             LEFT JOIN 
                 user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = ${}
             "#,
-                next_param_number
-            ),
-            format!(
-                r#"
+                    next_param_number
+                ),
+                format!(
+                    r#"
             AND (
                 authorization_attr.value = ${} OR authorization_attr.user_id IS NULL
             )
             "#,
-                next_param_number + 1
+                    next_param_number + 1
+                ),
             ),
-        ),
-        None => (None, "".to_string(), "".to_string()),
-    };
+            None => (None, "".to_string(), "".to_string()),
+        };
 
     if election_alias.is_some() {
         params.push(&AUTHORIZED_ELECTION_IDS_NAME);
@@ -3078,6 +3105,119 @@ mod tests {
         };
         assert_eq!(by_id(ELECTION_ID).await?, 1);
         assert_eq!(by_id("").await?, 0);
+        transaction.rollback().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL with the Hasura schema configured through HASURA_DB__*"]
+    async fn election_scoped_voters_are_authorized_by_external_id_or_id() -> Result<()> {
+        use sequent_core::services::keycloak::get_event_realm;
+
+        let tenant = Uuid::new_v4();
+        let event = Uuid::new_v4();
+        let by_external_id = Uuid::new_v4();
+        let by_id = Uuid::new_v4();
+        let area = Uuid::new_v4();
+        let realm = get_event_realm(&tenant.to_string(), &event.to_string());
+
+        let pool = crate::services::database::generate_hasura_pool().await?;
+        let mut client = pool.get().await?;
+        let transaction = client.transaction().await?;
+        transaction
+            .batch_execute(&format!(
+                r#"
+                INSERT INTO sequent_backend.tenant (id, slug) VALUES ('{tenant}', '{tenant}');
+                INSERT INTO sequent_backend.election_event (id, tenant_id, encryption_protocol)
+                VALUES ('{event}', '{tenant}', 'RSA256');
+                INSERT INTO sequent_backend.election
+                    (id, tenant_id, election_event_id, external_id, num_allowed_revotes, status, presentation)
+                VALUES
+                    ('{by_external_id}', '{tenant}', '{event}', 'election-a', 1, '{{}}',
+                     '{{"i18n": {{"en": {{"alias": "Mayor"}}}}}}'),
+                    ('{by_id}', '{tenant}', '{event}', NULL, 1, '{{}}', NULL);
+                INSERT INTO sequent_backend.area (id, tenant_id, election_event_id, name)
+                VALUES ('{area}', '{tenant}', '{event}', 'Area');
+                INSERT INTO sequent_backend.contest (id, tenant_id, election_event_id, election_id)
+                VALUES (gen_random_uuid(), '{tenant}', '{event}', '{by_external_id}'),
+                       (gen_random_uuid(), '{tenant}', '{event}', '{by_id}');
+                INSERT INTO sequent_backend.area_contest (id, tenant_id, election_event_id, contest_id, area_id)
+                SELECT gen_random_uuid(), tenant_id, election_event_id, id, '{area}'
+                FROM sequent_backend.contest
+                WHERE tenant_id = '{tenant}';
+
+                CREATE TEMP TABLE realm (id TEXT PRIMARY KEY, name TEXT) ON COMMIT DROP;
+                CREATE TEMP TABLE user_entity (
+                    id TEXT PRIMARY KEY,
+                    realm_id TEXT,
+                    username TEXT,
+                    email TEXT,
+                    email_verified BOOLEAN,
+                    enabled BOOLEAN,
+                    first_name TEXT,
+                    last_name TEXT,
+                    created_timestamp BIGINT,
+                    service_account_client_link TEXT
+                ) ON COMMIT DROP;
+                CREATE TEMP TABLE user_attribute (
+                    id SERIAL PRIMARY KEY,
+                    user_id TEXT,
+                    name TEXT,
+                    value TEXT
+                ) ON COMMIT DROP;
+                INSERT INTO realm (id, name) VALUES ('realm', '{realm}');
+                INSERT INTO user_entity (id, realm_id, username, enabled, email_verified)
+                VALUES ('unrestricted', 'realm', 'unrestricted', true, false),
+                       ('external-id', 'realm', 'external-id', true, false),
+                       ('election-id', 'realm', 'election-id', true, false),
+                       ('display-alias', 'realm', 'display-alias', true, false),
+                       ('no-area', 'realm', 'no-area', true, false);
+                INSERT INTO user_attribute (user_id, name, value)
+                VALUES ('unrestricted', '{AREA_ID_ATTR_NAME}', '{area}'),
+                       ('external-id', '{AREA_ID_ATTR_NAME}', '{area}'),
+                       ('external-id', '{AUTHORIZED_ELECTION_IDS_NAME}', 'election-a'),
+                       ('election-id', '{AREA_ID_ATTR_NAME}', '{area}'),
+                       ('election-id', '{AUTHORIZED_ELECTION_IDS_NAME}', '{by_id}'),
+                       ('display-alias', '{AREA_ID_ATTR_NAME}', '{area}'),
+                       ('display-alias', '{AUTHORIZED_ELECTION_IDS_NAME}', 'Mayor'),
+                       ('no-area', '{AUTHORIZED_ELECTION_IDS_NAME}', 'election-a');
+                "#
+            ))
+            .await?;
+
+        let voters = |election: Uuid, alias: Option<&str>| {
+            let transaction = &transaction;
+            let filter = ListUsersFilter {
+                election_event_id: Some(event.to_string()),
+                election_id: Some(election.to_string()),
+                authorized_to_election_alias: alias.map(str::to_string),
+                ..ListUsersFilter::new(&tenant.to_string(), &realm)
+            };
+            async move {
+                let count = count_keycloak_users(transaction, transaction, filter.clone()).await?;
+                let (users, total) = list_users(transaction, transaction, filter).await?;
+                assert_eq!(total, count);
+                let mut ids: Vec<String> = users.into_iter().filter_map(|user| user.id).collect();
+                ids.sort();
+                anyhow::Ok(ids)
+            }
+        };
+
+        // The election's display alias is not what the attribute holds, so a
+        // caller passing it must not hide the voters authorized by external id.
+        assert_eq!(
+            voters(by_external_id, Some("Mayor")).await?,
+            vec!["external-id", "unrestricted"]
+        );
+        assert_eq!(
+            voters(by_external_id, None).await?,
+            vec!["external-id", "unrestricted"]
+        );
+        // Without an external id, Keycloak names the election by its id.
+        assert_eq!(
+            voters(by_id, None).await?,
+            vec!["election-id", "unrestricted"]
+        );
         transaction.rollback().await?;
         Ok(())
     }
