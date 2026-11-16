@@ -415,7 +415,12 @@ const MessageCell: React.FC<MessageCellProps> = ({message, initialLength}) => {
     }
 
     if (!message) {
-        return <div className="cast-vote-log-empty-message">-</div>
+        // The message column is justified; center the dash as in the other columns.
+        return (
+            <Box className="cast-vote-log-empty-message" sx={{textAlign: "center"}}>
+                -
+            </Box>
+        )
     }
 
     const formattedMessage = formatJson(message)
