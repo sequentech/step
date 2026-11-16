@@ -361,6 +361,33 @@ impl BoardClient {
         offset: Option<i64>,
         order_by: Option<HashMap<K, V>>,
     ) -> Result<Vec<ElectoralLogMessage>> {
+        let (messages, _rows_fetched) = self
+            .get_filtered(
+                board_db,
+                columns_matcher,
+                min_ts,
+                max_ts,
+                limit,
+                offset,
+                order_by,
+            )
+            .await?;
+        Ok(messages)
+    }
+
+    /// Like `get_electoral_log_messages_filtered`, also returning how many rows the
+    /// query returned: rows that fail conversion are skipped, so it can exceed the
+    /// number of messages, and 0 means there are no more rows at that offset.
+    pub async fn get_electoral_log_messages_filtered_with_row_count<K: Display, V: Display>(
+        &mut self,
+        board_db: &str,
+        columns_matcher: Option<WhereClauseBTreeMap>,
+        min_ts: Option<i64>,
+        max_ts: Option<i64>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        order_by: Option<HashMap<K, V>>,
+    ) -> Result<(Vec<ElectoralLogMessage>, usize)> {
         self.get_filtered(
             board_db,
             columns_matcher,
@@ -383,7 +410,7 @@ impl BoardClient {
         limit: Option<i64>,
         offset: Option<i64>,
         order_by: Option<HashMap<K, V>>,
-    ) -> Result<Vec<ElectoralLogMessage>> {
+    ) -> Result<(Vec<ElectoralLogMessage>, usize)> {
         let (min_clause, min_clause_value) = if let Some(min_ts) = min_ts {
             ("AND created >= @min_ts", min_ts)
         } else {
@@ -507,15 +534,14 @@ impl BoardClient {
                     }
                 }
                 Err(e) => {
-                    error!(error = %e, "Error receiving batch from Immudb stream.");
-                    // Depending on the error, you might want to break or continue.
-                    // For now, we'll log and break for stream errors to avoid infinite loops on persistent errors.
-                    break;
+                    // A read that fails part-way must not pass for the end of the
+                    // log: callers stop at an empty batch or export what they got.
+                    return Err(anyhow!("Error receiving batch from Immudb stream: {e}"));
                 }
             }
         }
 
-        Ok(messages)
+        Ok((messages, total_rows_fetched))
     }
 
     #[instrument(err)]
