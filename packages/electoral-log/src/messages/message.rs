@@ -1194,10 +1194,14 @@ impl Message {
     ) -> Result<Message> {
         let bytes = statement.record_serialize()?;
         let sender_signature: Signature = sender.sign(&bytes)?;
-        // The same signer (a system-authored message) signs once: Ed25519 is
-        // deterministic, so the second signature would be the same bytes,
-        // and a remote signer would make a second round trip for nothing.
-        let system_signature: Signature = if std::ptr::addr_eq(sender, system) {
+        // The same signer object in both roles (a system-authored message)
+        // signs once: one key signing the same bytes gives a valid signature
+        // for both, and a remote signer would make a second round trip.
+        // `ptr::eq` compares the vtable too, so two different signer types
+        // that happen to share an address are never taken as one.
+        #[allow(ambiguous_wide_pointer_comparisons)]
+        let same_signer = std::ptr::eq(sender, system);
+        let system_signature: Signature = if same_signer {
             sender_signature.clone()
         } else {
             system.sign(&bytes)?
