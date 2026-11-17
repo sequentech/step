@@ -5,14 +5,18 @@ use anyhow::{anyhow, Context, Result};
 use std::process::Command;
 use tracing::{info, instrument};
 
-#[instrument(err, ret)]
+/// Runs `command` with `sh -c`. Callers pass passwords and key paths in the
+/// command, so neither the command nor its output is recorded in the logs.
+#[instrument(skip(command), err)]
 pub fn run_shell_command(command: &str) -> Result<String> {
     // Run the shell command
     let output = Command::new("sh").arg("-c").arg(command).output()?;
 
     // Check if the command was successful
     if !output.status.success() {
-        return Err(anyhow::anyhow!("Shell command failed: {:?}", output));
+        // The exit status only: stdout and stderr may echo the command's
+        // secrets, and the error is logged.
+        return Err(anyhow::anyhow!("Shell command failed: {}", output.status));
     }
 
     // Convert the output to a string
