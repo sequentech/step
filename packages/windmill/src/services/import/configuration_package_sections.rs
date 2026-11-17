@@ -447,8 +447,60 @@ pub struct ExistingAdmin {
     pub fields: BTreeMap<String, BTreeSet<String>>,
 }
 
-/// Additional preview blockers. Existing accounts are never rewritten: a
-/// requested field mismatch must be resolved explicitly outside this importer.
+/// Exact label replacements for existing accounts. An absent column means
+/// preserve; an empty cell explicitly clears labels. Ordering is immaterial.
+pub fn admin_permission_label_updates(
+    wanted: &[AdminRow],
+    current: &BTreeMap<String, ExistingAdmin>,
+) -> BTreeMap<String, BTreeSet<String>> {
+    wanted
+        .iter()
+        .filter_map(|row| {
+            let existing = current.get(&row.username.to_lowercase())?;
+            let value = row.fields.get("permission_labels")?;
+            let expected: BTreeSet<String> = value
+                .split('|')
+                .filter(|v| !v.is_empty())
+                .map(str::to_string)
+                .collect();
+            let actual = existing
+                .fields
+                .get("permission_labels")
+                .cloned()
+                .unwrap_or_default();
+            (expected != actual).then(|| (row.username.to_lowercase(), expected))
+        })
+        .collect()
+}
+
+/// Keep label-only changes visible and pending until the target converges.
+pub fn preview_admin_permission_labels(
+    preview: &mut SectionPreview,
+    wanted: &[AdminRow],
+    current: &BTreeMap<String, ExistingAdmin>,
+) {
+    let updates = admin_permission_label_updates(wanted, current);
+    if !updates.is_empty() {
+        preview.needs_apply = true;
+    }
+    if let Some(changes) = preview.changes.as_array_mut() {
+        for change in changes {
+            let username = change["username"]
+                .as_str()
+                .unwrap_or_default()
+                .to_lowercase();
+            if let Some(labels) = updates.get(&username) {
+                if change["action"] == "exists" {
+                    change["action"] = json!("update-permission-labels");
+                    change["permission_labels"] = json!(labels);
+                }
+            }
+        }
+    }
+}
+
+/// Existing accounts may reconcile permission labels only. All other supplied
+/// fields, group membership and service-account safeguards remain strict.
 pub fn admin_detail_problems(
     wanted: &[AdminRow],
     current: &BTreeMap<String, ExistingAdmin>,
@@ -466,10 +518,12 @@ pub fn admin_detail_problems(
                 row.username
             ));
         }
-        if row
+        if (row
             .fields
             .get("permission_labels")
             .is_some_and(|v| !v.is_empty())
+            || admin_permission_label_updates(std::slice::from_ref(row), current)
+                .contains_key(&row.username.to_lowercase()))
             && !matches!(privileges.permission_labels, PermissionLabelPolicy::Allowed)
         {
             blockers.push(format!(
@@ -490,6 +544,9 @@ pub fn admin_detail_problems(
                 ));
             }
             for (field, value) in &row.fields {
+                if field == "permission_labels" {
+                    continue;
+                }
                 let expected: BTreeSet<String> = value
                     .split('|')
                     .filter(|v| !v.is_empty())
@@ -513,7 +570,7 @@ pub fn admin_detail_problems(
 }
 
 /// The rows of `admin_users.csv` whose accounts do not exist yet, with its
-/// header, so applying never touches an existing account.
+/// header, so the account-creation importer never rewrites an existing account.
 pub fn absent_admin_rows(
     csv_bytes: &[u8],
     existing_usernames: &BTreeMap<String, BTreeSet<String>>,

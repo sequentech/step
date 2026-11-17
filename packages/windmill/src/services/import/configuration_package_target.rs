@@ -11,8 +11,9 @@ use super::configuration_package_apply::{
     PackageTarget, SectionPreview, SectionSubmission, TaskState,
 };
 use super::configuration_package_sections::{
-    absent_admin_rows, admin_changes, admin_column_problems, admin_detail_problems, event_changes,
-    merged_tenant, read_admin_rows, read_group_roles, role_changes, tenant_configuration_changes,
+    absent_admin_rows, admin_changes, admin_column_problems, admin_detail_problems,
+    admin_permission_label_updates, event_changes, merged_tenant, preview_admin_permission_labels,
+    read_admin_rows, read_group_roles, role_changes, tenant_configuration_changes,
     tenant_settings_changes, trustee_changes, ExistingAdmin,
 };
 use super::configuration_package_sections::{
@@ -413,6 +414,7 @@ impl PlatformTarget {
                 known.extend(self.context.package_groups.iter().cloned());
                 let mut preview = admin_changes(&rows, &existing, &known);
                 let current = self.existing_admin_details(&usernames).await?;
+                preview_admin_permission_labels(&mut preview, &rows, &current);
                 let mut db: DbClient = get_hasura_pool().await.get().await?;
                 let transaction = db.transaction().await?;
                 let mut trustees: BTreeSet<String> =
@@ -672,7 +674,7 @@ impl PackageTarget for PlatformTarget {
             }
             Section::AdminAccounts => {
                 // Recheck profiles, grants and trustee references immediately before
-                // staging; a stale preview never authorizes changing an existing user.
+                // staging; only the explicit permission-label replacement is mutable.
                 let preview = self.preview_section(Section::AdminAccounts, files).await?;
                 if !preview.blockers.is_empty() {
                     return Err(anyhow!(
@@ -683,7 +685,69 @@ impl PackageTarget for PlatformTarget {
                 let rows = read_admin_rows(&file.bytes)?;
                 let usernames: Vec<String> = rows.iter().map(|r| r.username.clone()).collect();
                 let existing = self.existing_usernames(&usernames).await?;
+                let current = self.existing_admin_details(&usernames).await?;
+                let updates = admin_permission_label_updates(&rows, &current);
+                if !updates.is_empty() {
+                    use super::import_users::PermissionLabelPolicy;
+                    if !matches!(
+                        self.context.event_import.privileges.permission_labels,
+                        PermissionLabelPolicy::Allowed
+                    ) {
+                        return Err(anyhow!(
+                            "administrator label updates require permission-label-write"
+                        ));
+                    }
+                    let realm = get_tenant_realm(&self.context.tenant_id);
+                    for (username, labels) in &updates {
+                        // Tenant-scoped identity lookup. Never resolve an account globally.
+                        let db: DbClient = get_keycloak_pool().await.get().await?;
+                        let row = db.query_one(
+                            "SELECT u.id FROM user_entity u JOIN realm r ON r.id=u.realm_id WHERE r.name=$1 AND u.username=$2 AND u.service_account_client_link IS NULL",
+                            &[&realm, username],
+                        ).await.context("Error resolving administrator for label update")?;
+                        let id: String = row.get("id");
+                        drop(db);
+                        // The existing helper reads the current representation and merges
+                        // this one attribute, preserving credentials and all other fields.
+                        KeycloakAdminClient::new()
+                            .await?
+                            .edit_user(
+                                &realm,
+                                &id,
+                                None,
+                                Some(std::collections::HashMap::from([(
+                                    "permission_labels".to_string(),
+                                    labels.iter().cloned().collect(),
+                                )])),
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                            )
+                            .await
+                            .context("Error updating administrator permission labels")?;
+                        task_audit::record(task_audit::bulk(
+                            self.context.audit_actor.clone(),
+                            task_audit::target(&self.context.tenant_id, None)?,
+                            "user",
+                            AdminAction::Update,
+                            "Reconciled administrator permission labels from configuration package",
+                            json!({"username": username, "permission_labels": labels}),
+                        ))
+                        .await?;
+                    }
+                }
                 let absent = absent_admin_rows(&file.bytes, &existing)?;
+                if read_admin_rows(&absent)?.is_empty() {
+                    let task = self.task(task_id).await?;
+                    update_complete(&task, None).await?;
+                    return Ok(SectionSubmission {
+                        task_id: Some(task.id),
+                        detail: json!({"permission_label_updates": updates.len()}),
+                    });
+                }
                 let document_id = self.stage("admin_users.csv", "text/csv", &absent).await?;
                 let task = self.task(task_id).await?;
                 let ran = crate::tasks::import_users::execute(
