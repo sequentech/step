@@ -353,6 +353,16 @@ class VotingFlowTests(unittest.TestCase):
             (KEY_COLUMNS,),
         )
 
+    def key_constraint(self):
+        """Return the index backing the voter ballot key constraint, or None when it is absent."""
+        return self.db.scalar(
+            """
+            SELECT max(conindid::regclass::text) FROM pg_constraint
+            WHERE conrelid = 'sequent_backend.cast_vote'::regclass
+              AND conname = 'cast_vote_voter_ballot_key' AND contype = 'u'
+        """
+        )
+
     def not_null_check(self):
         """Return whether the script's NULL check is validated, or None when it is absent."""
         row = self.connection.execute(
@@ -499,6 +509,7 @@ class VotingFlowTests(unittest.TestCase):
                 self.connection.execute(resent, (self.election.election,))
             self.restore_voter_ballot_key()
         self.assertEqual(self.db.scalar(key_oid, (VOTER_BALLOT_KEY,)), built)
+        self.assertEqual(self.key_constraint(), VOTER_BALLOT_KEY)
         self.assertEqual(self.key_shape(), (True, True, 5, 7))
 
     def test_index_script_keeps_the_key_the_migration_built(self):
@@ -509,6 +520,7 @@ class VotingFlowTests(unittest.TestCase):
             result = self.db.run_index_script()
             self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.db.scalar(key_oid, (VOTER_BALLOT_KEY,)), built)
+        self.assertEqual(self.key_constraint(), VOTER_BALLOT_KEY)
         self.assertEqual(self.key_shape(), (True, True, 5, 7))
         self.assertIsNone(self.not_null_check())
 
@@ -682,6 +694,14 @@ class VotingFlowTests(unittest.TestCase):
             ),
             ["kept", "revote"],
         )
+        with self.connection.transaction():
+            self.connection.execute("SET LOCAL session_replication_role = replica")
+            resent = self.connection.execute(
+                INSERT_VOTE
+                + " ON CONFLICT ON CONSTRAINT cast_vote_voter_ballot_key DO NOTHING",
+                self.election.vote_parameters("key", ballot_id="kept"),
+            )
+            self.assertEqual(resent.rowcount, 0)
         for column in KEY_COLUMNS:
             with self.subTest(column=column):
                 with self.assertRaises(psycopg.errors.NotNullViolation):
@@ -714,6 +734,7 @@ class VotingFlowTests(unittest.TestCase):
             self.assertFalse(self.db.scalar(exists, (VOTER_BALLOT_KEY,)))
             self.assertTrue(self.db.scalar(exists, (participation,)))
             self.assertEqual(self.nullable_key_columns(), KEY_COLUMNS)
+            self.assertIsNone(self.key_constraint())
             with self.assertRaises(psycopg.errors.UniqueViolation):
                 self.connection.execute(
                     """
@@ -729,6 +750,7 @@ class VotingFlowTests(unittest.TestCase):
         self.assertEqual(self.key_shape(), (True, True, 5, 7))
         self.assertFalse(self.db.scalar(exists, (participation,)))
         self.assertEqual(self.nullable_key_columns(), [])
+        self.assertEqual(self.key_constraint(), VOTER_BALLOT_KEY)
 
     def test_truncate_removes_deadlines(self):
         """Truncating schedules immediately removes deadlines without maintaining derived data."""
