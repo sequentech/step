@@ -426,6 +426,30 @@ impl PostgresStore {
             .collect()
     }
 
+    /// The voters with at least one valid ballot in an election, each once,
+    /// in voter order: the population `participation` counts. It reads no
+    /// ballot content, time or channel, so a list of voters built from it
+    /// cannot place a voter's ballot in time.
+    pub async fn accepted_voters(
+        &self,
+        election_event_id: &str,
+        election_id: &str,
+    ) -> Result<Vec<String>> {
+        let rows = self
+            .client()
+            .await?
+            .query(
+                "SELECT DISTINCT voter_id FROM ballot_box_ballot \
+                 WHERE election_event_id = $1::text::uuid AND election_id = $2::text::uuid \
+                   AND status = $3 \
+                 ORDER BY voter_id",
+                &[&election_event_id, &election_id, &VALID],
+            )
+            .await
+            .context("Error reading the voters with a valid ballot")?;
+        rows.iter().map(|row| Ok(row.try_get(0)?)).collect()
+    }
+
     /// Valid ballots of an event, or of one of its elections, and their voters;
     /// those cast in one area when `area_id` names it.
     pub async fn participation(

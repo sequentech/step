@@ -384,6 +384,22 @@ impl PostgresStore {
             .collect())
     }
 
+    /// Whether the event's voter-to-pseudonym mapping was purged: its
+    /// participation flags went with it, so nobody can be named as having
+    /// voted any more. `false` for an event without a mode.
+    pub async fn identity_mapping_purged(&self, event: &str) -> Result<bool> {
+        Ok(self
+            .client()
+            .await?
+            .query_opt(
+                "SELECT mapping_purged_at IS NOT NULL FROM sequent_backend.ballot_identity
+                 WHERE election_event_id = $1::text::uuid",
+                &[&event],
+            )
+            .await?
+            .is_some_and(|row| row.get(0)))
+    }
+
     /// Counts immutable first-vote flags without reading ballots or timestamps.
     pub async fn privacy_participation_count(
         &self,

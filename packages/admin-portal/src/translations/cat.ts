@@ -2614,6 +2614,7 @@ const catalanTranslation: TranslationType = {
                 ELECTORAL_RESULTS: "Resultats Electorals",
                 MANUAL_VERIFICATION: "Verificació Manual",
                 PARTICIPATION_REPORT: "Informe de Participació",
+                OV_WHO_VOTED: "Llista de votants que han votat",
                 STATISTICAL_REPORT: "Informe Estadístic",
                 OVCS_EVENTS: "Seguiment del Vot a l'Estranger - Esdeveniments OVCS",
                 AUDIT_LOGS: "Registres d'Auditoria",
@@ -3865,6 +3866,7 @@ const catalanTranslation: TranslationType = {
                 ACTIVITY_LOGS: "Registres d'Activitats",
                 MANUAL_VERIFICATION: "Verificació Manual",
                 PARTICIPATION_REPORT: "Informe de Participació",
+                OV_WHO_VOTED: "Llista de votants que han votat",
             },
             method: {
                 email: "Email",

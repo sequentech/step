@@ -783,6 +783,57 @@ async fn reads_cover_voters_administrators_and_reports() -> Result<()> {
     drop_ballot_box(&store, &event).await
 }
 
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn the_voters_who_voted_are_those_with_an_accepted_ballot_once_each() -> Result<()> {
+    let store = store().await?;
+    let (event, election, area, other_election) = ids();
+    store.create_ballot_box(&event).await?;
+    // Two valid ballots (a revote) list the voter once.
+    Vote::new(&event, &election, &area, "voter-revote", 2)
+        .accept(&store)
+        .await?;
+    Vote::new(&event, &election, &area, "voter-revote", 2)
+        .accept(&store)
+        .await?;
+    Vote::new(&event, &election, &area, "voter-once", 1)
+        .accept(&store)
+        .await?;
+    // Waiting for an external confirmation or refused: not an accepted vote.
+    Vote::new(&event, &election, &area, "voter-pending", 1)
+        .with_status(BallotStatus::Pending)
+        .accept(&store)
+        .await?;
+    Vote::new(&event, &election, &area, "voter-rejected", 1)
+        .with_status(BallotStatus::Rejected)
+        .accept(&store)
+        .await?;
+    // Another Post's voter is not this Post's.
+    Vote::new(&event, &other_election, &area, "voter-elsewhere", 1)
+        .accept(&store)
+        .await?;
+
+    assert_eq!(
+        store.accepted_voters(&event, &election).await?,
+        ["voter-once", "voter-revote"]
+    );
+    assert_eq!(
+        store.accepted_voters(&event, &other_election).await?,
+        ["voter-elsewhere"]
+    );
+    // The same population participation counts.
+    assert_eq!(
+        store
+            .participation(&event, Some(election.as_str()), None)
+            .await?
+            .voters,
+        2
+    );
+    let (_, empty_post, _, _) = ids();
+    assert!(store.accepted_voters(&event, &empty_post).await?.is_empty());
+    drop_ballot_box(&store, &event).await
+}
+
 fn cast_vote_record(event: &str, seq: i64) -> LogEntry {
     LogEntry {
         delivery_id: format!("ballot-box:{event}:{seq}"),
