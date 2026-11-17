@@ -11,6 +11,8 @@ use crate::adapters::memory::results_publication_lifecycle::{
     ArtifactCall, InMemoryResultsArtifacts,
 };
 use crate::domain::results_publication::fixtures::*;
+use crate::postgres::tally_results_publication::PublicationSourceFacts;
+use sequent_core::types::ceremonies::{TallyExecutionStatus, TallyType};
 use sequent_core::types::hasura::core::Document;
 
 const PREFIX: &str = "tenant-tenant-1/event-event-1/results";
@@ -235,6 +237,162 @@ async fn storing_a_rendered_publication_propagates_database_errors() {
     assert_eq!(
         store.stored()[0].publication_status,
         ResultsPublicationStatus::Failed
+    );
+}
+
+#[tokio::test]
+async fn a_source_that_stopped_being_the_final_tally_is_not_published() {
+    let store = InMemoryResultsPublications::with([TallyResultsPublication {
+        publication_status: ResultsPublicationStatus::Publishing,
+        ..publication()
+    }]);
+    // A recount recorded a newer execution after the request.
+    store.set_source_facts(PublicationSourceFacts {
+        valid_execution: true,
+        execution_status: Some(TallyExecutionStatus::SUCCESS),
+        is_execution_completed: true,
+        tally_type: TallyType::ELECTORAL_RESULTS,
+        is_latest_execution: false,
+        election_count: 2,
+        contest_count: 1,
+        tallied_contest_count: 1,
+    });
+    let artifacts = artifacts();
+    let error = publish(&store, &artifacts).await.unwrap_err();
+    assert_eq!(
+        format!("{error:#}"),
+        "Invalid source for publication publication-1: tally session session-1, execution \
+         execution-1, results event results-event-1: Only the latest tally session execution \
+         can be published"
+    );
+    assert!(artifacts.snapshot().prepared_contests.is_none());
+    assert_eq!(
+        store.stored()[0].publication_status,
+        ResultsPublicationStatus::Publishing
+    );
+}
+
+fn superseded_by_a_recount() -> PublicationSourceFacts {
+    PublicationSourceFacts {
+        valid_execution: true,
+        execution_status: Some(TallyExecutionStatus::SUCCESS),
+        is_execution_completed: true,
+        tally_type: TallyType::ELECTORAL_RESULTS,
+        is_latest_execution: false,
+        election_count: 2,
+        contest_count: 1,
+        tallied_contest_count: 1,
+    }
+}
+
+#[tokio::test]
+async fn a_failed_publication_lock_stops_publishing_before_anything_is_rendered() {
+    let store = InMemoryResultsPublications::with([public_publication()]);
+    store.fail_on(PublicationCall::LockPublication, "lock timeout");
+    let artifacts = artifacts();
+    assert_eq!(
+        publish(&store, &artifacts).await.unwrap_err().to_string(),
+        "lock timeout"
+    );
+    assert!(artifacts.snapshot().prepared_contests.is_none());
+}
+
+#[tokio::test]
+async fn artifacts_are_rendered_before_the_source_lock_and_activation_needs_it() {
+    let store = InMemoryResultsPublications::with([TallyResultsPublication {
+        publication_status: ResultsPublicationStatus::Failed,
+        ..publication()
+    }]);
+    store.fail_on(PublicationCall::LockSourceFacts, "lock timeout");
+    let artifacts = artifacts();
+    assert_eq!(
+        publish(&store, &artifacts).await.unwrap_err().to_string(),
+        "lock timeout"
+    );
+    // Rendered without the lock; nothing was activated.
+    assert!(artifacts.snapshot().prepared_contests.is_some());
+    assert_eq!(
+        store.stored()[0].publication_status,
+        ResultsPublicationStatus::Failed
+    );
+}
+
+#[tokio::test]
+async fn an_unlocked_source_check_failure_stops_before_rendering() {
+    let store = InMemoryResultsPublications::with([TallyResultsPublication {
+        publication_status: ResultsPublicationStatus::Publishing,
+        ..publication()
+    }]);
+    store.fail_on(PublicationCall::SourceFacts, "read failed");
+    let artifacts = artifacts();
+    assert_eq!(
+        publish(&store, &artifacts).await.unwrap_err().to_string(),
+        "read failed"
+    );
+    assert!(artifacts.snapshot().prepared_contests.is_none());
+}
+
+#[tokio::test]
+async fn a_recount_during_the_upload_discards_the_public_artifacts_and_does_not_activate() {
+    let store = InMemoryResultsPublications::with([TallyResultsPublication {
+        publication_status: ResultsPublicationStatus::Publishing,
+        access: ResultsWebsiteAccess::Public,
+        ..publication()
+    }]);
+    // Final and current when read without the lock, superseded under it.
+    store.set_locked_source_facts(superseded_by_a_recount());
+    let artifacts = artifacts();
+    let error = publish(&store, &artifacts).await.unwrap_err();
+    assert!(
+        format!("{error:#}").ends_with("Only the latest tally session execution can be published"),
+        "{error:#}"
+    );
+    let state = artifacts.snapshot();
+    assert!(state.public_contests.is_some());
+    assert!(state
+        .removed_public_paths
+        .contains(&format!("{PREFIX}/full-v1.sqlite")));
+    assert!(!state
+        .removed_public_paths
+        .contains(&format!("{PREFIX}/manifest-latest.json")));
+    assert_eq!(state.removed_documents.len(), 1);
+    assert_eq!(
+        store.stored()[0].publication_status,
+        ResultsPublicationStatus::Publishing
+    );
+}
+
+#[tokio::test]
+async fn a_recount_during_the_upload_discards_the_private_documents_and_does_not_activate() {
+    let store = InMemoryResultsPublications::with([TallyResultsPublication {
+        publication_status: ResultsPublicationStatus::Publishing,
+        ..publication()
+    }]);
+    store.set_locked_source_facts(superseded_by_a_recount());
+    let artifacts = artifacts();
+    assert!(publish(&store, &artifacts).await.is_err());
+    let state = artifacts.snapshot();
+    assert!(state.private_contests.is_some());
+    assert_eq!(state.removed_documents.len(), 1);
+    assert_eq!(
+        store.stored()[0].publication_status,
+        ResultsPublicationStatus::Publishing
+    );
+}
+
+#[tokio::test]
+async fn a_failed_cleanup_does_not_hide_why_the_source_was_refused() {
+    let store = InMemoryResultsPublications::with([TallyResultsPublication {
+        publication_status: ResultsPublicationStatus::Publishing,
+        ..publication()
+    }]);
+    store.set_locked_source_facts(superseded_by_a_recount());
+    let artifacts = artifacts();
+    artifacts.fail_on(ArtifactCall::DeleteDocuments, "storage down");
+    let error = publish(&store, &artifacts).await.unwrap_err();
+    assert!(
+        format!("{error:#}").ends_with("Only the latest tally session execution can be published"),
+        "{error:#}"
     );
 }
 

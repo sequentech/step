@@ -6,7 +6,7 @@ use crate::adapters::results_publication::PgResultsPublications;
 use crate::ports::results_publication_lifecycle::{
     ResultsPublicationArtifactStore, ResultsPublicationLifecycle, ResultsPublicationRenderer,
 };
-use crate::postgres::tally_results_publication::TallyResultsPublication;
+use crate::postgres::tally_results_publication::{PublicationSourceFacts, TallyResultsPublication};
 use crate::postgres::{document, tally_results_publication as publications};
 use crate::services::results_publication::{
     prepare_publication_source, publish_private_artifacts, publish_public_artifacts,
@@ -59,6 +59,32 @@ impl ResultsPublicationLifecycle for PgResultsPublications<'_> {
             None,
         )
         .await
+    }
+    async fn lock_publication_for_publishing(
+        &self,
+        tenant_id: &str,
+        event_id: &str,
+        publication_id: &str,
+    ) -> Result<()> {
+        publications::lock_publication_for_publishing(
+            self.transaction,
+            tenant_id,
+            event_id,
+            publication_id,
+        )
+        .await
+    }
+    async fn source_facts(
+        &self,
+        publication: &TallyResultsPublication,
+    ) -> Result<PublicationSourceFacts> {
+        publications::publication_source_facts(self.transaction, publication).await
+    }
+    async fn lock_source_facts(
+        &self,
+        publication: &TallyResultsPublication,
+    ) -> Result<PublicationSourceFacts> {
+        publications::lock_publication_source_facts(self.transaction, publication).await
     }
 }
 
