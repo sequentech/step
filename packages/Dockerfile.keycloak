@@ -194,4 +194,12 @@ COPY --from=builder /opt/keycloak/ /opt/keycloak/
 COPY --from=spis-build /build/keycloak-provider-conf/quarkus.properties /opt/keycloak/conf/quarkus.properties
 
 ENV KC_DB=postgres
+# Java4Shell (CVE-2026-114938) mitigation: disable the HotSpot Base64
+# intrinsic whose x86-64 AVX-512 VBMI decode path has an out-of-bounds heap
+# write. kc.sh appends JAVA_OPTS_APPEND to its default JAVA_OPTS (it does not
+# replace them). The flag is accepted on arm64 too (verified on 21.0.12.1).
+# A deployment that sets JAVA_OPTS_APPEND in its env overrides this value, so
+# it must include the flag as well. Remove once a fixed JDK ships.
+# https://calif.io/java4shell/
+ENV JAVA_OPTS_APPEND="-XX:-UseBASE64Intrinsics"
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
