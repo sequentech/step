@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::area::get_areas;
-use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::ballot_box_reads::get_event_ballot_box;
 use crate::services::cast_votes::get_users_with_vote_info_in_elections;
@@ -1326,17 +1325,30 @@ async fn authorized_election_key(
     else {
         return Ok(filter.authorized_to_election_alias.clone());
     };
-    let election = get_election_by_id(
-        hasura_transaction,
-        &filter.tenant_id,
-        election_event_id,
-        election_id,
-    )
-    .await?
-    .ok_or_else(|| anyhow!("Election {election_id} not found"))?;
+    // An unknown election has no areas, so the area filter already matches no
+    // voter.
+    let Some(row) = hasura_transaction
+        .query_opt(
+            r#"
+            SELECT external_id
+            FROM sequent_backend.election
+            WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3
+            "#,
+            &[
+                &parse_uuid_v4(&filter.tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error reading the election's external id: {err}"))?
+    else {
+        return Ok(None);
+    };
+    let external_id: Option<String> = row.try_get("external_id")?;
     Ok(Some(election_voter_authorization_alias(
-        &election.id,
-        election.external_id.as_deref(),
+        election_id,
+        external_id.as_deref(),
     )))
 }
 

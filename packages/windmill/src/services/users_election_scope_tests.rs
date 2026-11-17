@@ -7,7 +7,7 @@
 use super::*;
 
 #[tokio::test]
-#[ignore = "requires PostgreSQL with the Hasura schema configured through HASURA_DB__*"]
+#[ignore = "requires PostgreSQL configured through HASURA_DB__*"]
 async fn election_scoped_voters_are_authorized_by_external_id_or_id() -> Result<()> {
     use sequent_core::services::keycloak::get_event_realm;
 
@@ -24,6 +24,25 @@ async fn election_scoped_voters_are_authorized_by_external_id_or_id() -> Result<
     transaction
         .batch_execute(&format!(
             r#"
+            CREATE SCHEMA IF NOT EXISTS sequent_backend;
+            CREATE TABLE IF NOT EXISTS sequent_backend.tenant (id UUID PRIMARY KEY, slug TEXT);
+            CREATE TABLE IF NOT EXISTS sequent_backend.election_event (
+                id UUID PRIMARY KEY, tenant_id UUID, encryption_protocol TEXT
+            );
+            CREATE TABLE IF NOT EXISTS sequent_backend.election (
+                id UUID PRIMARY KEY, tenant_id UUID, election_event_id UUID,
+                external_id TEXT, num_allowed_revotes INT, status JSONB, presentation JSONB
+            );
+            CREATE TABLE IF NOT EXISTS sequent_backend.area (
+                id UUID PRIMARY KEY, tenant_id UUID, election_event_id UUID, name TEXT
+            );
+            CREATE TABLE IF NOT EXISTS sequent_backend.contest (
+                id UUID PRIMARY KEY, tenant_id UUID, election_event_id UUID, election_id UUID
+            );
+            CREATE TABLE IF NOT EXISTS sequent_backend.area_contest (
+                id UUID PRIMARY KEY, tenant_id UUID, election_event_id UUID,
+                contest_id UUID, area_id UUID
+            );
             INSERT INTO sequent_backend.tenant (id, slug) VALUES ('{tenant}', '{tenant}');
             INSERT INTO sequent_backend.election_event (id, tenant_id, encryption_protocol)
             VALUES ('{event}', '{tenant}', 'RSA256');
@@ -122,6 +141,9 @@ async fn election_scoped_voters_are_authorized_by_external_id_or_id() -> Result<
         voters(by_id, None).await?,
         vec!["election-id", "null-and-key", "null-value", "unrestricted"]
     );
+    // An election that doesn't exist matches no voter instead of failing.
+    assert!(voters(Uuid::new_v4(), None).await?.is_empty());
+    assert!(voters(Uuid::new_v4(), Some("Mayor")).await?.is_empty());
     transaction.rollback().await?;
     Ok(())
 }

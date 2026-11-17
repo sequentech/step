@@ -310,6 +310,13 @@ jobs:
         run: cargo test
         working-directory: packages/windmill
 
+      - name: Run PostgreSQL-backed election-scoped voters regression
+        run: >-
+          cargo test --locked -p windmill --lib
+          services::users::election_scope_tests::election_scoped_voters_are_authorized_by_external_id_or_id
+          -- --ignored --exact
+        working-directory: packages
+
       - name: Test electoral-log application wiring
         run: cargo test --locked -p windmill postgres_wiring_tests --lib -- --ignored --test-threads=1
         working-directory: packages
