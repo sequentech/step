@@ -22,7 +22,8 @@ ENV KC_DB=postgres
 # AVX-512 Base64 decode intrinsic can write out of bounds. No fixed JDK or
 # Keycloak image exists yet, so turn the intrinsic off. kc.sh appends
 # JAVA_OPTS_APPEND to its default JAVA_OPTS, so the defaults are kept. The flag
-# is also recognised on arm64 (it is a no-op there). A deployment that sets its
+# is also accepted on arm64, where it turns off the (unaffected) aarch64 Base64
+# intrinsic as well, at a small Base64 speed cost. A deployment that sets its
 # own JAVA_OPTS_APPEND replaces this value and must include the flag itself.
 ENV JAVA_OPTS_APPEND="-XX:-UseBASE64Intrinsics"
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
