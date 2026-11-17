@@ -48,16 +48,16 @@ pub enum CastVoteStatus {
 pub struct CastVote {
     pub id: String,
     pub tenant_id: String,
-    pub election_id: Option<String>,
+    pub election_id: String,
     pub area_id: Option<String>,
     pub created_at: Option<DateTime<Utc>>,
     pub last_updated_at: Option<DateTime<Utc>>,
     pub content: Option<String>,
     /// The voter's Keycloak user id, not the identifier an external voter
     /// registry such as Datafix uses (that one is the Keycloak username).
-    pub voter_id_string: Option<String>,
+    pub voter_id_string: String,
     pub election_event_id: String,
-    pub ballot_id: Option<String>,
+    pub ballot_id: String,
     pub cast_ballot_signature: Option<Vec<u8>>,
     pub status: CastVoteStatus,
 }
@@ -68,9 +68,7 @@ impl TryFrom<Row> for CastVote {
         Ok(CastVote {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
-            election_id: item
-                .try_get::<_, Option<Uuid>>("election_id")?
-                .map(|val| val.to_string()),
+            election_id: item.try_get::<_, Uuid>("election_id")?.to_string(),
             area_id: item
                 .try_get::<_, Option<Uuid>>("area_id")?
                 .map(|val| val.to_string()),

@@ -8,6 +8,7 @@ import threading
 from pathlib import Path
 import subprocess
 import unittest
+from uuid import uuid4
 
 import psycopg
 from psycopg.types.json import Jsonb
@@ -18,8 +19,12 @@ from database import (
     RESENT_BALLOT_MIGRATION,
     STORAGE_MIGRATION,
     SCHEDULE_MIGRATION,
+    VOTER_BALLOT_KEY,
+    VOTER_BALLOT_KEY_MIGRATION,
 )
-from fixtures import Election
+from fixtures import INSERT_VOTE, Election
+
+KEY_COLUMNS = ["ballot_id", "election_id", "voter_id_string"]
 
 
 class VotingFlowTests(unittest.TestCase):
@@ -63,30 +68,21 @@ class VotingFlowTests(unittest.TestCase):
         """Reuse a concurrently built index in the transactional migration, then roll it back."""
         root = Path(__file__).resolve().parents[2]
         migration = root / "hasura/migrations/backend-db/1788808561206_ballot_style_voter_reference_index"
-        self.connection.execute("""
-            CREATE TABLE sequent_backend.ballot_style (
-                tenant_id uuid, election_event_id uuid, area_id uuid,
-                election_id uuid, id uuid, ballot_publication_id uuid, deleted_at timestamptz
-            )
-        """)
-        try:
-            for script in ["ballot_style_voter_reference_index.sql", "drop_ballot_style_voter_reference_index.sql"]:
-                subprocess.run([
-                    "psql", "-X", "--quiet", "--file", str(root / "scripts/postgres" / script),
-                ], env=self.db.env, check=True, stdout=subprocess.DEVNULL)
-                direction = "down" if script.startswith("drop_") else "up"
-                with self.connection.transaction():
-                    self.connection.execute((migration / f"{direction}.sql").read_text())
-                if direction == "up":
-                    self.assertEqual(self.connection.execute(
-                        "SELECT indisvalid FROM pg_index WHERE indexrelid = 'sequent_backend.ballot_style_voter_reference_idx'::regclass"
-                    ).fetchone(), (True,))
-                else:
-                    self.assertEqual(self.connection.execute(
-                        "SELECT to_regclass('sequent_backend.ballot_style_voter_reference_idx')"
-                    ).fetchone(), (None,))
-        finally:
-            self.connection.execute("DROP TABLE sequent_backend.ballot_style")
+        for script in ["ballot_style_voter_reference_index.sql", "drop_ballot_style_voter_reference_index.sql"]:
+            subprocess.run([
+                "psql", "-X", "--quiet", "--file", str(root / "scripts/postgres" / script),
+            ], env=self.db.env, check=True, stdout=subprocess.DEVNULL)
+            direction = "down" if script.startswith("drop_") else "up"
+            with self.connection.transaction():
+                self.connection.execute((migration / f"{direction}.sql").read_text())
+            if direction == "up":
+                self.assertEqual(self.connection.execute(
+                    "SELECT indisvalid FROM pg_index WHERE indexrelid = 'sequent_backend.ballot_style_voter_reference_idx'::regclass"
+                ).fetchone(), (True,))
+            else:
+                self.assertEqual(self.connection.execute(
+                    "SELECT to_regclass('sequent_backend.ballot_style_voter_reference_idx')"
+                ).fetchone(), (None,))
 
     def test_schedule_migration_rejects_duplicates_atomically_and_recovers(self):
         """Roll back index creation on duplicate schedules and migrate after correction."""
@@ -115,6 +111,8 @@ class VotingFlowTests(unittest.TestCase):
         self.assertEqual(self.dates(), (None, "2026-10-01T12:00:00Z"))
         self.db.apply(AREA_MIGRATION, "down")
         self.db.apply(AREA_MIGRATION)
+        # Reapplying the area migration restores its older check_revote_limit.
+        self.db.apply(RESENT_BALLOT_MIGRATION)
 
     def test_voting_task_payload_matches_its_canonical_identity(self):
         """Reject name-matching schedules whose payload is foreign or has unexpected fields."""
@@ -333,32 +331,198 @@ class VotingFlowTests(unittest.TestCase):
             self.election.schedule(self.connection, "END", "2026-10-02T12:00:00Z")
         self.assertEqual(self.dates(), (None, "2026-10-01T12:00:00Z"))
 
-    def test_index_replacement_stops_on_an_invalid_previous_build(self):
-        """Retain the valid old index after an interrupted build and verify the documented recovery."""
-        self.election.vote(self.connection, "index-test")
-        self.election.vote(self.connection, "index-test")
-        with self.assertRaises(psycopg.errors.UniqueViolation):
-            self.connection.execute(
-                """
-                CREATE UNIQUE INDEX CONCURRENTLY cast_vote_participation_election_covering_idx
-                ON sequent_backend.cast_vote
-                    (tenant_id, election_event_id, election_id, voter_id_string)
+    def key_shape(self):
+        """Return validity, uniqueness and key/total column counts of the voter ballot key."""
+        return self.connection.execute(
             """
+            SELECT indisvalid, indisunique, indnkeyatts, indnatts
+            FROM pg_index WHERE indexrelid = to_regclass(%s)
+        """,
+            (VOTER_BALLOT_KEY,),
+        ).fetchone()
+
+    def nullable_key_columns(self):
+        """Return the voter ballot key columns that still accept NULL."""
+        return self.db.scalar(
+            """
+            SELECT coalesce(array_agg(attname::text ORDER BY attname), '{}')
+            FROM pg_attribute
+            WHERE attrelid = 'sequent_backend.cast_vote'::regclass
+              AND attname = ANY(%s) AND NOT attnotnull
+        """,
+            (KEY_COLUMNS,),
+        )
+
+    def key_constraint(self):
+        """Return the index backing the voter ballot key constraint, or None when it is absent."""
+        return self.db.scalar(
+            """
+            SELECT max(conindid::regclass::text) FROM pg_constraint
+            WHERE conrelid = 'sequent_backend.cast_vote'::regclass
+              AND conname = 'cast_vote_voter_ballot_key' AND contype = 'u'
+        """
+        )
+
+    def not_null_check(self):
+        """Return whether the script's NULL check is validated, or None when it is absent."""
+        row = self.connection.execute(
+            """
+            SELECT convalidated FROM pg_constraint
+            WHERE conrelid = 'sequent_backend.cast_vote'::regclass
+              AND conname = 'cast_vote_voter_ballot_not_null'
+        """
+        ).fetchone()
+        return row and row[0]
+
+    def insert_null_key(self, column):
+        """Insert a vote with one NULL key column, bypassing check_revote_limit."""
+        values = {
+            "election_id": self.election.election,
+            "voter_id_string": "null-key",
+            "ballot_id": str(uuid4()),
+        }
+        values[column] = None
+        with self.connection.transaction():
+            self.connection.execute("SET LOCAL session_replication_role = replica")
+            self.connection.execute(
+                INSERT_VOTE,
+                (
+                    self.election.tenant,
+                    self.election.event,
+                    values["election_id"],
+                    values["voter_id_string"],
+                    self.election.area,
+                    "valid",
+                    "ballot",
+                    values["ballot_id"],
+                    bytes(64),
+                ),
             )
-        validity = "SELECT indisvalid FROM pg_index WHERE indexrelid = %s::regclass"
-        old_index = "sequent_backend.cast_vote_participation_election_idx"
-        temporary_index = (
-            "sequent_backend.cast_vote_participation_election_covering_idx"
-        )
-        self.assertFalse(self.db.scalar(validity, (temporary_index,)))
-        self.assertNotEqual(self.db.run_index_script().returncode, 0)
-        self.assertTrue(self.db.scalar(validity, (old_index,)))
+
+    def delete_null_keys(self):
+        """Delete this test's votes with a NULL key column."""
         self.connection.execute(
-            "DROP INDEX CONCURRENTLY sequent_backend.cast_vote_participation_election_covering_idx"
+            """
+            DELETE FROM sequent_backend.cast_vote
+            WHERE tenant_id = %s AND election_event_id = %s
+              AND (election_id IS NULL OR voter_id_string IS NULL OR ballot_id IS NULL)
+        """,
+            (self.election.tenant, self.election.event),
         )
-        result = self.db.run_index_script()
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertTrue(self.db.scalar(validity, (old_index,)))
+
+    def restore_voter_ballot_key(self):
+        """Remove this test's NULL-key rows and any invalid key, then reapply the migration."""
+        self.delete_null_keys()
+        shape = self.key_shape()
+        if shape is not None and not shape[0]:
+            self.connection.execute(f"DROP INDEX {VOTER_BALLOT_KEY}")
+        self.db.apply(VOTER_BALLOT_KEY_MIGRATION)
+
+    def test_index_script_proves_no_nulls_before_the_migration(self):
+        """Validate the NULL check without blocking votes so the migration's SET NOT NULL skips its scan."""
+        messages = []
+
+        def collect(notice):
+            messages.append(notice.message_primary)
+
+        self.db.apply(VOTER_BALLOT_KEY_MIGRATION, "down")
+        try:
+            result = self.db.run_index_script()
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIs(self.not_null_check(), True)
+            self.connection.add_notice_handler(collect)
+            self.connection.execute("SET client_min_messages = debug1")
+            try:
+                self.db.apply(VOTER_BALLOT_KEY_MIGRATION)
+            finally:
+                self.connection.execute("RESET client_min_messages")
+                self.connection.remove_notice_handler(collect)
+        finally:
+            self.restore_voter_ballot_key()
+        for column in KEY_COLUMNS:
+            self.assertIn(
+                f'existing constraints on column "cast_vote.{column}" are sufficient '
+                "to prove that it does not contain nulls",
+                messages,
+            )
+        self.assertIsNone(self.not_null_check())
+        self.assertEqual(self.nullable_key_columns(), [])
+
+    def test_index_script_refuses_null_key_columns(self):
+        """Stop on an existing NULL key column while refusing new ones, then finish once it is gone."""
+        self.db.apply(VOTER_BALLOT_KEY_MIGRATION, "down")
+        try:
+            self.insert_null_key("ballot_id")
+            failed = self.db.run_index_script()
+            self.assertNotEqual(failed.returncode, 0)
+            self.assertIn("is violated by some row", failed.stderr)
+            self.assertIs(self.not_null_check(), False)
+            self.assertIsNone(self.key_shape())
+            with self.assertRaises(psycopg.errors.CheckViolation):
+                self.insert_null_key("voter_id_string")
+            self.delete_null_keys()
+            result = self.db.run_index_script()
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIs(self.not_null_check(), True)
+        finally:
+            self.restore_voter_ballot_key()
+        self.assertIsNone(self.not_null_check())
+        self.assertEqual(self.key_shape(), (True, True, 5, 7))
+
+    def test_index_script_recovers_from_a_failed_build_before_the_migration(self):
+        """Keep the old index while a failed build is invalid, then build the key the migration reuses."""
+        participation = "sequent_backend.cast_vote_participation_election_idx"
+        exists = "SELECT to_regclass(%s) IS NOT NULL"
+        key_oid = "SELECT to_regclass(%s)::oid"
+        resent = """
+            DELETE FROM sequent_backend.cast_vote WHERE id = (
+                SELECT id FROM sequent_backend.cast_vote
+                WHERE election_id = %s AND voter_id_string = 'index-test' LIMIT 1
+            )
+        """
+        self.db.apply(VOTER_BALLOT_KEY_MIGRATION, "down")
+        try:
+            self.election.vote(self.connection, "index-test", ballot_id="resent")
+            with self.connection.transaction():
+                self.connection.execute("SET LOCAL session_replication_role = replica")
+                self.election.vote(self.connection, "index-test", ballot_id="resent")
+            failed = self.db.run_index_script()
+            self.assertNotEqual(failed.returncode, 0)
+            self.assertIn("could not create unique index", failed.stderr)
+            self.assertEqual(self.key_shape(), (False, True, 5, 7))
+            self.assertTrue(self.db.scalar(exists, (participation,)))
+            rerun = self.db.run_index_script()
+            self.assertNotEqual(rerun.returncode, 0)
+            self.assertIn("cast_vote_voter_ballot_key is invalid", rerun.stderr)
+            self.connection.execute(resent, (self.election.election,))
+            self.connection.execute(f"DROP INDEX CONCURRENTLY {VOTER_BALLOT_KEY}")
+            result = self.db.run_index_script()
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse(self.db.scalar(exists, (participation,)))
+            built = self.db.scalar(key_oid, (VOTER_BALLOT_KEY,))
+        finally:
+            if self.db.scalar(
+                "SELECT count(*) FROM sequent_backend.cast_vote "
+                "WHERE election_id = %s AND voter_id_string = 'index-test'",
+                (self.election.election,),
+            ) > 1:
+                self.connection.execute(resent, (self.election.election,))
+            self.restore_voter_ballot_key()
+        self.assertEqual(self.db.scalar(key_oid, (VOTER_BALLOT_KEY,)), built)
+        self.assertEqual(self.key_constraint(), VOTER_BALLOT_KEY)
+        self.assertEqual(self.key_shape(), (True, True, 5, 7))
+
+    def test_index_script_keeps_the_key_the_migration_built(self):
+        """Running the script after the migration, or again, neither rebuilds nor drops the key."""
+        key_oid = "SELECT to_regclass(%s)::oid"
+        built = self.db.scalar(key_oid, (VOTER_BALLOT_KEY,))
+        for _ in range(2):
+            result = self.db.run_index_script()
+            self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.db.scalar(key_oid, (VOTER_BALLOT_KEY,)), built)
+        self.assertEqual(self.key_constraint(), VOTER_BALLOT_KEY)
+        self.assertEqual(self.key_shape(), (True, True, 5, 7))
+        self.assertIsNone(self.not_null_check())
 
     def test_invalid_date_type_is_rejected_at_configuration_write(self):
         """Reject a non-string endpoint date when writing configuration."""
@@ -485,15 +649,108 @@ class VotingFlowTests(unittest.TestCase):
         self.db.apply(STORAGE_MIGRATION)
 
     def test_resent_ballot_migration_is_reversible(self):
-        """Store a resent ballot again after rollback and refuse it once reapplied."""
+        """After rollback the trigger lets a resent ballot through to the unique key; reapplied, it refuses it."""
         self.election.vote(self.connection, "rollback", ballot_id="kept")
         self.db.apply(RESENT_BALLOT_MIGRATION, "down")
         try:
-            self.election.vote(self.connection, "rollback", ballot_id="kept")
+            with self.assertRaises(psycopg.errors.UniqueViolation):
+                self.election.vote(self.connection, "rollback", ballot_id="kept")
         finally:
             self.db.apply(RESENT_BALLOT_MIGRATION)
         with self.assertRaises(psycopg.errors.RaiseException):
             self.election.vote(self.connection, "rollback", ballot_id="kept")
+
+    def test_voter_ballot_key_refuses_a_resend_on_any_write_path(self):
+        """Store a voter's ballot once even when a write bypasses the revote trigger."""
+
+        def bypassing_trigger(voter, ballot_id):
+            with self.connection.transaction():
+                self.connection.execute("SET LOCAL session_replication_role = replica")
+                self.election.vote(self.connection, voter, ballot_id=ballot_id)
+
+        self.election.vote(self.connection, "key", ballot_id="kept")
+        self.election.vote(self.connection, "another-voter", ballot_id="kept")
+        with self.assertRaises(psycopg.errors.UniqueViolation) as refused:
+            bypassing_trigger("key", "kept")
+        self.assertEqual(
+            refused.exception.diag.constraint_name, "cast_vote_voter_ballot_key"
+        )
+        bypassing_trigger("key", "revote")
+        with self.assertRaises(psycopg.errors.UniqueViolation):
+            self.connection.execute(
+                """
+                UPDATE sequent_backend.cast_vote SET ballot_id = 'kept'
+                WHERE election_id = %s AND voter_id_string = 'key' AND ballot_id = 'revote'
+            """,
+                (self.election.election,),
+            )
+        self.assertEqual(
+            self.db.scalar(
+                """
+                SELECT array_agg(ballot_id ORDER BY ballot_id) FROM sequent_backend.cast_vote
+                WHERE election_id = %s AND voter_id_string = 'key'
+            """,
+                (self.election.election,),
+            ),
+            ["kept", "revote"],
+        )
+        with self.connection.transaction():
+            self.connection.execute("SET LOCAL session_replication_role = replica")
+            resent = self.connection.execute(
+                INSERT_VOTE
+                + " ON CONFLICT ON CONSTRAINT cast_vote_voter_ballot_key DO NOTHING",
+                self.election.vote_parameters("key", ballot_id="kept"),
+            )
+            self.assertEqual(resent.rowcount, 0)
+        for column in KEY_COLUMNS:
+            with self.subTest(column=column):
+                with self.assertRaises(psycopg.errors.NotNullViolation):
+                    self.insert_null_key(column)
+
+    def test_voter_ballot_key_migration_refuses_null_key_columns(self):
+        """Stop the migration on a NULL key column and apply it once the row is gone."""
+        self.db.apply(VOTER_BALLOT_KEY_MIGRATION, "down")
+        try:
+            for column in KEY_COLUMNS:
+                with self.subTest(column=column):
+                    self.insert_null_key(column)
+                    with self.assertRaises(psycopg.errors.NotNullViolation):
+                        self.db.apply(VOTER_BALLOT_KEY_MIGRATION)
+                    self.assertEqual(self.nullable_key_columns(), KEY_COLUMNS)
+                    self.delete_null_keys()
+        finally:
+            self.restore_voter_ballot_key()
+        self.assertEqual(self.nullable_key_columns(), [])
+        self.assertEqual(self.key_shape(), (True, True, 5, 7))
+
+    def test_voter_ballot_key_migration_is_reversible(self):
+        """Restore the participation index on rollback and refuse to accept an invalid key on reapply."""
+        participation = "sequent_backend.cast_vote_participation_election_idx"
+        exists = "SELECT to_regclass(%s) IS NOT NULL"
+        self.election.vote(self.connection, "invalid-key")
+        self.election.vote(self.connection, "invalid-key")
+        self.db.apply(VOTER_BALLOT_KEY_MIGRATION, "down")
+        try:
+            self.assertFalse(self.db.scalar(exists, (VOTER_BALLOT_KEY,)))
+            self.assertTrue(self.db.scalar(exists, (participation,)))
+            self.assertEqual(self.nullable_key_columns(), KEY_COLUMNS)
+            self.assertIsNone(self.key_constraint())
+            with self.assertRaises(psycopg.errors.UniqueViolation):
+                self.connection.execute(
+                    """
+                    CREATE UNIQUE INDEX CONCURRENTLY cast_vote_voter_ballot_key
+                    ON sequent_backend.cast_vote
+                        (tenant_id, election_event_id, election_id, voter_id_string)
+                """
+                )
+            with self.assertRaises(psycopg.errors.RaiseException):
+                self.db.apply(VOTER_BALLOT_KEY_MIGRATION)
+        finally:
+            self.restore_voter_ballot_key()
+        self.assertEqual(self.key_shape(), (True, True, 5, 7))
+        self.assertFalse(self.db.scalar(exists, (participation,)))
+        self.assertEqual(self.nullable_key_columns(), [])
+        self.assertEqual(self.key_constraint(), VOTER_BALLOT_KEY)
 
     def test_truncate_removes_deadlines(self):
         """Truncating schedules immediately removes deadlines without maintaining derived data."""
