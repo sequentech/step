@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::area::get_areas;
-use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::ballot_box_reads::get_event_ballot_box;
 use crate::services::cast_votes::get_users_with_vote_info;
@@ -817,17 +816,30 @@ async fn authorized_election_key(
     else {
         return Ok(filter.authorized_to_election_alias.clone());
     };
-    let election = get_election_by_id(
-        hasura_transaction,
-        &filter.tenant_id,
-        election_event_id,
-        election_id,
-    )
-    .await?
-    .ok_or_else(|| anyhow!("Election {election_id} not found"))?;
+    // An unknown election has no areas, so the area filter already matches no
+    // voter.
+    let Some(row) = hasura_transaction
+        .query_opt(
+            r#"
+            SELECT external_id
+            FROM sequent_backend.election
+            WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3
+            "#,
+            &[
+                &parse_uuid_v4(&filter.tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error reading the election's external id: {err}"))?
+    else {
+        return Ok(None);
+    };
+    let external_id: Option<String> = row.try_get("external_id")?;
     Ok(Some(census_election_key(
-        &election.id,
-        election.external_id.as_deref(),
+        election_id,
+        external_id.as_deref(),
     )))
 }
 
@@ -1957,7 +1969,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "requires PostgreSQL with the Hasura schema configured through HASURA_DB__*"]
+    #[ignore = "requires PostgreSQL configured through HASURA_DB__*"]
     async fn election_scoped_voters_are_authorized_by_external_id_or_id() -> Result<()> {
         use sequent_core::services::keycloak::get_event_realm;
 
@@ -1974,6 +1986,25 @@ mod tests {
         transaction
             .batch_execute(&format!(
                 r#"
+                CREATE SCHEMA IF NOT EXISTS sequent_backend;
+                CREATE TABLE IF NOT EXISTS sequent_backend.tenant (id UUID PRIMARY KEY, slug TEXT);
+                CREATE TABLE IF NOT EXISTS sequent_backend.election_event (
+                    id UUID PRIMARY KEY, tenant_id UUID, encryption_protocol TEXT
+                );
+                CREATE TABLE IF NOT EXISTS sequent_backend.election (
+                    id UUID PRIMARY KEY, tenant_id UUID, election_event_id UUID,
+                    external_id TEXT, num_allowed_revotes INT, status JSONB, presentation JSONB
+                );
+                CREATE TABLE IF NOT EXISTS sequent_backend.area (
+                    id UUID PRIMARY KEY, tenant_id UUID, election_event_id UUID, name TEXT
+                );
+                CREATE TABLE IF NOT EXISTS sequent_backend.contest (
+                    id UUID PRIMARY KEY, tenant_id UUID, election_event_id UUID, election_id UUID
+                );
+                CREATE TABLE IF NOT EXISTS sequent_backend.area_contest (
+                    id UUID PRIMARY KEY, tenant_id UUID, election_event_id UUID,
+                    contest_id UUID, area_id UUID
+                );
                 INSERT INTO sequent_backend.tenant (id, slug) VALUES ('{tenant}', '{tenant}');
                 INSERT INTO sequent_backend.election_event (id, tenant_id, encryption_protocol)
                 VALUES ('{event}', '{tenant}', 'RSA256');
@@ -2073,6 +2104,9 @@ mod tests {
             voters(by_id, None).await?,
             vec!["election-id", "null-and-key", "null-value", "unrestricted"]
         );
+        // An election that doesn't exist matches no voter instead of failing.
+        assert!(voters(Uuid::new_v4(), None).await?.is_empty());
+        assert!(voters(Uuid::new_v4(), Some("Mayor")).await?.is_empty());
         transaction.rollback().await?;
         Ok(())
     }
