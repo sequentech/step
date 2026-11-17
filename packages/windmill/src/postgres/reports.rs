@@ -85,6 +85,9 @@ impl TryFrom<Row> for ReportWrapper {
         let cron_config: Option<ReportCronConfig> = cron_config_js
             .map(|val| deserialize_with_path::deserialize_value(val).unwrap_or_default());
         info!("cron_config wrapper: {:?}", cron_config);
+        let encryption_policy: String = item
+            .try_get("encryption_policy")
+            .context("Error deserializing encryption_policy")?;
         Ok(ReportWrapper(Report {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
@@ -92,22 +95,22 @@ impl TryFrom<Row> for ReportWrapper {
             election_id: item
                 .try_get::<_, Option<Uuid>>("election_id")?
                 .map(|val| val.to_string()),
-            report_type: item.get("report_type"),
-            template_alias: item.get("template_alias"),
+            report_type: item
+                .try_get("report_type")
+                .context("Error deserializing report_type")?,
+            template_alias: item
+                .try_get("template_alias")
+                .context("Error deserializing template_alias")?,
             cron_config: cron_config,
             created_at: item
                 .try_get("created_at")
                 .map_err(|err| anyhow!("Error deserializing created_at: {err}"))?,
-            encryption_policy: EReportEncryption::from_str(
-                item.get::<_, String>("encryption_policy").as_str(),
-            )
-            .map_err(|err| {
-                anyhow!(
-                    "error deserializing encryption_policy: {err:?} {value:?}",
-                    value = item.get::<_, String>("encryption_policy").as_str()
-                )
+            encryption_policy: EReportEncryption::from_str(&encryption_policy).map_err(|err| {
+                anyhow!("error deserializing encryption_policy: {err:?} {encryption_policy:?}")
             })?,
-            permission_label: item.get::<_, Option<Vec<String>>>("permission_label"),
+            permission_label: item
+                .try_get::<_, Option<Vec<String>>>("permission_label")
+                .context("Error deserializing permission_label")?,
         }))
     }
 }
