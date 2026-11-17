@@ -711,6 +711,10 @@ fn the_warning_names_the_labels_in_use() {
         .find(|problem| problem.code == Code::PermissionLabel)
         .expect("expected a permission label warning");
     assert!(warning.message.contains("officers"));
+    assert!(warning.message.contains("target account"));
+    assert!(warning.message.contains("each election or report"));
+    assert!(!warning.message.contains("empty list"));
+    assert!(!warning.message.contains("invalid"));
 }
 
 #[test]

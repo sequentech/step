@@ -209,6 +209,7 @@ it("uploads the private file before enabling import and forwards its integrity c
     await waitFor(() => expect(callbacks.doImport).toHaveBeenCalledWith(DOCUMENT_ID, CHECKSUM, ""))
     expect(mockNotify).toHaveBeenCalledWith("electionEventScreen.import.fileUploadSuccess", {
         type: "success",
+        messageArgs: {_: "electionEventScreen.import.fileUploadSuccess"},
     })
 })
 

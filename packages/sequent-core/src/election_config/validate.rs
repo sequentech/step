@@ -1785,10 +1785,11 @@ fn check_permission_labels(
             Code::PermissionLabel,
             path,
             format!(
-                "permission labels in use: {}. Anything carrying a label is hidden \
-                 from every administrator without it, so whoever imports this needs \
-                 one of them on their own 'permission_labels' attribute or the Admin \
-                 Portal will show them an empty list.",
+                "permission labels in use: {}. Verify the target account has a \
+                 matching 'permission_labels' value for each election or report \
+                 it needs to see. Entities with no matching label are hidden \
+                 from that account. This is an access reminder, not a failed \
+                 import; the event bundle cannot verify the signed-in account.",
                 labels.join(", ")
             ),
         ).id("labels.in-use").detail("labels", labels.join(", ")));

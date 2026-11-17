@@ -2838,14 +2838,14 @@ fn a_permission_label_no_administrator_holds_is_warned_about() {
     assert!(bundle.warnings.warnings().any(|problem| problem
         .message
         .contains("no administrator in the Admin Users sheet carries it")));
-    assert!(bundle
+    assert!(!bundle
         .warnings
         .warnings()
         .any(|problem| problem.message.contains("permission labels in use")));
 }
 
 #[test]
-fn a_label_an_administrator_does_hold_is_only_noted_not_flagged() {
+fn a_label_an_administrator_does_hold_is_not_flagged_twice() {
     let mut sheets: Vec<Sheet> = sound()
         .sheets()
         .iter()
@@ -2878,8 +2878,9 @@ fn a_label_an_administrator_does_hold_is_only_noted_not_flagged() {
         .warnings
         .warnings()
         .any(|problem| problem.message.contains("carries it")));
-    // Whoever imports still needs the label on their own attribute.
-    assert!(bundle
+    // The schema validator supplies the target-account reminder once; the
+    // workbook layer must not flag labels already covered by its roster.
+    assert!(!bundle
         .warnings
         .warnings()
         .any(|problem| problem.message.contains("permission labels in use")));

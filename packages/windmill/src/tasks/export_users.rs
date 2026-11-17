@@ -324,7 +324,7 @@ async fn export_users_impl(
         let timestamp = util::date::timestamp()
             .map_err(|err| Error::String(format!("Error obtaining timestamp: {err}")))?;
         let name = format!("users-export-{timestamp}.csv");
-        let key = s3::get_document_key(&tenant_id, Some(&election_event_id), &document_id, &name);
+        let key = export_document_key(&tenant_id, &election_event_id, &document_id, &name);
         let media_type = "text/csv".to_string();
 
         s3::upload_file_to_s3(
@@ -470,10 +470,33 @@ pub async fn export_users(
     export_users_impl(body, document_id, task_execution, audit_actor).await
 }
 
+// Tenant-level exports have no event. Keep their upload key aligned with the
+// document row (election_event_id = NULL) and the download URL builder.
+fn export_document_key(tenant_id: &str, event_id: &str, document_id: &str, name: &str) -> String {
+    s3::get_document_key(
+        tenant_id,
+        (!event_id.is_empty()).then_some(event_id),
+        document_id,
+        name,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use celery::task::Task;
+
+    #[test]
+    fn export_upload_keys_match_document_download_scope() {
+        assert_eq!(
+            export_document_key("tenant", "", "document", "users.csv"),
+            "tenant-tenant/document-document/users.csv"
+        );
+        assert_eq!(
+            export_document_key("tenant", "event", "document", "users.csv"),
+            "tenant-tenant/event-event/document-document/users.csv"
+        );
+    }
 
     fn voters_export(include_secret_attributes: bool) -> ExportBody {
         ExportBody::Users {
