@@ -3099,6 +3099,72 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "requires PostgreSQL configured through KEYCLOAK_DB__*"]
+    async fn authorized_election_filter_accepts_the_key_null_or_no_value() -> Result<()> {
+        let tenant = Uuid::new_v4().to_string();
+        let realm = format!("tenant-{tenant}");
+
+        let pool = crate::services::database::generate_keycloak_pool().await?;
+        let mut client = pool.get().await?;
+        let transaction = client.transaction().await?;
+        transaction
+            .batch_execute(&format!(
+                r#"
+                CREATE TEMP TABLE realm (id TEXT PRIMARY KEY, name TEXT) ON COMMIT DROP;
+                CREATE TEMP TABLE user_entity (
+                    id TEXT PRIMARY KEY,
+                    realm_id TEXT,
+                    username TEXT,
+                    email TEXT,
+                    email_verified BOOLEAN,
+                    enabled BOOLEAN,
+                    first_name TEXT,
+                    last_name TEXT,
+                    created_timestamp BIGINT,
+                    service_account_client_link TEXT
+                ) ON COMMIT DROP;
+                CREATE TEMP TABLE user_attribute (
+                    id SERIAL PRIMARY KEY,
+                    user_id TEXT,
+                    name TEXT,
+                    value TEXT
+                ) ON COMMIT DROP;
+                INSERT INTO realm (id, name) VALUES ('realm', '{realm}');
+                INSERT INTO user_entity (id, realm_id, username, enabled, email_verified)
+                VALUES ('unrestricted', 'realm', 'unrestricted', true, false),
+                       ('key', 'realm', 'key', true, false),
+                       ('other-election', 'realm', 'other-election', true, false),
+                       ('null-value', 'realm', 'null-value', true, false),
+                       ('null-and-key', 'realm', 'null-and-key', true, false);
+                INSERT INTO user_attribute (user_id, name, value)
+                VALUES ('key', '{AUTHORIZED_ELECTION_IDS_NAME}', 'election-a'),
+                       ('other-election', '{AUTHORIZED_ELECTION_IDS_NAME}', 'election-b'),
+                       ('null-value', '{AUTHORIZED_ELECTION_IDS_NAME}', NULL),
+                       ('null-and-key', '{AUTHORIZED_ELECTION_IDS_NAME}', NULL),
+                       ('null-and-key', '{AUTHORIZED_ELECTION_IDS_NAME}', 'election-a');
+                "#
+            ))
+            .await?;
+
+        let filter = ListUsersFilter {
+            authorized_to_election_alias: Some("election-a".to_string()),
+            ..ListUsersFilter::new(&tenant, &realm)
+        };
+        let count = count_keycloak_users(&transaction, &transaction, filter.clone()).await?;
+        let (users, total) = list_users(&transaction, &transaction, filter).await?;
+        let mut ids: Vec<String> = users.into_iter().filter_map(|user| user.id).collect();
+        ids.sort();
+        transaction.rollback().await?;
+
+        assert_eq!(
+            ids,
+            vec!["key", "null-and-key", "null-value", "unrestricted"]
+        );
+        assert_eq!(total, count);
+        Ok(())
+    }
+
+    #[tokio::test]
     #[ignore = "requires PostgreSQL with the Hasura schema configured through HASURA_DB__*"]
     async fn election_scoped_voters_are_authorized_by_external_id_or_id() -> Result<()> {
         use sequent_core::services::keycloak::get_event_realm;

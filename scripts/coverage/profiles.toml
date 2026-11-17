@@ -321,6 +321,7 @@ test_arguments = [
     "--skip", "materialized_dates_match_schedule_contract_and_remain_tenant_scoped",
     "--skip", "materialized_dates_follow_the_online_voting_channel",
     "--skip", "channel_enablement_and_pause_are_rechecked_from_the_writer",
+    "--skip", "election_scoped_voters_are_authorized_by_external_id_or_id",
 ]
 limitations = [
     "Native default FIPS profile with local synthetic PostgreSQL 16 on port 3322, which also hosts the electoral log, matching the Rust CI service fixtures.",
