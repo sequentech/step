@@ -9,6 +9,8 @@ members = [
     "electoral-log",
     "trellis",
     "harvest",
+    "hsm-service",
+    "hsm-client",
     "protocol-board",
     "voting-crypto",
     "trustee",

@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[package]
+name = "hsm-client"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-only"
+description = "Transport-only client of the central HSM service: no key, no provider, no cryptography of its own."
+
+[dependencies]
+anyhow = "1.0"
+base64 = "0.22"
+hex = "0.4"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+thiserror = "2.0"
+zeroize = "1.8"
+
+[lints.rust]
+unsafe_code = "forbid"
