@@ -874,6 +874,14 @@ fn authorized_election_where_clause(name_param: i32) -> String {
     )
 }
 
+/// The `authorized-election-ids` filter of a voter query.
+enum AuthorizedElectionKey {
+    /// Filter by this value, or not at all when `None`.
+    Filter(Option<String>),
+    /// The query names an election that doesn't exist, so no voter matches.
+    UnknownElection,
+}
+
 /// The `authorized-election-ids` value that authorizes a voter for the election
 /// the filter is scoped to: its external id, or its id when it has none, as the
 /// Keycloak mapper and the tally census read it. Without an election, the
@@ -881,14 +889,15 @@ fn authorized_election_where_clause(name_param: i32) -> String {
 async fn authorized_election_key(
     hasura_transaction: &Transaction<'_>,
     filter: &ListUsersFilter,
-) -> Result<Option<String>> {
+) -> Result<AuthorizedElectionKey> {
     let (Some(election_event_id), Some(election_id)) =
         (&filter.election_event_id, &filter.election_id)
     else {
-        return Ok(filter.authorized_to_election_alias.clone());
+        return Ok(AuthorizedElectionKey::Filter(
+            filter.authorized_to_election_alias.clone(),
+        ));
     };
-    // An unknown election has no areas, so the area filter already matches no
-    // voter.
+    let election_uuid = parse_uuid_v4(election_id)?;
     let Some(row) = hasura_transaction
         .query_opt(
             r#"
@@ -899,19 +908,19 @@ async fn authorized_election_key(
             &[
                 &parse_uuid_v4(&filter.tenant_id)?,
                 &parse_uuid_v4(election_event_id)?,
-                &parse_uuid_v4(election_id)?,
+                &election_uuid,
             ],
         )
         .await
         .map_err(|err| anyhow!("Error reading the election's external id: {err}"))?
     else {
-        return Ok(None);
+        return Ok(AuthorizedElectionKey::UnknownElection);
     };
     let external_id: Option<String> = row.try_get("external_id")?;
-    Ok(Some(authorization_alias(
-        election_id,
+    Ok(AuthorizedElectionKey::Filter(Some(authorization_alias(
+        &election_uuid.to_string(),
         external_id.as_deref(),
-    )))
+    ))))
 }
 
 #[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
@@ -972,7 +981,11 @@ pub async fn count_keycloak_users(
     }
 
     // Handle optional authorized election alias filtering.
-    let election_alias = authorized_election_key(hasura_transaction, &filter).await?;
+    let AuthorizedElectionKey::Filter(election_alias) =
+        authorized_election_key(hasura_transaction, &filter).await?
+    else {
+        return Ok(0);
+    };
     let authorized_alias_where_clause = match election_alias {
         Some(_) => authorized_election_where_clause(next_param_number),
         None => String::new(),
@@ -1113,7 +1126,11 @@ pub async fn list_users(
         next_param_number += 1;
     }
 
-    let election_alias = authorized_election_key(hasura_transaction, &filter).await?;
+    let AuthorizedElectionKey::Filter(election_alias) =
+        authorized_election_key(hasura_transaction, &filter).await?
+    else {
+        return Ok((Vec::new(), 0));
+    };
     let authorized_alias_where_clause = match election_alias {
         Some(_) => authorized_election_where_clause(next_param_number),
         None => String::new(),
@@ -2450,6 +2467,31 @@ mod tests {
         // An election that doesn't exist matches no voter instead of failing.
         assert!(voters(Uuid::new_v4(), None).await?.is_empty());
         assert!(voters(Uuid::new_v4(), Some("Mayor")).await?.is_empty());
+        // An explicit area doesn't widen an unknown election to that area's voters.
+        let unknown_in_area = ListUsersFilter {
+            election_event_id: Some(event.to_string()),
+            election_id: Some(Uuid::new_v4().to_string()),
+            area_id: Some(area.to_string()),
+            ..ListUsersFilter::new(&tenant.to_string(), &realm)
+        };
+        assert_eq!(
+            count_keycloak_users(&transaction, &transaction, unknown_in_area.clone()).await?,
+            0
+        );
+        assert!(list_users(&transaction, &transaction, unknown_in_area)
+            .await?
+            .0
+            .is_empty());
+        // An uppercase election id matches the lowercase id voters hold.
+        let uppercase_id = ListUsersFilter {
+            election_event_id: Some(event.to_string()),
+            election_id: Some(by_id.to_string().to_uppercase()),
+            ..ListUsersFilter::new(&tenant.to_string(), &realm)
+        };
+        assert_eq!(
+            count_keycloak_users(&transaction, &transaction, uppercase_id).await?,
+            4
+        );
         transaction.rollback().await?;
         Ok(())
     }
