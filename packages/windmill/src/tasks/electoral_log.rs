@@ -10,9 +10,7 @@ use crate::services::database::get_keycloak_pool;
 use crate::services::database::get_queue_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::electoral_log_board::{
-    ensure_tenant_log, get_board_client, get_protocol_manager_secret_path,
-};
+use crate::services::electoral_log_board::{ensure_tenant_log, get_board_client};
 use crate::services::electoral_log_dead_letter::{
     dead_letter_events, dead_letter_message, DeadLetterStage,
 };
@@ -23,7 +21,6 @@ use crate::services::tenant_log::{
     names_no_election_event, tenant_activity_message, TenantActivity,
 };
 use crate::services::users::get_user_area_id;
-use crate::services::vault;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
@@ -435,24 +432,20 @@ impl BatchLookups for DbLookups<'_, '_> {
         election_event_id: &str,
         board: &str,
     ) -> anyhow::Result<Option<ElectoralLog>> {
-        let Some(contents) = vault::read_secret(
+        // A board without any key is skipped, as before; one with a key is
+        // signed through its identity (software or external), never skipped.
+        let Some(system) = crate::services::electoral_log_board::get_board_signer_if_any(
             self.hasura,
             tenant_id,
-            Some(election_event_id),
-            &get_protocol_manager_secret_path(board),
+            election_event_id,
+            board,
         )
         .await
-        .context("Error reading the protocol-manager key")?
+        .context("Error reading the board's signer")?
         else {
             return Ok(None);
         };
-        let protocol_manager =
-            crate::services::electoral_log_board::parse_signing_identity(&contents)
-                .context("Error decoding the protocol-manager key")?;
-        Ok(Some(ElectoralLog::for_system_with_signing_key(
-            board,
-            &protocol_manager,
-        )))
+        Ok(Some(ElectoralLog::for_system_with_signer(board, system)))
     }
 
     async fn tenant_log(

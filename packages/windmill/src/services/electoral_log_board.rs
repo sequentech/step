@@ -5,7 +5,10 @@
 //! Audit board names, clients and application signing identities.
 //! Cryptographic signing is supplied by wbraid's native signature scheme.
 
+use crate::services::electoral_log_signers;
 use crate::services::vault;
+use electoral_log::signer::{software, SharedSigner};
+use sequent_core::ballot::ElectoralLogSignerPolicy;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use electoral_log::adapters::events::EventDatabases;
@@ -14,7 +17,7 @@ use electoral_log::BoardClient;
 use std::sync::Arc;
 use tokio::sync::OnceCell;
 use tracing::instrument;
-use voting_crypto::signing::SigningKey;
+use voting_crypto::signing::{SigningKey, VerificationKey};
 
 pub fn get_protocol_manager_secret_path(board_name: &str) -> String {
     format!("boards/{board_name}/protocol-manager")
@@ -27,6 +30,29 @@ pub async fn create_protocol_manager_keys(
     election_event_id: &str,
     board_name: &str,
 ) -> Result<()> {
+    // A board of an event whose log an external signer signs gets its key
+    // there; its public key and version are recorded, and no software key is
+    // made or kept for it.
+    if electoral_log_signers::event_policy(hasura_transaction, tenant_id, election_event_id).await?
+        == ElectoralLogSignerPolicy::EXTERNAL
+    {
+        let key = electoral_log_signers::installed()?.create_board_signer(
+            tenant_id,
+            election_event_id,
+            board_name,
+        )?;
+        key.verification_key()
+            .context("the external signer returned an unreadable public key")?;
+        vault::save_secret(
+            hasura_transaction,
+            tenant_id,
+            Some(election_event_id),
+            &electoral_log_signers::board_key_path(board_name),
+            &serde_json::to_string(&key)?,
+        )
+        .await?;
+        return Ok(());
+    }
     // create protocol manager keys
     let protocol_manager = SigningKey::generate()?;
     // save protocol manager keys in vault
@@ -49,6 +75,57 @@ pub async fn create_protocol_manager_keys(
     Ok(())
 }
 
+/// What a board's key is: a software key from the vault, or an external key
+/// as recorded when it was made. Checks that the event's setting hasn't
+/// changed since.
+pub enum BoardIdentity {
+    Software(SigningKey),
+    External(electoral_log_signers::BoardKey),
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_board_identity(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+    board_name: &str,
+) -> Result<BoardIdentity> {
+    let software_key = vault::read_secret(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &get_protocol_manager_secret_path(board_name),
+    )
+    .await?;
+    // Tenant logs (no event) are always the platform's own key.
+    let Some(event) = election_event_id else {
+        let contents = software_key.ok_or_else(|| anyhow!("audit board signing key not found"))?;
+        return Ok(BoardIdentity::Software(parse_signing_identity(&contents)?));
+    };
+    let external: Option<electoral_log_signers::BoardKey> = vault::read_secret(
+        hasura_transaction,
+        tenant_id,
+        Some(event),
+        &electoral_log_signers::board_key_path(board_name),
+    )
+    .await?
+    .map(|text| serde_json::from_str(&text))
+    .transpose()
+    .context("the board's external key record is unreadable")?;
+    let policy = electoral_log_signers::event_policy(hasura_transaction, tenant_id, event).await?;
+    electoral_log_signers::check_unchanged(policy, external.as_ref(), software_key.is_some())?;
+    match external {
+        Some(key) => Ok(BoardIdentity::External(key)),
+        None => {
+            let contents = software_key.ok_or_else(|| anyhow!("audit board signing key not found"))?;
+            Ok(BoardIdentity::Software(parse_signing_identity(&contents)?))
+        }
+    }
+}
+
+/// The board's software key. Refused for a board whose key an external
+/// signer holds, whatever the vault holds: signing goes through
+/// [`get_board_signer`], verification through [`get_board_public_key`].
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_board_signing_key(
     hasura_transaction: &Transaction<'_>,
@@ -56,11 +133,175 @@ pub async fn get_board_signing_key(
     election_event_id: Option<&str>,
     board_name: &str,
 ) -> Result<SigningKey> {
-    let path = get_protocol_manager_secret_path(board_name);
-    let contents = vault::read_secret(hasura_transaction, tenant_id, election_event_id, &path)
-        .await?
-        .ok_or_else(|| anyhow!("audit board signing key not found"))?;
-    parse_signing_identity(&contents)
+    match get_board_identity(hasura_transaction, tenant_id, election_event_id, board_name).await? {
+        BoardIdentity::Software(key) => Ok(key),
+        BoardIdentity::External(_) => Err(anyhow!(
+            "this board's key is held by an external signer, not in software (refused)"
+        )),
+    }
+}
+
+/// The board's signer: its software key, or the installed external signer
+/// for exactly the recorded key (refused where none is installed, or where
+/// the signer reports another public key).
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_board_signer(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+    board_name: &str,
+) -> Result<SharedSigner> {
+    match get_board_identity(hasura_transaction, tenant_id, election_event_id, board_name).await? {
+        BoardIdentity::Software(key) => Ok(software(key)),
+        BoardIdentity::External(key) => {
+            let event = election_event_id.ok_or_else(|| anyhow!("an external board needs its event"))?;
+            let signer = electoral_log_signers::installed()?.board_signer(tenant_id, event, board_name, &key)?;
+            if signer.public_key()? != key.verification_key()? {
+                return Err(anyhow!(
+                    "the external signer's public key is not the board's recorded key (refused)"
+                ));
+            }
+            Ok(signer)
+        }
+    }
+}
+
+/// The board's public key, for verification: from the software key, or from
+/// the recorded external key (no signer needed).
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_board_public_key(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+    board_name: &str,
+) -> Result<VerificationKey> {
+    match get_board_identity(hasura_transaction, tenant_id, election_event_id, board_name).await? {
+        BoardIdentity::Software(key) => VerificationKey::from_sk(&key),
+        BoardIdentity::External(key) => key.verification_key(),
+    }
+}
+
+/// How an external board's key record travels in an event export, in the
+/// column that otherwise holds the software key.
+pub const EXTERNAL_KEY_EXPORT_PREFIX: &str = "external-signer:";
+
+/// The board's key for an event export: the software key, or the external
+/// key's record (public key and version; the private key never leaves the
+/// signer).
+pub async fn export_board_key(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    board_name: &str,
+) -> Result<String> {
+    if let Some(record) = vault::read_secret(
+        hasura_transaction,
+        tenant_id,
+        Some(election_event_id),
+        &electoral_log_signers::board_key_path(board_name),
+    )
+    .await?
+    {
+        return Ok(format!("{EXTERNAL_KEY_EXPORT_PREFIX}{record}"));
+    }
+    vault::read_secret(
+        hasura_transaction,
+        tenant_id,
+        Some(election_event_id),
+        &get_protocol_manager_secret_path(board_name),
+    )
+    .await?
+    .ok_or_else(|| anyhow!("audit signing identity is missing"))
+}
+
+/// Restores a board's key from an event export. A software key goes to the
+/// vault, for a software event only; an external key's record is restored
+/// only for an external event whose installed signer holds exactly that key
+/// (version and public key).
+pub async fn import_board_key(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    board_name: &str,
+    value: &str,
+) -> Result<()> {
+    let policy =
+        electoral_log_signers::event_policy(hasura_transaction, tenant_id, election_event_id).await?;
+    match value.strip_prefix(EXTERNAL_KEY_EXPORT_PREFIX) {
+        Some(record) => {
+            if policy != ElectoralLogSignerPolicy::EXTERNAL {
+                return Err(anyhow!(
+                    "the export's board key is held by an external signer, but this event's setting is software (refused)"
+                ));
+            }
+            let key: electoral_log_signers::BoardKey =
+                serde_json::from_str(record).context("the exported external key record is unreadable")?;
+            let signer = electoral_log_signers::installed()?.board_signer(
+                tenant_id,
+                election_event_id,
+                board_name,
+                &key,
+            )?;
+            if signer.public_key()? != key.verification_key()? {
+                return Err(anyhow!(
+                    "the installed external signer doesn't hold the exported board key (refused)"
+                ));
+            }
+            vault::save_secret(
+                hasura_transaction,
+                tenant_id,
+                Some(election_event_id),
+                &electoral_log_signers::board_key_path(board_name),
+                record,
+            )
+            .await
+        }
+        None => {
+            if policy == ElectoralLogSignerPolicy::EXTERNAL {
+                return Err(anyhow!(
+                    "this event's log is signed by an external signer: an export's software board key can't be imported (refused)"
+                ));
+            }
+            vault::save_secret(
+                hasura_transaction,
+                tenant_id,
+                Some(election_event_id),
+                &get_protocol_manager_secret_path(board_name),
+                value,
+            )
+            .await
+        }
+    }
+}
+
+/// Like [`get_board_signer`], but `None` for a board that has no key at all
+/// (software or external), where the caller may skip it.
+pub async fn get_board_signer_if_any(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    board_name: &str,
+) -> Result<Option<SharedSigner>> {
+    let software = vault::read_secret(
+        hasura_transaction,
+        tenant_id,
+        Some(election_event_id),
+        &get_protocol_manager_secret_path(board_name),
+    )
+    .await?;
+    let external = vault::read_secret(
+        hasura_transaction,
+        tenant_id,
+        Some(election_event_id),
+        &electoral_log_signers::board_key_path(board_name),
+    )
+    .await?;
+    if software.is_none() && external.is_none() {
+        return Ok(None);
+    }
+    get_board_signer(hasura_transaction, tenant_id, Some(election_event_id), board_name)
+        .await
+        .map(Some)
 }
 
 /// Decode the native audit signing identity stored in the vault.

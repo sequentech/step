@@ -179,7 +179,7 @@ pub async fn allocate_added_voter(
 pub fn received_log_entry(
     tenant: &str,
     pending: &electoral_log::adapters::privacy::PendingReceivedBallot,
-    key: &voting_crypto::signing::SigningKey,
+    key: &electoral_log::signer::SharedSigner,
 ) -> Result<electoral_log::LogEntry> {
     use electoral_log::adapters::privacy::ReceivedEvidenceKind;
     use electoral_log::messages::{message::Message, privacy::*};
@@ -204,7 +204,7 @@ pub fn received_log_entry(
                 )?,
                 encrypted_ballot: ballot.content.clone(),
             },
-            key,
+            key.as_ref(),
         )?,
         ReceivedEvidenceKind::Audited => Message::private_ballot_event_message_at(
             &ballot.election_event_id,
@@ -220,7 +220,7 @@ pub fn received_log_entry(
                 .timestamp()
                 .try_into()
                 .context("Invalid ballot audit time")?,
-            key,
+            key.as_ref(),
         )?,
     };
     Ok(electoral_log::LogEntry {
@@ -239,7 +239,7 @@ pub fn cast_log_entry(
     tenant: &str,
     event: &str,
     ballot: &electoral_log::adapters::ballot_box::PendingBallot,
-    key: &voting_crypto::signing::SigningKey,
+    key: &electoral_log::signer::SharedSigner,
 ) -> Result<electoral_log::LogEntry> {
     use electoral_log::messages::{message::Message, privacy::BallotCastEvidence};
     ensure!(
@@ -264,7 +264,7 @@ pub fn cast_log_entry(
             cast_receipt_json: serde_json::to_string(&receipt)?,
             voting_channel: ballot.voting_channel.clone(),
         },
-        key,
+        key.as_ref(),
     )?;
     Ok(electoral_log::LogEntry {
         delivery_id: crate::services::ballot_box::ballot_delivery_id(event, ballot.seq),
@@ -307,7 +307,7 @@ pub async fn queue_rejection(
         event_row.bulletin_board_reference,
     )
     .context("Event log unavailable")?;
-    let key = crate::services::electoral_log_board::get_board_signing_key(
+    let key = crate::services::electoral_log_board::get_board_signer(
         &tx,
         tenant,
         Some(event),
@@ -323,7 +323,7 @@ pub async fn queue_rejection(
             ballot_id: None,
             outcome: PrivateBallotOutcome::Rejected,
         },
-        &key,
+        key.as_ref(),
     )?;
     queue_message(
         event,

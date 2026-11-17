@@ -223,7 +223,7 @@ async fn privacy_sequencer_orders_bindings_and_deduplicates_recovery_on_runtime(
                 .remove_pending_received(&event, &[queued[0].id])
                 .await?;
         }
-        append_pending(&store, &board, &tenant, &event, &authority_key).await?;
+        append_pending(&store, &board, &tenant, &event, &electoral_log::signer::software(authority_key.clone())).await?;
         let records = store
             .query(
                 &board,
@@ -262,7 +262,7 @@ async fn privacy_sequencer_orders_bindings_and_deduplicates_recovery_on_runtime(
                 &[&event, &received.id],
             ).await?;
         }
-        append_pending(&store, &board, &tenant, &event, &authority_key).await?;
+        append_pending(&store, &board, &tenant, &event, &electoral_log::signer::software(authority_key.clone())).await?;
         assert_eq!(
             store
                 .query(&board, &electoral_log::LogQuery::default())
@@ -272,7 +272,7 @@ async fn privacy_sequencer_orders_bindings_and_deduplicates_recovery_on_runtime(
         );
         assert_eq!(store.pending_count(&event).await?, 0);
         assert_eq!(
-            append_pending(&store, &board, &tenant, &event, &authority_key).await?,
+            append_pending(&store, &board, &tenant, &event, &electoral_log::signer::software(authority_key.clone())).await?,
             0
         );
         let audit = store.audit(&board, &[]).await?;
@@ -465,7 +465,7 @@ async fn verify_private_acceptance(
     store
         .queue_privacy_message(event, "acceptance:resolution", &audit.record_serialize()?)
         .await?;
-    append_pending(store, board, tenant, event, authority_key).await?;
+    append_pending(store, board, tenant, event, &electoral_log::signer::software(authority_key.clone())).await?;
     let all = store
         .query(board, &electoral_log::LogQuery::default())
         .await?;

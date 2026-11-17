@@ -18,7 +18,7 @@ use crate::postgres::audit_log_outbox::{
 };
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log_board::{
-    ensure_tenant_log, get_board_client, get_board_signing_key,
+    ensure_tenant_log, get_board_client, get_board_signer,
 };
 use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
@@ -115,7 +115,7 @@ pub struct TargetLog {
     /// What the signed statements name as their event: the election event,
     /// or the tenant for the tenant's log.
     pub statement_event: String,
-    pub system_key: SigningKey,
+    pub system_key: electoral_log::signer::SharedSigner,
     pub admin_keys: HashMap<String, SigningKey>,
     /// The entries are of an election event that no longer exists, so they
     /// go to the tenant's log.
@@ -184,7 +184,7 @@ pub async fn prepare_target_log<U: Usernames>(
                 .map(|id| id.to_string())
                 .unwrap_or_default();
             let system_key =
-                get_board_signing_key(&transaction, &tenant, Some(&event), &board).await?;
+                get_board_signer(&transaction, &tenant, Some(&event), &board).await?;
             TargetLog {
                 board,
                 statement_event: event,
@@ -198,7 +198,7 @@ pub async fn prepare_target_log<U: Usernames>(
             TargetLog {
                 board: tenant_log.board,
                 statement_event: tenant.clone(),
-                system_key: tenant_log.system_key,
+                system_key: electoral_log::signer::software(tenant_log.system_key),
                 admin_keys: HashMap::new(),
                 rerouted_from: target.election_event_id,
             }
@@ -266,8 +266,12 @@ pub fn sign_row(
         _ => None,
     };
     let signing_data = match sender {
-        Some((key, name)) => SigningData::new(key.clone(), &name, log.system_key.clone()),
-        None => SigningData::new(log.system_key.clone(), "", log.system_key.clone()),
+        Some((key, name)) => SigningData::with_signers(
+            electoral_log::signer::software(key.clone()),
+            &name,
+            log.system_key.clone(),
+        ),
+        None => SigningData::with_signers(log.system_key.clone(), "", log.system_key.clone()),
     };
     let mut details = row.details.clone();
     if let (Some(name), Some(actor)) = (&username, details.get_mut("actor")) {

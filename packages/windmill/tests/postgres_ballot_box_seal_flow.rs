@@ -136,7 +136,7 @@ impl SealEnvironment for TestEnvironment {
         tenant_id: &str,
         election_event_id: &str,
         board: &str,
-    ) -> Result<SigningKey> {
+    ) -> Result<electoral_log::signer::SharedSigner> {
         ProductionSealEnvironment
             .signing_key(hasura_transaction, tenant_id, election_event_id, board)
             .await

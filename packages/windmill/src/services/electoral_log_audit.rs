@@ -19,7 +19,7 @@ use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::electoral_log_board::{
-    get_board_client, get_board_signing_key, get_event_store,
+    get_board_client, get_board_public_key, get_event_store,
 };
 use crate::services::electoral_log_checkpoint_copies::{
     cross_check, read_checkpoint_copies, CheckpointCopyConfig, CheckpointCopyPolicy,
@@ -38,7 +38,6 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde_json::Value;
 use tracing::instrument;
-use voting_crypto::signing::VerificationKey;
 use voting_crypto::RistrettoCtx;
 
 /// Recorded as the executor of audits the platform starts by itself.
@@ -376,9 +375,10 @@ pub async fn run_electoral_log_audit(
     let event = get_election_event_by_id(&transaction, tenant_id, election_event_id).await?;
     let board = get_election_event_board(event.bulletin_board_reference.clone())
         .context("Election event has no electoral-log board")?;
-    let protocol_manager =
-        get_board_signing_key(&transaction, tenant_id, Some(election_event_id), &board).await?;
-    let expected_signer = VerificationKey::from_sk(&protocol_manager)?.to_b64_string()?;
+    let expected_signer =
+        get_board_public_key(&transaction, tenant_id, Some(election_event_id), &board)
+            .await?
+            .to_b64_string()?;
     let published =
         get_electoral_log_checkpoints(&transaction, tenant_id, election_event_id).await?;
     transaction.commit().await?;
@@ -637,6 +637,7 @@ mod tests {
     use super::*;
     use crate::services::electoral_log::sign_checkpoint;
     use electoral_log::messages::message::SigningData;
+    use voting_crypto::signing::VerificationKey;
     use voting_crypto::signing::SigningKey;
 
     fn publication(sk: &SigningKey, board: &str, size: i64) -> PublishedCheckpoint {

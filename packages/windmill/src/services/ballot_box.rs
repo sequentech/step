@@ -11,7 +11,7 @@ use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::electoral_log_board::{
-    get_board_signing_key, get_event_databases, get_event_store,
+    get_board_signer, get_event_databases, get_event_store,
 };
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
@@ -31,6 +31,7 @@ use std::time::{Duration, Instant};
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
 use voting_crypto::hash::Hash;
+use electoral_log::signer::SharedSigner;
 use voting_crypto::signing::SigningKey;
 use voting_crypto::RistrettoCtx;
 
@@ -145,9 +146,9 @@ pub fn ballot_record(
     board: &str,
     election_event_id: &str,
     ballot: &PendingBallot,
-    signing_key: &SigningKey,
+    signing_key: &SharedSigner,
 ) -> Result<LogEntry> {
-    let log = ElectoralLog::for_voter_with_signing_key(board, &ballot.voter_id, signing_key);
+    let log = ElectoralLog::for_voter_with_signer(board, &ballot.voter_id, signing_key.clone());
     let message = Message::cast_vote_with_channel_message(
         EventIdString(election_event_id.to_string()),
         ElectionIdString(Some(ballot.election_id.clone())),
@@ -181,9 +182,8 @@ pub async fn sequence_event(tenant_id: &str, election_event_id: &str) -> Result<
         let event = get_election_event_by_id(&transaction, tenant_id, election_event_id).await?;
         let board = get_election_event_board(event.bulletin_board_reference)
             .context("Election event has no electoral-log board")?;
-        let protocol_manager =
-            get_board_signing_key(&transaction, tenant_id, Some(election_event_id), &board).await?;
-        (board, protocol_manager.clone())
+        let system = get_board_signer(&transaction, tenant_id, Some(election_event_id), &board).await?;
+        (board, system)
     };
     let store = get_event_store(election_event_id).await?;
     let holder = uuid::Uuid::new_v4().to_string();
@@ -206,7 +206,7 @@ async fn append_pending(
     board: &str,
     tenant_id: &str,
     election_event_id: &str,
-    signing_key: &SigningKey,
+    signing_key: &SharedSigner,
 ) -> Result<usize> {
     let started = Instant::now();
     let mut appended = 0;
@@ -603,13 +603,13 @@ mod tests {
         }
 
         assert_eq!(
-            append_pending(&store, &board, &uuid::Uuid::nil().to_string(), &event, &key).await?,
+            append_pending(&store, &board, &uuid::Uuid::nil().to_string(), &event, &electoral_log::signer::software(key.clone())).await?,
             3
         );
         assert_eq!(store.pending_count(&event).await?, 0);
         // Nothing waits, so a second run appends nothing.
         assert_eq!(
-            append_pending(&store, &board, &uuid::Uuid::nil().to_string(), &event, &key).await?,
+            append_pending(&store, &board, &uuid::Uuid::nil().to_string(), &event, &electoral_log::signer::software(key.clone())).await?,
             0
         );
 

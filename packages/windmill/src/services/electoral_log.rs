@@ -8,7 +8,8 @@ use crate::services::celery_app::try_get_celery_app;
 use crate::services::database::{get_hasura_pool, PgConfig};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log_board::get_board_client;
-use crate::services::electoral_log_board::get_board_signing_key;
+use crate::services::electoral_log_board::get_board_signer;
+use electoral_log::signer::{software, SharedSigner};
 use crate::services::electoral_log_board::get_event_board;
 use crate::services::electoral_log_board::get_tenant_board;
 use crate::services::electoral_log_board::TenantLog;
@@ -695,7 +696,7 @@ impl ElectoralLog {
         let election_event_id =
             election_event_id_opt.ok_or(anyhow!("Election event id is required"))?;
 
-        let protocol_manager = get_board_signing_key(
+        let system = get_board_signer(
             hasura_transaction,
             tenant_id,
             Some(election_event_id),
@@ -704,7 +705,7 @@ impl ElectoralLog {
         .await?;
 
         Ok(ElectoralLog {
-            sd: SigningData::new(protocol_manager.clone(), "", protocol_manager.clone()),
+            sd: SigningData::with_signers(system.clone(), "", system),
             elog_database: elog_database.to_string(),
         })
     }
@@ -717,17 +718,16 @@ impl ElectoralLog {
         elog_database: &str,
         sender_sk: &SigningKey,
     ) -> Result<Self> {
-        let protocol_manager = get_board_signing_key(
+        let system = get_board_signer(
             hasura_transaction,
             tenant_id,
             Some(election_event_id),
             elog_database,
         )
         .await?;
-        let system_sk = protocol_manager.clone();
 
         Ok(ElectoralLog {
-            sd: SigningData::new(sender_sk.clone(), "", system_sk),
+            sd: SigningData::with_signers(software(sender_sk.clone()), "", system),
             elog_database: elog_database.to_string(),
         })
     }
@@ -738,6 +738,24 @@ impl ElectoralLog {
     pub fn for_system_with_signing_key(elog_database: &str, system_sk: &SigningKey) -> Self {
         Self {
             sd: SigningData::new(system_sk.clone(), "", system_sk.clone()),
+            elog_database: elog_database.to_string(),
+        }
+    }
+
+    /// As [`ElectoralLog::for_system_with_signing_key`], with a board signer
+    /// from [`get_board_signer`] (a software key or an external signer).
+    pub fn for_system_with_signer(elog_database: &str, system: SharedSigner) -> Self {
+        Self {
+            sd: SigningData::with_signers(system.clone(), "", system),
+            elog_database: elog_database.to_string(),
+        }
+    }
+
+    /// As [`ElectoralLog::for_voter_with_signing_key`], with a board signer
+    /// from [`get_board_signer`].
+    pub fn for_voter_with_signer(elog_database: &str, user_id: &str, system: SharedSigner) -> Self {
+        Self {
+            sd: SigningData::with_signers(system.clone(), user_id, system),
             elog_database: elog_database.to_string(),
         }
     }
@@ -772,13 +790,11 @@ impl ElectoralLog {
         user_id: &str,
         voter_signing_key: &Option<VerificationKey>,
     ) -> Result<Self> {
-        let protocol_manager =
-            get_board_signing_key(hasura_transaction, tenant_id, Some(event_id), elog_database)
-                .await?;
-        let system_sk = protocol_manager.clone();
+        let system =
+            get_board_signer(hasura_transaction, tenant_id, Some(event_id), elog_database).await?;
 
         Ok(ElectoralLog {
-            sd: SigningData::new(system_sk.clone(), user_id, system_sk),
+            sd: SigningData::with_signers(system.clone(), user_id, system),
             elog_database: elog_database.to_string(),
         })
     }
@@ -803,14 +819,13 @@ impl ElectoralLog {
         user_area_id: Option<String>,
     ) -> Result<Self> {
         let election_ids = flatten_election_ids(election_ids_vec);
-        let protocol_manager = get_board_signing_key(
+        let system = get_board_signer(
             hasura_transaction,
             tenant_id,
             Some(election_event_id),
             elog_database,
         )
         .await?;
-        let system_sk = protocol_manager.clone();
 
         let sk = vault::get_admin_user_signing_key(
             hasura_transaction,
@@ -823,7 +838,7 @@ impl ElectoralLog {
         .await?;
 
         Ok(ElectoralLog {
-            sd: SigningData::new(sk, "", system_sk),
+            sd: SigningData::with_signers(software(sk), "", system),
             elog_database: elog_database.to_string(),
         })
     }
@@ -839,11 +854,9 @@ impl ElectoralLog {
         pk_der_b64: &str,
         area_id: &str,
     ) -> Result<()> {
-        let protocol_manager =
-            get_board_signing_key(hasura_transaction, tenant_id, Some(event_id), elog_database)
-                .await?;
-        let system_sk = protocol_manager.clone();
-        let sd = SigningData::new(system_sk.clone(), "", system_sk.clone());
+        let system =
+            get_board_signer(hasura_transaction, tenant_id, Some(event_id), elog_database).await?;
+        let sd = SigningData::with_signers(system.clone(), "", system);
 
         let pseudonym = hash_voter_id(&user_id)?;
         let message = Message::voter_public_key_message(

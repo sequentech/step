@@ -23,7 +23,7 @@ use crate::services::ceremonies::tally_validation::{
 };
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log_board::{
-    get_board_signing_key, get_event_databases, get_event_store,
+    get_board_signer, get_event_databases, get_event_store,
 };
 use crate::services::join::MergeJoinResult;
 use anyhow::{anyhow, Context, Result};
@@ -101,7 +101,7 @@ impl SealedBoxLog {
     ) -> Result<Self> {
         let board = get_election_event_board(election_event.bulletin_board_reference.clone())
             .with_context(|| "missing bulletin board")?;
-        let protocol_manager = get_board_signing_key(
+        let system = get_board_signer(
             hasura_transaction,
             tenant_id,
             Some(&election_event.id),
@@ -109,7 +109,22 @@ impl SealedBoxLog {
         )
         .await?;
         let store = get_event_store(&election_event.id).await?;
-        Self::with_signing_key(board, store, protocol_manager)
+        Self::with_signer(board, store, system)
+    }
+
+    /// As [`SealedBoxLog::with_signing_key`], with a board signer (a
+    /// software key or an external signer).
+    pub fn with_signer(
+        board: String,
+        store: PostgresStore,
+        system: electoral_log::signer::SharedSigner,
+    ) -> Result<Self> {
+        Ok(SealedBoxLog {
+            board,
+            store,
+            system_pk: system.public_key()?,
+            signing_data: SigningData::with_signers(system.clone(), "", system),
+        })
     }
 
     /// The electoral log `board` in the event's database `store`, signed

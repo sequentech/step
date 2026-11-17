@@ -43,7 +43,7 @@ use tokio::sync::Mutex;
 use voting_crypto::RecordDeserialize;
 use windmill::services::{
     election_event_board::get_election_event_board,
-    electoral_log_board::{get_board_signing_key, get_event_store},
+    electoral_log_board::{get_board_signer, get_event_store},
 };
 
 type ApiError = (Status, String);
@@ -799,14 +799,14 @@ async fn audit_signing(
     let board =
         get_election_event_board(event.bulletin_board_reference.clone())
             .ok_or_else(|| unavailable("Event log unavailable"))?;
-    let key =
-        get_board_signing_key(&tx, &event.tenant_id, Some(&event.id), &board)
+    let system =
+        get_board_signer(&tx, &event.tenant_id, Some(&event.id), &board)
             .await
             .map_err(unavailable)?;
-    Ok(SigningData::new(
-        key.clone(),
+    Ok(SigningData::with_signers(
+        system.clone(),
         &claims.hasura_claims.user_id,
-        key,
+        system,
     ))
 }
 #[post("/resolve-voter-pseudonym", format = "json", data = "<body>")]

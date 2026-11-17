@@ -65,7 +65,7 @@ impl Message {
     pub fn ballot_received_message(
         pseudonym: &str,
         evidence: super::privacy::BallotReceivedEvidence,
-        system_key: &SigningKey,
+        system_key: &dyn MessageSigner,
     ) -> Result<Self> {
         let receipt: serde_json::Value = serde_json::from_str(&evidence.received_ballot_json)?;
         let ballot_id = receipt
@@ -89,7 +89,7 @@ impl Message {
     pub fn privacy_cast_vote_message(
         pseudonym: &str,
         evidence: super::privacy::BallotCastEvidence,
-        system_key: &SigningKey,
+        system_key: &dyn MessageSigner,
     ) -> Result<Self> {
         let event = evidence.election_event_id.clone();
         let election = evidence.election_id.clone();
@@ -109,7 +109,7 @@ impl Message {
         event: &str,
         pseudonym: &str,
         evidence: super::privacy::PrivateBallotEvent,
-        system_key: &SigningKey,
+        system_key: &dyn MessageSigner,
     ) -> Result<Self> {
         let election = evidence.election_id.clone();
         let ballot_id = evidence.ballot_id.clone();
@@ -131,7 +131,7 @@ impl Message {
         pseudonym: &str,
         evidence: super::privacy::PrivateBallotEvent,
         occurred_at: u64,
-        system_key: &SigningKey,
+        system_key: &dyn MessageSigner,
     ) -> Result<Self> {
         let election = evidence.election_id.clone();
         let ballot_id = evidence.ballot_id.clone();
@@ -153,7 +153,7 @@ impl Message {
         ballot_id: Option<String>,
         body: StatementBody,
         occurred_at: Option<u64>,
-        system_key: &SigningKey,
+        system_key: &dyn MessageSigner,
     ) -> Result<Self> {
         let hash = super::privacy::pseudonym_hash(pseudonym)
             .ok_or_else(|| anyhow::anyhow!("Invalid canonical pseudonym"))?;

@@ -74,7 +74,6 @@ use std::time::Duration;
 use tokio_postgres::IsolationLevel;
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
-use voting_crypto::signing::SigningKey;
 use voting_crypto::RecordSerialize;
 
 /// Why a seal fails when the event's log already has a seal record for the
@@ -172,7 +171,7 @@ struct Prepared {
     store: PostgresStore,
     board: String,
     status: ElectionStatus,
-    signing_key: SigningKey,
+    signing_key: electoral_log::signer::SharedSigner,
     census: Census,
     names: SealedNames,
 }
@@ -409,7 +408,7 @@ async fn seal_prepared(client: &mut DbClient, prepared: Prepared) -> Result<Seal
         record(client, &seal.id, &WaitingReason::DatafixVotes(unresolved)).await?;
         return Ok(SealOutcome::WaitingForVotes(unresolved));
     }
-    let signing_data = SigningData::new(signing_key.clone(), "", signing_key);
+    let signing_data = SigningData::with_signers(signing_key.clone(), "", signing_key);
     let unrecorded = store
         .unrecorded_count(
             &board,

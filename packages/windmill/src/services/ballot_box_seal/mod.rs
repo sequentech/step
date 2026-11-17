@@ -26,7 +26,7 @@ use crate::services::documents::{
     upload_and_return_document, upload_and_return_public_event_document,
 };
 use crate::services::electoral_log_board::{
-    get_board_signing_key, get_event_databases, get_event_store,
+    get_board_signer, get_event_databases, get_event_store,
 };
 use crate::services::users::{
     census_voters_from_ballot_identities, list_keycloak_enabled_users_with_identity,
@@ -51,6 +51,7 @@ use std::collections::{BTreeSet, HashMap};
 use tempfile::NamedTempFile;
 use tracing::{error, info, instrument};
 use uuid::Uuid;
+use electoral_log::signer::SharedSigner;
 use voting_crypto::signing::SigningKey;
 use voting_crypto::RistrettoCtx;
 
@@ -268,7 +269,7 @@ pub trait SealEnvironment: Send + Sync {
         tenant_id: &str,
         election_event_id: &str,
         board: &str,
-    ) -> Result<SigningKey>;
+    ) -> Result<SharedSigner>;
 
     /// The census of the area for the election (alias `election_alias`), keyed
     /// by the event's ballot identity: pseudonym for privacy events, otherwise voter ID.
@@ -320,8 +321,8 @@ impl SealEnvironment for ProductionSealEnvironment {
         tenant_id: &str,
         election_event_id: &str,
         board: &str,
-    ) -> Result<SigningKey> {
-        get_board_signing_key(
+    ) -> Result<SharedSigner> {
+        get_board_signer(
             hasura_transaction,
             tenant_id,
             Some(election_event_id),

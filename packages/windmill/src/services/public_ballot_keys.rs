@@ -97,7 +97,7 @@ pub async fn for_publication(
         .journal()
         .checkpoint(&board)
         .await?;
-    let signing = super::electoral_log_board::get_board_signing_key(
+    let system_public_key = super::electoral_log_board::get_board_public_key(
         tx,
         &event.tenant_id,
         Some(&event.id),
@@ -114,7 +114,7 @@ pub async fn for_publication(
             board_name: board,
             ballot_box_key_id: receipt.key_id.clone(),
             ballot_box_public_key: receipt.public_key.clone(),
-            system_public_key: VerificationKey::from_sk(&signing)?.to_b64_string()?,
+            system_public_key: system_public_key.to_b64_string()?,
         },
     )
     .await
@@ -232,16 +232,16 @@ pub async fn backfill(
     }
     let system = match system {
         Some(key) => key,
-        None if matches!(source, BackfillSource::ExistingSigningKey) => VerificationKey::from_sk(
-            &super::electoral_log_board::get_board_signing_key(
+        None if matches!(source, BackfillSource::ExistingSigningKey) => {
+            super::electoral_log_board::get_board_public_key(
                 tx,
                 &event.tenant_id,
                 Some(&event.id),
                 &board,
             )
-            .await?,
-        )?
-        .to_b64_string()?,
+            .await?
+            .to_b64_string()?
+        }
         None => anyhow::bail!("No retained authority anchor; explicit recovery required"),
     };
     for receipt in receipts.values() {

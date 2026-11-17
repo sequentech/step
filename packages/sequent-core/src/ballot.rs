@@ -4350,6 +4350,20 @@ mod electoral_log_signer_policy_tests {
     }
 
     #[test]
+    fn a_borsh_round_trip_drops_the_setting_so_it_is_read_from_json_only() {
+        // The consequence of the Borsh skip: a presentation decoded from a
+        // ballot style always reads as unset (software). Windmill reads the
+        // setting from the event's stored JSON only.
+        let with = ElectionEventPresentation {
+            electoral_log_signer_policy: Some(ElectoralLogSignerPolicy::EXTERNAL),
+            ..ElectionEventPresentation::default()
+        };
+        let decoded: ElectionEventPresentation =
+            borsh::from_slice(&borsh::to_vec(&with).unwrap()).unwrap();
+        assert_eq!(decoded.electoral_log_signer_policy, None);
+    }
+
+    #[test]
     fn the_setting_reads_and_writes_its_names_and_refuses_others() {
         let presentation: ElectionEventPresentation =
             serde_json::from_value(serde_json::json!({"electoral_log_signer_policy": "external"})).unwrap();

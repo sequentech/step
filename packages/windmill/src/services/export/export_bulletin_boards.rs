@@ -3,9 +3,7 @@
 
 use crate::postgres::election::get_elections;
 use crate::postgres::protocol_board::get_event_protocol_boards;
-use crate::services::electoral_log_board::{
-    get_election_board, get_event_board, get_protocol_manager_secret_path,
-};
+use crate::services::electoral_log_board::{get_election_board, get_event_board};
 use crate::services::protocol_board::{board_handle, manager_key_vault_path};
 use crate::services::vault;
 use anyhow::{anyhow, ensure, Context, Result};
@@ -78,14 +76,13 @@ pub async fn read_protocol_manager_keys(
             .map(|e| (e.id.clone(), get_election_board(tenant_id, &e.id, &slug))),
     );
     for (id, name) in identities {
-        let key = vault::read_secret(
+        let key = crate::services::electoral_log_board::export_board_key(
             transaction,
             tenant_id,
-            Some(event_id),
-            &get_protocol_manager_secret_path(&name),
+            event_id,
+            &name,
         )
-        .await?
-        .ok_or_else(|| anyhow!("audit signing identity is missing"))?;
+        .await?;
         writer.write_record([id, key])?;
     }
     // Native secrets travel only with their exported board metadata. Selective
