@@ -311,12 +311,14 @@ def run_variant(database, fixture, content, variant, scenario, schedule_index_sq
         "DROP INDEX IF EXISTS sequent_backend.cast_vote_participation_election_idx"
     )
     connection.execute(
-        "DROP INDEX IF EXISTS sequent_backend.cast_vote_voter_ballot_key"
+        "ALTER TABLE sequent_backend.cast_vote "
+        "DROP CONSTRAINT IF EXISTS cast_vote_voter_ballot_key"
     )
     if variant == "after":
         connection.execute(
             """
-            CREATE UNIQUE INDEX cast_vote_voter_ballot_key ON sequent_backend.cast_vote
+            ALTER TABLE sequent_backend.cast_vote
+                ADD CONSTRAINT cast_vote_voter_ballot_key UNIQUE
                 (tenant_id, election_event_id, election_id, voter_id_string, ballot_id)
                 INCLUDE (status, area_id)
         """

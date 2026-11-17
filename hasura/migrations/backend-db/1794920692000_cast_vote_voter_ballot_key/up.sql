@@ -27,6 +27,21 @@ ON sequent_backend.cast_vote
   (tenant_id, election_event_id, election_id, voter_id_string, ballot_id)
 INCLUDE (status, area_id);
 
+-- Hasura offers the key as an on_conflict target, which PostgreSQL accepts
+-- only for a constraint. Attaching the index takes no table scan.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'sequent_backend.cast_vote'::regclass
+      AND conname = 'cast_vote_voter_ballot_key'
+  ) THEN
+    ALTER TABLE sequent_backend.cast_vote
+      ADD CONSTRAINT cast_vote_voter_ballot_key
+      UNIQUE USING INDEX cast_vote_voter_ballot_key;
+  END IF;
+END $$;
+
 DROP INDEX IF EXISTS sequent_backend.cast_vote_participation_election_idx;
 
 -- A validated cast_vote_voter_ballot_not_null check lets SET NOT NULL skip

@@ -9,4 +9,6 @@ ALTER TABLE sequent_backend.cast_vote
 CREATE INDEX IF NOT EXISTS cast_vote_participation_election_idx
 ON sequent_backend.cast_vote (tenant_id, election_event_id, election_id, voter_id_string);
 
+ALTER TABLE sequent_backend.cast_vote
+  DROP CONSTRAINT IF EXISTS cast_vote_voter_ballot_key;
 DROP INDEX IF EXISTS sequent_backend.cast_vote_voter_ballot_key;
