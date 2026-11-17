@@ -144,6 +144,31 @@ async fn election_scoped_voters_are_authorized_by_external_id_or_id() -> Result<
     // An election that doesn't exist matches no voter instead of failing.
     assert!(voters(Uuid::new_v4(), None).await?.is_empty());
     assert!(voters(Uuid::new_v4(), Some("Mayor")).await?.is_empty());
+    // An explicit area doesn't widen an unknown election to that area's voters.
+    let unknown_in_area = ListUsersFilter {
+        election_event_id: Some(event.to_string()),
+        election_id: Some(Uuid::new_v4().to_string()),
+        area_id: Some(area.to_string()),
+        ..ListUsersFilter::new(&tenant.to_string(), &realm)
+    };
+    assert_eq!(
+        count_keycloak_users(&transaction, &transaction, unknown_in_area.clone()).await?,
+        0
+    );
+    assert!(list_users(&transaction, &transaction, unknown_in_area)
+        .await?
+        .0
+        .is_empty());
+    // An uppercase election id matches the lowercase id voters hold.
+    let uppercase_id = ListUsersFilter {
+        election_event_id: Some(event.to_string()),
+        election_id: Some(by_id.to_string().to_uppercase()),
+        ..ListUsersFilter::new(&tenant.to_string(), &realm)
+    };
+    assert_eq!(
+        count_keycloak_users(&transaction, &transaction, uppercase_id).await?,
+        4
+    );
     transaction.rollback().await?;
     Ok(())
 }
