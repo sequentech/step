@@ -184,7 +184,7 @@ async fn insert_preserves_response_and_maps_trigger_error_without_retrying() {
     assert_eq!(inserted.content.as_deref(), Some(content.as_str()));
     assert_eq!(inserted.status, CastVoteStatus::Valid);
     assert_eq!(inserted.area_id, Some(fixture.area.to_string()));
-    assert_eq!(inserted.ballot_id.as_deref(), Some("ballot"));
+    assert_eq!(inserted.ballot_id, "ballot");
 
     let error = fixture
         .insert(&transaction, &content, "another-ballot")
@@ -200,6 +200,38 @@ async fn insert_preserves_response_and_maps_trigger_error_without_retrying() {
         Ok(InsertCastVoteResult::SkipRetryFailure(
             CastVoteError::InsertFailedExceedsAllowedRevotes
         ))
+    ));
+    transaction.rollback().await.unwrap();
+}
+
+/// With check_revote_limit bypassed, a revote is stored but a resent ballot
+/// is still refused by the unique index and answered as already cast.
+#[tokio::test]
+#[ignore = "requires the disposable devenv database fixture"]
+async fn voter_ballot_key_refuses_a_resend_that_bypasses_the_trigger() {
+    let mut client = test_client().await;
+    let transaction = client.transaction().await.unwrap();
+    let fixture = ElectionFixture::create(&transaction).await;
+    transaction
+        .batch_execute("SET LOCAL session_replication_role = replica")
+        .await
+        .unwrap();
+
+    fixture
+        .insert(&transaction, "content", "ballot")
+        .await
+        .unwrap();
+    fixture
+        .insert(&transaction, "content", "another-ballot")
+        .await
+        .unwrap();
+    let error = fixture
+        .insert(&transaction, "content", "ballot")
+        .await
+        .unwrap_err();
+    assert!(matches!(
+        map_insert_error(error),
+        CastVoteError::BallotAlreadyCast
     ));
     transaction.rollback().await.unwrap();
 }
@@ -573,8 +605,8 @@ pub(in crate::services::insert_cast_vote) mod electoral_log_outbox {
         let stored = stored_ballot(&mut client, &fixture, VOTER, &fixture.election, "first")
             .await
             .unwrap();
-        assert_eq!(stored.ballot_id.as_deref(), Some("first"));
-        assert_eq!(stored.voter_id_string.as_deref(), Some(VOTER));
+        assert_eq!(stored.ballot_id, "first");
+        assert_eq!(stored.voter_id_string, VOTER);
         assert_eq!(stored.content.as_deref(), Some("encrypted-first"));
         assert_eq!(
             stored_ballot(

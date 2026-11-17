@@ -231,18 +231,18 @@ export const sequent_backend_cast_vote: Sequent_Backend_Cast_Vote = {
     __typename: undefined,
     annotations: undefined,
     area_id: undefined,
-    ballot_id: undefined,
+    ballot_id: "",
     cast_ballot_signature: undefined,
     content: undefined,
     created_at: undefined,
     election_event_id: "",
-    election_id: undefined,
+    election_id: "",
     id: "",
     labels: undefined,
     last_updated_at: undefined,
     status: "",
     tenant_id: "",
-    voter_id_string: undefined,
+    voter_id_string: "",
 }
 
 export const sequent_backend_template: Sequent_Backend_Template = {

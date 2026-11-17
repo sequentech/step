@@ -57,11 +57,8 @@ pub async fn process_cast_vote(
         return Ok(());
     }
 
-    let voter_id = cast_vote
-        .voter_id_string
-        .as_deref()
-        .ok_or("Voter id not found")?;
-    let voter_id = Uuid::parse_str(voter_id).map_err(|err| format!("Invalid voter id: {err}"))?;
+    let voter_id = Uuid::parse_str(&cast_vote.voter_id_string)
+        .map_err(|err| format!("Invalid voter id: {err}"))?;
     let lock = match PgLock::acquire(
         datafix_voter_lock_key(
             &cast_vote.tenant_id,
@@ -110,10 +107,7 @@ async fn process_locked_cast_vote(
         return Ok(());
     }
 
-    let voter_id = cast_vote
-        .voter_id_string
-        .as_deref()
-        .ok_or("Voter id not found")?;
+    let voter_id = cast_vote.voter_id_string.as_str();
     let election_event = load_election_event(&cast_vote).await?;
     datafix_annotations(&election_event)
         .map_err(|err| format!("Invalid Datafix configuration: {err}"))?
