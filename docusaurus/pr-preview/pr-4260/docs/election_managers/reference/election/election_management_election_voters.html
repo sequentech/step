@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Voters | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4260/docs/election_managers/reference/election/election_management_election_voters"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Voters | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4260/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4260/docs/election_managers/reference/election/election_management_election_voters"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4260/docs/election_managers/reference/election/election_management_election_voters" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4260/docs/election_managers/reference/election/election_management_election_voters" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Voters","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4260/docs/election_managers/reference/election/election_management_election_voters"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4260/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4260/assets/js/runtime~main.e5459539.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4260/assets/js/runtime~main.4c56e451.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4260/assets/js/main.51a31b0f.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -103,7 +103,7 @@
 <p><strong>Result</strong></p>
 <ul>
 <li class="">The voter is now assigned to the Area linked to the Contest/Election.</li>
-<li class="">In the context of this specific Election: the voter will appear under that Election’s Voter list (via the Area assignment).</li>
+<li class="">In the context of this specific Election: the voter will appear under that Election’s Voter list (via the Area assignment), unless their <code>authorized-election-ids</code> attribute lists only other Elections (see <a href="#restricting-voters-to-specific-elections" class="">Restricting voters to specific Elections</a>).</li>
 </ul>
 </li>
 </ol>
@@ -151,7 +151,8 @@
 <p>An Area can be linked to Contests in several Elections. To keep a voter in that Area out of some of those Elections, set the voter&#x27;s <code>authorized-election-ids</code> attribute:</p>
 <ul>
 <li class="">List each Election the voter may take part in, by the Election&#x27;s external ID. If an Election has no external ID, use its ID.</li>
-<li class="">A voter without the attribute is authorized for every Election in their Area.</li>
+<li class="">Give each Election as a separate value. In a voter import CSV, separate them with <code>|</code> (for example <code>election-a|election-b</code>); a comma-separated cell is read as one value that matches no Election.</li>
+<li class="">A voter without the attribute is authorized for every Election in their Area. So is a voter with an empty (null) value, even if the attribute also lists other Elections.</li>
 <li class="">The attribute only narrows the Area: listing an Election that isn&#x27;t linked to the voter&#x27;s Area doesn&#x27;t add the voter to it.</li>
 </ul>
 <p>An Election&#x27;s <strong>Voters</strong> tab, its <strong>Eligible Voters</strong> count on the Dashboard, and its <strong>Export</strong> only include voters authorized for that Election. <strong>Delete</strong> with <strong>Delete all matching</strong> uses the same rule.</p>
