@@ -176,6 +176,14 @@ jobs:
         username: oauth2accesstoken
         password: ${{ steps.gcp-auth.outputs.access_token }}
 
+    - name: Login to Artifact Registry (prod, europe-west1)
+      if: inputs.push
+      uses: docker/login-action@v3
+      with:
+        registry: europe-west1-docker.pkg.dev
+        username: oauth2accesstoken
+        password: ${{ steps.gcp-auth.outputs.access_token }}
+
     # Root account 581718213778: push once to ca-central-1 (Canada). Its other
     # regions pull via ECR replication from ca-central-1. Sets the AWS
     # credentials for later steps, so it goes after everything using Globaldot's.
@@ -191,7 +199,7 @@ jobs:
       if: inputs.push && inputs.push_root
       uses: aws-actions/amazon-ecr-login@v2
 
-    # The prod registry has immutable tags, and rebuilding a commit changes its
+    # The prod registries have immutable tags, and rebuilding a commit changes its
     # digest. A short SHA tag there would stop a built commit getting a new tag.
     - name: Push to ECR and Artifact Registry
       if: inputs.push
@@ -208,8 +216,10 @@ jobs:
         if [ -n "$ROOT_ECR_REGISTRY" ]; then
           root=("docker://$ROOT_ECR_REGISTRY/$SERVICE:$SHORT_SHA" "docker://$ROOT_ECR_REGISTRY/$SERVICE:$TAG")
         fi
+        # prod9-euw1 (meta#14927). Same project and push identity, its own region.
+        prod_euw1="docker://europe-west1-docker.pkg.dev/sequent-production/sequent/$SERVICE"
         .github/scripts/push_image.sh "$RUNNER_TEMP/image" \
           "$ecr:$SHORT_SHA" "$ecr:$TAG" \
           "${root[@]}" \
           "$dev:$SHORT_SHA" "$dev:$TAG" \
-          --immutable "$prod:$TAG"
+          --immutable "$prod:$TAG" "$prod_euw1:$TAG"
