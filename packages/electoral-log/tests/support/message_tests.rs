@@ -166,3 +166,55 @@ fn audit_evidence_signs_persisted_occurrence_time() -> Result<()> {
     );
     Ok(())
 }
+
+/// A signer whose key is "held elsewhere": here a key behind a counter.
+struct Elsewhere {
+    key: SigningKey,
+    calls: std::sync::atomic::AtomicUsize,
+}
+
+impl crate::signer::MessageSigner for Elsewhere {
+    fn public_key(&self) -> Result<VerificationKey> {
+        VerificationKey::from_sk(&self.key)
+    }
+    fn sign(&self, bytes: &[u8]) -> Result<Signature> {
+        self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        self.key.sign(bytes)
+    }
+}
+
+#[test]
+fn a_signer_held_elsewhere_signs_the_same_bytes_the_same_way() -> Result<()> {
+    let system_key = SigningKey::generate()?;
+    let system = std::sync::Arc::new(Elsewhere {
+        key: system_key.clone(),
+        calls: std::sync::atomic::AtomicUsize::new(0),
+    });
+    let signing_data = SigningData::with_signers(system.clone(), "", system.clone());
+    let details = ResultsPublicationDetails {
+        publication_id: ResultsPublicationIdString("publication-id".to_string()),
+        action: ResultsPublicationAction::Revoke,
+        route_scope: ResultsPublicationRouteScopeString("event".to_string()),
+        route_election_id: ElectionIdString(None),
+        access: ResultsPublicationAccessString("public".to_string()),
+        visibility_scope: ResultsPublicationVisibilityScopeString("full_event".to_string()),
+        contest_ids: vec![ContestIdString("contest-id".to_string())],
+    };
+    let message = Message::results_publication_action_message(
+        EventIdString("event-id".to_string()),
+        details,
+        &signing_data,
+        None,
+        None,
+    )?;
+    // Both signatures came from the plugged-in signer...
+    assert_eq!(system.calls.load(std::sync::atomic::Ordering::SeqCst), 2);
+    // ...are exactly what the key itself gives over the statement's bytes
+    // (Ed25519 is deterministic), and verify as before.
+    let bytes = message.statement.record_serialize()?;
+    assert_eq!(message.system_signature, system_key.sign(&bytes)?);
+    assert_eq!(message.sender_signature, system_key.sign(&bytes)?);
+    message.verify(&VerificationKey::from_sk(&system_key)?)?;
+    assert_eq!(signing_data.system_public_key()?, VerificationKey::from_sk(&system_key)?);
+    Ok(())
+}

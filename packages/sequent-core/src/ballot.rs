@@ -1349,6 +1349,9 @@ pub struct ElectionEventPresentation {
     pub enrollment: Option<Enrollment>,
     pub otp: Option<Otp>,
     pub voter_signing_policy: Option<VoterSigningPolicy>,
+    /// Who signs the event's electoral log entries; missing means
+    /// [`ElectoralLogSignerPolicy::SOFTWARE`], as before this field existed.
+    pub electoral_log_signer_policy: Option<ElectoralLogSignerPolicy>,
     pub voter_certificate_policy: Option<VoterCertificatePolicy>,
     pub weighted_voting_policy: Option<WeightedVotingPolicy>,
     pub ceremonies_policy: Option<CeremoniesPolicy>,
@@ -2396,6 +2399,38 @@ pub enum ContestEncryptionPolicy {
     #[strum(serialize = "single-contest")]
     #[serde(rename = "single-contest")]
     SINGLE_CONTEST,
+}
+
+/// Who holds the keys that sign an election event's electoral log.
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+    JsonSchema,
+)]
+pub enum ElectoralLogSignerPolicy {
+    /// The platform's own keys, kept in its vault (the behaviour of every
+    /// event created before this setting existed).
+    #[default]
+    #[strum(serialize = "software")]
+    #[serde(rename = "software")]
+    SOFTWARE,
+    /// A signer the installation provides, whose keys are held outside the
+    /// platform. An event that asks for it is refused, never signed with
+    /// software keys, where none is installed.
+    #[strum(serialize = "external")]
+    #[serde(rename = "external")]
+    EXTERNAL,
 }
 
 #[allow(non_camel_case_types)]
@@ -4280,5 +4315,34 @@ mod candidates_layout_tests {
             borsh::to_vec(&paper).unwrap(),
             borsh::to_vec(&legacy).unwrap()
         );
+    }
+}
+
+#[cfg(test)]
+mod electoral_log_signer_policy_tests {
+    use super::*;
+
+    #[test]
+    fn events_without_the_setting_keep_software_keys() {
+        let presentation: ElectionEventPresentation = serde_json::from_value(serde_json::json!({})).unwrap();
+        assert_eq!(presentation.electoral_log_signer_policy, None);
+        assert_eq!(
+            presentation.electoral_log_signer_policy.unwrap_or_default(),
+            ElectoralLogSignerPolicy::SOFTWARE
+        );
+    }
+
+    #[test]
+    fn the_setting_reads_and_writes_its_names_and_refuses_others() {
+        let presentation: ElectionEventPresentation =
+            serde_json::from_value(serde_json::json!({"electoral_log_signer_policy": "external"})).unwrap();
+        assert_eq!(presentation.electoral_log_signer_policy, Some(ElectoralLogSignerPolicy::EXTERNAL));
+        let written = serde_json::to_value(&presentation).unwrap();
+        assert_eq!(written["electoral_log_signer_policy"], "external");
+        assert_eq!("software".parse::<ElectoralLogSignerPolicy>().unwrap(), ElectoralLogSignerPolicy::SOFTWARE);
+        assert!(serde_json::from_value::<ElectionEventPresentation>(
+            serde_json::json!({"electoral_log_signer_policy": "hsm"})
+        )
+        .is_err());
     }
 }

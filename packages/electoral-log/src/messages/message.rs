@@ -11,6 +11,7 @@ use tracing::instrument;
 use voting_crypto::hash::HASH_LENGTH_BYTES;
 use voting_crypto::signing::Signature;
 use voting_crypto::signing::SigningKey;
+use crate::signer::{software, MessageSigner, SharedSigner};
 use voting_crypto::signing::VerificationKey;
 use voting_crypto::RecordSerialize;
 
@@ -305,9 +306,9 @@ impl Message {
         Message::sign(
             statement,
             artifact,
-            &sd.sender_sk,
+            sd.sender.as_ref(),
             &sd.sender_name,
-            &sd.system_sk,
+            sd.system.as_ref(),
             user_id,
             username,
             None, /* election_id: a reconciliation run is event-wide, not tied to one election */
@@ -560,9 +561,9 @@ impl Message {
         Message::sign(
             Statement::new(head, body),
             None,
-            &sd.sender_sk,
+            sd.sender.as_ref(),
             &sd.sender_name,
-            &sd.system_sk,
+            sd.system.as_ref(),
             user_id,
             username,
             None,
@@ -721,9 +722,9 @@ impl Message {
         Message::sign(
             Statement::new(head, body),
             None,
-            &sd.sender_sk,
+            sd.sender.as_ref(),
             &sd.sender_name,
-            &sd.system_sk,
+            sd.system.as_ref(),
             user_id,
             username,
             None,
@@ -766,9 +767,9 @@ impl Message {
         Message::sign(
             Statement::new(head, body),
             None,
-            &sd.sender_sk,
+            sd.sender.as_ref(),
             &sd.sender_name,
-            &sd.system_sk,
+            sd.system.as_ref(),
             user_id,
             username,
             election_id,
@@ -801,9 +802,9 @@ impl Message {
         Message::sign(
             Statement::new(head, body),
             None,
-            &sd.sender_sk,
+            sd.sender.as_ref(),
             &sd.sender_name,
-            &sd.system_sk,
+            sd.system.as_ref(),
             user_id,
             username,
             election_id,
@@ -1112,9 +1113,9 @@ impl Message {
         Message::sign(
             Statement::new(head, body),
             None,
-            &sd.sender_sk,
+            sd.sender.as_ref(),
             &sd.sender_name,
-            &sd.system_sk,
+            sd.system.as_ref(),
             None,
             None,
             Some(election_id.to_string()),
@@ -1141,9 +1142,9 @@ impl Message {
         Message::sign(
             Statement::new(head, body),
             None,
-            &sd.sender_sk,
+            sd.sender.as_ref(),
             &sd.sender_name,
-            &sd.system_sk,
+            sd.system.as_ref(),
             user_id,
             username,
             None,
@@ -1168,9 +1169,9 @@ impl Message {
         Message::sign(
             statement,
             None,
-            &sd.sender_sk,
+            sd.sender.as_ref(),
             &sd.sender_name,
-            &sd.system_sk,
+            sd.system.as_ref(),
             user_id,
             username,
             election_id,
@@ -1182,9 +1183,9 @@ impl Message {
     pub fn sign(
         statement: Statement,
         artifact: Option<Vec<u8>>,
-        sender_sk: &SigningKey,
+        sender: &dyn MessageSigner,
         sender_name: &str,
-        system_sk: &SigningKey,
+        system: &dyn MessageSigner,
         user_id: Option<String>,
         username: Option<String>,
         election_id: Option<String>,
@@ -1192,9 +1193,9 @@ impl Message {
         ballot_id: Option<String>,
     ) -> Result<Message> {
         let bytes = statement.record_serialize()?;
-        let sender_signature: Signature = sender_sk.sign(&bytes)?;
-        let system_signature: Signature = system_sk.sign(&bytes)?;
-        let sender_pk = VerificationKey::from_sk(&sender_sk)?;
+        let sender_signature: Signature = sender.sign(&bytes)?;
+        let system_signature: Signature = system.sign(&bytes)?;
+        let sender_pk = sender.public_key()?;
         let sender = Sender::new(sender_name.to_string(), sender_pk);
 
         Ok(Message {
@@ -1265,23 +1266,27 @@ impl Sender {
 }
 
 pub struct SigningData {
-    sender_sk: SigningKey,
+    sender: SharedSigner,
     sender_name: String,
-    system_sk: SigningKey,
+    system: SharedSigner,
 }
 impl SigningData {
     pub fn system_public_key(&self) -> Result<VerificationKey> {
-        VerificationKey::from_sk(&self.system_sk)
+        self.system.public_key()
     }
     /// Sign arbitrary bytes with the event system key.
     pub fn system_sign(&self, msg: &[u8]) -> Result<Signature> {
-        self.system_sk.sign(msg)
+        self.system.sign(msg)
     }
     pub fn new(sender_sk: SigningKey, sender_name: &str, system_sk: SigningKey) -> SigningData {
+        Self::with_signers(software(sender_sk), sender_name, software(system_sk))
+    }
+    /// With signers whose keys may be held elsewhere (see [`MessageSigner`]).
+    pub fn with_signers(sender: SharedSigner, sender_name: &str, system: SharedSigner) -> SigningData {
         SigningData {
-            sender_sk,
+            sender,
             sender_name: sender_name.to_string(),
-            system_sk,
+            system,
         }
     }
 }

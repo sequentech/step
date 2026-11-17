@@ -10,6 +10,7 @@ pub mod ports;
 #[cfg(feature = "native")]
 pub mod proofs;
 pub mod seal;
+pub mod signer;
 #[cfg(feature = "native")]
 pub mod service;
 #[cfg(feature = "native")]
