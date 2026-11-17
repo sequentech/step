@@ -8904,20 +8904,20 @@ export type Sequent_Backend_Cast_Vote = {
   __typename?: 'sequent_backend_cast_vote';
   annotations?: Maybe<Scalars['jsonb']['output']>;
   area_id?: Maybe<Scalars['uuid']['output']>;
-  ballot_id?: Maybe<Scalars['String']['output']>;
+  ballot_id: Scalars['String']['output'];
   cast_ballot_signature?: Maybe<Scalars['bytea']['output']>;
   content?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   /** An object relationship */
   election?: Maybe<Sequent_Backend_Election>;
   election_event_id: Scalars['uuid']['output'];
-  election_id?: Maybe<Scalars['uuid']['output']>;
+  election_id: Scalars['uuid']['output'];
   id: Scalars['uuid']['output'];
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   status: Scalars['String']['output'];
   tenant_id: Scalars['uuid']['output'];
-  voter_id_string?: Maybe<Scalars['String']['output']>;
+  voter_id_string: Scalars['String']['output'];
 };
 
 
@@ -8985,7 +8985,9 @@ export type Sequent_Backend_Cast_Vote_Bool_Exp = {
 /** unique or primary key constraints on table "sequent_backend.cast_vote" */
 export enum Sequent_Backend_Cast_Vote_Constraint {
   /** unique or primary key constraint on columns "id", "tenant_id", "election_event_id" */
-  CastVotePkey = 'cast_vote_pkey'
+  CastVotePkey = 'cast_vote_pkey',
+  /** unique or primary key constraint on columns "election_id", "ballot_id", "area_id", "tenant_id", "voter_id_string", "election_event_id", "status" */
+  CastVoteVoterBallotKey = 'cast_vote_voter_ballot_key'
 }
 
 /** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
@@ -26269,7 +26271,7 @@ export type GetCastVotesByDateRangeQueryVariables = Exact<{
 }>;
 
 
-export type GetCastVotesByDateRangeQuery = { __typename?: 'query_root', sequent_backend_cast_vote: Array<{ __typename?: 'sequent_backend_cast_vote', id: any, tenant_id: any, election_id?: any | null, area_id?: any | null, created_at?: any | null, last_updated_at?: any | null, election_event_id: any }> };
+export type GetCastVotesByDateRangeQuery = { __typename?: 'query_root', sequent_backend_cast_vote: Array<{ __typename?: 'sequent_backend_cast_vote', id: any, tenant_id: any, election_id: any, area_id?: any | null, created_at?: any | null, last_updated_at?: any | null, election_event_id: any }> };
 
 export type GetCastVotesQueryVariables = Exact<{
   electionEventId: Scalars['uuid']['input'];
@@ -26277,7 +26279,7 @@ export type GetCastVotesQueryVariables = Exact<{
 }>;
 
 
-export type GetCastVotesQuery = { __typename?: 'query_root', sequent_backend_cast_vote: Array<{ __typename?: 'sequent_backend_cast_vote', id: any, tenant_id: any, election_id?: any | null, area_id?: any | null, created_at?: any | null, last_updated_at?: any | null, election_event_id: any }> };
+export type GetCastVotesQuery = { __typename?: 'query_root', sequent_backend_cast_vote: Array<{ __typename?: 'sequent_backend_cast_vote', id: any, tenant_id: any, election_id: any, area_id?: any | null, created_at?: any | null, last_updated_at?: any | null, election_event_id: any }> };
 
 export type GetCastVotesForElectionQueryVariables = Exact<{
   electionEventId: Scalars['uuid']['input'];
@@ -26286,7 +26288,7 @@ export type GetCastVotesForElectionQueryVariables = Exact<{
 }>;
 
 
-export type GetCastVotesForElectionQuery = { __typename?: 'query_root', sequent_backend_cast_vote: Array<{ __typename?: 'sequent_backend_cast_vote', id: any, tenant_id: any, election_id?: any | null, area_id?: any | null, created_at?: any | null, last_updated_at?: any | null, election_event_id: any }> };
+export type GetCastVotesForElectionQuery = { __typename?: 'query_root', sequent_backend_cast_vote: Array<{ __typename?: 'sequent_backend_cast_vote', id: any, tenant_id: any, election_id: any, area_id?: any | null, created_at?: any | null, last_updated_at?: any | null, election_event_id: any }> };
 
 export type GetCertificateAuthoritiesQueryVariables = Exact<{
   electionEventId: Scalars['uuid']['input'];

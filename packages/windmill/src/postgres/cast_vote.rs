@@ -218,9 +218,7 @@ pub async fn insert_cast_vote(
     Ok(CastVote {
         id: row.try_get::<_, Uuid>("id")?.to_string(),
         tenant_id: row.try_get::<_, Uuid>("tenant_id")?.to_string(),
-        election_id: row
-            .try_get::<_, Option<Uuid>>("election_id")?
-            .map(|id| id.to_string()),
+        election_id: row.try_get::<_, Uuid>("election_id")?.to_string(),
         election_event_id: row.try_get::<_, Uuid>("election_event_id")?.to_string(),
         area_id: row
             .try_get::<_, Option<Uuid>>("area_id")?

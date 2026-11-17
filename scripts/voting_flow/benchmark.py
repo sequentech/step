@@ -24,7 +24,13 @@ import time
 
 import psycopg
 
-from database import AREA_MIGRATION, CONFIGURATION_QUERY, ROOT, SCHEDULE_INDEX
+from database import (
+    AREA_MIGRATION,
+    CONFIGURATION_QUERY,
+    RESENT_BALLOT_MIGRATION,
+    ROOT,
+    SCHEDULE_INDEX,
+)
 from fixtures import VotingEvent, INSERT_VOTE, clear_workload
 
 
@@ -228,11 +234,11 @@ def prepare_votes(database, fixture, content, scenario):
             """
             INSERT INTO sequent_backend.cast_vote
                 (tenant_id, election_event_id, election_id, area_id,
-                 voter_id_string, status, content)
+                 voter_id_string, ballot_id, status, content)
             SELECT %s, %s,
                    (%s::uuid[])[((number / 2) %% %s)::int + 1],
                    (%s::uuid[])[((number / 2) %% %s)::int + 1],
-                   'voter-' || (number / 2), 'valid', %s
+                   'voter-' || (number / 2), 'seed-' || number, 'valid', %s
             FROM generate_series(0, %s - 1) AS number
         """,
             (
@@ -292,6 +298,9 @@ def run_variant(database, fixture, content, variant, scenario, schedule_index_sq
     operation counts. Return timings, coverage and statement evidence; release
     all clients even if a request or assertion fails. Setup is excluded from timing."""
     database.apply(AREA_MIGRATION, "down" if variant == "before" else "up")
+    if variant == "after":
+        # Reapplying the area migration restores its older check_revote_limit.
+        database.apply(RESENT_BALLOT_MIGRATION)
     connection = database.connection
     # The original schema had no schedule-scope index. Restore the migration's
     # exact index definition only for the revised path, outside timed work.
@@ -299,16 +308,26 @@ def run_variant(database, fixture, content, variant, scenario, schedule_index_sq
     if variant == "after":
         connection.execute(schedule_index_sql)
     connection.execute(
-        "DROP INDEX sequent_backend.cast_vote_participation_election_idx"
+        "DROP INDEX IF EXISTS sequent_backend.cast_vote_participation_election_idx"
     )
-    include = " INCLUDE (status, area_id)" if variant == "after" else ""
     connection.execute(
-        """
-        CREATE INDEX cast_vote_participation_election_idx ON sequent_backend.cast_vote
-            (tenant_id, election_event_id, election_id, voter_id_string)
-    """
-        + include
+        "DROP INDEX IF EXISTS sequent_backend.cast_vote_voter_ballot_key"
     )
+    if variant == "after":
+        connection.execute(
+            """
+            CREATE UNIQUE INDEX cast_vote_voter_ballot_key ON sequent_backend.cast_vote
+                (tenant_id, election_event_id, election_id, voter_id_string, ballot_id)
+                INCLUDE (status, area_id)
+        """
+        )
+    else:
+        connection.execute(
+            """
+            CREATE INDEX cast_vote_participation_election_idx ON sequent_backend.cast_vote
+                (tenant_id, election_event_id, election_id, voter_id_string)
+        """
+        )
     storage = "EXTENDED" if variant == "before" else "EXTERNAL"
     connection.execute(
         f"ALTER TABLE sequent_backend.cast_vote ALTER COLUMN content SET STORAGE {storage}"

@@ -34,7 +34,7 @@ CREATE TABLE sequent_backend.cast_vote (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id uuid NOT NULL,
     election_event_id uuid NOT NULL,
-    election_id uuid NOT NULL,
+    election_id uuid,
     voter_id_string text,
     area_id uuid,
     status text NOT NULL DEFAULT 'valid',
