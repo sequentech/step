@@ -239,7 +239,16 @@ pub async fn find_trustee_private_key(
     .await
 }
 
-#[instrument(err)]
+#[instrument(
+    skip_all,
+    fields(
+        tenant_id = %tenant_id,
+        election_event_id = %election_event_id,
+        keys_ceremony_id = %keys_ceremony_id,
+        trustee = ?claims.trustee,
+    ),
+    err
+)]
 pub async fn check_private_key(
     transaction: &Transaction<'_>,
     claims: JwtClaims,
