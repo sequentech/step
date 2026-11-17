@@ -12,9 +12,16 @@
 # https://www.keycloak.org/server/containers#_installing_additional_rpm_packages
 
 # Start with a Maven base image to compile the 2FA authenticator
-FROM quay.io/keycloak/keycloak:26.6.1
+FROM quay.io/keycloak/keycloak:26.6.4
 COPY --from=keycloak-compile /opt/keycloak/ /opt/keycloak/
 COPY ./keycloak-extensions/quarkus.properties /opt/keycloak/conf/quarkus.properties
 
 ENV KC_DB=postgres
+# Java4Shell (CVE-2026-114938, https://calif.io/java4shell/): disable the
+# vulnerable AVX-512 Base64 decode intrinsic until a fixed JDK ships in the
+# Keycloak image. kc.sh appends JAVA_OPTS_APPEND to its defaults (it does not
+# replace them like JAVA_OPTS would). The flag exists on every HotSpot arch, so
+# arm64 hosts start fine with it. A deployment that sets JAVA_OPTS_APPEND in its
+# own env replaces this value, so gitops sets the flag as well.
+ENV JAVA_OPTS_APPEND="-XX:-UseBASE64Intrinsics"
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
