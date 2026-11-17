@@ -207,8 +207,8 @@ fn a_signer_held_elsewhere_signs_the_same_bytes_the_same_way() -> Result<()> {
         None,
         None,
     )?;
-    // Both signatures came from the plugged-in signer...
-    assert_eq!(system.calls.load(std::sync::atomic::Ordering::SeqCst), 2);
+    // One call: sender and system are the same signer here...
+    assert_eq!(system.calls.load(std::sync::atomic::Ordering::SeqCst), 1);
     // ...are exactly what the key itself gives over the statement's bytes
     // (Ed25519 is deterministic), and verify as before.
     let bytes = message.statement.record_serialize()?;

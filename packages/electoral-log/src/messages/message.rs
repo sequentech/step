@@ -1194,7 +1194,14 @@ impl Message {
     ) -> Result<Message> {
         let bytes = statement.record_serialize()?;
         let sender_signature: Signature = sender.sign(&bytes)?;
-        let system_signature: Signature = system.sign(&bytes)?;
+        // The same signer (a system-authored message) signs once: Ed25519 is
+        // deterministic, so the second signature would be the same bytes,
+        // and a remote signer would make a second round trip for nothing.
+        let system_signature: Signature = if std::ptr::addr_eq(sender, system) {
+            sender_signature.clone()
+        } else {
+            system.sign(&bytes)?
+        };
         let sender_pk = sender.public_key()?;
         let sender = Sender::new(sender_name.to_string(), sender_pk);
 

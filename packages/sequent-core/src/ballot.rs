@@ -1351,6 +1351,11 @@ pub struct ElectionEventPresentation {
     pub voter_signing_policy: Option<VoterSigningPolicy>,
     /// Who signs the event's electoral log entries; missing means
     /// [`ElectoralLogSignerPolicy::SOFTWARE`], as before this field existed.
+    /// Skipped by Borsh, as `ballot_tracker_policy` is: a positional field
+    /// would change `ballot_style_hash` for every election. Not written when
+    /// unset, so re-serialized events don't gain the key.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub electoral_log_signer_policy: Option<ElectoralLogSignerPolicy>,
     pub voter_certificate_policy: Option<VoterCertificatePolicy>,
     pub weighted_voting_policy: Option<WeightedVotingPolicy>,
@@ -4330,6 +4335,18 @@ mod electoral_log_signer_policy_tests {
             presentation.electoral_log_signer_policy.unwrap_or_default(),
             ElectoralLogSignerPolicy::SOFTWARE
         );
+    }
+
+    #[test]
+    fn the_setting_does_not_change_borsh_bytes_or_unset_json() {
+        let without = borsh::to_vec(&ElectionEventPresentation::default()).unwrap();
+        let with = ElectionEventPresentation {
+            electoral_log_signer_policy: Some(ElectoralLogSignerPolicy::EXTERNAL),
+            ..ElectionEventPresentation::default()
+        };
+        assert_eq!(borsh::to_vec(&with).unwrap(), without, "ballot_style_hash must not change");
+        let json = serde_json::to_value(ElectionEventPresentation::default()).unwrap();
+        assert!(json.get("electoral_log_signer_policy").is_none());
     }
 
     #[test]
