@@ -12,7 +12,7 @@ INSERT_VOTE = """
     INSERT INTO sequent_backend.cast_vote
         (tenant_id, election_event_id, election_id, voter_id_string, area_id,
          status, content, ballot_id, cast_ballot_signature)
-    VALUES (%s, %s, %s, %s, %s, %s, %s, 'ballot', %s)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
 """
 
 
@@ -75,13 +75,25 @@ class Election:
         ).fetchone()
         return row[0]
 
-    def vote_parameters(self, voter, area=None, status="valid", content="ballot"):
-        """Return INSERT parameters, using the default area unless an override is supplied."""
-        return (*self.scope, voter, area or self.area, status, content, bytes(64))
+    def vote_parameters(
+        self, voter, area=None, status="valid", content="ballot", ballot_id=None
+    ):
+        """Return INSERT parameters for a new ballot unless a resent ballot_id is supplied."""
+        return (
+            *self.scope,
+            voter,
+            area or self.area,
+            status,
+            content,
+            ballot_id or str(uuid4()),
+            bytes(64),
+        )
 
-    def vote(self, connection, voter, area=None, status="valid"):
+    def vote(self, connection, voter, area=None, status="valid", ballot_id=None):
         """Insert a fixture ballot through the real eligibility trigger."""
-        connection.execute(INSERT_VOTE, self.vote_parameters(voter, area, status))
+        connection.execute(
+            INSERT_VOTE, self.vote_parameters(voter, area, status, ballot_id=ballot_id)
+        )
 
 
 @dataclass

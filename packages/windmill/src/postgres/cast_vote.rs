@@ -349,6 +349,63 @@ pub async fn get_cast_vote_by_id(
         .transpose()
 }
 
+/// Loads the vote a voter cast with `ballot_id` in an election, whatever its
+/// status, or `None` when the voter never cast that ballot. A resent ballot is
+/// answered with this vote instead of being stored again.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_voter_cast_vote_by_ballot_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    voter_id_string: &str,
+    ballot_id: &str,
+) -> Result<Option<CastVote>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    id,
+                    ballot_id,
+                    election_id,
+                    election_event_id,
+                    tenant_id,
+                    area_id,
+                    created_at,
+                    last_updated_at,
+                    content,
+                    cast_ballot_signature,
+                    voter_id_string,
+                    status
+                FROM sequent_backend.cast_vote
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    election_id = $3 AND
+                    voter_id_string = $4 AND
+                    ballot_id = $5
+                ORDER BY created_at
+                LIMIT 1
+            "#,
+        )
+        .await?;
+
+    hasura_transaction
+        .query_opt(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
+                &voter_id_string,
+                &ballot_id,
+            ],
+        )
+        .await?
+        .map(TryInto::try_into)
+        .transpose()
+}
+
 /// Used by the datafix flow to recognise a re-vote before sending `SetVoted`:
 /// a voter who already holds a `valid` vote is not notified to VoterView a
 /// second time. <br/>

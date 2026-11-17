@@ -18,6 +18,9 @@ AREA_MIGRATION = MIGRATIONS / "1788765000000_serialize_cast_vote_area_checks"
 STORAGE_MIGRATION = MIGRATIONS / "1788765000001_cast_vote_external_storage"
 SCHEDULE_MIGRATION = MIGRATIONS / "1788765000002_validate_voting_schedules"
 OUTBOX_MIGRATION = MIGRATIONS / "1792000000000_electoral_log_outbox"
+RESENT_BALLOT_MIGRATION = (
+    MIGRATIONS / "1794894976763_cast_vote_resent_ballot_already_cast"
+)
 SCHEDULE_INDEX = "sequent_backend.scheduled_event_active_scope_task_idx"
 INDEX_SCRIPT = ROOT / "scripts/postgres/cast_vote_covering_index.sql"
 CONFIGURATION_QUERY = (
@@ -86,6 +89,7 @@ class LocalDatabase:
         """
         )
         self.apply(OUTBOX_MIGRATION)
+        self.apply(RESENT_BALLOT_MIGRATION)
 
     def stop(self):
         """Close the client and stop a started cluster, including after partial initialization."""
