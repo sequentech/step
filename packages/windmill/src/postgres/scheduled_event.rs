@@ -54,15 +54,29 @@ impl TryFrom<Row> for ScheduledEventWrapper {
                 .try_get::<_, Option<Uuid>>("election_event_id")
                 .map_err(|err| anyhow!("Error deserializing election_event_id: {err}"))?
                 .map(|val| val.to_string()),
-            created_at: item.get("created_at"),
-            stopped_at: item.get("stopped_at"),
-            archived_at: item.get("archived_at"),
-            labels: item.get("labels"),
-            annotations: item.get("annotations"),
+            created_at: item
+                .try_get("created_at")
+                .context("Error deserializing created_at")?,
+            stopped_at: item
+                .try_get("stopped_at")
+                .context("Error deserializing stopped_at")?,
+            archived_at: item
+                .try_get("archived_at")
+                .context("Error deserializing archived_at")?,
+            labels: item
+                .try_get("labels")
+                .context("Error deserializing labels")?,
+            annotations: item
+                .try_get("annotations")
+                .context("Error deserializing annotations")?,
             event_processor: event_processors,
             cron_config: cron_config,
-            event_payload: item.get("event_payload"),
-            task_id: item.get("task_id"),
+            event_payload: item
+                .try_get("event_payload")
+                .context("Error deserializing event_payload")?,
+            task_id: item
+                .try_get("task_id")
+                .context("Error deserializing task_id")?,
         }))
     }
 }
