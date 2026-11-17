@@ -5,7 +5,7 @@ use crate::postgres::area::get_area_by_id;
 use crate::postgres::election::{get_cast_vote_configuration, CastVoteConfiguration};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::ballot_box::{accept_ballot, get_allowed_votes, BallotFormat};
-use crate::services::ballot_box_reads::cast_vote_status;
+use crate::services::ballot_box_reads::{ballot_box_time, cast_vote_status};
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
@@ -15,7 +15,7 @@ use crate::services::external::utils::{
     DATAFIX_VOTER_LOCK_SECS,
 };
 use crate::services::pg_lock::PgLock;
-use crate::services::protocol_manager::get_protocol_manager;
+use crate::services::protocol_manager::{get_event_store, get_protocol_manager};
 use anyhow::{anyhow, Context, Result};
 use b4::messages::message::Signer;
 use base64::{engine::general_purpose, Engine as _};
@@ -23,6 +23,7 @@ use chrono::{DateTime, Duration, Local};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome, BallotStatus};
+use electoral_log::adapters::ballot_box_reads::{BallotContent, BallotIdMatch, StoredBallot};
 use electoral_log::messages::newtypes::*;
 use sequent_core::ballot::verify_ballot_signature;
 use sequent_core::ballot::ContestEncryptionPolicy;
@@ -140,11 +141,14 @@ pub type InsertCastVoteOutput = CastVote;
 
 /// Outcome of a cast-vote insert, distinguishing the follow-up each needs:
 /// `Success` is a final `valid` vote, `PendingDatafix` is an `in-progress` vote
-/// the caller must enqueue for the async Datafix pipeline, and
-/// `SkipRetryFailure` is a terminal error the caller should surface as-is.
+/// the caller must enqueue for the async Datafix pipeline, `AlreadyCast` is the
+/// vote stored for a resent ballot, whatever its status, which needs no
+/// follow-up, and `SkipRetryFailure` is a terminal error the caller should
+/// surface as-is.
 pub enum InsertCastVoteResult {
     Success(InsertCastVoteOutput),
     PendingDatafix(InsertCastVoteOutput),
+    AlreadyCast(InsertCastVoteOutput),
     SkipRetryFailure(CastVoteError),
 }
 
@@ -287,6 +291,10 @@ pub enum CastVoteError {
     #[serde(rename = "insert_failed_exceeds_allowed_revotes")]
     #[strum(to_string = "insert_failed_exceeds_allowed_revotes")]
     InsertFailedExceedsAllowedRevotes,
+    /// The ballot ID was already used in this election event.
+    #[serde(rename = "ballot_already_cast")]
+    #[strum(to_string = "ballot_already_cast")]
+    BallotAlreadyCast,
     #[serde(rename = "commit_failed")]
     CommitFailed(String),
     #[serde(rename = "get_db_client_failed")]
@@ -471,6 +479,19 @@ pub async fn try_insert_cast_vote(
     match result {
         Ok((accepted, _)) => classify_inserted_cast_vote(accepted),
         Err(cast_vote_err) => {
+            // A ballot is resent when its first request was stored but the
+            // voter never got the answer, for example after a timeout. Answer it
+            // with the stored vote, even once voting has closed.
+            if may_be_resent_ballot(&cast_vote_err) {
+                let voter_signature = voter_signature_data
+                    .as_ref()
+                    .map(|(_, signature)| signature.to_bytes().to_vec());
+                if let Some(stored) =
+                    stored_vote_for_resent_ballot(&ids, &input, voter_signature).await?
+                {
+                    return Ok(InsertCastVoteResult::AlreadyCast(stored));
+                }
+            }
             error!(err=?cast_vote_err);
 
             let log_result = electoral_log
@@ -748,10 +769,89 @@ async fn accept_into_ballot_box(
         AcceptOutcome::VotedInOtherArea => Err(CastVoteError::CheckVotesInOtherAreasFailed(
             "The voter already voted in another area".to_string(),
         )),
-        AcceptOutcome::DuplicateBallotId => Err(CastVoteError::InsertFailed(
-            "The ballot ID was already used in this election event".to_string(),
-        )),
+        AcceptOutcome::DuplicateBallotId => Err(CastVoteError::BallotAlreadyCast),
     }
+}
+
+/// Whether a refusal may be the answer to a ballot the voter already cast: the
+/// ballot box refuses its ID or the voter's further votes, or voting has
+/// closed since.
+fn may_be_resent_ballot(cast_vote_err: &CastVoteError) -> bool {
+    matches!(
+        cast_vote_err,
+        CastVoteError::BallotAlreadyCast
+            | CastVoteError::InsertFailedExceedsAllowedRevotes
+            | CastVoteError::CheckVotesInOtherAreasFailed(_)
+            | CastVoteError::CheckStatusFailed(_)
+            | CastVoteError::VotingChannelNotEnabled(_)
+    )
+}
+
+/// The vote the voter already cast with the ballot of `input`, whatever its
+/// status, or `None` when the voter never cast it.
+#[instrument(skip(input, voter_signature), err)]
+async fn stored_vote_for_resent_ballot(
+    ids: &CastVoteIds<'_>,
+    input: &InsertCastVoteInput,
+    voter_signature: Option<Vec<u8>>,
+) -> Result<Option<CastVote>, CastVoteError> {
+    let lookup_failed = |err: anyhow::Error| {
+        error!("Error looking up the cast ballot: {err:?}");
+        CastVoteError::CheckPreviousVotesFailed("Error looking up the cast ballot".to_string())
+    };
+    let stored = get_event_store(ids.election_event_id)
+        .await
+        .map_err(lookup_failed)?
+        .voter_ballot_contents(
+            ids.election_event_id,
+            ids.voter_id,
+            &input.election_id.to_string(),
+            BallotIdMatch::Exact(&input.ballot_id),
+        )
+        .await
+        .map_err(lookup_failed)?;
+    stored
+        .into_iter()
+        .next()
+        .map(|stored| resent_cast_vote(ids, stored, voter_signature))
+        .transpose()
+        .map_err(lookup_failed)
+}
+
+/// The receipt of a resent ballot, from the ballot stored for it.
+fn resent_cast_vote(
+    ids: &CastVoteIds<'_>,
+    stored: BallotContent,
+    voter_signature: Option<Vec<u8>>,
+) -> Result<CastVote> {
+    let BallotContent {
+        ballot:
+            StoredBallot {
+                id,
+                ballot_id,
+                election_id,
+                area_id,
+                status,
+                accepted_at,
+                ..
+            },
+        content,
+    } = stored;
+    let accepted_at = ballot_box_time(accepted_at)?;
+    Ok(CastVote {
+        id,
+        tenant_id: ids.tenant_id.to_string(),
+        election_id: Some(election_id),
+        area_id: Some(area_id),
+        created_at: Some(accepted_at),
+        last_updated_at: Some(accepted_at),
+        content: Some(content),
+        voter_id_string: Some(ids.voter_id.to_string()),
+        election_event_id: ids.election_event_id.to_string(),
+        ballot_id: Some(ballot_id),
+        cast_ballot_signature: voter_signature,
+        status: cast_vote_status(status),
+    })
 }
 
 /// A voter's pseudonym, stored with the voter's ballots and in their records.
