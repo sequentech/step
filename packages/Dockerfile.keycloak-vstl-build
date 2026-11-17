@@ -17,4 +17,12 @@ COPY --from=keycloak-compile /opt/keycloak/ /opt/keycloak/
 COPY ./keycloak-extensions/quarkus.properties /opt/keycloak/conf/quarkus.properties
 
 ENV KC_DB=postgres
+
+# Java4Shell (CVE-2026-114938, https://calif.io/java4shell/): the JDK's x86-64
+# AVX-512 Base64 decode intrinsic can write out of bounds. No fixed JDK or
+# Keycloak image exists yet, so turn the intrinsic off. kc.sh appends
+# JAVA_OPTS_APPEND to its default JAVA_OPTS, so the defaults are kept. The flag
+# is also recognised on arm64 (it is a no-op there). A deployment that sets its
+# own JAVA_OPTS_APPEND replaces this value and must include the flag itself.
+ENV JAVA_OPTS_APPEND="-XX:-UseBASE64Intrinsics"
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
