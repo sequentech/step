@@ -71,7 +71,7 @@ Follow these steps once you have defined Contests in your Election Event:
 
 6. **Result**  
    - The voter is now assigned to the Area linked to the Contest/Election.  
-   - In the context of this specific Election: the voter will appear under that Election’s Voter list (via the Area assignment).
+   - In the context of this specific Election: the voter will appear under that Election’s Voter list (via the Area assignment), unless their `authorized-election-ids` attribute lists only other Elections (see [Restricting voters to specific Elections](#restricting-voters-to-specific-elections)).
 
 ## Example Walkthrough
 
@@ -97,10 +97,25 @@ Follow these steps once you have defined Contests in your Election Event:
    - Navigate to the specific Election (e.g., “Mayor Election”) and view its Voters.  
    - “Alice Example” now appears as an eligible voter for that Election.
 
+## Restricting voters to specific Elections
+
+An Area can be linked to Contests in several Elections. To keep a voter in that Area out of some of those Elections, set the voter's `authorized-election-ids` attribute:
+
+- List each Election the voter may take part in, by the Election's external ID. If an Election has no external ID, use its ID.
+- Give each Election as a separate value. In a voter import CSV, separate them with `|` (for example `election-a|election-b`); a comma-separated cell is read as one value that matches no Election.
+- A voter without the attribute is authorized for every Election in their Area. So is a voter with an empty (null) value, even if the attribute also lists other Elections.
+- The attribute only narrows the Area: listing an Election that isn't linked to the voter's Area doesn't add the voter to it.
+
+An Election's **Voters** tab, its **Eligible Voters** count on the Dashboard, and its **Export** only include voters authorized for that Election. **Delete** with **Delete all matching** uses the same rule.
+
+:::warning
+Voters belong to the Election Event, so deleting voters from an Election's **Voters** tab removes them from the whole Election Event. That includes voters without `authorized-election-ids`, who are also in the other Elections of their Area.
+:::
+
 ## Notes & Tips
 
 - If an Area is linked to multiple Contests/Elections, assigning a voter to that Area enrolls them in all linked Contests.  
-- To exclude a voter from a particular Contest, do not link that Contest to the Area, or assign the voter to a different Area.  
+- To exclude a voter from a particular Contest, do not link that Contest to the Area, or assign the voter to a different Area. To exclude them from a whole Election linked to their Area, use `authorized-election-ids` (see [Restricting voters to specific Elections](#restricting-voters-to-specific-elections)).  
 - To manage multiple Contests per Area, use the Area’s edit screen to add or remove Contests as needed.  
 - Changes take effect immediately; after assignment, the voter can access the Voting Portal for that Election.  
 - If you later remove the Contest from the Area or reassign the voter to a different Area, their Election access adjusts accordingly.

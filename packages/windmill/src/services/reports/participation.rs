@@ -19,7 +19,6 @@ use deadpool_postgres::Transaction;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::translations::Name;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use sequent_core::types::hasura::core::Election;
 use serde::{Deserialize, Serialize};
 use tokio_postgres::row::Row;
 use tracing::instrument;
@@ -68,19 +67,6 @@ pub struct ParticipationReportTemplate {
 struct CastVoteParticipationStats {
     voted_voters: i64,
     votes_count: i64,
-}
-
-fn get_authorized_election_alias(election: &Election, language: &str) -> Option<String> {
-    election
-        .presentation
-        .as_ref()
-        .and_then(|presentation| presentation.get("i18n"))
-        .and_then(|i18n| i18n.get(language))
-        .and_then(|translation| translation.get("alias"))
-        .and_then(|alias| alias.as_str())
-        .map(str::trim)
-        .filter(|alias| !alias.is_empty())
-        .map(str::to_string)
 }
 
 impl ParticipationReportTemplate {
@@ -144,7 +130,6 @@ impl ParticipationReportTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
         realm: &str,
-        election_alias: Option<String>,
     ) -> Result<i64> {
         match &self.ids.election_id {
             Some(election_id) => {
@@ -154,7 +139,6 @@ impl ParticipationReportTemplate {
                     election_id: Some(election_id.clone()),
                     realm: realm.to_string(),
                     enabled: Some(true),
-                    authorized_to_election_alias: election_alias,
                     ..ListUsersFilter::default()
                 };
 
@@ -243,18 +227,10 @@ impl TemplateRenderer for ParticipationReportTemplate {
         let election_name = election
             .as_ref()
             .map(|election| election.get_name(&election_language));
-        let election_alias = election
-            .as_ref()
-            .and_then(|election| get_authorized_election_alias(election, &election_language));
 
         let cast_vote_stats = self.get_cast_vote_stats(hasura_transaction).await?;
         let total_voters = self
-            .get_total_voters(
-                hasura_transaction,
-                keycloak_transaction,
-                &realm,
-                election_alias,
-            )
+            .get_total_voters(hasura_transaction, keycloak_transaction, &realm)
             .await?;
         let participation_percentage =
             calc_voters_turnout(cast_vote_stats.voted_voters, total_voters)?.unwrap_or(0.0);
