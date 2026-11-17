@@ -71,7 +71,7 @@ Follow these steps once you have defined Contests in your Election Event:
 
 6. **Result**  
    - The voter is now assigned to the Area linked to the Contest/Election.  
-   - In the context of this specific Election: the voter will appear under that Election’s Voter list (via the Area assignment).
+   - In the context of this specific Election: the voter will appear under that Election’s Voter list (via the Area assignment), unless their `authorized-election-ids` attribute lists only other Elections (see [Restricting voters to specific Elections](#restricting-voters-to-specific-elections)).
 
 ## Example Walkthrough
 
@@ -102,7 +102,8 @@ Follow these steps once you have defined Contests in your Election Event:
 An Area can be linked to Contests in several Elections. To keep a voter in that Area out of some of those Elections, set the voter's `authorized-election-ids` attribute:
 
 - List each Election the voter may take part in, by the Election's external ID. If an Election has no external ID, use its ID.
-- A voter without the attribute is authorized for every Election in their Area.
+- Give each Election as a separate value. In a voter import CSV, separate them with `|` (for example `election-a|election-b`); a comma-separated cell is read as one value that matches no Election.
+- A voter without the attribute is authorized for every Election in their Area. So is a voter with an empty (null) value, even if the attribute also lists other Elections.
 - The attribute only narrows the Area: listing an Election that isn't linked to the voter's Area doesn't add the voter to it.
 
 An Election's **Voters** tab, its **Eligible Voters** count on the Dashboard, and its **Export** only include voters authorized for that Election. **Delete** with **Delete all matching** uses the same rule.
