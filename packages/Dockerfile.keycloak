@@ -107,4 +107,11 @@ COPY --from=builder /opt/keycloak/ /opt/keycloak/
 COPY --from=spis-build /build/keycloak-provider-conf/quarkus.properties /opt/keycloak/conf/quarkus.properties
 
 ENV KC_DB=postgres
+# Java4Shell (CVE-2026-114938, https://calif.io/java4shell/): disable the
+# vulnerable x86-64 AVX-512 Base64 decode intrinsic until a fixed JDK ships in
+# the Keycloak image. kc.sh appends JAVA_OPTS_APPEND to its default JAVA_OPTS
+# instead of replacing them. HotSpot accepts this flag on aarch64 too, so arm64
+# dev containers still start. A deployment that sets JAVA_OPTS_APPEND itself
+# overrides this value and must keep the flag.
+ENV JAVA_OPTS_APPEND="-XX:-UseBASE64Intrinsics"
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
