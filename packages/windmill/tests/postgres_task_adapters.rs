@@ -699,6 +699,8 @@ async fn find_all_active_events_skips_a_schedule_it_cannot_read() {
         "event_processor = 'CLOSE_EVERYTHING'",
     )
     .await;
+    schedule_row(&tx, Some(&w.tenant), Some(&w.event), &w.id(12), "task-12").await;
+    set(&tx, "scheduled_event", &w.id(12), "created_at = 'infinity'").await;
 
     let active = scheduled_event::find_all_active_events(&tx).await.unwrap();
 
@@ -1596,7 +1598,7 @@ async fn get_all_active_reports_returns_the_reports_with_an_active_cron_config()
 }
 
 #[tokio::test]
-async fn get_all_active_reports_skips_a_report_whose_cron_config_cannot_be_read() {
+async fn get_all_active_reports_skips_a_report_it_cannot_read() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
@@ -1613,6 +1615,14 @@ async fn get_all_active_reports_skips_a_report_whose_cron_config_cannot_be_read(
         )
         .await;
     }
+    report_row(&tx, &w.tenant, &w.event, &w.id(12), "ELECTORAL_RESULTS").await;
+    set(
+        &tx,
+        "report",
+        &w.id(12),
+        "cron_config = '{\"is_active\": true}', permission_label = ARRAY[NULL]::text[]",
+    )
+    .await;
 
     let active = reports::get_all_active_reports(&tx).await.unwrap();
 
