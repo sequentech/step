@@ -782,7 +782,7 @@ fn get_sort_clause_and_field_param(
 
 /// Keeps voters without `authorized-election-ids`, or with a value that is
 /// the election's key or NULL, matching the census in
-/// `count_keycloak_enabled_voters_of_areas`.
+/// `list_keycloak_enabled_users_by_area_id_and_authorized_elections`.
 fn authorized_election_where_clause(name_param: i32) -> String {
     let key_param = name_param + 1;
     format!(
