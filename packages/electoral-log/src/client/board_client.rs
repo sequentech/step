@@ -1095,6 +1095,25 @@ impl BoardClient {
         self.client.has_database(database_name).await
     }
 
+    /// The most entries one transaction on `database_name` may hold
+    /// (immudb's `MaxTxEntries` setting of the database).
+    #[instrument(skip(self), level = "trace")]
+    pub async fn max_tx_entries(&mut self, database_name: &str) -> Result<usize> {
+        let response = self.client.list_databases().await?;
+        let max_tx_entries = response
+            .get_ref()
+            .databases
+            .iter()
+            .find(|database| database.name == database_name)
+            .ok_or_else(|| anyhow!("Database {database_name} not found"))?
+            .settings
+            .as_ref()
+            .and_then(|settings| settings.max_tx_entries.as_ref())
+            .ok_or_else(|| anyhow!("Database {database_name} reports no MaxTxEntries"))?
+            .value;
+        Ok(usize::try_from(max_tx_entries)?)
+    }
+
     /// Creates the requested immudb database if it doesnt exist.
     /// Also creates the electoral log table.
     #[instrument(skip(self))]

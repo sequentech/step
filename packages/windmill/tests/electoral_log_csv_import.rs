@@ -113,3 +113,21 @@ async fn an_empty_log_imports_nothing() -> Result<()> {
     assert_eq!(stored, 0);
     Ok(())
 }
+
+#[tokio::test]
+#[ignore]
+async fn a_board_reports_its_transaction_entry_limit() -> Result<()> {
+    let board = Board::new().await?;
+    let max_tx_entries = board_client().await?.max_tx_entries(&board.name).await;
+    board.tear_down().await?;
+    assert_eq!(max_tx_entries?, 1_024);
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore]
+async fn a_missing_board_has_no_transaction_entry_limit() -> Result<()> {
+    let name = format!("synthetic{}", uuid::Uuid::new_v4().simple());
+    assert!(board_client().await?.max_tx_entries(&name).await.is_err());
+    Ok(())
+}
