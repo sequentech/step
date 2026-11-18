@@ -1752,7 +1752,7 @@ impl ElectoralLog {
             message_body,
             area_id,
         )
-        .map_err(|e| anyhow!("Error creating send template message: {:?}", e))?;
+        .context("Error creating send template message")?;
         let board_message: ElectoralLogMessage = message.try_into()?;
         Ok(board_message)
     }

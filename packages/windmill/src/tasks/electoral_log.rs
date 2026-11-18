@@ -32,6 +32,7 @@ use electoral_log::messages::newtypes::{
     AuditLogEntry, AuditStatementKind, ErrorMessageString, EventIdString, KeycloakEventTypeString,
 };
 use electoral_log::messages::statement::{StatementEventType, StatementLogType};
+use electoral_log::signer::is_signer_unavailable;
 use electoral_log::{ElectoralLogMessage, LogEntry};
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
@@ -332,13 +333,26 @@ enum EventFailure {
     Permanent(anyhow::Error),
     /// A database or other infrastructure failure; the whole batch is retried.
     Transient(anyhow::Error),
-    /// The board's signer is unavailable or refused (an external signer): the
-    /// event waits for a retry while the batch's other events are stored.
+    /// The board's signer could not be loaded, or cannot sign right now (an
+    /// external signer whose key service is down): the event waits for a
+    /// retry while the batch's other events are stored.
     /// Nothing is dropped: the batch fails after storing the rest, so it is
     /// retried (stored events are not stored twice: delivery IDs); after the
     /// last retry the whole batch goes to the dead-letter queue, whose reason
     /// names each deferred delivery, for an operator to replay or discard.
     Deferred(anyhow::Error),
+}
+
+/// How an event fails when making its record failed: a signer that cannot
+/// sign right now ([`electoral_log::signer::SignerUnavailable`], an external
+/// signer whose key service is down) defers the event to a retry; any other
+/// error is the event's, and it is dead-lettered.
+fn failure(error: anyhow::Error) -> EventFailure {
+    if is_signer_unavailable(&error) {
+        EventFailure::Deferred(error)
+    } else {
+        EventFailure::Permanent(error)
+    }
 }
 
 /// The records of a batch, grouped by board, the events that cannot be stored,
@@ -552,7 +566,7 @@ async fn build_event<L: BatchLookups + Send>(
         .ok_or_else(|| Permanent(anyhow!("Missing electoral-log delivery ID")))?;
     Uuid::parse_str(&input.tenant_id)
         .context("Invalid tenant ID")
-        .map_err(Permanent)?;
+        .map_err(failure)?;
     // The tenant realm's events and the requests made outside an election
     // event name none.
     if names_no_election_event(&input.election_event_id) {
@@ -560,7 +574,7 @@ async fn build_event<L: BatchLookups + Send>(
     }
     Uuid::parse_str(&input.election_event_id)
         .context("Invalid election event ID")
-        .map_err(Permanent)?;
+        .map_err(failure)?;
 
     let key = (input.tenant_id.clone(), input.election_event_id.clone());
     if !cache.boards.contains_key(&key) {
@@ -599,7 +613,7 @@ async fn build_event<L: BatchLookups + Send>(
         }
         LogMessageType::Internal => deserialize_str::<ElectoralLogMessage>(&input.body.as_raw())
             .context("Error parsing the body as an ElectoralLogMessage")
-            .map_err(Permanent)?,
+            .map_err(failure)?,
         LogMessageType::KeycloakEvent(event_type) => {
             let user_id = input
                 .user_id
@@ -652,7 +666,7 @@ async fn build_event<L: BatchLookups + Send>(
                         user_area_id.clone(),
                     )
                     .context("Error building send template message")
-                    .map_err(Permanent)?;
+                    .map_err(failure)?;
                 entries.push((
                     board.clone(),
                     LogEntry {
@@ -672,7 +686,7 @@ async fn build_event<L: BatchLookups + Send>(
                     user_area_id,
                 )
                 .context("Error building keycloak event message")
-                .map_err(Permanent)?
+                .map_err(failure)?
         }
     };
     entries.push((
@@ -859,8 +873,8 @@ async fn build_tenant_event<L: BatchLookups + Send>(
             None,
         )
         .context("Error building the message-sent entry")
-        .map_err(Permanent)?;
-        ElectoralLogMessage::try_from(&message).map_err(Permanent)?
+        .map_err(failure)?;
+        ElectoralLogMessage::try_from(&message).map_err(failure)?
     } else if let Some(event_type) = event_type {
         build_tenant_keycloak_message(
             signer,
@@ -874,7 +888,7 @@ async fn build_tenant_event<L: BatchLookups + Send>(
     } else {
         let activity = deserialize_str::<TenantActivity>(&input.body.as_raw())
             .context("Error parsing the body as a TenantActivity")
-            .map_err(Permanent)?;
+            .map_err(failure)?;
         tenant_activity_message(
             signer,
             &input.tenant_id,
@@ -884,7 +898,7 @@ async fn build_tenant_event<L: BatchLookups + Send>(
             present(&input.username),
         )
         .context("Error building the tenant activity message")
-        .map_err(Permanent)?
+        .map_err(failure)?
     };
     Ok(BuiltEvent {
         entries: vec![(
@@ -909,8 +923,6 @@ fn build_tenant_keycloak_message(
     occurred_at: u64,
     service_client: &str,
 ) -> std::result::Result<ElectoralLogMessage, EventFailure> {
-    use EventFailure::Permanent;
-
     let message = if event_type == KEYCLOAK_ADMIN_EVENT && unplaced.is_none() {
         let author = input
             .admin_event
@@ -918,7 +930,7 @@ fn build_tenant_keycloak_message(
             .map(|event| admin_event_author(event, service_client))
             .unwrap_or(AdminEventAuthor::Operator);
         admin_event_message(signer, &input.tenant_id, input, delivery_id, author)
-            .map_err(Permanent)?
+            .map_err(failure)?
     } else {
         let mut details = input.details.clone().unwrap_or_else(|| {
             let error = Some(input.body.as_raw()).filter(|error| error != ABSENT);
@@ -944,8 +956,8 @@ fn build_tenant_keycloak_message(
             None,
         )
         .context("Error building keycloak event message")
-        .map_err(Permanent)?;
-        ElectoralLogMessage::try_from(&message).map_err(Permanent)?
+        .map_err(failure)?;
+        ElectoralLogMessage::try_from(&message).map_err(failure)?
     };
     Ok(message)
 }
@@ -960,7 +972,7 @@ async fn build_event_realm_admin_event<L: BatchLookups + Send>(
     delivery_id: &str,
     board: String,
 ) -> std::result::Result<BuiltEvent, EventFailure> {
-    use EventFailure::{Permanent, Transient};
+    use EventFailure::Transient;
 
     let author = input
         .admin_event
@@ -989,7 +1001,7 @@ async fn build_event_realm_admin_event<L: BatchLookups + Send>(
         return build_tenant_event(lookups, cache, input, delivery_id, Some(reason)).await;
     };
     let message = admin_event_message(signer, &input.election_event_id, input, delivery_id, author)
-        .map_err(Permanent)?;
+        .map_err(failure)?;
     Ok(BuiltEvent {
         entries: vec![(
             board,
@@ -1384,7 +1396,9 @@ mod batch_build_tests {
     use super::*;
     use crate::services::electoral_log_dead_letter::event_message;
     use electoral_log::messages::statement::{Statement, StatementBody};
-    use voting_crypto::signing::SigningKey;
+    use electoral_log::signer::{MessageSigner, SharedSigner, SignerUnavailable};
+    use std::sync::Arc;
+    use voting_crypto::signing::{Signature, SigningKey, VerificationKey};
     use voting_crypto::RecordDeserialize;
 
     const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
@@ -1393,11 +1407,47 @@ mod batch_build_tests {
     const KEYLESS_EVENT: &str = "2b8e4a1d-7c6f-4e93-b0a2-5d9c8f1e3a47";
     const UNKNOWN_TENANT: &str = "5a3c1f0e-9b7d-4c2a-8e6f-1d0b9a8c7e65";
     const REFUSED_SIGNER_EVENT: &str = "7d1e9c3b-2a4f-4b8e-9c6d-3e5f7a9b1c2d";
+    const DOWN_SIGNER_EVENT: &str = "c4a7e2f1-8b3d-4e6a-9f0c-1b2d3e4f5a6b";
+
+    /// How a loaded signer fails when it is asked to sign.
+    #[derive(Clone, Copy)]
+    enum SignerOutage {
+        /// Its key service is down: try again later.
+        Unavailable,
+        /// It refuses to sign (another key): final.
+        Refused,
+    }
+
+    /// A signer that is loaded (its public key is known) but cannot sign.
+    struct FailingSigner {
+        key: SigningKey,
+        outage: SignerOutage,
+    }
+
+    impl MessageSigner for FailingSigner {
+        fn public_key(&self) -> anyhow::Result<VerificationKey> {
+            VerificationKey::from_sk(&self.key)
+        }
+
+        fn sign(&self, _bytes: &[u8]) -> anyhow::Result<Signature> {
+            Err(match self.outage {
+                SignerOutage::Unavailable => SignerUnavailable::new(
+                    "the key service is unreachable: error sending request",
+                )
+                .into(),
+                SignerOutage::Refused => {
+                    anyhow!("the key service refused: the key does not match (refused)")
+                }
+            })
+        }
+    }
 
     struct FakeLookups {
         signing_key: SigningKey,
         unreachable_event: Option<&'static str>,
         unreachable_tenant: Option<&'static str>,
+        /// Election events and tenants whose signer loads but cannot sign.
+        failing_signers: HashMap<&'static str, SignerOutage>,
         board_calls: usize,
         signer_calls: usize,
         tenant_log_calls: usize,
@@ -1409,10 +1459,20 @@ mod batch_build_tests {
                 signing_key: SigningKey::generate().unwrap(),
                 unreachable_event: None,
                 unreachable_tenant: None,
+                failing_signers: HashMap::new(),
                 board_calls: 0,
                 signer_calls: 0,
                 tenant_log_calls: 0,
             }
+        }
+
+        /// The signer of an election event or tenant that cannot sign, if it is one.
+        fn failing_signer(&self, id: &str) -> Option<SharedSigner> {
+            let outage = *self.failing_signers.get(id)?;
+            Some(Arc::new(FailingSigner {
+                key: self.signing_key.clone(),
+                outage,
+            }))
         }
     }
 
@@ -1451,6 +1511,9 @@ mod batch_build_tests {
                     "this external board has no key: its creation failed and must be repeated (refused)"
                 ));
             }
+            if let Some(signer) = self.failing_signer(election_event_id) {
+                return Ok(Some(ElectoralLog::for_system_with_signer(board, signer)));
+            }
             Ok((election_event_id != KEYLESS_EVENT)
                 .then(|| ElectoralLog::for_system_with_signing_key(board, &self.signing_key)))
         }
@@ -1464,7 +1527,10 @@ mod batch_build_tests {
                 return Err(anyhow!("connection reset"));
             }
             let board = format!("tenant-board-{tenant_id}");
-            let signer = ElectoralLog::for_system_with_signing_key(&board, &self.signing_key);
+            let signer = match self.failing_signer(tenant_id) {
+                Some(signer) => ElectoralLog::for_system_with_signer(&board, signer),
+                None => ElectoralLog::for_system_with_signing_key(&board, &self.signing_key),
+            };
             Ok((tenant_id != UNKNOWN_TENANT).then_some((board, signer)))
         }
 
@@ -1773,6 +1839,101 @@ mod batch_build_tests {
         assert!(reasons[0].contains("TenantActivity"), "{}", reasons[0]);
         assert!(reasons[1].contains("does not exist"), "{}", reasons[1]);
         assert!(reasons[2].contains("tenant's log"), "{}", reasons[2]);
+    }
+
+    #[tokio::test]
+    async fn a_cached_signer_that_is_unavailable_defers_its_events() {
+        let mut communication = keycloak_event(Some("down-2"), DOWN_SIGNER_EVENT);
+        communication.body = LogEventBody::Communications("hello".into());
+        let events = vec![
+            keycloak_event(Some("down-1"), DOWN_SIGNER_EVENT),
+            keycloak_event(Some("ok-1"), EVENT),
+            communication,
+            admin_event("down-3", DOWN_SIGNER_EVENT, "operator"),
+        ];
+        let mut lookups = FakeLookups::new();
+        lookups
+            .failing_signers
+            .insert(DOWN_SIGNER_EVENT, SignerOutage::Unavailable);
+
+        let built = build_batch(&mut lookups, &events).await.unwrap();
+
+        // Nothing is dead-lettered while the key service is down: each event
+        // waits for a retry, and the other board's event is stored.
+        assert!(built.dead_letters.is_empty(), "{:?}", dead_letter_ids(&built));
+        assert_eq!(built.deferred.len(), 3, "{:?}", built.deferred);
+        for (delivery, reason) in ["down-1", "down-2", "down-3"].iter().zip(&built.deferred) {
+            assert!(reason.contains(*delivery), "{reason}");
+            assert!(reason.contains("the key service is unreachable"), "{reason}");
+        }
+        assert!(built.deferred[0].contains("Error building keycloak event message"));
+        assert!(built.deferred[1].contains("Error building send template message"));
+        assert_eq!(
+            delivery_ids(&built.by_board[&format!("board-{EVENT}")]),
+            vec!["ok-1:event"]
+        );
+        assert!(!built
+            .by_board
+            .contains_key(&format!("board-{DOWN_SIGNER_EVENT}")));
+        assert!(
+            !built
+                .by_board
+                .keys()
+                .any(|board| board.starts_with("tenant-board")),
+            "not moved to the tenant log"
+        );
+        assert!(built.login_attempts.iter().all(|(id, _)| {
+            *id == login_counter_delivery_id("ok-1")
+        }));
+        // The signer was loaded once per board and kept for the batch.
+        assert_eq!(lookups.signer_calls, 2);
+    }
+
+    #[tokio::test]
+    async fn a_tenant_log_signer_that_is_unavailable_defers_its_events() {
+        let mut sent = tenant_event("t3", "SEND_CODE", json!({"error": null}));
+        sent.body = LogEventBody::Communications("your code".into());
+        let events = vec![
+            tenant_event("t1", "LOGIN", json!({"error": null})),
+            tenant_activity("t2", DELETED_AN_EVENT),
+            sent,
+            keycloak_event(Some("t4"), DELETED_EVENT),
+        ];
+        let mut lookups = FakeLookups::new();
+        lookups
+            .failing_signers
+            .insert(TENANT, SignerOutage::Unavailable);
+
+        let built = build_batch(&mut lookups, &events).await.unwrap();
+
+        assert!(built.dead_letters.is_empty(), "{:?}", dead_letter_ids(&built));
+        assert!(built.by_board.is_empty());
+        assert_eq!(built.deferred.len(), 4, "{:?}", built.deferred);
+        for (delivery, reason) in ["t1", "t2", "t3", "t4"].iter().zip(&built.deferred) {
+            assert!(reason.contains(*delivery), "{reason}");
+            assert!(reason.contains("the key service is unreachable"), "{reason}");
+        }
+    }
+
+    #[tokio::test]
+    async fn a_signer_that_refuses_to_sign_is_permanent() {
+        let events = vec![
+            keycloak_event(Some("k1"), DOWN_SIGNER_EVENT),
+            tenant_activity("t1", DELETED_AN_EVENT),
+        ];
+        let mut lookups = FakeLookups::new();
+        lookups
+            .failing_signers
+            .insert(DOWN_SIGNER_EVENT, SignerOutage::Refused);
+        lookups.failing_signers.insert(TENANT, SignerOutage::Refused);
+
+        let built = build_batch(&mut lookups, &events).await.unwrap();
+
+        assert!(built.deferred.is_empty(), "{:?}", built.deferred);
+        assert_eq!(dead_letter_ids(&built), vec![Some("k1"), Some("t1")]);
+        for (_, reason) in &built.dead_letters {
+            assert!(reason.contains("(refused)"), "{reason}");
+        }
     }
 
     #[tokio::test]

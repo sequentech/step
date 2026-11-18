@@ -8,12 +8,73 @@
 //! installation may instead plug in a signer that keeps its key elsewhere.
 //! Either way the signatures are the same Ed25519 signatures over the same
 //! bytes, and verifiers don't change.
+//!
+//! A signer that keeps its key elsewhere may be unable to sign for a while
+//! (its key service is unreachable or overloaded). It then fails with a
+//! [`SignerUnavailable`] in its error's chain: the message is not wrong, the
+//! signing should be tried again later. Callers tell the two apart with
+//! [`is_signer_unavailable`], which also sees the type under any
+//! `.context(...)` added on the way up; any other signing error is final.
+//! Code between a signer and such a caller must keep the error's chain
+//! (`?`, `.context(...)`), not rebuild it from its text.
 
 use std::collections::HashMap;
+use std::fmt;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Result};
 use voting_crypto::signing::{Signature, SigningKey, VerificationKey};
+
+/// A signer that holds its key elsewhere cannot sign right now; signing
+/// again later may succeed. Any other signing error is final.
+#[derive(Debug)]
+pub struct SignerUnavailable {
+    message: String,
+    source: Option<Box<dyn std::error::Error + Send + Sync + 'static>>,
+}
+
+impl SignerUnavailable {
+    /// Unavailable, for the reason `message` gives.
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            source: None,
+        }
+    }
+
+    /// Unavailable because of `source`, which is kept as the error's source.
+    pub fn because(
+        message: impl Into<String>,
+        source: impl std::error::Error + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            message: message.into(),
+            source: Some(Box::new(source)),
+        }
+    }
+}
+
+impl fmt::Display for SignerUnavailable {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for SignerUnavailable {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.source
+            .as_deref()
+            .map(|source| source as &(dyn std::error::Error + 'static))
+    }
+}
+
+/// Whether `error` is, or was caused by, a [`SignerUnavailable`]: a signing
+/// to try again later rather than a failure of the message. It is found
+/// anywhere in the chain of causes, and as a `.context(...)` too.
+pub fn is_signer_unavailable(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<SignerUnavailable>().is_some()
+        || error.chain().any(|cause| cause.is::<SignerUnavailable>())
+}
 
 /// Signs log messages with one Ed25519 key.
 pub trait MessageSigner: Send + Sync {
@@ -286,6 +347,63 @@ mod tests {
         // No fixed time is in force for it.
         let fixed = batch(&signer, |_| Ok(crate::BATCH_TIMESTAMP.with(|c| c.get()))).unwrap();
         assert_eq!(fixed, None);
+    }
+
+    /// A signer whose key service is down.
+    struct Down;
+
+    impl MessageSigner for Down {
+        fn public_key(&self) -> Result<VerificationKey> {
+            Err(SignerUnavailable::new("the key service is unreachable").into())
+        }
+        fn sign(&self, _bytes: &[u8]) -> Result<Signature> {
+            Err(SignerUnavailable::new("the key service is unreachable").into())
+        }
+        fn batches(&self) -> bool {
+            true
+        }
+    }
+
+    #[test]
+    fn an_unavailable_signer_is_seen_through_context() {
+        use anyhow::Context;
+        let unavailable = SignerUnavailable::because(
+            "the key service is unreachable",
+            std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "refused"),
+        );
+        let error = Err::<(), _>(unavailable)
+            .context("Error building keycloak event message")
+            .context("Error building the record")
+            .unwrap_err();
+        assert!(is_signer_unavailable(&error));
+        assert_eq!(
+            format!("{error:#}"),
+            "Error building the record: Error building keycloak event message: \
+             the key service is unreachable: refused"
+        );
+        assert!(!is_signer_unavailable(&anyhow!("the key service is unreachable")));
+        // Given as the context of another error.
+        let as_context = anyhow!("error sending request")
+            .context(SignerUnavailable::new("the key service is unreachable"))
+            .context("Error building keycloak event message");
+        assert!(is_signer_unavailable(&as_context));
+        assert!(!is_signer_unavailable(
+            &anyhow!("refused").context("Error building keycloak event message")
+        ));
+    }
+
+    #[test]
+    fn an_unavailable_signer_stays_unavailable_through_a_batch_and_a_message() {
+        let signer: SharedSigner = Arc::new(Down);
+        let error = batch(&signer, |s| s.sign(b"entry")).unwrap_err();
+        assert!(is_signer_unavailable(&error));
+        let error = crate::signature::sign(
+            signer.as_ref(),
+            crate::signature::Domain::Statement,
+            b"statement",
+        )
+        .unwrap_err();
+        assert!(is_signer_unavailable(&error));
     }
 
     #[test]
