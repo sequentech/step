@@ -46,7 +46,7 @@ pub fn get_datetime(event: &ScheduledEvent) -> Option<DateTime<Local>> {
     ISO8601::to_date(&scheduled_date).ok()
 }
 
-#[instrument(skip(celery_app), err)]
+#[instrument(skip_all, err)]
 pub async fn handle_allow_init_report(
     celery_app: Arc<Celery>,
     scheduled_event: &ScheduledEvent,
@@ -111,7 +111,7 @@ pub async fn handle_allow_init_report(
     Ok(())
 }
 
-#[instrument(skip(celery_app), err)]
+#[instrument(skip_all, err)]
 pub async fn handle_allow_voting_period_end(
     celery_app: Arc<Celery>,
     scheduled_event: &ScheduledEvent,
@@ -176,7 +176,7 @@ pub async fn handle_allow_voting_period_end(
     Ok(())
 }
 
-#[instrument(skip(celery_app), err)]
+#[instrument(skip_all, err)]
 pub async fn handle_voting_event(
     celery_app: Arc<Celery>,
     scheduled_event: &ScheduledEvent,
@@ -241,7 +241,7 @@ pub async fn handle_voting_event(
     Ok(())
 }
 
-#[instrument(skip(celery_app), err)]
+#[instrument(skip_all, err)]
 pub async fn handle_election_event_enrollment(
     celery_app: Arc<Celery>,
     scheduled_event: &ScheduledEvent,
@@ -313,7 +313,7 @@ pub async fn handle_election_lockdown(
     Ok(())
 }
 
-#[instrument(skip(celery_app), err)]
+#[instrument(skip_all, err)]
 pub async fn handle_election_allow_tally(
     celery_app: Arc<Celery>,
     scheduled_event: &ScheduledEvent,
@@ -381,7 +381,7 @@ pub async fn handle_election_allow_tally(
 
 /// A lifecycle window of one election (readiness test, final testing,
 /// test voting) opens or closes.
-#[instrument(skip(celery_app), err)]
+#[instrument(skip_all, err)]
 pub async fn handle_lifecycle_window(
     celery_app: Arc<Celery>,
     scheduled_event: &ScheduledEvent,
