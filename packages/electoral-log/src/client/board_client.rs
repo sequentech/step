@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::assign_value;
+use crate::client::index_hint::{
+    choose_index, table_indexes, IndexScan, TableIndex, PRIMARY_KEY_COLUMN,
+};
 use anyhow::{anyhow, Context, Result};
 use immudb_rs::{sql_value::Value, Client, CommittedSqlTx, NamedParam, Row, SqlValue, TxMode};
 use serde::{Deserialize, Serialize};
@@ -40,6 +43,8 @@ pub enum DeliveryReceipt {
 #[derive(Debug)]
 pub struct BoardClient {
     client: Client,
+    /// The secondary indexes of the electoral log table, by database.
+    indexes: HashMap<String, Vec<TableIndex>>,
 }
 
 #[derive(Debug, Clone, Display, PartialEq, Eq, Ord, PartialOrd)]
@@ -264,7 +269,10 @@ impl BoardClient {
         let mut client = Client::new(&server_url, username, password).await?;
         client.login().await?;
 
-        Ok(BoardClient { client: client })
+        Ok(BoardClient {
+            client: client,
+            indexes: HashMap::new(),
+        })
     }
 
     /// Get all electoral log messages whose id is bigger than `last_id`
@@ -348,9 +356,8 @@ impl BoardClient {
         Ok(messages)
     }
 
-    /// columns_matcher represents the columns that will be used to filter the messages,
-    /// The order as defined ElectoralLogVarCharColumn is important for preformance to match the indexes.
-    /// BTreeMap ensures the order is preserved no matter the insertion sequence.
+    /// columns_matcher represents the columns that will be used to filter the messages.
+    /// The query scans the board index that matches its `=` columns and order, if any.
     pub async fn get_electoral_log_messages_filtered<K: Display, V: Display>(
         &mut self,
         board_db: &str,
@@ -437,17 +444,30 @@ impl BoardClient {
             }
         }
 
+        let order_by = order_by.filter(|order_by| !order_by.is_empty());
+        let order_columns: Vec<String> = order_by
+            .iter()
+            .flat_map(|order_by| order_by.keys().map(|field| field.to_string()))
+            .collect();
         let order_by_clauses = if let Some(order_by) = order_by {
-            order_by
+            let sort_keys = order_by
                 .iter()
-                .map(|(field, direction)| format!("ORDER BY {field} {direction}"))
-                .collect::<Vec<String>>()
-                .join(", ")
+                .map(|(field, direction)| format!("{field} {direction}"))
+                .collect::<Vec<String>>();
+            format!("ORDER BY {}", sort_keys.join(", "))
         } else {
-            format!("ORDER BY id desc")
+            format!("ORDER BY {PRIMARY_KEY_COLUMN} desc")
         };
 
         self.client.use_database(board_db).await?;
+        let order_columns: Vec<&str> = order_columns.iter().map(String::as_str).collect();
+        let index_hint = self
+            .index_hint(
+                board_db,
+                &columns_matcher,
+                IndexScan::sorted_by(&order_columns),
+            )
+            .await;
         let sql = format!(
             r#"
         SELECT
@@ -463,7 +483,7 @@ impl BoardClient {
             statement_kind,
             message,
             version
-        FROM {ELECTORAL_LOG_TABLE}
+        FROM {ELECTORAL_LOG_TABLE} {index_hint}
         WHERE {where_clause}
         {min_clause}
         {max_clause}
@@ -544,6 +564,47 @@ impl BoardClient {
         Ok((messages, total_rows_fetched))
     }
 
+    /// The `USE INDEX` clause for a query on `board_db`, the current database, that matches the
+    /// `=` columns of `columns_matcher` and reads them as `scan` says, or none when the primary
+    /// key fits it better. The hint only speeds the query up, so without the board's indexes
+    /// there is none.
+    async fn index_hint(
+        &mut self,
+        board_db: &str,
+        columns_matcher: &Option<WhereClauseBTreeMap>,
+        scan: IndexScan<'_>,
+    ) -> String {
+        let equal_columns: Vec<String> = columns_matcher
+            .iter()
+            .flatten()
+            .filter(|(_, (op, _))| matches!(op, SqlCompOperators::Equal))
+            .map(|(column, _)| column.to_string())
+            .collect();
+        if equal_columns.is_empty() {
+            return String::new();
+        }
+        if !self.indexes.contains_key(board_db) {
+            match table_indexes(&mut self.client, ELECTORAL_LOG_TABLE).await {
+                Ok(indexes) => {
+                    self.indexes.insert(board_db.to_string(), indexes);
+                }
+                Err(err) => {
+                    warn!("Querying {board_db} without an index hint, its indexes can't be read: {err:?}");
+                    return String::new();
+                }
+            }
+        }
+        let indexes = self
+            .indexes
+            .get(board_db)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let equal_columns: Vec<&str> = equal_columns.iter().map(String::as_str).collect();
+        choose_index(indexes, &equal_columns, scan)
+            .map(TableIndex::use_index_clause)
+            .unwrap_or_default()
+    }
+
     #[instrument(err)]
     pub async fn count_electoral_log_messages(
         &mut self,
@@ -565,10 +626,13 @@ impl BoardClient {
         }
 
         self.client.use_database(board_db).await?;
+        let index_hint = self
+            .index_hint(board_db, &columns_matcher, IndexScan::Count)
+            .await;
         let sql = format!(
             r#"
             SELECT COUNT(*)
-            FROM {ELECTORAL_LOG_TABLE}
+            FROM {ELECTORAL_LOG_TABLE} {index_hint}
             WHERE {where_clause}
             "#,
         );
