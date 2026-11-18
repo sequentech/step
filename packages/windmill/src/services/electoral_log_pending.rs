@@ -28,7 +28,7 @@
 //! **What the batch task checks** before signing ([`PendingStatement::read`]):
 //! the row exists under the event's delivery ID and scope; it is this type
 //! (versioned, unknown fields refused); its kind is allowed and comes from
-//! its own origin (Datafix only, for an external API request); it is bound to
+//! its own origin; it is bound to
 //! the event's tenant and election event, under a delivery ID of its origin;
 //! its time is not in the future and not long before the row was written
 //! (the row's own `created_at`, which the producer does not choose); its
@@ -48,7 +48,7 @@ use anyhow::{anyhow, ensure, Context, Result};
 use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::{
     BallotPublicationFailure, CastVoteErrorString, ElectionIdString, ErrorMessageString,
-    EventIdString, ExtApiName, ExtApiRequestDirection, KeycloakEventTypeString, PseudonymHash,
+    EventIdString, KeycloakEventTypeString, PseudonymHash,
     VoterCountryString, VoterIpString,
 };
 use serde::{Deserialize, Serialize};
@@ -130,8 +130,6 @@ pub async fn load<C: tokio_postgres::GenericClient + Sync>(
 pub enum PendingOrigin {
     /// A refused ballot's audit (`insert_cast_vote`, `post_cast_vote_error`).
     CastVoteRefusal,
-    /// A Datafix request's result (`external::utils`).
-    ExternalApi,
     /// The enrollment-windows problems (`enrollment_windows`).
     EnrollmentWindows,
     /// A ballot publication's failure (`log_ballot_publication_failure`).
@@ -142,7 +140,6 @@ impl PendingOrigin {
     pub fn as_str(&self) -> &'static str {
         match self {
             PendingOrigin::CastVoteRefusal => "cast-vote-refusal",
-            PendingOrigin::ExternalApi => "external-api",
             PendingOrigin::EnrollmentWindows => "enrollment-windows",
             PendingOrigin::BallotPublication => "ballot-publication",
         }
@@ -167,15 +164,6 @@ pub enum PendingStatementBody {
         voter_id: String,
         area_id: String,
     },
-    /// `Message::external_api_request_message`, for Datafix only.
-    ExternalApiRequest {
-        election_id: Option<String>,
-        voter_id: Option<String>,
-        voter_username: Option<String>,
-        direction: ExtApiRequestDirection,
-        api_name: ExtApiName,
-        operation: String,
-    },
     /// `Message::keycloak_user_event` of type [`ENROLLMENT_PROBLEM_EVENT_TYPE`].
     EnrollmentProblems { problems: String },
     /// `Message::ballot_publication_failure_message`.
@@ -190,7 +178,6 @@ impl PendingStatementBody {
     pub fn origin(&self) -> PendingOrigin {
         match self {
             PendingStatementBody::CastVoteError { .. } => PendingOrigin::CastVoteRefusal,
-            PendingStatementBody::ExternalApiRequest { .. } => PendingOrigin::ExternalApi,
             PendingStatementBody::EnrollmentProblems { .. } => PendingOrigin::EnrollmentWindows,
             PendingStatementBody::BallotPublicationFailure { .. } => {
                 PendingOrigin::BallotPublication
@@ -219,23 +206,6 @@ impl PendingStatementBody {
                 VoterCountryString(String::new()),
                 Some(voter_id.clone()),
                 area_id.clone(),
-            ),
-            PendingStatementBody::ExternalApiRequest {
-                election_id,
-                voter_id,
-                voter_username,
-                direction,
-                api_name,
-                operation,
-            } => Message::external_api_request_message(
-                event,
-                ElectionIdString(election_id.clone()),
-                sd,
-                voter_id.clone(),
-                voter_username.clone(),
-                direction.clone(),
-                api_name.clone(),
-                operation.clone(),
             ),
             PendingStatementBody::EnrollmentProblems { problems } => Message::keycloak_user_event(
                 event,
@@ -268,16 +238,6 @@ impl PendingStatementBody {
                 area_id,
                 ..
             } => vec![optional(election_id), voter_id, area_id],
-            PendingStatementBody::ExternalApiRequest {
-                election_id,
-                voter_id,
-                voter_username,
-                ..
-            } => vec![
-                optional(election_id),
-                optional(voter_id),
-                optional(voter_username),
-            ],
             PendingStatementBody::EnrollmentProblems { .. } => vec![],
             PendingStatementBody::BallotPublicationFailure { failure, username } => vec![
                 failure.publication_id.0.as_str(),
@@ -291,7 +251,6 @@ impl PendingStatementBody {
     fn texts(&self) -> Vec<&str> {
         match self {
             PendingStatementBody::CastVoteError { error, .. } => vec![error],
-            PendingStatementBody::ExternalApiRequest { operation, .. } => vec![operation],
             PendingStatementBody::EnrollmentProblems { problems } => vec![problems],
             PendingStatementBody::BallotPublicationFailure { failure, .. } => {
                 vec![failure.error.0.as_str()]
@@ -446,12 +405,6 @@ impl PendingStatement {
             statement_kind(&self.statement),
             self.origin.as_str()
         );
-        if let PendingStatementBody::ExternalApiRequest { api_name, .. } = &self.statement {
-            ensure!(
-                *api_name == ExtApiName::Datafix,
-                "Only Datafix requests may be queued unsigned"
-            );
-        }
         Uuid::parse_str(&self.tenant_id).context("Invalid pending statement tenant")?;
         Uuid::parse_str(&self.election_event_id)
             .context("Invalid pending statement election event")?;
@@ -505,7 +458,6 @@ impl PendingStatement {
 fn statement_kind(statement: &PendingStatementBody) -> &'static str {
     match statement {
         PendingStatementBody::CastVoteError { .. } => "cast-vote-error",
-        PendingStatementBody::ExternalApiRequest { .. } => "external-api-request",
         PendingStatementBody::EnrollmentProblems { .. } => "enrollment-problems",
         PendingStatementBody::BallotPublicationFailure { .. } => "ballot-publication-failure",
     }
@@ -620,7 +572,13 @@ mod tests {
         value["origin"] = "anyone".into();
         row.statement = value;
         assert!(reread(&event, &row).is_err());
-        for kind in ["election-published", "cast-vote", "readiness-verified", "checkpoint"] {
+        for kind in [
+            "external-api-request",
+            "election-published",
+            "cast-vote",
+            "readiness-verified",
+            "checkpoint",
+        ] {
             let mut value = serde_json::to_value(&good).unwrap();
             value["statement"]["kind"] = kind.into();
             row.statement = value;
@@ -656,22 +614,6 @@ mod tests {
         let mut keycloak = event.clone();
         keycloak.message_type = LogMessageType::KeycloakEvent("LOGIN".into());
         assert!(reread(&keycloak, &stored).is_err());
-
-        // A request to another API.
-        let other_api = PendingStatement::new(
-            TENANT,
-            EVENT,
-            PendingStatementBody::ExternalApiRequest {
-                election_id: None,
-                voter_id: None,
-                voter_username: None,
-                direction: ExtApiRequestDirection::Outbound,
-                api_name: ExtApiName::Other,
-                operation: "x".into(),
-            },
-        );
-        let (event, row) = queued(&other_api);
-        assert!(reread(&event, &row).is_err());
 
         // An identifier that isn't printable, a field too long.
         let control = PendingStatement::new(

@@ -1119,28 +1119,19 @@ impl ElectoralLog {
         api_name: ExtApiName,
         operation: String,
     ) -> Result<()> {
-        let datafix = api_name == ExtApiName::Datafix;
-        let statement = PendingStatementBody::ExternalApiRequest {
-            election_id,
-            voter_id: voter_id.clone(),
-            voter_username: voter_username.clone(),
+        let event = EventIdString(event_id.clone());
+        let election = ElectionIdString(election_id);
+
+        let message = Message::external_api_request_message(
+            event,
+            election,
+            &self.sd,
+            voter_id.clone(),
+            voter_username.clone(),
             direction,
             api_name,
             operation,
-        };
-        // Already queued and best-effort (its callers only log a failure):
-        // a Datafix request's record is queued unsigned while the board's
-        // signer is unavailable, instead of lost.
-        let message = match statement.message(&event_id, &self.sd) {
-            Ok(message) => message,
-            Err(error) if datafix && is_signer_unavailable(&error) => {
-                return PendingStatement::new(&tenant_id, &event_id, statement)
-                    .queue()
-                    .await
-                    .map(|_| ());
-            }
-            Err(error) => return Err(error),
-        };
+        )?;
 
         let board_message: ElectoralLogMessage = (&message).try_into().with_context(|| {
             "Error converting Message::external_api_request_message into ElectoralLogMessage"
