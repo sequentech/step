@@ -341,6 +341,13 @@ jobs:
           -- --ignored --exact
         working-directory: packages/windmill
 
+      - name: Run PostgreSQL-backed document task claim regression
+        run: >-
+          cargo test
+          postgres::tasks_execution::claim_document_task_tests
+          -- --ignored
+        working-directory: packages/windmill
+
   # The PostgreSQL-backed checks of electoral-log, step-cli and Trellis. Each
   # selects a different package set, so in the Windmill job they rebuilt
   # windmill's dependencies and added about 7 minutes to the longest job of
