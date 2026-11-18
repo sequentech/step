@@ -10,7 +10,6 @@ export const GET_ELECTION_STATS = gql`
         $electionId: uuid!
         $startDate: String!
         $endDate: String!
-        $electionAlias: String
         $userTimezone: String!
         $timeResolution: String!
         $bucketCount: Int!
@@ -44,7 +43,6 @@ export const GET_ELECTION_STATS = gql`
                 tenant_id: $tenantId
                 election_event_id: $electionEventId
                 election_id: $electionId
-                authorized_to_election_alias: $electionAlias
             }
         ) {
             count
