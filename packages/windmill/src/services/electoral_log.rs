@@ -791,7 +791,7 @@ impl GetElectoralLogBody {
             let mut where_clauses = Vec::new();
 
             for (field, value) in filters_map {
-                info!("field = ?: {field}, value = ?: {value}");
+                info!("Filtering by {field}");
                 let param_name = format!("param_{field}");
                 match field {
                     OrderField::Id => { // sql INTEGER type

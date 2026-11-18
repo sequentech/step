@@ -174,6 +174,17 @@ pub async fn get_celery_app() -> Arc<Celery> {
     CELERY_APP.get().await.clone()
 }
 
+/// The AMQP URL without its credentials (`amqp://user:pass@host` becomes
+/// `amqp://***@host`), for log lines and error messages.
+fn redact_amqp_url(url: &str) -> String {
+    match (url.find("://"), url.rfind('@')) {
+        (Some(scheme_end), Some(at)) if at > scheme_end + 3 => {
+            format!("{}***{}", &url[..scheme_end + 3], &url[at..])
+        }
+        _ => url.to_string(),
+    }
+}
+
 #[instrument(skip_all)]
 async fn create_connection() -> Result<(Arc<Connection>, String)> {
     // you can use "amqp://rabbitmq2:5672,amqp://rabbitmq:5672" for $AMQP_ADDR to configure multiple nodes, separated by comma
@@ -186,8 +197,12 @@ async fn create_connection() -> Result<(Arc<Connection>, String)> {
     for amqp_url in amqp_urls {
         match Connection::connect(&amqp_url, ConnectionProperties::default())
             .await
-            .with_context(|| format!("Failed to connect to any AMQP server {}", amqp_url))
-        {
+            .with_context(|| {
+                format!(
+                    "Failed to connect to any AMQP server {}",
+                    redact_amqp_url(&amqp_url)
+                )
+            }) {
             Ok(connection) => {
                 let arc_conn = Arc::new(connection);
                 // Set the global connection so it can be reused.
@@ -197,7 +212,11 @@ async fn create_connection() -> Result<(Arc<Connection>, String)> {
             }
             Err(e) => {
                 // Log the error and try the next URL.
-                info!("Failed to connect to AMQP server '{}': {:?}", amqp_url, e);
+                info!(
+                    "Failed to connect to AMQP server '{}': {:?}",
+                    redact_amqp_url(&amqp_url),
+                    e
+                );
                 last_error = Some(e);
             }
         }
@@ -359,4 +378,25 @@ pub async fn get_celery_connection() -> Result<Arc<Connection>> {
 
     // No connection exists, create a new one
     create_connection().await.map(|(connection, _)| connection)
+}
+
+#[cfg(test)]
+mod amqp_url_tests {
+    use super::redact_amqp_url;
+
+    #[test]
+    fn credentials_are_hidden() {
+        assert_eq!(
+            redact_amqp_url("amqp://guest:C90Secret@rabbitmq:5672/%2f"),
+            "amqp://***@rabbitmq:5672/%2f"
+        );
+    }
+
+    #[test]
+    fn a_url_without_credentials_is_unchanged() {
+        assert_eq!(
+            redact_amqp_url("amqp://rabbitmq:5672"),
+            "amqp://rabbitmq:5672"
+        );
+    }
 }
