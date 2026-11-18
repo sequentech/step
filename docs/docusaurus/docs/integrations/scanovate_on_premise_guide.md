@@ -446,8 +446,10 @@ SCANOVATE_LOGIN_THEME=sequent-ui-voting \
 `SCANOVATE_FACE_MATCH_MIN_SIMILARITY` to change the threshold
 (`{"default": 0.67}`), `SCANOVATE_DOCUMENT_LIVENESS_PIPELINES` for the
 document checks (all four by default), `SCANOVATE_HOLDING_PHOTO` (`REQUIRED` or `NONE`) for the
-photo holding the document, and `SCANOVATE_HOLDING_SECONDS` for its holding
-time (`video-seconds`, 5 by default). The script also deletes the settings of
+photo holding the document, `SCANOVATE_HOLDING_SECONDS` for its holding
+time (`video-seconds`, 5 by default), and `SCANOVATE_PAGE_LANGUAGES` (e.g.
+`en,tl`) for the languages of Scanovate's pages (`page-languages`, see
+[Languages](#languages)). The script also deletes the settings of
 the earlier integrations, including `ocr-url`, `capture-sides` and
 `max-image-bytes` of our former capture page, which the authenticator
 ignores. `KEYCLOAK_URL`, `KEYCLOAK_ADMIN` and
@@ -574,8 +576,11 @@ The service reads JSON files from `/app/config`. The dev container replaces
 `service_config.json`, with
 `.devcontainer/scanovate/liveness/service_config.json`, and adds our UI theme,
 `.devcontainer/scanovate/liveness/sequent_ui.json` (see
-[Theming](#theming)); the others (`scan_config.json`, `video_config.json`,
-`default_ui.json` and the texts under `locales/`) are the image's own.
+[Theming](#theming)), and the page's texts in Filipino,
+`.devcontainer/scanovate/liveness/locales/tl.json` (see
+[Languages](#languages)); the others (`scan_config.json`, `video_config.json`,
+`default_ui.json` and the English and Hebrew texts under `locales/`) are the
+image's own.
 
 Our `service_config.json` is Scanovate's with the `onprem` section pointing to
 Keycloak (see [Integration contract](#integration-contract)), without the video
@@ -596,7 +601,7 @@ server catches presentation attacks. Its `onprem` section:
 | `send_debug_results_to_server` | `false` | Also post the full internal session. |
 | `send_video_in_results` | `false` | Include the video of the session in the result. Keycloak doesn't use it. |
 | `send_results_to_client` | `false` | Return the result to the browser. Keep it `false`: the browser is never trusted. |
-| `default_parameters` | `scan_config`, `video_config`, `default`, `en`, `sequent_ui` | Configuration files, texts and theme used when the page URL doesn't name them. Keycloak's page URLs only carry `case_id` and `token` (and OCR's `ocr_type`). |
+| `default_parameters` | `scan_config`, `video_config`, `default`, `en`, `sequent_ui` | Configuration files, texts and theme used when the page URL doesn't name them. Keycloak's page URLs only carry `case_id` and `token` (and OCR's `ocr_type`), plus `translation_language` for a voter whose language is in `page-languages`. |
 
 Other settings of the file: sessions expire after 90 seconds
 (`expiry_timeout_in_seconds`) and are deleted 5 minutes later
@@ -983,6 +988,33 @@ own CSS declares. To change a theme, start from the image's `default_ui.json`
 (e.g. `docker run --rm --entrypoint cat <image> /app/config/default_ui.json`)
 so that no key is missing, and recreate the service: it reads the file when it
 creates a session.
+
+### Languages
+
+The texts of each page are locale files of its service,
+`/app/config/locales/<variant>/<language>.json`, chosen by the page's
+`translation_variant` and `translation_language` parameters or by
+`onprem.default_parameters`. The images bring English (`en`) and Hebrew
+(`he`); we add Filipino (`tl`, the code of Keycloak's locale) to both:
+
+| Service | File | Mounted as |
+| --- | --- | --- |
+| OCR | `.devcontainer/scanovate/ocr/locales/tl.json` | `/app/config/locales/default/tl.json` |
+| Liveness Plus | `.devcontainer/scanovate/liveness/locales/tl.json` | `/app/config/locales/default/tl.json` |
+
+Keycloak asks for the voter's language (`translation_language=tl`) only when
+the authenticator's `page-languages` lists it, e.g. `en,tl`; otherwise the
+pages use the default of the services. List only languages that **both**
+services have: a page asked for a language without a locale file can't create
+its session and reports client error 1001. A service reads a locale file when
+it creates a session, so a new file needs no restart.
+
+To add a language, start from the image's `en.json` of each service (e.g.
+`docker run --rm --entrypoint cat <image> /app/config/locales/default/en.json`)
+so that no key is missing, translate the values and keep the `{{SIZE}}` and
+`{{SIDE}}` placeholders. The texts of Keycloak's own pages, including the photo
+holding the document, are in the `messages_<language>.properties` of the
+`scanovate-authenticator` bundle.
 
 ### Air-gapped networks
 

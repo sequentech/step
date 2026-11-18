@@ -40,6 +40,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -57,6 +58,7 @@ import org.keycloak.http.HttpRequest;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticationFlowModel;
 import org.keycloak.models.AuthenticatorConfigModel;
+import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakUriInfo;
 import org.keycloak.models.RealmModel;
@@ -86,6 +88,7 @@ class ScanovateAuthenticatorTest {
   private static final byte[] HOLDING = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 'h', 'o', 'l', 'd'};
 
   private final Map<String, String> config = new HashMap<>();
+  private KeycloakSession session;
   private final Map<String, String> authNotes = new HashMap<>();
   private final MultivaluedHashMap<String, String> formParams = new MultivaluedHashMap<>();
 
@@ -231,7 +234,7 @@ class ScanovateAuthenticatorTest {
             ignored -> documentLiveness,
             ignored -> holdingPhotos);
 
-    KeycloakSession session = mock(KeycloakSession.class);
+    session = mock(KeycloakSession.class);
     SecurityHeadersProvider headersProvider = mock(SecurityHeadersProvider.class);
     securityHeaders = mock(SecurityHeadersOptions.class, RETURNS_SELF);
     when(headersProvider.options()).thenReturn(securityHeaders);
@@ -557,6 +560,47 @@ class ScanovateAuthenticatorTest {
   }
 
   @SuppressWarnings("unchecked")
+  @Test
+  void thePagesSpeakTheVotersLanguageWhenTheyHaveIt() {
+    config.put(ScanovateAuthenticatorFactory.PAGE_LANGUAGES, "en,tl");
+    KeycloakContext keycloakContext = mock(KeycloakContext.class);
+    when(session.getContext()).thenReturn(keycloakContext);
+    when(keycloakContext.resolveLocale(any())).thenReturn(Locale.forLanguageTag("tl"));
+
+    authenticator.authenticate(context);
+
+    Map<String, Object> page = capturePage();
+    assertEquals(
+        Map.of(
+            ScanovateAuthenticator.FTL_PAGE_URL,
+            "https://liveness.example.com:8443/ocr/?ocr_type=passport&translation_language=tl"
+                + "&case_id="
+                + caseId()
+                + "&token="
+                + authNotes.get(ScanovateAuthenticator.OCR_TOKEN_NOTE)),
+        page.get(ScanovateAuthenticator.FTL_OCR));
+    assertEquals(
+        Map.of(
+            ScanovateAuthenticator.FTL_PAGE_URL,
+            "https://liveness.example.com:8443/liveness/?translation_language=tl&case_id="
+                + caseId()
+                + "&token="
+                + authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE)),
+        page.get(ScanovateAuthenticator.FTL_LIVENESS));
+  }
+
+  @Test
+  void aLanguageThePagesDoNotHaveLeavesTheirDefault() {
+    config.put(ScanovateAuthenticatorFactory.PAGE_LANGUAGES, "en,tl");
+    KeycloakContext keycloakContext = mock(KeycloakContext.class);
+    when(session.getContext()).thenReturn(keycloakContext);
+    when(keycloakContext.resolveLocale(any())).thenReturn(Locale.forLanguageTag("es"));
+
+    authenticator.authenticate(context);
+
+    verifyCapturePage(3);
+  }
+
   private Map<String, Object> capturePage() {
     ArgumentCaptor<Map<String, Object>> page = ArgumentCaptor.forClass(Map.class);
     verify(form).setAttribute(eq(ScanovateAuthenticator.FTL_SCANOVATE), page.capture());

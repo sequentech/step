@@ -29,6 +29,9 @@
 #   SCANOVATE_HOLDING_SECONDS: if set, video-seconds, the seconds the voter
 #     holds still with the document before the holding photo is taken
 #     (default 5).
+#   SCANOVATE_PAGE_LANGUAGES: if set, page-languages, the comma-separated
+#     languages both OCR and Liveness Plus have a locale file for (e.g. en,tl):
+#     voters get Scanovate's pages in their language when it is listed.
 #   SCANOVATE_LOGIN_THEME: if set, the login theme of the realm, and of its
 #     clients that set their own, e.g. sequent-ui-voting, which has the
 #     capture page.
@@ -106,6 +109,7 @@ configure() {
         --arg min_similarity "${SCANOVATE_FACE_MATCH_MIN_SIMILARITY:-{\"default\": 0.67\}}" \
         --arg holding_photo "${SCANOVATE_HOLDING_PHOTO:-REQUIRED}" \
         --arg holding_seconds "${SCANOVATE_HOLDING_SECONDS:-}" \
+        --arg page_languages "${SCANOVATE_PAGE_LANGUAGES:-}" \
         '.config |= (
           del(."base-url", ."client-id", ."client-secret", ."flow-id", ."execution-mode",
               ."save-option", ."link-params", ."doc-id", ."face-capture", ."max-retries",
@@ -120,7 +124,8 @@ configure() {
             "document-liveness-pipelines": $document_liveness_pipelines,
             "holding-photo": $holding_photo
           }
-          + (if $holding_seconds == "" then {} else {"video-seconds": $holding_seconds} end))' <<<"$config"
+          + (if $holding_seconds == "" then {} else {"video-seconds": $holding_seconds} end)
+          + (if $page_languages == "" then {} else {"page-languages": $page_languages} end))' <<<"$config"
     )"
     curl -sSf -X PUT -H "Authorization: Bearer $token" -H "Content-Type: application/json" \
       --data "$updated" "$admin/config/$config_id"
