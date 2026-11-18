@@ -1565,7 +1565,7 @@ impl GetElectoralLogBody {
             let mut where_clauses = Vec::new();
 
             for (field, value) in filters_map {
-                info!("field = ?: {field}, value = ?: {value}");
+                info!("Filtering by {field}");
                 let param_name = format!("param_{field}");
                 match field {
                     OrderField::Id => { // sql INTEGER type
@@ -2094,7 +2094,7 @@ fn is_last_cast_vote_batch(rows_fetched: usize) -> bool {
 /// Returns the entries for statement_kind = "CastVote" which ballot_id starts with the input
 /// ballot_id_filter, which is restricted to an even number of hex characters, so that can be
 /// converted to a byte array
-#[instrument(err)]
+#[instrument(skip_all, err)]
 pub async fn list_cast_vote_messages(
     input: GetElectoralLogBody,
     ballot_id_filter: &str,

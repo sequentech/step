@@ -17,7 +17,7 @@ use crate::tasks::render_report::{FormatType, RenderTemplateBody};
 use sequent_core::types::number_format::{NumberFormatPolicy, NUMBER_FORMAT_POLICY_VARIABLE};
 use sequent_core::util::temp_path::write_into_named_temp_file;
 
-#[instrument(err, skip(hasura_transaction))]
+#[instrument(skip_all, err)]
 pub async fn render_report_task(
     hasura_transaction: &Transaction<'_>,
     input: RenderTemplateBody,
