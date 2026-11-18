@@ -172,7 +172,7 @@ pub struct StoredPending {
 const MAC_DOMAIN: &[u8] = b"electoral-log pending v1";
 
 /// A system-signed pending statement's MAC: HMAC-SHA256 under the tenant's
-/// `electoral-log-pending-mac` vault secret, over the domain, the delivery ID
+/// `electoral-log-pending-mac:<tenant id>` vault secret, over the domain, the delivery ID
 /// (length-prefixed) and the statement's JSON as its type writes it.
 pub fn pending_mac(key: &[u8; 32], delivery_id: &str, statement: &PendingStatement) -> Result<Vec<u8>> {
     use hmac::{Hmac, Mac};

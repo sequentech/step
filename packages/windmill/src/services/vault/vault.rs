@@ -313,8 +313,15 @@ pub async fn get_admin_user_signing_key_to_announce(
     Ok((sk, Some(new_key)))
 }
 
-/// The vault key of a tenant's electoral-log pending-statement MAC key.
+/// The prefix of the vault key of a tenant's electoral-log pending-statement
+/// MAC key. The secret table's keys are unique across tenants, so each
+/// tenant's is `<prefix>:<tenant id>` ([`pending_mac_key_name`]).
 pub const PENDING_MAC_KEY: &str = "electoral-log-pending-mac";
+
+/// The vault key of `tenant_id`'s pending-statement MAC key.
+pub fn pending_mac_key_name(tenant_id: &str) -> String {
+    format!("{PENDING_MAC_KEY}:{tenant_id}")
+}
 
 /// The tenant's pending-statement MAC key, if it has one (32 bytes, kept
 /// encrypted under the master secret like every vault secret).
@@ -323,8 +330,13 @@ pub async fn pending_mac_key(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
 ) -> Result<Option<[u8; 32]>> {
-    read_secret(hasura_transaction, tenant_id, None, PENDING_MAC_KEY)
-        .await?
+    // A key made before keys were per tenant (one tenant could have one,
+    // under the bare prefix) is still read.
+    let stored = match read_secret(hasura_transaction, tenant_id, None, &pending_mac_key_name(tenant_id)).await? {
+        Some(stored) => Some(stored),
+        None => read_secret(hasura_transaction, tenant_id, None, PENDING_MAC_KEY).await?,
+    };
+    stored
         .map(|hex_key| {
             hex::decode(hex_key.trim())
                 .ok()
@@ -345,7 +357,7 @@ pub async fn get_or_create_pending_mac_key(
     hasura_transaction
         .query(
             "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
-            &[&format!("{PENDING_MAC_KEY}:{tenant_id}")],
+            &[&pending_mac_key_name(tenant_id)],
         )
         .await
         .context("Error locking the pending-statement MAC key")?;
@@ -354,7 +366,14 @@ pub async fn get_or_create_pending_mac_key(
     }
     let mut key = [0u8; 32];
     rand::RngCore::fill_bytes(&mut rand::rng(), &mut key);
-    save_secret(hasura_transaction, tenant_id, None, PENDING_MAC_KEY, &hex::encode(key)).await?;
+    save_secret(
+        hasura_transaction,
+        tenant_id,
+        None,
+        &pending_mac_key_name(tenant_id),
+        &hex::encode(key),
+    )
+    .await?;
     Ok(key)
 }
 

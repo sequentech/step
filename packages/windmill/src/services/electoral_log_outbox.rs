@@ -710,6 +710,20 @@ mod db_tests {
             .unwrap_or_else(|_| "90505c8a-23a9-4cdf-a26b-4e19f6a097d5".to_string())
     }
 
+    /// The tenant row the vault's secrets reference (a freshly migrated test
+    /// database has none).
+    async fn ensure_tenant(client: &tokio_postgres::Client, tenant: &str) {
+        let id = uuid::Uuid::parse_str(tenant).unwrap();
+        client
+            .execute(
+                "INSERT INTO sequent_backend.tenant (id, slug) VALUES ($1, $2) \
+                 ON CONFLICT (id) DO NOTHING",
+                &[&id, &format!("electoral-log-test-{tenant}")],
+            )
+            .await
+            .unwrap();
+    }
+
     async fn queue_database() -> deadpool_postgres::Pool {
         let url = std::env::var("PGMQ_TEST_DATABASE_URL").expect("PGMQ_TEST_DATABASE_URL");
         if std::env::var("QUEUE_DB__URL").is_err() {
@@ -749,6 +763,7 @@ mod db_tests {
         );
         let delivery_id = statement.origin.delivery_id();
         let mut client = pool.get().await.unwrap();
+        ensure_tenant(&client, &statement.tenant_id).await;
         let tx = client.transaction().await.unwrap();
         let key = crate::services::vault::get_or_create_pending_mac_key(&tx, &statement.tenant_id)
             .await
@@ -966,6 +981,7 @@ mod db_tests {
         }
         let pool = pool();
         let tenant = tenant();
+        ensure_tenant(&pool.get().await.unwrap(), &tenant).await;
         let (a, b) = tokio::join!(create(&pool, &tenant), create(&pool, &tenant));
         assert_eq!(a, b, "one key");
     }

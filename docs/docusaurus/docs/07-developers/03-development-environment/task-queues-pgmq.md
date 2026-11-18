@@ -288,7 +288,7 @@ dead-lettered entries to unblock a log unless losing them is intended.
 Unsigned electoral-log statements that best-effort producers (Windmill and Harvest:
 refused-ballot audits, ballot-publication failures, enrollment problems) record while
 the signer is unavailable go to `sequent_backend.electoral_log_outbox` with an
-HMAC-SHA256 under the tenant's `electoral-log-pending-mac` vault secret. The relay and
+HMAC-SHA256 under the tenant's `electoral-log-pending-mac:<tenant id>` vault secret. The relay and
 the batch task refuse a statement without a valid MAC, so it is never signed.
 
 Trust boundary: the MAC key lives in the vault, encrypted under `MASTER_SECRET`; the
@@ -329,8 +329,24 @@ its dead letter if it has one; to give the entry up, remove its row
 (`DELETE FROM step_queue.electoral_log_waiting WHERE delivery_id = '<id>'`) as the
 task-queue database owner, and record why.
 
-The integration tests of the queues (`cargo test -p windmill -- --ignored`) need
-`PGMQ_TEST_DATABASE_URL`, a disposable database with PGMQ.
+The integration tests of the queues, the outbox relay and the pending statements
+(`cargo test -p windmill --lib -- --ignored`) need disposable databases (they can
+be one database):
+
+- `PGMQ_TEST_DATABASE_URL`: with PGMQ (the task-queue tests set it up).
+- `HASURA_TEST_DATABASE_URL`: with every Hasura migration applied
+  (`hasura/migrations/backend-db`).
+- `ELECTORAL_LOG_TEST_DATABASE_URL`: for the electoral-log boards.
+- The vault's settings: `SECRETS_BACKEND=EnvVarMasterSecret` and a `MASTER_SECRET`.
+- `HASURA_TEST_TENANT_ID` (optional; by default the bundled tenant). The tests
+  insert the tenant row the vault's secrets reference when it is missing.
+
+The checkpoint-copy tests also need the S3 settings (`AWS_REGION` and the bucket's).
+
+The worker-only `step_queue.electoral_log_waiting` table is worker-only only where
+the queue roles are separate (`queue_producer`, `queue_worker`, `queue_reader`, as
+the EMS and the offline server configure them); a deployment that connects every
+service as the queue owner has no such boundary.
 
 ## Remaining meta#15035 work
 
