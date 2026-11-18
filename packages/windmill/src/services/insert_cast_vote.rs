@@ -267,7 +267,7 @@ async fn insert_datafix_cast_vote_locked<'a>(
 /// Maps a post-insert error to the caller's retry contract: an exceeded revote
 /// limit is terminal and surfaced as `SkipRetryFailure`, every other error
 /// propagates for the normal retry path.
-#[instrument]
+#[instrument(skip_all)]
 fn skip_or_propagate(cast_vote_err: CastVoteError) -> Result<InsertCastVoteResult, CastVoteError> {
     match cast_vote_err {
         CastVoteError::InsertFailedExceedsAllowedRevotes

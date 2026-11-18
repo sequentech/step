@@ -21,7 +21,7 @@ use std::collections::HashSet;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 
-#[instrument]
+#[instrument(skip_all)]
 fn get_board_record(record: StringRecord) -> Result<(String, B3MessageRow)> {
     let fields: Vec<String> = record.iter().map(|val| val.to_string()).collect();
 
@@ -78,7 +78,7 @@ fn get_board_record(record: StringRecord) -> Result<(String, B3MessageRow)> {
     Ok((election_id, row))
 }
 
-#[instrument]
+#[instrument(skip_all)]
 fn get_board_name_for_event_or_election(
     tenant_id: &str,
     election_event_id: &str,

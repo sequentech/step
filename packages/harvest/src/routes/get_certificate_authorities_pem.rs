@@ -11,7 +11,7 @@ use windmill::services::database::get_hasura_pool;
 
 /// Returns all CA certificates for the given election event as a
 /// concatenated PEM bundle (plain text, no authentication required).
-#[instrument]
+#[instrument(skip_all)]
 #[get(
     "/election-event/<election_event_id>/certificate-authorities/pem",
     format = "any"
