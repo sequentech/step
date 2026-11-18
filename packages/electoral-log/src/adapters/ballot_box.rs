@@ -16,6 +16,7 @@ use chrono::{DateTime, Utc};
 use std::time::{Duration, Instant};
 use strum_macros::{Display, EnumString};
 use tokio_postgres::error::SqlState;
+use voting_crypto::ballot::BallotCiphertext;
 
 /// Status of a stored ballot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumString)]
@@ -82,6 +83,9 @@ pub enum AcceptOutcome {
     DuplicateBallotId,
     /// The ballot box of the election's area is sealed and takes no more ballots.
     BallotBoxSealed,
+    /// Another voter already cast one of the ballot's ciphertexts in this
+    /// election event.
+    CiphertextAlreadyCast,
     /// No ballot received for the voter under this Ballot ID and ballot hash waits
     /// to be cast: there is none, or it was audited.
     NotReceivable,
@@ -142,9 +146,9 @@ WITH voter AS (
     INSERT INTO ballot_box_ballot
         (election_event_id, ballot_id, election_id, area_id, voter_id, format, content,
          voter_signature, pseudonym_hash, ballot_hash, voting_channel, status, voter_ip,
-         voter_country, username)
+         voter_country, username, ciphertext_fingerprints)
     SELECT election_event_id, $5, $2::text::uuid, $4::text::uuid, $3, $7, $8, $9, $10, $11,
-           $12, $13, $14, $15, $16
+           $12, $13, $14, $15, $16, $17
     FROM voter
     RETURNING election_event_id, seq, id
 ), queued AS (
@@ -160,7 +164,7 @@ const ACCEPT_RECEIVED: &str = r#"
 WITH gate AS (
     SELECT election_event_id, id FROM ballot_box_received
     WHERE election_event_id = $1::text::uuid AND election_id = $2::text::uuid
-      AND voter_id = $3 AND ballot_id = $17 AND ballot_hash = $5 AND status = 'received'
+      AND voter_id = $3 AND ballot_id = $18 AND ballot_hash = $5 AND status = 'received'
     FOR UPDATE
 ), voter AS (
     INSERT INTO ballot_box_voter AS v
@@ -178,9 +182,9 @@ WITH gate AS (
     INSERT INTO ballot_box_ballot
         (election_event_id, ballot_id, election_id, area_id, voter_id, format, content,
          voter_signature, pseudonym_hash, ballot_hash, voting_channel, status, voter_ip,
-         voter_country, username, accepted_at)
+         voter_country, username, ciphertext_fingerprints, accepted_at)
     SELECT election_event_id, $5, $2::text::uuid, $4::text::uuid, $3, $7, $8, $9, $10, $11,
-           $12, $13, $14, $15, $16, $18::timestamptz
+           $12, $13, $14, $15, $16, $17, $19::timestamptz
     FROM voter
     RETURNING election_event_id, seq, id
 ), queued AS (
@@ -188,8 +192,8 @@ WITH gate AS (
     SELECT election_event_id, seq FROM ballot
 ), marked AS (
     UPDATE ballot_box_received r
-    SET status = 'cast', cast_at = $18::timestamptz, cast_signature = $19,
-        cast_receipt_signature = $20
+    SET status = 'cast', cast_at = $19::timestamptz, cast_signature = $20,
+        cast_receipt_signature = $21
     FROM gate, ballot
     WHERE r.election_event_id = gate.election_event_id AND r.id = gate.id
 )
@@ -203,10 +207,43 @@ const RECEIVED_STATUS: &str = "SELECT status FROM ballot_box_received \
 const VOTER_STATE: &str = "SELECT area_id::text, votes, last_ballot_id FROM ballot_box_voter \
      WHERE election_event_id = $1::text::uuid AND election_id = $2::text::uuid AND voter_id = $3";
 
-/// Parameters `$1` to `$16` of `ACCEPT` and `ACCEPT_RECEIVED`.
+/// The fingerprints of the ciphertexts of a ballot's content, as
+/// [`BallotCiphertext::fingerprint`] computes them: one per entry of its
+/// `contests`, a list for a ballot that encrypts each contest on its own, a single
+/// entry for one that encrypts them together. Sorted, without repeats. `None`
+/// when the content holds no readable ciphertexts, as test fixtures store: the
+/// cast path parses and verifies a ballot's ciphertexts before it accepts it.
+pub fn ciphertext_fingerprints(content: &str) -> Option<Vec<Vec<u8>>> {
+    let contests = serde_json::from_str::<serde_json::Value>(content)
+        .ok()?
+        .get("contests")?
+        .clone();
+    let entries: Vec<String> = match contests {
+        serde_json::Value::String(entry) => vec![entry],
+        serde_json::Value::Array(entries) => entries
+            .into_iter()
+            .map(|entry| entry.as_str().map(str::to_owned))
+            .collect::<Option<_>>()?,
+        _ => return None,
+    };
+    let mut fingerprints = entries
+        .iter()
+        .map(|entry| {
+            <BallotCiphertext>::parse(entry)
+                .ok()
+                .map(|entry| entry.fingerprint().to_vec())
+        })
+        .collect::<Option<Vec<_>>>()?;
+    fingerprints.sort_unstable();
+    fingerprints.dedup();
+    (!fingerprints.is_empty()).then_some(fingerprints)
+}
+
+/// Parameters `$1` to `$17` of `ACCEPT` and `ACCEPT_RECEIVED`.
 fn accept_parameters<'a>(
     ballot: &'a AcceptBallot<'_>,
     status: &'a (dyn tokio_postgres::types::ToSql + Sync),
+    fingerprints: &'a (dyn tokio_postgres::types::ToSql + Sync),
 ) -> Vec<&'a (dyn tokio_postgres::types::ToSql + Sync)> {
     vec![
         &ballot.election_event_id,
@@ -225,6 +262,7 @@ fn accept_parameters<'a>(
         &ballot.voter_ip,
         &ballot.voter_country,
         &ballot.username,
+        fingerprints,
     ]
 }
 
@@ -266,9 +304,20 @@ fn error_outcome(error: tokio_postgres::Error) -> Result<AcceptOutcome> {
         Ok(AcceptOutcome::DuplicateBallotId)
     } else if is_ballot_box_sealed(&error) {
         Ok(AcceptOutcome::BallotBoxSealed)
+    } else if is_ciphertext_already_cast(&error) {
+        Ok(AcceptOutcome::CiphertextAlreadyCast)
     } else {
         Err(error).context("Error accepting the ballot")
     }
+}
+
+/// The refusal of `ballot_box_ciphertext_guard`.
+const CIPHERTEXT_ALREADY_CAST: &str = "ciphertext_already_cast";
+
+pub(crate) fn is_ciphertext_already_cast(error: &tokio_postgres::Error) -> bool {
+    error.as_db_error().is_some_and(|db| {
+        db.code() == &SqlState::INSUFFICIENT_PRIVILEGE && db.message() == CIPHERTEXT_ALREADY_CAST
+    })
 }
 
 fn voter_state_from_row(row: tokio_postgres::Row) -> VoterState {
@@ -580,8 +629,12 @@ impl PostgresStore {
             .await
             .context("Error preparing the statement that accepts ballots")?;
         let status = ballot.status.to_string();
+        let fingerprints = ciphertext_fingerprints(ballot.content);
         let accepted = client
-            .query_opt(&statement, &accept_parameters(ballot, &status))
+            .query_opt(
+                &statement,
+                &accept_parameters(ballot, &status, &fingerprints),
+            )
             .await;
         match accepted {
             Ok(Some(row)) => Ok(accepted_outcome(&row)),
@@ -606,7 +659,8 @@ impl PostgresStore {
             .await
             .context("Error preparing the statement that casts received ballots")?;
         let status = ballot.status.to_string();
-        let mut parameters = accept_parameters(ballot, &status);
+        let fingerprints = ciphertext_fingerprints(ballot.content);
+        let mut parameters = accept_parameters(ballot, &status, &fingerprints);
         parameters.extend_from_slice(&[
             &received.ballot_id,
             &received.cast_at,
@@ -636,10 +690,11 @@ impl PostgresStore {
         );
         let client = self.client().await?;
         let statement = client
-            .prepare_cached(&acceptance_with_forensics(ACCEPT_RECEIVED, 21))
+            .prepare_cached(&acceptance_with_forensics(ACCEPT_RECEIVED, 22))
             .await?;
         let status = ballot.status.to_string();
-        let mut parameters = accept_parameters(ballot, &status);
+        let fingerprints = ciphertext_fingerprints(ballot.content);
+        let mut parameters = accept_parameters(ballot, &status, &fingerprints);
         parameters.extend_from_slice(&[
             &received.ballot_id,
             &received.cast_at,
@@ -671,10 +726,11 @@ impl PostgresStore {
         );
         let client = self.client().await?;
         let statement = client
-            .prepare_cached(&acceptance_with_forensics(ACCEPT, 17))
+            .prepare_cached(&acceptance_with_forensics(ACCEPT, 18))
             .await?;
         let status = ballot.status.to_string();
-        let mut parameters = accept_parameters(ballot, &status);
+        let fingerprints = ciphertext_fingerprints(ballot.content);
+        let mut parameters = accept_parameters(ballot, &status, &fingerprints);
         parameters.extend_from_slice(&[
             &record.delivery_id,
             &record.ballot_id,
@@ -840,6 +896,50 @@ impl PostgresStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use voting_crypto::ballot::encrypt_payload;
+    use voting_crypto::{Context as _, RistrettoCtx};
+
+    fn entry(contest_ids: &[&str]) -> BallotCiphertext {
+        let joint_key = RistrettoCtx::random_element();
+        let (ciphertext, _) = encrypt_payload(7, &joint_key, &[1; 30]).expect("encrypts");
+        BallotCiphertext::new(
+            contest_ids.iter().map(|id| id.to_string()).collect(),
+            ciphertext,
+        )
+    }
+
+    #[test]
+    fn fingerprints_come_from_the_ciphertexts_of_both_ballot_formats() {
+        let first = entry(&["a"]);
+        let second = entry(&["b"]);
+        let copy = BallotCiphertext::new(vec!["c".to_string()], first.ciphertext.clone());
+        let single = serde_json::json!({
+            "contests": [first.encode(), second.encode(), copy.encode()],
+        })
+        .to_string();
+        let multi = serde_json::json!({ "contests": first.encode() }).to_string();
+
+        let mut expected = vec![first.fingerprint().to_vec(), second.fingerprint().to_vec()];
+        expected.sort_unstable();
+        assert_eq!(ciphertext_fingerprints(&single), Some(expected));
+        assert_eq!(
+            ciphertext_fingerprints(&multi),
+            Some(vec![first.fingerprint().to_vec()])
+        );
+    }
+
+    #[test]
+    fn content_without_readable_ciphertexts_has_no_fingerprints() {
+        for content in [
+            "ciphertext",
+            r#"{"contests": []}"#,
+            r#"{"contests": ["not a ciphertext"]}"#,
+            r#"{"contests": 3}"#,
+            r#"{"other": "field"}"#,
+        ] {
+            assert_eq!(ciphertext_fingerprints(content), None, "{content}");
+        }
+    }
 
     #[test]
     fn partitions_are_named_after_the_event() {

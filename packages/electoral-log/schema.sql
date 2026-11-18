@@ -99,6 +99,11 @@ CREATE TABLE IF NOT EXISTS ballot_box_ballot (
     PRIMARY KEY (election_event_id, seq),
     UNIQUE (election_event_id, ballot_id)
 ) PARTITION BY LIST (election_event_id);
+-- One SHA-256 fingerprint per ciphertext of the ballot (`BallotCiphertext::fingerprint`).
+-- Ballots stored before the column existed, and test contents, have none.
+ALTER TABLE ballot_box_ballot ADD COLUMN IF NOT EXISTS ciphertext_fingerprints BYTEA[];
+CREATE INDEX IF NOT EXISTS ballot_box_ballot_ciphertexts
+    ON ballot_box_ballot USING gin (ciphertext_fingerprints);
 -- A voter's ballots, for the voter's status and lookups.
 CREATE INDEX IF NOT EXISTS ballot_box_ballot_voter ON ballot_box_ballot (election_event_id, voter_id);
 -- The tally input of an area: each voter's latest ballot, in voter order, without
@@ -164,6 +169,10 @@ CREATE TABLE IF NOT EXISTS ballot_box_received (
         AND (cast_signature IS NULL OR status = 'cast')
     )
 ) PARTITION BY LIST (election_event_id);
+-- The fingerprints of the received ballot's ciphertexts, as for ballot_box_ballot.
+ALTER TABLE ballot_box_received ADD COLUMN IF NOT EXISTS ciphertext_fingerprints BYTEA[];
+CREATE INDEX IF NOT EXISTS ballot_box_received_ciphertexts
+    ON ballot_box_received USING gin (ciphertext_fingerprints);
 -- Seals of ballot boxes, the ballots of one election's area. A box with a seal, sealed
 -- or failed, takes no more writes. A seal is stored with its record on the event's board
 -- in one transaction, and never changes.
@@ -259,6 +268,52 @@ BEGIN
     RETURN NEW;
 END;
 $$;
+-- A ciphertext belongs to the voter who received or cast it first in the election event,
+-- so a copy of another voter's ciphertext is refused, also one received and not yet
+-- cast. Inserts of one ciphertext take turns on its
+-- advisory lock, in fingerprint order, and under READ COMMITTED the check reads a
+-- snapshot taken after the wait, which sees an insert of it that committed meanwhile.
+CREATE OR REPLACE FUNCTION ballot_box_ciphertext_guard() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+    fingerprint BYTEA;
+BEGIN
+    IF NEW.ciphertext_fingerprints IS NULL
+       OR cardinality(NEW.ciphertext_fingerprints) = 0 THEN
+        RETURN NEW;
+    END IF;
+    IF current_setting('transaction_isolation') <> 'read committed' THEN
+        RAISE EXCEPTION 'ballot_box_ciphertext_requires_read_committed'
+            USING ERRCODE = '42501',
+                  DETAIL = format('Ballot box writes must run at READ COMMITTED, not %s.',
+                                  current_setting('transaction_isolation'));
+    END IF;
+    FOREACH fingerprint IN ARRAY (
+        SELECT array_agg(DISTINCT f ORDER BY f) FROM unnest(NEW.ciphertext_fingerprints) AS f
+    ) LOOP
+        PERFORM pg_advisory_xact_lock(hashtextextended(
+            'ballot-box-ciphertext:' || NEW.election_event_id::text || ':'
+                || encode(fingerprint, 'hex'),
+            0));
+    END LOOP;
+    IF EXISTS (
+        SELECT 1 FROM ballot_box_ballot
+        WHERE election_event_id = NEW.election_event_id
+          AND ciphertext_fingerprints && NEW.ciphertext_fingerprints
+          AND voter_id <> NEW.voter_id
+    ) OR EXISTS (
+        SELECT 1 FROM ballot_box_received
+        WHERE election_event_id = NEW.election_event_id
+          AND ciphertext_fingerprints && NEW.ciphertext_fingerprints
+          AND voter_id <> NEW.voter_id
+    ) THEN
+        RAISE EXCEPTION 'ciphertext_already_cast'
+            USING ERRCODE = '42501',
+                  DETAIL = 'Another voter already cast a ciphertext of this ballot.';
+    END IF;
+    RETURN NEW;
+END;
+$$;
 -- TRUNCATE skips row triggers. The guard of the partitioned table refuses it while any
 -- box is sealed; that of an event's partition, created with it, takes the event's ID.
 CREATE OR REPLACE FUNCTION ballot_box_seal_guard_truncate() RETURNS trigger
@@ -299,6 +354,16 @@ BEGIN
                    AND tgname = 'ballot_box_seal_guard') THEN
         CREATE TRIGGER ballot_box_seal_guard BEFORE INSERT OR UPDATE OR DELETE
             ON ballot_box_ballot FOR EACH ROW EXECUTE FUNCTION ballot_box_seal_guard();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'ballot_box_ballot'::regclass
+                   AND tgname = 'ballot_box_ciphertext_guard') THEN
+        CREATE TRIGGER ballot_box_ciphertext_guard BEFORE INSERT
+            ON ballot_box_ballot FOR EACH ROW EXECUTE FUNCTION ballot_box_ciphertext_guard();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'ballot_box_received'::regclass
+                   AND tgname = 'ballot_box_ciphertext_guard') THEN
+        CREATE TRIGGER ballot_box_ciphertext_guard BEFORE INSERT
+            ON ballot_box_received FOR EACH ROW EXECUTE FUNCTION ballot_box_ciphertext_guard();
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'ballot_box_ballot'::regclass
                    AND tgname = 'ballot_box_seal_guard_truncate') THEN

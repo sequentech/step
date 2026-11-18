@@ -98,6 +98,9 @@ pub enum ReceiveOutcome {
     AlreadyReceived(ReceivedBallot),
     /// Every attempt's Ballot ID was taken in the election event.
     NoFreeBallotId,
+    /// Another voter already received or cast one of the ballot's ciphertexts in
+    /// the election event.
+    CiphertextAlreadyCast,
 }
 
 /// A cast received ballot, with the short Ballot ID of its receipt.
@@ -179,6 +182,7 @@ impl PostgresStore {
         let ip = network.map(|value| value.ip);
         let country = network.and_then(|value| value.country);
         let user_agent = network.and_then(|value| value.user_agent);
+        let fingerprints = super::ballot_box::ciphertext_fingerprints(ballot.content);
         let mut client = self.client().await?;
         let by_hash = client
             .prepare_cached(&format!(
@@ -202,9 +206,10 @@ impl PostgresStore {
                 "WITH received AS (
                  INSERT INTO ballot_box_received (election_event_id, election_id, area_id,
                  voter_id, ballot_id, ballot_hash, content, voter_signing_pk,
-                 voter_ballot_signature, received_at, key_id, received_signature)
+                 voter_ballot_signature, received_at, key_id, received_signature,
+                 ciphertext_fingerprints)
                  VALUES ($1::text::uuid, $2::text::uuid, $3::text::uuid, $4, $5, $6, $7, $8,
-                 $9, $10, $11, $12)
+                 $9, $10, $11, $12, $16)
                  ON CONFLICT DO NOTHING RETURNING *
                  ), forensic AS (
                     INSERT INTO sequent_backend.forensic_network_record
@@ -260,10 +265,17 @@ impl PostgresStore {
                         &ip,
                         &country,
                         &user_agent,
+                        &fingerprints,
                     ],
                 )
-                .await
-                .context("Error storing the received ballot")?;
+                .await;
+            let inserted = match inserted {
+                Err(error) if super::ballot_box::is_ciphertext_already_cast(&error) => {
+                    transaction.rollback().await?;
+                    return Ok(ReceiveOutcome::CiphertextAlreadyCast);
+                }
+                inserted => inserted.context("Error storing the received ballot")?,
+            };
             if let Some(row) = inserted {
                 let stored = received_ballot(&row)?;
                 transaction.commit().await?;

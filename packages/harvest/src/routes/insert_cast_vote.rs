@@ -307,7 +307,8 @@ pub(crate) fn cast_vote_error_response(
             ErrorCode::InternalServerError.to_string().as_str(),
             ErrorCode::InternalServerError,
         ),
-        CastVoteError::PokValidationFailed(_) => ErrorResponse::new(
+        CastVoteError::PokValidationFailed(_)
+        | CastVoteError::CiphertextAlreadyCast => ErrorResponse::new(
             Status::BadRequest,
             ErrorCode::PokValidationFailed.to_string().as_str(),
             ErrorCode::PokValidationFailed,

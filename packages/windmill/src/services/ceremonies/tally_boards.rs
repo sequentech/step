@@ -48,6 +48,7 @@ use sequent_core::types::hasura::core::{BallotStyle, TallySession};
 use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
 use sequent_core::types::keycloak::{MAX_TOTAL_VOTE_WEIGHT, VOTE_WEIGHT_BATCHES};
 use serde_json::Value;
+use std::collections::hash_map::Entry;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 use tempfile::NamedTempFile;
@@ -505,6 +506,44 @@ fn area_ballot(
     }
 }
 
+/// The ciphertext each ballot holds for the tallied contest, paired with the
+/// ballot's multiplicity. A ciphertext held by more than one ballot is kept
+/// once, at its first position, with the smallest multiplicity among those
+/// ballots, so repeating it neither counts it again nor adds weight to it.
+fn area_ballots(
+    ballot_contents: Vec<(String, u64)>,
+    contest_encryption_policy: &ContestEncryptionPolicy,
+    tally_session_contest: &TallySessionContest,
+) -> Result<Vec<(BallotCiphertext, u64)>> {
+    let mut ballots: Vec<(BallotCiphertext, u64)> = Vec::new();
+    let mut positions: HashMap<[u8; 32], usize> = HashMap::new();
+    for (ballot_str, multiplicity) in ballot_contents {
+        let ballot = area_ballot(
+            &ballot_str,
+            contest_encryption_policy,
+            tally_session_contest,
+        )
+        .with_context(|| {
+            format!(
+                "a cast vote of election {} area {}",
+                tally_session_contest.election_id, tally_session_contest.area_id
+            )
+        })?;
+        match positions.entry(ballot.fingerprint()) {
+            Entry::Occupied(position) => {
+                if let Some((_, kept)) = ballots.get_mut(*position.get()) {
+                    *kept = (*kept).min(multiplicity);
+                }
+            }
+            Entry::Vacant(position) => {
+                position.insert(ballots.len());
+                ballots.push((ballot, multiplicity));
+            }
+        }
+    }
+    Ok(ballots)
+}
+
 /// Every contest area's ballots, by batch, with the annotations the area gets.
 /// Nothing is written: the caller records the boards and the annotations
 /// together.
@@ -648,7 +687,7 @@ pub async fn extract_tally_boards(
                             .election_ids
                             .contains(&tally_session_contest.election_id)
                     });
-                    let (merge_result, ballot_box_seal_hash) = match sealed_boxes {
+                    let (mut merge_result, ballot_box_seal_hash) = match sealed_boxes {
                         Some(sealed_boxes) => {
                             let election_name = sealed_boxes
                                 .election_names
@@ -787,6 +826,25 @@ pub async fn extract_tally_boards(
                         }
                     };
 
+                    let ballot_contents = std::mem::take(&mut merge_result.ballot_contents);
+                    let ballot_count = ballot_contents.len();
+                    let area_ballots = area_ballots(
+                        ballot_contents,
+                        &contest_encryption_policy_clone,
+                        &tally_session_contest,
+                    )?;
+                    let repeated_ciphertexts = ballot_count - area_ballots.len();
+                    if repeated_ciphertexts > 0 {
+                        event!(
+                            Level::WARN,
+                            "{repeated_ciphertexts} ballot(s) for election {}, contest {}, area {} \
+                             repeat a ciphertext of another ballot; each ciphertext is counted once",
+                            tally_session_contest.election_id,
+                            tally_session_contest.contest_id.clone().unwrap_or_default(),
+                            tally_session_contest.area_id,
+                        );
+                    }
+
                     // Checked before anything is posted, so a run that would
                     // be refused does not leave batches on an append-only
                     // board. Only weighting can inflate this beyond the ballot
@@ -794,8 +852,7 @@ pub async fn extract_tally_boards(
                     // not using it. Weighting no longer grows the mix batch --
                     // it grows the plaintexts the tally expands after mixing --
                     // so this bounds that expansion rather than the shuffle.
-                    let total_weight: u64 = merge_result
-                        .ballot_contents
+                    let total_weight: u64 = area_ballots
                         .iter()
                         .map(|(_, multiplicity)| *multiplicity)
                         .sum();
@@ -817,7 +874,7 @@ pub async fn extract_tally_boards(
                     // so the union over voters is exactly the set of non-empty
                     // batches.
                     let weight_bit_mask: Option<u32> = if is_voter_weighted {
-                        let union = merge_result.ballot_contents.iter().try_fold(
+                        let union = area_ballots.iter().try_fold(
                             0u64,
                             |acc, (_, weight)| -> Result<u64> {
                                 // Same refusal the split makes, so the mask can
@@ -857,18 +914,7 @@ pub async fn extract_tally_boards(
                     let mut batches: Vec<Vec<BallotCiphertext>> =
                         vec![Vec::new(); VOTE_WEIGHT_BATCHES as usize];
                     let mut batch_voters = vec![0usize; VOTE_WEIGHT_BATCHES as usize];
-                    for (ballot_str, multiplicity) in merge_result.ballot_contents {
-                        let ballot = area_ballot(
-                            &ballot_str,
-                            &contest_encryption_policy_clone,
-                            &tally_session_contest,
-                        )
-                        .with_context(|| {
-                            format!(
-                                "a cast vote of election {} area {}",
-                                tally_session_contest.election_id, tally_session_contest.area_id
-                            )
-                        })?;
+                    for (ballot, multiplicity) in area_ballots {
                         if is_voter_weighted {
                             // The ciphertext appears once in the batch for
                             // each bit the weight sets, and the tally
@@ -1109,6 +1155,71 @@ mod tests {
             aliases,
             HashMap::from([("election-uuid".to_string(), "election-uuid".to_string()),])
         );
+    }
+
+    mod repeated_ciphertexts {
+        use super::super::area_ballots;
+        use super::contest_area;
+        use protocol_board::BallotCiphertext;
+        use sequent_core::ballot::ContestEncryptionPolicy;
+        use voting_crypto::ballot::encrypt_payload;
+        use voting_crypto::{Context as _, RistrettoCtx};
+
+        const CONTEST_ID: &str = "contest";
+
+        fn ciphertext(contest_id: &str) -> BallotCiphertext {
+            let joint_key = RistrettoCtx::random_element();
+            let (ciphertext, _) = encrypt_payload(7, &joint_key, &[1; 30]).expect("encrypts");
+            BallotCiphertext::new(vec![contest_id.to_string()], ciphertext)
+        }
+
+        fn ballot(entries: &[&BallotCiphertext]) -> String {
+            serde_json::json!({
+                "version": 1,
+                "issue_date": "2026-01-01",
+                "contests": entries.iter().map(|entry| entry.encode()).collect::<Vec<_>>(),
+                "config": "style",
+                "ballot_style_hash": "style-hash",
+            })
+            .to_string()
+        }
+
+        fn tallied(ballots: Vec<(String, u64)>) -> Vec<(BallotCiphertext, u64)> {
+            area_ballots(
+                ballots,
+                &ContestEncryptionPolicy::SINGLE_CONTEST,
+                &contest_area("election", "area", CONTEST_ID, None),
+            )
+            .expect("reads the ballots")
+        }
+
+        #[test]
+        fn a_ciphertext_cast_by_several_voters_enters_the_batch_once() {
+            let original = ciphertext(CONTEST_ID);
+            let other = ciphertext(CONTEST_ID);
+            let ballots = vec![
+                (ballot(&[&original]), 3),
+                (ballot(&[&original, &ciphertext("x")]), 1),
+                (ballot(&[&other]), 2),
+            ];
+
+            assert_eq!(tallied(ballots), vec![(original, 1), (other, 2)]);
+        }
+
+        #[test]
+        fn distinct_ciphertexts_keep_their_order_and_multiplicity() {
+            let entries: Vec<_> = (0..3).map(|_| ciphertext(CONTEST_ID)).collect();
+            let ballots = entries
+                .iter()
+                .zip([1, 4, 2])
+                .map(|(entry, multiplicity)| (ballot(&[entry]), multiplicity))
+                .collect();
+
+            assert_eq!(
+                tallied(ballots),
+                entries.into_iter().zip([1, 4, 2]).collect::<Vec<_>>()
+            );
+        }
     }
 
     fn contest_area(
