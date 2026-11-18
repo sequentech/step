@@ -11,7 +11,7 @@ on:
 
 jobs:
   no-bare-instrument:
-    name: No bare #[instrument] in harvest, windmill and sequent-core
+    name: "No bare #[instrument] in harvest, windmill and sequent-core"
     runs-on: ubuntu-24.04
     steps:
       - name: Check out code
