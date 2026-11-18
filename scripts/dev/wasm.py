@@ -44,6 +44,9 @@ PACKAGE_FILES = ("index.js", "index_bg.wasm", "index.d.ts")
 CONSUMERS = ("ui-core", "admin-portal", "voting-portal", "ballot-verifier")
 INPUTS_FILE = "build-inputs.json"
 BINDGEN = "wasm-bindgen"
+# The flake supplies 123. Older optimizers can cap wasm-bindgen's externref
+# table, making the generated JS fail at Table.grow during initialization.
+MIN_WASM_OPT_VERSION = 123
 SCHEMA = 1
 # npm stamps every packed entry with this time; reusing it keeps archives stable.
 NPM_EPOCH = 499162500
@@ -654,7 +657,19 @@ def check_tools(closure: Closure, tools: Mapping[str, str]) -> None:
         )
 
 
+def check_wasm_optimizer(tools: Mapping[str, str]) -> None:
+    version = tools.get("wasm-opt", "")
+    matched = re.match(r"^wasm-opt version (\d+)\b", version)
+    if matched is None or int(matched[1]) < MIN_WASM_OPT_VERSION:
+        raise WasmError(
+            f"wasm-opt {MIN_WASM_OPT_VERSION} or newer is required to preserve "
+            "wasm-bindgen's growable externref table; use "
+            "nix develop ./packages/sequent-core"
+        )
+
+
 def check_release_toolchain(layout: Layout, tools: Mapping[str, str]) -> None:
+    check_wasm_optimizer(tools)
     toolchain = layout.root / "rust-toolchain.toml"
     if not toolchain.is_file():
         return
@@ -1221,6 +1236,10 @@ def check_package(layout: Layout) -> int:
                     + shown
                     + more
                 )
+            try:
+                check_wasm_optimizer(recorded.get("tools", {}))
+            except WasmError as error:
+                problems.append(str(error))
             expected = list(WASM_OPT[Output.RELEASE])
             if recorded.get("output", {}).get("wasm_opt") != expected:
                 problems.append(

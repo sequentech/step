@@ -89,8 +89,11 @@ export interface MatrixServices {
     reads: "matrix" | "loading" | "error"
     /** Saving a version. */
     saves: "saved" | "error"
-    /** Trying an example; default "result". */
-    evaluates?: "result" | "error"
+    /**
+     * Trying an example; default "result". "pending" never answers; "reversed"
+     * answers later requests first, so earlier answers arrive late.
+     */
+    evaluates?: "result" | "error" | "pending" | "reversed"
 }
 
 type Handlers = Parameters<typeof graphqlBoundary>[0]
@@ -177,8 +180,20 @@ export function matrixHandlers({
                 },
             }
         },
-        EvaluateApprovalMatrix: ({variables}: Operation) =>
-            evaluates === "error"
+        EvaluateApprovalMatrix: ({variables}: Operation) => {
+            if (evaluates === "pending") return new Promise<FetchResult>(() => undefined)
+            if (evaluates === "reversed") {
+                const delay = Math.max(0, REVERSED_DELAY - REVERSED_STEP * evaluations++)
+                const answer = {
+                    data: {
+                        evaluate_approval_matrix: evaluate(variables.matrix, variables.enrollment),
+                    },
+                }
+                return new Promise<FetchResult>((resolve) =>
+                    setTimeout(() => resolve(answer), delay)
+                )
+            }
+            return evaluates === "error"
                 ? {errors: [new GraphQLError("Synthetic approval matrix evaluation failure")]}
                 : {
                       data: {
@@ -187,7 +202,8 @@ export function matrixHandlers({
                               variables.enrollment
                           ),
                       },
-                  },
+                  }
+        },
         SaveApprovalMatrix: ({variables}: Operation) => {
             if (saves === "error") {
                 return {errors: [new GraphQLError("Synthetic approval matrix save failure")]}
@@ -207,8 +223,12 @@ export function matrixHandlers({
 }
 
 let graphql: ReturnType<typeof graphqlBoundary>
+let evaluations = 0
+const REVERSED_DELAY = 1200
+const REVERSED_STEP = 400
 
 export async function setUpMatrix(services: Partial<MatrixServices> = {}) {
+    evaluations = 0
     graphql = graphqlBoundary(matrixHandlers(services), {schema: true})
     await graphql.ready
 }

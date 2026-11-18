@@ -60,11 +60,23 @@ pub type I18nContent<T = Option<String>> = HashMap<String, T>;
 
 pub type Annotations = HashMap<String, String>;
 
-#[derive(PartialEq, Debug, Clone, Canonical)]
+#[derive(PartialEq, Clone, Canonical)]
 pub struct ReplicationChoice {
     pub ciphertext: cryptography::cryptosystem::naoryung::Ciphertext<cryptography::context::RistrettoCtx, 1>,
     pub plaintext: [u8; 30],
     pub randomness: <cryptography::context::RistrettoCtx as cryptography::context::Context>::Scalar,
+}
+
+/// Shows the ciphertext only: the plaintext and the randomness reveal the
+/// vote.
+impl std::fmt::Debug for ReplicationChoice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ReplicationChoice")
+            .field("ciphertext", &self.ciphertext)
+            .field("plaintext", &"<redacted>")
+            .field("randomness", &"<redacted>")
+            .finish()
+    }
 }
 
 #[derive(

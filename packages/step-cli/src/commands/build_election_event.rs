@@ -33,15 +33,11 @@ use std::path::{Component, Path, PathBuf};
 #[derive(Args)]
 #[command(about)]
 pub struct BuildElectionEvent {
-    /// Path to the authoring workbook. With --historical-sql it is the optional
-    /// supplemental workbook; without it, the decisions' `supplement` stands in.
-    #[arg(
-        short = 'w',
-        long,
-        value_name = "WORKBOOK",
-        required_unless_present = "historical_sql"
-    )]
-    workbook: Option<PathBuf>,
+    /// Path to the authoring workbook. With --historical-sql it is the
+    /// supplemental workbook: a full one, or a defaults workbook without an
+    /// `Elections` sheet, whose elections and areas come from the SQL.
+    #[arg(short = 'w', long, value_name = "WORKBOOK")]
+    workbook: PathBuf,
 
     /// Historical data-only SQL, legacy or post-qualification schema
     #[arg(long, value_name = "SQL", requires = "historical_decisions")]
@@ -133,13 +129,8 @@ impl BuildElectionEvent {
             }
         }
 
-        let bytes = self
-            .workbook
-            .as_ref()
-            .map(|path| {
-                fs::read(path).with_context(|| format!("could not read {}", path.display()))
-            })
-            .transpose()?;
+        let bytes = fs::read(&self.workbook)
+            .with_context(|| format!("could not read {}", self.workbook.display()))?;
         let workbook = if let Some(sql_path) = &self.historical_sql {
             use sequent_core::election_config::historical::{adapt, HistoricalOptions};
             let sql = fs::read(sql_path).context("could not read historical SQL")?;
@@ -151,7 +142,7 @@ impl BuildElectionEvent {
                 &fs::read(decisions_path).context("could not read historical decisions")?,
             )
             .context("invalid historical decisions JSON")?;
-            match adapt(&sql, bytes.as_deref(), &decisions) {
+            match adapt(&sql, &bytes, &decisions) {
                 Ok(adapted) => {
                     println!("{}", serde_json::to_string_pretty(&adapted.summary)?);
                     adapted.workbook
@@ -163,10 +154,6 @@ impl BuildElectionEvent {
                 }
             }
         } else {
-            // clap requires --workbook without --historical-sql.
-            let Some(bytes) = bytes else {
-                return Err(anyhow!("a workbook is required"));
-            };
             read_xlsx(&bytes).map_err(problem_error)?
         };
 
@@ -204,6 +191,8 @@ impl BuildElectionEvent {
             // No ceremony from a workbook, so this labels nothing; the platform's
             // own default, named rather than defaulted for the reason above.
             ceremony_policy: CeremoniesPolicy::MANUAL_CEREMONIES,
+            // A historical census leaves contact details to enrollment.
+            census_contacts_at_enrollment: self.historical_sql.is_some(),
         };
 
         let bundle = match build(&workbook, &templates, &options, &Sources::default()) {
@@ -213,11 +202,7 @@ impl BuildElectionEvent {
                 return Err(anyhow!(
                     "{} problem(s) in {}",
                     report.errors().count(),
-                    self.workbook
-                        .as_ref()
-                        .or(self.historical_sql.as_ref())
-                        .map(|path| path.display().to_string())
-                        .unwrap_or_default()
+                    self.workbook.display()
                 ));
             }
         };
@@ -579,7 +564,7 @@ mod tests {
             let command = BuildElectionEvent {
                 historical_sql: None,
                 historical_decisions: None,
-                workbook: Some(path),
+                workbook: path,
                 out: root.path().join("out"),
                 tenant_id: Some(TENANT.to_string()),
                 base_export: None,
@@ -649,6 +634,25 @@ mod tests {
     }
 
     #[test]
+    fn a_sheet_nothing_reads_is_noted_and_still_builds() {
+        let fixture = Fixture::new(&workbook(vec![("Candidatez", vec![vec![text("name")]])]));
+
+        fixture.command.build().unwrap();
+
+        assert!(fixture.directory().join("event.zip").is_file());
+    }
+
+    #[test]
+    fn an_output_directory_that_cannot_be_created_is_an_error() {
+        let mut fixture = Fixture::new(&workbook(vec![]));
+        fixture.command.out = fixture.file("not-a-directory", b"");
+
+        let error = fixture.error();
+
+        assert!(error.contains("could not create"), "{error}");
+    }
+
+    #[test]
     fn check_only_validates_and_writes_nothing() {
         let mut fixture = Fixture::new(&workbook(vec![]));
         fixture.command.check_only = true;
@@ -695,7 +699,7 @@ mod tests {
     #[test]
     fn an_unknown_auth_preset_is_refused_before_the_workbook_is_read() {
         let mut fixture = Fixture::new(b"never read");
-        fixture.command.workbook = Some(fixture.root.path().join("missing.xlsx"));
+        fixture.command.workbook = fixture.root.path().join("missing.xlsx");
         fixture.command.auth_preset = Some("carrier-pigeon".to_string());
 
         let error = fixture.error();
@@ -719,7 +723,7 @@ mod tests {
         let error = fixture.error();
         assert!(error.starts_with("error: "), "{error}");
 
-        fixture.command.workbook = Some(fixture.root.path().join("missing.xlsx"));
+        fixture.command.workbook = fixture.root.path().join("missing.xlsx");
         let error = fixture.error();
         assert!(error.contains("could not read"), "{error}");
     }

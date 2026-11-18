@@ -24,6 +24,7 @@ const GENERATED_TEXT_PROPERTIES = new Set([
     "content",
     "quotes",
     "list-style",
+    "list-style-image",
     "list-style-type",
     "text-overflow",
     "text-emphasis",
@@ -32,10 +33,30 @@ const GENERATED_TEXT_PROPERTIES = new Set([
 ])
 const VENDOR_PREFIX = /^-(webkit|moz|ms|o)-/
 const EMPTY_STRING = /""|''/g
-const TEXT_SOURCE = /["']|var\(/
+const TEXT_SOURCE = /["']|(?:var|attr|counters?)\(/
+// Any other marker style can spell a word from a number set with counter-set.
+const MARKER_PROPERTIES = new Set(["list-style", "list-style-type"])
+const PLAIN_MARKER_VALUES = new Set([
+    "none",
+    "disc",
+    "circle",
+    "square",
+    "decimal",
+    "decimal-leading-zero",
+    "disclosure-open",
+    "disclosure-closed",
+    "inside",
+    "outside",
+    "inherit",
+    "initial",
+    "unset",
+    "revert",
+    "revert-layer",
+])
+const WHITESPACE = /\s+/
 
 const URL_FUNCTION = "url("
-const URL_ARGUMENT = /^\s*(?:"([^"\n\r\f]*)"|'([^'\n\r\f]*)'|([^\s"'()]*))\s*\)/
+const URL_ARGUMENT = /^\s*(?:(?:"([^"\n\r\f]*)"|'([^'\n\r\f]*)'|([^\s"'()]+))\s*)?\)/
 // Without escapes, block comments and control characters, the browser and the style
 // engine split strings and function names exactly where this scanner does.
 const FORBIDDEN_ANYWHERE = ["\\", "/*"]
@@ -112,7 +133,7 @@ const rewriteUrls = (text: string, isAllowed: UrlCheck): string | null => {
             if (match === null) {
                 return null
             }
-            const url = match[1] ?? match[2] ?? match[3]
+            const url = match[1] ?? match[2] ?? match[3] ?? ""
             if (url.includes('"') || !isAllowed(url)) {
                 return null
             }
@@ -131,9 +152,19 @@ const rewriteUrls = (text: string, isAllowed: UrlCheck): string | null => {
 const changesClassName = (text: string): boolean =>
     Array.from(text.matchAll(EMOTION_LABEL)).some((match) => !CLASS_NAME_PART.test(match[1]))
 
-const showsText = (property: string, value: string): boolean =>
-    GENERATED_TEXT_PROPERTIES.has(asciiLowerCase(property).replace(VENDOR_PREFIX, "")) &&
-    TEXT_SOURCE.test(asciiLowerCase(value.replace(EMPTY_STRING, "")))
+const showsText = (property: string, value: string): boolean => {
+    const name = asciiLowerCase(property).replace(VENDOR_PREFIX, "")
+    const lowerValue = asciiLowerCase(value)
+    return (
+        GENERATED_TEXT_PROPERTIES.has(name) &&
+        (TEXT_SOURCE.test(lowerValue.replace(EMPTY_STRING, "")) ||
+            (MARKER_PROPERTIES.has(name) &&
+                lowerValue
+                    .trim()
+                    .split(WHITESPACE)
+                    .some((word) => !PLAIN_MARKER_VALUES.has(word))))
+    )
+}
 
 // Keeps the styling in election event CSS while dropping what could load resources
 // from other origins or replace the text of the page.
@@ -157,6 +188,8 @@ export const sanitizePresentationCss = (css: string, scope: PresentationCssScope
             }
             node.params = params
             delete node.raws.params
+            delete node.raws.afterName
+            delete node.raws.between
         } else if (node.type === "rule") {
             const selector = rewriteUrls(node.selector, isAllowed)
             if (selector === null) {
@@ -165,12 +198,13 @@ export const sanitizePresentationCss = (css: string, scope: PresentationCssScope
             }
             node.selector = selector
             delete node.raws.selector
+            delete node.raws.between
         } else {
             const value = rewriteUrls(node.value, isAllowed)
             if (
                 value === null ||
                 rewriteUrls(node.prop, isAllowed) === null ||
-                showsText(node.prop, node.value) ||
+                showsText(node.prop, value) ||
                 changesClassName(`${node.prop}:${value};`)
             ) {
                 node.remove()

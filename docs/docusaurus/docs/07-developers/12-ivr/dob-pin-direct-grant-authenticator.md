@@ -24,6 +24,14 @@ identifying attribute must match the same user, and the PIN then disambiguates a
 This is a single Direct Grant flow step - it replaces both `direct-grant-validate-username` and
 `direct-grant-validate-password` at once.
 
+> ⚠️ **We strongly advise against logging voters in with a date of birth and a PIN.** A date of
+> birth is neither secret nor unique, so the login can't tell an outsider's attempt from a voter's.
+> Every limit on wrong PINs for a birth date lets anyone lock out all voters born that day, and
+> every looser limit lets them guess more PINs. No authenticator setting fixes both. Prefer a voter
+> ID unique to each voter and a long, random PIN. If a date of birth and PIN can't be avoided, use
+> a PIN of 16 digits or more, keep the realm's **Brute Force Detection** on, and rate-limit as
+> described in [Rate Limiting per IP Address](#rate-limiting-per-ip-address).
+
 ---
 
 ## Current IVR Lambda compatibility
@@ -160,10 +168,11 @@ configuration needed there.
 | No `kind=secret` entry, or no `kind=identifier` entries | Direct Grant `invalid_grant` error (misconfiguration, fails closed). |
 | No user matches all `identifier` attributes | Direct Grant `invalid_grant` error. |
 | Exactly one candidate, correct PIN | Authenticates as that user. |
-| Exactly one candidate, wrong PIN | Direct Grant `invalid_grant` error - counted toward that account's Brute Force Detection lockout, same as a standard login. |
+| Exactly one candidate, wrong PIN | Direct Grant `invalid_grant` error - counted toward that account's Brute Force Detection lockout, same as a standard login. With Brute Force Detection on, it does not count toward **Max failures per identifier-value combination**. |
 | Exactly one candidate, currently locked out by Brute Force Detection | Direct Grant `invalid_grant` error - no PIN check is even attempted. |
 | Multiple candidates share the identifying attribute(s), PIN matches exactly one | Authenticates as that user. |
-| Multiple candidates match the PIN (or none do) | Direct Grant `invalid_grant` error - by default the attempt is counted toward Brute Force Detection for every matched account that is not locked out; see [Shared-Candidate Failure Policy](#shared-candidate-failure-policy). |
+| Multiple candidates match the PIN, with `FIRST_MATCH` | With the `PASSWORD` credential verification policy, login succeeds as the first candidate whose PIN matches; see [Multiple-Candidate Match Policy](#multiple-candidate-match-policy). With `SECRET_ATTRIBUTE`, the configuration is rejected and every login fails with `invalid_grant`. |
+| Multiple candidates match the PIN with `REJECT_AMBIGUOUS`, or none do | Direct Grant `invalid_grant` error - by default, when Brute Force Detection is on, the attempt is counted toward it for every candidate that is not locked out; see [Shared-Candidate Failure Policy](#shared-candidate-failure-policy). |
 
 The error is the same generic `invalid_grant` regardless of cause, matching the web form's
 generic-error behavior - a failed attempt never reveals which attribute, or the PIN, was wrong.
@@ -205,7 +214,10 @@ request, on top of Keycloak's standard Brute Force Detection:
   keep forcing PIN hashes at full cost. Once a combination's failures reach the configured maximum
   within the window, further attempts against it are rejected without any user lookup at all, until
   the window elapses or a matching request succeeds (which clears the count). This throttle is
-  tracked cluster-wide, so it can't be evaded by spreading requests across Keycloak nodes.
+  tracked cluster-wide, so it can't be evaded by spreading requests across Keycloak nodes. A
+  failure blamed on a single account counts here only when the realm's Brute Force Detection is
+  off: with it on, that account's own lockout already limits guessing, and counting the failure
+  here too would let anyone who knows a voter's identifiers keep that voter out.
 - **Max user-store rows per identifier lookup** (`maxAttributeLookupResults`, default `5000`): a
   hard ceiling on how many rows the underlying user-store query may return, applied before any
   candidate is even loaded into memory. This is deliberately much larger than **Max candidates per
@@ -236,9 +248,11 @@ When the identifier values still match more than one enabled account that is not
 failed attempt can't be attributed to a single account. **Shared-candidate failure policy**
 (`sharedCandidateFailurePolicy`), the same setting as on the web form, decides how it is counted:
 
-- **`CHARGE_VIABLE_CANDIDATES`** (default): the failed attempt counts toward Brute Force Detection
-  for every one of those accounts, so each of them follows the realm's lockout settings exactly as
-  it would behind a standard login. Successful logins are never counted against the other callers
+- **`CHARGE_VIABLE_CANDIDATES`** (default): when the realm has Brute Force Detection on, the failed
+  attempt counts toward it for every one of those accounts, so each of them follows the realm's
+  lockout settings exactly as it would behind a standard login. With Brute Force Detection off, no
+  account is charged and only **Max failures per identifier-value combination** limits repeated
+  failures. Successful logins are never counted against the other callers
   who share the same values.
 - **`TUPLE_ONLY`**: no account is charged; only **Max failures per identifier-value combination**
   limits repeated failures for those values.
@@ -247,6 +261,22 @@ With the default, a caller who mistypes their PIN also adds a failure to the oth
 share the same identifier value(s), and enough failures can lock them all out, as the realm's
 **Brute Force Detection** settings determine.
 Existing authenticator configurations that don't set this option use the default.
+
+---
+
+## Rate Limiting per IP Address
+
+The limits above are keyed on the identifier values a request submits, which anyone can send, so
+they can't separate an outsider's attempts from a voter's. The web form's guide describes the
+[per-IP rate limit to add at the proxy](../../02-election_managers/01-tutorials/101-admin_portal_tutorials_multi-attribute-password-login.md#rate-limiting-per-ip-address).
+For this flow, count only failed token requests (`400` and `401` responses) to
+`/realms/<realm>/protocol/openid-connect/token`, prefixed with Keycloak's relative path if it has
+one.
+
+IVR calls reach Keycloak from the IVR service's own addresses, not the caller's, so a per-IP limit
+can't tell callers apart: it would block every caller at once. Exempt the IVR service's addresses
+from that limit (which needs them to be fixed) and limit failed attempts per calling number in the
+IVR instead.
 
 ---
 
@@ -260,7 +290,11 @@ on the same date), **Multiple-candidate match policy** governs how the submitted
   the same as if none had matched.
 - **`FIRST_MATCH`**: succeeds as soon as **any** candidate's PIN matches, without checking whether
   another candidate would also have matched. Cheaper (stops at the first hit instead of hashing
-  every candidate), but only correct under one condition.
+  every candidate), but only correct under one condition. It works only with the `PASSWORD`
+  credential verification policy: with `SECRET_ATTRIBUTE` (see
+  [encrypted voter attributes](../../02-election_managers/01-tutorials/101-admin_portal_tutorials_multi-attribute-password-login.md#optional-use-an-encrypted-voter-attribute-as-the-credential)),
+  the configuration is rejected and every login fails with `invalid_grant` before any candidate is
+  checked.
 
 > ⚠️ **Security warning:** `FIRST_MATCH` is only safe to enable when **PIN uniqueness across every
 > candidate a request could ever match is guaranteed** - for example, PINs assigned centrally and

@@ -6,7 +6,6 @@ package sequent.keycloak.scanovate_authenticator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,7 +14,8 @@ import org.junit.jupiter.api.Test;
 class OcrSettingsTest {
   private static Map<String, String> config(String ocrTypes) {
     Map<String, String> config = new HashMap<>();
-    config.put(ScanovateAuthenticatorFactory.OCR_URL, "http://scanovate-ocr:5040/");
+    // The OCR service is no longer called by Keycloak: an earlier URL is ignored.
+    config.put("ocr-url", "http://scanovate-ocr:5040/");
     if (ocrTypes != null) {
       config.put(ScanovateAuthenticatorFactory.OCR_TYPES, ocrTypes);
     }
@@ -23,13 +23,13 @@ class OcrSettingsTest {
   }
 
   @Test
-  void readsTheUrlAndTheOcrTypeOfTheDocumentType() throws ScanovateException {
+  void readsTheOcrTypeOfTheDocumentType() throws ScanovateException {
     OcrSettings settings =
         OcrSettings.fromConfig(
             config("{\"philippinePassport\": \"passport\", \"default\": \"regula\"}"),
             "philippinePassport");
 
-    assertEquals(new OcrSettings(URI.create("http://scanovate-ocr:5040"), "passport"), settings);
+    assertEquals(new OcrSettings("passport"), settings);
   }
 
   @Test
@@ -63,22 +63,5 @@ class OcrSettingsTest {
           () -> OcrSettings.fromConfig(config(ocrTypes), "philippinePassport"),
           ocrTypes);
     }
-  }
-
-  @Test
-  void theUrlIsRequired() {
-    Map<String, String> config = config(null);
-    config.remove(ScanovateAuthenticatorFactory.OCR_URL);
-    assertThrows(ScanovateException.class, () -> OcrSettings.fromConfig(config, "passport"));
-  }
-
-  /** Passports are read from an ICAO TD3 data page; other documents are ID-1 cards. */
-  @Test
-  void documentFormatFollowsTheOcrType() throws ScanovateException {
-    Map<String, String> ocrTypes =
-        config("{\"philippinePassport\": \"passport\", \"default\": \"regula\"}");
-    assertEquals(
-        DocumentFormat.TD3, OcrSettings.fromConfig(ocrTypes, "philippinePassport").format());
-    assertEquals(DocumentFormat.ID_1, OcrSettings.fromConfig(ocrTypes, "philSysID").format());
   }
 }

@@ -482,6 +482,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                 disableSyncWithLocation
             >
                 <DatagridConfigurable
+                    rowClick={false}
                     header={ThreeStateDatagridHeader}
                     bulkActionButtons={false}
                     omit={OMIT_FIELDS}

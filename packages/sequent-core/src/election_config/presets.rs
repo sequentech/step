@@ -44,9 +44,10 @@ pub const PARAM_SAML_PRINCIPAL_ATTRIBUTE: &str = "saml_principal_attribute";
 pub const PARAM_OTP_SENDER_ID: &str = "otp_sender_id";
 pub const PARAM_OTP_LENGTH: &str = "otp_length";
 pub const PARAM_OTP_TTL_SECONDS: &str = "otp_ttl_seconds";
-pub const PARAM_SCANOVATE_OCR_URL: &str = "scanovate_ocr_url";
 pub const PARAM_SCANOVATE_LIVENESS_URL: &str = "scanovate_liveness_url";
 pub const PARAM_SCANOVATE_FACE_MATCH_URL: &str = "scanovate_face_match_url";
+pub const PARAM_SCANOVATE_DOCUMENT_LIVENESS_URL: &str =
+    "scanovate_document_liveness_url";
 pub const PARAM_SCANOVATE_FACE_MATCH_MIN_SIMILARITY: &str =
     "scanovate_face_match_min_similarity";
 /// ISO 3166 alpha-3 codes separated by `|`, as the regex alternation they
@@ -90,9 +91,10 @@ pub const PASSPORT_COUNTRY_CHECK_FLOW: &str = "passport-country-check";
 pub const SCANOVATE_CONFIG_ALIAS: &str = "scanovate-registration";
 pub const SCANOVATE_LIVENESS_SECRET: &str = "liveness-secret";
 pub const SCANOVATE_LIVENESS_URL: &str = "liveness-url";
-pub const SCANOVATE_OCR_URL_DEFAULT: &str = "http://scanovate-ocr:5040";
 pub const SCANOVATE_FACE_MATCH_URL_DEFAULT: &str =
     "http://scanovate-face-match:3000";
+pub const SCANOVATE_DOCUMENT_LIVENESS_URL_DEFAULT: &str =
+    "http://scanovate-document-liveness:8080";
 pub const BIOMETRIC_OTP_CONFIG: &str = "biometric-registration-otp";
 pub const BIOMETRIC_USER_CREATION_CONFIG: &str = "biometric-registration-user";
 pub const BIOMETRIC_LOOKUP_CONFIG: &str = "biometric-lookup-register";
@@ -133,10 +135,10 @@ pub struct Requirement {
     pub why: &'static str,
 }
 
-/// An authenticator config value a preset needs and must never write.
+/// An authenticator config value a preset needs but has no default for.
 ///
-/// Set in the target realm by whoever deploys it. The build reports a realm that
-/// lacks it, rather than carrying the secret through a plan or a bundle.
+/// Supplied explicitly in a realm or configured in Keycloak after import. A
+/// supplied real value is preserved through plans, workbooks and import bundles.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ConfigSecret {
     pub config_alias: &'static str,
@@ -159,7 +161,7 @@ pub struct DeploymentSetting {
 /// The two directives are separate fields rather than magic keys inside the patch
 /// — which is how the Python carried them — so that writing the patch out never
 /// has to strip them, and so a caller cannot forget to.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub struct RealmPatch {
     /// Merged into the realm, deeply.
     pub patch: Map<String, Value>,
@@ -176,7 +178,7 @@ pub struct RealmPatch {
 }
 
 /// The parameters a preset reads, as resolved from the source document.
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct PresetInput {
     values: Vec<(String, Value)>,
 }
@@ -687,18 +689,17 @@ fn biometric_patch(input: &PresetInput) -> RealmPatch {
             {
                 "alias": SCANOVATE_CONFIG_ALIAS,
                 "config": {
-                    "ocr-url": input.text(
-                        PARAM_SCANOVATE_OCR_URL,
-                        SCANOVATE_OCR_URL_DEFAULT,
-                    ),
                     "ocr-types": "{\"philippinePassport\": \"passport\"}",
-                    "capture-sides": "{\"philippinePassport\": [\"front\"]}",
                     "face-match-url": input.text(
                         PARAM_SCANOVATE_FACE_MATCH_URL,
                         SCANOVATE_FACE_MATCH_URL_DEFAULT,
                     ),
                     "face-match-min-similarity":
                         format!("{{\"philippinePassport\": {similarity}}}"),
+                    "document-liveness-url": input.text(
+                        PARAM_SCANOVATE_DOCUMENT_LIVENESS_URL,
+                        SCANOVATE_DOCUMENT_LIVENESS_URL_DEFAULT,
+                    ),
                     "doc-id-type": "sequent.read-only.id-card-type",
                     "user-status": "sequent.read-only.id-card-number-validated",
                     "attributes-to-validate": validate.to_string(),
@@ -784,9 +785,9 @@ pub const PRESETS: &[AuthPreset] = &[
         build: biometric_patch,
         required_parameters: &[],
         optional_parameters: &[
-            PARAM_SCANOVATE_OCR_URL,
             PARAM_SCANOVATE_LIVENESS_URL,
             PARAM_SCANOVATE_FACE_MATCH_URL,
+            PARAM_SCANOVATE_DOCUMENT_LIVENESS_URL,
             PARAM_ACCEPTED_PASSPORT_COUNTRIES,
             PARAM_SCANOVATE_FACE_MATCH_MIN_SIMILARITY,
             PARAM_OTP_SENDER_ID,
@@ -976,6 +977,35 @@ mod tests {
                 .map(|(key, value)| ((*key).to_string(), json!(*value)))
                 .collect(),
         )
+    }
+
+    #[test]
+    fn preset_diagnostics_do_not_disclose_supplied_credentials() {
+        let secret = "synthetic-preset-credential";
+        let input = input(&[(SCANOVATE_LIVENESS_SECRET, secret)]);
+        let patch = RealmPatch {
+            patch: serde_json::from_value(json!({"authenticatorConfig": [{
+                "config": {"liveness-secret": secret}
+            }]}))
+            .unwrap(),
+            ..RealmPatch::default()
+        };
+        assert_eq!(input.get(SCANOVATE_LIVENESS_SECRET), Some(&json!(secret)));
+        assert_eq!(
+            patch.patch["authenticatorConfig"][0]["config"]["liveness-secret"],
+            secret
+        );
+        for diagnostic in [
+            format!("{input:?}"),
+            format!("{input:#?}"),
+            format!("{patch:?}"),
+            format!("{patch:#?}"),
+        ] {
+            assert!(!diagnostic.contains(secret));
+            assert!(!diagnostic.contains("liveness-secret"));
+        }
+        assert!(format!("{input:?}").contains("PresetInput"));
+        assert!(format!("{patch:?}").contains("RealmPatch"));
     }
 
     #[test]
@@ -1192,7 +1222,7 @@ mod tests {
 
     fn biometric(values: &[(&str, &str)]) -> RealmPatch {
         let mut given = vec![
-            (PARAM_SCANOVATE_OCR_URL, "https://ocr.example.org"),
+            ("scanovate_ocr_url", "https://ocr.example.org"),
             (PARAM_SCANOVATE_LIVENESS_URL, "https://liveness.example.org"),
             (PARAM_SCANOVATE_FACE_MATCH_URL, "https://match.example.org"),
         ];
@@ -1315,7 +1345,10 @@ mod tests {
     fn the_scanovate_step_reads_a_passport_and_stores_its_country() {
         let patch = biometric(&[]);
         let scanovate = config(&patch, SCANOVATE_CONFIG_ALIAS);
-        assert_eq!(scanovate["ocr-url"], json!("https://ocr.example.org"));
+        // The voter's browser goes through OCR's own page under the
+        // liveness-url, which also decides which sides it scans.
+        assert!(scanovate.get("ocr-url").is_none());
+        assert!(scanovate.get("capture-sides").is_none());
         assert_eq!(
             scanovate["liveness-url"],
             json!("https://liveness.example.org")
@@ -1381,11 +1414,22 @@ mod tests {
     fn the_internal_services_default_to_their_deployed_names() {
         let patch = get("biometric_authentication").unwrap().build(&input(&[]));
         let scanovate = config(&patch, SCANOVATE_CONFIG_ALIAS);
-        assert_eq!(scanovate["ocr-url"], json!(SCANOVATE_OCR_URL_DEFAULT));
         assert_eq!(
             scanovate["face-match-url"],
             json!(SCANOVATE_FACE_MATCH_URL_DEFAULT)
         );
+        assert_eq!(
+            scanovate["document-liveness-url"],
+            json!(SCANOVATE_DOCUMENT_LIVENESS_URL_DEFAULT)
+        );
+    }
+
+    #[test]
+    fn the_preset_asks_for_no_ocr_url() {
+        // Keycloak no longer calls OCR; a profile that still gives one imports
+        // all the same and the value is not read.
+        let preset = get("biometric_authentication").unwrap();
+        assert!(!preset.consumes().contains(&"scanovate_ocr_url"));
     }
 
     #[test]
@@ -1468,11 +1512,9 @@ mod tests {
         let preset = get("biometric_authentication").unwrap();
         assert!(preset.uses_otp);
         assert!(preset.required_parameters.is_empty());
-        for parameter in [
-            PARAM_SCANOVATE_OCR_URL,
-            PARAM_SCANOVATE_LIVENESS_URL,
-            PARAM_SCANOVATE_FACE_MATCH_URL,
-        ] {
+        for parameter in
+            [PARAM_SCANOVATE_LIVENESS_URL, PARAM_SCANOVATE_FACE_MATCH_URL]
+        {
             assert!(
                 preset.optional_parameters.contains(&parameter),
                 "{parameter}"
@@ -1522,5 +1564,19 @@ mod tests {
                 );
             }
         }
+    }
+}
+
+impl std::fmt::Debug for RealmPatch {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("RealmPatch").finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Debug for PresetInput {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PresetInput")
+            .finish_non_exhaustive()
     }
 }

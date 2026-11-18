@@ -76,6 +76,7 @@ use unicode_normalization::char::decompose_canonical;
 const ID_CARD_TYPE_FIELD: &str = "sequent.read-only.id-card-type";
 const EMAIL_FIELD: &str = "email";
 const FIRST_NAME_FIELD: &str = "firstName";
+const MIDDLE_NAME_FIELD: &str = "middleName";
 const FIRST_AND_MIDDLE_NAME_FIELD: &str = "firstName.middleName";
 const SEVERAL_VOTERS_MATCH_REASON: &str = "Several registry voters match";
 
@@ -224,6 +225,62 @@ pub async fn verify_application(
         permission_label = None;
     }
 
+    let application_id = store_verified_application(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &area_id,
+        applicant_id,
+        applicant_data,
+        labels,
+        &annotations,
+        &result,
+        &permission_label,
+    )
+    .await?;
+
+    Ok(ApplicationVerificationResult {
+        application_id: Some(application_id.to_string()),
+        ..result
+    })
+}
+
+/// The voter an automatic decision decided, which its application is stored
+/// under: the voter accepted, or the one whose acceptance an email in use
+/// undid. None for a decision about no voter, a pending one (a reviewer
+/// picks the voter) and a rejection naming the voter already enrolled,
+/// whose latest application must stay their own.
+fn decided_voter(result: &ApplicationVerificationResult) -> Option<&str> {
+    let decided = match result.application_status {
+        ApplicationStatus::ACCEPTED => true,
+        ApplicationStatus::REJECTED => {
+            result.rejection_reason == Some(ApplicationRejectReason::EMAIL_IN_USE)
+        }
+        ApplicationStatus::PENDING => false,
+    };
+    result
+        .user_id
+        .as_deref()
+        .filter(|user_id| decided && !user_id.trim().is_empty())
+}
+
+/// Stores the application `result` decided, with the matched voter's
+/// username, under the voter it decided or else `applicant_id`; the stored
+/// application's id.
+#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all, err)]
+pub async fn store_verified_application(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &Option<Uuid>,
+    applicant_id: &str,
+    applicant_data: &HashMap<String, String>,
+    labels: &Option<Value>,
+    annotations: &ApplicationAnnotations,
+    result: &ApplicationVerificationResult,
+    permission_label: &Option<String>,
+) -> Result<Uuid> {
     let mut final_applicant_data = applicant_data.clone();
     final_applicant_data.insert("username".to_string(), result.username.clone());
 
@@ -231,39 +288,16 @@ pub async fn verify_application(
         hasura_transaction,
         tenant_id,
         election_event_id,
-        &area_id,
-        applicant_id,
+        area_id,
+        decided_voter(result).unwrap_or(applicant_id),
         &final_applicant_data,
         labels,
-        &annotations,
+        annotations,
         &result.application_type,
         &result.application_status,
-        &permission_label,
+        permission_label,
     )
-    .await?;
-    // The application just stored in this transaction.
-    let application_id: Uuid = hasura_transaction
-        .query_one(
-            r#"
-            SELECT id FROM sequent_backend.applications
-            WHERE tenant_id = $1 AND election_event_id = $2 AND applicant_id = $3
-            ORDER BY created_at DESC, id
-            LIMIT 1
-            "#,
-            &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &applicant_id,
-            ],
-        )
-        .await
-        .with_context(|| "Error reading the stored application")?
-        .try_get("id")?;
-
-    Ok(ApplicationVerificationResult {
-        application_id: Some(application_id.to_string()),
-        ..result
-    })
+    .await
 }
 
 #[instrument(err, skip_all)]
@@ -337,6 +371,15 @@ fn get_filter_from_applicant_data(
             }
             "embassy" => {
                 // Ignore embassy to speed up user lookup
+            }
+            MIDDLE_NAME_FIELD
+                if GivenNames::of(applicant_data) == GivenNames::TOGETHER
+                    && applicant_data
+                        .get(MIDDLE_NAME_FIELD)
+                        .is_none_or(|middle_name| middle_name.trim().is_empty()) =>
+            {
+                // The middle name is among the given names, in the first
+                // name: an empty one would only find voters without it.
             }
             _ => {
                 let value = applicant_data
@@ -668,6 +711,38 @@ fn reject_duplicate_email(
     }
 }
 
+/// How the applicant's identity document gives the first and middle names.
+#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+enum GivenNames {
+    /// In two fields, compared with the voter's first and middle names.
+    SEPARATE,
+    /// In one field, compared with the voter's first and middle names
+    /// joined.
+    TOGETHER,
+}
+
+impl GivenNames {
+    fn of(applicant_data: &HashMap<String, String>) -> Self {
+        let card_type = applicant_data.get(ID_CARD_TYPE_FIELD).map(String::as_str);
+        let has_middle_name = applicant_data
+            .get(MIDDLE_NAME_FIELD)
+            .is_some_and(|middle_name| !middle_name.trim().is_empty());
+        let is = |card: ECardType| card_type == Some(card.to_string().as_str());
+        if is(ECardType::SEAMANS_BOOK) || is(ECardType::DRIVER_LICENSE) {
+            GivenNames::TOGETHER
+        } else if is(ECardType::PHILIPPINE_PASSPORT) && !has_middle_name {
+            // A passport's machine-readable zone has a single given names
+            // field, the middle name included, which is how the passport
+            // reader returns them. A middle name typed apart is compared
+            // apart, as before.
+            GivenNames::TOGETHER
+        } else {
+            GivenNames::SEPARATE
+        }
+    }
+}
+
 #[instrument(err)]
 fn check_mismatches(
     user: &User,
@@ -684,19 +759,14 @@ fn check_mismatches(
         user.id, fields_to_check, fields_to_check_unset
     );
 
-    // Check if the card type is seamans_book or driver_license
-    let card_type_flag = applicant_data
-        .get(ID_CARD_TYPE_FIELD)
-        .is_some_and(|card_type| {
-            *card_type == ECardType::SEAMANS_BOOK.to_string()
-                || *card_type == ECardType::DRIVER_LICENSE.to_string()
-        });
+    let given_names = GivenNames::of(applicant_data);
 
     for field_to_check in fields_to_check.split(",") {
         let field_to_check = field_to_check.trim();
 
-        // Special handling for firstName when card_type_flag is true
-        if card_type_flag {
+        // The first and middle names are compared together when the
+        // document gives them together.
+        if given_names == GivenNames::TOGETHER {
             if field_to_check == "middleName" {
                 continue;
             } else if field_to_check == "firstName" {
@@ -1923,6 +1993,68 @@ mod tests {
         );
 
         assert_eq!(result.application_status, ApplicationStatus::ACCEPTED);
+    }
+
+    /// An automatic decision is stored under the voter it decided, so the
+    /// monitoring finds it under the voter's Keycloak id; Keycloak sends no
+    /// applicant id of its own.
+    #[test]
+    fn an_automatic_acceptance_is_stored_under_the_accepted_voter() {
+        assert_eq!(decided_voter(&accepted_census_result()), Some("voter-id"));
+    }
+
+    #[test]
+    fn an_acceptance_undone_by_an_email_in_use_is_stored_under_its_voter() {
+        let result = reject_duplicate_email(
+            accepted_census_result(),
+            EmailUniqueness::UNIQUE,
+            &["other-voter".to_string()],
+        );
+
+        assert_eq!(decided_voter(&result), Some("voter-id"));
+    }
+
+    /// The voter an already-approved rejection names is the one enrolled
+    /// before: the new attempt must not become that voter's latest
+    /// application.
+    #[test]
+    fn a_rejection_naming_an_already_enrolled_voter_is_not_stored_under_them() {
+        let result = ApplicationVerificationResult {
+            application_status: ApplicationStatus::REJECTED,
+            rejection_reason: Some(ApplicationRejectReason::ALREADY_APPROVED),
+            ..accepted_census_result()
+        };
+
+        assert_eq!(result.user_id.as_deref(), Some("voter-id"));
+        assert_eq!(decided_voter(&result), None);
+    }
+
+    #[test]
+    fn a_decision_about_no_voter_or_still_pending_names_none() {
+        let no_voter = ApplicationVerificationResult {
+            application_status: ApplicationStatus::REJECTED,
+            rejection_reason: Some(ApplicationRejectReason::NO_VOTER),
+            user_id: None,
+            ..accepted_census_result()
+        };
+        let pending = ApplicationVerificationResult {
+            application_status: ApplicationStatus::PENDING,
+            rejection_reason: None,
+            ..accepted_census_result()
+        };
+        let accepted_without_voter = ApplicationVerificationResult {
+            user_id: None,
+            ..accepted_census_result()
+        };
+        let blank_voter = ApplicationVerificationResult {
+            user_id: Some("  ".to_string()),
+            ..accepted_census_result()
+        };
+
+        assert_eq!(decided_voter(&no_voter), None);
+        assert_eq!(decided_voter(&pending), None, "a reviewer picks the voter");
+        assert_eq!(decided_voter(&accepted_without_voter), None);
+        assert_eq!(decided_voter(&blank_voter), None);
     }
 
     #[test]

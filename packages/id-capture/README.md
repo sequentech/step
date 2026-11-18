@@ -6,11 +6,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # id-capture
 
-Frame analysis for the guided identity capture (Scanovate `embedded` mode),
-compiled to WebAssembly and run on every camera frame in the voter's browser.
-The checks only guide the voter and decide when to take the photo; the server
-never trusts them: the Scanovate services hosted on premise perform the actual
-verification.
+Frame analysis for a guided identity capture, compiled to WebAssembly and run
+on every camera frame in the voter's browser. The checks only guide the voter
+and decide when to take the photo; the server never trusts them.
+
+**Not used any more.** It guided the camera of our own Scanovate capture page
+in `packages/keycloak-ui`, which now embeds Scanovate's own OCR and Liveness
+Plus capture pages instead (see
+[Scanovate On-Premise Services](../../docs/docusaurus/docs/integrations/scanovate_on_premise_guide.md)).
+keycloak-ui no longer consumes the WebAssembly build (its `capture-wasm`
+directory is gone), and `build-wasm.sh` writes it to this package's own `pkg/`
+directory, which git ignores.
 
 ## What it checks
 
@@ -30,8 +36,8 @@ side) and the on-screen guide rectangle:
   `BLURRY` (variance of the Laplacian over the luma variance on the card),
   then `HOLD_STILL` until the corners stay put for 9 frames and `READY`.
 
-The guide only shows where to hold the document. The whole camera frame is
-uploaded and the OCR service finds the document in it, so the geometry checks
+The guide only shows where to hold the document. The whole camera frame was
+uploaded and the OCR service found the document in it, so the geometry checks
 are loose: they keep the whole document in the frame, large enough and flat to
 the camera, while the glare and sharpness checks protect what the OCR reads.
 
@@ -64,7 +70,7 @@ All thresholds are named constants at the top of `src/document.rs` and
 ## JavaScript API
 
 ```ts
-import init, {DocumentAnalyzer, FaceAnalyzer} from "./capture-wasm/index.js"
+import init, {DocumentAnalyzer, FaceAnalyzer} from "./pkg/index.js"
 
 await init({module_or_path: wasmUrl})
 const doc = new DocumentAnalyzer()
@@ -88,7 +94,7 @@ It builds the crate for `wasm32-unknown-unknown` (with `simd128`, which
 browsers need anyway for the SIMD code tract ships), runs `wasm-bindgen`
 0.2.128 and, when available, `wasm-opt` (`nix shell nixpkgs#binaryen`), and
 writes `index.js`, `index.d.ts`, `index_bg.wasm` and `face_detection_yunet.onnx`
-to `packages/keycloak-ui/src/login/scanovate/capture-wasm/`.
+to `packages/id-capture/pkg/` (ignored by git).
 
 Tests run natively:
 

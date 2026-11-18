@@ -234,6 +234,21 @@ pub fn open_named(bytes: &[u8], name: Option<&str>) -> Result<Opened, Report> {
             })?;
         let mut read = super::plan_from_event::plan_from_event(&document)?;
 
+        // Public certificate trust the platform's importer installs from
+        // members beside the document (windmill `import_election_event`:
+        // `export_staff_issuers-*.pem`, `export_certificates-*`). The
+        // Architect carries neither, so the loss is recorded on the plan,
+        // where every validation reports it, rather than dropped unseen.
+        read.plan.signing.trust_not_carried = names
+            .iter()
+            .filter(|name| {
+                let base = name.rsplit('/').next().unwrap_or(name);
+                base.starts_with(TRUST_MEMBER_STAFF_ISSUERS)
+                    || base.starts_with(TRUST_MEMBER_CERTIFICATES)
+            })
+            .cloned()
+            .collect();
+
         // And everything that travelled beside it. The census, the candidates'
         // photographs and the support-material files are in the archive and not in
         // the document, so this is the only door that can fill them in — which is
@@ -263,6 +278,9 @@ pub fn open_named(bytes: &[u8], name: Option<&str>) -> Result<Opened, Report> {
             &beside,
             &mut read.report,
         );
+        if read.report.has_errors() {
+            return Err(read.report);
+        }
         // The photographs and the support materials are still fields of the plan,
         // so the bytes half of the shim still applies. The census is not.
         sources.files = Sources::from_plan(&read.plan).files;
@@ -502,6 +520,11 @@ const EVENT_MEMBER: &str = "export_election_event";
 
 /// The stem of the census member's name. `export_voters-<uuid>.csv`.
 const VOTERS_MEMBER: &str = "export_voters";
+
+/// windmill's `EDocuments::STAFF_ISSUERS` and `EDocuments::CERTIFICATES`
+/// file-name stems.
+const TRUST_MEMBER_STAFF_ISSUERS: &str = "export_staff_issuers";
+const TRUST_MEMBER_CERTIFICATES: &str = "export_certificates";
 
 /// One entry's bytes, by name.
 fn entry(bytes: &[u8], name: &str) -> Result<Vec<u8>, Report> {

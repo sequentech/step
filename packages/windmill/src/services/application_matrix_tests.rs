@@ -220,6 +220,103 @@ fn first_and_middle_name_are_one_field_for_a_drivers_license() {
     assert_eq!(result.mismatches, Some(2));
 }
 
+/// A passport read by Scanovate: its machine-readable zone holds every
+/// given name, the middle name included, in one field.
+fn passport_applicant(given_names: &str) -> HashMap<String, String> {
+    let mut data = applicant(Some("philippinePassport"));
+    data.insert("firstName".to_string(), given_names.to_string());
+    data.remove("middleName");
+    data
+}
+
+fn verify_passport(
+    users: Vec<User>,
+    given_names: &str,
+) -> (ApplicationVerificationResult, DecisionRecord) {
+    automatic_verification(
+        users,
+        &built_in(),
+        &annotations(Some("VERIFIED")),
+        &passport_applicant(given_names),
+    )
+    .unwrap()
+}
+
+#[test]
+fn a_passports_given_names_are_matched_with_the_first_and_middle_names() {
+    // The registry splits "Juan Carlos Santos" into the first and middle
+    // names; the passport gives them together.
+    let (result, decision) = verify_passport(vec![registry_voter("a", &[])], "JUAN CARLOS SANTOS");
+
+    assert_eq!(result.application_status, ApplicationStatus::ACCEPTED);
+    assert_eq!(result.mismatches, Some(0));
+    assert_eq!(
+        result.fields_match.unwrap().get("firstName.middleName"),
+        Some(&true)
+    );
+    assert_eq!(
+        decision.inputs.fields.get("firstName"),
+        Some(&FieldMatch::MATCHES)
+    );
+    assert_eq!(decision.inputs.fields.get("middleName"), None);
+}
+
+#[test]
+fn a_passport_without_the_registry_middle_name_is_not_accepted() {
+    // The middle name is checked: given names that lack it, or carry
+    // another one, don't match the voter.
+    for given_names in ["JUAN CARLOS", "JUAN CARLOS REYES"] {
+        let (result, _) = verify_passport(vec![registry_voter("a", &[])], given_names);
+        assert_ne!(
+            result.application_status,
+            ApplicationStatus::ACCEPTED,
+            "{given_names}"
+        );
+        assert_eq!(
+            result.fields_match.unwrap().get("firstName.middleName"),
+            Some(&false),
+            "{given_names}"
+        );
+    }
+}
+
+#[test]
+fn a_passport_matches_a_voter_without_a_middle_name() {
+    let voter = registry_voter("a", &[("middleName", "")]);
+    let (result, _) = verify_passport(vec![voter.clone()], "JUAN CARLOS");
+    assert_eq!(result.application_status, ApplicationStatus::ACCEPTED);
+
+    let mut voter = voter;
+    voter.attributes.as_mut().unwrap().remove("middleName");
+    let (result, _) = verify_passport(vec![voter], "JUAN CARLOS");
+    assert_eq!(result.application_status, ApplicationStatus::ACCEPTED);
+}
+
+#[test]
+fn the_lookup_of_a_passport_does_not_search_an_empty_middle_name() {
+    let filter = get_filter_from_applicant_data(
+        "tenant".to_string(),
+        Some("event".to_string()),
+        None,
+        None,
+        "realm".to_string(),
+        None,
+        &SEARCH.split(',').map(str::to_string).collect::<Vec<_>>(),
+        &passport_applicant("JUAN CARLOS SANTOS"),
+    )
+    .unwrap();
+
+    assert!(filter.first_name.is_some());
+    assert!(filter.last_name.is_some());
+    assert_eq!(
+        filter.attributes,
+        Some(HashMap::from([(
+            "dateOfBirth".to_string(),
+            "1990-01-01".to_string()
+        )]))
+    );
+}
+
 #[test]
 fn several_matching_voters_go_to_manual_review() {
     let (result, decision) = verify(

@@ -34,7 +34,7 @@ export enum TemplateLayout {
     Card = "CARD",
     // Desktop capture: the page brings its own panel.
     Wide = "WIDE",
-    // Phone capture: the camera takes the whole screen.
+    // Camera capture: the camera takes the whole window, under a small mark of whose page it is.
     Fullscreen = "FULLSCREEN",
 }
 
@@ -146,6 +146,13 @@ export default function Template(props: SequentTemplateProps) {
                         aria-labelledby="kc-page-title"
                     >
                         {children}
+                        {/* Whose page this is, over the camera: realms restyle it as the header. */}
+                        <Box className="auth-fullscreen-brand">
+                            <img src={logo} alt="Sequent" width={106} height={20} />
+                            <span className="auth-fullscreen-brand-context" lang={copy.languageTag}>
+                                {voting ? copy.votingPortal : copy.adminPortal}
+                            </span>
+                        </Box>
                     </Box>
                 </Box>
             </ThemeProvider>

@@ -280,6 +280,10 @@ export const CreateElectionEventProvider = ({children}: any) => {
             setProblems(validationProblems)
             throw new ImportRequestError("validation")
         }
+        // Warnings only (a file from a different major version, meta#14760):
+        // listed in the import's existing diagnostics, and the import stays
+        // available, since only an error disables it.
+        setProblems(validationProblems)
     }
 
     const handleImportElectionEvent = async (

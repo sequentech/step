@@ -29,8 +29,9 @@ use crate::services::tasks_execution::update_fail;
 use crate::tasks::insert_election_event::CreateElectionEventInput;
 use crate::types::documents::ETallyDocuments;
 use ::keycloak::types::{
-    ComponentExportRepresentation, GroupRepresentation, IdentityProviderMapperRepresentation,
-    ProtocolMapperRepresentation, RealmRepresentation,
+    ComponentExportRepresentation, Composites, GroupRepresentation,
+    IdentityProviderMapperRepresentation, ProtocolMapperRepresentation, RealmRepresentation,
+    RoleRepresentation,
 };
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use chrono::format;
@@ -63,8 +64,8 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util::locale::iso_639_2t_to_bcp47;
 use sequent_core::util::mime::{get_mime_types, matches_mime};
 use sequent_core::util::version::{
-    check_version_compatibility, DEV_APP_VERSION, ENV_VAR_APP_VERSION, HISTORICAL_DEFAULT_VERSION,
-    VERSION_KEY,
+    check_version_compatibility, major_mismatch, DEV_APP_VERSION, ENV_VAR_APP_VERSION,
+    HISTORICAL_DEFAULT_VERSION, VERSION_KEY,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -145,7 +146,7 @@ use sequent_core::election_config;
 use sequent_core::election_config::package_verify::VerifiedPackage;
 use sequent_core::election_config::report::{parse_copies, parse_output_formats};
 pub use sequent_core::election_config::ImportElectionEventSchema;
-use sequent_core::election_config::{import_problems, Rejected};
+use sequent_core::election_config::{import_problems, Problem, Rejected};
 
 #[instrument(err)]
 pub async fn ensure_election_audit_boards(
@@ -202,6 +203,8 @@ pub async fn read_default_election_event_realm() -> Result<RealmRepresentation> 
 const HASURA_CLAIM_NAMESPACE: &str = "https://hasura.io/jwt/claims";
 /// Protocol-mapper config key holding the claim a mapper writes.
 const PROTOCOL_MAPPER_CLAIM_NAME_KEY: &str = "claim.name";
+/// Protocol mappers that add or rename a token's roles without naming a claim.
+const ROLE_CHANGING_MAPPERS: [&str; 2] = ["oidc-hardcoded-role-mapper", "oidc-role-name-mapper"];
 /// Prefix of the per-realm composite role Keycloak generates for every realm.
 const DEFAULT_REALM_ROLE_PREFIX: &str = "default-roles-";
 /// How an uploaded election-event realm's token-claim authority (realm roles,
@@ -221,13 +224,14 @@ pub enum ImportedRealmReconciliation {
     RejectForeignClaims,
 }
 
-/// True when a protocol mapper writes a Hasura session variable or runs a
-/// script, i.e. it can set the roles or tenant a token carries.
+/// True when a protocol mapper writes a Hasura session variable, runs a script
+/// or changes the token's roles, i.e. it can set the roles or tenant a token
+/// carries.
 fn is_claim_authority_mapper(mapper: &ProtocolMapperRepresentation) -> bool {
     if mapper
         .protocol_mapper
         .as_deref()
-        .is_some_and(|kind| kind.contains("script"))
+        .is_some_and(|kind| kind.contains("script") || ROLE_CHANGING_MAPPERS.contains(&kind))
     {
         return true;
     }
@@ -263,6 +267,85 @@ fn claim_mapper_key(
 /// defines it, or it is the realm's own default composite.
 fn realm_role_allowed(name: &str, allowed: &HashSet<String>) -> bool {
     allowed.contains(name)
+}
+
+/// Records the members of `composites` that `allowed` doesn't have.
+fn record_foreign_composites(
+    composites: Option<&Composites>,
+    allowed: Option<&Composites>,
+    role: &str,
+    discarded: &mut Vec<String>,
+) {
+    let Some(composites) = composites else {
+        return;
+    };
+    let allowed_realm_roles = allowed.and_then(|allowed| allowed.realm.as_ref());
+    for name in composites.realm.iter().flatten() {
+        if !allowed_realm_roles.is_some_and(|roles| roles.contains(name)) {
+            discarded.push(format!("realm role '{name}' composed into role '{role}'"));
+        }
+    }
+    let allowed_client_roles = allowed.and_then(|allowed| allowed.client.as_ref());
+    for (client_id, names) in composites.client.iter().flatten() {
+        let allowed_names = allowed_client_roles.and_then(|clients| clients.get(client_id));
+        for name in names {
+            if !allowed_names.is_some_and(|roles| roles.contains(name)) {
+                discarded.push(format!(
+                    "client role '{name}' of client '{client_id}' composed into role '{role}'"
+                ));
+            }
+        }
+    }
+}
+
+/// The realm and client role names a realm defines.
+struct DefinedRoles {
+    realm: HashSet<String>,
+    client: HashMap<String, HashSet<String>>,
+}
+
+impl DefinedRoles {
+    fn of(realm: &RealmRepresentation) -> Self {
+        let names = |roles: &Vec<RoleRepresentation>| -> HashSet<String> {
+            roles.iter().filter_map(|role| role.name.clone()).collect()
+        };
+        let roles = realm.roles.as_ref();
+        DefinedRoles {
+            realm: roles
+                .and_then(|roles| roles.realm.as_ref())
+                .map(names)
+                .unwrap_or_default(),
+            client: roles
+                .and_then(|roles| roles.client.as_ref())
+                .map(|clients| {
+                    clients
+                        .iter()
+                        .map(|(client_id, roles)| (client_id.clone(), names(roles)))
+                        .collect()
+                })
+                .unwrap_or_default(),
+        }
+    }
+
+    /// Keeps the members of `composites` that the realm defines. Keycloak
+    /// refuses a realm whose role composes a role it doesn't define, which a
+    /// template from a newer Keycloak would otherwise cause: an export from
+    /// before Keycloak 26.7 has no organization roles for `realm-admin`.
+    fn retain_defined(&self, composites: Option<Composites>) -> Option<Composites> {
+        composites.map(|mut composites| {
+            if let Some(names) = composites.realm.as_mut() {
+                names.retain(|name| self.realm.contains(name));
+            }
+            if let Some(clients) = composites.client.as_mut() {
+                clients.retain(|client_id, names| {
+                    let defined = self.client.get(client_id);
+                    names.retain(|name| defined.is_some_and(|defined| defined.contains(name)));
+                    !names.is_empty()
+                });
+            }
+            composites
+        })
+    }
 }
 
 /// Client-role assignments of a user or group, keyed by client id.
@@ -405,10 +488,154 @@ fn idp_mapper_key(
     )
 }
 
+/// Keycloak component holding a realm's declarative user profile.
+const USER_PROFILE_PROVIDER_COMPONENT: &str = "org.keycloak.userprofile.UserProfileProvider";
+/// Config key under which that component stores the profile as one JSON document.
+const USER_PROFILE_CONFIG_KEY: &str = "kc.user.profile.config";
+/// User-profile setting that lets users edit attributes the profile doesn't declare.
+const UNMANAGED_ATTRIBUTE_POLICY_KEY: &str = "unmanagedAttributePolicy";
+
+/// A realm's user-profile component, if it has one.
+fn user_profile_component(realm: &RealmRepresentation) -> Option<&ComponentExportRepresentation> {
+    realm
+        .components
+        .as_ref()?
+        .get(USER_PROFILE_PROVIDER_COMPONENT)?
+        .first()
+}
+
+/// The user profile a component stores, parsed. `None` when it is missing or
+/// isn't a profile (no `attributes` list). Keycloak keeps it as a single value.
+fn user_profile_config(component: &ComponentExportRepresentation) -> Option<serde_json::Value> {
+    let raw = component
+        .config
+        .as_ref()?
+        .get(USER_PROFILE_CONFIG_KEY)?
+        .first()?;
+    let profile: serde_json::Value = serde_json::from_str(raw).ok()?;
+    profile.get("attributes")?.as_array()?;
+    Some(profile)
+}
+
+/// Reconcile the uploaded realm's declarative user profile with the template's.
+/// Token claims come from user attributes (`tenant-id`, `area-id`,
+/// `authorized-election-ids`), so a profile that lets users edit them lets a
+/// voter choose the tenant or elections of their own tokens. Every attribute
+/// the template declares therefore gets the template's permissions, a template
+/// attribute missing from the upload is restored, and the template's
+/// unmanaged-attribute policy applies, since enabling it would make an
+/// undeclared attribute editable. Attributes only the upload declares stay:
+/// the claim mappers are already reduced to the template's, which read
+/// template attributes only. A missing or unreadable profile is replaced with
+/// the template's. A template without a readable profile fails the import,
+/// since it is the baseline the uploaded permissions are checked against.
+fn reconcile_user_profile(
+    realm: &mut RealmRepresentation,
+    template: &RealmRepresentation,
+    discarded: &mut Vec<String>,
+) -> Result<()> {
+    let Some((template_component, template_profile)) = user_profile_component(template)
+        .and_then(|component| Some((component, user_profile_config(component)?)))
+    else {
+        return Err(anyhow!(
+            "The realm template has no readable user profile, so the imported realm's \
+             user-profile permissions can't be checked"
+        ));
+    };
+
+    let Some(mut profile) = user_profile_component(realm).and_then(user_profile_config) else {
+        let mut component = template_component.clone();
+        component.id = None;
+        realm
+            .components
+            .get_or_insert_with(HashMap::new)
+            .insert(USER_PROFILE_PROVIDER_COMPONENT.to_string(), vec![component]);
+        discarded
+            .push("user profile (missing or unreadable, replaced with the template's)".to_string());
+        return Ok(());
+    };
+
+    let template_attributes: Vec<serde_json::Value> = template_profile["attributes"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let mut changed = false;
+    if let Some(attributes) = profile
+        .get_mut("attributes")
+        .and_then(serde_json::Value::as_array_mut)
+    {
+        for template_attribute in &template_attributes {
+            let Some(name) = template_attribute
+                .get("name")
+                .and_then(serde_json::Value::as_str)
+            else {
+                continue;
+            };
+            let template_permissions = template_attribute
+                .get("permissions")
+                .cloned()
+                .unwrap_or(serde_json::Value::Null);
+            match attributes.iter_mut().find(|attribute| {
+                attribute.get("name").and_then(serde_json::Value::as_str) == Some(name)
+            }) {
+                Some(attribute) => {
+                    if attribute
+                        .get("permissions")
+                        .cloned()
+                        .unwrap_or(serde_json::Value::Null)
+                        != template_permissions
+                    {
+                        attribute["permissions"] = template_permissions;
+                        discarded.push(format!("user-profile permissions of attribute '{name}'"));
+                        changed = true;
+                    }
+                }
+                None => {
+                    attributes.push(template_attribute.clone());
+                    discarded.push(format!(
+                        "user-profile attribute '{name}' missing (restored)"
+                    ));
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    let template_policy = template_profile
+        .get(UNMANAGED_ATTRIBUTE_POLICY_KEY)
+        .cloned();
+    if profile.get(UNMANAGED_ATTRIBUTE_POLICY_KEY).cloned() != template_policy {
+        if let Some(object) = profile.as_object_mut() {
+            match template_policy {
+                Some(policy) => object.insert(UNMANAGED_ATTRIBUTE_POLICY_KEY.to_string(), policy),
+                None => object.remove(UNMANAGED_ATTRIBUTE_POLICY_KEY),
+            };
+        }
+        discarded.push("user-profile unmanaged-attribute policy".to_string());
+        changed = true;
+    }
+
+    if changed {
+        if let Some(component) = realm
+            .components
+            .as_mut()
+            .and_then(|components| components.get_mut(USER_PROFILE_PROVIDER_COMPONENT))
+            .and_then(|components| components.first_mut())
+        {
+            component.config.get_or_insert_with(HashMap::new).insert(
+                USER_PROFILE_CONFIG_KEY.to_string(),
+                vec![profile.to_string()],
+            );
+        }
+    }
+    Ok(())
+}
+
 /// Reconcile an uploaded election-event realm against the platform template so
 /// that only the template's realm roles, Hasura claim mappers and
-/// identity-provider mappers survive. This prevents an imported realm from
-/// granting roles (such as `service-account` or `admin-user`) or minting
+/// identity-provider mappers survive, and its user profile doesn't let users
+/// edit the attributes token claims come from. This prevents an imported realm
+/// from granting roles (such as `service-account` or `admin-user`) or minting
 /// Hasura claims that the platform never intended an event realm to carry.
 #[instrument(skip(imported, template))]
 fn sanitize_imported_event_realm(
@@ -456,9 +683,17 @@ fn sanitize_imported_event_realm(
                 .collect()
         })
         .unwrap_or_default();
+    // The template's top-level default role only names it: its composites are
+    // on the full definition among the realm roles.
     if let Some(name) = imported_default_role_name {
-        template_composites.insert(name, template_default_role.and_then(|role| role.composites));
+        let composites = default_role_name(template)
+            .and_then(|template_name| template_composites.get(&template_name).cloned())
+            .flatten()
+            .or_else(|| template_default_role.and_then(|role| role.composites));
+        template_composites.insert(name, composites);
     }
+
+    let defined_roles = DefinedRoles::of(&realm);
 
     // 1. Realm roles: keep only the template's roles and the default composite.
     if let Some(roles) = realm.roles.as_mut() {
@@ -473,7 +708,14 @@ fn sanitize_imported_event_realm(
             });
             for role in realm_roles.iter_mut() {
                 let name = role.name.clone().unwrap_or_default();
-                role.composites = template_composites.get(&name).cloned().flatten();
+                let composites = template_composites.get(&name).cloned().flatten();
+                record_foreign_composites(
+                    role.composites.as_ref(),
+                    composites.as_ref(),
+                    &name,
+                    &mut discarded,
+                );
+                role.composites = defined_roles.retain_defined(composites);
             }
         }
     }
@@ -481,7 +723,47 @@ fn sanitize_imported_event_realm(
     // 2. Default role composites.
     if let Some(default_role) = realm.default_role.as_mut() {
         let name = default_role.name.clone().unwrap_or_default();
-        default_role.composites = template_composites.get(&name).cloned().flatten();
+        let composites = template_composites.get(&name).cloned().flatten();
+        record_foreign_composites(
+            default_role.composites.as_ref(),
+            composites.as_ref(),
+            &name,
+            &mut discarded,
+        );
+        default_role.composites = defined_roles.retain_defined(composites);
+    }
+
+    // 3. Client role composites: an allowed role could otherwise inherit
+    //    what the assignment checks below refuse to grant directly.
+    let template_client_composites: HashMap<(&str, &str), &Option<Composites>> = template
+        .roles
+        .iter()
+        .flat_map(|roles| roles.client.iter().flatten())
+        .flat_map(|(client_id, roles)| {
+            roles.iter().filter_map(move |role| {
+                Some((
+                    (client_id.as_str(), role.name.as_deref()?),
+                    &role.composites,
+                ))
+            })
+        })
+        .collect();
+    if let Some(client_roles) = realm.roles.as_mut().and_then(|roles| roles.client.as_mut()) {
+        for (client_id, roles) in client_roles.iter_mut() {
+            for role in roles.iter_mut() {
+                let name = role.name.clone().unwrap_or_default();
+                let composites = template_client_composites
+                    .get(&(client_id.as_str(), name.as_str()))
+                    .and_then(|composites| (*composites).clone());
+                record_foreign_composites(
+                    role.composites.as_ref(),
+                    composites.as_ref(),
+                    &format!("{client_id}/{name}"),
+                    &mut discarded,
+                );
+                role.composites = defined_roles.retain_defined(composites);
+            }
+        }
     }
 
     let template_user_client_roles: HashMap<String, ClientRoleAssignments> = template
@@ -496,7 +778,7 @@ fn sanitize_imported_event_realm(
         &mut template_group_client_roles,
     );
 
-    // 3. Role assignments on users.
+    // 4. Role assignments on users.
     if let Some(users) = realm.users.as_mut() {
         for user in users.iter_mut() {
             let username = user
@@ -522,7 +804,7 @@ fn sanitize_imported_event_realm(
         }
     }
 
-    // 4. Role assignments on groups.
+    // 5. Role assignments on groups.
     if let Some(groups) = realm.groups.as_mut() {
         for group in groups.iter_mut() {
             strip_group_roles(
@@ -534,7 +816,7 @@ fn sanitize_imported_event_realm(
         }
     }
 
-    // 5. Scope mappings that reference dropped roles.
+    // 6. Scope mappings that reference dropped roles.
     if let Some(scope_mappings) = realm.scope_mappings.as_mut() {
         for mapping in scope_mappings.iter_mut() {
             if let Some(roles) = mapping.roles.as_mut() {
@@ -543,7 +825,7 @@ fn sanitize_imported_event_realm(
         }
     }
 
-    // 6. Claim mappers on clients and client scopes: each keeps only the
+    // 7. Claim mappers on clients and client scopes: each keeps only the
     //    template's Hasura mappers for the client or scope of that name.
     let template_client_claim_mappers: HashMap<String, Vec<ProtocolMapperRepresentation>> =
         template
@@ -586,7 +868,7 @@ fn sanitize_imported_event_realm(
         }
     }
 
-    // 7. Identity-provider mappers: only the ones the template defines survive,
+    // 8. Identity-provider mappers: only the ones the template defines survive,
     //    as any of them can grant roles or set attributes the claims carry.
     let template_idp_mapper_keys: HashSet<_> = template
         .identity_provider_mappers
@@ -606,6 +888,10 @@ fn sanitize_imported_event_realm(
             keep
         });
     }
+
+    // 9. User profile: users must not be able to edit the attributes the
+    //    claims come from.
+    reconcile_user_profile(&mut realm, template, &mut discarded)?;
 
     if !discarded.is_empty() {
         match reconciliation {
@@ -922,8 +1208,10 @@ pub async fn insert_election_event_db(
 ///
 /// This function is a thin wrapper around `replace_realm_ids()` that processes the election event
 /// import schema and replaces most UUIDs with new ones, while keeping certain IDs unchanged
-/// (like tenant_id and optionally election_event_id). It also automatically preserves UUIDs
-/// referenced in Keycloak authenticator configurations.
+/// (like tenant_id and optionally election_event_id). `replace_realm_ids` keeps the UUIDs of a
+/// top-level `authenticatorConfig` only, which an import document does not have, so the realm's
+/// authenticator settings are remapped too; the Scanovate secret and endpoint are put back
+/// afterwards (`restore_remapped_integration_secrets`).
 ///
 /// # Arguments
 /// * `data_str` - The original JSON string representation of the import data
@@ -952,7 +1240,7 @@ pub fn replace_ids(
     ));
 
     // Use replace_realm_ids which handles:
-    // - Preserving UUIDs in Keycloak authenticator configurations
+    // - Preserving UUIDs of a top-level authenticatorConfig (none in an import document)
     // - Preserving tenant_id and election_event_id in the keep list before UUID replacement
     // - Applying explicit tenant_id and election_event_id replacements after UUID replacement
     let (mut new_data, mut replacement_map) = replace_realm_ids(
@@ -1000,6 +1288,10 @@ pub fn replace_ids(
 
     // Parse the modified JSON string back into the structured format
     let mut data: ImportElectionEventSchema = deserialize_str(&new_data)?;
+    crate::services::export::integration_secrets::restore_remapped_integration_secrets(
+        original_data.keycloak_event_realm.as_ref(),
+        data.keycloak_event_realm.as_mut(),
+    );
     validate_import_scope(&data, &tenant_id, &election_event_id)?;
     if let (Some(original_ceremonies), Some(imported_ceremonies), Some(boards)) = (
         &original_data.keys_ceremonies,
@@ -1190,12 +1482,41 @@ pub async fn decrypt_document(
 /// Get the election event schma and also:
 /// - Check version compatibility
 /// - Replace IDs and return a mapping of old to new IDs (for preserving references in other documents like voters)
+///
+/// The third value is what the read warns about without refusing: a file
+/// written by a different **major** version is imported with a
+/// `file.version-major-mismatch` warning (meta#14760), which each caller
+/// reports through its own channel. Every other version refusal (an unreadable
+/// version, `dev` on one side only, a newer minor of the same major) and every
+/// check after it still refuses.
 #[instrument(err, skip_all)]
 pub async fn get_election_event_schema(
     data_str: &str,
     event_id: Option<String>,
     tenant_id: String,
-) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
+) -> Result<(
+    ImportElectionEventSchema,
+    HashMap<String, String>,
+    Vec<Problem>,
+)> {
+    let current_version = std::env::var(ENV_VAR_APP_VERSION)
+        .map_err(|_| anyhow!("Environment variable {ENV_VAR_APP_VERSION} should be set"))?;
+    read_election_event_schema(data_str, event_id, tenant_id, &current_version).await
+}
+
+/// [`get_election_event_schema`] against a stated platform version, rather
+/// than the process's `APP_VERSION`: the same checks, testable without a
+/// process-wide variable other tests also set.
+async fn read_election_event_schema(
+    data_str: &str,
+    event_id: Option<String>,
+    tenant_id: String,
+    current_version: &str,
+) -> Result<(
+    ImportElectionEventSchema,
+    HashMap<String, String>,
+    Vec<Problem>,
+)> {
     // Catch a version missmatch early and return a clear error message about it, rather than having it fail later on
     // with a more obscure error when trying to deserialize data that is incompatible with the current version.
     let mut raw: serde_json::Value = serde_json::from_str(data_str).map_err(|e| {
@@ -1219,15 +1540,11 @@ pub async fn get_election_event_schema(
         .get(VERSION_KEY)
         .and_then(|v| v.as_str())
         .unwrap_or(&default_ver);
-    let current_version = std::env::var(ENV_VAR_APP_VERSION)
-        .map_err(|_| anyhow!("Environment variable {ENV_VAR_APP_VERSION} should be set"))?;
-    check_version_compatibility(imported_version, &current_version).map_err(|err| {
-        reject(
-            "election event file",
-            import_problems::incompatible_version(imported_version, &current_version),
-        )
-        .context(err.to_string())
-    })?;
+    let mut warnings = Vec::new();
+    if let Some(warning) = version_warning(imported_version, current_version)? {
+        event!(Level::WARN, "election event import: {warning}");
+        warnings.push(warning);
+    }
     let original_data: ImportElectionEventSchema = deserialize_str(data_str).map_err(|err| {
         let message = err.to_string();
         reject(
@@ -1237,7 +1554,46 @@ pub async fn get_election_event_schema(
         .context(message)
     })?;
     check_bundle(&original_data)?;
-    replace_ids(data_str, &original_data, event_id, tenant_id.clone())
+    reject_masked_integration_secrets(&original_data)?;
+    let (schema, replacement_map) =
+        replace_ids(data_str, &original_data, event_id, tenant_id.clone())?;
+    Ok((schema, replacement_map, warnings))
+}
+
+/// The import's version check: `None` when the versions are compatible, the
+/// `file.version-major-mismatch` warning when only the major differs (in either
+/// direction; meta#14760), and the `file.version-incompatible` refusal for
+/// everything else the strict check refuses: an unreadable version, `dev` on
+/// one side only, a newer minor of the same major.
+fn version_warning(imported_version: &str, current_version: &str) -> Result<Option<Problem>> {
+    match check_version_compatibility(imported_version, current_version) {
+        Ok(()) => Ok(None),
+        Err(_) if major_mismatch(imported_version, current_version) => Ok(Some(
+            import_problems::version_major_mismatch(imported_version, current_version),
+        )),
+        Err(err) => Err(reject(
+            "election event file",
+            import_problems::incompatible_version(imported_version, current_version),
+        )
+        .context(err.to_string())),
+    }
+}
+
+/// Refuses a bundle whose realm would install Keycloak's export placeholder
+/// as a Scanovate `liveness-secret`.
+///
+/// An export made without integration secrets carries `**********` in their
+/// place, and Keycloak stores an imported realm's authenticator settings as
+/// given. Nothing is stripped or taken from elsewhere: the operator exports
+/// the event again with integration secrets included. Names configurations,
+/// never values. Shared provider configurations are refused too: their settings
+/// cannot be preserved as opaque Scanovate data during ID remapping.
+fn reject_masked_integration_secrets(data: &ImportElectionEventSchema) -> Result<()> {
+    let Some(realm) = data.keycloak_event_realm.as_ref() else {
+        return Ok(());
+    };
+    sequent_core::election_config::scanovate::validate(realm)
+        .map_err(|problem| reject("election event file", problem))
 }
 
 /// Run the shared validation, refusing the import if it found anything fatal.
@@ -1305,13 +1661,18 @@ pub async fn process_election_event_file(
     Vec<String>,
 )> {
     let mut notes = vec![];
-    let (mut data, replacement_map) = get_election_event_schema(
+    let (mut data, replacement_map, warnings) = get_election_event_schema(
         file_election_event_schema,
         Some(election_event_id.clone()),
         tenant_id.clone(),
     )
     .await
-    .map_err(|err| anyhow!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}: {err}"))?;
+    // Context, not a re-formatted message: a refusal's structured problems
+    // must survive to the task's annotations (`problems_of`).
+    .with_context(|| format!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}"))?;
+    // In the task's log with the import's other notes, where the operator who
+    // started it reads what it did not do.
+    notes.extend(warnings.iter().map(ToString::to_string));
 
     let election_ids: Vec<String> = data
         .elections
@@ -2670,6 +3031,17 @@ pub async fn process_document(
         .await?;
     }
 
+    // Match normal event creation, after the archive has restored its system
+    // signing key and electoral log. Initializing earlier would either lack
+    // that key or append before the archived log is restored.
+    crate::services::monitoring::audit::initialize_new_event(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+    )
+    .await
+    .context("Failed to initialize the imported event's monitoring defaults")?;
+
     Ok(ImportedElectionEvent {
         notes,
         file_sha256,
@@ -2892,12 +3264,15 @@ mod tests {
             admin_events_details_enabled: Some(true),
             ..Default::default()
         };
-        let clean = sanitize_imported_event_realm(
-            &raw,
-            &RealmRepresentation::default(),
-            ImportedRealmReconciliation::default(),
-        )
+        // An import needs a template with a readable user profile to check
+        // the uploaded permissions against, so use the shipped one.
+        let template: RealmRepresentation = serde_json::from_str(include_str!(
+            "../../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json"
+        ))
         .unwrap();
+        let clean =
+            sanitize_imported_event_realm(&raw, &template, ImportedRealmReconciliation::default())
+                .unwrap();
         assert_eq!(
             clean.events_listeners,
             Some(vec!["custom-event-listener".into()])
@@ -3088,12 +3463,208 @@ mod tests {
         bundle["contests"][0]["election_id"] =
             serde_json::json!("e1000000-0000-5000-8000-000000000000");
 
-        let (_schema, ids) =
+        let (_schema, ids, _) =
             get_election_event_schema(&bundle.to_string(), None, TENANT.to_string())
                 .await
                 .expect("a bundle with no fatal problems should get past validation");
 
         assert!(!ids.is_empty());
+    }
+
+    /// meta#14760: the import's version policy, against a stated platform
+    /// version (no process-wide `APP_VERSION`). A different major, older or
+    /// newer, imports with a warning that does not claim compatibility;
+    /// everything else the strict check refuses still refuses; and a different
+    /// major never excuses a fatal problem found after it.
+    fn a_sound_bundle(version: Option<&str>) -> String {
+        let mut bundle: serde_json::Value =
+            serde_json::from_str(&a_bundle_with_a_dangling_election()).expect("the fixture parses");
+        bundle["contests"][0]["election_id"] =
+            serde_json::json!("e1000000-0000-5000-8000-000000000000");
+        match version {
+            Some(version) => bundle["version"] = serde_json::json!(version),
+            None => {
+                bundle.as_object_mut().expect("an object").remove("version");
+            }
+        }
+        bundle.to_string()
+    }
+
+    #[tokio::test]
+    async fn a_different_major_imports_with_a_warning() {
+        for (found, platform) in [("v10.0.0", "v11.0.0-rc.10"), ("v12.0.0", "v11.0.0")] {
+            let (_schema, _ids, warnings) = read_election_event_schema(
+                &a_sound_bundle(Some(found)),
+                None,
+                TENANT.to_string(),
+                platform,
+            )
+            .await
+            .unwrap_or_else(|error| panic!("{found} on {platform} must import: {error:#}"));
+            assert_eq!(warnings.len(), 1, "{warnings:?}");
+            let warning = &warnings[0];
+            assert_eq!(warning.id.as_deref(), Some("file.version-major-mismatch"));
+            assert_eq!(warning.severity, election_config::Severity::Warning);
+            assert_eq!(
+                warning.details.get("found").map(String::as_str),
+                Some(found)
+            );
+            assert!(warning.message.contains("does not block the import"));
+            assert!(warning.message.contains("may not be imported"));
+            assert!(!warning.message.contains("compatible"));
+            assert!(!warning.message.contains("imported anyway"));
+        }
+        // No version at all is the historical 9.0.0: also another major.
+        let (_, _, warnings) =
+            read_election_event_schema(&a_sound_bundle(None), None, TENANT.to_string(), "v11.0.0")
+                .await
+                .expect("a version-less export imports");
+        assert_eq!(
+            warnings[0].details.get("found").map(String::as_str),
+            Some("9.0.0")
+        );
+    }
+
+    #[tokio::test]
+    async fn the_same_major_imports_without_a_warning() {
+        let (_, _, warnings) = read_election_event_schema(
+            &a_sound_bundle(Some("v11.0.0")),
+            None,
+            TENANT.to_string(),
+            "v11.0.0-rc.10",
+        )
+        .await
+        .expect("the same major imports");
+        assert!(warnings.is_empty(), "{warnings:?}");
+    }
+
+    #[tokio::test]
+    async fn what_is_not_a_major_mismatch_is_still_refused() {
+        for (found, platform) in [
+            ("v11.2.0", "v11.0.0"),
+            ("dev", "v11.0.0"),
+            ("not-a-version", "v11.0.0"),
+            ("v12.bad.0", "v11.0.0"),
+        ] {
+            let error = read_election_event_schema(
+                &a_sound_bundle(Some(found)),
+                None,
+                TENANT.to_string(),
+                platform,
+            )
+            .await
+            .expect_err("still refused");
+            assert_eq!(
+                problem_id(&error).as_deref(),
+                Some("file.version-incompatible"),
+                "{found} on {platform}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn a_different_major_does_not_excuse_a_fatal_problem() {
+        let mut dangling: serde_json::Value =
+            serde_json::from_str(&a_bundle_with_a_dangling_election()).expect("the fixture parses");
+        dangling["version"] = serde_json::json!("v10.0.0");
+        let error =
+            read_election_event_schema(&dangling.to_string(), None, TENANT.to_string(), "v11.0.0")
+                .await
+                .expect_err("a dangling reference is still fatal");
+        assert_ne!(
+            problem_id(&error).as_deref(),
+            Some("file.version-incompatible")
+        );
+
+        let mut unreadable: serde_json::Value =
+            serde_json::from_str(&a_sound_bundle(Some("v10.0.0"))).expect("parses");
+        unreadable["elections"] = serde_json::json!("not a list");
+        let error = read_election_event_schema(
+            &unreadable.to_string(),
+            None,
+            TENANT.to_string(),
+            "v11.0.0",
+        )
+        .await
+        .expect_err("a schema error is still fatal");
+        assert_eq!(problem_id(&error).as_deref(), Some("file.not-a-bundle"));
+
+        // A masked integration secret is still refused, whatever the version.
+        let mut masked: serde_json::Value =
+            serde_json::from_str(&a_sound_bundle(Some("v10.0.0"))).expect("parses");
+        masked["keycloak_event_realm"] = serde_json::json!({
+            "authenticationFlows": [{"authenticationExecutions": [
+                {"authenticator": "scanovate-authenticator",
+                 "authenticatorConfig": "scanovate-registration"}]}],
+            "authenticatorConfig": [{"alias": "scanovate-registration", "config": {
+                "liveness-url": "https://liveness.example.test/callback",
+                "liveness-secret": "**********"}}]
+        });
+        let error =
+            read_election_event_schema(&masked.to_string(), None, TENANT.to_string(), "v11.0.0")
+                .await
+                .expect_err("a masked secret is still refused");
+        assert_eq!(
+            problem_id(&error).as_deref(),
+            Some("file.masked-integration-secret")
+        );
+    }
+
+    /// meta#14666: a bundle whose realm holds Keycloak's export placeholder as
+    /// the Scanovate secret is refused before anything is installed, naming
+    /// the configuration; the same bundle with a real secret gets through
+    /// with that secret unchanged.
+    #[tokio::test]
+    async fn a_masked_scanovate_secret_does_not_import() {
+        std::env::set_var(ENV_VAR_APP_VERSION, DEV_APP_VERSION);
+        // Synthetic values only.
+        let with_secret = |secret: &str| {
+            let mut bundle: serde_json::Value =
+                serde_json::from_str(&a_bundle_with_a_dangling_election())
+                    .expect("the fixture parses");
+            bundle["contests"][0]["election_id"] =
+                serde_json::json!("e1000000-0000-5000-8000-000000000000");
+            bundle["keycloak_event_realm"] = serde_json::json!({
+                "authenticationFlows": [{"authenticationExecutions": [
+                    {"authenticator": "scanovate-authenticator",
+                     "authenticatorConfig": "scanovate-registration"}]}],
+                "authenticatorConfig": [{"alias": "scanovate-registration", "config": {
+                    "liveness-url": "https://liveness.example.test/callback",
+                    "liveness-secret": secret}}]
+            });
+            bundle.to_string()
+        };
+
+        let error = get_election_event_schema(&with_secret("**********"), None, TENANT.to_string())
+            .await
+            .expect_err("a masked Scanovate secret must not be installed");
+        assert_eq!(
+            problem_id(&error).as_deref(),
+            Some("file.masked-integration-secret")
+        );
+        let problems = crate::services::import::rejection::problems_of(&error).unwrap();
+        assert_eq!(
+            problems[0].details.get("config").map(String::as_str),
+            Some("scanovate-registration")
+        );
+        assert_eq!(
+            problems[0].details.get("key").map(String::as_str),
+            Some("liveness-secret")
+        );
+        // The refusal names the configuration and setting, never a value.
+        let shown = format!("{error:#} {problems:?}");
+        assert!(!shown.contains("liveness.example.test"));
+
+        let secret = "synthetic-liveness-secret-imported";
+        let (schema, _, _) =
+            get_election_event_schema(&with_secret(secret), None, TENANT.to_string())
+                .await
+                .expect("a real secret imports");
+        let realm = schema.keycloak_event_realm.expect("the realm travels");
+        assert_eq!(
+            realm["authenticatorConfig"][0]["config"]["liveness-secret"],
+            secret
+        );
     }
 
     /// An export from before names moved into `presentation` keeps them.
@@ -3109,9 +3680,10 @@ mod tests {
         bundle["elections"][0]["name"] = serde_json::json!("Old election");
         bundle["contests"][0]["name"] = serde_json::json!("Old contest");
 
-        let (schema, _) = get_election_event_schema(&bundle.to_string(), None, TENANT.to_string())
-            .await
-            .expect("an old export imports");
+        let (schema, _, _) =
+            get_election_event_schema(&bundle.to_string(), None, TENANT.to_string())
+                .await
+                .expect("an old export imports");
 
         let name = |presentation: &Option<serde_json::Value>| {
             presentation.as_ref().expect("a presentation")["i18n"]["en"]["name"].clone()
@@ -3432,6 +4004,87 @@ mod import_scope_tests {
         .map(|(data, _)| data)
     }
 
+    /// meta#14666: an authorized export carries the Scanovate secret, and
+    /// import must install it, with its endpoint, exactly as exported, even
+    /// when either is or contains a UUID the archive also uses as an id.
+    #[test]
+    fn an_exported_uuid_shaped_scanovate_secret_survives_id_remapping() {
+        // Synthetic values only.
+        let (source_tenant, source_event, config_id) = (new_id(), new_id(), new_id());
+        let uuid_secret = "5e0c7a1e-0000-4000-8000-00000000c0de";
+        let embedded_secret = "prefix-6f1d0000-0000-4000-8000-0000000000aa-suffix";
+        let endpoint = format!(
+            "https://liveness.example.test/t/{source_tenant}/e/{source_event}/c/{config_id}/{uuid_secret}"
+        );
+        let scanovate = |alias: &str, secret: &str| {
+            json!({"alias": alias, "config": {
+                "liveness-url": endpoint, "liveness-secret": secret,
+                "face-match-url": endpoint, "document-liveness-url": endpoint,
+                "future-setting": source_event}})
+        };
+        let mut input = bundle(&source_tenant, &source_event);
+        let mut configs = vec![
+            scanovate("uuid-secret", uuid_secret),
+            scanovate("tenant-id-secret", &source_tenant),
+            scanovate("event-id-secret", &source_event),
+            scanovate("config-id-secret", &config_id),
+            scanovate("embedded-uuid-secret", embedded_secret),
+            // Another authenticator's settings keep their remapping.
+            json!({"alias": "other", "config": {
+                "liveness-secret": uuid_secret, "unrelated-reference": uuid_secret}}),
+        ];
+        configs[0]["id"] = json!(config_id);
+        let executions: Vec<Value> = configs
+            .iter()
+            .map(|config| {
+                let alias = config["alias"].as_str().unwrap();
+                let authenticator = if alias == "other" {
+                    "conditional-user-attribute"
+                } else {
+                    "scanovate-authenticator"
+                };
+                json!({"authenticator": authenticator, "authenticatorConfig": alias})
+            })
+            .collect();
+        input["keycloak_event_realm"] = json!({
+            "authenticationFlows": [{"authenticationExecutions": executions}],
+            "authenticatorConfig": configs,
+            // The same UUIDs used as references elsewhere are still remapped.
+            "attributes": {"synthetic-reference": uuid_secret}
+        });
+        let target_tenant = new_id();
+        let imported = import(&input, None, &target_tenant).unwrap();
+
+        // The event's own ids are remapped as before.
+        assert_eq!(imported.tenant_id, target_tenant);
+        assert_ne!(imported.election_event.id, source_event);
+        let realm = imported.keycloak_event_realm.unwrap();
+        let configs = realm["authenticatorConfig"].as_array().unwrap();
+        assert_ne!(configs[0]["id"], config_id.as_str());
+        assert_ne!(realm["attributes"]["synthetic-reference"], uuid_secret);
+        assert_ne!(configs[5]["config"]["unrelated-reference"], uuid_secret);
+        assert_ne!(configs[5]["config"]["liveness-secret"], uuid_secret);
+        // The Scanovate settings arrive as exported.
+        let expected: [&str; 5] = [
+            uuid_secret,
+            &source_tenant,
+            &source_event,
+            &config_id,
+            embedded_secret,
+        ];
+        for (config, secret) in configs.iter().zip(expected) {
+            assert_eq!(
+                config["config"]["liveness-secret"], secret,
+                "{}",
+                config["alias"]
+            );
+            assert_eq!(config["config"]["liveness-url"], endpoint.as_str());
+            assert_eq!(config["config"]["face-match-url"], endpoint.as_str());
+            assert_eq!(config["config"]["document-liveness-url"], endpoint.as_str());
+            assert_eq!(config["config"]["future-setting"], source_event.as_str());
+        }
+    }
+
     #[test]
     fn realm_only_channels_follow_the_imported_elections_and_tenant() {
         use super::super::realm_channels::{
@@ -3671,8 +4324,7 @@ mod import_scope_tests {
 mod imported_realm_sanitization_tests {
     use super::*;
     use ::keycloak::types::{
-        ClientRepresentation, ClientScopeRepresentation, Composites, RoleRepresentation,
-        UserRepresentation,
+        ClientRepresentation, ClientScopeRepresentation, RoleRepresentation, UserRepresentation,
     };
 
     const EVENT_REALM_TEMPLATE: &str = include_str!(
@@ -3884,6 +4536,165 @@ mod imported_realm_sanitization_tests {
         .is_err());
     }
 
+    fn user_profile(realm: &RealmRepresentation) -> serde_json::Value {
+        user_profile_component(realm)
+            .and_then(user_profile_config)
+            .expect("realm has a user profile")
+    }
+
+    fn profile_attribute<'a>(
+        profile: &'a serde_json::Value,
+        name: &str,
+    ) -> Option<&'a serde_json::Value> {
+        profile["attributes"]
+            .as_array()?
+            .iter()
+            .find(|attribute| attribute["name"] == name)
+    }
+
+    /// The template with its user profile edited as an uploaded export could be.
+    fn with_user_profile(edit: impl FnOnce(&mut serde_json::Value)) -> RealmRepresentation {
+        let mut realm = template_realm();
+        let mut profile = user_profile(&realm);
+        edit(&mut profile);
+        realm
+            .components
+            .as_mut()
+            .and_then(|components| components.get_mut(USER_PROFILE_PROVIDER_COMPONENT))
+            .and_then(|components| components.first_mut())
+            .and_then(|component| component.config.as_mut())
+            .expect("template has a user-profile config")
+            .insert(
+                USER_PROFILE_CONFIG_KEY.to_string(),
+                vec![profile.to_string()],
+            );
+        realm
+    }
+
+    #[test]
+    fn aligning_resets_user_profile_permissions_the_template_defines() {
+        let tampered = with_user_profile(|profile| {
+            for attribute in profile["attributes"].as_array_mut().unwrap() {
+                if attribute["name"] == "tenant-id" || attribute["name"] == "area-id" {
+                    attribute["permissions"]["edit"] = serde_json::json!(["admin", "user"]);
+                }
+            }
+        });
+
+        let profile = user_profile(&sanitize(&tampered));
+        let template_profile = user_profile(&template_realm());
+        for name in ["tenant-id", "area-id"] {
+            assert_eq!(
+                profile_attribute(&profile, name).expect("attribute kept")["permissions"],
+                profile_attribute(&template_profile, name).expect("template attribute")
+                    ["permissions"],
+                "{name} must have the template's permissions",
+            );
+        }
+
+        let error = sanitize_imported_event_realm(
+            &tampered,
+            &template_realm(),
+            ImportedRealmReconciliation::RejectForeignClaims,
+        )
+        .expect_err("a user-editable tenant-id is reported");
+        assert!(error
+            .to_string()
+            .contains("user-profile permissions of attribute 'tenant-id'"));
+    }
+
+    #[test]
+    fn aligning_restores_a_removed_attribute_and_the_unmanaged_policy() {
+        let tampered = with_user_profile(|profile| {
+            profile["attributes"]
+                .as_array_mut()
+                .unwrap()
+                .retain(|attribute| attribute["name"] != "tenant-id");
+            profile[UNMANAGED_ATTRIBUTE_POLICY_KEY] = serde_json::json!("ENABLED");
+        });
+
+        let profile = user_profile(&sanitize(&tampered));
+        let template_profile = user_profile(&template_realm());
+        assert_eq!(
+            profile_attribute(&profile, "tenant-id"),
+            profile_attribute(&template_profile, "tenant-id"),
+        );
+        assert_eq!(
+            profile.get(UNMANAGED_ATTRIBUTE_POLICY_KEY),
+            template_profile.get(UNMANAGED_ATTRIBUTE_POLICY_KEY),
+        );
+    }
+
+    #[test]
+    fn aligning_keeps_an_attribute_only_the_upload_declares() {
+        let tampered = with_user_profile(|profile| {
+            profile["attributes"]
+                .as_array_mut()
+                .unwrap()
+                .push(serde_json::json!({
+                    "name": "c31-extra",
+                    "permissions": {"view": ["admin", "user"], "edit": ["admin", "user"]}
+                }));
+        });
+
+        let profile = user_profile(&sanitize(&tampered));
+        assert!(profile_attribute(&profile, "c31-extra").is_some());
+    }
+
+    #[test]
+    fn aligning_replaces_a_missing_user_profile_with_the_template() {
+        let mut realm = template_realm();
+        realm
+            .components
+            .as_mut()
+            .unwrap()
+            .remove(USER_PROFILE_PROVIDER_COMPONENT);
+
+        assert_eq!(
+            user_profile(&sanitize(&realm)),
+            user_profile(&template_realm())
+        );
+    }
+
+    #[test]
+    fn a_template_without_a_readable_user_profile_fails_the_import() {
+        let tampered = with_user_profile(|profile| {
+            for attribute in profile["attributes"].as_array_mut().unwrap() {
+                if attribute["name"] == "tenant-id" {
+                    attribute["permissions"]["edit"] = serde_json::json!(["admin", "user"]);
+                }
+            }
+        });
+        let mut without_profile = template_realm();
+        without_profile
+            .components
+            .as_mut()
+            .unwrap()
+            .remove(USER_PROFILE_PROVIDER_COMPONENT);
+        let mut unreadable_profile = template_realm();
+        unreadable_profile
+            .components
+            .as_mut()
+            .and_then(|components| components.get_mut(USER_PROFILE_PROVIDER_COMPONENT))
+            .and_then(|components| components.first_mut())
+            .and_then(|component| component.config.as_mut())
+            .expect("template has a user-profile config")
+            .insert(
+                USER_PROFILE_CONFIG_KEY.to_string(),
+                vec!["not a profile".to_string()],
+            );
+
+        for template in [without_profile, unreadable_profile] {
+            let error = sanitize_imported_event_realm(
+                &tampered,
+                &template,
+                ImportedRealmReconciliation::AlignWithTemplate,
+            )
+            .expect_err("the uploaded permissions can't be checked without the template's");
+            assert!(error.to_string().contains("no readable user profile"));
+        }
+    }
+
     const REALM_ADMIN_CLIENT: &str = "realm-management";
     const REALM_ADMIN_ROLE: &str = "realm-admin";
 
@@ -3986,6 +4797,184 @@ mod imported_realm_sanitization_tests {
         assert_eq!(composites_of(&sanitized), composites_of(&template));
     }
 
+    fn default_role_composites(realm: &RealmRepresentation) -> Option<Composites> {
+        realm
+            .roles
+            .iter()
+            .flat_map(|roles| roles.realm.iter().flatten())
+            .find(|role| {
+                role.name
+                    .as_deref()
+                    .is_some_and(|name| name.starts_with(DEFAULT_REALM_ROLE_PREFIX))
+            })
+            .and_then(|role| role.composites.clone())
+    }
+
+    fn realm_admin_composites() -> Composites {
+        Composites {
+            client: Some(HashMap::from([(
+                REALM_ADMIN_CLIENT.to_string(),
+                vec![REALM_ADMIN_ROLE.to_string()],
+            )])),
+            ..Default::default()
+        }
+    }
+
+    fn reject(imported: &RealmRepresentation) -> Result<RealmRepresentation> {
+        sanitize_imported_event_realm(
+            imported,
+            &template_realm(),
+            ImportedRealmReconciliation::RejectForeignClaims,
+        )
+    }
+
+    #[test]
+    fn aligning_the_template_keeps_the_default_role_composites() {
+        let template = template_realm();
+        assert!(default_role_composites(&template).is_some());
+        assert_eq!(
+            default_role_composites(&sanitize(&template)),
+            default_role_composites(&template)
+        );
+    }
+
+    #[test]
+    fn aligning_the_template_does_not_duplicate_its_mappers() {
+        let mapper_names = |mappers: &Option<Vec<ProtocolMapperRepresentation>>| {
+            let mut names: Vec<_> = mappers
+                .iter()
+                .flatten()
+                .filter_map(|mapper| mapper.name.clone())
+                .collect();
+            names.sort();
+            names
+        };
+        let template = template_realm();
+        let sanitized = sanitize(&template);
+        for (sanitized_client, client) in sanitized
+            .clients
+            .iter()
+            .flatten()
+            .zip(template.clients.iter().flatten())
+        {
+            assert_eq!(
+                mapper_names(&sanitized_client.protocol_mappers),
+                mapper_names(&client.protocol_mappers)
+            );
+        }
+        for (sanitized_scope, scope) in sanitized
+            .client_scopes
+            .iter()
+            .flatten()
+            .zip(template.client_scopes.iter().flatten())
+        {
+            assert_eq!(
+                mapper_names(&sanitized_scope.protocol_mappers),
+                mapper_names(&scope.protocol_mappers)
+            );
+        }
+    }
+
+    #[test]
+    fn a_mapper_adding_a_role_to_the_token_is_claim_authority() {
+        let mut realm = template_realm();
+        let mapper = ProtocolMapperRepresentation {
+            name: Some("grant-realm-admin".to_string()),
+            protocol: Some("openid-connect".to_string()),
+            protocol_mapper: Some("oidc-hardcoded-role-mapper".to_string()),
+            config: Some(HashMap::from([(
+                "role".to_string(),
+                format!("{REALM_ADMIN_CLIENT}.{REALM_ADMIN_ROLE}"),
+            )])),
+            ..Default::default()
+        };
+        realm
+            .clients
+            .iter_mut()
+            .flatten()
+            .find(|client| client.client_id.as_deref() == Some("voting-portal"))
+            .expect("template has the voting portal")
+            .protocol_mappers
+            .get_or_insert_with(Vec::new)
+            .push(mapper);
+
+        assert!(reject(&realm).is_err());
+        let sanitized = sanitize(&realm);
+        assert!(!client(&sanitized, "voting-portal")
+            .protocol_mappers
+            .iter()
+            .flatten()
+            .any(|mapper| mapper.name.as_deref() == Some("grant-realm-admin")));
+    }
+
+    #[test]
+    fn a_foreign_composite_on_an_allowed_realm_role_is_reported() {
+        let mut realm = template_realm();
+        let allowed_role = realm_role_names(&realm)
+            .into_iter()
+            .find(|name| !name.starts_with(DEFAULT_REALM_ROLE_PREFIX))
+            .expect("template has a realm role");
+        for role in realm
+            .roles
+            .iter_mut()
+            .flat_map(|roles| roles.realm.iter_mut().flatten())
+        {
+            if role.name.as_deref() == Some(allowed_role.as_str()) {
+                role.composites = Some(realm_admin_composites());
+            }
+        }
+
+        let error = reject(&realm).expect_err("the composite is foreign");
+        assert!(error.to_string().contains(REALM_ADMIN_ROLE), "{error}");
+    }
+
+    #[test]
+    fn a_foreign_composite_on_the_default_role_is_reported() {
+        let mut realm = template_realm();
+        realm
+            .default_role
+            .as_mut()
+            .expect("template has a default role")
+            .composites = Some(realm_admin_composites());
+
+        let error = reject(&realm).expect_err("the composite is foreign");
+        assert!(error.to_string().contains(REALM_ADMIN_ROLE), "{error}");
+    }
+
+    #[test]
+    fn a_client_role_cannot_inherit_what_it_cannot_be_assigned() {
+        let mut realm = template_realm();
+        let manage_account = realm
+            .roles
+            .iter_mut()
+            .flat_map(|roles| roles.client.iter_mut().flatten())
+            .find(|(client_id, _)| client_id.as_str() == "account")
+            .expect("template has account roles")
+            .1
+            .iter_mut()
+            .find(|role| role.name.as_deref() == Some("manage-account"))
+            .expect("template has manage-account");
+        manage_account.composites = Some(realm_admin_composites());
+
+        let error = reject(&realm).expect_err("the composite is foreign");
+        assert!(error.to_string().contains(REALM_ADMIN_ROLE), "{error}");
+
+        let composites_of = |realm: &RealmRepresentation| {
+            realm
+                .roles
+                .iter()
+                .flat_map(|roles| roles.client.iter().flatten())
+                .filter(|(client_id, _)| client_id.as_str() == "account")
+                .flat_map(|(_, roles)| roles.iter())
+                .find(|role| role.name.as_deref() == Some("manage-account"))
+                .and_then(|role| role.composites.clone())
+        };
+        assert_eq!(
+            composites_of(&sanitize(&realm)),
+            composites_of(&template_realm())
+        );
+    }
+
     #[test]
     fn aligning_only_allows_the_realms_own_default_role() {
         let mut realm = template_realm();
@@ -4077,5 +5066,163 @@ mod imported_realm_sanitization_tests {
             .as_deref()
             .unwrap_or_default()
             .is_empty());
+    }
+
+    #[test]
+    fn aligning_restores_a_missing_template_claim_mapper() {
+        let mut realm = template_realm();
+        realm
+            .clients
+            .iter_mut()
+            .flatten()
+            .find(|client| client.client_id.as_deref() == Some("voting-portal"))
+            .and_then(|client| client.protocol_mappers.as_mut())
+            .expect("voting-portal mappers present")
+            .retain(|mapper| mapper.name.as_deref() != Some("x-hasura-tenant-id"));
+
+        let sanitized = sanitize(&realm);
+
+        assert_eq!(
+            client_claim_mapper_count(&sanitized, "voting-portal"),
+            client_claim_mapper_count(&template_realm(), "voting-portal"),
+        );
+    }
+
+    #[test]
+    fn aligning_leaves_other_mappers_as_uploaded() {
+        let mut realm = template_realm();
+        realm
+            .client_scopes
+            .iter_mut()
+            .flatten()
+            .find(|scope| scope.name.as_deref() == Some("email"))
+            .and_then(|scope| scope.protocol_mappers.as_mut())
+            .expect("email scope mappers present")
+            .retain(|mapper| mapper.name.as_deref() != Some("email verified"));
+
+        let sanitized = sanitize(&realm);
+
+        let names: Vec<_> = sanitized
+            .client_scopes
+            .iter()
+            .flatten()
+            .find(|scope| scope.name.as_deref() == Some("email"))
+            .and_then(|scope| scope.protocol_mappers.as_deref())
+            .unwrap_or_default()
+            .iter()
+            .filter_map(|mapper| mapper.name.as_deref())
+            .collect();
+        assert_eq!(names, vec!["email"]);
+    }
+
+    /// Composite members that name a role the realm does not define, which
+    /// Keycloak refuses when it creates the realm.
+    fn undefined_composite_members(realm: &RealmRepresentation) -> Vec<String> {
+        let realm_roles = realm_role_names(realm);
+        let client_roles: HashMap<String, HashSet<String>> = realm
+            .roles
+            .iter()
+            .flat_map(|roles| roles.client.iter().flatten())
+            .map(|(client_id, roles)| {
+                let names = roles.iter().filter_map(|role| role.name.clone()).collect();
+                (client_id.clone(), names)
+            })
+            .collect();
+        let roles = realm.roles.iter().flat_map(|roles| {
+            roles
+                .realm
+                .iter()
+                .flatten()
+                .chain(roles.client.iter().flatten().flat_map(|(_, roles)| roles))
+        });
+        let mut undefined = Vec::new();
+        for composites in roles.filter_map(|role| role.composites.as_ref()) {
+            for name in composites.realm.iter().flatten() {
+                if !realm_roles.contains(name) {
+                    undefined.push(name.clone());
+                }
+            }
+            for (client_id, names) in composites.client.iter().flatten() {
+                for name in names {
+                    if !client_roles
+                        .get(client_id)
+                        .is_some_and(|defined| defined.contains(name))
+                    {
+                        undefined.push(format!("{client_id}/{name}"));
+                    }
+                }
+            }
+        }
+        undefined
+    }
+
+    #[test]
+    fn aligning_keeps_only_the_composites_the_upload_defines() {
+        // Exports from before Keycloak 26.7 have no organization roles, which
+        // the template's realm-admin composes.
+        let organization_roles = [
+            "manage-organizations",
+            "query-organizations",
+            "view-organizations",
+        ];
+        let mut realm = template_realm();
+        let realm_management = realm
+            .roles
+            .as_mut()
+            .and_then(|roles| roles.client.as_mut())
+            .and_then(|clients| clients.get_mut(REALM_ADMIN_CLIENT))
+            .expect("template defines realm-management roles");
+        realm_management.retain(|role| {
+            !role
+                .name
+                .as_deref()
+                .is_some_and(|name| organization_roles.contains(&name))
+        });
+        for role in realm_management.iter_mut() {
+            if let Some(names) = role
+                .composites
+                .as_mut()
+                .and_then(|composites| composites.client.as_mut())
+                .and_then(|clients| clients.get_mut(REALM_ADMIN_CLIENT))
+            {
+                names.retain(|name| !organization_roles.contains(&name.as_str()));
+            }
+        }
+        assert!(undefined_composite_members(&realm).is_empty());
+
+        let sanitized = sanitize(&realm);
+
+        assert_eq!(
+            undefined_composite_members(&sanitized),
+            Vec::<String>::new()
+        );
+        let realm_admin_members = sanitized
+            .roles
+            .iter()
+            .flat_map(|roles| roles.client.iter().flatten())
+            .filter(|(client_id, _)| client_id.as_str() == REALM_ADMIN_CLIENT)
+            .flat_map(|(_, roles)| roles)
+            .find(|role| role.name.as_deref() == Some(REALM_ADMIN_ROLE))
+            .and_then(|role| role.composites.as_ref())
+            .and_then(|composites| composites.client.as_ref())
+            .and_then(|clients| clients.get(REALM_ADMIN_CLIENT))
+            .cloned()
+            .unwrap_or_default();
+        assert!(realm_admin_members.contains(&"manage-users".to_string()));
+    }
+
+    #[test]
+    fn aligning_keeps_the_kiosk_client_claim_mappers() {
+        let template = template_realm();
+        let kiosk_mappers = client_claim_mapper_count(&template, "voting-portal-kiosk");
+
+        assert_eq!(
+            kiosk_mappers,
+            client_claim_mapper_count(&template, "voting-portal")
+        );
+        assert_eq!(
+            client_claim_mapper_count(&sanitize(&template), "voting-portal-kiosk"),
+            kiosk_mappers
+        );
     }
 }

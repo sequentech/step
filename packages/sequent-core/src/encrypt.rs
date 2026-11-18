@@ -862,6 +862,32 @@ mod tests {
     }
 
     #[test]
+    fn replication_choice_debug_hides_the_plaintext_and_randomness() {
+        let ctx = RistrettoCtx;
+        let (_, pk_element) =
+            encrypt::default_public_key_ristretto().expect("public key");
+        let choice = encrypt::encrypt_plaintext_candidate(
+            &ctx, pk_element, [0x5a; 30], 0,
+        )
+        .expect("encrypted choice");
+
+        let debug = format!("{choice:?}");
+
+        assert!(
+            debug.contains(&format!("{:?}", choice.ciphertext)),
+            "{debug}"
+        );
+        assert!(
+            !debug.contains(&format!("{:?}", choice.plaintext)),
+            "{debug}"
+        );
+        assert!(
+            !debug.contains(&format!("{:?}", choice.randomness)),
+            "{debug}"
+        );
+    }
+
+    #[test]
     fn test_encrypt_plaintext_candidate() {
         let ctx = RistrettoCtx;
 

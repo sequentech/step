@@ -22,6 +22,7 @@ import {
     enrollmentSummary,
     initials,
     isAlreadyEnrolled,
+    jointNames,
     joinList,
     listAnnotation,
     rankCandidates,
@@ -292,8 +293,12 @@ describe("comparing with a registry voter", () => {
 
     it("compares each field", () => {
         expect(compareWithVoter(application(), voter(), FIELDS)).toEqual([
-            {fields: ["firstName"], enrollment: "JUAN CARLOS", registry: "Juan", same: false},
-            {fields: ["middleName"], enrollment: "", registry: "", same: true},
+            {
+                fields: ["firstName", "middleName"],
+                enrollment: "JUAN CARLOS",
+                registry: "Juan",
+                same: false,
+            },
             {fields: ["lastName"], enrollment: "DELA CRUZ", registry: "Dela Cruz", same: true},
             {fields: ["dateOfBirth"], enrollment: "1990-01-01", registry: "1990-01-01", same: true},
             {fields: ["embassy"], enrollment: "Tokyo PE", registry: "Tokyo PE", same: true},
@@ -330,6 +335,36 @@ describe("comparing with a registry voter", () => {
         ])
     })
 
+    it("compares a passport's given names with the first and middle name", () => {
+        // The passport reader gives every given name, the middle name
+        // included, in the first name.
+        const passport = application()
+        const registered = voter({first_name: "Juan", attributes: {middleName: ["Carlos"]}})
+        expect(compareWithVoter(passport, registered, ["firstName", "middleName"])).toEqual([
+            {
+                fields: ["firstName", "middleName"],
+                enrollment: "JUAN CARLOS",
+                registry: "Juan Carlos",
+                same: true,
+            },
+        ])
+        expect(jointNames(applicantData(passport))).toBe(true)
+        // A middle name typed apart is compared apart.
+        const typed = application({
+            applicant_data: {
+                "firstName": "Juan",
+                "middleName": "Carlos",
+                "sequent.read-only.id-card-type": "philippinePassport",
+            },
+        })
+        expect(jointNames(applicantData(typed))).toBe(false)
+        expect(compareWithVoter(typed, registered, ["firstName", "middleName"])).toEqual([
+            {fields: ["firstName"], enrollment: "Juan", registry: "Juan", same: true},
+            {fields: ["middleName"], enrollment: "Carlos", registry: "Carlos", same: true},
+        ])
+        expect(jointNames({"sequent.read-only.id-card-type": "philSysID"})).toBe(false)
+    })
+
     it("knows an enrolled voter by the attributes enrolling sets", () => {
         expect(isAlreadyEnrolled(voter(), ["email"])).toBe(false)
         expect(isAlreadyEnrolled(voter({email: "juan@example.com"}), ["email"])).toBe(true)
@@ -346,9 +381,9 @@ describe("comparing with a registry voter", () => {
             ["email"]
         )
         expect(ranked.map((candidate) => [candidate.voter.id, candidate.matching])).toEqual([
-            ["voter-1", 4],
-            ["voter-2", 2],
-            ["voter-3", 5],
+            ["voter-1", 3],
+            ["voter-2", 1],
+            ["voter-3", 4],
         ])
         expect(ranked.map((candidate) => candidate.alreadyEnrolled)).toEqual([false, false, true])
     })
@@ -363,7 +398,7 @@ describe("comparing with a registry voter", () => {
     it("says how a detail differs", () => {
         const [first] = compareWithVoter(application(), voter(), FIELDS)
         expect(differenceText(first, t, humanizeField)).toBe(
-            "the first name is “JUAN CARLOS” on the enrollment and “Juan” in the registry"
+            "the first name and middle name is “JUAN CARLOS” on the enrollment and “Juan” in the registry"
         )
         expect(
             differenceText(

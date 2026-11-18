@@ -19,12 +19,17 @@ use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 use uuid::Uuid;
+use windmill::postgres::application::update_application_status;
 use windmill::postgres::monitoring_config::EventRef;
+use windmill::services::application::{
+    store_verified_application, ApplicationAnnotations, ApplicationVerificationResult,
+};
 use windmill::services::monitoring::projection::{
     event_first_day, full_pass_due, load_event_places, project_accounts, read_first_votes,
     refresh_voter_activity, FirstVoteSource, FirstVotes, LastPass, ProjectionContext, VoterAccount,
 };
 use windmill::services::time_zones::event_time_zone;
+use windmill::types::application::{ApplicationRejectReason, ApplicationStatus, ApplicationType};
 
 fn comelec_settings() -> Settings {
     presets::load("comelec")
@@ -142,24 +147,73 @@ impl<'t, 'c> Seed<'t, 'c> {
         annotations: Value,
         when: DateTime<Utc>,
     ) {
+        self.stored_application(area, voter, status, "MANUAL", json!({}), annotations, when)
+            .await;
+    }
+
+    /// An application as a writer stores it; its id.
+    #[allow(clippy::too_many_arguments)]
+    async fn stored_application(
+        &self,
+        area: Uuid,
+        applicant_id: &str,
+        status: &str,
+        verification_type: &str,
+        applicant_data: Value,
+        annotations: Value,
+        when: DateTime<Utc>,
+    ) -> Uuid {
         self.tx
-            .execute(
+            .query_one(
                 "INSERT INTO sequent_backend.applications
                      (tenant_id, election_event_id, area_id, applicant_id, status,
                       verification_type, applicant_data, annotations, created_at, updated_at)
-                 VALUES ($1, $2, $3, $4, $5, 'MANUAL', '{}', $6, $7, $7)",
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
+                 RETURNING id",
                 &[
                     &self.event.tenant_id,
                     &self.event.election_event_id,
                     &area,
-                    &voter,
+                    &applicant_id,
                     &status,
+                    &verification_type,
+                    &applicant_data,
                     &annotations,
                     &when,
                 ],
             )
             .await
+            .unwrap()
+            .get(0)
+    }
+
+    /// Gives the application `id` the id `new`, to order applications
+    /// updated at the same time.
+    async fn renumber(&self, id: Uuid, new: &str) {
+        self.tx
+            .execute(
+                "UPDATE sequent_backend.applications SET id = $2::text::uuid WHERE id = $1",
+                &[&id, &new],
+            )
+            .await
             .unwrap();
+    }
+
+    /// Each voter's enrollment state and reason.
+    async fn states(&self) -> BTreeMap<String, (Option<String>, Option<String>)> {
+        self.rows()
+            .await
+            .iter()
+            .map(|row| {
+                (
+                    row["voter_id"].as_str().unwrap().to_string(),
+                    (
+                        row["enrollment_state"].as_str().map(str::to_string),
+                        row["enrollment_reason"].as_str().map(str::to_string),
+                    ),
+                )
+            })
+            .collect()
     }
 
     async fn rows(&self) -> Vec<Value> {
@@ -680,5 +734,491 @@ async fn private_participation_never_retains_a_vote_or_refresh_timestamp() {
             .await
             .unwrap(),
         0
+    );
+}
+
+fn state(state: Option<&str>, reason: Option<&str>) -> (Option<String>, Option<String>) {
+    (state.map(str::to_string), reason.map(str::to_string))
+}
+
+/// No new votes, for refreshes that only follow applications.
+fn no_votes() -> FirstVotes {
+    FirstVotes::Since(Default::default())
+}
+
+/// The approval matrix's recorded decision, as `verify_application` stores
+/// it in the annotations.
+fn matrix_decision(decision: &str, accepted_candidates: usize) -> Value {
+    json!({"decision": decision, "candidates": 1, "accepted_candidates": accepted_candidates})
+}
+
+/// meta#14674: each voter's enrollment is the latest application stored
+/// under their id, by update time and then id. Applications stored without
+/// a voter id (`null` or blank, as the Keycloak enrollment flow stored
+/// automatic decisions) count for no voter, even when their recorded
+/// username is a voter's now: usernames can pass from voter to voter.
+#[tokio::test]
+async fn applications_count_for_the_voter_they_are_stored_under_and_never_by_username() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let seed = Seed::new(&tx).await;
+    let other = Seed::new(&tx).await;
+    let settings = comelec_settings();
+    let election = seed.election("Europe").await;
+    let area = seed.area(&[election]).await;
+    let other_election = other.election("Europe").await;
+    let other_area = other.area(&[other_election]).await;
+    let voters = [
+        "id-accepted",
+        "id-email",
+        "id-alice-now",
+        "id-tie-later-id-accepts",
+        "id-tie-later-id-rejects",
+        "id-imported-email",
+        "id-malformed",
+        "id-not-an-object",
+    ];
+    let accounts: Vec<VoterAccount> = voters
+        .iter()
+        .map(|voter| account(voter, Some(area), &[]))
+        .collect();
+    pass(&seed, &settings, 1, &accounts).await;
+    pass(
+        &other,
+        &settings,
+        1,
+        &[account("id-accepted", Some(other_area), &[])],
+    )
+    .await;
+
+    let email_in_use =
+        json!({"rejection_reason": "EMAIL_IN_USE", "decision": matrix_decision("ACCEPTED", 1)});
+    let automatic = |voter: &'static str, status: &'static str, annotations: Value, when| {
+        seed.stored_application(
+            area,
+            voter,
+            status,
+            "AUTOMATIC",
+            json!({"username": "synthetic"}),
+            annotations,
+            when,
+        )
+    };
+    automatic(
+        "id-accepted",
+        "ACCEPTED",
+        json!({"decision": matrix_decision("ACCEPTED", 1)}),
+        at(1, 9),
+    )
+    .await;
+    automatic("id-email", "REJECTED", email_in_use.clone(), at(2, 9)).await;
+
+    // Voter A enrolled automatically as `alice`, stored without a voter id.
+    // A was removed and voter B, rejected by a reviewer, is `alice` now: A's
+    // acceptance is not B's.
+    seed.stored_application(
+        area,
+        "id-alice-now",
+        "REJECTED",
+        "MANUAL",
+        json!({"username": "alice"}),
+        json!({"rejection_reason": "blurry"}),
+        at(1, 9),
+    )
+    .await;
+    for (placeholder, status) in [
+        ("null", "ACCEPTED"),
+        ("", "ACCEPTED"),
+        (" NULL ", "REJECTED"),
+    ] {
+        seed.stored_application(
+            area,
+            placeholder,
+            status,
+            "AUTOMATIC",
+            json!({"username": "alice"}),
+            json!({"decision": matrix_decision("ACCEPTED", 1)}),
+            at(3, 9),
+        )
+        .await;
+    }
+
+    // Updated at the same time: the greater id decides.
+    for (voter, first, second) in [
+        (
+            "id-tie-later-id-accepts",
+            ("REJECTED", "1"),
+            ("ACCEPTED", "2"),
+        ),
+        (
+            "id-tie-later-id-rejects",
+            ("REJECTED", "4"),
+            ("ACCEPTED", "3"),
+        ),
+    ] {
+        for (status, last) in [first, second] {
+            let id = seed
+                .stored_application(
+                    area,
+                    voter,
+                    status,
+                    "MANUAL",
+                    json!({}),
+                    json!({"rejection_reason": "blurry"}),
+                    at(2, 9),
+                )
+                .await;
+            seed.renumber(id, &format!("00000000-0000-4000-8000-00000000000{last}"))
+                .await;
+        }
+    }
+
+    // The CSV import stores annotations as a JSON string holding them.
+    automatic(
+        "id-imported-email",
+        "REJECTED",
+        Value::String(email_in_use.to_string()),
+        at(2, 9),
+    )
+    .await;
+    automatic(
+        "id-malformed",
+        "REJECTED",
+        Value::String("{\"rejection_reason\": ".to_string()),
+        at(2, 9),
+    )
+    .await;
+    automatic(
+        "id-not-an-object",
+        "REJECTED",
+        Value::String("\"EMAIL_IN_USE\"".to_string()),
+        at(2, 9),
+    )
+    .await;
+
+    // Another event's application under a voter id this event also has.
+    other
+        .stored_application(
+            other_area,
+            "id-email",
+            "ACCEPTED",
+            "AUTOMATIC",
+            json!({}),
+            json!({}),
+            at(5, 9),
+        )
+        .await;
+
+    assert!(
+        refresh_voter_activity(&tx, seed.event, &no_votes())
+            .await
+            .unwrap()
+            > 0
+    );
+    refresh_voter_activity(&tx, other.event, &no_votes())
+        .await
+        .unwrap();
+
+    let accepted = state(Some("ACCEPTED"), None);
+    let email = state(Some("REJECTED"), Some("EMAIL_IN_USE"));
+    let blurry = state(Some("REJECTED"), Some("blurry"));
+    let no_reason = state(Some("REJECTED"), None);
+    assert_eq!(
+        seed.states().await,
+        BTreeMap::from([
+            ("id-accepted".to_string(), accepted.clone()),
+            ("id-email".to_string(), email.clone()),
+            ("id-alice-now".to_string(), blurry.clone()),
+            ("id-tie-later-id-accepts".to_string(), accepted.clone()),
+            ("id-tie-later-id-rejects".to_string(), blurry.clone()),
+            ("id-imported-email".to_string(), email.clone()),
+            ("id-malformed".to_string(), no_reason.clone()),
+            ("id-not-an-object".to_string(), no_reason.clone()),
+        ])
+    );
+    let decided_at: DateTime<Utc> = serde_json::from_value(
+        seed.row(election, "id-accepted").await["enrollment_decided_at"].clone(),
+    )
+    .unwrap();
+    assert_eq!(decided_at, at(1, 9));
+    assert_eq!(
+        other.states().await,
+        BTreeMap::from([("id-accepted".to_string(), state(None, None))]),
+        "another event's applications decide nothing here, nor this one's there"
+    );
+    assert_eq!(
+        refresh_voter_activity(&tx, seed.event, &no_votes())
+            .await
+            .unwrap(),
+        0,
+        "counted once: nothing changes on the next refresh"
+    );
+}
+
+/// meta#14674: a reviewer rejects without naming a voter. The application
+/// keeps the voter it is stored under, so the rejection counts for them;
+/// one stored under no voter stays so. Naming a voter, as an approval does,
+/// stores it under that voter.
+#[tokio::test]
+async fn a_manual_rejection_keeps_the_voter_its_application_is_stored_under() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let seed = Seed::new(&tx).await;
+    let settings = comelec_settings();
+    let election = seed.election("Europe").await;
+    let area = seed.area(&[election]).await;
+    pass(
+        &seed,
+        &settings,
+        1,
+        &[
+            account("voter-1", Some(area), &[]),
+            account("voter-2", Some(area), &[]),
+        ],
+    )
+    .await;
+    let stored = seed
+        .stored_application(
+            area,
+            "voter-1",
+            "ACCEPTED",
+            "AUTOMATIC",
+            json!({}),
+            json!({}),
+            at(1, 9),
+        )
+        .await;
+    let unmatched = seed
+        .stored_application(
+            area,
+            "null",
+            "PENDING",
+            "MANUAL",
+            json!({"username": "voter-2-username"}),
+            json!({}),
+            at(1, 9),
+        )
+        .await;
+    let update =
+        |id: Uuid, applicant: &'static str, status: ApplicationStatus, reason: Option<&str>| {
+            let tx = &tx;
+            let seed = &seed;
+            let reason = reason.map(str::to_string);
+            async move {
+                let application = update_application_status(
+                    tx,
+                    &id.to_string(),
+                    &seed.event.tenant_id.to_string(),
+                    &seed.event.election_event_id.to_string(),
+                    applicant,
+                    status,
+                    ApplicationType::MANUAL,
+                    reason,
+                    None,
+                    "Synthetic reviewer",
+                    &vec![],
+                )
+                .await
+                .unwrap();
+                (application.applicant_id, application.status)
+            }
+        };
+
+    assert_eq!(
+        update(stored, "", ApplicationStatus::REJECTED, Some("blurry")).await,
+        ("voter-1".to_string(), "REJECTED".to_string())
+    );
+    assert_eq!(
+        update(unmatched, " ", ApplicationStatus::REJECTED, Some("blurry")).await,
+        ("null".to_string(), "REJECTED".to_string()),
+        "an application of no voter stays of none"
+    );
+    refresh_voter_activity(&tx, seed.event, &no_votes())
+        .await
+        .unwrap();
+    assert_eq!(
+        seed.states().await,
+        BTreeMap::from([
+            (
+                "voter-1".to_string(),
+                state(Some("REJECTED"), Some("blurry"))
+            ),
+            ("voter-2".to_string(), state(None, None)),
+        ])
+    );
+
+    assert_eq!(
+        update(unmatched, "voter-2", ApplicationStatus::ACCEPTED, None).await,
+        ("voter-2".to_string(), "ACCEPTED".to_string()),
+        "an approval stores the application under the voter it names"
+    );
+    refresh_voter_activity(&tx, seed.event, &no_votes())
+        .await
+        .unwrap();
+    assert_eq!(
+        seed.states().await["voter-2"],
+        state(Some("ACCEPTED"), None)
+    );
+}
+
+/// meta#14674: `verify_application` stores an automatic decision under the
+/// voter it decided and returns the stored application's id; the monitoring
+/// then counts it for that voter. A decision about no voter, or naming the
+/// voter already enrolled, keeps the applicant id the enrollment flow sent.
+#[tokio::test]
+async fn a_verified_application_is_stored_under_the_voter_it_decided() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let seed = Seed::new(&tx).await;
+    let settings = comelec_settings();
+    let election = seed.election("Europe").await;
+    let area = seed.area(&[election]).await;
+    let voters = ["voter-accepted", "voter-email", "voter-enrolled"];
+    let accounts: Vec<VoterAccount> = voters
+        .iter()
+        .map(|voter| account(voter, Some(area), &[]))
+        .collect();
+    pass(&seed, &settings, 1, &accounts).await;
+    seed.stored_application(
+        area,
+        "voter-enrolled",
+        "ACCEPTED",
+        "MANUAL",
+        json!({}),
+        json!({}),
+        at(1, 9),
+    )
+    .await;
+
+    let result =
+        |voter: Option<&str>, status: ApplicationStatus, reason| ApplicationVerificationResult {
+            application_id: None,
+            user_id: voter.map(str::to_string),
+            username: voter
+                .map(|voter| format!("username-of-{voter}"))
+                .unwrap_or_default(),
+            application_status: status,
+            application_type: ApplicationType::AUTOMATIC,
+            mismatches: Some(0),
+            fields_match: None,
+            attributes_unset: None,
+            rejection_reason: reason,
+            rejection_message: None,
+            manual_verify_reason: None,
+        };
+    // As verify_application annotates it: with the result's rejection reason.
+    let store = |result: ApplicationVerificationResult| {
+        let tx = &tx;
+        let seed = &seed;
+        let annotations: ApplicationAnnotations = serde_json::from_value(json!({
+            "unset-attributes": "",
+            "rejection_reason": result.rejection_reason,
+        }))
+        .unwrap();
+        async move {
+            store_verified_application(
+                tx,
+                &seed.event.tenant_id.to_string(),
+                &seed.event.election_event_id.to_string(),
+                &Some(area),
+                "null",
+                &std::collections::HashMap::from([(
+                    "firstName".to_string(),
+                    "Synthetic".to_string(),
+                )]),
+                &None,
+                &annotations,
+                &result,
+                &None,
+            )
+            .await
+            .unwrap()
+        }
+    };
+    let stored = |id: Uuid| {
+        let tx = &tx;
+        async move {
+            let row = tx
+                .query_one(
+                    "SELECT applicant_id, applicant_data->>'username', status
+                     FROM sequent_backend.applications WHERE id = $1",
+                    &[&id],
+                )
+                .await
+                .unwrap();
+            (
+                row.get::<_, String>(0),
+                row.get::<_, String>(1),
+                row.get::<_, String>(2),
+            )
+        }
+    };
+
+    let accepted = store(result(
+        Some("voter-accepted"),
+        ApplicationStatus::ACCEPTED,
+        None,
+    ))
+    .await;
+    let email = || {
+        result(
+            Some("voter-email"),
+            ApplicationStatus::REJECTED,
+            Some(ApplicationRejectReason::EMAIL_IN_USE),
+        )
+    };
+    // Two in one transaction under the same voter: each returns its own id,
+    // not the voter's latest by creation time.
+    let first = store(email()).await;
+    let second = store(email()).await;
+    let duplicate = store(result(
+        Some("voter-enrolled"),
+        ApplicationStatus::REJECTED,
+        Some(ApplicationRejectReason::ALREADY_APPROVED),
+    ))
+    .await;
+    let no_voter = store(result(
+        None,
+        ApplicationStatus::REJECTED,
+        Some(ApplicationRejectReason::NO_VOTER),
+    ))
+    .await;
+    assert_ne!(first, second);
+    assert_eq!(
+        stored(accepted).await,
+        (
+            "voter-accepted".to_string(),
+            "username-of-voter-accepted".to_string(),
+            "ACCEPTED".to_string()
+        )
+    );
+    assert_eq!(stored(first).await.0, "voter-email");
+    assert_eq!(stored(second).await.0, "voter-email");
+    assert_eq!(
+        stored(duplicate).await.0,
+        "null",
+        "a duplicate attempt is not stored under the enrolled voter"
+    );
+    assert_eq!(
+        stored(no_voter).await,
+        ("null".to_string(), String::new(), "REJECTED".to_string())
+    );
+
+    refresh_voter_activity(&tx, seed.event, &no_votes())
+        .await
+        .unwrap();
+    assert_eq!(
+        seed.states().await,
+        BTreeMap::from([
+            ("voter-accepted".to_string(), state(Some("ACCEPTED"), None)),
+            (
+                "voter-email".to_string(),
+                state(Some("REJECTED"), Some("EMAIL_IN_USE"))
+            ),
+            ("voter-enrolled".to_string(), state(Some("ACCEPTED"), None)),
+        ])
     );
 }

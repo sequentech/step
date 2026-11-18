@@ -42,7 +42,7 @@ if tool == "rustc":
     print("rustc 1.96.0 (fake)\nrelease: " + os.environ.get("FAKE_RUSTC", "1.96.0"))
 elif tool == "wasm-opt":
     if args == ["--version"]:
-        print("wasm-opt version 123")
+        print("wasm-opt version " + os.environ.get("FAKE_WASM_OPT", "123"))
     else:
         source, output = Path(args[0]), Path(args[args.index("-o") + 1])
         output.write_bytes(source.read_bytes() + b"optimised")
@@ -689,6 +689,14 @@ class ReleasePackageTests(WasmTestCase):
         self.assertEqual(code, 1)
         self.assertIn("nix develop ./packages/sequent-core", err)
 
+    def test_release_refuses_old_or_unknown_wasm_opt_before_compiling(self):
+        for version in ("108", "122", "unknown"):
+            with self.subTest(version=version):
+                code, _, err = self.release(FAKE_WASM_OPT=version)
+                self.assertEqual(code, 1)
+                self.assertIn("wasm-opt 123 or newer", err)
+                self.assertFalse(self.checkout.calls("cargo", "build"))
+
     def test_release_requires_the_pinned_rust(self):
         code, _, err = self.release(FAKE_RUSTC="1.95.0")
         self.assertEqual(code, 1)
@@ -707,6 +715,26 @@ class CheckPackageTests(WasmTestCase):
         code, out, _ = self.check()
         self.assertEqual(code, 0)
         self.assertIn("matches the sources", out)
+
+    def test_a_package_built_with_an_old_optimizer_is_refused(self):
+        entries = wasm.read_archive(
+            self.checkout.layout.archive("ui-core", "sequent-core-0.1.0.tgz")
+        )
+        recorded = json.loads(entries[wasm.INPUTS_FILE])
+        recorded["tools"]["wasm-opt"] = "wasm-opt version 108"
+        entries[wasm.INPUTS_FILE] = json.dumps(recorded).encode()
+        archive = wasm.pack(entries)
+        for consumer in wasm.CONSUMERS:
+            self.checkout.layout.archive(
+                consumer, "sequent-core-0.1.0.tgz"
+            ).write_bytes(archive)
+        wasm.update_yarn_lock(
+            self.checkout.layout, "sequent-core-0.1.0.tgz",
+            hashlib.sha1(archive).hexdigest(),
+        )
+        code, _, err = self.check()
+        self.assertEqual(code, 1)
+        self.assertIn("wasm-opt 123 or newer", err)
 
     def test_a_source_change_names_the_stale_input(self):
         self.checkout.write(

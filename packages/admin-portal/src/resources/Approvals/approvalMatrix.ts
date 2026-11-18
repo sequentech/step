@@ -32,6 +32,14 @@ export enum EMatrixReason {
     OTHER = "OTHER",
 }
 
+/** A rule the evaluator applies whatever the matrix says. */
+export enum EMatrixInvariant {
+    MANUAL_ENTRY_NOT_ACCEPTED = "MANUAL_ENTRY_NOT_ACCEPTED",
+    ALREADY_ENROLLED_NOT_ACCEPTED = "ALREADY_ENROLLED_NOT_ACCEPTED",
+    NO_VOTER_NOT_ACCEPTED = "NO_VOTER_NOT_ACCEPTED",
+    OTHERWISE_NOT_ACCEPTED = "OTHERWISE_NOT_ACCEPTED",
+}
+
 export enum EMatrixSource {
     BUILT_IN = "BUILT_IN",
     SAVED = "SAVED",
@@ -451,26 +459,6 @@ export function matrixChanges(
     }
     return changes
 }
-
-/** The enrollment the test panel starts from: a verified voter whose fields all match. */
-export const defaultEnrollment = (comparedFields: string[]): ITestEnrollment => ({
-    identity: EIdentityMethod.VERIFIED,
-    voter_found: true,
-    already_enrolled: false,
-    valid_id: null,
-    fields: Object.fromEntries(comparedFields.map((field) => [field, EFieldMatch.MATCHES])),
-})
-
-/** The enrollment restricted to the fields the matrix compares now. */
-export const enrollmentFor = (
-    enrollment: ITestEnrollment,
-    comparedFields: string[]
-): ITestEnrollment => ({
-    ...enrollment,
-    fields: Object.fromEntries(
-        comparedFields.map((field) => [field, enrollment.fields[field] ?? EFieldMatch.MATCHES])
-    ),
-})
 
 interface IProfileAttribute {
     name?: string | null

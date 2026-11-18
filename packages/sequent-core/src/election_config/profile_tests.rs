@@ -709,6 +709,7 @@ fn a_profile_document_round_trips_through_json() {
         id: "smart-td".to_string(),
         display_name: Some("SMART TD Locals".to_string()),
         defaults: defaults(&[("trustee_threshold", Value::from(3))]),
+        seeds: signing_seeds(),
         locked: vec!["trustee_threshold".to_string()],
         hidden: vec!["notes".to_string()],
         required: vec!["logo_url".to_string()],
@@ -1133,4 +1134,95 @@ fn a_path_through_something_that_is_not_an_object_reaches_nothing() {
 
     let every = PlanPath::parse("external_id[].inner").unwrap();
     assert!(every.resolve(&mut document).is_empty(), "a text is no list");
+}
+
+// -- seeds: values only a new plan starts with ---------------------------------
+//
+// Synthetic signing policy; the shape of a client preset, not any client's.
+
+fn signing_seed() -> Value {
+    serde_json::json!({
+        "rules": [{"action": "initialize-voting", "requirement": "required",
+                   "signatures": 2, "requester_signing": "allowed",
+                   "expires_minutes": 30}],
+        "checks": {"revocation_check": "check", "crl_unavailable": "refuse",
+                   "registration": "on-first-use", "post_binding": "one-post"}
+    })
+}
+
+/// One seed per field, so a plan stating one keeps it and takes the other.
+fn signing_seeds() -> BTreeMap<String, Value> {
+    let seed = signing_seed();
+    defaults(&[
+        ("signing.rules", seed["rules"].clone()),
+        ("signing.checks", seed["checks"].clone()),
+    ])
+}
+
+fn seeding_profile() -> Profile {
+    profile_of(ClientProfile {
+        id: "seeded".into(),
+        seeds: signing_seeds(),
+        ..Default::default()
+    })
+}
+
+#[test]
+fn a_new_plan_starts_from_the_profiles_seed() {
+    let seeded = seed_new_plan(&plan(), &seeding_profile()).unwrap();
+    let want: crate::election_config::signing_sheet::PlannedSigning =
+        serde_json::from_value(signing_seed()).unwrap();
+    assert_eq!(seeded.signing, want);
+}
+
+#[test]
+fn applying_a_profile_never_writes_a_seed() {
+    // A plan opened from an export or a workbook goes through `apply_profile`
+    // (on open, and again on every compile). Its absent signing stays absent.
+    let applied = apply_profile(&plan(), &seeding_profile()).unwrap();
+    assert!(applied.signing.is_empty());
+}
+
+#[test]
+fn a_seed_never_replaces_what_a_plan_states_even_an_empty_list() {
+    let mut stated = plan();
+    stated.signing.rules = Some(vec![]);
+    let seeded = seed_new_plan(&stated, &seeding_profile()).unwrap();
+    assert_eq!(seeded.signing.rules, Some(vec![]));
+    // The checks were unstated, so a new plan takes the seed's: field by field.
+    assert!(seeded.signing.checks.is_some());
+}
+
+#[test]
+fn a_seed_on_a_locked_path_is_refused() {
+    let report = refused(ClientProfile {
+        id: "locked-seed".into(),
+        seeds: signing_seeds(),
+        locked: vec!["signing.rules".into()],
+        ..Default::default()
+    });
+    assert!(says(&report, "a seed only starts a new one"), "{report}");
+}
+
+#[test]
+fn a_seed_naming_nothing_is_refused() {
+    let report = refused(ClientProfile {
+        id: "typo".into(),
+        seeds: defaults(&[("signin.rules", signing_seed())]),
+        ..Default::default()
+    });
+    assert!(says(&report, "names nothing a plan has"), "{report}");
+}
+
+#[test]
+fn a_seed_of_the_wrong_shape_is_refused_when_the_profile_is_read() {
+    let report = refused(ClientProfile {
+        id: "bad-seed".into(),
+        seeds: defaults(&[(
+            "signing.rules",
+            serde_json::json!([{"action": "open-the-vault"}]),
+        )]),
+        ..Default::default()
+    });
+    assert!(says(&report, "seeds"), "{report}");
 }

@@ -538,10 +538,7 @@ export const ElectionEventTabs: React.FC = () => {
                 label: t("electionEventScreen.tabs.approvals"),
                 component: ApprovalsTab,
                 props: {showList: showApprovalList},
-                action: () => {
-                    setShowApprovalList(uuidv4())
-                    localStorage.setItem("approvals_status_filter", "pending")
-                },
+                action: () => setShowApprovalList(uuidv4()),
             })
         }
 

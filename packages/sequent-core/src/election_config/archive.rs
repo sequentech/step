@@ -1285,7 +1285,10 @@ pub fn save_file(
         )
     };
 
-    let json = serde_json::to_vec_pretty(plan).map_err(|error| {
+    let json = serde_json::to_vec_pretty(
+        &crate::election_config::architect::as_written(plan),
+    )
+    .map_err(|error| {
         refused(format!("this plan could not be written out ({error})"))
     })?;
 

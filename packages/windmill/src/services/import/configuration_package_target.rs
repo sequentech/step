@@ -11,9 +11,10 @@ use super::configuration_package_apply::{
     PackageTarget, SectionPreview, SectionSubmission, TaskState,
 };
 use super::configuration_package_sections::{
-    absent_admin_rows, admin_changes, admin_column_problems, event_changes, merged_tenant,
+    absent_admin_rows, admin_changes, admin_column_problems, admin_detail_problems,
+    admin_permission_label_updates, event_changes, merged_tenant, preview_admin_permission_labels,
     read_admin_rows, read_group_roles, role_changes, tenant_configuration_changes,
-    tenant_settings_changes, trustee_changes,
+    tenant_settings_changes, trustee_changes, ExistingAdmin,
 };
 use super::configuration_package_sections::{
     admission_problem, carries_messaging, census_usernames, event_document, messaging_problem,
@@ -202,6 +203,65 @@ impl PlatformTarget {
         .await
     }
 
+    /// Read only public roster fields; never inspect credential storage.
+    async fn existing_admin_details(
+        &self,
+        usernames: &[String],
+    ) -> Result<BTreeMap<String, ExistingAdmin>> {
+        let mut db: DbClient = get_keycloak_pool().await.get().await?;
+        let transaction = db.transaction().await?;
+        let lowered: Vec<String> = usernames.iter().map(|u| u.to_lowercase()).collect();
+        let names = vec![
+            "permission_labels",
+            "trustee",
+            "title",
+            "sequent.read-only.mobile-number",
+        ];
+        let rows = transaction.query(
+            "SELECT u.username, u.email, u.first_name, u.last_name, u.enabled, u.email_verified,
+                    (u.service_account_client_link IS NOT NULL) AS service_account,
+                    a.name AS attribute_name, a.value AS attribute_value
+             FROM user_entity u JOIN realm r ON r.id = u.realm_id
+             LEFT JOIN user_attribute a ON a.user_id = u.id AND a.name = ANY($3)
+             WHERE r.name = $1 AND u.username = ANY($2)",
+            &[&get_tenant_realm(&self.context.tenant_id), &lowered, &names],
+        ).await.context("Error reading existing administrator public fields")?;
+        let mut result: BTreeMap<String, ExistingAdmin> = BTreeMap::new();
+        for row in rows {
+            let entry = result
+                .entry(row.get::<_, String>("username").to_lowercase())
+                .or_default();
+            entry.service_account = row.get("service_account");
+            for field in ["email", "first_name", "last_name"] {
+                if let Some(mut value) = row.get::<_, Option<String>>(field) {
+                    if field == "email" {
+                        value = value.to_lowercase();
+                    }
+                    if !value.is_empty() {
+                        entry.fields.entry(field.into()).or_default().insert(value);
+                    }
+                }
+            }
+            for field in ["enabled", "email_verified"] {
+                let value: bool = row.get(field);
+                entry
+                    .fields
+                    .entry(field.into())
+                    .or_default()
+                    .insert(value.to_string());
+            }
+            if let (Some(name), Some(value)) = (
+                row.get::<_, Option<String>>("attribute_name"),
+                row.get::<_, Option<String>>("attribute_value"),
+            ) {
+                if !value.is_empty() {
+                    entry.fields.entry(name).or_default().insert(value);
+                }
+            }
+        }
+        Ok(result)
+    }
+
     fn event_document(&self, files: &[Artifact]) -> Result<Vec<u8>> {
         Ok(match &self.context.signed_package {
             Some(package) => package.clone(),
@@ -353,6 +413,23 @@ impl PlatformTarget {
                     groups.into_iter().filter_map(|g| g.name).collect();
                 known.extend(self.context.package_groups.iter().cloned());
                 let mut preview = admin_changes(&rows, &existing, &known);
+                let current = self.existing_admin_details(&usernames).await?;
+                preview_admin_permission_labels(&mut preview, &rows, &current);
+                let mut db: DbClient = get_hasura_pool().await.get().await?;
+                let transaction = db.transaction().await?;
+                let mut trustees: BTreeSet<String> =
+                    get_all_trustees(&transaction, &self.context.tenant_id)
+                        .await?
+                        .into_iter()
+                        .filter_map(|t| t.name)
+                        .collect();
+                trustees.extend(self.context.package_trustees.iter().cloned());
+                preview.blockers.extend(admin_detail_problems(
+                    &rows,
+                    &current,
+                    &trustees,
+                    &self.context.event_import.privileges,
+                ));
                 preview
                     .blockers
                     .extend(admin_column_problems(&one(files, "administrators")?.bytes)?);
@@ -372,6 +449,9 @@ impl PlatformTarget {
                 let event_id =
                     derived_event_id(&self.context.tenant_id, &self.context.package_sha256);
                 let mut problems = Vec::new();
+                // Said in the preview, never a blocker: a different major
+                // version imports with a warning (meta#14760).
+                let mut warnings: Vec<String> = Vec::new();
                 let mut db: DbClient = get_hasura_pool().await.get().await?;
                 let transaction = db.transaction().await?;
                 // The importer's own validation of the event, before anything
@@ -385,7 +465,8 @@ impl PlatformTarget {
                 )
                 .await
                 {
-                    Ok((schema, _)) => {
+                    Ok((schema, _, read_warnings)) => {
+                        warnings.extend(read_warnings.iter().map(ToString::to_string));
                         // The importer skips a messaging configuration its caller
                         // may not write and still reports the event imported.
                         problems.extend(messaging_problem(
@@ -448,7 +529,13 @@ impl PlatformTarget {
                     (false, Some(_)) => EventState::RealmOnly,
                     (false, None) => EventState::Absent,
                 };
-                Ok(event_changes(&event_id, &state, &census, problems))
+                let mut preview = event_changes(&event_id, &state, &census, problems);
+                if !warnings.is_empty() {
+                    if let Some(change) = preview.changes.get_mut(0) {
+                        change["warnings"] = serde_json::json!(warnings);
+                    }
+                }
+                Ok(preview)
             }
         }
     }
@@ -586,11 +673,81 @@ impl PackageTarget for PlatformTarget {
                 .await
             }
             Section::AdminAccounts => {
+                // Recheck profiles, grants and trustee references immediately before
+                // staging; only the explicit permission-label replacement is mutable.
+                let preview = self.preview_section(Section::AdminAccounts, files).await?;
+                if !preview.blockers.is_empty() {
+                    return Err(anyhow!(
+                        "administrator roster changed or is blocked; preview again"
+                    ));
+                }
                 let file = one(files, "administrators")?;
                 let rows = read_admin_rows(&file.bytes)?;
                 let usernames: Vec<String> = rows.iter().map(|r| r.username.clone()).collect();
                 let existing = self.existing_usernames(&usernames).await?;
+                let current = self.existing_admin_details(&usernames).await?;
+                let updates = admin_permission_label_updates(&rows, &current);
+                if !updates.is_empty() {
+                    use super::import_users::PermissionLabelPolicy;
+                    if !matches!(
+                        self.context.event_import.privileges.permission_labels,
+                        PermissionLabelPolicy::Allowed
+                    ) {
+                        return Err(anyhow!(
+                            "administrator label updates require permission-label-write"
+                        ));
+                    }
+                    let realm = get_tenant_realm(&self.context.tenant_id);
+                    for (username, labels) in &updates {
+                        // Tenant-scoped identity lookup. Never resolve an account globally.
+                        let db: DbClient = get_keycloak_pool().await.get().await?;
+                        let row = db.query_one(
+                            "SELECT u.id FROM user_entity u JOIN realm r ON r.id=u.realm_id WHERE r.name=$1 AND u.username=$2 AND u.service_account_client_link IS NULL",
+                            &[&realm, username],
+                        ).await.context("Error resolving administrator for label update")?;
+                        let id: String = row.get("id");
+                        drop(db);
+                        // The existing helper reads the current representation and merges
+                        // this one attribute, preserving credentials and all other fields.
+                        KeycloakAdminClient::new()
+                            .await?
+                            .edit_user(
+                                &realm,
+                                &id,
+                                None,
+                                Some(std::collections::HashMap::from([(
+                                    "permission_labels".to_string(),
+                                    labels.iter().cloned().collect(),
+                                )])),
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                            )
+                            .await
+                            .context("Error updating administrator permission labels")?;
+                        task_audit::record(task_audit::bulk(
+                            self.context.audit_actor.clone(),
+                            task_audit::target(&self.context.tenant_id, None)?,
+                            "user",
+                            AdminAction::Update,
+                            "Reconciled administrator permission labels from configuration package",
+                            json!({"username": username, "permission_labels": labels}),
+                        ))
+                        .await?;
+                    }
+                }
                 let absent = absent_admin_rows(&file.bytes, &existing)?;
+                if read_admin_rows(&absent)?.is_empty() {
+                    let task = self.task(task_id).await?;
+                    update_complete(&task, None).await?;
+                    return Ok(SectionSubmission {
+                        task_id: Some(task.id),
+                        detail: json!({"permission_label_updates": updates.len()}),
+                    });
+                }
                 let document_id = self.stage("admin_users.csv", "text/csv", &absent).await?;
                 let task = self.task(task_id).await?;
                 let ran = crate::tasks::import_users::execute(

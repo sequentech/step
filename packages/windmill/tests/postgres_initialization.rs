@@ -1485,6 +1485,24 @@ async fn raw_draft_styles_do_not_prove_retained_membership_or_report_material() 
         .get("initialization_countries")
         .is_none());
     execute(&tx, "UPDATE sequent_backend.ballot_publication SET is_generated = true, election_ids = $3 WHERE tenant_id = $1 AND id = $2", &[&w.tenant, &w.event, &vec![w.p1, w.p2]]).await;
+    let generated_only = reader
+        .published_ballot_styles(
+            &w.tenant.to_string(),
+            &w.event.to_string(),
+            &[w.p1.to_string()],
+        )
+        .await
+        .unwrap();
+    assert!(
+        generated_only.is_empty(),
+        "a generated publication cannot supply an initialization report before it is published"
+    );
+    execute(
+        &tx,
+        "UPDATE sequent_backend.ballot_publication SET published_at = now() WHERE tenant_id = $1 AND id = $2",
+        &[&w.tenant, &w.event],
+    )
+    .await;
     assert_eq!(
         reader
             .published_ballot_styles(

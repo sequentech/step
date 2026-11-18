@@ -399,16 +399,23 @@ pub async fn import_election_event_f(
         )
         .await;
 
-    let (election_event_schema, _replacement_map) = match document_result {
-        Ok((election_event_schema, replacement_map)) => {
-            (election_event_schema, replacement_map)
-        }
-        Err(err) => {
-            return Ok(refuse(task_execution, Refusal::of_check(&err)).await);
-        }
-    };
+    let (election_event_schema, _replacement_map, warnings) =
+        match document_result {
+            Ok((election_event_schema, replacement_map, warnings)) => {
+                (election_event_schema, replacement_map, warnings)
+            }
+            Err(err) => {
+                return Ok(
+                    refuse(task_execution, Refusal::of_check(&err)).await
+                );
+            }
+        };
 
     let id = election_event_schema.election_event.id.clone();
+    // What the read warned about without refusing (a different major version,
+    // meta#14760), in `problems` with `severity: warning` beside a success:
+    // the Admin Portal lists them and only an error disables the import.
+    let warnings = (!warnings.is_empty()).then_some(warnings);
 
     let check_only = input.check_only.unwrap_or(false);
     if check_only {
@@ -420,7 +427,7 @@ pub async fn import_election_event_f(
             message: Some("Import document checked".to_string()),
             error: None,
             task_execution: Some(task_execution),
-            problems: None,
+            problems: warnings,
         }));
     }
 
@@ -460,7 +467,7 @@ pub async fn import_election_event_f(
         message: Some("Task created: import_election_event".to_string()),
         error: None,
         task_execution: Some(task_execution),
-        problems: None,
+        problems: warnings,
     }))
 }
 

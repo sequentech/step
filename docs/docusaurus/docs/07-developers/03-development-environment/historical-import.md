@@ -136,34 +136,79 @@ Mapped text uses declared UTF-8 or MySQL latin1 encoding. Binary content remains
 in the unmodified original; this profile does not publish candidate photographs
 from opaque blobs.
 
-The workbook contains `ElectionEvent`, `Elections`, `Areas`,
-`ScheduledEvents` and `CcsServers`. Blank styling rows are not records.
+The workbook carries everything the dump does not. It contains `ElectionEvent`,
+`Elections`, `Areas`, `ScheduledEvents` and `CcsServers`, and optionally
+`Contests`, `Parameters` and any other sheet an authoring workbook takes. Blank
+styling rows are not records.
+
+- **`Contests`** gives contests the columns the dump lacks, such as
+  `description` and `presentation.i18n.<lang>.description`. A row without a
+  `name` applies to every contest; a row with a `name` (the source's
+  `seat.CONTEST`) to that contest, after the defaults. `{max_votes}` in a value
+  is the contest's seat count, so `Vote for no more than {max_votes}` describes
+  every contest. What the seats decide (`external_id`, `election.external_id`,
+  the vote counts, `voting_type`, `counting_algorithm`, the `miru:` annotations)
+  is refused.
+- **`Parameters`** goes to the build unchanged, as in an authoring workbook. It
+  carries the Keycloak realm, which the dump has nothing about: a whole realm,
+  as an event export's `keycloak_event_realm` holds it, under the key
+  `keycloak_event_realm`, split across `value+` continuation cells. The build
+  patches it the way it patches a base export's: the realm's name and its URLs
+  take this event's id, `displayName` follows the event name, `login_custom_css`
+  becomes the login stylesheet in every enabled language, an `auth_type` applies
+  its preset, and `keycloak_event_realm.<path>` rows set anything else. The
+  importer then checks it against the deployment's template and generates new
+  client secrets, as for any imported realm. Without a realm (and without a base
+  export) those settings reach the realm patch beside the package instead.
+- **`Templates`, `Reports`, `Admin Users`, `Permissions`** and the plan sheets
+  (`Contacts`, `Trustees`, `Ceremony`, `Milestones`, `Messages`, `Notes`) go to
+  the build unchanged. A `Reports` row names its election by `election_alias`,
+  as a schedule does, in place of `election.external_id`.
+
+A cell holds at most 32,767 characters, and a stylesheet can be longer. A column
+headed `<column>+` directly after `<column>` (or after another `<column>+`)
+continues it: a row's text there is joined onto the column's, left to right,
+before the cell is read. This holds for every workbook sheet, and the workbook
+writer splits longer text the same way.
 Election aliases must be unique because schedules refer to aliases. Several
 election rows may share a post; they remain separate contexts.
 
-### Without the workbook
+### Defaults workbook
 
-The workbook is optional. Without it, the decisions carry a `supplement` with
-what the dump does not hold, and the rest is derived from the dump:
+A full workbook names one election per post and one area per cluster, so it fits
+one dump. A workbook without an `Elections` sheet is a **defaults workbook**: it
+carries only what the dump does not hold, and the elections and areas are
+derived from the dump, so the same workbook serves any dump of that source.
 
 - **Elections**: one per polling center that a `pop` row places voters in,
-  named and aliased by its `POLLING_PLACE`.
+  named and aliased by its `POLLING_PLACE`. An `ElectionDefaults` sheet gives
+  elections their other columns, `name` included. A row without a
+  `polling_place` applies to every election; a row with one applies to the
+  elections whose polling place it matches, as a whole name or a pattern with
+  one `*` (`*-T`, `* PE`), and the most specific match goes on top: a whole name
+  before a pattern, then the pattern that spells out more. Two equally specific
+  matches, a second row for the same pattern, and `alias` or `election_post`
+  columns are refused; a pattern that matches nothing is not, since one defaults
+  workbook serves every dump. `{place}` in a value is what the `*` stood for,
+  written as a voter reads it (`ABU DHABI` becomes `Abu Dhabi`), or the whole
+  polling place as its embassy label reads. The alias stays the polling place,
+  because schedules name elections by it; `presentation.i18n.<lang>.alias` is
+  the alias voters see.
 - **Areas**: one per precinct cluster (`pop.CLUSTERPOLLCENTER`), named by the
   historical name rule below and described by the cluster's own polling place.
   Without its own polling center, every precinct row of that cluster must refer
-  to the same post; conflicting posts are refused.
-- **Event**: `supplement.event` — `name` and `electionEventId` are required;
-  `description`, `logoUrl` and `css` are optional.
-- **Schedules**: `supplement.schedules`, each a `type` and a `date`. A schedule
-  with no `election` (the post) applies to every election. Dates are RFC 3339
-  instants, or local date-times read at `scheduleOffsetMinutes`.
-- **CCS servers and trustees**: `supplement.ccsServers`, and the
-  `areaCcsServerTags` and `areaTrusteeServers` every area carries.
+  to the same post; conflicting posts are refused. An `Areas` row without a
+  `name` gives its other columns (CCS server tags, trustee servers, station id)
+  to every area; a row with a `name` gives them to that area only, after the
+  defaults. A named row that matches no derived area or more than one, and a
+  second row for the same area or for every area, are refused.
+- **Schedules**: a `ScheduledEvents` row without an `election_alias` applies to
+  every election; one with an alias (the post) to that election only.
+- **Event and CCS servers**: the `ElectionEvent` and `CcsServers` sheets, read
+  as in a full workbook.
 
-A workbook and a supplement together are refused, as is neither. Election and
-area associations name workbook rows, so they are refused without one. The
-summary and provenance then have no `workbookSha256`, and `sourceDigests`
-binds the SQL alone.
+Election and area associations name workbook rows, so they are refused with a
+defaults workbook. The summary and provenance record `defaultsWorkbook: true`.
 
 Names and descriptions are kept per language in `presentation.i18n.<lang>`.
 `<lang>` is the row's `presentation.language_conf.default_language_code`, or
@@ -245,12 +290,38 @@ Each voter carries two kinds of attribute:
   voter's area with the same formatting as the registration option lists.
 - Raw source values for audit, unchanged: `source_maternal_name`, `source_suffix`,
   `source_dob_year`/`_month`/`_day`, `source_country`, `source_embassy`,
-  `source_precinct` and `source_abroad_status`. The abroad status is never turned
-  into eligibility.
+  and, from a legacy dump, `source_precinct` and `source_abroad_status`. A
+  post-qualification dump has neither column, so neither is emitted. The abroad
+  status is never turned into eligibility.
 
-Email, mobile and password are left unset; enrollment collects them later. Every
-row is checked before the conversion is refused, and each failing voter is reported
-by row and column: a location with no in-scope area, a duplicate id, an incomplete
+By default, email, mobile and password are left unset; enrollment collects them
+later, so the conversion does not warn that voters cannot be sent a one-time code.
+An optional supplemental **Voters** sheet can restore account values that are
+not in the SQL census. It requires `preserve-source-voters` and joins by the
+source `username`. Each username may occur once and must already be in the census.
+Only these columns are accepted:
+
+- `username`: the source voter ID, used only as the join key.
+- `email`: the account email address.
+- `email_verified` and `enabled`: explicit account flags, including `false`.
+  Use Excel booleans or `true`/`false`, `yes`/`no`, `1`/`0` (`x` means true).
+- `authorized-election-ids`: election **external IDs**, separated by `||`.
+  They must name generated elections, such as `center:P01:context:alias`.
+  Duplicate IDs are removed in source order. Unknown elections block the build.
+  Election external IDs cannot contain `|`. Explicit `null`, empty lists and
+  malformed restriction members are rejected, rather than becoming unrestricted.
+
+Omitted rows and blank cells retain the existing defaults: no email or election
+restriction, enabled, and email verification based on whether an email is present.
+An explicit verification flag is preserved even without an email. SQL identity,
+location and audit fields cannot be overridden; other account, enrollment and
+credential columns are rejected. Source SQL contact columns are not copied
+implicitly. Direct builds, the Wizard, and saved/reopened plans preserve the
+supplied account values. The exported voters CSV uses a single `|` between
+canonical external IDs, which the Keycloak mapper resolves to platform IDs.
+A blank restriction stays blank and leaves the existing area-based rules in place.
+Every SQL census row is checked before the conversion is refused, and each failing
+voter is reported by row and column: a location with no in-scope area, a duplicate id, an incomplete
 or impossible date of birth, or an area without an embassy/country label. Nothing
 is dropped silently. The preserved count is reported in the summary and stored in
 provenance as `preservedVoters`.
@@ -284,9 +355,9 @@ step-cli step build-election-event \
 ```
 
 Run without `--check-only` to write a validated package. `--strict` also refuses
-warnings. The existing workbook-only command remains available. With
-`--historical-sql`, `--workbook` may be left out when the decisions file carries
-a `supplement`:
+warnings. The existing workbook-only command remains available. `--workbook` may
+be a defaults workbook (no `Elections` sheet), with the voter area join in the
+decisions when voters are preserved:
 
 ```json
 {
@@ -294,24 +365,7 @@ a `supplement`:
   "voterAreaJoin": "mail-country-embassy",
   "ballot": "seat-plurality-at-large",
   "scope": "configured-seats-only",
-  "scheduleOffsetMinutes": 480,
-  "supplement": {
-    "event": { "name": "Example Event", "electionEventId": "1" },
-    "schedules": [
-      { "type": "START_VOTING_PERIOD", "date": "2027-01-01T08:00" },
-      { "type": "END_VOTING_PERIOD", "date": "2027-01-02T08:00" }
-    ],
-    "ccsServers": [
-      {
-        "name": "Example CCS",
-        "tag": "1",
-        "address": "https://ccs.example.org",
-        "publicKey": "<PEM public key>",
-        "sendLogs": false
-      }
-    ],
-    "areaCcsServerTags": "1"
-  }
+  "scheduleOffsetMinutes": 480
 }
 ```
 
@@ -351,6 +405,29 @@ CSV; `preserve-source-voters` adds an `export_voters-*.csv` census member.
 Keep original source files in controlled local storage; hashes do not
 replace the originals.
 
+## Editing a converted event
+
+`openFromHistorical(sql, workbook, decisions)` in the core's WASM converts the
+dump as `adapt` does and reads the result back with `plan_from_workbook`. It
+returns an editable plan, the same as opening a wizard workbook does. The
+Election Architect uses it for *Edit in the Wizard*. Compiling that plan
+unchanged builds the same ballot as the direct build:
+
+- Columns the plan has no field for are carried on each entity (`columns`).
+  So are the `miru:*` and `import:provenance` annotations. The writer puts both
+  back into the workbook the build reads.
+- Contest behaviour the template would supply for a blank cell is read as
+  explicit overrides. A value every contest shares becomes a plan default.
+- The event's `presentation.i18n.<lang>` object gives its name and description
+  to the plan's fields and its remaining keys to the portal texts (`i18n`). It is
+  not carried whole, so an edited name wins.
+- `presentation.ceremonies_policy`, which the Admin Portal's ceremony screens
+  read, is the plan's ceremony policy. A `Ceremony` sheet overrides it.
+
+The test `a_converted_event_opened_in_the_wizard_builds_the_same_ballot` checks
+the unchanged round trip. `wizard_edits_of_a_converted_event_win_over_its_source_cells`
+checks that edits win.
+
 ## Verification and limits
 
 The release helper also initializes the generated WASM and checks a synthetic
@@ -371,3 +448,30 @@ Historical compatibility does not establish compatibility with a later official
 EMS schema, resolve no-remapping procurement requirements or authorize live
 imports. A test association scenario demonstrates mechanics; issuer-approved
 seat, area, census and ballot semantics remain a separate decision.
+
+## Event messaging configuration
+
+A `Parameters` row with key `messaging_config` and a JSON object in `value`
+sets the native export's top-level `messaging_config`. This is the same
+`EventMessagingConfig` used by the Admin Portal: `version`, `channels` (account
+references, purposes, template bindings and out-of-window policies), and
+`election_channels`. It survives direct SQL/XLSX conversion, Edit in the Wizard,
+plan save/reopen and opening a native event export.
+
+In workbook input, `election_channels` keys may be election `external_id`
+values or the generated election UUIDs. Native exports and base exports use
+UUIDs; these are mapped through their elections' external IDs to the rebuilt
+UUIDs. Unknown elections and conflicting references are refused, rather than
+silently dropping a restriction.
+
+An absent or blank parameter keeps a base export's configuration. A literal
+`null` overrides the base and emits no event configuration. To explicitly
+configure no channels, use `{"version":1,"channels":[],"election_channels":{}}`.
+The legacy `messaging:config` annotation and Keycloak's public
+`sequent.messaging` projection do not substitute for the top-level field.
+
+The Architect validates the configuration shape and its local references. It
+cannot verify destination accounts: the referenced accounts must already exist
+in the target tenant, support the channel and be ready for the enabled purposes.
+The import still requires `messaging-config-write` and performs those checks.
+No provider accounts or credentials are created or exported by this parameter.

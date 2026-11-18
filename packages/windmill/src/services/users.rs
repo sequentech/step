@@ -1098,7 +1098,7 @@ impl<'de> Deserialize<'de> for FilterOption {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Default, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Default, Serialize, Deserialize)]
 pub struct ListUsersFilter {
     pub tenant_id: String,
     pub election_event_id: Option<String>,
@@ -1131,6 +1131,24 @@ impl ListUsersFilter {
             realm: realm.to_string(),
             ..Default::default()
         }
+    }
+}
+
+/// Search terms, names, usernames, emails, attribute values and user ids
+/// select voters, so the debug output, which spans and logs record, keeps only
+/// the scope and paging of the filter.
+impl std::fmt::Debug for ListUsersFilter {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ListUsersFilter")
+            .field("tenant_id", &self.tenant_id)
+            .field("election_event_id", &self.election_event_id)
+            .field("election_id", &self.election_id)
+            .field("area_id", &self.area_id)
+            .field("realm", &self.realm)
+            .field("limit", &self.limit)
+            .field("offset", &self.offset)
+            .finish_non_exhaustive()
     }
 }
 
@@ -1269,7 +1287,7 @@ mod privacy_sort_regressions {
     }
 }
 
-#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+#[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
 pub async fn count_keycloak_users(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -1430,7 +1448,7 @@ pub async fn count_keycloak_users(
     Ok(count)
 }
 
-#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+#[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
 pub async fn list_users(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -1447,7 +1465,6 @@ async fn list_users_page(
     after_user_id: Option<&str>,
     count_rows: bool,
 ) -> Result<(Vec<User>, i32)> {
-    info!("filter: {filter:?}");
     let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
     let query_limit: i64 =
@@ -1613,7 +1630,6 @@ async fn list_users_page(
     }
 
     debug!("parameters count: {}", next_param_number - 1);
-    debug!("params {:?}", params);
     let scope_clause = voter_scope_clause(&filters_clause, realm_param, user_ids_param);
     let statement_str = format!(
         r#"
@@ -1899,7 +1915,7 @@ pub async fn get_realm_email_uniqueness(
 }
 
 /// Use only for verifying application!, does not work as it seems for other situations, then use list_users instead.
-#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+#[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
 pub async fn lookup_users(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -1988,7 +2004,6 @@ pub async fn lookup_users(
     let no_service_accounts = service_account_exclusion("u");
 
     debug!("parameters count: {}", next_param_number - 1);
-    debug!("params {:?}", params);
 
     let statement_str = format!(
         r#"
@@ -2370,7 +2385,7 @@ pub async fn get_user_area_id(
 
 /// Voters of the filter's election event, or of one of its elections, with a valid
 /// vote.
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip(hasura_transaction, filter), err)]
 pub async fn count_have_voted(
     hasura_transaction: &Transaction<'_>,
     filter: &ListUsersFilter,
@@ -2404,7 +2419,7 @@ pub async fn count_have_voted(
     Ok(voters.try_into()?)
 }
 
-#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+#[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
 pub async fn list_users_has_voted(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -2504,6 +2519,50 @@ pub async fn list_users_has_voted(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A filter's debug output keeps its scope and paging but none of the
+    /// voter data that selects users.
+    #[test]
+    fn a_filter_debug_output_holds_no_voter_data() {
+        const SEARCH: &str = "SearchValue3e9a";
+        const FIRST_NAME: &str = "FirstNameValue1f8c";
+        const LAST_NAME: &str = "LastNameValue7a4e";
+        const USERNAME: &str = "UsernameValue5d0b";
+        const EMAIL: &str = "email-value-6b2d@example.test";
+        const USER_ID: &str = "UserIdValue2a6f";
+        const ATTRIBUTE_VALUE: &str = "AttributeValue9c3f";
+        let filter = ListUsersFilter {
+            search: Some(SEARCH.to_string()),
+            first_name: Some(FilterOption::IsLike(FIRST_NAME.to_string())),
+            last_name: Some(FilterOption::IsEqual(LAST_NAME.to_string())),
+            username: Some(FilterOption::IsEqual(USERNAME.to_string())),
+            email: Some(FilterOption::IsLike(EMAIL.to_string())),
+            user_ids: Some(vec![USER_ID.to_string()]),
+            attributes: Some(HashMap::from([(
+                "national-id".to_string(),
+                ATTRIBUTE_VALUE.to_string(),
+            )])),
+            limit: Some(10),
+            ..ListUsersFilter::new("tenant-a", "realm-a")
+        };
+
+        let output = format!("{filter:?}");
+
+        for scope in ["tenant-a", "realm-a", "limit: Some(10)"] {
+            assert!(output.contains(scope), "{scope} missing from {output}");
+        }
+        for value in [
+            SEARCH,
+            FIRST_NAME,
+            LAST_NAME,
+            USERNAME,
+            EMAIL,
+            USER_ID,
+            ATTRIBUTE_VALUE,
+        ] {
+            assert!(!output.contains(value), "{value} in {output}");
+        }
+    }
 
     const AREA: &str = "10000000-0000-4000-8000-00000000000a";
 

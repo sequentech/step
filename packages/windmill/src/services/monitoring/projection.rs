@@ -412,6 +412,34 @@ struct Enrolled {
 /// How many rows one batched activity update writes.
 const ACTIVITY_BATCH: usize = 5_000;
 
+/// Each voter's latest application, by `updated_at` and then id: the
+/// applications stored under a voter's id. One stored without a voter id
+/// (`null` or blank, as the Keycloak enrollment flow stored automatic
+/// decisions) counts for no voter: the username it records may have passed
+/// to another voter since.
+///
+/// Annotations are read as an object, or from a JSON string holding one, as
+/// the CSV import stores them; others have no reason.
+const LATEST_APPLICATIONS: &str = "
+    SELECT DISTINCT ON (applicant_id) applicant_id::text,
+           CASE WHEN status IN ('PENDING', 'ACCEPTED', 'REJECTED') THEN status::text END
+               AS status,
+           NULLIF(btrim(
+               CASE
+                   WHEN jsonb_typeof(annotations) = 'object' THEN annotations
+                   WHEN jsonb_typeof(annotations) = 'string' THEN
+                       CASE WHEN pg_input_is_valid(annotations #>> '{}', 'jsonb') THEN
+                           CASE WHEN jsonb_typeof((annotations #>> '{}')::jsonb) = 'object'
+                                THEN (annotations #>> '{}')::jsonb END
+                       END
+               END->>'rejection_reason'
+           ), '') AS reason,
+           updated_at
+    FROM sequent_backend.applications
+    WHERE tenant_id = $1 AND election_event_id = $2
+      AND lower(btrim(applicant_id)) NOT IN ('', 'null')
+    ORDER BY applicant_id, updated_at DESC, id DESC";
+
 /// The voters' first valid votes, by election and voter, as a refresh read
 /// them from the event's ballot box.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -514,17 +542,7 @@ pub async fn refresh_voter_activity(
     let params: [&(dyn tokio_postgres::types::ToSql + Sync); 2] =
         [&event.tenant_id, &event.election_event_id];
     let latest: HashMap<String, Enrolled> = transaction
-        .query(
-            "SELECT DISTINCT ON (applicant_id) applicant_id::text,
-                    CASE WHEN status IN ('PENDING', 'ACCEPTED', 'REJECTED') THEN status::text END
-                        AS status,
-                    NULLIF(btrim(annotations->>'rejection_reason'), '') AS reason,
-                    updated_at
-             FROM sequent_backend.applications
-             WHERE tenant_id = $1 AND election_event_id = $2
-             ORDER BY applicant_id, updated_at DESC, id DESC",
-            &params,
-        )
+        .query(LATEST_APPLICATIONS, &params)
         .await
         .context("Failed to read the voters' latest applications")?
         .iter()

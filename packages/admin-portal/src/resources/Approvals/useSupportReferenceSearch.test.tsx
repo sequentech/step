@@ -6,7 +6,7 @@ import {renderHook, waitFor} from "@testing-library/react"
 import {SUPPORT_REFERENCE_DEBOUNCE_MS, useSupportReferenceSearch} from "./useSupportReferenceSearch"
 
 const APPLICATION = "7f0c2a9e-1b3d-4c5e-8f60-123456789abc"
-const mockSetFilters = jest.fn()
+let mockSetFilters = jest.fn()
 const mockQuery = jest.fn()
 const mockNotify = jest.fn()
 let mockFilterValues: Record<string, unknown> = {}
@@ -22,7 +22,7 @@ jest.mock("react-admin", () => ({
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
 
 beforeEach(() => {
-    mockSetFilters.mockReset()
+    mockSetFilters = jest.fn()
     mockQuery.mockReset()
     mockNotify.mockReset()
     mockQuery.mockResolvedValue({
@@ -41,14 +41,11 @@ it("asks the server for the application of a support reference searched in the q
         useSupportReferenceSearch({election_event_id: "event-2", permission_label: "post-a"})
     )
     await waitFor(() =>
-        expect(mockSetFilters).toHaveBeenCalledWith(
-            {
-                q: "65sr-mssd",
-                status: "pending",
-                support_reference: {reference: "65SR-MSSD", ids: [APPLICATION]},
-            },
-            {}
-        )
+        expect(mockSetFilters).toHaveBeenCalledWith({
+            q: "65sr-mssd",
+            status: "pending",
+            support_reference: {reference: "65SR-MSSD", ids: [APPLICATION]},
+        })
     )
     expect(mockQuery).toHaveBeenCalledTimes(1)
     expect(mockQuery.mock.calls[0][0].variables).toEqual({
@@ -105,4 +102,55 @@ it("asks once the search stops changing, not on every keystroke (R8-14)", async 
     } finally {
         jest.useRealTimers()
     }
+})
+
+// Only the filters are passed, so the filters shown stay shown, including added ones still
+// without a value (react-admin replaces them when a second argument is given).
+it("adds the applications found to the filters as they are when the answer arrives", async () => {
+    let answer: (value: unknown) => void = () => {}
+    mockQuery.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    mockFilterValues = {q: "65SR-MSSD", status: "pending"}
+    const {rerender} = renderHook(() => useSupportReferenceSearch({election_event_id: "event-2"}))
+    await waitFor(() => expect(mockQuery).toHaveBeenCalledTimes(1))
+    // The administrator chooses another status while the server looks the reference up.
+    mockFilterValues = {q: "65SR-MSSD", status: "accepted"}
+    rerender()
+    answer({
+        data: {
+            find_applications_by_support_reference: {
+                reference: "65SR-MSSD",
+                application_ids: [APPLICATION],
+            },
+        },
+    })
+    await waitFor(() => expect(mockSetFilters).toHaveBeenCalled())
+    expect(mockSetFilters).toHaveBeenCalledWith({
+        q: "65SR-MSSD",
+        status: "accepted",
+        support_reference: {reference: "65SR-MSSD", ids: [APPLICATION]},
+    })
+})
+
+it("adds the answer through the list's latest setFilters", async () => {
+    let answer: (value: unknown) => void = () => {}
+    mockQuery.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    const whenAsked = jest.fn()
+    mockSetFilters = whenAsked
+    mockFilterValues = {q: "65SR-MSSD", status: "pending"}
+    const {rerender} = renderHook(() => useSupportReferenceSearch({election_event_id: "event-2"}))
+    await waitFor(() => expect(mockQuery).toHaveBeenCalledTimes(1))
+    // Showing or hiding a filter, or sorting, gives the list a new setFilters.
+    const latest = jest.fn()
+    mockSetFilters = latest
+    rerender()
+    answer({
+        data: {
+            find_applications_by_support_reference: {
+                reference: "65SR-MSSD",
+                application_ids: [APPLICATION],
+            },
+        },
+    })
+    await waitFor(() => expect(latest).toHaveBeenCalledTimes(1))
+    expect(whenAsked).not.toHaveBeenCalled()
 })

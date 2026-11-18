@@ -7,6 +7,7 @@ import {useTranslation} from "react-i18next"
 import {Box, Button, IconButton} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import AddIcon from "@mui/icons-material/Add"
+import CheckCircleIcon from "@mui/icons-material/CheckCircle"
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward"
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward"
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline"
@@ -30,12 +31,24 @@ const RuleCard = styled("li")(({theme}) => ({
     "borderRadius": "10px",
     "background": theme.palette.white,
     "listStyle": "none",
+    [theme.breakpoints.down("sm")]: {"&[data-actions='true']": {flexWrap: "wrap", rowGap: "8px"}},
+    "&:focus-visible": {outline: `2px solid ${theme.palette.brandColor}`, outlineOffset: "2px"},
     "&[data-highlighted='true']": {
         borderColor: theme.palette.brandSuccess,
         boxShadow: `inset 0 0 0 1px ${theme.palette.brandSuccess}`,
         background: "#F0FBF6",
     },
 }))
+
+/** A rule's conditions and outcome; on a phone, below its number and its actions, if any. */
+const RuleBody = styled("div")(({theme}) => ({
+    flexGrow: 1,
+    minWidth: 0,
+    [theme.breakpoints.down("sm")]: {"[data-actions='true'] > &": {order: 1, flexBasis: "100%"}},
+}))
+
+/** A rule's tags wrap between words when a card is narrow. */
+const WRAPPING_TAG = {whiteSpace: "normal", maxWidth: "100%"}
 
 const RuleList = styled("ol")({
     display: "flex",
@@ -67,17 +80,19 @@ const Actions = styled("div")({
     flexShrink: 0,
 })
 
-/** The rule that an example or an enrollment points at. `null` is the last rule. */
+/** A rule: its position from 1, `null` for the last rule, or none. */
 export type RulePointer = number | null | undefined
+
+/** The id of a rule's card, by its position from 1 or `null` for the last rule. */
+export const ruleCardId = (rule: number | null) =>
+    `approval-matrix-rule-${rule === null ? "otherwise" : rule}`
 
 export interface ApprovalMatrixRulesProps {
     matrix: IApprovalMatrix
     canEdit: boolean
     fieldLabel: FieldLabel
-    /** The position, starting at 1, of the rule that decides the example on screen. */
+    /** The rule that decides the applied example; the only rule highlighted. */
     appliesTo?: RulePointer
-    /** The rule that decided the enrollment the administrator came from. */
-    cameFrom?: RulePointer
     /** Why each rule can't be saved, by its position starting at 1. */
     problems?: Array<{code: EMatrixError; rule: number | null}>
     /** Opens the editor for the rule at this position, or for the last rule when empty. */
@@ -92,7 +107,6 @@ export const ApprovalMatrixRules: React.FC<ApprovalMatrixRulesProps> = ({
     canEdit,
     fieldLabel,
     appliesTo,
-    cameFrom,
     problems = [],
     onEdit,
     onMove,
@@ -105,7 +119,7 @@ export const ApprovalMatrixRules: React.FC<ApprovalMatrixRulesProps> = ({
         const labels = conditionLabels(when, t, fieldLabel)
         return labels.map((label, index) => (
             <React.Fragment key={label}>
-                <Tag>{label}</Tag>
+                <Tag sx={WRAPPING_TAG}>{label}</Tag>
                 {index < labels.length - 1 && <Muted>{t("approvalsScreen.matrix.andWord")}</Muted>}
             </React.Fragment>
         ))
@@ -125,17 +139,21 @@ export const ApprovalMatrixRules: React.FC<ApprovalMatrixRulesProps> = ({
         </Line>
     )
 
-    const pointers = (position: number | null) =>
-        (appliesTo === position || cameFrom === position) && (
+    const pointer = (position: number | null) =>
+        appliesTo === position && (
             <TagRow sx={{marginTop: "8px"}}>
-                {appliesTo === position && (
-                    <AccentTag>{t("approvalsScreen.matrix.appliesToExample")}</AccentTag>
-                )}
-                {cameFrom === position && (
-                    <AccentTag>{t("approvalsScreen.matrix.cameFrom")}</AccentTag>
-                )}
+                <AccentTag sx={WRAPPING_TAG}>
+                    <CheckCircleIcon sx={{fontSize: "16px"}} aria-hidden />
+                    {t("approvalsScreen.matrix.appliesToExample")}
+                </AccentTag>
             </TagRow>
         )
+    const highlight = (position: number | null) => ({
+        "id": ruleCardId(position),
+        "tabIndex": -1,
+        "data-highlighted": appliesTo === position,
+        "aria-current": appliesTo === position ? ("true" as const) : undefined,
+    })
 
     const errors = (position: number | null) => {
         const found = problems.filter(
@@ -160,20 +178,17 @@ export const ApprovalMatrixRules: React.FC<ApprovalMatrixRulesProps> = ({
                 {matrix.rules.map((rule, index) => {
                     const number = index + 1
                     return (
-                        <RuleCard
-                            key={index}
-                            data-highlighted={appliesTo === number || cameFrom === number}
-                        >
+                        <RuleCard key={index} data-actions={canEdit} {...highlight(number)}>
                             <NumberBadge>{number}</NumberBadge>
-                            <Box sx={{flexGrow: 1, minWidth: 0}}>
+                            <RuleBody>
                                 <Line>
                                     <Word>{t("approvalsScreen.matrix.when")}</Word>
                                     {conditions(rule.when)}
                                 </Line>
                                 {outcome(rule.then)}
-                                {pointers(number)}
+                                {pointer(number)}
                                 {errors(number)}
-                            </Box>
+                            </RuleBody>
                             {canEdit && (
                                 <Actions>
                                     <IconButton
@@ -219,19 +234,19 @@ export const ApprovalMatrixRules: React.FC<ApprovalMatrixRulesProps> = ({
                         </RuleCard>
                     )
                 })}
-                <RuleCard data-highlighted={appliesTo === null || cameFrom === null}>
+                <RuleCard data-actions={canEdit} {...highlight(null)}>
                     <NumberBadge data-muted="true" aria-hidden>
                         •
                     </NumberBadge>
-                    <Box sx={{flexGrow: 1, minWidth: 0}}>
+                    <RuleBody>
                         <Line>
                             <Word>{t("approvalsScreen.matrix.otherwise")}</Word>
                             <span>{t("approvalsScreen.matrix.noneApply")}</span>
                         </Line>
                         {outcome(matrix.otherwise)}
-                        {pointers(null)}
+                        {pointer(null)}
                         {errors(null)}
-                    </Box>
+                    </RuleBody>
                     {canEdit && (
                         <Actions>
                             <IconButton

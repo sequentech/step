@@ -61,6 +61,31 @@ class BuildImageMatrixTests(unittest.TestCase):
                 self.assertTrue((ROOT / context).is_dir())
                 self.assertTrue((ROOT / dockerfile).is_file())
 
+    def test_root_ecr_marks_only_images_with_a_root_account_repository(self):
+        # Repositories in gitops iac/live/prod-root/aws/ca-central-1/ecr. A push
+        # to a repository that doesn't exist fails the image's build.
+        result = self.select("all")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        rows = json.loads(result.stdout)["include"]
+        self.assertEqual(
+            {row["service"] for row in rows if row.get("root_ecr")},
+            {"keycloak", "voting-portal", "admin-portal", "ballot-verifier",
+             "results-portal", "harvest", "windmill", "hasura", "loadtesting"},
+        )
+
+    def test_only_release_pushes_to_the_root_account(self):
+        callers = {
+            "release.yml": "build-and-push",
+            "pr_build.yml": "build-and-push",
+            "publish_release.yml": "build-and-push",
+        }
+        for name, job_id in callers.items():
+            with self.subTest(workflow=name):
+                workflow = yaml.safe_load((ROOT / ".github/workflows" / name).read_text())
+                job = workflow["jobs"][job_id]
+                self.assertEqual(job["uses"], "./.github/workflows/reusable_build_push.yml")
+                self.assertEqual(job["with"].get("push_root", False), name == "release.yml")
+
     def test_architect_scope_excludes_delivery(self):
         result = self.select("architect")
         self.assertEqual(result.returncode, 0, result.stderr)

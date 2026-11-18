@@ -175,12 +175,22 @@ pub fn validate(bundle: &ImportElectionEventSchema) -> Report {
 /// a minute to [`MAX_EXPIRES_MINUTES`] or none. Refused here, the bundle
 /// never reaches the database, and the browser preview says why.
 fn check_signing(bundle: &ImportElectionEventSchema, report: &mut Report) {
-    let Some(rules) = bundle.signing_rules.as_ref() else {
-        return;
-    };
+    if let Some(rules) = bundle.signing_rules.as_ref() {
+        check_signing_rules(rules, "signing_rules", report);
+    }
+}
+
+/// [`check_signing`]'s rules, at `prefix` (`signing_rules` in a bundle,
+/// `signing.rules` in a plan), so the wizard reports the same problems, with
+/// the same ids, on the plan before anything is compiled.
+pub(crate) fn check_signing_rules(
+    rules: &[crate::signing::SigningRule],
+    prefix: &str,
+    report: &mut Report,
+) {
     let mut seen = std::collections::BTreeSet::new();
     for (index, rule) in rules.iter().enumerate() {
-        let at = format!("signing_rules[{index}]");
+        let at = format!("{prefix}[{index}]");
         if !seen.insert(rule.action.to_string()) {
             report.push(
                 Problem::error(
@@ -1775,10 +1785,11 @@ fn check_permission_labels(
             Code::PermissionLabel,
             path,
             format!(
-                "permission labels in use: {}. Anything carrying a label is hidden \
-                 from every administrator without it, so whoever imports this needs \
-                 one of them on their own 'permission_labels' attribute or the Admin \
-                 Portal will show them an empty list.",
+                "permission labels in use: {}. Verify the target account has a \
+                 matching 'permission_labels' value for each election or report \
+                 it needs to see. Entities with no matching label are hidden \
+                 from that account. This is an access reminder, not a failed \
+                 import; the event bundle cannot verify the signed-in account.",
                 labels.join(", ")
             ),
         ).id("labels.in-use").detail("labels", labels.join(", ")));

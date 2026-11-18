@@ -42,6 +42,7 @@ public final class ScanovateDiagnostics {
     CAPTURE,
     LIVENESS,
     FACE_MATCH,
+    DOCUMENT_LIVENESS,
     OCR,
     VALIDATION_RULES,
     STORAGE_RULES;
@@ -67,6 +68,7 @@ public final class ScanovateDiagnostics {
           "liveness",
           "face_document",
           "face_holding",
+          "document_liveness",
           "ocr",
           "validation");
   private static final Set<String> STATUSES =
@@ -209,7 +211,9 @@ public final class ScanovateDiagnostics {
     if (key.equals("extracted_document_type")) {
       return documentType(value).equals(value) || Set.of(MISSING, REDACTED).contains(value);
     }
-    if (key.equals("face_match_document") || key.equals("face_match_holding")) {
+    if (key.equals("face_match_document")
+        || key.equals("face_match_holding")
+        || key.equals("document_liveness")) {
       return value.equals("invalid") || value.matches("(?:0\\.[0-9]{4}|1\\.0000)");
     }
     for (String side : Set.of("front", "back", "scan")) {

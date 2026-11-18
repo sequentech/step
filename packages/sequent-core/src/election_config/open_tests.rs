@@ -112,6 +112,7 @@ fn with_a_census() -> (Blueprint, Sources) {
             allow_early_voting: false,
             description: String::new(),
             annotations: Default::default(),
+            columns: Default::default(),
         },
         crate::election_config::architect::PlannedArea {
             external_id: "south".into(),
@@ -120,6 +121,7 @@ fn with_a_census() -> (Blueprint, Sources) {
             allow_early_voting: false,
             description: String::new(),
             annotations: Default::default(),
+            columns: Default::default(),
         },
     ];
 

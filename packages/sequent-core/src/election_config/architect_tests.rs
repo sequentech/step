@@ -151,6 +151,7 @@ fn sound() -> Blueprint {
 
                         image: None,
                         annotations: Default::default(),
+                        columns: Default::default(),
                     },
                     PlannedCandidate {
                         external_id: "bob".to_string(),
@@ -163,11 +164,13 @@ fn sound() -> Blueprint {
 
                         image: None,
                         annotations: Default::default(),
+                        columns: Default::default(),
                     },
                 ],
                 areas: vec![],
                 overrides: Overrides::default(),
                 annotations: Default::default(),
+                columns: Default::default(),
             }],
             ..Default::default()
         }],
@@ -681,6 +684,7 @@ fn a_multi_winner_contest_elects_what_the_plan_says() {
 
         image: None,
         annotations: Default::default(),
+        columns: Default::default(),
     });
 
     let bundle = compiled(&plan);
@@ -710,6 +714,7 @@ fn a_blank_option_is_marked_as_one_rather_than_becoming_a_candidate() {
 
             image: None,
             annotations: Default::default(),
+            columns: Default::default(),
         });
 
     let bundle = compiled(&plan);
@@ -745,6 +750,7 @@ fn a_candidate_who_stood_down_is_delivered_as_disabled() {
             disabled: true,
             image: None,
             annotations: Default::default(),
+            columns: Default::default(),
         });
 
     let bundle = compiled(&plan);
@@ -1394,6 +1400,7 @@ fn blank_and_invalid_options_do_not_count_as_candidates() {
 
         image: None,
         annotations: Default::default(),
+        columns: Default::default(),
     });
     contest.max_votes = 2;
     contest.winners = 2;
@@ -1424,6 +1431,7 @@ fn areas_inside_each_other_are_refused_by_the_plan_validator() {
             allow_early_voting: false,
             description: String::new(),
             annotations: Default::default(),
+            columns: Default::default(),
         },
         PlannedArea {
             external_id: "south".to_string(),
@@ -1432,6 +1440,7 @@ fn areas_inside_each_other_are_refused_by_the_plan_validator() {
             allow_early_voting: false,
             description: String::new(),
             annotations: Default::default(),
+            columns: Default::default(),
         },
     ];
 
@@ -1571,6 +1580,7 @@ fn districted() -> Blueprint {
             allow_early_voting: false,
             description: String::new(),
             annotations: Default::default(),
+            columns: Default::default(),
         },
         PlannedArea {
             external_id: "local-1".to_string(),
@@ -1579,6 +1589,7 @@ fn districted() -> Blueprint {
             allow_early_voting: false,
             description: String::new(),
             annotations: Default::default(),
+            columns: Default::default(),
         },
         PlannedArea {
             external_id: "local-2".to_string(),
@@ -1587,6 +1598,7 @@ fn districted() -> Blueprint {
             allow_early_voting: false,
             description: String::new(),
             annotations: Default::default(),
+            columns: Default::default(),
         },
     ];
     // The president is everywhere; the local officer is one local's business.
@@ -1611,9 +1623,11 @@ fn districted() -> Blueprint {
 
             image: None,
             annotations: Default::default(),
+            columns: Default::default(),
         }],
         areas: vec!["local-1".to_string()],
         annotations: Default::default(),
+        columns: Default::default(),
     });
     plan
 }
@@ -1809,6 +1823,7 @@ fn a_plan_may_carry_its_own_census() {
         allow_early_voting: false,
         description: String::new(),
         annotations: Default::default(),
+        columns: Default::default(),
     }];
     let voters = vec![
         PlannedVoter {
@@ -2027,6 +2042,7 @@ fn the_caller_may_bring_the_census_and_the_files() {
         allow_early_voting: false,
         description: String::new(),
         annotations: Default::default(),
+        columns: Default::default(),
     }];
     // A logo the plan names and does not carry, which is what a plan opened from a
     // save file looks like.
@@ -2199,6 +2215,7 @@ fn the_census_comes_from_the_source() {
         allow_early_voting: false,
         description: String::new(),
         annotations: Default::default(),
+        columns: Default::default(),
     }];
 
     let census = Sources {
@@ -2253,6 +2270,7 @@ fn the_census_check_names_what_is_wrong_with_a_row() {
         allow_early_voting: false,
         description: String::new(),
         annotations: Default::default(),
+        columns: Default::default(),
     }];
 
     let named = |voters: Vec<PlannedVoter>| -> Vec<String> {
@@ -2405,6 +2423,7 @@ fn a_voter_in_an_area_that_does_not_exist_is_refused() {
         allow_early_voting: false,
         description: String::new(),
         annotations: Default::default(),
+        columns: Default::default(),
     }];
     let voters = vec![PlannedVoter {
         username: "ada".into(),
@@ -2437,6 +2456,7 @@ fn a_census_that_ignores_the_districting_says_so_once() {
         allow_early_voting: false,
         description: String::new(),
         annotations: Default::default(),
+        columns: Default::default(),
     }];
     let voters: Vec<PlannedVoter> = (0..5)
         .map(|index| PlannedVoter {
@@ -3896,6 +3916,10 @@ fn the_bundle_declares_the_version_that_wrote_it() {
         crate::election_config::build::DEFAULT_VERSION,
         "the bundle should declare the version this build writes"
     );
+    // Comparing the constant with itself is how a v10 label survived into
+    // every v11 release: say the literal line, and let the importer's own gate
+    // judge the packaged member (see the test after this one).
+    assert_eq!(declared, "v11.0.0");
 
     // And the platform's own checker has to accept it against itself. `extract_semver`
     // is private, so this asks the public function the importer actually calls: a
@@ -3934,6 +3958,32 @@ fn the_bundle_declares_the_version_that_wrote_it() {
              reported `missing field \\`name\\`` for a v10 export"
         );
     }
+}
+
+/// The wizard's Final Zip imports on the OVCS v11 line it was built for.
+///
+/// Eduardo's report: the COMELEC Architect's Final Review download declared
+/// `v10.0.0`, and a v11.0.0-rc.10 platform refused it as a version mismatch
+/// before reading a field. The bundle's shape was v11's all along — it is
+/// written by the crate whose `ImportElectionEventSchema` the importer reads —
+/// so this reads the member back out of the zip's bytes and runs the importer's
+/// version, schema and validation checks on literal platform versions, rather
+/// than checking a label. (Not a tenant import: see `import_gate`.)
+#[test]
+fn the_compiled_final_zip_passes_the_v11_importer_gate() {
+    let templates = TemplateSet::builtin().unwrap();
+    let compiled = compile_plan(Compile {
+        plan: &sound(),
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    })
+    .expect("a sound plan compiles");
+    let layout = layout(&compiled.bundle);
+    crate::election_config::import_gate::assert_v11_admits_cleanly_and_v10_warns(
+        &crate::election_config::import_gate::event_member(&layout.importable),
+    );
 }
 
 /// The archive names no trustees, because it cannot name them correctly.
@@ -6663,4 +6713,615 @@ fn a_report_set_twice_is_refused() {
         "reports.duplicate"
     )
     .is_empty());
+}
+
+// -- signing configuration: native export -> plan -> compile, and workbook reopen --
+//
+// Synthetic policies only. Before `signing_sheet`, `plan_from_event` kept the
+// realm, the event and the version and dropped `signing_rules`,
+// `signing_checks` and `approval_matrix`, so a configuration opened in the
+// wizard came back out with no signing configuration and no warning.
+
+fn compiled_export(plan: &Blueprint) -> serde_json::Value {
+    let templates = TemplateSet::builtin().unwrap();
+    compile_plan(Compile {
+        plan,
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    })
+    .expect("the plan compiles")
+    .bundle
+    .export
+}
+
+/// A native export as a v11 platform writes it, with a restrictive, edited
+/// signing configuration (revisions > 0 show it was edited on the platform:
+/// such values are the event's own and are preserved like any other).
+fn native_export_with_signing() -> serde_json::Value {
+    let mut export = compiled_export(&sound());
+    export["signing_rules"] = serde_json::json!([
+        {"action": "open-voting", "requirement": "required", "signatures": 3,
+         "requester_signing": "not-allowed", "expires_minutes": 15, "revision": 2},
+        {"action": "close-voting", "requirement": "required", "signatures": 2,
+         "requester_signing": "allowed", "expires_minutes": null, "revision": 4},
+        {"action": "key-ceremony", "requirement": "required", "signatures": 5,
+         "requester_signing": "not-allowed", "expires_minutes": 60, "revision": 1}
+    ]);
+    export["signing_checks"] = serde_json::json!({
+        "revocation_check": "check", "crl_unavailable": "refuse",
+        "registration": "security-officer-only", "post_binding": "any-post",
+        "revision": 3
+    });
+    export["approval_matrix"] = serde_json::json!({"synthetic": ["matrix", 1]});
+    export
+}
+
+fn signing_of(export: &serde_json::Value) -> [serde_json::Value; 3] {
+    [
+        export
+            .get("signing_rules")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null),
+        export
+            .get("signing_checks")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null),
+        export
+            .get("approval_matrix")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null),
+    ]
+}
+
+/// An export opened in the wizard. A bundle never names trustees (the
+/// archive cannot name them correctly), so the wizard asks for them again;
+/// this answers with the sound plan's.
+fn opened(export: &serde_json::Value) -> Blueprint {
+    let mut plan =
+        crate::election_config::plan_from_event::plan_from_event(export)
+            .expect("the export opens")
+            .plan;
+    let sound = sound();
+    plan.trustees = sound.trustees;
+    plan.trustee_threshold = sound.trustee_threshold;
+    plan
+}
+
+#[test]
+fn an_opened_export_keeps_its_signing_configuration_through_compile() {
+    let native = native_export_with_signing();
+    let plan = opened(&native);
+    assert!(plan.signing.rules.is_some() && plan.signing.checks.is_some());
+    assert_eq!(signing_of(&compiled_export(&plan)), signing_of(&native));
+}
+
+#[cfg(feature = "election_config_xlsx")]
+#[test]
+fn the_signing_configuration_survives_the_plans_workbook_being_reopened() {
+    let native = native_export_with_signing();
+    let plan = opened(&native);
+    let workbook = to_workbook(&plan, &Sources::default()).unwrap();
+    let bytes =
+        crate::election_config::xlsx_write::write_xlsx(&workbook).unwrap();
+    let reread = crate::election_config::xlsx::read_xlsx(&bytes).unwrap();
+    let reopened =
+        crate::election_config::plan_from_workbook::plan_from_workbook(&reread)
+            .expect("the workbook reopens")
+            .plan;
+    assert_eq!(reopened.signing, plan.signing);
+    assert_eq!(signing_of(&compiled_export(&reopened)), signing_of(&native));
+}
+
+#[test]
+fn explicitly_empty_rules_stay_empty_and_absent_stays_absent() {
+    let mut native = native_export_with_signing();
+    native["signing_rules"] = serde_json::json!([]);
+    native["approval_matrix"] = serde_json::json!({});
+    let export = compiled_export(&opened(&native));
+    assert_eq!(export["signing_rules"], serde_json::json!([]));
+    assert_eq!(export["signing_checks"], native["signing_checks"]);
+    assert_eq!(export["approval_matrix"], serde_json::json!({}));
+
+    let mut bare = native_export_with_signing();
+    for key in ["signing_rules", "signing_checks", "approval_matrix"] {
+        bare.as_object_mut().unwrap().remove(key);
+    }
+    let plan = opened(&bare);
+    assert!(
+        plan.signing.is_empty(),
+        "nothing is invented for an export without any"
+    );
+    let export = compiled_export(&plan);
+    assert!(export.get("signing_rules").is_none_or(|v| v.is_null()));
+    assert!(export.get("signing_checks").is_none_or(|v| v.is_null()));
+}
+
+#[test]
+fn editing_the_rules_keeps_the_checks_it_was_opened_with() {
+    let native = native_export_with_signing();
+    let mut plan = opened(&native);
+    plan.signing.rules.as_mut().unwrap().remove(0);
+    let export = compiled_export(&plan);
+    assert_eq!(export["signing_checks"], native["signing_checks"]);
+    assert_eq!(export["signing_rules"].as_array().unwrap().len(), 2);
+}
+
+#[test]
+fn a_duplicate_rule_is_refused_by_the_importers_validation() {
+    let mut plan = opened(&native_export_with_signing());
+    let first = plan.signing.rules.as_ref().unwrap()[0].clone();
+    plan.signing.rules.as_mut().unwrap().push(first);
+    // Refused by validate_plan, on the plan's own path, before anything is
+    // built: the wizard can point at the row.
+    let report = validate_plan(&plan, &Sources::default());
+    assert!(
+        report.problems.iter().any(|p| {
+            p.id.as_deref() == Some("signing.duplicate-action")
+                && p.path == "signing.rules[3].action"
+        }),
+        "{report}"
+    );
+    let templates = TemplateSet::builtin().unwrap();
+    let refused = match compile_plan(Compile {
+        plan: &plan,
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    }) {
+        Err(report) => report.to_string(),
+        Ok(_) => panic!("compile refuses a plan with two rules for one action"),
+    };
+    assert!(refused.contains("more than one signing rule"), "{refused}");
+}
+
+#[test]
+fn a_version_four_plan_opens_as_version_five_without_a_signing_configuration() {
+    let mut document = serde_json::to_value(sound()).unwrap();
+    document["version"] = serde_json::json!(4);
+    let read = read_plan_value(document).expect("a v4 plan still opens");
+    assert_eq!(read.plan.version, 5);
+    assert!(read.plan.signing.is_empty());
+}
+
+#[test]
+fn a_plan_with_a_signing_configuration_is_one_a_v4_build_refuses() {
+    // The bump's purpose: a build that only knows v4 refuses this plan as
+    // newer instead of dropping `signing` as an unknown field.
+    let plan = opened(&native_export_with_signing());
+    let saved = serde_json::to_value(&plan).unwrap();
+    assert!(saved["version"].as_u64().unwrap() > 4);
+    assert!(saved.get("signing").is_some());
+}
+
+#[test]
+fn a_writer_labels_an_older_plan_with_the_shape_it_has_and_never_relabels_a_newer_one(
+) {
+    let mut plan = opened(&native_export_with_signing());
+    plan.version = 4;
+    let written = |plan: &Blueprint| -> serde_json::Value {
+        let (_, json) = side_files(plan)
+            .into_iter()
+            .find(|(name, _)| name == "blueprint.json")
+            .unwrap();
+        serde_json::from_str(&json).unwrap()
+    };
+    let side = written(&plan);
+    assert_eq!(side["version"], serde_json::json!(BLUEPRINT_VERSION));
+    assert!(side.get("signing").is_some());
+
+    let saved =
+        crate::election_config::archive::save_file(&plan, &Sources::default())
+            .unwrap();
+    let mut archive =
+        zip::ZipArchive::new(std::io::Cursor::new(saved.bytes)).unwrap();
+    let mut text = String::new();
+    std::io::Read::read_to_string(
+        &mut archive
+            .by_name(crate::election_config::archive::PLAN_MEMBER)
+            .unwrap(),
+        &mut text,
+    )
+    .unwrap();
+    let member: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(member["version"], serde_json::json!(BLUEPRINT_VERSION));
+
+    plan.version = BLUEPRINT_VERSION + 1;
+    assert_eq!(
+        written(&plan)["version"],
+        serde_json::json!(BLUEPRINT_VERSION + 1)
+    );
+}
+
+#[test]
+fn trust_configuration_an_opened_archive_had_is_reported_on_every_validation() {
+    use crate::election_config::archive::{zip, Artifact};
+    let native = native_export_with_signing();
+    // Inert synthetic bytes standing in for the member; never parsed as a
+    // certificate, and no certificate or key is generated.
+    let member =
+        "export_staff_issuers-00000000-0000-0000-0000-000000000000.pem";
+    let archive = zip(&[
+        Artifact {
+            name: "export_election_event-00000000-0000-0000-0000-000000000000.json"
+                .to_string(),
+            bytes: serde_json::to_vec(&native).unwrap(),
+        },
+        Artifact {
+            name: member.to_string(),
+            bytes: b"synthetic placeholder, not a certificate\n".to_vec(),
+        },
+    ])
+    .unwrap();
+    let opened = crate::election_config::open::open(&archive)
+        .expect("the archive opens");
+    assert_eq!(
+        opened.plan.signing.trust_not_carried,
+        vec![member.to_string()]
+    );
+
+    // Saved and reopened, the record and its warning are still there.
+    let saved = serde_json::to_value(&*as_written(&opened.plan)).unwrap();
+    let reread = read_plan_value(saved).unwrap().plan;
+    let report = validate_plan(&reread, &Sources::default());
+    assert!(
+        report.problems.iter().any(|p| {
+            p.id.as_deref() == Some("signing.trust-not-carried")
+                && p.message.contains(member)
+        }),
+        "{report}"
+    );
+    // And nothing of it reaches the bundle.
+    let mut plan = reread;
+    let sound = sound();
+    plan.trustees = sound.trustees;
+    plan.trustee_threshold = sound.trustee_threshold;
+    let export = compiled_export(&plan);
+    assert!(!export.to_string().contains("trust_not_carried"));
+}
+
+#[test]
+fn a_signing_bearing_plan_warns_that_its_workbook_needs_a_current_architect() {
+    let plan = opened(&native_export_with_signing());
+    let report = validate_plan(&plan, &Sources::default());
+    assert!(report.problems.iter().any(|p| {
+        p.id.as_deref() == Some("signing.workbook-needs-current-architect")
+    }));
+    let report = validate_plan(&sound(), &Sources::default());
+    assert!(!report.problems.iter().any(|p| {
+        p.id.as_deref() == Some("signing.workbook-needs-current-architect")
+    }));
+}
+
+#[cfg(feature = "election_config_xlsx")]
+#[test]
+fn the_trust_loss_record_survives_the_plans_workbook_being_reopened() {
+    let mut plan = opened(&native_export_with_signing());
+    let member =
+        "export_staff_issuers-00000000-0000-0000-0000-000000000000.pem";
+    plan.signing.trust_not_carried = vec![member.to_string()];
+    let workbook = to_workbook(&plan, &Sources::default()).unwrap();
+    let bytes =
+        crate::election_config::xlsx_write::write_xlsx(&workbook).unwrap();
+    let reread = crate::election_config::xlsx::read_xlsx(&bytes).unwrap();
+    let reopened =
+        crate::election_config::plan_from_workbook::plan_from_workbook(&reread)
+            .unwrap()
+            .plan;
+    assert_eq!(reopened.signing.trust_not_carried, vec![member.to_string()]);
+    assert!(validate_plan(&reopened, &Sources::default())
+        .problems
+        .iter()
+        .any(|p| p.id.as_deref() == Some("signing.trust-not-carried")));
+    // Diagnostic only: nothing of it is built into the bundle.
+    assert!(!compiled_export(&reopened).to_string().contains(member));
+}
+
+#[test]
+fn account_flags_and_multiple_external_ids_survive_all_saved_plan_formats() {
+    use crate::election_config::archive;
+    let mut plan = sound();
+    plan.areas = vec![PlannedArea {
+        external_id: DEFAULT_AREA_EXTERNAL_ID.into(),
+        name: "All voters".into(),
+        ..Default::default()
+    }];
+    let mut second = plan.elections[0].clone();
+    second.external_id = "second".into();
+    second.contests[0].external_id = "second-president".into();
+    for candidate in &mut second.contests[0].candidates {
+        candidate.external_id = format!("second-{}", candidate.external_id);
+    }
+    plan.elections.push(second);
+    let templates = TemplateSet::builtin().unwrap();
+    let options = BuildOptions::default();
+    for restrictions in [
+        " officers | second | officers ",
+        "officers||second||officers",
+    ] {
+        let voters = vec![PlannedVoter {
+            username: "synthetic-voter".into(),
+            email: "synthetic@example.test".into(),
+            area_external_id: DEFAULT_AREA_EXTERNAL_ID.into(),
+            extra: [
+                ("enabled".into(), "false".into()),
+                ("email_verified".into(), "false".into()),
+                ("authorized-election-ids".into(), restrictions.into()),
+            ]
+            .into_iter()
+            .collect(),
+            ..Default::default()
+        }];
+        // The flattened attributes are stable native-plan JSON, not new fields.
+        let voters =
+            serde_json::from_value(serde_json::to_value(&voters).unwrap())
+                .unwrap();
+        let sources = with_voters(&plan, voters);
+        let compiled = compile_plan(Compile {
+            plan: &plan,
+            templates: &templates,
+            options: &options,
+            profile: None,
+            sources: Some(&sources),
+        })
+        .unwrap();
+        let assert_accounts = |bundle: &Bundle| {
+            let table = &bundle.voters;
+            assert_eq!(table.rows.len(), 1);
+            let cell = |name| &table.rows[0][table.column(name).unwrap()];
+            assert_eq!(cell("enabled"), "false");
+            assert_eq!(cell("email_verified"), "false");
+            assert_eq!(cell("authorized-election-ids"), "officers|second");
+        };
+        assert_accounts(&compiled.bundle);
+        for bytes in [
+            archive::save_file(&plan, &sources).unwrap().bytes,
+            archive::delivery(&compiled.layout).unwrap().bytes,
+            archive::zip(&compiled.layout.importable).unwrap(),
+        ] {
+            let mut opened =
+                crate::election_config::open::open(&bytes).unwrap();
+            // A platform import archive contains no plan-only trustee contacts.
+            opened.plan.trustees = plan.trustees.clone();
+            let rebuilt = compile_plan(Compile {
+                plan: &opened.plan,
+                templates: &templates,
+                options: &options,
+                profile: None,
+                sources: Some(&opened.sources),
+            })
+            .unwrap();
+            assert_accounts(&rebuilt.bundle);
+        }
+    }
+}
+
+#[test]
+fn voter_restriction_review_rejects_pipe_election_ids_before_plan_normalization(
+) {
+    assert!(workbook_of(&sound()).is_ok());
+    for identifier in ["officers|second", "officers||second", "|"] {
+        let mut plan = sound();
+        plan.elections[0].external_id = identifier.into();
+        let report = checked(&plan);
+        assert!(
+            report.errors().any(|p| p.code == Code::InvalidValue
+                && p.path == "elections[0].external_id"),
+            "{identifier}: {report}"
+        );
+        let problem = workbook_of(&plan).unwrap_err();
+        assert_eq!(problem.code, Code::InvalidValue);
+        assert_eq!(problem.path, "elections[0].external_id");
+    }
+}
+
+#[test]
+fn voter_restriction_review_rejects_malformed_plan_lists_without_broadening() {
+    let mut plan = sound();
+    plan.areas = vec![PlannedArea {
+        external_id: DEFAULT_AREA_EXTERNAL_ID.into(),
+        name: "All voters".into(),
+        ..Default::default()
+    }];
+    for restriction in
+        ["null", "officers||null", "||", "officers|", "[]", "true"]
+    {
+        let sources = with_voters(
+            &plan,
+            vec![PlannedVoter {
+                username: "ada".into(),
+                area_external_id: DEFAULT_AREA_EXTERNAL_ID.into(),
+                extra: [("authorized-election-ids".into(), restriction.into())]
+                    .into_iter()
+                    .collect(),
+                ..Default::default()
+            }],
+        );
+        let report = validate_plan(&plan, &sources);
+        assert!(
+            report.errors().any(|p| p.code == Code::InvalidValue
+                && p.path.contains("authorized-election-ids")),
+            "{restriction}: {report}"
+        );
+        let problem = to_workbook(&plan, &sources).unwrap_err();
+        assert_eq!(problem.code, Code::InvalidValue);
+    }
+}
+
+#[test]
+fn excel_realm_carriage_respects_explicit_parameters_and_build_base() {
+    let mut plan = sound();
+    let original = serde_json::json!({"realm": "original", "enabled": true});
+    let replacement =
+        serde_json::json!({"realm": "replacement", "enabled": false});
+    plan.base_export =
+        Some(serde_json::json!({"keycloak_event_realm": original,
+        "election_event": {"id": "original-event-id"}}));
+    // A blank placeholder is not an override: the builder ignores it too.
+    plan.platform.push(
+        Sheet::from_grid(
+            "Parameters",
+            &[
+                vec![Cell::text("key"), Cell::text("value")],
+                vec![Cell::text("keycloak_event_realm"), Cell::Blank],
+            ],
+        )
+        .unwrap(),
+    );
+    let workbook = workbook_of(&plan).unwrap();
+    let values: Vec<_> = workbook
+        .rows(SHEET_PARAMETERS)
+        .iter()
+        .filter(|row| row.text("key") == Some("keycloak_event_realm"))
+        .filter_map(|row| row.get("value"))
+        .collect();
+    assert_eq!(values, vec![&original]);
+
+    let selected = serde_json::json!({"keycloak_event_realm": replacement});
+    let workbook =
+        to_workbook_with_base(&plan, &sources_of(&plan), Some(&selected))
+            .unwrap();
+    assert!(workbook
+        .rows(SHEET_PARAMETERS)
+        .iter()
+        .any(|row| row.text("key") == Some("keycloak_event_realm")
+            && row.get("value") == Some(&replacement)));
+    plan.platform[0].rows[0]
+        .cells
+        .push(("value".to_string(), original.clone()));
+    let workbook =
+        to_workbook_with_base(&plan, &sources_of(&plan), Some(&selected))
+            .unwrap();
+    let values: Vec<_> = workbook
+        .rows(SHEET_PARAMETERS)
+        .iter()
+        .filter(|row| row.text("key") == Some("keycloak_event_realm"))
+        .filter_map(|row| row.get("value"))
+        .collect();
+    assert_eq!(values, vec![&original]);
+}
+
+#[test]
+fn exporting_a_workbook_refuses_masked_dotted_scanovate_config() {
+    let mut plan = sound();
+    plan.platform.push(Sheet::from_grid("Parameters", &[
+        vec![Cell::text("key"), Cell::text("value")],
+        vec![Cell::text("keycloak_event_realm.authenticatorConfig"),
+            Cell::text(r#"[{"alias":"custom","config":{"liveness-secret":"*****"}}]"#)],
+    ]).unwrap());
+    let problem = workbook_of(&plan).unwrap_err();
+    assert_eq!(
+        problem.id.as_deref(),
+        Some("file.masked-integration-secret")
+    );
+}
+
+#[test]
+fn exporting_a_workbook_rejects_masked_base_or_explicit_whole_realms() {
+    for explicit in [false, true] {
+        let mut plan = sound();
+        let realm = serde_json::json!({"authenticatorConfig": [{
+            "alias": "custom", "config": {"liveness-secret": "synthetic-real"}
+        }]});
+        plan.base_export =
+            Some(serde_json::json!({"keycloak_event_realm": realm}));
+        if explicit {
+            plan.platform.push(
+                Sheet::from_grid(
+                    "Parameters",
+                    &[
+                        vec![Cell::text("key"), Cell::text("value")],
+                        vec![
+                            Cell::text("keycloak_event_realm"),
+                            Cell::text(realm.to_string()),
+                        ],
+                    ],
+                )
+                .unwrap(),
+            );
+        }
+        workbook_of(&plan).unwrap();
+        if explicit {
+            let value = &mut plan.platform[0].rows[0]
+                .cells
+                .iter_mut()
+                .find(|(key, _)| key == "value")
+                .unwrap()
+                .1;
+            value["authenticatorConfig"][0]["config"]["liveness-secret"] =
+                serde_json::json!("*****");
+        } else {
+            plan.base_export.as_mut().unwrap()["keycloak_event_realm"]
+                ["authenticatorConfig"][0]["config"]["liveness-secret"] =
+                serde_json::json!("*****");
+        }
+        let problem = workbook_of(&plan).unwrap_err();
+        assert_eq!(
+            problem.id.as_deref(),
+            Some("file.masked-integration-secret")
+        );
+    }
+}
+
+#[test]
+fn exporting_a_workbook_preserves_an_explicit_realm_source_event_id() {
+    let mut plan = sound();
+    plan.base_export = Some(serde_json::json!({
+        "keycloak_event_realm": {"realm": "source"},
+        "election_event": {"id": "base-event"}
+    }));
+    plan.platform.push(
+        Sheet::from_grid(
+            "Parameters",
+            &[
+                vec![Cell::text("key"), Cell::text("value")],
+                vec![
+                    Cell::text("keycloak_event_realm_source_event_id"),
+                    Cell::text("explicit-event"),
+                ],
+            ],
+        )
+        .unwrap(),
+    );
+    let workbook = workbook_of(&plan).unwrap();
+    let source_ids: Vec<_> = workbook
+        .rows(SHEET_PARAMETERS)
+        .iter()
+        .filter(|row| {
+            row.text("key") == Some("keycloak_event_realm_source_event_id")
+        })
+        .filter_map(|row| row.text("value"))
+        .collect();
+    assert_eq!(source_ids, vec!["explicit-event"]);
+}
+
+#[test]
+fn exporting_a_workbook_refuses_malformed_dotted_realm_paths() {
+    let mut plan = sound();
+    plan.platform.push(
+        Sheet::from_grid(
+            "Parameters",
+            &[
+                vec![Cell::text("key"), Cell::text("value")],
+                vec![
+                    Cell::text("keycloak_event_realm.realm"),
+                    Cell::text("source"),
+                ],
+            ],
+        )
+        .unwrap(),
+    );
+    workbook_of(&plan).unwrap();
+    plan.platform[0].rows[0]
+        .cells
+        .iter_mut()
+        .find(|(key, _)| key == "key")
+        .unwrap()
+        .1 = serde_json::json!("keycloak_event_realm.realm.");
+    let problem = workbook_of(&plan).unwrap_err();
+    assert_eq!(problem.code, Code::ConflictingColumns);
+    assert_eq!(problem.path, "realm.");
+    assert!(problem.message.contains("empty field"));
 }

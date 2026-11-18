@@ -265,7 +265,19 @@ pub fn tenant_settings_changes(
 /// The columns the producer writes for administrators. Anything else, a
 /// credential column above all, is refused: the user import would accept a
 /// `password` or a hash.
-pub const ADMIN_COLUMNS: [&str; 5] = ["username", "email", "first_name", "last_name", "group_name"];
+pub const ADMIN_COLUMNS: [&str; 11] = [
+    "username",
+    "email",
+    "first_name",
+    "last_name",
+    "group_name",
+    "permission_labels",
+    "trustee",
+    "title",
+    "sequent.read-only.mobile-number",
+    "enabled",
+    "email_verified",
+];
 
 /// Columns of `admin_users.csv` the package may not carry.
 pub fn admin_column_problems(csv_bytes: &[u8]) -> Result<Vec<String>> {
@@ -287,6 +299,7 @@ pub fn admin_column_problems(csv_bytes: &[u8]) -> Result<Vec<String>> {
 pub struct AdminRow {
     pub username: String,
     pub group: String,
+    pub fields: BTreeMap<String, String>,
 }
 
 pub fn read_admin_rows(csv_bytes: &[u8]) -> Result<Vec<AdminRow>> {
@@ -303,11 +316,76 @@ pub fn read_admin_rows(csv_bytes: &[u8]) -> Result<Vec<AdminRow>> {
     };
     let (username, group) = (column("username")?, column("group_name")?);
     let mut rows = Vec::new();
+    let mut seen = BTreeSet::new();
+    let mut columns = BTreeSet::new();
+    for header in &headers {
+        if !ADMIN_COLUMNS.contains(&header) || !columns.insert(header) {
+            return Err(anyhow!(
+                "unsupported or duplicate administrator column: {header}"
+            ));
+        }
+    }
     for record in reader.records() {
         let record = record.context("Error reading the administrators file")?;
+        let username = record.get(username).unwrap_or_default().to_string();
+        let group = record.get(group).unwrap_or_default().to_string();
+        if username.is_empty()
+            || username.trim() != username
+            || group.is_empty()
+            || group.trim() != group
+            || group.contains('|')
+            || !seen.insert(username.to_lowercase())
+        {
+            return Err(anyhow!(
+                "administrator rows require unique usernames and one nonempty group"
+            ));
+        }
+        let mut fields = BTreeMap::new();
+        for (header, value) in headers.iter().zip(record.iter()) {
+            if value.chars().any(char::is_control) {
+                return Err(anyhow!(
+                    "administrator field {header} contains a control character"
+                ));
+            }
+            if ["username", "group_name"].contains(&header) {
+                continue;
+            }
+            let value = if ["enabled", "email_verified"].contains(&header) {
+                match value.to_ascii_lowercase().as_str() {
+                    "true" => "true".to_string(),
+                    "false" => "false".to_string(),
+                    _ => {
+                        return Err(anyhow!(
+                            "administrator field {header} must be true or false"
+                        ))
+                    }
+                }
+            } else if header == "email" {
+                value.to_lowercase()
+            } else {
+                value.to_string()
+            };
+            if header != "permission_labels" && value.contains('|') {
+                return Err(anyhow!(
+                    "administrator field {header} must be single-valued"
+                ));
+            }
+            if header == "permission_labels"
+                && !value.is_empty()
+                && value
+                    .split('|')
+                    .any(|v| v.trim().is_empty() || v.trim() != v)
+            {
+                return Err(anyhow!(
+                    "permission labels must be nonempty pipe-separated labels"
+                ));
+            }
+            fields.insert(header.to_string(), value);
+        }
         rows.push(AdminRow {
-            username: record.get(username).unwrap_or_default().to_string(),
-            group: record.get(group).unwrap_or_default().to_string(),
+            username,
+            group,
+            fields,
         });
     }
     Ok(rows)
@@ -362,31 +440,156 @@ pub fn admin_changes(
     }
 }
 
+/// Existing public account fields only. Credentials are never read or compared.
+#[derive(Debug, Clone, Default)]
+pub struct ExistingAdmin {
+    pub service_account: bool,
+    pub fields: BTreeMap<String, BTreeSet<String>>,
+}
+
+/// Exact label replacements for existing accounts. An absent column means
+/// preserve; an empty cell explicitly clears labels. Ordering is immaterial.
+pub fn admin_permission_label_updates(
+    wanted: &[AdminRow],
+    current: &BTreeMap<String, ExistingAdmin>,
+) -> BTreeMap<String, BTreeSet<String>> {
+    wanted
+        .iter()
+        .filter_map(|row| {
+            let existing = current.get(&row.username.to_lowercase())?;
+            let value = row.fields.get("permission_labels")?;
+            let expected: BTreeSet<String> = value
+                .split('|')
+                .filter(|v| !v.is_empty())
+                .map(str::to_string)
+                .collect();
+            let actual = existing
+                .fields
+                .get("permission_labels")
+                .cloned()
+                .unwrap_or_default();
+            (expected != actual).then(|| (row.username.to_lowercase(), expected))
+        })
+        .collect()
+}
+
+/// Keep label-only changes visible and pending until the target converges.
+pub fn preview_admin_permission_labels(
+    preview: &mut SectionPreview,
+    wanted: &[AdminRow],
+    current: &BTreeMap<String, ExistingAdmin>,
+) {
+    let updates = admin_permission_label_updates(wanted, current);
+    if !updates.is_empty() {
+        preview.needs_apply = true;
+    }
+    if let Some(changes) = preview.changes.as_array_mut() {
+        for change in changes {
+            let username = change["username"]
+                .as_str()
+                .unwrap_or_default()
+                .to_lowercase();
+            if let Some(labels) = updates.get(&username) {
+                if change["action"] == "exists" {
+                    change["action"] = json!("update-permission-labels");
+                    change["permission_labels"] = json!(labels);
+                }
+            }
+        }
+    }
+}
+
+/// Existing accounts may reconcile permission labels only. All other supplied
+/// fields, group membership and service-account safeguards remain strict.
+pub fn admin_detail_problems(
+    wanted: &[AdminRow],
+    current: &BTreeMap<String, ExistingAdmin>,
+    trustees: &BTreeSet<String>,
+    privileges: &super::import_users::ImportUsersPrivileges,
+) -> Vec<String> {
+    use super::import_users::{GroupAssignmentPolicy, PermissionLabelPolicy};
+    let mut blockers = Vec::new();
+    for row in wanted {
+        if row.group != "voter"
+            && !matches!(privileges.group_assignment, GroupAssignmentPolicy::AnyGroup)
+        {
+            blockers.push(format!(
+                "administrator '{}' group assignment requires user-write and role-write",
+                row.username
+            ));
+        }
+        if (row
+            .fields
+            .get("permission_labels")
+            .is_some_and(|v| !v.is_empty())
+            || admin_permission_label_updates(std::slice::from_ref(row), current)
+                .contains_key(&row.username.to_lowercase()))
+            && !matches!(privileges.permission_labels, PermissionLabelPolicy::Allowed)
+        {
+            blockers.push(format!(
+                "administrator '{}' permission labels require permission-label-write",
+                row.username
+            ));
+        }
+        if let Some(name) = row.fields.get("trustee").filter(|v| !v.is_empty()) {
+            if !trustees.contains(name) {
+                blockers.push(format!("administrator '{}' refers to an unregistered trustee; register its genuine public keys first", row.username));
+            }
+        }
+        if let Some(existing) = current.get(&row.username.to_lowercase()) {
+            if existing.service_account {
+                blockers.push(format!(
+                    "administrator '{}' is a service account and cannot be reconciled by a roster",
+                    row.username
+                ));
+            }
+            for (field, value) in &row.fields {
+                if field == "permission_labels" {
+                    continue;
+                }
+                let expected: BTreeSet<String> = value
+                    .split('|')
+                    .filter(|v| !v.is_empty())
+                    .map(str::to_string)
+                    .collect();
+                let actual: BTreeSet<String> = existing
+                    .fields
+                    .get(field)
+                    .into_iter()
+                    .flatten()
+                    .filter(|v| !v.is_empty())
+                    .cloned()
+                    .collect();
+                if expected != actual {
+                    blockers.push(format!("administrator '{}' existing field '{}' differs; reconcile explicitly before applying", row.username, field));
+                }
+            }
+        }
+    }
+    blockers
+}
+
 /// The rows of `admin_users.csv` whose accounts do not exist yet, with its
-/// header, so applying never touches an existing account.
+/// header, so the account-creation importer never rewrites an existing account.
 pub fn absent_admin_rows(
     csv_bytes: &[u8],
     existing_usernames: &BTreeMap<String, BTreeSet<String>>,
 ) -> Result<Vec<u8>> {
     let mut reader = csv::Reader::from_reader(csv_bytes);
     let headers = reader.headers()?.clone();
-    let positions: Vec<Option<usize>> = ADMIN_COLUMNS
+    // Validate before forwarding; preserve exactly the supplied supported columns.
+    read_admin_rows(csv_bytes)?;
+    let username = headers
         .iter()
-        .map(|column| headers.iter().position(|h| h == *column))
-        .collect();
-    let username =
-        positions[0].ok_or_else(|| anyhow!("the administrators file has no `username` column"))?;
+        .position(|h| h == "username")
+        .ok_or_else(|| anyhow!("the administrators file has no username column"))?;
     let mut writer = csv::Writer::from_writer(Vec::new());
-    writer.write_record(ADMIN_COLUMNS)?;
+    writer.write_record(&headers)?;
     for record in reader.records() {
         let record = record?;
         let name = record.get(username).unwrap_or_default().to_lowercase();
         if !existing_usernames.contains_key(&name) {
-            writer.write_record(
-                positions
-                    .iter()
-                    .map(|p| p.and_then(|p| record.get(p)).unwrap_or_default()),
-            )?;
+            writer.write_record(&record)?;
         }
     }
     writer

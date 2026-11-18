@@ -66,6 +66,26 @@ pub fn cannot_decrypt() -> Problem {
     .id("file.cannot-decrypt")
 }
 
+/// A realm whose Scanovate authenticator configuration holds Keycloak's export
+/// placeholder, `**********`, instead of its `liveness-secret`: importing it
+/// would install the placeholder as the credential. Names the configuration
+/// and the setting, never a value.
+pub fn masked_integration_secret(config: &str, key: &str) -> Problem {
+    Problem::error(
+        Code::InvalidValue,
+        FILE,
+        format!(
+            "the Scanovate authenticator configuration '{config}' holds Keycloak's \
+             masked placeholder instead of its {key}; export the event again with \
+             integration secrets included (a configuration shared with another \
+             authenticator needs its own first)"
+        ),
+    )
+    .id("file.masked-integration-secret")
+    .detail("config", config)
+    .detail("key", key)
+}
+
 /// Exported by a version of the platform this one cannot import.
 pub fn incompatible_version(found: &str, current: &str) -> Problem {
     Problem::error(
@@ -77,6 +97,28 @@ pub fn incompatible_version(found: &str, current: &str) -> Problem {
         ),
     )
     .id("file.version-incompatible")
+    .detail("found", found)
+    .detail("current", current)
+}
+
+/// Written by a different major version of the platform than the one
+/// importing it. A warning, not a refusal (meta#14760): the difference does not
+/// block the import (the file's other checks still do), and the operator is
+/// told that settings this version does not know may not be imported, rather
+/// than that the file is compatible. Said the same on a dry run and an import.
+pub fn version_major_mismatch(found: &str, current: &str) -> Problem {
+    Problem::warning(
+        Code::IncompatibleVersion,
+        "version",
+        format!(
+            "the file was exported by version {found}, a different major \
+             version from this platform's {current}. The major-version \
+             difference does not block the import, and the file's other \
+             checks still apply; settings this version does not support may \
+             not be imported"
+        ),
+    )
+    .id("file.version-major-mismatch")
     .detail("found", found)
     .detail("current", current)
 }
@@ -194,6 +236,10 @@ mod tests {
             not_a_bundle("missing field `elections`"),
             unreadable_archive("no JSON file found"),
             cannot_decrypt(),
+            masked_integration_secret(
+                "scanovate-registration",
+                "liveness-secret",
+            ),
             incompatible_version("8.1.0", "9.2.0"),
             checksum_mismatch("aa", "bb"),
             vote_weight_not_a_number(4, "vote-weight", "x", 100),

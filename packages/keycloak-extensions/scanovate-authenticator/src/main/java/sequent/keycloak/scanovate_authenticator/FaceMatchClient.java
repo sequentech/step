@@ -66,17 +66,19 @@ public class FaceMatchClient {
   }
 
   /**
-   * Compares the faces of two JPEG images. Images may show several faces, such as the ghost
-   * portrait of an ID or the ID held next to the voter's face: the best matching faces are
-   * compared.
+   * Compares the faces of two JPEG images.
    *
+   * @param allowMultipleFaces whether an image may show several faces, such as the document held
+   *     next to the voter's face, of which the largest is compared. Otherwise an image with several
+   *     faces doesn't match (status 1102), as a second face where one is expected is a risk.
    * @throws IOException if the service is unreachable or answers with an error or a malformed body
    */
-  public FaceComparison compare(byte[] image1, byte[] image2) throws IOException {
+  public FaceComparison compare(byte[] image1, byte[] image2, boolean allowMultipleFaces)
+      throws IOException {
     ObjectNode body = MAPPER.createObjectNode();
     body.put("image_1_base64", Base64.getEncoder().encodeToString(image1));
     body.put("image_2_base64", Base64.getEncoder().encodeToString(image2));
-    body.put("allow_multiple_faces", true);
+    body.put("allow_multiple_faces", allowMultipleFaces);
     String payload = MAPPER.writeValueAsString(body);
     JsonNode response =
         requests.execute(

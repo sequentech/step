@@ -65,8 +65,8 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
   private static final String CACHE_EXPIRE_LABEL = "Election Alias cache timeout";
   private static final String CACHE_EXPIRE_HELP_TEXT = "Number of Minutes before cache invalidates";
 
-  // User attribute name for area_id
-  private static final String AREA_ID_ATTRIBUTE = "area_id";
+  // User attribute holding the voter area, matching sequent-core's AREA_ID_ATTR_NAME.
+  private static final String AREA_ID_ATTRIBUTE = "area-id";
   static final String HASURA_CLAIMS = "https://hasura.io/jwt/claims";
   static final String HASURA_ELECTION_EVENT_ID = "x-hasura-election-event-id";
 
@@ -169,13 +169,13 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
       // They will be mapped to IDs later in the stream processing
       authorizedElectionIds.addAll(attributeValue);
     } else {
-      // Priority 2: Check if user has area_id attribute
+      // Priority 2: Check if user has area-id attribute
       Collection<String> areaIdAttribute =
           KeycloakModelUtils.resolveAttribute(user, AREA_ID_ATTRIBUTE, false);
 
       if (areaIdAttribute != null && !areaIdAttribute.isEmpty()) {
-        String areaId = areaIdAttribute.iterator().next(); // Take first area_id if multiple exist
-        log.infov("User has area_id: {0}, looking up area-based elections", areaId);
+        String areaId = areaIdAttribute.iterator().next(); // Take first area-id if multiple exist
+        log.infov("User has area-id: {0}, looking up area-based elections", areaId);
 
         try {
           Map<String, List<String>> areaElectionsMap =
@@ -198,7 +198,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
               authorizedElectionIds.add(external_id);
             }
           } else {
-            log.warnv("No elections found for area_id: {0}, falling back to all elections", areaId);
+            log.warnv("No elections found for area-id: {0}, falling back to all elections", areaId);
             authorizedElectionIds.addAll(electionsExternalIds.keySet());
           }
         } catch (Exception e) {
@@ -206,9 +206,9 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
           authorizedElectionIds.addAll(electionsExternalIds.keySet());
         }
       } else {
-        // Priority 3: No explicit elections and no area_id - authorize all elections
+        // Priority 3: No explicit elections and no area-id - authorize all elections
         log.infov(
-            "No authorized elections or area_id found, authorizing all elections: {0}",
+            "No authorized elections or area-id found, authorizing all elections: {0}",
             electionsExternalIds.keySet().stream().collect(Collectors.joining("|")));
         authorizedElectionIds.addAll(electionsExternalIds.keySet());
       }

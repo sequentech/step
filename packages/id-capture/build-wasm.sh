@@ -3,7 +3,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Builds the id-capture WebAssembly package into the Keycloak login theme.
+# Builds the id-capture WebAssembly package into pkg/ next to this script.
+# Nothing consumes it any more: keycloak-ui embeds Scanovate's own capture
+# pages instead (see README.md).
 # Run inside the devenv shell, which provides cargo and wasm-bindgen.
 
 set -euo pipefail
@@ -13,9 +15,8 @@ MODEL="face_detection_yunet_2023mar.onnx"
 PUBLISHED_MODEL="face_detection_yunet.onnx"
 
 crate_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-packages_dir="$(dirname "${crate_dir}")"
 target_dir="${crate_dir}/rust-local-target"
-out_dir="${packages_dir}/keycloak-ui/src/login/scanovate/capture-wasm"
+out_dir="${crate_dir}/pkg"
 
 installed="$(wasm-bindgen --version | awk '{print $2}')"
 if [[ "${installed}" != "${WASM_BINDGEN_VERSION}" ]]; then

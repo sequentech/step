@@ -17,11 +17,13 @@ it.
 
 The `trustee` and `admin-lockdown` roles of a new tenant do not include the `admin-user`
 permission. Trustees work with the key and tally ceremony permissions, and admin lockdown users
-with the publication permissions; the admin portal runs their requests with those permissions.
+with the publication permissions and `document-read` and `document-download`, which let them
+download exports. The admin portal runs their requests with those permissions.
 
 Tenants created before this change keep the roles they were created with. After upgrading, open
 **Users and Roles** > **Roles**, edit the `trustee` and `admin-lockdown` roles of each tenant, and
-remove the `admin-user` permission from them. Users must log in again for the change to apply.
+remove the `admin-user` permission from them. Add `document-read` and `document-download` to
+`admin-lockdown`. Users must log in again for the change to apply.
 
 ## Secret Voter Field Permissions
 

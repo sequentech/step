@@ -43,7 +43,7 @@ class OcrResultsTest {
               "last_name_english": "DELA CRUZ",
               "personal_number": ""
             },
-            "images": {"face_image": "aGVsbG8="}
+            "images": {"face_image": "aGVsbG8=", "input_image": "ZnJhbWU="}
           }
         },
         "auth": {
@@ -127,6 +127,28 @@ class OcrResultsTest {
     assertEquals("JUAN", results.at("/ocr/first_name_english").asText());
     assertTrue(results.at("/authentications/expiry_date_valid").asBoolean());
     assertTrue(results.at("/authentications/barcode_valid").asBoolean());
+  }
+
+  /** An OCR session's result has every side it scanned in one response. */
+  @Test
+  void everySideOfAResponseIsReadAndMustBeReadable() throws IOException {
+    JsonNode bothSides =
+        json(
+            """
+            {"status": "completed",
+             "front": {"processing_result": {"status": "success",
+               "fields": {"document_number": "N1", "first_name_english": ""}}},
+             "back": {"processing_result": {"status": "success",
+               "fields": {"first_name_english": "JUAN"}}}}
+            """);
+
+    JsonNode results = OcrResults.combine(List.of(bothSides), TODAY).orElseThrow();
+    assertEquals("N1", results.at("/ocr/document_number").asText());
+    assertEquals("JUAN", results.at("/ocr/first_name_english").asText());
+
+    ((com.fasterxml.jackson.databind.node.ObjectNode) bothSides.at("/back/processing_result"))
+        .put("status", "card_not_detected");
+    assertEquals(Optional.empty(), OcrResults.combine(List.of(bothSides), TODAY));
   }
 
   @Test

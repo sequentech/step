@@ -34,6 +34,7 @@ import {Dialog} from "@sequentech/ui-essentials"
 import {
     ChangeApplicationStatusMutation,
     GetUserProfileAttributesQuery,
+    Sequent_Backend_Applications,
     Sequent_Backend_Election_Event,
 } from "@/gql/graphql"
 import {useSignedAction} from "@/hooks/useSignedAction"
@@ -64,6 +65,7 @@ import {
     displayValue,
     initials,
     joinList,
+    jointNames,
     listAnnotation,
     rankCandidates,
     searchFilters,
@@ -83,8 +85,6 @@ import {
     TagRow,
 } from "./approvalStyles"
 
-const JOINT_NAME_DOCUMENTS = ["seamanBook", "driversLicense"]
-const ID_CARD_TYPE_FIELD = "sequent.read-only.id-card-type"
 /** How many registry voters each lookup asks for. */
 const LOOKUP_SIZE = 10
 /** How many registry voters the step offers. */
@@ -93,28 +93,81 @@ const CANDIDATES_SHOWN = 5
 const STEPS = ["identity", "voter", "decide"] as const
 type Step = (typeof STEPS)[number]
 
-const Stepper = styled("ol")({
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: "8px",
+const STEP_LINE = "1px dashed #8A90A0"
+/** The width from which the steps fit on one line with their labels beside their numbers. */
+const STEPS_INLINE = "@container review-steps (min-width: 720px)"
+
+/** Measures the width the steps have, which is narrower than the window beside the side menu. */
+const StepperFrame = styled("div")({
+    containerType: "inline-size",
+    containerName: "review-steps",
     margin: "24px 0 16px",
-    padding: 0,
-    listStyle: "none",
+})
+
+/**
+ * The review's steps across the whole width, in three equal thirds: the first at the left, the
+ * second centered and the last at the right. Each step puts its label under its number, over one
+ * line behind the numbers. With room for it, labels sit beside their numbers and lines join the
+ * steps (the outer columns stay equal, so the second step stays centered).
+ */
+const Stepper = styled("ol")({
+    "position": "relative",
+    "display": "grid",
+    "gridTemplateColumns": "repeat(3, minmax(0, 1fr))",
+    "alignItems": "start",
+    "columnGap": "8px",
+    "margin": 0,
+    "padding": 0,
+    "listStyle": "none",
+    "&::before": {
+        content: '""',
+        position: "absolute",
+        top: "12px",
+        left: "12px",
+        right: "12px",
+        borderTop: STEP_LINE,
+    },
+    [STEPS_INLINE]: {
+        "gridTemplateColumns": "minmax(0, 1fr) auto minmax(0, 1fr)",
+        "alignItems": "center",
+        "columnGap": "12px",
+        "&::before": {display: "none"},
+    },
 })
 
 const StepItem = styled("li")({
+    "position": "relative",
     "display": "flex",
+    "flexDirection": "column",
     "alignItems": "center",
-    "gap": "8px",
-    "fontSize": "15px",
+    "gap": "4px",
+    "minWidth": 0,
+    "fontSize": "13px",
+    "lineHeight": "18px",
+    "textAlign": "center",
+    // A word longer than its third, in some languages, breaks rather than overlapping a step.
+    "overflowWrap": "anywhere",
     "color": "#5B6272",
     "&[aria-current='step'], &[data-done='true']": {color: "#191D23"},
-    "&:not(:last-of-type)::after": {
-        content: '""',
-        width: "min(160px, 10vw)",
-        borderTop: "1px dashed #8A90A0",
-        margin: "0 4px",
+    "&:first-of-type": {alignItems: "flex-start", textAlign: "left"},
+    "&:last-of-type": {alignItems: "flex-end", textAlign: "right"},
+    [STEPS_INLINE]: {
+        "flexDirection": "row",
+        "alignItems": "center",
+        "gap": "8px",
+        "fontSize": "15px",
+        "lineHeight": "22px",
+        "textAlign": "left",
+        "overflowWrap": "normal",
+        "&:first-of-type": {alignItems: "center", textAlign: "left"},
+        "&:last-of-type": {alignItems: "center", justifyContent: "flex-end"},
+        "&:first-of-type::after, &:last-of-type::before": {
+            content: '""',
+            flex: "1 1 auto",
+            minWidth: "16px",
+            borderTop: STEP_LINE,
+            margin: "0 4px",
+        },
     },
 })
 
@@ -157,8 +210,8 @@ export interface ViewApprovalProps {
     electionId?: string
     currApprovalId: Identifier | String | null
     goBack: () => void
-    /** Opens the approval matrix on the rule that decided this enrollment. */
-    onViewRule?: (decided: {version: number; rule: number | null}) => void
+    /** Opens the approval matrix with the example of this enrollment's recorded decision. */
+    onViewRule?: (application: Sequent_Backend_Applications) => void
     electionEventRecord?: Sequent_Backend_Election_Event
 }
 
@@ -197,7 +250,9 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
         data: task,
         isLoading,
         error,
-    } = useGetOne("sequent_backend_applications", {id: currApprovalId})
+    } = useGetOne<Sequent_Backend_Applications>("sequent_backend_applications", {
+        id: currApprovalId,
+    })
     const [changeStatus] = useMutation<ChangeApplicationStatusMutation>(CHANGE_APPLICATION_STATUS)
 
     // The registry is searched a moment after the administrator stops typing.
@@ -298,7 +353,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
     const canDecide = !isAccepted
     const identity = decision?.identity ?? null
     const typedByHand = identity === EIdentityMethod.MANUAL_ENTRY
-    const jointNames = JOINT_NAME_DOCUMENTS.includes(data[ID_CARD_TYPE_FIELD] ?? "")
+    const namesTogether = jointNames(data)
     const chosenCandidate = candidates.find((candidate) => candidate.voter.id === chosen)
     const best = candidates.find((candidate) => !candidate.alreadyEnrolled)
     const officer = decidedBy(task)
@@ -776,12 +831,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                                     variant="secondary"
                                     size="small"
                                     sx={{marginLeft: "auto", minHeight: "36px"}}
-                                    onClick={() =>
-                                        onViewRule({
-                                            version: decision.matrixVersion,
-                                            rule: decision.rule,
-                                        })
-                                    }
+                                    onClick={() => task && onViewRule(task)}
                                 >
                                     {t("approvalsScreen.review.seeRule")}
                                 </Button>
@@ -793,23 +843,31 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
 
             {canDecide ? (
                 <>
-                    <Stepper aria-label={String(t("approvalsScreen.flow.stepsLabel"))}>
-                        {STEPS.map((key, index) => (
-                            <StepItem
-                                key={key}
-                                aria-current={step === key ? "step" : undefined}
-                                data-done={done(key)}
-                            >
-                                <NumberBadge
-                                    data-pending={step !== key && !done(key)}
-                                    sx={{width: "24px", height: "24px", fontSize: "12px"}}
+                    <StepperFrame>
+                        <Stepper aria-label={String(t("approvalsScreen.flow.stepsLabel"))}>
+                            {STEPS.map((key, index) => (
+                                <StepItem
+                                    key={key}
+                                    aria-current={step === key ? "step" : undefined}
+                                    data-done={done(key)}
                                 >
-                                    {index + 1}
-                                </NumberBadge>
-                                {t(`approvalsScreen.flow.steps.${key}`)}
-                            </StepItem>
-                        ))}
-                    </Stepper>
+                                    <NumberBadge
+                                        data-pending={step !== key && !done(key)}
+                                        sx={{
+                                            width: "24px",
+                                            height: "24px",
+                                            fontSize: "12px",
+                                            // The line behind the badges, on narrow screens, meets their centre.
+                                            boxSizing: "border-box",
+                                        }}
+                                    >
+                                        {index + 1}
+                                    </NumberBadge>
+                                    {t(`approvalsScreen.flow.steps.${key}`)}
+                                </StepItem>
+                            ))}
+                        </Stepper>
+                    </StepperFrame>
                     {section("identity", identitySummary, identityStep)}
                     {section(
                         "voter",
@@ -827,7 +885,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                             onSearch={setSearch}
                             loading={lookup.isLoading}
                             failed={lookup.isError}
-                            jointNames={jointNames}
+                            jointNames={namesTogether}
                         />
                     )}
                     {section("decide", "", decideStep)}

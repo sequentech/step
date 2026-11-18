@@ -99,7 +99,10 @@ export const ListRoles: React.FC<ListRolesProps> = ({aside}) => {
             console.log(`Error deleting role: ${error}`)
             return
         }
-        notify(t(`usersAndRolesScreen.roles.notifications.deleteSuccess`), {type: "success"})
+        notify("usersAndRolesScreen.roles.notifications.deleteSuccess", {
+            type: "success",
+            messageArgs: {_: t("usersAndRolesScreen.roles.notifications.deleteSuccess")},
+        })
         setDeleteId(undefined)
         refresh()
     }

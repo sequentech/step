@@ -611,3 +611,30 @@ fn prose_in_a_language_written_without_spaces_still_wraps() {
     assert!(japanese.chars().count() > 40 && !japanese.contains(' '));
     assert!(shapes(&headers, &vec![vec![japanese]])[0].wrap);
 }
+
+#[test]
+fn text_longer_than_a_cell_holds_continues_in_columns_beside_it() {
+    // Past the 32,767 a spreadsheet cell holds, with characters that count twice
+    // in UTF-16 at the boundary.
+    let long: String = "a { color: red } ".repeat(2_500) + &"é😀".repeat(9_000);
+    let workbook = book(vec![sheet(
+        "ElectionEvent",
+        &[
+            &["name", "presentation.css", "description"],
+            &["Event", "x", "d"],
+        ],
+    )]);
+    let mut sheets = workbook.sheets().to_vec();
+    sheets[0].rows[0].cells[1].1 = json!(long);
+    let workbook = book(sheets);
+
+    let bytes = write_xlsx(&workbook).unwrap();
+    let xml = part(&bytes, "xl/worksheets/sheet1.xml");
+    assert!(xml.contains(">presentation.css+<"), "a continuation header");
+    assert!(!xml.contains('\u{0}'), "the internal key is not written");
+
+    let back = round_trip(&workbook);
+    let row = &back.rows("electionevent")[0];
+    assert_eq!(row.get("presentation.css"), Some(&json!(long)));
+    assert_eq!(row.get("description"), Some(&json!("d")));
+}

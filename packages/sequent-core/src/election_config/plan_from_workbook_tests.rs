@@ -1708,3 +1708,85 @@ fn a_reports_sheet_the_plan_holds_whole_is_not_carried_as_well() {
     assert_eq!(read.plan.reports.len(), 1);
     assert!(read.plan.platform.is_empty());
 }
+
+/// Cells a converted event brings that the plan cannot take as they are: each
+/// is reported or left out, and nothing else is lost with it.
+#[test]
+fn cells_the_plan_cannot_take_are_reported_or_left_out() {
+    use serde_json::json;
+    let mut sheets = workbook_of(&sound()).unwrap().sheets().to_vec();
+    let set = |row: &mut Row, column: &str, value: Value| {
+        row.cells.retain(|(c, _)| c != column);
+        row.cells.push((column.to_string(), value));
+    };
+    for sheet in &mut sheets {
+        let Some(row) = sheet.rows.first_mut() else {
+            continue;
+        };
+        match sheet.key.as_str() {
+            "electionevent" => {
+                set(row, "presentation.ceremonies_policy", json!("by-lot"));
+                set(
+                    row,
+                    "presentation.i18n.en",
+                    json!({"name": " ", "greeting": "Welcome", "count": 3}),
+                );
+                set(row, "annotations", json!({"source:rows": 12}));
+                set(row, "presentation.unused", Value::Null);
+            }
+            "contests" => {
+                set(row, "presentation.over_vote_policy", json!("sometimes"))
+            }
+            _ => {}
+        }
+    }
+    let read = plan_from_workbook(&Workbook::new(sheets).unwrap()).unwrap();
+
+    let warned = |column: &str| {
+        warnings_of(&read)
+            .iter()
+            .any(|problem| problem.path.contains(column))
+    };
+    assert!(warned("presentation.ceremonies_policy"));
+    assert!(warned("presentation.over_vote_policy"));
+    assert_eq!(
+        read.plan.ceremony_policy,
+        crate::types::ceremonies::CeremoniesPolicy::default()
+    );
+    // Only the portal's own strings are portal texts; a blank name in the
+    // object leaves the name column's.
+    assert_eq!(
+        read.plan.i18n.get("en"),
+        Some(&BTreeMap::from([(
+            "greeting".to_string(),
+            "Welcome".to_string()
+        )]))
+    );
+    assert_eq!(read.plan.name, sound().name);
+    assert_eq!(
+        read.plan.annotations.get("source:rows").map(String::as_str),
+        Some("12")
+    );
+    assert!(!read.plan.columns.contains_key("presentation.unused"));
+}
+
+/// A carried column fills the writer's blank cell and never overwrites one
+/// the plan wrote.
+#[test]
+fn a_carried_column_fills_a_blank_cell_and_leaves_a_written_one() {
+    use serde_json::json;
+    let mut plan = sound();
+    plan.css = String::new();
+    plan.elections_order = "alphabetical".to_string();
+    plan.columns = BTreeMap::from([
+        ("presentation.css".to_string(), json!("body {}")),
+        ("presentation.elections_order".to_string(), json!("custom")),
+    ]);
+    let workbook = to_workbook(&plan, &Sources::default()).unwrap();
+    let event = &workbook.rows("electionevent")[0];
+    assert_eq!(event.get("presentation.css"), Some(&json!("body {}")));
+    assert_eq!(
+        event.get("presentation.elections_order"),
+        Some(&json!("alphabetical"))
+    );
+}

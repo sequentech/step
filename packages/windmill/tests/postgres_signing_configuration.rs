@@ -606,7 +606,7 @@ async fn read_bundle(text: &str, into: Scope) -> anyhow::Result<ImportElectionEv
     std::env::set_var("APP_VERSION", BUNDLE_VERSION);
     get_election_event_schema(text, Some(into.event.to_string()), into.tenant.to_string())
         .await
-        .map(|(bundle, _)| bundle)
+        .map(|(bundle, _, _)| bundle)
 }
 
 /// Through the functions the export and the import call: an event's

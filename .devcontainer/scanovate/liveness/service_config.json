@@ -9,19 +9,19 @@
     "pipelines": [
       {
         "name": "pad-r-2",
-        "probability_threshold": 0.56,
+        "probability_threshold": 0.46,
         "main": true
       },
       {
         "name": "dfd-3",
-        "probability_threshold": 0.5,
+        "probability_threshold": 0.4,
         "main": false
       }
     ],
     "ssim_threshold": 0.994
   },
   "face_config": {
-    "detection_threshold": 0.6,
+    "detection_threshold": 0.5,
     "min_distance_between_eyes": 60,
     "face_width_border_factor": 0.15,
     "face_height_border_factor": 0.15,
@@ -32,10 +32,10 @@
     "yaw_threshold": 15.0,
     "pitch_threshold": 18.0,
     "roll_threshold": 18.0,
-    "sharpness_threshold": 0.6,
+    "sharpness_threshold": 0.5,
     "illumination_threshold": 0.2,
-    "sunglasses_threshold": 0.8,
-    "mask_threshold": 0.8
+    "sunglasses_threshold": 0.9,
+    "mask_threshold": 0.9
   },
   "onprem": {
     "callback_url": "http://keycloak:8090/realms/master/identity-verification/liveness/callback?secret=liveness-dev-callback-secret",
@@ -50,7 +50,7 @@
       "video_config": "video_config",
       "translation_variant": "default",
       "translation_language": "en",
-      "ui_theme": "default_ui"
+      "ui_theme": "sequent_ui"
     }
   }
 }

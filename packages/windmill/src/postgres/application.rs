@@ -120,7 +120,7 @@ pub async fn insert_application(
     verification_type: &ApplicationType,
     status: &ApplicationStatus,
     permission_label: &Option<String>,
-) -> Result<()> {
+) -> Result<Uuid> {
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -148,14 +148,15 @@ pub async fn insert_application(
                 $8,
                 $9,
                 $10
-            );
+            )
+            RETURNING id;
             "#,
         )
         .await
         .map_err(|err| anyhow!("Error preparing the insert application query: {err}"))?;
 
     hasura_transaction
-        .execute(
+        .query_one(
             &statement,
             &[
                 &parse_uuid_v4(tenant_id)?,
@@ -171,9 +172,9 @@ pub async fn insert_application(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting application: {err}"))?;
-
-    Ok(())
+        .map_err(|err| anyhow!("Error inserting application: {err}"))?
+        .try_get("id")
+        .map_err(|err| anyhow!("Error reading the inserted application id: {err}"))
 }
 
 #[instrument(err, skip_all)]
@@ -264,7 +265,9 @@ pub async fn update_application_status(
             sequent_backend.applications
         SET
             status = $1,
-            applicant_id = $2,
+            -- A decision naming no voter keeps the one the application is
+            -- stored under.
+            applicant_id = COALESCE(NULLIF(btrim($2::text), ''), applicant_id),
             verification_type = $3,
             updated_at = NOW(),
             annotations = {}

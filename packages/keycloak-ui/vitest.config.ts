@@ -4,7 +4,7 @@ import {mergeConfig} from "vitest/config"
 import {playwright} from "@vitest/browser-playwright"
 import {createStorybookTests, reactBrowserDependencies} from "../test-support/storybook/vitest"
 
-// Unit tests run in Chromium too: the capture code uses canvas, File and DataTransfer.
+// Unit tests run in Chromium too, like the stories.
 export default mergeConfig(createStorybookTests(new URL("./.storybook", import.meta.url)), {
     test: {
         projects: [

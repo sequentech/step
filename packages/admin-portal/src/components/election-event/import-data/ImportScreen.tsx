@@ -237,7 +237,10 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 }
                 setDocumentId(uploadedId)
                 setStage(allowHistoricalSource && uploadCallback ? "ready" : "uploaded")
-                notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
+                notify("electionEventScreen.import.fileUploadSuccess", {
+                    type: "success",
+                    messageArgs: {_: t("electionEventScreen.import.fileUploadSuccess")},
+                })
                 return uploadedId
             } catch (error) {
                 setStage(

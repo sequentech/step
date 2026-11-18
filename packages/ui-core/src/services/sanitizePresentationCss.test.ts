@@ -110,6 +110,18 @@ describe("sanitizePresentationCss", () => {
         expect(out).toContain("display: list-item")
     })
 
+    it.each([
+        "content: counter(n, lower-alpha)",
+        "content: COUNTER(n)",
+        "content: counters(n, x)",
+        "content: attr(class)",
+        "content: ATTR(class)",
+    ])("drops text generated without quotes: %s", (declaration) => {
+        expect(sanitize(`.a::after { color: red; ${declaration}; }`)).toBe(
+            ".a::after { color: red; }"
+        )
+    })
+
     it("drops declarations with escapes or comments inside strings", () => {
         const out = sanitize(
             '.a { color: red; font-family: "x\\" y"; grid-template-areas: "/* a */"; }'
@@ -122,6 +134,58 @@ describe("sanitizePresentationCss", () => {
         expect(sanitize('.a { color: red; font-family: "label:x}y;"; }')).toBe(".a { color: red; }")
         expect(sanitize(".a { --tab-label: 12px; }")).toBe(".a { --tab-label: 12px; }")
         expect(sanitize(".a{x:label:y}@layer;")).toBe("")
+    })
+
+    it.each([
+        ".a /* note */ { color: red; }",
+        "@media /* note */ (min-width: 1px) { .a { color: red; } }",
+        "@media (min-width: 1px) /* note */ { .a { color: red; } }",
+    ])("keeps the stylesheet when a comment comes before a block: %s", (css) => {
+        const out = sanitize(css)
+
+        expect(out).toContain("color: red")
+        expect(out).not.toContain("note")
+    })
+
+    it.each([
+        "content: url(/name.svg)",
+        "content: url(data:image/svg+xml,x)",
+        "list-style: url(/name.svg)",
+        "list-style-image: url(/name.svg)",
+        "list-style-image: url(data:image/svg+xml,x)",
+    ])("drops generated images written without quotes: %s", (declaration) => {
+        expect(sanitize(`.a { color: red; ${declaration}; }`)).toBe(".a { color: red; }")
+    })
+
+    it.each([
+        "list-style-type: upper-alpha",
+        "list-style-type: LOWER-ALPHA",
+        "list-style-type: lower-greek",
+        "list-style: inside upper-latin",
+        "-webkit-list-style-type: upper-alpha",
+    ])("drops list markers that can spell words: %s", (declaration) => {
+        expect(sanitize(`.a { color: red; ${declaration}; }`)).toBe(".a { color: red; }")
+    })
+
+    it.each([
+        "list-style: none",
+        "list-style-type: disc",
+        "list-style: square inside",
+        "list-style-image: none",
+    ])("keeps list markers that show no letters: %s", (declaration) => {
+        expect(sanitize(`.a { ${declaration}; }`)).toContain(declaration)
+    })
+
+    it("keeps an empty url()", () => {
+        expect(sanitize(".a { background: url(); }")).toContain('url("")')
+    })
+
+    it("handles a url() with a long run of spaces in linear time", () => {
+        const start = Date.now()
+
+        sanitize(`.a { background: url(${" ".repeat(60000)}()); }`)
+
+        expect(Date.now() - start).toBeLessThan(1000)
     })
 
     it("returns an empty string when the stylesheet cannot be parsed", () => {

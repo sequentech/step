@@ -19,7 +19,25 @@ Which of the three happens is decided by the election event's **approval matrix*
 
 ## The queue
 
-The tab opens on the enrollments that need review. Each row shows:
+The first time you open the tab in a browser, it shows the enrollments that need review. After
+that, it opens with the filters you last used for this election event (or election) in this
+browser: status, search, any added filters, sorting, page size and page. A filter you removed stays
+removed: after removing **Status**, the tab keeps showing every enrollment.
+
+- Each administrator who signs in on the same browser keeps their own filters. Another browser
+  starts again from the enrollments that need review.
+- Nothing is stored on the server. The filters, including any search text or voter details typed
+  into them, stay in this browser's storage until its site data is cleared, also after signing out.
+- Saved filters that no longer apply, for example one on a voter attribute that was removed, are
+  discarded and the tab opens as on a first visit. An administrator without permission to read
+  voter attributes always starts from the enrollments that need review, because their saved filters
+  can't be checked.
+- The tab always shows the enrollments of the election event (or election) you are on, whatever was
+  saved.
+- A saved search for a support reference is looked up again when the tab opens; the enrollments it
+  matched before are not reused.
+
+Each row shows:
 
 | Column | What it shows |
 |---|---|
@@ -34,7 +52,8 @@ The tab opens on the enrollments that need review. Each row shows:
   rejected. **Add filter** filters by verification, IDs or any voter attribute.
 - **Columns** shows more columns (verification, verified by, IDs and every voter attribute) and
   changes their order.
-- The menu at the end of a row opens the enrollment, or the rule that decided it.
+- The menu at the end of a row opens the enrollment or, with **See the rule that decided**, the
+  approval matrix simulating that enrollment.
 
 **Import** and **Export** work on the enrollments as CSV files.
 
@@ -42,8 +61,8 @@ The tab opens on the enrollments that need review. Each row shows:
 
 Select a row to review the enrollment. The top of the page says why it needs a person, for example
 that the first name is "Juan Carlos" on the enrollment and "Juan" in the registry, and names the
-matrix version and rule that sent it to review. **See the rule** opens the approval matrix on that
-rule.
+matrix version and rule that sent it to review. **See the rule** opens the approval matrix
+simulating this enrollment (see [Simulate an enrollment](#simulate-an-enrollment)).
 
 The review has three steps:
 
@@ -64,8 +83,8 @@ An approved enrollment opens with how it was decided and its details. A rejected
 still be approved with the same steps.
 
 The registry comparison on this page ignores capital letters, accents and hyphens in the same way
-the rules do, and compares first and middle name together for a driver's license and a seafarer's
-book.
+the rules do, and compares first and middle name together for a driver's license, a seafarer's
+book and a passport read by the scanner.
 
 ## Approval matrix
 
@@ -77,7 +96,10 @@ shows its version and who saved it, and has three parts.
 The voter details that are compared with the registry voter, for example first name, middle name,
 last name, date of birth and embassy. Names ignore capital letters, accents and hyphens. For a
 driver's license and a seafarer's book, first and middle name are compared together: the first name
-carries the result and the middle name has none of its own.
+carries the result and the middle name has none of its own. So are those of a passport read by the
+scanner: its machine-readable zone has a single field for the given names, the middle name included,
+and they are compared with the registry voter's first and middle name joined. A passport enrollment
+with a middle name of its own, typed apart, compares the two apart.
 
 Select a detail to stop or start comparing it, and **Compare another detail** to add any other
 voter attribute. Conditions on a detail that is no longer compared are removed from the rules.
@@ -140,24 +162,79 @@ applies them again when it decides:
 The rule editor also refuses a rule without conditions, because it would decide every enrollment
 that reaches it and hide the rules below.
 
-### Try an example
+### Simulate an enrollment
 
-**Try an example** describes an enrollment (how the identity was checked, whether the voter is in
-the registry and already enrolled, the ID type, and which details are the same) and shows which
-rule decides it and what the voter would be told. The rule is marked **Applies to your example** in
-the list. It uses the rules on the screen, including changes that are not saved yet, and decides
-exactly as a real enrollment with the same data would. Nothing is stored.
+The panel beside the rules decides one enrollment with the rules on the screen, including changes
+that are not saved yet, exactly as a real enrollment with the same details would be decided (how
+the identity was checked, whether the voter is in the registry and already enrolled, the ID type,
+and which details are the same). It never changes an enrollment and saves nothing. What the panel
+is about depends on where the matrix was opened from.
+
+**From the toolbar**, the panel is **Try an example**. It starts with the **sample enrollment**:
+a verified voter in the registry, not enrolled yet, whose compared details are all the same.
+
+- **Edit example** opens its details below, marked **Editing the example — not applied yet**.
+  Changes there decide nothing until **Apply**; **Cancel** leaves the example as it was. **Fill in
+  the sample** only puts the sample's details back in the editor, undoing the edits made there; it
+  applies nothing.
+- After applying other details, the panel shows **Your example**.
+
+**From an enrollment** (the row menu's **See the rule that decided**, or **See the rule** in its
+review), the panel is **Simulating the enrollment of …** and starts with the details the rules saw
+when they decided that enrollment.
+
+- **Back to the enrollment**, at the top of the panel, returns to that enrollment's review.
+  **Approvals**, above the page title, returns to the list.
+- **Recorded decision** names the rule and matrix version that decided the enrollment and what
+  they decided, with the enrollment's status as the list or review showed it when an officer has
+  decided since. It is context only: no rule is highlighted for it.
+- **Recorded details · in the simulation** lists the details in use. **Try other details** opens
+  them below, marked **Trying other details — not in the simulation yet**; they decide nothing
+  until **Apply**, and **Cancel** discards them. **Fill in the recorded details** only puts the
+  recorded details back in the editor, undoing the edits made there; it applies nothing.
+- After applying other details, the panel shows **Other details · in the simulation**; the enrollment
+  keeps its recorded details.
+
+In both cases:
+
+- **Current simulation** says which rule decides (**In the simulation, rule 3 decides.**, or that
+  no rule fits and the last rule decides) and what the voter would be told; **Go to rule** scrolls
+  to that rule. In the list, only that rule is highlighted, marked **Decides in the simulation**.
+  While the simulation runs, or when it can't (the rules have a problem, or running it fails), no
+  rule is highlighted.
+- Editing, moving, adding or deleting rules, changing the compared details, saving and discarding
+  never apply the details being edited: the details in use are decided again with the changed
+  rules.
+
+When the rules on screen are given exactly an enrollment's recorded details, the panel says
+whether they now give the same decision as the recorded one. It doesn't compare when other
+details are in use, when several registry voters were compared, or when a compared detail wasn't
+recorded:
+
+- A compared detail that the decision didn't record, for example one compared only since, is shown
+  as **Not recorded**. It is never assumed to be the same: the rules treat it as differing in
+  conditions on that detail, and don't count it among the details that differ.
+- When the enrollment's ID gives first and middle name together (seafarer's book, driver's
+  license, passport without a middle name), the middle name shows **Compared with the first
+  name**. This follows the enrollment's ID type as it is now.
+- When the recorded decision can't be read, the panel says so first and simulates the sample
+  enrollment, headed **Sample enrollment — not their recorded details**.
+
+The details in use are kept while the matrix is open. Leaving the matrix (back to the enrollment
+or to the list) and opening it again starts from the enrollment's recorded details or the sample.
+Reloading the page opens the election event on its first tab, or the tab named in the address, and
+the simulation, its source enrollment and unsaved rule changes are lost.
 
 ### Change the matrix
 
 Changing the matrix needs the `approval-matrix-write` permission. Without it the matrix is **View
-only** and the example still works.
+only** and the simulation panel still works.
 
 1. Add a rule with **Add rule**, or edit, move up, move down or delete a rule with the buttons on
    it. The editor says the rule in one sentence while you change it: add or remove conditions,
    choose the decision and what the voter is told, and select **Apply**. The compared details and
    the last rule can be changed too.
-2. Try the changes with **Try an example**.
+2. Try the changes in the simulation panel (see [Simulate an enrollment](#simulate-an-enrollment)).
 3. The page shows that there are unsaved changes and what they are. **Discard changes** goes back
    to the saved version. **Save as version N** lists what changed and asks for confirmation.
 
@@ -193,9 +270,10 @@ the rule's conditions, for example:
 
 > Rule 5 of matrix version 1 · Exactly 1 detail differs · Embassy matches
 
-**See the rule** opens the matrix with that rule marked **Decided the enrollment you came from**,
-as long as that version is still the one in force. Enrollments decided before this information was
-recorded don't show a rule.
+**See the rule** opens the matrix simulating this enrollment's recorded details. The panel names
+the recorded rule and version as context, and the list highlights only the rule that decides the
+simulation with the rules on screen (see [Simulate an enrollment](#simulate-an-enrollment)).
+Enrollments decided before this information was recorded don't show a rule.
 
 ## Election event exports
 

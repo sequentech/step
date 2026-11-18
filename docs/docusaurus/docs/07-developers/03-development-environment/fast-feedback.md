@@ -58,8 +58,10 @@ realm without resetting their passwords or MFA or changing native trustee accoun
 
 ### Opt-in Scanovate services
 
-The identity verification of enrollment (Liveness Plus with its PAD server, Face
-Match and OCR) belongs to the `scanovate` Compose profile, which no mode starts:
+The identity verification of enrollment (OCR and Liveness Plus, whose capture
+pages `keycloak-nginx` serves under `https://localhost:8443/biometric/`,
+Liveness Plus's presentation and injection attack detection servers, and Face
+Match) belongs to the `scanovate` Compose profile, which no mode starts:
 its images are private, in our ECR mirror, and need about 18 GB of memory. To
 work on enrollment, start them next to `backend` or `full`, from the host, in the
 checkout:
@@ -255,6 +257,22 @@ reloads when the artifact changes and the inspector shows the binary's hash. `WO
 `test:smoke`. Stories render one production route with its action; the workbench mounts
 the production event routes. The only preview UI inside the portal frame is the error
 shown when the portal loader rejects a snapshot.
+
+### Election Architect in the devcontainer
+
+Election Architect lives in the `beyond` submodule and is not a Compose service.
+With that submodule initialized and its vendored core and voter preview prepared
+(see `beyond/packages/election-architect/README.md`), use VS Code's
+`start.architect` task to launch it. `start.build.architect` first installs the
+Beyond Yarn workspace dependencies with its frozen lockfile; the app's `prestart`
+builds the shared election configuration UI. Neither task changes branches or
+replaces the vendored artifacts, so prepare artifacts matching the Step revision
+you are testing.
+
+The full devcontainer forwards port **5176** to `http://localhost:5176/`.
+In an already-open container, forward 5176 from VS Code's **Ports** panel without
+rebuilding. A signing-enabled Beyond revision also needs its installation's
+signing policy; starting the frontend alone does not configure trust.
 
 ### Embedded voter preview
 

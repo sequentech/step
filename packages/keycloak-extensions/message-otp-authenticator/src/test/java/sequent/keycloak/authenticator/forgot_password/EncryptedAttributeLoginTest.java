@@ -18,6 +18,7 @@ import org.keycloak.credential.hash.PasswordHashProvider;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.http.HttpRequest;
 import org.keycloak.models.*;
+import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.representations.userprofile.config.UPConfig;
 import org.keycloak.services.managers.BruteForceProtector;
@@ -167,11 +168,26 @@ class EncryptedAttributeLoginTest {
 
   @Test
   void secretGuessesShareTheSameTupleThrottle() {
+    // Without Brute Force Detection the tuple counter is the only limit.
     config.getConfig().put("tupleMaxFailures", "2");
     try (var ignored = master(vector.get("master"))) {
       assertTrue(resolve("wrong-one").authenticatedUser().isEmpty());
       assertTrue(resolve("wrong-two").authenticatedUser().isEmpty());
       assertTrue(resolve(vector.get("plaintext")).authenticatedUser().isEmpty());
+    }
+  }
+
+  @Test
+  void attributedSecretGuessesUnderBruteForceDetectionDoNotLockOutTheVoter() {
+    config.getConfig().put("tupleMaxFailures", "2");
+    when(realm.isBruteForceProtected()).thenReturn(true);
+    when(session.getProvider(BruteForceProtector.class))
+        .thenReturn(mock(BruteForceProtector.class));
+    try (var ignored = master(vector.get("master"))) {
+      for (String secret : List.of("wrong-one", "wrong-two", "wrong-three")) {
+        assertEquals(voter, resolve(secret).attributableUser().orElseThrow());
+      }
+      assertEquals(voter, resolve(vector.get("plaintext")).authenticatedUser().orElseThrow());
     }
   }
 
@@ -284,7 +300,7 @@ class EncryptedAttributeLoginTest {
         if (direct) new MultiAttributePasswordDirectGrantAuthenticator().authenticate(context);
         else new MultiAttributePasswordAuthenticator().action(context);
         verify(context).setUser(voter);
-        verify(context).success();
+        verify(context).success(PasswordCredentialModel.TYPE);
         verify(voter, never()).credentialManager();
       }
     }

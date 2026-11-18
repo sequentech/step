@@ -13,6 +13,12 @@ const KEY = "approvalsScreen"
 
 /** Identity documents whose first and middle name are compared together. */
 const JOINT_NAME_DOCUMENTS = ["seamanBook", "driversLicense"]
+/**
+ * A passport's machine-readable zone gives every given name, the middle name
+ * included, in one field: they are compared together unless the enrollment
+ * has a middle name of its own.
+ */
+const PASSPORT = "philippinePassport"
 const ID_CARD_TYPE_FIELD = "sequent.read-only.id-card-type"
 const FIRST_NAME = "firstName"
 const MIDDLE_NAME = "middleName"
@@ -271,10 +277,19 @@ export function voterValue(voter: IRegistryVoter, field: string): string {
     return text(Array.isArray(value) ? value[0] : value)
 }
 
+/** Whether the enrollment's first and middle name are compared together, as the rules do. */
+export function jointNames(data: Record<string, string | undefined>): boolean {
+    const document = data[ID_CARD_TYPE_FIELD] ?? ""
+    return (
+        JOINT_NAME_DOCUMENTS.includes(document) ||
+        (document === PASSPORT && !(data[MIDDLE_NAME] ?? "").trim())
+    )
+}
+
 /**
  * Compares the enrollment with a registry voter on the compared fields, the
  * way the rules do: first and middle name together for the identity documents
- * that print them together.
+ * that give them together.
  */
 export function compareWithVoter(
     application: IApplication,
@@ -282,9 +297,7 @@ export function compareWithVoter(
     comparedFields: string[]
 ): IComparedDetail[] {
     const data = applicantData(application)
-    const joint =
-        JOINT_NAME_DOCUMENTS.includes(data[ID_CARD_TYPE_FIELD] ?? "") &&
-        comparedFields.includes(FIRST_NAME)
+    const joint = jointNames(data) && comparedFields.includes(FIRST_NAME)
     const details: IComparedDetail[] = []
     comparedFields.forEach((field) => {
         if (joint && field === MIDDLE_NAME) {
