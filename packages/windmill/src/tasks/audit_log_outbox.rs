@@ -36,6 +36,8 @@ pub async fn post_audit_log_outbox() -> Result<()> {
         USERNAMES.get_or_init(KeycloakUsernames::default),
     )
     .await?;
+    // The electoral-log outbox (administrator-signed entries) rides the same beat.
+    crate::services::electoral_log_outbox::relay_electoral_log_outbox(&mut client).await?;
     Ok(())
 }
 

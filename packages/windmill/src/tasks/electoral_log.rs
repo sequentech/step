@@ -1049,8 +1049,19 @@ async fn build_event<L: BatchLookups + Send>(
                     .await
                     .map_err(Transient)?;
                 if !announced {
-                    return Err(Permanent(anyhow!(
-                        "Refused pending statement {statement_text}: its administrator's key is not the one their tenant log announces"
+                    // Not (yet) announced: the entry waits, never attested
+                    // meanwhile (its relay announces a genuine key first). An
+                    // operator may cancel it (`cancel_waiting_entry`).
+                    tracing::error!(
+                        alert = "electoral-log-admin-key-unannounced",
+                        delivery_id,
+                        scope = scope_of(input).as_str(),
+                        user_id,
+                        waiting_since_ms = input.deferral.map(|deferral| deferral.since_ms),
+                        "An administrator-signed entry waits: the tenant log doesn't announce its key"
+                    );
+                    return Err(EventFailure::Unavailable(anyhow!(
+                        "the tenant log doesn't announce administrator {user_id}'s key yet: the entry waits"
                     )));
                 }
             }
@@ -2644,25 +2655,40 @@ mod batch_build_tests {
             )
             .unwrap()
         };
-        // A key never announced for that administrator, and another
-        // administrator's name on the admin's key: refused, never attested.
+        // The genuine entry first; then a key never announced for that
+        // administrator, and another administrator's name on the admin's key.
+        let trusted = durable.queue_pending(&mut lookups, &entry(&admin, "admin-id"));
         let impostor_event = durable.queue_pending(&mut lookups, &entry(&impostor, "admin-id"));
         let wrong_user = durable.queue_pending(&mut lookups, &entry(&admin, "someone-else"));
-        let trusted = durable.queue_pending(&mut lookups, &entry(&admin, "admin-id"));
-        let ids: Vec<String> = [&impostor_event, &wrong_user, &trusted]
+        let ids: Vec<String> = [&trusted, &impostor_event, &wrong_user]
             .iter()
             .map(|event| event.delivery_id.clone().unwrap())
             .collect();
 
         durable
-            .round(&mut lookups, vec![impostor_event, wrong_user, trusted])
+            .round(&mut lookups, vec![trusted, impostor_event, wrong_user])
             .await;
-        assert_eq!(durable.dead_letters, ids[..2].to_vec());
-        assert_eq!(lookups.sign_calls.load(Ordering::SeqCst), 1, "only the trusted one");
-        // The board's signer is back: attested and stored once.
+        assert!(durable.dead_letters.is_empty(), "nothing is dropped");
+        assert_eq!(lookups.sign_calls.load(Ordering::SeqCst), 1, "only the genuine one is tried");
+        // The board's signer is back: the genuine entry is attested and stored;
+        // the others wait, never attested (their keys are not announced).
         lookups.failing_signers.remove(DOWN_SIGNER_EVENT);
-        durable.round(&mut lookups, vec![]).await;
-        assert_eq!(durable.board(DOWN_SIGNER_EVENT), vec![ids[2].as_str()]);
+        for _ in 0..3 {
+            durable.round(&mut lookups, vec![]).await;
+        }
+        assert_eq!(durable.board(DOWN_SIGNER_EVENT), vec![ids[0].as_str()]);
+        assert_eq!(durable.rows.len(), 2);
+        // An operator cancels them: their references find no row and go to the
+        // dead-letter queue; nothing is ever attested for them.
+        for id in &ids[1..] {
+            durable.rows.remove(id);
+            lookups.pending.remove(id);
+        }
+        for _ in 0..2 {
+            durable.round(&mut lookups, vec![]).await;
+        }
+        assert_eq!(durable.dead_letters, ids[1..].to_vec());
+        assert_eq!(durable.board(DOWN_SIGNER_EVENT), vec![ids[0].as_str()]);
     }
 
     #[test]
@@ -3879,20 +3905,6 @@ mod pgmq_tests {
         }
     }
 
-    /// Calls the producer role's enqueue function.
-    async fn call_producer_function(
-        client: &tokio_postgres::Client,
-        delivery_id: String,
-        statement: serde_json::Value,
-    ) -> std::result::Result<tokio_postgres::Row, tokio_postgres::Error> {
-        client
-            .query_one(
-                "SELECT step_queue.queue_pending_statement($1, $2, $3, 0)",
-                &[&delivery_id, &statement, &serde_json::json!({"reference": true})],
-            )
-            .await
-    }
-
     /// The plan of `sql`, with sequential scans off.
     async fn plan_of(client: &tokio_postgres::Client, sql: String) -> String {
         client.batch_execute("SET enable_seqscan = off").await.unwrap();
@@ -3905,96 +3917,6 @@ mod pgmq_tests {
             .collect();
         client.batch_execute("RESET enable_seqscan").await.unwrap();
         plan.join("\n")
-    }
-
-    #[tokio::test]
-    #[ignore = "requires PGMQ_TEST_DATABASE_URL pointing to a disposable database"]
-    async fn the_producer_function_queues_only_what_the_producer_role_may() {
-        use crate::services::electoral_log_pending::{PendingStatement, PendingStatementBody};
-        use electoral_log::messages::newtypes::{
-            BallotPublicationFailure, BallotPublicationIdString, BallotPublicationStage,
-            ErrorMessageString,
-        };
-        let pool = test_pool();
-        // Its queues and the function, as the setup makes them.
-        let queues = test_queues(&pool, "producer").await;
-        let client = pool.get().await.unwrap();
-        client
-            .batch_execute(
-                "SELECT pgmq.create('electoral_log_event_queue') WHERE NOT EXISTS \
-                 (SELECT 1 FROM pgmq.meta WHERE queue_name = 'electoral_log_event_queue')",
-            )
-            .await
-            .unwrap();
-        let tenant = uuid::Uuid::new_v4().to_string();
-        let event = uuid::Uuid::new_v4().to_string();
-        let failure = PendingStatement::new(
-            &tenant,
-            &event,
-            PendingStatementBody::BallotPublicationFailure {
-                failure: BallotPublicationFailure {
-                    publication_id: BallotPublicationIdString("publication".into()),
-                    task_id: "task".into(),
-                    stage: BallotPublicationStage::Publish,
-                    error: ErrorMessageString("refused".into()),
-                },
-                username: None,
-            },
-        );
-        let allowed = failure.origin.delivery_id();
-        call_producer_function(&client, allowed.clone(), serde_json::to_value(&failure).unwrap())
-            .await
-            .unwrap();
-        let read = crate::services::electoral_log_pending::load(&**client, &allowed)
-            .await
-            .unwrap()
-            .expect("queued");
-        assert_eq!(read.scope, failure.scope());
-
-        let refused = |error: tokio_postgres::Error| {
-            assert_eq!(
-                error.code(),
-                Some(&tokio_postgres::error::SqlState::INSUFFICIENT_PRIVILEGE),
-                "{error}"
-            );
-        };
-        // A kind only workers may queue (here, an enrollment problem).
-        let other = PendingStatement::new(
-            &tenant,
-            &event,
-            PendingStatementBody::EnrollmentProblems {
-                problems: "x".into(),
-            },
-        );
-        refused(
-            call_producer_function(&client, other.origin.delivery_id(), serde_json::to_value(&other).unwrap())
-                .await
-                .unwrap_err(),
-        );
-        // An extra field, another delivery ID form, a time not now.
-        let mut extra = serde_json::to_value(&failure).unwrap();
-        extra["statement_bytes"] = "AAAA".into();
-        refused(
-            call_producer_function(&client, failure.origin.delivery_id(), extra)
-                .await
-                .unwrap_err(),
-        );
-        refused(
-            call_producer_function(&client, "readiness:entry".into(), serde_json::to_value(&failure).unwrap())
-                .await
-                .unwrap_err(),
-        );
-        let mut old = failure.clone();
-        old.occurred_at -= 3_600;
-        refused(
-            call_producer_function(&client, failure.origin.delivery_id(), serde_json::to_value(&old).unwrap())
-                .await
-                .unwrap_err(),
-        );
-        crate::services::electoral_log_deferral::stop_waiting(&**client, &[allowed])
-            .await
-            .unwrap();
-        drop_queues(&client, &queues).await;
     }
 
     #[tokio::test]

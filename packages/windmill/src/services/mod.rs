@@ -42,6 +42,7 @@ pub mod electoral_log_signers;
 pub mod electoral_log_checkpoint_copies;
 pub mod electoral_log_dead_letter;
 pub mod electoral_log_deferral;
+pub mod electoral_log_outbox;
 pub mod electoral_log_pending;
 pub mod electoral_log_transfer;
 pub mod enrollment_windows;

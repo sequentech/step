@@ -156,71 +156,7 @@ BEGIN
 END
 $$;
 
--- The one way the producer role (Harvest; Keycloak shares the role) may queue an
--- unsigned electoral-log statement: this function, which runs as its owner and
--- accepts only the kinds the producer role is allowed, checked here, nothing
--- broader. It is not a grant on the waiting table. What it accepts is still
--- checked again by the batch task before anything is signed.
--- Allowed now: a ballot publication's failure (Harvest's publish route).
-CREATE OR REPLACE FUNCTION step_queue.queue_pending_statement(
-    p_delivery_id text,
-    p_statement jsonb,
-    p_reference jsonb,
-    p_delay_secs integer
-) RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = pg_catalog, pg_temp
-AS $$
-DECLARE
-    v_scope text;
-    v_occurred bigint;
-    v_msg bigint;
-BEGIN
-    IF jsonb_typeof(p_statement) <> 'object'
-        OR (SELECT array_agg(k ORDER BY k) FROM jsonb_object_keys(p_statement) AS k)
-            <> ARRAY['election_event_id', 'occurred_at', 'origin', 'statement', 'tenant_id', 'version']
-        OR p_statement->'version' <> '1'::jsonb
-        OR p_statement->>'origin' <> 'ballot-publication'
-        OR jsonb_typeof(p_statement->'statement') <> 'object'
-        OR p_statement->'statement'->>'kind' <> 'ballot-publication-failure'
-        OR EXISTS (
-            SELECT 1 FROM jsonb_object_keys(p_statement->'statement') AS k
-            WHERE k NOT IN ('kind', 'failure', 'username'))
-        OR p_delivery_id !~ '^pending:ballot-publication:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-        OR p_statement->>'tenant_id' !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-        OR p_statement->>'election_event_id' !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-        OR jsonb_typeof(p_statement->'occurred_at') <> 'number'
-        OR p_delay_secs IS NULL OR p_delay_secs < 0 OR p_delay_secs > 3600
-    THEN
-        RAISE EXCEPTION 'not a pending statement the producer role may queue'
-            USING ERRCODE = 'insufficient_privilege';
-    END IF;
-    v_occurred := (p_statement->>'occurred_at')::bigint;
-    IF abs(v_occurred - extract(epoch FROM clock_timestamp())::bigint) > 300 THEN
-        RAISE EXCEPTION 'a pending statement must be queued when it happens'
-            USING ERRCODE = 'insufficient_privilege';
-    END IF;
-    v_scope := (p_statement->>'tenant_id') || '/' || (p_statement->>'election_event_id');
-    PERFORM pg_advisory_xact_lock(hashtextextended('electoral-log-scope:' || v_scope, 0));
-    INSERT INTO step_queue.electoral_log_waiting (delivery_id, scope, since_ms, ord, due_at, statement)
-    VALUES (p_delivery_id, v_scope, (extract(epoch FROM clock_timestamp()) * 1000)::bigint, 0,
-            clock_timestamp() + make_interval(secs => p_delay_secs), p_statement);
-    SELECT pgmq.send('electoral_log_event_queue', p_reference, p_delay_secs) INTO v_msg;
-    UPDATE step_queue.electoral_log_waiting SET copy_msg_id = v_msg WHERE delivery_id = p_delivery_id;
-END
-$$;
-
-REVOKE ALL ON FUNCTION step_queue.queue_pending_statement(text, jsonb, jsonb, integer) FROM PUBLIC;
-
-DO $$
-DECLARE
-    producer text := current_setting('step.queue.producer_role');
-BEGIN
-    IF producer <> '' THEN
-        EXECUTE format(
-            'GRANT EXECUTE ON FUNCTION step_queue.queue_pending_statement(text, jsonb, jsonb, integer) TO %I',
-            producer);
-    END IF;
-END
-$$;
+-- No function lets the producer role queue a pending statement: it is shared by
+-- Harvest and Keycloak, so it would let Keycloak have entries signed. (An earlier
+-- revision had one; it is dropped.)
+DROP FUNCTION IF EXISTS step_queue.queue_pending_statement(text, jsonb, jsonb, integer);

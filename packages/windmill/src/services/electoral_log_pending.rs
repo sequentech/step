@@ -47,20 +47,19 @@
 //! deletions). The administrator's proof is made at the time of the action,
 //! with their own vault key (the key a direct post signs with), over the exact
 //! statement, and carried unchanged; only the board's attestation waits. The
-//! batch task never looks an administrator's key up: it checks the signature
-//! with the key the row names, and that this key is the one the tenant's log
-//! announces for that administrator (an `AdminPublicKey` entry signed by the
-//! tenant log's system key, written when the vault made the key); otherwise
-//! the entry is refused and never attested. The action queues its entry before
-//! its transaction commits (fail closed: no entry, no commit), due only after
-//! a delay so it is not attested before that commit, and withdraws it if the
-//! commit fails.
+//! action writes the entry in its own transaction, to the action database's
+//! outbox (`services::electoral_log_outbox`): an action that rolls back has no
+//! entry. The outbox's relay moves committed entries here, after making sure
+//! the tenant's log announces the administrator's key. The batch task never
+//! looks an administrator's key up: it checks the signature with the key the
+//! row names, and that this key is the one the tenant's log announces for that
+//! administrator (an `AdminPublicKey` entry signed by the tenant log's system
+//! key); a signature that doesn't verify is refused, and a key not announced
+//! (yet) makes the entry wait, never attested meanwhile.
 //!
-//! **The producer role** (Harvest; Keycloak shares it) can't write the table.
-//! It may only call `step_queue.queue_pending_statement`, which accepts just the
-//! kinds that role is allowed (a ballot publication's failure), checks their
-//! form, origin, delivery ID and time, and writes the row as its owner. Queue
-//! write access thus gains no signing authority beyond that allow-list.
+//! **The producer role** (Harvest; Keycloak shares it) can't write the table,
+//! so Harvest's best-effort entries are not queued: they fail and are logged,
+//! as before, until Harvest has an authenticated identity of its own.
 
 use crate::tasks::electoral_log::{LogEventBody, LogEventInput, LogMessageType};
 use anyhow::{anyhow, ensure, Context, Result};
@@ -113,24 +112,49 @@ pub fn pending_ref(body: &str) -> Option<String> {
     })
 }
 
-/// Withdraws a pending statement queued for an action that was then rolled
-/// back, before it is signed: its reference then names no row and is
-/// dead-lettered. Returns whether it was still waiting.
-pub async fn cancel(delivery_id: &str) -> Result<bool> {
+/// Alert class of an operator's cancellation of a waiting entry.
+pub const ALERT_ENTRY_CANCELLED: &str = "electoral-log-entry-cancelled";
+
+/// An operator gives up a waiting entry (one that can't be signed and holds its
+/// log, such as an administrator-signed entry whose key the tenant log never
+/// announces): its row is removed, so its reference is dead-lettered (the
+/// statement goes with the dead letter) and its log's direct posts resume. It
+/// is logged as an error under [`ALERT_ENTRY_CANCELLED`], naming who and why;
+/// the entry is lost for the log, so record the decision. Returns whether it
+/// was waiting.
+pub async fn cancel_waiting_entry(delivery_id: &str, requested_by: &str, reason: &str) -> Result<bool> {
     use crate::services::electoral_log_deferral::WAITING_TABLE;
+    anyhow::ensure!(!requested_by.trim().is_empty(), "Name who cancels the entry");
+    anyhow::ensure!(!reason.trim().is_empty(), "Say why the entry is cancelled");
     let client = crate::services::database::try_get_queue_pool()
         .await?
         .get()
         .await
         .context("Error connecting to the task-queue database")?;
-    Ok(client
-        .execute(
-            &format!("DELETE FROM {WAITING_TABLE} WHERE delivery_id = $1 AND statement IS NOT NULL"),
+    let removed = client
+        .query_opt(
+            &format!(
+                "DELETE FROM {WAITING_TABLE} WHERE delivery_id = $1 \
+                 RETURNING scope, statement::text"
+            ),
             &[&delivery_id],
         )
         .await
-        .context("Error withdrawing a pending statement")?
-        > 0)
+        .context("Error cancelling a waiting entry")?;
+    if let Some(row) = &removed {
+        let scope: String = row.get(0);
+        let statement: Option<String> = row.get(1);
+        tracing::error!(
+            alert = ALERT_ENTRY_CANCELLED,
+            delivery_id,
+            scope,
+            requested_by,
+            reason,
+            statement = statement.unwrap_or_default(),
+            "A waiting electoral-log entry was cancelled by an operator"
+        );
+    }
+    Ok(removed.is_some())
 }
 
 /// A pending statement as a worker wrote it in the waiting table.
@@ -438,25 +462,35 @@ impl PendingStatement {
     /// log's direct posts are refused until it is stored. Returns its
     /// delivery ID.
     pub async fn queue(&self) -> Result<String> {
-        self.queue_after(0).await
+        let delivery_id = self.origin.delivery_id();
+        self.write_waiting(&delivery_id, None).await?;
+        tracing::warn!(
+            origin = self.origin.as_str(),
+            delivery_id = delivery_id.as_str(),
+            "The electoral-log entry is queued unsigned, to be signed and stored later"
+        );
+        Ok(delivery_id)
     }
 
-    /// As [`PendingStatement::queue`], due only `delay_secs` later: a
-    /// statement queued before its action's own transaction commits is not
-    /// signed before that commit, nor after its rollback ([`cancel`]).
-    ///
-    /// A worker writes the waiting table itself. A process of the producer
-    /// role (Harvest), which may not write it, calls the one function it may:
-    /// `step_queue.queue_pending_statement`, which accepts only the kinds the
-    /// producer role is allowed and checks them (`pgmq-broker`'s `setup.sql`).
-    pub async fn queue_after(&self, delay_secs: i32) -> Result<String> {
+    /// Writes its waiting row and its reference on the event queue, in one
+    /// task-queue transaction under its scope's exclusive lock. `relayed`, for
+    /// an entry relayed from an action's outbox (`electoral_log_outbox`), is
+    /// when it was written there and its place (`seq`): the row keeps them, so
+    /// its order and time checks are the action's, however late the relay. An
+    /// entry already waiting under this delivery ID is left as it is (a relay
+    /// repeated after a crash adds nothing). Workers only: the producer role
+    /// may not write the table.
+    pub async fn write_waiting(&self, delivery_id: &str, relayed: Option<(i64, i64)>) -> Result<()> {
         use crate::services::electoral_log_deferral::{lock_scopes, WAITING_TABLE};
-        let delivery_id = self.origin.delivery_id();
         let reference = crate::services::electoral_log_dead_letter::event_message(
-            &self.reference_event(&delivery_id)?,
+            &self.reference_event(delivery_id)?,
         )?;
         let statement = serde_json::to_value(self).context("Error serializing a pending statement")?;
         let queue = crate::services::celery_app::Queue::ElectoralLogEvent.queue_name();
+        let (created_ms, order): (Option<i64>, i64) = match relayed {
+            Some((created_ms, seq)) => (Some(created_ms), seq),
+            None => (None, 0),
+        };
         let mut client = crate::services::database::try_get_queue_pool()
             .await?
             .get()
@@ -468,59 +502,38 @@ impl PendingStatement {
             .context("Error starting the pending statement's transaction")?;
         lock_scopes(&*tx, &[self.scope()]).await?;
         let written = tx
-            .execute(
+            .query(
                 &format!(
-                    "INSERT INTO {WAITING_TABLE} (delivery_id, scope, since_ms, ord, due_at, statement) \
-                     VALUES ($1, $2, (extract(epoch FROM clock_timestamp()) * 1000)::bigint, 0, \
-                     clock_timestamp() + make_interval(secs => $4::integer), $3)"
+                    "INSERT INTO {WAITING_TABLE} \
+                     (delivery_id, scope, since_ms, ord, due_at, statement, created_at) \
+                     VALUES ($1, $2, \
+                     COALESCE($4::bigint, (extract(epoch FROM clock_timestamp()) * 1000)::bigint), \
+                     $5::bigint, clock_timestamp(), $3, \
+                     COALESCE(to_timestamp($4::bigint / 1000.0::double precision), clock_timestamp())) \
+                     ON CONFLICT (delivery_id) DO NOTHING RETURNING delivery_id"
                 ),
-                &[&delivery_id, &self.scope(), &statement, &delay_secs],
+                &[&delivery_id, &self.scope(), &statement, &created_ms, &order],
             )
-            .await;
-        match written {
-            Ok(_) => {
-                let msg_id: i64 = tx
-                    .query_one(
-                        "SELECT pgmq.send($1::text, $2::jsonb, $3::integer)",
-                        &[&queue, &reference, &delay_secs],
-                    )
-                    .await
-                    .context("Error queueing a pending statement's reference")?
-                    .get(0);
-                // The row's copy on the queue is that exact message.
-                tx.execute(
-                    &format!("UPDATE {WAITING_TABLE} SET copy_msg_id = $1 WHERE delivery_id = $2"),
-                    &[&msg_id, &delivery_id],
-                )
+            .await
+            .context("Error writing a pending statement")?;
+        if !written.is_empty() {
+            let msg_id: i64 = tx
+                .query_one("SELECT pgmq.send($1::text, $2::jsonb)", &[&queue, &reference])
                 .await
-                .context("Error recording a pending statement's reference")?;
-                tx.commit()
-                    .await
-                    .context("Error committing a pending statement")?;
-            }
-            Err(error)
-                if error.code() == Some(&tokio_postgres::error::SqlState::INSUFFICIENT_PRIVILEGE) =>
-            {
-                // The producer role: through its one allowed function.
-                drop(tx);
-                client
-                    .query_one(
-                        "SELECT step_queue.queue_pending_statement($1, $2, $3, $4)",
-                        &[&delivery_id, &statement, &reference, &delay_secs],
-                    )
-                    .await
-                    .context("Error queueing a pending statement through the producer function")?;
-            }
-            Err(error) => {
-                return Err(anyhow::Error::new(error).context("Error writing a pending statement"))
-            }
+                .context("Error queueing a pending statement's reference")?
+                .get(0);
+            // The row's copy on the queue is that exact message.
+            tx.execute(
+                &format!("UPDATE {WAITING_TABLE} SET copy_msg_id = $1 WHERE delivery_id = $2"),
+                &[&msg_id, &delivery_id],
+            )
+            .await
+            .context("Error recording a pending statement's reference")?;
         }
-        tracing::warn!(
-            origin = self.origin.as_str(),
-            delivery_id = delivery_id.as_str(),
-            "The electoral-log entry is queued unsigned, to be signed and stored later"
-        );
-        Ok(delivery_id)
+        tx.commit()
+            .await
+            .context("Error committing a pending statement")?;
+        Ok(())
     }
 
     /// Reads and checks the pending statement a reference event names (see

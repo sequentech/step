@@ -285,14 +285,20 @@ their signer" log line: it reports the count and the oldest wait, and becomes an
 error after `ELECTORAL_LOG_DEFER_ALERT_SECS`. Do not discard waiting or
 dead-lettered entries to unblock a log unless losing them is intended.
 
-The setup also creates `step_queue.queue_pending_statement`, the one function the
-producer role may call to queue an unsigned electoral-log statement (only a ballot
-publication's failure); it grants that role EXECUTE on it and nothing on the table.
+The producer role (Harvest, and Keycloak, which shares it) cannot queue an unsigned
+electoral-log statement: Harvest's best-effort entries fail and are logged when the
+signer is unavailable, until Harvest has an authenticated identity of its own.
 
 Certificate-authority imports and deletions sign their electoral-log entry with the
-administrator's key and queue it before they commit: if it can't be queued, the
-action fails and nothing is saved. The entry is attested by the board once the
-tenant's log announces that administrator's key.
+administrator's key and write it to `sequent_backend.electoral_log_outbox` in their
+own transaction (a Hasura migration): if it can't be written, the action fails and
+nothing is saved; if the action rolls back, there is no entry. The audit-log outbox's
+beat relays committed entries to the electoral log, announcing the administrator's
+key in the tenant's log first. An entry whose key the tenant's log doesn't announce
+waits (alert class `electoral-log-admin-key-unannounced`) and holds its log's direct
+posts; an operator may cancel it with `cancel_waiting_entry` (naming who and why;
+logged under `electoral-log-entry-cancelled`). An outbox row that keeps failing to be
+relayed is reported under `electoral-log-outbox-stuck`.
 
 Harvest connects as the producer role and posts some entries itself, so the setup
 grants that role `SELECT (scope)` on `step_queue.electoral_log_waiting`: it can tell
