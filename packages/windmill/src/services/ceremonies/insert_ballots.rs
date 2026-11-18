@@ -4,7 +4,7 @@
 // use crate::hasura::trustee::get_trustees_by_name;
 use crate::postgres::election::get_elections;
 use crate::postgres::trustee::get_trustees_by_name;
-use crate::services::cast_votes::{find_area_ballots, CastVote};
+use crate::services::cast_votes::{ciphertext_fingerprint, find_area_ballots, CastVote};
 use crate::services::celery_app::get_worker_threads;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::get_election_event_elections;
@@ -32,9 +32,10 @@ use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
 use serde_json::json;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
+use strand::hash::Hash;
 use strand::signature::StrandSignaturePk;
 use tempfile::NamedTempFile;
 use tokio::task::JoinHandle;
@@ -243,39 +244,23 @@ pub async fn insert_ballots_messages(
                     };
 
                     if !skip_board_posting {
-                        let ciphertexts = ballot_contents
-                            .into_iter()
-                            .map(|ballot_str| {
-                                info!("ballot_str: {ballot_str}");
-                                let ciphertext: Ciphertext<RistrettoCtx> =
-                                    if ContestEncryptionPolicy::MULTIPLE_CONTESTS
-                                        == contest_encryption_policy_clone
-                                    {
-                                        let hashable_multi_ballot: HashableMultiBallot =
-                                            deserialize_str(&ballot_str)?;
-
-                                        let hashable_multi_ballot_contests = hashable_multi_ballot
-                                            .deserialize_contests()
-                                            .map_err(|err| anyhow!("{:?}", err))?;
-                                        Some(hashable_multi_ballot_contests.ciphertext)
-                                    } else {
-                                        let hashable_ballot: HashableBallot =
-                                            deserialize_str(&ballot_str)?;
-                                        let contests = hashable_ballot
-                                            .deserialize_contests()
-                                            .map_err(|err| anyhow!("{:?}", err))?;
-                                        contests
-                                            .iter()
-                                            .find(|contest| {
-                                                contest.contest_id
-                                                    == contest_id.clone().unwrap_or_default()
-                                            })
-                                            .map(|contest| contest.ciphertext.clone())
-                                    }
-                                    .ok_or(anyhow!("Could not get ciphertext"))?;
-                                Ok(ciphertext)
-                            })
-                            .collect::<Result<Vec<_>>>()?;
+                        let ballot_count = ballot_contents.len();
+                        let ciphertexts = contest_ciphertexts(
+                            ballot_contents,
+                            &contest_encryption_policy_clone,
+                            &contest_id.unwrap_or_default(),
+                        )?;
+                        let repeated_ciphertexts = ballot_count - ciphertexts.len();
+                        if repeated_ciphertexts > 0 {
+                            event!(
+                                Level::WARN,
+                                "{repeated_ciphertexts} ballot(s) for election {}, contest {}, area {} \
+                                 repeat a ciphertext of another ballot; each ciphertext is counted once",
+                                tally_session_contest.election_id,
+                                tally_session_contest.contest_id.clone().unwrap_or_default(),
+                                tally_session_contest.area_id,
+                            );
+                        }
 
                         event!(
                             Level::INFO,
@@ -317,6 +302,50 @@ pub async fn insert_ballots_messages(
     Ok(tally_session_contests_updated)
 }
 
+/// Reads the ciphertext each ballot holds for the tallied contest. A ciphertext
+/// held by more than one ballot is kept once, at its first position, so
+/// repeating it does not count it again.
+fn contest_ciphertexts(
+    ballot_contents: Vec<String>,
+    contest_encryption_policy: &ContestEncryptionPolicy,
+    contest_id: &str,
+) -> Result<Vec<Ciphertext<RistrettoCtx>>> {
+    let mut ciphertexts: Vec<Ciphertext<RistrettoCtx>> = Vec::new();
+    let mut seen: HashSet<Hash> = HashSet::new();
+    for ballot_str in ballot_contents {
+        let ciphertext: Ciphertext<RistrettoCtx> =
+            if ContestEncryptionPolicy::MULTIPLE_CONTESTS == *contest_encryption_policy {
+                let hashable_multi_ballot: HashableMultiBallot = deserialize_str(&ballot_str)?;
+
+                let hashable_multi_ballot_contests = hashable_multi_ballot
+                    .deserialize_contests()
+                    .map_err(|err| anyhow!("{:?}", err))?;
+                Some(hashable_multi_ballot_contests.ciphertext)
+            } else {
+                let hashable_ballot: HashableBallot = deserialize_str(&ballot_str)?;
+                let contests = hashable_ballot
+                    .deserialize_contests()
+                    .map_err(|err| anyhow!("{:?}", err))?;
+                contests
+                    .iter()
+                    .find(|contest| contest.contest_id == contest_id)
+                    .map(|contest| contest.ciphertext.clone())
+            }
+            .ok_or_else(|| {
+                anyhow!(
+                    "Could not get the ciphertext of contest {contest_id} from a ballot \
+                     ({contest_encryption_policy:?})"
+                )
+            })?;
+        let fingerprint = ciphertext_fingerprint(&ciphertext)
+            .map_err(|err| anyhow!("Could not fingerprint ciphertext: {err:?}"))?;
+        if seen.insert(fingerprint) {
+            ciphertexts.push(ciphertext);
+        }
+    }
+    Ok(ciphertexts)
+}
+
 #[instrument(skip_all, err)]
 pub async fn get_elections_end_dates(
     hasura_transaction: &Transaction<'_>,
@@ -352,4 +381,85 @@ pub async fn get_elections_end_dates(
         .collect::<Result<HashMap<_, _>>>()
         .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?;
     Ok(elections_dates)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sequent_core::ballot::{HashableBallotContest, TYPES_VERSION};
+    use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
+    use strand::context::Ctx;
+    use strand::elgamal::{PrivateKey, PublicKey};
+
+    const CONTEST_ID: &str = "contest";
+
+    fn encrypted_contest(contest_id: &str) -> HashableBallotContest<RistrettoCtx> {
+        let ctx = RistrettoCtx;
+        let mut rng = ctx.get_rng();
+        let secret_key = PrivateKey::gen(&ctx);
+        let public_key = PublicKey::from_element(secret_key.pk_element(), &ctx);
+        let (ciphertext, proof, _) = public_key
+            .encrypt_and_pok(&ctx.rnd(&mut rng), &DEFAULT_PLAINTEXT_LABEL)
+            .unwrap();
+        HashableBallotContest {
+            contest_id: contest_id.to_string(),
+            ciphertext,
+            proof,
+        }
+    }
+
+    fn ballot(issue_date: &str, contests: Vec<HashableBallotContest<RistrettoCtx>>) -> String {
+        serde_json::to_string(&HashableBallot {
+            version: TYPES_VERSION,
+            issue_date: issue_date.to_string(),
+            contests: HashableBallot::serialize_contests(&contests).unwrap(),
+            config: "style".to_string(),
+            ballot_style_hash: "style-hash".to_string(),
+        })
+        .unwrap()
+    }
+
+    #[test]
+    fn ciphertext_cast_by_several_voters_enters_the_batch_once() {
+        let original = encrypted_contest(CONTEST_ID);
+        let other = encrypted_contest(CONTEST_ID);
+        let ballots = vec![
+            ballot("2026-01-01", vec![original.clone()]),
+            ballot("2026-01-02", vec![original.clone(), encrypted_contest("x")]),
+            ballot("2026-01-03", vec![other.clone()]),
+        ];
+
+        let ciphertexts = contest_ciphertexts(
+            ballots,
+            &ContestEncryptionPolicy::SINGLE_CONTEST,
+            CONTEST_ID,
+        )
+        .unwrap();
+
+        assert_eq!(ciphertexts, vec![original.ciphertext, other.ciphertext]);
+    }
+
+    #[test]
+    fn distinct_ciphertexts_keep_their_order() {
+        let contests: Vec<_> = (0..3).map(|_| encrypted_contest(CONTEST_ID)).collect();
+        let ballots = contests
+            .iter()
+            .map(|contest| ballot("2026-01-01", vec![contest.clone()]))
+            .collect();
+
+        let ciphertexts = contest_ciphertexts(
+            ballots,
+            &ContestEncryptionPolicy::SINGLE_CONTEST,
+            CONTEST_ID,
+        )
+        .unwrap();
+
+        assert_eq!(
+            ciphertexts,
+            contests
+                .into_iter()
+                .map(|contest| contest.ciphertext)
+                .collect::<Vec<_>>()
+        );
+    }
 }
