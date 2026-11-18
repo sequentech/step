@@ -148,7 +148,7 @@ async fn record_certificate_action(
         tenant_id,
         &election_event_id.to_string(),
     );
-    crate::services::electoral_log_outbox::lock_scope(hasura_transaction, &scope, true).await?;
+    crate::services::electoral_log_outbox::lock_scope(&**hasura_transaction, &scope, true).await?;
     let admin_key = crate::services::vault::get_admin_user_signing_key(
         hasura_transaction,
         tenant_id,
