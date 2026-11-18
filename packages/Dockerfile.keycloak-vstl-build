@@ -12,9 +12,14 @@
 # https://www.keycloak.org/server/containers#_installing_additional_rpm_packages
 
 # Start with a Maven base image to compile the 2FA authenticator
-FROM quay.io/keycloak/keycloak:24.0
+FROM quay.io/keycloak/keycloak:24.0.5@sha256:f8ade94c1d0ad2f2fa7734a455fee5392764f402c43ca35e9af6bf63a2541dc9
 COPY --from=keycloak-compile /opt/keycloak/ /opt/keycloak/
 COPY ./keycloak-extensions/quarkus.properties /opt/keycloak/conf/quarkus.properties
 
 ENV KC_DB=postgres
+# Java4Shell (CVE-2026-114938): disable the vulnerable AVX-512 Base64 decode
+# intrinsic until the Keycloak image ships a fixed JDK. kc.sh appends
+# JAVA_OPTS_APPEND after its defaults; arm64 JVMs accept the flag too.
+# https://github.com/sequentech/meta/issues/15038
+ENV JAVA_OPTS_APPEND="-XX:-UseBASE64Intrinsics"
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
