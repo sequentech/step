@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_create_and_set_google_meet_credentials
 title: Create and set google meet credentials
+description: "Create Google Meet credentials and set them in the admin portal, so the platform can make video meeting links."
 ---
 
 <!--
