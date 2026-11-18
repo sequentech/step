@@ -698,4 +698,274 @@ mod db_tests {
             .await
             .unwrap();
     }
+
+    // ---- End to end, with the task-queue database: the relay's crash points.
+    // Needs also PGMQ_TEST_DATABASE_URL (the task-queue test database; the relay
+    // reaches it through QUEUE_DB__URL, set from it) and the vault's settings
+    // (SECRETS_BACKEND=EnvVarMasterSecret, MASTER_SECRET), and a tenant the
+    // action database has (HASURA_TEST_TENANT_ID, by default the bundled one).
+
+    fn tenant() -> String {
+        std::env::var("HASURA_TEST_TENANT_ID")
+            .unwrap_or_else(|_| "90505c8a-23a9-4cdf-a26b-4e19f6a097d5".to_string())
+    }
+
+    async fn queue_database() -> deadpool_postgres::Pool {
+        let url = std::env::var("PGMQ_TEST_DATABASE_URL").expect("PGMQ_TEST_DATABASE_URL");
+        if std::env::var("QUEUE_DB__URL").is_err() {
+            std::env::set_var("QUEUE_DB__URL", &url);
+        }
+        let pool = deadpool_postgres::Config {
+            url: Some(url),
+            ..Default::default()
+        }
+        .create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls)
+        .unwrap();
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        pgmq_broker::setup::setup(
+            &tx,
+            &pgmq_broker::setup::Installation {
+                environment: "pgmq-test",
+                queues: &["electoral_log_event_queue"],
+                roles: None,
+            },
+        )
+        .await
+        .unwrap();
+        tx.commit().await.unwrap();
+        pool
+    }
+
+    /// A system-signed statement of a fresh scope, written to the outbox with
+    /// its MAC as `PendingStatement::queue` writes it.
+    async fn queue_system(pool: &deadpool_postgres::Pool, event: &str) -> (PendingStatement, String) {
+        let statement = PendingStatement::new(
+            &tenant(),
+            event,
+            PendingStatementBody::EnrollmentProblems {
+                problems: "two posts".into(),
+            },
+        );
+        let delivery_id = statement.origin.delivery_id();
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let key = crate::services::vault::get_or_create_pending_mac_key(&tx, &statement.tenant_id)
+            .await
+            .unwrap();
+        let mac = crate::services::electoral_log_pending::pending_mac(&key, &delivery_id, &statement)
+            .unwrap();
+        tx.execute(
+            "INSERT INTO sequent_backend.electoral_log_outbox \
+             (delivery_id, tenant_id, election_event_id, payload, mac) \
+             VALUES ($1, $2::text::uuid, $3::text::uuid, $4, $5)",
+            &[
+                &delivery_id,
+                &statement.tenant_id,
+                &statement.election_event_id,
+                &serde_json::to_value(&statement).unwrap(),
+                &mac,
+            ],
+        )
+        .await
+        .unwrap();
+        tx.commit().await.unwrap();
+        (statement, delivery_id)
+    }
+
+    async fn relay_once(pool: &deadpool_postgres::Pool) -> usize {
+        let mut lock_client = pool.get().await.unwrap();
+        let mut work_client = pool.get().await.unwrap();
+        relay_electoral_log_outbox(&mut lock_client, &mut work_client)
+            .await
+            .unwrap()
+    }
+
+    /// (waiting rows, copies on the event queue, the row's ord) of a delivery.
+    async fn waiting_state(queue: &deadpool_postgres::Pool, delivery_id: &str) -> (i64, i64, Option<i64>) {
+        let client = queue.get().await.unwrap();
+        let rows: i64 = client
+            .query_one(
+                "SELECT count(*) FROM step_queue.electoral_log_waiting WHERE delivery_id = $1",
+                &[&delivery_id],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        let copies: i64 = client
+            .query_one(
+                "SELECT count(*) FROM pgmq.q_electoral_log_event_queue \
+                 WHERE message->'headers'->>'id' = $1",
+                &[&delivery_id],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        let ord: Option<i64> = client
+            .query_opt(
+                "SELECT ord FROM step_queue.electoral_log_waiting WHERE delivery_id = $1",
+                &[&delivery_id],
+            )
+            .await
+            .unwrap()
+            .map(|row| row.get(0));
+        (rows, copies, ord)
+    }
+
+    async fn relayed(pool: &deadpool_postgres::Pool, delivery_id: &str) -> bool {
+        pool.get()
+            .await
+            .unwrap()
+            .query_one(
+                "SELECT relayed_at IS NOT NULL FROM sequent_backend.electoral_log_outbox WHERE delivery_id = $1",
+                &[&delivery_id],
+            )
+            .await
+            .unwrap()
+            .get(0)
+    }
+
+    async fn unmark(pool: &deadpool_postgres::Pool, delivery_id: &str) {
+        pool.get()
+            .await
+            .unwrap()
+            .execute(
+                "UPDATE sequent_backend.electoral_log_outbox SET relayed_at = NULL WHERE delivery_id = $1",
+                &[&delivery_id],
+            )
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HASURA_TEST_DATABASE_URL, PGMQ_TEST_DATABASE_URL and the vault's settings"]
+    async fn the_relay_is_idempotent_across_its_crash_points() {
+        let pool = pool();
+        let queue = queue_database().await;
+        let event = uuid::Uuid::new_v4().to_string();
+        let (_, delivery_id) = queue_system(&pool, &event).await;
+        // Crash before the waiting row: the row is simply relayed later.
+        assert!(!relayed(&pool, &delivery_id).await);
+        relay_once(&pool).await;
+        assert!(relayed(&pool, &delivery_id).await);
+        assert_eq!(waiting_state(&queue, &delivery_id).await.0, 1);
+        let copies = waiting_state(&queue, &delivery_id).await.1;
+        assert_eq!(copies, 1);
+        // Again: nothing more.
+        relay_once(&pool).await;
+        assert_eq!(waiting_state(&queue, &delivery_id).await.1, copies);
+        // Crash between the waiting row and the mark: the next pass adds nothing.
+        unmark(&pool, &delivery_id).await;
+        relay_once(&pool).await;
+        assert!(relayed(&pool, &delivery_id).await);
+        let (rows, again, _) = waiting_state(&queue, &delivery_id).await;
+        assert_eq!((rows, again), (1, copies), "no second row, no second reference");
+        // Crash after the entry was stored and its row removed, before the mark:
+        // it is written again (the board stores nothing twice: see
+        // a_board_stores_a_delivery_once).
+        queue
+            .get()
+            .await
+            .unwrap()
+            .execute(
+                "DELETE FROM step_queue.electoral_log_waiting WHERE delivery_id = $1",
+                &[&delivery_id],
+            )
+            .await
+            .unwrap();
+        unmark(&pool, &delivery_id).await;
+        relay_once(&pool).await;
+        assert_eq!(waiting_state(&queue, &delivery_id).await.0, 1);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+    async fn a_board_stores_a_delivery_once() {
+        use electoral_log::adapters::postgres::PostgresStore;
+        let config = std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")
+            .unwrap()
+            .parse()
+            .unwrap();
+        let store = PostgresStore::new(config).unwrap();
+        store.initialize().await.unwrap();
+        let board = format!("test-relay-{}", uuid::Uuid::new_v4());
+        store.create_board(&board).await.unwrap();
+        let key = SigningKey::generate().unwrap();
+        let bytes = admin_key_announcement(&key, TENANT_FOR_BOARD, "admin-id", None, "QUJD").unwrap();
+        let message = Message::record_deserialize(&bytes).unwrap();
+        let entry = LogEntry {
+            delivery_id: "pending:enrollment-windows:once".to_string(),
+            message: ElectoralLogMessage::try_from(&message).unwrap(),
+        };
+        let client = electoral_log::BoardClient::new(std::sync::Arc::new(store.clone()));
+        let first = client.append(&board, &[entry.clone()]).await.unwrap();
+        let second = client.append(&board, &[entry.clone()]).await.unwrap();
+        assert_eq!(first.len(), 1);
+        assert!(second.is_empty(), "the same delivery is stored once");
+        assert!(store.delivered(&board, &entry.delivery_id).await.unwrap().is_some());
+    }
+
+    const TENANT_FOR_BOARD: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
+
+    #[tokio::test]
+    #[ignore = "requires HASURA_TEST_DATABASE_URL, PGMQ_TEST_DATABASE_URL and the vault's settings"]
+    async fn two_relays_keep_a_scopes_order_and_a_stuck_scope_starves_no_other() {
+        let pool = pool();
+        let queue = queue_database().await;
+        let event = uuid::Uuid::new_v4().to_string();
+        let (_, first) = queue_system(&pool, &event).await;
+        let (_, second) = queue_system(&pool, &event).await;
+        // Another scope whose head can't be relayed (its MAC is wrong).
+        let stuck_event = uuid::Uuid::new_v4().to_string();
+        let (_, stuck) = queue_system(&pool, &stuck_event).await;
+        pool.get()
+            .await
+            .unwrap()
+            .execute(
+                "UPDATE sequent_backend.electoral_log_outbox SET mac = '\\x00' WHERE delivery_id = $1",
+                &[&stuck],
+            )
+            .await
+            .unwrap();
+        // Two relays at once: one runs, the other returns.
+        let (a, b) = tokio::join!(relay_once(&pool), relay_once(&pool));
+        let _ = (a, b);
+        relay_once(&pool).await;
+        let (_, _, first_ord) = waiting_state(&queue, &first).await;
+        let (_, _, second_ord) = waiting_state(&queue, &second).await;
+        assert!(first_ord.unwrap() < second_ord.unwrap(), "seq order kept");
+        // The stuck scope holds only itself.
+        assert!(!relayed(&pool, &stuck).await);
+        let attempts: i32 = pool
+            .get()
+            .await
+            .unwrap()
+            .query_one(
+                "SELECT attempts FROM sequent_backend.electoral_log_outbox WHERE delivery_id = $1",
+                &[&stuck],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        assert!(attempts >= 1);
+        assert_eq!(waiting_state(&queue, &stuck).await.0, 0, "a bad MAC is never relayed");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HASURA_TEST_DATABASE_URL and the vault's settings"]
+    async fn two_creators_make_one_mac_key() {
+        async fn create(pool: &deadpool_postgres::Pool, tenant: &str) -> [u8; 32] {
+            let mut client = pool.get().await.unwrap();
+            let tx = client.transaction().await.unwrap();
+            let key = crate::services::vault::get_or_create_pending_mac_key(&tx, tenant)
+                .await
+                .unwrap();
+            tx.commit().await.unwrap();
+            key
+        }
+        let pool = pool();
+        let tenant = tenant();
+        let (a, b) = tokio::join!(create(&pool, &tenant), create(&pool, &tenant));
+        assert_eq!(a, b, "one key");
+    }
 }

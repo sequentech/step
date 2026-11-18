@@ -730,6 +730,15 @@ trait BatchLookups {
     /// The tenant's pending-statement MAC key, if it has one (vault).
     async fn pending_mac_key(&mut self, tenant_id: &str) -> anyhow::Result<Option<[u8; 32]>>;
 
+    /// Whether the election event's board already holds a record under this
+    /// delivery ID.
+    async fn is_stored(
+        &mut self,
+        election_event_id: &str,
+        board: &str,
+        delivery_id: &str,
+    ) -> anyhow::Result<bool>;
+
     /// Whether the tenant's log announces `public_key` (base64) as the signing
     /// key of administrator `user_id`: an `AdminPublicKey` entry for them,
     /// signed by the tenant log's system key.
@@ -829,6 +838,21 @@ impl BatchLookups for DbLookups<'_, '_> {
 
     async fn pending_mac_key(&mut self, tenant_id: &str) -> anyhow::Result<Option<[u8; 32]>> {
         crate::services::vault::pending_mac_key(self.hasura, tenant_id).await
+    }
+
+    async fn is_stored(
+        &mut self,
+        election_event_id: &str,
+        board: &str,
+        delivery_id: &str,
+    ) -> anyhow::Result<bool> {
+        Ok(
+            crate::services::electoral_log_board::get_event_store(election_event_id)
+                .await?
+                .delivered(board, delivery_id)
+                .await?
+                .is_some(),
+        )
     }
 
     async fn admin_key_announced(
@@ -1067,6 +1091,19 @@ async fn build_event<L: BatchLookups + Send>(
             // table. Checked before anything is signed; one that fails is poison
             // (dead-lettered, never signed).
             let stored = lookups.pending_statement(delivery_id).await.map_err(Transient)?;
+            // No row: if the board already holds this delivery, it was stored
+            // (and its row removed) by an earlier run: settled, not poison.
+            if stored.is_none()
+                && lookups
+                    .is_stored(&input.election_event_id, &board, delivery_id)
+                    .await
+                    .map_err(Transient)?
+            {
+                return Ok(BuiltEvent {
+                    entries: vec![],
+                    login_attempt: None,
+                });
+            }
             // A refused statement's content goes with its dead letter (its row is
             // removed then), for an operator to see and, if right, queue again.
             let statement_text = stored
@@ -2009,6 +2046,8 @@ mod batch_build_tests {
         pending: HashMap<String, StoredPending>,
         /// Administrator keys the tenant log announces: (user ID, key).
         announced: HashSet<(String, String)>,
+        /// Delivery IDs the boards already hold.
+        stored_deliveries: HashSet<String>,
         board_calls: usize,
         signer_calls: usize,
         tenant_log_calls: usize,
@@ -2026,6 +2065,7 @@ mod batch_build_tests {
                 sign_calls: Arc::new(AtomicUsize::new(0)),
                 pending: HashMap::new(),
                 announced: HashSet::new(),
+                stored_deliveries: HashSet::new(),
                 board_calls: 0,
                 signer_calls: 0,
                 tenant_log_calls: 0,
@@ -2121,6 +2161,15 @@ mod batch_build_tests {
 
         async fn pending_mac_key(&mut self, _tenant_id: &str) -> anyhow::Result<Option<[u8; 32]>> {
             Ok(Some(TEST_MAC_KEY))
+        }
+
+        async fn is_stored(
+            &mut self,
+            _election_event_id: &str,
+            _board: &str,
+            delivery_id: &str,
+        ) -> anyhow::Result<bool> {
+            Ok(self.stored_deliveries.contains(delivery_id))
         }
 
         async fn admin_key_announced(
@@ -2901,6 +2950,78 @@ mod batch_build_tests {
     }
 
     #[tokio::test]
+    async fn a_reference_with_no_row_is_settled_if_stored_and_poison_otherwise() {
+        use crate::services::electoral_log_pending::{
+            PendingOrigin, PendingStatement, PendingStatementBody,
+        };
+        let statement = PendingStatement::new(
+            TENANT,
+            EVENT,
+            PendingStatementBody::EnrollmentProblems {
+                problems: "x".into(),
+            },
+        );
+        let stored_id = PendingOrigin::EnrollmentWindows.delivery_id();
+        let forged_id = PendingOrigin::EnrollmentWindows.delivery_id();
+        let mut lookups = FakeLookups::new();
+        // An earlier run stored it and removed its row; this is a retry.
+        lookups.stored_deliveries.insert(stored_id.clone());
+        let events = vec![
+            statement.reference_event(&stored_id).unwrap(),
+            statement.reference_event(&forged_id).unwrap(),
+        ];
+        let built = build_batch(&mut lookups, &events).await.unwrap();
+        assert_eq!(built.settled, vec![stored_id]);
+        assert_eq!(dead_letter_ids(&built), vec![Some(forged_id.as_str())]);
+        assert!(built.by_board.is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_refused_ballots_audit_queued_in_an_outage_is_stored_with_its_own_time() {
+        // As Harvest (or Windmill) queues it while the board's signer is
+        // unavailable: the record, stored after recovery, says when the ballot
+        // was refused, not when it was finally signed.
+        use crate::services::electoral_log_pending::{PendingStatement, PendingStatementBody};
+        use electoral_log::messages::newtypes::PseudonymHash;
+        let mut lookups = FakeLookups::new();
+        let mut durable = Durable::default();
+        lookups
+            .failing_signers
+            .insert(DOWN_SIGNER_EVENT, SignerOutage::Unavailable);
+        let mut refusal = PendingStatement::new(
+            TENANT,
+            DOWN_SIGNER_EVENT,
+            PendingStatementBody::CastVoteError {
+                election_id: Some("election".into()),
+                pseudonym: PseudonymHash(voting_crypto::hash::HashWrapper::new(
+                    crate::services::insert_cast_vote::hash_voter_id("voter").unwrap(),
+                )),
+                error: "Ballot acceptance refused".into(),
+                voter_id: "voter".into(),
+                area_id: "area".into(),
+            },
+        );
+        let refused_at = electoral_log::timestamp() - 120;
+        refusal.occurred_at = refused_at;
+        let event = durable.queue_pending(&mut lookups, &refusal);
+        let delivery_id = event.delivery_id.clone().unwrap();
+        durable.round(&mut lookups, vec![event]).await;
+        for _ in 0..5 {
+            durable.round(&mut lookups, vec![]).await;
+        }
+        assert!(durable.board(DOWN_SIGNER_EVENT).is_empty(), "nothing stored during the outage");
+        lookups.failing_signers.remove(DOWN_SIGNER_EVENT);
+        durable.round(&mut lookups, vec![]).await;
+        assert_eq!(durable.board(DOWN_SIGNER_EVENT), vec![delivery_id.as_str()]);
+        let stored = Message::record_deserialize(&durable.messages[&delivery_id].message).unwrap();
+        assert_eq!(stored.statement.head.timestamp, refused_at);
+        assert!(matches!(stored.statement.body, StatementBody::CastVoteError(..)));
+        stored
+            .verify(&VerificationKey::from_sk(&lookups.signing_key).unwrap())
+            .unwrap();
+    }
+
+    #[tokio::test]
     async fn a_busy_log_drains_in_order_right_after_its_head_is_stored() {
         // A real clock: one round a second, a new event of the same log each
         // second, during a two-minute outage and after it.
@@ -3072,6 +3193,8 @@ mod batch_build_tests {
         step_ms: Option<i64>,
         /// The waiting table: by delivery ID, the scope, the wait key and when due.
         rows: HashMap<String, (String, WaitKey, i64)>,
+        /// The stored records, by delivery ID.
+        messages: HashMap<String, ElectoralLogMessage>,
     }
 
     impl Durable {
@@ -3167,7 +3290,8 @@ mod batch_build_tests {
                 let stored = self.boards.entry(board).or_default();
                 for entry in entries {
                     if !stored.contains(&entry.delivery_id) {
-                        stored.push(entry.delivery_id);
+                        stored.push(entry.delivery_id.clone());
+                        self.messages.insert(entry.delivery_id, entry.message);
                     }
                 }
             }
