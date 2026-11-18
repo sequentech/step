@@ -74,6 +74,9 @@ enum Identity {
     Voter,
     /// A voter whose event id is a UUID, as the privacy routes require.
     PrivacyVoter,
+    /// A voter whose event and election ids are version 4 UUIDs, as the
+    /// receipt route requires.
+    V4Voter,
 }
 
 impl Identity {
@@ -97,6 +100,11 @@ impl Identity {
                     EVENT_ID
                 })
                 .authorized_elections(&[ELECTION_ID]),
+            Self::V4Voter => claims
+                .azp(VOTING_PORTAL_CLIENT)
+                .area(AREA_ID)
+                .election_event(V4_EVENT_ID)
+                .authorized_elections(&[V4_ELECTION_ID]),
             _ => claims,
         }
     }
@@ -211,7 +219,7 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/configure-results-website-policy", {"election_event_id": EVENT_ID, "status": "enabled", "access": "public", "visibility_scope": "full_event"}, [PUBLISH_RESULTS_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/count-users", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/count-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [VOTER_READ], BACKEND_TEXT, UNAUTHORIZED),
-        case!(Voter, "/create-ballot-receipt", {"ballot_id": "test-ballot", "ballot_tracker_url": "https://tracker.invalid/test", "election_event_id": EVENT_ID, "election_id": ELECTION_ID}, [CAST_VOTE], BACKEND, UNAUTHORIZED),
+        case!(V4Voter, "/create-ballot-receipt", {"ballot_id": "test-ballot", "ballot_tracker_url": "https://tracker.invalid/test", "election_event_id": V4_EVENT_ID, "election_id": V4_ELECTION_ID}, [CAST_VOTE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/create-election", {"election_event_id": V4_EVENT_ID, "external_id": "test-election", "presentation": {}}, [ELECTION_EVENT_WRITE], BACKEND, UNAUTHORIZED),
         // The election event id is checked before any backend.
         case!(Admin, "/create-election", {"election_event_id": EVENT_ID, "external_id": "test-election", "presentation": {}}, [ELECTION_EVENT_WRITE], BAD_REQUEST, UNAUTHORIZED),
