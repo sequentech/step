@@ -8,8 +8,8 @@ use crate::services::{
 use crate::types::keycloak::{Role, TENANT_ID_ATTR_NAME};
 use anyhow::{anyhow, Context, Result};
 use keycloak::types::{
-    AuthenticationExecutionInfoRepresentation, GroupRepresentation,
-    RealmRepresentation, RoleRepresentation,
+    AuthenticationExecutionInfoRepresentation, ClientRepresentation,
+    GroupRepresentation, RealmRepresentation, RoleRepresentation,
 };
 use keycloak::{
     KeycloakAdmin, KeycloakAdminToken, KeycloakError, KeycloakTokenSupplier,
@@ -30,7 +30,17 @@ const VOTING_PORTAL_CLIENT_ID: &str = "voting-portal";
 const KIOSK_VOTING_PORTAL_CLIENT_ID: &str = "voting-portal-kiosk";
 const ONSITE_VOTING_PORTAL_CLIENT_ID: &str = "onsite-voting-portal";
 const RESULTS_PORTAL_CLIENT_ID: &str = "results-portal";
+const ADMIN_PORTAL_CLIENT_ID: &str = "admin-portal";
+const CLI_ACCOUNT_ADMIN_CLIENT_ID: &str = "cli-account-admin";
+const ACCOUNT_CONSOLE_CLIENT_ID: &str = "account-console";
 const CONDITIONAL_CLIENT_ID: &str = "conditional-client";
+const ADMIN_PORTAL_URL_ENV_VAR: &str = "ADMIN_PORTAL_URL";
+const PKCE_CODE_CHALLENGE_METHOD_ATTR: &str = "pkce.code.challenge.method";
+const PKCE_S256_METHOD: &str = "S256";
+const POST_LOGOUT_REDIRECT_URIS_ATTR: &str = "post.logout.redirect.uris";
+const REQUEST_URIS_ATTR: &str = "request.uris";
+const SAME_AS_REDIRECT_URIS: &str = "+";
+const AUTH_BASE_URL: &str = "${authBaseUrl}";
 
 fn kiosk_voting_portal_url(
     voting_portal_url: &str,
@@ -53,6 +63,233 @@ fn voting_portal_redirect_uris(ballot_verifier_url: &str) -> Vec<String> {
 
 fn results_portal_redirect_uris(results_portal_url: &str) -> Vec<String> {
     vec![format!("{}/*", results_portal_url.trim_end_matches('/'))]
+}
+
+fn admin_portal_redirect_uris(admin_portal_url: &str) -> Vec<String> {
+    vec![format!("{}/*", admin_portal_url.trim_end_matches('/'))]
+}
+
+fn account_console_redirect_uris(realm_name: &str) -> Vec<String> {
+    vec![format!("/realms/{realm_name}/account/*")]
+}
+
+/// Returns the configured admin portal URL for a tenant realm, where it is
+/// required, and `None` for any other realm.
+fn admin_portal_url_for_realm(
+    realm_name: &str,
+    configured_url: Option<String>,
+) -> Result<Option<String>> {
+    let Some((_, None)) = parse_realm(realm_name) else {
+        return Ok(None);
+    };
+    configured_url
+        .as_deref()
+        .map(str::trim)
+        .filter(|url| !url.is_empty())
+        .map(|url| Some(url.to_string()))
+        .ok_or_else(|| {
+            anyhow!("Error fetching {ADMIN_PORTAL_URL_ENV_VAR} env var")
+        })
+}
+
+fn set_client_attributes(
+    client: &mut ClientRepresentation,
+    attributes_to_set: &[(&str, &str)],
+    attributes_to_remove: &[&str],
+) {
+    let attributes = client.attributes.get_or_insert_with(HashMap::new);
+    for (name, value) in attributes_to_set {
+        attributes.insert(name.to_string(), value.to_string());
+    }
+    for name in attributes_to_remove {
+        attributes.remove(*name);
+    }
+}
+
+/// Protocol mapper setting the Hasura role of requests that name none.
+const HASURA_DEFAULT_ROLE_MAPPER: &str = "x-hasura-default-role";
+
+/// Public clients that browsers log in to. A public client cannot keep a
+/// secret, so it may only use the authorization code flow with PKCE: the
+/// password (direct access) grant would skip the browser flow's OTP step, and
+/// the implicit flow hands tokens out in the URL.
+const PUBLIC_BROWSER_CLIENT_IDS: [&str; 5] = [
+    VOTING_PORTAL_CLIENT_ID,
+    ONSITE_VOTING_PORTAL_CLIENT_ID,
+    KIOSK_VOTING_PORTAL_CLIENT_ID,
+    RESULTS_PORTAL_CLIENT_ID,
+    ADMIN_PORTAL_CLIENT_ID,
+];
+
+/// Voter clients whose Finish button logs out to the event's finish URL
+/// (`redirect_finish_url`, `kiosk_redirect_finish_url`), which can be outside
+/// their redirect URIs. Their post-logout redirect URIs are left as they are.
+const FINISH_URL_CLIENT_IDS: [&str; 3] = [
+    VOTING_PORTAL_CLIENT_ID,
+    ONSITE_VOTING_PORTAL_CLIENT_ID,
+    KIOSK_VOTING_PORTAL_CLIENT_ID,
+];
+
+/// Restricts a public browser client to the code flow with PKCE S256 and its
+/// CORS origins to its own redirect URIs, and drops its request URIs. Its
+/// post-logout redirects are limited to its redirect URIs too, unless it logs
+/// out to a finish URL.
+fn harden_public_browser_client(client: &mut ClientRepresentation) {
+    client.direct_access_grants_enabled = Some(false);
+    client.implicit_flow_enabled = Some(false);
+    client.web_origins = Some(vec![SAME_AS_REDIRECT_URIS.into()]);
+    set_client_attributes(
+        client,
+        &[(PKCE_CODE_CHALLENGE_METHOD_ATTR, PKCE_S256_METHOD)],
+        &[REQUEST_URIS_ATTR],
+    );
+    let logs_out_to_finish_url = client
+        .client_id
+        .as_deref()
+        .is_some_and(|id| FINISH_URL_CLIENT_IDS.contains(&id));
+    if !logs_out_to_finish_url {
+        set_client_attributes(
+            client,
+            &[(POST_LOGOUT_REDIRECT_URIS_ATTR, SAME_AS_REDIRECT_URIS)],
+            &[],
+        );
+    }
+}
+
+/// `cli-account-admin` is for scripts and the CLI, which log in with a
+/// password. It becomes a confidential client: the password grant then also
+/// needs its secret, and it no longer takes browser logins.
+fn make_cli_client_confidential(client: &mut ClientRepresentation) {
+    client.public_client = Some(false);
+    client.client_authenticator_type = Some("client-secret".to_string());
+    if client.secret.as_deref().map_or(true, str::is_empty) {
+        client.secret = Some(generate_client_secret());
+    }
+    client.direct_access_grants_enabled = Some(true);
+    client.standard_flow_enabled = Some(false);
+    client.implicit_flow_enabled = Some(false);
+    client.redirect_uris = Some(vec![]);
+    client.web_origins = Some(vec![]);
+    set_client_attributes(client, &[], &[REQUEST_URIS_ATTR]);
+}
+
+/// Adds to `cli` the protocol mappers of `admin_portal` it lacks, so a CLI
+/// token carries the same Hasura claims as an admin portal one. The default
+/// role is overwritten too: requests that name no role run as it, and Hasura
+/// grants nothing to the client's own `cli-account-admin`.
+fn copy_admin_portal_mappers(
+    cli: &mut ClientRepresentation,
+    admin_portal: &ClientRepresentation,
+) {
+    let mappers = cli.protocol_mappers.get_or_insert_with(Vec::new);
+    for mapper in admin_portal.protocol_mappers.iter().flatten() {
+        match mappers
+            .iter_mut()
+            .find(|existing| existing.name == mapper.name)
+        {
+            Some(existing)
+                if mapper.name.as_deref()
+                    == Some(HASURA_DEFAULT_ROLE_MAPPER) =>
+            {
+                existing.config = mapper.config.clone();
+            }
+            Some(_) => {}
+            None => {
+                let mut mapper = mapper.clone();
+                mapper.id = None;
+                mappers.push(mapper);
+            }
+        }
+    }
+}
+
+/// Hardens the public browser clients of any realm, limits the account
+/// console to the realm's account pages and makes `cli-account-admin`
+/// confidential. The tenant realm redirect URIs are set by
+/// [`scope_tenant_realm_clients`].
+fn harden_realm_clients(clients: &mut [ClientRepresentation], realm: &str) {
+    let admin_portal = clients
+        .iter()
+        .find(|client| {
+            client.client_id.as_deref() == Some(ADMIN_PORTAL_CLIENT_ID)
+        })
+        .cloned();
+    for client in clients {
+        let Some(client_id) = client.client_id.clone() else {
+            continue;
+        };
+        match client_id.as_str() {
+            ACCOUNT_CONSOLE_CLIENT_ID => {
+                client.redirect_uris =
+                    Some(account_console_redirect_uris(realm));
+                harden_public_browser_client(client);
+            }
+            CLI_ACCOUNT_ADMIN_CLIENT_ID => {
+                make_cli_client_confidential(client);
+                if let Some(admin_portal) = admin_portal.as_ref() {
+                    copy_admin_portal_mappers(client, admin_portal);
+                }
+            }
+            id if PUBLIC_BROWSER_CLIENT_IDS.contains(&id) => {
+                harden_public_browser_client(client)
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Limits the browser redirects of the tenant realm clients that issue tokens
+/// for the user: `admin-portal` to the admin portal, `account-console` to the
+/// realm's account console, and `cli-account-admin`, which is only used for
+/// direct access grants, to none.
+fn scope_tenant_realm_clients(
+    clients: &mut [ClientRepresentation],
+    realm_name: &str,
+    admin_portal_url: &str,
+) {
+    for client in clients {
+        match client.client_id.as_deref() {
+            Some(ADMIN_PORTAL_CLIENT_ID) => {
+                client.root_url = Some(admin_portal_url.to_string());
+                client.base_url = Some(admin_portal_url.to_string());
+                client.redirect_uris =
+                    Some(admin_portal_redirect_uris(admin_portal_url));
+                client.web_origins = Some(vec![SAME_AS_REDIRECT_URIS.into()]);
+                set_client_attributes(
+                    client,
+                    &[
+                        (PKCE_CODE_CHALLENGE_METHOD_ATTR, PKCE_S256_METHOD),
+                        (POST_LOGOUT_REDIRECT_URIS_ATTR, SAME_AS_REDIRECT_URIS),
+                    ],
+                    &[REQUEST_URIS_ATTR],
+                );
+            }
+            Some(ACCOUNT_CONSOLE_CLIENT_ID) => {
+                client.root_url = Some(AUTH_BASE_URL.to_string());
+                client.redirect_uris =
+                    Some(account_console_redirect_uris(realm_name));
+                client.web_origins = Some(vec![SAME_AS_REDIRECT_URIS.into()]);
+                set_client_attributes(
+                    client,
+                    &[
+                        (PKCE_CODE_CHALLENGE_METHOD_ATTR, PKCE_S256_METHOD),
+                        (POST_LOGOUT_REDIRECT_URIS_ATTR, SAME_AS_REDIRECT_URIS),
+                    ],
+                    &[REQUEST_URIS_ATTR],
+                );
+            }
+            Some(CLI_ACCOUNT_ADMIN_CLIENT_ID) => {
+                client.redirect_uris = Some(vec![]);
+                client.web_origins = Some(vec![]);
+                set_client_attributes(
+                    client,
+                    &[(POST_LOGOUT_REDIRECT_URIS_ATTR, SAME_AS_REDIRECT_URIS)],
+                    &[REQUEST_URIS_ATTR],
+                );
+            }
+            _ => {}
+        }
+    }
 }
 
 fn include_results_portal_in_client_condition(value: &str) -> String {
@@ -684,6 +921,10 @@ impl KeycloakAdminClient {
         let ballot_verifier_url = env::var("BALLOT_VERIFIER_URL")
             .with_context(|| "Error fetching BALLOT_VERIFIER_URL env var")?;
         let results_portal_url = env::var("RESULTS_PORTAL_URL").ok();
+        let admin_portal_url = admin_portal_url_for_realm(
+            board_name,
+            env::var(ADMIN_PORTAL_URL_ENV_VAR).ok(),
+        )?;
 
         let mut clients = realm.clients.take().unwrap_or_default();
         let voting_portal_template = clients
@@ -727,6 +968,13 @@ impl KeycloakAdminClient {
                 }
                 _ => {}
             }
+        }
+        if let Some(admin_portal_url) = admin_portal_url.as_deref() {
+            scope_tenant_realm_clients(
+                &mut clients,
+                board_name,
+                admin_portal_url,
+            );
         }
 
         if let Some(results_portal_url) = results_portal_url {
@@ -772,6 +1020,7 @@ impl KeycloakAdminClient {
                 }
             }
         }
+        harden_realm_clients(&mut clients, board_name);
         realm.clients = Some(clients);
 
         // set tenant id attribute on all users
@@ -814,9 +1063,271 @@ impl KeycloakAdminClient {
 #[cfg(test)]
 mod tests {
     use super::{
-        include_results_portal_in_client_condition, kiosk_voting_portal_url,
-        results_portal_redirect_uris, voting_portal_redirect_uris,
+        admin_portal_redirect_uris, admin_portal_url_for_realm,
+        harden_realm_clients, include_results_portal_in_client_condition,
+        kiosk_voting_portal_url, results_portal_redirect_uris,
+        scope_tenant_realm_clients, voting_portal_redirect_uris,
+        ACCOUNT_CONSOLE_CLIENT_ID, ADMIN_PORTAL_CLIENT_ID, AUTH_BASE_URL,
+        CLI_ACCOUNT_ADMIN_CLIENT_ID, HASURA_DEFAULT_ROLE_MAPPER,
+        PKCE_CODE_CHALLENGE_METHOD_ATTR, PKCE_S256_METHOD,
+        POST_LOGOUT_REDIRECT_URIS_ATTR, PUBLIC_BROWSER_CLIENT_IDS,
+        REQUEST_URIS_ATTR, SAME_AS_REDIRECT_URIS,
     };
+    use crate::serialization::deserialize_with_path::deserialize_str;
+    use keycloak::types::{ClientRepresentation, RealmRepresentation};
+    use std::collections::HashMap;
+
+    const TENANT_REALM_TEMPLATE: &str = include_str!(
+        "../../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json"
+    );
+    const EVENT_REALM_TEMPLATE: &str = include_str!(
+        "../../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json"
+    );
+    const TENANT_REALM: &str = "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
+    const EVENT_REALM: &str = "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559";
+    const ADMIN_PORTAL_URL: &str = "https://admin.example.test";
+    const ANY_URI: &str = "*";
+
+    fn find_client<'a>(
+        clients: &'a [ClientRepresentation],
+        client_id: &str,
+    ) -> &'a ClientRepresentation {
+        clients
+            .iter()
+            .find(|client| client.client_id.as_deref() == Some(client_id))
+            .unwrap_or_else(|| panic!("missing client {client_id}"))
+    }
+
+    fn client_accepting_any_uri(client_id: &str) -> ClientRepresentation {
+        ClientRepresentation {
+            client_id: Some(client_id.to_string()),
+            root_url: Some("http://127.0.0.1:3002/".to_string()),
+            base_url: Some("http://127.0.0.1:3002/".to_string()),
+            redirect_uris: Some(vec![ANY_URI.to_string()]),
+            web_origins: Some(vec![ANY_URI.to_string()]),
+            attributes: Some(HashMap::from([
+                (
+                    POST_LOGOUT_REDIRECT_URIS_ATTR.to_string(),
+                    ANY_URI.to_string(),
+                ),
+                (REQUEST_URIS_ATTR.to_string(), ANY_URI.to_string()),
+            ])),
+            ..Default::default()
+        }
+    }
+
+    fn attribute<'a>(
+        client: &'a ClientRepresentation,
+        name: &str,
+    ) -> Option<&'a str> {
+        client
+            .attributes
+            .as_ref()
+            .and_then(|attributes| attributes.get(name))
+            .map(String::as_str)
+    }
+
+    #[test]
+    fn admin_portal_redirect_uris_are_scoped_to_admin_portal() {
+        assert_eq!(
+            admin_portal_redirect_uris("https://admin.example.test/"),
+            vec!["https://admin.example.test/*"]
+        );
+    }
+
+    #[test]
+    fn admin_portal_url_is_required_for_tenant_realms() {
+        assert!(admin_portal_url_for_realm(TENANT_REALM, None).is_err());
+        assert!(admin_portal_url_for_realm(
+            TENANT_REALM,
+            Some("  ".to_string())
+        )
+        .is_err());
+        assert_eq!(
+            admin_portal_url_for_realm(
+                TENANT_REALM,
+                Some(format!(" {ADMIN_PORTAL_URL} "))
+            )
+            .ok(),
+            Some(Some(ADMIN_PORTAL_URL.to_string()))
+        );
+    }
+
+    #[test]
+    fn admin_portal_url_is_not_used_for_event_realms() {
+        assert_eq!(
+            admin_portal_url_for_realm(EVENT_REALM, None).ok(),
+            Some(None)
+        );
+    }
+
+    #[test]
+    fn tenant_realm_admin_portal_client_is_scoped_to_admin_portal_url() {
+        let mut clients =
+            vec![client_accepting_any_uri(ADMIN_PORTAL_CLIENT_ID)];
+        scope_tenant_realm_clients(
+            &mut clients,
+            TENANT_REALM,
+            ADMIN_PORTAL_URL,
+        );
+        let admin_portal = find_client(&clients, ADMIN_PORTAL_CLIENT_ID);
+
+        assert_eq!(admin_portal.root_url.as_deref(), Some(ADMIN_PORTAL_URL));
+        assert_eq!(admin_portal.base_url.as_deref(), Some(ADMIN_PORTAL_URL));
+        assert_eq!(
+            admin_portal.redirect_uris,
+            Some(vec![format!("{ADMIN_PORTAL_URL}/*")])
+        );
+        assert_eq!(
+            admin_portal.web_origins,
+            Some(vec![SAME_AS_REDIRECT_URIS.to_string()])
+        );
+        assert_eq!(
+            attribute(admin_portal, PKCE_CODE_CHALLENGE_METHOD_ATTR),
+            Some(PKCE_S256_METHOD)
+        );
+        assert_eq!(
+            attribute(admin_portal, POST_LOGOUT_REDIRECT_URIS_ATTR),
+            Some(SAME_AS_REDIRECT_URIS)
+        );
+        assert_eq!(attribute(admin_portal, REQUEST_URIS_ATTR), None);
+    }
+
+    #[test]
+    fn tenant_realm_cli_client_accepts_no_browser_redirects() {
+        let mut clients =
+            vec![client_accepting_any_uri(CLI_ACCOUNT_ADMIN_CLIENT_ID)];
+        scope_tenant_realm_clients(
+            &mut clients,
+            TENANT_REALM,
+            ADMIN_PORTAL_URL,
+        );
+        let cli_client = find_client(&clients, CLI_ACCOUNT_ADMIN_CLIENT_ID);
+
+        assert_eq!(cli_client.redirect_uris, Some(vec![]));
+        assert_eq!(cli_client.web_origins, Some(vec![]));
+        assert_eq!(
+            attribute(cli_client, POST_LOGOUT_REDIRECT_URIS_ATTR),
+            Some(SAME_AS_REDIRECT_URIS)
+        );
+        assert_eq!(attribute(cli_client, REQUEST_URIS_ATTR), None);
+    }
+
+    #[test]
+    fn tenant_realm_account_console_is_scoped_to_the_realm_account_console() {
+        let mut clients =
+            vec![client_accepting_any_uri(ACCOUNT_CONSOLE_CLIENT_ID)];
+        scope_tenant_realm_clients(
+            &mut clients,
+            TENANT_REALM,
+            ADMIN_PORTAL_URL,
+        );
+        let account_console = find_client(&clients, ACCOUNT_CONSOLE_CLIENT_ID);
+
+        assert_eq!(account_console.root_url.as_deref(), Some(AUTH_BASE_URL));
+        assert_eq!(
+            account_console.redirect_uris,
+            Some(vec![format!("/realms/{TENANT_REALM}/account/*")])
+        );
+        assert_eq!(
+            account_console.web_origins,
+            Some(vec![SAME_AS_REDIRECT_URIS.to_string()])
+        );
+        assert_eq!(
+            attribute(account_console, PKCE_CODE_CHALLENGE_METHOD_ATTR),
+            Some(PKCE_S256_METHOD)
+        );
+        assert_eq!(
+            attribute(account_console, POST_LOGOUT_REDIRECT_URIS_ATTR),
+            Some(SAME_AS_REDIRECT_URIS)
+        );
+        assert_eq!(attribute(account_console, REQUEST_URIS_ATTR), None);
+    }
+
+    #[test]
+    fn tenant_realm_scoping_leaves_other_clients_unchanged() {
+        let other_client = client_accepting_any_uri("api-key-client");
+        let mut clients = vec![other_client.clone()];
+        scope_tenant_realm_clients(
+            &mut clients,
+            TENANT_REALM,
+            ADMIN_PORTAL_URL,
+        );
+
+        assert_eq!(clients, vec![other_client]);
+    }
+
+    #[test]
+    fn tenant_realm_template_clients_list_explicit_redirect_uris() {
+        let realm: RealmRepresentation =
+            deserialize_str(TENANT_REALM_TEMPLATE).expect("tenant template");
+        let clients = realm.clients.unwrap_or_default();
+
+        for client in &clients {
+            let client_id = client.client_id.as_deref().unwrap_or_default();
+            for uris in [&client.redirect_uris, &client.web_origins] {
+                assert!(
+                    !uris.iter().flatten().any(|uri| uri == ANY_URI),
+                    "{client_id} lists {uris:?}"
+                );
+            }
+            assert_ne!(
+                attribute(client, POST_LOGOUT_REDIRECT_URIS_ATTR),
+                Some(ANY_URI),
+                "{client_id} post logout redirect URIs"
+            );
+            assert_eq!(
+                attribute(client, REQUEST_URIS_ATTR),
+                None,
+                "{client_id} request URIs"
+            );
+        }
+        for client_id in [ADMIN_PORTAL_CLIENT_ID, ACCOUNT_CONSOLE_CLIENT_ID] {
+            assert_eq!(
+                attribute(
+                    find_client(&clients, client_id),
+                    PKCE_CODE_CHALLENGE_METHOD_ATTR
+                ),
+                Some(PKCE_S256_METHOD),
+                "{client_id} PKCE method"
+            );
+        }
+    }
+
+    /// The development templates must already be what `upsert_realm` makes
+    /// of them: a template change that undoes the hardening fails here.
+    #[test]
+    fn development_realm_templates_are_already_hardened() {
+        for (template, realm_name) in [
+            (TENANT_REALM_TEMPLATE, TENANT_REALM),
+            (EVENT_REALM_TEMPLATE, EVENT_REALM),
+        ] {
+            let realm: RealmRepresentation =
+                deserialize_str(template).expect("realm template");
+            let clients = realm.clients.unwrap_or_default();
+            for client in &clients {
+                let client_id = client.client_id.as_deref().unwrap_or_default();
+                if PUBLIC_BROWSER_CLIENT_IDS.contains(&client_id) {
+                    assert_eq!(
+                        client.public_client,
+                        Some(true),
+                        "{realm_name}: {client_id} public"
+                    );
+                    assert_eq!(
+                        client.standard_flow_enabled,
+                        Some(true),
+                        "{realm_name}: {client_id} code flow"
+                    );
+                }
+            }
+            let mut hardened = clients.clone();
+            harden_realm_clients(&mut hardened, realm_name);
+            assert!(
+                hardened == clients,
+                "{realm_name}: upsert_realm would change the template's clients"
+            );
+        }
+    }
 
     #[test]
     fn voting_portal_redirect_uris_exclude_the_results_portal() {
@@ -868,5 +1379,175 @@ mod tests {
             ),
             "voting-portal,results-portal"
         );
+    }
+
+    fn client(client_id: &str) -> ClientRepresentation {
+        ClientRepresentation {
+            client_id: Some(client_id.to_string()),
+            public_client: Some(true),
+            direct_access_grants_enabled: Some(true),
+            implicit_flow_enabled: Some(true),
+            standard_flow_enabled: Some(true),
+            web_origins: Some(vec!["*".to_string()]),
+            redirect_uris: Some(vec!["*".to_string()]),
+            attributes: Some(
+                [
+                    ("post.logout.redirect.uris".to_string(), "*".to_string()),
+                    ("request.uris".to_string(), "*".to_string()),
+                ]
+                .into(),
+            ),
+            ..Default::default()
+        }
+    }
+
+    fn hardened(client_ids: &[&str]) -> Vec<ClientRepresentation> {
+        let mut clients: Vec<_> =
+            client_ids.iter().map(|id| client(id)).collect();
+        harden_realm_clients(&mut clients, "tenant-t");
+        clients
+    }
+
+    #[test]
+    fn public_browser_clients_only_use_the_code_flow_with_pkce() {
+        for client in hardened(&[
+            "voting-portal",
+            "onsite-voting-portal",
+            "voting-portal-kiosk",
+            "results-portal",
+            "admin-portal",
+        ]) {
+            let id = client.client_id.clone().unwrap();
+            assert_eq!(
+                client.direct_access_grants_enabled,
+                Some(false),
+                "{id}"
+            );
+            assert_eq!(client.implicit_flow_enabled, Some(false), "{id}");
+            assert_eq!(client.standard_flow_enabled, Some(true), "{id}");
+            assert_eq!(client.web_origins, Some(vec!["+".to_string()]), "{id}");
+            assert_eq!(
+                attribute(&client, "pkce.code.challenge.method"),
+                Some("S256")
+            );
+            let post_logout = match id.as_str() {
+                "voting-portal"
+                | "onsite-voting-portal"
+                | "voting-portal-kiosk" => "*",
+                _ => "+",
+            };
+            assert_eq!(
+                attribute(&client, "post.logout.redirect.uris"),
+                Some(post_logout),
+                "{id}"
+            );
+            assert_eq!(attribute(&client, "request.uris"), None, "{id}");
+        }
+    }
+
+    #[test]
+    fn account_console_only_redirects_to_its_realm_account_pages() {
+        let console = &hardened(&["account-console"])[0];
+        assert_eq!(
+            console.redirect_uris,
+            Some(vec!["/realms/tenant-t/account/*".to_string()])
+        );
+        assert_eq!(console.web_origins, Some(vec!["+".to_string()]));
+        assert_eq!(attribute(console, "post.logout.redirect.uris"), Some("+"));
+        assert_eq!(attribute(console, "request.uris"), None);
+    }
+
+    #[test]
+    fn cli_account_admin_becomes_a_confidential_password_grant_client() {
+        let cli = &hardened(&["cli-account-admin"])[0];
+        assert_eq!(cli.public_client, Some(false));
+        assert_eq!(cli.direct_access_grants_enabled, Some(true));
+        assert_eq!(cli.standard_flow_enabled, Some(false));
+        assert_eq!(cli.redirect_uris, Some(vec![]));
+        assert_eq!(attribute(cli, "request.uris"), None);
+        assert!(cli
+            .secret
+            .as_deref()
+            .is_some_and(|secret| !secret.is_empty()));
+    }
+
+    #[test]
+    fn cli_account_admin_gets_the_admin_portal_claims_it_lacks() {
+        let mapper =
+            |name: &str| keycloak::types::ProtocolMapperRepresentation {
+                id: Some(format!("{name}-id")),
+                name: Some(name.to_string()),
+                ..Default::default()
+            };
+        let mut clients = vec![
+            ClientRepresentation {
+                protocol_mappers: Some(vec![
+                    mapper("x-hasura-user-id"),
+                    mapper("x-hasura-permission-labels"),
+                ]),
+                ..client("admin-portal")
+            },
+            ClientRepresentation {
+                protocol_mappers: Some(vec![mapper("x-hasura-user-id")]),
+                ..client("cli-account-admin")
+            },
+        ];
+        harden_realm_clients(&mut clients, "tenant-t");
+        let mappers = clients[1].protocol_mappers.clone().unwrap();
+        let names: Vec<_> =
+            mappers.iter().filter_map(|m| m.name.clone()).collect();
+        assert_eq!(names, ["x-hasura-user-id", "x-hasura-permission-labels"]);
+        assert_eq!(mappers[0].id.as_deref(), Some("x-hasura-user-id-id"));
+        assert_eq!(mappers[1].id, None);
+    }
+
+    #[test]
+    fn cli_account_admin_gets_the_admin_portal_default_role() {
+        let default_role =
+            |role: &str| keycloak::types::ProtocolMapperRepresentation {
+                id: Some(format!("{role}-id")),
+                name: Some(HASURA_DEFAULT_ROLE_MAPPER.to_string()),
+                config: Some(HashMap::from([(
+                    "claim.value".to_string(),
+                    role.to_string(),
+                )])),
+                ..Default::default()
+            };
+        let mut clients = vec![
+            ClientRepresentation {
+                protocol_mappers: Some(vec![default_role("admin-user")]),
+                ..client("admin-portal")
+            },
+            ClientRepresentation {
+                protocol_mappers: Some(vec![default_role("cli-account-admin")]),
+                ..client("cli-account-admin")
+            },
+        ];
+        harden_realm_clients(&mut clients, "tenant-t");
+        let mappers = clients[1].protocol_mappers.clone().unwrap();
+        assert_eq!(mappers.len(), 1);
+        assert_eq!(mappers[0].id.as_deref(), Some("cli-account-admin-id"));
+        assert_eq!(mappers[0].config, default_role("admin-user").config);
+    }
+
+    #[test]
+    fn cli_account_admin_keeps_an_existing_secret() {
+        let mut clients = vec![ClientRepresentation {
+            secret: Some("kept".to_string()),
+            ..client("cli-account-admin")
+        }];
+        harden_realm_clients(&mut clients, "tenant-t");
+        assert_eq!(clients[0].secret.as_deref(), Some("kept"));
+    }
+
+    #[test]
+    fn confidential_clients_are_left_alone() {
+        let mut service = ClientRepresentation {
+            public_client: Some(false),
+            ..client("ivr-voting")
+        };
+        let before = serde_json::to_value(&service).unwrap();
+        harden_realm_clients(std::slice::from_mut(&mut service), "tenant-t");
+        assert_eq!(serde_json::to_value(&service).unwrap(), before);
     }
 }

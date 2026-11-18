@@ -16,6 +16,8 @@ pub type JsonError = Custom<Json<ErrorResponse>>;
 #[derive(Serialize, AsRefStr, Display, Debug)]
 pub enum ErrorCode {
     InternalServerError,
+    /// A ballot-id filter that isn't an even number of hex characters, at most a Ballot ID long.
+    InvalidBallotId,
     Unauthorized,
     CheckStatusFailed,
     AreaNotFound,
