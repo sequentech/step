@@ -17,7 +17,7 @@ COPY ./keycloak-extensions/ /build/keycloak-extensions/
 WORKDIR /build/keycloak-extensions/
 RUN mvn clean package
 
-FROM quay.io/keycloak/keycloak:24.0 as builder
+FROM quay.io/keycloak/keycloak:24.0.5@sha256:f8ade94c1d0ad2f2fa7734a455fee5392764f402c43ca35e9af6bf63a2541dc9 as builder
 
 # Enable health and metrics support
 ENV KC_HEALTH_ENABLED=true
@@ -55,9 +55,16 @@ COPY --chown=keycloak:keycloak \
 
 RUN /opt/keycloak/bin/kc.sh build 
 
-FROM quay.io/keycloak/keycloak:24.0
+FROM quay.io/keycloak/keycloak:24.0.5@sha256:f8ade94c1d0ad2f2fa7734a455fee5392764f402c43ca35e9af6bf63a2541dc9
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
 COPY ./keycloak-extensions/quarkus.properties /opt/keycloak/conf/quarkus.properties
 
 ENV KC_DB=postgres
+# Java4Shell (CVE-2026-114938): disable the vulnerable AVX-512 Base64 decode
+# intrinsic until the Keycloak image ships a fixed JDK. The flag is set twice:
+# kc.sh appends JAVA_OPTS_APPEND and the java launcher reads JDK_JAVA_OPTIONS,
+# so a deployment that overrides one of them still keeps it. arm64 accepts it.
+# https://github.com/sequentech/meta/issues/15038
+ENV JAVA_OPTS_APPEND="-XX:-UseBASE64Intrinsics" \
+    JDK_JAVA_OPTIONS="-XX:-UseBASE64Intrinsics"
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
