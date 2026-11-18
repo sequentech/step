@@ -153,6 +153,14 @@ pub fn download_file(
     // Parse the original URL (with 127.0.0.1)
     let original = Url::parse(presigned_url)?;
 
+    // Only the devcontainer signs URLs for a host the CLI can't reach (127.0.0.1,
+    // localhost, the minio proxy). A remote deployment signs real S3/CDN URLs:
+    // rewriting those to `minio` breaks `export-election-event`, `step-cli load
+    // prepare` and tally downloads against it.
+    if !is_devcontainer_storage_host(&original) {
+        return download_file_plain(presigned_url, output_path);
+    }
+
     // Build the URL we will actually CONNECT to (minio:9000),
     // but keep the same path + query.
     let mut connect_url = original.clone();
@@ -189,4 +197,40 @@ pub fn download_file(
     response.copy_to(&mut file)?;
 
     Ok(())
+}
+
+/// Whether a presigned URL points at the devcontainer's storage, which step-cli
+/// reaches as `minio` (with the signed Host header kept).
+fn is_devcontainer_storage_host(url: &Url) -> bool {
+    matches!(
+        url.host_str(),
+        Some("127.0.0.1" | "localhost" | "minio" | "minio-proxy")
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn devcontainer_hosts_are_rewritten() {
+        for url in [
+            "http://127.0.0.1:9000/bucket/key?X-Amz-Signature=x",
+            "http://localhost:9000/bucket/key",
+            "http://minio:9000/bucket/key",
+            "http://minio-proxy:9002/bucket/key",
+        ] {
+            assert!(is_devcontainer_storage_host(&Url::parse(url).unwrap()), "{url}");
+        }
+    }
+
+    #[test]
+    fn remote_storage_is_downloaded_as_signed() {
+        for url in [
+            "https://sequent-test-bucket-eu-west-1-581718213778.s3.eu-west-1.amazonaws.com/election-event-documents/doc?X-Amz-Signature=x",
+            "https://storage.googleapis.com/bucket/key",
+        ] {
+            assert!(!is_devcontainer_storage_host(&Url::parse(url).unwrap()), "{url}");
+        }
+    }
 }
