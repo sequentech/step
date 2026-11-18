@@ -8906,6 +8906,7 @@ export type Sequent_Backend_Cast_Vote = {
   area_id?: Maybe<Scalars['uuid']['output']>;
   ballot_id?: Maybe<Scalars['String']['output']>;
   cast_ballot_signature?: Maybe<Scalars['bytea']['output']>;
+  ciphertext_fingerprints?: Maybe<Array<Scalars['String']['output']>>;
   content?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   /** An object relationship */
@@ -8969,6 +8970,7 @@ export type Sequent_Backend_Cast_Vote_Bool_Exp = {
   area_id?: InputMaybe<Uuid_Comparison_Exp>;
   ballot_id?: InputMaybe<String_Comparison_Exp>;
   cast_ballot_signature?: InputMaybe<Bytea_Comparison_Exp>;
+  ciphertext_fingerprints?: InputMaybe<String_Array_Comparison_Exp>;
   content?: InputMaybe<String_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
@@ -9012,6 +9014,7 @@ export type Sequent_Backend_Cast_Vote_Insert_Input = {
   area_id?: InputMaybe<Scalars['uuid']['input']>;
   ballot_id?: InputMaybe<Scalars['String']['input']>;
   cast_ballot_signature?: InputMaybe<Scalars['bytea']['input']>;
+  ciphertext_fingerprints?: InputMaybe<Array<Scalars['String']['input']>>;
   content?: InputMaybe<Scalars['String']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>;
@@ -9030,6 +9033,7 @@ export type Sequent_Backend_Cast_Vote_Max_Fields = {
   __typename?: 'sequent_backend_cast_vote_max_fields';
   area_id?: Maybe<Scalars['uuid']['output']>;
   ballot_id?: Maybe<Scalars['String']['output']>;
+  ciphertext_fingerprints?: Maybe<Array<Scalars['String']['output']>>;
   content?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
@@ -9046,6 +9050,7 @@ export type Sequent_Backend_Cast_Vote_Min_Fields = {
   __typename?: 'sequent_backend_cast_vote_min_fields';
   area_id?: Maybe<Scalars['uuid']['output']>;
   ballot_id?: Maybe<Scalars['String']['output']>;
+  ciphertext_fingerprints?: Maybe<Array<Scalars['String']['output']>>;
   content?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
@@ -9079,6 +9084,7 @@ export type Sequent_Backend_Cast_Vote_Order_By = {
   area_id?: InputMaybe<Order_By>;
   ballot_id?: InputMaybe<Order_By>;
   cast_ballot_signature?: InputMaybe<Order_By>;
+  ciphertext_fingerprints?: InputMaybe<Order_By>;
   content?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   election?: InputMaybe<Sequent_Backend_Election_Order_By>;
@@ -9116,6 +9122,8 @@ export enum Sequent_Backend_Cast_Vote_Select_Column {
   /** column name */
   CastBallotSignature = 'cast_ballot_signature',
   /** column name */
+  CiphertextFingerprints = 'ciphertext_fingerprints',
+  /** column name */
   Content = 'content',
   /** column name */
   CreatedAt = 'created_at',
@@ -9143,6 +9151,7 @@ export type Sequent_Backend_Cast_Vote_Set_Input = {
   area_id?: InputMaybe<Scalars['uuid']['input']>;
   ballot_id?: InputMaybe<Scalars['String']['input']>;
   cast_ballot_signature?: InputMaybe<Scalars['bytea']['input']>;
+  ciphertext_fingerprints?: InputMaybe<Array<Scalars['String']['input']>>;
   content?: InputMaybe<Scalars['String']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -9169,6 +9178,7 @@ export type Sequent_Backend_Cast_Vote_Stream_Cursor_Value_Input = {
   area_id?: InputMaybe<Scalars['uuid']['input']>;
   ballot_id?: InputMaybe<Scalars['String']['input']>;
   cast_ballot_signature?: InputMaybe<Scalars['bytea']['input']>;
+  ciphertext_fingerprints?: InputMaybe<Array<Scalars['String']['input']>>;
   content?: InputMaybe<Scalars['String']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -9191,6 +9201,8 @@ export enum Sequent_Backend_Cast_Vote_Update_Column {
   BallotId = 'ballot_id',
   /** column name */
   CastBallotSignature = 'cast_ballot_signature',
+  /** column name */
+  CiphertextFingerprints = 'ciphertext_fingerprints',
   /** column name */
   Content = 'content',
   /** column name */
