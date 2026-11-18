@@ -23,6 +23,7 @@ impl Uploader for HasuraDocuments {
             file_path.to_string_lossy().to_string(),
             is_local,
             Some(election_event_id.to_string()),
+            false,
         )
     }
 }

@@ -188,8 +188,9 @@ pub async fn get_upload_url(
     is_public: bool,
     is_local: Option<bool>,
     election_event_id: Option<String>,
+    annotations: Option<&DocumentAnnotations>,
 ) -> Result<(Document, String)> {
-    let document = insert_document(
+    let document = insert_document_with_annotations(
         &hasura_transaction,
         &tenant_id,
         election_event_id.clone(),
@@ -198,6 +199,7 @@ pub async fn get_upload_url(
         size.try_into()?,
         is_public,
         None,
+        annotations,
     )
     .await
     .map_err(|err| format!("Error inserting document: {:?}", err))?;
@@ -296,6 +298,35 @@ pub async fn get_document_as_temp_file(
 
     // Return the temporary file and the separator as a tuple
     Ok(file)
+}
+
+/// Import sources can hold voter passwords and secret attributes. The
+/// restriction is committed on its own so that it stays when the import fails.
+#[instrument(err)]
+pub async fn restrict_import_source(tenant_id: &str, document_id: &str) -> AnyhowResult<()> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error getting hasura db pool")?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error starting hasura transaction")?;
+
+    postgres::document::restrict_document_to_voter_secret_readers(
+        &hasura_transaction,
+        tenant_id,
+        document_id,
+    )
+    .await?;
+
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "Error committing the import source restriction")?;
+
+    Ok(())
 }
 
 #[cfg(test)]

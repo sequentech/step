@@ -61,6 +61,21 @@ pub async fn import_users_with(
             )
         })?;
 
+    // Before the task is queued, so the file is restricted even if the task
+    // never runs.
+    if let Err(error) = ledger
+        .restrict_import_source(&input.tenant_id, &input.document_id)
+        .await
+    {
+        let _ = ledger
+            .fail(&task_execution, "Failed to restrict access to the voters file")
+            .await;
+        return Err((
+            Status::InternalServerError,
+            format!("Error restricting access to the voters file: {error:#}"),
+        ));
+    }
+
     let connection = dispatch.connect().await;
 
     let mut task_input = input.clone();

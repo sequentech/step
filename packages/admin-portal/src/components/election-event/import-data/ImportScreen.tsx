@@ -47,6 +47,9 @@ interface ImportScreenProps {
     formatLabel?: string
     disableImport?: boolean
     refresh?: string
+    // The file can hold voter passwords or secret attributes: downloading it
+    // then needs the voter secret attribute read permission.
+    voterSecretSource?: boolean
 }
 
 const stageLabels = {
@@ -105,6 +108,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             problems,
             allowHistoricalSource,
             formatLabel,
+            voterSecretSource,
         } = props
         const requiresSha = props.fileIntegrityPolicy === EFileIntegrityPolicy.REQUIRED_SHA256
         const {globalSettings} = React.useContext(SettingsContext)
@@ -219,6 +223,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                             : theFile.type,
                         size: theFile.size,
                         is_public: false,
+                        ...(voterSecretSource ? {voter_secret_attributes: true} : {}),
                     },
                 })
                 if (!data?.get_upload_url?.url) throw new Error("missing upload URL")

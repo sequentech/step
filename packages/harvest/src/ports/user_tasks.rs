@@ -33,6 +33,13 @@ pub trait UserTaskLedger: Sync {
         task: &TasksExecution,
         message: &str,
     ) -> impl Future<Output = anyhow::Result<()>> + Send;
+    /// Restricts an uploaded import file to voter secret readers: it can hold
+    /// voter passwords and secret attributes.
+    fn restrict_import_source(
+        &self,
+        tenant_id: &str,
+        document_id: &str,
+    ) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
 pub trait UserTaskAuthorization: Sync {
