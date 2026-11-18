@@ -21,7 +21,7 @@ fn the_stored_setting_is_read_and_unknown_values_are_refused() {
         policy_of(Some(&json!({"electoral_log_signer_policy": "external"}))).unwrap(),
         ElectoralLogSignerPolicy::EXTERNAL
     );
-    assert!(policy_of(Some(&json!({"electoral_log_signer_policy": "hsm"}))).is_err());
+    assert!(policy_of(Some(&json!({"electoral_log_signer_policy": "other"}))).is_err());
 }
 
 // sequent-core's `electoral_log_signer_policy_tests` shows a Borsh round
@@ -45,7 +45,7 @@ fn a_presentation_stored_as_a_string_is_read_through_and_malformed_ones_refused(
 
 #[test]
 fn the_setting_cannot_change_once_a_board_key_exists() {
-    let key = BoardKey { public_key: "AA".into(), key_version: 1 };
+    let key = sample_key();
     use ElectoralLogSignerPolicy::*;
     assert!(check_unchanged(SOFTWARE, None, true).is_ok(), "today's events");
     assert!(check_unchanged(EXTERNAL, Some(&key), false).is_ok());
@@ -84,4 +84,32 @@ fn a_checkpoint_signed_through_a_plugged_in_signer_is_byte_identical() {
     let b = crate::services::electoral_log::sign_checkpoint(&plugged, &checkpoint, reason).unwrap();
     assert_eq!(a.signature, b.signature);
     assert_eq!(a.signer_pk, b.signer_pk);
+}
+
+fn sample_key() -> BoardKey {
+    BoardKey {
+        key_ref: "opaque-ref".into(),
+        public_key: "AA".into(),
+        key_version: 1,
+        origin: BoardOrigin {
+            tenant_id: "t".into(),
+            election_event_id: "e".into(),
+            board_name: "b".into(),
+        },
+    }
+}
+
+#[test]
+fn the_key_record_keeps_its_reference_and_origin() {
+    let key = sample_key();
+    let text = serde_json::to_string(&key).unwrap();
+    let back: BoardKey = serde_json::from_str(&text).unwrap();
+    assert_eq!(back, key);
+    // A record without its origin (or reference) is unreadable, never
+    // taken to serve any board.
+    let bare = r#"{"public_key":"AA","key_version":1}"#;
+    assert!(serde_json::from_str::<BoardKey>(bare).is_err());
+    let mut other = key.clone();
+    other.origin.election_event_id = "copy".into();
+    assert_ne!(other.origin, key.origin, "a remapped copy is another board");
 }

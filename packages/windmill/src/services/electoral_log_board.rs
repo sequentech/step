@@ -30,10 +30,18 @@ pub async fn create_protocol_manager_keys(
     election_event_id: &str,
     board_name: &str,
 ) -> Result<()> {
+    // A board's key is made once: an existing key (software or external
+    // record) is never replaced, since it verifies the board's whole log.
+    if board_has_key(hasura_transaction, tenant_id, election_event_id, board_name).await? {
+        return Err(anyhow!(
+            "this board already has a key: it is never replaced (refused)"
+        ));
+    }
     // A board of an event whose log an external signer signs gets its key
     // there; its public key and version are recorded, and no software key is
     // made or kept for it.
-    if electoral_log_signers::event_policy(hasura_transaction, tenant_id, election_event_id).await?
+    if electoral_log_signers::event_policy_for_share(hasura_transaction, tenant_id, election_event_id)
+        .await?
         == ElectoralLogSignerPolicy::EXTERNAL
     {
         let key = electoral_log_signers::installed()?.create_board_signer(
@@ -43,6 +51,16 @@ pub async fn create_protocol_manager_keys(
         )?;
         key.verification_key()
             .context("the external signer returned an unreadable public key")?;
+        let expected = electoral_log_signers::BoardOrigin {
+            tenant_id: tenant_id.to_string(),
+            election_event_id: election_event_id.to_string(),
+            board_name: board_name.to_string(),
+        };
+        if key.origin != expected {
+            return Err(anyhow!(
+                "the external signer returned a key made for another board (refused)"
+            ));
+        }
         vault::save_secret(
             hasura_transaction,
             tenant_id,
@@ -236,6 +254,19 @@ pub async fn import_board_key(
             }
             let key: electoral_log_signers::BoardKey =
                 serde_json::from_str(record).context("the exported external key record is unreadable")?;
+            // A key serves the board it was made for: an import under other
+            // ids (a copy of the event) can't reuse it.
+            if key.origin
+                != (electoral_log_signers::BoardOrigin {
+                    tenant_id: tenant_id.to_string(),
+                    election_event_id: election_event_id.to_string(),
+                    board_name: board_name.to_string(),
+                })
+            {
+                return Err(anyhow!(
+                    "the export's external board key was made for another board: a copy of the event can't reuse it (refused)"
+                ));
+            }
             let signer = electoral_log_signers::installed()?.board_signer(
                 tenant_id,
                 election_event_id,
@@ -274,8 +305,29 @@ pub async fn import_board_key(
     }
 }
 
-/// Like [`get_board_signer`], but `None` for a board that has no key at all
-/// (software or external), where the caller may skip it.
+/// Whether a board has a key (software or external record).
+pub async fn board_has_key(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    board_name: &str,
+) -> Result<bool> {
+    for path in [
+        get_protocol_manager_secret_path(board_name),
+        electoral_log_signers::board_key_path(board_name),
+    ] {
+        if vault::read_secret(hasura_transaction, tenant_id, Some(election_event_id), &path)
+            .await?
+            .is_some()
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+/// Like [`get_board_signer`], but `None` for a software event's board that
+/// has no key at all, where the caller may skip it.
 pub async fn get_board_signer_if_any(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -297,6 +349,15 @@ pub async fn get_board_signer_if_any(
     )
     .await?;
     if software.is_none() && external.is_none() {
+        // A keyless board of an external event is a failed creation, never
+        // a board to skip.
+        if electoral_log_signers::event_policy(hasura_transaction, tenant_id, election_event_id).await?
+            == ElectoralLogSignerPolicy::EXTERNAL
+        {
+            return Err(anyhow!(
+                "this external board has no key: its creation failed and must be repeated (refused)"
+            ));
+        }
         return Ok(None);
     }
     get_board_signer(hasura_transaction, tenant_id, Some(election_event_id), board_name)

@@ -30,14 +30,28 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use voting_crypto::signing::VerificationKey;
 
+/// The board a key was made for.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BoardOrigin {
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub board_name: String,
+}
+
 /// An external board key, as recorded when it was made.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BoardKey {
+    /// The signer's own reference to the key, opaque here: the signer is
+    /// asked for this key, never for "the key of a board name".
+    pub key_ref: String,
     /// Standard base64 of the raw Ed25519 public key.
     pub public_key: String,
     /// The version of the key the signer holds; signing with another
     /// version is refused.
     pub key_version: u32,
+    /// The board the key was made for: a key serves that board only, so a
+    /// copy of the event under other ids can't reuse it.
+    pub origin: BoardOrigin,
 }
 
 impl BoardKey {
@@ -47,8 +61,15 @@ impl BoardKey {
 }
 
 /// The signers an installation provides for `external` boards.
+///
+/// The methods are synchronous and are called from async code: an
+/// implementation that waits on a device or another process must not block
+/// the runtime (offload the call).
 pub trait ExternalLogSigners: Send + Sync {
     /// Makes the board's key where the installation keeps its keys.
+    /// Idempotent: called again for a board whose key exists (a retry after
+    /// the database rolled back), it returns that key's record and makes
+    /// no other.
     fn create_board_signer(
         &self,
         tenant_id: &str,
@@ -137,6 +158,31 @@ pub async fn event_policy(
     .await
     .context("reading the event's electoral log signer setting")?;
     policy_of(event.presentation.as_ref())
+}
+
+/// The event's setting, read with `FOR SHARE`: while a board's key is made,
+/// the setting can't change under it.
+pub async fn event_policy_for_share(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<ElectoralLogSignerPolicy> {
+    let row = hasura_transaction
+        .query_opt(
+            "SELECT presentation FROM sequent_backend.election_event \
+             WHERE tenant_id = $1 AND id = $2 FOR SHARE",
+            &[
+                &sequent_core::services::uuid_validation::parse_uuid_v4(tenant_id)?,
+                &sequent_core::services::uuid_validation::parse_uuid_v4(election_event_id)?,
+            ],
+        )
+        .await
+        .context("reading the event's electoral log signer setting")?
+        .ok_or_else(|| anyhow!("the election event does not exist"))?;
+    let presentation: Option<Value> = row
+        .try_get("presentation")
+        .context("reading the event's presentation")?;
+    policy_of(presentation.as_ref())
 }
 
 /// Where a board's external key record is kept in the vault.

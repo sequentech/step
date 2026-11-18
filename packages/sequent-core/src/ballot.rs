@@ -4372,7 +4372,7 @@ mod electoral_log_signer_policy_tests {
         assert_eq!(written["electoral_log_signer_policy"], "external");
         assert_eq!("software".parse::<ElectoralLogSignerPolicy>().unwrap(), ElectoralLogSignerPolicy::SOFTWARE);
         assert!(serde_json::from_value::<ElectionEventPresentation>(
-            serde_json::json!({"electoral_log_signer_policy": "hsm"})
+            serde_json::json!({"electoral_log_signer_policy": "other"})
         )
         .is_err());
     }

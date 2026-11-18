@@ -341,6 +341,22 @@ jobs:
           -- --ignored --exact
         working-directory: packages/windmill
 
+      - name: Run the PostgreSQL-backed electoral log signer tests
+        shell: bash
+        env:
+          # Synthetic test values only.
+          SECRETS_BACKEND: EnvVarMasterSecret
+          MASTER_SECRET: "1111111111111111111111111111111111111111111111111111111111111111"
+          ELECTORAL_LOG_PG_PROVISIONING_USER: ""
+          ELECTORAL_LOG_PG_READER_USER: ""
+          ELECTORAL_LOG_PG_BACKUP_USER: ""
+        run: |
+          cargo test --locked -p windmill --test postgres_external_log_signers -- --ignored --test-threads=1 \
+            | tee "$RUNNER_TEMP/external-log-signer-tests.log"
+          # An empty filter also succeeds; require that the tests actually ran.
+          grep --quiet --extended-regexp 'test result: ok\. [1-9][0-9]* passed' "$RUNNER_TEMP/external-log-signer-tests.log"
+        working-directory: packages
+
   # The PostgreSQL-backed checks of electoral-log, step-cli and Trellis. Each
   # selects a different package set, so in the Windmill job they rebuilt
   # windmill's dependencies and added about 7 minutes to the longest job of

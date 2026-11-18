@@ -283,7 +283,7 @@ async fn store_batch(events: &[LogEventInput]) -> anyhow::Result<()> {
     // Append every board before failing, so one failing board does not hold back the
     // others; a retry appends the failed boards again, idempotently.
     let client = get_board_client().await?;
-    let mut failures = Vec::new();
+    let mut failures = built.deferred;
     for (board, messages) in built.by_board {
         match client.append(&board, &messages).await {
             Ok(stored) => emit_monitoring_lines(&board, &messages, &stored),
@@ -332,6 +332,9 @@ enum EventFailure {
     Permanent(anyhow::Error),
     /// A database or other infrastructure failure; the whole batch is retried.
     Transient(anyhow::Error),
+    /// The board's signer is unavailable or refused (an external signer): the
+    /// event waits for a retry while the batch's other events are stored.
+    Deferred(anyhow::Error),
 }
 
 /// The records of a batch, grouped by board, the events that cannot be stored,
@@ -342,6 +345,8 @@ struct BuiltBatch {
     by_board: HashMap<String, Vec<LogEntry>>,
     dead_letters: Vec<(LogEventInput, String)>,
     login_attempts: Vec<(String, LoginAttempt)>,
+    /// Events whose board's signer failed: retried, without holding back the rest.
+    deferred: Vec<String>,
 }
 
 /// The records of one event, and the sign-in attempt it is, if any.
@@ -478,6 +483,8 @@ impl BatchLookups for DbLookups<'_, '_> {
 struct BatchCache {
     boards: HashMap<(String, String), Option<String>>,
     signers: HashMap<(String, String), Option<ElectoralLog>>,
+    /// Boards whose signer failed in this batch, and why.
+    failed_signers: HashMap<(String, String), String>,
     tenant_logs: HashMap<String, Option<(String, ElectoralLog)>>,
 }
 
@@ -506,6 +513,16 @@ async fn build_batch<L: BatchLookups + Send>(
                 built
                     .dead_letters
                     .push((input.clone(), format!("{error:#}")));
+            }
+            Err(EventFailure::Deferred(error)) => {
+                tracing::error!(
+                    delivery_id = input.delivery_id.as_deref().unwrap_or_default(),
+                    "Deferring an electoral-log event: {error:#}"
+                );
+                built.deferred.push(format!(
+                    "delivery {:?}: {error:#}",
+                    input.delivery_id
+                ));
             }
             Err(EventFailure::Transient(error)) => {
                 return Err(error.context(format!(
@@ -590,12 +607,23 @@ async fn build_event<L: BatchLookups + Send>(
                 .await
                 .map_err(Transient)?;
             attempt = login_attempt(input, user_area_id.as_deref(), chrono::Utc::now());
+            if let Some(reason) = cache.failed_signers.get(&key) {
+                return Err(EventFailure::Deferred(anyhow!("{reason}")));
+            }
             if !cache.signers.contains_key(&key) {
-                let signer = lookups
+                match lookups
                     .signer(&input.tenant_id, &input.election_event_id, &board)
                     .await
-                    .map_err(Transient)?;
-                cache.signers.insert(key.clone(), signer);
+                {
+                    Ok(signer) => {
+                        cache.signers.insert(key.clone(), signer);
+                    }
+                    Err(error) => {
+                        let reason = format!("{error:#}");
+                        cache.failed_signers.insert(key.clone(), reason.clone());
+                        return Err(EventFailure::Deferred(anyhow!("{reason}")));
+                    }
+                }
             }
             if cache.signers.get(&key).is_some_and(Option::is_none) {
                 let reason = format!(
@@ -1361,6 +1389,7 @@ mod batch_build_tests {
     const DELETED_EVENT: &str = "6f0c5c2e-3f43-4a5e-9d55-0d6a3e1f7b21";
     const KEYLESS_EVENT: &str = "2b8e4a1d-7c6f-4e93-b0a2-5d9c8f1e3a47";
     const UNKNOWN_TENANT: &str = "5a3c1f0e-9b7d-4c2a-8e6f-1d0b9a8c7e65";
+    const REFUSED_SIGNER_EVENT: &str = "7d1e9c3b-2a4f-4b8e-9c6d-3e5f7a9b1c2d";
 
     struct FakeLookups {
         signing_key: SigningKey,
@@ -1414,6 +1443,11 @@ mod batch_build_tests {
             board: &str,
         ) -> anyhow::Result<Option<ElectoralLog>> {
             self.signer_calls += 1;
+            if election_event_id == REFUSED_SIGNER_EVENT {
+                return Err(anyhow!(
+                    "this external board has no key: its creation failed and must be repeated (refused)"
+                ));
+            }
             Ok((election_event_id != KEYLESS_EVENT)
                 .then(|| ElectoralLog::for_system_with_signing_key(board, &self.signing_key)))
         }
@@ -1492,6 +1526,40 @@ mod batch_build_tests {
             .iter()
             .map(|(event, _)| event.delivery_id.as_deref())
             .collect()
+    }
+
+    #[tokio::test]
+    async fn a_board_whose_signer_fails_is_deferred_without_holding_back_other_events() {
+        let mut lookups = FakeLookups::new();
+        let events = vec![
+            keycloak_event(Some("ok-1"), EVENT),
+            keycloak_event(Some("refused-1"), REFUSED_SIGNER_EVENT),
+            keycloak_event(Some("ok-2"), EVENT),
+            keycloak_event(Some("refused-2"), REFUSED_SIGNER_EVENT),
+        ];
+        let built = build_batch(&mut lookups, &events).await.unwrap();
+        // The other event's entries are built, in order.
+        let stored: Vec<&str> = built
+            .by_board
+            .values()
+            .flat_map(|entries| delivery_ids(entries))
+            .collect();
+        assert_eq!(
+            delivery_ids(&built.by_board[&format!("board-{EVENT}")]),
+            vec!["ok-1:event", "ok-2:event"]
+        );
+        assert!(!stored.iter().any(|id| id.starts_with("refused")), "{stored:?}");
+        // The refused board's events wait for a retry: neither stored as
+        // something else, nor dead-lettered, nor skipped.
+        assert!(built.dead_letters.is_empty());
+        assert_eq!(built.deferred.len(), 2, "{:?}", built.deferred);
+        assert!(built.deferred.iter().all(|reason| reason.contains("refused")));
+        assert!(!built
+            .by_board
+            .keys()
+            .any(|board| board.starts_with("tenant-board")), "not moved to the tenant log");
+        // The failing signer is asked once per batch.
+        assert_eq!(lookups.signer_calls, 2, "one lookup per event board");
     }
 
     #[tokio::test]
