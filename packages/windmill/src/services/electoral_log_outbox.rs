@@ -882,6 +882,7 @@ mod db_tests {
     #[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
     async fn a_board_stores_a_delivery_once() {
         use electoral_log::adapters::postgres::PostgresStore;
+        use electoral_log::ports::ElectoralLogStore;
         let config = std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")
             .unwrap()
             .parse()
