@@ -3642,6 +3642,34 @@ mod pgmq_tests {
         drop_queues(&client, &queues).await;
     }
 
+    /// Calls the producer role's enqueue function.
+    async fn call_producer_function(
+        client: &tokio_postgres::Client,
+        delivery_id: String,
+        statement: serde_json::Value,
+    ) -> std::result::Result<tokio_postgres::Row, tokio_postgres::Error> {
+        client
+            .query_one(
+                "SELECT step_queue.queue_pending_statement($1, $2, $3, 0)",
+                &[&delivery_id, &statement, &serde_json::json!({"reference": true})],
+            )
+            .await
+    }
+
+    /// The plan of `sql`, with sequential scans off.
+    async fn plan_of(client: &tokio_postgres::Client, sql: String) -> String {
+        client.batch_execute("SET enable_seqscan = off").await.unwrap();
+        let plan: Vec<String> = client
+            .query(&format!("EXPLAIN {sql}"), &[])
+            .await
+            .unwrap()
+            .iter()
+            .map(|row| row.get(0))
+            .collect();
+        client.batch_execute("RESET enable_seqscan").await.unwrap();
+        plan.join("\n")
+    }
+
     #[tokio::test]
     #[ignore = "requires PGMQ_TEST_DATABASE_URL pointing to a disposable database"]
     async fn the_producer_function_queues_only_what_the_producer_role_may() {
@@ -3676,19 +3704,8 @@ mod pgmq_tests {
                 username: None,
             },
         );
-        let call = |delivery_id: String, statement: serde_json::Value| {
-            let client = &client;
-            async move {
-                client
-                    .query_one(
-                        "SELECT step_queue.queue_pending_statement($1, $2, $3, 0)",
-                        &[&delivery_id, &statement, &serde_json::json!({"reference": true})],
-                    )
-                    .await
-            }
-        };
         let allowed = failure.origin.delivery_id();
-        call(allowed.clone(), serde_json::to_value(&failure).unwrap())
+        call_producer_function(&client, allowed.clone(), serde_json::to_value(&failure).unwrap())
             .await
             .unwrap();
         let read = crate::services::electoral_log_pending::load(&**client, &allowed)
@@ -3713,23 +3730,27 @@ mod pgmq_tests {
             },
         );
         refused(
-            call(other.origin.delivery_id(), serde_json::to_value(&other).unwrap())
+            call_producer_function(&client, other.origin.delivery_id(), serde_json::to_value(&other).unwrap())
                 .await
                 .unwrap_err(),
         );
         // An extra field, another delivery ID form, a time not now.
         let mut extra = serde_json::to_value(&failure).unwrap();
         extra["statement_bytes"] = "AAAA".into();
-        refused(call(failure.origin.delivery_id(), extra).await.unwrap_err());
         refused(
-            call("readiness:entry".into(), serde_json::to_value(&failure).unwrap())
+            call_producer_function(&client, failure.origin.delivery_id(), extra)
+                .await
+                .unwrap_err(),
+        );
+        refused(
+            call_producer_function(&client, "readiness:entry".into(), serde_json::to_value(&failure).unwrap())
                 .await
                 .unwrap_err(),
         );
         let mut old = failure.clone();
         old.occurred_at -= 3_600;
         refused(
-            call(failure.origin.delivery_id(), serde_json::to_value(&old).unwrap())
+            call_producer_function(&client, failure.origin.delivery_id(), serde_json::to_value(&old).unwrap())
                 .await
                 .unwrap_err(),
         );
@@ -3758,22 +3779,7 @@ mod pgmq_tests {
         assert!(indexes.contains(&format!("q_{}_deferred_delivery", queues.events)), "{indexes:?}");
         assert!(indexes.contains(&"electoral_log_waiting_scope".to_string()), "{indexes:?}");
         // The plans use them (sequential scans off, so a tiny table shows the choice).
-        let mut plan_of = |sql: String| {
-            let client = &client;
-            async move {
-                client.batch_execute("SET enable_seqscan = off").await.unwrap();
-                let plan: Vec<String> = client
-                    .query(&format!("EXPLAIN {sql}"), &[])
-                    .await
-                    .unwrap()
-                    .iter()
-                    .map(|row| row.get(0))
-                    .collect();
-                client.batch_execute("RESET enable_seqscan").await.unwrap();
-                plan.join("\n")
-            }
-        };
-        let delivery = plan_of(format!(
+        let delivery = plan_of(&client, format!(
             "SELECT 1 FROM pgmq.q_{} WHERE headers->>'x-electoral-log-deferred-scope' IS NOT NULL \
              AND headers->>'x-electoral-log-deferred-delivery' = 'x'",
             queues.events
@@ -3781,6 +3787,7 @@ mod pgmq_tests {
         .await;
         assert!(delivery.contains("_deferred_delivery"), "{delivery}");
         let scope = plan_of(
+            &client,
             "SELECT 1 FROM step_queue.electoral_log_waiting WHERE scope = ANY(ARRAY['x'])".to_string(),
         )
         .await;

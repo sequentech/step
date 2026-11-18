@@ -165,6 +165,11 @@ pub async fn load<C: tokio_postgres::GenericClient + Sync>(
         }))
 }
 
+/// An optional field's text, empty when absent.
+fn optional_text(value: &Option<String>) -> &str {
+    value.as_deref().unwrap_or_default()
+}
+
 /// Which trusted producer queued a statement. Each may queue one kind.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
@@ -209,7 +214,9 @@ pub enum PendingStatementBody {
         voter_id: String,
         area_id: String,
     },
-    /// `Message::keycloak_user_event` of type [`ENROLLMENT_PROBLEM_EVENT_TYPE`].
+    /// `Message::keycloak_user_event` of type
+    /// [`crate::services::enrollment_windows::PROBLEM_LOG_EVENT_TYPE`], as the
+    /// enrollment windows' own post.
     EnrollmentProblems { problems: String },
     /// `Message::ballot_publication_failure_message`.
     BallotPublicationFailure {
@@ -285,7 +292,9 @@ impl PendingStatementBody {
             ),
             PendingStatementBody::EnrollmentProblems { problems } => Message::keycloak_user_event(
                 event,
-                KeycloakEventTypeString(ENROLLMENT_PROBLEM_EVENT_TYPE.to_string()),
+                KeycloakEventTypeString(
+                    crate::services::enrollment_windows::PROBLEM_LOG_EVENT_TYPE.to_string(),
+                ),
                 ErrorMessageString(crate::services::privacy_signin::safe_error_text(problems)),
                 None,
                 None,
@@ -330,19 +339,18 @@ impl PendingStatementBody {
     /// The identifier fields (user IDs, usernames, areas, elections,
     /// publications, tasks), to bound their size and form.
     fn identifiers(&self) -> Vec<&str> {
-        let optional = |value: &Option<String>| value.as_deref().unwrap_or_default();
         match self {
             PendingStatementBody::CastVoteError {
                 election_id,
                 voter_id,
                 area_id,
                 ..
-            } => vec![optional(election_id), voter_id, area_id],
+            } => vec![optional_text(election_id), voter_id, area_id],
             PendingStatementBody::EnrollmentProblems { .. } => vec![],
             PendingStatementBody::BallotPublicationFailure { failure, username } => vec![
                 failure.publication_id.0.as_str(),
                 failure.task_id.as_str(),
-                optional(username),
+                optional_text(username),
             ],
             PendingStatementBody::AdminCertificateEvent {
                 user_id,
@@ -350,7 +358,7 @@ impl PendingStatementBody {
                 admin_public_key,
                 admin_signature,
                 ..
-            } => vec![user_id, optional(username), admin_public_key, admin_signature],
+            } => vec![user_id, optional_text(username), admin_public_key, admin_signature],
         }
     }
 
@@ -671,6 +679,25 @@ mod tests {
         assert_eq!(
             again.statement.record_serialize().unwrap(),
             message.statement.record_serialize().unwrap()
+        );
+    }
+
+    #[test]
+    fn an_enrollment_problem_is_of_the_event_type_the_direct_post_uses() {
+        use electoral_log::messages::statement::StatementBody;
+        let key = SigningKey::generate().unwrap();
+        let sd = SigningData::new(key.clone(), "", key);
+        let message = PendingStatementBody::EnrollmentProblems {
+            problems: "two posts".into(),
+        }
+        .message(EVENT, &sd)
+        .unwrap();
+        let StatementBody::KeycloakUserEvent(_, event_type) = &message.statement.body else {
+            panic!("not a Keycloak user event");
+        };
+        assert_eq!(
+            event_type.0,
+            crate::services::enrollment_windows::PROBLEM_LOG_EVENT_TYPE
         );
     }
 
