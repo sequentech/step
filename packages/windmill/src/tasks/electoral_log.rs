@@ -334,6 +334,10 @@ enum EventFailure {
     Transient(anyhow::Error),
     /// The board's signer is unavailable or refused (an external signer): the
     /// event waits for a retry while the batch's other events are stored.
+    /// Nothing is dropped: the batch fails after storing the rest, so it is
+    /// retried (stored events are not stored twice: delivery IDs); after the
+    /// last retry the whole batch goes to the dead-letter queue, whose reason
+    /// names each deferred delivery, for an operator to replay or discard.
     Deferred(anyhow::Error),
 }
 
@@ -519,10 +523,9 @@ async fn build_batch<L: BatchLookups + Send>(
                     delivery_id = input.delivery_id.as_deref().unwrap_or_default(),
                     "Deferring an electoral-log event: {error:#}"
                 );
-                built.deferred.push(format!(
-                    "delivery {:?}: {error:#}",
-                    input.delivery_id
-                ));
+                built
+                    .deferred
+                    .push(format!("delivery {:?}: {error:#}", input.delivery_id));
             }
             Err(EventFailure::Transient(error)) => {
                 return Err(error.context(format!(
@@ -1548,16 +1551,25 @@ mod batch_build_tests {
             delivery_ids(&built.by_board[&format!("board-{EVENT}")]),
             vec!["ok-1:event", "ok-2:event"]
         );
-        assert!(!stored.iter().any(|id| id.starts_with("refused")), "{stored:?}");
+        assert!(
+            !stored.iter().any(|id| id.starts_with("refused")),
+            "{stored:?}"
+        );
         // The refused board's events wait for a retry: neither stored as
         // something else, nor dead-lettered, nor skipped.
         assert!(built.dead_letters.is_empty());
         assert_eq!(built.deferred.len(), 2, "{:?}", built.deferred);
-        assert!(built.deferred.iter().all(|reason| reason.contains("refused")));
-        assert!(!built
-            .by_board
-            .keys()
-            .any(|board| board.starts_with("tenant-board")), "not moved to the tenant log");
+        assert!(built
+            .deferred
+            .iter()
+            .all(|reason| reason.contains("refused")));
+        assert!(
+            !built
+                .by_board
+                .keys()
+                .any(|board| board.starts_with("tenant-board")),
+            "not moved to the tenant log"
+        );
         // The failing signer is asked once per batch.
         assert_eq!(lookups.signer_calls, 2, "one lookup per event board");
     }

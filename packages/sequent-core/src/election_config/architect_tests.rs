@@ -4990,6 +4990,18 @@ fn a_stylesheet_reaches_the_event_sheet() {
     );
 }
 
+/// Every event the Architect configures has its electoral log signed by the
+/// installation's external signer.
+#[test]
+fn architect_events_ask_for_the_external_log_signer() {
+    let workbook = workbook_of(&sound()).expect("the plan compiles to rows");
+    let row = workbook.rows(sheet::SHEET_ELECTION_EVENT)[0].clone();
+    assert_eq!(
+        row.text("presentation.electoral_log_signer_policy"),
+        Some("external")
+    );
+}
+
 /// Nothing written means nothing said, not an empty object.
 ///
 /// `{}` in the cell would *replace* whatever a base export already carried,

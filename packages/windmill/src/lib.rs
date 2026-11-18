@@ -10,6 +10,7 @@ extern crate quick_error;
 extern crate self as windmill;
 
 pub mod adapters;
+pub mod app;
 pub mod domain;
 pub mod ports;
 pub mod postgres;

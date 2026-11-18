@@ -8,7 +8,10 @@ use serde_json::json;
 #[test]
 fn events_without_the_setting_are_software() {
     assert_eq!(policy_of(None).unwrap(), ElectoralLogSignerPolicy::SOFTWARE);
-    assert_eq!(policy_of(Some(&json!({}))).unwrap(), ElectoralLogSignerPolicy::SOFTWARE);
+    assert_eq!(
+        policy_of(Some(&json!({}))).unwrap(),
+        ElectoralLogSignerPolicy::SOFTWARE
+    );
     assert_eq!(
         policy_of(Some(&json!({"electoral_log_signer_policy": null}))).unwrap(),
         ElectoralLogSignerPolicy::SOFTWARE
@@ -37,7 +40,10 @@ fn without_an_installed_signer_external_events_are_refused() {
 #[test]
 fn a_presentation_stored_as_a_string_is_read_through_and_malformed_ones_refused() {
     let as_string = Value::String(r#"{"electoral_log_signer_policy":"external"}"#.to_string());
-    assert_eq!(policy_of(Some(&as_string)).unwrap(), ElectoralLogSignerPolicy::EXTERNAL);
+    assert_eq!(
+        policy_of(Some(&as_string)).unwrap(),
+        ElectoralLogSignerPolicy::EXTERNAL
+    );
     assert!(policy_of(Some(&Value::String("not json".to_string()))).is_err());
     assert!(policy_of(Some(&json!([1, 2]))).is_err());
     assert!(policy_of(Some(&json!(7))).is_err());
@@ -47,11 +53,23 @@ fn a_presentation_stored_as_a_string_is_read_through_and_malformed_ones_refused(
 fn the_setting_cannot_change_once_a_board_key_exists() {
     let key = sample_key();
     use ElectoralLogSignerPolicy::*;
-    assert!(check_unchanged(SOFTWARE, None, true).is_ok(), "today's events");
+    assert!(
+        check_unchanged(SOFTWARE, None, true).is_ok(),
+        "today's events"
+    );
     assert!(check_unchanged(EXTERNAL, Some(&key), false).is_ok());
-    assert!(check_unchanged(EXTERNAL, None, true).is_err(), "switched to external after a software key");
-    assert!(check_unchanged(SOFTWARE, Some(&key), false).is_err(), "switched back to software");
-    assert!(check_unchanged(EXTERNAL, Some(&key), true).is_err(), "both keys");
+    assert!(
+        check_unchanged(EXTERNAL, None, true).is_err(),
+        "switched to external after a software key"
+    );
+    assert!(
+        check_unchanged(SOFTWARE, Some(&key), false).is_err(),
+        "switched back to software"
+    );
+    assert!(
+        check_unchanged(EXTERNAL, Some(&key), true).is_err(),
+        "both keys"
+    );
 }
 
 /// A signer whose key is "held elsewhere" (a key behind a wrapper).
@@ -80,7 +98,8 @@ fn a_checkpoint_signed_through_a_plugged_in_signer_is_byte_identical() {
     let software = SigningData::new(key.clone(), "", key.clone());
     let external: electoral_log::signer::SharedSigner = Arc::new(Elsewhere(key));
     let plugged = SigningData::with_signers(external.clone(), "", external);
-    let a = crate::services::electoral_log::sign_checkpoint(&software, &checkpoint, reason).unwrap();
+    let a =
+        crate::services::electoral_log::sign_checkpoint(&software, &checkpoint, reason).unwrap();
     let b = crate::services::electoral_log::sign_checkpoint(&plugged, &checkpoint, reason).unwrap();
     assert_eq!(a.signature, b.signature);
     assert_eq!(a.signer_pk, b.signer_pk);
@@ -112,4 +131,18 @@ fn the_key_record_keeps_its_reference_and_origin() {
     let mut other = key.clone();
     other.origin.election_event_id = "copy".into();
     assert_ne!(other.origin, key.origin, "a remapped copy is another board");
+}
+
+#[test]
+fn a_key_serves_only_the_board_it_was_made_for() {
+    let key = sample_key();
+    assert!(key.check_origin("t", "e", "b").is_ok());
+    for (tenant, event, board) in [("x", "e", "b"), ("t", "x", "b"), ("t", "e", "x")] {
+        let error = key
+            .check_origin(tenant, event, board)
+            .err()
+            .unwrap()
+            .to_string();
+        assert!(error.contains("another board"), "{error}");
+    }
 }

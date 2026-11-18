@@ -4,7 +4,8 @@
 //! the migrated schema: the key is made by the installed signer and recorded
 //! (also after a failed or rolled-back attempt, through the same path the
 //! event import and creation take), an existing key is never replaced, a
-//! keyless board is an error rather than one to skip, the setting can't
+//! keyless board is an error rather than one to skip, a record is used only
+//! for the board it was made for, the setting can't
 //! change once a key exists, and an export's key record is restored only for
 //! the board and key it was made for. Software events keep today's
 //! behaviour.
@@ -49,7 +50,12 @@ impl signers::ExternalLogSigners for FakeSigners {
         let mut keys = self.keys.lock().unwrap();
         let (key_ref, key) = keys
             .entry((tenant.into(), event.into(), board.into()))
-            .or_insert_with(|| (format!("ref-{}", Uuid::new_v4()), SigningKey::generate().unwrap()))
+            .or_insert_with(|| {
+                (
+                    format!("ref-{}", Uuid::new_v4()),
+                    SigningKey::generate().unwrap(),
+                )
+            })
             .clone();
         let mut origin = BoardOrigin {
             tenant_id: tenant.into(),
@@ -142,7 +148,11 @@ fn check_env() -> Result<()> {
 }
 
 fn event_board(tenant_id: &str, event_id: &str) -> Result<String> {
-    Ok(boards::get_event_board(tenant_id, event_id, &std::env::var("ENV_SLUG")?))
+    Ok(boards::get_event_board(
+        tenant_id,
+        event_id,
+        &std::env::var("ENV_SLUG")?,
+    ))
 }
 
 async fn external_record(
@@ -174,16 +184,17 @@ async fn a_failed_creation_is_repaired_by_the_next_audit_board_setup() -> Result
         .insert((event_id.clone(), board.clone()));
     {
         let tx = db.transaction().await?;
-        let error = windmill::services::import::import_election_event::ensure_election_audit_boards(
-            &tx,
-            &tenant_id,
-            &event_id,
-            &Vec::new(),
-            false,
-        )
-        .await
-        .err()
-        .expect("the signer's failure fails the setup");
+        let error =
+            windmill::services::import::import_election_event::ensure_election_audit_boards(
+                &tx,
+                &tenant_id,
+                &event_id,
+                &Vec::new(),
+                false,
+            )
+            .await
+            .err()
+            .expect("the signer's failure fails the setup");
         assert!(format!("{error:#}").contains("unreachable"), "{error:#}");
         tx.rollback().await?;
     }
@@ -219,7 +230,10 @@ async fn a_failed_creation_is_repaired_by_the_next_audit_board_setup() -> Result
         false,
     )
     .await?;
-    assert_eq!(external_record(&tx, &tenant_id, &event_id, &board).await?, key);
+    assert_eq!(
+        external_record(&tx, &tenant_id, &event_id, &board).await?,
+        key
+    );
     tx.commit().await?;
     Ok(())
 }
@@ -268,18 +282,25 @@ async fn an_external_board_is_made_once_signed_by_its_key_and_never_replaced() -
         .err()
         .expect("a board with a key is refused");
     assert!(error.to_string().contains("never replaced"), "{error:#}");
-    assert_eq!(external_record(&tx, &tenant_id, &event_id, board).await?, key);
+    assert_eq!(
+        external_record(&tx, &tenant_id, &event_id, board).await?,
+        key
+    );
 
     // It signs with the recorded key, and no software key exists.
     let signer = boards::get_board_signer(&tx, &tenant_id, Some(&event_id), board).await?;
     let signature = signer.sign(b"entry")?;
     key.verification_key()?.verify(&signature, b"entry")?;
-    assert!(boards::get_board_signing_key(&tx, &tenant_id, Some(&event_id), board)
-        .await
-        .is_err());
-    assert!(boards::get_board_signer_if_any(&tx, &tenant_id, &event_id, board)
-        .await?
-        .is_some());
+    assert!(
+        boards::get_board_signing_key(&tx, &tenant_id, Some(&event_id), board)
+            .await
+            .is_err()
+    );
+    assert!(
+        boards::get_board_signer_if_any(&tx, &tenant_id, &event_id, board)
+            .await?
+            .is_some()
+    );
 
     // A signer answering with another board's key is refused.
     fake.lie_about
@@ -290,7 +311,35 @@ async fn an_external_board_is_made_once_signed_by_its_key_and_never_replaced() -
         .await
         .err()
         .expect("a key made for another board is refused");
-    assert!(error.to_string().contains("another board"), "{error:#}");
+    assert!(format!("{error:#}").contains("another board"), "{error:#}");
+
+    // A record moved to another board's place in the vault is refused when
+    // used, for signing and for verification alike.
+    tx.execute(
+        "UPDATE sequent_backend.secret SET key = 'boards/board-c/external-signer' \
+         WHERE tenant_id = $1::text::uuid AND election_event_id = $2::text::uuid \
+         AND key = 'boards/board-a/external-signer'",
+        &[&tenant_id, &event_id],
+    )
+    .await?;
+    for error in [
+        boards::get_board_signer(&tx, &tenant_id, Some(&event_id), "board-c")
+            .await
+            .err(),
+        boards::get_board_public_key(&tx, &tenant_id, Some(&event_id), "board-c")
+            .await
+            .err(),
+    ] {
+        let error = error.expect("a moved record is refused");
+        assert!(format!("{error:#}").contains("another board"), "{error:#}");
+    }
+    tx.execute(
+        "UPDATE sequent_backend.secret SET key = 'boards/board-a/external-signer' \
+         WHERE tenant_id = $1::text::uuid AND election_event_id = $2::text::uuid \
+         AND key = 'boards/board-c/external-signer'",
+        &[&tenant_id, &event_id],
+    )
+    .await?;
     tx.commit().await?;
 
     // The database refuses changing the setting now that a key exists
@@ -347,7 +396,10 @@ async fn an_exported_external_key_restores_only_to_its_own_board_and_key() -> Re
     boards::create_protocol_manager_keys(&tx, &tenant_id, &event_id, board).await?;
     let exported = boards::export_board_key(&tx, &tenant_id, &event_id, board).await?;
     assert!(exported.starts_with(boards::EXTERNAL_KEY_EXPORT_PREFIX));
-    assert!(!exported.contains("signing_key"), "no private key is exported");
+    assert!(
+        !exported.contains("signing_key"),
+        "no private key is exported"
+    );
 
     // A copy of the event under other ids can't reuse the key.
     let copy = event(&tx, &tenant_id, external()).await?;
@@ -355,19 +407,21 @@ async fn an_exported_external_key_restores_only_to_its_own_board_and_key() -> Re
         .await
         .err()
         .expect("a remapped copy is refused");
-    assert!(error.to_string().contains("another board"), "{error:#}");
+    assert!(format!("{error:#}").contains("another board"), "{error:#}");
     // Nor under another board name.
     let error = boards::import_board_key(&tx, &tenant_id, &event_id, "board-y", &exported)
         .await
         .err()
         .expect("another board name is refused");
-    assert!(error.to_string().contains("another board"), "{error:#}");
+    assert!(format!("{error:#}").contains("another board"), "{error:#}");
     // A software event refuses an external record, and an external event a
     // software key.
     let software_event = event(&tx, &tenant_id, json!({})).await?;
-    assert!(boards::import_board_key(&tx, &tenant_id, &software_event, board, &exported)
-        .await
-        .is_err());
+    assert!(
+        boards::import_board_key(&tx, &tenant_id, &software_event, board, &exported)
+            .await
+            .is_err()
+    );
     assert!(
         boards::import_board_key(&tx, &tenant_id, &copy, board, "signing_key = \"AAAA\"\n")
             .await
@@ -383,9 +437,15 @@ async fn an_exported_external_key_restores_only_to_its_own_board_and_key() -> Re
     // public key, another version, another reference: all refused.
     let other_key = VerificationKey::from_sk(&SigningKey::generate()?)?.to_b64_string()?;
     for (what, record) in [
-        ("public key", altered(&exported, |k| k.public_key = other_key.clone())?),
+        (
+            "public key",
+            altered(&exported, |k| k.public_key = other_key.clone())?,
+        ),
         ("version", altered(&exported, |k| k.key_version = 2)?),
-        ("reference", altered(&exported, |k| k.key_ref = "ref-other".into())?),
+        (
+            "reference",
+            altered(&exported, |k| k.key_ref = "ref-other".into())?,
+        ),
     ] {
         assert!(
             boards::import_board_key(&tx, &tenant_id, &event_id, board, &record)
@@ -482,9 +542,11 @@ async fn software_events_keep_todays_keys_and_skip_keyless_boards() -> Result<()
     let tenant_id = tenant(&tx).await?;
     let event_id = event(&tx, &tenant_id, json!({})).await?;
     // A keyless software board is skipped, as today.
-    assert!(boards::get_board_signer_if_any(&tx, &tenant_id, &event_id, "b")
-        .await?
-        .is_none());
+    assert!(
+        boards::get_board_signer_if_any(&tx, &tenant_id, &event_id, "b")
+            .await?
+            .is_none()
+    );
     boards::create_protocol_manager_keys(&tx, &tenant_id, &event_id, "b").await?;
     let key = boards::get_board_signing_key(&tx, &tenant_id, Some(&event_id), "b").await?;
     let exported = boards::export_board_key(&tx, &tenant_id, &event_id, "b").await?;
@@ -500,9 +562,11 @@ async fn software_events_keep_todays_keys_and_skip_keyless_boards() -> Result<()
         .keys()
         .any(|(_, event, _)| *event == event_id));
     // Nor is a software key replaced.
-    assert!(boards::create_protocol_manager_keys(&tx, &tenant_id, &event_id, "b")
-        .await
-        .is_err());
+    assert!(
+        boards::create_protocol_manager_keys(&tx, &tenant_id, &event_id, "b")
+            .await
+            .is_err()
+    );
     tx.rollback().await?;
     Ok(())
 }

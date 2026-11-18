@@ -58,6 +58,25 @@ impl BoardKey {
     pub fn verification_key(&self) -> Result<VerificationKey> {
         VerificationKey::from_b64_string(&self.public_key)
     }
+
+    /// Whether the key was made for this board: a record found under
+    /// another board (copied or moved in the vault) is refused.
+    pub fn check_origin(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        board_name: &str,
+    ) -> Result<()> {
+        if self.origin.tenant_id != tenant_id
+            || self.origin.election_event_id != election_event_id
+            || self.origin.board_name != board_name
+        {
+            return Err(anyhow!(
+                "the external board key was made for another board (refused)"
+            ));
+        }
+        Ok(())
+    }
 }
 
 /// The signers an installation provides for `external` boards.

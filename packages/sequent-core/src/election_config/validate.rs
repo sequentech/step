@@ -97,6 +97,8 @@ pub const ORDERINGS: &[&str] = &["custom", "alphabetical", "random"];
 
 /// `EShowCastVoteLogsPolicy` — whether a voter can look up a ballot they cast.
 pub const CAST_VOTE_LOGS: &[&str] = &["show-logs-tab", "hide-logs-tab"];
+/// Who signs an event's electoral log (`ElectoralLogSignerPolicy`).
+pub const ELECTORAL_LOG_SIGNERS: &[&str] = &["software", "external"];
 
 /// Which language a voter starts in, before they choose one.
 ///
@@ -331,6 +333,7 @@ fn check_event_presentation(
     for (key, allowed) in [
         ("elections_order", ORDERINGS),
         ("show_cast_vote_logs", CAST_VOTE_LOGS),
+        ("electoral_log_signer_policy", ELECTORAL_LOG_SIGNERS),
     ] {
         let Some(value) = presentation.get(key) else {
             continue;
