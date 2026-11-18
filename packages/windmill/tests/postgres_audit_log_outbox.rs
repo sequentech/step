@@ -662,6 +662,12 @@ fn exports_hold_what_the_list_shows_and_their_sql_verifies() {
             .await
             .unwrap();
         assert_eq!(loaded.len(), 4);
+        // The export names its signature scheme, and the entries verify by
+        // it, as an auditor does (the auditor guide's rule): Ed25519 over the
+        // domain, a zero byte and the SHA-256 of `statement`.
+        let domain = electoral_log::signature::Domain::Statement;
+        assert_eq!(manifest["signature_scheme"], domain.as_str());
+        let signed = |statement: &[u8]| electoral_log::signature::signed_message(domain, statement);
         for row in &loaded {
             let statement: Vec<u8> = row.get(0);
             let sender = VerificationKey::from_b64_string(row.get(1)).unwrap();
@@ -669,15 +675,17 @@ fn exports_hold_what_the_list_shows_and_their_sql_verifies() {
                 let bytes: Vec<u8> = row.get(column);
                 Signature::from_bytes(bytes.try_into().unwrap()).unwrap()
             };
-            sender.verify(&signature(2), &statement).unwrap();
-            system_key.verify(&signature(3), &statement).unwrap();
+            sender.verify(&signature(2), &signed(&statement)).unwrap();
+            system_key.verify(&signature(3), &signed(&statement)).unwrap();
+            // Not over the raw bytes (the scheme before v3).
+            assert!(system_key.verify(&signature(3), &statement).is_err());
         }
         // A changed statement no longer verifies.
         let mut tampered: Vec<u8> = loaded[1].get(0);
         tampered[0] ^= 1;
         let bytes: Vec<u8> = loaded[1].get(3);
         let signature = Signature::from_bytes(bytes.try_into().unwrap()).unwrap();
-        assert!(system_key.verify(&signature, &tampered).is_err());
+        assert!(system_key.verify(&signature, &signed(&tampered)).is_err());
         client
             .batch_execute(&format!("RESET search_path; DROP SCHEMA {schema} CASCADE"))
             .await

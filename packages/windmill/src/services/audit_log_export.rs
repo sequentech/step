@@ -520,6 +520,10 @@ pub struct ExportManifest {
     pub time_zone: String,
     pub entries: u64,
     pub logs: Vec<ExportedLog>,
+    /// How the entries' signatures verify: the electoral log's signature
+    /// scheme domain (Ed25519 over this domain, a zero byte and the SHA-256
+    /// of `statement`).
+    pub signature_scheme: String,
 }
 
 impl ExportManifest {
@@ -535,6 +539,9 @@ impl ExportManifest {
             time_zone: zone.name().to_string(),
             entries: logs.iter().map(|log| log.entries).sum(),
             logs,
+            signature_scheme: electoral_log::signature::Domain::Statement
+                .as_str()
+                .to_string(),
         }
     }
 }

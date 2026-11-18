@@ -134,6 +134,7 @@ Encodings:
 
 - A public key is the base64 (standard alphabet, with padding) of its 32 raw bytes.
 - A signature is 64 raw bytes.
+- The manifest's `signature_scheme` names the rule: `sequent-electoral-log/statement-signature/v3`.
 - The signed message is the ASCII domain `sequent-electoral-log/statement-signature/v3`, one zero
   byte, then the 32-byte SHA-256 of `statement` as stored. It is plain Ed25519 over that message
   (not Ed25519ph).
