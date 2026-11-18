@@ -245,6 +245,20 @@ pub async fn delete_documents(
         .await?)
 }
 
+/// Public documents are served from the anonymously readable bucket, where
+/// the access annotations are never checked, so they cannot be restricted.
+fn voter_secret_reader_annotations(
+    is_public: Option<bool>,
+    annotations: Option<serde_json::Value>,
+) -> Result<serde_json::Value> {
+    if is_public.unwrap_or(false) {
+        return Err(anyhow!(
+            "the document is public, so anyone can download it: upload it again as a private document"
+        ));
+    }
+    DocumentAnnotations::restrict_to_voter_secret_readers(annotations)
+}
+
 #[instrument(err, skip(hasura_transaction))]
 pub async fn restrict_document_to_voter_secret_readers(
     hasura_transaction: &Transaction<'_>,
@@ -259,7 +273,7 @@ pub async fn restrict_document_to_voter_secret_readers(
     let row = hasura_transaction
         .query_opt(
             r#"
-                SELECT annotations
+                SELECT annotations, is_public
                 FROM sequent_backend.document
                 WHERE tenant_id = $1
                   AND id = $2
@@ -272,7 +286,7 @@ pub async fn restrict_document_to_voter_secret_readers(
         .ok_or_else(|| anyhow!("document not found"))?;
 
     let annotations =
-        DocumentAnnotations::restrict_to_voter_secret_readers(row.try_get("annotations")?)?;
+        voter_secret_reader_annotations(row.try_get("is_public")?, row.try_get("annotations")?)?;
 
     hasura_transaction
         .execute(
@@ -628,4 +642,25 @@ pub async fn insert_support_materials(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod voter_secret_reader_annotations_tests {
+    use super::voter_secret_reader_annotations;
+    use serde_json::json;
+
+    #[test]
+    fn refuses_public_documents() {
+        assert!(voter_secret_reader_annotations(Some(true), None).is_err());
+    }
+
+    #[test]
+    fn restricts_private_documents() {
+        for is_public in [Some(false), None] {
+            assert_eq!(
+                voter_secret_reader_annotations(is_public, None).unwrap(),
+                json!({"access": {"voter_secret_attributes": true}})
+            );
+        }
+    }
 }

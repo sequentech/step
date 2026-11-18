@@ -83,6 +83,7 @@ pub fn import_voters_with_sha256(
         file_path.to_string(),
         is_local,
         Some(election_event_id.to_string()),
+        true,
     )?;
 
     let variables = import_users::Variables {

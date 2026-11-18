@@ -5,6 +5,7 @@ mutation GetUploadUrl(
         $is_public: Boolean!
         $is_local: Boolean
         $election_event_id: String
+        $voter_secret_attributes: Boolean
     ) {
         get_upload_url(
             name: $name
@@ -13,6 +14,7 @@ mutation GetUploadUrl(
             is_public: $is_public
             is_local: $is_local
             election_event_id: $election_event_id
+            voter_secret_attributes: $voter_secret_attributes
         ) {
             url
             document_id

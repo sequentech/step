@@ -1768,6 +1768,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 disableImport={Boolean(electionEventId && !electionEventRecord)}
                 doImport={handleImportVoters}
                 errors={null}
+                voterSecretSource
             />
             <Dialog
                 variant="warning"

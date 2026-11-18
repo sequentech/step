@@ -76,6 +76,7 @@ const SequentSidebar = (props: any) => {
                 title="electionEventScreen.import.eetitle"
                 subtitle="electionEventScreen.import.eesubtitle"
                 paragraph={"electionEventScreen.import.electionEventParagraph"}
+                voterSecretSource
             />
         </CreateElectionEventProvider>
     )

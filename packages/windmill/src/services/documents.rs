@@ -188,8 +188,9 @@ pub async fn get_upload_url(
     is_public: bool,
     is_local: Option<bool>,
     election_event_id: Option<String>,
+    annotations: Option<&DocumentAnnotations>,
 ) -> Result<(Document, String)> {
-    let document = insert_document(
+    let document = insert_document_with_annotations(
         &hasura_transaction,
         &tenant_id,
         election_event_id.clone(),
@@ -198,6 +199,7 @@ pub async fn get_upload_url(
         size.try_into()?,
         is_public,
         None,
+        annotations,
     )
     .await
     .map_err(|err| format!("Error inserting document: {:?}", err))?;

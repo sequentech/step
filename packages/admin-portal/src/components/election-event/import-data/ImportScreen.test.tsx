@@ -242,6 +242,30 @@ it.each([
     }
 )
 
+it("asks for a voter secret upload when the file can hold voter secrets", async () => {
+    render(
+        <ImportScreen
+            uploadCallback={jest.fn(async () => {})}
+            doImport={jest.fn(async () => {})}
+            doCancel={jest.fn()}
+            errors={null}
+            voterSecretSource
+        />
+    )
+    uploadFile()
+    await waitFor(() =>
+        expect(mockGetUploadUrl).toHaveBeenCalledWith({
+            variables: {
+                name: "event.json",
+                media_type: "application/json",
+                size: 16,
+                is_public: false,
+                voter_secret_attributes: true,
+            },
+        })
+    )
+})
+
 it("releases the form when no upload URL is returned and allows a later upload", async () => {
     const callbacks = renderImport()
     mockGetUploadUrl.mockResolvedValueOnce({data: {get_upload_url: {document_id: DOCUMENT_ID}}})
