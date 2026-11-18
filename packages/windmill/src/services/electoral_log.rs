@@ -2008,7 +2008,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     })
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn get_cols_match_count_and_select(
     election_id: &str,
     user_id: &str,
