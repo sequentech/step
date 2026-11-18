@@ -126,6 +126,19 @@ Some design decisions to be aware of:
   4 and shares the card, progress bar and header of the identity verification
   pages; so do the pages that end an enrollment (enrolled, manual verification
   required, disapproved, already validated), with every step done.
+- **The camera steps share one layout.** The document scan, the face check
+  and the photo holding the document each cover the whole window, so the
+  camera is what the voter sees from the start of a step and the layout
+  doesn't change between steps. The face check needs it: in a frame more than
+  about 160 px narrower or shorter than the window its capture takes the
+  difference for open developer tools and refuses to start (client error
+  1012). A step is left with its close button, which leads to the card that
+  offers **Try again**, **Start over** and **Back**. A small mark over a corner
+  of the camera (`.auth-fullscreen-brand`: the logo and the portal's name)
+  says whose page it is; a realm restyles it with its login CSS
+  (`loginCustomCss`), as it does the header, and on narrow windows sets
+  `--auth-fullscreen-brand-height` to the height of its mark so that the
+  page's own messages stay above it.
 - **Buttons stay in view.** The buttons that move the voter on (Register on
   the enrollment form, Start, Submit on the code page, Confirm and enroll, Try
   again) and the submit button of every FreeMarker form stay at the bottom of

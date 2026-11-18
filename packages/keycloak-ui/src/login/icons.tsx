@@ -166,3 +166,11 @@ export function CameraOffIcon() {
         </Icon>
     )
 }
+
+export function CloseIcon() {
+    return (
+        <Icon>
+            <path d="M5 5l14 14M19 5L5 19" />
+        </Icon>
+    )
+}

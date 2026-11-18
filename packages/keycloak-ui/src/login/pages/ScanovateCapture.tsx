@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import {useEffect, useReducer, useRef, type Dispatch, type ReactNode} from "react"
+import {kcSanitize} from "keycloakify/lib/kcSanitize"
 import Box from "@mui/material/Box"
 import Button from "@mui/material/Button"
-import {SymbolTone, type TemplateLabel} from "../Template"
-import {ArrowIcon, CameraOffIcon, CheckIcon, FaceScanIcon, IdCardIcon} from "../icons"
+import {SymbolTone, TemplateLayout, type TemplateLabel} from "../Template"
+import {ArrowIcon, CameraOffIcon, CheckIcon} from "../icons"
 import type {MessageKey} from "../i18n"
 import {
     acceptsMessage,
@@ -33,21 +34,16 @@ const PROBLEMS: Record<CaptureProblem, [MessageKey, MessageKey]> = {
 
 // The embedded Scanovate page of each step, and how the page presents it.
 type FrameStage = CaptureStage.Document | CaptureStage.Face
-const FRAMES: Record<
-    FrameStage,
-    {title: MessageKey; lead: MessageKey; frame: MessageKey; symbol: () => ReactNode}
-> = {
+const FRAMES: Record<FrameStage, {title: MessageKey; lead: MessageKey; frame: MessageKey}> = {
     [CaptureStage.Document]: {
         title: "scanovateDocumentStepTitle",
         lead: "scanovateDocumentStepLead",
         frame: "scanovateDocumentFrameTitle",
-        symbol: IdCardIcon,
     },
     [CaptureStage.Face]: {
         title: "scanovateFaceStepTitle",
         lead: "scanovateFaceStepLead",
         frame: "scanovateFaceFrameTitle",
-        symbol: FaceScanIcon,
     },
 }
 
@@ -128,79 +124,117 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
         )
     }
 
+    // The three camera steps share one layout: the camera over the whole
+    // window, so it is what the voter sees from the start of each step.
+    const page = {kcContext, i18n, doUseDefaultCss, classes, Template}
+
     if (state.stage === CaptureStage.Holding && scanovate.holding !== undefined) {
-        const title = text("scanovateHoldingStepTitle")
-        const lead = text(
-            "scanovateHoldingStepLead",
-            documentName(kcContext, i18n, scanovate.documentType).text
-        )
         return (
-            <Template
-                {...card}
-                displayMessage={false}
-                symbol={<IdCardIcon />}
-                headerNode={title.text}
-                titleLang={title.lang}
+            <CaptureWindow
+                {...page}
+                title={text("scanovateHoldingStepTitle")}
+                lead={text(
+                    "scanovateHoldingStepLead",
+                    documentName(kcContext, i18n, scanovate.documentType).text
+                )}
+                headingShown
             >
-                <p className="auth-lead" lang={lead.lang}>
-                    {lead.text}
-                </p>
                 <HoldingCamera
                     key={state.attempt}
                     text={text}
                     holding={scanovate.holding}
                     dispatch={dispatch}
                 />
-                <StartOver text={text} loginAction={url.loginAction} />
-            </Template>
+            </CaptureWindow>
         )
     }
 
     const frame = FRAMES[state.stage as FrameStage]
-    const title = text(frame.title)
-    const lead = text(frame.lead, documentName(kcContext, i18n, scanovate.documentType).text)
-    const Symbol = frame.symbol
     const service = state.stage === CaptureStage.Document ? scanovate.ocr : scanovate.liveness
+    const message = state.stage === CaptureStage.Document ? kcContext.message : undefined
+    const attemptsUsed = scanovate.attemptsLeft < scanovate.maxAttempts
     return (
-        <Template
-            {...card}
-            displayMessage={state.stage === CaptureStage.Document}
-            symbol={<Symbol />}
-            headerNode={title.text}
-            titleLang={title.lang}
+        <CaptureWindow
+            {...page}
+            title={text(frame.title)}
+            lead={text(frame.lead, documentName(kcContext, i18n, scanovate.documentType).text)}
         >
-            <p className="auth-lead" lang={lead.lang}>
-                {lead.text}
-            </p>
-            {scanovate.attemptsLeft < scanovate.maxAttempts && (
-                <AttemptsLeft text={text} attemptsLeft={scanovate.attemptsLeft} />
-            )}
             <ScanovateFrame
                 // A new mount opens a new Scanovate session with the same token.
                 key={`${state.stage}-${state.attempt}`}
                 url={service.url}
                 title={text(frame.frame)}
                 dispatch={dispatch}
-                fillWindow={state.stage === CaptureStage.Face}
             />
-            <StartOver text={text} loginAction={url.loginAction} />
+            {(message !== undefined || attemptsUsed) && (
+                <div className="scanovate-window-note">
+                    {message !== undefined && (
+                        <p
+                            role={message.type === "error" ? "alert" : "status"}
+                            dangerouslySetInnerHTML={{__html: kcSanitize(message.summary)}}
+                        />
+                    )}
+                    {attemptsUsed && (
+                        <AttemptsLeft text={text} attemptsLeft={scanovate.attemptsLeft} />
+                    )}
+                </div>
+            )}
+        </CaptureWindow>
+    )
+}
+
+/**
+ * The layout of every camera step: the camera covers the whole window.
+ *
+ * The face check needs it (ID R&D's face capture inside Scanovate's page takes
+ * a frame much smaller than the window for open DevTools, and refuses to
+ * start), and the other steps follow it so that the voter sees one layout. The
+ * way out of a step is its close button, which leads to the card that offers
+ * to try again, start over or go back.
+ */
+function CaptureWindow(
+    props: Pick<
+        ScanovatePageProps<"scanovate-capture.ftl">,
+        "kcContext" | "i18n" | "doUseDefaultCss" | "classes" | "Template"
+    > & {
+        title: TemplateLabel
+        lead: TemplateLabel
+        // Scanovate's pages show their own title: only the page's own camera shows this one.
+        headingShown?: boolean
+        children: ReactNode
+    }
+) {
+    const {Template, title, lead, headingShown = false, children, ...template} = props
+    return (
+        <Template
+            {...template}
+            layout={TemplateLayout.Fullscreen}
+            displayMessage={false}
+            headerNode={title.text}
+        >
+            <div className="scanovate-window">
+                {children}
+                <div className={headingShown ? "scanovate-window-heading" : "auth-visually-hidden"}>
+                    <h1 id="kc-page-title" lang={title.lang}>
+                        {title.text}
+                    </h1>
+                    <p lang={lead.lang}>{lead.text}</p>
+                </div>
+            </div>
         </Template>
     )
 }
 
 /**
- * One of Scanovate's own capture pages, embedded as its integration guide asks.
- *
- * The face check fills the window: ID R&D's face capture inside it takes a frame
- * much smaller than the window for open DevTools, and refuses to start.
+ * One of Scanovate's own capture pages, embedded as its integration guide asks,
+ * over the whole capture window.
  */
 function ScanovateFrame(props: {
     url: string
     title: TemplateLabel
     dispatch: Dispatch<CaptureEvent>
-    fillWindow: boolean
 }) {
-    const {url, title, dispatch, fillWindow} = props
+    const {url, title, dispatch} = props
     const ref = useRef<HTMLIFrameElement | null>(null)
 
     useEffect(() => {
@@ -216,7 +250,7 @@ function ScanovateFrame(props: {
     }, [url, dispatch])
 
     return (
-        <div className={fillWindow ? "scanovate-frame scanovate-frame-window" : "scanovate-frame"}>
+        <div className="scanovate-frame">
             <iframe
                 ref={ref}
                 src={url}
@@ -266,19 +300,6 @@ function ProblemActions(props: {
                 {startOver.text}
             </Button>
         </Box>
-    )
-}
-
-// For a voter stuck in a Scanovate page: new one-time tokens, without using up an attempt.
-function StartOver({text, loginAction}: {text: Text; loginAction: string}) {
-    const label = text("scanovateStartOver")
-    return (
-        <form method="post" action={loginAction} className="scanovate-start-over">
-            <input type="hidden" name={ACTION_PARAM} value={CaptureAction.Retry} />
-            <Button type="submit" variant="text" lang={label.lang}>
-                {label.text}
-            </Button>
-        </form>
     )
 }
 

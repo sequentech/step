@@ -21,11 +21,11 @@ export const scanovateEnglish = {
 
     scanovateDocumentStepTitle: "Scan your ID",
     scanovateDocumentStepLead:
-        "Follow the instructions below to scan your {0}. Then we will check your face.",
+        "Follow the instructions on the screen to scan your {0}. Then we will check your face.",
     scanovateDocumentFrameTitle: "ID scan",
     scanovateFaceStepTitle: "Check your face",
     scanovateFaceStepLead:
-        "Your ID is scanned. Follow the instructions below so we can confirm it is you in front of the camera.",
+        "Your ID is scanned. Follow the instructions on the screen so we can confirm it is you in front of the camera.",
     scanovateFaceFrameTitle: "Face check",
     scanovateHoldingStepTitle: "Take a photo holding your ID",
     scanovateHoldingStepLead:
@@ -37,6 +37,7 @@ export const scanovateEnglish = {
     scanovateHoldingProgress: "Holding still",
     scanovateHoldingRetake: "Take it again",
     scanovateHoldingUse: "Use this photo",
+    scanovateHoldingClose: "Close",
     scanovateUploadProblemTitle: "We couldn’t send your photo",
     scanovateUploadProblemText: "Check your internet connection and try again.",
     scanovateCameraProblemTitle: "We couldn’t use your camera",
@@ -127,11 +128,11 @@ export const scanovateSpanish: Record<keyof typeof scanovateEnglish, string> = {
 
     scanovateDocumentStepTitle: "Escanee su documento",
     scanovateDocumentStepLead:
-        "Siga las instrucciones de abajo para escanear su {0}. Después comprobaremos su cara.",
+        "Siga las instrucciones de la pantalla para escanear su {0}. Después comprobaremos su cara.",
     scanovateDocumentFrameTitle: "Escaneo del documento",
     scanovateFaceStepTitle: "Compruebe su cara",
     scanovateFaceStepLead:
-        "Su documento está escaneado. Siga las instrucciones de abajo para confirmar que es usted quien está frente a la cámara.",
+        "Su documento está escaneado. Siga las instrucciones de la pantalla para confirmar que es usted quien está frente a la cámara.",
     scanovateFaceFrameTitle: "Comprobación facial",
     scanovateHoldingStepTitle: "Hágase una foto con su documento",
     scanovateHoldingStepLead:
@@ -143,6 +144,7 @@ export const scanovateSpanish: Record<keyof typeof scanovateEnglish, string> = {
     scanovateHoldingProgress: "Sin moverse",
     scanovateHoldingRetake: "Repetirla",
     scanovateHoldingUse: "Usar esta foto",
+    scanovateHoldingClose: "Cerrar",
     scanovateUploadProblemTitle: "No pudimos enviar su foto",
     scanovateUploadProblemText: "Compruebe su conexión a internet e inténtelo de nuevo.",
     scanovateCameraProblemTitle: "No pudimos usar su cámara",
