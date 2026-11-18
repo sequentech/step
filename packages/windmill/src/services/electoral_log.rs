@@ -47,6 +47,7 @@ use strum_macros::{Display, EnumString};
 use tempfile::NamedTempFile;
 use tokio_stream::StreamExt;
 use tracing::{event, info, instrument, warn, Level};
+use uuid::Uuid;
 
 pub const IMMUDB_ROWS_LIMIT: usize = 2500;
 pub const MAX_ROWS_PER_PAGE: usize = 50;
@@ -1549,6 +1550,40 @@ pub struct GetElectoralLogBody {
     pub statement_kind: Option<StatementType>,
 }
 
+/// How an admin filter on a VARCHAR column matches the value typed in.
+#[derive(Debug, PartialEq, Eq)]
+enum TextFilterMatch {
+    /// A complete value, matched with `=` so the board's indexes can find it.
+    Exact,
+    /// Part of a value, found anywhere in the column. immudb's LIKE is an unanchored regular
+    /// expression, so the value is escaped to match its characters literally.
+    Contains,
+}
+
+impl TextFilterMatch {
+    fn of(field: &OrderField, value: &str) -> Self {
+        let complete = match field {
+            OrderField::UserId => {
+                Uuid::parse_str(value).is_ok_and(|uuid| uuid.hyphenated().to_string() == value)
+            }
+            OrderField::StatementKind => {
+                serde_json::from_value::<StatementType>(serde_json::Value::from(value)).is_ok()
+            }
+            OrderField::BallotId => {
+                value.len() == BALLOT_ID_LENGTH_CHARS
+                    && value
+                        .chars()
+                        .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
+            }
+            _ => false,
+        };
+        match complete {
+            true => TextFilterMatch::Exact,
+            false => TextFilterMatch::Contains,
+        }
+    }
+}
+
 impl GetElectoralLogBody {
     fn page_limit(&self, pg_config: &PgConfig) -> Result<usize> {
         pg_config.page_limit(self.limit.unwrap_or(pg_config.default_sql_limit.into()))
@@ -1574,8 +1609,12 @@ impl GetElectoralLogBody {
                         params.push(create_named_param(param_name, Value::N(int_value)));
                     }
                     OrderField::SenderPk | OrderField::UserId | OrderField::Username | OrderField::BallotId | OrderField::StatementKind | OrderField::Version => { // sql VARCHAR type
-                        where_clauses.push(format!("{field} LIKE @{}", param_name));
-                        params.push(create_named_param(param_name, Value::S(value.to_string())));
+                        let (clause, value) = match TextFilterMatch::of(field, value) {
+                            TextFilterMatch::Exact => (format!("{field} = @{param_name}"), value.to_string()),
+                            TextFilterMatch::Contains => (format!("{field} LIKE @{param_name}"), regex::escape(value)),
+                        };
+                        where_clauses.push(clause);
+                        params.push(create_named_param(param_name, Value::S(value)));
                     }
                     OrderField::StatementTimestamp | OrderField::Created => { // sql TIMESTAMP type
                         // these have their own column and are inside of Message´s column as well
@@ -2262,6 +2301,122 @@ mod page_limit_tests {
                 .page_limit(&PgConfig::default())
                 .is_err());
         }
+    }
+}
+
+#[cfg(test)]
+mod text_filter_tests {
+    use super::*;
+
+    const USER_ID: &str = "27ac2b8a-73a1-4219-b12e-9672f42d7e90";
+
+    /// The WHERE clause and its only parameter's value for a count filtered on `field`.
+    fn count_filter(field: OrderField, value: &str) -> (String, String) {
+        let body = GetElectoralLogBody {
+            filter: Some(HashMap::from([(field, value.to_string())])),
+            ..Default::default()
+        };
+        let (clauses, params) = body.as_sql(true).unwrap();
+        let [param] = params.as_slice() else {
+            panic!("expected one parameter: {params:?}");
+        };
+        let Some(Value::S(param_value)) = param.value.as_ref().and_then(|v| v.value.clone()) else {
+            panic!("expected a string parameter: {param:?}");
+        };
+        (clauses, param_value)
+    }
+
+    #[test]
+    fn a_complete_user_id_is_matched_exactly() {
+        assert_eq!(
+            count_filter(OrderField::UserId, USER_ID),
+            (
+                "WHERE user_id = @param_user_id".to_string(),
+                USER_ID.to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn part_of_a_user_id_is_found_anywhere_in_it() {
+        assert_eq!(
+            count_filter(OrderField::UserId, "27ac2b8a-73a1"),
+            (
+                "WHERE user_id LIKE @param_user_id".to_string(),
+                r"27ac2b8a\-73a1".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn a_user_id_in_another_spelling_is_not_taken_as_complete() {
+        for spelling in [
+            USER_ID.to_uppercase(),
+            USER_ID.replace('-', ""),
+            format!("urn:uuid:{USER_ID}"),
+        ] {
+            let (clause, _) = count_filter(OrderField::UserId, &spelling);
+            assert_eq!(clause, "WHERE user_id LIKE @param_user_id", "{spelling}");
+        }
+    }
+
+    #[test]
+    fn a_statement_kind_name_is_matched_exactly() {
+        assert_eq!(
+            count_filter(OrderField::StatementKind, "CastVote"),
+            (
+                "WHERE statement_kind = @param_statement_kind".to_string(),
+                "CastVote".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn part_of_a_statement_kind_is_found_anywhere_in_it() {
+        assert_eq!(
+            count_filter(OrderField::StatementKind, "Cast"),
+            (
+                "WHERE statement_kind LIKE @param_statement_kind".to_string(),
+                "Cast".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn a_complete_ballot_id_is_matched_exactly() {
+        let ballot_id = "8ec8cd744b4808fa31a91e2b4c4cc2dbfda0c9fc1f1281baea9fb1fb4fd63b9b";
+        assert_eq!(
+            count_filter(OrderField::BallotId, ballot_id),
+            (
+                "WHERE ballot_id = @param_ballot_id".to_string(),
+                ballot_id.to_string()
+            )
+        );
+        let (clause, _) = count_filter(OrderField::BallotId, &ballot_id.to_uppercase());
+        assert_eq!(clause, "WHERE ballot_id LIKE @param_ballot_id");
+        let (clause, _) = count_filter(OrderField::BallotId, &ballot_id[..8]);
+        assert_eq!(clause, "WHERE ballot_id LIKE @param_ballot_id");
+    }
+
+    #[test]
+    fn a_username_is_found_anywhere_with_its_characters_taken_literally() {
+        assert_eq!(
+            count_filter(OrderField::Username, "john.doe+1"),
+            (
+                "WHERE username LIKE @param_username".to_string(),
+                r"john\.doe\+1".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn sender_keys_and_versions_are_found_anywhere_in_them() {
+        let (clause, value) = count_filter(OrderField::SenderPk, "MCowBQYDK2VwAyEA+");
+        assert_eq!(clause, "WHERE sender_pk LIKE @param_sender_pk");
+        assert_eq!(value, r"MCowBQYDK2VwAyEA\+");
+        let (clause, value) = count_filter(OrderField::Version, "1.2");
+        assert_eq!(clause, "WHERE version LIKE @param_version");
+        assert_eq!(value, r"1\.2");
     }
 }
 
