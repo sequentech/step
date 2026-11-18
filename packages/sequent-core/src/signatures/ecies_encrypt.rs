@@ -16,10 +16,21 @@ use tempfile::tempdir;
 use tracing::{info, instrument};
 
 pub const ECIES_TOOL_PATH: &str = "/usr/local/bin/ecies-tool.jar";
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct EciesKeyPair {
     pub private_key_pem: String,
     pub public_key_pem: String,
+}
+
+/// Shows the public key only, so a logged key pair never carries the private
+/// key.
+impl std::fmt::Debug for EciesKeyPair {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EciesKeyPair")
+            .field("private_key_pem", &"<redacted>")
+            .field("public_key_pem", &self.public_key_pem)
+            .finish()
+    }
 }
 
 #[instrument(skip(password), err)]
@@ -85,14 +96,11 @@ pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
     })
 }
 
-#[instrument(skip(data), err)]
+#[instrument(skip(acm_key_pair, data), err)]
 pub fn ecies_sign_data(
     acm_key_pair: &EciesKeyPair,
     data: &str,
 ) -> Result<String> {
-    // Retrieve the PEM as a string
-    info!("pem: {}", acm_key_pair.private_key_pem);
-
     let temp_pem_file = generate_temp_file("private_key", ".pem")?;
     let temp_pem_file_path = temp_pem_file.path();
     let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();
@@ -218,4 +226,41 @@ pub fn ecies_sign_data_bulk(
 
     // 7. Return all signatures in a HashMap keyed by the "id"
     Ok(signature_map)
+}
+
+#[cfg(all(test, any(feature = "keycloak", feature = "reports")))]
+mod tests {
+    use super::{ecies_sign_data, EciesKeyPair};
+    use crate::util::log_capture::LogCapture;
+
+    const PRIVATE_KEY: &str = "PrivateKeyPemValue5b9e";
+    const PUBLIC_KEY: &str = "PublicKeyPemValue2d6a";
+
+    fn key_pair() -> EciesKeyPair {
+        EciesKeyPair {
+            private_key_pem: PRIVATE_KEY.to_string(),
+            public_key_pem: PUBLIC_KEY.to_string(),
+        }
+    }
+
+    #[test]
+    fn key_pair_debug_shows_only_the_public_key() {
+        let debug = format!("{:?}", key_pair());
+
+        assert!(debug.contains(PUBLIC_KEY), "{debug}");
+        assert!(!debug.contains(PRIVATE_KEY), "{debug}");
+    }
+
+    #[test]
+    fn signing_logs_no_private_key() {
+        let (capture, _guard) = LogCapture::install();
+
+        // The key isn't a valid PEM (and the ECIES tool may be missing), so
+        // signing fails after the key has been handled.
+        let _ = ecies_sign_data(&key_pair(), "data");
+
+        let logs = capture.contents();
+        assert!(logs.contains("ecies_sign_data"), "{logs}");
+        assert!(!logs.contains(PRIVATE_KEY), "private key in logs: {logs}");
+    }
 }

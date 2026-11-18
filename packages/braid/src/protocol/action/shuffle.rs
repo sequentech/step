@@ -161,7 +161,12 @@ pub(crate) fn sign_mix<C: Ctx>(
     let target = trustee.get_mix(cipher_h, *batch, signert_t);
     let mix = target.add_context("Signing mix")?;
 
-    let mix_number = mix.mix_number;
+    if mix.mix_number != *mix_no {
+        return Err(ProtocolError::VerificationError(format!(
+            "Mix artifact number {} does not match mix position {}",
+            mix.mix_number, mix_no
+        )));
+    }
 
     // Null mix
     if source_cs.0.len() == 0 {
@@ -171,7 +176,7 @@ pub(crate) fn sign_mix<C: Ctx>(
             )));
         }
 
-        let m = Message::mix_signed_msg(cfg, *batch, *source_h, *cipher_h, mix_number, trustee)?;
+        let m = Message::mix_signed_msg(cfg, *batch, *source_h, *cipher_h, *mix_no, trustee)?;
         return Ok(vec![m]);
     }
 
@@ -190,7 +195,7 @@ pub(crate) fn sign_mix<C: Ctx>(
     let hs = ctx.generators(source_cs.0.len() + 1, &seed)?;
     let shuffler = strand::shuffler::Shuffler::new(&pk, &ctx);
 
-    let label = cfg.label(*batch, format!("shuffle{mix_number}"));
+    let label = cfg.label(*batch, format!("shuffle{mix_no}"));
     let ok = shuffler.check_proof(&proof, source_cs.0, mix.ciphertexts.0, hs, &label)?;
     info!(
         "SignMix shuffle verification [{}] => [{}] ok = {}",
@@ -205,6 +210,112 @@ pub(crate) fn sign_mix<C: Ctx>(
         )));
     }
 
-    let m = Message::mix_signed_msg(cfg, *batch, *source_h, *cipher_h, mix_number, trustee)?;
+    let m = Message::mix_signed_msg(cfg, *batch, *source_h, *cipher_h, *mix_no, trustee)?;
     Ok(vec![m])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::marker::PhantomData;
+
+    use b3::messages::artifact::{Ballots, Configuration};
+    use b3::messages::message::Signer;
+    use b3::messages::protocol_manager::ProtocolManager;
+    use b3::messages::statement::{Statement, StatementType};
+    use strand::backend::ristretto::RistrettoCtx;
+    use strand::serialization::StrandSerialize;
+    use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+
+    const BATCH: BatchNumber = 1;
+    const MIX_NUMBER: MixNumber = 1;
+    const MIXER: TrusteePosition = 0;
+
+    fn new_trustee(name: &str) -> Trustee<RistrettoCtx> {
+        Trustee::new(
+            name.to_string(),
+            "board".to_string(),
+            StrandSignatureSk::gen().unwrap(),
+            strand::symm::gen_key(),
+            None,
+            None,
+        )
+    }
+
+    // Posts zero ballots and a null Mix whose statement places it at MIX_NUMBER
+    // but whose artifact carries artifact_mix_number, then signs that mix as
+    // the second selected trustee.
+    fn sign_null_mix(artifact_mix_number: MixNumber) -> Result<Vec<Message>, ProtocolError> {
+        let pm = ProtocolManager::<RistrettoCtx> {
+            signing_key: StrandSignatureSk::gen().unwrap(),
+            phantom: PhantomData,
+        };
+        let mixer = new_trustee("mixer");
+        let mut signer = new_trustee("signer");
+        let cfg = Configuration::<RistrettoCtx>::new(
+            0,
+            StrandSignaturePk::from_sk(&pm.signing_key).unwrap(),
+            vec![mixer.get_pk().unwrap(), signer.get_pk().unwrap()],
+            2,
+            PhantomData,
+        );
+        let cfg_h = ConfigurationHash::from_configuration(&cfg).unwrap();
+        let pk_h = PublicKeyHash(NULL_HASH);
+
+        let mut selected = [NULL_TRUSTEE; MAX_TRUSTEES];
+        selected[0] = MIXER + 1;
+        selected[1] = MIXER + 2;
+        let ballots = Ballots::<RistrettoCtx>::new(vec![]);
+        let ballots_h = CiphertextsHash(
+            strand::hash::hash_to_array(&ballots.strand_serialize().unwrap()).unwrap(),
+        );
+        let ballots_msg = Message::ballots_msg(&cfg, BATCH, &ballots, selected, pk_h, &pm).unwrap();
+
+        let mix_bytes = Mix::<RistrettoCtx>::null(artifact_mix_number)
+            .strand_serialize()
+            .unwrap();
+        let mix_h = CiphertextsHash(strand::hash::hash_to_array(&mix_bytes).unwrap());
+        let statement = Statement::Mix(b3::timestamp(), cfg_h, BATCH, ballots_h, mix_h, MIX_NUMBER);
+        let mix_msg = mixer.sign(statement, Some(mix_bytes)).unwrap();
+
+        let messages = vec![
+            Message::bootstrap_msg(&cfg, &pm).unwrap(),
+            ballots_msg,
+            mix_msg,
+        ];
+        for (id, message) in messages.into_iter().enumerate() {
+            let verified = message.verify(&cfg).unwrap();
+            signer.local_board.add(verified, id as i64)?;
+        }
+
+        sign_mix(
+            &cfg_h,
+            &BATCH,
+            &ballots_h,
+            PROTOCOL_MANAGER_INDEX,
+            &mix_h,
+            MIXER,
+            &pk_h,
+            &MIX_NUMBER,
+            &signer,
+        )
+    }
+
+    #[test]
+    fn sign_mix_signs_at_the_mix_position() {
+        let messages = sign_null_mix(MIX_NUMBER).unwrap();
+
+        assert_eq!(messages.len(), 1);
+        let (kind, _, batch, mix_no, _) = messages[0].statement.get_data();
+        assert_eq!(kind, StatementType::MixSigned);
+        assert_eq!(batch, BATCH);
+        assert_eq!(mix_no, MIX_NUMBER);
+    }
+
+    #[test]
+    fn sign_mix_rejects_artifact_mix_number_mismatch() {
+        let result = sign_null_mix(MIX_NUMBER + 1);
+
+        assert!(matches!(result, Err(ProtocolError::VerificationError(_))));
+    }
 }
