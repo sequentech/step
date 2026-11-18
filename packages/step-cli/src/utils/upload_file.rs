@@ -23,13 +23,17 @@ pub struct GetUploadUrl;
 
 impl GetUploadUrl {
     pub fn upload(file_path: String, is_local: bool) -> Result<String, Box<dyn std::error::Error>> {
-        Self::upload_for_election_event(file_path, is_local, None)
+        Self::upload_for_election_event(file_path, is_local, None, false)
     }
 
+    /// `voter_secret_attributes` is for files that can hold voter passwords or
+    /// secret attributes: downloading them then needs the voter secret
+    /// attribute read permission.
     pub fn upload_for_election_event(
         file_path: String,
         is_local: bool,
         election_event_id: Option<String>,
+        voter_secret_attributes: bool,
     ) -> Result<String, Box<dyn std::error::Error>> {
         let config = read_config()?;
         let client = reqwest::blocking::Client::new();
@@ -55,6 +59,7 @@ impl GetUploadUrl {
             is_public: false, // If local then the url changes
             is_local: Some(is_local),
             election_event_id,
+            voter_secret_attributes: Some(voter_secret_attributes),
         };
 
         let request_body = GetUploadUrl::build_query(variables);

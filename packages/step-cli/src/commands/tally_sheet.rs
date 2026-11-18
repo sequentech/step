@@ -760,6 +760,7 @@ fn resolve_import_document(
                 path.to_string_lossy().to_string(),
                 is_local,
                 Some(election_event_id.to_string()),
+                false,
             )?;
 
             Ok(ImportDocument {
