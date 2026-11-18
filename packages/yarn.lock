@@ -16100,7 +16100,7 @@ sentence-case@^3.0.4:
 
 "sequent-election-config@file:./admin-portal/rust/sequent-election-config-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./admin-portal/rust/sequent-election-config-0.1.0.tgz#7510ecdd8a870a20bbdb052f129bf078e4503faf"
+  resolved "file:./admin-portal/rust/sequent-election-config-0.1.0.tgz#2c065dba847ff17ecb9d35967786412d8c93bc72"
 
 serialize-javascript@^6.0.0, serialize-javascript@^6.0.2, serialize-javascript@^7.0.5:
   version "7.1.1"
