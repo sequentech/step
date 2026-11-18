@@ -58,7 +58,7 @@ RUN curl -fsSL -o /tmp/oid4vp.tar.gz \
  && cd /build/keycloak-extension-oid4vp-${OID4VP_VERSION} \
  && mvn -B clean package -DskipTests
 
-FROM quay.io/keycloak/keycloak:26.6.1 AS builder
+FROM quay.io/keycloak/keycloak:26.6.4 AS builder
 ARG OID4VP_VERSION
 
 # The extension OID4VP_VERSION v0.6.2 requires Keycloak 26.6.1 or later, as
@@ -99,9 +99,14 @@ COPY --chown=keycloak:keycloak \
 
 RUN /opt/keycloak/bin/kc.sh build 
 
-FROM quay.io/keycloak/keycloak:26.6.1
+FROM quay.io/keycloak/keycloak:26.6.4
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
 COPY --from=spis-build /build/keycloak-provider-conf/quarkus.properties /opt/keycloak/conf/quarkus.properties
 
 ENV KC_DB=postgres
+# Java4Shell (CVE-2026-114938): disable the vulnerable AVX-512 Base64 decode
+# intrinsic until the Keycloak image ships a fixed JDK. kc.sh appends
+# JAVA_OPTS_APPEND after its defaults; arm64 JVMs accept the flag too.
+# https://github.com/sequentech/meta/issues/15038
+ENV JAVA_OPTS_APPEND="-XX:-UseBASE64Intrinsics"
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
