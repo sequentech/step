@@ -774,8 +774,15 @@ mod tests {
             .as_deref()
             .unwrap()
             .starts_with("pending:ballot-publication:"));
-        // The event carries a reference only, never the statement.
-        assert!(!input.body.as_raw().contains("publication"));
+        // The event carries a reference only, never the statement: exactly one
+        // key, the reference, naming its own delivery ID.
+        let body: serde_json::Value = serde_json::from_str(&input.body.as_raw()).unwrap();
+        let object = body.as_object().unwrap();
+        assert_eq!(object.len(), 1);
+        assert_eq!(
+            object[PENDING_REF_KEY].as_str(),
+            input.delivery_id.as_deref()
+        );
         let read = reread(&input, &stored).unwrap();
         let key = SigningKey::generate().unwrap();
         let sd = SigningData::new(key.clone(), "", key.clone());

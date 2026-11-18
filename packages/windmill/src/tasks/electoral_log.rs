@@ -508,12 +508,14 @@ async fn store_batch(events: &[LogEventInput]) -> std::result::Result<(), StoreF
     // others; a retry appends the failed boards again, idempotently.
     let client = get_board_client().await?;
     let mut failures = built.deferred;
+    let mut stored_ids: HashSet<String> = HashSet::new();
     for (board, messages) in built.by_board {
         match client.append(&board, &messages).await {
             Ok(stored) => {
                 emit_monitoring_lines(&board, &messages, &stored);
                 // Stored: its entries no longer hold their log.
                 let ids = built.delivered.get(&board).cloned().unwrap_or_default();
+                stored_ids.extend(ids.iter().cloned());
                 if let Err(error) = stop_waiting(&**queue_client, &ids).await {
                     failures.push(format!("{board}: {error:#}"));
                 }
@@ -523,6 +525,19 @@ async fn store_batch(events: &[LogEventInput]) -> std::result::Result<(), StoreF
                 failures.push(format!("{board}: {error:#}"));
             }
         }
+    }
+    // A log whose head was just stored, with nothing waiting for the signer
+    // any more, drains its backlog now, in order.
+    let released = crate::services::electoral_log_deferral::released_scopes(
+        events,
+        &stored_ids,
+        &built.waiting,
+    );
+    if let Err(error) =
+        crate::services::electoral_log_deferral::release_scopes(&**queue_client, event_queue, &released)
+            .await
+    {
+        tracing::warn!("Error releasing the electoral-log entries waiting behind a stored one: {error:#}");
     }
     if !failures.is_empty() {
         return Err(StoreFailure {
@@ -2856,6 +2871,35 @@ mod batch_build_tests {
         assert_eq!(waiting_ids(&built), vec![("k1", WaitReason::Held)]);
     }
 
+    #[test]
+    fn a_scope_is_released_once_stored_unless_something_still_waits_for_the_signer() {
+        use crate::services::electoral_log_deferral::released_scopes;
+        let stored = keycloak_event(Some("s1"), EVENT);
+        let held = keycloak_event(Some("h1"), EVENT);
+        let down = keycloak_event(Some("d1"), DOWN_SIGNER_EVENT);
+        let down_stored = keycloak_event(Some("s2"), DOWN_SIGNER_EVENT);
+        let events = vec![stored.clone(), held.clone(), down.clone(), down_stored.clone()];
+        let ids: HashSet<String> = ["s1", "s2"].map(String::from).into();
+        let waiting = vec![
+            WaitingEvent {
+                event: held,
+                reason: WaitReason::Held,
+                error: String::new(),
+            },
+            WaitingEvent {
+                event: down,
+                reason: WaitReason::SignerUnavailable,
+                error: String::new(),
+            },
+        ];
+        // EVENT's log: stored, only held entries left: released. DOWN's: an
+        // entry still waits for the signer: kept to its backoff.
+        assert_eq!(
+            released_scopes(&events, &ids, &waiting),
+            vec![scope_of(&stored)]
+        );
+    }
+
     #[tokio::test]
     async fn a_busy_log_drains_in_order_right_after_its_head_is_stored() {
         // A real clock: one round a second, a new event of the same log each
@@ -3088,8 +3132,36 @@ mod batch_build_tests {
                     self.queue.push((due, event_message(&event).unwrap()));
                 }
             }
-            for id in built.delivered.values().flatten().chain(&built.settled) {
+            let stored_ids: HashSet<String> = built
+                .delivered
+                .values()
+                .flatten()
+                .chain(&built.settled)
+                .cloned()
+                .collect();
+            for id in &stored_ids {
                 self.rows.remove(id);
+            }
+            // As store_batch: a log whose head was stored drains its backlog now.
+            let released = crate::services::electoral_log_deferral::released_scopes(
+                &events,
+                &stored_ids,
+                &built.waiting,
+            );
+            let next = now_ms
+                + self
+                    .step_ms
+                    .unwrap_or(self.backoff.max.as_millis() as i64);
+            for (_, (scope, _, due)) in self.rows.iter_mut() {
+                if released.contains(scope) {
+                    *due = (*due).min(next);
+                }
+            }
+            for (due, message) in self.queue.iter_mut() {
+                let event = parse_queued_event(message.clone()).unwrap();
+                if released.contains(&scope_of(&event)) {
+                    *due = (*due).min(next);
+                }
             }
             for (board, entries) in built.by_board {
                 let stored = self.boards.entry(board).or_default();

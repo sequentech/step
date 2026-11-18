@@ -24,8 +24,10 @@
 //!   batch), even if its own signing would work. Waiting events are ordered
 //!   by when they first waited, then by their place in that batch. A held
 //!   event has no backoff of its own: it is due just after the scope's
-//!   earliest due waiting event, so the scope drains in order as soon as
-//!   its head is stored.
+//!   earliest due waiting event; and when a batch stores a scope's entries
+//!   and nothing of that scope waits for the signer any more, the scope's
+//!   waiting entries are made due at once ([`release_scopes`]), so its
+//!   backlog drains in order right after its head is stored.
 //! - **Scale.** Only the waiting events of the batch's scopes are read, and
 //!   the queue setup indexes the deferral headers (`pgmq-broker`'s
 //!   `setup.sql`), so neither reading them nor putting one back scans the
@@ -521,6 +523,69 @@ pub async fn stop_waiting<C: GenericClient + Sync>(
         .await
         .context("Error removing electoral-log entries that no longer wait")?;
     Ok(())
+}
+
+/// Makes the waiting entries of these scopes due now (their rows and their
+/// copies on `queue`): called for the scopes whose head a batch just stored and
+/// that have nothing waiting for the signer any more, so a log's backlog drains
+/// right away, in order, instead of each entry at its own next due time.
+pub async fn release_scopes<C: GenericClient + Sync>(
+    client: &C,
+    queue: &str,
+    scopes: &[String],
+) -> Result<()> {
+    if scopes.is_empty() {
+        return Ok(());
+    }
+    let copies: Vec<i64> = client
+        .query(
+            &format!(
+                "UPDATE {WAITING_TABLE} SET due_at = clock_timestamp() \
+                 WHERE scope = ANY($1) RETURNING copy_msg_id"
+            ),
+            &[&scopes],
+        )
+        .await
+        .context("Error releasing a log's waiting entries")?
+        .iter()
+        .filter_map(|row| row.get::<_, Option<i64>>(0))
+        .collect();
+    if !copies.is_empty() {
+        client
+            .query("SELECT pgmq.set_vt($1, $2::bigint[], 0)", &[&queue, &copies])
+            .await
+            .context("Error making a log's waiting entries due")?;
+    }
+    Ok(())
+}
+
+/// The scopes a batch stored entries of and has nothing waiting for the
+/// signer in (entries only held behind others don't count): their backlog may
+/// go now ([`release_scopes`]).
+pub fn released_scopes(
+    events: &[LogEventInput],
+    stored_ids: &HashSet<String>,
+    waiting: &[WaitingEvent],
+) -> Vec<String> {
+    let still_waiting: HashSet<String> = waiting
+        .iter()
+        .filter(|item| item.reason == WaitReason::SignerUnavailable)
+        .map(|item| scope_of(&item.event))
+        .collect();
+    let mut scopes: Vec<String> = events
+        .iter()
+        .filter(|event| {
+            event
+                .delivery_id
+                .as_ref()
+                .is_some_and(|id| stored_ids.contains(id))
+        })
+        .map(scope_of)
+        .filter(|scope| !still_waiting.contains(scope))
+        .collect();
+    scopes.sort();
+    scopes.dedup();
+    scopes
 }
 
 /// Alert class of waiting rows past due whose copy is no longer on the queue
