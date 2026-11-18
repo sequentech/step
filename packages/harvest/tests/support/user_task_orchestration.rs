@@ -126,6 +126,43 @@ async fn a_cross_tenant_import_is_refused_before_creating_its_task() {
 }
 
 #[tokio::test]
+async fn an_import_restricts_its_source_before_queueing() {
+    let tasks = InMemoryUserTasks::default();
+    import(
+        &tasks,
+        claims(&[VOTER_CREATE]),
+        import_input(Some("event-a")),
+    )
+    .await
+    .unwrap();
+    let state = tasks.snapshot();
+    assert_eq!(
+        state.restricted_sources,
+        vec![("tenant-a".to_string(), "source-document".to_string())]
+    );
+    assert_eq!(state.import_attempts.len(), 1);
+}
+
+#[tokio::test]
+async fn an_import_whose_source_cannot_be_restricted_is_not_queued() {
+    let tasks = InMemoryUserTasks::default();
+    tasks.fail_on(UserTaskCall::RestrictSource, "document is public");
+    let error = import(
+        &tasks,
+        claims(&[VOTER_CREATE]),
+        import_input(Some("event-a")),
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(error.0, Status::InternalServerError);
+    assert!(error.1.contains("document is public"));
+    let state = tasks.snapshot();
+    assert_eq!(state.connection_count, 0);
+    assert!(state.import_attempts.is_empty());
+    assert_eq!(state.failed_tasks.len(), 1);
+}
+
+#[tokio::test]
 async fn import_ledger_failures_prevent_dispatch_and_keep_the_insertion_error_context(
 ) {
     let tasks = InMemoryUserTasks::default();

@@ -11,7 +11,7 @@ use crate::postgres::voter_import::{
 use crate::services::audit_log::stage;
 use crate::services::audit_log::{AdminAction, AdminChange, AuditActor};
 use crate::services::database::get_hasura_pool;
-use crate::services::documents::get_document_as_temp_file;
+use crate::services::documents::{get_document_as_temp_file, restrict_import_source};
 use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::import::import_users::{import_users_file, ImportUsersPrivileges};
 use crate::services::import::rejection::{problems_in, problems_of};
@@ -200,6 +200,10 @@ async fn run_import_users(
     body: &ImportUsersBody,
     task_execution: &TasksExecution,
 ) -> anyhow::Result<()> {
+    restrict_import_source(&body.tenant_id, &body.document_id)
+        .await
+        .context("Failed to restrict access to the voters file")?;
+
     let event_id = body
         .election_event_id
         .as_deref()

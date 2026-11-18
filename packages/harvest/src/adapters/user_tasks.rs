@@ -14,6 +14,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 use windmill::services::audit_log::AuditActor;
 use windmill::services::celery_app::try_get_celery_app;
+use windmill::services::documents::restrict_import_source;
 use windmill::services::electoral_log::{
     post_voter_secret_attribute_audit, ElectoralLogAdminContext,
     VoterSecretAttributeAction, VoterSecretAttributeAudit,
@@ -64,6 +65,13 @@ impl UserTaskLedger for WindmillUserTaskLedger {
         message: &str,
     ) -> anyhow::Result<()> {
         update_fail(task, message).await
+    }
+    async fn restrict_import_source(
+        &self,
+        tenant_id: &str,
+        document_id: &str,
+    ) -> anyhow::Result<()> {
+        restrict_import_source(tenant_id, document_id).await
     }
 }
 
