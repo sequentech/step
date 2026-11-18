@@ -390,7 +390,7 @@ async fn log_problems(
     {
         Ok(electoral_log) => electoral_log,
         Err(error) if electoral_log::signer::is_signer_unavailable(&error) => {
-            return queue(text).queue().await;
+            return queue(text).queue().await.map(|_| ());
         }
         Err(error) => return Err(error),
     };
@@ -404,8 +404,12 @@ async fn log_problems(
         )
         .await
     {
-        Err(error) if electoral_log::signer::is_signer_unavailable(&error) => {
-            queue(text).queue().await
+        // Unavailable, or its log has entries waiting: queued behind them.
+        Err(error)
+            if electoral_log::signer::is_signer_unavailable(&error)
+                || crate::services::electoral_log_deferral::is_scope_waiting(&error) =>
+        {
+            queue(text).queue().await.map(|_| ())
         }
         result => result,
     }

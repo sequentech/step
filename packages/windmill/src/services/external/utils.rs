@@ -357,7 +357,8 @@ pub async fn post_operation_result_to_electoral_log(
                 },
             )
             .queue()
-            .await;
+            .await
+            .map(|_| ());
         }
         Err(error) => return Err(error),
     };

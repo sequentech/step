@@ -8,30 +8,40 @@
 //! A producer whose entry is a record made after its action (not a
 //! condition of it) and that already treated a failure to record as
 //! non-fatal may, when the board's signer is unavailable
-//! ([`electoral_log::signer::SignerUnavailable`]), queue a
-//! [`PendingStatement`] instead of losing the entry. It is plainly unsigned
-//! data: no signature, no placeholder. The batch task (`tasks::electoral_log`)
-//! validates it ([`PendingStatement::validate`]), builds the statement from
-//! its typed fields with the same builder the producer uses, at the time it
-//! happened, signs it with the board's system signer, and stores it under the
-//! queued delivery ID; while the signer is still unavailable it waits
-//! durably like any event (`services::electoral_log_deferral`).
+//! ([`electoral_log::signer::SignerUnavailable`]) or its log has entries
+//! waiting ([`crate::services::electoral_log_deferral::ScopeWaiting`]),
+//! queue a [`PendingStatement`] instead of losing the entry. It is plainly
+//! unsigned data: no signature, no placeholder.
+//!
+//! **Where it lives.** In the waiting table (`step_queue.electoral_log_waiting`,
+//! `pgmq-broker`'s `setup.sql`), which only the workers' database role may
+//! write: Keycloak and Harvest (the producer role) can't add or change a
+//! row. The event queue only carries a reference to it, `{"pending_statement_ref":
+//! "<delivery ID>"}` in an `Internal` event (no new message type: a worker of
+//! an earlier release dead-letters it as a malformed record, replayable,
+//! never stores it). So writing to the queues, as Keycloak can, gives no way
+//! to have a board sign a statement: a forged reference names no row, or a
+//! row a worker wrote. No new secret is involved: the boundary is the
+//! existing database roles. A producer running as the producer role
+//! (Harvest) can't queue one; it fails as before.
+//!
+//! **What the batch task checks** before signing ([`PendingStatement::read`]):
+//! the row exists under the event's delivery ID and scope; it is this type
+//! (versioned, unknown fields refused); its kind is allowed and comes from
+//! its own origin (Datafix only, for an external API request); it is bound to
+//! the event's tenant and election event, under a delivery ID of its origin;
+//! its time is not in the future and not long before the row was written
+//! (the row's own `created_at`, which the producer does not choose); its
+//! identifiers are short and printable. It then builds the statement from the
+//! typed fields with the producer's own builder, at that time, signs it with
+//! the board's system signer only (never an administrator's or a voter's
+//! key), and stores it under the queued delivery ID; while the signer is
+//! still unavailable it waits durably like any event
+//! (`services::electoral_log_deferral`). Anything else is poison: dead-lettered,
+//! never signed.
 //!
 //! Producers whose rule is that a failure to record stops the action never
 //! queue: they keep failing visibly.
-//!
-//! It travels as an `Internal` event whose body is `{"pending_statement": ..}`
-//! (no new message type): a worker of an earlier release reads that body as
-//! a malformed signed record and dead-letters it (replayable once workers are
-//! updated); it never stores it.
-//!
-//! What a pending statement can make the board sign is bounded: one of the
-//! kinds below, each only from its own origin, for the tenant and election
-//! event the queued event names, under a delivery ID of that origin, made
-//! from typed fields (never statement bytes), signed by the board's system
-//! signer only (never an administrator's or a voter's key), with a time
-//! that is not in the future. Anything else is refused and dead-lettered,
-//! never signed.
 
 use crate::tasks::electoral_log::{LogEventBody, LogEventInput, LogMessageType};
 use anyhow::{anyhow, ensure, Context, Result};
@@ -57,28 +67,62 @@ pub const DELIVERY_PREFIX: &str = "pending:";
 pub const MAX_ID_CHARS: usize = 256;
 /// How long before it was first queued a statement may say it happened.
 pub const MAX_LAG_SECS: u64 = 600;
-/// The only key of an `Internal` body that carries a pending statement.
-pub const PENDING_BODY_KEY: &str = "pending_statement";
+/// The only key of an `Internal` body that refers to a pending statement.
+pub const PENDING_REF_KEY: &str = "pending_statement_ref";
 
-/// Whether an `Internal` event's body carries a pending statement (rather
-/// than a signed record).
-pub fn is_pending_body(body: &str) -> bool {
-    serde_json::from_str::<serde_json::Value>(body)
-        .ok()
-        .and_then(|value| value.as_object().map(|object| object.contains_key(PENDING_BODY_KEY)))
-        .unwrap_or(false)
-}
-
-/// The body of the `Internal` event that carries a pending statement.
+/// The body of the `Internal` event that refers to a pending statement.
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct PendingBody {
-    pending_statement: PendingStatement,
+struct PendingRef {
+    pending_statement_ref: String,
 }
-/// The event type of an enrollment-windows problem entry
-/// (`services::enrollment_windows`).
-pub const ENROLLMENT_PROBLEM_EVENT_TYPE: &str =
-    crate::services::enrollment_windows::PROBLEM_LOG_EVENT_TYPE;
+
+/// Whether an `Internal` event's body refers to a pending statement (rather
+/// than carrying a signed record), and which.
+pub fn pending_ref(body: &str) -> Option<String> {
+    let is_ref = serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|value| value.as_object().map(|object| object.contains_key(PENDING_REF_KEY)))
+        .unwrap_or(false);
+    // A body with the key that isn't exactly a reference refers to nothing.
+    is_ref.then(|| {
+        serde_json::from_str::<PendingRef>(body)
+            .map(|reference| reference.pending_statement_ref)
+            .unwrap_or_default()
+    })
+}
+
+/// A pending statement as a worker wrote it in the waiting table.
+#[derive(Clone, Debug)]
+pub struct StoredPending {
+    pub statement: serde_json::Value,
+    pub scope: String,
+    /// When the row was written, in milliseconds since the epoch.
+    pub created_ms: i64,
+}
+
+/// The pending statement of `delivery_id`, if a worker wrote one.
+pub async fn load<C: tokio_postgres::GenericClient + Sync>(
+    client: &C,
+    delivery_id: &str,
+) -> Result<Option<StoredPending>> {
+    use crate::services::electoral_log_deferral::WAITING_TABLE;
+    Ok(client
+        .query_opt(
+            &format!(
+                "SELECT statement, scope, (extract(epoch FROM created_at) * 1000)::bigint \
+                 FROM {WAITING_TABLE} WHERE delivery_id = $1 AND statement IS NOT NULL"
+            ),
+            &[&delivery_id],
+        )
+        .await
+        .context("Error reading a pending statement")?
+        .map(|row| StoredPending {
+            statement: row.get(0),
+            scope: row.get(1),
+            created_ms: row.get(2),
+        }))
+}
 
 /// Which trusted producer queued a statement. Each may queue one kind.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
@@ -284,21 +328,25 @@ impl PendingStatement {
         }
     }
 
-    /// The event-queue event that carries it, under a new delivery ID of its
-    /// origin.
-    pub fn event(&self) -> Result<LogEventInput> {
+    /// The scope its entry belongs to.
+    pub fn scope(&self) -> String {
+        crate::services::electoral_log_deferral::scope_key(&self.tenant_id, &self.election_event_id)
+    }
+
+    /// The event-queue event that refers to it under `delivery_id`.
+    pub fn reference_event(&self, delivery_id: &str) -> Result<LogEventInput> {
         Ok(LogEventInput {
-            delivery_id: Some(self.origin.delivery_id()),
+            delivery_id: Some(delivery_id.to_string()),
             election_event_id: self.election_event_id.clone(),
             message_type: LogMessageType::Internal,
             user_id: None,
             username: None,
             tenant_id: self.tenant_id.clone(),
             body: LogEventBody::Plain(
-                serde_json::to_string(&PendingBody {
-                    pending_statement: self.clone(),
+                serde_json::to_string(&PendingRef {
+                    pending_statement_ref: delivery_id.to_string(),
                 })
-                .context("Error serializing a pending statement")?,
+                .context("Error serializing a pending statement reference")?,
             ),
             event_time_ms: None,
             details: None,
@@ -307,53 +355,86 @@ impl PendingStatement {
         })
     }
 
-    /// Queue it on the event queue, for the batch task to sign and store.
-    pub async fn queue(&self) -> Result<()> {
-        let input = self.event()?;
+    /// Writes it in the waiting table and its reference on the event queue, in
+    /// one transaction of the queue database, under its scope's lock (so a
+    /// direct post of the scope can't come between: `direct_post_gate`). Its
+    /// log's direct posts are refused until it is stored. Returns its
+    /// delivery ID.
+    pub async fn queue(&self) -> Result<String> {
+        use crate::services::electoral_log_deferral::{lock_scopes, WAITING_TABLE};
+        let delivery_id = self.origin.delivery_id();
+        let reference = crate::services::electoral_log_dead_letter::event_message(
+            &self.reference_event(&delivery_id)?,
+        )?;
+        let statement = serde_json::to_value(self).context("Error serializing a pending statement")?;
+        let mut client = crate::services::database::get_queue_pool()
+            .await
+            .get()
+            .await
+            .context("Error connecting to the task-queue database")?;
+        let tx = client
+            .transaction()
+            .await
+            .context("Error starting the pending statement's transaction")?;
+        lock_scopes(&*tx, &[self.scope()]).await?;
+        tx.execute(
+            &format!(
+                "INSERT INTO {WAITING_TABLE} (delivery_id, scope, since_ms, ord, due_at, statement) \
+                 VALUES ($1, $2, (extract(epoch FROM clock_timestamp()) * 1000)::bigint, 0, \
+                 clock_timestamp(), $3)"
+            ),
+            &[&delivery_id, &self.scope(), &statement],
+        )
+        .await
+        .context("Error writing a pending statement")?;
+        tx.query_one(
+            "SELECT pgmq.send($1::text, $2::jsonb)",
+            &[
+                &crate::services::celery_app::Queue::ElectoralLogEvent.queue_name(),
+                &reference,
+            ],
+        )
+        .await
+        .context("Error queueing a pending statement's reference")?;
+        tx.commit()
+            .await
+            .context("Error committing a pending statement")?;
         tracing::warn!(
             origin = self.origin.as_str(),
-            delivery_id = input.delivery_id.as_deref().unwrap_or_default(),
-            "The board's signer is unavailable: the electoral-log statement is queued unsigned, to be signed later"
+            delivery_id = delivery_id.as_str(),
+            "The electoral-log entry is queued unsigned, to be signed and stored later"
         );
-        crate::services::celery_app::try_get_celery_app()
-            .await?
-            .send_task(crate::tasks::electoral_log::enqueue_electoral_log_event::new(input))
-            .await
-            .context("Error queueing an unsigned electoral-log statement")?;
-        Ok(())
+        Ok(delivery_id)
     }
 
-    /// Reads and checks the pending statement an event carries, before
-    /// anything is signed:
-    ///
-    /// - the event is an `Internal` event whose body is exactly
-    ///   `{"pending_statement": <this type>}` (unknown fields, kinds and
-    ///   origins refused) at [`PENDING_STATEMENT_VERSION`];
-    /// - the statement's kind is one this module allows, and its origin is
-    ///   the one allowed to queue that kind (Datafix only, for an external
-    ///   API request);
-    /// - it is bound to the event: the same tenant and election event (both
-    ///   UUIDs), and a delivery ID `pending:<its origin>:<UUID>`, so it can't
-    ///   take another producer's delivery ID (and stop that producer's own
-    ///   entry, delivery IDs being idempotent);
-    /// - its time is set, not more than [`MAX_FUTURE_SECS`] ahead of `now`,
-    ///   and not more than [`MAX_LAG_SECS`] before the event was first queued
-    ///   to wait (its deferral), or before `now` for one not yet deferred;
-    /// - identifiers are at most [`MAX_ID_CHARS`] printable characters, and
-    ///   no text field is longer than [`MAX_FIELD_CHARS`].
-    pub fn read(input: &LogEventInput, now: u64) -> Result<PendingStatement> {
+    /// Reads and checks the pending statement a reference event names (see
+    /// the module documentation), before anything is signed.
+    pub fn read(
+        input: &LogEventInput,
+        stored: Option<StoredPending>,
+        now: u64,
+    ) -> Result<PendingStatement> {
         ensure!(
             input.message_type == LogMessageType::Internal,
             "Not an internal event"
         );
-        let body: PendingBody =
-            serde_json::from_str(&input.body.as_raw()).context("Not a pending statement")?;
-        let pending = body.pending_statement;
-        pending.validate(input, now)?;
+        let delivery_id = input.delivery_id.as_deref().unwrap_or_default();
+        ensure!(
+            pending_ref(&input.body.as_raw()).as_deref() == Some(delivery_id),
+            "The reference names another delivery than its event's"
+        );
+        let stored = stored.ok_or_else(|| anyhow!("No worker queued a pending statement {delivery_id:?}"))?;
+        let pending: PendingStatement =
+            serde_json::from_value(stored.statement).context("Not a pending statement")?;
+        ensure!(
+            stored.scope == pending.scope(),
+            "The pending statement is not of its row's scope"
+        );
+        pending.validate(input, stored.created_ms, now)?;
         Ok(pending)
     }
 
-    fn validate(&self, input: &LogEventInput, now: u64) -> Result<()> {
+    fn validate(&self, input: &LogEventInput, created_ms: i64, now: u64) -> Result<()> {
         ensure!(
             self.version == PENDING_STATEMENT_VERSION,
             "Unknown pending statement version {}",
@@ -390,13 +471,11 @@ impl PendingStatement {
             self.occurred_at <= now.saturating_add(MAX_FUTURE_SECS),
             "The pending statement's time is in the future"
         );
-        let queued = input
-            .deferral
-            .and_then(|deferral| u64::try_from(deferral.since_ms / 1000).ok())
-            .unwrap_or(now);
+        let written = u64::try_from(created_ms / 1000).unwrap_or(0);
         ensure!(
-            self.occurred_at.saturating_add(MAX_LAG_SECS) >= queued,
-            "The pending statement's time is too long before it was queued"
+            self.occurred_at.saturating_add(MAX_LAG_SECS) >= written
+                && self.occurred_at <= written.saturating_add(MAX_FUTURE_SECS),
+            "The pending statement's time is not when it was written"
         );
         for identifier in self.statement.identifiers() {
             ensure!(
@@ -454,8 +533,21 @@ mod tests {
         }
     }
 
-    fn reread(input: &LogEventInput) -> Result<PendingStatement> {
-        PendingStatement::read(input, electoral_log::timestamp())
+    /// As a worker writes it: the row and its reference event.
+    fn queued(pending: &PendingStatement) -> (LogEventInput, StoredPending) {
+        let delivery_id = pending.origin.delivery_id();
+        (
+            pending.reference_event(&delivery_id).unwrap(),
+            StoredPending {
+                statement: serde_json::to_value(pending).unwrap(),
+                scope: pending.scope(),
+                created_ms: i64::try_from(electoral_log::timestamp()).unwrap() * 1000,
+            },
+        )
+    }
+
+    fn reread(input: &LogEventInput, stored: &StoredPending) -> Result<PendingStatement> {
+        PendingStatement::read(input, Some(stored.clone()), electoral_log::timestamp())
     }
 
     #[test]
@@ -463,13 +555,15 @@ mod tests {
         let mut pending = PendingStatement::new(TENANT, EVENT, failure());
         let at = electoral_log::timestamp() - 30;
         pending.occurred_at = at;
-        let input = pending.event().unwrap();
+        let (input, stored) = queued(&pending);
         assert!(input
             .delivery_id
             .as_deref()
             .unwrap()
             .starts_with("pending:ballot-publication:"));
-        let read = reread(&input).unwrap();
+        // The event carries a reference only, never the statement.
+        assert!(!input.body.as_raw().contains("publication"));
+        let read = reread(&input, &stored).unwrap();
         let key = SigningKey::generate().unwrap();
         let sd = SigningData::new(key.clone(), "", key.clone());
         let message = read.sign(&sd).unwrap();
@@ -477,6 +571,7 @@ mod tests {
             .verify(&VerificationKey::from_sk(&key).unwrap())
             .unwrap();
         assert_eq!(message.statement.head.timestamp, at);
+        assert_eq!(message.statement.head.event.0, EVENT);
         // Signed again later (it waited), the statement is the same bytes.
         use voting_crypto::RecordSerialize;
         let again = read.sign(&sd).unwrap();
@@ -484,116 +579,83 @@ mod tests {
             again.statement.record_serialize().unwrap(),
             message.statement.record_serialize().unwrap()
         );
-        assert_eq!(message.statement.head.event.0, EVENT);
     }
 
     #[test]
     fn a_forged_foreign_or_disallowed_statement_is_refused() {
         let good = PendingStatement::new(TENANT, EVENT, failure());
-        let event = good.event().unwrap();
-        assert!(reread(&event).is_ok());
+        let (event, stored) = queued(&good);
+        assert!(reread(&event, &stored).is_ok());
 
-        // Bound to another election event or tenant than its event.
+        // No row: a reference forged on the queue names nothing a worker wrote.
+        assert!(PendingStatement::read(&event, None, electoral_log::timestamp()).is_err());
+
+        // A reference to another delivery than its event's.
+        let mut other_ref = event.clone();
+        other_ref.delivery_id = Some(PendingOrigin::BallotPublication.delivery_id());
+        assert!(reread(&other_ref, &stored).is_err());
+
+        // Carried by an event of another election event or tenant.
         let mut other_event = event.clone();
         other_event.election_event_id = OTHER.into();
-        assert!(reread(&other_event).is_err());
+        assert!(reread(&other_event, &stored).is_err());
         let mut other_tenant = event.clone();
         other_tenant.tenant_id = OTHER.into();
-        assert!(reread(&other_tenant).is_err());
+        assert!(reread(&other_tenant, &stored).is_err());
+
+        // A row of another scope.
+        let mut foreign_row = stored.clone();
+        foreign_row.scope = format!("{TENANT}/{OTHER}");
+        assert!(reread(&event, &foreign_row).is_err());
 
         // A kind its origin may not queue.
         let mut wrong_origin = good.clone();
         wrong_origin.origin = PendingOrigin::CastVoteRefusal;
-        let mut forged = event.clone();
-        forged.body = LogEventBody::Plain(
-            serde_json::to_string(&PendingBody {
-                pending_statement: wrong_origin,
-            })
-            .unwrap(),
-        );
-        assert!(reread(&forged).is_err());
+        let mut row = stored.clone();
+        row.statement = serde_json::to_value(&wrong_origin).unwrap();
+        assert!(reread(&event, &row).is_err());
 
-        // An unknown origin or kind, or an extra field: not this type.
-        let body = |value: serde_json::Value| {
-            let mut object = serde_json::Map::new();
-            object.insert(PENDING_BODY_KEY.to_string(), value);
-            LogEventBody::Plain(serde_json::Value::Object(object).to_string())
-        };
-        let mut unknown = event.clone();
+        // An unknown origin, kind or version, or an extra field: not this type.
         let mut value = serde_json::to_value(&good).unwrap();
         value["origin"] = "anyone".into();
-        unknown.body = body(value);
-        assert!(reread(&unknown).is_err());
+        row.statement = value;
+        assert!(reread(&event, &row).is_err());
         for kind in ["election-published", "cast-vote", "readiness-verified", "checkpoint"] {
             let mut value = serde_json::to_value(&good).unwrap();
             value["statement"]["kind"] = kind.into();
-            unknown.body = body(value);
-            assert!(reread(&unknown).is_err(), "{kind}");
+            row.statement = value;
+            assert!(reread(&event, &row).is_err(), "{kind}");
         }
         let mut value = serde_json::to_value(&good).unwrap();
         value["statement_bytes"] = "AAAA".into();
-        unknown.body = body(value);
-        assert!(reread(&unknown).is_err());
+        row.statement = value;
+        assert!(reread(&event, &row).is_err());
         let mut value = serde_json::to_value(&good).unwrap();
         value["version"] = 2.into();
-        unknown.body = body(value);
-        assert!(reread(&unknown).is_err());
-        // A signed record's body is not a pending statement.
-        assert!(!is_pending_body(r#"{"id":0,"message":[1]}"#));
-        assert!(is_pending_body(&event.body.as_raw()));
+        row.statement = value;
+        assert!(reread(&event, &row).is_err());
 
         // Another producer's delivery ID.
         let mut squatting = event.clone();
         squatting.delivery_id = Some("readiness:entry".into());
-        assert!(reread(&squatting).is_err());
-        let mut other_origin = event.clone();
-        other_origin.delivery_id = Some(PendingOrigin::CastVoteRefusal.delivery_id());
-        assert!(reread(&other_origin).is_err());
+        squatting.body = LogEventBody::Plain(r#"{"pending_statement_ref":"readiness:entry"}"#.into());
+        assert!(reread(&squatting, &stored).is_err());
 
-        // A time in the future.
+        // A time in the future, or long before the row was written.
         let mut future = good.clone();
         future.occurred_at = electoral_log::timestamp() + 3_600;
-        let mut later = event.clone();
-        later.body = LogEventBody::Plain(
-            serde_json::to_string(&PendingBody {
-                pending_statement: future,
-            })
-            .unwrap(),
-        );
-        assert!(reread(&later).is_err());
+        let mut row = stored.clone();
+        row.statement = serde_json::to_value(&future).unwrap();
+        assert!(reread(&event, &row).is_err());
+        let mut stale = good.clone();
+        stale.occurred_at = electoral_log::timestamp() - MAX_LAG_SECS - 60;
+        row.statement = serde_json::to_value(&stale).unwrap();
+        assert!(reread(&event, &row).is_err());
 
         // Not an internal event.
         let mut keycloak = event.clone();
         keycloak.message_type = LogMessageType::KeycloakEvent("LOGIN".into());
-        assert!(reread(&keycloak).is_err());
-
-        // Too old for when it was queued.
-        let mut stale = good.clone();
-        stale.occurred_at = electoral_log::timestamp() - MAX_LAG_SECS - 60;
-        let mut old = event.clone();
-        old.body = LogEventBody::Plain(
-            serde_json::to_string(&PendingBody {
-                pending_statement: stale,
-            })
-            .unwrap(),
-        );
-        assert!(reread(&old).is_err());
-
-        // An identifier that is not printable.
-        let control = PendingStatement::new(
-            TENANT,
-            EVENT,
-            PendingStatementBody::CastVoteError {
-                election_id: None,
-                pseudonym: PseudonymHash(voting_crypto::hash::HashWrapper::new(
-                    crate::services::insert_cast_vote::hash_voter_id("voter").unwrap(),
-                )),
-                error: "refused".into(),
-                voter_id: "voter\n".into(),
-                area_id: "area".into(),
-            },
-        );
-        assert!(reread(&control.event().unwrap()).is_err());
+        assert!(reread(&keycloak, &stored).is_err());
 
         // A request to another API.
         let other_api = PendingStatement::new(
@@ -608,9 +670,25 @@ mod tests {
                 operation: "x".into(),
             },
         );
-        assert!(reread(&other_api.event().unwrap()).is_err());
+        let (event, row) = queued(&other_api);
+        assert!(reread(&event, &row).is_err());
 
-        // A field too long.
+        // An identifier that isn't printable, a field too long.
+        let control = PendingStatement::new(
+            TENANT,
+            EVENT,
+            PendingStatementBody::CastVoteError {
+                election_id: None,
+                pseudonym: PseudonymHash(voting_crypto::hash::HashWrapper::new(
+                    crate::services::insert_cast_vote::hash_voter_id("voter").unwrap(),
+                )),
+                error: "refused".into(),
+                voter_id: "voter\n".into(),
+                area_id: "area".into(),
+            },
+        );
+        let (event, row) = queued(&control);
+        assert!(reread(&event, &row).is_err());
         let huge = PendingStatement::new(
             TENANT,
             EVENT,
@@ -618,6 +696,10 @@ mod tests {
                 problems: "x".repeat(MAX_FIELD_CHARS + 1),
             },
         );
-        assert!(reread(&huge.event().unwrap()).is_err());
+        let (event, row) = queued(&huge);
+        assert!(reread(&event, &row).is_err());
+
+        // A signed record's body is no reference.
+        assert_eq!(pending_ref(r#"{"id":0,"message":[1]}"#), None);
     }
 }

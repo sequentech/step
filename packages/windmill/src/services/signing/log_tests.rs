@@ -446,6 +446,7 @@ fn entries_are_signed_with_the_loaded_keys() {
     let electoral_log = |keys: &Keys| ElectoralLog {
         sd: keys.signing_data(),
         elog_database: "board".to_string(),
+        scope: None,
     };
     keys.system = Some(electoral_log(&event));
     keys.admins

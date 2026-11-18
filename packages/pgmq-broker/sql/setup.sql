@@ -91,3 +91,51 @@ BEGIN
     END LOOP;
 END
 $$;
+
+-- The electoral log's entries that wait for their board's signer (Windmill's
+-- `services::electoral_log_deferral`): one row per delivery ID, in a table only
+-- the workers write. An event waiting on the event queue has its row (`statement`
+-- NULL); an unsigned statement a worker queued has its typed statement here, and the
+-- event queue only carries a reference to it. Producers (Harvest, Keycloak) can
+-- neither add nor change rows: writing to the queues gives no way to have a board
+-- sign a statement, nor to hold a log's direct posts.
+CREATE TABLE IF NOT EXISTS step_queue.electoral_log_waiting (
+    delivery_id text PRIMARY KEY,
+    scope text NOT NULL,
+    since_ms bigint NOT NULL,
+    ord bigint NOT NULL,
+    due_at timestamptz NOT NULL,
+    statement jsonb,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS electoral_log_waiting_scope
+    ON step_queue.electoral_log_waiting (scope);
+
+-- A waiting event's copy on a queue is looked up by its delivery header.
+DO $$
+DECLARE
+    queue text;
+BEGIN
+    FOREACH queue IN ARRAY string_to_array(current_setting('step.queue.queues'), ',') LOOP
+        EXECUTE format(
+            'CREATE INDEX IF NOT EXISTS %I ON pgmq.%I ((headers->>%L)) WHERE headers->>%L IS NOT NULL',
+            'q_' || queue || '_deferred_delivery', 'q_' || queue,
+            'x-electoral-log-deferred-delivery', 'x-electoral-log-deferred-scope');
+    END LOOP;
+END
+$$;
+
+DO $$
+DECLARE
+    worker text := current_setting('step.queue.worker_role');
+    reader text := current_setting('step.queue.reader_role');
+BEGIN
+    IF worker <> '' THEN
+        EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON step_queue.electoral_log_waiting TO %I',
+            worker);
+    END IF;
+    IF reader <> '' THEN
+        EXECUTE format('GRANT SELECT ON step_queue.electoral_log_waiting TO %I', reader);
+    END IF;
+END
+$$;

@@ -5,7 +5,7 @@
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::messaging::{latest_attempt_ids, ChannelFilter};
 use crate::services::celery_app::try_get_celery_app;
-use crate::services::database::{get_hasura_pool, PgConfig};
+use crate::services::database::{get_hasura_pool, get_queue_pool, PgConfig};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log_board::get_board_client;
 use crate::services::electoral_log_board::get_board_signer;
@@ -96,7 +96,8 @@ pub async fn log_ballot_publication_failure(
         Err(error) if is_signer_unavailable(&error) => {
             return PendingStatement::new(&task.tenant_id, event_id, statement)
                 .queue()
-                .await;
+                .await
+                .map(|_| ());
         }
         Err(error) => return Err(error),
     };
@@ -105,11 +106,21 @@ pub async fn log_ballot_publication_failure(
         Err(error) if is_signer_unavailable(&error) => {
             return PendingStatement::new(&task.tenant_id, event_id, statement)
                 .queue()
-                .await;
+                .await
+                .map(|_| ());
         }
         Err(error) => return Err(error),
     };
-    log.post(&message).await
+    match log.post(&message).await {
+        // Its log has entries waiting: it is queued behind them.
+        Err(error) if crate::services::electoral_log_deferral::is_scope_waiting(&error) => {
+            PendingStatement::new(&task.tenant_id, event_id, statement)
+                .queue()
+                .await
+                .map(|_| ())
+        }
+        result => result,
+    }
 }
 
 async fn publication_failure_log(task: &TasksExecution, event_id: &str) -> Result<ElectoralLog> {
@@ -206,6 +217,10 @@ pub struct PreparedVoterPasswordChangeLog {
     board: String,
     delivery_id: String,
     message: ElectoralLogMessage,
+    /// The log's scope, for its post to be refused while the scope has entries
+    /// waiting for the signer. Absent from entries prepared by an earlier release.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    scope: Option<String>,
 }
 
 impl PreparedVoterPasswordChangeLog {
@@ -215,19 +230,53 @@ impl PreparedVoterPasswordChangeLog {
             delivery_id: self.delivery_id.clone(),
             message: self.message.clone(),
         }];
-        retry_with_exponential_backoff(
-            || async {
-                get_board_client()
-                    .await?
-                    .append(&self.board, &entries)
-                    .await?;
-                Ok(())
-            },
-            5,
-            Duration::from_millis(100),
-        )
-        .await
+        append_gated(self.scope.as_deref(), &self.board, &entries).await
     }
+}
+
+/// Appends a direct post's entries to `board`. While `scope` has entries
+/// waiting for the signer, the post is refused and nothing is stored (the log
+/// keeps its order: `direct_post_gate`); the scope's lock is held, in a
+/// task-queue database transaction, until the append is done, so no entry can
+/// start waiting in between. A post without a scope is not gated.
+async fn append_gated(scope: Option<&str>, board: &str, entries: &[LogEntry]) -> Result<()> {
+    let mut queue_client = match scope {
+        Some(_) => Some(
+            get_queue_pool()
+                .await
+                .get()
+                .await
+                .context("Error connecting to the task-queue database")?,
+        ),
+        None => None,
+    };
+    let gate = match (queue_client.as_mut(), scope) {
+        (Some(client), Some(scope)) => {
+            let tx = client
+                .transaction()
+                .await
+                .context("Error starting the electoral-log scope transaction")?;
+            crate::services::electoral_log_deferral::direct_post_gate(&*tx, scope).await?;
+            Some(tx)
+        }
+        _ => None,
+    };
+    let appended = retry_with_exponential_backoff(
+        || async {
+            get_board_client().await?.append(board, entries).await?;
+            Ok(())
+        },
+        5,
+        Duration::from_millis(100),
+    )
+    .await;
+    if let Some(tx) = gate {
+        // Nothing was written in it: ending it releases the scope's lock.
+        if let Err(error) = tx.rollback().await {
+            warn!("Error ending the electoral-log scope transaction: {error}");
+        }
+    }
+    appended
 }
 
 /// Prepares a signed password-change audit entry using the caller's Hasura
@@ -276,6 +325,7 @@ pub async fn prepare_voter_password_change(
         board,
         delivery_id: Uuid::new_v4().to_string(),
         message,
+        scope: electoral_log.scope.clone(),
     })
 }
 
@@ -505,6 +555,7 @@ async fn prepare_voter_secret_attribute_audit(
         board,
         delivery_id: Uuid::new_v4().to_string(),
         message,
+        scope: electoral_log.scope.clone(),
     })
 }
 
@@ -629,6 +680,12 @@ fn csv_log_entry(row: ElectoralLogRow) -> Result<LogEntry> {
 pub struct ElectoralLog {
     pub(crate) sd: SigningData,
     pub(crate) elog_database: String,
+    /// The log's scope (tenant and election event) when its constructor knows it
+    /// ([`ElectoralLog::new`], `new_from_sk`, `for_voter`, `for_admin_user`): its
+    /// direct posts are refused while the scope has entries waiting for the
+    /// signer, so the log keeps its order
+    /// ([`crate::services::electoral_log_deferral::direct_post_gate`]).
+    pub(crate) scope: Option<String>,
 }
 
 pub fn flatten_election_ids(election_ids: Option<Vec<String>>) -> Option<String> {
@@ -729,6 +786,7 @@ impl ElectoralLog {
         Ok(ElectoralLog {
             sd: SigningData::with_signers(system.clone(), "", system),
             elog_database: elog_database.to_string(),
+            scope: Some(crate::services::electoral_log_deferral::scope_key(tenant_id, election_event_id)),
         })
     }
 
@@ -751,6 +809,7 @@ impl ElectoralLog {
         Ok(ElectoralLog {
             sd: SigningData::with_signers(software(sender_sk.clone()), "", system),
             elog_database: elog_database.to_string(),
+            scope: Some(crate::services::electoral_log_deferral::scope_key(tenant_id, election_event_id)),
         })
     }
 
@@ -761,6 +820,7 @@ impl ElectoralLog {
         Self {
             sd: SigningData::new(system_sk.clone(), "", system_sk.clone()),
             elog_database: elog_database.to_string(),
+            scope: None,
         }
     }
 
@@ -770,6 +830,7 @@ impl ElectoralLog {
         Self {
             sd: SigningData::with_signers(system.clone(), "", system),
             elog_database: elog_database.to_string(),
+            scope: None,
         }
     }
 
@@ -779,6 +840,7 @@ impl ElectoralLog {
         Self {
             sd: SigningData::with_signers(system.clone(), user_id, system),
             elog_database: elog_database.to_string(),
+            scope: None,
         }
     }
 
@@ -792,6 +854,7 @@ impl ElectoralLog {
         Self {
             sd: SigningData::new(system_sk.clone(), user_id, system_sk.clone()),
             elog_database: elog_database.to_string(),
+            scope: None,
         }
     }
 
@@ -818,6 +881,7 @@ impl ElectoralLog {
         Ok(ElectoralLog {
             sd: SigningData::with_signers(system.clone(), user_id, system),
             elog_database: elog_database.to_string(),
+            scope: Some(crate::services::electoral_log_deferral::scope_key(tenant_id, event_id)),
         })
     }
 
@@ -862,6 +926,7 @@ impl ElectoralLog {
         Ok(ElectoralLog {
             sd: SigningData::with_signers(software(sk), "", system),
             elog_database: elog_database.to_string(),
+            scope: Some(crate::services::electoral_log_deferral::scope_key(tenant_id, election_event_id)),
         })
     }
 
@@ -952,6 +1017,7 @@ impl ElectoralLog {
         let elog = ElectoralLog {
             sd,
             elog_database: elog_database.to_string(),
+            scope: None,
         };
 
         let ret = elog
@@ -1010,7 +1076,8 @@ impl ElectoralLog {
                 };
                 return PendingStatement::new(&tenant_id, &event_id, statement)
                     .queue()
-                    .await;
+                    .await
+                    .map(|_| ());
             }
             Err(failure) => return Err(failure),
         };
@@ -1069,7 +1136,8 @@ impl ElectoralLog {
             Err(error) if datafix && is_signer_unavailable(&error) => {
                 return PendingStatement::new(&tenant_id, &event_id, statement)
                     .queue()
-                    .await;
+                    .await
+                    .map(|_| ());
             }
             Err(error) => return Err(error),
         };
@@ -1733,19 +1801,7 @@ impl ElectoralLog {
             message: board_message,
         }];
 
-        retry_with_exponential_backoff(
-            // The closure we want to call repeatedly
-            || async {
-                let client = get_board_client().await?;
-                client.append(self.elog_database.as_str(), &ms).await?;
-                Ok(())
-            },
-            // Maximum number of retries:
-            5,
-            // Initial backoff:
-            Duration::from_millis(100),
-        )
-        .await
+        append_gated(self.scope.as_deref(), &self.elog_database, &ms).await
     }
 
     /// Builds a keycloak event message and returns the resulting ElectoralLogMessage.
@@ -2650,6 +2706,7 @@ mod password_change_tests {
             board: "event-board".to_string(),
             delivery_id: "delivery-id".to_string(),
             message: prepared_message(),
+            scope: None,
         };
 
         let serialized = serde_json::to_value(&prepared).unwrap();
@@ -2734,6 +2791,7 @@ mod postgres_wiring_tests {
             board: board.clone(),
             delivery_id: Uuid::new_v4().to_string(),
             message: message.clone(),
+            scope: None,
         };
         prepared.post().await?;
         prepared.post().await?;

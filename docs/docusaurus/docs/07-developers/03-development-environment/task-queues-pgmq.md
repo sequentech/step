@@ -263,3 +263,27 @@ publisher tests cover both failure policies, and a shared fixture,
 `electoral-log-event-envelope.json`, checks that the envelope Keycloak writes is the
 one Windmill reads. From the repository root,
 `python3 .devcontainer/test-restart-worker.py` checks the development restart loop.
+
+
+## Electoral-log entries waiting for their signer
+
+When an election event's log is signed by the key service and the service is
+down, the log's entries wait instead of being lost: events on
+`electoral_log_event_queue`, due later with a capped backoff
+(`ELECTORAL_LOG_DEFER_FIRST_SECS`, `ELECTORAL_LOG_DEFER_MAX_SECS`), and a row each
+in `step_queue.electoral_log_waiting`, which only the worker role writes. Run the
+queue setup again after upgrading: it creates that table and the deferral-header
+indexes.
+
+While an event's log has waiting entries, actions that must record a direct entry
+in that log fail visibly (election open, close and publish, secret-attribute
+actions, readiness, ceremonies, configuration imports, among others) with "the
+electoral log of `<tenant>/<event>` has N entries waiting for its signer; this
+entry is refused until they are stored". They work again once the waiting entries
+are stored after the key service is back. Watch the "Electoral-log events wait for
+their signer" log line: it reports the count and the oldest wait, and becomes an
+error after `ELECTORAL_LOG_DEFER_ALERT_SECS`. Do not discard waiting or
+dead-lettered entries to unblock a log unless losing them is intended.
+
+The integration tests of the queues (`cargo test -p windmill -- --ignored`) need
+`PGMQ_TEST_DATABASE_URL`, a disposable database with PGMQ.
