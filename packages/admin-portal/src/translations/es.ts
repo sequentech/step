@@ -585,6 +585,17 @@ const spanishTranslation: TranslationType = {
                 materialTitle: "Titulo",
                 materialSubTitle: "Subtitulo",
                 logoUrl: "URL del logotipo",
+                faviconUrl: "URL del icono de la pestaña del navegador",
+                pageTitle: "Título de la pestaña del navegador",
+                platformBrandingPolicy: {
+                    policyLabel: "Marca de la plataforma",
+                    helperText:
+                        "Se aplica al portal de votación: el logotipo y el icono de pestaña de la plataforma cuando el evento no define los suyos, el pie «desarrollado por» y la etiqueta de versión.",
+                    options: {
+                        show: "Mostrar",
+                        hide: "Ocultar",
+                    },
+                },
                 userVerification:
                     "Puede introducir una plantilla personalizada que se utilizará para verificar manualmente a los votantes",
                 redirectFinishUrl: "URL de redirección al finalizar",
