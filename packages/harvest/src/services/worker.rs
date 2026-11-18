@@ -15,7 +15,7 @@ use windmill::services::celery_app::get_celery_app;
 use windmill::tasks::render_report;
 use windmill::tasks::send_template::*;
 
-#[instrument(skip(claims), err)]
+#[instrument(skip_all, err)]
 pub async fn process_scheduled_event(
     event: CreateEventBody,
     claims: JwtClaims,

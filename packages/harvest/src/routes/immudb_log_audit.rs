@@ -336,7 +336,7 @@ async fn audit_list_service(
     }))
 }
 
-#[instrument]
+#[instrument(skip_all)]
 #[post("/immudb/pgaudit-list", format = "json", data = "<body>")]
 pub async fn list_pgaudit(
     body: Json<GetPgauditBody>,

@@ -78,7 +78,7 @@ impl Vault for HashiCorpVault {
         Ok(value)
     }
 
-    #[instrument]
+    #[instrument(skip_all)]
     fn vault_type(&self) -> VaultManagerType {
         VaultManagerType::HashiCorpVault
     }

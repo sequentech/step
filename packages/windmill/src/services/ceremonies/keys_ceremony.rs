@@ -104,7 +104,7 @@ fn validate_private_key_download(
     Ok(current_status)
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn get_private_key(
     transaction: &Transaction<'_>,
     claims: JwtClaims,

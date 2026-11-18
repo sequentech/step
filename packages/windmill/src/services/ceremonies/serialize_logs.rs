@@ -59,7 +59,7 @@ pub fn generate_logs(
     Ok(sort_logs(&logs))
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn generate_tally_initial_log(election_ids: &Vec<String>) -> Vec<Log> {
     vec![Log {
         created_date: ISO8601::to_string(&ISO8601::now()),
@@ -70,7 +70,7 @@ pub fn generate_tally_initial_log(election_ids: &Vec<String>) -> Vec<Log> {
     }]
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn sort_logs(logs: &Vec<Log>) -> Vec<Log> {
     let mut sorted = logs.clone();
 
@@ -83,7 +83,7 @@ pub fn sort_logs(logs: &Vec<Log>) -> Vec<Log> {
     sorted
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn generate_keys_initial_log(trustee_names: &Vec<String>) -> Vec<Log> {
     vec![Log {
         created_date: ISO8601::to_string(&ISO8601::now()),

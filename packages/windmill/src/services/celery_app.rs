@@ -130,7 +130,7 @@ pub fn set_queues(new_val: Vec<String>) {
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn set_is_app_active(new_val: bool) {
     unsafe {
         IS_APP_ACTIVE = new_val;
@@ -169,12 +169,12 @@ lazy_static! {
 }
 
 /// Returns the global Celery app.
-#[instrument]
+#[instrument(skip_all)]
 pub async fn get_celery_app() -> Arc<Celery> {
     CELERY_APP.get().await.clone()
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn create_connection() -> Result<(Arc<Connection>, String)> {
     // you can use "amqp://rabbitmq2:5672,amqp://rabbitmq:5672" for $AMQP_ADDR to configure multiple nodes, separated by comma
     let amqp_urls: Vec<String> = std::env::var("AMQP_ADDR")?
@@ -207,7 +207,7 @@ async fn create_connection() -> Result<(Arc<Connection>, String)> {
     Err(last_error.unwrap_or(anyhow!("Failed to connect to any AMQP server")))
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn generate_celery_app() -> Result<Arc<Celery>> {
     let prefetch_count: u16;
     let acks_late: bool;
@@ -340,7 +340,7 @@ static CELERY_CONNECTION: RwLock<Option<Arc<Connection>>> = RwLock::const_new(No
 
 /// Returns a reused AMQP connection wrapped in an Arc.
 /// If no connection exists (or if it’s disconnected), a new connection is created and stored.
-#[instrument]
+#[instrument(skip_all)]
 pub async fn get_celery_connection() -> Result<Arc<Connection>> {
     let conn_guard = CELERY_CONNECTION.read().await;
 

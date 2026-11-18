@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Tracing spans
+
+on:
+  pull_request:
+  push:
+    branches: [ 'main', 'ovcs', 'release/[0-9]+.[0-9]+' ]
+
+jobs:
+  no-bare-instrument:
+    name: No bare #[instrument] in harvest, windmill and sequent-core
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # A bare #[instrument] records every argument with its Debug output,
+      # which is how tokens, claims and voter data reached the logs (meta#13934).
+      - name: Check that every span chooses what it records
+        run: |
+          if git grep -nE '^[[:space:]]*#\[(tracing::)?instrument\][[:space:]]*$' -- \
+              packages/harvest/src packages/windmill/src packages/sequent-core/src; then
+            echo "::error::Bare #[instrument] records every argument. Use #[instrument(skip_all)] and add the fields the span needs with fields(...)."
+            exit 1
+          fi

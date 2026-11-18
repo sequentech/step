@@ -11,7 +11,7 @@ use sequent_core::services::connection::DatafixClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde::Serialize;
-use tracing::{error, info, instrument};
+use tracing::{error, instrument};
 use windmill::services;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::datafix::types::*;
@@ -24,10 +24,7 @@ pub async fn add_voter(
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterInformationBody = body.into_inner();
 
-    info!("Add voter: {input:?}");
-
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
-    info!("{claims:?}");
     authorize(
         &claims.jwt_claims,
         true,
@@ -67,10 +64,7 @@ pub async fn update_voter(
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterInformationBody = body.into_inner();
 
-    info!("Update voter: {input:?}");
-
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
-    info!("{claims:?}");
     authorize(
         &claims.jwt_claims,
         true,
@@ -127,10 +121,7 @@ pub async fn delete_voter(
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterIdBody = body.into_inner();
 
-    info!("Delete voter: {input:?}");
-
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
-    info!("{claims:?}");
     authorize(
         &claims.jwt_claims,
         true,
@@ -182,10 +173,7 @@ pub async fn unmark_voted(
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterIdBody = body.into_inner();
 
-    info!("Unmark voter as voted {input:?}");
-
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
-    info!("{claims:?}");
     authorize(
         &claims.jwt_claims,
         true,
@@ -237,10 +225,7 @@ pub async fn mark_voted(
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: MarkVotedBody = body.into_inner();
 
-    info!("Mark voter as voted: {input:?}");
-
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
-    info!("{claims:?}");
     authorize(
         &claims.jwt_claims,
         true,
@@ -296,10 +281,8 @@ pub async fn replace_pin(
     body: Json<VoterIdBody>,
 ) -> Result<Json<ReplacePinOutput>, JsonErrorResponse> {
     let input: VoterIdBody = body.into_inner();
-    info!("Replace pin: {input:?}");
 
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
-    info!("{claims:?}");
     authorize(
         &claims.jwt_claims,
         true,

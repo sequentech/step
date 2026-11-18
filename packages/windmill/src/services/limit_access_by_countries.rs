@@ -8,9 +8,9 @@ use super::cloudflare::{
 };
 use anyhow::{anyhow, Context, Result};
 use rocket::{form::validate::Contains, http::Status};
-use tracing::{info, instrument};
+use tracing::instrument;
 
-#[instrument]
+#[instrument(skip_all)]
 fn get_voting_portal_urls_prefix() -> Result<(String, String)> {
     //TODO: change default values?
     let voting_portal_url = std::env::var("VOTING_PORTAL_URL")
@@ -20,7 +20,7 @@ fn get_voting_portal_urls_prefix() -> Result<(String, String)> {
     Ok((voting_portal_url, voting_portal_keycloak_url))
 }
 
-#[instrument]
+#[instrument(skip_all)]
 fn create_limit_ip_by_countries_rule_format(
     tenant_id: String,
     countries: Vec<String>,
@@ -70,7 +70,7 @@ fn create_limit_ip_by_countries_rule_format(
     })
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn update_or_create_limit_ip_by_countries_rule(
     api_key: &str,
     zone_id: &str,
@@ -121,7 +121,7 @@ async fn update_or_create_limit_ip_by_countries_rule(
     Ok(rule)
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn create_limit_ip_by_countries_ruleset(
     api_key: &str,
     zone_id: &str,
@@ -143,15 +143,13 @@ async fn create_limit_ip_by_countries_ruleset(
     Ok(rule)
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn handle_limit_ip_access_by_countries(
     tenant_id: String,
     voting_countries: Vec<String>,
     enroll_countries: Vec<String>,
 ) -> Result<()> {
     let (zone_id, api_key) = get_cloudflare_vars().map_err(|err| anyhow!("{:?}", err))?;
-
-    info!("zone id: {:?}, api_key: {:?}", &zone_id, &api_key);
 
     let ruleset = get_ruleset_by_phase(&api_key, &zone_id, WAF_RULESET_PHASE)
         .await
