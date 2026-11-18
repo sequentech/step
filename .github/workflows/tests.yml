@@ -111,7 +111,7 @@ jobs:
       ENV_SLUG: "electoral-log-tests"
     services:
       postgres:
-        image: postgres:16
+        image: postgres:18
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
