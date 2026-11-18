@@ -330,13 +330,9 @@ pub async fn pending_mac_key(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
 ) -> Result<Option<[u8; 32]>> {
-    // A key made before keys were per tenant (one tenant could have one,
-    // under the bare prefix) is still read.
-    let stored = match read_secret(hasura_transaction, tenant_id, None, &pending_mac_key_name(tenant_id)).await? {
-        Some(stored) => Some(stored),
-        None => read_secret(hasura_transaction, tenant_id, None, PENDING_MAC_KEY).await?,
-    };
-    stored
+    // Only the tenant's own name: never a key under the bare prefix.
+    read_secret(hasura_transaction, tenant_id, None, &pending_mac_key_name(tenant_id))
+        .await?
         .map(|hex_key| {
             hex::decode(hex_key.trim())
                 .ok()

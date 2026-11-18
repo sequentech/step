@@ -1625,6 +1625,26 @@ fn parse_limit(name: &str, value: Option<&str>, default: usize) -> anyhow::Resul
 /// together, or not at all. Normal Celery consumers do not read the raw-event queue.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
+/// Asks a worker to dispatch the electoral log's waiting events now (after an
+/// action's entry was relayed). Fire and forget, bounded: beat dispatches
+/// every few seconds anyway.
+pub fn kick_electoral_log_batch_dispatcher() -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async {
+        let send = async {
+            crate::services::celery_app::try_get_celery_app()
+                .await?
+                .send_task(electoral_log_batch_dispatcher::new())
+                .await?;
+            anyhow::Ok(())
+        };
+        match tokio::time::timeout(std::time::Duration::from_secs(5), send).await {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => tracing::warn!("Error kicking the electoral-log dispatcher: {error:#}"),
+            Err(_) => tracing::warn!("Kicking the electoral-log dispatcher timed out"),
+        }
+    })
+}
+
 #[celery::task(time_limit = 30, max_retries = 0, expires = 1)]
 pub async fn electoral_log_batch_dispatcher() -> Result<()> {
     let limits = BatchLimits::from_env()?;

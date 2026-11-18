@@ -62,6 +62,18 @@ enum CeleryOpt {
         #[arg(long)]
         reason: String,
     },
+    /// Operator: put a dead-lettered electoral-log outbox entry (one the relay
+    /// could never move as it was) back in its log, once its cause is fixed;
+    /// who and why are recorded. It is stored after the entries relayed
+    /// meanwhile.
+    ReplayElectoralLogOutboxEntry {
+        #[arg(long)]
+        delivery_id: String,
+        #[arg(long)]
+        by: String,
+        #[arg(long)]
+        reason: String,
+    },
 }
 
 /// Resolve the queues to consume. A queue may also be given with the `ENV_SLUG_` prefix that
@@ -141,7 +153,8 @@ fn read_worker_threads(opt: &CeleryOpt) -> usize {
         CeleryOpt::Consume { worker_threads, .. } => worker_threads,
         CeleryOpt::Produce
         | CeleryOpt::SetupQueueDatabase
-        | CeleryOpt::CancelElectoralLogEntry { .. } => None,
+        | CeleryOpt::CancelElectoralLogEntry { .. }
+        | CeleryOpt::ReplayElectoralLogOutboxEntry { .. } => None,
     }
     .unwrap_or(num_cpus::get())
 }
@@ -196,6 +209,25 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             Level::INFO,
             "Electoral-log entry {delivery_id}: {}",
             if cancelled { "cancelled" } else { "nothing to cancel" }
+        );
+        return Ok(());
+    }
+    if let CeleryOpt::ReplayElectoralLogOutboxEntry {
+        delivery_id,
+        by,
+        reason,
+    } = &opt
+    {
+        let replayed = crate::services::electoral_log_outbox::replay_electoral_log_outbox_entry(
+            delivery_id,
+            by,
+            reason,
+        )
+        .await?;
+        event!(
+            Level::INFO,
+            "Electoral-log outbox entry {delivery_id}: {}",
+            if replayed { "replayed" } else { "not dead-lettered: nothing to replay" }
         );
         return Ok(());
     }
@@ -308,7 +340,9 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             event!(Level::INFO, "No new tasks to produce");
             celery_app.close().await?;
         }
-        CeleryOpt::SetupQueueDatabase | CeleryOpt::CancelElectoralLogEntry { .. } => {}
+        CeleryOpt::SetupQueueDatabase
+        | CeleryOpt::CancelElectoralLogEntry { .. }
+        | CeleryOpt::ReplayElectoralLogOutboxEntry { .. } => {}
     };
     Ok(())
 }

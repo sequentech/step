@@ -192,14 +192,18 @@ async fn record_certificate_action(
     Ok(())
 }
 
-/// Commits a certificate action with its entry, then asks the outbox's relay
-/// to move it now (best effort: beat relays it anyway).
+/// Commits a certificate action with its entry, then relays the outbox now,
+/// waiting a bounded time (`RELAY_KICK_WAIT`), and asks for a batch dispatch
+/// now, so the log's later posts (opening voting, say) are refused for as
+/// short a time as the signer allows. Best effort: beat relays and dispatches
+/// anyway; the gate is unchanged.
 async fn commit_recorded(hasura_transaction: Transaction<'_>, recorded: bool) -> Result<()> {
     hasura_transaction
         .commit()
         .await
         .context("Failed to commit transaction")?;
     if recorded {
+        crate::services::electoral_log_outbox::relay_now().await;
         crate::tasks::audit_log_outbox::kick_audit_log_outbox();
     }
     Ok(())

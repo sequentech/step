@@ -312,6 +312,33 @@ posts; an operator may cancel it with `cancel_waiting_entry` (naming who and why
 logged under `electoral-log-entry-cancelled`). An outbox row that keeps failing to be
 relayed is reported under `electoral-log-outbox-stuck`.
 
+Every outbox row, administrator-signed too, carries a MAC under the tenant's
+`electoral-log-pending-mac:<tenant id>` key, written in the action's transaction over the
+row's delivery ID and statement: a copy of a row under another delivery ID, or a changed
+payload, never verifies. When a row was written is the database's (a trigger sets and
+keeps `created_at`; the batch task checks the statement's time against it). An
+administrator's signature may be in one outbox row only: a second row with the same
+signed statement is refused at insert.
+
+A row the relay can never move as it is (unreadable, a MAC or announcement that doesn't
+verify, a statement of another log than its row) is dead-lettered at once: kept, logged
+under `electoral-log-outbox-dead-letter`, and no longer holding its log, whose later
+entries go on. Once its cause is fixed (a restored vault key, say), replay it with
+`windmill replay-electoral-log-outbox-entry --delivery-id <id> --by <who> --reason
+<why>`, or give it up with `windmill cancel-electoral-log-entry`. A replayed entry is
+stored after those relayed meanwhile. Other failures (the database, the vault, the board)
+hold the log and are retried, with `electoral-log-outbox-stuck` after five attempts.
+
+After a certificate import or deletion commits, the action relays the outbox itself,
+waiting at most 5 seconds, and asks for a batch dispatch; beat does both every 5 seconds
+anyway. With the signer up, the entry is stored within seconds (the relay, then one
+batch). Until then, a direct post to that event's log (opening voting, say) is refused
+with: "the electoral log of `<tenant id>/<election event id>` has `N` entries waiting
+for its signer; this entry is refused until they are stored (the log keeps its order)".
+Try again after a few seconds; if it persists, the signer is unavailable (its alerts
+say why) or the entry is held (`electoral-log-outbox-stuck`,
+`electoral-log-outbox-dead-letter`, `electoral-log-admin-key-unannounced`).
+
 Harvest connects as the producer role and posts some entries itself, so the setup
 grants that role `SELECT (scope)` on `step_queue.electoral_log_waiting`: it can tell
 whether a log has waiting entries, but not read or write them. Deploy in this order:

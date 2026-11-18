@@ -616,9 +616,9 @@ impl PendingStatement {
 
     /// Reads and checks the pending statement a reference event names (see
     /// the module documentation), before anything is signed.
-    /// A system-signed statement's MAC is checked with the tenant's
-    /// `mac_key` (no key: refused); an administrator-signed one carries its
-    /// administrator's signature instead.
+    /// Its MAC is checked with the tenant's `mac_key` (no key: refused),
+    /// whoever signs it; an administrator-signed one also carries its
+    /// administrator's signature.
     pub fn read(
         input: &LogEventInput,
         stored: Option<StoredPending>,
@@ -641,10 +641,10 @@ impl PendingStatement {
             stored.scope == pending.scope(),
             "The pending statement is not of its row's scope"
         );
-        if pending.statement.admin().is_none() {
-            let key = mac_key.ok_or_else(|| anyhow!("The tenant has no pending-statement MAC key"))?;
-            verify_pending_mac(&key, delivery_id, &pending, stored.mac.as_deref())?;
-        }
+        // Every statement (an administrator-signed one too: its MAC binds its
+        // delivery ID, so a copy under another ID is refused).
+        let key = mac_key.ok_or_else(|| anyhow!("The tenant has no pending-statement MAC key"))?;
+        verify_pending_mac(&key, delivery_id, &pending, stored.mac.as_deref())?;
         pending.validate(input, stored.created_ms, now)?;
         Ok(pending)
     }
@@ -1039,6 +1039,18 @@ mod tests {
             *admin_public_key = VerificationKey::from_sk(&other).unwrap().to_b64_string().unwrap();
         }
         assert!(foreign.sign(&sd).is_err());
+        // Its MAC binds its delivery ID: the same row under another one (a
+        // replay), without a MAC, or with a changed statement, is refused.
+        let (event, row) = queued(&pending);
+        reread(&event, &row).unwrap();
+        let (other_event, _) = queued(&pending);
+        assert!(reread(&other_event, &row).is_err(), "a copy under another delivery ID");
+        let mut unmacked = row.clone();
+        unmacked.mac = None;
+        assert!(reread(&event, &unmacked).is_err(), "no MAC");
+        let mut changed = row.clone();
+        changed.statement = serde_json::to_value(&tampered).unwrap();
+        assert!(reread(&event, &changed).is_err(), "a changed statement");
         // Its own origin only.
         let mut wrong_origin = pending.clone();
         wrong_origin.origin = PendingOrigin::BallotPublication;
