@@ -14,6 +14,10 @@ use crate::services::electoral_log_board::{ensure_tenant_log, get_board_client};
 use crate::services::electoral_log_dead_letter::{
     dead_letter_events, dead_letter_message, DeadLetterStage,
 };
+use crate::services::electoral_log_deferral::{
+    in_wait_order, log_round, put_back, scope_of, waiting_events, Deferral, DeferralBackoff,
+    WaitReason, Waiting, WaitingEvent,
+};
 use crate::services::monitoring::login_counter::{
     count_login_attempts_apart, login_attempt, LoginAttempt,
 };
@@ -32,14 +36,14 @@ use electoral_log::messages::newtypes::{
     AuditLogEntry, AuditStatementKind, ErrorMessageString, EventIdString, KeycloakEventTypeString,
 };
 use electoral_log::messages::statement::{StatementEventType, StatementLogType};
-use electoral_log::signer::is_signer_unavailable;
+use electoral_log::signer::{is_signer_unavailable, SignerUnavailable};
 use electoral_log::{ElectoralLogMessage, LogEntry};
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use tracing::{event, info, instrument};
 use uuid::Uuid;
 use voting_crypto::RistrettoCtx;
@@ -164,6 +168,11 @@ pub struct LogEventInput {
     /// and who made it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub admin_event: Option<serde_json::Value>,
+    /// Set on an event put back to wait for its signer (or behind an
+    /// earlier event of its log that waits): how long it has waited
+    /// (`services::electoral_log_deferral`). Producers never set it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deferral: Option<Deferral>,
 }
 
 /// The message type of a Keycloak admin event.
@@ -189,9 +198,12 @@ pub async fn enqueue_electoral_log_event(input: LogEventInput) -> Result<()> {
 ///
 /// Events that can never be stored as they are (an unknown election event, a malformed
 /// body, no signing key) go to the dead-letter queue, and the rest of the batch is
-/// appended, one transaction per board. Infrastructure failures fail the batch so that it
-/// is retried; delivery IDs make the retry idempotent. The last retry dead-letters the
-/// whole batch instead of dropping it.
+/// appended, one transaction per board. Events whose signer cannot sign now wait,
+/// durably and without a retry budget (`services::electoral_log_deferral`), with the
+/// later events of their log behind them. Infrastructure failures fail the batch so that
+/// it is retried; delivery IDs make the retry idempotent. The last retry dead-letters the
+/// batch's other events instead of dropping them; the waiting ones are never
+/// dead-lettered for running out of retries.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(
@@ -207,20 +219,60 @@ pub async fn process_electoral_log_events_batch(
 ) -> Result<()> {
     match store_batch(&events).await {
         Ok(()) => Ok(()),
-        Err(error) if retries_exhausted(task.request().retries, task.max_retries()) => {
-            tracing::error!(
-                "Dead-lettering {} electoral-log events after the last retry: {error:#}",
-                events.len()
-            );
+        Err(StoreFailure { error, waiting })
+            if retries_exhausted(task.request().retries, task.max_retries()) =>
+        {
             let reason = format!("retries exhausted: {error:#}");
-            let mut set_aside = Vec::with_capacity(events.len());
-            for event in &events {
-                set_aside.push((event, reason.as_str()));
+            let set_aside = exhausted_events(&events, &waiting);
+            tracing::error!(
+                "Dead-lettering {} electoral-log events after the last retry ({} wait for their signer): {error:#}",
+                set_aside.len(),
+                events.len() - set_aside.len()
+            );
+            if !set_aside.is_empty() {
+                let set_aside: Vec<(&LogEventInput, &str)> = set_aside
+                    .into_iter()
+                    .map(|event| (event, reason.as_str()))
+                    .collect();
+                dead_letter_events(&set_aside, DeadLetterStage::Batch).await?;
             }
-            dead_letter_events(&set_aside, DeadLetterStage::Batch).await?;
             Ok(())
         }
-        Err(error) => Err(error.into()),
+        Err(failure) => Err(failure.error.into()),
+    }
+}
+
+/// The events of a batch that the last retry dead-letters: all but those that
+/// wait, durably, for their signer.
+fn exhausted_events<'a>(
+    events: &'a [LogEventInput],
+    waiting: &HashSet<String>,
+) -> Vec<&'a LogEventInput> {
+    events
+        .iter()
+        .filter(|event| {
+            event
+                .delivery_id
+                .as_ref()
+                .map_or(true, |id| !waiting.contains(id))
+        })
+        .collect()
+}
+
+/// A batch that failed, and the delivery IDs of its events that wait durably for
+/// their signer (put back on the event queue before it failed).
+#[derive(Debug)]
+struct StoreFailure {
+    error: anyhow::Error,
+    waiting: HashSet<String>,
+}
+
+impl From<anyhow::Error> for StoreFailure {
+    fn from(error: anyhow::Error) -> Self {
+        StoreFailure {
+            error,
+            waiting: HashSet::new(),
+        }
     }
 }
 
@@ -229,9 +281,18 @@ fn retries_exhausted(retries: u32, max_retries: Option<u32>) -> bool {
     max_retries.is_some_and(|max| retries >= max)
 }
 
-/// Build the records of a batch, dead-letter the events that cannot be stored, and
-/// append the rest board by board.
-async fn store_batch(events: &[LogEventInput]) -> anyhow::Result<()> {
+/// Build the records of a batch, dead-letter the events that cannot be stored, put
+/// back those that wait for their signer, and append the rest board by board.
+async fn store_batch(events: &[LogEventInput]) -> std::result::Result<(), StoreFailure> {
+    let backoff = DeferralBackoff::from_env()?;
+    let event_queue = Queue::ElectoralLogEvent.queue_name();
+    let mut queue_client: DbClient = get_queue_pool()
+        .await
+        .get()
+        .await
+        .context("Error getting a connection for the electoral-log event queue")?;
+    // The events already waiting: this batch's events of their logs stay behind them.
+    let waiting = waiting_events(&**queue_client, event_queue).await?;
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -254,12 +315,13 @@ async fn store_batch(events: &[LogEventInput]) -> anyhow::Result<()> {
     crate::services::privacy_signin::allocate_registered_voters(&hasura_tx, &keycloak_tx, events)
         .await?;
     crate::services::privacy_signin::retain_queued_signin_network(&hasura_tx, events).await?;
-    let built = build_batch(
+    let built = build_batch_behind(
         &mut DbLookups {
             hasura: &hasura_tx,
             keycloak: &keycloak_tx,
         },
         events,
+        &waiting,
     )
     .await?;
     count_login_attempts_apart(&mut hasura_tx, &built.login_attempts).await;
@@ -281,6 +343,26 @@ async fn store_batch(events: &[LogEventInput]) -> anyhow::Result<()> {
         dead_letter_events(&set_aside, DeadLetterStage::Batch).await?;
     }
 
+    // The events that wait are put back first: whatever fails next, they are kept.
+    let mut kept = HashSet::new();
+    if !built.waiting.is_empty() {
+        let now_ms = chrono::Utc::now().timestamp_millis();
+        let tx = queue_client
+            .transaction()
+            .await
+            .context("Error starting the electoral-log put-back transaction")?;
+        let summary = put_back(&*tx, event_queue, &built.waiting, &backoff, now_ms).await?;
+        tx.commit()
+            .await
+            .context("Error committing the electoral-log events that wait")?;
+        log_round(&summary, &waiting, &backoff, now_ms);
+        kept = built
+            .waiting
+            .iter()
+            .filter_map(|waiting| waiting.event.delivery_id.clone())
+            .collect();
+    }
+
     // Append every board before failing, so one failing board does not hold back the
     // others; a retry appends the failed boards again, idempotently.
     let client = get_board_client().await?;
@@ -294,11 +376,15 @@ async fn store_batch(events: &[LogEventInput]) -> anyhow::Result<()> {
             }
         }
     }
-    anyhow::ensure!(
-        failures.is_empty(),
-        "Error appending electoral-log batches: {}",
-        failures.join("; ")
-    );
+    if !failures.is_empty() {
+        return Err(StoreFailure {
+            error: anyhow!(
+                "Error appending electoral-log batches: {}",
+                failures.join("; ")
+            ),
+            waiting: kept,
+        });
+    }
     Ok(())
 }
 
@@ -333,26 +419,73 @@ enum EventFailure {
     Permanent(anyhow::Error),
     /// A database or other infrastructure failure; the whole batch is retried.
     Transient(anyhow::Error),
-    /// The board's signer could not be loaded, or cannot sign right now (an
-    /// external signer whose key service is down): the event waits for a
-    /// retry while the batch's other events are stored.
+    /// The board's signer could not be loaded or refused (not an outage): the
+    /// event waits for a retry while the batch's other events are stored.
     /// Nothing is dropped: the batch fails after storing the rest, so it is
     /// retried (stored events are not stored twice: delivery IDs); after the
-    /// last retry the whole batch goes to the dead-letter queue, whose reason
-    /// names each deferred delivery, for an operator to replay or discard.
+    /// last retry the event goes to the dead-letter queue, whose reason names
+    /// each deferred delivery, for an operator to replay or discard.
     Deferred(anyhow::Error),
+    /// The board's signer cannot sign now ([`SignerUnavailable`]: an external
+    /// signer whose key service is down): the event waits, durably and for as
+    /// long as it takes, and is never dead-lettered for it.
+    Unavailable(anyhow::Error),
 }
 
 /// How an event fails when making its record failed: a signer that cannot
-/// sign right now ([`electoral_log::signer::SignerUnavailable`], an external
-/// signer whose key service is down) defers the event to a retry; any other
-/// error is the event's, and it is dead-lettered.
+/// sign right now ([`SignerUnavailable`], an external signer whose key service
+/// is down) makes the event wait; any other error is the event's, and it is
+/// dead-lettered.
 fn failure(error: anyhow::Error) -> EventFailure {
     if is_signer_unavailable(&error) {
-        EventFailure::Deferred(error)
+        EventFailure::Unavailable(error)
     } else {
         EventFailure::Permanent(error)
     }
+}
+
+/// How an event fails when its board's signer could not be loaded: it waits
+/// if the signer is only unavailable, and is retried a bounded number of
+/// times otherwise (a refused signer).
+fn signer_failure(reason: &str, unavailable: bool) -> EventFailure {
+    if unavailable {
+        EventFailure::Unavailable(anyhow::Error::new(SignerUnavailable::new(reason)))
+    } else {
+        EventFailure::Deferred(anyhow!("{reason}"))
+    }
+}
+
+/// Loads the board's signer into the batch's cache, once per batch. A lookup
+/// that fails is remembered for the batch, with whether the signer is only
+/// unavailable, so the board's other events do not ask again.
+async fn load_signer<L: BatchLookups + Send>(
+    lookups: &mut L,
+    cache: &mut BatchCache,
+    input: &LogEventInput,
+    board: &str,
+) -> std::result::Result<(), EventFailure> {
+    let key = (input.tenant_id.clone(), input.election_event_id.clone());
+    if let Some((reason, unavailable)) = cache.failed_signers.get(&key) {
+        return Err(signer_failure(reason, *unavailable));
+    }
+    if !cache.signers.contains_key(&key) {
+        match lookups
+            .signer(&input.tenant_id, &input.election_event_id, board)
+            .await
+        {
+            Ok(signer) => {
+                cache.signers.insert(key, signer);
+            }
+            Err(error) => {
+                let unavailable = is_signer_unavailable(&error);
+                let reason = format!("{error:#}");
+                let failure = signer_failure(&reason, unavailable);
+                cache.failed_signers.insert(key, (reason, unavailable));
+                return Err(failure);
+            }
+        }
+    }
+    Ok(())
 }
 
 /// The records of a batch, grouped by board, the events that cannot be stored,
@@ -363,8 +496,12 @@ struct BuiltBatch {
     by_board: HashMap<String, Vec<LogEntry>>,
     dead_letters: Vec<(LogEventInput, String)>,
     login_attempts: Vec<(String, LoginAttempt)>,
-    /// Events whose board's signer failed: retried, without holding back the rest.
+    /// Events whose board's signer could not be loaded: retried, without holding
+    /// back the rest.
     deferred: Vec<String>,
+    /// Events that wait for their signer, or behind an earlier event of their log
+    /// that does: put back on the event queue.
+    waiting: Vec<WaitingEvent>,
 }
 
 /// The records of one event, and the sign-in attempt it is, if any.
@@ -501,19 +638,51 @@ impl BatchLookups for DbLookups<'_, '_> {
 struct BatchCache {
     boards: HashMap<(String, String), Option<String>>,
     signers: HashMap<(String, String), Option<ElectoralLog>>,
-    /// Boards whose signer failed in this batch, and why.
-    failed_signers: HashMap<(String, String), String>,
+    /// Boards whose signer failed to load in this batch, why, and whether it is
+    /// only unavailable.
+    failed_signers: HashMap<(String, String), (String, bool)>,
     tenant_logs: HashMap<String, Option<(String, ElectoralLog)>>,
 }
 
+#[cfg(test)]
 async fn build_batch<L: BatchLookups + Send>(
     lookups: &mut L,
     events: &[LogEventInput],
 ) -> anyhow::Result<BuiltBatch> {
+    build_batch_behind(lookups, events, &Waiting::default()).await
+}
+
+/// Build a batch's records behind the events already `waiting`: an event waits
+/// behind any event of its scope that started waiting before it, in the queue or
+/// earlier in this batch, so a log's events keep their order.
+async fn build_batch_behind<L: BatchLookups + Send>(
+    lookups: &mut L,
+    events: &[LogEventInput],
+    waiting: &Waiting,
+) -> anyhow::Result<BuiltBatch> {
     let mut cache = BatchCache::default();
     let mut built = BuiltBatch::default();
-    for original in events {
+    // Scopes with an event that waits in this batch, and why.
+    let mut held: HashMap<String, String> = HashMap::new();
+    for original in in_wait_order(events) {
         let input = crate::services::privacy_signin::sanitized_event(original);
+        let scope = scope_of(&input);
+        // An event without a delivery ID is dead-lettered by `build_event`, never held.
+        let has_delivery_id = input.delivery_id.as_deref().is_some_and(|id| !id.is_empty());
+        let ahead = held.get(&scope).cloned().or_else(|| {
+            waiting
+                .ahead_of(&input)
+                .map(|key| format!("delivery {:?} waits for its signer", key.delivery_id))
+        });
+        let ahead = ahead.filter(|_| has_delivery_id);
+        if let Some(ahead) = ahead {
+            built.waiting.push(WaitingEvent {
+                event: input.clone(),
+                reason: WaitReason::Held,
+                error: format!("held behind an earlier event of its log: {ahead}"),
+            });
+            continue;
+        }
         match build_event(lookups, &mut cache, &input).await {
             Ok(event) => {
                 for (board, entry) in event.entries {
@@ -540,6 +709,20 @@ async fn build_batch<L: BatchLookups + Send>(
                 built
                     .deferred
                     .push(format!("delivery {:?}: {error:#}", input.delivery_id));
+            }
+            Err(EventFailure::Unavailable(error)) => {
+                let error = format!("{error:#}");
+                tracing::warn!(
+                    delivery_id = input.delivery_id.as_deref().unwrap_or_default(),
+                    "An electoral-log event waits for its signer: {error}"
+                );
+                // Later events of its log wait behind it, without asking the signer.
+                held.insert(scope, error.clone());
+                built.waiting.push(WaitingEvent {
+                    event: input.clone(),
+                    reason: WaitReason::SignerUnavailable,
+                    error,
+                });
             }
             Err(EventFailure::Transient(error)) => {
                 return Err(error.context(format!(
@@ -624,24 +807,7 @@ async fn build_event<L: BatchLookups + Send>(
                 .await
                 .map_err(Transient)?;
             attempt = login_attempt(input, user_area_id.as_deref(), chrono::Utc::now());
-            if let Some(reason) = cache.failed_signers.get(&key) {
-                return Err(EventFailure::Deferred(anyhow!("{reason}")));
-            }
-            if !cache.signers.contains_key(&key) {
-                match lookups
-                    .signer(&input.tenant_id, &input.election_event_id, &board)
-                    .await
-                {
-                    Ok(signer) => {
-                        cache.signers.insert(key.clone(), signer);
-                    }
-                    Err(error) => {
-                        let reason = format!("{error:#}");
-                        cache.failed_signers.insert(key.clone(), reason.clone());
-                        return Err(EventFailure::Deferred(anyhow!("{reason}")));
-                    }
-                }
-            }
+            load_signer(lookups, cache, input, &board).await?;
             if cache.signers.get(&key).is_some_and(Option::is_none) {
                 let reason = format!(
                     "Election event {} has no protocol-manager key",
@@ -972,8 +1138,6 @@ async fn build_event_realm_admin_event<L: BatchLookups + Send>(
     delivery_id: &str,
     board: String,
 ) -> std::result::Result<BuiltEvent, EventFailure> {
-    use EventFailure::Transient;
-
     let author = input
         .admin_event
         .as_ref()
@@ -986,13 +1150,7 @@ async fn build_event_realm_admin_event<L: BatchLookups + Send>(
         });
     }
     let key = (input.tenant_id.clone(), input.election_event_id.clone());
-    if !cache.signers.contains_key(&key) {
-        let signer = lookups
-            .signer(&input.tenant_id, &input.election_event_id, &board)
-            .await
-            .map_err(Transient)?;
-        cache.signers.insert(key.clone(), signer);
-    }
+    load_signer(lookups, cache, input, &board).await?;
     let Some(signer) = cache.signers.get(&key).and_then(Option::as_ref) else {
         let reason = format!(
             "Election event {} has no protocol-manager key",
@@ -1363,6 +1521,7 @@ mod delivery_tests {
             event_time_ms: None,
             details: None,
             admin_event: None,
+            deferral: None,
         };
         assert!(retain_delivery_id(&mut input, None).is_err());
         retain_delivery_id(&mut input, Some("original-id")).unwrap();
@@ -1396,7 +1555,9 @@ mod batch_build_tests {
     use super::*;
     use crate::services::electoral_log_dead_letter::event_message;
     use electoral_log::messages::statement::{Statement, StatementBody};
+    use crate::services::electoral_log_deferral::{next_round, WaitKey};
     use electoral_log::signer::{MessageSigner, SharedSigner, SignerUnavailable};
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
     use voting_crypto::signing::{Signature, SigningKey, VerificationKey};
     use voting_crypto::RecordDeserialize;
@@ -1408,6 +1569,8 @@ mod batch_build_tests {
     const UNKNOWN_TENANT: &str = "5a3c1f0e-9b7d-4c2a-8e6f-1d0b9a8c7e65";
     const REFUSED_SIGNER_EVENT: &str = "7d1e9c3b-2a4f-4b8e-9c6d-3e5f7a9b1c2d";
     const DOWN_SIGNER_EVENT: &str = "c4a7e2f1-8b3d-4e6a-9f0c-1b2d3e4f5a6b";
+    /// An election event whose signer can't even be loaded: its key service is down.
+    const DOWN_LOOKUP_EVENT: &str = "e8b1c3d5-6f7a-4b9c-8d2e-0f1a2b3c4d5e";
 
     /// How a loaded signer fails when it is asked to sign.
     #[derive(Clone, Copy)]
@@ -1416,12 +1579,18 @@ mod batch_build_tests {
         Unavailable,
         /// It refuses to sign (another key): final.
         Refused,
+        /// It signs, but the answer is lost on the way back while
+        /// `FakeLookups::lost_answers` is above zero (the service may have
+        /// signed: an uncertain outcome).
+        LostAnswers,
     }
 
     /// A signer that is loaded (its public key is known) but cannot sign.
     struct FailingSigner {
         key: SigningKey,
         outage: SignerOutage,
+        lost_answers: Arc<AtomicUsize>,
+        sign_calls: Arc<AtomicUsize>,
     }
 
     impl MessageSigner for FailingSigner {
@@ -1429,16 +1598,34 @@ mod batch_build_tests {
             VerificationKey::from_sk(&self.key)
         }
 
-        fn sign(&self, _bytes: &[u8]) -> anyhow::Result<Signature> {
-            Err(match self.outage {
-                SignerOutage::Unavailable => SignerUnavailable::new(
+        fn sign(&self, bytes: &[u8]) -> anyhow::Result<Signature> {
+            self.sign_calls.fetch_add(1, Ordering::SeqCst);
+            match self.outage {
+                SignerOutage::Unavailable => Err(SignerUnavailable::new(
                     "the key service is unreachable: error sending request",
                 )
-                .into(),
-                SignerOutage::Refused => {
-                    anyhow!("the key service refused: the key does not match (refused)")
+                .into()),
+                SignerOutage::Refused => Err(anyhow!(
+                    "the key service refused: the key does not match (refused)"
+                )),
+                SignerOutage::LostAnswers => {
+                    let signature = self.key.sign(bytes)?;
+                    let lost = self
+                        .lost_answers
+                        .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |left| {
+                            left.checked_sub(1)
+                        })
+                        .is_ok();
+                    if lost {
+                        Err(SignerUnavailable::new(
+                            "the key service is unreachable: connection reset before the answer",
+                        )
+                        .into())
+                    } else {
+                        Ok(signature)
+                    }
                 }
-            })
+            }
         }
     }
 
@@ -1448,6 +1635,12 @@ mod batch_build_tests {
         unreachable_tenant: Option<&'static str>,
         /// Election events and tenants whose signer loads but cannot sign.
         failing_signers: HashMap<&'static str, SignerOutage>,
+        /// Election events whose signer can't be loaded: its key service is down.
+        unavailable_lookups: HashSet<&'static str>,
+        /// Answers `SignerOutage::LostAnswers` signers still lose.
+        lost_answers: Arc<AtomicUsize>,
+        /// Signing calls the failing signers got.
+        sign_calls: Arc<AtomicUsize>,
         board_calls: usize,
         signer_calls: usize,
         tenant_log_calls: usize,
@@ -1460,6 +1653,9 @@ mod batch_build_tests {
                 unreachable_event: None,
                 unreachable_tenant: None,
                 failing_signers: HashMap::new(),
+                unavailable_lookups: HashSet::new(),
+                lost_answers: Arc::new(AtomicUsize::new(0)),
+                sign_calls: Arc::new(AtomicUsize::new(0)),
                 board_calls: 0,
                 signer_calls: 0,
                 tenant_log_calls: 0,
@@ -1472,6 +1668,8 @@ mod batch_build_tests {
             Some(Arc::new(FailingSigner {
                 key: self.signing_key.clone(),
                 outage,
+                lost_answers: self.lost_answers.clone(),
+                sign_calls: self.sign_calls.clone(),
             }))
         }
     }
@@ -1506,6 +1704,12 @@ mod batch_build_tests {
             board: &str,
         ) -> anyhow::Result<Option<ElectoralLog>> {
             self.signer_calls += 1;
+            if self.unavailable_lookups.contains(election_event_id) {
+                return Err(anyhow::Error::new(SignerUnavailable::new(
+                    "the key service is unreachable: error sending request",
+                ))
+                .context("Error reading the board's signer"));
+            }
             if election_event_id == REFUSED_SIGNER_EVENT {
                 return Err(anyhow!(
                     "this external board has no key: its creation failed and must be repeated (refused)"
@@ -1551,6 +1755,7 @@ mod batch_build_tests {
             event_time_ms: None,
             details: None,
             admin_event: None,
+            deferral: None,
         }
     }
 
@@ -1841,14 +2046,64 @@ mod batch_build_tests {
         assert!(reasons[2].contains("tenant's log"), "{}", reasons[2]);
     }
 
+    fn waiting_ids(built: &BuiltBatch) -> Vec<(&str, WaitReason)> {
+        built
+            .waiting
+            .iter()
+            .map(|waiting| {
+                (
+                    waiting.event.delivery_id.as_deref().unwrap_or_default(),
+                    waiting.reason,
+                )
+            })
+            .collect()
+    }
+
     #[tokio::test]
-    async fn a_cached_signer_that_is_unavailable_defers_its_events() {
-        let mut communication = keycloak_event(Some("down-2"), DOWN_SIGNER_EVENT);
+    async fn each_kind_of_event_waits_while_its_signer_is_unavailable() {
+        let mut communication = keycloak_event(Some("c1"), DOWN_SIGNER_EVENT);
         communication.body = LogEventBody::Communications("hello".into());
+        let mut sent = tenant_event("t3", "SEND_CODE", json!({"error": null}));
+        sent.body = LogEventBody::Communications("your code".into());
+        // Each alone, so that each is built (not held behind another).
+        let cases = vec![
+            (keycloak_event(Some("k1"), DOWN_SIGNER_EVENT), "Error building keycloak event message"),
+            (communication, "Error building send template message"),
+            (admin_event("a1", DOWN_SIGNER_EVENT, "operator"), "the key service is unreachable"),
+            (tenant_event("t1", "LOGIN", json!({"error": null})), "Error building keycloak event message"),
+            (tenant_activity("t2", DELETED_AN_EVENT), "Error building the tenant activity message"),
+            (sent, "Error building the message-sent entry"),
+            (keycloak_event(Some("t4"), DELETED_EVENT), "Error building keycloak event message"),
+        ];
+        for (event, context) in cases {
+            let mut lookups = FakeLookups::new();
+            lookups
+                .failing_signers
+                .insert(DOWN_SIGNER_EVENT, SignerOutage::Unavailable);
+            lookups
+                .failing_signers
+                .insert(TENANT, SignerOutage::Unavailable);
+            let delivery = event.delivery_id.clone().unwrap();
+            let built = build_batch(&mut lookups, &[event]).await.unwrap();
+            assert!(built.dead_letters.is_empty(), "{delivery}: {:?}", dead_letter_ids(&built));
+            assert!(built.deferred.is_empty(), "{delivery}: bounded retries are not used");
+            assert!(built.by_board.is_empty(), "{delivery}");
+            assert_eq!(
+                waiting_ids(&built),
+                vec![(delivery.as_str(), WaitReason::SignerUnavailable)]
+            );
+            let error = &built.waiting[0].error;
+            assert!(error.contains(context), "{delivery}: {error}");
+            assert!(error.contains("the key service is unreachable"), "{delivery}: {error}");
+        }
+    }
+
+    #[tokio::test]
+    async fn later_events_of_a_log_wait_behind_one_whose_signer_is_unavailable() {
         let events = vec![
             keycloak_event(Some("down-1"), DOWN_SIGNER_EVENT),
             keycloak_event(Some("ok-1"), EVENT),
-            communication,
+            keycloak_event(Some("down-2"), DOWN_SIGNER_EVENT),
             admin_event("down-3", DOWN_SIGNER_EVENT, "operator"),
         ];
         let mut lookups = FakeLookups::new();
@@ -1858,61 +2113,85 @@ mod batch_build_tests {
 
         let built = build_batch(&mut lookups, &events).await.unwrap();
 
-        // Nothing is dead-lettered while the key service is down: each event
-        // waits for a retry, and the other board's event is stored.
-        assert!(built.dead_letters.is_empty(), "{:?}", dead_letter_ids(&built));
-        assert_eq!(built.deferred.len(), 3, "{:?}", built.deferred);
-        for (delivery, reason) in ["down-1", "down-2", "down-3"].iter().zip(&built.deferred) {
-            assert!(reason.contains(*delivery), "{reason}");
-            assert!(reason.contains("the key service is unreachable"), "{reason}");
-        }
-        assert!(built.deferred[0].contains("Error building keycloak event message"));
-        assert!(built.deferred[1].contains("Error building send template message"));
+        assert!(built.dead_letters.is_empty());
+        assert!(built.deferred.is_empty());
+        assert_eq!(
+            waiting_ids(&built),
+            vec![
+                ("down-1", WaitReason::SignerUnavailable),
+                ("down-2", WaitReason::Held),
+                ("down-3", WaitReason::Held),
+            ]
+        );
+        assert!(built.waiting[1].error.contains("held behind"));
         assert_eq!(
             delivery_ids(&built.by_board[&format!("board-{EVENT}")]),
             vec!["ok-1:event"]
         );
-        assert!(!built
-            .by_board
-            .contains_key(&format!("board-{DOWN_SIGNER_EVENT}")));
-        assert!(
-            !built
-                .by_board
-                .keys()
-                .any(|board| board.starts_with("tenant-board")),
-            "not moved to the tenant log"
-        );
-        assert!(built.login_attempts.iter().all(|(id, _)| {
-            *id == login_counter_delivery_id("ok-1")
-        }));
-        // The signer was loaded once per board and kept for the batch.
-        assert_eq!(lookups.signer_calls, 2);
+        // The signer was asked once: the held events did not call the key service.
+        assert_eq!(lookups.sign_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(lookups.signer_calls, 2, "one lookup per board");
     }
 
     #[tokio::test]
-    async fn a_tenant_log_signer_that_is_unavailable_defers_its_events() {
-        let mut sent = tenant_event("t3", "SEND_CODE", json!({"error": null}));
-        sent.body = LogEventBody::Communications("your code".into());
+    async fn an_event_waits_behind_an_earlier_one_of_its_log_in_the_queue() {
+        let earlier = LogEventInput {
+            deferral: Some(Deferral {
+                rounds: 3,
+                since_ms: 1_000,
+                order: 0,
+            }),
+            ..keycloak_event(Some("earlier"), EVENT)
+        };
+        let mut waiting = Waiting::default();
+        waiting.add(scope_of(&earlier), WaitKey::of(&earlier));
         let events = vec![
-            tenant_event("t1", "LOGIN", json!({"error": null})),
-            tenant_activity("t2", DELETED_AN_EVENT),
-            sent,
-            keycloak_event(Some("t4"), DELETED_EVENT),
+            keycloak_event(Some("new"), EVENT),
+            keycloak_event(Some("other-log"), KEYLESS_EVENT),
+            // A copy of the waiting event is not held behind itself.
+            earlier.clone(),
         ];
         let mut lookups = FakeLookups::new();
-        lookups
-            .failing_signers
-            .insert(TENANT, SignerOutage::Unavailable);
+
+        let built = build_batch_behind(&mut lookups, &events, &waiting)
+            .await
+            .unwrap();
+
+        assert_eq!(waiting_ids(&built), vec![("new", WaitReason::Held)]);
+        assert!(built.waiting[0].error.contains("\"earlier\""), "{}", built.waiting[0].error);
+        assert_eq!(
+            delivery_ids(&built.by_board[&format!("board-{EVENT}")]),
+            vec!["earlier:event"]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_signer_that_cannot_be_loaded_now_waits_and_a_refused_one_is_retried_then_dead_lettered() {
+        let mut lookups = FakeLookups::new();
+        lookups.unavailable_lookups.insert(DOWN_LOOKUP_EVENT);
+        let events = vec![
+            keycloak_event(Some("k1"), DOWN_LOOKUP_EVENT),
+            admin_event("a1", REFUSED_SIGNER_EVENT, "operator"),
+            keycloak_event(Some("k2"), REFUSED_SIGNER_EVENT),
+            keycloak_event(Some("ok"), EVENT),
+        ];
 
         let built = build_batch(&mut lookups, &events).await.unwrap();
 
-        assert!(built.dead_letters.is_empty(), "{:?}", dead_letter_ids(&built));
-        assert!(built.by_board.is_empty());
-        assert_eq!(built.deferred.len(), 4, "{:?}", built.deferred);
-        for (delivery, reason) in ["t1", "t2", "t3", "t4"].iter().zip(&built.deferred) {
-            assert!(reason.contains(*delivery), "{reason}");
-            assert!(reason.contains("the key service is unreachable"), "{reason}");
-        }
+        // Unavailable at lookup: waits (typed, not rebuilt from text).
+        assert_eq!(waiting_ids(&built), vec![("k1", WaitReason::SignerUnavailable)]);
+        assert!(built.waiting[0].error.contains("the key service is unreachable"));
+        // Refused at lookup, on the admin-event path as on the others: bounded
+        // retries of the batch, then the dead-letter queue (not the whole batch failing).
+        assert_eq!(built.deferred.len(), 2, "{:?}", built.deferred);
+        assert!(built.deferred.iter().all(|reason| reason.contains("(refused)")));
+        assert!(built.dead_letters.is_empty());
+        assert_eq!(
+            delivery_ids(&built.by_board[&format!("board-{EVENT}")]),
+            vec!["ok:event"]
+        );
+        // A failed lookup is remembered for the batch.
+        assert_eq!(lookups.signer_calls, 3);
     }
 
     #[tokio::test]
@@ -1930,10 +2209,238 @@ mod batch_build_tests {
         let built = build_batch(&mut lookups, &events).await.unwrap();
 
         assert!(built.deferred.is_empty(), "{:?}", built.deferred);
+        assert!(built.waiting.is_empty());
         assert_eq!(dead_letter_ids(&built), vec![Some("k1"), Some("t1")]);
         for (_, reason) in &built.dead_letters {
             assert!(reason.contains("(refused)"), "{reason}");
         }
+    }
+
+    #[test]
+    fn the_last_retry_never_dead_letters_the_events_that_wait() {
+        let events = vec![
+            keycloak_event(Some("waits-1"), DOWN_SIGNER_EVENT),
+            keycloak_event(Some("other"), EVENT),
+            keycloak_event(Some("waits-2"), DOWN_SIGNER_EVENT),
+        ];
+        let waiting: HashSet<String> = ["waits-1", "waits-2"].map(String::from).into();
+        let set_aside: Vec<Option<&str>> = exhausted_events(&events, &waiting)
+            .into_iter()
+            .map(|event| event.delivery_id.as_deref())
+            .collect();
+        assert_eq!(set_aside, vec![Some("other")]);
+        // All waiting: nothing is dead-lettered, however many retries ran out.
+        let all: HashSet<String> = ["waits-1", "other", "waits-2"].map(String::from).into();
+        assert!(exhausted_events(&events, &all).is_empty());
+        // A failure before anything was put back keeps the old behaviour.
+        let failure = StoreFailure::from(anyhow!("database down"));
+        assert_eq!(exhausted_events(&events, &failure.waiting).len(), 3);
+        assert!(retries_exhausted(10, Some(10)));
+    }
+
+    /// The event queue and the boards in memory, as `store_batch` uses them: a
+    /// round takes the due events (decoded from the queue's own format) and the
+    /// new ones, builds them behind those still waiting, puts the waiting ones
+    /// back with their next wait (once per delivery ID), and stores the rest
+    /// (a board keeps one record per delivery ID).
+    #[derive(Default)]
+    struct Durable {
+        /// Queue messages: when due (ms) and the message.
+        queue: Vec<(i64, serde_json::Value)>,
+        /// Delivery IDs of each board's records, in order.
+        boards: HashMap<String, Vec<String>>,
+        dead_letters: Vec<String>,
+        now_ms: i64,
+        backoff: DeferralBackoff,
+    }
+
+    impl Durable {
+        fn queued(&self) -> Vec<LogEventInput> {
+            self.queue
+                .iter()
+                .map(|(_, message)| parse_queued_event(message.clone()).unwrap())
+                .collect()
+        }
+
+        async fn round(&mut self, lookups: &mut FakeLookups, fresh: Vec<LogEventInput>) {
+            let now_ms = self.now_ms;
+            let (due, later): (Vec<_>, Vec<_>) = std::mem::take(&mut self.queue)
+                .into_iter()
+                .partition(|(at, _)| *at <= now_ms);
+            self.queue = later;
+            let mut events: Vec<LogEventInput> = due
+                .into_iter()
+                .map(|(_, message)| parse_queued_event(message).unwrap())
+                .collect();
+            events.extend(fresh);
+            let mut waiting = Waiting::default();
+            for event in self.queued() {
+                waiting.add(scope_of(&event), WaitKey::of(&event));
+            }
+
+            let built = build_batch_behind(lookups, &events, &waiting)
+                .await
+                .unwrap();
+
+            for (event, _) in &built.dead_letters {
+                self.dead_letters
+                    .push(event.delivery_id.clone().unwrap_or_default());
+            }
+            for (index, item) in built.waiting.iter().enumerate() {
+                let queued = self.queued();
+                if queued
+                    .iter()
+                    .any(|event| event.delivery_id == item.event.delivery_id)
+                {
+                    continue;
+                }
+                let (event, delay) = next_round(&item.event, index as u32, &self.backoff, now_ms);
+                self.queue.push((
+                    now_ms + delay.as_millis() as i64,
+                    event_message(&event).unwrap(),
+                ));
+            }
+            for (board, entries) in built.by_board {
+                let stored = self.boards.entry(board).or_default();
+                for entry in entries {
+                    if !stored.contains(&entry.delivery_id) {
+                        stored.push(entry.delivery_id);
+                    }
+                }
+            }
+            // The next round, once every waiting event is due.
+            self.now_ms += self.backoff.max.as_millis() as i64;
+        }
+
+        fn board(&self, election_event_id: &str) -> Vec<&str> {
+            self.boards
+                .get(&format!("board-{election_event_id}"))
+                .map(|ids| ids.iter().map(String::as_str).collect())
+                .unwrap_or_default()
+        }
+    }
+
+    #[tokio::test]
+    async fn a_long_outage_dead_letters_nothing_and_stores_each_event_once_in_order_after_it() {
+        let mut lookups = FakeLookups::new();
+        lookups
+            .failing_signers
+            .insert(DOWN_SIGNER_EVENT, SignerOutage::Unavailable);
+        let mut durable = Durable::default();
+        durable
+            .round(
+                &mut lookups,
+                vec![
+                    keycloak_event(Some("e1"), DOWN_SIGNER_EVENT),
+                    keycloak_event(Some("e2"), DOWN_SIGNER_EVENT),
+                    keycloak_event(Some("ok"), EVENT),
+                    internal_event("poison", "not a log message".into()),
+                    keycloak_event(Some("e3"), DOWN_SIGNER_EVENT),
+                ],
+            )
+            .await;
+        // A permanent error in the same batch is dead-lettered at once.
+        assert_eq!(durable.dead_letters, vec!["poison"]);
+        assert_eq!(durable.board(EVENT), vec!["ok:event"]);
+
+        // Five times the old ten-retry budget.
+        for round in 1..=50 {
+            let fresh = if round == 7 {
+                // A new event of the same log, while the outage lasts.
+                vec![keycloak_event(Some("e4"), DOWN_SIGNER_EVENT)]
+            } else {
+                vec![]
+            };
+            durable.round(&mut lookups, fresh).await;
+        }
+        assert_eq!(durable.dead_letters, vec!["poison"], "nothing more dead-lettered");
+        assert!(durable.board(DOWN_SIGNER_EVENT).is_empty());
+        let queued = durable.queued();
+        assert_eq!(queued.len(), 4, "every event still waits, once");
+        let e1 = queued
+            .iter()
+            .find(|event| event.delivery_id.as_deref() == Some("e1"))
+            .unwrap();
+        // The wait stopped growing at its longest, and the event is still tried.
+        let rounds = e1.deferral.unwrap().rounds;
+        assert_eq!(rounds, 51);
+        assert_eq!(durable.backoff.delay(rounds), durable.backoff.max);
+        // Only the first event of the log asked the key service each round.
+        assert!(lookups.sign_calls.load(Ordering::SeqCst) <= 51);
+
+        // The key service is back.
+        lookups.failing_signers.remove(DOWN_SIGNER_EVENT);
+        for _ in 0..3 {
+            durable.round(&mut lookups, vec![]).await;
+        }
+        assert!(durable.queue.is_empty());
+        assert_eq!(
+            durable.board(DOWN_SIGNER_EVENT),
+            vec!["e1:event", "e2:event", "e3:event", "e4:event"]
+        );
+        assert_eq!(durable.dead_letters, vec!["poison"]);
+    }
+
+    #[tokio::test]
+    async fn waiting_events_survive_a_worker_restart() {
+        let mut lookups = FakeLookups::new();
+        lookups
+            .failing_signers
+            .insert(DOWN_SIGNER_EVENT, SignerOutage::Unavailable);
+        let mut durable = Durable::default();
+        durable
+            .round(
+                &mut lookups,
+                vec![
+                    keycloak_event(Some("r1"), DOWN_SIGNER_EVENT),
+                    keycloak_event(Some("r2"), DOWN_SIGNER_EVENT),
+                ],
+            )
+            .await;
+        durable.round(&mut lookups, vec![]).await;
+        // The worker stops: only the queue's rows remain.
+        let rows = serde_json::to_string(&durable.queue).unwrap();
+        let now_ms = durable.now_ms;
+        drop(durable);
+        drop(lookups);
+
+        // A new worker, with nothing in memory, and the key service back.
+        let mut lookups = FakeLookups::new();
+        let mut durable = Durable {
+            queue: serde_json::from_str(&rows).unwrap(),
+            now_ms,
+            ..Default::default()
+        };
+        assert_eq!(durable.queued().len(), 2);
+        durable.round(&mut lookups, vec![]).await;
+        assert!(durable.queue.is_empty());
+        assert_eq!(durable.board(DOWN_SIGNER_EVENT), vec!["r1:event", "r2:event"]);
+        assert!(durable.dead_letters.is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_signing_whose_answer_was_lost_is_repeated_and_stored_once() {
+        let mut lookups = FakeLookups::new();
+        lookups
+            .failing_signers
+            .insert(DOWN_SIGNER_EVENT, SignerOutage::LostAnswers);
+        lookups.lost_answers.store(1, Ordering::SeqCst);
+        let mut durable = Durable::default();
+        let event = keycloak_event(Some("u1"), DOWN_SIGNER_EVENT);
+        // The service signs, but the answer is lost: the event waits.
+        durable.round(&mut lookups, vec![event.clone()]).await;
+        assert!(durable.board(DOWN_SIGNER_EVENT).is_empty());
+        assert_eq!(durable.queued().len(), 1, "it waits");
+        // Signed again (Ed25519 is deterministic: the same signature) and stored.
+        durable.round(&mut lookups, vec![]).await;
+        assert!(durable.queue.is_empty());
+        assert_eq!(durable.board(DOWN_SIGNER_EVENT), vec!["u1:event"]);
+        // The batch is delivered again (an uncertain commit, at-least-once
+        // delivery): nothing is stored twice.
+        durable.round(&mut lookups, vec![event]).await;
+        assert_eq!(durable.board(DOWN_SIGNER_EVENT), vec!["u1:event"]);
+        assert!(durable.dead_letters.is_empty());
+        assert_eq!(lookups.sign_calls.load(Ordering::SeqCst), 3);
     }
 
     #[tokio::test]
@@ -2309,6 +2816,7 @@ mod batch_build_tests {
                 event_time_ms: Some(1_778_511_600_123),
                 details: None,
                 admin_event: None,
+                deferral: None,
             }
         );
     }
@@ -2406,7 +2914,59 @@ mod pgmq_tests {
             event_time_ms: None,
             details: None,
             admin_event: None,
+            deferral: None,
         }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PGMQ_TEST_DATABASE_URL pointing to a disposable database"]
+    async fn waiting_events_are_put_back_once_due_later_and_read_back() {
+        let pool = test_pool();
+        let queues = test_queues(&pool, "deferral").await;
+        let client = pool.get().await.unwrap();
+        let waiting = WaitingEvent {
+            event: LogEventInput {
+                delivery_id: Some("w1".into()),
+                ..event("event-1")
+            },
+            reason: WaitReason::SignerUnavailable,
+            error: "the key service is unreachable: error sending request".into(),
+        };
+        let backoff = DeferralBackoff::default();
+        let now_ms = chrono::Utc::now().timestamp_millis();
+
+        let first = put_back(&**client, &queues.events, &[waiting.clone()], &backoff, now_ms)
+            .await
+            .unwrap();
+        // The batch is retried after an uncertain commit: still one copy.
+        let again = put_back(&**client, &queues.events, &[waiting.clone()], &backoff, now_ms)
+            .await
+            .unwrap();
+        assert_eq!((first.put_back, again.put_back, again.already_waiting), (1, 0, 1));
+        assert_eq!(queue_length(&client, &queues.events).await, 1);
+        // Not due yet: the dispatcher reads nothing.
+        let visible = client
+            .query("SELECT msg_id FROM pgmq.read($1, 0, 10)", &[&queues.events])
+            .await
+            .unwrap();
+        assert!(visible.is_empty());
+        // It is read back as waiting, ahead of the later events of its log.
+        let read = waiting_events(&**client, &queues.events).await.unwrap();
+        assert_eq!(read.len(), 1);
+        let newer = LogEventInput {
+            delivery_id: Some("w2".into()),
+            ..waiting.event.clone()
+        };
+        assert_eq!(read.ahead_of(&newer).unwrap().delivery_id, "w1");
+        // Its message is the event as producers send it, with how long it waited.
+        let row = client
+            .query_one(&format!("SELECT message FROM pgmq.q_{}", queues.events), &[])
+            .await
+            .unwrap();
+        let parsed = parse_queued_event(row.get(0)).unwrap();
+        assert_eq!(parsed.delivery_id.as_deref(), Some("w1"));
+        assert_eq!(parsed.deferral.unwrap().rounds, 1);
+        drop_queues(&client, &queues).await;
     }
 
     fn limits(max_events: usize, max_bytes: usize) -> BatchLimits {

@@ -888,6 +888,7 @@ impl ElectoralLog {
             event_time_ms: None,
             details: None,
             admin_event: None,
+            deferral: None,
         };
 
         let celery_app = try_get_celery_app().await?;
@@ -996,6 +997,7 @@ impl ElectoralLog {
             event_time_ms: None,
             details: None,
             admin_event: None,
+            deferral: None,
         };
         let celery_app = try_get_celery_app().await?;
         celery_app
@@ -1047,6 +1049,7 @@ impl ElectoralLog {
             event_time_ms: None,
             details: None,
             admin_event: None,
+            deferral: None,
         };
         let celery_app = try_get_celery_app().await?;
         celery_app
@@ -1453,7 +1456,7 @@ impl ElectoralLog {
         let message = Message::send_template(
             event, election, &self.sd, user_id, username, message, area_id,
         )
-        .map_err(|e| anyhow!("Error sending template: {e:?}"))?;
+        .context("Error sending template")?;
 
         self.post(&message).await
     }
@@ -1471,7 +1474,7 @@ impl ElectoralLog {
 
         let message =
             Message::tally_resumed_with_resolution(event, election, resolution_ids, &self.sd)
-                .map_err(|e| anyhow!("Error posting tally resumed with resolution: {e:?}"))?;
+                .context("Error posting tally resumed with resolution")?;
 
         self.post(&message).await
     }
@@ -1489,7 +1492,7 @@ impl ElectoralLog {
 
         let message =
             Message::tally_paused_pending_resolutions(event, election, resolution_ids, &self.sd)
-                .map_err(|e| anyhow!("Error posting tally paused pending resolution: {e:?}"))?;
+                .context("Error posting tally paused pending resolution")?;
 
         self.post(&message).await
     }
@@ -1518,7 +1521,7 @@ impl ElectoralLog {
             user_id,
             username,
         )
-        .map_err(|e| anyhow!("Error posting tally tie resolved: {e:?}"))?;
+        .context("Error posting tally tie resolved")?;
 
         self.post(&message).await
     }
@@ -1547,7 +1550,7 @@ impl ElectoralLog {
             user_id,
             username,
         )
-        .map_err(|e| anyhow!("Error posting tally tie resolution updated: {e:?}"))?;
+        .context("Error posting tally tie resolution updated")?;
 
         self.post(&message).await
     }

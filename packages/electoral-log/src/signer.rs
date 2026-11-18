@@ -31,6 +31,8 @@ use voting_crypto::signing::{Signature, SigningKey, VerificationKey};
 pub struct SignerUnavailable {
     message: String,
     source: Option<Box<dyn std::error::Error + Send + Sync + 'static>>,
+    /// Made by [`SignerUnavailable::of`]: it reads as its cause.
+    transparent: bool,
 }
 
 impl SignerUnavailable {
@@ -39,6 +41,7 @@ impl SignerUnavailable {
         Self {
             message: message.into(),
             source: None,
+            transparent: false,
         }
     }
 
@@ -50,7 +53,24 @@ impl SignerUnavailable {
         Self {
             message: message.into(),
             source: Some(Box::new(source)),
+            transparent: false,
         }
+    }
+
+    /// Unavailable because of `cause`, read exactly as `cause` (its message
+    /// and its own sources), so that nothing reading the error loses the
+    /// cause's words. [`SignerUnavailable::cause`] gives it back, typed.
+    pub fn of(cause: impl std::error::Error + Send + Sync + 'static) -> Self {
+        Self {
+            message: cause.to_string(),
+            source: Some(Box::new(cause)),
+            transparent: true,
+        }
+    }
+
+    /// The error that made the signer unavailable, if one was given.
+    pub fn cause(&self) -> Option<&(dyn std::error::Error + Send + Sync + 'static)> {
+        self.source.as_deref()
     }
 }
 
@@ -62,9 +82,13 @@ impl fmt::Display for SignerUnavailable {
 
 impl std::error::Error for SignerUnavailable {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.source
-            .as_deref()
-            .map(|source| source as &(dyn std::error::Error + 'static))
+        let source = self.source.as_deref()?;
+        if self.transparent {
+            // It reads as its cause, so the chain goes on from the cause's source.
+            source.source()
+        } else {
+            Some(source as &(dyn std::error::Error + 'static))
+        }
     }
 }
 
@@ -349,19 +373,36 @@ mod tests {
         assert_eq!(fixed, None);
     }
 
-    /// A signer whose key service is down.
-    struct Down;
+    /// A signer whose key service is down: its public key is known (recorded),
+    /// but it signs nothing; with `batch_only`, only its batch requests fail.
+    struct Down {
+        key: SigningKey,
+        batch_only: bool,
+    }
 
     impl MessageSigner for Down {
         fn public_key(&self) -> Result<VerificationKey> {
+            VerificationKey::from_sk(&self.key)
+        }
+        fn sign(&self, bytes: &[u8]) -> Result<Signature> {
+            if self.batch_only {
+                return self.key.sign(bytes);
+            }
             Err(SignerUnavailable::new("the key service is unreachable").into())
         }
-        fn sign(&self, _bytes: &[u8]) -> Result<Signature> {
+        fn sign_many(&self, _messages: &[&[u8]]) -> Result<Vec<Signature>> {
             Err(SignerUnavailable::new("the key service is unreachable").into())
         }
         fn batches(&self) -> bool {
             true
         }
+    }
+
+    fn down(batch_only: bool) -> SharedSigner {
+        Arc::new(Down {
+            key: SigningKey::generate().unwrap(),
+            batch_only,
+        })
     }
 
     #[test]
@@ -394,16 +435,47 @@ mod tests {
 
     #[test]
     fn an_unavailable_signer_stays_unavailable_through_a_batch_and_a_message() {
-        let signer: SharedSigner = Arc::new(Down);
-        let error = batch(&signer, |s| s.sign(b"entry")).unwrap_err();
-        assert!(is_signer_unavailable(&error));
+        // The batch records, then its one sign_many request fails.
+        for batch_only in [false, true] {
+            let signer = down(batch_only);
+            let error = batch(&signer, |s| {
+                s.sign(b"entry one")?;
+                s.sign(b"entry two")
+            })
+            .unwrap_err();
+            assert!(is_signer_unavailable(&error), "{error:#}");
+        }
         let error = crate::signature::sign(
-            signer.as_ref(),
+            down(false).as_ref(),
             crate::signature::Domain::Statement,
             b"statement",
         )
         .unwrap_err();
         assert!(is_signer_unavailable(&error));
+    }
+
+    #[test]
+    fn an_unavailable_signer_can_read_exactly_as_its_cause() {
+        #[derive(Debug)]
+        struct Transport;
+        impl fmt::Display for Transport {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.write_str("the key service is unreachable: error sending request")
+            }
+        }
+        impl std::error::Error for Transport {}
+
+        let error = anyhow::Error::new(SignerUnavailable::of(Transport))
+            .context("Error building keycloak event message");
+        assert!(is_signer_unavailable(&error));
+        // The cause's words, once.
+        assert_eq!(
+            format!("{error:#}"),
+            "Error building keycloak event message: \
+             the key service is unreachable: error sending request"
+        );
+        let unavailable = error.downcast_ref::<SignerUnavailable>().unwrap();
+        assert!(unavailable.cause().unwrap().is::<Transport>());
     }
 
     #[test]
