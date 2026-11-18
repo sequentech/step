@@ -449,7 +449,7 @@ async fn process_plaintexts(
     Ok(almost_vec)
 }
 
-#[instrument]
+#[instrument(skip_all)]
 fn get_execution_status(
     execution_status: Option<String>,
     completed: bool,

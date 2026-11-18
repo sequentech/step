@@ -46,7 +46,7 @@ pub const DATAFIX_VOTER_LOCK_SECS: i64 = 300;
 /// voter within an event — outbound `SetVoted`, disable-release, inbound
 /// mark/unmark, and reconciliation apply all take this same lock, so none of
 /// them can interleave for the same voter.
-#[instrument]
+#[instrument(skip_all)]
 pub fn datafix_voter_lock_key(tenant_id: &str, election_event_id: &str, voter_id: &Uuid) -> String {
     format!("datafix-voter-{tenant_id}-{election_event_id}-{voter_id}")
 }
@@ -161,7 +161,7 @@ fn find_events_by_datafix_id(
 /// misconfiguration is on the Sequent side and only an administrator can fix
 /// it. The ids travel with the error so the failure is audited in every one
 /// of those events.
-#[instrument]
+#[instrument(skip_all)]
 fn ambiguous_datafix_id_error(requester_datafix_id: &str, event_ids: Vec<String>) -> DatafixError {
     let detail = format!(
         "Datafix id {requester_datafix_id} is configured in {} election events ({}), so the target event is ambiguous",
