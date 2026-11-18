@@ -1096,16 +1096,19 @@ impl BoardClient {
     }
 
     /// The most entries one transaction on `database_name` may hold
-    /// (immudb's `MaxTxEntries` setting of the database).
+    /// (immudb's `MaxTxEntries` setting of the database). The session must be
+    /// open on `database_name`.
     #[instrument(skip(self), level = "trace")]
     pub async fn max_tx_entries(&mut self, database_name: &str) -> Result<usize> {
-        let response = self.client.list_databases().await?;
-        let max_tx_entries = response
-            .get_ref()
-            .databases
-            .iter()
-            .find(|database| database.name == database_name)
-            .ok_or_else(|| anyhow!("Database {database_name} not found"))?
+        let response = self.client.database_settings().await?;
+        let settings = response.get_ref();
+        if settings.database != database_name {
+            return Err(anyhow!(
+                "The session is on database {}, not {database_name}",
+                settings.database
+            ));
+        }
+        let max_tx_entries = settings
             .settings
             .as_ref()
             .and_then(|settings| settings.max_tx_entries.as_ref())

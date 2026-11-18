@@ -1476,19 +1476,20 @@ impl ElectoralLog {
 
     /// Imports an exported log in chunks, one immudb transaction each, since
     /// immudb limits the entries of a transaction. Each chunk is stored with a
-    /// receipt keyed by its contents, so importing the same log again, as a
+    /// receipt keyed by its position and contents, so importing the same log again, as a
     /// retried import task does, skips the chunks already stored.
     #[instrument(skip(self))]
     pub async fn import_from_csv(&self, logs_file: &NamedTempFile) -> Result<()> {
         let mut rdr = csv::Reader::from_reader(logs_file);
 
         let mut client = get_board_client().await?;
-        let rows_per_transaction =
-            csv_import_rows_per_transaction(client.max_tx_entries(&self.elog_database).await?)?;
         client.open_session(self.elog_database.as_str()).await?;
         let result = async {
+            let rows_per_transaction =
+                csv_import_rows_per_transaction(client.max_tx_entries(&self.elog_database).await?)?;
             client.ensure_electoral_log_delivery_receipts().await?;
             let mut messages: Vec<ElectoralLogMessage> = Vec::with_capacity(rows_per_transaction);
+            let mut chunk_index = 0;
             for result in rdr.deserialize() {
                 let row: ElectoralLogRow = result
                     .map_err(|err| anyhow::Error::new(err).context("Failed to read CSV row"))?;
@@ -1499,12 +1500,13 @@ impl ElectoralLog {
                 messages.push(message.try_into()?);
 
                 if messages.len() == rows_per_transaction {
-                    import_csv_chunk(&mut client, &messages).await?;
+                    import_csv_chunk(&mut client, chunk_index, &messages).await?;
                     messages.clear();
+                    chunk_index += 1;
                 }
             }
             if !messages.is_empty() {
-                import_csv_chunk(&mut client, &messages).await?;
+                import_csv_chunk(&mut client, chunk_index, &messages).await?;
             }
             anyhow::Ok(())
         }
@@ -1537,9 +1539,14 @@ fn csv_import_rows_per_transaction(max_tx_entries: usize) -> Result<usize> {
 /// Namespace of the delivery IDs of imported log chunks.
 const CSV_IMPORT_DELIVERY_NAMESPACE: &str = "csv-import";
 
-/// The delivery ID and payload hash of a chunk of an imported log, both
-/// derived from the signed messages it holds.
-fn csv_import_chunk_identity(messages: &[ElectoralLogMessage]) -> (String, String) {
+/// The delivery ID and payload hash of a chunk of an imported log. The
+/// payload hash is derived from the signed messages the chunk holds, and the
+/// delivery ID also from the chunk's position, so identical chunks of one log
+/// are each stored.
+fn csv_import_chunk_identity(
+    chunk_index: usize,
+    messages: &[ElectoralLogMessage],
+) -> (String, String) {
     let mut hasher = Sha256::new();
     for message in messages {
         hasher.update((message.message.len() as u64).to_be_bytes());
@@ -1547,7 +1554,7 @@ fn csv_import_chunk_identity(messages: &[ElectoralLogMessage]) -> (String, Strin
     }
     let payload_hash = hex::encode(hasher.finalize());
     let delivery_id = hex::encode(Sha256::digest(
-        format!("{CSV_IMPORT_DELIVERY_NAMESPACE}:{payload_hash}").as_bytes(),
+        format!("{CSV_IMPORT_DELIVERY_NAMESPACE}:{chunk_index}:{payload_hash}").as_bytes(),
     ));
     (delivery_id, payload_hash)
 }
@@ -1555,9 +1562,10 @@ fn csv_import_chunk_identity(messages: &[ElectoralLogMessage]) -> (String, Strin
 /// Commits one chunk of an imported log with its receipt.
 async fn import_csv_chunk(
     client: &mut BoardClient,
+    chunk_index: usize,
     messages: &[ElectoralLogMessage],
 ) -> Result<()> {
-    let (delivery_id, payload_hash) = csv_import_chunk_identity(messages);
+    let (delivery_id, payload_hash) = csv_import_chunk_identity(chunk_index, messages);
     let tx = client.new_tx(TxMode::ReadWrite).await?;
     let receipt = client
         .insert_electoral_log_delivery(&tx, &delivery_id, &payload_hash, messages)
@@ -2636,22 +2644,22 @@ mod csv_import_tests {
     fn a_chunk_has_the_same_identity_when_imported_again() {
         let chunk = [message(b"first"), message(b"second")];
         assert_eq!(
-            csv_import_chunk_identity(&chunk),
-            csv_import_chunk_identity(&chunk.clone())
+            csv_import_chunk_identity(0, &chunk),
+            csv_import_chunk_identity(0, &chunk.clone())
         );
     }
 
     #[test]
     fn chunks_with_other_messages_have_other_identities() {
         let chunk = [message(b"first"), message(b"second")];
-        let identity = csv_import_chunk_identity(&chunk);
+        let identity = csv_import_chunk_identity(0, &chunk);
         for other in [
             vec![message(b"first"), message(b"secone")],
             vec![message(b"second"), message(b"first")],
             vec![message(b"first")],
             vec![message(b"firsts"), message(b"econd")],
         ] {
-            let other_identity = csv_import_chunk_identity(&other);
+            let other_identity = csv_import_chunk_identity(0, &other);
             assert_ne!(other_identity.0, identity.0);
             assert_ne!(other_identity.1, identity.1);
         }
@@ -2670,8 +2678,17 @@ mod csv_import_tests {
     }
 
     #[test]
+    fn the_same_chunk_at_another_position_has_another_delivery_id() {
+        let chunk = [message(b"first"), message(b"second")];
+        let (delivery_id, payload_hash) = csv_import_chunk_identity(0, &chunk);
+        let (other_delivery_id, other_payload_hash) = csv_import_chunk_identity(1, &chunk);
+        assert_ne!(other_delivery_id, delivery_id);
+        assert_eq!(other_payload_hash, payload_hash);
+    }
+
+    #[test]
     fn chunk_identities_are_distinct_sha256_digests() {
-        let (delivery_id, payload_hash) = csv_import_chunk_identity(&[message(b"entry")]);
+        let (delivery_id, payload_hash) = csv_import_chunk_identity(0, &[message(b"entry")]);
         for value in [&delivery_id, &payload_hash] {
             assert_eq!(value.len(), 64);
             assert!(value.bytes().all(|byte| byte.is_ascii_hexdigit()));
