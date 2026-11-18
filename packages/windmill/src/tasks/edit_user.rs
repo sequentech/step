@@ -104,14 +104,14 @@ pub async fn edit_user(body: EditUserTaskBody, task_execution: TasksExecution) -
 
 /// A save that flips an enabled voter to disabled, which triggers the
 /// discard → `SetNotVoted` release path.
-#[instrument]
+#[instrument(skip_all)]
 fn is_disable_transition(current: Option<bool>, requested: Option<bool>) -> bool {
     current == Some(true) && requested == Some(false)
 }
 
 /// A save that flips a disabled voter back to enabled; only allowed once the
 /// voter's Datafix voting state is resolved.
-#[instrument]
+#[instrument(skip_all)]
 fn is_reenable_transition(current: Option<bool>, requested: Option<bool>) -> bool {
     current == Some(false) && requested == Some(true)
 }
@@ -335,7 +335,7 @@ async fn audit_datafix_user_operation(
 
 /// Whether a `SetNotVoted` response means VoterView agrees the voter has not
 /// voted; used only to pick the audited outcome label.
-#[instrument]
+#[instrument(skip_all)]
 fn set_not_voted_converged(response: &SoapRequestResponse) -> bool {
     matches!(
         response,

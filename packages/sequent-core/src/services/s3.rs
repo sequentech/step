@@ -394,7 +394,7 @@ pub async fn get_shared_s3_client(endpoint: S3Endpoint) -> Result<s3::Client> {
 
 /// Builds the private document key layout so uploads and downloads use a
 /// stable tenant and event-specific hierarchy.
-#[instrument]
+#[instrument(skip_all)]
 pub fn get_document_key(
     tenant_id: &str,
     election_event_id: Option<&str>,
