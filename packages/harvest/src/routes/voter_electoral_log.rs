@@ -48,7 +48,7 @@ fn check_ballot_id_filter(ballot_id: &str) -> Result<(), JsonError> {
         })
 }
 
-#[instrument]
+#[instrument(skip_all)]
 #[post("/list-cast-vote-messages", format = "json", data = "<body>")]
 pub async fn list_cast_vote_messages(
     body: Json<CastVoteMessagesInput>,

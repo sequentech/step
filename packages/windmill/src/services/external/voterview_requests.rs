@@ -54,7 +54,7 @@ impl PreparedSoapRequest {
 }
 
 impl SoapRequest {
-    #[instrument]
+    #[instrument(skip_all)]
     fn template_name(self) -> &'static str {
         match self {
             Self::SetVoted => PUBLIC_ASSETS_VOTERVIEW_SETVOTED_TEMPLATE,
@@ -62,7 +62,7 @@ impl SoapRequest {
         }
     }
 
-    #[instrument]
+    #[instrument(skip_all)]
     fn operation_name(self) -> &'static str {
         match self {
             Self::SetVoted => "SetVoted",
@@ -70,7 +70,7 @@ impl SoapRequest {
         }
     }
 
-    #[instrument]
+    #[instrument(skip_all)]
     fn result_name(self) -> &'static str {
         match self {
             Self::SetVoted => "SetVotedResult",
@@ -242,7 +242,7 @@ fn operation_namespace(body: &str, request: SoapRequest) -> Result<String> {
 
 /// Collapses whitespace, strips trailing punctuation and lowercases, so a known
 /// message ("the voter has already voted") is matched despite formatting drift.
-#[instrument]
+#[instrument(skip_all)]
 fn normalize_message(message: &str) -> String {
     message
         .split_whitespace()

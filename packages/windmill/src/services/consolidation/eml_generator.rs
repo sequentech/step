@@ -808,7 +808,7 @@ impl ValidateAnnotations for Candidate {
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 /// A Post's `miru:area-threshold`: the signatures its transmission package
 /// needs (-1: no minimum). The one reading of it, shared by the package and
 /// the import's mapping to the transmit-results rule.

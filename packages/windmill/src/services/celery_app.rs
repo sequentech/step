@@ -218,7 +218,7 @@ pub fn get_worker_threads() -> usize {
 }
 
 /// Update global app execution status.
-#[instrument]
+#[instrument(skip_all)]
 pub fn set_is_app_active(new_val: bool) {
     *IS_APP_ACTIVE
         .write()
@@ -240,7 +240,7 @@ static CELERY_APP: OnceCell<Arc<Celery>> = OnceCell::const_new();
 const REQUEST_CELERY_APP_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Returns the global Celery app.
-#[instrument]
+#[instrument(skip_all)]
 pub async fn get_celery_app() -> Arc<Celery> {
     init_celery_app().await.unwrap_or_else(|err| {
         tracing::error!("{:#}", err);
@@ -250,7 +250,7 @@ pub async fn get_celery_app() -> Arc<Celery> {
 
 /// Builds the global Celery app, or returns the error that kept it from being built; a later
 /// call tries again.
-#[instrument]
+#[instrument(skip_all)]
 pub async fn init_celery_app() -> Result<Arc<Celery>> {
     CELERY_APP
         .get_or_try_init(generate_celery_app)
@@ -260,14 +260,14 @@ pub async fn init_celery_app() -> Result<Arc<Celery>> {
 
 /// The global Celery app for producers inside requests, such as a voter's: an unreachable
 /// task-queue database fails their enqueue within seconds instead of failing the request.
-#[instrument]
+#[instrument(skip_all)]
 pub async fn try_get_celery_app() -> Result<Arc<Celery>> {
     tokio::time::timeout(REQUEST_CELERY_APP_TIMEOUT, init_celery_app())
         .await
         .map_err(|_| anyhow!("Timed out connecting to the task-queue database"))?
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn generate_celery_app() -> Result<Arc<Celery>> {
     let CeleryConfig {
         prefetch_count,

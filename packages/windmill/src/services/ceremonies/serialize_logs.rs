@@ -7,7 +7,7 @@ use sequent_core::services::date::ISO8601;
 use sequent_core::types::ceremonies::Log;
 use tracing::instrument;
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn generate_tally_initial_log(election_ids: &Vec<String>) -> Vec<Log> {
     vec![Log {
         created_date: ISO8601::to_string(&ISO8601::now()),
@@ -31,7 +31,7 @@ pub fn sort_logs(logs: &Vec<Log>) -> Vec<Log> {
     sorted
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn generate_keys_initial_log(trustee_names: &Vec<String>) -> Vec<Log> {
     generate_keys_initial_log_at(trustee_names, ISO8601::now())
 }

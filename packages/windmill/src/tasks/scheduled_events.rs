@@ -35,7 +35,7 @@ use std::sync::Arc;
 use tracing::instrument;
 use tracing::{event, info, Level};
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn get_datetime(event: &ScheduledEvent) -> Option<DateTime<Local>> {
     let Some(cron_config) = event.cron_config.clone() else {
         return None;

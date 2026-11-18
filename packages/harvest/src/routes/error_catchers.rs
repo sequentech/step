@@ -15,7 +15,7 @@ pub struct ErrorResponse {
     message: String,
 }
 
-#[instrument]
+#[instrument(skip_all)]
 #[catch(500)]
 pub fn internal_error() -> Json<ErrorResponse> {
     Json(ErrorResponse {

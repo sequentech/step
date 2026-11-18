@@ -139,7 +139,7 @@ struct DnsRecordResponse {
     result: DnsRecord,
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn get_page_rule(target_value: &str) -> Result<Option<PageRule>, Box<dyn Error>> {
     info!("target_value {:?}", target_value);
     let page_rules = get_all_page_rules().await?;
@@ -200,7 +200,7 @@ fn page_rule_host(page_rule: &PageRule) -> Option<&str> {
 /// redirects it to the login, enrollment or SAML address of the election
 /// event. Only the record and the page rule of that election event and kind
 /// are updated, and a prefix that another host already uses is rejected.
-#[instrument]
+#[instrument(skip_all)]
 pub async fn set_custom_url(
     tenant_id: &str,
     election_event_id: &str,
@@ -311,11 +311,10 @@ pub async fn set_custom_url(
     Ok(())
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn get_all_page_rules() -> Result<Vec<PageRule>, Box<dyn Error>> {
     let (zone_id, api_key) = get_cloudflare_vars()?;
     info!("zone_id {:?}", zone_id);
-    info!("api_key {:?}", api_key);
 
     let client = Client::new();
 
@@ -349,11 +348,10 @@ async fn get_all_page_rules() -> Result<Vec<PageRule>, Box<dyn Error>> {
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn get_all_dns_records() -> Result<Vec<DnsRecord>, Box<dyn Error>> {
     let (zone_id, api_key) = get_cloudflare_vars()?;
     info!("zone_id {:?}", zone_id);
-    info!("api_key {:?}", api_key);
 
     let client = Client::new();
     let mut dns_records = vec![];
@@ -456,7 +454,7 @@ fn find_conflicting_dns_record<'a>(
     })
 }
 
-#[instrument]
+#[instrument(skip_all)]
 fn find_matching_target(rules: Vec<PageRule>, expected_redirect_url: &str) -> Option<PageRule> {
     for rule in rules {
         for action in &rule.actions {
@@ -470,7 +468,7 @@ fn find_matching_target(rules: Vec<PageRule>, expected_redirect_url: &str) -> Op
     None
 }
 
-#[instrument]
+#[instrument(skip_all)]
 fn create_payload(origin: &str, redirect_to: &str) -> CreatePageRuleRequest {
     let targets = vec![Target {
         constraint: Constraint {
@@ -500,7 +498,7 @@ fn custom_urls_ip_dns_content() -> String {
     std::env::var("CUSTOM_URLS_IP_DNS_CONTENT").unwrap_or_else(|_| "default.ip.address".to_string())
 }
 
-#[instrument]
+#[instrument(skip_all)]
 fn create_dns_payload(origin: &str, comment: &str) -> CreateDNSRecordRequest {
     let cloudflare_ip_dns_content = custom_urls_ip_dns_content();
     info!("cloudflare_ip_dns_content: {}", cloudflare_ip_dns_content);

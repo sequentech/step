@@ -78,7 +78,7 @@ async fn fetch_i18n_defaults(url: &str) -> Result<Value> {
 /// it (the helpers fall back to the tz database): a failed fetch is logged
 /// as an error, serves the previous copy if there is one, and is retried on
 /// the next call (a failure is never cached).
-#[instrument]
+#[instrument(skip_all)]
 pub async fn load_i18n_defaults() -> Arc<Value> {
     let url = match i18n_defaults_url() {
         Ok(url) => url,

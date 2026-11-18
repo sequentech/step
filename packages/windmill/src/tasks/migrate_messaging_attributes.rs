@@ -1139,7 +1139,7 @@ pub async fn migrate_realm(
 /// stops at the first realm that uses messaging, with
 /// [`KeycloakLacksChannelAction`]: every realm would wait for the same
 /// image.
-#[instrument]
+#[instrument(skip_all)]
 pub async fn migrate_messaging_attributes_now() -> Result<Vec<(String, RealmOutcome)>> {
     let realms = {
         let mut hasura_db_client: DbClient = get_hasura_pool()
