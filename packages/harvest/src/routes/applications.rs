@@ -153,7 +153,7 @@ pub struct ApplicationChangeStatusOutput {
     error: Option<String>,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip_all)]
 #[post("/change-application-status", format = "json", data = "<body>")]
 pub async fn change_application_status(
     claims: jwt::JwtClaims,
@@ -161,7 +161,7 @@ pub async fn change_application_status(
 ) -> Result<Json<ApplicationChangeStatusOutput>, JsonError> {
     let input = body.into_inner();
 
-    info!("Changing application status: {input:?}");
+    info!("Changing application status");
 
     let required_perm: Permissions = Permissions::APPLICATION_WRITE;
     authorize(
