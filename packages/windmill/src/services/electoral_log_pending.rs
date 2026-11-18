@@ -462,6 +462,11 @@ impl PendingStatement {
     /// log's direct posts are refused until it is stored. Returns its
     /// delivery ID.
     pub async fn queue(&self) -> Result<String> {
+        // An administrator-signed entry goes through its action's outbox, never here.
+        anyhow::ensure!(
+            self.statement.admin().is_none(),
+            "An administrator-signed entry is recorded through its action's outbox"
+        );
         let delivery_id = self.origin.delivery_id();
         self.write_waiting(&delivery_id, None).await?;
         tracing::warn!(

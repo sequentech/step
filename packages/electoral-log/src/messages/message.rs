@@ -1357,19 +1357,6 @@ pub struct SigningData {
     system: SharedSigner,
 }
 impl SigningData {
-    /// The sender's public key.
-    pub fn sender_public_key(&self) -> Result<VerificationKey> {
-        self.sender.public_key()
-    }
-    /// The sender's own signature over a statement (an administrator's
-    /// proof, made at the time of the action).
-    pub fn sender_sign_statement(&self, statement: &Statement) -> Result<Signature> {
-        crate::signature::sign(
-            self.sender.as_ref(),
-            crate::signature::Domain::Statement,
-            &statement.record_serialize()?,
-        )
-    }
     /// A message whose sender already signed `statement`, attested now with
     /// this system signer ([`Message::with_sender_signature`]).
     #[allow(clippy::too_many_arguments)]
@@ -1460,12 +1447,17 @@ mod attest_tests {
         let system = SigningKey::generate().unwrap();
         let sd = SigningData::new(admin.clone(), "", system.clone());
         let (statement, direct) = certificate(&sd);
-        let admin_signature = sd.sender_sign_statement(&statement).unwrap();
+        let admin_signature = crate::signature::sign(
+            &admin,
+            crate::signature::Domain::Statement,
+            &statement.record_serialize().unwrap(),
+        )
+        .unwrap();
         let attested = sd
             .attest(
                 statement,
                 "",
-                sd.sender_public_key().unwrap(),
+                VerificationKey::from_sk(&admin).unwrap(),
                 admin_signature,
                 Some("admin-id".into()),
                 Some("admin".into()),
@@ -1489,7 +1481,12 @@ mod attest_tests {
         let system = SigningKey::generate().unwrap();
         let sd = SigningData::new(admin.clone(), "", system.clone());
         let (statement, _) = certificate(&sd);
-        let signature = sd.sender_sign_statement(&statement).unwrap();
+        let signature = crate::signature::sign(
+            &admin,
+            crate::signature::Domain::Statement,
+            &statement.record_serialize().unwrap(),
+        )
+        .unwrap();
         let (statement, _) = certificate(&sd);
         // Another key named as the sender.
         assert!(sd

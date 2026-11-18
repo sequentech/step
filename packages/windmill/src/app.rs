@@ -51,6 +51,17 @@ enum CeleryOpt {
     Produce,
     /// Install PGMQ and create the queues in the task-queue database, as its owner.
     SetupQueueDatabase,
+    /// Operator: give up an electoral-log entry that can't be signed and holds
+    /// its log (an outbox entry not yet relayed, or a waiting entry). The entry
+    /// is lost for the log; who and why are recorded.
+    CancelElectoralLogEntry {
+        #[arg(long)]
+        delivery_id: String,
+        #[arg(long)]
+        by: String,
+        #[arg(long)]
+        reason: String,
+    },
 }
 
 /// Resolve the queues to consume. A queue may also be given with the `ENV_SLUG_` prefix that
@@ -128,7 +139,9 @@ fn record_log_writer_start() {
 fn read_worker_threads(opt: &CeleryOpt) -> usize {
     match opt.clone() {
         CeleryOpt::Consume { worker_threads, .. } => worker_threads,
-        CeleryOpt::Produce | CeleryOpt::SetupQueueDatabase => None,
+        CeleryOpt::Produce
+        | CeleryOpt::SetupQueueDatabase
+        | CeleryOpt::CancelElectoralLogEntry { .. } => None,
     }
     .unwrap_or(num_cpus::get())
 }
@@ -164,6 +177,25 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             "Task-queue database set up with {} queues (PGMQ: {:?})",
             Queue::all_names().len(),
             installation
+        );
+        return Ok(());
+    }
+    if let CeleryOpt::CancelElectoralLogEntry {
+        delivery_id,
+        by,
+        reason,
+    } = &opt
+    {
+        let cancelled = crate::services::electoral_log_outbox::cancel_electoral_log_entry(
+            delivery_id,
+            by,
+            reason,
+        )
+        .await?;
+        event!(
+            Level::INFO,
+            "Electoral-log entry {delivery_id}: {}",
+            if cancelled { "cancelled" } else { "nothing to cancel" }
         );
         return Ok(());
     }
@@ -276,7 +308,7 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             event!(Level::INFO, "No new tasks to produce");
             celery_app.close().await?;
         }
-        CeleryOpt::SetupQueueDatabase => {}
+        CeleryOpt::SetupQueueDatabase | CeleryOpt::CancelElectoralLogEntry { .. } => {}
     };
     Ok(())
 }

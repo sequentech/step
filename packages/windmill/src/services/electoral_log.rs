@@ -285,6 +285,30 @@ impl PreparedVoterPasswordChangeLog {
 /// task-queue database transaction, until the append is done, so no entry can
 /// start waiting in between. A post without a scope is not gated.
 async fn append_gated(scope: Option<&str>, board: &str, entries: &[LogEntry]) -> Result<()> {
+    // First the action database's half (its own connection and transaction,
+    // never the caller's): the scope's lock H(S) shared, refused while S has an
+    // outbox entry not yet relayed. Held until the append is done.
+    let mut hasura_client = match scope {
+        Some(_) => Some(
+            get_hasura_pool()
+                .await
+                .get()
+                .await
+                .context("The electoral-log entry is refused: the action database is unavailable")?,
+        ),
+        None => None,
+    };
+    let outbox_gate = match (hasura_client.as_mut(), scope) {
+        (Some(client), Some(scope)) => {
+            let tx = client
+                .transaction()
+                .await
+                .context("Error starting the electoral-log scope transaction")?;
+            crate::services::electoral_log_outbox::outbox_gate(&*tx, scope).await?;
+            Some(tx)
+        }
+        _ => None,
+    };
     let mut queue_client = match scope {
         // Without the task-queue database the gate can't be checked: the post is
         // refused (never posted out of order), not a panic.
@@ -320,6 +344,11 @@ async fn append_gated(scope: Option<&str>, board: &str, entries: &[LogEntry]) ->
     .await;
     if let Some(tx) = gate {
         // Nothing was written in it: ending it releases the scope's lock.
+        if let Err(error) = tx.rollback().await {
+            warn!("Error ending the electoral-log scope transaction: {error}");
+        }
+    }
+    if let Some(tx) = outbox_gate {
         if let Err(error) = tx.rollback().await {
             warn!("Error ending the electoral-log scope transaction: {error}");
         }

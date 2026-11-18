@@ -31,14 +31,32 @@ pub async fn post_audit_log_outbox() -> Result<()> {
         .get()
         .await
         .map_err(|error| anyhow!("Error getting hasura client: {error}"))?;
-    post_audit_log_outboxes(
+    let audit = post_audit_log_outboxes(
         &mut client,
         USERNAMES.get_or_init(KeycloakUsernames::default),
     )
-    .await?;
-    // The electoral-log outbox (administrator-signed entries) rides the same beat.
-    crate::services::electoral_log_outbox::relay_electoral_log_outbox(&mut client).await?;
-    Ok(())
+    .await;
+    // The electoral-log outbox rides the same beat, independently: one failing
+    // doesn't keep the other from running.
+    let relay = async {
+        let pool = get_hasura_pool().await;
+        let mut lock_client = pool.get().await?;
+        let mut work_client = pool.get().await?;
+        crate::services::electoral_log_outbox::relay_electoral_log_outbox(
+            &mut lock_client,
+            &mut work_client,
+        )
+        .await
+    }
+    .await;
+    match (audit, relay) {
+        (Ok(_), Ok(_)) => Ok(()),
+        (Err(error), Ok(_)) | (Ok(_), Err(error)) => Err(error.into()),
+        (Err(audit), Err(relay)) => Err(anyhow!(
+            "audit log outbox: {audit:#}; electoral-log outbox: {relay:#}"
+        )
+        .into()),
+    }
 }
 
 async fn send_post_audit_log_outbox() -> anyhow::Result<()> {

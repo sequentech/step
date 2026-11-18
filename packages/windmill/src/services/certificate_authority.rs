@@ -141,6 +141,14 @@ async fn record_certificate_action(
     user_id: &str,
     preferred_username: Option<String>,
 ) -> Result<()> {
+    // The log's scope lock first (before the statement's time is taken), held
+    // until this transaction ends: a direct post of the log either appends
+    // before this entry is written or is refused until it is stored.
+    let scope = crate::services::electoral_log_deferral::scope_key(
+        tenant_id,
+        &election_event_id.to_string(),
+    );
+    crate::services::electoral_log_outbox::lock_scope(hasura_transaction, &scope, true).await?;
     let admin_key = crate::services::vault::get_admin_user_signing_key(
         hasura_transaction,
         tenant_id,
@@ -161,7 +169,24 @@ async fn record_certificate_action(
         preferred_username,
     )
     .context("Error signing the certificate action's electoral-log entry")?;
-    write_outbox_entry(hasura_transaction, &statement)
+    // The announcement of the administrator's key, signed with the tenant
+    // log's system key, travels with the entry: the relay forwards it, checked,
+    // without reading any key.
+    let tenant_log =
+        crate::services::electoral_log_board::ensure_tenant_log(hasura_transaction, tenant_id)
+            .await
+            .context("Error getting the tenant log for the administrator's key")?;
+    let admin_public_key = voting_crypto::signing::VerificationKey::from_sk(&admin_key)?
+        .to_b64_string()?;
+    let announcement = crate::services::electoral_log_outbox::admin_key_announcement(
+        &tenant_log.system_key,
+        tenant_id,
+        user_id,
+        None,
+        &admin_public_key,
+    )
+    .context("Error signing the administrator's key announcement")?;
+    write_outbox_entry(hasura_transaction, &statement, &announcement)
         .await
         .context("Error recording the certificate action's electoral-log entry")?;
     Ok(())

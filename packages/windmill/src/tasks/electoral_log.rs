@@ -405,7 +405,7 @@ async fn store_batch(events: &[LogEventInput]) -> std::result::Result<(), StoreF
     let waiting = waiting_events(&**queue_client, &scopes).await?;
     // Each event's deferral is its own row's, if it has one (never its message's),
     // and it doesn't wait behind its own row.
-    let (bound, waiting) = bind_to_rows(events, waiting);
+    let (bound, mut waiting) = bind_to_rows(events, waiting);
     let events = &bound[..];
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -426,6 +426,23 @@ async fn store_batch(events: &[LogEventInput]) -> std::result::Result<(), StoreF
         .await
         .context("Error starting keycloak transaction")?;
 
+    // Entries an action wrote to its outbox and the relay hasn't moved yet come
+    // first too: the batch's events of those logs wait behind them.
+    let now_ms = chrono::Utc::now().timestamp_millis();
+    for (delivery_id, scope, created_ms, seq) in
+        crate::services::electoral_log_outbox::unrelayed_rows(&*hasura_tx, &scopes).await?
+    {
+        waiting.add(
+            scope.clone(),
+            crate::services::electoral_log_deferral::WaitKey {
+                since_ms: created_ms,
+                order: u32::try_from(seq).unwrap_or(u32::MAX),
+                delivery_id: delivery_id.clone(),
+            },
+        );
+        // Due once relayed (within a beat).
+        waiting.add_due(scope, delivery_id, now_ms + 5_000);
+    }
     crate::services::privacy_signin::allocate_registered_voters(&hasura_tx, &keycloak_tx, events)
         .await?;
     crate::services::privacy_signin::retain_queued_signin_network(&hasura_tx, events).await?;
@@ -2784,6 +2801,32 @@ mod batch_build_tests {
         durable.round(&mut lookups, vec![]).await;
         assert_eq!(durable.board(DOWN_SIGNER_EVENT).len(), 20);
         assert!(durable.rows.is_empty());
+    }
+
+    #[tokio::test]
+    async fn an_event_waits_behind_an_unrelayed_outbox_entry_of_its_log() {
+        // As store_batch adds them: an outbox row not yet relayed is ahead of
+        // the batch's events of its log.
+        let mut waiting = Waiting::default();
+        let scope = crate::services::electoral_log_deferral::scope_key(TENANT, EVENT);
+        waiting.add(
+            scope.clone(),
+            WaitKey {
+                since_ms: 1_000,
+                order: 7,
+                delivery_id: "pending:certificate-authority:x".into(),
+            },
+        );
+        waiting.add_due(scope, "pending:certificate-authority:x".into(), 5_000);
+        let mut lookups = FakeLookups::new();
+        let built = build_batch_behind(
+            &mut lookups,
+            &[keycloak_event(Some("k1"), EVENT), keycloak_event(Some("other"), KEYLESS_EVENT)],
+            &waiting,
+        )
+        .await
+        .unwrap();
+        assert_eq!(waiting_ids(&built), vec![("k1", WaitReason::Held)]);
     }
 
     #[tokio::test]
