@@ -781,7 +781,7 @@ impl GetElectoralLogBody {
     }
 
     // Returns the SQL clauses related to the request along with the parameters
-    #[instrument(ret)]
+    #[instrument(skip_all)]
     fn as_sql(&self, to_count: bool) -> Result<(String, Vec<NamedParam>)> {
         let mut clauses = Vec::new();
         let mut params = Vec::new();
@@ -791,7 +791,7 @@ impl GetElectoralLogBody {
             let mut where_clauses = Vec::new();
 
             for (field, value) in filters_map {
-                info!("field = ?: {field}, value = ?: {value}");
+                info!("Filtering by {field}");
                 let param_name = format!("param_{field}");
                 match field {
                     OrderField::Id => { // sql INTEGER type

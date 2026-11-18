@@ -88,7 +88,7 @@ pub struct GetPgauditBody {
 
 impl GetPgauditBody {
     // Returns the SQL clauses related to the request along with the parameters
-    #[instrument(ret)]
+    #[instrument(skip_all)]
     fn as_sql(&self, to_count: bool) -> Result<(String, Vec<NamedParam>)> {
         let mut clauses = Vec::new();
         let mut params = Vec::new();
@@ -336,7 +336,7 @@ async fn audit_list_service(
     }))
 }
 
-#[instrument]
+#[instrument(skip_all)]
 #[post("/immudb/pgaudit-list", format = "json", data = "<body>")]
 pub async fn list_pgaudit(
     body: Json<GetPgauditBody>,

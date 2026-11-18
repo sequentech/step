@@ -795,7 +795,7 @@ impl ValidateAnnotations for Candidate {
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn prepend_miru_annotation(data: &str) -> String {
     format!("{}:{}", MIRU_PLUGIN_PREPEND, data)
 }

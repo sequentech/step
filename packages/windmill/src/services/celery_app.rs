@@ -130,7 +130,7 @@ pub fn set_queues(new_val: Vec<String>) {
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn set_is_app_active(new_val: bool) {
     unsafe {
         IS_APP_ACTIVE = new_val;
@@ -169,12 +169,24 @@ lazy_static! {
 }
 
 /// Returns the global Celery app.
-#[instrument]
+#[instrument(skip_all)]
 pub async fn get_celery_app() -> Arc<Celery> {
     CELERY_APP.get().await.clone()
 }
 
-#[instrument]
+/// The AMQP URL without its credentials (`amqp://user:pass@host` becomes
+/// `amqp://***@host`), for log lines and error messages.
+fn redact_amqp_url(url: &str) -> String {
+    let userinfo_start = url.find("://").map_or(0, |scheme_end| scheme_end + 3);
+    match url.rfind('@') {
+        Some(at) if at >= userinfo_start => {
+            format!("{}***{}", &url[..userinfo_start], &url[at..])
+        }
+        _ => url.to_string(),
+    }
+}
+
+#[instrument(skip_all)]
 async fn create_connection() -> Result<(Arc<Connection>, String)> {
     // you can use "amqp://rabbitmq2:5672,amqp://rabbitmq:5672" for $AMQP_ADDR to configure multiple nodes, separated by comma
     let amqp_urls: Vec<String> = std::env::var("AMQP_ADDR")?
@@ -186,8 +198,12 @@ async fn create_connection() -> Result<(Arc<Connection>, String)> {
     for amqp_url in amqp_urls {
         match Connection::connect(&amqp_url, ConnectionProperties::default())
             .await
-            .with_context(|| format!("Failed to connect to any AMQP server {}", amqp_url))
-        {
+            .with_context(|| {
+                format!(
+                    "Failed to connect to any AMQP server {}",
+                    redact_amqp_url(&amqp_url)
+                )
+            }) {
             Ok(connection) => {
                 let arc_conn = Arc::new(connection);
                 // Set the global connection so it can be reused.
@@ -197,7 +213,11 @@ async fn create_connection() -> Result<(Arc<Connection>, String)> {
             }
             Err(e) => {
                 // Log the error and try the next URL.
-                info!("Failed to connect to AMQP server '{}': {:?}", amqp_url, e);
+                info!(
+                    "Failed to connect to AMQP server '{}': {:?}",
+                    redact_amqp_url(&amqp_url),
+                    e
+                );
                 last_error = Some(e);
             }
         }
@@ -207,7 +227,7 @@ async fn create_connection() -> Result<(Arc<Connection>, String)> {
     Err(last_error.unwrap_or(anyhow!("Failed to connect to any AMQP server")))
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn generate_celery_app() -> Result<Arc<Celery>> {
     let prefetch_count: u16;
     let acks_late: bool;
@@ -340,7 +360,7 @@ static CELERY_CONNECTION: RwLock<Option<Arc<Connection>>> = RwLock::const_new(No
 
 /// Returns a reused AMQP connection wrapped in an Arc.
 /// If no connection exists (or if it’s disconnected), a new connection is created and stored.
-#[instrument]
+#[instrument(skip_all)]
 pub async fn get_celery_connection() -> Result<Arc<Connection>> {
     let conn_guard = CELERY_CONNECTION.read().await;
 
@@ -359,4 +379,33 @@ pub async fn get_celery_connection() -> Result<Arc<Connection>> {
 
     // No connection exists, create a new one
     create_connection().await.map(|(connection, _)| connection)
+}
+
+#[cfg(test)]
+mod amqp_url_tests {
+    use super::redact_amqp_url;
+
+    #[test]
+    fn credentials_are_hidden() {
+        assert_eq!(
+            redact_amqp_url("amqp://guest:C90Secret@rabbitmq:5672/%2f"),
+            "amqp://***@rabbitmq:5672/%2f"
+        );
+    }
+
+    #[test]
+    fn credentials_without_a_scheme_are_hidden() {
+        assert_eq!(
+            redact_amqp_url("guest:C90Secret@rabbitmq:5672"),
+            "***@rabbitmq:5672"
+        );
+    }
+
+    #[test]
+    fn a_url_without_credentials_is_unchanged() {
+        assert_eq!(
+            redact_amqp_url("amqp://rabbitmq:5672"),
+            "amqp://rabbitmq:5672"
+        );
+    }
 }

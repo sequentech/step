@@ -58,7 +58,7 @@ impl Vault for AwsSecretManager {
         }
     }
 
-    #[instrument]
+    #[instrument(skip_all)]
     fn vault_type(&self) -> VaultManagerType {
         VaultManagerType::AwsSecretManager
     }

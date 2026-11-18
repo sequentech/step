@@ -20,7 +20,7 @@ use uuid::Uuid;
 
 /// Parse the next scheduled time for the report using the cron expression.
 /// Returns the next run time if it is due within the current time window.
-#[instrument]
+#[instrument(skip_all)]
 pub fn get_next_scheduled_time(report: &Report) -> Option<DateTime<Local>> {
     let Some(cron_config) = report.cron_config.clone() else {
         return None;

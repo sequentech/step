@@ -84,7 +84,7 @@ struct DnsRecord {
     id: String,
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn get_page_rule(target_value: &str) -> Result<Option<PageRule>, Box<dyn Error>> {
     info!("target_value {:?}", target_value);
     let page_rules = get_all_page_rules().await?;
@@ -92,13 +92,13 @@ pub async fn get_page_rule(target_value: &str) -> Result<Option<PageRule>, Box<d
     Ok(find_matching_target(page_rules, target_value))
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn get_dns_record(record_name: &str) -> Result<Option<DnsRecord>, Box<dyn Error>> {
     let dns_records = get_all_dns_records().await?;
     Ok(find_matching_dns_record(dns_records, record_name))
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn set_custom_url(
     origin: &str,
     redirect_to: &str,
@@ -182,11 +182,10 @@ pub async fn set_custom_url(
     Ok(())
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn get_all_page_rules() -> Result<Vec<PageRule>, Box<dyn Error>> {
     let (zone_id, api_key) = get_cloudflare_vars()?;
     info!("zone_id {:?}", zone_id);
-    info!("api_key {:?}", api_key);
 
     let client = Client::new();
 
@@ -220,11 +219,10 @@ async fn get_all_page_rules() -> Result<Vec<PageRule>, Box<dyn Error>> {
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn get_all_dns_records() -> Result<Vec<DnsRecord>, Box<dyn Error>> {
     let (zone_id, api_key) = get_cloudflare_vars()?;
     info!("zone_id {:?}", zone_id);
-    info!("api_key {:?}", api_key);
 
     let client = Client::new();
 
@@ -258,7 +256,7 @@ async fn get_all_dns_records() -> Result<Vec<DnsRecord>, Box<dyn Error>> {
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 fn find_matching_dns_record(records: Vec<DnsRecord>, expected_name: &str) -> Option<DnsRecord> {
     info!("find_matching_dns_record expected_name:{}", expected_name);
     for record in records {
@@ -276,7 +274,7 @@ fn find_matching_dns_record(records: Vec<DnsRecord>, expected_name: &str) -> Opt
     None
 }
 
-#[instrument]
+#[instrument(skip_all)]
 fn find_matching_target(rules: Vec<PageRule>, expected_redirect_url: &str) -> Option<PageRule> {
     for rule in rules {
         for action in &rule.actions {
@@ -290,7 +288,7 @@ fn find_matching_target(rules: Vec<PageRule>, expected_redirect_url: &str) -> Op
     None
 }
 
-#[instrument]
+#[instrument(skip_all)]
 fn create_payload(origin: &str, redirect_to: &str) -> CreatePageRuleRequest {
     let targets = vec![Target {
         constraint: Constraint {
@@ -315,7 +313,7 @@ fn create_payload(origin: &str, redirect_to: &str) -> CreatePageRuleRequest {
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 fn create_dns_payload(origin: &str) -> CreateDNSRecordRequest {
     let cloudflare_ip_dns_content = std::env::var("CUSTOM_URLS_IP_DNS_CONTENT")
         .unwrap_or_else(|_| "default.ip.address".to_string());

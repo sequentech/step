@@ -39,7 +39,7 @@ pub struct DatafixResponse {
 pub type JsonErrorResponse = Json<DatafixResponse>;
 
 impl DatafixResponse {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn new(status: Status) -> JsonErrorResponse {
         Json(DatafixResponse {
             code: status.code,
@@ -109,7 +109,7 @@ pub struct PasswordPolicy {
 }
 
 impl PasswordPolicy {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn generate_password(self, voter_id: &str) -> String {
         let pin = match self.characters {
             CharactersPolicy::Numeric => {
