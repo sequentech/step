@@ -459,7 +459,7 @@ pub async fn get_document_url(
 
 /// Creates a presigned upload URL and selects the endpoint that the caller can
 /// actually reach.
-#[instrument(err, ret)]
+#[instrument(err)]
 pub async fn get_upload_url(
     key: String,
     is_public: bool,
@@ -1118,6 +1118,49 @@ mod tests {
     };
     use crate::util::aws::{AWS_S3_PRIVATE_URI_ENV, AWS_S3_PUBLIC_URI_ENV};
     use std::env;
+    use std::ffi::OsString;
+    use std::sync::{Mutex, MutexGuard};
+
+    /// Serializes the tests in this module that change the environment.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    /// Takes `ENV_LOCK`, ignoring poisoning left by a failed test.
+    fn lock_env() -> MutexGuard<'static, ()> {
+        ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner())
+    }
+
+    /// Sets environment variables and restores their previous values on drop.
+    struct EnvGuard(Vec<(&'static str, Option<OsString>)>);
+
+    impl EnvGuard {
+        /// Sets each variable to its value, or removes it when the value is
+        /// `None`.
+        fn set(variables: &[(&'static str, Option<&str>)]) -> Self {
+            let previous = variables
+                .iter()
+                .map(|&(name, value)| {
+                    let previous = env::var_os(name);
+                    match value {
+                        Some(value) => env::set_var(name, value),
+                        None => env::remove_var(name),
+                    }
+                    (name, previous)
+                })
+                .collect();
+            Self(previous)
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            for (name, previous) in self.0.iter().rev() {
+                match previous {
+                    Some(value) => env::set_var(name, value),
+                    None => env::remove_var(name),
+                }
+            }
+        }
+    }
 
     #[test]
     fn s3_endpoint_selects_the_expected_uri() {
@@ -1151,7 +1194,8 @@ mod tests {
         // Combined into one test (rather than three) because these cases all
         // mutate the same process-global env var, which isn't safe to do
         // from separately/concurrently run #[test] functions.
-        env::remove_var(AWS_S3_ENDPOINT_STYLE_ENV);
+        let _lock = lock_env();
+        let _env = EnvGuard::set(&[(AWS_S3_ENDPOINT_STYLE_ENV, None)]);
         assert_eq!(
             get_s3_endpoint_style().unwrap(),
             S3EndpointStyle::PathStyleOrAutoDetectedAws
@@ -1167,8 +1211,6 @@ mod tests {
         let err = get_s3_endpoint_style().unwrap_err();
         assert!(err.to_string().contains(AWS_S3_ENDPOINT_STYLE_ENV));
         assert!(err.to_string().contains("virtual-hosted"));
-
-        env::remove_var(AWS_S3_ENDPOINT_STYLE_ENV);
     }
 
     #[test]
@@ -1446,5 +1488,37 @@ mod tests {
                 prefix_root: Some("election-event-documents".to_string()),
             }
         );
+    }
+
+    // The lock is held across awaits on purpose: it only serializes this
+    // module's tests, and this test runs on a current-thread runtime.
+    #[allow(clippy::await_holding_lock)]
+    #[tokio::test]
+    async fn get_upload_url_logs_no_presigned_url() {
+        use crate::util::log_capture::LogCapture;
+
+        let _lock = lock_env();
+        let _env = EnvGuard::set(&[
+            ("AWS_REGION", Some("us-east-1")),
+            (AWS_S3_PRIVATE_URI_ENV, Some("http://127.0.0.1:9000")),
+            ("AWS_S3_BUCKET", Some("documents")),
+            ("AWS_S3_UPLOAD_EXPIRATION_SECS", Some("60")),
+            ("AWS_S3_ACCESS_KEY", Some("access-key")),
+            ("AWS_S3_ACCESS_SECRET", Some("access-secret")),
+        ]);
+        let (capture, _guard) = LogCapture::install();
+
+        let url = super::get_upload_url(
+            "tenant-t/document-d/upload.zip".to_string(),
+            false,
+            true,
+        )
+        .await
+        .expect("upload url");
+
+        assert!(url.contains("X-Amz-Signature"), "{url}");
+        let logs = capture.contents();
+        assert!(logs.contains("get_upload_url"), "{logs}");
+        assert!(!logs.contains(&url), "upload URL in logs: {logs}");
     }
 }

@@ -33,6 +33,19 @@ pub struct CastVoteMessagesInput {
     pub order_by: Option<HashMap<OrderField, OrderDirection>>,
 }
 
+/// Answers a malformed ballot-id filter with a client error, not a server one.
+fn check_ballot_id_filter(ballot_id: &str) -> Result<(), JsonError> {
+    electoral_log::normalize_ballot_id_filter(ballot_id)
+        .map(|_| ())
+        .map_err(|e| {
+            ErrorResponse::new(
+                Status::BadRequest,
+                &format!("{e}"),
+                ErrorCode::InvalidBallotId,
+            )
+        })
+}
+
 #[instrument]
 #[post("/list-cast-vote-messages", format = "json", data = "<body>")]
 pub async fn list_cast_vote_messages(
@@ -93,6 +106,7 @@ pub async fn list_cast_vote_messages(
         )
     })?;
 
+    check_ballot_id_filter(&input.ballot_id)?;
     let ballot_id = input.ballot_id.as_str();
     let elog_input = GetElectoralLogBody {
         tenant_id: input.tenant_id,
@@ -117,4 +131,30 @@ pub async fn list_cast_vote_messages(
     })?;
 
     Ok(Json(ret_val))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use windmill::services::electoral_log::BALLOT_ID_LENGTH_CHARS;
+
+    #[test]
+    fn test_check_ballot_id_filter() {
+        for valid in ["", "ab12", "AB12", &"a".repeat(BALLOT_ID_LENGTH_CHARS)] {
+            assert!(check_ballot_id_filter(valid).is_ok(), "{valid}");
+        }
+        for invalid in [
+            "abc",
+            "zz",
+            "test-ballot",
+            &"a".repeat(BALLOT_ID_LENGTH_CHARS + 2),
+        ] {
+            match check_ballot_id_filter(invalid) {
+                Err(error) => {
+                    assert_eq!(error.0, Status::BadRequest, "{invalid}")
+                }
+                Ok(()) => panic!("accepted {invalid}"),
+            }
+        }
+    }
 }

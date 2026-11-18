@@ -39,6 +39,7 @@ import org.keycloak.models.SubjectCredentialManager;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserProvider;
+import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.managers.BruteForceProtector;
 import org.mockito.InOrder;
@@ -137,8 +138,28 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     InOrder inOrder = inOrder(context);
     inOrder.verify(context).clearUser();
     inOrder.verify(context).setUser(user);
-    inOrder.verify(context).success();
+    inOrder.verify(context).success(PasswordCredentialModel.TYPE);
     verify(context, never()).failure(any());
+  }
+
+  @Test
+  void dobAndPin_correctPin_recordsThePasswordCredential() {
+    // Keycloak 26.7 clears a user's brute-force failures after a login only when the login
+    // recorded a counted credential type.
+    ivrConfig("dob##pin", "8##8", "identifier##secret", "dob##password");
+    formParams("dob", "19900101", "password", "1234");
+    UserModel user = mockUser("user-1", "1234", true);
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dob", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
+        .thenReturn(Stream.of(user));
+
+    authenticator.authenticate(context);
+
+    verify(context).success(PasswordCredentialModel.TYPE);
+    verify(context, never()).success();
   }
 
   @Test
@@ -157,7 +178,7 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     authenticator.authenticate(context);
 
     verify(context).setUser(bob);
-    verify(context).success();
+    verify(context).success(PasswordCredentialModel.TYPE);
   }
 
   @Test
@@ -182,6 +203,7 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     inOrder.verify(context).clearUser();
     inOrder.verify(context).setUser(user);
     inOrder.verify(context).failure(any(), any());
+    verify(context, never()).success(any());
     verify(context, never()).success();
   }
 
@@ -293,6 +315,7 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     authenticator.authenticate(context);
 
     verify(context).setUser(user);
+    verify(context, never()).success(any());
     verify(context, never()).success();
     // Locked-out accounts use forceChallenge (matching the stock ValidateUsername authenticator's
     // brute-force handling), not failure() - the flow engine only logs another brute-force
@@ -344,7 +367,7 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     authenticator.authenticate(context);
 
     verify(context).setUser(user);
-    verify(context).success();
+    verify(context).success(PasswordCredentialModel.TYPE);
   }
 
   // ── DoS mitigation ────────────────────────────────────────────────────────
@@ -372,6 +395,7 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     authenticator.authenticate(context);
 
     verify(context, never()).setUser(any());
+    verify(context, never()).success(any());
     verify(context, never()).success();
     verify(alice.credentialManager(), never()).isValid(any(CredentialInput.class));
     verify(bob.credentialManager(), never()).isValid(any(CredentialInput.class));
@@ -431,7 +455,7 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     authenticator.authenticate(context);
 
     verify(context).setUser(user);
-    verify(context).success();
+    verify(context).success(PasswordCredentialModel.TYPE);
   }
 
   // ── MatchPolicy: FIRST_MATCH ─────────────────────────────────────────────
@@ -461,7 +485,7 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
 
     authenticator.authenticate(context);
 
-    verify(context).success();
+    verify(context).success(PasswordCredentialModel.TYPE);
     verify(context).setUser(argThat(user -> user == alice || user == bob));
   }
 
@@ -508,7 +532,8 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
                 Utils.MAX_CANDIDATES,
                 Utils.TUPLE_MAX_FAILURES,
                 Utils.TUPLE_FAILURE_WINDOW_SECONDS,
-                Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS)));
+                Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS,
+                Utils.SHARED_CANDIDATE_FAILURE_POLICY)));
   }
 
   @Test
