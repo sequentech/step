@@ -330,13 +330,37 @@ pub async fn post_operation_result_to_electoral_log(
 ) -> Result<()> {
     let slug = std::env::var("ENV_SLUG").map_err(|err| anyhow!("Missing ENV_SLUG: {err}"))?;
     let board_name = get_event_board(tenant_id, election_event_id, &slug);
-    let electoral_log = ElectoralLog::new(
+    let electoral_log = match ElectoralLog::new(
         hasura_transaction,
         tenant_id,
         Some(election_event_id),
         &board_name,
     )
-    .await?;
+    .await
+    {
+        Ok(electoral_log) => electoral_log,
+        // Best-effort (its callers only log a failure): while the board's
+        // signer can't even be loaded, the record is queued unsigned instead
+        // of lost.
+        Err(error) if electoral_log::signer::is_signer_unavailable(&error) => {
+            use crate::services::electoral_log_pending::{PendingStatement, PendingStatementBody};
+            return PendingStatement::new(
+                tenant_id,
+                election_event_id,
+                PendingStatementBody::ExternalApiRequest {
+                    election_id: None,
+                    voter_id: user_id.map(str::to_string),
+                    voter_username: Some(username.to_string()),
+                    direction,
+                    api_name: ExtApiName::Datafix,
+                    operation,
+                },
+            )
+            .queue()
+            .await;
+        }
+        Err(error) => return Err(error),
+    };
 
     electoral_log
         .post_external_api_request(

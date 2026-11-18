@@ -43,14 +43,20 @@ thread_local! {
 /// Runs `f` with [`timestamp`] fixed to the current second on this thread
 /// (as a batch's two passes need the same bytes), restoring it afterwards.
 pub(crate) fn with_fixed_timestamp<T>(f: impl FnOnce() -> T) -> T {
+    with_timestamp(timestamp(), f)
+}
+
+/// Runs `f` with [`timestamp`] fixed to `at` on this thread, restoring it
+/// afterwards: the statements `f` makes carry that time. A statement queued
+/// unsigned is made when it is signed, with the time it happened.
+pub fn with_timestamp<T>(at: Timestamp, f: impl FnOnce() -> T) -> T {
     struct Restore(Option<Timestamp>);
     impl Drop for Restore {
         fn drop(&mut self) {
             BATCH_TIMESTAMP.with(|cell| cell.set(self.0));
         }
     }
-    let now = timestamp();
-    let _restore = Restore(BATCH_TIMESTAMP.with(|cell| cell.replace(Some(now))));
+    let _restore = Restore(BATCH_TIMESTAMP.with(|cell| cell.replace(Some(at))));
     f()
 }
 

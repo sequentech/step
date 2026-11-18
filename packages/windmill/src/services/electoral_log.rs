@@ -31,7 +31,8 @@ use electoral_log::domain::{
 use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::{CertificateAuthEventAction, *};
 use electoral_log::messages::statement::{StatementBody, StatementType};
-use electoral_log::signer::{software, SharedSigner};
+use electoral_log::signer::{is_signer_unavailable, software, SharedSigner};
+use crate::services::electoral_log_pending::{PendingStatement, PendingStatementBody};
 use electoral_log::{
     ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,
 };
@@ -79,28 +80,47 @@ pub async fn log_ballot_publication_failure(
         .election_event_id
         .as_deref()
         .context("Publication task has no election event")?;
-    let log = {
-        let mut db = get_hasura_pool().await.get().await?;
-        let tx = db.transaction().await?;
-        let event = get_election_event_by_id(&tx, &task.tenant_id, event_id).await?;
-        let board = get_election_event_board(event.bulletin_board_reference)
-            .context("Election event is missing its electoral-log board")?;
-        let log = ElectoralLog::new(&tx, &task.tenant_id, Some(event_id), &board).await?;
-        tx.commit().await?;
-        log
-    };
-    let message = Message::ballot_publication_failure_message(
-        EventIdString(event_id.to_owned()),
-        BallotPublicationFailure {
+    let statement = PendingStatementBody::BallotPublicationFailure {
+        failure: BallotPublicationFailure {
             publication_id: BallotPublicationIdString(publication_id.to_owned()),
             task_id: task.id.clone(),
             stage,
             error: ErrorMessageString(error_message.to_owned()),
         },
-        &log.sd,
-        Some(task.executed_by_user.clone()),
-    )?;
+        username: Some(task.executed_by_user.clone()),
+    };
+    // A best-effort diagnostic (its callers only log a failure): while the
+    // board's signer is unavailable it is queued unsigned instead of lost.
+    let log = match publication_failure_log(task, event_id).await {
+        Ok(log) => log,
+        Err(error) if is_signer_unavailable(&error) => {
+            return PendingStatement::new(&task.tenant_id, event_id, statement)
+                .queue()
+                .await;
+        }
+        Err(error) => return Err(error),
+    };
+    let message = match statement.message(event_id, &log.sd) {
+        Ok(message) => message,
+        Err(error) if is_signer_unavailable(&error) => {
+            return PendingStatement::new(&task.tenant_id, event_id, statement)
+                .queue()
+                .await;
+        }
+        Err(error) => return Err(error),
+    };
     log.post(&message).await
+}
+
+async fn publication_failure_log(task: &TasksExecution, event_id: &str) -> Result<ElectoralLog> {
+    let mut db = get_hasura_pool().await.get().await?;
+    let tx = db.transaction().await?;
+    let event = get_election_event_by_id(&tx, &task.tenant_id, event_id).await?;
+    let board = get_election_event_board(event.bulletin_board_reference)
+        .context("Election event is missing its electoral-log board")?;
+    let log = ElectoralLog::new(&tx, &task.tenant_id, Some(event_id), &board).await?;
+    tx.commit().await?;
+    Ok(log)
 }
 
 /// Identifies the admin user whose request caused a voter password change.
@@ -963,23 +983,37 @@ impl ElectoralLog {
         voter_username: Option<String>,
         area_id: String,
     ) -> Result<()> {
-        let event = EventIdString(event_id.clone());
-        let election = ElectionIdString(election_id);
-        let error = CastVoteErrorString(error);
-        let ip = VoterIpString(voter_ip);
-        let country = VoterCountryString(voter_country);
-
         let message = Message::cast_vote_error_message(
-            event,
-            election,
-            pseudonym_h,
-            error,
+            EventIdString(event_id.clone()),
+            ElectionIdString(election_id.clone()),
+            pseudonym_h.clone(),
+            CastVoteErrorString(error.clone()),
             &self.sd,
-            ip,
-            country,
+            VoterIpString(voter_ip),
+            VoterCountryString(voter_country),
             Some(voter_id.clone()),
-            area_id,
-        )?;
+            area_id.clone(),
+        );
+        // Already queued and best-effort (the refusal stands whatever happens to
+        // its audit, and its caller only logs a failure): while the board's
+        // signer is unavailable it is queued unsigned, for the batch task to
+        // sign, instead of lost. The unsigned statement keeps no IP or country.
+        let message = match message {
+            Ok(message) => message,
+            Err(failure) if is_signer_unavailable(&failure) => {
+                let statement = PendingStatementBody::CastVoteError {
+                    election_id,
+                    pseudonym: pseudonym_h,
+                    error,
+                    voter_id: voter_id.clone(),
+                    area_id,
+                };
+                return PendingStatement::new(&tenant_id, &event_id, statement)
+                    .queue()
+                    .await;
+            }
+            Err(failure) => return Err(failure),
+        };
         let board_message: ElectoralLogMessage = (&message).try_into().with_context(|| {
             "Error converting Message::cast_vote_error_message into ElectoralLogMessage"
         })?;
@@ -1018,19 +1052,27 @@ impl ElectoralLog {
         api_name: ExtApiName,
         operation: String,
     ) -> Result<()> {
-        let event = EventIdString(event_id.clone());
-        let election = ElectionIdString(election_id);
-
-        let message = Message::external_api_request_message(
-            event,
-            election,
-            &self.sd,
-            voter_id.clone(),
-            voter_username.clone(),
+        let datafix = api_name == ExtApiName::Datafix;
+        let statement = PendingStatementBody::ExternalApiRequest {
+            election_id,
+            voter_id: voter_id.clone(),
+            voter_username: voter_username.clone(),
             direction,
             api_name,
             operation,
-        )?;
+        };
+        // Already queued and best-effort (its callers only log a failure):
+        // a Datafix request's record is queued unsigned while the board's
+        // signer is unavailable, instead of lost.
+        let message = match statement.message(&event_id, &self.sd) {
+            Ok(message) => message,
+            Err(error) if datafix && is_signer_unavailable(&error) => {
+                return PendingStatement::new(&tenant_id, &event_id, statement)
+                    .queue()
+                    .await;
+            }
+            Err(error) => return Err(error),
+        };
 
         let board_message: ElectoralLogMessage = (&message).try_into().with_context(|| {
             "Error converting Message::external_api_request_message into ElectoralLogMessage"

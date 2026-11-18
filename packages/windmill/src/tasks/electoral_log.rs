@@ -794,6 +794,46 @@ async fn build_event<L: BatchLookups + Send>(
                 input.election_event_id
             )));
         }
+        LogMessageType::Internal
+            if crate::services::electoral_log_pending::is_pending_body(&input.body.as_raw()) =>
+        {
+            // An unsigned statement a trusted producer queued while the board's
+            // signer was unavailable. Checked before anything is signed; one that
+            // fails is poison (dead-lettered, never signed).
+            let pending = crate::services::electoral_log_pending::PendingStatement::read(
+                input,
+                electoral_log::timestamp(),
+            )
+            .context("Refused pending statement")
+            .map_err(Permanent)?;
+            load_signer(lookups, cache, input, &board).await?;
+            let signer = cache
+                .signers
+                .get(&key)
+                .and_then(Option::as_ref)
+                .ok_or_else(|| {
+                    Permanent(anyhow!(
+                        "Election event {} has no protocol-manager key to sign its pending statement",
+                        input.election_event_id
+                    ))
+                })?;
+            let message = pending
+                .sign(&signer.sd)
+                .context("Error signing a pending statement")
+                .map_err(failure)?;
+            let stored = ElectoralLogMessage::try_from(&message).map_err(failure)?;
+            // Under its queued delivery ID, as the producer's own post would be.
+            return Ok(BuiltEvent {
+                entries: vec![(
+                    board,
+                    LogEntry {
+                        delivery_id: delivery_id.to_string(),
+                        message: stored,
+                    },
+                )],
+                login_attempt: None,
+            });
+        }
         LogMessageType::Internal => deserialize_str::<ElectoralLogMessage>(&input.body.as_raw())
             .context("Error parsing the body as an ElectoralLogMessage")
             .map_err(failure)?,
@@ -2214,6 +2254,81 @@ mod batch_build_tests {
         for (_, reason) in &built.dead_letters {
             assert!(reason.contains("(refused)"), "{reason}");
         }
+    }
+
+    #[tokio::test]
+    async fn a_trusted_pending_statement_waits_then_is_stored_and_a_forged_one_is_never_signed() {
+        use crate::services::electoral_log_pending::{
+            PendingOrigin, PendingStatement, PendingStatementBody,
+        };
+        let problems = |text: &str| PendingStatementBody::EnrollmentProblems {
+            problems: text.to_string(),
+        };
+        let mut lookups = FakeLookups::new();
+        lookups
+            .failing_signers
+            .insert(DOWN_SIGNER_EVENT, SignerOutage::Unavailable);
+        // Bound to another election event than the event that carries it.
+        let mut foreign = PendingStatement::new(TENANT, EVENT, problems("foreign"))
+            .event()
+            .unwrap();
+        foreign.election_event_id = DOWN_SIGNER_EVENT.into();
+        let foreign_id = PendingOrigin::EnrollmentWindows.delivery_id();
+        foreign.delivery_id = Some(foreign_id.clone());
+        // Taking another producer's delivery ID.
+        let mut squatting = PendingStatement::new(TENANT, DOWN_SIGNER_EVENT, problems("squat"))
+            .event()
+            .unwrap();
+        squatting.delivery_id = Some("readiness:entry".into());
+        let trusted = PendingStatement::new(TENANT, DOWN_SIGNER_EVENT, problems("two posts"))
+            .event()
+            .unwrap();
+        let trusted_id = trusted.delivery_id.clone().unwrap();
+
+        let mut durable = Durable::default();
+        durable
+            .round(&mut lookups, vec![foreign, squatting, trusted])
+            .await;
+
+        // The forged ones are poison: dead-lettered, never signed.
+        assert_eq!(durable.dead_letters, vec![foreign_id, "readiness:entry".to_string()]);
+        assert_eq!(lookups.sign_calls.load(Ordering::SeqCst), 1, "only the trusted one");
+        // The trusted one waits for the signer, then is stored under its own ID.
+        assert_eq!(durable.queued().len(), 1);
+        assert!(durable.board(DOWN_SIGNER_EVENT).is_empty());
+        lookups.failing_signers.remove(DOWN_SIGNER_EVENT);
+        durable.round(&mut lookups, vec![]).await;
+        assert_eq!(durable.board(DOWN_SIGNER_EVENT), vec![trusted_id.as_str()]);
+        assert_eq!(durable.dead_letters.len(), 2);
+    }
+
+    #[test]
+    fn a_fail_closed_entry_still_fails_while_the_signer_is_unavailable() {
+        // Secret-attribute and password-change entries are built with
+        // `build_keycloak_event_message` before their action; it must fail
+        // (and stop the action), never queue.
+        let lookups = {
+            let mut lookups = FakeLookups::new();
+            lookups
+                .failing_signers
+                .insert(DOWN_SIGNER_EVENT, SignerOutage::Unavailable);
+            lookups
+        };
+        let log = ElectoralLog::for_system_with_signer(
+            "board",
+            lookups.failing_signer(DOWN_SIGNER_EVENT).unwrap(),
+        );
+        let error = log
+            .build_keycloak_event_message(
+                DOWN_SIGNER_EVENT.into(),
+                "VOTER_SECRET_ATTRIBUTE_REVEALED".into(),
+                "{}".into(),
+                Some("voter".into()),
+                None,
+                None,
+            )
+            .unwrap_err();
+        assert!(electoral_log::signer::is_signer_unavailable(&error), "{error:#}");
     }
 
     #[test]
