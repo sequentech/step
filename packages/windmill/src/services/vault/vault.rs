@@ -313,6 +313,51 @@ pub async fn get_admin_user_signing_key_to_announce(
     Ok((sk, Some(new_key)))
 }
 
+/// The vault key of a tenant's electoral-log pending-statement MAC key.
+pub const PENDING_MAC_KEY: &str = "electoral-log-pending-mac";
+
+/// The tenant's pending-statement MAC key, if it has one (32 bytes, kept
+/// encrypted under the master secret like every vault secret).
+#[instrument(skip(hasura_transaction), err)]
+pub async fn pending_mac_key(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+) -> Result<Option<[u8; 32]>> {
+    read_secret(hasura_transaction, tenant_id, None, PENDING_MAC_KEY)
+        .await?
+        .map(|hex_key| {
+            hex::decode(hex_key.trim())
+                .ok()
+                .and_then(|bytes| <[u8; 32]>::try_from(bytes).ok())
+                .ok_or_else(|| anyhow!("The pending-statement MAC key is unreadable"))
+        })
+        .transpose()
+}
+
+/// The tenant's pending-statement MAC key, made (32 random bytes) the first
+/// time, in `hasura_transaction`. Creators of one tenant are serialized by a
+/// transaction lock, so a race makes a single key.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_or_create_pending_mac_key(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+) -> Result<[u8; 32]> {
+    hasura_transaction
+        .query(
+            "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+            &[&format!("{PENDING_MAC_KEY}:{tenant_id}")],
+        )
+        .await
+        .context("Error locking the pending-statement MAC key")?;
+    if let Some(key) = pending_mac_key(hasura_transaction, tenant_id).await? {
+        return Ok(key);
+    }
+    let mut key = [0u8; 32];
+    rand::RngCore::fill_bytes(&mut rand::rng(), &mut key);
+    save_secret(hasura_transaction, tenant_id, None, PENDING_MAC_KEY, &hex::encode(key)).await?;
+    Ok(key)
+}
+
 /// The admin user's signing key, if they have one.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn read_admin_user_signing_key(

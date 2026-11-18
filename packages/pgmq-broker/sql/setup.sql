@@ -113,6 +113,9 @@ CREATE INDEX IF NOT EXISTS electoral_log_waiting_scope
 -- The message that is the row's copy on the event queue, if one was sent: a
 -- put-back checks that exact message, not producer-writable headers.
 ALTER TABLE step_queue.electoral_log_waiting ADD COLUMN IF NOT EXISTS copy_msg_id bigint;
+-- A system-signed pending statement's MAC, copied from the action database's
+-- outbox: the batch task checks it again before signing.
+ALTER TABLE step_queue.electoral_log_waiting ADD COLUMN IF NOT EXISTS mac bytea;
 
 -- A waiting event's copy on a queue is looked up by its delivery header.
 DO $$

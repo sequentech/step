@@ -226,6 +226,7 @@ struct OutboxRow {
     payload: serde_json::Value,
     created_ms: i64,
     announcement: Option<Vec<u8>>,
+    mac: Option<Vec<u8>>,
 }
 
 /// Moves committed outbox rows to the electoral log, one scope head at a time;
@@ -307,7 +308,7 @@ async fn relay_row(client: &mut Client, delivery_id: &str) -> Result<bool> {
     let Some(row) = transaction
         .query_opt(
             "SELECT delivery_id, seq, payload, (extract(epoch FROM created_at) * 1000)::bigint, \
-             announcement FROM sequent_backend.electoral_log_outbox \
+             announcement, mac FROM sequent_backend.electoral_log_outbox \
              WHERE delivery_id = $1 AND relayed_at IS NULL AND cancelled_at IS NULL FOR UPDATE",
             &[&delivery_id],
         )
@@ -322,13 +323,32 @@ async fn relay_row(client: &mut Client, delivery_id: &str) -> Result<bool> {
         payload: row.get(2),
         created_ms: row.get(3),
         announcement: row.get(4),
+        mac: row.get(5),
     };
     let statement: PendingStatement =
         serde_json::from_value(row.payload.clone()).context("Not a pending statement")?;
-    forward_announcement(&transaction, &statement, row.announcement.as_deref()).await?;
+    if statement.statement.admin().is_some() {
+        forward_announcement(&transaction, &statement, row.announcement.as_deref()).await?;
+    } else {
+        // A system-signed statement: its MAC under the tenant's vault key, or it
+        // is never relayed (nor signed).
+        let key = crate::services::vault::pending_mac_key(&transaction, &statement.tenant_id)
+            .await?
+            .ok_or_else(|| anyhow!("The tenant has no pending-statement MAC key"))?;
+        crate::services::electoral_log_pending::verify_pending_mac(
+            &key,
+            &row.delivery_id,
+            &statement,
+            row.mac.as_deref(),
+        )?;
+    }
     // The waiting row commits (task-queue database) before this row is marked.
     statement
-        .write_waiting(&row.delivery_id, Some((row.created_ms, row.seq)))
+        .write_waiting(
+            &row.delivery_id,
+            Some((row.created_ms, row.seq)),
+            row.mac.as_deref(),
+        )
         .await?;
     transaction
         .execute(
@@ -484,7 +504,7 @@ mod tests {
         // key (the announcement travels signed with the entry).
         let source = include_str!("electoral_log_outbox.rs");
         let code = source.split("#[cfg(test)]").next().unwrap();
-        for forbidden in ["read_admin_user_signing_key", "get_admin_user_signing_key", "vault::"] {
+        for forbidden in ["read_admin_user_signing_key", "get_admin_user_signing_key", "admin_user_signing_key"] {
             assert!(!code.contains(forbidden), "the relay must not use {forbidden}");
         }
     }

@@ -164,6 +164,45 @@ pub struct StoredPending {
     pub scope: String,
     /// When the row was written, in milliseconds since the epoch.
     pub created_ms: i64,
+    /// A system-signed statement's MAC ([`pending_mac`]).
+    pub mac: Option<Vec<u8>>,
+}
+
+/// The domain of a pending statement's MAC.
+const MAC_DOMAIN: &[u8] = b"electoral-log pending v1";
+
+/// A system-signed pending statement's MAC: HMAC-SHA256 under the tenant's
+/// `electoral-log-pending-mac` vault secret, over the domain, the delivery ID
+/// (length-prefixed) and the statement's JSON as its type writes it.
+pub fn pending_mac(key: &[u8; 32], delivery_id: &str, statement: &PendingStatement) -> Result<Vec<u8>> {
+    use hmac::{Hmac, Mac};
+    let mut mac = <Hmac<sha2::Sha256> as Mac>::new_from_slice(key)
+        .map_err(|_| anyhow!("Unusable pending-statement MAC key"))?;
+    mac.update(MAC_DOMAIN);
+    mac.update(&(delivery_id.len() as u64).to_be_bytes());
+    mac.update(delivery_id.as_bytes());
+    mac.update(&serde_json::to_vec(statement).context("Error serializing a pending statement")?);
+    Ok(mac.finalize().into_bytes().to_vec())
+}
+
+/// Checks a system-signed pending statement's MAC (constant time).
+pub fn verify_pending_mac(
+    key: &[u8; 32],
+    delivery_id: &str,
+    statement: &PendingStatement,
+    mac: Option<&[u8]>,
+) -> Result<()> {
+    use hmac::{Hmac, Mac};
+    let given = mac.ok_or_else(|| anyhow!("The pending statement has no MAC"))?;
+    let mut expected = <Hmac<sha2::Sha256> as Mac>::new_from_slice(key)
+        .map_err(|_| anyhow!("Unusable pending-statement MAC key"))?;
+    expected.update(MAC_DOMAIN);
+    expected.update(&(delivery_id.len() as u64).to_be_bytes());
+    expected.update(delivery_id.as_bytes());
+    expected.update(&serde_json::to_vec(statement).context("Error serializing a pending statement")?);
+    expected
+        .verify_slice(given)
+        .map_err(|_| anyhow!("The pending statement's MAC doesn't verify"))
 }
 
 /// The pending statement of `delivery_id`, if a worker wrote one.
@@ -175,7 +214,7 @@ pub async fn load<C: tokio_postgres::GenericClient + Sync>(
     Ok(client
         .query_opt(
             &format!(
-                "SELECT statement, scope, (extract(epoch FROM created_at) * 1000)::bigint \
+                "SELECT statement, scope, (extract(epoch FROM created_at) * 1000)::bigint, mac \
                  FROM {WAITING_TABLE} WHERE delivery_id = $1 AND statement IS NOT NULL"
             ),
             &[&delivery_id],
@@ -186,6 +225,7 @@ pub async fn load<C: tokio_postgres::GenericClient + Sync>(
             statement: row.get(0),
             scope: row.get(1),
             created_ms: row.get(2),
+            mac: row.get(3),
         }))
 }
 
@@ -456,19 +496,46 @@ impl PendingStatement {
         })
     }
 
-    /// Writes it in the waiting table and its reference on the event queue, in
-    /// one transaction of the queue database, under its scope's lock (so a
-    /// direct post of the scope can't come between: `direct_post_gate`). Its
-    /// log's direct posts are refused until it is stored. Returns its
-    /// delivery ID.
+    /// Writes it, with its MAC under the tenant's vault key, to the action
+    /// database's outbox in a short transaction of its own, under its scope's
+    /// lock (exclusive); the outbox's relay checks the MAC and hands it to the
+    /// electoral log. Its log's direct posts are refused until it is stored.
+    /// Works from Harvest as from Windmill (both reach the action database and
+    /// the vault). Returns its delivery ID.
     pub async fn queue(&self) -> Result<String> {
         // An administrator-signed entry goes through its action's outbox, never here.
-        anyhow::ensure!(
+        ensure!(
             self.statement.admin().is_none(),
             "An administrator-signed entry is recorded through its action's outbox"
         );
         let delivery_id = self.origin.delivery_id();
-        self.write_waiting(&delivery_id, None).await?;
+        let mut client = crate::services::database::get_hasura_pool()
+            .await
+            .get()
+            .await
+            .context("Error connecting to the action database")?;
+        let tx = client
+            .transaction()
+            .await
+            .context("Error starting the pending statement's transaction")?;
+        // The scope's lock (exclusive), as a certificate action takes it: a
+        // direct post comes either before this entry or after it is stored.
+        crate::services::electoral_log_outbox::lock_scope(&*tx, &self.scope(), true).await?;
+        let key = crate::services::vault::get_or_create_pending_mac_key(&tx, &self.tenant_id).await?;
+        let mac = pending_mac(&key, &delivery_id, self)?;
+        let payload = serde_json::to_value(self).context("Error serializing a pending statement")?;
+        tx.execute(
+            "INSERT INTO sequent_backend.electoral_log_outbox \
+             (delivery_id, tenant_id, election_event_id, payload, mac) \
+             VALUES ($1, $2::text::uuid, $3::text::uuid, $4, $5)",
+            &[&delivery_id, &self.tenant_id, &self.election_event_id, &payload, &mac],
+        )
+        .await
+        .context("Error writing a pending statement to the outbox")?;
+        tx.commit()
+            .await
+            .context("Error committing a pending statement")?;
+        crate::tasks::audit_log_outbox::kick_audit_log_outbox();
         tracing::warn!(
             origin = self.origin.as_str(),
             delivery_id = delivery_id.as_str(),
@@ -485,7 +552,12 @@ impl PendingStatement {
     /// entry already waiting under this delivery ID is left as it is (a relay
     /// repeated after a crash adds nothing). Workers only: the producer role
     /// may not write the table.
-    pub async fn write_waiting(&self, delivery_id: &str, relayed: Option<(i64, i64)>) -> Result<()> {
+    pub async fn write_waiting(
+        &self,
+        delivery_id: &str,
+        relayed: Option<(i64, i64)>,
+        mac: Option<&[u8]>,
+    ) -> Result<()> {
         use crate::services::electoral_log_deferral::{lock_scopes, WAITING_TABLE};
         let reference = crate::services::electoral_log_dead_letter::event_message(
             &self.reference_event(delivery_id)?,
@@ -510,14 +582,15 @@ impl PendingStatement {
             .query(
                 &format!(
                     "INSERT INTO {WAITING_TABLE} \
-                     (delivery_id, scope, since_ms, ord, due_at, statement, created_at) \
+                     (delivery_id, scope, since_ms, ord, due_at, statement, created_at, mac) \
                      VALUES ($1, $2, \
                      COALESCE($4::bigint, (extract(epoch FROM clock_timestamp()) * 1000)::bigint), \
                      $5::bigint, clock_timestamp(), $3, \
-                     COALESCE(to_timestamp($4::bigint / 1000.0::double precision), clock_timestamp())) \
+                     COALESCE(to_timestamp($4::bigint / 1000.0::double precision), clock_timestamp()), \
+                     $6) \
                      ON CONFLICT (delivery_id) DO NOTHING RETURNING delivery_id"
                 ),
-                &[&delivery_id, &self.scope(), &statement, &created_ms, &order],
+                &[&delivery_id, &self.scope(), &statement, &created_ms, &order, &mac],
             )
             .await
             .context("Error writing a pending statement")?;
@@ -543,9 +616,13 @@ impl PendingStatement {
 
     /// Reads and checks the pending statement a reference event names (see
     /// the module documentation), before anything is signed.
+    /// A system-signed statement's MAC is checked with the tenant's
+    /// `mac_key` (no key: refused); an administrator-signed one carries its
+    /// administrator's signature instead.
     pub fn read(
         input: &LogEventInput,
         stored: Option<StoredPending>,
+        mac_key: Option<[u8; 32]>,
         now: u64,
     ) -> Result<PendingStatement> {
         ensure!(
@@ -564,6 +641,10 @@ impl PendingStatement {
             stored.scope == pending.scope(),
             "The pending statement is not of its row's scope"
         );
+        if pending.statement.admin().is_none() {
+            let key = mac_key.ok_or_else(|| anyhow!("The tenant has no pending-statement MAC key"))?;
+            verify_pending_mac(&key, delivery_id, &pending, stored.mac.as_deref())?;
+        }
         pending.validate(input, stored.created_ms, now)?;
         Ok(pending)
     }
@@ -661,7 +742,10 @@ mod tests {
         }
     }
 
-    /// As a worker writes it: the row and its reference event.
+    /// The tenant's pending-statement MAC key, in these tests.
+    const KEY: [u8; 32] = [7; 32];
+
+    /// As the relay writes it: the row (with its MAC) and its reference event.
     fn queued(pending: &PendingStatement) -> (LogEventInput, StoredPending) {
         let delivery_id = pending.origin.delivery_id();
         (
@@ -670,12 +754,13 @@ mod tests {
                 statement: serde_json::to_value(pending).unwrap(),
                 scope: pending.scope(),
                 created_ms: i64::try_from(electoral_log::timestamp()).unwrap() * 1000,
+                mac: Some(pending_mac(&KEY, &delivery_id, pending).unwrap()),
             },
         )
     }
 
     fn reread(input: &LogEventInput, stored: &StoredPending) -> Result<PendingStatement> {
-        PendingStatement::read(input, Some(stored.clone()), electoral_log::timestamp())
+        PendingStatement::read(input, Some(stored.clone()), Some(KEY), electoral_log::timestamp())
     }
 
     #[test]
@@ -710,6 +795,46 @@ mod tests {
     }
 
     #[test]
+    fn a_system_signed_statement_needs_its_mac_under_the_tenants_key() {
+        let pending = PendingStatement::new(TENANT, EVENT, failure());
+        let (event, stored) = queued(&pending);
+        assert!(reread(&event, &stored).is_ok());
+        // No MAC (a row written directly, as whoever can write the tables could).
+        let mut none = stored.clone();
+        none.mac = None;
+        assert!(reread(&event, &none).is_err());
+        // A MAC under another key (any key but the vault's: a forger who knows
+        // only the old public demo master secret can't read the vault's).
+        let mut other_key = stored.clone();
+        let delivery_id = event.delivery_id.clone().unwrap();
+        other_key.mac = Some(pending_mac(&[9; 32], &delivery_id, &pending).unwrap());
+        assert!(reread(&event, &other_key).is_err());
+        // A MAC over other content, or another delivery ID.
+        let mut other = pending.clone();
+        other.occurred_at -= 1;
+        let mut moved = stored.clone();
+        moved.statement = serde_json::to_value(&other).unwrap();
+        assert!(reread(&event, &moved).is_err());
+        let mut elsewhere = stored.clone();
+        elsewhere.mac = Some(pending_mac(&KEY, "pending:ballot-publication:other", &pending).unwrap());
+        assert!(reread(&event, &elsewhere).is_err());
+        // No key for the tenant: refused.
+        assert!(PendingStatement::read(&event, Some(stored), None, electoral_log::timestamp()).is_err());
+    }
+
+    #[test]
+    fn the_vault_encryption_under_one_master_key_is_unreadable_with_another() {
+        // The MAC key is a vault secret, encrypted under the install's master
+        // key: a value encrypted under a generated master key can't be read
+        // with the old public demo default.
+        use cryptography::utils::symm::{decrypt, encrypt, gen_key, sk_from_bytes};
+        let generated = gen_key().unwrap();
+        let public_default = sk_from_bytes(&[0x11; 32]).unwrap();
+        let sealed = encrypt(generated, &KEY).unwrap();
+        assert!(decrypt(&public_default, &sealed).is_err());
+    }
+
+    #[test]
     fn an_enrollment_problem_is_of_the_event_type_the_direct_post_uses() {
         use electoral_log::messages::statement::StatementBody;
         let key = SigningKey::generate().unwrap();
@@ -735,7 +860,7 @@ mod tests {
         assert!(reread(&event, &stored).is_ok());
 
         // No row: a reference forged on the queue names nothing a worker wrote.
-        assert!(PendingStatement::read(&event, None, electoral_log::timestamp()).is_err());
+        assert!(PendingStatement::read(&event, None, Some(KEY), electoral_log::timestamp()).is_err());
 
         // A reference to another delivery than its event's.
         let mut other_ref = event.clone();

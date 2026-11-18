@@ -285,9 +285,21 @@ their signer" log line: it reports the count and the oldest wait, and becomes an
 error after `ELECTORAL_LOG_DEFER_ALERT_SECS`. Do not discard waiting or
 dead-lettered entries to unblock a log unless losing them is intended.
 
-The producer role (Harvest, and Keycloak, which shares it) cannot queue an unsigned
-electoral-log statement: Harvest's best-effort entries fail and are logged when the
-signer is unavailable, until Harvest has an authenticated identity of its own.
+Unsigned electoral-log statements that best-effort producers (Windmill and Harvest:
+refused-ballot audits, ballot-publication failures, enrollment problems) record while
+the signer is unavailable go to `sequent_backend.electoral_log_outbox` with an
+HMAC-SHA256 under the tenant's `electoral-log-pending-mac` vault secret. The relay and
+the batch task refuse a statement without a valid MAC, so it is never signed.
+
+Trust boundary: the MAC key lives in the vault, encrypted under `MASTER_SECRET`; the
+encrypted vault is in the database, the master key is not. A database-only compromise
+(including the shared `postgres` superuser Keycloak connects as in the EMS) can't read
+the MAC key or forge pending rows. Whoever administers the hosts (who can read the
+environment or memory of Windmill or Harvest, or the secrets file) is outside the
+boundary and trusted; nothing here protects against them. The per-install generated
+`MASTER_SECRET` of the EMS is a temporary demo boundary until meta#15035's key-inventory
+requirements are implemented: master-key custody in the HSM is later work within
+meta#15035.
 
 Certificate-authority imports and deletions sign their electoral-log entry with the
 administrator's key and write it to `sequent_backend.electoral_log_outbox` in their
@@ -319,3 +331,10 @@ task-queue database owner, and record why.
 
 The integration tests of the queues (`cargo test -p windmill -- --ignored`) need
 `PGMQ_TEST_DATABASE_URL`, a disposable database with PGMQ.
+
+## Remaining meta#15035 work
+
+- Master-key (`MASTER_SECRET`) custody in the HSM, replacing the per-install generated
+  value, a temporary demo boundary.
+- Any further items of meta#15035's key inventory not listed here are pending too; this
+  page claims no completion of meta#15035.

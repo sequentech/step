@@ -712,6 +712,9 @@ trait BatchLookups {
         delivery_id: &str,
     ) -> anyhow::Result<Option<crate::services::electoral_log_pending::StoredPending>>;
 
+    /// The tenant's pending-statement MAC key, if it has one (vault).
+    async fn pending_mac_key(&mut self, tenant_id: &str) -> anyhow::Result<Option<[u8; 32]>>;
+
     /// Whether the tenant's log announces `public_key` (base64) as the signing
     /// key of administrator `user_id`: an `AdminPublicKey` entry for them,
     /// signed by the tenant log's system key.
@@ -807,6 +810,10 @@ impl BatchLookups for DbLookups<'_, '_> {
         delivery_id: &str,
     ) -> anyhow::Result<Option<crate::services::electoral_log_pending::StoredPending>> {
         crate::services::electoral_log_pending::load(self.queue, delivery_id).await
+    }
+
+    async fn pending_mac_key(&mut self, tenant_id: &str) -> anyhow::Result<Option<[u8; 32]>> {
+        crate::services::vault::pending_mac_key(self.hasura, tenant_id).await
     }
 
     async fn admin_key_announced(
@@ -1051,9 +1058,14 @@ async fn build_event<L: BatchLookups + Send>(
                 .as_ref()
                 .map(|stored| stored.statement.to_string().chars().take(4_000).collect::<String>())
                 .unwrap_or_else(|| "no row: forged, or already stored and removed".to_string());
+            let mac_key = lookups
+                .pending_mac_key(&input.tenant_id)
+                .await
+                .map_err(Transient)?;
             let pending = crate::services::electoral_log_pending::PendingStatement::read(
                 input,
                 stored,
+                mac_key,
                 electoral_log::timestamp(),
             )
             .with_context(|| format!("Refused pending statement {statement_text}"))
@@ -2092,6 +2104,10 @@ mod batch_build_tests {
             Ok(self.pending.get(delivery_id).cloned())
         }
 
+        async fn pending_mac_key(&mut self, _tenant_id: &str) -> anyhow::Result<Option<[u8; 32]>> {
+            Ok(Some(TEST_MAC_KEY))
+        }
+
         async fn admin_key_announced(
             &mut self,
             _tenant_id: &str,
@@ -2577,6 +2593,9 @@ mod batch_build_tests {
         }
     }
 
+    /// The tenants' pending-statement MAC key, in these tests.
+    const TEST_MAC_KEY: [u8; 32] = [7; 32];
+
     /// A pending statement as a worker queues it: its row and its reference event.
     fn queue_pending(
         lookups: &mut FakeLookups,
@@ -2589,6 +2608,14 @@ mod batch_build_tests {
                 statement: serde_json::to_value(pending).unwrap(),
                 scope: pending.scope(),
                 created_ms: i64::try_from(electoral_log::timestamp()).unwrap() * 1000,
+                mac: Some(
+                    crate::services::electoral_log_pending::pending_mac(
+                        &TEST_MAC_KEY,
+                        &delivery_id,
+                        pending,
+                    )
+                    .unwrap(),
+                ),
             },
         );
         pending.reference_event(&delivery_id).unwrap()
