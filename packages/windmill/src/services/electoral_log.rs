@@ -1555,7 +1555,7 @@ impl GetElectoralLogBody {
     }
 
     // Returns the SQL clauses related to the request along with the parameters
-    #[instrument(ret)]
+    #[instrument(skip_all)]
     fn as_sql(&self, to_count: bool) -> Result<(String, Vec<NamedParam>)> {
         let mut clauses = Vec::new();
         let mut params = Vec::new();
