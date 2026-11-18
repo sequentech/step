@@ -25,7 +25,7 @@ jobs:
       - name: Check that every span chooses what it records
         run: |
           status=0
-          git grep -nE '^[[:space:]]*#\[(tracing::)?instrument\]' -- \
+          git grep -nE '^[[:space:]]*#[[:space:]]*\[[[:space:]]*(tracing[[:space:]]*::[[:space:]]*)?instrument[[:space:]]*\]' -- \
             packages/harvest/src packages/windmill/src packages/sequent-core/src || status=$?
           if [ "$status" -eq 0 ]; then
             echo "::error::Bare #[instrument] records every argument. Use #[instrument(skip_all)] and add the fields the span needs with fields(...)."

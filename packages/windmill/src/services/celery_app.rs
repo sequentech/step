@@ -177,9 +177,10 @@ pub async fn get_celery_app() -> Arc<Celery> {
 /// The AMQP URL without its credentials (`amqp://user:pass@host` becomes
 /// `amqp://***@host`), for log lines and error messages.
 fn redact_amqp_url(url: &str) -> String {
-    match (url.find("://"), url.rfind('@')) {
-        (Some(scheme_end), Some(at)) if at > scheme_end + 3 => {
-            format!("{}***{}", &url[..scheme_end + 3], &url[at..])
+    let userinfo_start = url.find("://").map_or(0, |scheme_end| scheme_end + 3);
+    match url.rfind('@') {
+        Some(at) if at >= userinfo_start => {
+            format!("{}***{}", &url[..userinfo_start], &url[at..])
         }
         _ => url.to_string(),
     }
@@ -389,6 +390,14 @@ mod amqp_url_tests {
         assert_eq!(
             redact_amqp_url("amqp://guest:C90Secret@rabbitmq:5672/%2f"),
             "amqp://***@rabbitmq:5672/%2f"
+        );
+    }
+
+    #[test]
+    fn credentials_without_a_scheme_are_hidden() {
+        assert_eq!(
+            redact_amqp_url("guest:C90Secret@rabbitmq:5672"),
+            "***@rabbitmq:5672"
         );
     }
 
