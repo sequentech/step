@@ -131,6 +131,13 @@ jobs:
           -- --ignored --exact
         working-directory: packages/windmill
 
+      - name: Run PostgreSQL-backed document task claim regression
+        run: >-
+          cargo test
+          postgres::tasks_execution::claim_document_task_tests
+          -- --ignored
+        working-directory: packages/windmill
+
       - name: Run PostgreSQL-backed new election event id regression
         run: >-
           cargo test
