@@ -306,7 +306,7 @@ async fn group_names_of(
         .map_err(|e| internal(format!("Error getting group names: {:#?}", e)))
 }
 
-#[instrument(skip(claims, services))]
+#[instrument(skip_all)]
 #[post("/change-application-status", format = "json", data = "<body>")]
 pub async fn change_application_status(
     claims: jwt::JwtClaims,
@@ -315,7 +315,7 @@ pub async fn change_application_status(
 ) -> Result<Json<ApplicationChangeStatusOutput>, Guarded<JsonError>> {
     let input = body.into_inner();
 
-    info!("Changing application status: {input:?}");
+    info!("Changing application status");
 
     let required_perm: Permissions = Permissions::APPLICATION_WRITE;
     authorize(
