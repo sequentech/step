@@ -1619,12 +1619,6 @@ fn parse_limit(name: &str, value: Option<&str>, default: usize) -> anyhow::Resul
     }
 }
 
-/// Dispatcher: repeatedly promotes batches of raw events from the electoral_log_event_queue to
-/// processing tasks. Each handoff is one PostgreSQL transaction: the batch task is enqueued,
-/// messages that cannot be parsed are dead-lettered and the batch's raw events are deleted
-/// together, or not at all. Normal Celery consumers do not read the raw-event queue.
-#[instrument(skip_all, err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
 /// Asks a worker to dispatch the electoral log's waiting events now (after an
 /// action's entry was relayed). Fire and forget, bounded: beat dispatches
 /// every few seconds anyway.
@@ -1645,6 +1639,12 @@ pub fn kick_electoral_log_batch_dispatcher() -> tokio::task::JoinHandle<()> {
     })
 }
 
+/// Dispatcher: repeatedly promotes batches of raw events from the electoral_log_event_queue to
+/// processing tasks. Each handoff is one PostgreSQL transaction: the batch task is enqueued,
+/// messages that cannot be parsed are dead-lettered and the batch's raw events are deleted
+/// together, or not at all. Normal Celery consumers do not read the raw-event queue.
+#[instrument(skip_all, err)]
+#[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 30, max_retries = 0, expires = 1)]
 pub async fn electoral_log_batch_dispatcher() -> Result<()> {
     let limits = BatchLimits::from_env()?;
