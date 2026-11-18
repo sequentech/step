@@ -257,6 +257,13 @@ pub struct PooledPgsqlB3Client<'a> {
 }
 
 impl<'a> PooledPgsqlB3Client<'a> {
+    pub async fn get_with_kind_only(
+        &self,
+        board: &str,
+        kind: StatementType,
+    ) -> Result<Vec<B3MessageRow>> {
+        get_with_kind_only(self.client.deref(), board, &kind.to_string()).await
+    }
     pub fn new(
         client: PooledConnection<'a, PostgresConnectionManager<NoTls>>,
     ) -> PooledPgsqlB3Client<'a> {

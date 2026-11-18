@@ -136,9 +136,23 @@ pub async fn get_private_key(
         .clone()
         .ok_or(anyhow!("can't get trustee's public key"))?;
 
+    let manager = crate::services::protocol_manager::get_protocol_manager::<
+        strand::backend::ristretto::RistrettoCtx,
+    >(
+        transaction,
+        &tenant_id,
+        Some(&election_event_id),
+        &board_name,
+    )
+    .await?;
+    let manager_pk = strand::signature::StrandSignaturePk::from_sk(&manager.signing_key)?;
     // get the encrypted private key
-    let encrypted_private_key =
-        get_trustee_encrypted_private_key(board_name.as_str(), trustee_public_key.as_str()).await?;
+    let encrypted_private_key = get_trustee_encrypted_private_key(
+        board_name.as_str(),
+        trustee_public_key.as_str(),
+        &manager_pk,
+    )
+    .await?;
 
     // Update ceremony with the information that this trustee did get the
     // private key
@@ -206,11 +220,35 @@ pub async fn find_trustee_private_key(
         .clone()
         .ok_or(anyhow!("can't get trustee public key"))?;
 
+    let manager = crate::services::protocol_manager::get_protocol_manager::<
+        strand::backend::ristretto::RistrettoCtx,
+    >(
+        transaction,
+        &tenant_id,
+        Some(&election_event_id),
+        &board_name,
+    )
+    .await?;
+    let manager_pk = strand::signature::StrandSignaturePk::from_sk(&manager.signing_key)?;
     // get the encrypted private key
-    get_trustee_encrypted_private_key(board_name.as_str(), trustee_public_key.as_str()).await
+    get_trustee_encrypted_private_key(
+        board_name.as_str(),
+        trustee_public_key.as_str(),
+        &manager_pk,
+    )
+    .await
 }
 
-#[instrument(err)]
+#[instrument(
+    skip_all,
+    fields(
+        tenant_id = %tenant_id,
+        election_event_id = %election_event_id,
+        keys_ceremony_id = %keys_ceremony_id,
+        trustee = ?claims.trustee,
+    ),
+    err
+)]
 pub async fn check_private_key(
     transaction: &Transaction<'_>,
     claims: JwtClaims,

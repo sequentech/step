@@ -10,7 +10,7 @@ use sequent_core::serialization::deserialize_with_path::*;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::env;
-use tracing::{info, instrument};
+use tracing::instrument;
 
 #[derive(Serialize, Deserialize)]
 struct VaultSecret {
@@ -65,9 +65,7 @@ impl Vault for HashiCorpVault {
             response
         }
         .error_for_status()?;
-        info!("info: {:?}", unwrapped);
         let text = unwrapped.text().await?;
-        info!("text: {}", text);
         let read: VaultRead = deserialize_str(&text)?;
         let value = if let Some(v) = read.data.data {
             Some(v)

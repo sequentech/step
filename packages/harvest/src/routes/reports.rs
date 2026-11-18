@@ -496,7 +496,7 @@ pub struct ExportTemplateOutput {
     error_msg: Option<String>,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, input))]
 #[post("/encrypt-report", format = "json", data = "<input>")]
 pub async fn encrypt_report_route(
     claims: jwt::JwtClaims,

@@ -40,9 +40,11 @@ Once configured, the Template becomes available for its associated Report Types 
 - For document templates, ensure any required assets (logos, images) are accessible and correctly referenced.
 - If your system supports previewing or templating languages (e.g., handlebars, Liquid), include sample data to verify rendering.
 
-## Voter variables in notification templates
+## Voter variables
 
-Email and SMS Handlebars templates can use these standard voter variables:
+Email and SMS templates, and document templates for reports that render one
+voter at a time (the voter information letter and the manual verification
+report), can use these standard voter variables:
 
 - `user.first_name`
 - `user.last_name`
@@ -54,6 +56,13 @@ as `user.<attribute>`. The complete value list remains available as
 `user.attributes.<attribute>`. Standard variables take precedence if a custom
 attribute uses the same name. The `attributes` name is reserved for the complete
 attribute map. Empty custom value lists are present only under `user.attributes`.
+
+Aggregate reports, such as turnout, activity, tally and results reports, render
+many voters at once and do not receive a `user` object.
+
+Secret attributes (`sequent.secret=true`) are the exception: they are available
+only when the template declares them in `secret_attribute_names`. See [Secret
+Voter Variables](../user-manual/templates/admin_portal_reference_user-manual_templates.md#secret-voter-variables).
 
 Dot notation works for simple names such as `dateOfBirth`. Use Handlebars
 `lookup` for names containing dots or dashes. For example:
@@ -69,6 +78,54 @@ be rendered as follows:
 ```handlebars
 Primary reference: {{user.reference}}
 All references: {{#each user.attributes.reference}}{{this}} {{/each}}
+```
+
+### Voter information letter variables
+
+Besides `user`, the voter information letter template receives these fields:
+
+| Variable | Content |
+| --- | --- |
+| `election_event_name` | The election event name in the event's default language. |
+| `issue_date` | The generation date, written out in the event's default language. |
+| `voter_first_name` | The voter's first name. |
+| `voter_last_name` | The voter's last name. |
+| `voter_full_name` | First and last name, separated by a space. |
+| `username` | The voter's username. |
+| `password` | The voter's new credential. When the realm uses a structured credential pattern, it is formatted with that pattern, for example `1234-5678-9012-3456`. |
+| `voting_portal_url` | The voting portal login URL for the election event. |
+| `logo_url` | The URL of the default logo. |
+
+### Text helpers
+
+These helpers make it easier to print voter data that may be incomplete. They
+never fail: a missing value renders as an empty string. Use them as
+subexpressions to combine them.
+
+| Helper | Example | Result |
+| --- | --- | --- |
+| `concat` | `{{concat user.first_name user.middle_names user.last_name}}` | `Jane Doe` when `middle_names` is missing or empty. |
+| `concat` with `sep` | `{{concat user.corr_city user.corr_province sep=", "}}` | `Denbigh, ON` |
+| `format_pattern` | `{{format_pattern user.corr_postal_code "### ###"}}` | `K0H 1L0` from `K0H1L0`. |
+| `upper` | `{{upper user.corr_country_name}}` | `CA` from `Ca`. |
+
+`concat` joins any number of values with a separator, a single space by
+default. It trims each value and skips the ones that are missing, null, empty or
+blank, so the separator only appears between values that are present. Arrays,
+such as `user.attributes.<attribute>`, are flattened. Numbers and quoted literals
+are accepted too.
+
+`format_pattern` fills each `#` in the pattern with the next non-space character
+of the value. Every other pattern character is copied as is. If the value does
+not have exactly as many characters as the pattern has `#`, the trimmed value is
+printed unchanged.
+
+For example, a mailing address that skips the parts a voter does not have:
+
+```handlebars
+{{concat user.corr_unit user.corr_street_number user.corr_street_number_suffix user.corr_street}}
+{{concat user.corr_city user.corr_province (format_pattern user.corr_postal_code "### ###")}}
+{{upper user.corr_country_name}}
 ```
 
 ### Prefilled voting links

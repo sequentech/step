@@ -32,6 +32,27 @@ After creating a report entry, you will see it in the list. Click on the actions
 
 *Additional report types will be documented here as they become available.*
 
+## Voter Fields in Reports
+
+Reports that render one identified voter at a time, such as voter information letters and manual
+verification reports, can print any of the voter's fields. Use `user.<attribute>` for a user
+attribute, for example `{{user.ward}}` or `{{user.school_support_choice}}`, and `user.first_name`,
+`user.last_name`, `user.username` or `user.email` for the standard fields. Aggregate reports do
+not receive voter fields.
+
+Voters often leave some fields empty. The `concat` helper joins the fields that are present and
+skips the rest, `format_pattern` formats values such as postal codes, and `upper` uppercases them:
+
+```handlebars
+<p>{{concat user.first_name user.middle_names user.last_name}}</p>
+<p>{{concat user.corr_unit user.corr_street_number user.corr_street}}</p>
+<p>{{concat user.corr_city user.corr_province (format_pattern user.corr_postal_code "### ###")}}</p>
+<p>{{upper user.corr_country_name}}</p>
+```
+
+See [Voter variables](../02-reference/02-election-event/13-02-election_management_election-event_templates.md#voter-variables)
+for every variable and helper, including the fixed fields of the voter information letter.
+
 ## Secret Voter Fields in Reports
 
 Secret voter fields are available only to reports that render one identified voter at a time.
