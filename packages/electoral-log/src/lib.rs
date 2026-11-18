@@ -10,9 +10,9 @@ pub mod ports;
 #[cfg(feature = "native")]
 pub mod proofs;
 pub mod seal;
-pub mod signer;
 #[cfg(feature = "native")]
 pub mod service;
+pub mod signer;
 #[cfg(feature = "native")]
 pub mod util;
 
@@ -34,7 +34,29 @@ pub fn get_cast_vote_channel_schema_version() -> String {
     "2".to_string()
 }
 
+thread_local! {
+    /// The time every statement made during a [`signer::batch`] carries.
+    static BATCH_TIMESTAMP: std::cell::Cell<Option<Timestamp>> = const { std::cell::Cell::new(None) };
+}
+
+/// Runs `f` with [`timestamp`] fixed to the current second on this thread
+/// (as a batch's two passes need the same bytes), restoring it afterwards.
+pub(crate) fn with_fixed_timestamp<T>(f: impl FnOnce() -> T) -> T {
+    struct Restore(Option<Timestamp>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            BATCH_TIMESTAMP.with(|cell| cell.set(self.0));
+        }
+    }
+    let now = timestamp();
+    let _restore = Restore(BATCH_TIMESTAMP.with(|cell| cell.replace(Some(now))));
+    f()
+}
+
 pub fn timestamp() -> Timestamp {
+    if let Some(fixed) = BATCH_TIMESTAMP.with(|cell| cell.get()) {
+        return fixed;
+    }
     let start = SystemTime::now();
     let since_the_epoch = start
         .duration_since(UNIX_EPOCH)
