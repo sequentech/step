@@ -430,6 +430,7 @@ const englishTranslation = {
                 "Not found, check that your Ballot ID is correct and belongs to this user.",
             filterByBallotId: "Filter by Ballot ID",
             totalBallots: "Total Ballots: {{total}}",
+            totalBallotsMoreThan: "Total Ballots: more than {{total}}",
             steps: {
                 lookup: "Locate your Ballot",
                 result: "Result",

@@ -58,14 +58,45 @@ impl PgConfig {
                 "Invalid page limit {requested}: it must be positive"
             ));
         }
+        let limit = std::cmp::min(requested, self.count_limit()?);
+        usize::try_from(limit).map_err(|err| anyhow!("Invalid page limit {limit}: {err}"))
+    }
+
+    /// The most matches a list counts, `low_sql_limit`: past it, the list only reports that
+    /// there are more. Rejects a `low_sql_limit` that is not positive.
+    pub fn count_limit(&self) -> Result<i64> {
         if self.low_sql_limit <= 0 {
             return Err(anyhow!(
                 "Invalid low_sql_limit {}: it must be positive",
                 self.low_sql_limit
             ));
         }
-        let limit = std::cmp::min(requested, i64::from(self.low_sql_limit));
-        usize::try_from(limit).map_err(|err| anyhow!("Invalid page limit {limit}: {err}"))
+        Ok(i64::from(self.low_sql_limit))
+    }
+}
+
+#[cfg(test)]
+mod count_limit_tests {
+    use super::*;
+
+    #[test]
+    fn lists_count_up_to_the_low_sql_limit() {
+        let pg_config = PgConfig {
+            low_sql_limit: 50000,
+            ..PgConfig::default()
+        };
+        assert_eq!(pg_config.count_limit().unwrap(), 50000);
+    }
+
+    #[test]
+    fn a_non_positive_low_sql_limit_is_rejected() {
+        for low_sql_limit in [0, -1] {
+            let pg_config = PgConfig {
+                low_sql_limit,
+                ..PgConfig::default()
+            };
+            assert!(pg_config.count_limit().is_err());
+        }
     }
 }
 

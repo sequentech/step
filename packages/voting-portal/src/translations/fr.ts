@@ -433,6 +433,7 @@ const frenchTranslation: TranslationType = {
                 "Non trouvé, veuillez vérifier que le numéro d'identification du bulletin soit correct et appartenir à cet utilisateur.",
             filterByBallotId: "Filtrez par numéro d'identification du bulletin",
             totalBallots: "Total: {{total}}",
+            totalBallotsMoreThan: "Total: plus de {{total}}",
             steps: {
                 lookup: "Localisez votre bulletin de vote",
                 result: "Résultat",

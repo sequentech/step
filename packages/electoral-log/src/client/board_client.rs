@@ -29,6 +29,20 @@ const STATEMENT_KIND_VARCHAR_LENGTH: usize = 40;
 /// 64 chars + EOL + some padding
 const BALLOT_ID_VARCHAR_LENGTH: usize = 70;
 
+/// The parameter that holds how many rows a capped count reads at most.
+const MAX_COUNT_PARAM: &str = "max_count";
+
+/// The SQL counting the electoral log rows that `clauses`, an index hint and a WHERE clause,
+/// select. With `max_count_param`, the count stops after the first `@max_count_param` rows.
+pub fn count_sql(clauses: &str, max_count_param: Option<&str>) -> String {
+    match max_count_param {
+        None => format!("SELECT COUNT(*) FROM {ELECTORAL_LOG_TABLE} {clauses}"),
+        Some(param) => format!(
+            "SELECT COUNT(*) FROM (SELECT id FROM {ELECTORAL_LOG_TABLE} {clauses} LIMIT @{param})"
+        ),
+    }
+}
+
 /// What a board held for a delivery ID when the delivery was written.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeliveryReceipt {
@@ -584,6 +598,27 @@ impl BoardClient {
         board_db: &str,
         columns_matcher: Option<WhereClauseBTreeMap>,
     ) -> Result<i64> {
+        self.count(board_db, columns_matcher, None).await
+    }
+
+    /// Counts the matching messages, stopping after `max_count`: counting every match reads
+    /// all of them.
+    #[instrument(err)]
+    pub async fn count_electoral_log_messages_up_to(
+        &mut self,
+        board_db: &str,
+        columns_matcher: Option<WhereClauseBTreeMap>,
+        max_count: i64,
+    ) -> Result<i64> {
+        self.count(board_db, columns_matcher, Some(max_count)).await
+    }
+
+    async fn count(
+        &mut self,
+        board_db: &str,
+        columns_matcher: Option<WhereClauseBTreeMap>,
+        max_count: Option<i64>,
+    ) -> Result<i64> {
         let mut params = vec![];
         let mut where_clause = String::from("statement_kind IS NOT NULL ");
         if let Some(columns_matcher) = &columns_matcher {
@@ -602,13 +637,18 @@ impl BoardClient {
         let index_hint = self
             .index_hint(board_db, &columns_matcher, IndexScan::Count)
             .await;
-        let sql = format!(
-            r#"
-            SELECT COUNT(*)
-            FROM {ELECTORAL_LOG_TABLE} {index_hint}
-            WHERE {where_clause}
-            "#,
+        let sql = count_sql(
+            &format!("{index_hint} WHERE {where_clause}"),
+            max_count.map(|_| MAX_COUNT_PARAM),
         );
+        if let Some(max_count) = max_count {
+            params.push(NamedParam {
+                name: MAX_COUNT_PARAM.to_string(),
+                value: Some(SqlValue {
+                    value: Some(Value::N(max_count)),
+                }),
+            });
+        }
 
         info!("SQL query: {}", sql);
         let sql_query_response = self.client.sql_query(&sql, params).await?;
@@ -1342,5 +1382,30 @@ pub(crate) mod tests {
         assert_eq!(ret.len(), 0);
 
         tear_down(b).await;
+    }
+}
+
+#[cfg(test)]
+mod count_sql_tests {
+    use super::*;
+
+    #[test]
+    fn an_exact_count_reads_every_selected_row() {
+        assert_eq!(
+            count_sql("WHERE user_id = @user_id", None),
+            "SELECT COUNT(*) FROM electoral_log_messages WHERE user_id = @user_id"
+        );
+    }
+
+    #[test]
+    fn a_capped_count_reads_at_most_the_given_number_of_rows() {
+        assert_eq!(
+            count_sql(
+                "USE INDEX ON (user_id, id) WHERE user_id = @user_id",
+                Some("max_count")
+            ),
+            "SELECT COUNT(*) FROM (SELECT id FROM electoral_log_messages \
+             USE INDEX ON (user_id, id) WHERE user_id = @user_id LIMIT @max_count)"
+        );
     }
 }
