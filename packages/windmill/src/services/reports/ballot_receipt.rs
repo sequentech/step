@@ -22,6 +22,58 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
+/// Whether `voter_id` (the ballot identity, so a pseudonym in pseudonymous
+/// events) cast `ballot_id` in the given election and area. A receipt is only
+/// rendered for such a ballot.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn voter_cast_ballot(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    voter_id: &str,
+    area_id: &str,
+    ballot_id: &str,
+) -> Result<bool> {
+    let tenant_uuid =
+        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant id: {:?}", err))?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election event id: {:?}", err))?;
+    let election_uuid = parse_uuid_v4(election_id)
+        .map_err(|err| anyhow!("Error parsing election id: {:?}", err))?;
+
+    let store = get_event_ballot_box(
+        hasura_transaction,
+        &tenant_uuid.to_string(),
+        &election_event_uuid.to_string(),
+    )
+    .await?
+    .store;
+    let (event, election) = (election_event_uuid.to_string(), election_uuid.to_string());
+    // The authenticated receipt route resolves privacy identities before
+    // queueing the receipt task, so its payload never carries the real voter ID.
+    let in_box =
+        |ballot: &StoredBallot| ballot.area_id == area_id && ballot.election_id == election;
+    // A ballot cast with a signed receipt goes by the receipt's Ballot ID.
+    Ok(match normalize_ballot_id(ballot_id) {
+        Some(receipt_ballot_id) => store
+            .received_cast_ballots(
+                &event,
+                voter_id,
+                &election,
+                BallotIdMatch::Exact(&receipt_ballot_id),
+            )
+            .await?
+            .iter()
+            .any(|cast| in_box(&cast.ballot.ballot)),
+        None => store
+            .voter_ballots(&event, voter_id)
+            .await?
+            .iter()
+            .any(|ballot| ballot.ballot_id == ballot_id && in_box(ballot)),
+    })
+}
+
 /// Wrapper struct for data specific to the ballot and the voter
 /// which won't be needed in the preview mode.
 #[derive(Serialize, Deserialize, Debug)]
@@ -122,44 +174,16 @@ impl TemplateRenderer for BallotTemplate {
             }
         };
 
-        let tennant_uuid = parse_uuid_v4(self.get_tenant_id().as_str())
-            .map_err(|err| anyhow!("Error parsing tenant id: {:?}", err))?;
-        let election_event_uuid = parse_uuid_v4(self.get_election_event_id().as_str())
-            .map_err(|err| anyhow!("Error parsing election event id: {:?}", err))?;
-
-        let ballot_uui = parse_uuid_v4(election_id.as_str())
-            .map_err(|err| anyhow!("Error parsing election id: {:?}", err))?;
-
-        let store = get_event_ballot_box(
+        let cast = voter_cast_ballot(
             hasura_transaction,
-            &tennant_uuid.to_string(),
-            &election_event_uuid.to_string(),
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            election_id,
+            voter_id,
+            area_id,
+            ballot_id,
         )
-        .await?
-        .store;
-        let (event, election) = (election_event_uuid.to_string(), ballot_uui.to_string());
-        // The authenticated receipt route resolves privacy identities before
-        // queueing this task, so its payload never carries the real voter ID.
-        let in_box =
-            |ballot: &StoredBallot| ballot.area_id == area_id && ballot.election_id == election;
-        // A ballot cast with a signed receipt goes by the receipt's Ballot ID.
-        let cast = match normalize_ballot_id(ballot_id) {
-            Some(receipt_ballot_id) => store
-                .received_cast_ballots(
-                    &event,
-                    voter_id,
-                    &election,
-                    BallotIdMatch::Exact(&receipt_ballot_id),
-                )
-                .await?
-                .iter()
-                .any(|cast| in_box(&cast.ballot.ballot)),
-            None => store
-                .voter_ballots(&event, voter_id)
-                .await?
-                .iter()
-                .any(|ballot| ballot.ballot_id == ballot_id && in_box(ballot)),
-        };
+        .await?;
 
         // Verify that the vote has been casted
         if !cast {
