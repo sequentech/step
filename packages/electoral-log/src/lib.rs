@@ -12,6 +12,7 @@ pub mod proofs;
 pub mod seal;
 #[cfg(feature = "native")]
 pub mod service;
+pub mod signature;
 pub mod signer;
 #[cfg(feature = "native")]
 pub mod util;

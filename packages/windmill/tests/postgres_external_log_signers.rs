@@ -289,8 +289,13 @@ async fn an_external_board_is_made_once_signed_by_its_key_and_never_replaced() -
 
     // It signs with the recorded key, and no software key exists.
     let signer = boards::get_board_signer(&tx, &tenant_id, Some(&event_id), board).await?;
-    let signature = signer.sign(b"entry")?;
-    key.verification_key()?.verify(&signature, b"entry")?;
+    // As every log signature: over a v3 signed message.
+    let entry = electoral_log::signature::signed_message(
+        electoral_log::signature::Domain::Statement,
+        b"entry",
+    );
+    let signature = signer.sign(&entry)?;
+    key.verification_key()?.verify(&signature, &entry)?;
     assert!(
         boards::get_board_signing_key(&tx, &tenant_id, Some(&event_id), board)
             .await

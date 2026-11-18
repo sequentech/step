@@ -282,7 +282,11 @@ fn sender_and_system_signatures_both_reject_changed_statement_bytes() -> Result<
     let mut changed = Message::record_deserialize(&encoded)?;
     changed.statement.head.event = EventIdString("other-event".into());
     assert!(changed.verify(&public).is_err());
-    changed.sender_signature = wrong_key.sign(&changed.statement.record_serialize()?)?;
+    changed.sender_signature = electoral_log::signature::sign(
+        &wrong_key,
+        electoral_log::signature::Domain::Statement,
+        &changed.statement.record_serialize()?,
+    )?;
     changed.sender.pk = VerificationKey::from_sk(&wrong_key)?;
     assert!(changed.verify(&public).is_err());
 
@@ -965,12 +969,12 @@ fn an_approval_matrix_version_is_an_event_wide_signed_record() -> Result<()> {
 
 #[test]
 fn ballot_box_seal_entries_are_signed_records_of_one_box() -> Result<()> {
-    use electoral_log::seal::{build, BallotBoxSealManifest, SEAL_FORMAT_V1};
+    use electoral_log::seal::{build, BallotBoxSealManifest, SEAL_FORMAT_V2};
 
     const AREA: &str = "synthetic-area";
     let (data, public) = signer()?;
     let built = build(BallotBoxSealManifest {
-        format: SEAL_FORMAT_V1.into(),
+        format: SEAL_FORMAT_V2.into(),
         tenant_id: "synthetic-tenant".into(),
         election_event_id: EVENT.into(),
         election_id: ELECTION.into(),

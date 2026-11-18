@@ -4,7 +4,7 @@
 
 use super::*;
 use crate::services::join::{merge_join_csv, MultiplicitySource};
-use electoral_log::seal::{SealEntry, SEAL_FORMAT_V1};
+use electoral_log::seal::{SealEntry, SEAL_FORMAT_V2};
 use serde_json::json;
 use std::io::Write;
 use tempfile::NamedTempFile;
@@ -133,7 +133,7 @@ fn sealed(
         })
         .collect();
     let manifest = electoral_log::seal::build(BallotBoxSealManifest {
-        format: SEAL_FORMAT_V1.into(),
+        format: SEAL_FORMAT_V2.into(),
         tenant_id: "tenant".into(),
         election_event_id: "event".into(),
         election_id: "election".into(),

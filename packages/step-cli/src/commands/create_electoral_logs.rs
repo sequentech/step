@@ -73,6 +73,7 @@ impl CreateElectoralLogs {
             .with_context(|| "Error in create Dummy VerificationKey")?;
 
         let message = &Message {
+            signature_version: electoral_log::signature::SIGNATURE_VERSION,
             sender: Sender {
                 name: username.clone().unwrap_or_default(),
                 pk: sender_pk,

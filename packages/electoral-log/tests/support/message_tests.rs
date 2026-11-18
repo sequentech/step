@@ -209,12 +209,18 @@ fn a_signer_held_elsewhere_signs_the_same_bytes_the_same_way() -> Result<()> {
     )?;
     // One call: sender and system are the same signer here...
     assert_eq!(system.calls.load(std::sync::atomic::Ordering::SeqCst), 1);
-    // ...are exactly what the key itself gives over the statement's bytes
-    // (Ed25519 is deterministic), and verify as before.
-    let bytes = message.statement.record_serialize()?;
+    // ...are exactly what the key itself gives over the statement's v3
+    // signed message (Ed25519 is deterministic), and verify as before.
+    let bytes = crate::signature::signed_message(
+        crate::signature::Domain::Statement,
+        &message.statement.record_serialize()?,
+    );
     assert_eq!(message.system_signature, system_key.sign(&bytes)?);
     assert_eq!(message.sender_signature, system_key.sign(&bytes)?);
     message.verify(&VerificationKey::from_sk(&system_key)?)?;
-    assert_eq!(signing_data.system_public_key()?, VerificationKey::from_sk(&system_key)?);
+    assert_eq!(
+        signing_data.system_public_key()?,
+        VerificationKey::from_sk(&system_key)?
+    );
     Ok(())
 }

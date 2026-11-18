@@ -7,11 +7,11 @@ use anyhow::Result;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
+use crate::signer::{software, MessageSigner, SharedSigner};
 use tracing::instrument;
 use voting_crypto::hash::HASH_LENGTH_BYTES;
 use voting_crypto::signing::Signature;
 use voting_crypto::signing::SigningKey;
-use crate::signer::{software, MessageSigner, SharedSigner};
 use voting_crypto::signing::VerificationKey;
 use voting_crypto::RecordSerialize;
 
@@ -39,6 +39,10 @@ pub const GENERIC_EVENT: &'static str = "Generic Event";
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, std::fmt::Debug)]
 pub struct Message {
+    /// The signature scheme of its signatures
+    /// ([`crate::signature::SIGNATURE_VERSION`]); first, so a stored
+    /// message's bytes start with it.
+    pub signature_version: u8,
     pub sender: Sender,
     pub sender_signature: Signature,
     pub system_signature: Signature,
@@ -1193,7 +1197,8 @@ impl Message {
         ballot_id: Option<String>,
     ) -> Result<Message> {
         let bytes = statement.record_serialize()?;
-        let sender_signature: Signature = sender.sign(&bytes)?;
+        let sender_signature: Signature =
+            crate::signature::sign(sender, crate::signature::Domain::Statement, &bytes)?;
         // The same signer object in both roles (a system-authored message)
         // signs once: one key signing the same bytes gives a valid signature
         // for both, and a remote signer would make a second round trip.
@@ -1204,12 +1209,13 @@ impl Message {
         let system_signature: Signature = if same_signer {
             sender_signature.clone()
         } else {
-            system.sign(&bytes)?
+            crate::signature::sign(system, crate::signature::Domain::Statement, &bytes)?
         };
         let sender_pk = sender.public_key()?;
         let sender = Sender::new(sender_name.to_string(), sender_pk);
 
         Ok(Message {
+            signature_version: crate::signature::SIGNATURE_VERSION,
             sender,
             sender_signature,
             system_signature,
@@ -1223,10 +1229,30 @@ impl Message {
         })
     }
 
+    /// Refuses a message whose signatures are of another scheme than this
+    /// build's.
+    pub fn check_signature_version(&self) -> Result<()> {
+        if self.signature_version != crate::signature::SIGNATURE_VERSION {
+            return Err(anyhow::anyhow!(
+                "the message's signatures are of scheme v{}, not v{} (refused)",
+                self.signature_version,
+                crate::signature::SIGNATURE_VERSION
+            ));
+        }
+        Ok(())
+    }
+
     pub fn verify(&self, system_pk: &VerificationKey) -> Result<()> {
+        use crate::signature::{verify, Domain};
+        self.check_signature_version()?;
         let bytes = self.statement.record_serialize()?;
-        self.sender.pk.verify(&self.sender_signature, &bytes)?;
-        system_pk.verify(&self.system_signature, &bytes)?;
+        verify(
+            &self.sender.pk,
+            &self.sender_signature,
+            Domain::Statement,
+            &bytes,
+        )?;
+        verify(system_pk, &self.system_signature, Domain::Statement, &bytes)?;
 
         Ok(())
     }
@@ -1285,15 +1311,24 @@ impl SigningData {
     pub fn system_public_key(&self) -> Result<VerificationKey> {
         self.system.public_key()
     }
-    /// Sign arbitrary bytes with the event system key.
-    pub fn system_sign(&self, msg: &[u8]) -> Result<Signature> {
-        self.system.sign(msg)
+    /// Signs `canonical` with the event system key under `domain`
+    /// ([`crate::signature`]): never raw bytes.
+    pub fn system_sign(
+        &self,
+        domain: crate::signature::Domain,
+        canonical: &[u8],
+    ) -> Result<Signature> {
+        crate::signature::sign(self.system.as_ref(), domain, canonical)
     }
     pub fn new(sender_sk: SigningKey, sender_name: &str, system_sk: SigningKey) -> SigningData {
         Self::with_signers(software(sender_sk), sender_name, software(system_sk))
     }
     /// With signers whose keys may be held elsewhere (see [`MessageSigner`]).
-    pub fn with_signers(sender: SharedSigner, sender_name: &str, system: SharedSigner) -> SigningData {
+    pub fn with_signers(
+        sender: SharedSigner,
+        sender_name: &str,
+        system: SharedSigner,
+    ) -> SigningData {
         SigningData {
             sender,
             sender_name: sender_name.to_string(),

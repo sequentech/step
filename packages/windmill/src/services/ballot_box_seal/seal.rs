@@ -58,7 +58,7 @@ use electoral_log::adapters::postgres::{append_in, PostgresStore};
 use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::EventIdString;
 use electoral_log::seal::{
-    ballot_hash, build, BallotBoxSealManifest, SealDisposition, SealEntry, SEAL_FORMAT_V1,
+    ballot_hash, build, BallotBoxSealManifest, SealDisposition, SealEntry, SEAL_FORMAT_V2,
 };
 use electoral_log::LogEntry;
 use sequent_core::ballot::{
@@ -498,7 +498,7 @@ async fn seal_prepared(client: &mut DbClient, prepared: Prepared) -> Result<Seal
     let sealed_at = DateTime::<Utc>::from_timestamp(seconds, 0)
         .ok_or_else(|| anyhow!("The current time is not representable"))?;
     let built = build(BallotBoxSealManifest {
-        format: SEAL_FORMAT_V1.to_string(),
+        format: SEAL_FORMAT_V2.to_string(),
         tenant_id: seal.tenant_id.to_string(),
         election_event_id: ids.election_event_id.clone(),
         election_id: ids.election_id.clone(),

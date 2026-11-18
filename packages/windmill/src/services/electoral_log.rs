@@ -9,7 +9,6 @@ use crate::services::database::{get_hasura_pool, PgConfig};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log_board::get_board_client;
 use crate::services::electoral_log_board::get_board_signer;
-use electoral_log::signer::{software, SharedSigner};
 use crate::services::electoral_log_board::get_event_board;
 use crate::services::electoral_log_board::get_tenant_board;
 use crate::services::electoral_log_board::TenantLog;
@@ -32,6 +31,7 @@ use electoral_log::domain::{
 use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::{CertificateAuthEventAction, *};
 use electoral_log::messages::statement::{StatementBody, StatementType};
+use electoral_log::signer::{software, SharedSigner};
 use electoral_log::{
     ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,
 };
@@ -557,7 +557,9 @@ pub fn sign_checkpoint(
             root: hex::encode(&checkpoint.root),
             reason: reason.to_string(),
             signer_pk: sd.system_public_key()?.to_b64_string()?,
-            signature: sd.system_sign(&bytes)?.to_b64_string()?,
+            signature: sd
+                .system_sign(electoral_log::signature::Domain::Checkpoint, &bytes)?
+                .to_b64_string()?,
         },
     )
 }

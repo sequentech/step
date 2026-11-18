@@ -31,7 +31,7 @@ use deadpool_postgres::Transaction;
 use electoral_log::adapters::ballot_box_seal::{box_ballots, BallotBoxId};
 use electoral_log::adapters::postgres::PostgresStore;
 use electoral_log::messages::message::{Message, SigningData};
-use electoral_log::seal::{ballot_hash, build, BallotBoxSealManifest, SEAL_FORMAT_V1};
+use electoral_log::seal::{ballot_hash, build, BallotBoxSealManifest, SEAL_FORMAT_V2};
 use event_database::{EventDatabase, Vote};
 use sequent_core::ballot::{
     EGracePeriodPolicy, ElectionEventStatus, ElectionPresentation, ElectionStatus,
@@ -475,7 +475,7 @@ fn seal_130_boxes_the_largest_with_50k_ballots() {
             );
             let started = Instant::now();
             let built = build(BallotBoxSealManifest {
-                format: SEAL_FORMAT_V1.to_string(),
+                format: SEAL_FORMAT_V2.to_string(),
                 tenant_id: tenant.to_string(),
                 election_event_id: event_id.clone(),
                 election_id: election_id.clone(),

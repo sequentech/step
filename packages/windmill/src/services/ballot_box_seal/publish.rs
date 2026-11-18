@@ -92,14 +92,15 @@ pub fn record_public_path(
 /// The key that signed a seal message as system: its sender's, checked
 /// against the system signature (the event key signs as both).
 pub fn signing_key_of(message: &Message) -> Result<VerificationKey> {
+    message.check_signature_version()?;
     let statement = message.statement.record_serialize()?;
-    message
-        .sender
-        .pk
-        .verify(&message.system_signature, &statement)
-        .map_err(|error| {
-            anyhow!("The seal message isn't signed by its sender as system: {error}")
-        })?;
+    electoral_log::signature::verify(
+        &message.sender.pk,
+        &message.system_signature,
+        electoral_log::signature::Domain::Statement,
+        &statement,
+    )
+    .map_err(|error| anyhow!("The seal message isn't signed by its sender as system: {error}"))?;
     Ok(message.sender.pk.clone())
 }
 

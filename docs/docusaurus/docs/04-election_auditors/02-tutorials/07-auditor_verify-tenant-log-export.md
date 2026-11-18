@@ -122,7 +122,8 @@ both ends included, to the minute.
 
 ## 4. Verify the signatures
 
-Every entry carries two Ed25519 signatures over the same message, the bytes in `statement`:
+Every entry carries two Ed25519 signatures over the same message, made from the bytes in
+`statement` (the electoral log's signature scheme v3):
 
 | Signature | Verify with |
 |---|---|
@@ -133,7 +134,11 @@ Encodings:
 
 - A public key is the base64 (standard alphabet, with padding) of its 32 raw bytes.
 - A signature is 64 raw bytes.
-- The message is `statement` as stored, with nothing added and no hashing beforehand.
+- The signed message is the ASCII domain `sequent-electoral-log/statement-signature/v3`, one zero
+  byte, then the 32-byte SHA-256 of `statement` as stored. It is plain Ed25519 over that message
+  (not Ed25519ph).
+- Signatures made before v3 were over `statement` itself; they do not verify this way, and logs
+  from before v3 are not supported.
 
 An entry of a change an administrator made (`sender_name` is not empty) is signed with that person's
 admin key and with the log's system key. Any other entry, sign-ins included, is signed twice with the
@@ -144,6 +149,7 @@ the database you loaded:
 
 ```python
 import base64
+import hashlib
 import sys
 
 import psycopg
@@ -151,8 +157,15 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 
+DOMAIN = b"sequent-electoral-log/statement-signature/v3"
+
+
 def public_key(encoded):
     return Ed25519PublicKey.from_public_bytes(base64.b64decode(encoded))
+
+
+def signed_message(statement):
+    return DOMAIN + b"\x00" + hashlib.sha256(statement).digest()
 
 
 with psycopg.connect(sys.argv[1]) as db:
@@ -180,7 +193,7 @@ with psycopg.connect(sys.argv[1]) as db:
                 print(f"{log} {entry}: no {name} key to verify with")
                 continue
             try:
-                key.verify(bytes(signature), bytes(statement))
+                key.verify(bytes(signature), signed_message(bytes(statement)))
             except InvalidSignature:
                 failed += 1
                 print(f"{log} {entry}: the {name} signature does not verify")

@@ -28,7 +28,7 @@ use electoral_log::messages::statement::StatementType;
 use electoral_log::ports::ElectoralLogStore;
 use electoral_log::seal::{
     ballot_hash, build, BallotBoxSealManifest, BuiltSeal, SealDisposition, SealEntry,
-    SEAL_FORMAT_V1,
+    SEAL_FORMAT_V2,
 };
 use electoral_log::{Filter, LogEntry, LogQuery, SqlCompOperators, TextColumn};
 use event_database::{EventDatabase, Vote};
@@ -186,7 +186,7 @@ impl World {
 
     fn manifest(&self, entries: Vec<SealEntry>, eligible_voters: u64) -> BallotBoxSealManifest {
         BallotBoxSealManifest {
-            format: SEAL_FORMAT_V1.into(),
+            format: SEAL_FORMAT_V2.into(),
             tenant_id: self.tenant.to_string(),
             election_event_id: self.event.to_string(),
             election_id: self.election.to_string(),

@@ -637,8 +637,8 @@ mod tests {
     use super::*;
     use crate::services::electoral_log::sign_checkpoint;
     use electoral_log::messages::message::SigningData;
-    use voting_crypto::signing::VerificationKey;
     use voting_crypto::signing::SigningKey;
+    use voting_crypto::signing::VerificationKey;
 
     fn publication(sk: &SigningKey, board: &str, size: i64) -> PublishedCheckpoint {
         let checkpoint = Checkpoint {

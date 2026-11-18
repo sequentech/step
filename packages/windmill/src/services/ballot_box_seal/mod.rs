@@ -38,6 +38,7 @@ use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use electoral_log::adapters::ballot_box_seal::is_sealed_refusal;
 use electoral_log::adapters::postgres::PostgresStore;
+use electoral_log::signer::SharedSigner;
 use sequent_core::ballot::{
     BallotBoxSealPolicy, BallotBoxSealRecordPolicy, BallotStyle as SequentBallotStyle,
     DelegatedVotingPolicy, ElectionEventPresentation, WeightedVotingPolicy,
@@ -51,7 +52,6 @@ use std::collections::{BTreeSet, HashMap};
 use tempfile::NamedTempFile;
 use tracing::{error, info, instrument};
 use uuid::Uuid;
-use electoral_log::signer::SharedSigner;
 use voting_crypto::signing::SigningKey;
 use voting_crypto::RistrettoCtx;
 
