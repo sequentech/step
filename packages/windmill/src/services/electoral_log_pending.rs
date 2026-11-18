@@ -42,10 +42,31 @@
 //!
 //! Producers whose rule is that a failure to record stops the action never
 //! queue: they keep failing visibly.
+//!
+//! **Administrator-signed entries** (certificate-authority imports and
+//! deletions). The administrator's proof is made at the time of the action,
+//! with their own vault key (the key a direct post signs with), over the exact
+//! statement, and carried unchanged; only the board's attestation waits. The
+//! batch task never looks an administrator's key up: it checks the signature
+//! with the key the row names, and that this key is the one the tenant's log
+//! announces for that administrator (an `AdminPublicKey` entry signed by the
+//! tenant log's system key, written when the vault made the key); otherwise
+//! the entry is refused and never attested. The action queues its entry before
+//! its transaction commits (fail closed: no entry, no commit), due only after
+//! a delay so it is not attested before that commit, and withdraws it if the
+//! commit fails.
+//!
+//! **The producer role** (Harvest; Keycloak shares it) can't write the table.
+//! It may only call `step_queue.queue_pending_statement`, which accepts just the
+//! kinds that role is allowed (a ballot publication's failure), checks their
+//! form, origin, delivery ID and time, and writes the row as its owner. Queue
+//! write access thus gains no signing authority beyond that allow-list.
 
 use crate::tasks::electoral_log::{LogEventBody, LogEventInput, LogMessageType};
 use anyhow::{anyhow, ensure, Context, Result};
 use electoral_log::messages::message::{Message, SigningData};
+use electoral_log::messages::newtypes::CertificateAuthEventAction;
+use voting_crypto::signing::{Signature, VerificationKey};
 use electoral_log::messages::newtypes::{
     BallotPublicationFailure, CastVoteErrorString, ElectionIdString, ErrorMessageString,
     EventIdString, KeycloakEventTypeString, PseudonymHash,
@@ -92,6 +113,26 @@ pub fn pending_ref(body: &str) -> Option<String> {
     })
 }
 
+/// Withdraws a pending statement queued for an action that was then rolled
+/// back, before it is signed: its reference then names no row and is
+/// dead-lettered. Returns whether it was still waiting.
+pub async fn cancel(delivery_id: &str) -> Result<bool> {
+    use crate::services::electoral_log_deferral::WAITING_TABLE;
+    let client = crate::services::database::get_queue_pool()
+        .await
+        .get()
+        .await
+        .context("Error connecting to the task-queue database")?;
+    Ok(client
+        .execute(
+            &format!("DELETE FROM {WAITING_TABLE} WHERE delivery_id = $1 AND statement IS NOT NULL"),
+            &[&delivery_id],
+        )
+        .await
+        .context("Error withdrawing a pending statement")?
+        > 0)
+}
+
 /// A pending statement as a worker wrote it in the waiting table.
 #[derive(Clone, Debug)]
 pub struct StoredPending {
@@ -134,6 +175,9 @@ pub enum PendingOrigin {
     EnrollmentWindows,
     /// A ballot publication's failure (`log_ballot_publication_failure`).
     BallotPublication,
+    /// A certificate-authority import or deletion (`certificate_authority`),
+    /// signed by its administrator at the time of the action.
+    CertificateAuthority,
 }
 
 impl PendingOrigin {
@@ -142,6 +186,7 @@ impl PendingOrigin {
             PendingOrigin::CastVoteRefusal => "cast-vote-refusal",
             PendingOrigin::EnrollmentWindows => "enrollment-windows",
             PendingOrigin::BallotPublication => "ballot-publication",
+            PendingOrigin::CertificateAuthority => "certificate-authority",
         }
     }
 
@@ -171,6 +216,22 @@ pub enum PendingStatementBody {
         failure: BallotPublicationFailure,
         username: Option<String>,
     },
+    /// `Message::certificate_auth_event_message`, already signed by its
+    /// administrator: the statement is rebuilt from these fields at the
+    /// statement's time, the administrator's signature over it is checked
+    /// with `admin_public_key` (which the batch task also checks is announced
+    /// for `user_id` in the tenant's log), and only the board's signature is
+    /// added. Never re-signed with another key.
+    AdminCertificateEvent {
+        action: CertificateAuthEventAction,
+        subject_dns: Vec<String>,
+        user_id: String,
+        username: Option<String>,
+        /// The administrator's public key, as their tenant log announces it.
+        admin_public_key: String,
+        /// The administrator's signature over the statement.
+        admin_signature: String,
+    },
 }
 
 impl PendingStatementBody {
@@ -182,6 +243,21 @@ impl PendingStatementBody {
             PendingStatementBody::BallotPublicationFailure { .. } => {
                 PendingOrigin::BallotPublication
             }
+            PendingStatementBody::AdminCertificateEvent { .. } => {
+                PendingOrigin::CertificateAuthority
+            }
+        }
+    }
+
+    /// For a statement its administrator signed: who, and with which key.
+    pub fn admin(&self) -> Option<(&str, &str)> {
+        match self {
+            PendingStatementBody::AdminCertificateEvent {
+                user_id,
+                admin_public_key,
+                ..
+            } => Some((user_id.as_str(), admin_public_key.as_str())),
+            _ => None,
         }
     }
 
@@ -224,6 +300,30 @@ impl PendingStatementBody {
                     username.clone(),
                 )
             }
+            PendingStatementBody::AdminCertificateEvent {
+                action,
+                subject_dns,
+                user_id,
+                username,
+                admin_public_key,
+                admin_signature,
+            } => {
+                let statement =
+                    Message::certificate_auth_event_statement(event, action.clone(), subject_dns.clone());
+                let admin_pk = VerificationKey::from_b64_string(admin_public_key)
+                    .context("The administrator's public key is unreadable")?;
+                let signature = Signature::from_b64_string(admin_signature)
+                    .context("The administrator's signature is unreadable")?;
+                // The administrator's own signature, checked, then the board's.
+                sd.attest(
+                    statement,
+                    "",
+                    admin_pk,
+                    signature,
+                    Some(user_id.clone()),
+                    username.clone(),
+                )
+            }
         }
     }
 
@@ -244,6 +344,13 @@ impl PendingStatementBody {
                 failure.task_id.as_str(),
                 optional(username),
             ],
+            PendingStatementBody::AdminCertificateEvent {
+                user_id,
+                username,
+                admin_public_key,
+                admin_signature,
+                ..
+            } => vec![user_id, optional(username), admin_public_key, admin_signature],
         }
     }
 
@@ -254,6 +361,9 @@ impl PendingStatementBody {
             PendingStatementBody::EnrollmentProblems { problems } => vec![problems],
             PendingStatementBody::BallotPublicationFailure { failure, .. } => {
                 vec![failure.error.0.as_str()]
+            }
+            PendingStatementBody::AdminCertificateEvent { subject_dns, .. } => {
+                subject_dns.iter().map(String::as_str).collect()
             }
         }
     }
@@ -320,12 +430,25 @@ impl PendingStatement {
     /// log's direct posts are refused until it is stored. Returns its
     /// delivery ID.
     pub async fn queue(&self) -> Result<String> {
+        self.queue_after(0).await
+    }
+
+    /// As [`PendingStatement::queue`], due only `delay_secs` later: a
+    /// statement queued before its action's own transaction commits is not
+    /// signed before that commit, nor after its rollback ([`cancel`]).
+    ///
+    /// A worker writes the waiting table itself. A process of the producer
+    /// role (Harvest), which may not write it, calls the one function it may:
+    /// `step_queue.queue_pending_statement`, which accepts only the kinds the
+    /// producer role is allowed and checks them (`pgmq-broker`'s `setup.sql`).
+    pub async fn queue_after(&self, delay_secs: i32) -> Result<String> {
         use crate::services::electoral_log_deferral::{lock_scopes, WAITING_TABLE};
         let delivery_id = self.origin.delivery_id();
         let reference = crate::services::electoral_log_dead_letter::event_message(
             &self.reference_event(&delivery_id)?,
         )?;
         let statement = serde_json::to_value(self).context("Error serializing a pending statement")?;
+        let queue = crate::services::celery_app::Queue::ElectoralLogEvent.queue_name();
         let mut client = crate::services::database::get_queue_pool()
             .await
             .get()
@@ -336,28 +459,45 @@ impl PendingStatement {
             .await
             .context("Error starting the pending statement's transaction")?;
         lock_scopes(&*tx, &[self.scope()]).await?;
-        tx.execute(
-            &format!(
-                "INSERT INTO {WAITING_TABLE} (delivery_id, scope, since_ms, ord, due_at, statement) \
-                 VALUES ($1, $2, (extract(epoch FROM clock_timestamp()) * 1000)::bigint, 0, \
-                 clock_timestamp(), $3)"
-            ),
-            &[&delivery_id, &self.scope(), &statement],
-        )
-        .await
-        .context("Error writing a pending statement")?;
-        tx.query_one(
-            "SELECT pgmq.send($1::text, $2::jsonb)",
-            &[
-                &crate::services::celery_app::Queue::ElectoralLogEvent.queue_name(),
-                &reference,
-            ],
-        )
-        .await
-        .context("Error queueing a pending statement's reference")?;
-        tx.commit()
-            .await
-            .context("Error committing a pending statement")?;
+        let written = tx
+            .execute(
+                &format!(
+                    "INSERT INTO {WAITING_TABLE} (delivery_id, scope, since_ms, ord, due_at, statement) \
+                     VALUES ($1, $2, (extract(epoch FROM clock_timestamp()) * 1000)::bigint, 0, \
+                     clock_timestamp() + make_interval(secs => $4::integer), $3)"
+                ),
+                &[&delivery_id, &self.scope(), &statement, &delay_secs],
+            )
+            .await;
+        match written {
+            Ok(_) => {
+                tx.query_one(
+                    "SELECT pgmq.send($1::text, $2::jsonb, $3::integer)",
+                    &[&queue, &reference, &delay_secs],
+                )
+                .await
+                .context("Error queueing a pending statement's reference")?;
+                tx.commit()
+                    .await
+                    .context("Error committing a pending statement")?;
+            }
+            Err(error)
+                if error.code() == Some(&tokio_postgres::error::SqlState::INSUFFICIENT_PRIVILEGE) =>
+            {
+                // The producer role: through its one allowed function.
+                drop(tx);
+                client
+                    .query_one(
+                        "SELECT step_queue.queue_pending_statement($1, $2, $3, $4)",
+                        &[&delivery_id, &statement, &reference, &delay_secs],
+                    )
+                    .await
+                    .context("Error queueing a pending statement through the producer function")?;
+            }
+            Err(error) => {
+                return Err(anyhow::Error::new(error).context("Error writing a pending statement"))
+            }
+        }
         tracing::warn!(
             origin = self.origin.as_str(),
             delivery_id = delivery_id.as_str(),
@@ -460,6 +600,7 @@ fn statement_kind(statement: &PendingStatementBody) -> &'static str {
         PendingStatementBody::CastVoteError { .. } => "cast-vote-error",
         PendingStatementBody::EnrollmentProblems { .. } => "enrollment-problems",
         PendingStatementBody::BallotPublicationFailure { .. } => "ballot-publication-failure",
+        PendingStatementBody::AdminCertificateEvent { .. } => "admin-certificate-event",
     }
 }
 
@@ -643,5 +784,80 @@ mod tests {
 
         // A signed record's body is no reference.
         assert_eq!(pending_ref(r#"{"id":0,"message":[1]}"#), None);
+    }
+
+    fn certificate_event(admin: &SigningKey) -> PendingStatement {
+        crate::services::electoral_log::admin_signed_certificate_event(
+            admin,
+            TENANT,
+            EVENT,
+            CertificateAuthEventAction::Import,
+            vec!["CN=one".into()],
+            "admin-id",
+            Some("admin".into()),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn an_admin_signed_certificate_event_keeps_the_admin_signature_and_adds_only_the_boards() {
+        let admin = SigningKey::generate().unwrap();
+        let board = SigningKey::generate().unwrap();
+        let pending = certificate_event(&admin);
+        let (event, stored) = queued(&pending);
+        let read = reread(&event, &stored).unwrap();
+        assert_eq!(
+            read.statement.admin(),
+            Some((
+                "admin-id",
+                VerificationKey::from_sk(&admin).unwrap().to_b64_string().unwrap().as_str()
+            ))
+        );
+        // The board's signer (the system key here) attests; the sender is the admin.
+        let sd = SigningData::new(board.clone(), "", board.clone());
+        let message = read.sign(&sd).unwrap();
+        message
+            .verify(&VerificationKey::from_sk(&board).unwrap())
+            .unwrap();
+        assert_eq!(message.sender.pk, VerificationKey::from_sk(&admin).unwrap());
+        assert_eq!(message.statement.head.timestamp, pending.occurred_at);
+        assert_eq!(message.user_id.as_deref(), Some("admin-id"));
+    }
+
+    #[test]
+    fn a_tampered_or_foreign_admin_signed_event_is_never_attested() {
+        let admin = SigningKey::generate().unwrap();
+        let other = SigningKey::generate().unwrap();
+        let board = SigningKey::generate().unwrap();
+        let sd = SigningData::new(board.clone(), "", board);
+        let pending = certificate_event(&admin);
+
+        // Tampered: another subject than the one the admin signed.
+        let mut tampered = pending.clone();
+        if let PendingStatementBody::AdminCertificateEvent { subject_dns, .. } =
+            &mut tampered.statement
+        {
+            *subject_dns = vec!["CN=two".into()];
+        }
+        assert!(tampered.sign(&sd).is_err());
+        // Another time than the one signed.
+        let mut moved = pending.clone();
+        moved.occurred_at -= 1;
+        assert!(moved.sign(&sd).is_err());
+        // Another key named as the admin's.
+        let mut foreign = pending.clone();
+        if let PendingStatementBody::AdminCertificateEvent {
+            admin_public_key, ..
+        } = &mut foreign.statement
+        {
+            *admin_public_key = VerificationKey::from_sk(&other).unwrap().to_b64_string().unwrap();
+        }
+        assert!(foreign.sign(&sd).is_err());
+        // Its own origin only.
+        let mut wrong_origin = pending.clone();
+        wrong_origin.origin = PendingOrigin::BallotPublication;
+        let (event, mut row) = queued(&pending);
+        row.statement = serde_json::to_value(&wrong_origin).unwrap();
+        assert!(reread(&event, &row).is_err());
     }
 }

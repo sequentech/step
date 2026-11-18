@@ -46,6 +46,7 @@ use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use tracing::{event, info, instrument};
 use uuid::Uuid;
+use voting_crypto::RecordDeserialize;
 use voting_crypto::RistrettoCtx;
 
 /// Classifies the type of an incoming log event.
@@ -688,6 +689,16 @@ trait BatchLookups {
         &mut self,
         delivery_id: &str,
     ) -> anyhow::Result<Option<crate::services::electoral_log_pending::StoredPending>>;
+
+    /// Whether the tenant's log announces `public_key` (base64) as the signing
+    /// key of administrator `user_id`: an `AdminPublicKey` entry for them,
+    /// signed by the tenant log's system key.
+    async fn admin_key_announced(
+        &mut self,
+        tenant_id: &str,
+        user_id: &str,
+        public_key: &str,
+    ) -> anyhow::Result<bool>;
 }
 
 struct DbLookups<'a, 'b> {
@@ -775,6 +786,63 @@ impl BatchLookups for DbLookups<'_, '_> {
     ) -> anyhow::Result<Option<crate::services::electoral_log_pending::StoredPending>> {
         crate::services::electoral_log_pending::load(self.queue, delivery_id).await
     }
+
+    async fn admin_key_announced(
+        &mut self,
+        tenant_id: &str,
+        user_id: &str,
+        public_key: &str,
+    ) -> anyhow::Result<bool> {
+        use electoral_log::domain::{Filter, LogQuery, SqlCompOperators, TextColumn};
+        use electoral_log::messages::statement::StatementType;
+        let log = ensure_tenant_log(self.hasura, tenant_id)
+            .await
+            .context("Error getting the tenant log")?;
+        let system_pk = voting_crypto::signing::VerificationKey::from_sk(&log.system_key)?;
+        let mut query = LogQuery::default();
+        query.filters.push(Filter::Text(
+            TextColumn::StatementKind,
+            SqlCompOperators::Equal,
+            StatementType::AdminPublicKey.to_string(),
+        ));
+        query.filters.push(Filter::Text(
+            TextColumn::UserId,
+            SqlCompOperators::Equal,
+            user_id.to_string(),
+        ));
+        let entries = get_board_client()
+            .await?
+            .query(&log.board, &query)
+            .await
+            .context("Error reading the tenant log's administrator keys")?;
+        Ok(entries
+            .iter()
+            .any(|entry| announces_admin_key(entry, tenant_id, user_id, public_key, &system_pk)))
+    }
+}
+
+/// Whether a tenant-log entry announces `public_key` as administrator
+/// `user_id`'s key: an `AdminPublicKey` statement of that tenant and user,
+/// whose signatures verify with the tenant log's system key.
+fn announces_admin_key(
+    entry: &ElectoralLogMessage,
+    tenant_id: &str,
+    user_id: &str,
+    public_key: &str,
+    system_pk: &voting_crypto::signing::VerificationKey,
+) -> bool {
+    use electoral_log::messages::statement::StatementBody;
+    let Ok(message) = Message::record_deserialize(&entry.message) else {
+        return false;
+    };
+    if message.verify(system_pk).is_err() {
+        return false;
+    }
+    matches!(
+        &message.statement.body,
+        StatementBody::AdminPublicKey(tenant, Some(user), key)
+            if tenant.0 == tenant_id && user == user_id && key.0 == public_key
+    )
 }
 
 /// Lookups already made for this batch, by (tenant, election event), and the
@@ -962,6 +1030,19 @@ async fn build_event<L: BatchLookups + Send>(
             )
             .context("Refused pending statement")
             .map_err(Permanent)?;
+            // An administrator's signature is attested only for the key their
+            // tenant log announces for them, never for a key the row names alone.
+            if let Some((user_id, public_key)) = pending.statement.admin() {
+                let announced = lookups
+                    .admin_key_announced(&input.tenant_id, user_id, public_key)
+                    .await
+                    .map_err(Transient)?;
+                if !announced {
+                    return Err(Permanent(anyhow!(
+                        "Refused pending statement: its administrator's key is not the one their tenant log announces"
+                    )));
+                }
+            }
             load_signer(lookups, cache, input, &board).await?;
             let signer = cache
                 .signers
@@ -1845,6 +1926,8 @@ mod batch_build_tests {
         sign_calls: Arc<AtomicUsize>,
         /// Pending statements as workers wrote them, by delivery ID.
         pending: HashMap<String, StoredPending>,
+        /// Administrator keys the tenant log announces: (user ID, key).
+        announced: HashSet<(String, String)>,
         board_calls: usize,
         signer_calls: usize,
         tenant_log_calls: usize,
@@ -1861,6 +1944,7 @@ mod batch_build_tests {
                 lost_answers: Arc::new(AtomicUsize::new(0)),
                 sign_calls: Arc::new(AtomicUsize::new(0)),
                 pending: HashMap::new(),
+                announced: HashSet::new(),
                 board_calls: 0,
                 signer_calls: 0,
                 tenant_log_calls: 0,
@@ -1952,6 +2036,17 @@ mod batch_build_tests {
             delivery_id: &str,
         ) -> anyhow::Result<Option<StoredPending>> {
             Ok(self.pending.get(delivery_id).cloned())
+        }
+
+        async fn admin_key_announced(
+            &mut self,
+            _tenant_id: &str,
+            user_id: &str,
+            public_key: &str,
+        ) -> anyhow::Result<bool> {
+            Ok(self
+                .announced
+                .contains(&(user_id.to_string(), public_key.to_string())))
         }
     }
 
@@ -2491,6 +2586,84 @@ mod batch_build_tests {
         durable.round(&mut lookups, vec![]).await;
         assert_eq!(durable.board(DOWN_SIGNER_EVENT), vec![trusted_id.as_str()]);
         assert_eq!(durable.dead_letters.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn an_admin_signed_entry_is_attested_only_for_the_key_its_tenant_log_announces() {
+        use crate::services::electoral_log::admin_signed_certificate_event;
+        use electoral_log::messages::newtypes::CertificateAuthEventAction;
+        let admin = SigningKey::generate().unwrap();
+        let impostor = SigningKey::generate().unwrap();
+        let mut lookups = FakeLookups::new();
+        lookups
+            .failing_signers
+            .insert(DOWN_SIGNER_EVENT, SignerOutage::Unavailable);
+        let announced = VerificationKey::from_sk(&admin).unwrap().to_b64_string().unwrap();
+        lookups
+            .announced
+            .insert(("admin-id".to_string(), announced));
+        let entry = |key: &SigningKey, user: &str| {
+            admin_signed_certificate_event(
+                key,
+                TENANT,
+                DOWN_SIGNER_EVENT,
+                CertificateAuthEventAction::Delete,
+                vec!["CN=one".into()],
+                user,
+                None,
+            )
+            .unwrap()
+        };
+        // A key never announced for that administrator, and another
+        // administrator's name on the admin's key: refused, never attested.
+        let impostor_event = queue_pending(&mut lookups, &entry(&impostor, "admin-id"));
+        let wrong_user = queue_pending(&mut lookups, &entry(&admin, "someone-else"));
+        let trusted = queue_pending(&mut lookups, &entry(&admin, "admin-id"));
+        let ids: Vec<String> = [&impostor_event, &wrong_user, &trusted]
+            .iter()
+            .map(|event| event.delivery_id.clone().unwrap())
+            .collect();
+
+        let mut durable = Durable::default();
+        durable
+            .round(&mut lookups, vec![impostor_event, wrong_user, trusted])
+            .await;
+        assert_eq!(durable.dead_letters, ids[..2].to_vec());
+        assert_eq!(lookups.sign_calls.load(Ordering::SeqCst), 1, "only the trusted one");
+        // The board's signer is back: attested and stored once.
+        lookups.failing_signers.remove(DOWN_SIGNER_EVENT);
+        durable.round(&mut lookups, vec![]).await;
+        assert_eq!(durable.board(DOWN_SIGNER_EVENT), vec![ids[2].as_str()]);
+    }
+
+    #[test]
+    fn a_tenant_log_entry_announces_an_admin_key_only_when_signed_by_its_system_key() {
+        use electoral_log::messages::newtypes::{PublicKeyDerB64, TenantIdString};
+        use electoral_log::messages::message::SigningData;
+        let system = SigningKey::generate().unwrap();
+        let other = SigningKey::generate().unwrap();
+        let admin_pk = "QUJD".to_string();
+        let announce = |key: &SigningKey, user: &str| {
+            let sd = SigningData::new(key.clone(), "", key.clone());
+            let message = Message::admin_public_key_message(
+                TenantIdString(TENANT.into()),
+                Some(user.into()),
+                None,
+                PublicKeyDerB64(admin_pk.clone()),
+                &sd,
+                None,
+                None,
+            )
+            .unwrap();
+            ElectoralLogMessage::try_from(&message).unwrap()
+        };
+        let system_pk = VerificationKey::from_sk(&system).unwrap();
+        assert!(announces_admin_key(&announce(&system, "admin-id"), TENANT, "admin-id", &admin_pk, &system_pk));
+        // Another user, another key, another tenant, another signer: no.
+        assert!(!announces_admin_key(&announce(&system, "other"), TENANT, "admin-id", &admin_pk, &system_pk));
+        assert!(!announces_admin_key(&announce(&system, "admin-id"), TENANT, "admin-id", "WFla", &system_pk));
+        assert!(!announces_admin_key(&announce(&system, "admin-id"), UNKNOWN_TENANT, "admin-id", &admin_pk, &system_pk));
+        assert!(!announces_admin_key(&announce(&other, "admin-id"), TENANT, "admin-id", &admin_pk, &system_pk));
     }
 
     #[tokio::test]
@@ -3466,6 +3639,103 @@ mod pgmq_tests {
         )
         .await
         .unwrap();
+        drop_queues(&client, &queues).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PGMQ_TEST_DATABASE_URL pointing to a disposable database"]
+    async fn the_producer_function_queues_only_what_the_producer_role_may() {
+        use crate::services::electoral_log_pending::{PendingStatement, PendingStatementBody};
+        use electoral_log::messages::newtypes::{
+            BallotPublicationFailure, BallotPublicationIdString, BallotPublicationStage,
+            ErrorMessageString,
+        };
+        let pool = test_pool();
+        // Its queues and the function, as the setup makes them.
+        let queues = test_queues(&pool, "producer").await;
+        let client = pool.get().await.unwrap();
+        client
+            .batch_execute(
+                "SELECT pgmq.create('electoral_log_event_queue') WHERE NOT EXISTS \
+                 (SELECT 1 FROM pgmq.meta WHERE queue_name = 'electoral_log_event_queue')",
+            )
+            .await
+            .unwrap();
+        let tenant = uuid::Uuid::new_v4().to_string();
+        let event = uuid::Uuid::new_v4().to_string();
+        let failure = PendingStatement::new(
+            &tenant,
+            &event,
+            PendingStatementBody::BallotPublicationFailure {
+                failure: BallotPublicationFailure {
+                    publication_id: BallotPublicationIdString("publication".into()),
+                    task_id: "task".into(),
+                    stage: BallotPublicationStage::Publish,
+                    error: ErrorMessageString("refused".into()),
+                },
+                username: None,
+            },
+        );
+        let call = |delivery_id: String, statement: serde_json::Value| {
+            let client = &client;
+            async move {
+                client
+                    .query_one(
+                        "SELECT step_queue.queue_pending_statement($1, $2, $3, 0)",
+                        &[&delivery_id, &statement, &serde_json::json!({"reference": true})],
+                    )
+                    .await
+            }
+        };
+        let allowed = failure.origin.delivery_id();
+        call(allowed.clone(), serde_json::to_value(&failure).unwrap())
+            .await
+            .unwrap();
+        let read = crate::services::electoral_log_pending::load(&**client, &allowed)
+            .await
+            .unwrap()
+            .expect("queued");
+        assert_eq!(read.scope, failure.scope());
+
+        let refused = |error: tokio_postgres::Error| {
+            assert_eq!(
+                error.code(),
+                Some(&tokio_postgres::error::SqlState::INSUFFICIENT_PRIVILEGE),
+                "{error}"
+            );
+        };
+        // A kind only workers may queue (here, an enrollment problem).
+        let other = PendingStatement::new(
+            &tenant,
+            &event,
+            PendingStatementBody::EnrollmentProblems {
+                problems: "x".into(),
+            },
+        );
+        refused(
+            call(other.origin.delivery_id(), serde_json::to_value(&other).unwrap())
+                .await
+                .unwrap_err(),
+        );
+        // An extra field, another delivery ID form, a time not now.
+        let mut extra = serde_json::to_value(&failure).unwrap();
+        extra["statement_bytes"] = "AAAA".into();
+        refused(call(failure.origin.delivery_id(), extra).await.unwrap_err());
+        refused(
+            call("readiness:entry".into(), serde_json::to_value(&failure).unwrap())
+                .await
+                .unwrap_err(),
+        );
+        let mut old = failure.clone();
+        old.occurred_at -= 3_600;
+        refused(
+            call(failure.origin.delivery_id(), serde_json::to_value(&old).unwrap())
+                .await
+                .unwrap_err(),
+        );
+        crate::services::electoral_log_deferral::stop_waiting(&**client, &[allowed])
+            .await
+            .unwrap();
         drop_queues(&client, &queues).await;
     }
 

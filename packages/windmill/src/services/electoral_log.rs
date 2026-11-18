@@ -67,6 +67,51 @@ pub const BALLOT_ID_LENGTH_BYTES: usize = HASH_LENGTH_BYTES / 2;
 /// Ballot_id input is in HEX, each byte is represented in 2 chars.
 pub const BALLOT_ID_LENGTH_CHARS: usize = BALLOT_ID_LENGTH_BYTES * 2;
 
+/// The certificate-authority event of an action, signed now by its
+/// administrator (`admin_key`, their vault key, the same key a direct post
+/// signs with) over the exact statement, at this time: the administrator's
+/// proof is made at the time of the action and carried unchanged. Only the
+/// board's attestation is left for the batch task, which checks this signature
+/// against the key the tenant log announces for `user_id` before adding it.
+pub fn admin_signed_certificate_event(
+    admin_key: &SigningKey,
+    tenant_id: &str,
+    election_event_id: &str,
+    action: CertificateAuthEventAction,
+    subject_dns: Vec<String>,
+    user_id: &str,
+    username: Option<String>,
+) -> Result<PendingStatement> {
+    use voting_crypto::RecordSerialize;
+    let occurred_at = electoral_log::timestamp();
+    let statement = electoral_log::with_timestamp(occurred_at, || {
+        Message::certificate_auth_event_statement(
+            EventIdString(election_event_id.to_string()),
+            action.clone(),
+            subject_dns.clone(),
+        )
+    });
+    let admin_signature = electoral_log::signature::sign(
+        admin_key,
+        electoral_log::signature::Domain::Statement,
+        &statement.record_serialize()?,
+    )?;
+    let mut pending = PendingStatement::new(
+        tenant_id,
+        election_event_id,
+        PendingStatementBody::AdminCertificateEvent {
+            action,
+            subject_dns,
+            user_id: user_id.to_string(),
+            username,
+            admin_public_key: VerificationKey::from_sk(admin_key)?.to_b64_string()?,
+            admin_signature: admin_signature.to_b64_string()?,
+        },
+    );
+    pending.occurred_at = occurred_at;
+    Ok(pending)
+}
+
 /// Record failures after the publication transaction has ended, so rollback
 /// cannot erase the diagnostic and the external write holds no DB connection.
 #[instrument(skip_all, err)]

@@ -285,5 +285,14 @@ their signer" log line: it reports the count and the oldest wait, and becomes an
 error after `ELECTORAL_LOG_DEFER_ALERT_SECS`. Do not discard waiting or
 dead-lettered entries to unblock a log unless losing them is intended.
 
+The setup also creates `step_queue.queue_pending_statement`, the one function the
+producer role may call to queue an unsigned electoral-log statement (only a ballot
+publication's failure); it grants that role EXECUTE on it and nothing on the table.
+
+Certificate-authority imports and deletions sign their electoral-log entry with the
+administrator's key and queue it before they commit: if it can't be queued, the
+action fails and nothing is saved. The entry is attested by the board once the
+tenant's log announces that administrator's key.
+
 The integration tests of the queues (`cargo test -p windmill -- --ignored`) need
 `PGMQ_TEST_DATABASE_URL`, a disposable database with PGMQ.

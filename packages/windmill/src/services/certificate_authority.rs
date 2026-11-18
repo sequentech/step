@@ -16,7 +16,8 @@ use crate::postgres::certificate_authority::{
     delete_certificate_authorities, insert_certificate_authority, CertificateAuthorityRecord,
 };
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::electoral_log::ElectoralLog;
+use crate::services::electoral_log::admin_signed_certificate_event;
+use crate::services::electoral_log_pending::cancel;
 
 // The standard PEM (Privacy-Enhanced Mail) file format conventionally requires five dashes
 const CERT_BEGIN: &str = "-----BEGIN CERTIFICATE-----";
@@ -124,6 +125,77 @@ pub fn parse_certificate_pem(pem: &str) -> Result<ParsedCertificate> {
     })
 }
 
+/// How long a certificate action's entry waits before it may be signed: it is
+/// queued before the action's transaction commits, and must not be attested
+/// before that commit (nor after a rollback, which withdraws it).
+const ENTRY_DELAY_SECS: i32 = 5;
+
+/// Records a certificate action in the electoral log before its transaction
+/// commits, failing closed: the administrator signs the entry now (their
+/// vault key) and it is queued, durably, for the board's attestation. If it
+/// can't be signed or queued, the action is refused and nothing commits.
+/// Returns the queued entry's delivery ID, to withdraw it if the commit fails.
+async fn record_certificate_action(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Uuid,
+    action: CertificateAuthEventAction,
+    subjects: Vec<String>,
+    user_id: &str,
+    preferred_username: Option<String>,
+) -> Result<String> {
+    let admin_key = crate::services::vault::get_admin_user_signing_key(
+        hasura_transaction,
+        tenant_id,
+        user_id,
+        preferred_username.clone(),
+        None,
+        None,
+    )
+    .await
+    .context("Error getting the administrator's signing key for the electoral log")?;
+    admin_signed_certificate_event(
+        &admin_key,
+        tenant_id,
+        &election_event_id.to_string(),
+        action,
+        subjects,
+        user_id,
+        preferred_username,
+    )
+    .context("Error signing the certificate action's electoral-log entry")?
+    .queue_after(ENTRY_DELAY_SECS)
+    .await
+    .context("Error queueing the certificate action's electoral-log entry")
+}
+
+/// Commits a certificate action whose entry is queued; if the commit fails,
+/// the entry is withdrawn before it is attested.
+async fn commit_recorded(
+    hasura_transaction: Transaction<'_>,
+    entry: Option<String>,
+) -> Result<()> {
+    if let Err(error) = hasura_transaction.commit().await {
+        if let Some(delivery_id) = entry {
+            match cancel(&delivery_id).await {
+                Ok(true) => {}
+                Ok(false) => error!(
+                    alert = "electoral-log-entry-for-rolled-back-action",
+                    delivery_id = delivery_id.as_str(),
+                    "A certificate action did not commit but its electoral-log entry was already stored"
+                ),
+                Err(cancel_error) => error!(
+                    alert = "electoral-log-entry-for-rolled-back-action",
+                    delivery_id = delivery_id.as_str(),
+                    "A certificate action did not commit and its queued entry could not be withdrawn: {cancel_error:#}"
+                ),
+            }
+        }
+        return Err(anyhow::Error::new(error).context("Failed to commit transaction"));
+    }
+    Ok(())
+}
+
 pub struct CertificateImportResult {
     pub inserted_count: i32,
     pub skipped_count: i32,
@@ -199,50 +271,27 @@ pub async fn import_certificate_authority(
         }
     }
 
-    let electoral_log = if !inserted_subjects.is_empty() {
-        let board_name = get_election_event_board(bulletin_board_reference)
+    // The entry is signed by the administrator and durably queued before the
+    // import commits; if that fails, nothing commits (fail closed).
+    let entry = if !inserted_subjects.is_empty() {
+        get_election_event_board(bulletin_board_reference)
             .ok_or_else(|| anyhow!("Missing bulletin board"))?;
-        match ElectoralLog::for_admin_user(
-            &hasura_transaction,
-            &board_name,
-            tenant_id,
-            &election_event_id.to_string(),
-            user_id,
-            preferred_username.clone(),
-            None,
-            None,
+        Some(
+            record_certificate_action(
+                &hasura_transaction,
+                tenant_id,
+                election_event_id,
+                CertificateAuthEventAction::Import,
+                inserted_subjects,
+                user_id,
+                preferred_username,
+            )
+            .await?,
         )
-        .await
-        {
-            Ok(log) => Some(log),
-            Err(e) => {
-                error!("Error initializing electoral log for CA import: {e:?}");
-                None
-            }
-        }
     } else {
         None
     };
-
-    hasura_transaction
-        .commit()
-        .await
-        .context("Failed to commit transaction")?;
-
-    if let Some(log) = electoral_log {
-        if let Err(e) = log
-            .post_certificate_auth_event(
-                election_event_id.to_string(),
-                CertificateAuthEventAction::Import,
-                inserted_subjects,
-                Some(user_id.to_string()),
-                preferred_username,
-            )
-            .await
-        {
-            error!("Error posting CA import event to electoral log: {e:?}");
-        }
-    }
+    commit_recorded(hasura_transaction, entry).await?;
 
     Ok(CertificateImportResult {
         inserted_count,
@@ -266,52 +315,29 @@ pub async fn delete_certificate_authority(
             .await
             .context("Failed to delete certificate authorities")?;
 
-    let electoral_log = if !deleted_subjects.is_empty() {
-        let board_name = get_election_event_board(bulletin_board_reference)
+    let deleted_count = deleted_subjects.len();
+
+    // The entry is signed by the administrator and durably queued before the
+    // deletion commits; if that fails, nothing commits (fail closed).
+    let entry = if !deleted_subjects.is_empty() {
+        get_election_event_board(bulletin_board_reference)
             .ok_or_else(|| anyhow!("Missing bulletin board"))?;
-        match ElectoralLog::for_admin_user(
-            &hasura_transaction,
-            &board_name,
-            tenant_id,
-            &election_event_id.to_string(),
-            user_id,
-            preferred_username.clone(),
-            None,
-            None,
+        Some(
+            record_certificate_action(
+                &hasura_transaction,
+                tenant_id,
+                election_event_id,
+                CertificateAuthEventAction::Delete,
+                deleted_subjects,
+                user_id,
+                preferred_username,
+            )
+            .await?,
         )
-        .await
-        {
-            Ok(log) => Some(log),
-            Err(e) => {
-                error!("Error initializing electoral log for CA delete: {e:?}");
-                None
-            }
-        }
     } else {
         None
     };
-
-    let deleted_count = deleted_subjects.len();
-
-    hasura_transaction
-        .commit()
-        .await
-        .context("Failed to commit transaction")?;
-
-    if let Some(log) = electoral_log {
-        if let Err(e) = log
-            .post_certificate_auth_event(
-                election_event_id.to_string(),
-                CertificateAuthEventAction::Delete,
-                deleted_subjects,
-                Some(user_id.to_string()),
-                preferred_username,
-            )
-            .await
-        {
-            error!("Error posting CA delete event to electoral log: {e:?}");
-        }
-    }
+    commit_recorded(hasura_transaction, entry).await?;
 
     Ok(deleted_count as i32)
 }

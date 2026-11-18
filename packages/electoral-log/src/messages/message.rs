@@ -968,6 +968,55 @@ impl Message {
         Self::from_body(event, body, sd, user_id, username, election.0, None, None)
     }
 
+    /// The statement of a certificate-authority event, unsigned: what its
+    /// sender (the administrator) signs. Its time is [`crate::timestamp`].
+    pub fn certificate_auth_event_statement(
+        event: EventIdString,
+        action: CertificateAuthEventAction,
+        subject_dns: Vec<String>,
+    ) -> Statement {
+        let body =
+            StatementBody::CertificateAuthEvent(action, CertificateSubjectDnsString(subject_dns));
+        Statement::new(StatementHead::from_body(event, &body), body)
+    }
+
+    /// A message whose sender already signed `statement` (the sender's own,
+    /// unchanged signature); only the system signature is made now. The
+    /// sender's signature is checked first: a message is never attested for
+    /// a signature that doesn't verify.
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_sender_signature(
+        statement: Statement,
+        sender_name: &str,
+        sender_pk: VerificationKey,
+        sender_signature: Signature,
+        system: &dyn MessageSigner,
+        user_id: Option<String>,
+        username: Option<String>,
+        election_id: Option<String>,
+        area_id: Option<String>,
+        ballot_id: Option<String>,
+    ) -> Result<Message> {
+        use crate::signature::{sign, verify, Domain};
+        let bytes = statement.record_serialize()?;
+        verify(&sender_pk, &sender_signature, Domain::Statement, &bytes)
+            .map_err(|error| anyhow::anyhow!("the sender's signature doesn't verify: {error}"))?;
+        let system_signature = sign(system, Domain::Statement, &bytes)?;
+        Ok(Message {
+            signature_version: crate::signature::SIGNATURE_VERSION,
+            sender: Sender::new(sender_name.to_string(), sender_pk),
+            sender_signature,
+            system_signature,
+            statement,
+            artifact: None,
+            user_id,
+            username,
+            election_id,
+            area_id,
+            ballot_id,
+        })
+    }
+
     pub fn certificate_auth_event_message(
         event: EventIdString,
         action: CertificateAuthEventAction,
@@ -1308,6 +1357,44 @@ pub struct SigningData {
     system: SharedSigner,
 }
 impl SigningData {
+    /// The sender's public key.
+    pub fn sender_public_key(&self) -> Result<VerificationKey> {
+        self.sender.public_key()
+    }
+    /// The sender's own signature over a statement (an administrator's
+    /// proof, made at the time of the action).
+    pub fn sender_sign_statement(&self, statement: &Statement) -> Result<Signature> {
+        crate::signature::sign(
+            self.sender.as_ref(),
+            crate::signature::Domain::Statement,
+            &statement.record_serialize()?,
+        )
+    }
+    /// A message whose sender already signed `statement`, attested now with
+    /// this system signer ([`Message::with_sender_signature`]).
+    #[allow(clippy::too_many_arguments)]
+    pub fn attest(
+        &self,
+        statement: Statement,
+        sender_name: &str,
+        sender_pk: VerificationKey,
+        sender_signature: Signature,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Message> {
+        Message::with_sender_signature(
+            statement,
+            sender_name,
+            sender_pk,
+            sender_signature,
+            self.system.as_ref(),
+            user_id,
+            username,
+            None,
+            None,
+            None,
+        )
+    }
     pub fn system_public_key(&self) -> Result<VerificationKey> {
         self.system.public_key()
     }
@@ -1340,3 +1427,98 @@ impl SigningData {
 #[cfg(test)]
 #[path = "../../tests/support/message_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod attest_tests {
+    use super::*;
+
+    fn certificate(sd: &SigningData) -> (Statement, Message) {
+        let statement = crate::with_timestamp(1_800_000_000, || {
+            Message::certificate_auth_event_statement(
+                EventIdString("event".into()),
+                CertificateAuthEventAction::Import,
+                vec!["CN=one".into()],
+            )
+        });
+        let direct = crate::with_timestamp(1_800_000_000, || {
+            Message::certificate_auth_event_message(
+                EventIdString("event".into()),
+                CertificateAuthEventAction::Import,
+                vec!["CN=one".into()],
+                sd,
+                Some("admin-id".into()),
+                Some("admin".into()),
+            )
+        })
+        .unwrap();
+        (statement, direct)
+    }
+
+    #[test]
+    fn an_admin_signature_made_earlier_is_attested_into_the_same_message() {
+        let admin = SigningKey::generate().unwrap();
+        let system = SigningKey::generate().unwrap();
+        let sd = SigningData::new(admin.clone(), "", system.clone());
+        let (statement, direct) = certificate(&sd);
+        let admin_signature = sd.sender_sign_statement(&statement).unwrap();
+        let attested = sd
+            .attest(
+                statement,
+                "",
+                sd.sender_public_key().unwrap(),
+                admin_signature,
+                Some("admin-id".into()),
+                Some("admin".into()),
+            )
+            .unwrap();
+        attested
+            .verify(&VerificationKey::from_sk(&system).unwrap())
+            .unwrap();
+        assert_eq!(attested.sender_signature, direct.sender_signature);
+        assert_eq!(attested.sender.pk, direct.sender.pk);
+        assert_eq!(
+            attested.statement.record_serialize().unwrap(),
+            direct.statement.record_serialize().unwrap()
+        );
+    }
+
+    #[test]
+    fn a_signature_that_does_not_verify_is_never_attested() {
+        let admin = SigningKey::generate().unwrap();
+        let other = SigningKey::generate().unwrap();
+        let system = SigningKey::generate().unwrap();
+        let sd = SigningData::new(admin.clone(), "", system.clone());
+        let (statement, _) = certificate(&sd);
+        let signature = sd.sender_sign_statement(&statement).unwrap();
+        let (statement, _) = certificate(&sd);
+        // Another key named as the sender.
+        assert!(sd
+            .attest(
+                statement,
+                "",
+                VerificationKey::from_sk(&other).unwrap(),
+                signature.clone(),
+                None,
+                None,
+            )
+            .is_err());
+        // A tampered statement (another subject).
+        let tampered = crate::with_timestamp(1_800_000_000, || {
+            Message::certificate_auth_event_statement(
+                EventIdString("event".into()),
+                CertificateAuthEventAction::Import,
+                vec!["CN=two".into()],
+            )
+        });
+        assert!(sd
+            .attest(
+                tampered,
+                "",
+                VerificationKey::from_sk(&admin).unwrap(),
+                signature,
+                None,
+                None,
+            )
+            .is_err());
+    }
+}
