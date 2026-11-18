@@ -1483,11 +1483,12 @@ impl ElectoralLog {
         let mut rdr = csv::Reader::from_reader(logs_file);
 
         let mut client = get_board_client().await?;
+        let rows_per_transaction =
+            csv_import_rows_per_transaction(client.max_tx_entries(&self.elog_database).await?)?;
         client.open_session(self.elog_database.as_str()).await?;
         let result = async {
             client.ensure_electoral_log_delivery_receipts().await?;
-            let mut messages: Vec<ElectoralLogMessage> =
-                Vec::with_capacity(CSV_IMPORT_ROWS_PER_TRANSACTION);
+            let mut messages: Vec<ElectoralLogMessage> = Vec::with_capacity(rows_per_transaction);
             for result in rdr.deserialize() {
                 let row: ElectoralLogRow = result
                     .map_err(|err| anyhow::Error::new(err).context("Failed to read CSV row"))?;
@@ -1497,7 +1498,7 @@ impl ElectoralLog {
                 .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
                 messages.push(message.try_into()?);
 
-                if messages.len() == CSV_IMPORT_ROWS_PER_TRANSACTION {
+                if messages.len() == rows_per_transaction {
                     import_csv_chunk(&mut client, &messages).await?;
                     messages.clear();
                 }
@@ -1516,13 +1517,22 @@ impl ElectoralLog {
     }
 }
 
-/// immudb's default limit on the entries of a transaction (`MaxTxEntries`).
-/// Each row inserted through SQL is one entry; its indexes add none.
-const IMMUDB_MAX_TX_ENTRIES: usize = 1_024;
+/// Transaction entries of a chunk's receipt.
+const CSV_IMPORT_RECEIPT_ENTRIES: usize = 1;
 
-/// Rows of an imported log per transaction, leaving one entry for the
-/// chunk's receipt.
-const CSV_IMPORT_ROWS_PER_TRANSACTION: usize = IMMUDB_MAX_TX_ENTRIES - 1;
+/// Rows of an imported log that fit in one transaction on a board allowing
+/// `max_tx_entries` entries. immudb counts each row inserted through SQL as
+/// one entry; its indexes add none.
+fn csv_import_rows_per_transaction(max_tx_entries: usize) -> Result<usize> {
+    max_tx_entries
+        .checked_sub(CSV_IMPORT_RECEIPT_ENTRIES)
+        .filter(|rows| *rows > 0)
+        .ok_or_else(|| {
+            anyhow!(
+                "immudb allows {max_tx_entries} entries per transaction, too few to import a log"
+            )
+        })
+}
 
 /// Namespace of the delivery IDs of imported log chunks.
 const CSV_IMPORT_DELIVERY_NAMESPACE: &str = "csv-import";
@@ -2629,6 +2639,18 @@ mod csv_import_tests {
             assert_ne!(other_identity.0, identity.0);
             assert_ne!(other_identity.1, identity.1);
         }
+    }
+
+    #[test]
+    fn a_transaction_holds_as_many_rows_as_the_board_allows_besides_the_receipt() {
+        assert_eq!(csv_import_rows_per_transaction(1_024).unwrap(), 1_023);
+        assert_eq!(csv_import_rows_per_transaction(2).unwrap(), 1);
+    }
+
+    #[test]
+    fn a_board_without_room_for_a_row_and_its_receipt_cannot_import() {
+        assert!(csv_import_rows_per_transaction(1).is_err());
+        assert!(csv_import_rows_per_transaction(0).is_err());
     }
 
     #[test]
