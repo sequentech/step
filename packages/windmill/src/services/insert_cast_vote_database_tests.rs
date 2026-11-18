@@ -7,6 +7,7 @@
 use super::super::*;
 use serde_json::json;
 
+#[derive(Clone)]
 pub(in crate::services::insert_cast_vote) struct ElectionFixture {
     pub tenant: Uuid,
     pub event: Uuid,
@@ -16,8 +17,13 @@ pub(in crate::services::insert_cast_vote) struct ElectionFixture {
 
 impl ElectionFixture {
     async fn create(transaction: &Transaction<'_>) -> Self {
+        Self::create_for_tenant(transaction, Uuid::new_v4()).await
+    }
+
+    /// An open election in a new election event of `tenant`.
+    async fn create_for_tenant(transaction: &Transaction<'_>, tenant: Uuid) -> Self {
         let fixture = Self {
-            tenant: Uuid::new_v4(),
+            tenant,
             event: Uuid::new_v4(),
             election: Uuid::new_v4(),
             area: Uuid::new_v4(),
@@ -53,6 +59,17 @@ impl ElectionFixture {
         content: &str,
         ciphertext_fingerprints: &[String],
     ) -> Result<CastVote> {
+        self.insert_as(transaction, "voter", content, ciphertext_fingerprints)
+            .await
+    }
+
+    async fn insert_as(
+        &self,
+        transaction: &Transaction<'_>,
+        voter_id: &str,
+        content: &str,
+        ciphertext_fingerprints: &[String],
+    ) -> Result<CastVote> {
         postgres::cast_vote::insert_cast_vote(
             transaction,
             &self.tenant,
@@ -60,7 +77,7 @@ impl ElectionFixture {
             &self.election,
             &self.area,
             content,
-            "voter",
+            voter_id,
             "ballot",
             &[0; 64],
             &None,
@@ -352,19 +369,61 @@ async fn ciphertext_cast_by_another_voter_is_rejected() {
     );
     fixture.cast(&mut client, &fresh, "second").await.unwrap();
 
+    // Another election event of the tenant does not share ciphertexts.
     let (_, _, _, fingerprints) =
         deserialize_and_check_ballot(&first, "first", &super::styles_of(&first)).unwrap();
     let transaction = client.transaction().await.unwrap();
-    assert!(!postgres::cast_vote::ciphertext_cast_by_other_voter(
-        &transaction,
-        &fixture.tenant,
-        &Uuid::new_v4(),
-        "second",
-        &fingerprints,
-    )
-    .await
-    .unwrap());
+    let other_event = ElectionFixture::create_for_tenant(&transaction, fixture.tenant).await;
+    other_event
+        .insert_as(&transaction, "second", "ballot", &fingerprints)
+        .await
+        .unwrap();
     transaction.rollback().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "requires the disposable devenv database fixture"]
+async fn concurrent_casts_of_one_ciphertext_by_two_voters_accept_one() {
+    let mut first_client = test_client().await;
+    let mut second_client = test_client().await;
+    let setup = first_client.transaction().await.unwrap();
+    let fixture = ElectionFixture::create(&setup).await;
+    setup.commit().await.unwrap();
+    let fingerprints = vec![Uuid::new_v4().to_string()];
+
+    let first = first_client.transaction().await.unwrap();
+    fixture
+        .insert_as(&first, "first", "ballot", &fingerprints)
+        .await
+        .unwrap();
+
+    // The second voter inserts the same ciphertext before the first commits.
+    let second = tokio::spawn({
+        let fixture = fixture.clone();
+        let fingerprints = fingerprints.clone();
+        async move {
+            let transaction = second_client.transaction().await.unwrap();
+            let result = fixture
+                .insert_as(&transaction, "second", "ballot", &fingerprints)
+                .await
+                .map_err(map_insert_error);
+            if result.is_ok() {
+                transaction.commit().await.unwrap();
+            }
+            result.map(|_| ())
+        }
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    assert!(
+        !second.is_finished(),
+        "the second insert must wait for the first transaction"
+    );
+    first.commit().await.unwrap();
+
+    assert!(matches!(
+        second.await.unwrap(),
+        Err(CastVoteError::CiphertextAlreadyCast)
+    ));
 }
 
 pub(in crate::services::insert_cast_vote) mod electoral_log_outbox {

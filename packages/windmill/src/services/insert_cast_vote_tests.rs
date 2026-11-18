@@ -109,8 +109,29 @@ fn contest_ciphertext_moved_into_another_ballot_keeps_its_fingerprint() {
 
     assert_eq!(first_fingerprints.len(), 1);
     assert_eq!(second_fingerprints.len(), 2);
-    assert_ne!(second_fingerprints[0], first_fingerprints[0]);
-    assert_eq!(second_fingerprints[1], first_fingerprints[0]);
+    assert!(second_fingerprints.contains(&first_fingerprints[0]));
+}
+
+#[test]
+fn ciphertext_repeated_within_a_ballot_is_fingerprinted_once() {
+    let election_id = Uuid::new_v4();
+    let repeated = encrypted_contest("contest");
+    let input = cast_input(
+        election_id,
+        "2026-01-01",
+        vec![
+            repeated.clone(),
+            HashableBallotContest {
+                contest_id: "other-contest".to_string(),
+                ..repeated
+            },
+        ],
+    );
+
+    let (_, _, _, fingerprints) =
+        deserialize_and_check_ballot(&input, "voter", &styles_of(&input)).unwrap();
+
+    assert_eq!(fingerprints.len(), 1);
 }
 
 #[test]

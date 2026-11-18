@@ -658,10 +658,12 @@ pub fn deserialize_and_check_ballot(
         .collect::<Result<Vec<()>>>()
         .map_err(|e| CastVoteError::PokValidationFailed(e.to_string()))?;
 
-    let ciphertext_fingerprints = hashable_ballot_contests
+    let mut ciphertext_fingerprints = hashable_ballot_contests
         .iter()
         .map(|contest| encoded_ciphertext_fingerprint(&contest.ciphertext))
         .collect::<Result<Vec<String>, CastVoteError>>()?;
+    ciphertext_fingerprints.sort_unstable();
+    ciphertext_fingerprints.dedup();
 
     // Check ballot signature
     let election_id = input.election_id.to_string();
@@ -814,19 +816,6 @@ pub async fn insert_cast_vote_and_commit<'a>(
         is_early_voting_area,
     )
     .await?;
-
-    let ciphertext_already_cast = postgres::cast_vote::ciphertext_cast_by_other_voter(
-        &hasura_transaction,
-        &tenant_uuid,
-        &election_event_uuid,
-        ids.voter_id,
-        ciphertext_fingerprints,
-    )
-    .await
-    .map_err(|e| CastVoteError::CheckPreviousVotesFailed(e.to_string()))?;
-    if ciphertext_already_cast {
-        return Err(CastVoteError::CiphertextAlreadyCast);
-    }
 
     let voter_signature = voter_signature_data.clone().map(|val| val.1);
 
@@ -1205,6 +1194,7 @@ fn map_insert_error(error: anyhow::Error) -> CastVoteError {
         Some("check_votes_in_other_areas_failed") => CastVoteError::CheckVotesInOtherAreasFailed(
             "Cannot insert cast vote, votes already present in other area(s)".to_string(),
         ),
+        Some("ciphertext_already_cast") => CastVoteError::CiphertextAlreadyCast,
         _ => CastVoteError::InsertFailed(format!("{error:#}")),
     }
 }

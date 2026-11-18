@@ -687,7 +687,12 @@ fn contest_ciphertexts(
                     .find(|contest| contest.contest_id == contest_id)
                     .map(|contest| contest.ciphertext.clone())
             }
-            .ok_or(anyhow!("Could not get ciphertext"))?;
+            .ok_or_else(|| {
+                anyhow!(
+                    "Could not get the ciphertext of contest {contest_id} from a ballot \
+                     ({contest_encryption_policy:?})"
+                )
+            })?;
         let fingerprint = ciphertext_fingerprint(&ciphertext)
             .map_err(|err| anyhow!("Could not fingerprint ciphertext: {err:?}"))?;
         match positions.entry(fingerprint) {
