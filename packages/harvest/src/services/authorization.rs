@@ -14,11 +14,11 @@ use std::collections::HashSet;
 use std::env;
 use tracing::{error, info, instrument};
 use windmill::postgres::election::get_election_by_id;
-use windmill::services::database::get_hasura_pool;
 use windmill::postgres::election::{
     get_elections_permission_labels, ElectionPermissionLabel,
 };
 use windmill::postgres::tally_session::get_tally_session_by_id_if_exist;
+use windmill::services::database::get_hasura_pool;
 
 pub use sequent_core::services::authorization::*;
 
