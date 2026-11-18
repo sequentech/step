@@ -36,6 +36,7 @@ import {
     GetElectionsQuery,
     GetElectionEventQuery,
     ListCastVoteMessagesQuery,
+    TotalBound,
 } from "../gql/graphql"
 import {faAngleLeft, faCircleQuestion, faCopy} from "@fortawesome/free-solid-svg-icons"
 import {LIST_CAST_VOTE_MESSAGES} from "../queries/listCastVoteMessages"
@@ -153,6 +154,7 @@ const BallotLocator: React.FC = () => {
     const [inputBallotId, setInputBallotId] = useState("")
     const [rows, setRows] = useState<ICastVoteEntry[]>([])
     const [total, setTotal] = useState(0)
+    const [totalBound, setTotalBound] = useState<TotalBound>(TotalBound.Exact)
     const [ballotIdNotFoundErr, setBallotIdNotFoundErr] = useState(false)
     const [somethingWentWrongErr, setSomethingWentWrongErr] = useState(false)
     const validatedBallotId = isHex(inputBallotId ?? "")
@@ -235,6 +237,7 @@ const BallotLocator: React.FC = () => {
                 if (data?.list_cast_vote_messages) {
                     setRows((data?.list_cast_vote_messages?.list ?? []) as ICastVoteEntry[])
                     setTotal(data?.list_cast_vote_messages?.total)
+                    setTotalBound(data?.list_cast_vote_messages?.total_bound)
                     setBallotIdNotFoundErr(
                         ballotIdFilter.length > 0 &&
                             data?.list_cast_vote_messages?.list.length === 0
@@ -355,6 +358,7 @@ const BallotLocator: React.FC = () => {
                         <LogsTable
                             rows={rows}
                             total={total}
+                            totalBound={totalBound}
                             onOrderBy={onClickHeader}
                             rowsPerPage={rowsPerPage}
                             handleChangeRowsPerPage={handleChangeRowsPerPage}
@@ -395,9 +399,24 @@ const BallotLocator: React.FC = () => {
     )
 }
 
+// Past a capped total the number of ballots is only known once a page comes back short.
+const paginationCount = (
+    totalBound: TotalBound,
+    total: number,
+    page: number,
+    rowsPerPage: number,
+    rowsOnPage: number
+): number => {
+    if (totalBound !== TotalBound.MoreThan) {
+        return total
+    }
+    return rowsOnPage < rowsPerPage ? page * rowsPerPage + rowsOnPage : -1
+}
+
 interface LogsTableProps {
     rows: ICastVoteEntry[]
     total: number
+    totalBound: TotalBound
     onOrderBy?: (headerName: string, newOrder: string) => void
     rowsPerPage: number
     handleChangeRowsPerPage: (event: React.ChangeEvent<HTMLInputElement>) => void
@@ -481,6 +500,7 @@ const MessageCell: React.FC<MessageCellProps> = ({message, initialLength}) => {
 const LogsTable: React.FC<LogsTableProps> = ({
     rows,
     total,
+    totalBound,
     onOrderBy,
     rowsPerPage,
     handleChangeRowsPerPage,
@@ -516,7 +536,12 @@ const LogsTable: React.FC<LogsTableProps> = ({
     return (
         <>
             <StyledTitle className="cast-vote-logs-title" variant="h5" component="h2">
-                {t("ballotLocator.totalBallots", {total: formatNumber(total)})}
+                {t(
+                    totalBound === TotalBound.MoreThan
+                        ? "ballotLocator.totalBallotsMoreThan"
+                        : "ballotLocator.totalBallots",
+                    {total: formatNumber(total)}
+                )}
             </StyledTitle>
             <TableContainer
                 className="cast-vote-logs-table-container"
@@ -708,7 +733,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                 className="cast-vote-logs-pagination"
                 rowsPerPageOptions={[5, 10, 25, 50]}
                 component="div"
-                count={total}
+                count={paginationCount(totalBound, total, page, rowsPerPage, rows.length)}
                 rowsPerPage={rowsPerPage}
                 page={page}
                 onPageChange={handleChangePage}
@@ -725,6 +750,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                         : t("ballotLocator.pagination.displayedRowsMoreThan", {
                               from: formatNumber(from),
                               to: formatNumber(to),
+                              total: formatNumber(total),
                           })
                 }
                 getItemAriaLabel={(type) => t(`ballotLocator.pagination.${type}Page`)}

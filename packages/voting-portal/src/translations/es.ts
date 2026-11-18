@@ -567,6 +567,7 @@ const spanishTranslation: TranslationType = {
                 "No encontrado, compruebe que el ID de la papeleta sea correcto y pertenezca a este usuario.",
             filterByBallotId: "Filtrar por ID de Papeleta",
             totalBallots: "Papeletas: {{total}}",
+            totalBallotsMoreThan: "Papeletas: más de {{total}}",
             steps: {
                 lookup: "Encuentre su papeleta",
                 result: "Resultado",
@@ -591,7 +592,7 @@ const spanishTranslation: TranslationType = {
             pagination: {
                 rowsPerPage: "Filas por página:",
                 displayedRows: "{{from}}–{{to}} de {{total}}",
-                displayedRowsMoreThan: "{{from}}–{{to}} de más de {{to}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} de más de {{total}}",
                 firstPage: "Ir a la primera página",
                 lastPage: "Ir a la última página",
                 nextPage: "Ir a la página siguiente",

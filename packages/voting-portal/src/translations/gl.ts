@@ -563,6 +563,7 @@ const galegoTranslation: TranslationType = {
                 "Non atopado, comprobe que o ID da Papeleta seja correcto e pertenezca a este usuario.",
             filterByBallotId: "Filtrar por ID da Papeleta",
             totalBallots: "Papeletas: {{total}}",
+            totalBallotsMoreThan: "Papeletas: máis de {{total}}",
             steps: {
                 lookup: "Localiza a túa Papeleta",
                 result: "Resultado",
@@ -587,7 +588,7 @@ const galegoTranslation: TranslationType = {
             pagination: {
                 rowsPerPage: "Filas por páxina:",
                 displayedRows: "{{from}}–{{to}} de {{total}}",
-                displayedRowsMoreThan: "{{from}}–{{to}} de máis de {{to}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} de máis de {{total}}",
                 firstPage: "Ir á primeira páxina",
                 lastPage: "Ir á última páxina",
                 nextPage: "Ir á páxina seguinte",

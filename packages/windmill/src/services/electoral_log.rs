@@ -14,7 +14,7 @@ use crate::services::vault;
 use crate::tasks::electoral_log::{
     enqueue_electoral_log_event, LogEventBody, LogEventInput, LogMessageType,
 };
-use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
+use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate, TotalBound};
 use anyhow::{anyhow, ensure, Context, Result};
 use b3::messages::message::Signer;
 use base64::engine::general_purpose;
@@ -28,11 +28,10 @@ use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::{CertificateAuthEventAction, *};
 use electoral_log::messages::statement::{StatementBody, StatementType};
 use electoral_log::{
-    ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,
-    ELECTORAL_LOG_TABLE,
+    count_sql, ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators,
+    WhereClauseBTreeMap, ELECTORAL_LOG_TABLE,
 };
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, TxMode};
-use rust_decimal::prelude::ToPrimitive;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::jwt::JwtClaims;
@@ -1640,8 +1639,13 @@ impl GetElectoralLogBody {
     }
 
     // Returns the SQL clauses related to the request along with the parameters
-    #[instrument(ret, skip(indexes))]
-    fn as_sql(&self, to_count: bool, indexes: &[TableIndex]) -> Result<(String, Vec<NamedParam>)> {
+    #[instrument(ret, skip(indexes, pg_config))]
+    fn as_sql(
+        &self,
+        to_count: bool,
+        indexes: &[TableIndex],
+        pg_config: &PgConfig,
+    ) -> Result<(String, Vec<NamedParam>)> {
         let mut clauses = Vec::new();
         let mut params = Vec::new();
 
@@ -1779,7 +1783,7 @@ impl GetElectoralLogBody {
         // Handle limit
         if !to_count {
             let limit_param_name = String::from("limit");
-            let limit = i64::try_from(self.page_limit(&PgConfig::from_env()?)?)?;
+            let limit = i64::try_from(self.page_limit(pg_config)?)?;
             clauses.push(format!("LIMIT @{limit_param_name}"));
             params.push(create_named_param(limit_param_name, Value::N(limit)));
         }
@@ -1976,6 +1980,7 @@ pub struct CastVoteEntry {
 pub struct CastVoteMessagesOutput {
     pub list: Vec<CastVoteEntry>,
     pub total: usize,
+    pub total_bound: TotalBound,
 }
 
 impl CastVoteEntry {
@@ -2036,8 +2041,9 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
             warn!("Listing {board_name} without an index hint, its indexes can't be read: {err:?}");
             vec![]
         });
-    let (clauses, params) = input.as_sql(false, &indexes)?;
-    let (clauses_to_count, count_params) = input.as_sql(true, &indexes)?;
+    let pg_config = PgConfig::from_env()?;
+    let (clauses, params) = input.as_sql(false, &indexes, &pg_config)?;
+    let (clauses_to_count, count_params) = input.as_sql(true, &indexes, &pg_config)?;
     info!("clauses ?:= {clauses}");
     let sql = format!(
         r#"
@@ -2057,7 +2063,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     info!("query: {sql}");
     let sql_query_response = client.streaming_sql_query(&sql, params).await?;
 
-    let limit = input.page_limit(&PgConfig::from_env()?)?;
+    let limit = input.page_limit(&pg_config)?;
     info!("list_electoral_log: limit = {}", limit);
     let mut rows: Vec<ElectoralLogRow> = Vec::with_capacity(limit);
     let mut resp_stream = sql_query_response.into_inner();
@@ -2070,14 +2076,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         rows.extend(items);
     }
 
-    let sql = format!(
-        r#"
-        SELECT
-            COUNT(*)
-        FROM electoral_log_messages
-        {clauses_to_count}
-        "#,
-    );
+    let sql = count_sql(&clauses_to_count, None);
     let sql_query_response = client.sql_query(&sql, count_params).await?;
     let mut rows_iter = sql_query_response
         .get_ref()
@@ -2094,9 +2093,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     client.close_session().await?;
     Ok(DataList {
         items: rows,
-        total: TotalAggregate {
-            aggregate: aggregate,
-        },
+        total: TotalAggregate { aggregate },
     })
 }
 
@@ -2216,13 +2213,17 @@ pub async fn list_cast_vote_messages(
     let (cols_match_count, cols_match_select) =
         get_cols_match_count_and_select(&election_id, user_id, ballot_id_filter);
     let mut client = get_board_client().await?;
-    let total = client
-        .count_electoral_log_messages(&board_name, Some(cols_match_count))
-        .await?
-        .to_u64()
-        .unwrap_or(0) as usize;
+    let count_limit = PgConfig::from_env()?.count_limit()?;
+    let counted = client
+        .count_electoral_log_messages_up_to(&board_name, Some(cols_match_count), count_limit + 1)
+        .await?;
+    let (total, total_bound) = TotalBound::of_count(counted, count_limit);
+    let total = usize::try_from(total)?;
     let mut filter_matched = false; // Exit at the first match if the filter is not empty
-    while (list.len() as i64) < output_limit && (offset < total as i64) && !filter_matched {
+    while (list.len() as i64) < output_limit
+        && may_have_rows_at(offset, total, total_bound)
+        && !filter_matched
+    {
         let (electoral_log_messages, rows_fetched) = client
             .get_electoral_log_messages_filtered_with_row_count(
                 &board_name,
@@ -2263,7 +2264,20 @@ pub async fn list_cast_vote_messages(
         offset += limit;
     }
 
-    Ok(CastVoteMessagesOutput { list, total })
+    Ok(CastVoteMessagesOutput {
+        list,
+        total,
+        total_bound,
+    })
+}
+
+/// Whether a list with `total` matches may still have rows at `offset`: past a capped total,
+/// only reading tells.
+fn may_have_rows_at(offset: i64, total: usize, total_bound: TotalBound) -> bool {
+    match total_bound {
+        TotalBound::Exact => usize::try_from(offset).is_ok_and(|offset| offset < total),
+        TotalBound::MoreThan => true,
+    }
 }
 
 #[cfg(test)]
@@ -2337,7 +2351,7 @@ mod text_filter_tests {
             filter: Some(HashMap::from([(field, value.to_string())])),
             ..Default::default()
         };
-        let (clauses, params) = body.as_sql(true, &[]).unwrap();
+        let (clauses, params) = body.as_sql(true, &[], &PgConfig::default()).unwrap();
         let [param] = params.as_slice() else {
             panic!("expected one parameter: {params:?}");
         };
@@ -2477,7 +2491,9 @@ mod admin_index_hint_tests {
     }
 
     fn count_clauses(body: &GetElectoralLogBody) -> String {
-        body.as_sql(true, &board_indexes()).unwrap().0
+        body.as_sql(true, &board_indexes(), &PgConfig::default())
+            .unwrap()
+            .0
     }
 
     #[test]
@@ -2518,7 +2534,7 @@ mod admin_index_hint_tests {
     fn a_board_without_the_index_scans_the_primary_key() {
         let body = body(&[(OrderField::UserId, USER_ID)]);
         assert_eq!(
-            body.as_sql(true, &[]).unwrap().0,
+            body.as_sql(true, &[], &PgConfig::default()).unwrap().0,
             "WHERE user_id = @param_user_id"
         );
     }
@@ -2571,6 +2587,17 @@ mod admin_index_hint_tests {
         let mut body = GetElectoralLogBody::default();
         body.order_by = Some(HashMap::from([(OrderField::Created, OrderDirection::Desc)]));
         assert_eq!(body.order_by_clause(), "ORDER BY created desc");
+    }
+
+    #[test]
+    fn a_voters_page_is_read_from_the_voters_index_in_primary_key_order() {
+        let (clauses, _) = body(&[(OrderField::UserId, USER_ID)])
+            .as_sql(false, &board_indexes(), &PgConfig::default())
+            .unwrap();
+        assert_eq!(
+            clauses,
+            format!("{USER_INDEX} WHERE user_id = @param_user_id ORDER BY id LIMIT @limit")
+        );
     }
 }
 
@@ -2850,5 +2877,23 @@ mod cast_vote_entry_tests {
         assert_eq!(cast_vote_page(Some(10), Some(20)), (10, 20));
         assert_eq!(cast_vote_page(Some(1_000_000), Some(-5)), (max, 0));
         assert_eq!(cast_vote_page(Some(-1), None), (0, 0));
+    }
+}
+
+#[cfg(test)]
+mod capped_total_tests {
+    use super::*;
+
+    #[test]
+    fn an_exact_total_ends_the_list() {
+        assert!(may_have_rows_at(9, 10, TotalBound::Exact));
+        assert!(!may_have_rows_at(10, 10, TotalBound::Exact));
+        assert!(!may_have_rows_at(-1, 10, TotalBound::Exact));
+    }
+
+    #[test]
+    fn a_capped_total_does_not_end_the_list() {
+        assert!(may_have_rows_at(10, 10, TotalBound::MoreThan));
+        assert!(may_have_rows_at(1_000_000, 10, TotalBound::MoreThan));
     }
 }
