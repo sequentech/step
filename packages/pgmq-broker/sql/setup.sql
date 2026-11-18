@@ -110,6 +110,9 @@ CREATE TABLE IF NOT EXISTS step_queue.electoral_log_waiting (
 );
 CREATE INDEX IF NOT EXISTS electoral_log_waiting_scope
     ON step_queue.electoral_log_waiting (scope);
+-- The message that is the row's copy on the event queue, if one was sent: a
+-- put-back checks that exact message, not producer-writable headers.
+ALTER TABLE step_queue.electoral_log_waiting ADD COLUMN IF NOT EXISTS copy_msg_id bigint;
 
 -- A waiting event's copy on a queue is looked up by its delivery header.
 DO $$
@@ -140,6 +143,19 @@ BEGIN
 END
 $$;
 
+-- Harvest (the producer role) posts scoped entries itself, so it must see whether
+-- a scope has entries waiting (the direct-post gate): it may read the scope column
+-- only, never a statement, and may not write the table.
+DO $$
+DECLARE
+    producer text := current_setting('step.queue.producer_role');
+BEGIN
+    IF producer <> '' THEN
+        EXECUTE format('GRANT SELECT (scope) ON step_queue.electoral_log_waiting TO %I', producer);
+    END IF;
+END
+$$;
+
 -- The one way the producer role (Harvest; Keycloak shares the role) may queue an
 -- unsigned electoral-log statement: this function, which runs as its owner and
 -- accepts only the kinds the producer role is allowed, checked here, nothing
@@ -159,6 +175,7 @@ AS $$
 DECLARE
     v_scope text;
     v_occurred bigint;
+    v_msg bigint;
 BEGIN
     IF jsonb_typeof(p_statement) <> 'object'
         OR (SELECT array_agg(k ORDER BY k) FROM jsonb_object_keys(p_statement) AS k)
@@ -189,7 +206,8 @@ BEGIN
     INSERT INTO step_queue.electoral_log_waiting (delivery_id, scope, since_ms, ord, due_at, statement)
     VALUES (p_delivery_id, v_scope, (extract(epoch FROM clock_timestamp()) * 1000)::bigint, 0,
             clock_timestamp() + make_interval(secs => p_delay_secs), p_statement);
-    PERFORM pgmq.send('electoral_log_event_queue', p_reference, p_delay_secs);
+    SELECT pgmq.send('electoral_log_event_queue', p_reference, p_delay_secs) INTO v_msg;
+    UPDATE step_queue.electoral_log_waiting SET copy_msg_id = v_msg WHERE delivery_id = p_delivery_id;
 END
 $$;
 

@@ -5,7 +5,7 @@
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::messaging::{latest_attempt_ids, ChannelFilter};
 use crate::services::celery_app::try_get_celery_app;
-use crate::services::database::{get_hasura_pool, get_queue_pool, PgConfig};
+use crate::services::database::{get_hasura_pool, PgConfig};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log_board::get_board_client;
 use crate::services::electoral_log_board::get_board_signer;
@@ -286,12 +286,15 @@ impl PreparedVoterPasswordChangeLog {
 /// start waiting in between. A post without a scope is not gated.
 async fn append_gated(scope: Option<&str>, board: &str, entries: &[LogEntry]) -> Result<()> {
     let mut queue_client = match scope {
+        // Without the task-queue database the gate can't be checked: the post is
+        // refused (never posted out of order), not a panic.
         Some(_) => Some(
-            get_queue_pool()
+            crate::services::database::try_get_queue_pool()
                 .await
+                .context("The electoral-log entry is refused: the task-queue database is unavailable")?
                 .get()
                 .await
-                .context("Error connecting to the task-queue database")?,
+                .context("The electoral-log entry is refused: the task-queue database is unavailable")?,
         ),
         None => None,
     };

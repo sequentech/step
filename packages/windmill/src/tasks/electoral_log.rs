@@ -15,7 +15,8 @@ use crate::services::electoral_log_dead_letter::{
     dead_letter_events, dead_letter_message, DeadLetterStage,
 };
 use crate::services::electoral_log_deferral::{
-    in_wait_order, log_round, put_back, scope_of, stop_waiting, waiting_events, waiting_ids,
+    bind_to_rows, in_wait_order, log_round, put_back, scope_of, stop_waiting, waiting_events,
+    waiting_ids,
     Deferral, DeferralBackoff, WaitReason, Waiting, WaitingEvent,
 };
 use crate::services::monitoring::login_counter::{
@@ -314,18 +315,18 @@ fn statement_time(input: &LogEventInput, now: u64) -> u64 {
 }
 
 /// After the last retry, of the events to dead-letter, those that were already
-/// waiting (they carry a deferral, or `marked` says they wait) are kept to wait
-/// again instead; the others are returned to be dead-lettered.
+/// waiting (`marked`: they have a row in the waiting table, which only workers
+/// write; a deferral in the message proves nothing) are kept to wait again
+/// instead; the others are returned to be dead-lettered.
 fn kept_after_last_retry<'a>(
     events: Vec<&'a LogEventInput>,
     marked: &HashSet<String>,
 ) -> (Vec<&'a LogEventInput>, Vec<&'a LogEventInput>) {
     events.into_iter().partition(|event| {
-        event.deferral.is_some()
-            || event
-                .delivery_id
-                .as_ref()
-                .is_some_and(|id| marked.contains(id))
+        event
+            .delivery_id
+            .as_ref()
+            .is_some_and(|id| marked.contains(id))
     })
 }
 
@@ -402,6 +403,10 @@ async fn store_batch(events: &[LogEventInput]) -> std::result::Result<(), StoreF
     scopes.sort();
     scopes.dedup();
     let waiting = waiting_events(&**queue_client, &scopes).await?;
+    // Each event's deferral is its own row's, if it has one (never its message's),
+    // and it doesn't wait behind its own row.
+    let (bound, waiting) = bind_to_rows(events, waiting);
+    let events = &bound[..];
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -1023,12 +1028,18 @@ async fn build_event<L: BatchLookups + Send>(
             // table. Checked before anything is signed; one that fails is poison
             // (dead-lettered, never signed).
             let stored = lookups.pending_statement(delivery_id).await.map_err(Transient)?;
+            // A refused statement's content goes with its dead letter (its row is
+            // removed then), for an operator to see and, if right, queue again.
+            let statement_text = stored
+                .as_ref()
+                .map(|stored| stored.statement.to_string().chars().take(4_000).collect::<String>())
+                .unwrap_or_else(|| "no row: forged, or already stored and removed".to_string());
             let pending = crate::services::electoral_log_pending::PendingStatement::read(
                 input,
                 stored,
                 electoral_log::timestamp(),
             )
-            .context("Refused pending statement")
+            .with_context(|| format!("Refused pending statement {statement_text}"))
             .map_err(Permanent)?;
             // An administrator's signature is attested only for the key their
             // tenant log announces for them, never for a key the row names alone.
@@ -1039,7 +1050,7 @@ async fn build_event<L: BatchLookups + Send>(
                     .map_err(Transient)?;
                 if !announced {
                     return Err(Permanent(anyhow!(
-                        "Refused pending statement: its administrator's key is not the one their tenant log announces"
+                        "Refused pending statement {statement_text}: its administrator's key is not the one their tenant log announces"
                     )));
                 }
             }
@@ -1525,13 +1536,28 @@ fn parse_limit(name: &str, value: Option<&str>, default: usize) -> anyhow::Resul
 #[celery::task(time_limit = 30, max_retries = 0, expires = 1)]
 pub async fn electoral_log_batch_dispatcher() -> Result<()> {
     let limits = BatchLimits::from_env()?;
-    dispatch_electoral_log_batches(
-        get_queue_pool().await.as_ref(),
-        &DispatchQueues::default(),
-        limits,
-    )
-    .await
+    let pool = get_queue_pool().await;
+    // Waiting rows whose copy was lost hold their log: alerted on each run.
+    match pool.get().await {
+        Ok(client) => {
+            if let Err(error) = crate::services::electoral_log_deferral::report_orphans(
+                &**client,
+                Queue::ElectoralLogEvent.queue_name(),
+                ORPHAN_GRACE_SECS,
+            )
+            .await
+            {
+                tracing::warn!("Error looking for orphan electoral-log waiting rows: {error:#}");
+            }
+        }
+        Err(error) => tracing::warn!("Error connecting to look for orphan waiting rows: {error}"),
+    }
+    dispatch_electoral_log_batches(pool.as_ref(), &DispatchQueues::default(), limits).await
 }
+
+/// How long past due a waiting row may be without its copy on the queue (a batch
+/// still retrying it) before it is reported as an orphan.
+const ORPHAN_GRACE_SECS: i32 = 900;
 
 /// The queues a dispatcher run reads from and writes to.
 struct DispatchQueues {
@@ -2549,6 +2575,7 @@ mod batch_build_tests {
             problems: text.to_string(),
         };
         let mut lookups = FakeLookups::new();
+        let mut durable = Durable::default();
         lookups
             .failing_signers
             .insert(DOWN_SIGNER_EVENT, SignerOutage::Unavailable);
@@ -2559,33 +2586,35 @@ mod batch_build_tests {
             .reference_event(&forged_id)
             .unwrap();
         // A worker's row of another election event, referred to from this one.
-        let mut foreign = queue_pending(
-            &mut lookups,
+        let mut foreign = durable.queue_pending(&mut lookups,
             &PendingStatement::new(TENANT, EVENT, problems("foreign")),
         );
         foreign.election_event_id = DOWN_SIGNER_EVENT.into();
         let foreign_id = foreign.delivery_id.clone().unwrap();
-        let trusted = queue_pending(
-            &mut lookups,
+        let trusted = durable.queue_pending(&mut lookups,
             &PendingStatement::new(TENANT, DOWN_SIGNER_EVENT, problems("two posts")),
         );
         let trusted_id = trusted.delivery_id.clone().unwrap();
 
-        let mut durable = Durable::default();
         durable
             .round(&mut lookups, vec![forged, foreign, trusted])
             .await;
 
-        // The forged ones are poison: dead-lettered, never signed.
-        assert_eq!(durable.dead_letters, vec![forged_id, foreign_id]);
+        // The foreign one is poison: dead-lettered, never signed. (The trusted
+        // one, queued first, waits; the forged reference waits behind it in its
+        // scope, and is refused when its turn comes.)
+        assert_eq!(durable.dead_letters, vec![foreign_id.clone()]);
         assert_eq!(lookups.sign_calls.load(Ordering::SeqCst), 1, "only the trusted one");
-        // The trusted one waits for the signer, then is stored under its own ID.
-        assert_eq!(durable.queued().len(), 1);
         assert!(durable.board(DOWN_SIGNER_EVENT).is_empty());
+        // The trusted one is stored under its own ID; the forged one is refused,
+        // never signed.
         lookups.failing_signers.remove(DOWN_SIGNER_EVENT);
-        durable.round(&mut lookups, vec![]).await;
+        for _ in 0..3 {
+            durable.round(&mut lookups, vec![]).await;
+        }
         assert_eq!(durable.board(DOWN_SIGNER_EVENT), vec![trusted_id.as_str()]);
-        assert_eq!(durable.dead_letters.len(), 2);
+        assert_eq!(durable.dead_letters, vec![foreign_id, forged_id]);
+        assert!(durable.rows.is_empty(), "no row is left to hold the log");
     }
 
     #[tokio::test]
@@ -2595,6 +2624,7 @@ mod batch_build_tests {
         let admin = SigningKey::generate().unwrap();
         let impostor = SigningKey::generate().unwrap();
         let mut lookups = FakeLookups::new();
+        let mut durable = Durable::default();
         lookups
             .failing_signers
             .insert(DOWN_SIGNER_EVENT, SignerOutage::Unavailable);
@@ -2616,15 +2646,14 @@ mod batch_build_tests {
         };
         // A key never announced for that administrator, and another
         // administrator's name on the admin's key: refused, never attested.
-        let impostor_event = queue_pending(&mut lookups, &entry(&impostor, "admin-id"));
-        let wrong_user = queue_pending(&mut lookups, &entry(&admin, "someone-else"));
-        let trusted = queue_pending(&mut lookups, &entry(&admin, "admin-id"));
+        let impostor_event = durable.queue_pending(&mut lookups, &entry(&impostor, "admin-id"));
+        let wrong_user = durable.queue_pending(&mut lookups, &entry(&admin, "someone-else"));
+        let trusted = durable.queue_pending(&mut lookups, &entry(&admin, "admin-id"));
         let ids: Vec<String> = [&impostor_event, &wrong_user, &trusted]
             .iter()
             .map(|event| event.delivery_id.clone().unwrap())
             .collect();
 
-        let mut durable = Durable::default();
         durable
             .round(&mut lookups, vec![impostor_event, wrong_user, trusted])
             .await;
@@ -2664,6 +2693,71 @@ mod batch_build_tests {
         assert!(!announces_admin_key(&announce(&system, "admin-id"), TENANT, "admin-id", "WFla", &system_pk));
         assert!(!announces_admin_key(&announce(&system, "admin-id"), UNKNOWN_TENANT, "admin-id", &admin_pk, &system_pk));
         assert!(!announces_admin_key(&announce(&other, "admin-id"), TENANT, "admin-id", &admin_pk, &system_pk));
+    }
+
+    #[tokio::test]
+    async fn pending_statements_and_events_of_one_log_never_wait_on_each_other() {
+        use crate::services::electoral_log_pending::{PendingStatement, PendingStatementBody};
+        let problems = |text: &str| PendingStatementBody::EnrollmentProblems {
+            problems: text.to_string(),
+        };
+        let mut lookups = FakeLookups::new();
+        let mut durable = Durable::default();
+        lookups
+            .failing_signers
+            .insert(DOWN_SIGNER_EVENT, SignerOutage::Unavailable);
+        let first = durable.queue_pending(
+            &mut lookups,
+            &PendingStatement::new(TENANT, DOWN_SIGNER_EVENT, problems("first")),
+        );
+        let second = durable.queue_pending(
+            &mut lookups,
+            &PendingStatement::new(TENANT, DOWN_SIGNER_EVENT, problems("second")),
+        );
+        let ids: Vec<String> = [&first, &second]
+            .iter()
+            .map(|event| event.delivery_id.clone().unwrap())
+            .collect();
+        durable
+            .round(
+                &mut lookups,
+                vec![first, keycloak_event(Some("k1"), DOWN_SIGNER_EVENT), second],
+            )
+            .await;
+        // A few rounds of outage: the rows keep their keys, nothing deadlocks.
+        for _ in 0..5 {
+            durable.round(&mut lookups, vec![]).await;
+        }
+        lookups.failing_signers.remove(DOWN_SIGNER_EVENT);
+        for _ in 0..3 {
+            durable.round(&mut lookups, vec![]).await;
+        }
+        // The statements were queued before the event came: they go first, in order.
+        let mut expected = ids.clone();
+        expected.push("k1:event".to_string());
+        assert_eq!(durable.board(DOWN_SIGNER_EVENT), expected);
+        assert!(durable.rows.is_empty());
+        assert!(durable.dead_letters.is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_batch_drains_every_ready_event_of_a_log_in_one_round() {
+        // The batch's own rows don't hold its events (B3): once the signer is
+        // back, all of a log's waiting events are stored in one round.
+        let mut lookups = FakeLookups::new();
+        lookups
+            .failing_signers
+            .insert(DOWN_SIGNER_EVENT, SignerOutage::Unavailable);
+        let mut durable = Durable::default();
+        let events: Vec<LogEventInput> = (0..20)
+            .map(|i| keycloak_event(Some(&format!("d{i:02}")), DOWN_SIGNER_EVENT))
+            .collect();
+        durable.round(&mut lookups, events).await;
+        assert_eq!(durable.rows.len(), 20);
+        lookups.failing_signers.remove(DOWN_SIGNER_EVENT);
+        durable.round(&mut lookups, vec![]).await;
+        assert_eq!(durable.board(DOWN_SIGNER_EVENT).len(), 20);
+        assert!(durable.rows.is_empty());
     }
 
     #[tokio::test]
@@ -2739,8 +2833,9 @@ mod batch_build_tests {
                 .map(|event| event.delivery_id.clone().unwrap())
                 .collect()
         };
-        assert_eq!(ids(keep), vec!["waited", "marked"]);
-        assert_eq!(ids(dead), vec!["fresh"]);
+        // Only the row counts: a deferral in a message is the queue writer's word.
+        assert_eq!(ids(keep), vec!["marked"]);
+        assert_eq!(ids(dead), vec!["fresh", "waited"]);
     }
 
     #[test]
@@ -2835,6 +2930,8 @@ mod batch_build_tests {
         /// How far a round moves the clock; by default the longest wait, so that
         /// every waiting event is due at the next round.
         step_ms: Option<i64>,
+        /// The waiting table: by delivery ID, the scope, the wait key and when due.
+        rows: HashMap<String, (String, WaitKey, i64)>,
     }
 
     impl Durable {
@@ -2856,34 +2953,47 @@ mod batch_build_tests {
                 .map(|(_, message)| parse_queued_event(message).unwrap())
                 .collect();
             events.extend(fresh);
+            // As `store_batch`: the table's rows, the batch's events bound to theirs.
             let mut waiting = Waiting::default();
-            for (due_ms, message) in &self.queue {
-                let event = parse_queued_event(message.clone()).unwrap();
-                waiting.add(scope_of(&event), WaitKey::of(&event));
-                waiting.add_due(scope_of(&event), *due_ms);
+            for (delivery_id, (scope, key, due_ms)) in &self.rows {
+                waiting.add(scope.clone(), key.clone());
+                waiting.add_due(scope.clone(), delivery_id.clone(), *due_ms);
             }
+            let (events, waiting) = bind_to_rows(&events, waiting);
 
             let built = build_batch_behind(lookups, &events, &waiting)
                 .await
                 .unwrap();
 
             for (event, _) in &built.dead_letters {
-                self.dead_letters
-                    .push(event.delivery_id.clone().unwrap_or_default());
+                let id = event.delivery_id.clone().unwrap_or_default();
+                self.rows.remove(&id);
+                self.dead_letters.push(id);
             }
             let queued: Vec<Option<String>> =
                 self.queued().into_iter().map(|event| event.delivery_id).collect();
-            let to_put_back: Vec<WaitingEvent> = built
-                .waiting
-                .iter()
-                .filter(|item| !queued.contains(&item.event.delivery_id))
-                .cloned()
-                .collect();
-            for (event, _, delay) in plan(&to_put_back, &waiting, &self.backoff, now_ms) {
-                self.queue.push((
-                    now_ms + delay.as_millis() as i64,
-                    event_message(&event).unwrap(),
-                ));
+            for (event, deferral, delay) in plan(&built.waiting, &waiting, &self.backoff, now_ms) {
+                let id = event.delivery_id.clone().unwrap_or_default();
+                let due = now_ms + delay.as_millis() as i64;
+                // The row keeps when and where it first waited; only its due time moves.
+                let row = self.rows.entry(id.clone()).or_insert_with(|| {
+                    (
+                        scope_of(&event),
+                        WaitKey {
+                            since_ms: deferral.since_ms,
+                            order: deferral.order,
+                            delivery_id: id.clone(),
+                        },
+                        due,
+                    )
+                });
+                row.2 = due;
+                if !queued.contains(&event.delivery_id) {
+                    self.queue.push((due, event_message(&event).unwrap()));
+                }
+            }
+            for id in built.delivered.values().flatten().chain(&built.settled) {
+                self.rows.remove(id);
             }
             for (board, entries) in built.by_board {
                 let stored = self.boards.entry(board).or_default();
@@ -2897,6 +3007,31 @@ mod batch_build_tests {
             self.now_ms += self
                 .step_ms
                 .unwrap_or(self.backoff.max.as_millis() as i64);
+        }
+
+        /// A pending statement as a worker queues it: its row (in the table and
+        /// in `lookups`) and its reference event, to pass to a round.
+        fn queue_pending(
+            &mut self,
+            lookups: &mut FakeLookups,
+            pending: &crate::services::electoral_log_pending::PendingStatement,
+        ) -> LogEventInput {
+            let event = queue_pending(lookups, pending);
+            let id = event.delivery_id.clone().unwrap();
+            self.rows.insert(
+                id.clone(),
+                (
+                    pending.scope(),
+                    WaitKey {
+                        since_ms: self.now_ms,
+                        // As the table's clock would: one after the other.
+                        order: self.rows.len() as u32,
+                        delivery_id: id,
+                    },
+                    self.now_ms,
+                ),
+            );
+            event
         }
 
         fn board(&self, election_event_id: &str) -> Vec<&str> {
@@ -2987,6 +3122,8 @@ mod batch_build_tests {
         durable.round(&mut lookups, vec![]).await;
         // The worker stops: only the queue's rows remain.
         let rows = serde_json::to_string(&durable.queue).unwrap();
+        // The waiting table is durable too.
+        let table = durable.rows.clone();
         let now_ms = durable.now_ms;
         drop(durable);
         drop(lookups);
@@ -2995,6 +3132,7 @@ mod batch_build_tests {
         let mut lookups = FakeLookups::new();
         let mut durable = Durable {
             queue: serde_json::from_str(&rows).unwrap(),
+            rows: table,
             now_ms,
             ..Default::default()
         };
@@ -3640,6 +3778,105 @@ mod pgmq_tests {
         .await
         .unwrap();
         drop_queues(&client, &queues).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PGMQ_TEST_DATABASE_URL pointing to a disposable database whose user may create roles"]
+    async fn each_role_gets_exactly_its_rights_on_the_waiting_table() {
+        use pgmq_broker::setup::Roles;
+        use tokio_postgres::error::SqlState;
+        let pool = test_pool();
+        let id = uuid::Uuid::new_v4().simple().to_string()[..8].to_string();
+        let worker = format!("t_worker_{id}");
+        let producer = format!("t_producer_{id}");
+        let reader = format!("t_reader_{id}");
+        let queue = format!("roles_events_{id}");
+        let mut client = pool.get().await.unwrap();
+        for role in [&worker, &producer, &reader] {
+            client
+                .batch_execute(&format!("CREATE ROLE {role} NOLOGIN"))
+                .await
+                .unwrap();
+        }
+        let tx = client.transaction().await.unwrap();
+        setup(
+            &tx,
+            &Installation {
+                environment: TEST_ENVIRONMENT,
+                queues: &[&queue],
+                roles: Some(&Roles {
+                    worker: worker.clone(),
+                    producer: producer.clone(),
+                    reader: reader.clone(),
+                }),
+            },
+        )
+        .await
+        .unwrap();
+        tx.commit().await.unwrap();
+        let scope = format!("{id}/scope");
+
+        // The producer (Harvest) passes the gate: it may read the scope column.
+        let tx = client.transaction().await.unwrap();
+        tx.batch_execute(&format!("SET LOCAL ROLE {producer}"))
+            .await
+            .unwrap();
+        crate::services::electoral_log_deferral::direct_post_gate(&*tx, &scope)
+            .await
+            .unwrap();
+        tx.rollback().await.unwrap();
+        // But it may neither write a row nor read a statement.
+        for sql in [
+            "INSERT INTO step_queue.electoral_log_waiting (delivery_id, scope, since_ms, ord, due_at) \
+             VALUES ('x', 'y', 0, 0, now())",
+            "SELECT statement FROM step_queue.electoral_log_waiting",
+            "DELETE FROM step_queue.electoral_log_waiting",
+        ] {
+            let tx = client.transaction().await.unwrap();
+            tx.batch_execute(&format!("SET LOCAL ROLE {producer}"))
+                .await
+                .unwrap();
+            let denied = tx.execute(sql, &[]).await.unwrap_err();
+            assert_eq!(denied.code(), Some(&SqlState::INSUFFICIENT_PRIVILEGE), "{sql}");
+            tx.rollback().await.unwrap();
+        }
+        // The worker writes rows; the reader reads, never writes.
+        let tx = client.transaction().await.unwrap();
+        tx.batch_execute(&format!("SET LOCAL ROLE {worker}"))
+            .await
+            .unwrap();
+        tx.execute(
+            "INSERT INTO step_queue.electoral_log_waiting (delivery_id, scope, since_ms, ord, due_at) \
+             VALUES ($1, $2, 0, 0, now())",
+            &[&format!("roles-{id}"), &scope],
+        )
+        .await
+        .unwrap();
+        tx.rollback().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        tx.batch_execute(&format!("SET LOCAL ROLE {reader}"))
+            .await
+            .unwrap();
+        tx.execute("SELECT statement FROM step_queue.electoral_log_waiting", &[])
+            .await
+            .unwrap();
+        let denied = tx
+            .execute("DELETE FROM step_queue.electoral_log_waiting", &[])
+            .await
+            .unwrap_err();
+        assert_eq!(denied.code(), Some(&SqlState::INSUFFICIENT_PRIVILEGE));
+        tx.rollback().await.unwrap();
+
+        client
+            .query_one("SELECT pgmq.drop_queue($1)", &[&queue])
+            .await
+            .unwrap();
+        for role in [&worker, &producer, &reader] {
+            client
+                .batch_execute(&format!("DROP OWNED BY {role}; DROP ROLE {role}"))
+                .await
+                .unwrap();
+        }
     }
 
     /// Calls the producer role's enqueue function.

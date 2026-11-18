@@ -118,8 +118,8 @@ pub fn pending_ref(body: &str) -> Option<String> {
 /// dead-lettered. Returns whether it was still waiting.
 pub async fn cancel(delivery_id: &str) -> Result<bool> {
     use crate::services::electoral_log_deferral::WAITING_TABLE;
-    let client = crate::services::database::get_queue_pool()
-        .await
+    let client = crate::services::database::try_get_queue_pool()
+        .await?
         .get()
         .await
         .context("Error connecting to the task-queue database")?;
@@ -457,8 +457,8 @@ impl PendingStatement {
         )?;
         let statement = serde_json::to_value(self).context("Error serializing a pending statement")?;
         let queue = crate::services::celery_app::Queue::ElectoralLogEvent.queue_name();
-        let mut client = crate::services::database::get_queue_pool()
-            .await
+        let mut client = crate::services::database::try_get_queue_pool()
+            .await?
             .get()
             .await
             .context("Error connecting to the task-queue database")?;
@@ -479,12 +479,21 @@ impl PendingStatement {
             .await;
         match written {
             Ok(_) => {
-                tx.query_one(
-                    "SELECT pgmq.send($1::text, $2::jsonb, $3::integer)",
-                    &[&queue, &reference, &delay_secs],
+                let msg_id: i64 = tx
+                    .query_one(
+                        "SELECT pgmq.send($1::text, $2::jsonb, $3::integer)",
+                        &[&queue, &reference, &delay_secs],
+                    )
+                    .await
+                    .context("Error queueing a pending statement's reference")?
+                    .get(0);
+                // The row's copy on the queue is that exact message.
+                tx.execute(
+                    &format!("UPDATE {WAITING_TABLE} SET copy_msg_id = $1 WHERE delivery_id = $2"),
+                    &[&msg_id, &delivery_id],
                 )
                 .await
-                .context("Error queueing a pending statement's reference")?;
+                .context("Error recording a pending statement's reference")?;
                 tx.commit()
                     .await
                     .context("Error committing a pending statement")?;

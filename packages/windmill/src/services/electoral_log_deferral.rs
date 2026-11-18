@@ -53,6 +53,10 @@
 //!   paths, and the batch task never holds one while it appends, so there is
 //!   no cycle with the log's own database.
 //!
+//!   A direct post takes the scope's lock shared (direct posts don't wait for
+//!   each other) and gives up after [`GATE_LOCK_TIMEOUT`], refusing the post;
+//!   writes that make an entry wait take it exclusive.
+//!
 //!   *Availability (operators).* While a log has entries waiting for its
 //!   signer (an outage of the key service), every action that must record a
 //!   direct entry in that election event's log fails visibly: opening,
@@ -67,6 +71,17 @@
 //!   `ELECTORAL_LOG_DEFER_MAX_SECS`) and the actions work again. Do not
 //!   discard waiting or dead-lettered entries to unblock a log unless losing
 //!   them is intended: they are the log's record.
+//! - **Not gated (exempt).** Appends that are not direct posts of an
+//!   action keep their behaviour: the ballot box's sequencer
+//!   (`ballot_box.rs`, its own durable queue, retried by its beat), the
+//!   signing-log outbox (`signing/log.rs`) and the audit-log outbox
+//!   (`audit_log_writer.rs`), each an outbox retried until stored; sealed
+//!   ballot boxes (`ceremonies/sealed_box_ballots.rs`, a ceremony that
+//!   fails and retries); a log's import from a CSV backup (`import_from_csv`,
+//!   records already signed); and logs made from a signer alone
+//!   (`ElectoralLog::for_*_with_signer`, `for_*_with_signing_key`: the batch
+//!   task, the sequencer, tenant logs). Whether any of these must also wait
+//!   behind a scope's waiting entries is an open owner question.
 //! - **Idempotency.** An event is put back at most once while a copy waits
 //!   (by delivery ID), and storing is idempotent by delivery ID, so a batch
 //!   retried after an uncertain commit stores nothing twice.
@@ -222,8 +237,8 @@ pub struct WaitingEvent {
 #[derive(Clone, Debug, Default)]
 pub struct Waiting {
     by_scope: HashMap<String, Vec<WaitKey>>,
-    /// When the earliest waiting event of each scope is due, in milliseconds.
-    due_by_scope: HashMap<String, i64>,
+    /// When each waiting entry is due, in milliseconds, by delivery ID, with its scope.
+    due_by_delivery: HashMap<String, (String, i64)>,
 }
 
 impl Waiting {
@@ -231,15 +246,41 @@ impl Waiting {
         self.by_scope.entry(scope).or_default().push(key);
     }
 
-    /// Notes that an event of `scope` is due at `due_ms`.
-    pub fn add_due(&mut self, scope: String, due_ms: i64) {
-        let due = self.due_by_scope.entry(scope).or_insert(due_ms);
-        *due = (*due).min(due_ms);
+    /// Notes that the entry `delivery_id` of `scope` is due at `due_ms`.
+    pub fn add_due(&mut self, scope: String, delivery_id: String, due_ms: i64) {
+        self.due_by_delivery.insert(delivery_id, (scope, due_ms));
     }
 
-    /// When the earliest waiting event of `scope` is due.
+    /// When the earliest waiting entry of `scope` is due.
     pub fn due_ms(&self, scope: &str) -> Option<i64> {
-        self.due_by_scope.get(scope).copied()
+        self.due_by_delivery
+            .values()
+            .filter(|(entry_scope, _)| entry_scope == scope)
+            .map(|(_, due)| *due)
+            .min()
+    }
+
+    /// The wait keys of these delivery IDs' own rows, where they have one: the
+    /// table is authoritative for when and where an entry first waited.
+    pub fn keys_for(&self, delivery_ids: &HashSet<String>) -> HashMap<String, WaitKey> {
+        self.by_scope
+            .values()
+            .flatten()
+            .filter(|key| delivery_ids.contains(&key.delivery_id))
+            .map(|key| (key.delivery_id.clone(), key.clone()))
+            .collect()
+    }
+
+    /// The entries waiting besides these delivery IDs' own rows (a batch's own
+    /// events don't wait behind themselves).
+    pub fn without(mut self, delivery_ids: &HashSet<String>) -> Waiting {
+        for keys in self.by_scope.values_mut() {
+            keys.retain(|key| !delivery_ids.contains(&key.delivery_id));
+        }
+        self.by_scope.retain(|_, keys| !keys.is_empty());
+        self.due_by_delivery
+            .retain(|delivery_id, _| !delivery_ids.contains(delivery_id));
+        self
     }
 
     /// The earliest waiting event `event` must stay behind, if any: one of
@@ -270,6 +311,33 @@ impl Waiting {
             .map(|key| key.since_ms)
             .min()
     }
+}
+
+/// A batch's events bound to the waiting table: an event's deferral is the
+/// one its own row records (when and where it first waited), and an event
+/// without a row has none, whatever its queue message says (a queue writer
+/// can't backdate it, jump the queue, or keep it from the last retry). Returns
+/// the bound events and the entries they wait behind (not their own rows).
+pub fn bind_to_rows(events: &[LogEventInput], waiting: Waiting) -> (Vec<LogEventInput>, Waiting) {
+    let ids: HashSet<String> = events
+        .iter()
+        .filter_map(|event| event.delivery_id.clone())
+        .collect();
+    let rows = waiting.keys_for(&ids);
+    let bound = events
+        .iter()
+        .map(|event| {
+            let mut event = event.clone();
+            let row = event.delivery_id.as_ref().and_then(|id| rows.get(id));
+            event.deferral = row.map(|key| Deferral {
+                rounds: event.deferral.map_or(0, |deferral| deferral.rounds),
+                since_ms: key.since_ms,
+                order: key.order,
+            });
+            event
+        })
+        .collect();
+    (bound, waiting.without(&ids))
 }
 
 /// How long waiting events wait between rounds.
@@ -375,6 +443,9 @@ pub async fn lock_scopes<C: GenericClient + Sync>(client: &C, scopes: &[String])
     Ok(())
 }
 
+/// How long a direct post waits for its scope's lock before it is refused.
+pub const GATE_LOCK_TIMEOUT: &str = "5s";
+
 /// The entries waiting in these `scopes` (the table's scope index).
 pub async fn waiting_events<C: GenericClient + Sync>(
     client: &C,
@@ -401,7 +472,7 @@ pub async fn waiting_events<C: GenericClient + Sync>(
         let since_ms: i64 = row.get(2);
         let order: i64 = row.get(3);
         let due_ms: i64 = row.get(4);
-        waiting.add_due(scope.clone(), due_ms);
+        waiting.add_due(scope.clone(), delivery_id.clone(), due_ms);
         waiting.add(
             scope,
             WaitKey {
@@ -452,6 +523,49 @@ pub async fn stop_waiting<C: GenericClient + Sync>(
     Ok(())
 }
 
+/// Alert class of waiting rows past due whose copy is no longer on the queue
+/// (it was lost: dead-lettered and discarded, or an older worker's).
+pub const ALERT_ORPHAN_WAITING: &str = "electoral-log-orphan-waiting";
+
+/// Logs, with [`ALERT_ORPHAN_WAITING`], the waiting rows more than `grace_secs`
+/// past due whose recorded copy is not on `queue`: they hold their scope's
+/// direct posts until an operator replays the entry or removes the row
+/// (documented in the task-queue page). Returns how many.
+pub async fn report_orphans<C: GenericClient + Sync>(
+    client: &C,
+    queue: &str,
+    grace_secs: i32,
+) -> Result<usize> {
+    pgmq_broker::validate_queue_name(queue).map_err(anyhow::Error::msg)?;
+    let rows = client
+        .query(
+            &format!(
+                "SELECT w.delivery_id, w.scope, \
+                 (extract(epoch FROM clock_timestamp() - w.due_at))::bigint \
+                 FROM {WAITING_TABLE} w \
+                 WHERE w.due_at < clock_timestamp() - make_interval(secs => $1::integer) \
+                 AND NOT EXISTS (SELECT 1 FROM pgmq.q_{queue} q WHERE q.msg_id = w.copy_msg_id) \
+                 LIMIT 100"
+            ),
+            &[&grace_secs],
+        )
+        .await
+        .context("Error looking for orphan electoral-log waiting rows")?;
+    for row in &rows {
+        let delivery_id: String = row.get(0);
+        let scope: String = row.get(1);
+        let overdue_secs: i64 = row.get(2);
+        tracing::error!(
+            alert = ALERT_ORPHAN_WAITING,
+            delivery_id,
+            scope,
+            overdue_secs,
+            "An electoral-log entry waits with no copy on the queue: its log's direct posts are held"
+        );
+    }
+    Ok(rows.len())
+}
+
 /// A direct post was refused: its log has entries waiting for the board's
 /// signer, which must be stored first (the log keeps its order). Not a
 /// [`electoral_log::signer::SignerUnavailable`]: nothing queues it.
@@ -486,10 +600,23 @@ pub fn is_scope_waiting(error: &anyhow::Error) -> bool {
 /// the scope wait takes too, so no entry can start waiting between this
 /// check and the append (it waits for the lock and comes after the post).
 pub async fn direct_post_gate<C: GenericClient + Sync>(client: &C, scope: &str) -> Result<()> {
-    lock_scopes(client, &[scope.to_string()]).await?;
+    // Shared: direct posts of a scope don't wait for each other, only for a
+    // write that makes an entry wait (exclusive). A lock not had in time
+    // refuses the post (fail closed), it never hangs.
+    client
+        .batch_execute(&format!("SET LOCAL lock_timeout = '{GATE_LOCK_TIMEOUT}'"))
+        .await
+        .context("Error setting the electoral-log scope lock's timeout")?;
+    client
+        .query(
+            "SELECT pg_advisory_xact_lock_shared(hashtextextended($1, 0))",
+            &[&format!("electoral-log-scope:{scope}")],
+        )
+        .await
+        .context("The electoral-log scope is busy: the entry is refused")?;
     let waiting: i64 = client
         .query_one(
-            &format!("SELECT count(*) FROM {WAITING_TABLE} WHERE scope = $1"),
+            &format!("SELECT count(scope) FROM {WAITING_TABLE} WHERE scope = $1"),
             &[&scope],
         )
         .await
@@ -614,12 +741,14 @@ pub async fn put_back<C: GenericClient + Sync>(
          VALUES ($1, $2, $3, $4, clock_timestamp() + make_interval(secs => $5::integer)) \
          ON CONFLICT (delivery_id) DO UPDATE SET due_at = EXCLUDED.due_at"
     );
-    // Both conditions, so that the partial index on the delivery header is used.
+    // A copy already waits only if the row's own recorded message is still on
+    // the queue (not a header a queue writer could forge).
     let send = format!(
         "SELECT pgmq.send($1::text, $2::jsonb, $3::jsonb, $4::integer) \
-         WHERE NOT EXISTS (SELECT 1 FROM pgmq.q_{queue} \
-         WHERE headers->>'{SCOPE_HEADER}' IS NOT NULL AND headers->>'{DELIVERY_HEADER}' = $5::text)"
+         WHERE NOT EXISTS (SELECT 1 FROM pgmq.q_{queue} q JOIN {WAITING_TABLE} w \
+         ON q.msg_id = w.copy_msg_id WHERE w.delivery_id = $5::text)"
     );
+    let record = format!("UPDATE {WAITING_TABLE} SET copy_msg_id = $1 WHERE delivery_id = $2");
     let mut summary = PutBack::default();
     let planned = plan(waiting, heads, backoff, now_ms);
     for (item, (event, deferral, delay)) in waiting.iter().zip(planned) {
@@ -651,10 +780,16 @@ pub async fn put_back<C: GenericClient + Sync>(
             WaitReason::SignerUnavailable => summary.signer_unavailable += 1,
             WaitReason::Held => summary.held += 1,
         }
-        if sent.is_empty() {
-            summary.already_waiting += 1;
-        } else {
-            summary.put_back += 1;
+        match sent.first() {
+            None => summary.already_waiting += 1,
+            Some(row) => {
+                let msg_id: i64 = row.get(0);
+                client
+                    .execute(&record, &[&msg_id, &delivery_id])
+                    .await
+                    .context("Error recording an electoral-log entry's copy")?;
+                summary.put_back += 1;
+            }
         }
         summary.oldest_since_ms = Some(
             summary

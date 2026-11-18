@@ -294,5 +294,22 @@ administrator's key and queue it before they commit: if it can't be queued, the
 action fails and nothing is saved. The entry is attested by the board once the
 tenant's log announces that administrator's key.
 
+Harvest connects as the producer role and posts some entries itself, so the setup
+grants that role `SELECT (scope)` on `step_queue.electoral_log_waiting`: it can tell
+whether a log has waiting entries, but not read or write them. Deploy in this order:
+run the queue setup, then the workers, then Harvest. A worker of an earlier release
+dead-letters a pending statement's reference (it reads it as a malformed record);
+its scope stays held until that dead letter is replayed by an updated worker.
+
+Not gated, by design: the ballot-box sequencer, the signing-log and audit-log
+outboxes, sealed ballot boxes, CSV imports of a log, and logs made from a signer
+alone (the batch task, tenant logs).
+
+A waiting row past due whose copy is no longer on the event queue holds its log:
+the dispatcher logs it with the alert class `electoral-log-orphan-waiting`. Replay
+its dead letter if it has one; to give the entry up, remove its row
+(`DELETE FROM step_queue.electoral_log_waiting WHERE delivery_id = '<id>'`) as the
+task-queue database owner, and record why.
+
 The integration tests of the queues (`cargo test -p windmill -- --ignored`) need
 `PGMQ_TEST_DATABASE_URL`, a disposable database with PGMQ.
