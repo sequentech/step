@@ -20,7 +20,7 @@ use tracing::{error, info, instrument, warn};
 const IMMUDB_DEFAULT_LIMIT: usize = 900;
 const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
 const IMMUDB_DEFAULT_OFFSET: usize = 0;
-const ELECTORAL_LOG_TABLE: &'static str = "electoral_log_messages";
+pub const ELECTORAL_LOG_TABLE: &str = "electoral_log_messages";
 const ELECTORAL_LOG_RECEIPTS_TABLE: &str = "electoral_log_delivery_receipts";
 /// 36 chars + EOL + some padding
 const ID_VARCHAR_LENGTH: usize = 40;

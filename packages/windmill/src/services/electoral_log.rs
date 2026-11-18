@@ -21,11 +21,15 @@ use base64::engine::general_purpose;
 use base64::Engine;
 use deadpool_postgres::Transaction;
 use electoral_log::assign_value;
+use electoral_log::client::index_hint::{
+    choose_index, table_indexes, IndexScan, TableIndex, PRIMARY_KEY_COLUMN,
+};
 use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::{CertificateAuthEventAction, *};
 use electoral_log::messages::statement::{StatementBody, StatementType};
 use electoral_log::{
     ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,
+    ELECTORAL_LOG_TABLE,
 };
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, TxMode};
 use rust_decimal::prelude::ToPrimitive;
@@ -43,7 +47,7 @@ use strand::hash::HashWrapper;
 use strand::hash::STRAND_HASH_LENGTH_BYTES;
 use strand::serialization::StrandDeserialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
-use strum_macros::{Display, EnumString};
+use strum_macros::{Display, EnumString, IntoStaticStr};
 use tempfile::NamedTempFile;
 use tokio_stream::StreamExt;
 use tracing::{event, info, instrument, warn, Level};
@@ -1517,7 +1521,7 @@ impl ElectoralLog {
 }
 
 // Enumeration for the valid fields in the immudb table
-#[derive(Debug, Deserialize, Hash, PartialEq, Eq, EnumString, Display, Clone)]
+#[derive(Debug, Deserialize, Hash, PartialEq, Eq, EnumString, Display, IntoStaticStr, Clone)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum OrderField {
@@ -1589,9 +1593,55 @@ impl GetElectoralLogBody {
         pg_config.page_limit(self.limit.unwrap_or(pg_config.default_sql_limit.into()))
     }
 
+    /// The columns the request fixes with `=`.
+    fn equal_columns(&self) -> Vec<String> {
+        let filtered = self
+            .filter
+            .iter()
+            .flatten()
+            .filter(|(field, value)| TextFilterMatch::of(field, value) == TextFilterMatch::Exact)
+            .map(|(field, _)| field.to_string());
+        let requested_kind = self
+            .statement_kind
+            .as_ref()
+            .map(|_| OrderField::StatementKind.to_string());
+        let mut columns: Vec<String> = filtered.chain(requested_kind).collect();
+        columns.sort();
+        columns.dedup();
+        columns
+    }
+
+    /// How the request reads the rows of the index it scans.
+    fn index_scan(&self, to_count: bool) -> IndexScan<'static> {
+        if to_count {
+            return IndexScan::Count;
+        }
+        let order_columns: Vec<&'static str> = self
+            .order_by
+            .iter()
+            .flat_map(|order_by| order_by.keys().map(|field| field.into()))
+            .collect();
+        IndexScan::sorted_by(&order_columns)
+    }
+
+    /// The order of a page: an index scan returns rows in index order, so a request without
+    /// one is read in primary key order.
+    fn order_by_clause(&self) -> String {
+        let sort_keys: Vec<String> = self
+            .order_by
+            .iter()
+            .flatten()
+            .map(|(field, direction)| format!("{field} {direction}"))
+            .collect();
+        match sort_keys.is_empty() {
+            true => format!("ORDER BY {PRIMARY_KEY_COLUMN}"),
+            false => format!("ORDER BY {}", sort_keys.join(", ")),
+        }
+    }
+
     // Returns the SQL clauses related to the request along with the parameters
-    #[instrument(ret)]
-    fn as_sql(&self, to_count: bool) -> Result<(String, Vec<NamedParam>)> {
+    #[instrument(ret, skip(indexes))]
+    fn as_sql(&self, to_count: bool, indexes: &[TableIndex]) -> Result<(String, Vec<NamedParam>)> {
         let mut clauses = Vec::new();
         let mut params = Vec::new();
 
@@ -1716,18 +1766,14 @@ impl GetElectoralLogBody {
             }
         }
 
-        // Handle order_by
-        if !to_count && self.order_by.is_some() {
-            let order_by_clauses: Vec<String> = self
-                .order_by
-                .as_ref()
-                .ok_or(anyhow!("Empty order clause"))?
-                .iter()
-                .map(|(field, direction)| format!("{field} {direction}"))
-                .collect();
-            if order_by_clauses.len() > 0 {
-                clauses.push(format!("ORDER BY {}", order_by_clauses.join(", ")));
-            }
+        let equal_columns = self.equal_columns();
+        let equal_columns: Vec<&str> = equal_columns.iter().map(String::as_str).collect();
+        if let Some(index) = choose_index(indexes, &equal_columns, self.index_scan(to_count)) {
+            clauses.insert(0, index.use_index_clause());
+        }
+
+        if !to_count {
+            clauses.push(self.order_by_clause());
         }
 
         // Handle limit
@@ -1983,8 +2029,15 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
 
     event!(Level::INFO, "database name = {board_name}");
     client.open_session(&board_name).await?;
-    let (clauses, params) = input.as_sql(false)?;
-    let (clauses_to_count, count_params) = input.as_sql(true)?;
+    // The index hint only speeds the query up.
+    let indexes = table_indexes(&mut client, ELECTORAL_LOG_TABLE)
+        .await
+        .unwrap_or_else(|err| {
+            warn!("Listing {board_name} without an index hint, its indexes can't be read: {err:?}");
+            vec![]
+        });
+    let (clauses, params) = input.as_sql(false, &indexes)?;
+    let (clauses_to_count, count_params) = input.as_sql(true, &indexes)?;
     info!("clauses ?:= {clauses}");
     let sql = format!(
         r#"
@@ -2206,45 +2259,6 @@ pub async fn list_cast_vote_messages(
     Ok(CastVoteMessagesOutput { list, total })
 }
 
-#[instrument(err)]
-pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
-    let mut client = get_immudb_client().await?;
-    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-    let board_name = get_event_board(
-        input.tenant_id.as_str(),
-        input.election_event_id.as_str(),
-        &slug,
-    );
-
-    info!("board name: {board_name}");
-    client.open_session(&board_name).await?;
-
-    let (clauses_to_count, count_params) = input.as_sql(true)?;
-    let sql = format!(
-        r#"
-        SELECT COUNT(*)
-        FROM electoral_log_messages
-        {clauses_to_count}
-        "#,
-    );
-
-    info!("query: {sql}");
-
-    let sql_query_response = client.sql_query(&sql, count_params).await?;
-
-    let mut rows_iter = sql_query_response
-        .get_ref()
-        .rows
-        .iter()
-        .map(Aggregate::try_from);
-    let aggregate = rows_iter
-        .next()
-        .ok_or_else(|| anyhow!("No aggregate found"))??;
-
-    client.close_session().await?;
-    Ok(aggregate.count as i64)
-}
-
 #[cfg(test)]
 mod page_limit_tests {
     use super::*;
@@ -2316,7 +2330,7 @@ mod text_filter_tests {
             filter: Some(HashMap::from([(field, value.to_string())])),
             ..Default::default()
         };
-        let (clauses, params) = body.as_sql(true).unwrap();
+        let (clauses, params) = body.as_sql(true, &[]).unwrap();
         let [param] = params.as_slice() else {
             panic!("expected one parameter: {params:?}");
         };
@@ -2417,6 +2431,139 @@ mod text_filter_tests {
         let (clause, value) = count_filter(OrderField::Version, "1.2");
         assert_eq!(clause, "WHERE version LIKE @param_version");
         assert_eq!(value, r"1\.2");
+    }
+}
+
+#[cfg(test)]
+mod admin_index_hint_tests {
+    use super::*;
+
+    const USER_ID: &str = "27ac2b8a-73a1-4219-b12e-9672f42d7e90";
+    const USER_INDEX: &str = "USE INDEX ON (user_id, election_id, area_id, id)";
+
+    fn board_indexes() -> Vec<TableIndex> {
+        vec![
+            TableIndex::new(&[
+                "statement_kind",
+                "user_id",
+                "ballot_id",
+                "election_id",
+                "id",
+            ]),
+            TableIndex::new(&["statement_kind", "election_id", "id"]),
+            TableIndex::new(&["user_id", "election_id", "area_id", "id"]),
+            TableIndex::new(&["election_id", "area_id", "id"]),
+            TableIndex::new(&["area_id", "id"]),
+        ]
+    }
+
+    fn body(filter: &[(OrderField, &str)]) -> GetElectoralLogBody {
+        GetElectoralLogBody {
+            filter: Some(
+                filter
+                    .iter()
+                    .map(|(field, value)| (field.clone(), value.to_string()))
+                    .collect(),
+            ),
+            ..Default::default()
+        }
+    }
+
+    fn count_clauses(body: &GetElectoralLogBody) -> String {
+        body.as_sql(true, &board_indexes()).unwrap().0
+    }
+
+    #[test]
+    fn a_voters_entries_are_counted_on_the_voters_index() {
+        assert_eq!(
+            count_clauses(&body(&[(OrderField::UserId, USER_ID)])),
+            format!("{USER_INDEX} WHERE user_id = @param_user_id")
+        );
+    }
+
+    #[test]
+    fn other_filters_still_apply_on_the_voters_index() {
+        let clauses = count_clauses(&body(&[
+            (OrderField::UserId, USER_ID),
+            (OrderField::Username, "doe"),
+        ]));
+        assert!(
+            clauses.starts_with(&format!("{USER_INDEX} WHERE ")),
+            "{clauses}"
+        );
+        assert!(clauses.contains("user_id = @param_user_id"), "{clauses}");
+        assert!(
+            clauses.contains("username LIKE @param_username"),
+            "{clauses}"
+        );
+    }
+
+    #[test]
+    fn partial_values_and_no_filter_scan_the_primary_key() {
+        assert_eq!(
+            count_clauses(&body(&[(OrderField::UserId, "27ac2b8a")])),
+            "WHERE user_id LIKE @param_user_id"
+        );
+        assert_eq!(count_clauses(&GetElectoralLogBody::default()), "");
+    }
+
+    #[test]
+    fn a_board_without_the_index_scans_the_primary_key() {
+        let body = body(&[(OrderField::UserId, USER_ID)]);
+        assert_eq!(
+            body.as_sql(true, &[]).unwrap().0,
+            "WHERE user_id = @param_user_id"
+        );
+    }
+
+    #[test]
+    fn the_requested_statement_kind_is_an_equal_column() {
+        let body = GetElectoralLogBody {
+            statement_kind: Some(StatementType::CastVote),
+            ..body(&[(OrderField::UserId, USER_ID)])
+        };
+        let mut columns = body.equal_columns();
+        columns.sort();
+        assert_eq!(columns, vec!["statement_kind", "user_id"]);
+    }
+
+    #[test]
+    fn only_complete_values_are_equal_columns() {
+        let body = body(&[
+            (OrderField::UserId, "27ac2b8a"),
+            (OrderField::StatementKind, "CastVote"),
+            (OrderField::Id, "5"),
+        ]);
+        assert_eq!(body.equal_columns(), vec!["statement_kind"]);
+    }
+
+    #[test]
+    fn a_page_is_read_in_the_order_requested() {
+        let mut body = GetElectoralLogBody::default();
+        assert_eq!(body.index_scan(true), IndexScan::Count);
+        assert_eq!(body.index_scan(false), IndexScan::OrderedBy("id"));
+        body.order_by = Some(HashMap::from([(OrderField::Created, OrderDirection::Desc)]));
+        assert_eq!(body.index_scan(false), IndexScan::OrderedBy("created"));
+        body.order_by = Some(HashMap::from([
+            (OrderField::Created, OrderDirection::Desc),
+            (OrderField::Id, OrderDirection::Asc),
+        ]));
+        assert_eq!(body.index_scan(false), IndexScan::SortedByColumns);
+    }
+
+    #[test]
+    fn a_page_without_a_requested_order_is_read_in_primary_key_order() {
+        let mut body = body(&[(OrderField::UserId, USER_ID)]);
+        assert_eq!(body.order_by_clause(), "ORDER BY id");
+        body.order_by = Some(HashMap::new());
+        assert_eq!(body.order_by_clause(), "ORDER BY id");
+    }
+
+    #[test]
+    fn a_page_is_sorted_as_requested() {
+        let mut body = GetElectoralLogBody::default();
+        body.order_by = Some(HashMap::from([(OrderField::Created, OrderDirection::Desc)]));
+        assert_eq!(body.order_by_clause(), "ORDER BY created desc");
     }
 }
 
