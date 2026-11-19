@@ -173,7 +173,7 @@ async fn deactivate_unauthorized_schedule(
 /// Parse the next scheduled time for the report using the cron expression,
 /// read in `zone` (the event's primary zone: "every day at 08:00" is 08:00
 /// there, whatever the server's clock zone).
-#[instrument]
+#[instrument(skip_all)]
 pub fn get_next_scheduled_time(report: &Report, zone: Tz) -> Option<DateTime<Utc>> {
     let Some(cron_config) = report.cron_config.clone() else {
         return None;

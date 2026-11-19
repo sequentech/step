@@ -35,7 +35,25 @@ use std::sync::Arc;
 use tracing::instrument;
 use tracing::{event, info, Level};
 
-#[instrument]
+/// Parses a scheduled event's payload. The error keeps the field path and the
+/// kind of error but not serde's message, which can quote payload values. A
+/// missing field is still named: that message holds only the field name.
+fn parse_payload<T: serde::de::DeserializeOwned>(payload: serde_json::Value) -> anyhow::Result<T> {
+    deserialize_value(payload).map_err(|error| {
+        let message = error.inner().to_string();
+        let detail = if message.starts_with("missing field") {
+            message
+        } else {
+            format!("{:?} error", error.inner().classify())
+        };
+        anyhow!(
+            "Error deserializing the scheduled event payload at `{}`: {detail}",
+            error.path()
+        )
+    })
+}
+
+#[instrument(skip_all)]
 pub fn get_datetime(event: &ScheduledEvent) -> Option<DateTime<Local>> {
     let Some(cron_config) = event.cron_config.clone() else {
         return None;
@@ -46,7 +64,7 @@ pub fn get_datetime(event: &ScheduledEvent) -> Option<DateTime<Local>> {
     ISO8601::to_date(&scheduled_date).ok()
 }
 
-#[instrument(skip(celery_app), err)]
+#[instrument(skip_all, fields(scheduled_event_id = %scheduled_event.id), err)]
 pub async fn handle_allow_init_report(
     celery_app: Arc<Celery>,
     scheduled_event: &ScheduledEvent,
@@ -64,8 +82,7 @@ pub async fn handle_allow_init_report(
         event!(Level::WARN, "Missing election_event_id");
         return Ok(());
     };
-    let payload: ManageAllowInitPayload = deserialize_value(event_payload)
-        .map_err(|e| anyhow!("Error deserializing manage election date payload {}", e))?;
+    let payload: ManageAllowInitPayload = parse_payload(event_payload)?;
     // run the actual task in a different async task
     match payload.election_id.clone() {
         Some(election_id) => {
@@ -111,7 +128,7 @@ pub async fn handle_allow_init_report(
     Ok(())
 }
 
-#[instrument(skip(celery_app), err)]
+#[instrument(skip_all, fields(scheduled_event_id = %scheduled_event.id), err)]
 pub async fn handle_allow_voting_period_end(
     celery_app: Arc<Celery>,
     scheduled_event: &ScheduledEvent,
@@ -129,8 +146,7 @@ pub async fn handle_allow_voting_period_end(
         event!(Level::WARN, "Missing election_event_id");
         return Ok(());
     };
-    let payload: ManageAllowVotingPeriodEndPayload = deserialize_value(event_payload)
-        .map_err(|e| anyhow!("Error deserializing manage election date payload {}", e))?;
+    let payload: ManageAllowVotingPeriodEndPayload = parse_payload(event_payload)?;
     // run the actual task in a different async task
     match payload.election_id.clone() {
         Some(election_id) => {
@@ -176,7 +192,7 @@ pub async fn handle_allow_voting_period_end(
     Ok(())
 }
 
-#[instrument(skip(celery_app), err)]
+#[instrument(skip_all, fields(scheduled_event_id = %scheduled_event.id), err)]
 pub async fn handle_voting_event(
     celery_app: Arc<Celery>,
     scheduled_event: &ScheduledEvent,
@@ -194,8 +210,7 @@ pub async fn handle_voting_event(
         event!(Level::WARN, "Missing election_event_id");
         return Ok(());
     };
-    let payload: ManageElectionDatePayload = deserialize_value(event_payload)
-        .map_err(|e| anyhow!("Error deserializing manage election date payload {}", e))?;
+    let payload: ManageElectionDatePayload = parse_payload(event_payload)?;
     // run the actual task in a different async task
     match payload.election_id.clone() {
         Some(election_id) => {
@@ -241,7 +256,7 @@ pub async fn handle_voting_event(
     Ok(())
 }
 
-#[instrument(skip(celery_app), err)]
+#[instrument(skip_all, fields(scheduled_event_id = %scheduled_event.id), err)]
 pub async fn handle_election_event_enrollment(
     celery_app: Arc<Celery>,
     scheduled_event: &ScheduledEvent,
@@ -313,7 +328,7 @@ pub async fn handle_election_lockdown(
     Ok(())
 }
 
-#[instrument(skip(celery_app), err)]
+#[instrument(skip_all, fields(scheduled_event_id = %scheduled_event.id), err)]
 pub async fn handle_election_allow_tally(
     celery_app: Arc<Celery>,
     scheduled_event: &ScheduledEvent,
@@ -331,8 +346,7 @@ pub async fn handle_election_allow_tally(
         event!(Level::WARN, "Missing election_event_id");
         return Ok(());
     };
-    let payload: ManageAllowTallyPayload = deserialize_value(event_payload)
-        .map_err(|e| anyhow!("Error deserializing manage election date payload {}", e))?;
+    let payload: ManageAllowTallyPayload = parse_payload(event_payload)?;
     // run the actual task in a different async task
     match payload.election_id.clone() {
         Some(election_id) => {
@@ -381,7 +395,7 @@ pub async fn handle_election_allow_tally(
 
 /// A lifecycle window of one election (readiness test, final testing,
 /// test voting) opens or closes.
-#[instrument(skip(celery_app), err)]
+#[instrument(skip_all, fields(scheduled_event_id = %scheduled_event.id), err)]
 pub async fn handle_lifecycle_window(
     celery_app: Arc<Celery>,
     scheduled_event: &ScheduledEvent,
@@ -395,13 +409,12 @@ pub async fn handle_lifecycle_window(
     let Some(election_event_id) = scheduled_event.election_event_id.clone() else {
         return Ok(());
     };
-    let payload: ManageElectionDatePayload = deserialize_value(
+    let payload: ManageElectionDatePayload = parse_payload(
         scheduled_event
             .event_payload
             .clone()
             .unwrap_or_else(|| serde_json::json!({})),
-    )
-    .map_err(|e| anyhow!("Error deserializing lifecycle window payload {}", e))?;
+    )?;
     let task = celery_app
         .send_task(
             manage_election_lifecycle_window::new(
@@ -621,3 +634,46 @@ pub async fn scheduled_events(rate_seconds: u64) -> Result<()> {
 #[cfg(test)]
 #[path = "scheduled_events_tests.rs"]
 mod scheduled_events_tests;
+
+#[cfg(test)]
+mod payload_tests {
+    use super::parse_payload;
+    use serde::Deserialize;
+
+    #[derive(Deserialize, Debug)]
+    struct Payload {
+        election_id: Option<String>,
+        scheduled_date: String,
+    }
+
+    #[test]
+    fn a_wrong_type_keeps_the_path_but_not_the_value() {
+        let error = parse_payload::<Payload>(serde_json::json!({
+            "election_id": {"C90PayloadValue": 1},
+            "scheduled_date": "2030-01-01T00:00:00Z",
+        }))
+        .unwrap_err()
+        .to_string();
+        assert!(!error.contains("C90PayloadValue"), "{error}");
+        assert!(error.contains("`election_id`"), "{error}");
+    }
+
+    #[test]
+    fn a_missing_field_is_named() {
+        let error = parse_payload::<Payload>(serde_json::json!({}))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("missing field `scheduled_date`"), "{error}");
+    }
+
+    #[test]
+    fn a_valid_payload_parses() {
+        let payload = parse_payload::<Payload>(serde_json::json!({
+            "election_id": "e",
+            "scheduled_date": "2030-01-01T00:00:00Z",
+        }))
+        .unwrap();
+        assert_eq!(payload.election_id.as_deref(), Some("e"));
+        assert_eq!(payload.scheduled_date, "2030-01-01T00:00:00Z");
+    }
+}

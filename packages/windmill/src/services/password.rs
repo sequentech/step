@@ -4,7 +4,7 @@
 use rand::{thread_rng, Rng};
 use tracing::instrument;
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn generate_random_string_with_charset(bytes_length: usize, charset: &str) -> String {
     // Initialize the random number generator
     let mut rng = thread_rng();

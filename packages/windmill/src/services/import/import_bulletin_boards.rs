@@ -18,7 +18,7 @@ use std::collections::HashSet;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 
-#[instrument]
+#[instrument(skip_all)]
 fn get_board_name_for_event_or_election(
     tenant_id: &str,
     election_event_id: &str,

@@ -11,7 +11,7 @@ use rocket::{form::validate::Contains, http::Status};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
-use tracing::{info, instrument};
+use tracing::instrument;
 
 const COUNTRY_CODE_LENGTH: usize = 2;
 /// Part of the enrollment rule expression that the voting rule does not have.
@@ -71,7 +71,7 @@ fn enrollment_rule_expression(tenant_id: &str, countries_expression: &str) -> St
     )
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub(crate) fn get_voting_portal_urls_prefix() -> Result<(String, String)> {
     //TODO: change default values?
     let voting_portal_url = std::env::var("VOTING_PORTAL_URL")
@@ -81,7 +81,7 @@ pub(crate) fn get_voting_portal_urls_prefix() -> Result<(String, String)> {
     Ok((voting_portal_url, voting_portal_keycloak_url))
 }
 
-#[instrument]
+#[instrument(skip_all)]
 fn create_limit_ip_by_countries_rule_format(
     tenant_id: String,
     countries: &[CountryCode],
@@ -147,7 +147,7 @@ fn find_tenant_rule_id(rules: &[Rule], tenant_id: &str, is_enrollment: bool) -> 
         .and_then(|rule| rule.id.clone())
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn update_or_create_limit_ip_by_countries_rule(
     api_key: &str,
     zone_id: &str,
@@ -185,7 +185,7 @@ async fn update_or_create_limit_ip_by_countries_rule(
     Ok(rule)
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn create_limit_ip_by_countries_ruleset(
     api_key: &str,
     zone_id: &str,
@@ -204,15 +204,13 @@ async fn create_limit_ip_by_countries_ruleset(
     Ok(rule)
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn handle_limit_ip_access_by_countries(
     tenant_id: String,
     voting_countries: Vec<CountryCode>,
     enroll_countries: Vec<CountryCode>,
 ) -> Result<()> {
     let (zone_id, api_key) = get_cloudflare_vars().map_err(|err| anyhow!("{:?}", err))?;
-
-    info!("zone id: {:?}, api_key: {:?}", &zone_id, &api_key);
 
     let ruleset = get_ruleset_by_phase(&api_key, &zone_id, WAF_RULESET_PHASE)
         .await

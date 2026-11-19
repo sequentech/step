@@ -39,7 +39,7 @@ pub enum VaultManagerType {
 
 static MASTER_SECRET: OnceCell<SymmetricKey> = OnceCell::const_new();
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn check_master_secret() -> Result<()> {
     let vault = get_vault()?;
 
@@ -50,7 +50,7 @@ pub async fn check_master_secret() -> Result<()> {
     Ok(())
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn initialize_master_secret() -> Result<SymmetricKey> {
     let vault = get_vault().with_context(|| "Failed to initialize vault")?;
 
@@ -72,7 +72,7 @@ async fn initialize_master_secret() -> Result<SymmetricKey> {
         Err(e) => Err(e).with_context(|| "Failed to access vault for master secret"),
     }
 }
-#[instrument]
+#[instrument(skip_all)]
 pub async fn get_master_secret() -> Result<SymmetricKey> {
     MASTER_SECRET
         .get_or_try_init(initialize_master_secret)

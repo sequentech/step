@@ -47,7 +47,7 @@ pub const DATAFIX_VOTER_LOCK_SECS: i64 = 300;
 /// voter within an event — outbound `SetVoted`, disable-release, inbound
 /// mark/unmark, and reconciliation apply all take this same lock, so none of
 /// them can interleave for the same voter.
-#[instrument]
+#[instrument(skip_all)]
 pub fn external_voter_lock_key(
     tenant_id: &str,
     election_event_id: &str,

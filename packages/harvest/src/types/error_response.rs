@@ -115,7 +115,7 @@ pub struct ErrorResponse {
 }
 
 impl ErrorResponse {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn new(status: Status, message: &str, code: ErrorCode) -> JsonError {
         return Custom(
             status,

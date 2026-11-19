@@ -743,7 +743,7 @@ impl GivenNames {
     }
 }
 
-#[instrument(err)]
+#[instrument(skip_all, err)]
 fn check_mismatches(
     user: &User,
     applicant_data: &HashMap<String, String>,
@@ -1816,7 +1816,7 @@ fn to_unaccented_without_hyphen(word: Option<String>) -> Option<String> {
 }
 
 /// Assumes that the inputs are already lowercase
-#[instrument]
+#[instrument(skip_all)]
 fn is_fuzzy_match(applicant_value: Option<String>, user_value: Option<String>) -> bool {
     let applicant_value_s = applicant_value.clone().unwrap_or_default();
     let user_value_s = user_value.clone().unwrap_or_default();
