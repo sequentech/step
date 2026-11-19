@@ -89,6 +89,27 @@ pub struct VerificationReport {
     /// Base64 of decoded 30-byte payloads, in final mix order.
     pub plaintexts: Vec<String>,
     pub ballot_inclusions: Vec<BallotInclusion>,
+    /// Whether the verification data's export signature verified.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transcript_signature: Option<String>,
+    /// With a result statement, the hash of its ballot style.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ballot_style_hash: Option<String>,
+    /// With a result statement, the counts compared; otherwise that the
+    /// result was not checked.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub result_check: Option<serde_json::Value>,
+}
+
+/// What a verified key generation fixes, for the checks that follow the
+/// transcript's: the protocol manager key (base64, the encoding of
+/// [`crate::export_signature::SignedExport`]), the Configuration's `id` and
+/// the joint public key as a ballot style carries it.
+#[derive(Debug, Clone)]
+pub struct TranscriptAnchors {
+    pub protocol_manager: String,
+    pub configuration_id: u128,
+    pub public_key: String,
 }
 
 /// A malformed or dishonest transcript is a report with `invalid` status;
@@ -97,6 +118,15 @@ pub fn verify_transcript(
     transcript: &PublicTranscript,
     request: &VerificationRequest,
 ) -> VerificationReport {
+    verify_transcript_with_anchors(transcript, request).0
+}
+
+/// [`verify_transcript`], with the anchors once the key generation verified.
+pub fn verify_transcript_with_anchors(
+    transcript: &PublicTranscript,
+    request: &VerificationRequest,
+) -> (VerificationReport, Option<TranscriptAnchors>) {
+    let mut anchors = None;
     let mut report = VerificationReport {
         status: VerificationStatus::Incomplete,
         detail: "DKG transcript is incomplete".into(),
@@ -106,20 +136,24 @@ pub fn verify_transcript(
         ballot_count: None,
         plaintexts: Vec::new(),
         ballot_inclusions: Vec::new(),
+        transcript_signature: None,
+        ballot_style_hash: None,
+        result_check: None,
     };
-    if let Err(error) = check(transcript, request, &mut report) {
+    if let Err(error) = check(transcript, request, &mut report, &mut anchors) {
         report.status = VerificationStatus::Invalid;
         report.detail = error.to_string();
         report.plaintexts.clear();
         report.ballot_inclusions.clear();
     }
-    report
+    (report, anchors)
 }
 
 fn check(
     transcript: &PublicTranscript,
     request: &VerificationRequest,
     report: &mut VerificationReport,
+    anchors: &mut Option<TranscriptAnchors>,
 ) -> Result<()> {
     ensure!(transcript.version == 1, "unsupported transcript version");
     ensure!(
@@ -147,6 +181,15 @@ fn check(
         return Ok(());
     };
     report.public_key_hash = Some(HashHex::of(&dkg.public_key_hash().0));
+    *anchors = Some(TranscriptAnchors {
+        protocol_manager: crate::encoding::encode_signing_public_key(
+            &dkg.configuration().protocol_manager,
+        )?,
+        configuration_id: dkg.configuration().id,
+        public_key: crate::encoding::encode_joint_public_key(
+            &dkg.public_key().pk,
+        ),
+    });
     let Some(tally_messages) = tally_messages else {
         report.status = VerificationStatus::Verified;
         report.detail =

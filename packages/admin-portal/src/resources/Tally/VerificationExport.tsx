@@ -42,12 +42,23 @@ const EXPORT_VERIFICATION_TRANSCRIPT = gql`
         }
     }
 `
+const EXPORT_RESULT_STATEMENT = gql`
+    mutation ExportResultStatement($eventId: String!, $boardId: String!) {
+        export_result_statement(election_event_id: $eventId, protocol_board_id: $boardId) {
+            document_id
+            url
+        }
+    }
+`
 const context = {headers: {"x-hasura-role": IPermissions.ADMIN_CEREMONY}}
 /** How the server refuses verification data before post-processing. */
 const BEFORE_POST_PROCESSING = "requires electoral phase PostProcessing"
 interface ExportResponse {
     export_verification_transcript?: {document_id: string; url: string} | null
+    export_result_statement?: {document_id: string; url: string} | null
 }
+/** The signed verification data, or the result statement checked against them. */
+type ExportKind = "verification" | "resultStatement"
 export interface VerificationExportProps {
     eventId: string
     tallySessionId: string
@@ -82,10 +93,12 @@ export function VerificationExport({
         fetchPolicy: "network-only",
     })
     const [exportTranscript] = useMutation<ExportResponse>(EXPORT_VERIFICATION_TRANSCRIPT)
+    const [exportStatement] = useMutation<ExportResponse>(EXPORT_RESULT_STATEMENT)
     const [prepared, setPrepared] = useState<{scope: string; boards: VerificationBoard[]}>()
     const [failedScope, setFailedScope] = useState<string>()
     const [downloadError, setDownloadError] = useState<{
         scope: string
+        kind: ExportKind
         beforePostProcessing: boolean
     }>()
     const [busy, setBusy] = useState<string>()
@@ -131,26 +144,37 @@ export function VerificationExport({
             </Alert>
         )
     if (loading || prepared?.scope !== scope) return null
-    const download = async (board: VerificationBoard) => {
+    const download = async (board: VerificationBoard, kind: ExportKind) => {
         setBusy(board.id)
         setDownloadError(undefined)
         try {
-            const {data: exported, errors} = await exportTranscript({
+            const {data: exported, errors} = await (
+                kind === "verification" ? exportTranscript : exportStatement
+            )({
                 variables: {eventId, boardId: board.id},
                 context,
             })
-            const result = exported?.export_verification_transcript
+            const result =
+                kind === "verification"
+                    ? exported?.export_verification_transcript
+                    : exported?.export_result_statement
             if (errors?.length || !result?.document_id || !result.url)
                 throw Object.assign(new Error("Export failed"), {graphQLErrors: errors})
             const url = new URL(result.url)
             if (url.protocol !== "https:" || url.username || url.password)
                 throw new Error("Invalid download URL")
             if (activeScope.current !== scope) return
-            await downloadUrl(result.url, `verification-${board.id}.json`)
+            await downloadUrl(
+                result.url,
+                kind === "verification"
+                    ? `verification-${board.id}.json`
+                    : `result-statement-${board.id}.json`
+            )
         } catch (caught) {
             if (activeScope.current === scope)
                 setDownloadError({
                     scope,
+                    kind,
                     beforePostProcessing: hasGraphQLActionErrorCode(caught, BEFORE_POST_PROCESSING),
                 })
         } finally {
@@ -194,16 +218,33 @@ export function VerificationExport({
                         value={board.tallyId}
                         InputProps={{readOnly: true}}
                     />
-                    <Button disabled={!!busy} onClick={() => void download(board)}>
+                    <Button disabled={!!busy} onClick={() => void download(board, "verification")}>
                         {t("verificationExport.download", {
                             defaultValue: "Download verification data",
+                        })}
+                    </Button>
+                    <Button
+                        disabled={!!busy}
+                        onClick={() => void download(board, "resultStatement")}
+                    >
+                        {t("verificationExport.downloadResultStatement", {
+                            defaultValue: "Download result statement",
                         })}
                     </Button>
                 </Box>
             ))}
             {downloadError?.scope === scope && (
                 <Alert severity="error">
-                    {downloadError.beforePostProcessing
+                    {downloadError.kind === "resultStatement"
+                        ? downloadError.beforePostProcessing
+                            ? t("verificationExport.resultStatementPostProcessingRequired", {
+                                  defaultValue:
+                                      "The result statement can be downloaded once post-processing has started.",
+                              })
+                            : t("verificationExport.resultStatementDownloadError", {
+                                  defaultValue: "The result statement could not be downloaded.",
+                              })
+                        : downloadError.beforePostProcessing
                         ? t("verificationExport.postProcessingRequired", {
                               defaultValue:
                                   "Verification data can be downloaded once post-processing has started.",

@@ -50,8 +50,15 @@ fn offline_cli_needs_no_keys_and_reproduces_public_proof_report_with_uuid_or_dec
     let request = &fixture["request"];
     let id = request["tally_id"].as_str().unwrap();
     let (code, report) = run(&fixture["transcript"], request, id);
-    assert_eq!(code, 0);
-    assert_eq!(report, fixture["report"]);
+    // The fixture is not a signed export: every proof verifies, but the
+    // verification data are not authenticated, so the run does not pass.
+    let mut expected = fixture["report"].clone();
+    expected["status"] = json!("invalid");
+    expected["detail"] = json!("verification data are not signed");
+    expected["transcript_signature"] = json!("absent");
+    expected["result_check"] = json!("not checked");
+    assert_eq!(code, 1);
+    assert_eq!(report, expected);
     let hex = format!("{:032x}", id.parse::<u128>().unwrap());
     let uuid = format!(
         "{}-{}-{}-{}-{}",
@@ -61,7 +68,7 @@ fn offline_cli_needs_no_keys_and_reproduces_public_proof_report_with_uuid_or_dec
         &hex[16..20],
         &hex[20..]
     );
-    assert_eq!(run(&fixture["transcript"], request, &uuid), (0, report));
+    assert_eq!(run(&fixture["transcript"], request, &uuid), (1, report));
 }
 
 #[test]
@@ -113,5 +120,29 @@ fn cli_does_not_accept_arbitrary_dashes_as_a_uuid_trust_anchor() {
     assert!(
         !output.status.success(),
         "malformed UUID must not become a valid trust anchor"
+    );
+}
+
+#[test]
+fn verification_data_signed_by_another_key_than_the_configurations_manager_fail() {
+    use protocol_board::export_signature::{ExportKind, SignedExport};
+    let fixture = fixture();
+    let request = &fixture["request"];
+    let id = request["tally_id"].as_str().unwrap();
+    let content = serde_json::to_vec(&fixture["transcript"]).unwrap();
+    let signed = SignedExport::sign(
+        ExportKind::VerificationData,
+        &content,
+        &protocol_board::generate_manager(),
+    )
+    .unwrap();
+    let signed: Value = serde_json::from_slice(&signed).unwrap();
+    let (code, report) = run(&signed, request, id);
+    assert_eq!(code, 1);
+    assert_eq!(report["status"], "invalid");
+    assert_eq!(report["transcript_signature"], "invalid");
+    assert_eq!(
+        report["detail"],
+        "verification-data is not endorsed by the protocol manager of the Configuration"
     );
 }

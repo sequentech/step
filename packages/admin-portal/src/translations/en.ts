@@ -203,6 +203,10 @@ const englishTranslation = {
             downloadError: "Verification data could not be downloaded.",
             postProcessingRequired:
                 "Verification data can be downloaded once post-processing has started.",
+            downloadResultStatement: "Download result statement",
+            resultStatementDownloadError: "The result statement could not be downloaded.",
+            resultStatementPostProcessingRequired:
+                "The result statement can be downloaded once post-processing has started.",
         },
         philippinePassport: "Passport",
         seamanBook: "Seafarer's Book",

@@ -207,6 +207,7 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/attack-detection/get", {"election_event_id": UUID_V4_EVENT_ID}, [MONITORING_VIEW], BAD_REQUEST, UNAUTHORIZED),
         case!(UuidTenant, "/export-schedule", {"election_event_id": UUID_EVENT_ID}, [SCHEDULED_EVENT_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-verification-transcript", {"election_event_id": UUID_V4_EVENT_ID, "protocol_board_id": UUID_V4_EVENT_ID}, [ADMIN_CEREMONY], BACKEND, UNAUTHORIZED_JSON),
+        case!(Admin, "/export-result-statement", {"election_event_id": UUID_V4_EVENT_ID, "protocol_board_id": UUID_V4_EVENT_ID}, [ADMIN_CEREMONY], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/get-lifecycle-snapshots", {"election_event_id": UUID_EVENT_ID}, [ELECTION_EVENT_READ], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/get-scheduled-outcomes", {"election_event_id": UUID_EVENT_ID}, [ELECTION_EVENT_READ], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/import-schedule", {"election_event_id": UUID_EVENT_ID, "document_id": ELECTION_ID}, [SCHEDULED_EVENT_WRITE], BACKEND, UNAUTHORIZED),

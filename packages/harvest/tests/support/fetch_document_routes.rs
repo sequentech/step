@@ -404,13 +404,16 @@ async fn transcript_export_rejects_callers_without_ceremony_permission_before_io
     let claims = Claims::new(&uuid::Uuid::new_v4().to_string(), "not-board")
         .roles([Permissions::DOCUMENT_DOWNLOAD]);
     let client = services.client().await;
-    let response = post(
-        &client,
-        "/export-verification-transcript",
-        &claims,
-        &json!({"election_event_id": uuid::Uuid::new_v4().to_string(),
-                "protocol_board_id": uuid::Uuid::new_v4().to_string()}),
-    )
-    .await;
-    assert_eq!(response.status(), Status::Unauthorized);
+    for path in ["/export-verification-transcript", "/export-result-statement"]
+    {
+        let response = post(
+            &client,
+            path,
+            &claims,
+            &json!({"election_event_id": uuid::Uuid::new_v4().to_string(),
+                    "protocol_board_id": uuid::Uuid::new_v4().to_string()}),
+        )
+        .await;
+        assert_eq!(response.status(), Status::Unauthorized, "{path}");
+    }
 }

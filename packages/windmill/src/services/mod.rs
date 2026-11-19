@@ -101,6 +101,7 @@ pub mod vault;
 pub mod voter_secret_attributes;
 pub mod voting_status;
 pub mod weight_batches;
+pub mod result_statement;
 
 pub mod audit_storage;
 pub mod audit_storage_policy;

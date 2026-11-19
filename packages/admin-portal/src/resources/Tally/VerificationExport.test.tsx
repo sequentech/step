@@ -8,13 +8,16 @@ import {VerificationExport} from "./VerificationExport"
 
 const mockQuery = jest.fn()
 const mockExport = jest.fn()
+const mockStatement = jest.fn()
 const mockDownload = jest.fn()
 const mockLoad = jest.fn()
 const mockAuthorized = jest.fn((..._args: unknown[]) => true)
 jest.mock("@apollo/client", () => ({
     gql: (source: TemplateStringsArray) => source.join(""),
     useQuery: (...args: unknown[]) => mockQuery(...args),
-    useMutation: () => [mockExport],
+    useMutation: (source: string) => [
+        source.includes("export_result_statement") ? mockStatement : mockExport,
+    ],
 }))
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({
@@ -75,6 +78,14 @@ beforeEach(() => {
             export_verification_transcript: {
                 document_id: "document",
                 url: "https://vote.example.test/private/transcript",
+            },
+        },
+    })
+    mockStatement.mockResolvedValue({
+        data: {
+            export_result_statement: {
+                document_id: "statement",
+                url: "https://vote.example.test/private/statement",
             },
         },
     })
@@ -250,3 +261,39 @@ it.each(["INITIALIZATION_REPORT", "unknown", "", null, undefined])(
         expect(screen.queryByRole("button")).not.toBeInTheDocument()
     }
 )
+
+it("downloads the result statement of the chosen board through its own action", async () => {
+    render(<VerificationExport {...props} />)
+    fireEvent.click(await screen.findByRole("button", {name: "Download result statement"}))
+    await waitFor(() =>
+        expect(mockDownload).toHaveBeenCalledWith(
+            "https://vote.example.test/private/statement",
+            `result-statement-${board.id}.json`
+        )
+    )
+    expect(mockStatement).toHaveBeenCalledWith({
+        variables: {eventId: event, boardId: board.id},
+        context: {headers: {"x-hasura-role": "admin-ceremony"}},
+    })
+    expect(mockExport).not.toHaveBeenCalled()
+})
+
+it.each([
+    [new Error("Result statement not found"), "The result statement could not be downloaded."],
+    [
+        {message: refusal, graphQLErrors: [{message: refusal}]},
+        "The result statement can be downloaded once post-processing has started.",
+    ],
+])("shows a fixed result statement error and does not download", async (failure, text) => {
+    mockStatement.mockRejectedValue(failure)
+    render(<VerificationExport {...props} />)
+    fireEvent.click(await screen.findByRole("button", {name: "Download result statement"}))
+    expect(await screen.findByText(text)).toBeVisible()
+    expect(mockDownload).not.toHaveBeenCalled()
+})
+
+it("offers no result statement where verification data are not offered", () => {
+    render(<VerificationExport {...props} completed={false} />)
+    expect(screen.queryByRole("button", {name: "Download result statement"})).toBeNull()
+    expect(mockStatement).not.toHaveBeenCalled()
+})

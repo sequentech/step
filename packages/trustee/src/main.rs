@@ -16,6 +16,7 @@ mod destroy;
 mod identity;
 mod login;
 mod platform;
+mod result_check;
 mod verify;
 
 use std::env;

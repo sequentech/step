@@ -68,6 +68,7 @@
 /export-trustees
 /export-users
 /export-verification-transcript
+/export-result-statement
 /fetch-document
 /fetch-results-artifact
 /generate-ballot-publication

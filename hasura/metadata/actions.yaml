@@ -44,6 +44,25 @@ actions:
       permissions:
           - role: admin-ceremony
       comment: Export public protocol evidence from the internal board service
+    - name: export_result_statement
+      definition:
+          kind: synchronous
+          handler: "http://{{HARVEST_DOMAIN}}/export-result-statement"
+          forward_client_headers: true
+          timeout: 120
+          request_transform:
+              body:
+                  action: transform
+                  template: |-
+                      {
+                        "election_event_id": {{$body.input.election_event_id}},
+                        "protocol_board_id": {{$body.input.protocol_board_id}}
+                      }
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-ceremony
+      comment: Export the signed result statement stored by the results tally
     - name: list_trustee_boards
       definition:
           type: query
