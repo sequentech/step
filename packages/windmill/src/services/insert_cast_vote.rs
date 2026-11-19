@@ -1233,12 +1233,23 @@ async fn check_status(
     )
 }
 
+/// The unique index that stores a voter's ballot once even when
+/// check_revote_limit is bypassed.
+const VOTER_BALLOT_KEY: &str = "cast_vote_voter_ballot_key";
+
 /// Inspect the database error itself: tokio-postgres Display only says
 /// "db error", and matching that string loses the trigger's public error code.
 fn map_insert_error(error: anyhow::Error) -> CastVoteError {
-    let message = error
+    let db_error = error
         .downcast_ref::<tokio_postgres::Error>()
-        .and_then(|error| error.as_db_error())
+        .and_then(|error| error.as_db_error());
+    if db_error.is_some_and(|error| {
+        error.code() == &tokio_postgres::error::SqlState::UNIQUE_VIOLATION
+            && error.constraint() == Some(VOTER_BALLOT_KEY)
+    }) {
+        return CastVoteError::BallotAlreadyCast;
+    }
+    let message = db_error
         .filter(|error| error.code() == &tokio_postgres::error::SqlState::RAISE_EXCEPTION)
         .map(|error| error.message());
     match message {
