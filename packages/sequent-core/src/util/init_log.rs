@@ -177,8 +177,10 @@ pub fn init_log(set_global: bool) -> LogReloadHandle {
         tracing::subscriber::set_global_default(subscriber).unwrap();
     }
     tracing_log::LogTracer::init().unwrap();
+    // Written directly to stderr: the configured filter could hide it, for
+    // example with `LOG_LEVEL=error,windmill=wrn`.
     if let Some(error) = error {
-        tracing::warn!("{error}");
+        eprintln!("WARN {} {error}", module_path!());
     }
     reload_handle
 }
