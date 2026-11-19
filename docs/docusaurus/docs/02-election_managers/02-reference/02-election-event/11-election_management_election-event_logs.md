@@ -24,8 +24,9 @@ The Logs tab is implemented using Immudb, a tamper-evident database. Each entry 
 - A complete **User ID** or a complete **Statement Kind** name (for example
   `CastVote`) shows the entries with exactly that value. Part of a value shows
   every entry that contains it, with the characters taken literally.
-- The total is the exact number of matching entries. Counting them means
-  reading each one, which can take several seconds on events with many
+- The total is the exact number of matching entries. Without a filter it is
+  shown at once. With a filter, the entries are counted, and counting them
+  means reading each one, which can take several seconds on events with many
   entries.
 - The Ballot Locator's Logs tab in the Voting Portal stops counting ballots at
   the deployment's `LOW_SQL_LIMIT` setting (50,000 in the provided

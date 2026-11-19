@@ -1638,14 +1638,13 @@ impl GetElectoralLogBody {
         }
     }
 
-    // Returns the SQL clauses related to the request along with the parameters
-    #[instrument(ret, skip(indexes, pg_config))]
-    fn as_sql(
-        &self,
-        to_count: bool,
-        indexes: &[TableIndex],
-        pg_config: &PgConfig,
-    ) -> Result<(String, Vec<NamedParam>)> {
+    /// Whether the request selects every entry of the board.
+    pub fn is_unfiltered(&self) -> Result<bool> {
+        Ok(self.where_clause()?.0.is_none())
+    }
+
+    /// The WHERE clause selecting the requested entries, if any, with its parameters.
+    fn where_clause(&self) -> Result<(Option<String>, Vec<NamedParam>)> {
         let mut clauses = Vec::new();
         let mut params = Vec::new();
 
@@ -1769,6 +1768,20 @@ impl GetElectoralLogBody {
                 }
             }
         }
+
+        Ok((clauses.pop(), params))
+    }
+
+    // Returns the SQL clauses related to the request along with the parameters
+    #[instrument(ret, skip(indexes, pg_config))]
+    fn as_sql(
+        &self,
+        to_count: bool,
+        indexes: &[TableIndex],
+        pg_config: &PgConfig,
+    ) -> Result<(String, Vec<NamedParam>)> {
+        let (where_clause, mut params) = self.where_clause()?;
+        let mut clauses: Vec<String> = where_clause.into_iter().collect();
 
         let equal_columns = self.equal_columns();
         let equal_columns: Vec<&str> = equal_columns.iter().map(String::as_str).collect();
@@ -2076,25 +2089,33 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         rows.extend(items);
     }
 
-    let sql = count_sql(&clauses_to_count, None);
+    let (sql, count_params) = if input.is_unfiltered()? {
+        (board_size_sql(), vec![])
+    } else {
+        (count_sql(&clauses_to_count, None), count_params)
+    };
     let sql_query_response = client.sql_query(&sql, count_params).await?;
-    let mut rows_iter = sql_query_response
+    let aggregate = sql_query_response
         .get_ref()
         .rows
-        .iter()
-        .map(Aggregate::try_from);
-
-    let aggregate = rows_iter
-        // get the first item
-        .next()
-        // unwrap the Result and Option
-        .ok_or(anyhow!("No aggregate found"))??;
+        .first()
+        .map(Aggregate::try_from)
+        .transpose()?
+        // An empty board has no newest entry.
+        .unwrap_or(Aggregate { count: 0 });
 
     client.close_session().await?;
     Ok(DataList {
         items: rows,
         total: TotalAggregate { aggregate },
     })
+}
+
+/// The SQL reading the number of entries on a board without counting them. Entries are never
+/// deleted and immudb numbers them from 1 in insertion order, so the newest entry's id is their
+/// number.
+fn board_size_sql() -> String {
+    format!("SELECT id FROM {ELECTORAL_LOG_TABLE} ORDER BY id DESC LIMIT 1")
 }
 
 #[instrument]
@@ -2521,6 +2542,43 @@ mod admin_index_hint_tests {
             "WHERE user_id LIKE @param_user_id"
         );
         assert_eq!(count_clauses(&GetElectoralLogBody::default()), "");
+    }
+
+    #[test]
+    fn only_a_request_without_conditions_is_unfiltered() {
+        assert!(GetElectoralLogBody::default().is_unfiltered().unwrap());
+        assert!(body(&[(OrderField::Message, "anything")])
+            .is_unfiltered()
+            .unwrap());
+        assert!(!body(&[(OrderField::UserId, USER_ID)])
+            .is_unfiltered()
+            .unwrap());
+        assert!(!GetElectoralLogBody {
+            statement_kind: Some(StatementType::CastVote),
+            ..Default::default()
+        }
+        .is_unfiltered()
+        .unwrap());
+        assert!(!GetElectoralLogBody {
+            only_with_user: Some(true),
+            ..Default::default()
+        }
+        .is_unfiltered()
+        .unwrap());
+        assert!(!GetElectoralLogBody {
+            election_id: Some(String::new()),
+            ..Default::default()
+        }
+        .is_unfiltered()
+        .unwrap());
+    }
+
+    #[test]
+    fn the_board_size_is_the_newest_entry_id() {
+        assert_eq!(
+            board_size_sql(),
+            "SELECT id FROM electoral_log_messages ORDER BY id DESC LIMIT 1"
+        );
     }
 
     #[test]
