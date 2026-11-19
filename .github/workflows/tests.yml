@@ -26,7 +26,7 @@ jobs:
           - service: immu-board
           - service: immudb-rs
           - service: sequent-core
-            extra: --features keycloak,default_features,areas,signatures
+            extra: --features keycloak,default_features,areas,signatures,log
           - service: step-cli
           - service: velvet
           - service: wrap-map-err

@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 # Service Logging
 
 harvest, windmill (and its workers and beat), velvet, orare (including the
-document renderer) and b4 set up logging through
+document renderer) and b3 set up logging through
 `sequent_core::util::init_log`, configured with the `LOG_LEVEL` environment
 variable. braid and electoral-log don't read `LOG_LEVEL` yet: they log at
 `info`.
@@ -26,15 +26,16 @@ separated by commas.
 | Value | Effect |
 | --- | --- |
 | unset or empty | `info` |
-| `debug` | Everything at `debug`, with the noisy dependencies below kept at `info` |
+| `debug` | Our own crates at `debug`, dependencies kept at `info` (see below) |
 | `info,windmill::services::ceremonies=warn` | Everything at `info`, except that module and its submodules at `warn` |
 | `windmill=debug` | `windmill` at `debug`, everything else at `info` |
-| `debug,rocket=debug` | Everything at `debug`, including `rocket` |
+| `debug,rocket=debug` | Our own crates and `rocket` at `debug`, other dependencies at `info` |
 
 - A directive `target=level` applies to every target (module path) that
   starts with `target`. It's a prefix, not a pattern: `aws_=debug` covers
   `aws_config` and `aws_smithy_runtime`.
 - Levels are `off`, `error`, `warn`, `info`, `debug` and `trace`, in any case.
+  A directive needs one: `windmill=` is invalid.
 - Span and field filters (`target[span]=level`) aren't supported. Inside a
   matching span they would enable events from every target, including the
   modules muted by other directives.
@@ -44,12 +45,19 @@ separated by commas.
 
 ### Dependencies kept at `info`
 
-When the base level is `debug` or `trace`, these targets stay at `info`:
-`rocket`, `hyper`, `h2`, `rustls`, `tokio_postgres`, `reqwest`, `lapin` and
-`aws_`. At `debug`, `rocket::server` logs every request with its headers,
-including the `Authorization` bearer token. A directive for one of these
-targets in `LOG_LEVEL` overrides the default. Turn one on only for as long as needed,
-and remove what it logged afterwards.
+A base level of `debug` or `trace` applies only to our own crates:
+`harvest`, `windmill` (and its `main` and `beat` binaries), `velvet`,
+`orare`, `doc_renderer`, `b3`, `braid`, `strand`, `sequent_core`,
+`electoral_log`, `immu_board` and `immudb_rs`. Every other target stays at
+`info`. At `debug`, `rocket::server` logs every request with its headers,
+including the `Authorization` bearer token, and other dependencies print
+payloads too. A directive naming a dependency turns it on, for example
+`debug,rocket=debug`. Turn one on only for as long as needed, and remove
+what it logged afterwards.
+
+A new crate has to be added to `FIRST_PARTY_TARGETS` in
+`sequent-core/src/util/init_log.rs` for a plain `debug` to reach it. Until
+then, name it: `debug,my_crate=debug`.
 
 ### Targets in log lines
 
