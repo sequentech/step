@@ -1,0 +1,89 @@
+{
+  "realm": "idp",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "event-oidc-broker",
+      "publicClient": false,
+      "secret": "event-oidc-broker-secret",
+      "standardFlowEnabled": true,
+      "redirectUris": ["*"],
+      "protocolMappers": [
+        {
+          "name": "voter_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "voter_id",
+            "claim.name": "voter_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "region",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "region",
+            "claim.name": "region",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "precinct",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "precinct",
+            "claim.name": "precinct",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "event-saml-sp",
+      "protocol": "saml",
+      "redirectUris": ["*"],
+      "attributes": {
+        "saml.client.signature": "false",
+        "saml.server.signature": "false",
+        "saml.assertion.signature": "false",
+        "saml.authnstatement": "true",
+        "saml_name_id_format": "email",
+        "saml_force_name_id_format": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "region",
+          "protocol": "saml",
+          "protocolMapper": "saml-user-attribute-mapper",
+          "config": {
+            "user.attribute": "region",
+            "attribute.name": "region",
+            "attribute.nameformat": "Basic"
+          }
+        },
+        {
+          "name": "precinct",
+          "protocol": "saml",
+          "protocolMapper": "saml-user-attribute-mapper",
+          "config": {
+            "user.attribute": "precinct",
+            "attribute.name": "precinct",
+            "attribute.nameformat": "Basic"
+          }
+        }
+      ]
+    }
+  ]
+}
