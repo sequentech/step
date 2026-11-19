@@ -282,8 +282,13 @@ jobs:
         wait-for-completion: true
 
   trigger-deployer:
-    needs: [release, create-release-branch, trigger-beyond-release]
-    if: ${{ always() && needs.release.result == 'success' && needs.create-release-branch.result == 'success' }}
+    needs: [release, create-release-branch, trigger-beyond-release, build-and-push, build-and-push-root-account]
+    if: >-
+      ${{ always() && needs.release.result == 'success' &&
+          needs.create-release-branch.result == 'success' &&
+          needs.trigger-beyond-release.result == 'success' &&
+          (needs.build-and-push.result == 'success' ||
+           (inputs.infra_only && needs.build-and-push.result == 'skipped')) }}
     runs-on: ubuntu-24.04
     steps:
     - name: Trigger Deployer Workflow
