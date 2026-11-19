@@ -14,11 +14,11 @@
 //! directives that mute a module. Invalid directives are dropped one by one,
 //! so a typo in one doesn't undo the others.
 //!
-//! When the base level is more verbose than `info`, noisy dependencies are
-//! kept at `info` (see [`QUIET_DEPENDENCIES`]): at `debug`, `rocket` logs
-//! every request with its headers, including bearer tokens. A directive
-//! for the same target in `LOG_LEVEL` overrides that default, so
-//! `LOG_LEVEL=debug,rocket=debug` turns it back on deliberately.
+//! A base level more verbose than `info` applies only to our own crates
+//! (see [`FIRST_PARTY_TARGETS`]); every dependency stays at `info`. At
+//! `debug`, `rocket` logs every request with its headers, including bearer
+//! tokens, and other dependencies print payloads too. A directive naming a
+//! dependency turns it on deliberately: `LOG_LEVEL=debug,rocket=debug`.
 
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::{self, Handle};
@@ -32,17 +32,25 @@ pub const LOG_LEVEL_ENV: &str = "LOG_LEVEL";
 /// Level used when `LOG_LEVEL` sets no valid base level.
 pub const DEFAULT_LOG_LEVEL: LevelFilter = LevelFilter::INFO;
 
-/// Dependency target prefixes kept at `info` when the base level is `debug`
-/// or `trace`, unless `LOG_LEVEL` sets them explicitly.
-pub const QUIET_DEPENDENCIES: &[&str] = &[
-    "rocket",
-    "hyper",
-    "h2",
-    "rustls",
-    "tokio_postgres",
-    "reqwest",
-    "lapin",
-    "aws_",
+/// Target prefixes of our own crates: the only ones a `debug` or `trace`
+/// base level applies to. Everything else stays at `info` unless
+/// `LOG_LEVEL` names it. `main` and `beat` are windmill's binaries, whose
+/// targets are the binary name.
+pub const FIRST_PARTY_TARGETS: &[&str] = &[
+    "harvest",
+    "windmill",
+    "main",
+    "beat",
+    "velvet",
+    "orare",
+    "doc_renderer",
+    "b3",
+    "braid",
+    "strand",
+    "sequent_core",
+    "electoral_log",
+    "immu_board",
+    "immudb_rs",
 ];
 
 /// Handle to change the log filter while the service runs.
@@ -74,8 +82,12 @@ impl Directive {
                  without span or field filters)"
             ));
         }
+        // `LevelFilter` parses an empty string as `error`.
+        let level = level.trim();
+        if level.is_empty() {
+            return Err(format!("{directive:?} has no level"));
+        }
         let level = level
-            .trim()
             .parse::<LevelFilter>()
             .map_err(|_| format!("{directive:?} has an unknown level"))?;
         Ok(Directive::Target {
@@ -123,15 +135,19 @@ pub fn build_filter(spec: Option<&str>) -> (EnvFilter, Option<String>) {
         .last()
         .unwrap_or(DEFAULT_LOG_LEVEL);
 
-    let mut directives = vec![Directive::Base(base).to_string()];
-    // `LevelFilter` orders more verbose levels as greater.
-    if base > LevelFilter::INFO {
-        for dependency in QUIET_DEPENDENCIES {
+    // `LevelFilter` orders more verbose levels as greater. A base more
+    // verbose than `info` is applied to our own crates only.
+    let verbose = base > DEFAULT_LOG_LEVEL;
+    let global = if verbose { DEFAULT_LOG_LEVEL } else { base };
+    let mut directives = vec![Directive::Base(global).to_string()];
+    if verbose {
+        for first_party in FIRST_PARTY_TARGETS {
+            // A directive for the crate, or for a prefix of its name, wins.
             let overridden = valid.iter().any(|d| {
-                matches!(d, Directive::Target { target, .. } if target == dependency)
+                matches!(d, Directive::Target { target, .. } if first_party.starts_with(target.as_str()))
             });
             if !overridden {
-                directives.push(format!("{dependency}=info"));
+                directives.push(format!("{first_party}={base}"));
             }
         }
     }
@@ -228,7 +244,8 @@ mod tests {
                 "hyper::proto::h1::role",
                 "hyper_util::client",
                 "h2::codec",
-                "aws_smithy_runtime"
+                "aws_smithy_runtime",
+                "celery::broker"
             );
         });
         let seen = seen.0.lock().map(|s| s.clone()).unwrap_or_default();
@@ -272,6 +289,11 @@ mod tests {
     #[test]
     fn debug_keeps_dependencies_quiet() {
         let seen = passed(Some("debug"));
+        // Not only the well-known noisy ones: any dependency.
+        assert!(!has(&seen, "DEBUG", "celery::broker"));
+        assert!(has(&seen, "INFO", "celery::broker"));
+        assert!(has(&seen, "DEBUG", "harvest::routes"));
+        assert!(has(&passed(Some("trace")), "TRACE", "harvest::routes"));
         assert!(!has(&seen, "DEBUG", "rocket::server"));
         assert!(has(&seen, "INFO", "rocket::server"));
         assert!(!has(&seen, "DEBUG", "hyper::proto::h1::role"));
@@ -287,6 +309,12 @@ mod tests {
         let seen = passed(Some("debug,hyper=debug"));
         assert!(has(&seen, "DEBUG", "hyper::proto::h1::role"));
         assert!(!has(&seen, "DEBUG", "h2::codec"));
+        let seen = passed(Some("debug,celery=debug"));
+        assert!(has(&seen, "DEBUG", "celery::broker"));
+        // A directive for one of our crates beats the base level.
+        let seen = passed(Some("debug,windmill=warn"));
+        assert!(!has(&seen, "INFO", "windmill::services::tally"));
+        assert!(has(&seen, "DEBUG", "harvest::routes"));
         let seen = passed(Some("info,hyper=debug"));
         assert!(has(&seen, "DEBUG", "hyper::proto::h1::role"));
         assert!(!has(&seen, "DEBUG", "harvest::routes"));
@@ -316,12 +344,20 @@ mod tests {
 
     #[test]
     fn invalid_value_falls_back_to_info() {
-        for spec in ["verbose", "infoo", "info,hyper=loud", "windmill"] {
+        for spec in [
+            "verbose",
+            "infoo",
+            "info,hyper=loud",
+            "windmill",
+            "info,windmill=",
+            "info,windmill= ",
+        ] {
             let (_, error) = build_filter(Some(spec));
             assert!(error.is_some(), "{spec} should be reported");
             let seen = passed(Some(spec));
             assert!(has(&seen, "INFO", "harvest::routes"));
             assert!(!has(&seen, "DEBUG", "harvest::routes"));
+            assert!(has(&seen, "INFO", "windmill::services::tally"));
         }
         assert!(build_filter(Some("info,hyper=warn")).1.is_none());
         assert!(build_filter(Some("info,")).1.is_none());
@@ -356,7 +392,7 @@ mod tests {
         ] {
             assert!(build_filter(Some(spec)).1.is_some(), "{spec}");
         }
-        // The rejected span directive doesn't remove the quiet default.
+        // The rejected span directive doesn't turn the dependency on.
         let seen = passed(Some("debug,rocket[request]=warn"));
         assert!(!has(&seen, "DEBUG", "rocket::server"));
     }
