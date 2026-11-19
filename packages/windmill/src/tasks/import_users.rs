@@ -164,7 +164,8 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
 /// The task's work, also run in-process by the package application, which
 /// must not wait on another task in its own queue. Not retried there.
 pub async fn execute(body: ImportUsersBody, task_execution: TasksExecution) -> Result<()> {
-    match run_import_users(&get_hasura_pool().await, &body, &task_execution).await {
+    let pool = get_hasura_pool().await;
+    match run_import_users(pool.as_ref(), &body, &task_execution).await {
         Ok(()) => Ok(()),
         Err(err) => {
             let problems = import_failure_problems(&err);
