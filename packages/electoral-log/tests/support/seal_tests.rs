@@ -27,7 +27,7 @@ fn log_entry(id: i64) -> SealRecordLogEntry {
 
 fn manifest(entries: Vec<SealEntry>) -> BallotBoxSealManifest {
     BallotBoxSealManifest {
-        format: SEAL_FORMAT_V1.to_string(),
+        format: SEAL_FORMAT_V2.to_string(),
         tenant_id: "tenant".to_string(),
         election_event_id: "event".to_string(),
         election_id: "election".to_string(),

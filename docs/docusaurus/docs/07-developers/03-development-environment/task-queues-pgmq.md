@@ -263,3 +263,121 @@ publisher tests cover both failure policies, and a shared fixture,
 `electoral-log-event-envelope.json`, checks that the envelope Keycloak writes is the
 one Windmill reads. From the repository root,
 `python3 .devcontainer/test-restart-worker.py` checks the development restart loop.
+
+
+## Electoral-log entries waiting for their signer
+
+When an election event's log is signed by the key service and the service is
+down, the log's entries wait instead of being lost: events on
+`electoral_log_event_queue`, due later with a capped backoff
+(`ELECTORAL_LOG_DEFER_FIRST_SECS`, `ELECTORAL_LOG_DEFER_MAX_SECS`), and a row each
+in `step_queue.electoral_log_waiting`, which only the worker role writes. Run the
+queue setup again after upgrading: it creates that table and the deferral-header
+indexes.
+
+While an event's log has waiting entries, actions that must record a direct entry
+in that log fail visibly (election open, close and publish, secret-attribute
+actions, readiness, ceremonies, configuration imports, among others) with "the
+electoral log of `<tenant>/<event>` has N entries waiting for its signer; this
+entry is refused until they are stored". They work again once the waiting entries
+are stored after the key service is back. Watch the "Electoral-log events wait for
+their signer" log line: it reports the count and the oldest wait, and becomes an
+error after `ELECTORAL_LOG_DEFER_ALERT_SECS`. Do not discard waiting or
+dead-lettered entries to unblock a log unless losing them is intended.
+
+Unsigned electoral-log statements that best-effort producers (Windmill and Harvest:
+refused-ballot audits, ballot-publication failures, enrollment problems) record while
+the signer is unavailable go to `sequent_backend.electoral_log_outbox` with an
+HMAC-SHA256 under the tenant's `electoral-log-pending-mac:<tenant id>` vault secret. The relay and
+the batch task refuse a statement without a valid MAC, so it is never signed.
+
+Trust boundary: the MAC key lives in the vault, encrypted under `MASTER_SECRET`; the
+encrypted vault is in the database, the master key is not. A database-only compromise
+(including the shared `postgres` superuser Keycloak connects as in the EMS) can't read
+the MAC key or forge pending rows. Whoever administers the hosts (who can read the
+environment or memory of Windmill or Harvest, or the secrets file) is outside the
+boundary and trusted; nothing here protects against them. The per-install generated
+`MASTER_SECRET` of the EMS is a temporary demo boundary until meta#15035's key-inventory
+requirements are implemented: master-key custody in the HSM is later work within
+meta#15035.
+
+Certificate-authority imports and deletions sign their electoral-log entry with the
+administrator's key and write it to `sequent_backend.electoral_log_outbox` in their
+own transaction (a Hasura migration): if it can't be written, the action fails and
+nothing is saved; if the action rolls back, there is no entry. The audit-log outbox's
+beat relays committed entries to the electoral log, announcing the administrator's
+key in the tenant's log first. An entry whose key the tenant's log doesn't announce
+waits (alert class `electoral-log-admin-key-unannounced`) and holds its log's direct
+posts; an operator may cancel it with `cancel_waiting_entry` (naming who and why;
+logged under `electoral-log-entry-cancelled`). An outbox row that keeps failing to be
+relayed is reported under `electoral-log-outbox-stuck`.
+
+Every outbox row, administrator-signed too, carries a MAC under the tenant's
+`electoral-log-pending-mac:<tenant id>` key, written in the action's transaction over the
+row's delivery ID and statement: a copy of a row under another delivery ID, or a changed
+payload, never verifies. When a row was written is the database's (a trigger sets and
+keeps `created_at`; the batch task checks the statement's time against it). An
+administrator's signature may be in one outbox row only: a second row with the same
+signed statement is refused at insert.
+
+A row the relay can never move as it is (unreadable, a MAC or announcement that doesn't
+verify, a statement of another log than its row) is dead-lettered at once: kept, logged
+under `electoral-log-outbox-dead-letter`, and no longer holding its log, whose later
+entries go on. Once its cause is fixed (a restored vault key, say), replay it with
+`windmill replay-electoral-log-outbox-entry --delivery-id <id> --by <who> --reason
+<why>`, or give it up with `windmill cancel-electoral-log-entry`. A replayed entry is
+stored after those relayed meanwhile. Other failures (the database, the vault, the board)
+hold the log and are retried, with `electoral-log-outbox-stuck` after five attempts.
+
+After a certificate import or deletion commits, the action relays the outbox itself,
+waiting at most 5 seconds, and asks for a batch dispatch; beat does both every 5 seconds
+anyway. With the signer up, the entry is stored within seconds (the relay, then one
+batch). Until then, a direct post to that event's log (opening voting, say) is refused
+with: "the electoral log of `<tenant id>/<election event id>` has `N` entries waiting
+for its signer; this entry is refused until they are stored (the log keeps its order)".
+Try again after a few seconds; if it persists, the signer is unavailable (its alerts
+say why) or the entry is held (`electoral-log-outbox-stuck`,
+`electoral-log-outbox-dead-letter`, `electoral-log-admin-key-unannounced`).
+
+Harvest connects as the producer role and posts some entries itself, so the setup
+grants that role `SELECT (scope)` on `step_queue.electoral_log_waiting`: it can tell
+whether a log has waiting entries, but not read or write them. Deploy in this order:
+run the queue setup, then the workers, then Harvest. A worker of an earlier release
+dead-letters a pending statement's reference (it reads it as a malformed record);
+its scope stays held until that dead letter is replayed by an updated worker.
+
+Not gated, by design: the ballot-box sequencer, the signing-log and audit-log
+outboxes, sealed ballot boxes, CSV imports of a log, and logs made from a signer
+alone (the batch task, tenant logs).
+
+A waiting row past due whose copy is no longer on the event queue holds its log:
+the dispatcher logs it with the alert class `electoral-log-orphan-waiting`. Replay
+its dead letter if it has one; to give the entry up, remove its row
+(`DELETE FROM step_queue.electoral_log_waiting WHERE delivery_id = '<id>'`) as the
+task-queue database owner, and record why.
+
+The integration tests of the queues, the outbox relay and the pending statements
+(`cargo test -p windmill --lib -- --ignored`) need disposable databases (they can
+be one database):
+
+- `PGMQ_TEST_DATABASE_URL`: with PGMQ (the task-queue tests set it up).
+- `HASURA_TEST_DATABASE_URL`: with every Hasura migration applied
+  (`hasura/migrations/backend-db`).
+- `ELECTORAL_LOG_TEST_DATABASE_URL`: for the electoral-log boards.
+- The vault's settings: `SECRETS_BACKEND=EnvVarMasterSecret` and a `MASTER_SECRET`.
+- `HASURA_TEST_TENANT_ID` (optional; by default the bundled tenant). The tests
+  insert the tenant row the vault's secrets reference when it is missing.
+
+The checkpoint-copy tests also need the S3 settings (`AWS_REGION` and the bucket's).
+
+The worker-only `step_queue.electoral_log_waiting` table is worker-only only where
+the queue roles are separate (`queue_producer`, `queue_worker`, `queue_reader`, as
+the EMS and the offline server configure them); a deployment that connects every
+service as the queue owner has no such boundary.
+
+## Remaining meta#15035 work
+
+- Master-key (`MASTER_SECRET`) custody in the HSM, replacing the per-install generated
+  value, a temporary demo boundary.
+- Any further items of meta#15035's key inventory not listed here are pending too; this
+  page claims no completion of meta#15035.

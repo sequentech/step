@@ -191,6 +191,9 @@ async fn record_logs_tab_export(
         time_zone: exported.time_zone.clone().unwrap_or_default(),
         entries: logs.iter().map(|log| log.entries).sum(),
         logs,
+        signature_scheme: electoral_log::signature::Domain::Statement
+            .as_str()
+            .to_string(),
     };
     let document = get_document(
         hasura_transaction,

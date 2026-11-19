@@ -137,7 +137,7 @@ fn first_signin_retries_registration_and_stops_at_the_purge_tombstone() {
             windmill::tasks::electoral_log::LogEventInput {
                 delivery_id:Some("synthetic-register".into()),tenant_id:event.tenant_id.clone(),election_event_id:event.election_event_id.clone(),
                 user_id:Some(voter.clone()),username:None,message_type:windmill::tasks::electoral_log::LogMessageType::KeycloakEvent("REGISTER".into()),
-                body:windmill::tasks::electoral_log::LogEventBody::Plain("null".into()),event_time_ms:None,details:None,admin_event:None,
+                body:windmill::tasks::electoral_log::LogEventBody::Plain("null".into()),event_time_ms:None,details:None,admin_event:None,deferral:None,
             }
         ]).await.unwrap();
         tx.commit().await.unwrap();

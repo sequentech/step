@@ -364,25 +364,55 @@ async fn log_problems(
 ) -> Result<()> {
     let board = get_election_event_board(bulletin_board_reference)
         .ok_or_else(|| anyhow!("The event has no bulletin board"))?;
-    let electoral_log = ElectoralLog::new(
+    let text = format!(
+        "Registrations are refused for {POST_ATTRIBUTE} options whose enrollment configuration can't be checked \
+         to one Post: {problems}"
+    );
+    // Best-effort (its caller only logs a failure): while the board's signer is
+    // unavailable the entry is queued unsigned, for the batch task to sign,
+    // instead of lost.
+    let queue = |text: String| {
+        crate::services::electoral_log_pending::PendingStatement::new(
+            tenant_id,
+            election_event_id,
+            crate::services::electoral_log_pending::PendingStatementBody::EnrollmentProblems {
+                problems: text,
+            },
+        )
+    };
+    let electoral_log = match ElectoralLog::new(
         hasura_transaction,
         tenant_id,
         Some(election_event_id),
         &board,
     )
-    .await?;
-    electoral_log
+    .await
+    {
+        Ok(electoral_log) => electoral_log,
+        Err(error) if electoral_log::signer::is_signer_unavailable(&error) => {
+            return queue(text).queue().await.map(|_| ());
+        }
+        Err(error) => return Err(error),
+    };
+    match electoral_log
         .post_keycloak_event(
             election_event_id.to_string(),
             PROBLEM_LOG_EVENT_TYPE.to_string(),
-            format!(
-                "Registrations are refused for {POST_ATTRIBUTE} options whose enrollment configuration can't be checked \
-                 to one Post: {problems}"
-            ),
+            text.clone(),
             None,
             None,
         )
         .await
+    {
+        // Unavailable, or its log has entries waiting or is busy: queued behind them.
+        Err(error)
+            if electoral_log::signer::is_signer_unavailable(&error)
+                || crate::services::electoral_log_deferral::is_scope_gated(&error) =>
+        {
+            queue(text).queue().await.map(|_| ())
+        }
+        result => result,
+    }
 }
 
 /// The attribute's entries keyed by `embassy` option value. Without any

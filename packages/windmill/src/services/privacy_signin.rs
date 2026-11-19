@@ -38,6 +38,7 @@ mod tests {
             event_time_ms: None,
             details: None,
             admin_event: None,
+            deferral: None,
         };
         assert!(registration_identity(&input).is_some());
         for kind in ["REGISTER_ERROR", "LOGIN", "UPDATE_PROFILE"] {

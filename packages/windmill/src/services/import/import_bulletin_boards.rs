@@ -2,12 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::get_elections;
-use crate::services::electoral_log_board::{
-    get_election_board, get_event_board, get_protocol_manager_secret_path,
-};
+use crate::services::electoral_log_board::{get_election_board, get_event_board};
 use crate::services::export::export_bulletin_boards::*;
 use crate::services::import::import_users::HEADER_RE;
-use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
 use base64::engine::general_purpose;
 use base64::Engine;
@@ -127,12 +124,11 @@ pub async fn import_protocol_manager_keys(
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     if let Some(value) = keys_map.get(&None).cloned() {
         let board_name = get_event_board(tenant_id, election_event_id, &slug);
-        let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
-        vault::save_secret(
+        crate::services::electoral_log_board::import_board_key(
             hasura_transaction,
             tenant_id,
-            Some(election_event_id),
-            &protocol_manager_key,
+            election_event_id,
+            &board_name,
             &value,
         )
         .await
@@ -145,12 +141,11 @@ pub async fn import_protocol_manager_keys(
     for election in elections {
         if let Some(value) = keys_map.get(&Some(election.id.clone())).cloned() {
             let board_name = get_election_board(tenant_id, &election.id, &slug);
-            let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
-            vault::save_secret(
+            crate::services::electoral_log_board::import_board_key(
                 hasura_transaction,
                 tenant_id,
-                Some(election_event_id),
-                &protocol_manager_key,
+                election_event_id,
+                &board_name,
                 &value,
             )
             .await

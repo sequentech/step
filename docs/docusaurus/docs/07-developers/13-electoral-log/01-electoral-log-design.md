@@ -495,13 +495,15 @@ The JSON form, used by the API and the CLI, carries `root` as an array of byte v
 ### 8.3 Signing, storing and recording a publication
 
 1. **Read** the board's current checkpoint.
-2. **Sign** the compact JSON array below with the event's protocol-manager key:
+2. **Sign** the checkpoint with the event's protocol-manager key. Its canonical bytes are the compact JSON array
 
    ```text
-   ["sequent-electoral-log-checkpoint-v2", log_name, log_uid, tree_size, hex(root), reason]
+   ["sequent-electoral-log-checkpoint-v3", log_name, log_uid, tree_size, hex(root), reason]
    ```
 
-   The log identity is a lowercase hyphenated UUID. The first format, `sequent-electoral-log-checkpoint-v1`, signed the log's key in the single electoral-log database and was replaced before release.
+   and the key signs (pure Ed25519) the signed message `sequent-electoral-log/checkpoint-signature/v3 || 0x00 || SHA-256(canonical bytes)`, the log's signature scheme v3 (`electoral_log::signature`). Every log statement's sender and system signatures follow the same rule under the domain `sequent-electoral-log/statement-signature/v3`, over the statement's record bytes. The digest is SHA-256, the same collision resistance as Ed25519 and as the log's Merkle tree; the signed message is the same few dozen bytes for every object, so keys held in a device sign it as keys in memory do.
+
+   The log identity is a lowercase hyphenated UUID. Signatures made before v3 (over the raw bytes, checkpoint formats v1 and v2) do not verify: v3 logs start from fresh data, with no migration.
 
 3. **Copy** it to the write-once bucket, when copies are on (section 8.5). With the `required` policy, a failed copy fails the publication before anything is stored.
 4. **Store** it in `sequent_backend.electoral_log_checkpoint` with `tenant_id`, `election_event_id`, `board_name`, `log_uid`, `tree_size`, `root`, `reason`, `signer_pk`, `signature` and `created_at`.

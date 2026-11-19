@@ -30,6 +30,14 @@ struct CountingBoard {
 }
 
 impl SigningLogBoard for CountingBoard {
+    // These tests exercise the outbox itself; the electoral log's order gate
+    // (always admitting here) is tested where it is implemented.
+    async fn admit(&mut self, _scope: &str) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    async fn end_admission(&mut self) {}
+
     async fn deliver(&mut self, _: &str, deliveries: &[SigningLogDelivery]) -> Result<Vec<bool>> {
         self.written
             .extend(deliveries.iter().map(|delivery| delivery.row_id));

@@ -20,7 +20,7 @@ use electoral_log::{
         },
     },
     ports::ElectoralLogStore,
-    proofs::{checkpoint_signing_bytes, LogState},
+    proofs::LogState,
     service::BoardClient,
     ElectoralLogMessage, LogEntry, LogQuery,
 };
@@ -474,7 +474,9 @@ fn sign(
         reason,
         signer_pk: VerificationKey::from_sk(key)?.to_b64_string()?,
         signature: key
-            .sign(&checkpoint_signing_bytes(checkpoint, reason)?)?
+            .sign(&electoral_log::proofs::checkpoint_signed_message(
+                checkpoint, reason,
+            )?)?
             .to_b64_string()?,
     })
 }

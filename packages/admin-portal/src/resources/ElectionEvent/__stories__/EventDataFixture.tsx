@@ -41,6 +41,10 @@ export interface EventDataScenario {
     neverOpened?: boolean
     /** The event seals its ballot boxes at close (VOTE-FREEZE). */
     sealAtClose?: boolean
+    /** Presentation keys the stored event has besides the fixture's. */
+    presentation?: Record<string, unknown>
+    /** Updating a record rejects with this message, as the database would. */
+    writeError?: string
 }
 
 export const eventDataArgs: EventDataScenario = {
@@ -49,7 +53,12 @@ export const eventDataArgs: EventDataScenario = {
     realmAttributesFail: false,
 }
 
-export const eventDataEvent = (customOrder = false, neverOpened = false, sealAtClose = false) => {
+export const eventDataEvent = (
+    customOrder = false,
+    neverOpened = false,
+    sealAtClose = false,
+    presentation: Record<string, unknown> = {}
+) => {
     const workflow = neverOpened ? EStoryWorkflow.KEYS : undefined
     const event = eventRecord(workflow)
     return eventRecord(workflow, {
@@ -57,6 +66,7 @@ export const eventDataEvent = (customOrder = false, neverOpened = false, sealAtC
             ...event.presentation,
             ...(customOrder ? {elections_order: ElectionsOrder.CUSTOM} : {}),
             ...(sealAtClose ? {ballot_box_seal_policy: EBallotBoxSealPolicy.SEAL_AT_CLOSE} : {}),
+            ...presentation,
         },
     })
 }
@@ -67,11 +77,15 @@ export function eventDataBoundaries({
     realmAttributesFail,
     neverOpened = false,
     sealAtClose = false,
+    presentation,
+    writeError,
 }: EventDataScenario) {
     const workflow = neverOpened ? EStoryWorkflow.KEYS : undefined
     const data = resourceBoundary(
         {
-            sequent_backend_election_event: [eventDataEvent(customOrder, neverOpened, sealAtClose)],
+            sequent_backend_election_event: [
+                eventDataEvent(customOrder, neverOpened, sealAtClose, presentation),
+            ],
             sequent_backend_tenant: [tenantRecord],
             sequent_backend_election: [
                 electionRecord(workflow, {
@@ -84,7 +98,7 @@ export function eventDataBoundaries({
             ],
             sequent_backend_support_material: [],
         },
-        {reads: {sequent_backend_election_event: reads}}
+        {reads: {sequent_backend_election_event: reads}, writeError}
     )
     const graphql = graphqlBoundary(
         {
