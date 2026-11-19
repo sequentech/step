@@ -28,7 +28,7 @@ jobs:
           - service: harvest
           - service: strand
           - service: sequent-core
-            extra: --features keycloak,default_features
+            extra: --features keycloak,default_features,log
           - service: step-cli
           - service: velvet
             # PDF tests launch Chrome; serialize them and bound report workers.
