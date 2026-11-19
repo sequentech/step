@@ -4,6 +4,7 @@
 
 use crate::ports::vault::SecretVault;
 use deadpool_postgres::Transaction;
+use protocol_board::{BoardManager, BoardName};
 use windmill::services::document_password::save_password;
 use windmill::services::reports_vault::get_report_key_pair;
 
@@ -44,6 +45,22 @@ impl SecretVault for WindmillVault {
             election_event_id,
             report_id,
             password,
+        )
+        .await
+    }
+
+    async fn load_protocol_manager(
+        &self,
+        transaction: &Transaction<'_>,
+        tenant_id: &str,
+        election_event_id: &str,
+        board: &BoardName,
+    ) -> anyhow::Result<BoardManager> {
+        windmill::services::protocol_board::load_manager(
+            transaction,
+            tenant_id,
+            election_event_id,
+            board,
         )
         .await
     }

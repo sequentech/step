@@ -130,6 +130,7 @@ fn build_application_with(
                 routes::audit_ballot::audit_ballot,
                 routes::fetch_document::fetch_document,
                 routes::export_verification_transcript::export_verification_transcript,
+                routes::export_verification_transcript::export_result_statement,
                 routes::document_password::get_document_password,
                 routes::elections::create_election,
                 routes::areas::upsert_area,

@@ -44,6 +44,8 @@ pub mod interpret_plaintext;
 pub mod mixed_radix;
 #[cfg(feature = "default_features")]
 pub mod plaintext;
+#[cfg(feature = "default_features")]
+pub mod result_count;
 
 #[cfg(feature = "plugins_wit")]
 pub mod plugins_wit;

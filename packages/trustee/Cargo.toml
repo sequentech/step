@@ -9,6 +9,9 @@ license = "AGPL-3.0-only"
 
 [dependencies]
 protocol-board = { path = "../protocol-board" }
+# The ballot codec, for the result check of `trustee verify --result`.
+sequent-core = { path = "../sequent-core", features = ["default_features"] }
+base64 = "0.22"
 
 anyhow = { workspace = true }
 clap = { version = "4.5", features = ["derive"] }

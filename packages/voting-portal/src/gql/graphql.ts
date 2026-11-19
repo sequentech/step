@@ -2324,6 +2324,8 @@ export type Mutation_Root = {
   export_election_event?: Maybe<ExportElectionEventOutput>;
   export_election_event_logs?: Maybe<ExportLogsOutput>;
   export_election_event_tasks?: Maybe<ExportTasksOutput>;
+  /** Export the signed result statement stored by the results tally */
+  export_result_statement: ExportVerificationTranscriptOutput;
   /** Export the schedule in the CSV import columns */
   export_schedule: ExportScheduleOutput;
   export_tally_results?: Maybe<ExportTallyResultsOutput>;
@@ -4162,6 +4164,12 @@ export type Mutation_RootExport_Election_Event_TasksArgs = {
 
 
 /** mutation root */
+export type Mutation_RootExport_Result_StatementArgs = {
+  election_event_id: Scalars['String']['input'];
+  protocol_board_id: Scalars['String']['input'];
+};
+
+
 export type Mutation_RootExport_ScheduleArgs = {
   election_event_id: Scalars['uuid']['input'];
 };

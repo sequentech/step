@@ -6,6 +6,7 @@ use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::{anyhow, ensure, Context, Result};
 use deadpool_postgres::Transaction;
+use protocol_board::export_signature::{ExportKind, SignedExport};
 use protocol_board::BoardName;
 use rocket::{http::Status, serde::json::Json, State};
 use sequent_core::election_lifecycle::ElectoralPhase;
@@ -82,18 +83,79 @@ pub async fn export_verification_transcript(
     let board = parse_uuid_v4(&body.protocol_board_id).map_err(|_| {
         failure(Status::BadRequest, "Invalid protocol board identifier")
     })?;
-    let result = export(
-        services,
-        tenant,
-        event,
-        board,
-        &decode_permission_labels(&claims),
-        &claims.hasura_claims.user_id,
+    exported(
+        export(
+            services,
+            tenant,
+            event,
+            board,
+            &decode_permission_labels(&claims),
+            &claims.hasura_claims.user_id,
+            ExportKind::VerificationData,
+        )
+        .await,
     )
-    .await;
+}
+
+/// "Download result statement": the signed result statement that the results
+/// tally stored for the contest area of the selected board, under the
+/// verification data's permission, checks and electoral-log record.
+#[post("/export-result-statement", format = "json", data = "<body>")]
+pub async fn export_result_statement(
+    claims: JwtClaims,
+    body: Json<ExportVerificationTranscriptInput>,
+    services: &State<HarvestServices>,
+) -> Result<Json<ExportVerificationTranscriptOutput>, JsonError> {
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::ADMIN_CEREMONY],
+    )
+    .map_err(|(status, message)| failure(status, &message))?;
+    let tenant =
+        parse_uuid_v4(&claims.hasura_claims.tenant_id).map_err(|_| {
+            failure(Status::BadRequest, "Invalid tenant identifier")
+        })?;
+    let event = parse_uuid_v4(&body.election_event_id).map_err(|_| {
+        failure(Status::BadRequest, "Invalid election event identifier")
+    })?;
+    let board = parse_uuid_v4(&body.protocol_board_id).map_err(|_| {
+        failure(Status::BadRequest, "Invalid protocol board identifier")
+    })?;
+    exported(
+        export(
+            services,
+            tenant,
+            event,
+            board,
+            &decode_permission_labels(&claims),
+            &claims.hasura_claims.user_id,
+            ExportKind::ResultStatement,
+        )
+        .await,
+    )
+}
+
+/// The board has no stored result statement.
+#[derive(Debug)]
+struct NoResultStatement;
+impl std::fmt::Display for NoResultStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Result statement not found")
+    }
+}
+impl std::error::Error for NoResultStatement {}
+
+fn exported(
+    result: Result<Option<ExportVerificationTranscriptOutput>>,
+) -> Result<Json<ExportVerificationTranscriptOutput>, JsonError> {
     match result {
         Ok(Some(output)) => Ok(Json(output)),
         Ok(None) => Err(failure(Status::NotFound, "Protocol board not found")),
+        Err(error) if error.is::<NoResultStatement>() => {
+            Err(failure(Status::NotFound, &error.to_string()))
+        }
         Err(error) if error.is::<NotInPostProcessing>() => {
             Err(failure(Status::Conflict, &error.to_string()))
         }
@@ -218,6 +280,7 @@ async fn export(
     board: Uuid,
     labels: &[String],
     user: &str,
+    kind: ExportKind,
 ) -> Result<Option<ExportVerificationTranscriptOutput>> {
     let mut client = services.databases.hasura().await.get().await?;
     let tx = client.transaction().await?;
@@ -237,18 +300,48 @@ async fn export(
     .map_err(|error| {
         anyhow::Error::new(NotInPostProcessing(error.to_string()))
     })?;
-    // Read transaction ends before network I/O; board rows cannot be edited by
-    // the board role. Re-check exactly the selected names before saving.
-    tx.commit().await?;
-    let transcript = services.transcripts.fetch(&dkg, tally.as_ref()).await?;
-    let bytes = serde_json::to_vec(&transcript)?;
+    let bytes = match kind {
+        ExportKind::VerificationData => {
+            let manager = services
+                .vault
+                .load_protocol_manager(
+                    &tx,
+                    &tenant.to_string(),
+                    &event.to_string(),
+                    &dkg,
+                )
+                .await?;
+            // Read transaction ends before network I/O; board rows cannot be
+            // edited by the board role. Re-check exactly the selected names
+            // before saving.
+            tx.commit().await?;
+            let transcript =
+                services.transcripts.fetch(&dkg, tally.as_ref()).await?;
+            // FCS_COP.1/EXP: the export is signed with a one-use key that the
+            // protocol manager endorses; the version-1 transcript is the
+            // envelope's unchanged content.
+            SignedExport::sign(
+                kind,
+                &serde_json::to_vec(&transcript)?,
+                &manager,
+            )?
+        }
+        ExportKind::ResultStatement => {
+            let statement = stored_statement(&tx, tenant, event, board).await?;
+            tx.commit().await?;
+            statement.ok_or(NoResultStatement)?.into_bytes()
+        }
+    };
     let tx = client.transaction().await?;
     ensure!(
         selected_boards(&tx, tenant, event, board, labels).await?
             == Some((dkg, tally)),
         "protocol board binding changed"
     );
-    let name = format!("verification-{board}.json");
+    let name = match kind {
+        ExportKind::VerificationData => format!("verification-{board}.json"),
+        ExportKind::ResultStatement => format!("result-statement-{board}.json"),
+    };
     let tenant = tenant.to_string();
     let event = event.to_string();
     let output = tokio::time::timeout(Duration::from_secs(30), async {
@@ -268,21 +361,70 @@ async fn export(
     })
     .await
     .context("export storage timed out")??;
+    let mut details = serde_json::json!({
+        "exported_by": user,
+        "protocol_board_id": board,
+        "document_id": output.document_id,
+        "sha256": hex::encode(voting_crypto::hash::hash_sha256(&bytes)?),
+    });
+    if kind == ExportKind::ResultStatement {
+        details["export"] = "result-statement".into();
+    }
     election_lifecycle::notice(
         &tx,
         &tenant,
         &event,
         "VerificationDataExported",
-        serde_json::json!({
-            "exported_by": user,
-            "protocol_board_id": board,
-            "document_id": output.document_id,
-            "sha256": hex::encode(voting_crypto::hash::hash_sha256(&bytes)?),
-        }),
+        details,
     )
     .await?;
     tx.commit().await?;
     Ok(Some(output))
+}
+
+/// The signed result statement of the tally session contest whose batches
+/// include the selected board's.
+async fn stored_statement(
+    tx: &Transaction<'_>,
+    tenant: Uuid,
+    event: Uuid,
+    board: Uuid,
+) -> Result<Option<String>> {
+    let Some(row) = tx
+        .query_opt(
+            "SELECT tally_session_id::text, batch FROM sequent_backend.protocol_board
+             WHERE id=$3 AND tenant_id=$1 AND election_event_id=$2",
+            &[&tenant, &event, &board],
+        )
+        .await?
+    else {
+        return Ok(None);
+    };
+    let session: String = row.get(0);
+    let batch = i64::from(row.get::<_, i32>(1));
+    let contests = windmill::postgres::tally_session_contest::get_tally_session_contests(
+        tx,
+        &tenant.to_string(),
+        &event.to_string(),
+        &session,
+    )
+    .await?;
+    for contest in contests {
+        let owns = windmill::services::weight_batches::contest_weight_batches(
+            &contest,
+        )?
+        .iter()
+        .any(|(owned, _)| *owned == batch);
+        if owns {
+            return Ok(contest
+                .annotations
+                .as_ref()
+                .and_then(|value| value.get("result_statement"))
+                .and_then(|value| value.as_str())
+                .map(ToString::to_string));
+        }
+    }
+    Ok(None)
 }
 
 /// Records a download of exported verification data in `tx`, as its export

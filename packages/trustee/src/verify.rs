@@ -3,8 +3,9 @@
 
 use anyhow::{ensure, Context as _, Result};
 use clap::Args;
+use protocol_board::export_signature::{ExportKind, SignedExport};
 use protocol_board::verification::{
-    verify_transcript, PublicTranscript, VerificationRequest,
+    verify_transcript_with_anchors, PublicTranscript, VerificationRequest,
     VerificationStatus,
 };
 use protocol_board::{BoardHandle, BoardName, HashHex};
@@ -34,6 +35,9 @@ pub struct Verify {
     /// A stored cast-vote ciphertext to check for inclusion; repeat as needed.
     #[arg(long)]
     ballot_ciphertext: Vec<String>,
+    /// The board's signed result statement, to check against the votes.
+    #[arg(long)]
+    result: Option<PathBuf>,
     /// Save fetched evidence for offline or browser verification.
     #[arg(long, conflicts_with = "transcript")]
     export: Option<PathBuf>,
@@ -41,10 +45,23 @@ pub struct Verify {
 
 impl Verify {
     pub fn run(self) -> Result<()> {
+        // Downloaded verification data must carry the export signature; read
+        // without one, they are reported as not authenticated.
+        let mut signed_transcript = None;
+        let from_file = self.transcript.is_some();
         let transcript = if let Some(path) = self.transcript {
-            serde_json::from_str::<PublicTranscript>(&std::fs::read_to_string(
-                path,
-            )?)?
+            let bytes = std::fs::read(path)?;
+            let value: serde_json::Value = serde_json::from_slice(&bytes)?;
+            if value.get("format").is_some() {
+                let envelope = SignedExport::parse(&bytes)?;
+                let transcript = serde_json::from_str::<PublicTranscript>(
+                    envelope.content.get(),
+                )?;
+                signed_transcript = Some(envelope);
+                transcript
+            } else {
+                serde_json::from_slice::<PublicTranscript>(&bytes)?
+            }
         } else {
             let url = self.board_url.context(
                 "supply --transcript or --board-url and --dkg-board",
@@ -76,6 +93,17 @@ impl Verify {
                 .open(path)?;
             serde_json::to_writer_pretty(&mut output, &transcript)?;
         }
+        let statement = self
+            .result
+            .map(|path| -> Result<_> {
+                let envelope = SignedExport::parse(&std::fs::read(path)?)
+                    .context("the result statement is not a signed export")?;
+                let statement = crate::result_check::parse_statement(
+                    envelope.content.get(),
+                )?;
+                Ok((envelope, statement))
+            })
+            .transpose()?;
         let tally_id = self
             .tally_id
             .map(|id| -> Result<String> {
@@ -91,7 +119,8 @@ impl Verify {
                 }
             })
             .transpose()?;
-        let report = verify_transcript(
+        let configuration_hash = self.configuration_hash.clone();
+        let (mut report, anchors) = verify_transcript_with_anchors(
             &transcript,
             &VerificationRequest {
                 configuration_hash: HashHex::parse(&self.configuration_hash)?,
@@ -103,6 +132,66 @@ impl Verify {
                 ballot_ciphertexts: self.ballot_ciphertext,
             },
         );
+        let fail = |report: &mut protocol_board::verification::VerificationReport,
+                        detail: String| {
+            report.status = VerificationStatus::Invalid;
+            report.detail = detail;
+            report.plaintexts.clear();
+            report.ballot_inclusions.clear();
+        };
+        match (&anchors, &signed_transcript) {
+            (Some(anchors), Some(envelope)) => {
+                match envelope
+                    .verify(ExportKind::VerificationData, &anchors.protocol_manager)
+                {
+                    Ok(_) => report.transcript_signature = Some("verified".into()),
+                    Err(error) => {
+                        report.transcript_signature = Some("invalid".into());
+                        fail(&mut report, error.to_string());
+                    }
+                }
+            }
+            (_, None) if from_file => {
+                // FCS_COP.1/EXP: exported data are authentic only when signed.
+                // The proofs' outcome stays in the report; only `verified`,
+                // which would claim authentic data, is withheld.
+                report.transcript_signature = Some("absent".into());
+                if report.status == VerificationStatus::Verified {
+                    report.status = VerificationStatus::Invalid;
+                    report.detail = "verification data are not signed".into();
+                }
+            }
+            (_, None) => {
+                // Read from the boards directly: there is no export to sign.
+                report.transcript_signature = Some("not applicable".into());
+            }
+            (None, Some(_)) => {
+                report.transcript_signature = Some("not checked".into());
+            }
+        }
+        report.result_check = Some("not checked".into());
+        if let (Some((envelope, statement)), Some(anchors)) = (&statement, &anchors) {
+            if report.status == VerificationStatus::Verified {
+                let checked = envelope
+                    .verify(ExportKind::ResultStatement, &anchors.protocol_manager)
+                    .and_then(|_| {
+                        crate::result_check::check_result(
+                            statement,
+                            &configuration_hash,
+                            report.tally_id.as_deref().unwrap_or_default(),
+                            anchors,
+                            &report.plaintexts,
+                        )
+                    });
+                match checked {
+                    Ok(check) => {
+                        report.ballot_style_hash = Some(check.ballot_style_hash);
+                        report.result_check = Some(check.report);
+                    }
+                    Err(error) => fail(&mut report, error.to_string()),
+                }
+            }
+        }
         println!("{}", serde_json::to_string_pretty(&report)?);
         ensure!(
             report.status == VerificationStatus::Verified,

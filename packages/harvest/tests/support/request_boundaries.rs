@@ -31,7 +31,7 @@ const UUID_TENANT_ID: &str = "00000000-0000-0000-0000-00000000000a";
 const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
-const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 205;
+const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 206;
 /// The routes that only builds with the `plugins` feature register: the
 /// plugin route and the Miru transmission routes.
 const PLUGIN_ROUTES: [&str; 4] = [

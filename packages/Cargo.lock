@@ -11144,9 +11144,11 @@ name = "trustee"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "clap",
  "protocol-board",
  "reqwest 0.12.24",
+ "sequent-core",
  "serde",
  "serde_json",
  "tempfile",

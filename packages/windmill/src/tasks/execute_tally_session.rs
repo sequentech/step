@@ -65,6 +65,7 @@ use crate::services::temp_path::{
 };
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
+use crate::services::result_statement;
 use crate::services::weight_batches::{collect_weighted_payloads, contest_weight_batches};
 use crate::tasks::signing_log_outbox::kick_signing_log_outbox;
 use crate::types::error::{Error, Result};
@@ -887,6 +888,7 @@ async fn map_plaintext_data(
         Vec<TallySheet>,
         ElectionEvent,
         TallySession,
+        HashMap<i64, Vec<ElementPayload>>,
     )>,
 > {
     // fetch election_event
@@ -1156,6 +1158,7 @@ async fn map_plaintext_data(
         return Ok(None);
     }
 
+    let batch_payloads = result_statement::decrypted_payloads(&views);
     let (decrypted, dropped_from) = codec_payloads(views);
     let mut session_ids: Vec<i64> = decrypted.keys().copied().collect();
     session_ids.sort_unstable();
@@ -1220,6 +1223,7 @@ async fn map_plaintext_data(
         tally_sheets,
         election_event,
         tally_session,
+        batch_payloads,
     )))
 }
 
@@ -1448,6 +1452,7 @@ pub async fn execute_tally_session_wrapped(
         tally_sheets,
         election_event,
         tally_session,
+        batch_payloads,
     )) = plaintexts_data_opt
     else {
         event!(Level::INFO, "map_plaintext_data is None, skipping");
@@ -1517,6 +1522,25 @@ pub async fn execute_tally_session_wrapped(
             ),
     )
     .await?;
+
+    // The election verifier checks the stored result against the votes of
+    // each board; a completed results tally therefore leaves its statements.
+    if let (true, TallyType::ELECTORAL_RESULTS, Some(result_id)) = (
+        is_execution_completed,
+        &tally_type_enum,
+        results_event_id.as_deref(),
+    ) {
+        result_statement::write_result_statements(
+            hasura_transaction,
+            &tally_session,
+            &tally_session_contests,
+            &ballot_styles,
+            &batch_payloads,
+            &tally_sheets,
+            result_id,
+        )
+        .await?;
+    }
 
     let pending_ties = if let Some(ref result_id) = results_event_id {
         !handle_pending_irv_resolutions(

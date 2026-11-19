@@ -8,6 +8,11 @@ type Mutation {
         protocol_board_id: String!
     ): ExportVerificationTranscriptOutput!
 
+    export_result_statement(
+        election_event_id: String!
+        protocol_board_id: String!
+    ): ExportVerificationTranscriptOutput!
+
     report_trustee_board(report: jsonb!): TrusteeReportOutput!
 }
 

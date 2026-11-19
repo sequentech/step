@@ -133,7 +133,28 @@ async fn exports_raw_public_evidence_to_a_new_private_event_document() {
             "document_id": id,
             "sha256": hex::encode(voting_crypto::hash::hash_sha256(&bytes).unwrap()),
         }));
-        let contents: Value = serde_json::from_slice(&bytes).unwrap();
+        // The download is the signed export; its content is the unchanged
+        // version-1 transcript, endorsed by the board's protocol manager.
+        let envelope = protocol_board::export_signature::SignedExport::parse(
+            &bytes,
+        )
+        .unwrap();
+        let manager = protocol_board::parse_manager_key(
+            s.vault.protocol_manager.lock().unwrap().as_deref().unwrap(),
+        )
+        .unwrap();
+        let manager_key: Value = serde_json::from_slice(&protocol_board::export_signature::SignedExport::sign(
+            protocol_board::export_signature::ExportKind::VerificationData,
+            b"{}",
+            &manager,
+        ).unwrap()).unwrap();
+        let content = envelope
+            .verify(
+                protocol_board::export_signature::ExportKind::VerificationData,
+                manager_key["endorsed_by"].as_str().unwrap(),
+            )
+            .unwrap();
+        let contents: Value = serde_json::from_str(content).unwrap();
         assert_eq!(contents["version"], 1);
         assert_eq!(contents["dkg_messages"], json!(["AAEC"]));
         assert_eq!(
@@ -339,6 +360,123 @@ async fn accepts_no_caller_url_path_or_tenant_override() {
             Status::UnprocessableEntity
         );
     }
+}
+
+async fn call_statement(s: &Services, c: &Claims, input: Value) -> (Status, Value) {
+    let client = s.client().await;
+    json(post(&client, "/export-result-statement", c, &input).await).await
+}
+
+/// A stored result statement for the fixture's contest area, which owns
+/// batch 0, the batch of the fixture's tally board.
+async fn store_statement(s: &Services, f: &Fixture, statement: &str) {
+    let tenant = Uuid::parse_str(&f.event.tenant_id).unwrap();
+    let event = Uuid::parse_str(&f.event.election_event_id).unwrap();
+    let area = Uuid::new_v4();
+    rows::execute(&s.hasura,
+        "INSERT INTO sequent_backend.area (id,tenant_id,election_event_id,name) VALUES ($1,$2,$3,'area')",
+        &[&area,&tenant,&event]).await;
+    rows::execute(&s.hasura,
+        "INSERT INTO sequent_backend.tally_session_contest (id,tenant_id,election_event_id,area_id,session_id,tally_session_id,election_id,annotations) VALUES ($1,$2,$3,$4,0,$5,$6,$7)",
+        &[&Uuid::new_v4(),&tenant,&event,&area,&f.session,&f.election,&json!({"elegible_voters":1,"ballots_without_voter":0,"casted_ballots":1,"result_statement":statement})]).await;
+}
+
+#[rocket::async_test]
+async fn exports_the_stored_result_statement_with_its_own_record() {
+    use crate::ports::documents::DocumentStorage;
+    let mut s = Services::on_test_database().await;
+    let source = Arc::new(Source::default());
+    s.transcripts = source.clone();
+    let f = fixture(&s).await;
+    let (status, body) =
+        call_statement(&s, &claims(&f), request(&f, f.child)).await;
+    assert_eq!(status, Status::NotFound, "{body}");
+    assert_eq!(body["message"], "Result statement not found");
+    let statement = r#"{"format":"sequent-signed-export-1","kind":"result-statement"}"#;
+    store_statement(&s, &f, statement).await;
+    let (status, body) =
+        call_statement(&s, &claims(&f), request(&f, f.child)).await;
+    assert_eq!(status, Status::Ok, "{body}");
+    let id = body["document_id"].as_str().unwrap();
+    let mut db = s.hasura.get().await.unwrap();
+    let tx = db.transaction().await.unwrap();
+    let doc = windmill::postgres::document::get_document(
+        &tx,
+        &f.event.tenant_id,
+        Some(f.event.election_event_id.clone()),
+        id,
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert_eq!(doc.is_public, Some(false));
+    assert_eq!(
+        doc.name.as_deref(),
+        Some(format!("result-statement-{}.json", f.child).as_str())
+    );
+    let file = s.documents.download(&f.event.tenant_id, &doc).await.unwrap();
+    // The stored signed bytes, unchanged.
+    assert_eq!(std::fs::read(file.path()).unwrap(), statement.as_bytes());
+    assert_eq!(
+        exports_logged(&s, &f).await,
+        vec![json!({
+            "exported_by": "board",
+            "protocol_board_id": f.child,
+            "document_id": id,
+            "sha256": hex::encode(voting_crypto::hash::hash_sha256(statement.as_bytes()).unwrap()),
+            "export": "result-statement",
+        })]
+    );
+    // Nothing is read from the boards for a result statement.
+    assert!(source.0.lock().unwrap().is_empty());
+}
+
+#[rocket::async_test]
+async fn refuses_the_result_statement_before_post_processing_and_without_the_permission() {
+    let s = Services::on_test_database().await;
+    let f = fixture_in_preparation(&s).await;
+    store_statement(&s, &f, "{}").await;
+    f.event.enter_phase(&s.hasura, "evaluation").await;
+    let (status, body) =
+        call_statement(&s, &claims(&f), request(&f, f.child)).await;
+    assert_eq!(status, Status::Conflict, "{body}");
+    assert_eq!(
+        body["message"],
+        "This operation requires electoral phase PostProcessing; current phase is Evaluation"
+    );
+    f.event.enter_phase(&s.hasura, "post_processing").await;
+    let other_role = Claims::new(&f.event.tenant_id, "board")
+        .roles([Permissions::DOCUMENT_DOWNLOAD]);
+    let (status, _) =
+        call_statement(&s, &other_role, request(&f, f.child)).await;
+    assert!(
+        status == Status::Unauthorized || status == Status::Forbidden,
+        "{status}"
+    );
+    let other = fixture(&s).await;
+    assert_eq!(
+        call_statement(&s, &claims(&other), request(&f, f.child)).await.0,
+        Status::NotFound
+    );
+    assert!(exports_logged(&s, &f).await.is_empty());
+    assert_eq!(
+        call_statement(&s, &claims(&f), request(&f, f.child)).await.0,
+        Status::Ok
+    );
+}
+
+#[rocket::async_test]
+async fn verification_data_are_not_exported_without_the_protocol_manager_key() {
+    let mut s = Services::on_test_database()
+        .await
+        .with_vault(crate::adapters::memory::vault::MemoryVault::refusing());
+    let source = Arc::new(Source::default());
+    s.transcripts = source.clone();
+    let f = fixture(&s).await;
+    let (status, body) = call(&s, &claims(&f), request(&f, f.child)).await;
+    assert_eq!(status, Status::InternalServerError, "{body}");
+    assert_eq!(body["message"], "Could not export the public transcript");
+    assert!(exports_logged(&s, &f).await.is_empty());
 }
 
 fn listing(content: Value, url: Option<&str>) -> Value {

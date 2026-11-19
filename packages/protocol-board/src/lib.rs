@@ -37,6 +37,7 @@ mod committee;
 mod configuration;
 mod custody;
 mod encoding;
+pub mod export_signature;
 mod ids;
 mod secrets;
 mod tally;
