@@ -142,6 +142,8 @@ pub fn plan_from_workbook(workbook: &Workbook) -> Result<ReadPlan, Report> {
         return Err(report);
     }
     carry_unread_columns(workbook, &mut plan);
+    // After, because carry_unread_columns replaces the event's columns.
+    carry_ballot_identity(workbook, &mut plan);
     Ok(ReadPlan {
         sources: crate::election_config::sources::Sources {
             census: (!voters.is_empty()).then(|| {
@@ -456,6 +458,29 @@ const ENTITY_SHEETS: [&str; 5] = [
     "candidates",
     "areas",
 ];
+
+/// The event's identity mode, carried whatever else happens.
+///
+/// A reopened event states its mode on the ElectionEvent row
+/// (`presentation.ballot_identity`, see `plan_from_event`), and a workbook made
+/// from it carries no base export. [`carry_unread_columns`] carries nothing
+/// when the writer refuses some other part of the plan, and the build would
+/// then make a legacy event pseudonymous. Identity is immutable, so this one
+/// column is kept on its own.
+fn carry_ballot_identity(workbook: &Workbook, plan: &mut Blueprint) {
+    const COLUMN: &str = "presentation.ballot_identity";
+    let Some(value) = workbook
+        .rows("electionevent")
+        .first()
+        .and_then(|row| row.get(COLUMN))
+        .filter(|value| !blank(value))
+    else {
+        return;
+    };
+    plan.columns
+        .entry(COLUMN.to_string())
+        .or_insert_with(|| value.clone());
+}
 
 /// Keep, on each entity, the columns of its row the plan did not take in.
 ///

@@ -3,6 +3,7 @@
 
 """Compose configuration comes from files and defaults, without shell exports."""
 
+import ipaddress
 import json
 import os
 import shutil
@@ -12,6 +13,22 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+MIRU_IDENTITY = (
+    "MIRU_DEVICE_ID",
+    "MIRU_SERIAL_NUMBER",
+    "MIRU_IP_ADDRESS",
+    "MIRU_MAC_ADDRESS",
+)
+
+
+def development_identity():
+    """The demo transmission identity .env.development documents."""
+    values = dict(
+        line.split("=", 1)
+        for line in (DEVCONTAINER / ".env.development").read_text().splitlines()
+        if line.partition("=")[0] in MIRU_IDENTITY
+    )
+    return {name: values[name] for name in MIRU_IDENTITY}
 DEVCONTAINER = ROOT / ".devcontainer"
 
 
@@ -66,7 +83,7 @@ class ComposeEnvironmentTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         return json.loads(result.stdout)
 
-    def render_with_older_local_env(self, overrides=""):
+    def render_with_older_local_env(self, overrides="", also_missing=()):
         missing = {
             "MESSAGING_WEBHOOKS_PUBLIC_URL",
             "MESSAGING_RELAY_SECRET",
@@ -74,6 +91,7 @@ class ComposeEnvironmentTest(unittest.TestCase):
             "ADMIN_PORTAL_URL",
             "TRUSTEE_KEYCLOAK_CLIENT_ID",
             "TRUSTEE_KEYCLOAK_CLIENT_SECRET",
+            *also_missing,
         }
         configuration = (
             "\n".join(
@@ -162,6 +180,61 @@ class ComposeEnvironmentTest(unittest.TestCase):
                 environment["TRUSTEE_KEYCLOAK_CLIENT_SECRET"],
                 "synthetic-local-trustee-secret",
             )
+
+    def assert_transmission_identity(self, services, expected=None):
+        # Windmill and Harvest refuse to seal an ER transmission package
+        # without all four (windmill services/consolidation/acm_json.rs).
+        for name in ("harvest", "windmill"):
+            environment = services[name]["environment"]
+            for variable in MIRU_IDENTITY:
+                with self.subTest(service=name, variable=variable):
+                    value = environment.get(variable)
+                    self.assertTrue(value, f"{name} has no {variable}")
+                    if expected:
+                        self.assertEqual(value, expected[variable])
+            ipaddress.ip_address(environment["MIRU_IP_ADDRESS"])
+            self.assertRegex(
+                environment["MIRU_MAC_ADDRESS"],
+                r"^[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}$",
+            )
+
+    def test_default_compose_gives_the_apps_the_transmission_identity(self):
+        model = self.render(["docker-compose.yml"], DEVCONTAINER / ".env.development")
+        self.assert_transmission_identity(model["services"])
+
+    def test_an_older_local_env_inherits_the_transmission_identity(self):
+        services = self.render_with_older_local_env(also_missing=MIRU_IDENTITY)
+        self.assert_transmission_identity(services)
+
+    def test_a_local_transmission_identity_is_kept(self):
+        local = {
+            "MIRU_DEVICE_ID": "LOCAL-OVCS-0001",
+            "MIRU_SERIAL_NUMBER": "LOCAL-SN-0001",
+            "MIRU_IP_ADDRESS": "fd00::7",
+            "MIRU_MAC_ADDRESS": "02-00-00-00-00-01",
+        }
+        services = self.render_with_older_local_env(
+            "".join(f"{name}={value}\n" for name, value in local.items())
+        )
+        self.assert_transmission_identity(services, local)
+
+    def test_a_blank_local_transmission_identity_falls_back_to_the_demo_one(self):
+        # An explicitly empty value is kept by Compose for other settings, but
+        # these four have a fallback: without them no package can be sealed.
+        # Only the blank lines: no .env.development value is left to win.
+        services = self.render_with_older_local_env(
+            "".join(f"{name}=\n" for name in MIRU_IDENTITY),
+            also_missing=MIRU_IDENTITY,
+        )
+        self.assert_transmission_identity(services, development_identity())
+
+    def test_the_compose_fallback_is_the_development_identity(self):
+        base = (DEVCONTAINER / "docker-compose-base.yml").read_text()
+        for name, value in development_identity().items():
+            with self.subTest(variable=name):
+                self.assertEqual(
+                    base.count(f"{name}: ${{{name}:-{value}}}"), 2, name
+                )
 
     def test_deployment_configurations_render_without_shell_exports(self):
         for filename, env_source in (
