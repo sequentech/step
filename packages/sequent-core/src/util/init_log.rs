@@ -180,7 +180,8 @@ pub fn init_log(set_global: bool) -> LogReloadHandle {
     // Written directly to stderr: the configured filter could hide it, for
     // example with `LOG_LEVEL=error,windmill=wrn`.
     if let Some(error) = error {
-        eprintln!("WARN {} {error}", module_path!());
+        use std::io::Write;
+        let _ = writeln!(std::io::stderr(), "WARN {} {error}", module_path!());
     }
     reload_handle
 }
