@@ -24,7 +24,15 @@ import {
     stringToText,
     useNumberFormat,
 } from "@sequentech/ui-core"
-import {Box, TextField, Typography, Button, Stack, TypographyProps} from "@mui/material"
+import {
+    Box,
+    TextField,
+    Typography,
+    Button,
+    Stack,
+    TypographyProps,
+    LinearProgress,
+} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import Tabs from "@mui/material/Tabs"
 import Tab from "@mui/material/Tab"
@@ -155,6 +163,8 @@ const BallotLocator: React.FC = () => {
     const [rows, setRows] = useState<ICastVoteEntry[]>([])
     const [total, setTotal] = useState(0)
     const [totalBound, setTotalBound] = useState<TotalBound>(TotalBound.Exact)
+    // A cast-vote request is pending: the rows shown are not its answer.
+    const [loadingRows, setLoadingRows] = useState(false)
     const [ballotIdNotFoundErr, setBallotIdNotFoundErr] = useState(false)
     const [somethingWentWrongErr, setSomethingWentWrongErr] = useState(false)
     const validatedBallotId = isHex(inputBallotId ?? "")
@@ -208,6 +218,7 @@ const BallotLocator: React.FC = () => {
             // requests: a deferred one is dropped, an in-flight one is ignored.
             clearTimeout(fetchTimeout.current)
             latestRequestId.current++
+            setLoadingRows(false)
             return
         }
         // With DISABLE_AUTH only the deferred path fetches.
@@ -218,6 +229,7 @@ const BallotLocator: React.FC = () => {
         // even while it waits for its deferred start.
         const requestId = ++latestRequestId.current
         clearTimeout(fetchTimeout.current)
+        setLoadingRows(true)
         const ballotIdFilter = inputBallotId.trim()
         async function tryFetchMessages() {
             try {
@@ -243,11 +255,13 @@ const BallotLocator: React.FC = () => {
                             data?.list_cast_vote_messages?.list.length === 0
                     )
                 }
+                setLoadingRows(false)
             } catch (e) {
                 if (requestId !== latestRequestId.current) {
                     return
                 }
                 setSomethingWentWrongErr(true)
+                setLoadingRows(false)
             }
         }
 
@@ -359,6 +373,7 @@ const BallotLocator: React.FC = () => {
                             rows={rows}
                             total={total}
                             totalBound={totalBound}
+                            loading={loadingRows}
                             onOrderBy={onClickHeader}
                             rowsPerPage={rowsPerPage}
                             handleChangeRowsPerPage={handleChangeRowsPerPage}
@@ -413,10 +428,37 @@ const paginationCount = (
     return rowsOnPage < rowsPerPage ? page * rowsPerPage + rowsOnPage : -1
 }
 
+const LOADING_BAR_EDGES = ["top", "bottom"] as const
+
+/**
+ * While another page, filter or sort loads, the previous rows stay shown: dimmed rows and
+ * progress bars show that they are stale. The rows can be taller than the screen, so there is a
+ * bar by the filter and one by the pagination.
+ */
+const StaleRows: React.FC<{stale: boolean; children: React.ReactNode}> = ({stale, children}) => (
+    <Box className="cast-vote-logs-rows" sx={{position: "relative"}} aria-busy={stale}>
+        {stale &&
+            LOADING_BAR_EDGES.map((edge) => (
+                <LinearProgress
+                    key={edge}
+                    className="cast-vote-logs-loading"
+                    sx={{position: "absolute", [edge]: 0, left: 0, right: 0, zIndex: 2}}
+                />
+            ))}
+        <Box
+            className="cast-vote-logs-rows-content"
+            sx={{opacity: stale ? 0.4 : 1, transition: "opacity 150ms"}}
+        >
+            {children}
+        </Box>
+    </Box>
+)
+
 interface LogsTableProps {
     rows: ICastVoteEntry[]
     total: number
     totalBound: TotalBound
+    loading: boolean
     onOrderBy?: (headerName: string, newOrder: string) => void
     rowsPerPage: number
     handleChangeRowsPerPage: (event: React.ChangeEvent<HTMLInputElement>) => void
@@ -501,6 +543,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
     rows,
     total,
     totalBound,
+    loading,
     onOrderBy,
     rowsPerPage,
     handleChangeRowsPerPage,
@@ -543,192 +586,198 @@ const LogsTable: React.FC<LogsTableProps> = ({
                     {total: formatNumber(total)}
                 )}
             </StyledTitle>
-            <TableContainer
-                className="cast-vote-logs-table-container"
-                component={Paper}
-                sx={{overflowX: "auto", width: "100%"}}
-            >
-                <Table
-                    className="cast-vote-logs-table"
-                    sx={{
-                        "tableLayout": "auto",
-                        "& .MuiTableCell-root": {
-                            border: "1px solid #e0e0e0",
-                        },
-                    }}
-                    aria-label={t("a11y.ballotsTable")}
+            <StaleRows stale={loading}>
+                <TableContainer
+                    className="cast-vote-logs-table-container"
+                    component={Paper}
+                    sx={{overflowX: "auto", width: "100%"}}
                 >
-                    <TableHead className="cast-vote-logs-table-head">
-                        <TableRow className="cast-vote-logs-header-row">
-                            <TableCell
-                                className="cast-vote-logs-username-header"
-                                align="center"
-                                sx={{fontWeight: "bold", padding: "2px 4px"}}
-                            >
-                                {t("ballotLocator.column.username")}
-                            </TableCell>
-                            <TableCell
-                                className="cast-vote-logs-ballot-id-header"
-                                align="center"
-                                sortDirection={orderBy === "ballot_id" ? order : false}
-                                sx={{fontWeight: "bold", padding: "2px 4px"}}
-                            >
-                                <TableSortLabel
-                                    className="cast-vote-logs-sort-button"
-                                    active={orderBy === "ballot_id"}
-                                    direction={orderBy === "ballot_id" ? order : "asc"}
-                                    onClick={() => onClickHeader("ballot_id")}
-                                    sx={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        textAlign: "center",
-                                    }}
-                                >
-                                    {t("ballotLocator.column.ballot_id")}
-                                </TableSortLabel>
-                            </TableCell>
-                            <TableCell
-                                className="cast-vote-logs-kind-header"
-                                align="center"
-                                sortDirection={orderBy === "statement_kind" ? order : false}
-                                sx={{fontWeight: "bold", padding: "2px 4px"}}
-                            >
-                                <TableSortLabel
-                                    className="cast-vote-logs-sort-button"
-                                    active={orderBy === "statement_kind"}
-                                    direction={orderBy === "statement_kind" ? order : "asc"}
-                                    onClick={() => onClickHeader("statement_kind")}
-                                    sx={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        textAlign: "center",
-                                    }}
-                                >
-                                    {t("ballotLocator.column.statement_kind")}
-                                </TableSortLabel>
-                            </TableCell>
-                            <TableCell
-                                className="cast-vote-logs-timestamp-header"
-                                align="center"
-                                sortDirection={orderBy === "statement_timestamp" ? order : false}
-                                sx={{fontWeight: "bold", padding: "2px 4px"}}
-                            >
-                                <TableSortLabel
-                                    className="cast-vote-logs-sort-button"
-                                    active={orderBy === "statement_timestamp"}
-                                    direction={orderBy === "statement_timestamp" ? order : "asc"}
-                                    onClick={() => onClickHeader("statement_timestamp")}
-                                    sx={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        textAlign: "center",
-                                    }}
-                                >
-                                    {t("ballotLocator.column.statement_timestamp")}
-                                </TableSortLabel>
-                            </TableCell>
-                            <TableCell
-                                className="cast-vote-logs-message-header"
-                                align="center"
-                                sx={{fontWeight: "bold", padding: "2px 4px"}}
-                            >
-                                <Box
-                                    className="cast-vote-logs-message-heading"
-                                    sx={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        textAlign: "center",
-                                    }}
-                                >
-                                    {t("ballotLocator.column.message")}
-                                </Box>
-                            </TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody className="cast-vote-logs-table-body">
-                        {rows.map((row, index) => (
-                            <TableRow className="cast-vote-logs-row" key={index}>
+                    <Table
+                        className="cast-vote-logs-table"
+                        sx={{
+                            "tableLayout": "auto",
+                            "& .MuiTableCell-root": {
+                                border: "1px solid #e0e0e0",
+                            },
+                        }}
+                        aria-label={t("a11y.ballotsTable")}
+                    >
+                        <TableHead className="cast-vote-logs-table-head">
+                            <TableRow className="cast-vote-logs-header-row">
                                 <TableCell
-                                    className="cast-vote-logs-username-cell"
+                                    className="cast-vote-logs-username-header"
                                     align="center"
-                                    sx={{
-                                        wordBreak: "break-all",
-                                        whiteSpace: "normal",
-                                        padding: "2px 4px",
-                                    }}
+                                    sx={{fontWeight: "bold", padding: "2px 4px"}}
                                 >
-                                    {row.username ?? "-"}
+                                    {t("ballotLocator.column.username")}
                                 </TableCell>
                                 <TableCell
-                                    className="cast-vote-logs-ballot-id-cell"
+                                    className="cast-vote-logs-ballot-id-header"
                                     align="center"
-                                    sx={{
-                                        wordBreak: "break-all",
-                                        whiteSpace: "normal",
-                                        padding: "2px 4px",
-                                    }}
+                                    sortDirection={orderBy === "ballot_id" ? order : false}
+                                    sx={{fontWeight: "bold", padding: "2px 4px"}}
                                 >
-                                    {initialLength < 10 ? (
-                                        <ExpandableText
-                                            text={row.ballot_id}
-                                            initialLength={initialLength}
-                                            showMoreLabel={t("common.showMore")}
-                                            showLessLabel={t("common.showLess")}
-                                            preformatted={true}
-                                        />
-                                    ) : (
-                                        row.ballot_id
-                                    )}
+                                    <TableSortLabel
+                                        className="cast-vote-logs-sort-button"
+                                        active={orderBy === "ballot_id"}
+                                        direction={orderBy === "ballot_id" ? order : "asc"}
+                                        onClick={() => onClickHeader("ballot_id")}
+                                        sx={{
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            textAlign: "center",
+                                        }}
+                                    >
+                                        {t("ballotLocator.column.ballot_id")}
+                                    </TableSortLabel>
                                 </TableCell>
                                 <TableCell
-                                    className="cast-vote-logs-kind-cell"
+                                    className="cast-vote-logs-kind-header"
                                     align="center"
-                                    sx={{
-                                        wordBreak: "break-all",
-                                        whiteSpace: "normal",
-                                        padding: "2px 4px",
-                                    }}
+                                    sortDirection={orderBy === "statement_kind" ? order : false}
+                                    sx={{fontWeight: "bold", padding: "2px 4px"}}
                                 >
-                                    {row.statement_kind}
+                                    <TableSortLabel
+                                        className="cast-vote-logs-sort-button"
+                                        active={orderBy === "statement_kind"}
+                                        direction={orderBy === "statement_kind" ? order : "asc"}
+                                        onClick={() => onClickHeader("statement_kind")}
+                                        sx={{
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            textAlign: "center",
+                                        }}
+                                    >
+                                        {t("ballotLocator.column.statement_kind")}
+                                    </TableSortLabel>
                                 </TableCell>
                                 <TableCell
-                                    className="cast-vote-logs-timestamp-cell"
+                                    className="cast-vote-logs-timestamp-header"
                                     align="center"
-                                    sx={{
-                                        wordBreak: "break-all",
-                                        whiteSpace: "normal",
-                                        padding: "2px 4px",
-                                    }}
+                                    sortDirection={
+                                        orderBy === "statement_timestamp" ? order : false
+                                    }
+                                    sx={{fontWeight: "bold", padding: "2px 4px"}}
                                 >
-                                    {formatDateTime(row.statement_timestamp * 1000)}
+                                    <TableSortLabel
+                                        className="cast-vote-logs-sort-button"
+                                        active={orderBy === "statement_timestamp"}
+                                        direction={
+                                            orderBy === "statement_timestamp" ? order : "asc"
+                                        }
+                                        onClick={() => onClickHeader("statement_timestamp")}
+                                        sx={{
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            textAlign: "center",
+                                        }}
+                                    >
+                                        {t("ballotLocator.column.statement_timestamp")}
+                                    </TableSortLabel>
                                 </TableCell>
                                 <TableCell
-                                    className="cast-vote-logs-message-cell"
-                                    align="justify"
-                                    sx={{
-                                        wordBreak: "break-all",
-                                        whiteSpace: "normal",
-                                        padding: "2px 4px",
-                                    }}
+                                    className="cast-vote-logs-message-header"
+                                    align="center"
+                                    sx={{fontWeight: "bold", padding: "2px 4px"}}
                                 >
-                                    <MessageCell
-                                        message={row.message}
-                                        initialLength={initialLength}
-                                    />
+                                    <Box
+                                        className="cast-vote-logs-message-heading"
+                                        sx={{
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            textAlign: "center",
+                                        }}
+                                    >
+                                        {t("ballotLocator.column.message")}
+                                    </Box>
                                 </TableCell>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+                        </TableHead>
+                        <TableBody className="cast-vote-logs-table-body">
+                            {rows.map((row, index) => (
+                                <TableRow className="cast-vote-logs-row" key={index}>
+                                    <TableCell
+                                        className="cast-vote-logs-username-cell"
+                                        align="center"
+                                        sx={{
+                                            wordBreak: "break-all",
+                                            whiteSpace: "normal",
+                                            padding: "2px 4px",
+                                        }}
+                                    >
+                                        {row.username ?? "-"}
+                                    </TableCell>
+                                    <TableCell
+                                        className="cast-vote-logs-ballot-id-cell"
+                                        align="center"
+                                        sx={{
+                                            wordBreak: "break-all",
+                                            whiteSpace: "normal",
+                                            padding: "2px 4px",
+                                        }}
+                                    >
+                                        {initialLength < 10 ? (
+                                            <ExpandableText
+                                                text={row.ballot_id}
+                                                initialLength={initialLength}
+                                                showMoreLabel={t("common.showMore")}
+                                                showLessLabel={t("common.showLess")}
+                                                preformatted={true}
+                                            />
+                                        ) : (
+                                            row.ballot_id
+                                        )}
+                                    </TableCell>
+                                    <TableCell
+                                        className="cast-vote-logs-kind-cell"
+                                        align="center"
+                                        sx={{
+                                            wordBreak: "break-all",
+                                            whiteSpace: "normal",
+                                            padding: "2px 4px",
+                                        }}
+                                    >
+                                        {row.statement_kind}
+                                    </TableCell>
+                                    <TableCell
+                                        className="cast-vote-logs-timestamp-cell"
+                                        align="center"
+                                        sx={{
+                                            wordBreak: "break-all",
+                                            whiteSpace: "normal",
+                                            padding: "2px 4px",
+                                        }}
+                                    >
+                                        {formatDateTime(row.statement_timestamp * 1000)}
+                                    </TableCell>
+                                    <TableCell
+                                        className="cast-vote-logs-message-cell"
+                                        align="justify"
+                                        sx={{
+                                            wordBreak: "break-all",
+                                            whiteSpace: "normal",
+                                            padding: "2px 4px",
+                                        }}
+                                    >
+                                        <MessageCell
+                                            message={row.message}
+                                            initialLength={initialLength}
+                                        />
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            </StaleRows>
             <TablePagination
                 className="cast-vote-logs-pagination"
                 rowsPerPageOptions={[5, 10, 25, 50]}
