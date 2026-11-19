@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Service Logging | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4309/docs/developers/logging"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Service Logging | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4309/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4309/docs/developers/logging"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4309/docs/developers/logging" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4309/docs/developers/logging" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Logging","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4309/docs/developers/logging"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4309/assets/css/styles.fc78c976.css">
-<script src="/docusaurus/pr-preview/pr-4309/assets/js/runtime~main.f7db346c.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4309/assets/js/runtime~main.f511fe86.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4309/assets/js/main.b3920e3b.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -20,12 +20,13 @@ variable. braid and electoral-log don&#x27;t read <code>LOG_LEVEL</code> yet: th
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="log_level"><code>LOG_LEVEL</code><a href="#log_level" class="hash-link" aria-label="Direct link to log_level" title="Direct link to log_level" translate="no">​</a></h2>
 <p><code>LOG_LEVEL</code> takes a plain level, <code>target=level</code> directives, or both,
 separated by commas.</p>
-<table><thead><tr><th>Value</th><th>Effect</th></tr></thead><tbody><tr><td>unset or empty</td><td><code>info</code></td></tr><tr><td><code>debug</code></td><td>Everything at <code>debug</code>, with the noisy dependencies below kept at <code>info</code></td></tr><tr><td><code>info,windmill::services::ceremonies=warn</code></td><td>Everything at <code>info</code>, except that module and its submodules at <code>warn</code></td></tr><tr><td><code>windmill=debug</code></td><td><code>windmill</code> at <code>debug</code>, everything else at <code>info</code></td></tr><tr><td><code>debug,rocket=debug</code></td><td>Everything at <code>debug</code>, including <code>rocket</code></td></tr></tbody></table>
+<table><thead><tr><th>Value</th><th>Effect</th></tr></thead><tbody><tr><td>unset or empty</td><td><code>info</code></td></tr><tr><td><code>debug</code></td><td>Our own crates at <code>debug</code>, dependencies kept at <code>info</code> (see below)</td></tr><tr><td><code>info,windmill::services::ceremonies=warn</code></td><td>Everything at <code>info</code>, except that module and its submodules at <code>warn</code></td></tr><tr><td><code>windmill=debug</code></td><td><code>windmill</code> at <code>debug</code>, everything else at <code>info</code></td></tr><tr><td><code>debug,rocket=debug</code></td><td>Our own crates and <code>rocket</code> at <code>debug</code>, other dependencies at <code>info</code></td></tr></tbody></table>
 <ul>
 <li class="">A directive <code>target=level</code> applies to every target (module path) that
 starts with <code>target</code>. It&#x27;s a prefix, not a pattern: <code>aws_=debug</code> covers
 <code>aws_config</code> and <code>aws_smithy_runtime</code>.</li>
-<li class="">Levels are <code>off</code>, <code>error</code>, <code>warn</code>, <code>info</code>, <code>debug</code> and <code>trace</code>, in any case.</li>
+<li class="">Levels are <code>off</code>, <code>error</code>, <code>warn</code>, <code>info</code>, <code>debug</code> and <code>trace</code>, in any case.
+A directive needs one: <code>windmill=</code> is invalid.</li>
 <li class="">Span and field filters (<code>target[span]=level</code>) aren&#x27;t supported. Inside a
 matching span they would enable events from every target, including the
 modules muted by other directives.</li>
@@ -34,12 +35,18 @@ and the service logs a warning naming it. The other directives still
 apply, and without a valid plain level the base is <code>info</code>.</li>
 </ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="dependencies-kept-at-info">Dependencies kept at <code>info</code><a href="#dependencies-kept-at-info" class="hash-link" aria-label="Direct link to dependencies-kept-at-info" title="Direct link to dependencies-kept-at-info" translate="no">​</a></h3>
-<p>When the base level is <code>debug</code> or <code>trace</code>, these targets stay at <code>info</code>:
-<code>rocket</code>, <code>hyper</code>, <code>h2</code>, <code>rustls</code>, <code>tokio_postgres</code>, <code>reqwest</code>, <code>lapin</code> and
-<code>aws_</code>. At <code>debug</code>, <code>rocket::server</code> logs every request with its headers,
-including the <code>Authorization</code> bearer token. A directive for one of these
-targets in <code>LOG_LEVEL</code> overrides the default. Turn one on only for as long as needed,
-and remove what it logged afterwards.</p>
+<p>A base level of <code>debug</code> or <code>trace</code> applies only to our own crates:
+<code>harvest</code>, <code>windmill</code> (and its <code>main</code> and <code>beat</code> binaries), <code>velvet</code>,
+<code>orare</code>, <code>doc_renderer</code>, <code>b4</code>, <code>braid</code>, <code>strand</code>, <code>sequent_core</code>,
+<code>electoral_log</code>, <code>pgmq_broker</code> and <code>trellis</code>. Every other target stays at
+<code>info</code>. At <code>debug</code>, <code>rocket::server</code> logs every request with its headers,
+including the <code>Authorization</code> bearer token, and other dependencies print
+payloads too. A directive naming a dependency turns it on, for example
+<code>debug,rocket=debug</code>. Turn one on only for as long as needed, and remove
+what it logged afterwards.</p>
+<p>A new crate has to be added to <code>FIRST_PARTY_TARGETS</code> in
+<code>sequent-core/src/util/init_log.rs</code> for a plain <code>debug</code> to reach it. Until
+then, name it: <code>debug,my_crate=debug</code>.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="targets-in-log-lines">Targets in log lines<a href="#targets-in-log-lines" class="hash-link" aria-label="Direct link to Targets in log lines" title="Direct link to Targets in log lines" translate="no">​</a></h3>
 <p>Every line shows its target, so the module to filter can be read from the
 line itself:</p>
