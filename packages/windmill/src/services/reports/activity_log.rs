@@ -648,7 +648,16 @@ impl TemplateRenderer for ActivityLogsTemplate {
     fn prefix(&self) -> String {
         format!("activity_logs_{}", rand::random::<u64>())
     }
-    async fn count_items(&self, _hasura_transaction: &Transaction<'_>) -> Result<Option<i64>> {
+    /// The logs always render their PDF in batches, delivered in a ZIP.
+    fn renders_pdf_in_batches(&self, _items_count: i64, _per_report_limit: i64) -> bool {
+        true
+    }
+
+    async fn count_items(
+        &self,
+        _hasura_transaction: &Transaction<'_>,
+        _keycloak_transaction: &Transaction<'_>,
+    ) -> Result<Option<i64>> {
         // A ranged export counts the rows in its range, so each batch has rows.
         if let Some(filter) = self.range_filter() {
             let total = count_electoral_log(GetElectoralLogBody {
@@ -777,6 +786,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         &self,
         format: OutputFormat,
         hasura_transaction: &Transaction<'_>,
+        _keycloak_transaction: &Transaction<'_>,
         stamp: Option<&ConfigurationStamp>,
         directory: &Path,
     ) -> Result<Option<GeneratedFile>> {

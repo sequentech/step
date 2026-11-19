@@ -13,7 +13,8 @@ use crate::services::reports::{
     activity_log::ActivityLogsTemplate, ballot_images::BallotImagesTemplate,
     ballot_receipt::BallotTemplate, electoral_results::ElectoralResults,
     initialization::InitializationTemplate, manual_verification::ManualVerificationTemplate,
-    participation::ParticipationReportTemplate, transmission_report::TransmissionReport,
+    ov_who_voted::OVUsersWhoVotedTemplate, participation::ParticipationReportTemplate,
+    transmission_report::TransmissionReport,
     voter_information_letter::VoterInformationLetterTemplate,
 };
 use crate::services::serialize_tasks_logs::append_general_log;
@@ -192,6 +193,10 @@ pub async fn generate_report(
         }
         Ok(ReportType::TRANSMISSION_REPORT) => {
             let report = TransmissionReport::new(ids);
+            execute_report!(report)
+        }
+        Ok(ReportType::OV_WHO_VOTED) => {
+            let report = OVUsersWhoVotedTemplate::new(ids);
             execute_report!(report)
         }
         Ok(ReportType::CREDENTIALS) => {

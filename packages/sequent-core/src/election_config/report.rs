@@ -143,7 +143,7 @@ pub fn parse_output_formats(
 
 impl ReportType {
     /// Every report type, in the order a screen lists them.
-    pub const ALL: [ReportType; 9] = [
+    pub const ALL: [ReportType; 10] = [
         ReportType::ELECTORAL_RESULTS,
         ReportType::PARTICIPATION_REPORT,
         ReportType::ACTIVITY_LOGS,
@@ -153,11 +153,13 @@ impl ReportType {
         ReportType::MANUAL_VERIFICATION,
         ReportType::CREDENTIALS,
         ReportType::TRANSMISSION_REPORT,
+        ReportType::OV_WHO_VOTED,
     ];
 
     /// The formats a report of this type can be generated in, the first
     /// being its default: PDF and XML for the election returns, PDF, CSV
-    /// and SQL for the activity logs, and PDF for the rest.
+    /// and SQL for the activity logs, PDF and CSV for the list of voters
+    /// who voted, and PDF for the rest.
     pub fn formats(&self) -> &'static [ReportFormat] {
         match self {
             ReportType::ELECTORAL_RESULTS => {
@@ -166,6 +168,7 @@ impl ReportType {
             ReportType::ACTIVITY_LOGS => {
                 &[ReportFormat::Pdf, ReportFormat::Csv, ReportFormat::Sql]
             }
+            ReportType::OV_WHO_VOTED => &[ReportFormat::Pdf, ReportFormat::Csv],
             ReportType::INITIALIZATION_REPORT
             | ReportType::BALLOT_IMAGES
             | ReportType::BALLOT_RECEIPT
@@ -187,6 +190,17 @@ impl ReportType {
                     && *format == ReportFormat::Xml)
             })
             .collect()
+    }
+
+    /// The formats a generation writes for a report that asks for none: the
+    /// first it writes, and for the list of voters who voted its PDF and its
+    /// CSV, which list the same voters.
+    pub fn default_formats(&self) -> Vec<ReportFormat> {
+        let generated = self.generated_formats();
+        match self {
+            ReportType::OV_WHO_VOTED => generated,
+            _ => generated.into_iter().take(1).collect(),
+        }
     }
 
     /// The formats one generation writes for a report that asks for
@@ -215,7 +229,7 @@ impl ReportType {
             }
         }
         if formats.is_empty() {
-            formats.extend(generated.first());
+            formats.extend(self.default_formats());
         }
         Ok(formats)
     }
@@ -267,6 +281,9 @@ pub enum ReportType {
     PARTICIPATION_REPORT,
     CREDENTIALS,
     TRANSMISSION_REPORT,
+    /// The list of voters who cast an accepted ballot, per Post and area.
+    /// The name is the one release/9.0 stored, so its report rows import.
+    OV_WHO_VOTED,
 }
 
 #[cfg(test)]
@@ -307,6 +324,53 @@ mod tests {
         assert_eq!(
             ReportType::from_str("TRANSMISSION_REPORT"),
             Ok(ReportType::TRANSMISSION_REPORT)
+        );
+    }
+
+    #[test]
+    fn the_voters_who_voted_list_is_a_pdf_and_a_csv_of_the_same_rows() {
+        // Annex A D.5 asks for PDF and CSV or SQL. The SQL schema is an open
+        // decision (VOTE-REPORTS D3), so only PDF and CSV are offered.
+        assert!(ReportType::ALL.contains(&ReportType::OV_WHO_VOTED));
+        assert_eq!(
+            ReportType::from_str("OV_WHO_VOTED"),
+            Ok(ReportType::OV_WHO_VOTED)
+        );
+        assert_eq!(
+            ReportType::OV_WHO_VOTED.formats(),
+            &[ReportFormat::Pdf, ReportFormat::Csv]
+        );
+        assert_eq!(
+            ReportType::OV_WHO_VOTED.generation_formats(None),
+            Ok(vec![ReportFormat::Pdf, ReportFormat::Csv]),
+            "the list is a PDF and a CSV of the same voters unless its \
+             report asks for one"
+        );
+        assert_eq!(
+            ReportType::OV_WHO_VOTED
+                .generation_formats(Some(&[]))
+                .unwrap()
+                .len(),
+            2
+        );
+        assert_eq!(
+            ReportType::OV_WHO_VOTED
+                .generation_formats(Some(&[ReportFormat::Csv])),
+            Ok(vec![ReportFormat::Csv])
+        );
+        assert_eq!(
+            ReportType::OV_WHO_VOTED.generation_formats(Some(&[
+                ReportFormat::Pdf,
+                ReportFormat::Csv
+            ])),
+            Ok(vec![ReportFormat::Pdf, ReportFormat::Csv])
+        );
+        assert_eq!(
+            ReportType::OV_WHO_VOTED
+                .generation_formats(Some(&[ReportFormat::Sql])),
+            Err("the OV_WHO_VOTED report cannot be generated in sql: it \
+                 supports pdf, csv"
+                .to_string())
         );
     }
 
@@ -505,6 +569,8 @@ mod tests {
             "MANUAL_VERIFICATION",
             "PARTICIPATION_REPORT",
             "CREDENTIALS",
+            "TRANSMISSION_REPORT",
+            "OV_WHO_VOTED",
         ] {
             let parsed = ReportType::from_str(name)
                 .unwrap_or_else(|_| panic!("{name} should be a ReportType"));

@@ -22,7 +22,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import bootstrap, fixtures, transmission
+from . import bootstrap, fixtures, transmission, voters_who_voted
 from .client import (
     B4_URL,
     ENV,
@@ -2846,3 +2846,273 @@ class BackendJourneys(unittest.TestCase):
         for line in expected:
             self.assertIn(line.upper(), text)
         self.passed("transmission report")
+
+    def generate_voters_who_voted(self, token, event_id, election_id=None):
+        """Generate the list as the Reports tab does; returns its downloaded bytes."""
+        (report,) = self.admin.query(
+            """mutation ($row: sequent_backend_report_insert_input!) {
+              insert_sequent_backend_report(objects: [$row]) { returning { id } }
+            }""",
+            {
+                "row": {
+                    "tenant_id": TENANT_ID,
+                    "election_event_id": event_id,
+                    "election_id": election_id,
+                    "report_type": "OV_WHO_VOTED",
+                }
+            },
+        )["insert_sequent_backend_report"]["returning"]
+        generated = Hasura(token=token, role="report-generate").query(
+            """mutation ($report: String!, $tenant: String!, $event: String) {
+              generate_report(report_id: $report, report_mode: "REAL",
+                              tenant_id: $tenant, election_event_id: $event) {
+                document_id task_execution { id }
+              }
+            }""",
+            {"report": report["id"], "tenant": TENANT_ID, "event": event_id},
+        )["generate_report"]
+        task_id = generated["task_execution"]["id"]
+
+        def finished():
+            (task,) = self.admin.query(
+                "query ($id: uuid!) { sequent_backend_tasks_execution(where: {id: {_eq: $id}}) { execution_status logs } }",
+                {"id": task_id},
+            )["sequent_backend_tasks_execution"]
+            if task["execution_status"] == "FAILED":
+                raise AssertionError(f"Generating the list failed: {task['logs']}")
+            return task["execution_status"] == "SUCCESS"
+
+        wait_until("the list of voters who voted", finished, timeout=300, interval=3)
+        url = Hasura(token=token).query(
+            """query ($event: String, $document: String!) {
+              fetchDocument(election_event_id: $event, document_id: $document) { url }
+            }""",
+            {"event": event_id, "document": generated["document_id"]},
+        )["fetchDocument"]["url"]
+        response = http_get(url)
+        self.assertEqual(response.status, 200)
+        return response.body
+
+    def unpack_voters_who_voted(self, body, folder):
+        """The PDF's text and the CSV's rows of one generation (a ZIP of both)."""
+        self.assertTrue(body.startswith(b"PK"), body[:16])
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "list.zip").write_bytes(body)
+        with zipfile.ZipFile(io.BytesIO(body)) as archive:
+            names = archive.namelist()
+            (pdf_name,) = [name for name in names if name.endswith(".pdf")]
+            (csv_name,) = [name for name in names if name.endswith(".csv")]
+            pdf_bytes, csv_bytes = archive.read(pdf_name), archive.read(csv_name)
+        self.assertTrue(pdf_bytes.startswith(b"%PDF-"))
+        (folder / "list.pdf").write_bytes(pdf_bytes)
+        (folder / "list.csv").write_bytes(csv_bytes)
+        layout = subprocess.run(
+            ["pdftotext", "-layout", str(folder / "list.pdf"), "-"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        (folder / "list.txt").write_text(layout)
+        fonts = subprocess.run(
+            ["pdffonts", str(folder / "list.pdf")],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        (folder / "fonts.txt").write_text(fonts)
+        # Subset fonts are named ABCDEF+Family.
+        families = {
+            line.split()[0].split("+", 1)[-1] for line in fonts.splitlines()[2:] if line.strip()
+        }
+        self.assertTrue(families)
+        self.assertFalse(
+            [f for f in families if any(m in f for m in voters_who_voted.CJK_FONT_MARKERS)],
+            f"a CJK font is embedded: update the documented PDF limitation\n{fonts}",
+        )
+        return " ".join(layout.split()), voters_who_voted.read_csv(csv_bytes)
+
+    def test_f_voters_who_voted(self):
+        """The list of voters who actually voted, for all four Posts of a synthetic
+        event and for one Post, as a PDF and a CSV of the same voters: a revoter
+        once, a voter disabled after voting, never a voter who did not vote."""
+        tag = self.tag + "-voted"
+        document = voters_who_voted.election_event(ENV["VOTING_PORTAL_URL"], tag)
+        event_id = self.import_event(document, "voters-who-voted")
+        path = self.cli.directory / "voters-who-voted.csv"
+        voters_who_voted.write_census(path, tag, document)
+        self.step(
+            "import-voters",
+            "--election-event-id",
+            event_id,
+            "--file-path",
+            str(path),
+            "--is-local",
+        )
+        ceremony = StepCli.last_id(
+            self.step(
+                "start-key-ceremony",
+                "--election-event-id",
+                event_id,
+                "--threshold",
+                "2",
+                "--automatic",
+            )
+        )
+
+        def keys_ready():
+            (row,) = self.admin.query(
+                "query ($id: uuid!) { sequent_backend_keys_ceremony(where: {id: {_eq: $id}}) { execution_status } }",
+                {"id": ceremony},
+            )["sequent_backend_keys_ceremony"]
+            self.assertNotIn(row["execution_status"], ("FAILED", "CANCELLED"))
+            return row["execution_status"] == "SUCCESS"
+
+        wait_until("the four Posts' keys", keys_ready, timeout=600)
+        self.step("publish", "--election-event-id", event_id)
+        self.step(
+            "update-event-voting-status",
+            "--election-event-id",
+            event_id,
+            "--voting-status",
+            "OPEN",
+            "--voting-channel",
+            "ONLINE",
+        )
+        portal = Portal(event_id, self.cli)
+        realm = event_realm(event_id)
+        for person in voters_who_voted.PEOPLE:
+            name = voters_who_voted.username(tag, person)
+            for vote in range(person.votes):
+                token = portal.login(name)
+                (file,) = portal.status(token)["get_ballot_files_urls"]["files"]
+                style, _ = portal.ballot_style(file)
+                option = ("Option One", "Option Two")[vote % 2]
+                receipt, errors = portal.cast(token, portal.encrypt(style, option))
+                self.assertIsNone(errors, f"{person.key} vote {vote + 1}")
+                self.assertIsNotNone(receipt)
+            if person.disabled_after_voting:
+                user = self.keycloak.user(realm, name)
+                user["enabled"] = False
+                self.keycloak.admin(
+                    "PUT", f"{realm}/users/{user['id']}", user, expect=(204,)
+                )
+        self.step(
+            "update-event-voting-status",
+            "--election-event-id",
+            event_id,
+            "--voting-status",
+            "CLOSED",
+            "--voting-channel",
+            "ONLINE",
+        )
+        token = self.admin_token()
+        # The import gives the elections new IDs: read them by external ID.
+        posts = {
+            election["external_id"]: election["id"]
+            for election in self.admin.query(
+                """query ($event: uuid!) {
+                  sequent_backend_election(where: {election_event_id: {_eq: $event}}) { id external_id }
+                }""",
+                {"event": event_id},
+            )["sequent_backend_election"]
+        }
+        post_ids = [posts[election["external_id"]] for election in document["elections"]]
+        folder = OUTPUT / "voters_who_voted"
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "event.json").write_text(
+            json.dumps(
+                {
+                    "event_id": event_id,
+                    "event_name": fixtures.display_name(document["election_event"]),
+                    "tag": tag,
+                    "posts": post_ids,
+                }
+            )
+        )
+
+        # All Posts.
+        text, rows = self.unpack_voters_who_voted(
+            self.generate_voters_who_voted(token, event_id), folder / "all_posts"
+        )
+        expected = voters_who_voted.expected_rows(tag)
+        self.assertEqual(len(rows), 6, rows)
+        self.assertEqual(
+            sorted(
+                (row["election"], row["area"], row["last_name"], row["first_name"], row["username"])
+                for row in rows
+            ),
+            sorted(
+                (
+                    row["election"],
+                    row["area"],
+                    voters_who_voted.defused(row["last_name"]),
+                    row["first_name"],
+                    row["username"],
+                )
+                for row in expected
+            ),
+        )
+        self.assertEqual({row["record"] for row in rows}, {"found"})
+        # Posts without a `post` annotation are named after their title.
+        self.assertEqual(
+            {row["post"] for row in rows}, {row["election"] for row in rows}
+        )
+        # The PDF lists the voters in the CSV's order.
+        positions = [text.index(row["username"]) for row in rows]
+        self.assertEqual(positions, sorted(positions))
+        # Headings are drawn in capitals: compare them case-blind.
+        self.assertNotIn("CONTINUED", text.upper())
+        self.assertEqual(
+            list(rows[0].keys()),
+            [
+                "election_id", "election_external_id", "election", "post", "area_id",
+                "area", "number", "last_name", "first_name", "middle_name", "suffix",
+                "username", "record",
+            ],
+        )
+        # The PDF names the same voters, and nobody who did not vote.
+        for row in expected:
+            self.assertIn(row["username"], text)
+        for person in voters_who_voted.PEOPLE:
+            if person.votes == 0:
+                self.assertNotIn(voters_who_voted.username(tag, person), text)
+        for title in (post.title for post in voters_who_voted.POSTS):
+            self.assertIn(title, text)
+        self.assertIn("LIST OF VOTERS WHO ACTUALLY VOTED", text)
+        self.assertIn("ALL POSTS · VOTERS WHO VOTED: 6", text.upper())
+        # Names the renderer's fonts cover print exactly ("last, first").
+        for person in voters_who_voted.PEOPLE:
+            if person.key in voters_who_voted.PDF_PRINTED_KEYS:
+                self.assertIn(f"{person.last_name}, {person.first_name}", text)
+        # The CSV keeps the Chinese name and area exactly; the PDF cannot draw
+        # them (see CJK_FONT_MARKERS), but still lists the voter's username.
+        (cjk,) = [row for row in rows if row["username"].endswith("-cjk")]
+        self.assertEqual((cjk["last_name"], cjk["first_name"]), ("李", "小龍"))
+        self.assertEqual(cjk["area"], "Área Este 東")
+        self.assertNotIn("ONE POST", text.upper())
+        self.assertIn("No voter of this area has voted.", text)
+        # The final template: the generating user printed as text, no QR code
+        # (the list renders with scripts disabled).
+        self.assertIn("Generated by:", text)
+        self.assertNotIn("DATE VOTED", text.upper())
+        # Area Norte Uno: the revoter and the disabled voter voted; the
+        # non-voter is its one registered voter who did not.
+        self.assertIn("No. of voters who voted: 2 No. of voters who did not vote: 1 Total No. of voters: 3", text)
+
+        # One Post.
+        post3 = post_ids[2]
+        text, rows = self.unpack_voters_who_voted(
+            self.generate_voters_who_voted(token, event_id, post3), folder / "post_3"
+        )
+        self.assertEqual(
+            sorted(row["username"] for row in rows),
+            sorted(
+                voters_who_voted.username(tag, person)
+                for person in voters_who_voted.PEOPLE
+                if person.area == "e1"
+            ),
+        )
+        self.assertIn("'=Cruz", [row["last_name"] for row in rows])
+        self.assertIn("ONE POST · VOTERS WHO VOTED: 2", text.upper())
+        self.assertNotIn(voters_who_voted.POSTS[0].title.upper(), text.upper())
+        self.passed("voters who voted")
