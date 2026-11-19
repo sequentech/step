@@ -2409,8 +2409,6 @@ pub enum ContestEncryptionPolicy {
 /// Who holds the keys that sign an election event's electoral log.
 #[allow(non_camel_case_types)]
 #[derive(
-    BorshSerialize,
-    BorshDeserialize,
     Default,
     Display,
     Serialize,

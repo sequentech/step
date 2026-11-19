@@ -258,6 +258,12 @@ jobs:
       CARGO_INCREMENTAL: "0"
       WBRAID_BOARD_DATABASE_URL: postgres://test:test@127.0.0.1:3322/test
       # The ballot box seal tests post to boards of their own on this server.
+      # The service's test database gets the Hasura migrations below, so code
+      # reading HASURA_DB__* finds the outbox; PGMQ and the tests' queues live
+      # in pgmq_test, the task-queue database of the code under test.
+      HASURA_TEST_DATABASE_URL: postgres://test:test@127.0.0.1:3322/test
+      PGMQ_TEST_DATABASE_URL: postgres://test:test@127.0.0.1:3322/pgmq_test
+      QUEUE_DB__URL: postgres://test:test@127.0.0.1:3322/pgmq_test
     services:
       postgres:
         image: postgres:18
@@ -296,12 +302,16 @@ jobs:
           profile: dev
           features: default
 
+      - name: Prepare the Hasura and task-queue test databases
+        run: |
+          docker run --rm --network host --user "$(id -u):$(id -g)" --env HOME=/tmp \
+            --volume "$PWD:/step:ro" --workdir /step postgres:18 \
+            scripts/postgres/hasura_test_database.sh "$HASURA_TEST_DATABASE_URL"
+          docker exec "${{ job.services.postgres.id }}" createdb -U test pgmq_test
+
       - name: Run PGMQ transport contracts
-        env:
-          PGMQ_TEST_DATABASE_URL: postgres://test:test@127.0.0.1:3322/pgmq_test
         run: |
           # The tests install PGMQ and their queues themselves, as the setup job does.
-          docker exec "${{ job.services.postgres.id }}" createdb -U test pgmq_test
           cargo test --locked -p pgmq-broker -- --include-ignored --test-threads=1
           cargo test --locked -p windmill --lib pgmq_tests -- --ignored --test-threads=1
         working-directory: packages

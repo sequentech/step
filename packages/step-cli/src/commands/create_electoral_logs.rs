@@ -197,3 +197,52 @@ impl CreateElectoralLogs {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use voting_crypto::RecordDeserialize;
+
+    #[test]
+    fn a_generated_log_message_is_signed_with_the_current_version_for_its_event() {
+        let command = CreateElectoralLogs {
+            working_directory: String::new(),
+            num_logs: 1,
+        };
+
+        let generated = command
+            .generate_log_message(
+                "event-1",
+                "election-1",
+                "area-1",
+                Some("user-1".to_string()),
+                Some("voter-1".to_string()),
+            )
+            .unwrap();
+
+        let message = Message::record_deserialize(&generated.message).unwrap();
+        assert_eq!(
+            message.signature_version,
+            electoral_log::signature::SIGNATURE_VERSION
+        );
+        assert_eq!(
+            generated.message.first(),
+            Some(&electoral_log::signature::SIGNATURE_VERSION),
+            "a stored message's bytes start with its signature version"
+        );
+        assert_eq!(message.statement.head.event.0, "event-1");
+        assert!(matches!(
+            message.statement.head.kind,
+            StatementType::SendCommunications
+        ));
+        assert_eq!(
+            generated.statement_kind,
+            StatementType::SendCommunications.to_string()
+        );
+        assert_eq!(message.sender.name, "voter-1");
+        assert_eq!(generated.election_id.as_deref(), Some("election-1"));
+        assert_eq!(generated.area_id.as_deref(), Some("area-1"));
+        assert_eq!(generated.user_id.as_deref(), Some("user-1"));
+        assert_eq!(generated.username.as_deref(), Some("voter-1"));
+    }
+}

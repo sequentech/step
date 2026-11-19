@@ -357,3 +357,33 @@ fn build_application_with(
     // Only with MESSAGING_FAKE_PROVIDER_ROUTES=ENABLED (development).
     routes::fake_provider::mount(rocket, fake_provider_routes)
 }
+
+#[cfg(test)]
+mod application_tests {
+    use crate::services::dependencies::HarvestServices;
+    use rocket::http::Method;
+    use std::collections::BTreeSet;
+
+    /// The application the binary launches, with the production services:
+    /// built without starting it, so nothing is contacted.
+    #[test]
+    fn the_production_application_serves_the_electoral_log_proofs() {
+        let application = super::build_application();
+        let posts: BTreeSet<String> = application
+            .routes()
+            .filter(|route| route.method == Method::Post)
+            .map(|route| route.uri.path().to_string())
+            .collect();
+        for path in [
+            "/electoral-log/checkpoint",
+            "/electoral-log/inclusion",
+            "/electoral-log/consistency",
+        ] {
+            assert!(posts.contains(path), "{path} is not registered");
+        }
+        assert!(
+            application.state::<HarvestServices>().is_some(),
+            "routes read the production services from managed state"
+        );
+    }
+}

@@ -96,13 +96,11 @@ pub struct HarvestServices {
     pub signing_roles: Arc<dyn SigningRoleAdmin>,
 }
 
-/// The Keycloak client Keycloak's service tokens are issued to
-/// (`KEYCLOAK_CLIENT_ID`, the one the extensions sign in with).
-fn service_client_id() -> String {
-    match std::env::var("KEYCLOAK_CLIENT_ID")
-        .ok()
-        .filter(|id| !id.trim().is_empty())
-    {
+/// The Keycloak client Keycloak's service tokens are issued to: the
+/// `configured` one (`KEYCLOAK_CLIENT_ID`, the one the extensions sign in
+/// with), or the default when that is unset or blank.
+fn service_client_id(configured: Option<String>) -> String {
+    match configured.filter(|id| !id.trim().is_empty()) {
         Some(id) => id,
         None => {
             tracing::warn!(
@@ -140,7 +138,9 @@ impl HarvestServices {
             ledger: Arc::new(WindmillTaskLedger),
             service_keys: Arc::new(
                 ServiceKeys::new(Arc::new(KeycloakServiceKeys::new()))
-                    .for_client(service_client_id()),
+                    .for_client(service_client_id(
+                        std::env::var("KEYCLOAK_CLIENT_ID").ok(),
+                    )),
             ),
             tasks: Arc::new(CeleryTaskQueue),
             vault: Arc::new(WindmillVault),
@@ -157,6 +157,30 @@ impl HarvestServices {
                 exports: Arc::new(DocumentExportStore),
             },
             signing_roles: Arc::new(KeycloakSigningRoleAdmin),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::service_client_id;
+    use crate::services::service_auth::DEFAULT_SERVICE_CLIENT;
+
+    #[test]
+    fn service_tokens_are_issued_to_the_configured_client() {
+        assert_eq!(
+            service_client_id(Some("ovcs-extensions".to_string())),
+            "ovcs-extensions"
+        );
+    }
+
+    #[test]
+    fn an_unset_or_blank_client_falls_back_to_the_default() {
+        for configured in [None, Some(String::new()), Some(" \t".to_string())] {
+            assert_eq!(
+                service_client_id(configured),
+                DEFAULT_SERVICE_CLIENT
+            );
         }
     }
 }
