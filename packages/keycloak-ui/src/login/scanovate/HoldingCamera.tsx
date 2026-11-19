@@ -4,7 +4,7 @@ import {useEffect, useRef, useState, type Dispatch} from "react"
 import Box from "@mui/material/Box"
 import Button from "@mui/material/Button"
 import type {ScanovateHolding} from "../KcContext"
-import {ArrowIcon} from "../icons"
+import {ArrowIcon, CloseIcon} from "../icons"
 import type {CaptureEvent} from "./capture"
 import {takePhoto, uploadHoldingPhoto} from "./holding"
 import {
@@ -34,6 +34,9 @@ function stop(stream: MediaStream) {
  * holding time, the voter checks it, and the page uploads it to Keycloak
  * before moving on. There is no shutter button: the photo is only ever taken
  * still.
+ *
+ * It looks like Scanovate's own pages, which come before it: the camera over
+ * the whole capture window, a close button, and the instruction over the image.
  */
 export function HoldingCamera(props: {
     text: Text
@@ -142,6 +145,7 @@ export function HoldingCamera(props: {
             : text("scanovateHoldingKeepStill")
     const retakeLabel = text("scanovateHoldingRetake")
     const useLabel = text("scanovateHoldingUse")
+    const closeLabel = text("scanovateHoldingClose")
     return (
         <>
             <div className="scanovate-holding">
@@ -160,6 +164,16 @@ export function HoldingCamera(props: {
                     <img src={photo.url} alt={photoLabel.text} lang={photoLabel.lang} />
                 )}
             </div>
+            <button
+                type="button"
+                className="scanovate-holding-close"
+                aria-label={closeLabel.text}
+                lang={closeLabel.lang}
+                disabled={sending}
+                onClick={() => dispatch({type: "problem", problem: CaptureProblem.Closed})}
+            >
+                <CloseIcon />
+            </button>
             {photo === null ? (
                 <div className="scanovate-holding-status">
                     <p aria-live="polite" lang={status.lang}>
@@ -178,7 +192,7 @@ export function HoldingCamera(props: {
                     </div>
                 </div>
             ) : (
-                <Box className="auth-actions">
+                <Box className="auth-actions scanovate-holding-actions">
                     <Button
                         type="button"
                         variant="contained"

@@ -126,6 +126,19 @@ Some design decisions to be aware of:
   4 and shares the card, progress bar and header of the identity verification
   pages; so do the pages that end an enrollment (enrolled, manual verification
   required, disapproved, already validated), with every step done.
+- **The camera steps share one layout.** The document scan, the face check
+  and the photo holding the document each cover the whole window, so the
+  camera is what the voter sees from the start of a step and the layout
+  doesn't change between steps. The face check needs it: in a frame more than
+  about 160 px narrower or shorter than the window its capture takes the
+  difference for open developer tools and refuses to start (client error
+  1012). A step is left with its close button, which leads to the card that
+  offers **Try again**, **Start over** and **Back**. A small mark over a corner
+  of the camera (`.auth-fullscreen-brand`: the logo and the portal's name)
+  says whose page it is; a realm restyles it with its login CSS
+  (`loginCustomCss`), as it does the header, and on narrow windows sets
+  `--auth-fullscreen-brand-height` to the height of its mark so that the
+  page's own messages stay above it.
 - **Buttons stay in view.** The buttons that move the voter on (Register on
   the enrollment form, Start, Submit on the code page, Confirm and enroll, Try
   again) and the submit button of every FreeMarker form stay at the bottom of
@@ -215,6 +228,7 @@ steps that collect the document type, and configure it:
 | `document-liveness-calibration` | `REGULAR`, `SOFT` (fewer genuine documents rejected) or `HARD` (fewer attacks missed). | `REGULAR` |
 | `document-liveness-min-probability` | Minimum probability (above 0, up to 1) every check must give the photo. Explicit event values are preserved. | `0.4` |
 | `face-match-min-similarity` | JSON keyed by document type, with a `default` key for any other type, of the minimum similarity (0 to 1) of the voter's live face with the portrait OCR read from the document. The service's own threshold (`0.67`) applies if higher. | `{"default": 0.67}` |
+| `page-languages` | Comma separated languages that both OCR and Liveness Plus have a locale file for (`locales/default/<language>.json`), e.g. `en,tl`. A voter whose language is listed gets Scanovate's pages in it (`translation_language`); any other voter gets the services' default language. Only list languages both services have: a page asked for a language without a locale file can't start. | none: the services' default language |
 | `holding-photo` | `REQUIRED`: after the face check, the voter takes a photo of themselves holding the document, which must match their live face with the same minimum similarity. `NONE`: no such photo. | `REQUIRED` |
 | `video-seconds` | Holding time: seconds the image must stay still before the holding photo is taken. A positive whole number. | `5` |
 | `doc-id-type` | Auth note with the document type, used to pick the settings and rules. | `sequent.read-only.id-card-type` |

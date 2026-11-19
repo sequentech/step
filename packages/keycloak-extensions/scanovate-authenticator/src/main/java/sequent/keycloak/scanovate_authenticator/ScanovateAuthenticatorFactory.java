@@ -36,6 +36,7 @@ public class ScanovateAuthenticatorFactory implements AuthenticatorFactory {
   public static final String DOCUMENT_LIVENESS_MIN_PROBABILITY =
       "document-liveness-min-probability";
   public static final String HOLDING_PHOTO = "holding-photo";
+  public static final String PAGE_LANGUAGES = "page-languages";
 
   /** Holding time of the holding photo; the key of the earlier capture page's setting. */
   public static final String HOLDING_SECONDS = "video-seconds";
@@ -188,6 +189,16 @@ public class ScanovateAuthenticatorFactory implements AuthenticatorFactory {
                 + " done.")
         .type(ProviderConfigProperty.STRING_TYPE)
         .defaultValue(String.valueOf(DEFAULT_LIVENESS_RESULT_WAIT_SECONDS))
+        .add()
+        .property()
+        .name(PAGE_LANGUAGES)
+        .label("Languages of the capture pages")
+        .helpText(
+            "Comma-separated languages that both OCR and Liveness Plus have a locale file for"
+                + " (locales/<variant>/<language>.json), e.g. en,tl. A voter whose language is"
+                + " listed gets the pages in it; any other voter, and every voter when empty,"
+                + " gets the default language of the services.")
+        .type(ProviderConfigProperty.STRING_TYPE)
         .add()
         .property()
         .name(FACE_MATCH_URL)
