@@ -144,11 +144,14 @@ pub type InsertCastVoteOutput = CastVote;
 
 /// Outcome of a cast-vote insert, distinguishing the follow-up each needs:
 /// `Success` is a final `valid` vote, `PendingDatafix` is an `in-progress` vote
-/// the caller must enqueue for the async Datafix pipeline, and
-/// `SkipRetryFailure` is a terminal error the caller should surface as-is.
+/// the caller must enqueue for the async Datafix pipeline, `AlreadyCast` is the
+/// vote stored for a resent ballot, whatever its status, which needs no
+/// follow-up, and `SkipRetryFailure` is a terminal error the caller should
+/// surface as-is.
 pub enum InsertCastVoteResult {
     Success(InsertCastVoteOutput),
     PendingDatafix(InsertCastVoteOutput),
+    AlreadyCast(InsertCastVoteOutput),
     SkipRetryFailure(CastVoteError),
 }
 
@@ -315,6 +318,10 @@ pub enum CastVoteError {
     #[serde(rename = "insert_failed_exceeds_allowed_revotes")]
     #[strum(to_string = "insert_failed_exceeds_allowed_revotes")]
     InsertFailedExceedsAllowedRevotes,
+    /// The voter already cast this ballot, so it is not stored again.
+    #[serde(rename = "ballot_already_cast")]
+    #[strum(to_string = "ballot_already_cast")]
+    BallotAlreadyCast,
     #[serde(rename = "commit_failed")]
     CommitFailed(String),
     #[serde(rename = "get_db_client_failed")]
@@ -364,9 +371,10 @@ impl CastVoteError {
 
 /// Checks a ballot cast by a voter and inserts it as a vote. The ballot has to
 /// carry exactly the contests of a ballot style published for the voter's area
-/// and election. A refusal that a retry cannot change is returned as
-/// `InsertCastVoteResult::SkipRetryFailure`, any other error is returned for
-/// the caller to retry.
+/// and election. A ballot the voter already cast is answered with the stored
+/// vote as `InsertCastVoteResult::AlreadyCast`. A refusal that a retry cannot
+/// change is returned as `InsertCastVoteResult::SkipRetryFailure`, any other
+/// error is returned for the caller to retry.
 #[instrument(skip(input), err)]
 pub async fn try_insert_cast_vote(
     input: InsertCastVoteInput,
@@ -442,14 +450,30 @@ pub async fn try_insert_cast_vote(
         }
     };
 
+    // A ballot is resent when its first request was stored but the voter never
+    // got the answer, for example after a timeout. Answer it with the stored
+    // vote, even once voting has closed.
+    let election_id_string = input.election_id.to_string();
+    let ballot_id = input.ballot_id.clone();
+    if let Some(cast_vote) = find_already_cast_vote(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &election_id_string,
+        voter_id,
+        &ballot_id,
+    )
+    .await?
+    {
+        return Ok(InsertCastVoteResult::AlreadyCast(cast_vote));
+    }
+
     let (electoral_log, signing_key) =
         get_electoral_log(&hasura_transaction, tenant_id, &election_event)
             .await
             .map_err(|e| CastVoteError::ElectoralLogNotFound(e.to_string()))?;
 
     // From this point on, we have all variables needed to do post_cat_vote_error
-    let election_id_string = input.election_id.to_string();
-
     let ids = CastVoteIds {
         election_event_id,
         tenant_id,
@@ -556,6 +580,16 @@ pub async fn try_insert_cast_vote(
             deliver_log_event(&pending_audit).await;
             classify_inserted_cast_vote(inserted_cast_vote)
         }
+        // A resend that raced the request that stored the ballot.
+        Err(CastVoteError::BallotAlreadyCast) => stored_vote_for_resent_ballot(
+            tenant_id,
+            election_event_id,
+            &election_id_string,
+            voter_id,
+            &ballot_id,
+        )
+        .await
+        .map(InsertCastVoteResult::AlreadyCast),
         Err(cast_vote_err) => {
             error!(err=?cast_vote_err);
 
@@ -581,6 +615,63 @@ pub async fn try_insert_cast_vote(
             skip_or_propagate(cast_vote_err)
         }
     }
+}
+
+/// Loads the vote the voter already cast with `ballot_id`, whatever its status.
+#[instrument(skip(hasura_transaction), err)]
+async fn find_already_cast_vote(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    voter_id: &str,
+    ballot_id: &str,
+) -> Result<Option<CastVote>, CastVoteError> {
+    postgres::cast_vote::get_voter_cast_vote_by_ballot_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+        voter_id,
+        ballot_id,
+    )
+    .await
+    .map_err(|err| {
+        error!("Error looking up the cast ballot: {err:?}");
+        CastVoteError::CheckPreviousVotesFailed("Error looking up the cast ballot".to_string())
+    })
+}
+
+/// Loads the vote stored for a ballot the database refused as already cast.
+/// The refusal comes after the request that stored it has committed, so it is
+/// read on a fresh connection. A missing vote is left to the caller's retry.
+#[instrument(err)]
+async fn stored_vote_for_resent_ballot(
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    voter_id: &str,
+    ballot_id: &str,
+) -> Result<CastVote, CastVoteError> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| CastVoteError::GetDbClientFailed(e.to_string()))?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| CastVoteError::GetTransactionFailed(e.to_string()))?;
+    find_already_cast_vote(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+        voter_id,
+        ballot_id,
+    )
+    .await?
+    .ok_or(CastVoteError::BallotAlreadyCast)
 }
 
 /// Checks a ballot that encrypts each contest on its own: its id is the hash of
@@ -1154,6 +1245,7 @@ fn map_insert_error(error: anyhow::Error) -> CastVoteError {
         Some("insert_failed_exceeds_allowed_revotes") => {
             CastVoteError::InsertFailedExceedsAllowedRevotes
         }
+        Some("ballot_already_cast") => CastVoteError::BallotAlreadyCast,
         Some("check_votes_in_other_areas_failed") => CastVoteError::CheckVotesInOtherAreasFailed(
             "Cannot insert cast vote, votes already present in other area(s)".to_string(),
         ),
