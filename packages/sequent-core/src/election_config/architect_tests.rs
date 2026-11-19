@@ -7325,3 +7325,26 @@ fn exporting_a_workbook_refuses_malformed_dotted_realm_paths() {
     assert_eq!(problem.path, "realm.");
     assert!(problem.message.contains("empty field"));
 }
+
+#[test]
+fn a_plan_that_says_nothing_about_ballot_identity_compiles_pseudonymous() {
+    let bundle = compiled(&sound());
+    assert_eq!(
+        bundle.export["election_event"]["presentation"]["ballot_identity"],
+        serde_json::json!("pseudonym")
+    );
+}
+
+#[test]
+fn a_plans_ballot_identity_column_is_kept() {
+    let mut plan = sound();
+    plan.columns.insert(
+        "presentation.ballot_identity".to_string(),
+        serde_json::json!("voter-id"),
+    );
+    let bundle = compiled(&plan);
+    assert_eq!(
+        bundle.export["election_event"]["presentation"]["ballot_identity"],
+        serde_json::json!("voter-id")
+    );
+}

@@ -563,6 +563,14 @@ const galegoTranslation: TranslationType = {
                     },
                 },
                 event: {
+                    "ballot-identity-unknown": {
+                        lead: "Identidade da papeleta descoñecida",
+                        text: "Identidade da papeleta descoñecida — '{{value}}' non é compatible. Use voter-id ou pseudonym.",
+                    },
+                    "pseudonym-incompatible": {
+                        lead: "Configuración de pseudónimo incompatible",
+                        text: "Configuración de pseudónimo incompatible — {{reason}}. A plataforma rexeita importar esta configuración.",
+                    },
                     "checks-period-invalid": {
                         lead: "Período de comprobación non válido",
                         text: "Período de comprobación non válido — non se puido ler o período no que os votantes poden comprobar o seu voto emitido: {{reason}}",
