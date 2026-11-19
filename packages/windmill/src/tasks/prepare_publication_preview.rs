@@ -134,7 +134,7 @@ pub async fn prepare_publication_preview_task(
     {
         anyhow::ensure!(
             document.name.as_deref() == Some(format!("{ballot_publication_id}.json").as_str())
-                && document.is_public == Some(true),
+                && document.is_public != Some(true),
             "Preview document scope mismatch"
         );
         return Ok(document_id);
@@ -211,7 +211,9 @@ pub async fn prepare_publication_preview_task(
         Some(election_event_id.to_string()),
         &doc_name_s3,
         Some(document_id.clone()),
-        true,
+        // Private: the admin portal opens it through an authorised,
+        // presigned download link.
+        false,
     )
     .await
     .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;

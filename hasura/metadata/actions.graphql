@@ -117,10 +117,6 @@ type Mutation {
 }
 
 type Mutation {
-    call_plugin_route(path: String!, data: jsonb!): PluginsRouteOutput!
-}
-
-type Mutation {
     confirm_key_custody(
         object: ConfirmKeyCustodyInput!
     ): ConfirmKeyCustodyOutput
@@ -2087,10 +2083,6 @@ type CountUsersOutput {
 type RenderDocumentPDFOutput {
     document_id: String
     task_execution: tasks_execution_type
-}
-
-type PluginsRouteOutput {
-    data: jsonb
 }
 
 type UpsertAreaOutput {

@@ -165,8 +165,10 @@ const App = () => {
             const areaId = sessionStorage.getItem("areaId")
             const documentId = sessionStorage.getItem("documentId")
             const publicationId = sessionStorage.getItem("publicationId")
+            const documentUrl = sessionStorage.getItem("previewDocumentUrl")
+            const fragment = documentUrl ? `#${encodeURIComponent(documentUrl)}` : ""
 
-            navigate(`/preview/${tenantId}/${documentId}/${areaId}/${publicationId}`)
+            navigate(`/preview/${tenantId}/${documentId}/${areaId}/${publicationId}${fragment}`)
             window.location.reload()
             return
         }

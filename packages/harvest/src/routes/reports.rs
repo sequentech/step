@@ -336,6 +336,15 @@ pub async fn generate_report(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::REPORT_READ],
     )?;
+    // The report is read and its task row written in the token's tenant
+    // only; a request naming another tenant is refused.
+    if input.tenant_id != claims.hasura_claims.tenant_id {
+        return Err((
+            Status::Unauthorized,
+            "The tenant does not match the caller's tenant".to_string(),
+        ));
+    }
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
 
     let mut hasura_db_client: DbClient =
         services.databases.hasura().await.get().await.map_err(|e| {
@@ -371,7 +380,7 @@ pub async fn generate_report(
     })?;
     let report = get_report_by_id(
         &hasura_transaction,
-        &input.tenant_id,
+        &tenant_id,
         &input.report_id,
     )
     .await
@@ -461,7 +470,7 @@ pub async fn generate_report(
     let task_execution = services
         .ledger
         .post(
-            &input.tenant_id,
+            &tenant_id,
             input.election_event_id.as_deref(),
             ETasksExecution::GENERATE_REPORT,
             &executer_name,

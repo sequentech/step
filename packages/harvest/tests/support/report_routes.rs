@@ -328,9 +328,7 @@ fn report_request(tenant_id: &str, report_id: &str) -> Value {
 }
 
 #[rocket::async_test]
-async fn a_report_is_generated_under_the_tenant_its_request_names() {
-    // Pinned as found: the caller's own tenant is authorized, while the
-    // report is read, and its task row written, in the body's tenant.
+async fn a_report_is_generated_under_the_callers_tenant_only() {
     let services = Services::on_test_database().await;
     let client = services.client().await;
     let caller = rows::event(&services.hasura).await;
@@ -338,13 +336,38 @@ async fn a_report_is_generated_under_the_tenant_its_request_names() {
     let report_id = other
         .report(&services.hasura, "CREDENTIALS", TEMPLATE_ALIAS)
         .await;
+    let claims = reader(&caller, &[Permissions::REPORT_READ]);
 
+    // A request naming another tenant is refused.
+    let response = post(
+        &client,
+        "/generate-report",
+        &claims,
+        &report_request(&other.tenant_id, &report_id),
+    )
+    .await;
+    assert_eq!(response.status(), Status::Unauthorized);
+    // Another tenant's report is not found under the caller's tenant.
+    let response = post(
+        &client,
+        "/generate-report",
+        &claims,
+        &report_request(&caller.tenant_id, &report_id),
+    )
+    .await;
+    assert_eq!(response.status(), Status::NotFound);
+    assert!(services.ledger.tasks().is_empty());
+    assert!(services.tasks.sent().is_empty());
+
+    let own_report = caller
+        .report(&services.hasura, "CREDENTIALS", TEMPLATE_ALIAS)
+        .await;
     let (status, body) = json(
         post(
             &client,
             "/generate-report",
-            &reader(&caller, &[Permissions::REPORT_READ]),
-            &report_request(&other.tenant_id, &report_id),
+            &claims,
+            &report_request(&caller.tenant_id, &own_report),
         )
         .await,
     )
@@ -352,10 +375,10 @@ async fn a_report_is_generated_under_the_tenant_its_request_names() {
     assert_eq!(status, Status::Ok, "{body}");
     let tasks = services.ledger.tasks();
     assert_eq!(tasks.len(), 1);
-    assert_eq!(tasks[0].tenant_id, other.tenant_id);
+    assert_eq!(tasks[0].tenant_id, caller.tenant_id);
     let sent = services.tasks.sent();
     assert_eq!(sent[0].name, "generate_report");
-    assert_eq!(sent[0].kwargs["report"]["tenant_id"], other.tenant_id);
+    assert_eq!(sent[0].kwargs["report"]["tenant_id"], caller.tenant_id);
     assert_eq!(sent[0].kwargs["document_id"], body["document_id"]);
     assert_eq!(sent[0].kwargs["may_read_secret_attributes"], false);
     assert!(services.electoral_log.entries().is_empty());

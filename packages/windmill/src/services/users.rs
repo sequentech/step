@@ -856,13 +856,13 @@ impl<'de> Deserialize<'de> for FilterOption {
                     ))
                 })?)
             }
-            FilterOption::IsEqualNormalized(_) => {
-                FilterOption::IsNotEqual(deserialize_value(pattern_val.clone()).map_err(|e| {
+            FilterOption::IsEqualNormalized(_) => FilterOption::IsEqualNormalized(
+                deserialize_value(pattern_val.clone()).map_err(|e| {
                     serde::de::Error::custom(format!(
                         "Error parsing String value {pattern_val:?} for pattern: {e:?}"
                     ))
-                })?)
-            }
+                })?,
+            ),
         };
 
         Ok(filter)
@@ -2127,6 +2127,23 @@ mod tests {
     use super::*;
 
     const AREA: &str = "10000000-0000-4000-8000-00000000000a";
+
+    #[test]
+    fn each_filter_option_is_parsed_as_itself() {
+        let parse = |value| serde_json::from_value::<FilterOption>(value).unwrap();
+        assert_eq!(
+            parse(serde_json::json!({"IsEqualNormalized": "José"})),
+            FilterOption::IsEqualNormalized("José".to_string())
+        );
+        assert_eq!(
+            parse(serde_json::json!({"IsNotEqual": "x"})),
+            FilterOption::IsNotEqual("x".to_string())
+        );
+        assert_eq!(
+            parse(serde_json::json!({"IsEqual": "x"})),
+            FilterOption::IsEqual("x".to_string())
+        );
+    }
 
     #[test]
     fn the_delegate_count_only_counts_eligible_delegators_without_a_ballot() {

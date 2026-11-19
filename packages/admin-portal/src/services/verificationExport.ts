@@ -11,7 +11,7 @@ export interface ProtocolBoardRecord {
     tally_session_id: string | null
     batch: number | null
     name: string
-    /** A DKG board's Configuration; a tally board's is null before post-processing. */
+    /** A DKG board's Configuration; a tally board's is always null. */
     public_manager_message: string | null
 }
 export interface TranscriptVerifier {

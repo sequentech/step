@@ -20,6 +20,7 @@ CREATE TABLE sequent_backend.protocol_board (
 );
 \ir ../migrations/backend-db/1793020001000_election_lifecycle/up.sql
 \ir ../migrations/backend-db/1793020020002_protocol_board_public_message/up.sql
+\ir ../migrations/backend-db/1793020021000_protocol_board_public_message_dkg_only/up.sql
 CREATE FUNCTION pg_temp.message(board_id uuid) RETURNS bytea LANGUAGE sql AS $$
     SELECT sequent_backend.protocol_board_public_manager_message(b)
     FROM sequent_backend.protocol_board b
@@ -64,18 +65,19 @@ BEGIN
         END IF;
     END LOOP;
 
-    IF pg_temp.message(finished_tally) IS DISTINCT FROM '\x04'::bytea
+    IF pg_temp.message(finished_tally) IS NOT NULL
        OR pg_temp.message(finished_dkg) IS DISTINCT FROM '\x03'::bytea THEN
-        RAISE EXCEPTION 'test failed: messages of a post-processing event not returned';
+        RAISE EXCEPTION 'test failed: post-processing must return the Configuration only';
     END IF;
     IF pg_temp.message(foreign_tally) IS NOT NULL THEN
         RAISE EXCEPTION 'test failed: tally Ballots returned for another tenant''s lifecycle';
     END IF;
 
+    -- The Ballots are read in the recorded verification data download.
     UPDATE sequent_backend.election_lifecycle SET phase = 'post_processing' WHERE election_event_id = event;
-    IF pg_temp.message(tally) IS DISTINCT FROM '\x02'::bytea
+    IF pg_temp.message(tally) IS NOT NULL
        OR pg_temp.message(dkg) IS DISTINCT FROM '\x01'::bytea THEN
-        RAISE EXCEPTION 'test failed: messages not returned in post-processing';
+        RAISE EXCEPTION 'test failed: tally Ballots returned in post-processing';
     END IF;
 
     DELETE FROM sequent_backend.election_lifecycle WHERE election_event_id = event;
@@ -89,8 +91,9 @@ BEGIN
            WHERE oid = 'sequent_backend.protocol_board_public_manager_message'::regproc) <> 'bytea'::regtype THEN
         RAISE EXCEPTION 'test failed: the computed field function must be stable and return bytea';
     END IF;
-    RAISE NOTICE 'PASS: dkg Configuration in every phase, tally Ballots only in post-processing of the same tenant and event';
+    RAISE NOTICE 'PASS: dkg Configuration in every phase, tally Ballots in none';
 END;
 $$;
+\ir ../migrations/backend-db/1793020021000_protocol_board_public_message_dkg_only/down.sql
 \ir ../migrations/backend-db/1793020020002_protocol_board_public_message/down.sql
 ROLLBACK;

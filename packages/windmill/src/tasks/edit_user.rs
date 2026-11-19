@@ -19,6 +19,7 @@ use crate::services::external::utils::{
 };
 use crate::services::external::voterview_requests::SoapSendError;
 use crate::services::pg_lock::PgLock;
+use crate::services::task_secret;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::services::users::census_edit_refusal;
 use crate::types::error::{Error, Result};
@@ -55,7 +56,13 @@ pub struct EditUserTaskBody {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub username: Option<String>,
+    /// The new password, never part of the task message: the task reads it
+    /// through `password_secret`.
+    #[serde(skip)]
     pub password: Option<String>,
+    /// Reference to the new password stored with `task_secret::stash`.
+    #[serde(default)]
+    pub password_secret: Option<String>,
     pub temporary: Option<bool>,
     #[serde(default)]
     pub password_change_initiator: Option<ElectoralLogAdminContext>,
@@ -92,7 +99,18 @@ pub struct EditUserOutput {
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]
 pub async fn edit_user(body: EditUserTaskBody, task_execution: TasksExecution) -> Result<()> {
-    match apply_datafix_voter_edit(&body).await {
+    let mut body = body;
+    let outcome = match body.password_secret.take() {
+        Some(reference) => match task_secret::redeem(&body.tenant_id, &reference).await {
+            Ok(password) => {
+                body.password = Some(password);
+                apply_datafix_voter_edit(&body).await
+            }
+            Err(err) => Err(format!("Error reading the voter's new password: {err:#}")),
+        },
+        None => apply_datafix_voter_edit(&body).await,
+    };
+    match outcome {
         Ok(()) => {
             update_complete(&task_execution, None)
                 .await
@@ -837,9 +855,22 @@ mod tests {
             last_name: None,
             username: username.map(str::to_string),
             password: None,
+            password_secret: None,
             temporary: None,
             password_change_initiator: None,
         }
+    }
+
+    #[test]
+    fn the_task_message_never_carries_the_password() {
+        let mut body = edit_body(None, HashMap::new());
+        body.password = Some("new password".to_string());
+        body.password_secret = Some("reference".to_string());
+        let message = serde_json::to_value(&body).unwrap();
+        assert!(message.get("password").is_none());
+        assert_eq!(message["password_secret"], "reference");
+        let received: EditUserTaskBody = serde_json::from_value(message).unwrap();
+        assert!(received.password.is_none());
     }
 
     #[test]

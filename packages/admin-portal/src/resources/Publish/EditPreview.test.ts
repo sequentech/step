@@ -70,23 +70,26 @@ jest.mock("@sequentech/ui-core", () => ({
     ETaskExecutionStatus: {SUCCESS: "SUCCESS", FAILED: "FAILED"},
 }))
 const props = {publicationId: "publication", electionEventId: "event"}
+const PRESIGNED_URL = "https://storage.example/private/document/publication.json?X-Amz-Signature=s"
 beforeEach(() => {
     jest.clearAllMocks()
     mockTask = undefined
     mockQuery.mockImplementation(({query}: {query: string}) =>
         Promise.resolve({
-            data: query.includes("PublicationPreviewAreas(")
-                ? {
-                      sequent_backend_ballot_style: Array.from({length: 60}, (_, i) => ({
-                          area_id: `area-${i}`,
-                      })),
-                  }
-                : {
-                      sequent_backend_area: Array.from({length: 60}, (_, i) => ({
-                          id: `area-${i}`,
-                          name: `Area ${i}`,
-                      })),
-                  },
+            data: query.includes("FetchDocument(")
+                ? {fetchDocument: {url: PRESIGNED_URL}}
+                : query.includes("PublicationPreviewAreas(")
+                  ? {
+                        sequent_backend_ballot_style: Array.from({length: 60}, (_, i) => ({
+                            area_id: `area-${i}`,
+                        })),
+                    }
+                  : {
+                        sequent_backend_area: Array.from({length: 60}, (_, i) => ({
+                            id: `area-${i}`,
+                            name: `Area ${i}`,
+                        })),
+                    },
         })
     )
     mockPrepare.mockResolvedValue({
@@ -113,11 +116,16 @@ it("offers areas beyond the diff limit and opens only after task success", async
     view.rerender(require("react").createElement(EditPreview, {...props, close: jest.fn()}))
     await waitFor(() =>
         expect(window.open).toHaveBeenCalledWith(
-            "https://voting.example/preview/tenant/document/area-59/publication",
+            "https://voting.example/preview/tenant/document/area-59/publication#" +
+                encodeURIComponent(PRESIGNED_URL),
             "_blank"
         )
     )
     expect(mockQuery.mock.calls[0][0].variables.publicationId).toBe("publication")
+    const fetches = mockQuery.mock.calls.filter(([{query}]) => query.includes("FetchDocument("))
+    expect(fetches.map(([{variables}]) => variables)).toEqual([
+        {electionEventId: "event", documentId: "document"},
+    ])
 })
 it("recovers from enqueue errors even when the response contains a document id", async () => {
     mockPrepare.mockResolvedValueOnce({
