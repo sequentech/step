@@ -4,10 +4,15 @@
 
 //! Logging setup shared by the Rust services.
 //!
-//! `LOG_LEVEL` accepts either a plain level (`info`, `debug`, ...) or
-//! `tracing_subscriber` `EnvFilter` directives, for example
-//! `info,hyper=warn,windmill::services::ceremonies=warn`. Each directive
-//! applies to the targets (module paths) that start with it.
+//! `LOG_LEVEL` accepts a plain level (`info`, `debug`, ...) and
+//! `target=level` directives, separated by commas, for example
+//! `info,hyper=warn,windmill::services::ceremonies=warn`. A directive applies
+//! to every target (module path) that starts with it.
+//!
+//! Span and field filters (`target[span]=level`) are not supported: inside a
+//! matching span they enable events from any target, which would bypass the
+//! directives that mute a module. Invalid directives are dropped one by one,
+//! so a typo in one doesn't undo the others.
 //!
 //! When the base level is more verbose than `info`, noisy dependencies are
 //! kept at `info` (see [`QUIET_DEPENDENCIES`]): at `debug`, `rocket` logs
@@ -24,11 +29,11 @@ use tracing_tree::HierarchicalLayer;
 /// Environment variable read by [`init_log`].
 pub const LOG_LEVEL_ENV: &str = "LOG_LEVEL";
 
-/// Level used when `LOG_LEVEL` is unset or invalid.
+/// Level used when `LOG_LEVEL` sets no valid base level.
 pub const DEFAULT_LOG_LEVEL: LevelFilter = LevelFilter::INFO;
 
-/// Dependency targets kept at `info` when the base level is `debug` or
-/// `trace`, unless `LOG_LEVEL` names them explicitly.
+/// Dependency target prefixes kept at `info` when the base level is `debug`
+/// or `trace`, unless `LOG_LEVEL` sets them explicitly.
 pub const QUIET_DEPENDENCIES: &[&str] = &[
     "rocket",
     "hyper",
@@ -43,89 +48,108 @@ pub const QUIET_DEPENDENCIES: &[&str] = &[
 /// Handle to change the log filter while the service runs.
 pub type LogReloadHandle = Handle<EnvFilter, Registry>;
 
-/// Builds the filter for a `LOG_LEVEL` value.
-///
-/// Returns the filter and, when the value could not be parsed, an error
-/// message to log once logging is up. An invalid value falls back to
-/// [`DEFAULT_LOG_LEVEL`] instead of stopping the service.
-pub fn build_filter(spec: Option<&str>) -> (EnvFilter, Option<String>) {
-    let spec = spec.map(str::trim).filter(|s| !s.is_empty());
-    let Some(spec) = spec else {
-        return (filter_with_defaults("", DEFAULT_LOG_LEVEL), None);
-    };
-
-    if let Err(err) = validate(spec) {
-        let message = format!(
-            "invalid {LOG_LEVEL_ENV}={spec:?} ({err}); using {DEFAULT_LOG_LEVEL}"
-        );
-        return (filter_with_defaults("", DEFAULT_LOG_LEVEL), Some(message));
-    }
-
-    match base_level(spec) {
-        Some(base) => (filter_with_defaults(spec, base), None),
-        None => {
-            let spec = format!("{DEFAULT_LOG_LEVEL},{spec}");
-            (filter_with_defaults(&spec, DEFAULT_LOG_LEVEL), None)
-        }
-    }
+/// A valid `LOG_LEVEL` directive.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Directive {
+    Base(LevelFilter),
+    Target { target: String, level: LevelFilter },
 }
 
-/// Rejects the whole value if any directive is invalid, since EnvFilter
-/// would otherwise drop it silently. A bare word that isn't a level (a
-/// typo such as `infoo`) is also rejected: EnvFilter would read it as a
-/// target enabled at `trace`.
-fn validate(spec: &str) -> Result<(), String> {
-    for directive in spec.split(',').map(str::trim).filter(|d| !d.is_empty()) {
-        let is_level = directive.parse::<LevelFilter>().is_ok();
-        if !is_level && !directive.contains('=') {
+impl Directive {
+    fn parse(directive: &str) -> Result<Self, String> {
+        if let Ok(level) = directive.parse::<LevelFilter>() {
+            return Ok(Directive::Base(level));
+        }
+        let Some((target, level)) = directive.split_once('=') else {
             return Err(format!(
                 "{directive:?} is not a level or target=level"
             ));
+        };
+        let target = target.trim();
+        let is_target_char =
+            |c: char| c.is_ascii_alphanumeric() || matches!(c, '_' | ':' | '-');
+        if target.is_empty() || !target.chars().all(is_target_char) {
+            return Err(format!(
+                "{directive:?} has an unsupported target (only module paths, \
+                 without span or field filters)"
+            ));
         }
+        let level = level
+            .trim()
+            .parse::<LevelFilter>()
+            .map_err(|_| format!("{directive:?} has an unknown level"))?;
+        Ok(Directive::Target {
+            target: target.to_string(),
+            level,
+        })
     }
-    EnvFilter::builder()
-        .parse(spec)
-        .map(|_| ())
-        .map_err(|err| err.to_string())
 }
 
-/// The level of the last directive without a target, if any.
-fn base_level(spec: &str) -> Option<LevelFilter> {
-    spec.split(',')
-        .map(str::trim)
-        .filter_map(|d| d.parse::<LevelFilter>().ok())
-        .last()
-}
-
-/// Names the targets that `spec` sets explicitly, so the quiet defaults
-/// don't add a second directive for them.
-fn names_target(spec: &str, target: &str) -> bool {
-    spec.split(',').map(str::trim).any(|d| {
-        let name = d.split('=').next().unwrap_or("");
-        let name = name.split('[').next().unwrap_or("");
-        name == target
-    })
-}
-
-fn filter_with_defaults(spec: &str, base: LevelFilter) -> EnvFilter {
-    let mut directives: Vec<String> = Vec::new();
-    // `LevelFilter` orders more verbose levels as greater.
-    if spec.is_empty() {
-        directives.push(base.to_string().to_lowercase());
-    }
-    if base > LevelFilter::INFO {
-        for target in QUIET_DEPENDENCIES {
-            if !names_target(spec, target) {
-                directives.push(format!("{target}=info"));
+impl std::fmt::Display for Directive {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Directive::Base(level) => write!(f, "{level}"),
+            Directive::Target { target, level } => {
+                write!(f, "{target}={level}")
             }
         }
     }
-    if !spec.is_empty() {
-        directives.push(spec.to_string());
+}
+
+/// Builds the filter for a `LOG_LEVEL` value.
+///
+/// Returns the filter and, when some directives were invalid and dropped,
+/// a message to log once logging is up. The service never fails to start
+/// because of `LOG_LEVEL`.
+pub fn build_filter(spec: Option<&str>) -> (EnvFilter, Option<String>) {
+    let mut valid = Vec::new();
+    let mut invalid = Vec::new();
+    for part in spec.unwrap_or("").split(',').map(str::trim) {
+        if part.is_empty() {
+            continue;
+        }
+        match Directive::parse(part) {
+            Ok(directive) => valid.push(directive),
+            Err(err) => invalid.push(err),
+        }
     }
-    EnvFilter::builder()
+
+    let base = valid
+        .iter()
+        .filter_map(|d| match d {
+            Directive::Base(level) => Some(*level),
+            Directive::Target { .. } => None,
+        })
+        .last()
+        .unwrap_or(DEFAULT_LOG_LEVEL);
+
+    let mut directives = vec![Directive::Base(base).to_string()];
+    // `LevelFilter` orders more verbose levels as greater.
+    if base > LevelFilter::INFO {
+        for dependency in QUIET_DEPENDENCIES {
+            let overridden = valid.iter().any(|d| {
+                matches!(d, Directive::Target { target, .. } if target == dependency)
+            });
+            if !overridden {
+                directives.push(format!("{dependency}=info"));
+            }
+        }
+    }
+    directives.extend(valid.iter().filter_map(|d| match d {
+        Directive::Target { .. } => Some(d.to_string()),
+        Directive::Base(_) => None,
+    }));
+
+    let filter = EnvFilter::builder()
         .with_default_directive(DEFAULT_LOG_LEVEL.into())
-        .parse_lossy(directives.join(","))
+        .parse_lossy(directives.join(","));
+    let error = (!invalid.is_empty()).then(|| {
+        format!(
+            "ignored invalid {LOG_LEVEL_ENV} directives: {}",
+            invalid.join("; ")
+        )
+    });
+    (filter, error)
 }
 
 /// Sets up logging for a service from `LOG_LEVEL`.
@@ -289,14 +313,63 @@ mod tests {
 
     #[test]
     fn invalid_value_falls_back_to_info() {
-        for spec in ["verbose", "info,hyper=loud", "info,windmill[="] {
+        for spec in ["verbose", "infoo", "info,hyper=loud", "windmill"] {
             let (_, error) = build_filter(Some(spec));
-            assert!(error.is_some(), "{spec} should be rejected");
+            assert!(error.is_some(), "{spec} should be reported");
             let seen = passed(Some(spec));
             assert!(has(&seen, "INFO", "harvest::routes"));
             assert!(!has(&seen, "DEBUG", "harvest::routes"));
         }
         assert!(build_filter(Some("info,hyper=warn")).1.is_none());
         assert!(build_filter(Some("info,")).1.is_none());
+    }
+
+    #[test]
+    fn invalid_directive_keeps_the_valid_ones() {
+        let spec = Some("info,windmill::services::ceremonies=warn,rocket=wrn");
+        assert!(build_filter(spec).1.is_some());
+        let seen = passed(spec);
+        let ceremony = "windmill::services::ceremonies::keys_ceremony";
+        assert!(!has(&seen, "INFO", ceremony));
+        assert!(has(&seen, "INFO", "harvest::routes"));
+    }
+
+    #[test]
+    fn whitespace_around_directives_is_ignored() {
+        let seen = passed(Some(" info , windmill = debug "));
+        assert!(has(&seen, "DEBUG", "windmill::services::tally"));
+        assert!(!has(&seen, "DEBUG", "harvest::routes"));
+        let (_, error) = build_filter(Some("info, é=debug"));
+        assert!(error.is_some());
+    }
+
+    #[test]
+    fn span_directives_are_rejected() {
+        for spec in [
+            "debug,rocket[request]=warn",
+            "debug,windmill[work]=debug",
+            "info,windmill::services::probe[check_celery]",
+            "info,windmill{task}=debug",
+        ] {
+            assert!(build_filter(Some(spec)).1.is_some(), "{spec}");
+        }
+        // The rejected span directive doesn't remove the quiet default.
+        let seen = passed(Some("debug,rocket[request]=warn"));
+        assert!(!has(&seen, "DEBUG", "rocket::server"));
+    }
+
+    #[test]
+    fn span_directives_cannot_bypass_a_mute() {
+        let (filter, _) =
+            build_filter(Some("debug,windmill[work]=debug,rocket=off"));
+        let seen = Seen::default();
+        let subscriber = Registry::default().with(filter).with(seen.clone());
+        tracing::subscriber::with_default(subscriber, || {
+            let span = tracing::info_span!(target: "windmill::tasks", "work");
+            let _guard = span.enter();
+            tracing::debug!(target: "rocket::server", "e");
+        });
+        let seen = seen.0.lock().map(|s| s.clone()).unwrap_or_default();
+        assert!(!has(&seen, "DEBUG", "rocket::server"));
     }
 }

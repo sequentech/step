@@ -61,7 +61,7 @@ cfg_if::cfg_if! {
         }
     } else if #[cfg(feature = "openwhisk")] {
         fn main() {
-            tracing_subscriber::fmt::init();
+            sequent_core::util::init_log::init_log(true);
 
             // Create a new tokio runtime for the server
             match tokio::runtime::Runtime::new() {
