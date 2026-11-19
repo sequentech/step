@@ -119,7 +119,16 @@ jobs:
           java-version: '17'
           distribution: 'adopt'
 
-      # The runner image ships Maven. The modules' own build is not needed:
+      # Match the verified Maven toolchain in java_test.yml.
+      - name: Install Maven 3.9.9
+        run: |
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/maven.tar.gz" https://archive.apache.org/dist/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/maven.sha512" https://archive.apache.org/dist/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz.sha512
+          printf '%s  %s\n' "$(cat "$RUNNER_TEMP/maven.sha512")" "$RUNNER_TEMP/maven.tar.gz" | sha512sum --check
+          tar -xzf "$RUNNER_TEMP/maven.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/apache-maven-3.9.9/bin" >> "$GITHUB_PATH"
+
+      # The modules' own build is not needed:
       # spotless:check reads sources only, and a reactor run resolves sibling
       # modules without installing them first (sequentech/meta#14622).
       - name: Run Spotless Check
