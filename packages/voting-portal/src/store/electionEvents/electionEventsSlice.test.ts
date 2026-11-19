@@ -31,4 +31,42 @@ describe("election event storage", () => {
 
         expect(seededState["event-a"]).toEqual(fullEvent)
     })
+
+    it("keeps the known presentation when a later record carries none", () => {
+        const presentation = {
+            delegated_voting_policy: EElectionEventDelegatedVotingPolicy.DISABLED,
+            css: "color: red;",
+        }
+        const seededState = reducer(undefined, seedElectionEvent({id: "event-a", presentation}))
+        const state = reducer(
+            seededState,
+            setElectionEvent({id: "event-a", description: "Published", presentation: null})
+        )
+
+        expect(state["event-a"]).toEqual({
+            id: "event-a",
+            description: "Published",
+            presentation,
+        })
+    })
+
+    it("replaces the presentation when a later record carries one", () => {
+        const seededState = reducer(
+            undefined,
+            seedElectionEvent({
+                id: "event-a",
+                presentation: {
+                    delegated_voting_policy: EElectionEventDelegatedVotingPolicy.DISABLED,
+                    css: "color: red;",
+                },
+            })
+        )
+        const presentation = {
+            delegated_voting_policy: EElectionEventDelegatedVotingPolicy.DISABLED,
+            css: "color: blue;",
+        }
+        const state = reducer(seededState, setElectionEvent({id: "event-a", presentation}))
+
+        expect(state["event-a"]?.presentation).toEqual(presentation)
+    })
 })

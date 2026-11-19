@@ -581,6 +581,17 @@ const tagalogTranslation: TranslationType = {
                 materialTitle: "Pamagat",
                 materialSubTitle: "Subtitle",
                 logoUrl: "URL ng Logo",
+                faviconUrl: "URL ng icon ng tab ng browser",
+                pageTitle: "Pamagat ng tab ng browser",
+                platformBrandingPolicy: {
+                    policyLabel: "Branding ng platform",
+                    helperText:
+                        "Para sa voting portal: ang logo at icon ng tab ng platform kapag walang itinakda ang event, ang footer na “powered by” at ang label ng bersyon.",
+                    options: {
+                        show: "Ipakita",
+                        hide: "Itago",
+                    },
+                },
                 userVerification:
                     "Puede kang mag-introdusir nin sarong pasadyang plantilya na gagamiton tanganing mano-manong ma-verify an mga botante",
                 redirectFinishUrl: "Redirect Finish URL",

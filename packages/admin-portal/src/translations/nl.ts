@@ -578,6 +578,17 @@ const dutchTranslation: TranslationType = {
                 materialTitle: "Titel",
                 materialSubTitle: "Ondertitel",
                 logoUrl: "Logo-URL",
+                faviconUrl: "URL van het browsertabpictogram",
+                pageTitle: "Titel van het browsertabblad",
+                platformBrandingPolicy: {
+                    policyLabel: "Platformbranding",
+                    helperText:
+                        "Geldt voor het stemportaal: het logo en tabpictogram van het platform wanneer het evenement er geen instelt, de voettekst “mogelijk gemaakt door” en het versielabel.",
+                    options: {
+                        show: "Tonen",
+                        hide: "Verbergen",
+                    },
+                },
                 userVerification:
                     "U kunt een aangepast sjabloon invoeren dat zal worden gebruikt om kiezers handmatig te verifiëren",
                 redirectFinishUrl: "Doorschakel-URL na voltooiing",

@@ -568,6 +568,17 @@ const englishTranslation = {
                 materialTitle: "Title",
                 materialSubTitle: "Subtitle",
                 logoUrl: "Logo URL",
+                faviconUrl: "Browser tab icon URL",
+                pageTitle: "Browser tab title",
+                platformBrandingPolicy: {
+                    policyLabel: "Platform branding",
+                    helperText:
+                        "Applies to the voting portal: the platform's logo and tab icon where the event sets none, the “powered by” footer and the version label.",
+                    options: {
+                        show: "Show",
+                        hide: "Hide",
+                    },
+                },
                 userVerification:
                     "You can introduce a custom template that will be used to manually verify the voters",
                 redirectFinishUrl: "Redirect Finish URL",
