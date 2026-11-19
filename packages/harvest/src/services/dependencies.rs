@@ -177,10 +177,7 @@ mod tests {
     #[test]
     fn an_unset_or_blank_client_falls_back_to_the_default() {
         for configured in [None, Some(String::new()), Some(" \t".to_string())] {
-            assert_eq!(
-                service_client_id(configured),
-                DEFAULT_SERVICE_CLIENT
-            );
+            assert_eq!(service_client_id(configured), DEFAULT_SERVICE_CLIENT);
         }
     }
 }

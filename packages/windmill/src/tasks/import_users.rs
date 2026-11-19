@@ -208,10 +208,7 @@ async fn run_import_users(
         .as_deref()
         .filter(|id| !id.is_empty());
     let is_admin = event_id.is_none();
-    let mut client = pool
-        .get()
-        .await
-        .context("Failed to get Hasura DB pool")?;
+    let mut client = pool.get().await.context("Failed to get Hasura DB pool")?;
     let tx = client
         .transaction()
         .await
