@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::task_secret;
 use windmill::services::tasks_execution::*;
 use windmill::tasks::export_trustees;
 use windmill::types::tasks::ETasksExecution;
@@ -28,7 +29,7 @@ pub struct ExportTrusteesOutput {
     task_execution: TasksExecution,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, input))]
 #[post("/export-trustees", format = "json", data = "<input>")]
 pub async fn export_trustees_route(
     claims: jwt::JwtClaims,
@@ -79,20 +80,31 @@ pub async fn export_trustees_route(
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
 
-    let _celery_task = celery_app
-        .send_task(export_trustees::export_trustees_task::new(
-            tenant_id,
-            document_id.clone(),
-            body.password.clone(),
-            task_execution.clone(),
-        ))
+    // The task message carries a reference to the password, not the
+    // password: the task-queue database keeps its messages.
+    let password_secret = task_secret::stash(&tenant_id, &body.password)
         .await
         .map_err(|error| {
             (
                 Status::InternalServerError,
-                format!("Error sending export_trustees task: {error:?}"),
+                format!("Error storing the export password: {error:?}"),
             )
         })?;
+    if let Err(error) = celery_app
+        .send_task(export_trustees::export_trustees_task::new(
+            tenant_id.clone(),
+            document_id.clone(),
+            password_secret.clone(),
+            task_execution.clone(),
+        ))
+        .await
+    {
+        let _ = task_secret::discard(&tenant_id, &password_secret).await;
+        return Err((
+            Status::InternalServerError,
+            format!("Error sending export_trustees task: {error:?}"),
+        ));
+    }
 
     let output = ExportTrusteesOutput {
         document_id,

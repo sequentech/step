@@ -8,6 +8,7 @@ use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::import::import_users::ImportUsersPrivileges;
 use crate::services::import::rejection::problems_of;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
+use crate::services::task_secret;
 use crate::services::tasks_execution::{update_complete, update_fail, update_fail_with_problems};
 use crate::{
     services::import::import_election_event::{self as import_election_event_service},
@@ -26,7 +27,14 @@ pub struct ImportElectionEventBody {
     pub authorization_event_id: Option<String>,
     #[serde(default)]
     pub board_request_task_id: Option<String>,
+    /// The document's password, from the request. Never serialized into the
+    /// task message: the message carries `password_secret` instead.
+    #[serde(skip_serializing)]
     pub password: Option<String>,
+    /// Reference to the password stored with `task_secret::stash`, set by the
+    /// server.
+    #[serde(default)]
+    pub password_secret: Option<String>,
     pub check_only: Option<bool>,
     pub sha256: Option<String>,
     #[serde(default)]
@@ -56,6 +64,19 @@ pub async fn import_election_event(
     tenant_id: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
+    let mut object = object;
+    // Kept until the import succeeds: a failed import is retried.
+    let password_secret = object.password_secret.take();
+    if let Some(reference) = password_secret.as_deref() {
+        match task_secret::reveal(&tenant_id, reference).await {
+            Ok(password) => object.password = Some(password),
+            Err(error) => {
+                let err_str = format!("Error reading the document's password: {error:#}");
+                let _ = update_fail(&task_execution, &err_str).await;
+                return Err(err_str.into());
+            }
+        }
+    }
     // What the import left out, with its reason, for the task's log.
     let notes = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
     let result = provide_hasura_transaction(|hasura_transaction| {
@@ -114,6 +135,9 @@ pub async fn import_election_event(
                 .ok();
             }
             let _ = update_complete(&task_execution, Some(object.document_id.clone())).await;
+            if let Some(reference) = password_secret.as_deref() {
+                let _ = task_secret::discard(&tenant_id, reference).await;
+            }
             Ok(())
         }
         Err(error) => {

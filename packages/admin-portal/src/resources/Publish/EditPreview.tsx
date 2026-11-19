@@ -14,11 +14,16 @@ import {
 } from "react-admin"
 import {Preview, ContentCopy} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
-import {PrepareBallotPublicationPreviewMutation, GetTaskByIdQuery} from "@/gql/graphql"
+import {
+    PrepareBallotPublicationPreviewMutation,
+    GetTaskByIdQuery,
+    FetchDocumentQuery,
+} from "@/gql/graphql"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {gql, useApolloClient, useMutation, useQuery} from "@apollo/client"
 import {PREPARE_BALLOT_PUBLICATION_PREVIEW} from "@/queries/PrepareBallotPublicationPreview"
 import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
+import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
 import {TenantContext} from "@/providers/TenantContextProvider"
 import {CircularProgress} from "@mui/material"
@@ -205,13 +210,26 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             }
         }
 
-        if (documentId && !isUploading && !taskId) {
-            const previewUrl = getPreviewUrl(documentId)
-            if (previewUrl && action === ActionType.Copy) {
-                copyPreviewLink(previewUrl)
-            } else if (previewUrl && action === ActionType.Open) {
-                openPreview(previewUrl)
-            }
+        if (documentId && !isUploading && !taskId && action !== null) {
+            // The preview document is private: the voting portal reads it
+            // through a presigned link that only an authorised download gives.
+            client
+                .query<FetchDocumentQuery>({
+                    query: FETCH_DOCUMENT,
+                    variables: {electionEventId, documentId},
+                    fetchPolicy: "network-only",
+                })
+                .then(({data}) => {
+                    const previewUrl = getPreviewUrl(documentId, data?.fetchDocument?.url)
+                    if (!previewUrl) {
+                        throw new Error("No preview link")
+                    } else if (action === ActionType.Copy) {
+                        copyPreviewLink(previewUrl)
+                    } else if (action === ActionType.Open) {
+                        openPreview(previewUrl)
+                    }
+                })
+                .catch(() => notify(t("publish.dialog.error_preview"), {type: "error"}))
         }
     }, [documentId, action, isUploading, taskId])
 
@@ -221,11 +239,14 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     }, [globalSettings.VOTING_PORTAL_URL, tenantId])
 
     const getPreviewUrl = useCallback(
-        (documentId: string | undefined | null) => {
-            if (!documentId || !areaId || !publicationId) {
+        (documentId: string | undefined | null, documentUrl: string | undefined | null) => {
+            if (!documentId || !documentUrl || !areaId || !publicationId) {
                 return null
             }
-            return `${previewUrlTemplate}/${documentId}/${areaId}/${publicationId}`
+            // In the fragment, which the browser does not send to the server.
+            return `${previewUrlTemplate}/${documentId}/${areaId}/${publicationId}#${encodeURIComponent(
+                documentUrl
+            )}`
         },
         [previewUrlTemplate, areaId, publicationId]
     )

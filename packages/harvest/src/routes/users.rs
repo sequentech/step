@@ -67,6 +67,7 @@ use windmill::services::export::export_users::{
 };
 use windmill::services::external::utils::datafix_annotations;
 use windmill::services::keycloak_events::list_keycloak_events_by_type;
+use windmill::services::task_secret;
 use windmill::services::tasks_execution::*;
 use windmill::services::users::{census_edit_refusal, list_users_has_voted};
 use windmill::services::users::{
@@ -1882,6 +1883,23 @@ pub async fn edit_user(
                 )
             })?;
 
+            // The task message carries a reference to the new password, not
+            // the password: the task-queue database keeps its messages.
+            let password_secret = match input.password.as_deref() {
+                Some(password) => Some(
+                    task_secret::stash(&input.tenant_id, password)
+                        .await
+                        .map_err(|error| {
+                            (
+                                Status::InternalServerError,
+                                format!(
+                                    "Error storing the new password: {error:?}"
+                                ),
+                            )
+                        })?,
+                ),
+                None => None,
+            };
             let task_body = EditUserTaskBody {
                 tenant_id: input.tenant_id.clone(),
                 user_id: input.user_id.clone(),
@@ -1892,7 +1910,8 @@ pub async fn edit_user(
                 first_name: input.first_name.clone(),
                 last_name: input.last_name.clone(),
                 username: input.username.clone(),
-                password: input.password.clone(),
+                password: None,
+                password_secret: password_secret.clone(),
                 temporary: input.temporary,
                 password_change_initiator: input.password.as_ref().map(|_| {
                     ElectoralLogAdminContext {
@@ -1915,6 +1934,10 @@ pub async fn edit_user(
                 ))
                 .await
             {
+                if let Some(reference) = password_secret.as_deref() {
+                    let _ = task_secret::discard(&input.tenant_id, reference)
+                        .await;
+                }
                 update_fail(
                     &task_execution,
                     &format!("Failed to send Edit Voter task: {err:?}"),

@@ -2334,6 +2334,11 @@ pub async fn list_cast_vote_messages(
         ballot_id_filter.chars().count() % 2 == 0 && ballot_id_filter.is_ascii(),
         "Incorrect ballot_id, the length must be an even number of characters"
     );
+    // A voter sees only the entry of a ballot of theirs: without a Ballot ID
+    // there is nothing to show, not the election's entries.
+    if ballot_id_filter.is_empty() {
+        return Ok(CastVoteMessagesOutput::default());
+    }
     check_cast_vote_order_by(input.order_by.as_ref())?;
     // The limits are used to cut the output after filtering the ballot id.
     // Because ballot_id cannot be filtered at SQL level the sql limit is constant
@@ -2594,6 +2599,26 @@ mod postgres_wiring_tests {
 #[cfg(test)]
 mod cast_vote_entry_tests {
     use super::*;
+
+    #[tokio::test]
+    async fn no_ballot_id_lists_no_entries() {
+        // Answered before the board is read: no board is configured here.
+        let output = list_cast_vote_messages(
+            GetElectoralLogBody {
+                tenant_id: "tenant".to_string(),
+                election_event_id: "event".to_string(),
+                election_id: Some("election".to_string()),
+                ..Default::default()
+            },
+            "",
+            "voter-id",
+            "voter-user",
+        )
+        .await
+        .unwrap();
+        assert!(output.list.is_empty());
+        assert_eq!(output.total, 0);
+    }
 
     fn cast_vote_record() -> ElectoralLogMessage {
         ElectoralLogMessage {

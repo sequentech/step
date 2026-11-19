@@ -31,6 +31,7 @@ use windmill::services::import::import_election_event::{
 };
 use windmill::services::import::rejection::problems_of;
 use windmill::services::messaging::config::MessagingConfigPermission;
+use windmill::services::task_secret;
 use windmill::services::tasks_execution::*;
 use windmill::services::tasks_execution::{
     update_complete, update_fail, update_fail_with_problems,
@@ -295,7 +296,7 @@ fn stamp_initiators(
     });
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, body))]
 #[post("/import-election-event", format = "json", data = "<body>")]
 pub async fn import_election_event_f(
     body: Json<import_election_event::ImportElectionEventBody>,
@@ -303,6 +304,7 @@ pub async fn import_election_event_f(
 ) -> Result<Json<ImportElectionEventOutput>, (Status, String)> {
     let mut input = body.into_inner();
     input.board_request_task_id = None;
+    input.password_secret = None;
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let executer_name = claims
         .name
@@ -469,6 +471,19 @@ pub async fn import_election_event_f(
     .await?;
 
     input.board_request_task_id = Some(task_execution.id.clone());
+    // The task message carries a reference to the document's password, not
+    // the password: the task-queue database keeps its messages.
+    if let Some(password) = input.password.take() {
+        let reference = task_secret::stash(&input.tenant_id, &password)
+            .await
+            .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error storing the document's password: {error:?}"),
+            )
+        })?;
+        input.password_secret = Some(reference);
+    }
     let celery_app = get_celery_app().await;
     let _celery_task = match celery_app
         .send_task(import_election_event::import_election_event::new(
@@ -481,6 +496,9 @@ pub async fn import_election_event_f(
     {
         Ok(celery_task) => celery_task,
         Err(err) => {
+            if let Some(reference) = input.password_secret.as_deref() {
+                let _ = task_secret::discard(&input.tenant_id, reference).await;
+            }
             let _res = update_fail(
                 &task_execution,
                 &format!("Error sending Import Election Event task: {err:?}"),
@@ -547,6 +565,25 @@ mod tests {
             },
         }))
         .unwrap()
+    }
+
+    #[test]
+    fn the_task_message_never_carries_the_documents_password() {
+        let mut input = body("tenant");
+        input.password = Some("document password".to_string());
+        input.password_secret = Some("reference".to_string());
+        let message = serde_json::to_value(&input).unwrap();
+        assert!(message.get("password").is_none());
+        assert_eq!(message["password_secret"], "reference");
+        // The request may still carry the password.
+        let request: import_election_event::ImportElectionEventBody =
+            serde_json::from_value(serde_json::json!({
+                "tenant_id": "tenant",
+                "document_id": "document",
+                "password": "document password",
+            }))
+            .unwrap();
+        assert_eq!(request.password.as_deref(), Some("document password"));
     }
 
     #[test]

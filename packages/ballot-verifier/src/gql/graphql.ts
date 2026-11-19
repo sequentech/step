@@ -1337,11 +1337,6 @@ export type PhoneBlacklistEntry = {
   updated_at?: Maybe<Scalars['String']['output']>;
 };
 
-export type PluginsRouteOutput = {
-  __typename?: 'PluginsRouteOutput';
-  data?: Maybe<Scalars['jsonb']['output']>;
-};
-
 export type PrepareBallotPublicationPreviewOutput = {
   __typename?: 'PrepareBallotPublicationPreviewOutput';
   document_id: Scalars['String']['output'];
@@ -2042,7 +2037,6 @@ export type Mutation_Root = {
   audit_ballot?: Maybe<AuditBallotOutput>;
   audit_electoral_log: TaskOutput;
   authorize_tally_custody?: Maybe<AuthorizeTallyCustodyOutput>;
-  call_plugin_route: PluginsRouteOutput;
   /** cast_ballot */
   cast_ballot?: Maybe<CastBallotOutput>;
   check_messaging_account?: Maybe<CheckMessagingAccountOutput>;
@@ -3104,13 +3098,6 @@ export type Mutation_RootAudit_Electoral_LogArgs = {
 /** mutation root */
 export type Mutation_RootAuthorize_Tally_CustodyArgs = {
   object: AuthorizeTallyCustodyInput;
-};
-
-
-/** mutation root */
-export type Mutation_RootCall_Plugin_RouteArgs = {
-  data: Scalars['jsonb']['input'];
-  path: Scalars['String']['input'];
 };
 
 

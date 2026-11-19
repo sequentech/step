@@ -119,9 +119,18 @@ export const PreviewPublicationEvent: React.FC = () => {
     const ballotStyle = useAppSelector(selectFirstBallotStyle)
     const location = useLocation()
 
+    // A private preview document comes with its presigned download link in
+    // the fragment; a preview without one is read from the public bucket.
+    const documentUrl = useMemo(
+        () => (location.hash.length > 1 ? decodeURIComponent(location.hash.slice(1)) : null),
+        [location.hash]
+    )
     const previewUrl = useMemo(() => {
-        return `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${publicationId}.json`
-    }, [tenantId, documentId, globalSettings.PUBLIC_BUCKET_URL])
+        return (
+            documentUrl ||
+            `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${publicationId}.json`
+        )
+    }, [documentUrl, tenantId, documentId, globalSettings.PUBLIC_BUCKET_URL])
 
     useEffect(() => {
         const fetchPreviewData = async () => {
@@ -161,6 +170,11 @@ export const PreviewPublicationEvent: React.FC = () => {
         sessionStorage.setItem("areaId", areaId)
         sessionStorage.setItem("documentId", documentId)
         sessionStorage.setItem("publicationId", publicationId)
+        if (documentUrl) {
+            sessionStorage.setItem("previewDocumentUrl", documentUrl)
+        } else {
+            sessionStorage.removeItem("previewDocumentUrl")
+        }
     }
 
     return (

@@ -155,8 +155,18 @@ test("board manager messages are read only through the phase-aware computed fiel
         /FUNCTION sequent_backend\.protocol_board_public_manager_message\(/
     )
     assert.match(sql, /board\.parent_id IS NULL/)
-    assert.match(sql, /lifecycle\.phase = 'post_processing'/)
     assert.match(sql, /\bSTABLE\b/)
+    // A tally board's Ballots are read only in the recorded verification
+    // data download.
+    const dkgOnly = readFileSync(
+        resolve(
+            __dirname,
+            "../migrations/backend-db/1793020021000_protocol_board_public_message_dkg_only/up.sql"
+        ),
+        "utf8"
+    )
+    assert.match(dkgOnly, /WHERE board\.parent_id IS NULL;/)
+    assert.doesNotMatch(dkgOnly, /post_processing'/)
 })
 
 test("transcript export accepts only a selected event and board under admin-ceremony", () => {

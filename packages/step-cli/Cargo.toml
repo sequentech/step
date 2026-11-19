@@ -28,7 +28,9 @@ reqwest = { version = "0.12", features = ["blocking", "json"] }
 graphql_client = "0.14"
 rayon = "1.5"
 sequent-core = { path="../sequent-core", features = ["keycloak", "probe", "reports", "default_features", "election_config_xlsx", "election_config_archive", "election_config_signing"] }
-windmill = { path="../windmill" }
+# windmill's default features but `plugins`, which the tool does not use: a
+# workspace-wide build or SBOM analysis then has no `plugins` unless asked.
+windmill = { path="../windmill", default-features = false, features = ["fips_full"] }
 electoral-log = { path="../electoral-log" }
 
 uuid = { version = "1.5", features = ["v4", "fast-rng"] }
