@@ -293,7 +293,10 @@ fn skip_or_propagate(cast_vote_err: CastVoteError) -> Result<InsertCastVoteResul
         | CastVoteError::BallotNotReceived
         | CastVoteError::BallotCastSignatureFailed(_)
         | CastVoteError::BallotAlreadyCast
-        | CastVoteError::BallotAudited => Ok(InsertCastVoteResult::SkipRetryFailure(cast_vote_err)),
+        | CastVoteError::BallotAudited
+        | CastVoteError::CiphertextAlreadyCast => {
+            Ok(InsertCastVoteResult::SkipRetryFailure(cast_vote_err))
+        }
         _ => Err(cast_vote_err),
     }
 }
@@ -355,6 +358,9 @@ pub enum CastVoteError {
     SerializeVoterIdFailed(String),
     #[serde(rename = "serialize_ballot_failed")]
     SerializeBallotFailed(String),
+    #[serde(rename = "ciphertext_already_cast")]
+    #[strum(to_string = "ciphertext_already_cast")]
+    CiphertextAlreadyCast,
     #[serde(rename = "pok_validation_failed")]
     PokValidationFailed(String),
     #[serde(rename = "ballot_sign_failed")]
@@ -1106,6 +1112,7 @@ async fn accept_into_ballot_box(
             crate::services::ballot_box_seal::BALLOT_BOX_SEALED_MESSAGE.to_string(),
         )),
         AcceptOutcome::NotReceivable => Err(CastVoteError::BallotNotReceived),
+        AcceptOutcome::CiphertextAlreadyCast => Err(CastVoteError::CiphertextAlreadyCast),
     }
 }
 
