@@ -12,6 +12,7 @@ use std::sync::{
 };
 use tracing::Level;
 use tracing_subscriber::filter::LevelFilter;
+use tracing_subscriber::EnvFilter;
 
 const CHILD_MODE: &str = "CORE_LOG_FILTER_TEST_CHILD";
 
@@ -76,9 +77,9 @@ fn exercise_filter() {
     tracing::info!(target: "custody::fixture", "FILTER_REQUEST_HIDDEN");
     allow.store(true, Ordering::SeqCst);
     tracing::info!(target: "custody::fixture", "FILTER_REQUEST_RESTORED");
-    handle.reload(LevelFilter::DEBUG).unwrap();
+    handle.reload(EnvFilter::new("debug")).unwrap();
     tracing::debug!(target: "custody::fixture", "FILTER_DEBUG_VISIBLE");
-    handle.reload(LevelFilter::WARN).unwrap();
+    handle.reload(EnvFilter::new("warn")).unwrap();
     tracing::info!(target: "custody::fixture", "FILTER_INFO_HIDDEN_AFTER_RELOAD");
     tracing::warn!(target: "custody::fixture", "FILTER_WARN_VISIBLE");
     for pair in [
