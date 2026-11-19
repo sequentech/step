@@ -73,6 +73,7 @@ use velvet::cli::state::State;
 use velvet::cli::CliRun;
 use velvet::config::ballot_images_config::PipeConfigBallotImages;
 use velvet::config::generate_reports::PipeConfigGenerateReports;
+use velvet::pipes::decode_ballots::UNDECODABLE_BALLOT_LINE;
 use velvet::pipes::generate_db::{PipeConfigGenerateDatabase, DATABASE_FILENAME};
 use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 use velvet::pipes::pipe_inputs::{
@@ -91,11 +92,13 @@ pub struct AreaContestDataType {
     pub votes_by_channel: Option<VotesByChannel>,
 }
 
+/// One ballots-file line per plaintext. A plaintext the ballot codec cannot
+/// read becomes the line velvet counts as an invalid ballot, not a gap.
 #[instrument(skip_all)]
 fn decode_plaintexts_to_biguints(plaintexts: &[[u8; 30]], contest: &Contest) -> Vec<String> {
     plaintexts
         .iter()
-        .filter_map(|plaintext| {
+        .map(|plaintext| {
             let plaintext_format = plaintext
                 .iter()
                 .map(|b| format!("{:02X}", b))
@@ -111,14 +114,14 @@ fn decode_plaintexts_to_biguints(plaintexts: &[[u8; 30]], contest: &Contest) -> 
                         "Decoding plaintext {plaintext_format} into string '{biguit_str}'"
                     );
 
-                    Some(biguit_str)
+                    biguit_str
                 }
                 Err(e) => {
                     event!(
                         Level::WARN,
-                        "Decoding plaintext {plaintext_format} has failed: {e}"
+                        "Decoding plaintext {plaintext_format} has failed, counted as an invalid ballot: {e}"
                     );
-                    None
+                    UNDECODABLE_BALLOT_LINE.to_string()
                 }
             }
         })
@@ -1085,4 +1088,25 @@ pub async fn run_velvet_tally(
     )
     .await?;
     call_velvet(base_tally_path.clone(), "decode-ballots").await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn undecodable_plaintexts_stay_in_the_ballots_file() {
+        let contest = Contest::default();
+        // The codec's first byte is the length of the bytes that follow; 30
+        // or more cannot be read from a 30-byte payload.
+        let mut undecodable = [0u8; 30];
+        undecodable[0] = 30;
+        let mut readable = [0u8; 30];
+        readable[0] = 1;
+        readable[1] = 7;
+
+        let lines = decode_plaintexts_to_biguints(&[readable, undecodable], &contest);
+
+        assert_eq!(lines, vec!["7".to_string(), UNDECODABLE_BALLOT_LINE.to_string()]);
+    }
 }

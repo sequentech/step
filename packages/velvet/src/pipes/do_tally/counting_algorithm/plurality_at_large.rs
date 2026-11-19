@@ -348,4 +348,21 @@ mod tests {
         assert_eq!(metrics.total_declined_to_vote, 1);
         assert_eq!(metrics.total_blank_ballots, 0);
     }
+    #[test]
+    fn undecodable_ballot_is_counted_as_implicit_invalid() {
+        let contest = plurality_at_large(vec![]).tally.contest;
+        let undecodable = crate::pipes::decode_ballots::undecodable_ballot(&contest);
+        let tally = plurality_at_large(vec![undecodable, blank_ballot_vote()]);
+
+        let result = tally
+            .process_ballots(TallyOperation::ProcessBallotsAll)
+            .expect("an undecodable ballot should be processed");
+
+        // Every decrypted ballot is either valid or invalid.
+        assert_eq!(result.total_invalid_votes, 1);
+        assert_eq!(result.invalid_votes.implicit, 1);
+        assert_eq!(result.invalid_votes.explicit, 0);
+        assert_eq!(result.total_valid_votes, 1);
+        assert_eq!(result.total_votes, 2);
+    }
 }

@@ -280,6 +280,10 @@ const englishTranslation = {
                     "Login failed. Your username or password may be incorrect. Please try again or contact support",
                 SESSION_EXPIRED: "Your session has expired. Please start again",
                 CAST_VOTE_BallotIdMismatch: "The ballot id does not match with the cast vote.",
+                CAST_VOTE_DuplicateBallotId:
+                    "This Ballot ID was already used in this election event. Please start your vote again.",
+                CAST_VOTE_DuplicateCiphertext:
+                    "The encrypted vote was already used in this election event. Please start your vote again.",
                 SESSION_STORAGE_ERROR:
                     "Session storage is not available. Please try again or contact support.",
                 PARSE_BALLOT_DATA_ERROR:

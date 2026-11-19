@@ -10,12 +10,15 @@ use crate::postgres::trusted_write;
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::*;
+use sequent_core::election_config::package_verify::signatures_required;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
 use serde_json::value::Value;
 use tracing::{event, info, instrument, warn, Level};
 
+use super::ballot_box_key::receipts_policy;
 use super::ballot_box_seal::{self, CloseProvenance};
+use super::import::configuration_package;
 use super::initialization_scope::{
     initialization_refusal_for, initialization_refusals, name_list, post_display_name,
 };
@@ -241,6 +244,8 @@ async fn update_event_voting_status_impl(
         info!("Election event is archived, skipping");
         return Ok((election_event, BTreeMap::new()));
     }
+
+    receipts_policy_refusal(hasura_transaction, &election_event, new_status).await?;
 
     super::election_lifecycle::before_status_change(
         hasura_transaction,
@@ -732,6 +737,8 @@ pub async fn change_election_voting_status(
         return Ok(false);
     }
 
+    receipts_policy_refusal(hasura_transaction, &election_event, &new_status).await?;
+
     let Some(election) = get_election_by_id(
         hasura_transaction,
         &tenant_id,
@@ -925,6 +932,39 @@ impl TransitionRefusal {
             TransitionRefusal::BallotBoxSealPolicy => "Voting can't start again: with the Ballot Box Seal Policy set to Seal at close, voting that has closed stays closed and its ballot boxes are sealed.".to_string(),
         }
     }
+}
+
+/// The refusal of an opening where only signed configuration packages
+/// import and the election event's receipts aren't signed by the ballot box.
+pub const RECEIPTS_POLICY_REQUIRED: &str = "Voting can't open: where only signed configuration \
+     packages import, the election event's receipts policy must be \"Signed by the ballot box\".";
+
+/// Whether an opening is refused for the receipts policy: where only signed
+/// packages import, voting opens only with receipts signed by the ballot
+/// box, which receiving and auditing ballots at review need.
+pub fn receipts_policy_refused(signed_import_required: bool, policy: &ReceiptsPolicy) -> bool {
+    signed_import_required && *policy != ReceiptsPolicy::SIGNED_BY_BALLOT_BOX
+}
+
+/// Refuses opening voting under [`receipts_policy_refused`]; other changes,
+/// and closing above all, are never refused for it.
+async fn receipts_policy_refusal(
+    hasura_transaction: &Transaction<'_>,
+    election_event: &ElectionEvent,
+    new_status: &VotingStatus,
+) -> Result<()> {
+    if *new_status != VotingStatus::OPEN {
+        return Ok(());
+    }
+    let signed_import_required = signatures_required(
+        configuration_package::tenant_setting(hasura_transaction, &election_event.tenant_id)
+            .await?
+            .as_ref(),
+    );
+    if receipts_policy_refused(signed_import_required, &receipts_policy(election_event)?) {
+        return Err(VotingTransitionError(RECEIPTS_POLICY_REQUIRED.to_string()).into());
+    }
+    Ok(())
 }
 
 /// Whether the event's Ballot Box Seal Policy refuses a channel in status
@@ -1827,5 +1867,24 @@ mod scheduled_channel_tests {
             elections["unstarted"].early_voting_status,
             VotingStatus::OPEN
         );
+    }
+}
+
+#[cfg(test)]
+mod receipts_policy_tests {
+    use super::*;
+
+    #[test]
+    fn where_only_signed_packages_import_voting_opens_only_with_signed_receipts() {
+        assert!(receipts_policy_refused(true, &ReceiptsPolicy::DISABLED));
+        assert!(!receipts_policy_refused(
+            true,
+            &ReceiptsPolicy::SIGNED_BY_BALLOT_BOX
+        ));
+        assert!(!receipts_policy_refused(false, &ReceiptsPolicy::DISABLED));
+        assert!(!receipts_policy_refused(
+            false,
+            &ReceiptsPolicy::SIGNED_BY_BALLOT_BOX
+        ));
     }
 }

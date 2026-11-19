@@ -8,7 +8,7 @@ use crate::pipes::Pipe;
 use num_bigint::BigUint;
 use sequent_core::ballot::{Contest, MultiContestEncodingMode};
 use sequent_core::ballot_codec::multi_ballot::{
-    BallotChoices, DecodedBallotChoices, MultiBallotCodecContext,
+    votable_contests, BallotChoices, DecodedBallotChoices, MultiBallotCodecContext,
 };
 use sequent_core::plaintext::{map_decoded_ballot_choices_to_decoded_contests, DecodedVoteContest};
 use uuid::Uuid;
@@ -22,6 +22,8 @@ use std::str::FromStr;
 use tracing::{instrument, warn};
 
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
+
+use super::{undecodable_ballot, UNDECODABLE_BALLOT_LINE};
 
 pub const OUTPUT_DECODED_BALLOTS_FILE: &str = "decoded_mcballots.json";
 pub const OUTPUT_DECODED_CONTEST_BALLOTS_FILE: &str = "decoded_ballots.json";
@@ -38,6 +40,8 @@ impl DecodeMCBallots {
 }
 
 impl DecodeMCBallots {
+    /// The decoded ballots of the file, `None` for each ballot the codec
+    /// cannot decode: it is counted as an invalid ballot in every contest.
     #[instrument(err, skip(contests))]
     fn decode_ballots(
         path: &Path,
@@ -46,10 +50,10 @@ impl DecodeMCBallots {
         include_blank_ballots: bool,
         mode: MultiContestEncodingMode,
         serial_number_counter: &mut u32,
-    ) -> Result<Vec<DecodedBallotChoices>> {
+    ) -> Result<Vec<Option<DecodedBallotChoices>>> {
         let file = fs::File::open(path).map_err(|e| Error::FileAccess(path.to_path_buf(), e))?;
         let reader = std::io::BufReader::new(file);
-        let mut decoded_ballots: Vec<DecodedBallotChoices> = vec![];
+        let mut decoded_ballots: Vec<Option<DecodedBallotChoices>> = vec![];
 
         // The codec context only depends on the contest configurations, so
         // it is built once, on the first ballot, and reused for every other
@@ -58,6 +62,11 @@ impl DecodeMCBallots {
 
         for line in reader.lines() {
             let line = line?;
+
+            if line == UNDECODABLE_BALLOT_LINE {
+                decoded_ballots.push(None);
+                continue;
+            }
 
             let plaintext = BigUint::from_str(&line);
 
@@ -84,14 +93,17 @@ impl DecodeMCBallots {
                 }
             };
 
-            let decoded = BallotChoices::decode_from_bigint_with_context(
+            match BallotChoices::decode_from_bigint_with_context(
                 context,
                 &plaintext,
                 Some(serial_number_counter),
-            )
-            .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
-
-            decoded_ballots.push(decoded);
+            ) {
+                Ok(decoded) => decoded_ballots.push(Some(decoded)),
+                Err(error) => {
+                    warn!("undecodable plaintext counted as an invalid ballot: {error:?}");
+                    decoded_ballots.push(None);
+                }
+            }
         }
 
         Ok(decoded_ballots)
@@ -175,16 +187,22 @@ impl Pipe for DecodeMCBallots {
                         let file = File::create(&output_path)
                             .map_err(|e| Error::FileAccess(output_path, e))?;
 
-                        serde_json::to_writer(file, &decoded_ballots)?;
+                        let readable: Vec<&DecodedBallotChoices> =
+                            decoded_ballots.iter().flatten().collect();
+                        serde_json::to_writer(file, &readable)?;
 
                         // accumulate per-contest ballots
 
                         for dbc in decoded_ballots {
-                            let decoded_contests = map_decoded_ballot_choices_to_decoded_contests(
-                                dbc.clone(),
-                                &contests,
-                            )
-                            .map_err(Error::UnexpectedError)?;
+                            let decoded_contests = match dbc {
+                                Some(dbc) => {
+                                    map_decoded_ballot_choices_to_decoded_contests(dbc, &contests)
+                                        .map_err(Error::UnexpectedError)?
+                                }
+                                None => votable_contests(&contests)
+                                    .map(undecodable_ballot)
+                                    .collect(),
+                            };
 
                             for decoded_contest in decoded_contests {
                                 if !output_map.contains_key(&decoded_contest.contest_id) {

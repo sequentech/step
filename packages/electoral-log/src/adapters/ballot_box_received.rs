@@ -39,6 +39,8 @@ pub struct ReceiveBallot<'a> {
     pub content: &'a str,
     pub voter_signing_pk: &'a str,
     pub voter_ballot_signature: &'a str,
+    /// The SHA-256 of each of the ballot's ciphertexts without its proof.
+    pub ciphertext_digests: &'a [Vec<u8>],
 }
 
 /// The receipt the ballot box signed for a received ballot at one receipt time.
@@ -82,6 +84,9 @@ pub enum ReceiveOutcome {
     AlreadyReceived(ReceivedBallot),
     /// Every attempt's Ballot ID was taken in the election event.
     NoFreeBallotId,
+    /// A ciphertext of the ballot is already in the election event's ballot box
+    /// under another Ballot ID: nothing was stored.
+    DuplicateCiphertext,
 }
 
 /// What marking a received ballot audited did.
@@ -168,6 +173,20 @@ impl PostgresStore {
         // exhaust the pool under load.
         if let Some(row) = client.query_opt(&by_hash, &hash_parameters).await? {
             return Ok(ReceiveOutcome::AlreadyReceived(received_ballot(&row)?));
+        }
+        // Claimed before the ballot is stored, so that a copy is refused at
+        // reception. A claim whose ballot is then not stored only ever matches
+        // that same ballot again.
+        if !super::ballot_box::claim_ciphertexts(
+            &**client,
+            ballot.election_event_id,
+            ballot.ballot_hash,
+            ballot.voter_id,
+            ballot.ciphertext_digests,
+        )
+        .await?
+        {
+            return Ok(ReceiveOutcome::DuplicateCiphertext);
         }
         let insert = client
             .prepare_cached(&format!(

@@ -86,6 +86,9 @@ pub enum AcceptOutcome {
     /// No ballot received for the voter under this Ballot ID and ballot hash waits
     /// to be cast: there is none, or it was audited.
     NotReceivable,
+    /// A ciphertext of the ballot is already in the election event's ballot box
+    /// under another Ballot ID.
+    DuplicateCiphertext,
 }
 
 /// A stored ballot waiting to be appended to the event's board.
@@ -124,6 +127,7 @@ pub struct VoterState {
 const BALLOTS: &str = "ballot_box_ballot";
 const VOTERS: &str = "ballot_box_voter";
 const RECEIVED: &str = "ballot_box_received";
+const CIPHERTEXTS: &str = "ballot_box_ciphertext";
 /// The TRUNCATE guard of an event's ballots partition.
 const TRUNCATE_GUARD: &str = "ballot_box_seal_guard_truncate";
 /// How long dropping a ballot box waits for another event's partition of the same
@@ -236,6 +240,48 @@ fn accept_parameters<'a>(
     ]
 }
 
+/// Claim the ciphertexts with these digests for the voter's ballot with this
+/// ballot hash, unless one of them belongs to another ballot of the election
+/// event: then `false`. A claim made before, by the same ballot, stands.
+///
+/// The insert waits for a concurrent insert of the same digest to end, and the
+/// read that follows is a statement of its own, so under READ COMMITTED it sees
+/// that insert once committed: of two ballots with one ciphertext, one claims it.
+/// The digests are claimed in sorted order, so that two claims never deadlock.
+pub(crate) async fn claim_ciphertexts(
+    client: &impl tokio_postgres::GenericClient,
+    election_event_id: &str,
+    ballot_hash: &str,
+    voter_id: &str,
+    digests: &[Vec<u8>],
+) -> Result<bool> {
+    let mut digests = digests.to_vec();
+    digests.sort();
+    digests.dedup();
+    client
+        .execute(
+            "INSERT INTO ballot_box_ciphertext (election_event_id, digest, ballot_hash, voter_id) \
+             SELECT $1::text::uuid, digest, $2, $3 FROM unnest($4::bytea[]) WITH ORDINALITY \
+                 AS claimed(digest, position) \
+             ORDER BY position \
+             ON CONFLICT DO NOTHING",
+            &[&election_event_id, &ballot_hash, &voter_id, &digests],
+        )
+        .await
+        .context("Error claiming the ballot's ciphertexts")?;
+    let taken: bool = client
+        .query_one(
+            "SELECT EXISTS (SELECT 1 FROM ballot_box_ciphertext \
+             WHERE election_event_id = $1::text::uuid AND digest = ANY($4::bytea[]) \
+               AND (ballot_hash <> $2 OR voter_id <> $3))",
+            &[&election_event_id, &ballot_hash, &voter_id, &digests],
+        )
+        .await
+        .context("Error checking the ballot's ciphertexts")?
+        .get(0);
+    Ok(!taken)
+}
+
 fn accepted_outcome(row: &tokio_postgres::Row) -> AcceptOutcome {
     AcceptOutcome::Accepted {
         seq: row.get(0),
@@ -326,9 +372,9 @@ impl PostgresStore {
         let suffix = partition_suffix(election_event_id)?;
         let event = canonical_uuid(election_event_id)?;
         let mut client = self.client().await?;
-        for parent in [BALLOTS, VOTERS, RECEIVED] {
+        for parent in [BALLOTS, VOTERS, RECEIVED, CIPHERTEXTS] {
             let partition = format!("{parent}_{suffix}");
-            let storage = if parent == VOTERS {
+            let storage = if parent == VOTERS || parent == CIPHERTEXTS {
                 String::new()
             } else {
                 format!("ALTER TABLE {partition} ALTER COLUMN content SET STORAGE EXTERNAL;")
@@ -435,7 +481,7 @@ impl PostgresStore {
                 &[&event],
             )
             .await?;
-        for parent in [BALLOTS, VOTERS, RECEIVED] {
+        for parent in [BALLOTS, VOTERS, RECEIVED, CIPHERTEXTS] {
             let partition = format!("{parent}_{suffix}");
             let detach_pending: Option<bool> = client
                 .query_opt(
@@ -578,13 +624,16 @@ impl PostgresStore {
 
     /// Atomically accept the authenticated ballot and its independently signed
     /// cast record. A failed audit append rolls back the ballot, voter counter,
-    /// receipt state and sequencer entry together.
+    /// receipt state and sequencer entry together. The ballot's ciphertexts, by
+    /// `ciphertext_digests`, are claimed in the same transaction: one that another
+    /// Ballot ID of the event holds refuses the ballot (`DuplicateCiphertext`).
     pub async fn accept_recorded_ballot(
         &self,
         ballot: &AcceptBallot<'_>,
         received: Option<&AcceptReceived<'_>>,
         board: &str,
         entry: &crate::LogEntry,
+        ciphertext_digests: &[Vec<u8>],
     ) -> Result<AcceptOutcome> {
         let admission: serde_json::Value = serde_json::from_slice(ballot.admission_record)?;
         let sequence = admission["payload"]["sequence"]
@@ -605,6 +654,18 @@ impl PostgresStore {
         }
         let mut client = self.client().await?;
         let transaction = client.transaction().await?;
+        if !claim_ciphertexts(
+            &*transaction,
+            ballot.election_event_id,
+            ballot.ballot_id,
+            ballot.voter_id,
+            ciphertext_digests,
+        )
+        .await?
+        {
+            transaction.rollback().await?;
+            return Ok(AcceptOutcome::DuplicateCiphertext);
+        }
         let status = ballot.status.to_string();
         let mut parameters = accept_parameters(ballot, &status);
         if let Some(received) = received {

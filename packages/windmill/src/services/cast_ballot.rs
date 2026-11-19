@@ -273,6 +273,7 @@ pub(crate) async fn accept_received_cast(
     received_cast: &ReceivedCast,
     board: &str,
     admission_key: &SigningKey,
+    ciphertext_digests: &[Vec<u8>],
 ) -> Result<(AcceptOutcome, DateTime<Utc>, CastReceipt), CastVoteError> {
     let (cast_at, receipt) = sign_receipt(received_cast)?;
     let seq = crate::services::ballot_admission::reserve_sequence(accept.election_event_id)
@@ -313,6 +314,7 @@ pub(crate) async fn accept_received_cast(
             }),
             board,
             &entry,
+            ciphertext_digests,
         )
         .await
         .map_err(store_error)?;
@@ -512,6 +514,7 @@ mod postgres_wiring_tests {
                         content: "ciphertext",
                         voter_signing_pk: &voter_signing_pk,
                         voter_ballot_signature: &voter_ballot_signature,
+                        ciphertext_digests: &[],
                     },
                     truncate_to_milliseconds(Utc::now()).unwrap(),
                     |received_at| {
@@ -584,6 +587,7 @@ mod postgres_wiring_tests {
                 received_cast,
                 &format!("fixture-ballot-{}",self.id),
                 &self.ballot_box_sk,
+                &[],
             )
             .await
         }

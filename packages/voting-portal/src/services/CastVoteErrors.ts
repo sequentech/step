@@ -12,8 +12,15 @@ import {TFunction} from "i18next"
 import {isApolloTransportError} from "./ApolloErrors"
 import {CastBallotsErrorType} from "./VotingPortalError"
 
+// Refusals of the ballot box that have a text of their own for the voter.
+const publicRefusalCodes: ReadonlyArray<unknown> = [
+    "InsertFailedExceedsAllowedRevotes",
+    "DuplicateBallotId",
+    "DuplicateCiphertext",
+]
+
 // Hasura can wrap a non-2xx action response in an `unexpected` error.
-// Recognize this public code only; never display arbitrary backend messages.
+// Recognize these public codes only; never display arbitrary backend messages.
 const wrappedQuotaCode = (extensions: IExtensionError): string | undefined => {
     if (extensions.code !== EGraphQLErrorCode.UNEXPECTED) return undefined
     const body: unknown = extensions.internal?.response?.body
@@ -22,7 +29,7 @@ const wrappedQuotaCode = (extensions: IExtensionError): string | undefined => {
         if (!parsed || typeof parsed !== "object" || !("extensions" in parsed)) return undefined
         const inner = parsed.extensions
         if (!inner || typeof inner !== "object" || !("code" in inner)) return undefined
-        return inner.code === "InsertFailedExceedsAllowedRevotes" ? inner.code : undefined
+        return publicRefusalCodes.includes(inner.code) ? String(inner.code) : undefined
     } catch {
         return undefined
     }
@@ -39,9 +46,9 @@ export const castVoteErrorMessage = (error: unknown, t: TFunction): string => {
     ) as IExtensionError | undefined
     const publicCode =
         errorExtensions && (wrappedQuotaCode(errorExtensions) ?? errorExtensions.code)
-    // Hasura may label its wrapper "internal error" while retaining this
+    // Hasura may label its wrapper "internal error" while retaining an
     // explicit public refusal. Never replace it with the generic panic text.
-    if (publicCode === "InsertFailedExceedsAllowedRevotes") {
+    if (publicRefusalCodes.includes(publicCode)) {
         return t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${publicCode}`)
     }
     if (castError?.message?.includes("internal error")) {

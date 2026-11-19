@@ -787,19 +787,11 @@ async fn read_tally_boards(
     Ok(Some((state, views)))
 }
 
-/// Whether the ballot codec can read `payload`, whose first byte it reads as
-/// the length of the bytes that follow.
-fn is_codec_payload(payload: &ElementPayload) -> bool {
-    usize::from(payload[0]) < payload.len()
-}
-
-/// The payloads of every decrypted board by batch, logged, keeping only those
-/// the ballot codec can read; and the batches some payloads were dropped from.
-fn codec_payloads(
-    views: Vec<(i64, BoardName, TallyView)>,
-) -> (HashMap<i64, Vec<ElementPayload>>, HashSet<i64>) {
+/// The payloads of every decrypted board by batch, logged. Every payload is
+/// kept, also one the ballot codec cannot read: it is counted as an invalid
+/// ballot, so that the decrypted ballots add up to the valid and invalid ones.
+fn decrypted_payloads(views: Vec<(i64, BoardName, TallyView)>) -> HashMap<i64, Vec<ElementPayload>> {
     let mut decrypted = HashMap::new();
-    let mut dropped_from = HashSet::new();
     for (batch, name, view) in views {
         let payloads = match view {
             TallyView::Decrypted { payloads } => payloads,
@@ -816,52 +808,9 @@ fn codec_payloads(
                 String::from_utf8_lossy(payload)
             );
         }
-
-        // A valid ciphertext can decrypt to an invalid ballot payload. Guard
-        // the codec's length byte before decoding untrusted plaintexts; a
-        // malformed payload cannot be assigned to a voting channel.
-        let total = payloads.len();
-        let readable: Vec<ElementPayload> = payloads.into_iter().filter(is_codec_payload).collect();
-        let dropped = total - readable.len();
-        if dropped > 0 {
-            warn!(
-                "{dropped} of {total} payloads of board {name} are not ballot-codec payloads, \
-                 dropped; their contest area is tallied without channel counts"
-            );
-            dropped_from.insert(batch);
-        }
-        decrypted.insert(batch, readable);
+        decrypted.insert(batch, payloads);
     }
-    (decrypted, dropped_from)
-}
-
-/// Leave out the channel counts of every area contest whose batches lost
-/// payloads to the codec guard: the channel of a mixed ballot cannot be known,
-/// and velvet refuses channel counts that differ from the ballots it decodes.
-fn drop_channel_counts(
-    area_contests: &mut [AreaContestDataType],
-    tally_session_contests: &[TallySessionContest],
-    dropped_from: &HashSet<i64>,
-) -> AnyhowResult<()> {
-    for session_contest in tally_session_contests {
-        let lost_payloads = contest_weight_batches(session_contest)?
-            .iter()
-            .any(|(batch, _)| dropped_from.contains(batch));
-        if !lost_payloads {
-            continue;
-        }
-        for area_contest in area_contests.iter_mut().filter(|area_contest| {
-            area_contest.area.id == session_contest.area_id
-                && area_contest.contest.election_id == session_contest.election_id
-                && session_contest
-                    .contest_id
-                    .as_ref()
-                    .is_none_or(|contest_id| *contest_id == area_contest.contest.id)
-        }) {
-            area_contest.votes_by_channel = None;
-        }
-    }
-    Ok(())
+    decrypted
 }
 
 #[instrument(skip_all, err)]
@@ -1156,7 +1105,7 @@ async fn map_plaintext_data(
         return Ok(None);
     }
 
-    let (decrypted, dropped_from) = codec_payloads(views);
+    let decrypted = decrypted_payloads(views);
     let mut session_ids: Vec<i64> = decrypted.keys().copied().collect();
     session_ids.sort_unstable();
 
@@ -1206,7 +1155,6 @@ async fn map_plaintext_data(
         contest_encryption_policy,
     )
     .await?;
-    drop_channel_counts(&mut plaintexts_data, &tally_session_contest, &dropped_from)?;
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
     let tally_sheets = clean_tally_sheets(&tally_sheet_rows, &ballot_styles)?;
 
