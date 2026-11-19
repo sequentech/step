@@ -247,6 +247,16 @@ pub(crate) fn cast_vote_error_response(
                 .as_str(),
             ErrorCode::InsertFailedExceedsAllowedRevotes,
         ),
+        CastVoteError::DuplicateBallotId => ErrorResponse::new(
+            Status::BadRequest,
+            "The Ballot ID was already used in this election event",
+            ErrorCode::DuplicateBallotId,
+        ),
+        CastVoteError::DuplicateCiphertext => ErrorResponse::new(
+            Status::BadRequest,
+            "The encrypted vote was already used in this election event",
+            ErrorCode::DuplicateCiphertext,
+        ),
         CastVoteError::InsertFailed(_) => ErrorResponse::new(
             Status::InternalServerError,
             ErrorCode::InternalServerError.to_string().as_str(),

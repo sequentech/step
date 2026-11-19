@@ -287,6 +287,18 @@ fn error_answers() -> Vec<(CastVoteError, Status, &'static str, &'static str)> {
             "InsertFailedExceedsAllowedRevotes",
         ),
         (
+            DuplicateBallotId,
+            Status::BadRequest,
+            "The Ballot ID was already used in this election event",
+            "DuplicateBallotId",
+        ),
+        (
+            DuplicateCiphertext,
+            Status::BadRequest,
+            "The encrypted vote was already used in this election event",
+            "DuplicateCiphertext",
+        ),
+        (
             InsertFailed(detail()),
             Status::InternalServerError,
             "InternalServerError",

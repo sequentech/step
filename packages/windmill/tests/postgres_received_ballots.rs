@@ -289,6 +289,7 @@ impl SignedBallot {
                     content: "ciphertext",
                     voter_signing_pk: &statement.voter_signing_pk,
                     voter_ballot_signature: &statement.voter_ballot_signature,
+                    ciphertext_digests: &[],
                 },
                 received_at(),
                 |_| {

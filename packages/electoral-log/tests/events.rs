@@ -539,6 +539,7 @@ async fn upgrading_an_event_database_completes_its_ballot_box() -> Result<()> {
                 content: "content",
                 voter_signing_pk: "key",
                 voter_ballot_signature: "signature",
+                ciphertext_digests: &[],
             },
             chrono::DateTime::from_timestamp_millis(1_841_396_472_000).unwrap(),
             |_| {

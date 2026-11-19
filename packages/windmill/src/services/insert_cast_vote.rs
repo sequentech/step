@@ -293,7 +293,11 @@ fn skip_or_propagate(cast_vote_err: CastVoteError) -> Result<InsertCastVoteResul
         | CastVoteError::BallotNotReceived
         | CastVoteError::BallotCastSignatureFailed(_)
         | CastVoteError::BallotAlreadyCast
-        | CastVoteError::BallotAudited => Ok(InsertCastVoteResult::SkipRetryFailure(cast_vote_err)),
+        | CastVoteError::BallotAudited
+        | CastVoteError::DuplicateBallotId
+        | CastVoteError::DuplicateCiphertext => {
+            Ok(InsertCastVoteResult::SkipRetryFailure(cast_vote_err))
+        }
         _ => Err(cast_vote_err),
     }
 }
@@ -380,6 +384,15 @@ pub enum CastVoteError {
     #[serde(rename = "ballot_audited")]
     #[strum(to_string = "ballot_audited")]
     BallotAudited,
+    /// The Ballot ID of the ballot is already used in the election event.
+    #[serde(rename = "duplicate_ballot_id")]
+    #[strum(to_string = "duplicate_ballot_id")]
+    DuplicateBallotId,
+    /// A ciphertext of the ballot, without its proof, is already stored in the
+    /// election event under another Ballot ID: a copied ciphertext.
+    #[serde(rename = "duplicate_ciphertext")]
+    #[strum(to_string = "duplicate_ciphertext")]
+    DuplicateCiphertext,
     #[serde(rename = "uuid_parse_failed")]
     UuidParseFailed(String, String),
     #[serde(rename = "ballot_id_mismatch")]
@@ -513,7 +526,7 @@ pub(crate) async fn try_cast(
         }
     };
 
-    crate::services::receive_ballot::check_published_ballot(
+    let ciphertext_digests = crate::services::receive_ballot::check_published_ballot(
         &hasura_transaction,
         tenant_id,
         election_event_id,
@@ -613,6 +626,7 @@ pub(crate) async fn try_cast(
         pseudonym_hash: &pseudonym_h,
         ballot_hash: &vote_h,
         received: received_cast.as_ref(),
+        ciphertext_digests: &ciphertext_digests,
     };
     let result = if initial_status == BallotStatus::Pending {
         // Release the read transaction and its connection before locking: the
@@ -910,6 +924,8 @@ struct BallotToAccept<'a> {
     ballot_hash: &'a CastVoteHash,
     /// The received ballot it casts, under the receipts policy.
     received: Option<&'a ReceivedCast>,
+    /// The digest of each of its ciphertexts without the proof.
+    ciphertext_digests: &'a [Vec<u8>],
 }
 
 /// Accept a vote into the event's ballot box, after checking that its election
@@ -936,6 +952,7 @@ async fn accept_into_ballot_box(
         pseudonym_hash,
         ballot_hash,
         received,
+        ciphertext_digests,
     } = *ballot;
     let election_id = input.election_id.to_string();
     let area_uuid = parse_uuid_v4(ids.area_id)
@@ -1003,7 +1020,14 @@ async fn accept_into_ballot_box(
     let (outcome, receipt) = match received {
         Some(received) => {
             let (outcome, cast_at, receipt) =
-                accept_received_cast(&accept, received, &board, &admission_key).await?;
+                accept_received_cast(
+                    &accept,
+                    received,
+                    &board,
+                    &admission_key,
+                    ciphertext_digests,
+                )
+                .await?;
             (outcome, Some((cast_at, receipt)))
         }
         None => {
@@ -1027,7 +1051,7 @@ async fn accept_into_ballot_box(
             )
             .map_err(|e| CastVoteError::BallotSignFailed(format!("{e:#}")))?;
             (
-                accept_recorded_ballot(&signed, &board, &entry)
+                accept_recorded_ballot(&signed, &board, &entry, ciphertext_digests)
                     .await
                     .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?,
                 None,
@@ -1074,9 +1098,8 @@ async fn accept_into_ballot_box(
         AcceptOutcome::DuplicateBallotId if received.is_some() => {
             Err(CastVoteError::BallotAlreadyCast)
         }
-        AcceptOutcome::DuplicateBallotId => Err(CastVoteError::InsertFailed(
-            "The ballot ID was already used in this election event".to_string(),
-        )),
+        AcceptOutcome::DuplicateBallotId => Err(CastVoteError::DuplicateBallotId),
+        AcceptOutcome::DuplicateCiphertext => Err(CastVoteError::DuplicateCiphertext),
         AcceptOutcome::BallotBoxSealed => Err(CastVoteError::CheckStatusFailed(
             crate::services::ballot_box_seal::BALLOT_BOX_SEALED_MESSAGE.to_string(),
         )),

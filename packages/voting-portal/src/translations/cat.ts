@@ -287,6 +287,10 @@ const catalanTranslation: TranslationType = {
                     "La vostra sessió ha caducat. Si us plau, torneu a començar des del principi.",
                 CAST_VOTE_BallotIdMismatch:
                     "L'identificador de la papereta no coincideix amb el del vot emès.",
+                CAST_VOTE_DuplicateBallotId:
+                    "Aquest ID de papereta ja s'ha fet servir en aquest esdeveniment electoral. Torneu a començar el vot.",
+                CAST_VOTE_DuplicateCiphertext:
+                    "El vot xifrat ja s'ha fet servir en aquest esdeveniment electoral. Torneu a començar el vot.",
                 SESSION_STORAGE_ERROR:
                     "L'emmagatzematge de sessió no està disponible. Si us plau, torneu-ho a provar o contacteu amb el servei d'assistència.",
                 PARSE_BALLOT_DATA_ERROR:

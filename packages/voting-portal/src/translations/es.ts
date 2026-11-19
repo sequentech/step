@@ -286,6 +286,10 @@ const spanishTranslation: TranslationType = {
                     "Su sesión ha expirado. Por favor, inténtelo de nuevo desde el principio.",
                 CAST_VOTE_BallotIdMismatch:
                     "El identificador de la papeleta no coincide con el del voto emitido.",
+                CAST_VOTE_DuplicateBallotId:
+                    "Este ID de papeleta ya se usó en este evento electoral. Vuelva a empezar su voto.",
+                CAST_VOTE_DuplicateCiphertext:
+                    "El voto cifrado ya se usó en este evento electoral. Vuelva a empezar su voto.",
                 SESSION_STORAGE_ERROR:
                     "El almacenamiento de sesión no está disponible. Por favor, inténtelo de nuevo o contacte con el soporte.",
                 PARSE_BALLOT_DATA_ERROR:

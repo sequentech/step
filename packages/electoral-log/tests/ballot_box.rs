@@ -1385,6 +1385,7 @@ struct Received {
     area: String,
     voter: &'static str,
     hash: String,
+    digests: Vec<Vec<u8>>,
 }
 
 impl Received {
@@ -1395,7 +1396,13 @@ impl Received {
             area: area.into(),
             voter,
             hash: Uuid::new_v4().simple().to_string(),
+            digests: Vec::new(),
         }
+    }
+
+    fn with_digests(mut self, digests: &[Vec<u8>]) -> Self {
+        self.digests = digests.to_vec();
+        self
     }
 
     fn request(&self) -> ReceiveBallot<'_> {
@@ -1408,6 +1415,7 @@ impl Received {
             content: "received ciphertext",
             voter_signing_pk: "voter key",
             voter_ballot_signature: "voter signature",
+            ciphertext_digests: &self.digests,
         }
     }
 
@@ -2003,7 +2011,7 @@ async fn admission_and_audit_commit_together_or_leave_no_ballot() -> Result<()> 
     let record = cast_vote_record(&event, seq);
     // A nonexistent board rejects the append after ballot INSERT has executed.
     assert!(store
-        .accept_recorded_ballot(&accepted, None, "missing-admission-board", &record)
+        .accept_recorded_ballot(&accepted, None, "missing-admission-board", &record, &[])
         .await
         .is_err());
     assert!(store
@@ -2019,7 +2027,7 @@ async fn admission_and_audit_commit_together_or_leave_no_ballot() -> Result<()> 
     store.create_board(&board).await?;
     assert!(matches!(
         store
-            .accept_recorded_ballot(&accepted, None, &board, &record)
+            .accept_recorded_ballot(&accepted, None, &board, &record, &[])
             .await?,
         AcceptOutcome::Accepted { .. }
     ));
@@ -2044,4 +2052,140 @@ async fn admission_and_audit_commit_together_or_leave_no_ballot() -> Result<()> 
     assert_eq!(count, 1);
     store.delete_board(&board).await?;
     drop_ballot_box(&store, &event).await
+}
+
+/// Accept `vote` with its cast record, as the ballot box does, with the digests
+/// of its ciphertexts.
+async fn accept_recorded(
+    store: &PostgresStore,
+    board: &str,
+    vote: &Vote,
+    received: Option<&AcceptReceived<'_>>,
+    digests: &[Vec<u8>],
+) -> Result<AcceptOutcome> {
+    let request = vote.request();
+    let admission: serde_json::Value = serde_json::from_slice(request.admission_record)?;
+    let seq = admission["payload"]["sequence"].as_i64().unwrap();
+    store
+        .accept_recorded_ballot(&request, received, board, &cast_vote_record(&vote.event, seq), digests)
+        .await
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn a_ciphertext_is_accepted_under_one_ballot_id_only() -> Result<()> {
+    let store = store().await?;
+    let (event, election, area, _) = ids();
+    store.create_ballot_box(&event).await?;
+    let board = format!("copies{}", Uuid::new_v4().simple());
+    store.create_board(&board).await?;
+    let copied = vec![vec![7u8; 32]];
+
+    let first = Vote::new(&event, &election, &area, "voter-a", 0);
+    assert!(matches!(
+        accept_recorded(&store, &board, &first, None, &copied).await?,
+        AcceptOutcome::Accepted { .. }
+    ));
+    // The same ballot again is a used Ballot ID, not a copy.
+    assert_eq!(
+        accept_recorded(&store, &board, &first, None, &copied).await?,
+        AcceptOutcome::DuplicateBallotId
+    );
+    // Its ciphertext under another Ballot ID, also with a fresh one beside it.
+    let copy = Vote::new(&event, &election, &area, "voter-b", 0);
+    assert_eq!(
+        accept_recorded(&store, &board, &copy, None, &[vec![9u8; 32], copied[0].clone()]).await?,
+        AcceptOutcome::DuplicateCiphertext
+    );
+    assert!(store.voter_state(&event, &election, "voter-b").await?.is_none());
+    // A refused copy claims nothing: the fresh ciphertext stays free.
+    let other = Vote::new(&event, &election, &area, "voter-b", 0);
+    assert!(matches!(
+        accept_recorded(&store, &board, &other, None, &[vec![9u8; 32]]).await?,
+        AcceptOutcome::Accepted { .. }
+    ));
+    // A re-vote with a fresh ciphertext is accepted.
+    let revote = Vote::new(&event, &election, &area, "voter-a", 0);
+    assert!(matches!(
+        accept_recorded(&store, &board, &revote, None, &[vec![8u8; 32]]).await?,
+        AcceptOutcome::Accepted { .. }
+    ));
+
+    // At reception: a received ballot's ciphertext, and a stored ballot's, are
+    // refused under another Ballot ID; the received ballot itself is cast.
+    let received = Received::new(&event, &election, &area, "voter-c").with_digests(&[vec![6u8; 32]]);
+    let ballot_id = received.receive(&store, &short_ballot_id()).await?;
+    for digests in [vec![vec![6u8; 32]], copied.clone()] {
+        let copy = Received::new(&event, &election, &area, "voter-d").with_digests(&digests);
+        assert_eq!(
+            store
+                .receive_ballot(&copy.request(), received_at(), |_| Ok(receipt(&short_ballot_id())))
+                .await?,
+            ReceiveOutcome::DuplicateCiphertext
+        );
+        assert!(store
+            .received_ballot(&event, &election, "voter-d", &copy.hash)
+            .await?
+            .is_none());
+    }
+    assert!(matches!(
+        accept_recorded(
+            &store,
+            &board,
+            &received.vote(0),
+            Some(&cast(&ballot_id)),
+            &[vec![6u8; 32]]
+        )
+        .await?,
+        AcceptOutcome::Accepted { .. }
+    ));
+    drop_ballot_box(&store, &event).await
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn of_two_ballots_with_one_ciphertext_at_once_one_is_refused() -> Result<()> {
+    let store = store().await?;
+    let (event, election, area, _) = ids();
+    store.create_ballot_box(&event).await?;
+    for (commit, expect_refused) in [("COMMIT", true), ("ROLLBACK", false)] {
+        let digest = Uuid::new_v4().as_bytes().repeat(2);
+        // Another ballot's claim of the ciphertext, in progress.
+        let writer = store.client().await?;
+        writer
+            .batch_execute(&format!(
+                "BEGIN; INSERT INTO ballot_box_ciphertext \
+                 (election_event_id, digest, ballot_hash, voter_id) \
+                 VALUES ('{event}', '\\x{}', 'other-ballot', 'other-voter')",
+                hex_of(&digest)
+            ))
+            .await?;
+        let receiving = {
+            let store = store.clone();
+            let received =
+                Received::new(&event, &election, &area, "voter-e").with_digests(&[digest.clone()]);
+            tokio::spawn(async move {
+                store
+                    .receive_ballot(&received.request(), received_at(), |_| {
+                        Ok(receipt(&short_ballot_id()))
+                    })
+                    .await
+            })
+        };
+        // The second claim waits for the first to end.
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        assert!(!receiving.is_finished());
+        writer.batch_execute(commit).await?;
+        let outcome = receiving.await??;
+        assert_eq!(
+            outcome == ReceiveOutcome::DuplicateCiphertext,
+            expect_refused,
+            "{commit}: {outcome:?}"
+        );
+    }
+    drop_ballot_box(&store, &event).await
+}
+
+fn hex_of(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }

@@ -68,6 +68,7 @@ use windmill::services::ballot_box_seal::{
 use windmill::services::election_event_status::{
     scheduled_change_applies, update_event_voting_status, update_scheduled_event_voting_status,
     update_scheduled_event_voting_status_for, SkippedElection, TransitionRefusal,
+    RECEIPTS_POLICY_REQUIRED,
 };
 use windmill::services::electoral_log_board::{
     create_protocol_manager_keys, get_board_signing_key, get_event_databases, get_event_store,
@@ -271,6 +272,8 @@ struct Options {
     grace_secs: Option<u64>,
     /// The event's Seal Record Publication policy; None leaves it unset.
     record_policy: Option<&'static str>,
+    /// The event's receipts policy.
+    receipts: &'static str,
 }
 
 impl Default for Options {
@@ -284,6 +287,7 @@ impl Default for Options {
             online_enabled: true,
             grace_secs: None,
             record_policy: None,
+            receipts: "signed-by-ballot-box",
         }
     }
 }
@@ -320,8 +324,12 @@ async fn world(options: Options) -> World {
                 Some(record_policy) => json!({
                     "ballot_box_seal_policy": options.policy,
                     "ballot_box_seal_record_policy": record_policy,
+                    "receipts": {"policy": options.receipts},
                 }),
-                None => json!({ "ballot_box_seal_policy": options.policy }),
+                None => json!({
+                    "ballot_box_seal_policy": options.policy,
+                    "receipts": {"policy": options.receipts},
+                }),
             },
             &json!({"id": 1, "database_name": board, "is_archived": false}),
             &json!({"online": true, "kiosk": options.kiosk, "early_voting": options.early_voting}),
@@ -820,6 +828,47 @@ async fn change_election(
     .await?;
     tx.commit().await?;
     Ok(())
+}
+
+#[test]
+fn without_signed_receipts_voting_never_opens_where_only_signed_packages_import() {
+    event_database::run(async {
+        // The tenant has no configuration signing setting: only signed
+        // packages import.
+        let w = world(Options {
+            kiosk: true,
+            receipts: "disabled",
+            ..Default::default()
+        })
+        .await;
+        let kiosk = change_election(
+            &w,
+            w.election(),
+            VotingStatus::OPEN,
+            VotingStatusChannel::KIOSK,
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(kiosk.to_string(), RECEIPTS_POLICY_REQUIRED);
+        let mut client = w.client().await;
+        let tx = client.transaction().await.unwrap();
+        let event = update_event_voting_status(
+            &tx,
+            &w.tenant.to_string(),
+            Some(&w.user),
+            Some(ADMIN),
+            &w.event.to_string(),
+            &VotingStatus::OPEN,
+            &Some(vec![VotingStatusChannel::KIOSK]),
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(event.to_string(), RECEIPTS_POLICY_REQUIRED);
+        drop(tx);
+        // Voting that is open still closes.
+        close_election(&w, w.election(), Some(&w.user)).await;
+        w.finish().await;
+    })
 }
 
 #[test]

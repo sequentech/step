@@ -160,6 +160,17 @@ CREATE TABLE IF NOT EXISTS ballot_box_received (
         AND (cast_signature IS NULL OR status = 'cast')
     )
 ) PARTITION BY LIST (election_event_id);
+-- The ciphertexts of the ballots of an election event's ballot box, received or stored,
+-- in any status, each by the SHA-256 of the ciphertext without its proof. A ciphertext
+-- belongs to the first ballot (the voter's Ballot ID, the ballot hash) that brought it:
+-- the same ciphertext under another Ballot ID is a copy, and is refused.
+CREATE TABLE IF NOT EXISTS ballot_box_ciphertext (
+    election_event_id UUID NOT NULL,
+    digest BYTEA NOT NULL CHECK (octet_length(digest) = 32),
+    ballot_hash TEXT NOT NULL CHECK (ballot_hash <> ''),
+    voter_id TEXT NOT NULL CHECK (voter_id <> ''),
+    PRIMARY KEY (election_event_id, digest)
+) PARTITION BY LIST (election_event_id);
 -- Seals of ballot boxes, the ballots of one election's area. A box with a seal, sealed
 -- or failed, takes no more writes. A seal is stored with its record on the event's board
 -- in one transaction, and never changes.

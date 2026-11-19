@@ -68,3 +68,15 @@ it("preserves genuine upstream timeout handling", () => {
         )
     ).toBe("reviewScreen.error.CAST_VOTE_timeout")
 })
+it.each(["DuplicateBallotId", "DuplicateCiphertext"])(
+    "shows the text of the ballot box refusal %s, also when Hasura wraps it",
+    (code) => {
+        expect(castVoteErrorMessage(error({code}), t)).toBe(`reviewScreen.error.CAST_VOTE_${code}`)
+        expect(
+            castVoteErrorMessage(
+                error({code: "unexpected", internal: {response: {body: {extensions: {code}}}}}),
+                t
+            )
+        ).toBe(`reviewScreen.error.CAST_VOTE_${code}`)
+    }
+)

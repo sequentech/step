@@ -25,6 +25,8 @@ pub enum ErrorCode {
     CheckRevotesFailed,
     CheckVotesInOtherAreasFailed,
     InsertFailedExceedsAllowedRevotes,
+    DuplicateBallotId,
+    DuplicateCiphertext,
     GetClientCredentialsFailed,
     GetAreaIdFailed,
     GetTransactionFailed,

@@ -162,6 +162,8 @@ async fn check_ballot_style(
 }
 
 /// Shared by receive and cast, including casting without signed receipts.
+/// Returns the digest of each of the ballot's ciphertexts without its proof,
+/// with which the ballot box refuses a copied ciphertext.
 #[instrument(skip_all, err)]
 pub(crate) async fn check_published_ballot(
     transaction: &Transaction<'_>,
@@ -170,7 +172,7 @@ pub(crate) async fn check_published_ballot(
     area_id: &str,
     input: &InsertCastVoteInput,
     policy: ContestEncryptionPolicy,
-) -> Result<(), CastVoteError> {
+) -> Result<Vec<Vec<u8>>, CastVoteError> {
     let envelope: BallotEnvelope = deserialize_str(&input.content)
         .map_err(|error| CastVoteError::DeserializeBallotFailed(error.to_string()))?;
     let tenant = parse_uuid_field(tenant_id, "tenant_id")?;
@@ -202,7 +204,24 @@ pub(crate) async fn check_published_ballot(
         }
     };
     sequent_core::encrypt::verify_ballot_ciphertexts(&entries, &style, policy)
-        .map_err(|error| CastVoteError::PokValidationFailed(error.to_string()))
+        .map_err(|error| CastVoteError::PokValidationFailed(error.to_string()))?;
+    ciphertext_digests(&entries)
+}
+
+/// The digest of each ciphertext without its proof. The same ciphertext twice
+/// in one ballot is a copy as well.
+pub(crate) fn ciphertext_digests(
+    entries: &[sequent_core::ballot::HashableBallotContest],
+) -> Result<Vec<Vec<u8>>, CastVoteError> {
+    let digests: Vec<Vec<u8>> = entries
+        .iter()
+        .map(|entry| entry.digest_without_proof().to_vec())
+        .collect();
+    let distinct: std::collections::HashSet<&Vec<u8>> = digests.iter().collect();
+    if distinct.len() != digests.len() {
+        return Err(CastVoteError::DuplicateCiphertext);
+    }
+    Ok(digests)
 }
 
 fn parse_uuid_field(value: &str, field: &str) -> Result<Uuid, CastVoteError> {
@@ -350,7 +369,7 @@ pub async fn try_receive_ballot(
         ballot_hash: &input.ballot_id,
     };
 
-    check_published_ballot(
+    let ciphertext_digests = check_published_ballot(
         &hasura_transaction,
         tenant_id,
         &election_event.id,
@@ -405,6 +424,7 @@ pub async fn try_receive_ballot(
                 content: &input.content,
                 voter_signing_pk: &voter_signing_pk,
                 voter_ballot_signature: &voter_ballot_signature,
+                ciphertext_digests: &ciphertext_digests,
             },
             first_received_at,
             |received_at| {
@@ -445,6 +465,7 @@ pub async fn try_receive_ballot(
         ReceiveOutcome::NoFreeBallotId => Err(CastVoteError::InsertFailed(
             "No free Ballot ID for the received ballot".to_string(),
         )),
+        ReceiveOutcome::DuplicateCiphertext => Err(CastVoteError::DuplicateCiphertext),
     }
 }
 

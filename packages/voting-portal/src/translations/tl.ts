@@ -284,6 +284,10 @@ const tagalogTranslation: TranslationType = {
                 SESSION_EXPIRED:
                     "Ang iyong session ay nag-expire na. Pakisubukan muli mula sa simula.",
                 CAST_VOTE_BallotIdMismatch: "Hindi tumutugma ang ballot ID sa ibinotong boto.",
+                CAST_VOTE_DuplicateBallotId:
+                    "Nagamit na ang Ballot ID na ito sa election event na ito. Pakisimulan muli ang iyong boto.",
+                CAST_VOTE_DuplicateCiphertext:
+                    "Nagamit na ang naka-encrypt na boto sa election event na ito. Pakisimulan muli ang iyong boto.",
                 SESSION_STORAGE_ERROR:
                     "Hindi magamit ang session storage. Pakisubukang muli o makipag-ugnayan sa support.",
                 PARSE_BALLOT_DATA_ERROR:

@@ -312,3 +312,23 @@ fn a_ballot_of_an_unknown_format_cannot_be_signed_for() {
         Err(CastVoteError::BallotSignFailed(_))
     ));
 }
+
+#[test]
+fn each_ciphertext_has_a_digest_and_one_used_twice_in_a_ballot_is_a_copy() {
+    use cryptography::context::{Context, RistrettoCtx};
+    use voting_crypto::ballot::{encrypt_payload, BallotCiphertext};
+    let joint_key = RistrettoCtx::random_element();
+    let entry = |contest: &str| {
+        let (ciphertext, _) = encrypt_payload(1, &joint_key, &[1u8; 30]).unwrap();
+        BallotCiphertext::new(vec![contest.to_string()], ciphertext)
+    };
+    let (first, second) = (entry("a"), entry("b"));
+
+    let digests = ciphertext_digests(&[first.clone(), second]).unwrap();
+    assert_eq!(digests.len(), 2);
+    assert_eq!(digests[0], first.digest_without_proof().to_vec());
+    assert!(matches!(
+        ciphertext_digests(&[first.clone(), first]),
+        Err(CastVoteError::DuplicateCiphertext)
+    ));
+}

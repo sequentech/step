@@ -46,6 +46,18 @@ impl<C: Context> BallotCiphertext<C> {
         Self::deser(&bytes).context("ballot ciphertext cannot be deserialized")
     }
 
+    /// SHA-256 of the ciphertext without its proof, as it enters the tally: the
+    /// ElGamal pair `u_b`, `v_b`. Ballots with the same digest carry the same
+    /// encrypted vote, whatever proof, contests or envelope they come with.
+    pub fn digest_without_proof(&self) -> [u8; 32] {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(b"ballot-ciphertext-without-proof");
+        hasher.update(self.ciphertext.u_b.ser());
+        hasher.update(self.ciphertext.v_b.ser());
+        hasher.finalize().into()
+    }
+
     /// Consume the entry for publication in a wbraid Ballots message.
     pub fn into_ciphertext(self) -> naoryung::Ciphertext<C, 1> {
         self.ciphertext
@@ -111,4 +123,29 @@ pub fn verify_opening(
         "audit opening does not match the encrypted ballot"
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_digest_ignores_the_proof_and_tells_fresh_encryptions_apart() {
+        let joint_key = RistrettoCtx::random_element();
+        let payload = [1u8; 30];
+        let randomness = RistrettoCtx::random_scalar();
+        let encrypt = |contest_ids: Vec<String>| {
+            let ciphertext =
+                encrypt_payload_with_randomness(7, &joint_key, &payload, &randomness).unwrap();
+            BallotCiphertext::new(contest_ids, ciphertext)
+        };
+        let original = encrypt(vec!["a".to_string()]);
+        // The same encrypted vote with a proof of its own and other contests.
+        let copy = encrypt(vec!["b".to_string()]);
+        let (fresh, _) = encrypt_payload(7, &joint_key, &payload).unwrap();
+        let fresh = BallotCiphertext::new(vec!["a".to_string()], fresh);
+
+        assert_eq!(original.digest_without_proof(), copy.digest_without_proof());
+        assert_ne!(original.digest_without_proof(), fresh.digest_without_proof());
+    }
 }

@@ -118,17 +118,19 @@ pub async fn accept_ballot(ballot: &AcceptBallot<'_>) -> Result<AcceptOutcome> {
         .await
 }
 
-/// Acceptance and the independently signed audit record commit together.
+/// Acceptance and the independently signed audit record commit together,
+/// refused if one of the ballot's ciphertexts belongs to another Ballot ID.
 pub async fn accept_recorded_ballot(
     ballot: &AcceptBallot<'_>,
     board: &str,
     entry: &LogEntry,
+    ciphertext_digests: &[Vec<u8>],
 ) -> Result<AcceptOutcome> {
     get_event_databases()
         .await?
         .store(ballot.election_event_id)
         .await?
-        .accept_recorded_ballot(ballot, None, board, entry)
+        .accept_recorded_ballot(ballot, None, board, entry, ciphertext_digests)
         .await
 }
 
