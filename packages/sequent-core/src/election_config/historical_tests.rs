@@ -4005,3 +4005,27 @@ fn historical_document_attributes_reject_nontext_and_keep_source_owned_fields()
         assert!(adapt(&sql, &xlsx, &preserving()).is_err());
     }
 }
+
+/// A historical event predates `ballot_identity`, and the platform read an
+/// event that names none as voter-id: the conversion keeps that mode instead
+/// of letting the build treat it as a new, pseudonymous configuration.
+#[test]
+fn a_historical_conversion_keeps_the_prior_voter_id_mode() {
+    let (sql, xlsx) = fixture();
+    let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    assert_eq!(
+        adapted.workbook.rows("electionevent")[0]
+            .text("presentation.ballot_identity"),
+        Some("voter-id")
+    );
+    let built = build(
+        &adapted.workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap();
+    let presentation = &built.export["election_event"]["presentation"];
+    assert_eq!(presentation["ballot_identity"], json!("voter-id"));
+    assert_eq!(presentation["receipts"]["policy"], Value::Null);
+}

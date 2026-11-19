@@ -1988,6 +1988,24 @@ fn map(
         "annotations.import:provenance",
         json!(provenance),
     );
+    // A historical event predates `ballot_identity`, and the platform has
+    // always read an event that names none as voter-id: the conversion keeps
+    // that mode rather than letting the build treat it as a new, pseudonymous
+    // configuration. A mode the supplemental workbook names is kept.
+    let named = event
+        .get("presentation.ballot_identity")
+        .is_some_and(|mode| match mode {
+            Value::Null => false,
+            Value::String(text) => !text.trim().is_empty(),
+            _ => true,
+        });
+    if !named {
+        set(
+            &mut event,
+            "presentation.ballot_identity",
+            json!(crate::types::vote_privacy::BallotIdentity::VoterId),
+        );
+    }
     apply_contest_rows(workbook.rows("contests"), &mut output_contests)?;
     apply_candidate_rows(workbook.rows("candidates"), &mut output_candidates)?;
     let aliases: BTreeMap<String, String> = output_elections

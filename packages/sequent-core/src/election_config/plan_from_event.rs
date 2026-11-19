@@ -172,6 +172,28 @@ pub fn plan_from_event(document: &Value) -> Result<ReadPlan, Report> {
         Err(problem) => report.push(problem),
     }
 
+    // The event's identity mode, stated on the plan's own event row. The base
+    // export says it too, but a plan saved as a workbook and opened again has
+    // no base export, and would then build as a new, pseudonymous event.
+    // Identity is immutable, and an event that names none predates the
+    // setting: the platform reads that absence as voter-id.
+    let mode = presentation
+        .get("ballot_identity")
+        .filter(|mode| match mode {
+            Value::Null => false,
+            Value::String(text) => !text.trim().is_empty(),
+            _ => true,
+        })
+        .cloned()
+        .unwrap_or_else(|| {
+            serde_json::json!(
+                crate::types::vote_privacy::BallotIdentity::VoterId
+            )
+        });
+    plan.columns
+        .entry("presentation.ballot_identity".to_string())
+        .or_insert(mode);
+
     if plan.external_id.is_empty() {
         // **Derived rather than left blank.** An export without one is ordinary —
         // the platform keys events by UUID and does not always write the external
