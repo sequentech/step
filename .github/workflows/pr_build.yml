@@ -22,6 +22,10 @@ on:
 jobs:
   build-and-push:
     uses: ./.github/workflows/reusable_build_push.yml
-    secrets: inherit
+    secrets:
+      PAT: ${{ secrets.PAT }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      AWS_ACCESS_KEY_ID_GLOBALDOT: ${{ secrets.AWS_ACCESS_KEY_ID_GLOBALDOT }}
+      AWS_SECRET_ACCESS_KEY_GLOBALDOT: ${{ secrets.AWS_SECRET_ACCESS_KEY_GLOBALDOT }}
     with:
       push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
