@@ -566,6 +566,7 @@ const catalanTranslation: TranslationType = {
                 "No trobat, comproveu que l'ID de la Papereta sigui correcte i pertanyi a l'usuari actual.",
             filterByBallotId: "Filtra per ID de la Papereta",
             totalBallots: "Paperetes: {{total}}",
+            totalBallotsMoreThan: "Paperetes: més de {{total}}",
             steps: {
                 lookup: "Trobeu la vostra papereta",
                 result: "Resultat",
@@ -590,7 +591,7 @@ const catalanTranslation: TranslationType = {
             pagination: {
                 rowsPerPage: "Files per pàgina:",
                 displayedRows: "{{from}}–{{to}} de {{total}}",
-                displayedRowsMoreThan: "{{from}}–{{to}} de més de {{to}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} de més de {{total}}",
                 firstPage: "Anar a la primera pàgina",
                 lastPage: "Anar a l'última pàgina",
                 nextPage: "Anar a la pàgina següent",

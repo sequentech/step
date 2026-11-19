@@ -564,6 +564,7 @@ const frenchTranslation: TranslationType = {
                 "Non trouvé, veuillez vérifier que le numéro d'identification du bulletin soit correct et appartenir à cet utilisateur.",
             filterByBallotId: "Filtrez par numéro d'identification du bulletin",
             totalBallots: "Total: {{total}}",
+            totalBallotsMoreThan: "Total: plus de {{total}}",
             steps: {
                 lookup: "Localisez votre bulletin de vote",
                 result: "Résultat",
@@ -588,7 +589,7 @@ const frenchTranslation: TranslationType = {
             pagination: {
                 rowsPerPage: "Lignes par page :",
                 displayedRows: "{{from}}–{{to}} sur {{total}}",
-                displayedRowsMoreThan: "{{from}}–{{to}} sur plus de {{to}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} sur plus de {{total}}",
                 firstPage: "Aller à la première page",
                 lastPage: "Aller à la dernière page",
                 nextPage: "Aller à la page suivante",

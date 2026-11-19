@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::assign_value;
+use crate::client::index_hint::{
+    choose_index, table_indexes, IndexScan, TableIndex, PRIMARY_KEY_COLUMN,
+};
 use anyhow::{anyhow, Context, Result};
 use immudb_rs::{sql_value::Value, Client, CommittedSqlTx, NamedParam, Row, SqlValue, TxMode};
 use serde::{Deserialize, Serialize};
@@ -17,7 +20,7 @@ use tracing::{error, info, instrument, warn};
 const IMMUDB_DEFAULT_LIMIT: usize = 900;
 const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
 const IMMUDB_DEFAULT_OFFSET: usize = 0;
-const ELECTORAL_LOG_TABLE: &'static str = "electoral_log_messages";
+pub const ELECTORAL_LOG_TABLE: &str = "electoral_log_messages";
 const ELECTORAL_LOG_RECEIPTS_TABLE: &str = "electoral_log_delivery_receipts";
 /// 36 chars + EOL + some padding
 const ID_VARCHAR_LENGTH: usize = 40;
@@ -25,6 +28,20 @@ const ID_VARCHAR_LENGTH: usize = 40;
 const STATEMENT_KIND_VARCHAR_LENGTH: usize = 40;
 /// 64 chars + EOL + some padding
 const BALLOT_ID_VARCHAR_LENGTH: usize = 70;
+
+/// The parameter that holds how many rows a capped count reads at most.
+const MAX_COUNT_PARAM: &str = "max_count";
+
+/// The SQL counting the electoral log rows that `clauses`, an index hint and a WHERE clause,
+/// select. With `max_count_param`, the count stops after the first `@max_count_param` rows.
+pub fn count_sql(clauses: &str, max_count_param: Option<&str>) -> String {
+    match max_count_param {
+        None => format!("SELECT COUNT(*) FROM {ELECTORAL_LOG_TABLE} {clauses}"),
+        Some(param) => format!(
+            "SELECT COUNT(*) FROM (SELECT id FROM {ELECTORAL_LOG_TABLE} {clauses} LIMIT @{param})"
+        ),
+    }
+}
 
 /// What a board held for a delivery ID when the delivery was written.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -40,6 +57,8 @@ pub enum DeliveryReceipt {
 #[derive(Debug)]
 pub struct BoardClient {
     client: Client,
+    /// The secondary indexes of the electoral log table, by database.
+    indexes: HashMap<String, Vec<TableIndex>>,
 }
 
 #[derive(Debug, Clone, Display, PartialEq, Eq, Ord, PartialOrd)]
@@ -264,7 +283,10 @@ impl BoardClient {
         let mut client = Client::new(&server_url, username, password).await?;
         client.login().await?;
 
-        Ok(BoardClient { client: client })
+        Ok(BoardClient {
+            client: client,
+            indexes: HashMap::new(),
+        })
     }
 
     /// Get all electoral log messages whose id is bigger than `last_id`
@@ -348,9 +370,8 @@ impl BoardClient {
         Ok(messages)
     }
 
-    /// columns_matcher represents the columns that will be used to filter the messages,
-    /// The order as defined ElectoralLogVarCharColumn is important for preformance to match the indexes.
-    /// BTreeMap ensures the order is preserved no matter the insertion sequence.
+    /// columns_matcher represents the columns that will be used to filter the messages.
+    /// The query scans the board index that matches its `=` columns and order, if any.
     pub async fn get_electoral_log_messages_filtered<K: Display, V: Display>(
         &mut self,
         board_db: &str,
@@ -437,17 +458,30 @@ impl BoardClient {
             }
         }
 
+        let order_by = order_by.filter(|order_by| !order_by.is_empty());
+        let order_columns: Vec<String> = order_by
+            .iter()
+            .flat_map(|order_by| order_by.keys().map(|field| field.to_string()))
+            .collect();
         let order_by_clauses = if let Some(order_by) = order_by {
-            order_by
+            let sort_keys = order_by
                 .iter()
-                .map(|(field, direction)| format!("ORDER BY {field} {direction}"))
-                .collect::<Vec<String>>()
-                .join(", ")
+                .map(|(field, direction)| format!("{field} {direction}"))
+                .collect::<Vec<String>>();
+            format!("ORDER BY {}", sort_keys.join(", "))
         } else {
-            format!("ORDER BY id desc")
+            format!("ORDER BY {PRIMARY_KEY_COLUMN} desc")
         };
 
         self.client.use_database(board_db).await?;
+        let order_columns: Vec<&str> = order_columns.iter().map(String::as_str).collect();
+        let index_hint = self
+            .index_hint(
+                board_db,
+                &columns_matcher,
+                IndexScan::sorted_by(&order_columns),
+            )
+            .await;
         let sql = format!(
             r#"
         SELECT
@@ -463,7 +497,7 @@ impl BoardClient {
             statement_kind,
             message,
             version
-        FROM {ELECTORAL_LOG_TABLE}
+        FROM {ELECTORAL_LOG_TABLE} {index_hint}
         WHERE {where_clause}
         {min_clause}
         {max_clause}
@@ -544,11 +578,73 @@ impl BoardClient {
         Ok((messages, total_rows_fetched))
     }
 
+    /// The `USE INDEX` clause for a query on `board_db`, the current database, that matches the
+    /// `=` columns of `columns_matcher` and reads them as `scan` says, or none when the primary
+    /// key fits it better. The hint only speeds the query up, so without the board's indexes
+    /// there is none.
+    async fn index_hint(
+        &mut self,
+        board_db: &str,
+        columns_matcher: &Option<WhereClauseBTreeMap>,
+        scan: IndexScan<'_>,
+    ) -> String {
+        let equal_columns: Vec<String> = columns_matcher
+            .iter()
+            .flatten()
+            .filter(|(_, (op, _))| matches!(op, SqlCompOperators::Equal))
+            .map(|(column, _)| column.to_string())
+            .collect();
+        if equal_columns.is_empty() {
+            return String::new();
+        }
+        if !self.indexes.contains_key(board_db) {
+            match table_indexes(&mut self.client, ELECTORAL_LOG_TABLE).await {
+                Ok(indexes) => {
+                    self.indexes.insert(board_db.to_string(), indexes);
+                }
+                Err(err) => {
+                    warn!("Querying {board_db} without an index hint, its indexes can't be read: {err:?}");
+                    return String::new();
+                }
+            }
+        }
+        let indexes = self
+            .indexes
+            .get(board_db)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let equal_columns: Vec<&str> = equal_columns.iter().map(String::as_str).collect();
+        choose_index(indexes, &equal_columns, scan)
+            .map(TableIndex::use_index_clause)
+            .unwrap_or_default()
+    }
+
     #[instrument(err)]
     pub async fn count_electoral_log_messages(
         &mut self,
         board_db: &str,
         columns_matcher: Option<WhereClauseBTreeMap>,
+    ) -> Result<i64> {
+        self.count(board_db, columns_matcher, None).await
+    }
+
+    /// Counts the matching messages, stopping after `max_count`: counting every match reads
+    /// all of them.
+    #[instrument(err)]
+    pub async fn count_electoral_log_messages_up_to(
+        &mut self,
+        board_db: &str,
+        columns_matcher: Option<WhereClauseBTreeMap>,
+        max_count: i64,
+    ) -> Result<i64> {
+        self.count(board_db, columns_matcher, Some(max_count)).await
+    }
+
+    async fn count(
+        &mut self,
+        board_db: &str,
+        columns_matcher: Option<WhereClauseBTreeMap>,
+        max_count: Option<i64>,
     ) -> Result<i64> {
         let mut params = vec![];
         let mut where_clause = String::from("statement_kind IS NOT NULL ");
@@ -565,13 +661,21 @@ impl BoardClient {
         }
 
         self.client.use_database(board_db).await?;
-        let sql = format!(
-            r#"
-            SELECT COUNT(*)
-            FROM {ELECTORAL_LOG_TABLE}
-            WHERE {where_clause}
-            "#,
+        let index_hint = self
+            .index_hint(board_db, &columns_matcher, IndexScan::Count)
+            .await;
+        let sql = count_sql(
+            &format!("{index_hint} WHERE {where_clause}"),
+            max_count.map(|_| MAX_COUNT_PARAM),
         );
+        if let Some(max_count) = max_count {
+            params.push(NamedParam {
+                name: MAX_COUNT_PARAM.to_string(),
+                value: Some(SqlValue {
+                    value: Some(Value::N(max_count)),
+                }),
+            });
+        }
 
         info!("SQL query: {}", sql);
         let sql_query_response = self.client.sql_query(&sql, params).await?;
@@ -1305,5 +1409,30 @@ pub(crate) mod tests {
         assert_eq!(ret.len(), 0);
 
         tear_down(b).await;
+    }
+}
+
+#[cfg(test)]
+mod count_sql_tests {
+    use super::*;
+
+    #[test]
+    fn an_exact_count_reads_every_selected_row() {
+        assert_eq!(
+            count_sql("WHERE user_id = @user_id", None),
+            "SELECT COUNT(*) FROM electoral_log_messages WHERE user_id = @user_id"
+        );
+    }
+
+    #[test]
+    fn a_capped_count_reads_at_most_the_given_number_of_rows() {
+        assert_eq!(
+            count_sql(
+                "USE INDEX ON (user_id, id) WHERE user_id = @user_id",
+                Some("max_count")
+            ),
+            "SELECT COUNT(*) FROM (SELECT id FROM electoral_log_messages \
+             USE INDEX ON (user_id, id) WHERE user_id = @user_id LIMIT @max_count)"
+        );
     }
 }

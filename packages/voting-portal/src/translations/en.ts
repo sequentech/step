@@ -561,6 +561,7 @@ const englishTranslation = {
                 "Not found, check that your Ballot ID is correct and belongs to this user.",
             filterByBallotId: "Filter by Ballot ID",
             totalBallots: "Total Ballots: {{total}}",
+            totalBallotsMoreThan: "Total Ballots: more than {{total}}",
             steps: {
                 lookup: "Locate your Ballot",
                 result: "Result",
@@ -585,7 +586,7 @@ const englishTranslation = {
             pagination: {
                 rowsPerPage: "Rows per page:",
                 displayedRows: "{{from}}–{{to}} of {{total}}",
-                displayedRowsMoreThan: "{{from}}–{{to}} of more than {{to}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} of more than {{total}}",
                 firstPage: "Go to first page",
                 lastPage: "Go to last page",
                 nextPage: "Go to next page",
