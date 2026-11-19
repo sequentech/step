@@ -251,6 +251,10 @@ class InstallerTests(unittest.TestCase):
             'enabled account client':lambda f:f['clients'][-2].update(enabled=True),
             'missing account console':lambda f:f['clients'].pop(),
             'manage-account default role':lambda f:f['roles']['realm'][0]['composites']['client']['account'].append('manage-account'),
+            'manage-account-links default role':lambda f:f['roles']['realm'][0]['composites']['client']['account'].append('manage-account-links'),
+            'enabled e-mail change action':lambda f:f['requiredActions'].append({'alias':'email-otp-ra','enabled':True,'defaultAction':False}),
+            'request objects from any address':lambda f:f['clients'][0]['attributes'].update({'request.uris':'*'}),
+            'request objects on a disabled client':lambda f:f['clients'][-1].update(attributes={'request.uris':'*'}),
             'missing default role':lambda f:f['roles'].update(realm=[]),
             'user-editable username':profile_edit('username',['admin','user']),
             'user-editable email':profile_edit('email',['admin','user']),
@@ -340,6 +344,9 @@ class InstallerTests(unittest.TestCase):
                 delivered=self.realm_fixture(kind);delivered.update(defaultOptionalClientScopes=['offline_access','address'])
                 delivered['requiredActions']=[a for a in delivered['requiredActions'] if a['alias']!='idp_link']
                 delivered['roles']['realm'][0]['composites']['realm'].append('offline_access')
+                delivered['roles']['realm'][0]['composites']['client']['account']+=['manage-account','manage-account-links']
+                delivered['requiredActions']+=[{'alias':alias,'enabled':True,'defaultAction':False} for alias in ('email-otp-ra','UPDATE_EMAIL')]
+                delivered['clients'][0]['attributes']['request.uris']='*'
                 for c in delivered['clients']:
                     if c['clientId'] in ('admin-portal','voting-portal'):c['optionalClientScopes']=['offline_access','address']
                     if c['clientId']=='security-admin-console':c['enabled']=True

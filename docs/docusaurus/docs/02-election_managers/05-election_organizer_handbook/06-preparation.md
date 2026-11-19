@@ -277,7 +277,9 @@ settings:
 |---|---|---|
 | Election event, tab "Data" | "Ballot Box Seal Policy" | "Seal at close" |
 | Election event, tab "Data" | "Keys/Tally Ceremonies Policy" (section "Advanced Configurations") | "Manual Ceremonies" |
-| Election event, tab "Data" | "Receipts signed by the ballot box" | "Signed by the ballot box" |
+| Election event, tab "Data" | "Receipts signed by the ballot box" | "Signed by the ballot box" (with another value the TOE does not open voting) |
+| Election event, tab "Data" | "Delegated Voting Policy" (section "Advanced Configurations") | "Disabled" (with "Enabled" the TOE neither imports the election event nor opens voting) |
+| Election event, tab "Data" | "Weighted Voting Policy" (section "Advanced Configurations") | "Disabled Weighted Voting" or "Weighted Voting for Areas" (with "Weighted Voting for Voters" the TOE neither imports the election event nor opens voting) |
 | Election event, tab "Data" | "Period for checking cast ballots" | "Until a date", with "Checks available until" at the end of election time |
 | Election event, tab "Data" | "Show User Profile" (section "Ballot Design") | Off |
 | Election event, tab "Data" | "Show Cast Vote Logs Tab" (section "Ballot Design") | "Hide Cast Vote Logs Tab" |
@@ -480,8 +482,12 @@ To run the ceremony, a board member with the permission "Admin Ceremony"
    the whole election event. The ceremony name is derived from that selection.
    In the list "Trustees", select both trustees. Set the field "Threshold" to 2.
    No other screen shows the threshold before the initialization report: have a
-   second board member check both fields before you continue, and write the
-   threshold in the board's minutes.
+   second board member check both fields against the trustees and the threshold
+   that the board decided ([Appoint the people](02-organizer-duties.md#appoint-the-people))
+   before you continue, and write the threshold in the board's minutes. The TOE
+   builds the ceremony's list of trustees and threshold from these two fields,
+   and no trustee's instance checks them: this check by the board is what
+   ensures that they are the board's decision.
 3. Check that the form does not offer the switch "Automatic Ceremony". It appears
    only if the field "Keys/Tally Ceremonies Policy" allows automatic ceremonies.
 4. Select the button "Create Key Ceremony" and confirm the question "Are you sure you want to
@@ -499,7 +505,9 @@ To run the ceremony, a board member with the permission "Admin Ceremony"
    ([Taking part in the key ceremony](09-trustee-procedures.md#taking-part-in-the-key-ceremony)).
    Write in the board's minutes the ceremony's name and the time in the column
    "Started at" of its row on the tab "Keys", and its trustees, which the ceremony
-   page lists under the heading "Key Ceremony Progress". Follow the progress there:
+   page lists under the heading "Key Ceremony Progress"; check that they are the
+   trustees that the board decided, and otherwise select the button "Cancel Key
+   Ceremony". Follow the progress there:
    for every trustee the columns "Key Fragment Generated", "Custody Request
    Downloaded" and "Custody Confirmed" must be ticked.
 7. The ceremony is complete only when every selected trustee has the tick in the

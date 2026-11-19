@@ -280,7 +280,8 @@ unapproved and ask Sequent. Do not substitute a different realm or enable a pass
 - administration-event recording, including details, in both tenant realms;
 - no account self-service: the clients `account` and `account-console` disabled in
   every realm; in the realms of the tenants and their election events, no required
-  action enabled or set as default and no default role with `manage-account`; in
+  action enabled or set as default, no default role with `manage-account` or
+  `manage-account-links`, and no client with the setting `request.uris`; in
   election event realms, no `username` or `email` that the user can edit;
 - in the realms of the tenants and their election events, every OpenID Connect
   client carries the audit-storage admission mapper (`sequent-audit-storage-guard`),
@@ -320,6 +321,13 @@ These facts of the evaluated configuration also hold:
   ([Keep the results and kiosk portals off](07-hardening.md#keep-the-results-and-kiosk-portals-off)),
   and without the permission "Edit Results Publication" nobody can configure or publish
   the results website, whatever a package contains.
+- Delegated voting and voter-weighted voting are not used. In every election event the
+  setting "Delegated Voting Policy" is "Disabled" and the setting "Weighted Voting Policy"
+  is not "Weighted Voting for Voters". Both settings are election data of the election
+  board's signed configuration package, which administrators cannot change, and the board
+  checks them as
+  [Configuration the board must verify](../../02-election_managers/04-administrator_handbook/05-tenant_and_event_settings.md#configuration-the-board-must-verify)
+  describes.
 
 The platform inspection, browser checks and network checks are prerequisites for
 [Handover to the election board](11-selftest_handover.md#handover-to-the-election-board).

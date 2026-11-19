@@ -90,7 +90,7 @@ def external(d, realm):
 def check_restrictions(value, customer):
     rows=lines(value);tenant=customer.removeprefix('tenant-');initial=install.R.removeprefix('tenant-')
     install.require(len(rows)==12 and rows[:3]==['0']*3 and set(rows[3:5])=={tenant,initial} and rows[5:7]==['0','0'] and set(rows[7:9])=={install.R+'|t|t',customer+'|t|t'},'Tenant, prohibited-role, unused-channel or administration-audit restrictions differ')
-    install.require(rows[9:11]==['0','0|2'],'Account self-service, required actions, user profile or administration API client restrictions differ')
+    install.require(rows[9:11]==['0','0|2'],'Account self-service, required actions, request-object addresses, user profile or administration API client restrictions differ')
     install.require(rows[11]=='0|0|0','Token mapper or offline-access restrictions of the tenant and event realms differ')
 
 

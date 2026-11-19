@@ -53,9 +53,12 @@ def password(v): [{type: "password", value: v, temporary: false}];
 | .authenticationFlows |= map(select(.alias != "smart-link" and .alias != "smart-link forms"))
 | client("account"; .enabled = false) | client("account-console"; .enabled = false)
 | client("security-admin-console"; .enabled = false)
+# Keycloak would fetch a request object from any address a sign-in request names.
+| .clients |= map(if .attributes then del(.attributes["request.uris"]) else . end)
 | .defaultRole.name as $dr
 | .roles.realm |= map(if .name == $dr
     then drop(.composites.client.account; "manage-account")
+      | drop(.composites.client.account; "manage-account-links")
       | drop(.composites.realm; "offline_access") else . end)
 | drop(.defaultOptionalClientScopes; "offline_access")
 | .clients |= map(drop(.optionalClientScopes; "offline_access"))

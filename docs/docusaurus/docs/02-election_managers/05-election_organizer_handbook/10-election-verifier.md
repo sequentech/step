@@ -17,7 +17,12 @@ no network connection. It checks the public record of the election event:
 - the proof attached to every encrypted ballot that entered the counting;
 - the order of the mixing and every shuffle proof;
 - the decryption by exactly the threshold of trustees, with their proofs;
-- that the decrypted votes published by the TOE equal its own decryption.
+- that the decrypted votes published by the TOE equal its own decryption;
+- that the verification data and the result statement were signed by the TOE
+  for this election event and not changed since;
+- with the result statement: that the result the TOE stored adds up from the
+  decrypted votes, for an election event whose setting "Contest encryption
+  policy" is "Single Contest" and a contest counted by plurality at large.
 
 The election verifier runs on demand: each run checks the file it is given and
 ends when the check is done. It is not a service that keeps running.
@@ -34,6 +39,9 @@ can run it on the data that the election organizer publishes.
   or the copies the election
   organizer publishes. One file contains one protocol board's batch and its key
   ceremony evidence; a tally can have several batches.
+- Where the TOE writes one, the result statement of each batch, which the election
+  board downloads with its verification data, or the copy the election organizer
+  publishes.
 - The full values "Configuration hash" and "Tally ID" of each file, obtained
   independently of that file: from the election organizer's publication,
   read from the board's minutes, or confirmed by the election board. Keep each
@@ -62,7 +70,12 @@ In the section "Election verification", for every listed protocol board:
 2. Select the button "Download verification data" in that same protocol board's section. Keep the
    downloaded file `verification-<protocol-board UUID>.json` paired with the values
    recorded in step 1. Downloading the file does not verify it.
-3. Repeat for every listed batch. Do not substitute another batch's identifier,
+3. Where the election event's setting "Contest encryption policy" is "Single
+   Contest" and the contest is counted by plurality at large, select the button "Download result statement" in the same
+   section and keep the file `result-statement-<protocol-board UUID>.json` with the
+   verification data file
+   ([Downloading the verification data](08-evaluation-and-post-processing.md#downloading-the-verification-data)).
+4. Repeat for every listed batch. Do not substitute another batch's identifier,
    even when the batches use the same configuration hash.
 
 The displayed value "Tally ID" is the protocol board's identifier written as an
@@ -70,6 +83,12 @@ unsigned decimal number with up to 39 digits. It is **not** the tally-session
 ID in the election event's tally list or URL. Copy the complete displayed value as text;
 do not round it in a spreadsheet or convert it through a floating-point
 number.
+
+Both files are signed by the TOE. The election verifier accepts neither a file
+without a signature nor a file changed after signing. Keep each file exactly as
+downloaded: a file that was opened and saved again or reformatted counts as
+changed. A file written by the
+option `--export` of the trustee tool has no signature and is not accepted.
 
 If a completed results tally has no listed protocol boards, or its anchors
 or download cannot be loaded, stop and report the problem. Do not substitute a
@@ -98,6 +117,7 @@ trustee tool (`trustee verify`) with the options you append:
 | `--tally-id` | The protocol-board Tally ID for this file, copied from the value "Tally ID" as an unsigned decimal number. The tool also accepts the corresponding protocol-board UUID; the tally-session UUID is not this identifier. Required for every file downloaded by this results-tally procedure: without it the status is `invalid` and the field `detail` reads "tally evidence requires an independently supplied tally identifier", and a different identifier makes the check fail. |
 | `--ballots-hash` | Optional: the hash of the batch of encrypted ballots that entered the counting, if the election organizer publishes it. A different batch makes the check fail. |
 | `--ballot-ciphertext` | Optional, may be repeated: an encrypted ballot to look for among the counted ballots (see [Checking that a ballot was counted](#checking-that-a-ballot-was-counted)). |
+| `--result` | Optional: the batch's result statement file, to check the stored result against the decrypted votes (see [Checking the result](#checking-the-result)). |
 
 Run this command separately for every batch, using each file's own anchors.
 A board member keeps the reports and exit codes with the board's minutes. The complete tally is
@@ -118,17 +138,22 @@ The tool prints a report in JSON and ends with exit code 0 only if the status is
 | `ballot_count` | The number of encrypted ballots that entered the counting |
 | `plaintexts` | The decrypted votes in their encoded form, in the final order of the mixing |
 | `ballot_inclusions` | For each `--ballot-ciphertext`, its hash and how often it occurs among the counted ballots |
+| `transcript_signature` | The check of the file's signature: `verified`, `invalid`, `absent` (the file is not signed) or `not checked` (the key generation did not verify) |
+| `result_check` | `not checked`, or with `--result` the numbers of the contest: `stated` and `counted` for this batch, the stored `result` and its `sum_of_parts` |
+| `ballot_style_hash` | With `--result`: the hash of the ballot style that the result statement names |
 
 | Status | Exit code | What it means | What to do |
 |---|---|---|---|
 | `verified` | 0 | Every check passed. With the counting, the field `detail` reads "DKG, ballot proofs, ordered shuffles, endorsements, threshold decryption and plaintexts verified". | Compare the field `ballot_count` with the number of votes that the result states as counted for the contest and area of this batch. |
 | `incomplete` | not 0 | The record ends before the counting is complete. The tool ends with the error "public verification incomplete: …". | Check that you have the file of the completed tally. If it persists, report it to the election board. |
-| `invalid` | not 0 | A check failed. The field `detail` says which, for example "invalid shuffle proof", "published plaintexts differ from independently verified decryption" or "ballots do not match the trusted batch hash", and the tool ends with the error "public verification failed: …". | Report it at once to the election board, with the report. The election board treats it as a security-relevant event ([Events in the post-processing phase](11-security-relevant-events.md#events-in-the-post-processing-phase)). |
+| `invalid` | not 0 | A check failed. The field `detail` says which, for example "invalid shuffle proof", "published plaintexts differ from independently verified decryption", "ballots do not match the trusted batch hash", "verification data are not signed" or "verification-data signature does not verify", and the tool ends with the error "public verification failed: …". | Report it at once to the election board, with the report. The election board treats it as a security-relevant event ([Events in the post-processing phase](11-security-relevant-events.md#events-in-the-post-processing-phase)). |
 
-The election verifier does not apply the counting rules: it shows that the
-decrypted votes are exactly the votes that were cast and mixed, not that the
-result adds them up correctly. Compare the result with the electoral
-regulation's counting rules as a separate check. It also does not check the
+Without a result statement the election verifier does not apply the counting
+rules: it shows that the decrypted votes are exactly the votes that were cast and
+mixed, not that the result adds them up correctly. Check the result with the
+result statement
+([Checking the result](#checking-the-result)) or, where the TOE writes none,
+compare it with the electoral regulation's counting rules as a separate check. It also does not check the
 encrypted key shares that the trustees exchanged; each trustee's instance of
 the trustee server checks those.
 
@@ -137,6 +162,54 @@ Take the configuration hash and the Tally ID only from a source independent of
 the verification data file. A file, hash and Tally ID that come from the same
 place prove nothing if that place has been manipulated.
 :::
+
+## Checking the result
+
+The result statement states, for the contest of one election and area, the
+result that the TOE stored and the counts it is made of: the counts of every
+batch and of every tally sheet. To check it against a batch, add the option
+`--result` to the command of
+[Running the election verifier](#running-the-election-verifier), with the
+statement in the same directory:
+
+```sh
+podman run --rm --network none -v <directory>:/data:ro <election-verifier image> \
+  --transcript /data/<verification data file> \
+  --configuration-hash <configuration hash> \
+  --tally-id <Tally ID> \
+  --result /data/<result statement file>
+```
+
+The tool checks the result statement only after every other check has passed. The
+status is `verified` only if all of these hold:
+
+- the statement is signed by the TOE for this election event and was not changed;
+- it names the configuration hash you supplied and the batch of the Tally ID you
+  supplied, and its ballot style carries the election key of this batch;
+- the counts stated for this batch equal the tool's own count of the decrypted
+  votes; a vote that cannot be read counts as invalid;
+- the stored result equals the sum of the counts of all batches and tally sheets.
+
+The field `result_check` then shows the numbers. Otherwise the status is
+`invalid` and the field `detail` names the difference, for example "result
+statement, contest &lt;contest&gt;: batch total_valid_votes stated &lt;a&gt;,
+counted &lt;b&gt;" or "result statement, contest &lt;contest&gt;: result
+blank_votes stated &lt;a&gt;, sum of its parts &lt;b&gt;". A batch that counts
+votes more than once is refused: "result statement, contest &lt;contest&gt;: batch
+&lt;Tally ID&gt; has multiplier &lt;number&gt;; only 1 is checked". Report an
+`invalid` result as the table in
+[Reading the result](#reading-the-result) says.
+
+Check the statement with every batch of the election and area: each run checks
+the counts of its own batch, and only all runs together check every batch. A
+tally sheet's counts are not checked against votes: compare them with the paper
+records.
+
+The tool ends with an error and prints no report if the file is not a result
+statement it can check: "the result statement is not a signed export", "the result
+statement cannot be parsed", "unsupported result statement version", "the result
+statement must name exactly one contest" or "the result check supports only the
+counting algorithm plurality-at-large".
 
 ## Checking that a ballot was counted
 
@@ -209,7 +282,8 @@ In the post-processing phase the election organizer, for each election event:
 1. obtains every batch's verification data file and the separately recorded
    anchors from the election board, using
    [Downloading the verification data](#downloading-the-verification-data);
-2. publishes every file with its board name, full configuration hash and Tally
+2. publishes every file, with the batch's result statement where the TOE wrote
+   one, with its board name, full configuration hash and Tally
    ID on a public channel that it names to the voters, for example its own
    website; make the file-to-batch pairing explicit;
 3. publishes each batch's configuration hash and Tally ID a second time on

@@ -206,9 +206,14 @@ The required sign-in policy is:
   to an existing account.
 - Disable every local required action, such as `mfa-method-selector`, also as a
   default action. The external provider still enforces the user's required factors.
+  Among them, `email-otp-ra` would let users change their own e-mail address, on
+  which the link to the external provider's account relies, and `UPDATE_PASSWORD`
+  would let them set a local password.
 - Use authorization code flow with PKCE `S256`, with redirect addresses only on
   the portals' own host names. Disable password grants for portal clients and the
-  client `admin-cli`, and disable the client `cli-account-admin`.
+  client `admin-cli`, and disable the client `cli-account-admin`. No client has the
+  setting `request.uris`, with which the identity service would fetch a sign-in
+  request from an address that the request names.
 - The trustee instances' client `api-key-client` allows only the password grant,
   and the client `service-account` only the client credentials grant. Neither has
   a redirect address or web origin. Tokens of `api-key-client` name the GraphQL
@@ -224,8 +229,9 @@ The required sign-in policy is:
   (`publish-results-write`), "Datafix account" (`datafix-account`) or "Manually
   Verify Voter" (`voter-manually-verify`).
 - Disable the account clients `account` and `account-console` in every realm,
-  and give the default role no `manage-account`: users cannot manage their own
-  account. Only administrators can change a user's `username` and `email`.
+  and give the default role neither `manage-account` nor `manage-account-links`:
+  users cannot manage their own account or link it to another identity provider.
+  Only administrators can change a user's `username` and `email`.
 - Disable the client `security-admin-console` and offline access in every realm:
   no client and no realm default offers the scope `offline_access`. In event
   realms, also disable voter sign-in codes, messaging channels and the unused

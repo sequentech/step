@@ -61,7 +61,9 @@ in its preparation phase:
    realm's complete name from the line `EVENT REALM:`. Ask the authentication server's administrator
    to register `https://HOST/realms/REALM/broker/ALIAS/endpoint`, replacing **HOST**
    with `hosts.voting` from `site.json`, **REALM** with that complete printed name,
-   and **ALIAS** with `idp_alias`. Register the exact resulting URI, with no wildcard.
+   and **ALIAS** with `idp_alias`, and the post-logout redirect URI
+   `https://HOST/realms/REALM/broker/ALIAS/endpoint/logout_response`. Register the
+   exact resulting URIs, with no wildcard.
 2. The operator makes the checks of
    [Election event realms](10-verification.md#election-event-realms) and
    tells the administrators the result.
@@ -143,7 +145,7 @@ The recurring duties are these:
 | Before each key or tally ceremony | `./deploy commission site.json` | [Transfer the matching keys and start the instances](08-installing_toe.md#transfer-the-matching-keys-and-start-the-instances) | Board |
 | During each key ceremony, before a trustee downloads the custody request | Protocol manager key, with the trustee watching | [Show each trustee the protocol manager key](08-installing_toe.md#show-each-trustee-the-protocol-manager-key) | The trustee |
 | After each key ceremony | Trustee backup | [Back up the trustee state](08-installing_toe.md#back-up-the-trustee-state) | Board (path and digest) |
-| Before the execution phase and after voting | System backup | [Create and verify the encrypted backup](#create-and-verify-the-encrypted-backup) | Board (path and digest) |
+| Before the execution phase, after voting, and before extending the data file system (in the execution phase on the board's recorded authorization) | System backup | [Create and verify the encrypted backup](#create-and-verify-the-encrypted-backup) | Board (path and digest) |
 | Before each election event | Certificate end date: `openssl x509 -in "$(jq -er '.tls.certificate' site.json)" -noout -enddate`; it must be after the election event's end, otherwise renew it | [Renew the certificate](05-certificates_tls.md#renew-the-certificate) | Board, if the CA file changes |
 | After the tally and the export, on the board's instruction | Remove keys | [Remove the trustee keys at the end of the election event](08-installing_toe.md#remove-the-trustee-keys-at-the-end-of-the-election-event) | Board |
 | After a key removal, before the next election event's key ceremony | New trustee keys: `./deploy commission site.json` | [Install new trustee keys for a later election event](08-installing_toe.md#install-new-trustee-keys-for-a-later-election-event) | Board |
@@ -312,9 +314,12 @@ after a restart. To extend it:
 
 1. Inform the administrator and the election board. The board decides whether
    voting is paused.
-2. Outside the execution phase, first create and verify an encrypted backup
+2. First create and verify an encrypted backup
    ([Create and verify the encrypted backup](#create-and-verify-the-encrypted-backup))
-   and keep the archive.
+   and keep the archive. In the execution phase, start it only once the election
+   board has authorized the outage and recorded its authorization in the board's
+   minutes: the backup stops the services, the TLS endpoint among them, so voters
+   cannot vote until it has finished.
 3. Open a root shell on C1 from the deployment directory:
 
    ```bash
@@ -481,9 +486,11 @@ obtain the procedure for those from Sequent.
 #### Create and verify the encrypted backup
 
 **When:** after commissioning, before the execution phase, or after voting has ended and
-the election board authorizes maintenance.
+the election board authorizes maintenance. In the execution phase, only before
+[Extend the data file system](#extend-the-data-file-system), once the election board
+has authorized the outage and recorded its authorization in the board's minutes.
 A backup briefly stops the services, the TLS endpoint among them. Coordinate the outage with the administrator
-and the election board; do not use it in the execution phase. Mount an encrypted
+and the election board. Mount an encrypted
 medium that only the people named to keep backups can open, the kit at `kit.directory`
 and the delivery medium at `toe.directory`.
 

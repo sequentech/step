@@ -311,6 +311,8 @@ The section names below identify the board's read-only **Data** view.
 | "Ballot Box Seal Record" ("Advanced Configurations", shown with "Seal at close"): "Restricted" / "Public" | "Restricted" | "Restricted" | With "Public", anyone who knows the election event's identifiers can download the seal record without signing in. |
 | "Keys/Tally Ceremonies Policy" ("Advanced Configurations"): "Allow Automatic Ceremonies" / "Manual Ceremonies" | "Manual Ceremonies" | "Manual Ceremonies" | Every trustee must confirm custody of their key share at the key ceremony, and the tally ceremony starts only with the trustees' authorisations. |
 | "Batch Anonymity Policy" ("Advanced Configurations"): "Warn" / "Refuse" | "Warn" | "Refuse" | The TOE stops a tally when an area's ballot batch has fewer than five voters, or differs from the batch another tally already posted for the same area and contest, so that no small batch reveals how voters voted. |
+| "Weighted Voting Policy" ("Advanced Configurations"): "Disabled Weighted Voting" / "Weighted Voting for Areas" / "Weighted Voting for Voters" | "Disabled Weighted Voting" | not "Weighted Voting for Voters" | Voter-weighted voting is not part of the evaluated configuration. |
+| "Delegated Voting Policy" ("Advanced Configurations"): "Enabled" / "Disabled" | "Disabled" | "Disabled" | Delegated voting is not part of the evaluated configuration: it would count a delegate's encrypted vote once for each delegation. |
 | "Voter Digital Certificate Policy" ("Advanced Configurations"): "Enabled" / "Disabled" | "Disabled" | "Disabled" | Voters authenticate only at the external authentication server. |
 | "Enrollment" ("Advanced Configurations", "Voter Authentication"): "Enabled" / "Disabled" | not set, which counts as "Enabled" | "Disabled" | Only voters in the voters' register can log in; voters cannot register themselves. |
 | "OTP" ("Advanced Configurations", "Voter Authentication"): "Enabled" / "Disabled" | not set, which counts as "Enabled" | "Disabled" | The TOE offers voters no one-time-code form of its own; the second factor belongs to the external authentication server. |
@@ -328,6 +330,21 @@ Notes:
   started. The required
   value must already be in the signed package; a different imported value
   requires a corrected package and a new election event.
+- Voting does not open with another value of "Receipts signed by the ballot
+  box". Every opening, scheduled or by the board, is refused with "Voting can't
+  open: where only signed configuration packages import, the election event's
+  receipts policy must be "Signed by the ballot box"."
+- The TOE refuses to import an election event with delegated voting or
+  voter-weighted voting: "The election event can't be imported: where only
+  signed configuration packages import, delegated voting and voter-weighted
+  voting are not available. Set "Delegated Voting Policy" to "Disabled" and
+  "Weighted Voting Policy" to "Disabled Weighted Voting" or "Weighted Voting for
+  Areas"." It also refuses to open voting with these values: "Voting can't
+  open: where only signed configuration packages import, delegated voting and
+  voter-weighted voting are not available. The election event's "Delegated
+  Voting Policy" must be "Disabled" and its "Weighted Voting Policy" must not be
+  "Weighted Voting for Voters"."
+- Closing and pausing voting are never refused because of these values.
 - Ask the board to check the field "Checks available until" in the time zone that
   the field shows.
   It must match the end of the election period as the election organizer

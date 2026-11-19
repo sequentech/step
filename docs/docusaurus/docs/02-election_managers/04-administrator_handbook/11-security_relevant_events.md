@@ -126,6 +126,8 @@ only after that check; do not add a board permission to your account.
 | ☐ | Scheduled close without signatures | Refuse |
 | ☐ | Trustee participation | Trustees participate |
 | ☐ | Batch Anonymity Policy | Refuse |
+| ☐ | Weighted Voting Policy | Not Weighted Voting for Voters |
+| ☐ | Delegated Voting Policy | Disabled |
 | ☐ | Voter Digital Certificate Policy | Disabled |
 | ☐ | Enrollment; OTP | Both Disabled |
 | ☐ | Show User Profile | Off |

@@ -68,7 +68,7 @@ the TOE: that server keeps its own limits and locks its own accounts.
 |---|---|
 | The setting | "Failed sign-ins per account before an alert" in Settings, tab "Attack detection": a whole number from 1 to 100,000. The default is 5. |
 | Who sets it, and when | You, with the election organizer, in the preparation phase, with the permissions "Admin User" (`admin-user`) and "Edit Tenant" (`tenant-write`) ([Set and verify the thresholds](09-audit_and_monitoring.md#set-and-verify-the-thresholds)). The TOE refuses a change while an election event of the tenant is in the execution phase. |
-| What it counts | The failed sign-ins of each account of the tenant and of each voter's account. A failure that names no account counts with the others of that realm, the tenant or the election event, over at most 15 minutes. |
+| What it counts | The failed sign-ins of each account of the tenant and of each voter's account. A failure that names no account counts with the others of that realm, the tenant or the election event, over at most 15 minutes; anyone on the network can cause such failures ([Attack detections](09-audit_and_monitoring.md#attack-detections)). |
 | When the number is reached | The TOE records a potential attack: the record `PotentialAttackDetected`, category `brute-force-account`, in the electoral log of every election event of the tenant for the tenant's accounts, and of the election event for voters. It repeats the record at most once per account in the counting period. It does not lock the person's account. |
 | Who sees it | The election board, on the election event's tab "Dashboard", "Attack detections", and on its tab "Logs" ([Attack detections](09-audit_and_monitoring.md#attack-detections)). |
 

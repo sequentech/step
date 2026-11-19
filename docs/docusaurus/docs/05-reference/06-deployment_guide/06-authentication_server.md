@@ -33,13 +33,15 @@ with these properties:
 | Redirect URI of the super-admin tenant | `https://HOST/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5/broker/ALIAS/endpoint`, replacing `HOST` with `hosts.voting` and `ALIAS` with `idp_alias` from your working `site.json` |
 | Redirect URI of the customer's tenant | The exact URI printed by `./deploy commission site.json` after customer creation; copy that complete URI into the provider registration |
 | Redirect URI of each election event | Its exact event-realm URI, registered when the election event is imported; follow [For each new election event](11-selftest_handover.md#for-each-new-election-event) |
+| Post-logout redirect URI of each of these realms | The realm's redirect URI followed by `/logout_response`, for example `https://HOST/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5/broker/ALIAS/endpoint/logout_response`. The identity service sends it as `post_logout_redirect_uri` when a user signs out, and ends the user's session in the TOE only when the authentication server returns to it |
 | Claims | the user name and e-mail address of each person, as their account in the TOE will carry them; the actual authentication time in the signed ID token (`auth_time`) |
 | Authentication | two factors for administrators and election board members |
 | Fresh authentication | honour `prompt=login` with a fresh login, including both factors for a board member, even when an upstream session exists; honour `max_age` and return the actual authentication time, not the token issue time |
 
 :::warning
-Register exact redirect URIs only, never a wildcard. The authentication
-server must refuse every other redirect URI for this client.
+Register exact redirect URIs and post-logout redirect URIs only, never a
+wildcard. The authentication server must refuse every other redirect URI for
+this client.
 :::
 
 At customer commissioning, the terminal prints the complete customer URI and

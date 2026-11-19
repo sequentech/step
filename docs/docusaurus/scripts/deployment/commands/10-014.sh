@@ -28,7 +28,11 @@ q keycloak -c "with profile as materialized (
       where r.name like 'tenant-%' and (a.enabled or a.default_action))
   + (select count(*) from realm r join composite_role c on c.composite = r.default_role
       join keycloak_role k on k.id = c.child_role
-      where r.name like 'tenant-%' and k.client_role and k.name = 'manage-account')
+      where r.name like 'tenant-%' and k.client_role
+      and k.name in ('manage-account', 'manage-account-links'))
+  + (select count(*) from client_attributes a join client c on c.id = a.client_id
+      join realm r on r.id = c.realm_id
+      where r.name like 'tenant-%' and a.name = 'request.uris')
   + (select count(*) from realm r where r.name like 'tenant-%-event-%'
       and not exists (select 1 from profile f where f.realm_id = r.id
         and (select count(*) from jsonb_array_elements(f.value::jsonb -> 'attributes') e

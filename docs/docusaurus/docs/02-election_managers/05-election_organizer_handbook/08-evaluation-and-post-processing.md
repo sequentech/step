@@ -255,12 +255,29 @@ email to the administrators and the board members
 ([Email notifications](12-modes-and-failures.md#email-notifications)). The button
 does not export initialization reports or key-ceremony-only data.
 
+Beside it, the button "Download result statement" downloads the result statement
+of that batch's election and area, `result-statement-<protocol-board UUID>.json`,
+under the same conditions: before the post-processing phase the admin portal shows
+the message "The result statement can be downloaded once post-processing has
+started.", and if the TOE has no result statement for the batch it shows "The result
+statement could not be downloaded.". The TOE writes a result statement when the
+results tally completes, only for an election event whose setting "Contest encryption policy" is "Single
+Contest" and only for a contest counted
+by plurality at large. Its export creates the record `VerificationDataExported`
+with the detail `"export": "result-statement"` and the SHA-256 hash of the
+downloaded file, and fetching it again creates `VerificationDataDownloaded`, as for
+the verification data.
+
 Each `verification-<protocol-board UUID>.json` file contains the public protocol
 messages for that batch's key generation, mixing and decryption. Its trusted
 anchors are the two values written in the board's minutes; do not take them from
 the downloaded file. The displayed value "Tally ID" is that protocol-board UUID written as a complete unsigned decimal
 number, not the tally-session ID. Keep every file paired with its own anchors
 in the board's minutes.
+
+The TOE signs both files when it creates them, with a key that the election
+event's key ceremony vouches for; the election verifier refuses a file that is not
+signed or that was changed after signing.
 
 Verify every expected batch with the election verifier
 ([Running the election verifier](10-election-verifier.md#running-the-election-verifier))

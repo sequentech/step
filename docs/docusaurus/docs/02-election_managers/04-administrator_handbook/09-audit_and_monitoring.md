@@ -114,11 +114,21 @@ tab, inspect the stored values and resolve the displayed cause. The thresholds
 cannot be changed while an election event is in the execution phase. They detect
 patterns: they do not limit requests or lock accounts.
 
+Failed logins without an account also count. The identity service records a
+failed login for each sign-in request that it refuses before anyone has signed
+in, for example a request that names an unknown client or redirect address. Such
+a failure names no account and counts with the others of its realm. Anyone who
+can reach the TOE over the network can therefore raise these counts and cause
+attack detections, without knowing any account or password. A detection is an
+alert, not a lockout: it locks no account and refuses no voter.
+
 When the election board tells you of an attack detection, treat it as a
 security-relevant event
 ([Security-Relevant Events for Administrators](11-security_relevant_events.md)):
 tell the operator, and whoever runs the network if that is someone else, and
-agree the measures with the board.
+agree the measures with the board. To tell such alerts from attempts on
+accounts, ask the board whether the failed voter logins on the election event's
+tab "Logs" name accounts.
 
 ## The audit storage threshold
 
