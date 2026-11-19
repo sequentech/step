@@ -348,3 +348,56 @@ test("past the count limit a short page is the last one", async () => {
     expect(screen.getByRole("button", {name: /next ?page/i})).toBeDisabled()
     view.unmount()
 })
+
+const castVoteRowsBusy = () =>
+    screen.getByRole("table", {name: "a11y.ballotsTable"}).closest("[aria-busy]")
+
+test("the cast vote rows show they are stale while the next page loads", async () => {
+    mockEventPresentation.current = {show_cast_vote_logs: "show-logs-tab"}
+    const clock = jest.spyOn(Date, "now").mockReturnValue(7_000_000)
+    mockRefetch.mockImplementationOnce(async () =>
+        castVotes(8, TotalBound.Exact, castVoteEntries(5))
+    )
+    const view = await renderCastVoteLogs()
+    expect(await screen.findByText("1–5 of 8")).toBeVisible()
+    expect(castVoteRowsBusy()).toHaveAttribute("aria-busy", "false")
+    expect(screen.queryAllByRole("progressbar")).toHaveLength(0)
+
+    let answerNext: (answer: ReturnType<typeof castVotes>) => void = () => {}
+    mockRefetch.mockImplementationOnce(
+        () =>
+            new Promise((resolve) => {
+                answerNext = resolve
+            })
+    )
+    clock.mockReturnValue(7_001_000)
+    fireEvent.click(screen.getByRole("button", {name: /next ?page/i}))
+
+    // The first page's rows are still shown, marked as stale.
+    await waitFor(() => expect(castVoteRowsBusy()).toHaveAttribute("aria-busy", "true"))
+    expect(screen.getAllByRole("progressbar")).toHaveLength(2)
+
+    await act(async () => answerNext(castVotes(8, TotalBound.Exact, castVoteEntries(3))))
+    expect(await screen.findByText("6–8 of 8")).toBeVisible()
+    expect(castVoteRowsBusy()).toHaveAttribute("aria-busy", "false")
+    expect(screen.queryAllByRole("progressbar")).toHaveLength(0)
+    view.unmount()
+})
+
+test("a failed cast vote request no longer shows the rows as stale", async () => {
+    mockEventPresentation.current = {show_cast_vote_logs: "show-logs-tab"}
+    let failRequest: (error: Error) => void = () => {}
+    mockRefetch.mockImplementationOnce(
+        () =>
+            new Promise((_resolve, reject) => {
+                failRequest = reject
+            })
+    )
+    const view = await renderCastVoteLogs()
+    await waitFor(() => expect(castVoteRowsBusy()).toHaveAttribute("aria-busy", "true"))
+
+    await act(async () => failRequest(new Error("timeout")))
+    expect(castVoteRowsBusy()).toHaveAttribute("aria-busy", "false")
+    expect(screen.queryAllByRole("progressbar")).toHaveLength(0)
+    view.unmount()
+})
