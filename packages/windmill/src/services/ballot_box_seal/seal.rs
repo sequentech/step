@@ -375,6 +375,25 @@ async fn seal_prepared(client: &mut DbClient, prepared: Prepared) -> Result<Seal
         names,
     } = prepared;
     let ballot_box = ids.ballot_box();
+    // Admitted for the electoral log's order before anything is locked or
+    // signed (lock order: H, lease, Q, then the event database's box lock):
+    // not while the log has entries waiting or a batch is processing it. One
+    // admission covers this run's seal record and its failure record alike
+    // (an early return drops it, which releases it).
+    // Refused: nothing signed; the seal stays pending (busy) and is tried again.
+    let scope = crate::services::electoral_log_deferral::scope_key(
+        &seal.tenant_id.to_string(),
+        &seal.election_event_id.to_string(),
+    );
+    let admission = match crate::services::electoral_log::ScopeAdmission::admit(&scope).await {
+        Ok(admission) => admission,
+        Err(error) if crate::services::electoral_log_deferral::is_scope_gated(&error) => {
+            info!(seal_id = %seal.id, scope, "The seal waits for its electoral log's order: {error:#}");
+            record(client, &seal.id, &WaitingReason::Busy).await?;
+            return Ok(SealOutcome::Busy);
+        }
+        Err(error) => return Err(error.context(SealErrorCategory::Board)),
+    };
     let mut event_client = store.client().await.context(SealErrorCategory::Board)?;
     let tx = event_client
         .build_transaction()
@@ -564,6 +583,7 @@ async fn seal_prepared(client: &mut DbClient, prepared: Prepared) -> Result<Seal
     }
     let log_record = SealLogRecord::from(record);
     tx.commit().await.context(SealErrorCategory::Board)?;
+    admission.end().await;
     let fields = SealedFields {
         sealed_at,
         ballots_in_box: i64::try_from(built.manifest.ballots_in_box())?,

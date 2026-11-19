@@ -17,7 +17,7 @@ use crate::services::electoral_log_dead_letter::{
 use crate::services::electoral_log_deferral::{
     bind_to_rows, in_wait_order, log_round, put_back, scope_of, stop_waiting, waiting_events,
     waiting_ids,
-    Deferral, DeferralBackoff, WaitReason, Waiting, WaitingEvent,
+    Deferral, DeferralBackoff, WaitReason, Waiting, WaitingEvent, BOUNDED_WAIT_ENV,
 };
 use crate::services::monitoring::login_counter::{
     count_login_attempts_apart, login_attempt, LoginAttempt,
@@ -202,10 +202,13 @@ pub async fn enqueue_electoral_log_event(input: LogEventInput) -> Result<()> {
 /// body, no signing key) go to the dead-letter queue, and the rest of the batch is
 /// appended, one transaction per board. Events whose signer cannot sign now wait,
 /// durably and without a retry budget (`services::electoral_log_deferral`), with the
-/// later events of their log behind them. Infrastructure failures fail the batch so that
-/// it is retried; delivery IDs make the retry idempotent. The last retry dead-letters the
-/// batch's other events instead of dropping them; the waiting ones are never
-/// dead-lettered for running out of retries.
+/// later events of their log behind them. Before attempting anything the batch marks its
+/// events in flight (durable rows), and a failed batch puts its events back as bounded
+/// `retry` heads (dead-lettered past the bound); the task's own retry is the fallback
+/// when even that fails. Delivery IDs make every retry idempotent. At the last retry,
+/// events with a row are kept waiting (those only marked in flight as bounded `retry`
+/// heads, as are heads in an open bounded stretch; waits for the signer and held ones as
+/// unbounded waits); events without one are dead-lettered.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(
@@ -243,16 +246,122 @@ pub async fn process_electoral_log_events_batch(
                 events.len() - set_aside.len()
             );
             if !set_aside.is_empty() {
+                let ids: Vec<String> = set_aside
+                    .iter()
+                    .filter_map(|event| event.delivery_id.clone())
+                    .collect();
                 let set_aside: Vec<(&LogEventInput, &str)> = set_aside
                     .into_iter()
                     .map(|event| (event, reason.as_str()))
                     .collect();
                 dead_letter_events(&set_aside, DeadLetterStage::Batch).await?;
+                // A dead-lettered event no longer holds its log: no orphan row
+                // is left to hold the log's later entries (and gated appends).
+                let client: DbClient = get_queue_pool()
+                    .await
+                    .get()
+                    .await
+                    .context("Error getting a connection for the electoral-log event queue")?;
+                stop_waiting(&**client, &ids).await?;
             }
             Ok(())
         }
+        // `store_batch` already kept what it could not store waiting (under
+        // its leases); an error here means even that failed: the task retries.
         Err(failure) => Err(failure.error.into()),
     }
+}
+
+/// Puts a failed batch's events back to wait as their scopes' heads (`retry`),
+/// in wait order, except those the failed run already settled (`handled`: put
+/// back, dead-lettered or stored). Bounded like every `retry` head: one whose
+/// bounded wait started more than [`DeferralBackoff::bounded`] ago is
+/// dead-lettered instead (with its reason; its row removed), so a batch that
+/// keeps failing reaches the dead-letter queue, visibly, as before this change.
+/// Each event is bound to its own row (its first wait and order). The round is
+/// logged like any other (an error past the alert age). An event that the
+/// failed run did store is stored again idempotently and only leaves its row.
+/// Returns how many were put back.
+async fn keep_failed_batch_waiting(
+    events: &[LogEventInput],
+    handled: &HashSet<String>,
+    error: &anyhow::Error,
+) -> anyhow::Result<usize> {
+    // An event without a delivery ID can't wait (its row is keyed by it): the
+    // batch is retried as before, and such an event is dead-lettered when built.
+    anyhow::ensure!(
+        events
+            .iter()
+            .all(|event| event.delivery_id.as_deref().is_some_and(|id| !id.is_empty())),
+        "the batch has an event without a delivery ID"
+    );
+    let events: Vec<LogEventInput> = events
+        .iter()
+        .filter(|event| event.delivery_id.as_ref().is_some_and(|id| !handled.contains(id)))
+        .cloned()
+        .collect();
+    if events.is_empty() {
+        return Ok(0);
+    }
+    let mut client: DbClient = get_queue_pool()
+        .await
+        .get()
+        .await
+        .context("Error getting a connection for the electoral-log event queue")?;
+    let backoff = DeferralBackoff::from_env().unwrap_or_default();
+    let now_ms = chrono::Utc::now().timestamp_millis();
+    let mut scopes: Vec<String> = events.iter().map(scope_of).collect();
+    scopes.sort();
+    scopes.dedup();
+    let rows = waiting_events(&**client, &scopes).await?;
+    let (bound, heads) = bind_to_rows(&events, rows);
+    let (expired, waiting): (Vec<&LogEventInput>, Vec<&LogEventInput>) = in_wait_order(&bound)
+        .into_iter()
+        .partition(|event| {
+            backoff.bound_exceeded(event.deferral.as_ref(), now_ms)
+        });
+    if !expired.is_empty() {
+        let why = format!(
+            "retry past the bound of {} s ({}): its batch kept failing: {error:#}",
+            backoff.bounded.as_secs(),
+            BOUNDED_WAIT_ENV
+        );
+        tracing::error!(count = expired.len(), "Dead-lettering electoral-log events whose batch kept failing: {why}");
+        let set_aside: Vec<(&LogEventInput, &str)> =
+            expired.iter().map(|event| (*event, why.as_str())).collect();
+        dead_letter_events(&set_aside, DeadLetterStage::Batch).await?;
+        let ids: Vec<String> = expired.iter().filter_map(|event| event.delivery_id.clone()).collect();
+        stop_waiting(&**client, &ids).await?;
+    }
+    if waiting.is_empty() {
+        return Ok(0);
+    }
+    let waiting: Vec<WaitingEvent> = waiting
+        .into_iter()
+        .map(|event| WaitingEvent {
+            event: event.clone(),
+            reason: WaitReason::Retry,
+            error: format!("its batch failed: {error:#}"),
+        })
+        .collect();
+    let tx = client
+        .transaction()
+        .await
+        .context("Error starting the electoral-log put-back transaction")?;
+    let summary = put_back(
+        &*tx,
+        Queue::ElectoralLogEvent.queue_name(),
+        &waiting,
+        &heads,
+        &backoff,
+        now_ms,
+    )
+    .await?;
+    tx.commit()
+        .await
+        .context("Error committing the electoral-log events that wait")?;
+    log_round(&summary, &heads, &backoff, now_ms);
+    Ok(summary.retry)
 }
 
 /// The events of a batch that the last retry dead-letters: all but those that
@@ -347,14 +456,20 @@ async fn keep_waiting_after_last_retry<'a>(
         .await
         .context("Error getting a connection for the electoral-log event queue")?;
     let marked = waiting_ids(&**client, &ids).await?;
+    // A bounded row (an in-flight marker, or a head in an open bounded stretch) goes
+    // back as a bounded `retry` head, never as an unbounded wait for the signer.
+    let markers = crate::services::electoral_log_deferral::bounded_row_ids(&**client, &ids).await?;
     let (keep, rest) = kept_after_last_retry(events, &marked);
     if !keep.is_empty() {
         let waiting: Vec<WaitingEvent> = keep
             .iter()
-            .map(|event| WaitingEvent {
-                event: (*event).clone(),
-                reason: WaitReason::SignerUnavailable,
-                error: format!("kept to wait again after the last retry: {error}"),
+            .map(|event| {
+                let marker = event.delivery_id.as_ref().is_some_and(|id| markers.contains(id));
+                WaitingEvent {
+                    event: (*event).clone(),
+                    reason: if marker { WaitReason::Retry } else { WaitReason::SignerUnavailable },
+                    error: format!("kept to wait again after the last retry: {error}"),
+                }
             })
             .collect();
         let backoff = DeferralBackoff::from_env().unwrap_or_default();
@@ -391,6 +506,71 @@ fn retries_exhausted(retries: u32, max_retries: Option<u32>) -> bool {
 /// Build the records of a batch, dead-letter the events that cannot be stored, put
 /// back those that wait for their signer, and append the rest board by board.
 async fn store_batch(events: &[LogEventInput]) -> std::result::Result<(), StoreFailure> {
+    let mut scopes: Vec<String> = events.iter().map(scope_of).collect();
+    scopes.sort();
+    scopes.dedup();
+    // First the scopes' processing leases, on their own connection, held for
+    // the whole run (until `lease_tx` ends, also on any early return): no gated
+    // append of these scopes is admitted while this batch has their events in
+    // hand, and no other batch stores them meanwhile. They go only once what
+    // this batch could not store waits durably.
+    let mut lease_client: DbClient = get_queue_pool()
+        .await
+        .get()
+        .await
+        .context("Error getting a connection for the electoral-log leases")?;
+    let lease_tx = lease_client
+        .transaction()
+        .await
+        .context("Error starting the electoral-log lease transaction")?;
+    if let Err(lease_error) =
+        crate::services::electoral_log_deferral::take_leases(&*lease_tx, &scopes).await
+    {
+        // Not had in time (gated appends of these scopes kept them): the
+        // batch's events wait as their scopes' heads instead of sitting in the
+        // task's retry, out of sight of the gate.
+        drop(lease_tx);
+        return match keep_failed_batch_waiting(events, &HashSet::new(), &lease_error).await {
+            Ok(_) => Ok(()),
+            Err(keep_error) => Err(StoreFailure::from(lease_error.context(format!(
+                "and its events could not be kept waiting: {keep_error:#}"
+            )))),
+        };
+    }
+    let result = match store_batch_leased(events).await {
+        Ok(()) => Ok(()),
+        Err(failure) => {
+            // Its events were attempted: they wait, durably and visibly, as
+            // their scopes' heads (`retry`, bounded), still under the leases,
+            // so no later entry of their logs is admitted before them. Only if
+            // that fails too (the task-queue database is unavailable, so no log
+            // admits anything) does the task retry the batch.
+            match keep_failed_batch_waiting(events, &failure.waiting, &failure.error).await {
+                Ok(kept) => {
+                    tracing::warn!(
+                        kept,
+                        "An electoral-log batch failed; its events wait as their logs' heads (retry): {:#}",
+                        failure.error
+                    );
+                    Ok(())
+                }
+                Err(keep_error) => {
+                    tracing::error!(
+                        "Could not keep a failed electoral-log batch's events waiting ({keep_error:#}); the batch is retried"
+                    );
+                    Err(failure)
+                }
+            }
+        }
+    };
+    if let Err(error) = lease_tx.rollback().await {
+        tracing::warn!("Error ending the electoral-log lease transaction: {error:#}");
+    }
+    result
+}
+
+/// [`store_batch`]'s run under its scopes' leases.
+async fn store_batch_leased(events: &[LogEventInput]) -> std::result::Result<(), StoreFailure> {
     let backoff = DeferralBackoff::from_env()?;
     let event_queue = Queue::ElectoralLogEvent.queue_name();
     let mut queue_client: DbClient = get_queue_pool()
@@ -407,6 +587,24 @@ async fn store_batch(events: &[LogEventInput]) -> std::result::Result<(), StoreF
     // and it doesn't wait behind its own row.
     let (bound, mut waiting) = bind_to_rows(events, waiting);
     let events = &bound[..];
+    // Durable in-flight markers, committed before anything is attempted: a worker
+    // that dies from here on leaves its events visible to admission (their rows
+    // hold their logs) until the task is redelivered and settles them.
+    {
+        let tx = queue_client
+            .transaction()
+            .await
+            .context("Error starting the electoral-log in-flight transaction")?;
+        crate::services::electoral_log_deferral::mark_in_flight(
+            &*tx,
+            events,
+            chrono::Utc::now().timestamp_millis(),
+        )
+        .await?;
+        tx.commit()
+            .await
+            .context("Error committing the electoral-log in-flight markers")?;
+    }
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -446,7 +644,7 @@ async fn store_batch(events: &[LogEventInput]) -> std::result::Result<(), StoreF
     crate::services::privacy_signin::allocate_registered_voters(&hasura_tx, &keycloak_tx, events)
         .await?;
     crate::services::privacy_signin::retain_queued_signin_network(&hasura_tx, events).await?;
-    let built = build_batch_behind(
+    let built = build_batch_bounded(
         &mut DbLookups {
             hasura: &hasura_tx,
             keycloak: &keycloak_tx,
@@ -454,6 +652,8 @@ async fn store_batch(events: &[LogEventInput]) -> std::result::Result<(), StoreF
         },
         events,
         &waiting,
+        &backoff,
+        chrono::Utc::now().timestamp_millis(),
     )
     .await?;
     count_login_attempts_apart(&mut hasura_tx, &built.login_attempts).await;
@@ -461,6 +661,8 @@ async fn store_batch(events: &[LogEventInput]) -> std::result::Result<(), StoreF
         .commit()
         .await
         .context("Error committing Hasura transaction")?;
+    // Nothing is written in it (it was only read); not kept open while appending.
+    drop(keycloak_tx);
 
     if !built.dead_letters.is_empty() {
         let mut set_aside = Vec::with_capacity(built.dead_letters.len());
@@ -507,7 +709,8 @@ async fn store_batch(events: &[LogEventInput]) -> std::result::Result<(), StoreF
     // Append every board before failing, so one failing board does not hold back the
     // others; a retry appends the failed boards again, idempotently.
     let client = get_board_client().await?;
-    let mut failures = built.deferred;
+    // Bounded heads wait (or were dead-lettered past their bound): they don't fail the batch.
+    let mut failures: Vec<String> = Vec::new();
     let mut stored_ids: HashSet<String> = HashSet::new();
     for (board, messages) in built.by_board {
         match client.append(&board, &messages).await {
@@ -515,9 +718,12 @@ async fn store_batch(events: &[LogEventInput]) -> std::result::Result<(), StoreF
                 emit_monitoring_lines(&board, &messages, &stored);
                 // Stored: its entries no longer hold their log.
                 let ids = built.delivered.get(&board).cloned().unwrap_or_default();
-                stored_ids.extend(ids.iter().cloned());
-                if let Err(error) = stop_waiting(&**queue_client, &ids).await {
-                    failures.push(format!("{board}: {error:#}"));
+                match stop_waiting(&**queue_client, &ids).await {
+                    Ok(()) => stored_ids.extend(ids.iter().cloned()),
+                    // Stored but its rows are still there: not settled; put back
+                    // (stored again idempotently, which removes the rows), never
+                    // left as an orphan holding its log.
+                    Err(error) => failures.push(format!("{board}: {error:#}")),
                 }
             }
             Err(error) => {
@@ -540,12 +746,23 @@ async fn store_batch(events: &[LogEventInput]) -> std::result::Result<(), StoreF
         tracing::warn!("Error releasing the electoral-log entries waiting behind a stored one: {error:#}");
     }
     if !failures.is_empty() {
+        // Settled by this run (put back, dead-lettered, settled, or stored): not
+        // to be put back again by `keep_failed_batch_waiting`.
+        let mut handled = kept;
+        handled.extend(stored_ids);
+        handled.extend(built.settled.iter().cloned());
+        handled.extend(
+            built
+                .dead_letters
+                .iter()
+                .filter_map(|(event, _)| event.delivery_id.clone()),
+        );
         return Err(StoreFailure {
             error: anyhow!(
                 "Error appending electoral-log batches: {}",
                 failures.join("; ")
             ),
-            waiting: kept,
+            waiting: handled,
         });
     }
     Ok(())
@@ -583,12 +800,14 @@ enum EventFailure {
     /// A database or other infrastructure failure; the whole batch is retried.
     Transient(anyhow::Error),
     /// The board's signer could not be loaded or refused (not an outage): the
-    /// event waits for a retry while the batch's other events are stored.
-    /// Nothing is dropped: the batch fails after storing the rest, so it is
-    /// retried (stored events are not stored twice: delivery IDs); after the
-    /// last retry the event goes to the dead-letter queue, whose reason names
-    /// each deferred delivery, for an operator to replay or discard.
+    /// event waits as its scope's head (`retry`), holding its scope's later
+    /// events behind it, and is dead-lettered (with its reason) once it has
+    /// waited past the bound ([`DeferralBackoff::bounded`]).
     Deferred(anyhow::Error),
+    /// The event's tenant does not exist (yet: a Keycloak event can arrive
+    /// while its tenant is being created): it waits as its scope's head
+    /// (`tenant-missing`), bounded like `Deferred`; never dead-lettered at once.
+    TenantMissing(anyhow::Error),
     /// The board's signer cannot sign now ([`SignerUnavailable`]: an external
     /// signer whose key service is down): the event waits, durably and for as
     /// long as it takes, and is never dead-lettered for it.
@@ -659,8 +878,8 @@ struct BuiltBatch {
     by_board: HashMap<String, Vec<LogEntry>>,
     dead_letters: Vec<(LogEventInput, String)>,
     login_attempts: Vec<(String, LoginAttempt)>,
-    /// Events whose board's signer could not be loaded: retried, without holding
-    /// back the rest.
+    /// Bounded heads (`retry`, `tenant-missing`) dead-lettered in this batch
+    /// for having waited past the bound (their reasons, also in `dead_letters`).
     deferred: Vec<String>,
     /// Events that wait for their signer, or behind an earlier event of their log
     /// that does: put back on the event queue.
@@ -941,6 +1160,27 @@ async fn build_batch_behind<L: BatchLookups + Send>(
     events: &[LogEventInput],
     waiting: &Waiting,
 ) -> anyhow::Result<BuiltBatch> {
+    build_batch_bounded(
+        lookups,
+        events,
+        waiting,
+        &DeferralBackoff::default(),
+        chrono::Utc::now().timestamp_millis(),
+    )
+    .await
+}
+
+/// [`build_batch_behind`] with the bound of bounded heads and the time now: a
+/// `retry` or `tenant-missing` head that first waited more than
+/// `backoff.bounded` before `now_ms` is dead-lettered (its row is removed, so
+/// its scope's later events go on); otherwise it waits again as the head.
+async fn build_batch_bounded<L: BatchLookups + Send>(
+    lookups: &mut L,
+    events: &[LogEventInput],
+    waiting: &Waiting,
+    backoff: &DeferralBackoff,
+    now_ms: i64,
+) -> anyhow::Result<BuiltBatch> {
     let mut cache = BatchCache::default();
     let mut built = BuiltBatch::default();
     // Scopes with an event that waits in this batch, and why.
@@ -991,13 +1231,19 @@ async fn build_batch_behind<L: BatchLookups + Send>(
                     .push((input.clone(), format!("{error:#}")));
             }
             Err(EventFailure::Deferred(error)) => {
-                tracing::error!(
-                    delivery_id = input.delivery_id.as_deref().unwrap_or_default(),
-                    "Deferring an electoral-log event: {error:#}"
+                bounded_head(&mut built, &mut held, &input, scope, WaitReason::Retry, error, backoff, now_ms);
+            }
+            Err(EventFailure::TenantMissing(error)) => {
+                bounded_head(
+                    &mut built,
+                    &mut held,
+                    &input,
+                    scope,
+                    WaitReason::TenantMissing,
+                    error,
+                    backoff,
+                    now_ms,
                 );
-                built
-                    .deferred
-                    .push(format!("delivery {:?}: {error:#}", input.delivery_id));
             }
             Err(EventFailure::Unavailable(error)) => {
                 let error = format!("{error:#}");
@@ -1022,6 +1268,52 @@ async fn build_batch_behind<L: BatchLookups + Send>(
         }
     }
     Ok(built)
+}
+
+/// A bounded head (`retry`, `tenant-missing`): it waits again as its scope's
+/// head, holding the scope's later events of this batch behind it; past the
+/// bound since it first waited it is dead-lettered instead (its reason names
+/// the bound), which removes its row so the scope's later entries go on.
+#[allow(clippy::too_many_arguments)]
+fn bounded_head(
+    built: &mut BuiltBatch,
+    held: &mut HashMap<String, String>,
+    input: &LogEventInput,
+    scope: String,
+    reason: WaitReason,
+    error: anyhow::Error,
+    backoff: &DeferralBackoff,
+    now_ms: i64,
+) {
+    let error = format!("{error:#}");
+    let delivery_id = input.delivery_id.as_deref().unwrap_or_default();
+    // Its bounded time only (its row's budget: earlier bounded stretches plus the
+    // current one), never its time waiting for its signer or behind another entry.
+    if backoff.bound_exceeded(input.deferral.as_ref(), now_ms) {
+        let waited = input.deferral.map_or(0, |deferral| deferral.bounded_ms(now_ms)) / 1000;
+        let why = format!(
+            "{} for {waited} s, past the bound of {} s ({}): {error}",
+            reason.as_str(),
+            backoff.bounded.as_secs(),
+            BOUNDED_WAIT_ENV
+        );
+        tracing::error!(delivery_id, "A bounded electoral-log head is dead-lettered: {why}");
+        built.deferred.push(format!("delivery {:?}: {why}", input.delivery_id));
+        built.dead_letters.push((input.clone(), why));
+        return;
+    }
+    tracing::warn!(
+        delivery_id,
+        reason = reason.as_str(),
+        "An electoral-log event waits as its log's head (bounded): {error}"
+    );
+    // Later events of its log wait behind it, without being built.
+    held.insert(scope, error.clone());
+    built.waiting.push(WaitingEvent {
+        event: input.clone(),
+        reason,
+        error,
+    });
 }
 
 async fn build_event<L: BatchLookups + Send>(
@@ -1399,7 +1691,9 @@ async fn build_tenant_event<L: BatchLookups + Send>(
         .tenant_logs
         .get(&input.tenant_id)
         .and_then(Option::as_ref)
-        .ok_or_else(|| Permanent(anyhow!("Tenant {} does not exist", input.tenant_id)))?;
+        .ok_or_else(|| {
+            EventFailure::TenantMissing(anyhow!("Tenant {} does not exist (yet)", input.tenant_id))
+        })?;
     // When the producer saw the event; an event sent before producers said is
     // stamped as it is stored.
     let occurred_at = input
@@ -2287,14 +2581,16 @@ mod batch_build_tests {
             !stored.iter().any(|id| id.starts_with("refused")),
             "{stored:?}"
         );
-        // The refused board's events wait for a retry: neither stored as
-        // something else, nor dead-lettered, nor skipped.
+        // The refused board's events wait (bounded): the first as its log's
+        // head (`retry`), the later one held behind it, so the log keeps its
+        // order; neither stored as something else, nor dead-lettered, nor skipped.
         assert!(built.dead_letters.is_empty());
-        assert_eq!(built.deferred.len(), 2, "{:?}", built.deferred);
-        assert!(built
-            .deferred
-            .iter()
-            .all(|reason| reason.contains("refused")));
+        assert!(built.deferred.is_empty(), "{:?}", built.deferred);
+        assert_eq!(
+            waiting_ids(&built),
+            vec![("refused-1", WaitReason::Retry), ("refused-2", WaitReason::Held)]
+        );
+        assert!(built.waiting[0].error.contains("refused"), "{}", built.waiting[0].error);
         assert!(
             !built
                 .by_board
@@ -2493,18 +2789,187 @@ mod batch_build_tests {
         assert!(!sent.to_string().contains("123456"));
         assert_eq!(lookups.tenant_log_calls, 2);
 
-        assert_eq!(
-            dead_letter_ids(&built),
-            vec![Some("t4"), Some("t5"), Some("t6")]
-        );
+        assert_eq!(dead_letter_ids(&built), vec![Some("t4"), Some("t6")]);
         let reasons: Vec<&str> = built
             .dead_letters
             .iter()
             .map(|(_, reason)| reason.as_str())
             .collect();
         assert!(reasons[0].contains("TenantActivity"), "{}", reasons[0]);
-        assert!(reasons[1].contains("does not exist"), "{}", reasons[1]);
-        assert!(reasons[2].contains("tenant's log"), "{}", reasons[2]);
+        assert!(reasons[1].contains("tenant's log"), "{}", reasons[1]);
+        // A tenant that does not exist (yet) is not dead-lettered at once: its
+        // event waits as its scope's head, bounded.
+        assert_eq!(waiting_ids(&built), vec![("t5", WaitReason::TenantMissing)]);
+        assert!(built.waiting[0].error.contains("does not exist"), "{}", built.waiting[0].error);
+    }
+
+    fn unknown_tenant_activity(delivery_id: &str) -> LogEventInput {
+        let mut event = tenant_activity(delivery_id, DELETED_AN_EVENT);
+        event.tenant_id = UNKNOWN_TENANT.into();
+        event
+    }
+
+    /// The prefix of each stored entry's delivery ID (the event's own), in order.
+    fn stored_order(entries: &[LogEntry]) -> Vec<String> {
+        delivery_ids(entries)
+            .iter()
+            .map(|id| id.split(':').next().unwrap_or_default().to_string())
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn a_missing_tenant_waits_as_its_logs_head_and_holds_its_later_events() {
+        let mut lookups = FakeLookups::new();
+        let events = vec![unknown_tenant_activity("m1"), unknown_tenant_activity("m2")];
+        let built = build_batch(&mut lookups, &events).await.unwrap();
+        // Not dead-lettered at once (a Keycloak event can arrive while its
+        // tenant is being created), nothing stored, and the later event of the
+        // same log does not get ahead of it.
+        assert!(built.dead_letters.is_empty(), "{:?}", built.dead_letters);
+        assert!(built.by_board.is_empty());
+        assert_eq!(
+            waiting_ids(&built),
+            vec![("m1", WaitReason::TenantMissing), ("m2", WaitReason::Held)]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_missing_tenant_is_dead_lettered_only_past_its_bound() {
+        let backoff = DeferralBackoff::default();
+        assert_eq!(backoff.bounded, std::time::Duration::from_secs(600));
+        let now_ms = 10_000_000;
+        for (waited_ms, dead) in [(0, false), (599_000, false), (600_000, false), (600_001, true)] {
+            let head = LogEventInput {
+                deferral: Some(Deferral {
+                    rounds: 9,
+                    since_ms: now_ms - waited_ms - 5_000,
+                    order: 0,
+                    bounded_since_ms: Some(now_ms - waited_ms), bounded_used_ms: 0 }),
+                ..unknown_tenant_activity("m1")
+            };
+            let later = unknown_tenant_activity("m2");
+            let built = build_batch_bounded(
+                &mut FakeLookups::new(),
+                &[head, later],
+                &Waiting::default(),
+                &backoff,
+                now_ms,
+            )
+            .await
+            .unwrap();
+            if dead {
+                // Visible in the dead-letter queue with why; its row goes (so
+                // its log's later entries go on): the later one becomes the head.
+                assert_eq!(dead_letter_ids(&built), vec![Some("m1")], "{waited_ms}");
+                let reason = &built.dead_letters[0].1;
+                assert!(reason.contains("tenant-missing for 600 s"), "{reason}");
+                assert!(reason.contains("past the bound of 600 s"), "{reason}");
+                assert!(reason.contains(BOUNDED_WAIT_ENV), "{reason}");
+                assert_eq!(waiting_ids(&built), vec![("m2", WaitReason::TenantMissing)]);
+            } else {
+                assert!(built.dead_letters.is_empty(), "{waited_ms}: {:?}", built.dead_letters);
+                assert_eq!(
+                    waiting_ids(&built),
+                    vec![("m1", WaitReason::TenantMissing), ("m2", WaitReason::Held)],
+                    "{waited_ms}"
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn once_the_tenant_exists_its_waiting_head_is_stored_before_its_later_events() {
+        // The head waited for its tenant; the tenant now exists. A later event
+        // of the same log, in a batch without the head, is held behind the
+        // head's row (never stored first) ...
+        let head = LogEventInput {
+            deferral: Some(Deferral {
+                rounds: 2,
+                since_ms: 1_000,
+                order: 0, bounded_since_ms: None, bounded_used_ms: 0 }),
+            ..tenant_activity("head", DELETED_AN_EVENT)
+        };
+        let mut waiting = Waiting::default();
+        waiting.add(scope_of(&head), WaitKey::of(&head));
+        let built = build_batch_behind(
+            &mut FakeLookups::new(),
+            &[tenant_activity("later", DELETED_AN_EVENT)],
+            &waiting,
+        )
+        .await
+        .unwrap();
+        assert!(built.by_board.is_empty(), "{:?}", built.by_board.keys());
+        assert_eq!(waiting_ids(&built), vec![("later", WaitReason::Held)]);
+        // ... and when both are in one batch, the head is stored first.
+        let built = build_batch_behind(
+            &mut FakeLookups::new(),
+            &[tenant_activity("later", DELETED_AN_EVENT), head.clone()],
+            &Waiting::default(),
+        )
+        .await
+        .unwrap();
+        assert!(built.waiting.is_empty());
+        assert_eq!(
+            stored_order(&built.by_board[&format!("tenant-board-{TENANT}")]),
+            vec!["head", "later"]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_long_wait_for_the_signer_does_not_count_against_a_later_bounded_wait() {
+        // It waited 20 minutes for its signer (an outage); its signer is now
+        // refused (or its tenant is missing): its first bounded round, not a
+        // dead letter (the bound starts now).
+        let backoff = DeferralBackoff::default();
+        let now_ms = 10_000_000;
+        for event in [
+            keycloak_event(Some("refused-1"), REFUSED_SIGNER_EVENT),
+            unknown_tenant_activity("missing-1"),
+        ] {
+            let waited = LogEventInput {
+                deferral: Some(Deferral {
+                    rounds: 40,
+                    since_ms: now_ms - 1_200_000,
+                    order: 0,
+                    bounded_since_ms: None, bounded_used_ms: 0 }),
+                ..event
+            };
+            let built = build_batch_bounded(&mut FakeLookups::new(), &[waited], &Waiting::default(), &backoff, now_ms)
+                .await
+                .unwrap();
+            assert!(built.dead_letters.is_empty(), "{:?}", built.dead_letters);
+            assert_eq!(built.waiting.len(), 1);
+            // Its bound starts when its row is first marked bounded (put_back,
+            // tested on PostgreSQL), not at its first wait for the signer.
+            assert!(matches!(built.waiting[0].reason, WaitReason::Retry | WaitReason::TenantMissing));
+        }
+    }
+
+    #[tokio::test]
+    async fn a_refused_head_past_its_bound_is_dead_lettered_and_its_log_goes_on() {
+        let backoff = DeferralBackoff::default();
+        let now_ms = 10_000_000;
+        let head = LogEventInput {
+            deferral: Some(Deferral {
+                rounds: 20,
+                since_ms: now_ms - 900_000,
+                order: 0,
+                bounded_since_ms: Some(now_ms - 600_001), bounded_used_ms: 0 }),
+            ..keycloak_event(Some("refused-1"), REFUSED_SIGNER_EVENT)
+        };
+        let built = build_batch_bounded(
+            &mut FakeLookups::new(),
+            &[head, keycloak_event(Some("refused-2"), REFUSED_SIGNER_EVENT)],
+            &Waiting::default(),
+            &backoff,
+            now_ms,
+        )
+        .await
+        .unwrap();
+        assert_eq!(dead_letter_ids(&built), vec![Some("refused-1")]);
+        assert!(built.dead_letters[0].1.starts_with("retry for 600 s"), "{}", built.dead_letters[0].1);
+        // The next one of its log is now the head (bounded from its own first wait).
+        assert_eq!(waiting_ids(&built), vec![("refused-2", WaitReason::Retry)]);
     }
 
     fn waiting_ids(built: &BuiltBatch) -> Vec<(&str, WaitReason)> {
@@ -2600,8 +3065,7 @@ mod batch_build_tests {
             deferral: Some(Deferral {
                 rounds: 3,
                 since_ms: 1_000,
-                order: 0,
-            }),
+                order: 0, bounded_since_ms: None, bounded_used_ms: 0 }),
             ..keycloak_event(Some("earlier"), EVENT)
         };
         let mut waiting = Waiting::default();
@@ -2640,12 +3104,21 @@ mod batch_build_tests {
         let built = build_batch(&mut lookups, &events).await.unwrap();
 
         // Unavailable at lookup: waits (typed, not rebuilt from text).
-        assert_eq!(waiting_ids(&built), vec![("k1", WaitReason::SignerUnavailable)]);
+        assert_eq!(built.waiting[0].reason, WaitReason::SignerUnavailable);
         assert!(built.waiting[0].error.contains("the key service is unreachable"));
-        // Refused at lookup, on the admin-event path as on the others: bounded
-        // retries of the batch, then the dead-letter queue (not the whole batch failing).
-        assert_eq!(built.deferred.len(), 2, "{:?}", built.deferred);
-        assert!(built.deferred.iter().all(|reason| reason.contains("(refused)")));
+        // Refused at lookup, on the admin-event path as on the others: the
+        // first waits as its log's head (`retry`, bounded, then the dead-letter
+        // queue), the later one of its log is held behind it.
+        assert_eq!(
+            waiting_ids(&built),
+            vec![
+                ("k1", WaitReason::SignerUnavailable),
+                ("a1", WaitReason::Retry),
+                ("k2", WaitReason::Held)
+            ]
+        );
+        assert!(built.waiting[1].error.contains("(refused)"), "{}", built.waiting[1].error);
+        assert!(built.deferred.is_empty(), "{:?}", built.deferred);
         assert!(built.dead_letters.is_empty());
         assert_eq!(
             delivery_ids(&built.by_board[&format!("board-{EVENT}")]),
@@ -3101,8 +3574,7 @@ mod batch_build_tests {
             deferral: Some(Deferral {
                 rounds: 3,
                 since_ms: 1_000,
-                order: 0,
-            }),
+                order: 0, bounded_since_ms: None, bounded_used_ms: 0 }),
             ..keycloak_event(Some("waited"), DOWN_SIGNER_EVENT)
         };
         let marked = keycloak_event(Some("marked"), DOWN_SIGNER_EVENT);
@@ -3130,8 +3602,7 @@ mod batch_build_tests {
         event.deferral = Some(Deferral {
             rounds: 4,
             since_ms: 1_799_990_500_000,
-            order: 0,
-        });
+            order: 0, bounded_since_ms: None, bounded_used_ms: 0 });
         assert_eq!(statement_time(&event, now), 1_799_990_000);
         // A time in the future, or long before it first waited: when it first waited.
         event.event_time_ms = Some(1_800_009_000_000);
@@ -4025,6 +4496,744 @@ mod pgmq_tests {
         direct_post_gate(&*tx, &scope).await.unwrap();
         tx.rollback().await.unwrap();
         drop_queues(&client, &queues).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PGMQ_TEST_DATABASE_URL and HASURA_DB__* (one disposable database with the Hasura migrations)"]
+    async fn gated_appends_waits_and_batches_racing_on_one_scope_keep_the_order_and_never_deadlock() {
+        use crate::services::electoral_log::ScopeAdmission;
+        use crate::services::electoral_log_deferral::{is_scope_gated, stop_waiting, take_leases};
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let url = std::env::var("PGMQ_TEST_DATABASE_URL").expect("PGMQ_TEST_DATABASE_URL");
+        if std::env::var("QUEUE_DB__URL").is_err() {
+            std::env::set_var("QUEUE_DB__URL", &url);
+        }
+        let pool = test_pool();
+        let queues = test_queues(&pool, "race").await;
+        let tenant = uuid::Uuid::new_v4().to_string();
+        let event_id = uuid::Uuid::new_v4().to_string();
+        let scope = format!("{tenant}/{event_id}");
+        let admitted = Arc::new(AtomicUsize::new(0));
+        let refused = Arc::new(AtomicUsize::new(0));
+        let violations = Arc::new(AtomicUsize::new(0));
+        let waits = Arc::new(AtomicUsize::new(0));
+        let drained = Arc::new(AtomicUsize::new(0));
+        let mut tasks = Vec::new();
+        // Gated appenders: while admitted, the scope must have no waiting row
+        // (read on another connection: what any other actor could see).
+        for _ in 0..6 {
+            let (pool, scope) = (pool.clone(), scope.clone());
+            let (admitted, refused, violations) = (admitted.clone(), refused.clone(), violations.clone());
+            tasks.push(tokio::spawn(async move {
+                for _ in 0..15 {
+                    match ScopeAdmission::admit(&scope).await {
+                        Ok(admission) => {
+                            let rows: i64 = pool.get().await.unwrap()
+                                .query_one(
+                                    "SELECT count(*) FROM step_queue.electoral_log_waiting WHERE scope = $1",
+                                    &[&scope],
+                                )
+                                .await
+                                .unwrap()
+                                .get(0);
+                            if rows > 0 {
+                                violations.fetch_add(1, Ordering::SeqCst);
+                            }
+                            tokio::time::sleep(std::time::Duration::from_millis(3)).await;
+                            admission.end().await;
+                            admitted.fetch_add(1, Ordering::SeqCst);
+                        }
+                        Err(error) => {
+                            assert!(is_scope_gated(&error), "only refusals for the order: {error:#}");
+                            refused.fetch_add(1, Ordering::SeqCst);
+                        }
+                    }
+                }
+            }));
+        }
+        // Entries starting to wait (the signer is down for them).
+        for waiter in 0..3 {
+            let (pool, queue, tenant, event_id) = (pool.clone(), queues.events.clone(), tenant.clone(), event_id.clone());
+            let waits = waits.clone();
+            tasks.push(tokio::spawn(async move {
+                for n in 0..5 {
+                    let item = WaitingEvent {
+                        event: LogEventInput {
+                            delivery_id: Some(format!("w{waiter}-{n}-{event_id}")),
+                            tenant_id: tenant.clone(),
+                            ..event(&event_id)
+                        },
+                        reason: WaitReason::SignerUnavailable,
+                        error: "unavailable".into(),
+                    };
+                    let mut client = pool.get().await.unwrap();
+                    let tx = client.transaction().await.unwrap();
+                    put_back(&*tx, &queue, &[item], &Waiting::default(), &DeferralBackoff::default(),
+                        chrono::Utc::now().timestamp_millis()).await.unwrap();
+                    tx.commit().await.unwrap();
+                    waits.fetch_add(1, Ordering::SeqCst);
+                    tokio::time::sleep(std::time::Duration::from_millis(7)).await;
+                }
+            }));
+        }
+        // Batches: under the scope's lease, store (remove) what waits.
+        for _ in 0..2 {
+            let (pool, scope) = (pool.clone(), scope.clone());
+            let drained = drained.clone();
+            tasks.push(tokio::spawn(async move {
+                for _ in 0..12 {
+                    let mut lease_client = pool.get().await.unwrap();
+                    let lease = lease_client.transaction().await.unwrap();
+                    take_leases(&*lease, &[scope.clone()]).await.unwrap();
+                    let client = pool.get().await.unwrap();
+                    let ids: Vec<String> = client
+                        .query("SELECT delivery_id FROM step_queue.electoral_log_waiting WHERE scope = $1", &[&scope])
+                        .await
+                        .unwrap()
+                        .iter()
+                        .map(|row| row.get(0))
+                        .collect();
+                    stop_waiting(&**client, &ids).await.unwrap();
+                    drained.fetch_add(ids.len(), Ordering::SeqCst);
+                    lease.rollback().await.unwrap();
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                }
+            }));
+        }
+        let all = futures::future::join_all(tasks);
+        let results = tokio::time::timeout(std::time::Duration::from_secs(120), all)
+            .await
+            .expect("no deadlock: every actor finished");
+        assert!(results.iter().all(|result| result.is_ok()), "no actor panicked");
+        assert_eq!(violations.load(Ordering::SeqCst), 0, "an append was admitted while an entry waited");
+        assert!(admitted.load(Ordering::SeqCst) > 0, "appends were admitted when nothing waited");
+        assert!(refused.load(Ordering::SeqCst) > 0, "appends were refused while entries waited");
+        assert_eq!(waits.load(Ordering::SeqCst), 15);
+        // What is left waiting, stored now.
+        let client = pool.get().await.unwrap();
+        let left: Vec<String> = client
+            .query("SELECT delivery_id FROM step_queue.electoral_log_waiting WHERE scope = $1", &[&scope])
+            .await
+            .unwrap()
+            .iter()
+            .map(|row| row.get(0))
+            .collect();
+        assert_eq!(drained.load(Ordering::SeqCst) + left.len(), 15, "every waiting entry is accounted for");
+        stop_waiting(&**client, &left).await.unwrap();
+        drop_queues(&*client, &queues).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PGMQ_TEST_DATABASE_URL and HASURA_DB__* (one disposable database with the Hasura migrations)"]
+    async fn a_batchs_events_marked_in_flight_stay_visible_to_admission_if_its_worker_dies() {
+        use crate::services::electoral_log::ScopeAdmission;
+        use crate::services::electoral_log_deferral::{is_scope_gated, mark_in_flight, stop_waiting, IN_FLIGHT_SECS};
+        let url = std::env::var("PGMQ_TEST_DATABASE_URL").expect("PGMQ_TEST_DATABASE_URL");
+        if std::env::var("QUEUE_DB__URL").is_err() {
+            std::env::set_var("QUEUE_DB__URL", &url);
+        }
+        let pool = test_pool();
+        let queues = test_queues(&pool, "inflight").await;
+        let tenant = uuid::Uuid::new_v4().to_string();
+        let event_id = uuid::Uuid::new_v4().to_string();
+        let of = |delivery: &str| LogEventInput {
+            delivery_id: Some(format!("{delivery}-{event_id}")),
+            tenant_id: tenant.clone(),
+            ..event(&event_id)
+        };
+        let scope = scope_of(&of("x"));
+        // An entry already waiting keeps its row as it is.
+        {
+            let mut client = pool.get().await.unwrap();
+            let tx = client.transaction().await.unwrap();
+            put_back(&*tx, &queues.events, &[WaitingEvent { event: of("old"), reason: WaitReason::SignerUnavailable, error: "u".into() }],
+                &Waiting::default(), &DeferralBackoff::default(), 1_000).await.unwrap();
+            tx.commit().await.unwrap();
+        }
+        // A batch takes its events in hand: marked in flight BEFORE any attempt.
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let marked = mark_in_flight(&*tx, &[of("a"), of("b"), of("old"), LogEventInput { delivery_id: None, ..of("c") }], 5_000).await.unwrap();
+        tx.commit().await.unwrap();
+        assert_eq!(marked, 2, "a and b; old keeps its row; no delivery ID, no marker");
+        let row: (i64, i64, bool) = {
+            let r = client.query_one(
+                "SELECT since_ms, ord, due_at > clock_timestamp() + make_interval(secs => $2::integer - 60) FROM step_queue.electoral_log_waiting WHERE delivery_id = $1",
+                &[&format!("old-{event_id}"), &IN_FLIGHT_SECS]).await.unwrap();
+            (r.get(0), r.get(1), r.get(2))
+        };
+        assert_eq!((row.0, row.1), (1_000, 0), "an existing row is not touched");
+        // The worker dies here (nothing more happens): its events still hold the
+        // log, so no gated append gets ahead of them ...
+        let error = ScopeAdmission::admit(&scope).await.err().expect("refused while in flight");
+        assert!(is_scope_gated(&error), "{error:#}");
+        // ... until the redelivered batch settles them (here: stored, rows removed).
+        stop_waiting(&**client, &[format!("a-{event_id}"), format!("b-{event_id}"), format!("old-{event_id}")]).await.unwrap();
+        ScopeAdmission::admit(&scope).await.unwrap().end().await;
+        drop_queues(&client, &queues).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PGMQ_TEST_DATABASE_URL and HASURA_DB__* (one disposable database with the Hasura migrations)"]
+    async fn without_an_outage_batches_and_gated_appends_are_never_refused() {
+        // Steady state (no signer outage, nothing waiting): batches holding the
+        // scope briefly (as a batch of sign-ins does during voting) and gated
+        // appends (actions, the sequencer, outboxes, checkpoint records) racing on
+        // one log: every append is admitted (no ScopeWaiting, no ScopeBusy).
+        use crate::services::electoral_log::ScopeAdmission;
+        use crate::services::electoral_log_deferral::{mark_in_flight, stop_waiting, take_leases};
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let url = std::env::var("PGMQ_TEST_DATABASE_URL").expect("PGMQ_TEST_DATABASE_URL");
+        if std::env::var("QUEUE_DB__URL").is_err() {
+            std::env::set_var("QUEUE_DB__URL", &url);
+        }
+        let pool = test_pool();
+        let queues = test_queues(&pool, "steady").await;
+        let tenant = uuid::Uuid::new_v4().to_string();
+        let event_id = uuid::Uuid::new_v4().to_string();
+        let scope = format!("{tenant}/{event_id}");
+        let refused = Arc::new(AtomicUsize::new(0));
+        let admitted = Arc::new(AtomicUsize::new(0));
+        let mut tasks = Vec::new();
+        for worker in 0..2 {
+            let (pool, tenant, event_id, scope) = (pool.clone(), tenant.clone(), event_id.clone(), scope.clone());
+            tasks.push(tokio::spawn(async move {
+                for n in 0..40 {
+                    let events: Vec<LogEventInput> = (0..5)
+                        .map(|i| LogEventInput {
+                            delivery_id: Some(format!("s{worker}-{n}-{i}-{event_id}")),
+                            tenant_id: tenant.clone(),
+                            ..event(&event_id)
+                        })
+                        .collect();
+                    let mut lease_client = pool.get().await.unwrap();
+                    let lease = lease_client.transaction().await.unwrap();
+                    take_leases(&*lease, &[scope.clone()]).await.unwrap();
+                    let mut client = pool.get().await.unwrap();
+                    let tx = client.transaction().await.unwrap();
+                    mark_in_flight(&*tx, &events, chrono::Utc::now().timestamp_millis()).await.unwrap();
+                    tx.commit().await.unwrap();
+                    tokio::time::sleep(std::time::Duration::from_millis(15)).await; // build + append
+                    let ids: Vec<String> = events.iter().filter_map(|e| e.delivery_id.clone()).collect();
+                    stop_waiting(&**client, &ids).await.unwrap(); // stored
+                    lease.rollback().await.unwrap();
+                    tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+                }
+            }));
+        }
+        for _ in 0..6 {
+            let scope = scope.clone();
+            let (refused, admitted) = (refused.clone(), admitted.clone());
+            tasks.push(tokio::spawn(async move {
+                for _ in 0..30 {
+                    match ScopeAdmission::admit(&scope).await {
+                        Ok(admission) => {
+                            tokio::time::sleep(std::time::Duration::from_millis(3)).await;
+                            admission.end().await;
+                            admitted.fetch_add(1, Ordering::SeqCst);
+                        }
+                        Err(error) => {
+                            eprintln!("refused in steady state: {error:#}");
+                            refused.fetch_add(1, Ordering::SeqCst);
+                        }
+                    }
+                }
+            }));
+        }
+        let all = futures::future::join_all(tasks);
+        let results = tokio::time::timeout(std::time::Duration::from_secs(120), all).await.expect("no deadlock");
+        assert!(results.iter().all(|result| result.is_ok()));
+        assert_eq!(admitted.load(Ordering::SeqCst), 180, "every gated append admitted");
+        assert_eq!(refused.load(Ordering::SeqCst), 0, "no refusal without an outage");
+        drop_queues(&*pool.get().await.unwrap(), &queues).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PGMQ_TEST_DATABASE_URL and HASURA_DB__* (one disposable database with the Hasura migrations)"]
+    async fn relay_audit_writer_certificate_action_and_batch_on_one_tenant_never_deadlock() {
+        // The production locks of each path (the action database's `tenant-log:<t>`
+        // of ensure_tenant_log and H(S) of the outbox; the leases and Q(S) of the
+        // task-queue database; ScopeAdmission), racing on one tenant and its event.
+        // As in production, the action database (HASURA_DB__*) and the task-queue
+        // database (QUEUE_DB__URL, PGMQ_TEST_DATABASE_URL) are two databases: run with
+        // QUEUE_SEPARATE=1. Every actor must finish; the only errors allowed are
+        // refusals for the log's order.
+        use crate::services::electoral_log::ScopeAdmission;
+        use crate::services::electoral_log_deferral::{is_scope_gated, mark_in_flight, stop_waiting, take_leases};
+        use crate::services::electoral_log_outbox::lock_scope;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let url = std::env::var("PGMQ_TEST_DATABASE_URL").expect("PGMQ_TEST_DATABASE_URL");
+        if std::env::var("QUEUE_DB__URL").is_err() {
+            std::env::set_var("QUEUE_DB__URL", &url);
+        }
+        let pool = test_pool();
+        let queues = test_queues(&pool, "dl").await;
+        let tenant = uuid::Uuid::new_v4().to_string();
+        let event_id = uuid::Uuid::new_v4().to_string();
+        let (tenant_scope, event_scope) = (format!("{tenant}/"), format!("{tenant}/{event_id}"));
+        let tenant_log = format!("tenant-log:{tenant}");
+        let errors = Arc::new(AtomicUsize::new(0));
+        let gated = Arc::new(AtomicUsize::new(0));
+        let done = Arc::new(AtomicUsize::new(0));
+        let mut tasks = Vec::new();
+        // Relay: holds its relay lock and row in its action-database transaction,
+        // prepares the tenant log in a short transaction of its own (committed), then
+        // its announcement is admitted on the tenant scope (forward_announcement).
+        for _ in 0..2 {
+            let (pool, tenant_scope, tenant_log) = (pool.clone(), tenant_scope.clone(), tenant_log.clone());
+            let (errors, gated, done) = (errors.clone(), gated.clone(), done.clone());
+            tasks.push(tokio::spawn(async move {
+                for _ in 0..15 {
+                    let mut client = crate::services::database::get_hasura_pool().await.get().await.unwrap();
+                    let tx = client.transaction().await.unwrap();
+                    tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", &[&format!("relay-test:{tenant_log}")]).await.unwrap();
+                    {
+                        let mut prepare = crate::services::database::get_hasura_pool().await.get().await.unwrap();
+                        let ptx = prepare.transaction().await.unwrap();
+                        ptx.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", &[&tenant_log]).await.unwrap();
+                        ptx.commit().await.unwrap();
+                    }
+                    match ScopeAdmission::admit(&tenant_scope).await {
+                        Ok(admission) => admission.end().await,
+                        Err(error) if is_scope_gated(&error) => { gated.fetch_add(1, Ordering::SeqCst); }
+                        Err(error) => { eprintln!("relay: {error:#}"); errors.fetch_add(1, Ordering::SeqCst); }
+                    }
+                    tx.commit().await.unwrap();
+                    done.fetch_add(1, Ordering::SeqCst);
+                }
+            }));
+        }
+        // Audit writer: prepares (tenant-log lock, committed), then its pass is
+        // admitted on the event scope.
+        for _ in 0..2 {
+            let (pool, event_scope, tenant_log) = (pool.clone(), event_scope.clone(), tenant_log.clone());
+            let (errors, gated, done) = (errors.clone(), gated.clone(), done.clone());
+            tasks.push(tokio::spawn(async move {
+                for _ in 0..15 {
+                    {
+                        let mut client = crate::services::database::get_hasura_pool().await.get().await.unwrap();
+                        let tx = client.transaction().await.unwrap();
+                        tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", &[&tenant_log]).await.unwrap();
+                        tx.commit().await.unwrap();
+                    }
+                    match ScopeAdmission::admit(&event_scope).await {
+                        Ok(admission) => admission.end().await,
+                        Err(error) if is_scope_gated(&error) => { gated.fetch_add(1, Ordering::SeqCst); }
+                        Err(error) => { eprintln!("audit: {error:#}"); errors.fetch_add(1, Ordering::SeqCst); }
+                    }
+                    done.fetch_add(1, Ordering::SeqCst);
+                }
+            }));
+        }
+        // Certificate action: H(S) exclusive (it writes its outbox) and the
+        // tenant-log lock, in one action-database transaction.
+        for _ in 0..2 {
+            let (pool, event_scope, tenant_log) = (pool.clone(), event_scope.clone(), tenant_log.clone());
+            let (errors, done) = (errors.clone(), done.clone());
+            tasks.push(tokio::spawn(async move {
+                for _ in 0..15 {
+                    let mut client = crate::services::database::get_hasura_pool().await.get().await.unwrap();
+                    let tx = client.transaction().await.unwrap();
+                    if let Err(error) = lock_scope(&*tx, &event_scope, true).await {
+                        eprintln!("certificate: {error:#}"); errors.fetch_add(1, Ordering::SeqCst);
+                    }
+                    tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", &[&tenant_log]).await.unwrap();
+                    tokio::time::sleep(std::time::Duration::from_millis(3)).await;
+                    tx.commit().await.unwrap();
+                    done.fetch_add(1, Ordering::SeqCst);
+                }
+            }));
+        }
+        // Batch: leases of both scopes, in-flight markers (Q(S) exclusive), its
+        // tenant-log lock for an unplaced event, then settles and lets go.
+        for worker in 0..2 {
+            let (pool, tenant, event_id, tenant_scope, event_scope, tenant_log) =
+                (pool.clone(), tenant.clone(), event_id.clone(), tenant_scope.clone(), event_scope.clone(), tenant_log.clone());
+            let done = done.clone();
+            tasks.push(tokio::spawn(async move {
+                for n in 0..15 {
+                    let events = vec![
+                        LogEventInput { delivery_id: Some(format!("d{worker}-{n}-e-{event_id}")), tenant_id: tenant.clone(), ..event(&event_id) },
+                        LogEventInput { delivery_id: Some(format!("d{worker}-{n}-t-{event_id}")), tenant_id: tenant.clone(), ..event("") },
+                    ];
+                    let mut lease_client = pool.get().await.unwrap();
+                    let lease = lease_client.transaction().await.unwrap();
+                    take_leases(&*lease, &[event_scope.clone(), tenant_scope.clone()]).await.unwrap();
+                    let mut client = pool.get().await.unwrap();
+                    let tx = client.transaction().await.unwrap();
+                    mark_in_flight(&*tx, &events, chrono::Utc::now().timestamp_millis()).await.unwrap();
+                    tx.commit().await.unwrap();
+                    {
+                        let mut hasura = crate::services::database::get_hasura_pool().await.get().await.unwrap();
+                        let tx = hasura.transaction().await.unwrap();
+                        tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", &[&tenant_log]).await.unwrap();
+                        tx.commit().await.unwrap();
+                    }
+                    let ids: Vec<String> = events.iter().filter_map(|e| e.delivery_id.clone()).collect();
+                    stop_waiting(&**client, &ids).await.unwrap();
+                    lease.rollback().await.unwrap();
+                    done.fetch_add(1, Ordering::SeqCst);
+                }
+            }));
+        }
+        let all = futures::future::join_all(tasks);
+        let results = tokio::time::timeout(std::time::Duration::from_secs(180), all).await.expect("no deadlock: every actor finished");
+        assert!(results.iter().all(|result| result.is_ok()), "no actor panicked (a detected deadlock would)");
+        assert_eq!(done.load(Ordering::SeqCst), 120);
+        assert_eq!(errors.load(Ordering::SeqCst), 0, "only refusals for the log's order");
+        eprintln!("gated refusals (allowed): {}", gated.load(Ordering::SeqCst));
+        drop_queues(&*pool.get().await.unwrap(), &queues).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PGMQ_TEST_DATABASE_URL pointing to a disposable database"]
+    async fn at_the_last_retry_only_markers_and_open_bounded_heads_count_as_bounded() {
+        use crate::services::electoral_log_deferral::{bounded_row_ids, mark_in_flight, stop_waiting};
+        let pool = test_pool();
+        let queues = test_queues(&pool, "lastretry").await;
+        let unique = uuid::Uuid::new_v4().to_string();
+        let of = |name: &str| LogEventInput { delivery_id: Some(format!("{name}-{unique}")), ..event(&unique) };
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        mark_in_flight(&*tx, &[of("marker")], 1_000).await.unwrap();
+        for (name, reason) in [("signer", WaitReason::SignerUnavailable), ("held", WaitReason::Held), ("retry", WaitReason::Retry)] {
+            put_back(&*tx, &queues.events, &[WaitingEvent { event: of(name), reason, error: String::new() }],
+                &Waiting::default(), &DeferralBackoff::default(), 2_000).await.unwrap();
+        }
+        tx.commit().await.unwrap();
+        let ids: Vec<String> = ["marker", "signer", "held", "retry"].iter().map(|n| format!("{n}-{unique}")).collect();
+        let bounded = bounded_row_ids(&**client, &ids).await.unwrap();
+        let mut got: Vec<&str> = bounded.iter().map(|id| id.split('-').next().unwrap()).collect();
+        got.sort();
+        // A marker (attempted, never put back) and an open bounded head are bounded;
+        // a wait for the signer and a held one (each with its copy) are not.
+        assert_eq!(got, vec!["marker", "retry"]);
+        stop_waiting(&**client, &ids).await.unwrap();
+        drop_queues(&client, &queues).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PGMQ_TEST_DATABASE_URL pointing to a disposable database"]
+    async fn a_worker_refuses_a_task_queue_schema_older_than_it() {
+        use crate::services::electoral_log_deferral::missing_waiting_columns;
+        let pool = test_pool();
+        let queues = test_queues(&pool, "schema").await;
+        let mut client = pool.get().await.unwrap();
+        // Set up (as setup-queue-database does): nothing missing.
+        assert!(missing_waiting_columns(&**client).await.unwrap().is_empty());
+        // An older schema (inside a transaction rolled back): both columns missing.
+        let tx = client.transaction().await.unwrap();
+        tx.batch_execute(
+            "ALTER TABLE step_queue.electoral_log_waiting DROP COLUMN bounded_since_ms, DROP COLUMN bounded_used_ms",
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            missing_waiting_columns(&*tx).await.unwrap(),
+            vec!["bounded_since_ms".to_string(), "bounded_used_ms".to_string()]
+        );
+        tx.rollback().await.unwrap();
+        assert!(missing_waiting_columns(&**client).await.unwrap().is_empty());
+        drop_queues(&client, &queues).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PGMQ_TEST_DATABASE_URL pointing to a disposable database"]
+    async fn a_bounded_heads_budget_counts_only_bounded_time_and_is_never_reset() {
+        use crate::services::electoral_log_deferral::{bind_to_rows, stop_waiting, waiting_events};
+        let pool = test_pool();
+        let queues = test_queues(&pool, "bound").await;
+        let unique = uuid::Uuid::new_v4().to_string();
+        async fn budget(client: &tokio_postgres::Client, id: String) -> (Option<i64>, i64) {
+            let row = client
+                .query_one(
+                    "SELECT bounded_since_ms, bounded_used_ms FROM step_queue.electoral_log_waiting WHERE delivery_id = $1",
+                    &[&id],
+                )
+                .await
+                .unwrap();
+            (row.get(0), row.get(1))
+        }
+        let put = |item: WaitingEvent, now_ms: i64| {
+            let (pool, queue) = (pool.clone(), queues.events.clone());
+            async move {
+                let mut client = pool.get().await.unwrap();
+                let tx = client.transaction().await.unwrap();
+                put_back(&*tx, &queue, &[item], &Waiting::default(), &DeferralBackoff::default(), now_ms)
+                    .await
+                    .unwrap();
+                tx.commit().await.unwrap();
+            }
+        };
+        let id = format!("b1-{unique}");
+        let mut head = WaitingEvent {
+            event: LogEventInput { delivery_id: Some(id.clone()), ..event(&unique) },
+            reason: WaitReason::SignerUnavailable,
+            error: "unavailable".into(),
+        };
+        let client = pool.get().await.unwrap();
+        // Waiting for its signer: no bounded time.
+        put(head.clone(), 1_000_000).await;
+        assert_eq!(budget(&**client, id.clone()).await, (None, 0));
+        // A bounded stretch opens (a failed batch: retry) and stays open on the next round.
+        head.reason = WaitReason::Retry;
+        put(head.clone(), 2_000_000).await;
+        put(head.clone(), 2_030_000).await;
+        assert_eq!(budget(&**client, id.clone()).await, (Some(2_000_000), 0));
+        // Its signer is down again: the stretch closes (100 s spent) ...
+        head.reason = WaitReason::SignerUnavailable;
+        put(head.clone(), 2_100_000).await;
+        assert_eq!(budget(&**client, id.clone()).await, (None, 100_000));
+        // ... and a long outage (7 h) adds nothing.
+        put(head.clone(), 27_000_000).await;
+        assert_eq!(budget(&**client, id.clone()).await, (None, 100_000));
+        // A later retry opens a new stretch, with the time already spent kept.
+        head.reason = WaitReason::TenantMissing;
+        put(head.clone(), 27_500_000).await;
+        assert_eq!(budget(&**client, id.clone()).await, (Some(27_500_000), 100_000));
+        // Read back (also after a restart: a fresh read), whatever the message says.
+        let forged = LogEventInput {
+            deferral: Some(Deferral { rounds: 1, since_ms: 1, order: 0, bounded_since_ms: Some(i64::MAX), bounded_used_ms: -1_000_000 }),
+            ..head.event.clone()
+        };
+        let rows = waiting_events(&**client, &[scope_of(&forged)]).await.unwrap();
+        let (bound, _) = bind_to_rows(&[forged], rows);
+        let deferral = bound[0].deferral.unwrap();
+        assert_eq!((deferral.bounded_since_ms, deferral.bounded_used_ms), (Some(27_500_000), 100_000));
+        // Not a false dead letter: 100 s + 500 s spent; the bound fires only past 600 s
+        // of bounded time in total (the 7 h outage does not count).
+        let backoff = DeferralBackoff::default();
+        assert!(!backoff.bound_exceeded(Some(&deferral), 28_000_000));
+        assert!(!backoff.bound_exceeded(Some(&deferral), 28_000_000));
+        assert!(backoff.bound_exceeded(Some(&deferral), 28_000_001));
+        stop_waiting(&**client, &[id]).await.unwrap();
+        drop_queues(&client, &queues).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PGMQ_TEST_DATABASE_URL and HASURA_DB__* (one disposable database with the Hasura migrations)"]
+    async fn a_tenant_missing_head_and_its_follower_hold_the_tenant_log_until_both_are_stored() {
+        use crate::services::electoral_log::ScopeAdmission;
+        use crate::services::electoral_log_deferral::{is_scope_gated, stop_waiting, waiting_events};
+        let url = std::env::var("PGMQ_TEST_DATABASE_URL").expect("PGMQ_TEST_DATABASE_URL");
+        if std::env::var("QUEUE_DB__URL").is_err() {
+            std::env::set_var("QUEUE_DB__URL", &url);
+        }
+        let pool = test_pool();
+        let queues = test_queues(&pool, "tenant").await;
+        // A Keycloak admin event of a tenant still being created (attempt 8: it
+        // was dead-lettered), and a later event of the same tenant's log.
+        let tenant = uuid::Uuid::new_v4().to_string();
+        let tenant_event = |delivery: &str| LogEventInput {
+            delivery_id: Some(format!("{delivery}-{tenant}")),
+            tenant_id: tenant.clone(),
+            ..event("")
+        };
+        let head = WaitingEvent {
+            event: tenant_event("realm-update"),
+            reason: WaitReason::TenantMissing,
+            error: "Tenant does not exist (yet)".into(),
+        };
+        let follower = WaitingEvent {
+            event: tenant_event("later"),
+            reason: WaitReason::Held,
+            error: "held".into(),
+        };
+        let scope = scope_of(&head.event);
+        assert_eq!(scope, format!("{tenant}/"));
+        {
+            let mut client = pool.get().await.unwrap();
+            let tx = client.transaction().await.unwrap();
+            let summary = put_back(&*tx, &queues.events, &[head.clone(), follower.clone()],
+                &Waiting::default(), &DeferralBackoff::default(), chrono::Utc::now().timestamp_millis())
+                .await
+                .unwrap();
+            tx.commit().await.unwrap();
+            assert_eq!((summary.tenant_missing, summary.held), (1, 1));
+        }
+        let waiting = waiting_events(&**pool.get().await.unwrap(), &[scope.clone()]).await.unwrap();
+        assert_eq!(waiting.len(), 2);
+        // Nothing of the tenant's log is admitted while either waits ...
+        let error = ScopeAdmission::admit(&scope).await.err().expect("refused");
+        assert!(is_scope_gated(&error), "{error:#}");
+        stop_waiting(&**pool.get().await.unwrap(), &[head.event.delivery_id.clone().unwrap()]).await.unwrap();
+        // ... the head stored, its follower still holds the log (no overtaking) ...
+        assert!(ScopeAdmission::admit(&scope).await.is_err());
+        stop_waiting(&**pool.get().await.unwrap(), &[follower.event.delivery_id.clone().unwrap()]).await.unwrap();
+        // ... and once both are stored, the log admits again.
+        ScopeAdmission::admit(&scope).await.unwrap().end().await;
+        drop_queues(&*pool.get().await.unwrap(), &queues).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PGMQ_TEST_DATABASE_URL and HASURA_DB__* (one disposable database with the Hasura migrations)"]
+    async fn an_append_is_admitted_only_while_nothing_of_its_scope_waits_or_is_in_hand() {
+        use crate::services::electoral_log::ScopeAdmission;
+        use crate::services::electoral_log_deferral::{is_scope_gated, stop_waiting, take_leases, ScopeBusy, ScopeWaiting};
+        let url = std::env::var("PGMQ_TEST_DATABASE_URL").expect("PGMQ_TEST_DATABASE_URL");
+        if std::env::var("QUEUE_DB__URL").is_err() {
+            std::env::set_var("QUEUE_DB__URL", &url);
+        }
+        let pool = test_pool();
+        let queues = test_queues(&pool, "admit").await;
+        let tenant = uuid::Uuid::new_v4().to_string();
+        let event_id = uuid::Uuid::new_v4().to_string();
+        let waiting_event = WaitingEvent {
+            event: LogEventInput {
+                delivery_id: Some(format!("w1-{event_id}")),
+                tenant_id: tenant.clone(),
+                ..event(&event_id)
+            },
+            reason: WaitReason::SignerUnavailable,
+            error: "unavailable".into(),
+        };
+        let scope = scope_of(&waiting_event.event);
+        // 1. Nothing waits, nothing in hand: admitted.
+        ScopeAdmission::admit(&scope).await.unwrap().end().await;
+        // 2. An entry of the scope waits: refused (for the order, not a failure).
+        {
+            let mut client = pool.get().await.unwrap();
+            let tx = client.transaction().await.unwrap();
+            put_back(&*tx, &queues.events, &[waiting_event.clone()], &Waiting::default(),
+                &DeferralBackoff::default(), chrono::Utc::now().timestamp_millis()).await.unwrap();
+            tx.commit().await.unwrap();
+        }
+        let error = ScopeAdmission::admit(&scope).await.err().expect("refused while waiting");
+        assert!(is_scope_gated(&error), "{error:#}");
+        assert!(error.chain().any(|cause| cause.is::<ScopeWaiting>()), "{error:#}");
+        // Another scope is not held by it.
+        ScopeAdmission::admit(&format!("{tenant}/{}", uuid::Uuid::new_v4())).await.unwrap().end().await;
+        // 3. Once stored (its row goes): admitted again.
+        stop_waiting(&**pool.get().await.unwrap(), &[format!("w1-{event_id}")]).await.unwrap();
+        ScopeAdmission::admit(&scope).await.unwrap().end().await;
+        // 4. A batch has events of the scope in hand: refused as busy.
+        {
+            let mut batch = pool.get().await.unwrap();
+            let batch_tx = batch.transaction().await.unwrap();
+            take_leases(&*batch_tx, &[scope.clone()]).await.unwrap();
+            let error = ScopeAdmission::admit(&scope).await.err().expect("refused while in hand");
+            assert!(is_scope_gated(&error), "{error:#}");
+            assert!(error.chain().any(|cause| cause.is::<ScopeBusy>()), "{error:#}");
+            batch_tx.rollback().await.unwrap();
+        }
+        // 5. While admitted, an entry of the scope that starts waiting comes
+        // after the admitted append (it waits for the admission to end).
+        let admission = ScopeAdmission::admit(&scope).await.unwrap();
+        let b_pool = pool.clone();
+        let b_queue = queues.events.clone();
+        let b_event = waiting_event.clone();
+        let starts_waiting = tokio::spawn(async move {
+            let mut client = b_pool.get().await.unwrap();
+            let tx = client.transaction().await.unwrap();
+            put_back(&*tx, &b_queue, &[b_event], &Waiting::default(),
+                &DeferralBackoff::default(), chrono::Utc::now().timestamp_millis()).await.unwrap();
+            tx.commit().await.unwrap();
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        assert!(!starts_waiting.is_finished(), "it waits for the admitted append");
+        admission.end().await;
+        starts_waiting.await.unwrap();
+        // 6. A dropped admission (an early return) releases its locks too.
+        stop_waiting(&**pool.get().await.unwrap(), &[format!("w1-{event_id}")]).await.unwrap();
+        drop(ScopeAdmission::admit(&scope).await.unwrap());
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        let mut batch = pool.get().await.unwrap();
+        let batch_tx = batch.transaction().await.unwrap();
+        tokio::time::timeout(std::time::Duration::from_secs(10), take_leases(&*batch_tx, &[scope.clone()]))
+            .await
+            .expect("the dropped admission released its lease")
+            .unwrap();
+        batch_tx.rollback().await.unwrap();
+        drop_queues(&*pool.get().await.unwrap(), &queues).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PGMQ_TEST_DATABASE_URL pointing to a disposable database"]
+    async fn a_batch_processing_a_scope_refuses_its_gated_appends_as_busy_not_failed() {
+        use crate::services::electoral_log_deferral::{direct_post_gate, is_scope_gated, take_leases, ScopeBusy};
+        let pool = test_pool();
+        let queues = test_queues(&pool, "lease").await;
+        let scope = format!("{}/lease", uuid::Uuid::new_v4());
+        // A batch holds the scope's lease (it has events of the scope in hand).
+        let mut batch = pool.get().await.unwrap();
+        let batch_tx = batch.transaction().await.unwrap();
+        take_leases(&*batch_tx, &[scope.clone()]).await.unwrap();
+        // A gated append of the scope is refused once its wait times out: busy,
+        // a refusal for the log's order (kept and tried again), not a failure.
+        let mut gated = pool.get().await.unwrap();
+        let gated_tx = gated.transaction().await.unwrap();
+        let started = std::time::Instant::now();
+        let error = direct_post_gate(&*gated_tx, &scope).await.unwrap_err();
+        assert!(started.elapsed() >= std::time::Duration::from_secs(4), "it waited");
+        assert!(is_scope_gated(&error), "{error:#}");
+        assert!(error.chain().any(|cause| cause.is::<ScopeBusy>()), "{error:#}");
+        gated_tx.rollback().await.unwrap();
+        // Another scope is not held.
+        let mut other = pool.get().await.unwrap();
+        let other_tx = other.transaction().await.unwrap();
+        direct_post_gate(&*other_tx, &format!("{scope}-other")).await.unwrap();
+        other_tx.rollback().await.unwrap();
+        // The batch ends: the scope admits again.
+        batch_tx.rollback().await.unwrap();
+        let mut again = pool.get().await.unwrap();
+        let again_tx = again.transaction().await.unwrap();
+        direct_post_gate(&*again_tx, &scope).await.unwrap();
+        again_tx.rollback().await.unwrap();
+        drop_queues(&*pool.get().await.unwrap(), &queues).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PGMQ_TEST_DATABASE_URL pointing to a disposable database"]
+    async fn a_gated_append_in_progress_delays_a_batch_of_its_scope_until_it_ends() {
+        use crate::services::electoral_log_deferral::{direct_post_gate, take_leases};
+        let pool = test_pool();
+        let scope = format!("{}/lease", uuid::Uuid::new_v4());
+        let mut gated = pool.get().await.unwrap();
+        let gated_tx = gated.transaction().await.unwrap();
+        direct_post_gate(&*gated_tx, &scope).await.unwrap();
+        let b_pool = pool.clone();
+        let b_scope = scope.clone();
+        let batch = tokio::spawn(async move {
+            let mut client = b_pool.get().await.unwrap();
+            let tx = client.transaction().await.unwrap();
+            take_leases(&*tx, &[b_scope]).await.unwrap();
+            tx.rollback().await.unwrap();
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        assert!(!batch.is_finished(), "the batch waits for the append in progress");
+        gated_tx.rollback().await.unwrap();
+        batch.await.unwrap();
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PGMQ_TEST_DATABASE_URL pointing to a disposable database"]
+    async fn batches_with_overlapping_scopes_never_deadlock_on_their_leases() {
+        use crate::services::electoral_log_deferral::take_leases;
+        let pool = test_pool();
+        let base = uuid::Uuid::new_v4().to_string();
+        let (s1, s2, s3) = (format!("{base}/a"), format!("{base}/b"), format!("{base}/c"));
+        let mut tasks = Vec::new();
+        for round in 0..40 {
+            // Scopes given in different orders: leases are taken sorted.
+            let scopes = match round % 3 {
+                0 => vec![s1.clone(), s2.clone(), s3.clone()],
+                1 => vec![s3.clone(), s2.clone(), s1.clone()],
+                _ => vec![s2.clone(), s3.clone(), s1.clone()],
+            };
+            let pool = pool.clone();
+            tasks.push(tokio::spawn(async move {
+                let mut client = pool.get().await.unwrap();
+                let tx = client.transaction().await.unwrap();
+                take_leases(&*tx, &scopes).await.unwrap();
+                tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+                tx.rollback().await.unwrap();
+            }));
+        }
+        let all = futures::future::join_all(tasks);
+        let results = tokio::time::timeout(std::time::Duration::from_secs(60), all)
+            .await
+            .expect("no deadlock: every batch got its leases");
+        assert!(results.iter().all(|result| result.is_ok()));
     }
 
     #[tokio::test]

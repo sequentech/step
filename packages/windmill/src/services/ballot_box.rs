@@ -213,8 +213,23 @@ async fn append_pending(
     let mut appended = 0;
     let private = store.ballot_identity(election_event_id).await?
         == electoral_log::adapters::privacy::BallotIdentity::Pseudonym;
+    let scope = crate::services::electoral_log_deferral::scope_key(tenant_id, election_event_id);
 
     loop {
+        // Each round is admitted for its log's order BEFORE anything is signed:
+        // not while the log has entries waiting (or an outbox entry not relayed),
+        // nor while a batch is processing events of the log, so a ballot never
+        // gets ahead of an earlier entry of its log that was already attempted.
+        // Refused: nothing signed, nothing appended; the ballots stay in their
+        // durable pending queues and the beat runs the sequencer again.
+        let _admission = match crate::services::electoral_log::ScopeAdmission::admit(&scope).await {
+            Ok(admission) => admission,
+            Err(error) if crate::services::electoral_log_deferral::is_scope_gated(&error) => {
+                tracing::info!(scope, "The ballot box's sequencer waits for its log's order: {error:#}");
+                break;
+            }
+            Err(error) => return Err(error),
+        };
         // Received evidence is queued in the receive transaction. Drain it before
         // casts so a fast confirmation can never overtake its authority binding.
         let received = store

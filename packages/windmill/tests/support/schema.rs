@@ -146,5 +146,39 @@ pub(super) async fn anchor(database: &str) {
 
 /// A new pool on the migrated database, for the calling test only.
 pub async fn pool() -> Pool {
+    QUEUE.get_or_init(task_queue_database).await;
     pool_for(DATABASE.get_or_init(create).await)
+}
+
+static QUEUE: OnceCell<()> = OnceCell::const_new();
+
+/// Every append to an electoral log is admitted for its log's order in the
+/// task-queue database (`ScopeAdmission`), which fails closed without it: with
+/// `PGMQ_TEST_DATABASE_URL` set, it is that disposable database (its waiting
+/// table installed once), and `QUEUE_DB__URL` names it for the code under test.
+async fn task_queue_database() {
+    let Ok(url) = std::env::var("PGMQ_TEST_DATABASE_URL") else {
+        return;
+    };
+    if std::env::var("QUEUE_DB__URL").is_err() {
+        std::env::set_var("QUEUE_DB__URL", &url);
+    }
+    let (mut client, connection) = tokio_postgres::connect(&url, NoTls)
+        .await
+        .expect("task-queue test database");
+    let driver = tokio::spawn(connection);
+    let tx = client.transaction().await.expect("task-queue setup transaction");
+    pgmq_broker::setup::setup(
+        &tx,
+        &pgmq_broker::setup::Installation {
+            environment: "pgmq-test",
+            queues: &["integration_events"],
+            roles: None,
+        },
+    )
+    .await
+    .expect("task-queue setup");
+    tx.commit().await.expect("task-queue setup commit");
+    drop(client);
+    let _ = driver.await;
 }

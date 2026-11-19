@@ -192,6 +192,31 @@ pub async fn get_last_published_tree_size(
     Ok(row.try_get("tree_size")?)
 }
 
+/// The election events that stored a checkpoint in the last `hours` hours, open
+/// voting or not: those whose checkpoint records the sweeper checks (a record
+/// refused for its log's order, e.g. at voting's close, is recorded later).
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_election_events_with_recent_checkpoints(
+    hasura_transaction: &Transaction<'_>,
+    hours: i32,
+) -> Result<Vec<(String, String)>> {
+    let rows = hasura_transaction
+        .query(
+            r#"
+            SELECT DISTINCT tenant_id::text AS tenant_id, election_event_id::text AS election_event_id
+            FROM sequent_backend.electoral_log_checkpoint
+            WHERE created_at > now() - make_interval(hours => $1::integer)
+            ORDER BY 1, 2
+            "#,
+            &[&hours],
+        )
+        .await
+        .context("Error reading the election events with recent checkpoints")?;
+    rows.into_iter()
+        .map(|row| Ok((row.try_get("tenant_id")?, row.try_get("election_event_id")?)))
+        .collect()
+}
+
 /// `(tenant_id, election_event_id)` of every election event with voting open on any
 /// channel, for the whole event or for one of its elections.
 #[instrument(skip(hasura_transaction), err)]

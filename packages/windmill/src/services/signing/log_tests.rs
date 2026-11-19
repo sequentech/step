@@ -309,9 +309,30 @@ struct FakeStore {
     log: Arc<Mutex<Vec<String>>>,
     entries: Arc<Mutex<Vec<LogEntry>>>,
     unreachable: bool,
+    /// The log has entries waiting: admission is refused (for its order).
+    gated: bool,
 }
 
 impl SigningLogStore for FakeStore {
+    type Admission = ();
+
+    async fn admit(&self, scope: &str) -> Result<()> {
+        self.log.lock().unwrap().push(format!("admit {scope}"));
+        if self.gated {
+            return Err(anyhow::Error::new(
+                crate::services::electoral_log_deferral::ScopeWaiting {
+                    scope: scope.to_string(),
+                    waiting: 1,
+                },
+            ));
+        }
+        Ok(())
+    }
+
+    async fn end(&self, _admission: ()) {
+        self.log.lock().unwrap().push("end".to_string());
+    }
+
     async fn append(&self, board: &str, entries: &[LogEntry]) -> Result<Vec<StoredRecord>> {
         self.log
             .lock()
@@ -479,4 +500,38 @@ fn a_long_error_is_cut_on_a_character_boundary() {
     let text = error_text(&long);
     assert_eq!(text.chars().count(), MAX_ERROR_CHARS);
     assert!(text.starts_with("insert failed: é"));
+}
+
+/// While its electoral log has entries waiting, a pass is refused for the
+/// log's order: its admission is refused before anything is signed, nothing
+/// is appended, and the board is free again for the next pass.
+#[tokio::test]
+async fn a_refused_admission_appends_nothing_and_a_later_one_does() {
+    let store = FakeStore {
+        gated: true,
+        ..FakeStore::default()
+    };
+    let log = store.log.clone();
+    let mut board = BoardSigningLog::new(store);
+    let error = board.admit("tenant/event").await.unwrap_err();
+    assert!(crate::services::electoral_log_deferral::is_scope_gated(&error), "{error:#}");
+    board.end_admission().await;
+    assert_eq!(*log.lock().unwrap(), ["admit tenant/event".to_string()]);
+
+    let store = FakeStore::default();
+    let (log, entries) = (store.log.clone(), store.entries.clone());
+    let mut board = BoardSigningLog::new(store);
+    board.admit("tenant/event").await.unwrap();
+    let written = board.deliver("event-board", &deliveries(&Keys::new())).await.unwrap();
+    board.end_admission().await;
+    assert_eq!(written, vec![true, true]);
+    assert_eq!(entries.lock().unwrap().len(), 2);
+    assert_eq!(
+        *log.lock().unwrap(),
+        [
+            "admit tenant/event".to_string(),
+            "append event-board 2".to_string(),
+            "end".to_string()
+        ]
+    );
 }

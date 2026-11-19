@@ -116,6 +116,14 @@ ALTER TABLE step_queue.electoral_log_waiting ADD COLUMN IF NOT EXISTS copy_msg_i
 -- A system-signed pending statement's MAC, copied from the action database's
 -- outbox: the batch task checks it again before signing.
 ALTER TABLE step_queue.electoral_log_waiting ADD COLUMN IF NOT EXISTS mac bytea;
+-- A bounded head's budget (its tenant missing, or a retry), kept by the workers only (a
+-- queue message cannot set or reset it): the bounded time it has already spent, in
+-- milliseconds, and when its current bounded stretch started (NULL outside one). A
+-- round that waits for the signer or behind another entry closes the stretch (adds it
+-- to the time spent) and does not count; the bound (ELECTORAL_LOG_BOUNDED_WAIT_SECS)
+-- is on the total, so neither a restart nor alternating rounds can extend it.
+ALTER TABLE step_queue.electoral_log_waiting ADD COLUMN IF NOT EXISTS bounded_since_ms bigint;
+ALTER TABLE step_queue.electoral_log_waiting ADD COLUMN IF NOT EXISTS bounded_used_ms bigint NOT NULL DEFAULT 0;
 
 -- A waiting event's copy on a queue is looked up by its delivery header.
 DO $$

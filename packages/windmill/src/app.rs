@@ -255,6 +255,10 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
                 heartbeat_secs: heartbeat,
             });
 
+            // Before anything is consumed: the task-queue database must have this
+            // worker's schema (else every electoral-log batch would fail, then be
+            // dead-lettered): the worker does not start, visibly.
+            crate::services::electoral_log_deferral::ensure_waiting_table_schema().await?;
             let celery_app = celery_cfg::get_celery_app().await;
             celery_app.display_pretty().await;
             let queues = normalize_consumed_queues(&slug, &queues_input)?;

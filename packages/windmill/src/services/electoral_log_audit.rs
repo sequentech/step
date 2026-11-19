@@ -9,7 +9,8 @@
 //! task execution; findings are reported, never repaired.
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::electoral_log_checkpoint::{
-    get_election_events_with_open_voting, get_electoral_log_checkpoints,
+    get_election_events_with_open_voting, get_election_events_with_recent_checkpoints,
+    get_electoral_log_checkpoints,
     get_last_published_tree_size, PublishedCheckpoint,
 };
 use crate::postgres::tally_session_execution::append_tally_session_log;
@@ -29,6 +30,7 @@ use crate::services::tasks_execution::{post, update_fail, update_with_annotation
 use crate::tasks::audit_electoral_log::audit_electoral_log;
 use crate::types::tasks::ETasksExecution;
 use anyhow::{Context, Result};
+use std::collections::HashSet;
 use electoral_log::adapters::postgres::{AuditAnnotations, AuditOutcome};
 use electoral_log::domain::{LogQuery, OrderColumn, SortDirection};
 use electoral_log::messages::newtypes::ElectoralLogCheckpointReason;
@@ -215,16 +217,40 @@ pub struct PeriodicCheckpoints {
 /// others.
 #[instrument(err)]
 pub async fn publish_periodic_checkpoints() -> Result<PeriodicCheckpoints> {
-    let events = {
+    let (events, recent) = {
         let mut client = get_hasura_pool().await.get().await?;
         let transaction = client.build_transaction().read_only(true).start().await?;
-        get_election_events_with_open_voting(&transaction).await?
+        (
+            get_election_events_with_open_voting(&transaction).await?,
+            get_election_events_with_recent_checkpoints(&transaction, RECORD_SWEEP_HOURS).await?,
+        )
     };
+    // Events whose voting is no longer open but that stored a checkpoint lately
+    // (e.g. at voting's close): their missing checkpoint records are recorded too.
+    for (tenant_id, election_event_id) in recent.iter().filter(|event| !events.contains(event)) {
+        match record_missing_checkpoints(tenant_id, election_event_id).await {
+            Ok(0) => {}
+            Ok(recorded) => tracing::warn!(election_event_id, recorded, "Recorded missing checkpoint records"),
+            Err(error) => tracing::error!(
+                election_event_id,
+                "Could not record the missing checkpoint records: {error:#}"
+            ),
+        }
+    }
     let mut outcome = PeriodicCheckpoints::default();
     for (tenant_id, election_event_id) in events {
         match publish_periodic_checkpoint(&tenant_id, &election_event_id).await {
             Ok(true) => outcome.published += 1,
             Ok(false) => outcome.up_to_date += 1,
+            // Stored, its record refused for the log's order: recorded later
+            // by the sweeper; not a failure.
+            Err(error) if crate::services::electoral_log_deferral::is_scope_gated(&error) => {
+                outcome.published += 1;
+                tracing::info!(
+                    election_event_id,
+                    "The periodic checkpoint is stored; its record waits for the log's order: {error:#}"
+                );
+            }
             Err(error) => {
                 outcome.failed += 1;
                 tracing::error!(
@@ -236,9 +262,109 @@ pub async fn publish_periodic_checkpoints() -> Result<PeriodicCheckpoints> {
     Ok(outcome)
 }
 
+/// Records in the event's log every stored checkpoint of it whose record the board
+/// lacks: one refused for the log's order (it had entries waiting) or that failed
+/// after the checkpoint was stored. Idempotent (each record's delivery ID is fixed
+/// per log size); each signed only once admitted. Stops at the first refusal (the
+/// next beat goes on). Returns how many it recorded.
+pub async fn record_missing_checkpoints(tenant_id: &str, election_event_id: &str) -> Result<usize> {
+    let (electoral_log, board, checkpoints) = {
+        let mut client = get_hasura_pool().await.get().await?;
+        let transaction = client.transaction().await?;
+        let event = get_election_event_by_id(&transaction, tenant_id, election_event_id).await?;
+        let board = get_election_event_board(event.bulletin_board_reference)
+            .context("Election event has no electoral-log board")?;
+        let checkpoints =
+            get_electoral_log_checkpoints(&transaction, tenant_id, election_event_id).await?;
+        let electoral_log =
+            ElectoralLog::new(&transaction, tenant_id, Some(election_event_id), &board).await?;
+        transaction.commit().await?;
+        (electoral_log, board, checkpoints)
+    };
+    let store = crate::services::electoral_log_board::get_event_databases()
+        .await?
+        .board_store(&board)
+        .await?;
+    let mut recorded = 0;
+    let mut delivered = HashSet::new();
+    for checkpoint in checkpoints.iter().filter(|checkpoint| checkpoint.board_name == board) {
+        let delivery_id = checkpoint_record_delivery_id(checkpoint);
+        if store.delivered(&board, &delivery_id).await?.is_some() {
+            delivered.insert(delivery_id);
+        }
+    }
+    for checkpoint in unrecorded_checkpoints(&checkpoints, &board, &delivered) {
+        let log_uid = checkpoint.log_uid.hyphenated().to_string();
+        let reason: ElectoralLogCheckpointReason = checkpoint
+            .reason
+            .parse()
+            .with_context(|| format!("Unknown checkpoint reason {}", checkpoint.reason))?;
+        match electoral_log
+            .post_checkpoint_record(
+                election_event_id,
+                &log_uid,
+                u64::try_from(checkpoint.tree_size)?,
+                &checkpoint.root,
+                reason,
+            )
+            .await
+        {
+            Ok(()) => {
+                tracing::warn!(
+                    election_event_id,
+                    tree_size = checkpoint.tree_size,
+                    "Recorded a stored checkpoint whose record was missing from the log"
+                );
+                recorded += 1;
+            }
+            Err(error) if crate::services::electoral_log_deferral::is_scope_gated(&error) => {
+                tracing::info!(election_event_id, "Missing checkpoint records wait for the log's order: {error:#}");
+                break;
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(recorded)
+}
+
+/// How many hours after an event's last stored checkpoint its records are still
+/// swept when its voting is no longer open.
+pub const RECORD_SWEEP_HOURS: i32 = 24;
+
+/// The delivery ID of a checkpoint's record in its log (fixed per log and size).
+pub fn checkpoint_record_delivery_id(checkpoint: &PublishedCheckpoint) -> String {
+    format!(
+        "{}{}:{}",
+        crate::services::electoral_log::CHECKPOINT_DELIVERY_PREFIX,
+        checkpoint.log_uid.hyphenated(),
+        checkpoint.tree_size
+    )
+}
+
+/// The stored checkpoints of `board` whose record is not among `delivered`
+/// (delivery IDs the board holds), oldest first; another board's are not its.
+pub fn unrecorded_checkpoints<'a>(
+    checkpoints: &'a [PublishedCheckpoint],
+    board: &str,
+    delivered: &HashSet<String>,
+) -> Vec<&'a PublishedCheckpoint> {
+    let mut missing: Vec<&PublishedCheckpoint> = checkpoints
+        .iter()
+        .filter(|checkpoint| checkpoint.board_name == board)
+        .filter(|checkpoint| !delivered.contains(&checkpoint_record_delivery_id(checkpoint)))
+        .collect();
+    missing.sort_by_key(|checkpoint| checkpoint.tree_size);
+    missing
+}
+
 /// Publish a periodic checkpoint of one election event's log if it grew since its
 /// last checkpoint, and return whether it did.
 async fn publish_periodic_checkpoint(tenant_id: &str, election_event_id: &str) -> Result<bool> {
+    // First the records of stored checkpoints that are missing from the log (a
+    // checkpoint is never left unrecorded for good).
+    if let Err(error) = record_missing_checkpoints(tenant_id, election_event_id).await {
+        tracing::error!(election_event_id, "Could not record the missing checkpoint records: {error:#}");
+    }
     let (board, checkpoint, last_published) = {
         let mut client = get_hasura_pool().await.get().await?;
         let transaction = client.build_transaction().read_only(true).start().await?;
@@ -726,6 +852,49 @@ mod tests {
 #[cfg(test)]
 mod periodic_checkpoint_tests {
     use super::*;
+
+    fn stored(board: &str, uid: &str, size: i64) -> PublishedCheckpoint {
+        PublishedCheckpoint {
+            board_name: board.into(),
+            log_uid: uuid::Uuid::parse_str(uid).unwrap(),
+            tree_size: size,
+            root: "00".into(),
+            reason: "PERIODIC".into(),
+            signer_pk: String::new(),
+            signature: String::new(),
+        }
+    }
+
+    #[test]
+    fn the_sweeper_records_exactly_the_stored_checkpoints_its_log_lacks_oldest_first() {
+        const UID: &str = "7b0a8a3e-6c55-4f43-9e93-0d6f5ad4d2a1";
+        // Attempt 8: the record of the checkpoint at size 43 was refused while
+        // entries waited; 30, 46 and 48 were recorded.
+        let checkpoints = vec![
+            stored("board", UID, 48),
+            stored("board", UID, 30),
+            stored("board", UID, 43),
+            stored("board", UID, 46),
+            stored("other-board", UID, 7),
+        ];
+        let id = |size: i64| checkpoint_record_delivery_id(&stored("board", UID, size));
+        assert_eq!(id(43), format!("electoral-log-checkpoint:{UID}:43"));
+        let delivered: HashSet<String> = [id(30), id(46), id(48)].into();
+        let missing: Vec<i64> = unrecorded_checkpoints(&checkpoints, "board", &delivered)
+            .iter()
+            .map(|checkpoint| checkpoint.tree_size)
+            .collect();
+        assert_eq!(missing, vec![43], "only the lost record; not another board's");
+        // Nothing recorded yet: all of this board's, oldest first.
+        let missing: Vec<i64> = unrecorded_checkpoints(&checkpoints, "board", &HashSet::new())
+            .iter()
+            .map(|checkpoint| checkpoint.tree_size)
+            .collect();
+        assert_eq!(missing, vec![30, 43, 46, 48]);
+        // All recorded: nothing to do (idempotent).
+        let all: HashSet<String> = [id(30), id(43), id(46), id(48)].into();
+        assert!(unrecorded_checkpoints(&checkpoints, "board", &all).is_empty());
+    }
 
     #[test]
     fn the_interval_defaults_and_rejects_invalid_values() {

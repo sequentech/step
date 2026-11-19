@@ -386,6 +386,10 @@ pub enum PassOutcome {
     Busy,
     /// The first entry failed before and waits to be tried again.
     Backoff,
+    /// Refused for the electoral log's order (it has entries waiting, or a
+    /// batch is processing it): nothing signed or posted, nothing marked
+    /// failed; the next pass tries again.
+    Gated,
 }
 
 fn error_text(error: &anyhow::Error) -> String {
@@ -436,6 +440,27 @@ pub async fn post_target<U: Usernames>(
             return Ok(PassOutcome::Backoff);
         }
     }
+    if rows.is_empty() {
+        return Ok(PassOutcome::Posted(0));
+    }
+    // Admitted for the log's order before anything is signed. The scope is the
+    // entries' own (their tenant and election event, as the batch task's
+    // `scope_of`), also when they are rerouted to the tenant's board.
+    let scope = crate::services::electoral_log_deferral::scope_key(
+        &target.tenant_id.to_string(),
+        &target
+            .election_event_id
+            .map(|id| id.to_string())
+            .unwrap_or_default(),
+    );
+    let admission = match crate::services::electoral_log::ScopeAdmission::admit(&scope).await {
+        Ok(admission) => admission,
+        Err(error) if crate::services::electoral_log_deferral::is_scope_gated(&error) => {
+            tracing::info!(scope, "The audit log waits for its electoral log's order: {error:#}");
+            return Ok(PassOutcome::Gated);
+        }
+        Err(error) => return Err(error),
+    };
     let mut signed = Vec::with_capacity(rows.len());
     let mut failed = None;
     for (id, row) in rows {
@@ -459,7 +484,9 @@ pub async fn post_target<U: Usernames>(
         }
     }
     let entries: Vec<LogEntry> = signed.iter().map(|entry| entry.entry.clone()).collect();
-    let stored = match get_board_client().await?.append(&log.board, &entries).await {
+    let appended = get_board_client().await?.append(&log.board, &entries).await;
+    admission.end().await;
+    let stored = match appended {
         Ok(stored) => stored,
         Err(error) => {
             if let Some(first) = signed.first() {

@@ -72,7 +72,7 @@ use electoral_log::messages::newtypes::{PublicKeyDerB64, TenantIdString};
 use electoral_log::messages::statement::StatementBody;
 use electoral_log::{ElectoralLogMessage, LogEntry};
 use tokio_postgres::GenericClient;
-use tracing::{error, warn};
+use tracing::{error, info, warn};
 use voting_crypto::signing::VerificationKey;
 use voting_crypto::{RecordDeserialize, RecordSerialize};
 
@@ -119,11 +119,23 @@ pub async fn lock_scope<C: GenericClient + Sync>(client: &C, scope: &str, exclus
     } else {
         "SELECT pg_advisory_xact_lock_shared(hashtextextended($1, 0))"
     };
-    client
+    match client
         .query(sql, &[&format!("electoral-log-scope:{scope}")])
         .await
-        .context("The electoral log's scope is busy")?;
-    Ok(())
+    {
+        Ok(_) => Ok(()),
+        // Not had within the transaction's lock_timeout: a refusal for the
+        // log's order (an action is writing to its outbox), not a failure.
+        Err(error)
+            if error.code() == Some(&tokio_postgres::error::SqlState::LOCK_NOT_AVAILABLE) =>
+        {
+            Err(anyhow::Error::new(crate::services::electoral_log_deferral::ScopeBusy {
+                scope: scope.to_string(),
+                what: "an action is writing to its outbox",
+            }))
+        }
+        Err(error) => Err(anyhow::Error::new(error).context("The electoral log's scope is busy")),
+    }
 }
 
 /// The direct-post gate's half in the action database: takes H(S) shared (a
@@ -323,6 +335,13 @@ pub async fn relay_electoral_log_outbox(lock_client: &mut Client, client: &mut C
                 Err(failure) if is_permanent_relay_failure(&failure) => {
                     dead_letter(client, &delivery_id, &failure).await?;
                 }
+                // Refused for a log's order (its tenant log has entries waiting
+                // or a batch is processing it): not a failure of the row; its
+                // scope waits for the next pass, no attempt is counted.
+                Err(failure) if crate::services::electoral_log_deferral::is_scope_gated(&failure) => {
+                    info!(delivery_id, "The outbox relay waits for a log's order: {failure:#}");
+                    held.insert(scope);
+                }
                 Err(failure) => {
                     held.insert(scope);
                     record_failure(client, &delivery_id, &failure).await?;
@@ -413,7 +432,7 @@ async fn relay_row(client: &mut Client, delivery_id: &str) -> Result<bool> {
     )
     .map_err(permanent)?;
     if statement.statement.admin().is_some() {
-        forward_announcement(&transaction, &statement, row.announcement.as_deref()).await?;
+        forward_announcement(&statement, row.announcement.as_deref()).await?;
     }
     // The waiting row commits (task-queue database) before this row is marked.
     statement
@@ -442,7 +461,6 @@ async fn relay_row(client: &mut Client, delivery_id: &str) -> Result<bool> {
 /// log, checked ([`checked_announcement`]); the tenant log (board and system
 /// key) comes from the tenant, never from the row.
 async fn forward_announcement(
-    hasura_transaction: &Transaction<'_>,
     statement: &PendingStatement,
     announcement: Option<&[u8]>,
 ) -> Result<()> {
@@ -451,10 +469,27 @@ async fn forward_announcement(
     };
     let announcement = announcement
         .ok_or_else(|| permanent(anyhow!("An administrator-signed entry without its announcement")))?;
-    let tenant_log =
-        crate::services::electoral_log_board::ensure_tenant_log(hasura_transaction, &statement.tenant_id)
+    // The tenant log is prepared in a short transaction of its own, committed before
+    // the announcement is admitted: the relay never holds the tenant-log lock while it
+    // waits at its log's gate (a batch holding the tenant scope's lease may need that
+    // lock: holding it here could make them wait on each other across two databases).
+    let tenant_log = {
+        let mut client = crate::services::database::get_hasura_pool()
             .await
-            .context("Error getting the tenant log")?;
+            .get()
+            .await
+            .context("Error connecting to the action database")?;
+        let tx = client
+            .transaction()
+            .await
+            .context("Error starting to prepare the tenant log")?;
+        let tenant_log =
+            crate::services::electoral_log_board::ensure_tenant_log(&tx, &statement.tenant_id)
+                .await
+                .context("Error getting the tenant log")?;
+        tx.commit().await.context("Error keeping the tenant log")?;
+        tenant_log
+    };
     let system_pk = VerificationKey::from_sk(&tenant_log.system_key)?;
     let message = checked_announcement(
         announcement,
@@ -468,11 +503,19 @@ async fn forward_announcement(
         delivery_id: crate::services::electoral_log::admin_pk_delivery_id(user_id, public_key),
         message: ElectoralLogMessage::try_from(&message).map_err(permanent)?,
     };
-    crate::services::electoral_log_board::get_board_client()
+    // Admitted for the tenant log's order (the announcement is already signed:
+    // nothing is signed here). Released before the relay makes its entry wait
+    // (`write_waiting`), so the relay never holds a tenant guard while it takes
+    // a scope lock exclusive. Refused: the row stays for the next pass, not a failure.
+    let scope = crate::services::electoral_log_deferral::scope_key(&statement.tenant_id, "");
+    let admission = crate::services::electoral_log::ScopeAdmission::admit(&scope).await?;
+    let forwarded = crate::services::electoral_log_board::get_board_client()
         .await?
         .append(&tenant_log.board, &[entry])
         .await
-        .context("Error forwarding the administrator's key announcement")?;
+        .context("Error forwarding the administrator's key announcement");
+    admission.end().await;
+    forwarded?;
     Ok(())
 }
 

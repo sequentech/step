@@ -16,8 +16,22 @@
 //!   loses nothing, and the dispatcher hands the event to a batch again when
 //!   it is due. The event carries how long it has waited ([`Deferral`]).
 //! - **Backoff.** The delay doubles from `ELECTORAL_LOG_DEFER_FIRST_SECS`
-//!   (5 s) up to `ELECTORAL_LOG_DEFER_MAX_SECS` (5 min), and stays there for
-//!   as many rounds as the outage lasts: there is no retry budget.
+//!   (5 s) up to `ELECTORAL_LOG_DEFER_MAX_SECS` (30 s), and stays there for
+//!   as many rounds as the outage lasts: there is no retry budget. The cap is
+//!   the head's retry interval, so after the key service comes back a log's
+//!   backlog drains within about 30 s (an attempt while it is still down fails
+//!   at the signer and signs nothing).
+//! - **Heads and why they wait.** A scope's head waits because its signer
+//!   cannot sign now (`signer-unavailable`, no budget), because its tenant does
+//!   not exist yet (`tenant-missing`: a Keycloak event can arrive while the
+//!   tenant is being created), or because its record failed for another reason
+//!   that may pass (`retry`: a signer refused or not loaded, or a batch that
+//!   failed). The last two are bounded: past `ELECTORAL_LOG_BOUNDED_WAIT_SECS`
+//!   (600 s) since the entry first waited it is dead-lettered (visible in the
+//!   dead-letter queue with its reason, and its row is removed so its scope's
+//!   later entries go on). Every head holds its scope: later events of the
+//!   scope wait behind it (`held`), so a bounded wait never lets a later entry
+//!   of its scope overtake it.
 //! - **Order.** The events of one scope (an election event, or a tenant's
 //!   own events) keep their order: an event waits behind any event of its
 //!   scope that started waiting before it (in the queue or earlier in the
@@ -32,11 +46,13 @@
 //!   the queue setup indexes the deferral headers (`pgmq-broker`'s
 //!   `setup.sql`), so neither reading them nor putting one back scans the
 //!   queue.
-//! - **Concurrency.** Ordering holds for one batch worker at a time per
-//!   scope; with several concurrent batch workers, an event handed to a
-//!   batch (no longer in the queue) is not seen by another batch, which may
-//!   store a later event of its scope first. Statement times still say
-//!   when each happened.
+//! - **Concurrency.** A batch takes the processing lease of each of its
+//!   scopes ([`take_leases`]: exclusive, sorted, held for its whole run), so
+//!   two batches never store one scope at once and no gated append of the
+//!   scope is admitted while a batch has its events in hand; what the batch
+//!   could not store waits (as its scope's head) before the lease goes. Not
+//!   covered (stated): an event still on the queue that no batch has picked
+//!   up yet is not seen by admission; its statement time says when it happened.
 //! - **Where waiting is recorded.** Every waiting entry has a row in
 //!   `step_queue.electoral_log_waiting` (written in the same transaction as
 //!   its put-back, removed once it is stored or dead-lettered). Only the
@@ -59,9 +75,9 @@
 //!   each other) and gives up after [`GATE_LOCK_TIMEOUT`], refusing the post;
 //!   writes that make an entry wait take it exclusive.
 //!
-//!   *Availability (operators).* While a log has entries waiting for its
-//!   signer (an outage of the key service), every action that must record a
-//!   direct entry in that election event's log fails visibly: opening,
+//!   *Availability (operators).* While a log has entries waiting (its signer
+//!   is down, its tenant does not exist yet, or a retry), every action that
+//!   must record a direct entry in that log fails visibly: opening,
 //!   closing or publishing an election, secret-attribute actions, readiness
 //!   checks, key and tally ceremonies, configuration imports, among others.
 //!   The error reads "the electoral log of <tenant>/<event> has N entries
@@ -73,17 +89,18 @@
 //!   `ELECTORAL_LOG_DEFER_MAX_SECS`) and the actions work again. Do not
 //!   discard waiting or dead-lettered entries to unblock a log unless losing
 //!   them is intended: they are the log's record.
-//! - **Not gated (exempt).** Appends that are not direct posts of an
-//!   action keep their behaviour: the ballot box's sequencer
-//!   (`ballot_box.rs`, its own durable queue, retried by its beat), the
-//!   signing-log outbox (`signing/log.rs`) and the audit-log outbox
-//!   (`audit_log_writer.rs`), each an outbox retried until stored; sealed
-//!   ballot boxes (`ceremonies/sealed_box_ballots.rs`, a ceremony that
-//!   fails and retries); a log's import from a CSV backup (`import_from_csv`,
-//!   records already signed); and logs made from a signer alone
-//!   (`ElectoralLog::for_*_with_signer`, `for_*_with_signing_key`: the batch
-//!   task, the sequencer, tenant logs). Whether any of these must also wait
-//!   behind a scope's waiting entries is an open owner question.
+//! - **Every append is gated** (`ScopeAdmission`, in `services/electoral_log.rs`),
+//!   admitted BEFORE anything is signed, so a refused round signs nothing: direct
+//!   posts (`post_built*`), the checkpoint and continuation records, the ballot
+//!   box's sequencer (each round; refused, its ballots stay pending), the
+//!   signing-log and audit-log outboxes (refused: no failure counted), the
+//!   tally's sealed-box records, the ballot-box seal (refused: pending, busy),
+//!   admin keys and the relay's announcements on the tenant log, and the CSV and
+//!   transfer restores (nothing signed). Only the batch task (the drainer) appends
+//!   without admission, under its scopes' leases. `electoral_log_append_coverage`
+//!   lists every production append and fails on an unclassified one. A stored
+//!   checkpoint whose record was refused is recorded later
+//!   (`record_missing_checkpoints`, each periodic beat).
 //! - **Idempotency.** An event is put back at most once while a copy waits
 //!   (by delivery ID), and storing is idempotent by delivery ID, so a batch
 //!   retried after an uncertain commit stores nothing twice.
@@ -110,7 +127,11 @@ pub const DEFER_MAX_ENV: &str = "ELECTORAL_LOG_DEFER_MAX_SECS";
 /// are logged as an error.
 pub const DEFER_ALERT_ENV: &str = "ELECTORAL_LOG_DEFER_ALERT_SECS";
 pub const DEFAULT_DEFER_FIRST: Duration = Duration::from_secs(5);
-pub const DEFAULT_DEFER_MAX: Duration = Duration::from_secs(300);
+pub const DEFAULT_DEFER_MAX: Duration = Duration::from_secs(30);
+/// Environment variable with how long, in seconds, a bounded head
+/// (`tenant-missing`, `retry`) may wait before it is dead-lettered.
+pub const BOUNDED_WAIT_ENV: &str = "ELECTORAL_LOG_BOUNDED_WAIT_SECS";
+pub const DEFAULT_BOUNDED_WAIT: Duration = Duration::from_secs(600);
 pub const DEFAULT_DEFER_ALERT: Duration = Duration::from_secs(900);
 
 /// Header with the scope whose order a waiting event keeps.
@@ -139,9 +160,27 @@ pub struct Deferral {
     pub since_ms: i64,
     /// Its place among the events that first waited in the same batch.
     pub order: u32,
+    /// When its current stretch as a bounded head (`tenant-missing`, `retry`)
+    /// started, in milliseconds since the epoch (`None` outside one), and the
+    /// bounded time it already spent in earlier stretches ([`Deferral::bounded_ms`]).
+    /// Taken ONLY from its waiting row (kept by the workers; a message's values are
+    /// ignored), so neither a queue writer nor a restart can move or extend them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bounded_since_ms: Option<i64>,
+    #[serde(default)]
+    pub bounded_used_ms: i64,
 }
 
 impl Deferral {
+    /// The bounded time it has spent at `now_ms`: earlier stretches plus the
+    /// current one (a clock that went back counts nothing for it).
+    pub fn bounded_ms(&self, now_ms: i64) -> i64 {
+        self.bounded_used_ms.max(0).saturating_add(
+            self.bounded_since_ms
+                .map_or(0, |since| now_ms.saturating_sub(since).max(0)),
+        )
+    }
+
     /// The deferral after one more round: `previous` one round on, or a
     /// first one at `now_ms`, `order`-th of its batch.
     pub fn next(previous: Option<Deferral>, now_ms: i64, order: u32) -> Deferral {
@@ -154,6 +193,8 @@ impl Deferral {
                 rounds: 1,
                 since_ms: now_ms,
                 order,
+                bounded_since_ms: None,
+                bounded_used_ms: 0,
             },
         }
     }
@@ -212,8 +253,13 @@ pub fn in_wait_order(events: &[LogEventInput]) -> Vec<&LogEventInput> {
 /// Why an event waits.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WaitReason {
-    /// Its board's signer cannot sign now.
+    /// Its board's signer cannot sign now (no budget: as long as the outage).
     SignerUnavailable,
+    /// Its tenant does not exist yet (bounded: [`DeferralBackoff::bounded`]).
+    TenantMissing,
+    /// Its record failed for a reason that may pass (a signer refused or not
+    /// loaded, or its batch failed): bounded, like `TenantMissing`.
+    Retry,
     /// An earlier event of its scope waits.
     Held,
 }
@@ -222,8 +268,17 @@ impl WaitReason {
     pub fn as_str(&self) -> &'static str {
         match self {
             WaitReason::SignerUnavailable => "signer-unavailable",
+            WaitReason::TenantMissing => "tenant-missing",
+            WaitReason::Retry => "retry",
             WaitReason::Held => "held",
         }
+    }
+
+    /// Whether an event waiting for this reason is its scope's head: it waits
+    /// on its own backoff and holds the scope's later events behind it (all
+    /// reasons but `Held`).
+    pub fn is_head(&self) -> bool {
+        !matches!(self, WaitReason::Held)
     }
 }
 
@@ -241,11 +296,19 @@ pub struct Waiting {
     by_scope: HashMap<String, Vec<WaitKey>>,
     /// When each waiting entry is due, in milliseconds, by delivery ID, with its scope.
     due_by_delivery: HashMap<String, (String, i64)>,
+    /// Each row's bounded budget: (`bounded_since_ms`, `bounded_used_ms`).
+    bounded_since: HashMap<String, (Option<i64>, i64)>,
 }
 
 impl Waiting {
     pub fn add(&mut self, scope: String, key: WaitKey) {
         self.by_scope.entry(scope).or_default().push(key);
+    }
+
+    /// Notes the entry `delivery_id`'s bounded budget: its current stretch's
+    /// start (if in one) and the bounded time it already spent.
+    pub fn add_bounded(&mut self, delivery_id: String, since_ms: Option<i64>, used_ms: i64) {
+        self.bounded_since.insert(delivery_id, (since_ms, used_ms));
     }
 
     /// Notes that the entry `delivery_id` of `scope` is due at `due_ms`.
@@ -326,6 +389,7 @@ pub fn bind_to_rows(events: &[LogEventInput], waiting: Waiting) -> (Vec<LogEvent
         .filter_map(|event| event.delivery_id.clone())
         .collect();
     let rows = waiting.keys_for(&ids);
+    let bounded = waiting.bounded_since.clone();
     let bound = events
         .iter()
         .map(|event| {
@@ -335,6 +399,9 @@ pub fn bind_to_rows(events: &[LogEventInput], waiting: Waiting) -> (Vec<LogEvent
                 rounds: event.deferral.map_or(0, |deferral| deferral.rounds),
                 since_ms: key.since_ms,
                 order: key.order,
+                // The row's own (worker-kept); never the message's.
+                bounded_since_ms: bounded.get(&key.delivery_id).and_then(|budget| budget.0),
+                bounded_used_ms: bounded.get(&key.delivery_id).map_or(0, |budget| budget.1),
             });
             event
         })
@@ -349,6 +416,9 @@ pub struct DeferralBackoff {
     pub max: Duration,
     /// Waiting longer than this is logged as an error.
     pub alert: Duration,
+    /// A bounded head (`tenant-missing`, `retry`) waiting longer than this,
+    /// since it first waited, is dead-lettered.
+    pub bounded: Duration,
 }
 
 impl Default for DeferralBackoff {
@@ -357,6 +427,7 @@ impl Default for DeferralBackoff {
             first: DEFAULT_DEFER_FIRST,
             max: DEFAULT_DEFER_MAX,
             alert: DEFAULT_DEFER_ALERT,
+            bounded: DEFAULT_BOUNDED_WAIT,
         }
     }
 }
@@ -365,11 +436,25 @@ impl DeferralBackoff {
     /// Read from the environment; an unset or empty variable takes its
     /// default, any other value must be a positive number of seconds.
     pub fn from_env() -> Result<Self> {
-        Self::from_values(
+        let mut backoff = Self::from_values(
             std::env::var(DEFER_FIRST_ENV).ok().as_deref(),
             std::env::var(DEFER_MAX_ENV).ok().as_deref(),
             std::env::var(DEFER_ALERT_ENV).ok().as_deref(),
-        )
+        )?;
+        backoff.bounded = seconds(
+            BOUNDED_WAIT_ENV,
+            std::env::var(BOUNDED_WAIT_ENV).ok().as_deref(),
+            DEFAULT_BOUNDED_WAIT,
+        )?;
+        Ok(backoff)
+    }
+
+    /// Whether a bounded head has spent more than its bound as one at `now_ms`
+    /// (its row's budget: [`Deferral::bounded_ms`]; no deferral: none spent) and is
+    /// dead-lettered instead of waiting again.
+    pub fn bound_exceeded(&self, deferral: Option<&Deferral>, now_ms: i64) -> bool {
+        let bound = i64::try_from(self.bounded.as_millis()).unwrap_or(i64::MAX);
+        deferral.is_some_and(|deferral| deferral.bounded_ms(now_ms) > bound)
     }
 
     pub fn from_values(
@@ -381,6 +466,7 @@ impl DeferralBackoff {
             first: seconds(DEFER_FIRST_ENV, first, DEFAULT_DEFER_FIRST)?,
             max: seconds(DEFER_MAX_ENV, max, DEFAULT_DEFER_MAX)?,
             alert: seconds(DEFER_ALERT_ENV, alert, DEFAULT_DEFER_ALERT)?,
+            bounded: DEFAULT_BOUNDED_WAIT,
         };
         anyhow::ensure!(
             backoff.first <= backoff.max,
@@ -437,7 +523,7 @@ pub async fn lock_scopes<C: GenericClient + Sync>(client: &C, scopes: &[String])
         client
             .query(
                 "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
-                &[&format!("electoral-log-scope:{scope}")],
+                &[&format!("electoral-log-queue-scope:{scope}")],
             )
             .await
             .context("Error locking an electoral-log scope")?;
@@ -447,6 +533,101 @@ pub async fn lock_scopes<C: GenericClient + Sync>(client: &C, scopes: &[String])
 
 /// How long a direct post waits for its scope's lock before it is refused.
 pub const GATE_LOCK_TIMEOUT: &str = "5s";
+/// How long a batch waits for the leases of its scopes (a gated append holds
+/// one, shared, while it appends) before it fails (its events then wait as
+/// their scopes' heads: `retry`).
+pub const LEASE_LOCK_TIMEOUT: &str = "60s";
+
+/// The advisory-lock key of a scope's processing lease (task-queue database):
+/// a batch holds it exclusive while it processes events of the scope; a gated
+/// append holds it shared while it appends. Distinct from the scope lock.
+fn lease_key(scope: &str) -> String {
+    format!("electoral-log-lease:{scope}")
+}
+
+/// Takes the processing leases of `scopes` for the caller's transaction,
+/// exclusive, sorted (so two batches never wait on each other in a cycle), and
+/// holds them until it ends: a batch takes them first and keeps them for its
+/// whole run (reading what waits, putting events back, appending, settling),
+/// so no gated append of those scopes is admitted while the batch has events of
+/// theirs in hand, and two batches never store one scope at once. Lock order:
+/// lease, then the scope lock ([`lock_scopes`]), the same as a gated append's
+/// ([`direct_post_gate`]): no cycle.
+pub async fn take_leases<C: GenericClient + Sync>(client: &C, scopes: &[String]) -> Result<()> {
+    let mut scopes: Vec<&String> = scopes.iter().collect();
+    scopes.sort();
+    scopes.dedup();
+    client
+        .batch_execute(&format!("SET LOCAL lock_timeout = '{LEASE_LOCK_TIMEOUT}'"))
+        .await
+        .context("Error setting the electoral-log lease timeout")?;
+    for scope in scopes {
+        client
+            .query(
+                "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+                &[&lease_key(scope)],
+            )
+            .await
+            .with_context(|| format!("Error taking the electoral-log lease of {scope}"))?;
+    }
+    Ok(())
+}
+
+/// A gated append was refused because its scope's lease or lock could not be
+/// had in time (a batch is processing the scope, or an entry is starting to
+/// wait): like [`ScopeWaiting`], the entry is not appended now and is tried
+/// again; nothing is lost and it is not a failure of the entry.
+#[derive(Debug)]
+pub struct ScopeBusy {
+    pub scope: String,
+    pub what: &'static str,
+}
+
+impl std::fmt::Display for ScopeBusy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "the electoral log of {} is busy ({}); this entry is refused for now (the log keeps its order)",
+            self.scope, self.what
+        )
+    }
+}
+
+impl std::error::Error for ScopeBusy {}
+
+/// Whether `error` means a gated append was refused for its log's order (its
+/// scope has entries waiting, or is busy), not that the entry failed: a durable
+/// path keeps the entry and tries again, without counting a failure.
+pub fn is_scope_gated(error: &anyhow::Error) -> bool {
+    error
+        .chain()
+        .any(|cause| cause.is::<ScopeWaiting>() || cause.is::<ScopeBusy>())
+}
+
+/// Takes one shared advisory lock for the gate; a lock not had within the
+/// transaction's lock_timeout is [`ScopeBusy`], any other error stays an error.
+async fn gate_lock_shared<C: GenericClient + Sync>(
+    client: &C,
+    key: &str,
+    scope: &str,
+    what: &'static str,
+) -> Result<()> {
+    match client
+        .query("SELECT pg_advisory_xact_lock_shared(hashtextextended($1, 0))", &[&key])
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(error)
+            if error.code() == Some(&tokio_postgres::error::SqlState::LOCK_NOT_AVAILABLE) =>
+        {
+            Err(anyhow::Error::new(ScopeBusy {
+                scope: scope.to_string(),
+                what,
+            }))
+        }
+        Err(error) => Err(anyhow::Error::new(error).context("Error taking an electoral-log gate lock")),
+    }
+}
 
 /// The entries waiting in these `scopes` (the table's scope index).
 pub async fn waiting_events<C: GenericClient + Sync>(
@@ -461,7 +642,7 @@ pub async fn waiting_events<C: GenericClient + Sync>(
         .query(
             &format!(
                 "SELECT scope, delivery_id, since_ms, ord, \
-                 (extract(epoch FROM due_at) * 1000)::bigint \
+                 (extract(epoch FROM due_at) * 1000)::bigint, bounded_since_ms, bounded_used_ms \
                  FROM {WAITING_TABLE} WHERE scope = ANY($1)"
             ),
             &[&scopes],
@@ -474,6 +655,11 @@ pub async fn waiting_events<C: GenericClient + Sync>(
         let since_ms: i64 = row.get(2);
         let order: i64 = row.get(3);
         let due_ms: i64 = row.get(4);
+        let bounded_since_ms: Option<i64> = row.get(5);
+        let bounded_used_ms: i64 = row.get(6);
+        if bounded_since_ms.is_some() || bounded_used_ms > 0 {
+            waiting.add_bounded(delivery_id.clone(), bounded_since_ms, bounded_used_ms);
+        }
         waiting.add_due(scope.clone(), delivery_id.clone(), due_ms);
         waiting.add(
             scope,
@@ -507,6 +693,33 @@ pub async fn waiting_ids<C: GenericClient + Sync>(
         .collect())
 }
 
+/// Of these delivery IDs, those whose row is BOUNDED: only an in-flight marker
+/// ([`mark_in_flight`]: no copy on the queue, no statement; attempted by a batch,
+/// never put back to wait for its signer) or a head in an open bounded stretch
+/// (`bounded_since_ms` set: `retry` / `tenant-missing`). At the last retry these go
+/// back as bounded `retry` heads; the others (waits for the signer, held) as they were.
+pub async fn bounded_row_ids<C: GenericClient + Sync>(
+    client: &C,
+    delivery_ids: &[String],
+) -> Result<HashSet<String>> {
+    if delivery_ids.is_empty() {
+        return Ok(HashSet::new());
+    }
+    Ok(client
+        .query(
+            &format!(
+                "SELECT delivery_id FROM {WAITING_TABLE} WHERE delivery_id = ANY($1) \
+                 AND ((copy_msg_id IS NULL AND statement IS NULL) OR bounded_since_ms IS NOT NULL)"
+            ),
+            &[&delivery_ids],
+        )
+        .await
+        .context("Error reading which electoral-log entries are in flight")?
+        .iter()
+        .map(|row| row.get(0))
+        .collect())
+}
+
 /// Removes the rows of entries that no longer wait: stored, or dead-lettered.
 pub async fn stop_waiting<C: GenericClient + Sync>(
     client: &C,
@@ -523,6 +736,103 @@ pub async fn stop_waiting<C: GenericClient + Sync>(
         .await
         .context("Error removing electoral-log entries that no longer wait")?;
     Ok(())
+}
+
+/// The waiting table's columns this worker needs (added by `setup-queue-database`).
+pub const REQUIRED_WAITING_COLUMNS: [&str; 2] = ["bounded_since_ms", "bounded_used_ms"];
+
+/// The columns of [`REQUIRED_WAITING_COLUMNS`] that the task-queue database's
+/// waiting table lacks (all of them if the table itself is missing).
+pub async fn missing_waiting_columns<C: GenericClient + Sync>(client: &C) -> Result<Vec<String>> {
+    let present: HashSet<String> = client
+        .query(
+            "SELECT column_name::text FROM information_schema.columns \
+             WHERE table_schema = 'step_queue' AND table_name = 'electoral_log_waiting'",
+            &[],
+        )
+        .await
+        .context("Error reading the waiting table's columns")?
+        .iter()
+        .map(|row| row.get(0))
+        .collect();
+    Ok(REQUIRED_WAITING_COLUMNS
+        .iter()
+        .filter(|column| !present.contains(**column))
+        .map(|column| column.to_string())
+        .collect())
+}
+
+/// Refuses to start a worker whose task-queue database's schema is older than it
+/// (`setup-queue-database` not run since the upgrade): it would fail every
+/// electoral-log batch and, after their retries, dead-letter them. Fails visibly,
+/// BEFORE anything is consumed.
+pub async fn ensure_waiting_table_schema() -> Result<()> {
+    let client = crate::services::database::try_get_queue_pool()
+        .await
+        .context("The task-queue database is unavailable: the worker does not start")?
+        .get()
+        .await
+        .context("The task-queue database is unavailable: the worker does not start")?;
+    let missing = missing_waiting_columns(&**client).await?;
+    anyhow::ensure!(
+        missing.is_empty(),
+        "The task-queue database's schema is older than this worker: \
+         step_queue.electoral_log_waiting lacks {missing:?}. Run `setup-queue-database` \
+         (the stack's task-queues-setup) first; this worker does not start (it would fail \
+         every electoral-log batch)."
+    );
+    Ok(())
+}
+
+/// How long after a batch marks its events in flight their markers fall due:
+/// longer than any batch runs, so only a batch that never finished (its worker
+/// died and the task was not redelivered) leaves markers that are reported as
+/// orphans ([`report_orphans`]).
+pub const IN_FLIGHT_SECS: i32 = 900;
+
+/// Marks a batch's events as in flight BEFORE it attempts any of them: each event
+/// that has no waiting row gets one (no copy on the queue; due in
+/// [`IN_FLIGHT_SECS`]). Committed by the caller before the batch signs or appends.
+/// So an attempted event is never invisible to admission: if the worker dies mid
+/// batch, its events' rows keep their logs' gated appends refused until the task
+/// is redelivered and settles them (stored, put back or dead-lettered); a batch
+/// that settles normally removes or updates every marker it made. Rows that
+/// already exist are left as they are. Returns how many it marked.
+pub async fn mark_in_flight<C: GenericClient + Sync>(
+    client: &C,
+    events: &[LogEventInput],
+    now_ms: i64,
+) -> Result<usize> {
+    let events: Vec<&LogEventInput> = events
+        .iter()
+        .filter(|event| event.delivery_id.as_deref().is_some_and(|id| !id.is_empty()))
+        .collect();
+    if events.is_empty() {
+        return Ok(0);
+    }
+    let scopes: Vec<String> = events.iter().map(|event| scope_of(event)).collect();
+    lock_scopes(client, &scopes).await?;
+    let mut marked = 0;
+    for (index, event) in events.iter().enumerate() {
+        marked += client
+            .execute(
+                &format!(
+                    "INSERT INTO {WAITING_TABLE} (delivery_id, scope, since_ms, ord, due_at) \
+                     VALUES ($1, $2, $3, $4, clock_timestamp() + make_interval(secs => $5::integer)) \
+                     ON CONFLICT (delivery_id) DO NOTHING"
+                ),
+                &[
+                    &event.delivery_id.clone().unwrap_or_default(),
+                    &scope_of(event),
+                    &now_ms,
+                    &i64::try_from(index).unwrap_or(i64::MAX),
+                    &IN_FLIGHT_SECS,
+                ],
+            )
+            .await
+            .context("Error marking an electoral-log event in flight")?;
+    }
+    Ok(usize::try_from(marked).unwrap_or(usize::MAX))
 }
 
 /// Makes the waiting entries of these scopes due now (their rows and their
@@ -569,7 +879,7 @@ pub fn released_scopes(
 ) -> Vec<String> {
     let still_waiting: HashSet<String> = waiting
         .iter()
-        .filter(|item| item.reason == WaitReason::SignerUnavailable)
+        .filter(|item| item.reason.is_head())
         .map(|item| scope_of(&item.event))
         .collect();
     let mut scopes: Vec<String> = events
@@ -644,8 +954,9 @@ impl std::fmt::Display for ScopeWaiting {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "the electoral log of {} has {} entries waiting for its signer; \
-             this entry is refused until they are stored (the log keeps its order)",
+            "the electoral log of {} has {} entries waiting (for its signer, its tenant, \
+             a retry, or in a batch's hands); this entry is refused until they are stored \
+             (the log keeps its order)",
             self.scope, self.waiting
         )
     }
@@ -672,13 +983,19 @@ pub async fn direct_post_gate<C: GenericClient + Sync>(client: &C, scope: &str) 
         .batch_execute(&format!("SET LOCAL lock_timeout = '{GATE_LOCK_TIMEOUT}'"))
         .await
         .context("Error setting the electoral-log scope lock's timeout")?;
-    client
-        .query(
-            "SELECT pg_advisory_xact_lock_shared(hashtextextended($1, 0))",
-            &[&format!("electoral-log-scope:{scope}")],
-        )
-        .await
-        .context("The electoral-log scope is busy: the entry is refused")?;
+    // First the scope's lease (shared): not while a batch is processing events
+    // of the scope (it holds it exclusive until what it could not store waits,
+    // durably), so an entry admitted here never gets ahead of an event of its
+    // scope that was already attempted. Then the scope lock. Same order as a
+    // batch (lease, then scope lock): no cycle.
+    gate_lock_shared(client, &lease_key(scope), scope, "a batch is processing it").await?;
+    gate_lock_shared(
+        client,
+        &format!("electoral-log-queue-scope:{scope}"),
+        scope,
+        "an entry is starting to wait",
+    )
+    .await?;
     let waiting: i64 = client
         .query_one(
             &format!("SELECT count(scope) FROM {WAITING_TABLE} WHERE scope = $1"),
@@ -706,6 +1023,10 @@ pub async fn direct_post_gate<C: GenericClient + Sync>(client: &C, scope: &str) 
 pub struct PutBack {
     /// Events whose signer cannot sign now.
     pub signer_unavailable: usize,
+    /// Events whose tenant does not exist yet.
+    pub tenant_missing: usize,
+    /// Events retried (bounded) after another failure.
+    pub retry: usize,
     /// Events held behind an earlier one of their scope.
     pub held: usize,
     /// Events put back now.
@@ -750,7 +1071,7 @@ pub fn plan(
     for (index, item) in waiting.iter().enumerate() {
         let order = u32::try_from(index).unwrap_or(u32::MAX);
         let (event, delay) = next_round(&item.event, order, backoff, now_ms);
-        if item.reason == WaitReason::SignerUnavailable {
+        if item.reason.is_head() {
             let due = now_ms.saturating_add(i64::try_from(delay.as_millis()).unwrap_or(i64::MAX));
             let scope_due = due_by_scope.entry(scope_of(&event)).or_insert(due);
             *scope_due = (*scope_due).min(due);
@@ -758,15 +1079,16 @@ pub fn plan(
         let deferral = event.deferral.unwrap_or(Deferral {
             rounds: 1,
             since_ms: now_ms,
-            order,
-        });
+            order, bounded_since_ms: None, bounded_used_ms: 0 });
         planned.push((item.reason, event, deferral, delay));
     }
     planned
         .into_iter()
         .map(|(reason, event, deferral, delay)| {
             let delay = match reason {
-                WaitReason::SignerUnavailable => delay,
+                WaitReason::SignerUnavailable | WaitReason::TenantMissing | WaitReason::Retry => {
+                    delay
+                }
                 WaitReason::Held => {
                     let scope = scope_of(&event);
                     let head = [due_by_scope.get(&scope).copied(), heads.due_ms(&scope)]
@@ -801,10 +1123,19 @@ pub async fn put_back<C: GenericClient + Sync>(
     pgmq_broker::validate_queue_name(queue).map_err(anyhow::Error::msg)?;
     let scopes: Vec<String> = waiting.iter().map(|item| scope_of(&item.event)).collect();
     lock_scopes(client, &scopes).await?;
+    // The bounded budget, kept here only: a bounded round ($6 = now) opens a
+    // stretch if none is open (an open one keeps its start); any other round
+    // ($6 NULL) closes an open stretch, adding it to the time spent ($7 = now).
+    // The total only grows: the bound can't be extended by restarts or by
+    // alternating rounds, and time waiting for the signer never counts.
     let mark = format!(
-        "INSERT INTO {WAITING_TABLE} (delivery_id, scope, since_ms, ord, due_at) \
-         VALUES ($1, $2, $3, $4, clock_timestamp() + make_interval(secs => $5::integer)) \
-         ON CONFLICT (delivery_id) DO UPDATE SET due_at = EXCLUDED.due_at"
+        "INSERT INTO {WAITING_TABLE} AS w (delivery_id, scope, since_ms, ord, due_at, bounded_since_ms, bounded_used_ms) \
+         VALUES ($1, $2, $3, $4, clock_timestamp() + make_interval(secs => $5::integer), $6, 0) \
+         ON CONFLICT (delivery_id) DO UPDATE SET due_at = EXCLUDED.due_at, \
+         bounded_used_ms = CASE WHEN EXCLUDED.bounded_since_ms IS NULL AND w.bounded_since_ms IS NOT NULL \
+             THEN w.bounded_used_ms + GREATEST($7::bigint - w.bounded_since_ms, 0) ELSE w.bounded_used_ms END, \
+         bounded_since_ms = CASE WHEN EXCLUDED.bounded_since_ms IS NULL THEN NULL \
+             ELSE COALESCE(w.bounded_since_ms, EXCLUDED.bounded_since_ms) END"
     );
     // A copy already waits only if the row's own recorded message is still on
     // the queue (not a header a queue writer could forge).
@@ -830,6 +1161,9 @@ pub async fn put_back<C: GenericClient + Sync>(
                     &deferral.since_ms,
                     &i64::from(deferral.order),
                     &delay_secs,
+                    &(matches!(item.reason, WaitReason::TenantMissing | WaitReason::Retry)
+                        .then_some(now_ms)),
+                    &now_ms,
                 ],
             )
             .await
@@ -843,6 +1177,8 @@ pub async fn put_back<C: GenericClient + Sync>(
             .context("Error putting back an electoral-log event that waits")?;
         match item.reason {
             WaitReason::SignerUnavailable => summary.signer_unavailable += 1,
+            WaitReason::TenantMissing => summary.tenant_missing += 1,
+            WaitReason::Retry => summary.retry += 1,
             WaitReason::Held => summary.held += 1,
         }
         match sent.first() {
@@ -899,24 +1235,28 @@ pub fn log_round(summary: &PutBack, waiting_before: &Waiting, backoff: &Deferral
     if alert {
         tracing::error!(
             signer_unavailable = summary.signer_unavailable,
+            tenant_missing = summary.tenant_missing,
+            retry = summary.retry,
             held = summary.held,
             put_back = summary.put_back,
             already_waiting = summary.already_waiting,
             waiting_in_queue = waiting_before.len(),
             oldest_waiting_secs = oldest_secs,
             next_attempt_secs,
-            "Electoral-log events have waited for their signer for too long; they are kept and tried again"
+            "Electoral-log events have waited for too long (their signer, tenant or a retry); they are kept and tried again"
         );
     } else {
         tracing::warn!(
             signer_unavailable = summary.signer_unavailable,
+            tenant_missing = summary.tenant_missing,
+            retry = summary.retry,
             held = summary.held,
             put_back = summary.put_back,
             already_waiting = summary.already_waiting,
             waiting_in_queue = waiting_before.len(),
             oldest_waiting_secs = oldest_secs,
             next_attempt_secs,
-            "Electoral-log events wait for their signer; they are kept and tried again"
+            "Electoral-log events wait (their signer, tenant or a retry); they are kept and tried again"
         );
     }
 }
@@ -946,7 +1286,9 @@ mod tests {
     fn the_wait_doubles_and_stops_at_its_longest_for_any_number_of_rounds() {
         let backoff = DeferralBackoff::default();
         let delays: Vec<u64> = (1..=9).map(|round| backoff.delay(round).as_secs()).collect();
-        assert_eq!(delays, vec![5, 10, 20, 40, 80, 160, 300, 300, 300]);
+        // A scope's head is tried again at most every 30 s (a log's backlog
+        // drains within about 30 s of its key service coming back).
+        assert_eq!(delays, vec![5, 10, 20, 30, 30, 30, 30, 30, 30]);
         for round in [10, 11, 32, 33, 1_000, u32::MAX] {
             assert_eq!(backoff.delay(round), DEFAULT_DEFER_MAX, "round {round}");
         }
@@ -968,19 +1310,84 @@ mod tests {
     }
 
     #[test]
+    fn a_bounded_head_is_dead_lettered_only_strictly_past_its_bound() {
+        let backoff = DeferralBackoff::default();
+        assert_eq!(backoff.bounded, DEFAULT_BOUNDED_WAIT);
+        assert_eq!(DEFAULT_BOUNDED_WAIT, Duration::from_secs(600));
+        let now = 1_000_000_000;
+        let d = |since: Option<i64>, used: i64| Deferral {
+            rounds: 1, since_ms: 0, order: 0, bounded_since_ms: since, bounded_used_ms: used,
+        };
+        assert!(!backoff.bound_exceeded(None, now), "a first wait has spent nothing");
+        assert!(!backoff.bound_exceeded(Some(&d(None, 0)), now));
+        assert!(!backoff.bound_exceeded(Some(&d(Some(now), 0)), now));
+        assert!(!backoff.bound_exceeded(Some(&d(Some(now - 600_000), 0)), now));
+        assert!(backoff.bound_exceeded(Some(&d(Some(now - 600_001), 0)), now));
+        // Earlier stretches count; time between them (waiting for the signer) doesn't.
+        assert!(!backoff.bound_exceeded(Some(&d(Some(now - 300_000), 300_000)), now));
+        assert!(backoff.bound_exceeded(Some(&d(Some(now - 300_000), 300_001)), now));
+        // Outside a stretch, the time already spent still counts (alternating
+        // rounds can't extend the bound).
+        assert!(backoff.bound_exceeded(Some(&d(None, 600_001)), now));
+        // A clock that went back counts nothing for the current stretch.
+        assert!(!backoff.bound_exceeded(Some(&d(Some(now + 5_000), 0)), now));
+    }
+
+    #[test]
+    fn every_head_reason_waits_on_its_own_backoff_and_holds_its_scope() {
+        let backoff = DeferralBackoff::default();
+        for reason in [WaitReason::SignerUnavailable, WaitReason::TenantMissing, WaitReason::Retry] {
+            assert!(reason.is_head());
+            let waiting = vec![
+                WaitingEvent { event: event("head", "e1", None), reason, error: String::new() },
+                WaitingEvent { event: event("later", "e1", None), reason: WaitReason::Held, error: String::new() },
+            ];
+            let planned = plan(&waiting, &Waiting::default(), &backoff, 0);
+            // The head: its own first wait (5 s); the held one: 1 s after it.
+            assert_eq!(planned[0].2, Duration::from_secs(5), "{reason:?}");
+            assert_eq!(planned[1].2, Duration::from_secs(6), "{reason:?}");
+            // A scope whose head still waits is not released by storing
+            // something else of it.
+            let stored: HashSet<String> = ["other".to_string()].into();
+            let events = vec![event("other", "e1", None)];
+            assert!(released_scopes(&events, &stored, &waiting).is_empty(), "{reason:?}");
+        }
+        assert!(!WaitReason::Held.is_head());
+        assert_eq!(WaitReason::TenantMissing.as_str(), "tenant-missing");
+        assert_eq!(WaitReason::Retry.as_str(), "retry");
+    }
+
+    #[test]
+    fn a_bounded_start_comes_only_from_its_row_never_from_a_message() {
+        let row = event("x", "e1", Some(Deferral { rounds: 3, since_ms: 5_000, order: 2, bounded_since_ms: None, bounded_used_ms: 0 }));
+        let mut waiting = Waiting::default();
+        waiting.add(scope_of(&row), WaitKey::of(&row));
+        // A message claiming a later (or any) bounded start is ignored: a queue
+        // writer can't move or extend the bound.
+        let forged = event("x", "e1", Some(Deferral { rounds: 3, since_ms: 1, order: 0, bounded_since_ms: Some(i64::MAX), bounded_used_ms: 0 }));
+        let (bound, _) = bind_to_rows(&[forged.clone()], waiting.clone());
+        let deferral = bound[0].deferral.unwrap();
+        assert_eq!((deferral.since_ms, deferral.order), (5_000, 2), "the row's, not the message's");
+        assert_eq!(deferral.bounded_since_ms, None, "no bounded start in its row yet");
+        // The row's (written by a worker at its first bounded round) is the one.
+        waiting.add_bounded("x".into(), Some(9_000), 0);
+        assert_eq!(bind_to_rows(&[forged], waiting).0[0].deferral.unwrap().bounded_since_ms, Some(9_000));
+    }
+
+    #[test]
     fn a_deferral_keeps_when_and_where_it_first_waited() {
         let first = Deferral::next(None, 1_000, 3);
-        assert_eq!(first, Deferral { rounds: 1, since_ms: 1_000, order: 3 });
+        assert_eq!(first, Deferral { rounds: 1, since_ms: 1_000, order: 3, bounded_since_ms: None, bounded_used_ms: 0 });
         let later = Deferral::next(Some(first), 99_000, 0);
-        assert_eq!(later, Deferral { rounds: 2, since_ms: 1_000, order: 3 });
+        assert_eq!(later, Deferral { rounds: 2, since_ms: 1_000, order: 3, bounded_since_ms: None, bounded_used_ms: 0 });
         let last = Deferral::next(Some(Deferral { rounds: u32::MAX, ..first }), 0, 0);
         assert_eq!(last.rounds, u32::MAX);
     }
 
     #[test]
     fn an_event_waits_behind_earlier_ones_of_its_scope_only() {
-        let early = Deferral { rounds: 4, since_ms: 1_000, order: 0 };
-        let late = Deferral { rounds: 1, since_ms: 5_000, order: 0 };
+        let early = Deferral { rounds: 4, since_ms: 1_000, order: 0, bounded_since_ms: None, bounded_used_ms: 0 };
+        let late = Deferral { rounds: 1, since_ms: 5_000, order: 0, bounded_since_ms: None, bounded_used_ms: 0 };
         let mut waiting = Waiting::default();
         let x = event("x", "e1", Some(early));
         waiting.add(scope_of(&x), WaitKey::of(&x));
@@ -1005,10 +1412,10 @@ mod tests {
     fn a_batch_builds_the_events_that_waited_first_in_their_order() {
         let events = vec![
             event("new-1", "e1", None),
-            event("held", "e1", Some(Deferral { rounds: 2, since_ms: 1_000, order: 1 })),
+            event("held", "e1", Some(Deferral { rounds: 2, since_ms: 1_000, order: 1, bounded_since_ms: None, bounded_used_ms: 0 })),
             event("new-2", "e2", None),
-            event("first", "e1", Some(Deferral { rounds: 9, since_ms: 1_000, order: 0 })),
-            event("later", "e1", Some(Deferral { rounds: 1, since_ms: 2_000, order: 0 })),
+            event("first", "e1", Some(Deferral { rounds: 9, since_ms: 1_000, order: 0, bounded_since_ms: None, bounded_used_ms: 0 })),
+            event("later", "e1", Some(Deferral { rounds: 1, since_ms: 2_000, order: 0, bounded_since_ms: None, bounded_used_ms: 0 })),
         ];
         let order: Vec<&str> = in_wait_order(&events)
             .into_iter()
@@ -1019,7 +1426,7 @@ mod tests {
 
     #[test]
     fn the_deferral_survives_the_queue_format() {
-        let deferral = Deferral { rounds: 7, since_ms: 1_234, order: 2 };
+        let deferral = Deferral { rounds: 7, since_ms: 1_234, order: 2, bounded_since_ms: None, bounded_used_ms: 0 };
         let waited = event("d1", "e1", Some(deferral));
         let encoded = serde_json::to_value(&waited).unwrap();
         assert_eq!(encoded["deferral"]["rounds"], 7);

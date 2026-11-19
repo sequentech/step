@@ -153,6 +153,12 @@ async fn deliver_audit_and_complete(
     let mut annotations_changed = false;
     if let Some(audit) = annotations.password_change_audit.as_mut() {
         if !audit.delivered {
+            // Prepared by an earlier release (no scope): given its log's scope here.
+            if let Some(election_event_id) = task_execution.election_event_id.as_deref() {
+                audit
+                    .log
+                    .with_scope_if_missing(&task_execution.tenant_id, election_event_id);
+            }
             audit
                 .log
                 .post()

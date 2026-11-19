@@ -394,6 +394,15 @@ pub trait SigningLogKeys: Send + Sync {
 
 /// The board the worker posts to.
 pub trait SigningLogBoard: Send {
+    /// Admits this pass's appends to `scope`'s log, BEFORE anything is signed
+    /// (the electoral log keeps its order: refused while the log has entries
+    /// waiting or a batch is processing it, [`is_scope_gated`]); held until
+    /// [`Self::end_admission`].
+    fn admit(&mut self, scope: &str) -> impl Future<Output = Result<()>> + Send;
+
+    /// Ends the pass's admission, if any.
+    fn end_admission(&mut self) -> impl Future<Output = ()> + Send;
+
     /// Writes `deliveries` to `board` in one transaction, in order. A
     /// delivery the board holds is not written again (`false`); one it holds
     /// with other content fails the call with [`ReusedDelivery`].
@@ -413,6 +422,10 @@ pub struct OutboxPass {
     pub already_on_board: usize,
     /// The row that failed, which stopped the pass.
     pub failed: Option<i64>,
+    /// The pass was refused for the log's order (it has entries waiting, or a
+    /// batch is processing it): nothing signed, posted or marked failed; the
+    /// next pass tries again.
+    pub gated: bool,
 }
 
 /// An event's snapshot.
@@ -565,6 +578,40 @@ pub async fn post_outbox_snapshot<K: SigningLogKeys, B: SigningLogBoard>(
         batch.rows,
     )
     .await?;
+    if rows.is_empty() {
+        return Ok(Some(OutboxPass::default()));
+    }
+    // Admitted for the log's order before anything is signed; refused, the
+    // rows stay unposted (not failed) for the next pass.
+    let scope = crate::services::electoral_log_deferral::scope_key(
+        &tenant_id.to_string(),
+        &election_event_id.to_string(),
+    );
+    if let Err(error) = board.admit(&scope).await {
+        if crate::services::electoral_log_deferral::is_scope_gated(&error) {
+            info!(%tenant_id, %election_event_id, "The signing log waits for its electoral log's order: {error:#}");
+            return Ok(Some(OutboxPass {
+                gated: true,
+                ..OutboxPass::default()
+            }));
+        }
+        return Err(error);
+    }
+    let pass = post_admitted(hasura_transaction, tenant_id, election_event_id, keys, board, board_name, rows).await;
+    board.end_admission().await;
+    pass
+}
+
+/// [`post_outbox_snapshot`]'s signing and posting, under its admission.
+async fn post_admitted<K: SigningLogKeys, B: SigningLogBoard>(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    keys: &K,
+    board: &mut B,
+    board_name: &str,
+    rows: Vec<(i64, Result<SigningLogOutboxRow>)>,
+) -> Result<Option<OutboxPass>> {
     let mut deliveries = Vec::with_capacity(rows.len());
     let mut unprepared = None;
     for (id, row) in rows {
@@ -707,6 +754,9 @@ where
                 "The event's pass took longer than {event_time_limit:?}"
             ))
         });
+        // A pass cut off by its time limit may still hold its admission: release
+        // it now (not at the next pass), so no batch of its log waits on it.
+        board.end_admission().await;
         match &outcome {
             Ok(PassOutcome::Posted(pass)) => {
                 info!(%tenant_id, %election_event_id, ?pass, "Signing log posted")
@@ -811,6 +861,15 @@ impl std::error::Error for ReusedDelivery {}
 
 /// What the worker needs from the electoral log.
 pub trait SigningLogStore: Send + Sync {
+    /// An admission of a scope's appends (see [`SigningLogBoard::admit`]).
+    type Admission: Send;
+
+    /// Admits appends to `scope`'s log, or refuses them for its order.
+    fn admit(&self, scope: &str) -> impl Future<Output = Result<Self::Admission>> + Send;
+
+    /// Ends an admission.
+    fn end(&self, admission: Self::Admission) -> impl Future<Output = ()> + Send;
+
     /// Appends `entries` to `board` in one transaction; returns the records
     /// it stored, which leave out the deliveries the board held already.
     fn append(
@@ -831,6 +890,16 @@ pub trait SigningLogStore: Send + Sync {
 pub struct ElectoralLogBoards;
 
 impl SigningLogStore for ElectoralLogBoards {
+    type Admission = crate::services::electoral_log::ScopeAdmission;
+
+    async fn admit(&self, scope: &str) -> Result<Self::Admission> {
+        crate::services::electoral_log::ScopeAdmission::admit(scope).await
+    }
+
+    async fn end(&self, admission: Self::Admission) {
+        admission.end().await
+    }
+
     async fn append(&self, board: &str, entries: &[LogEntry]) -> Result<Vec<StoredRecord>> {
         get_board_client().await?.append(board, entries).await
     }
@@ -851,13 +920,17 @@ impl SigningLogStore for ElectoralLogBoards {
 }
 
 /// The boards, through a [`SigningLogStore`].
-pub struct BoardSigningLog<S> {
+pub struct BoardSigningLog<S: SigningLogStore> {
     store: S,
+    admission: Option<S::Admission>,
 }
 
-impl<S> BoardSigningLog<S> {
+impl<S: SigningLogStore> BoardSigningLog<S> {
     pub fn new(store: S) -> Self {
-        BoardSigningLog { store }
+        BoardSigningLog {
+            store,
+            admission: None,
+        }
     }
 }
 
@@ -869,6 +942,20 @@ impl BoardSigningLog<ElectoralLogBoards> {
 }
 
 impl<S: SigningLogStore> SigningLogBoard for BoardSigningLog<S> {
+    async fn admit(&mut self, scope: &str) -> Result<()> {
+        if let Some(previous) = self.admission.take() {
+            self.store.end(previous).await;
+        }
+        self.admission = Some(self.store.admit(scope).await?);
+        Ok(())
+    }
+
+    async fn end_admission(&mut self) {
+        if let Some(admission) = self.admission.take() {
+            self.store.end(admission).await;
+        }
+    }
+
     async fn deliver(
         &mut self,
         board: &str,

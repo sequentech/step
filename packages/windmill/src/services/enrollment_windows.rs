@@ -404,10 +404,10 @@ async fn log_problems(
         )
         .await
     {
-        // Unavailable, or its log has entries waiting: queued behind them.
+        // Unavailable, or its log has entries waiting or is busy: queued behind them.
         Err(error)
             if electoral_log::signer::is_signer_unavailable(&error)
-                || crate::services::electoral_log_deferral::is_scope_waiting(&error) =>
+                || crate::services::electoral_log_deferral::is_scope_gated(&error) =>
         {
             queue(text).queue().await.map(|_| ())
         }

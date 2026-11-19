@@ -90,6 +90,10 @@ pub struct SealedBoxLog {
     store: PostgresStore,
     system_pk: VerificationKey,
     signing_data: SigningData,
+    /// Each record is admitted for its electoral log's order before it is
+    /// signed (`ScopeAdmission`): set by [`SealedBoxLog::new`], the services'
+    /// constructor; a log made from a signer alone (tools, tests) is not gated.
+    gated: bool,
 }
 
 impl SealedBoxLog {
@@ -109,7 +113,9 @@ impl SealedBoxLog {
         )
         .await?;
         let store = get_event_store(&election_event.id).await?;
-        Self::with_signer(board, store, system)
+        let mut log = Self::with_signer(board, store, system)?;
+        log.gated = true;
+        Ok(log)
     }
 
     /// As [`SealedBoxLog::with_signing_key`], with a board signer (a
@@ -124,6 +130,7 @@ impl SealedBoxLog {
             store,
             system_pk: system.public_key()?,
             signing_data: SigningData::with_signers(system.clone(), "", system),
+            gated: false,
         })
     }
 
@@ -139,6 +146,7 @@ impl SealedBoxLog {
             store,
             system_pk: VerificationKey::from_sk(&system_sk)?,
             signing_data: SigningData::new(system_sk.clone(), "", system_sk),
+            gated: false,
         })
     }
 }
@@ -733,12 +741,36 @@ fn count_manifest(
     })
 }
 
+/// Admits one record of `ballot_box`'s log for its order, before it is
+/// signed (see `ScopeAdmission`); `None` for a log that is not gated. A
+/// refusal ([`crate::services::electoral_log_deferral::is_scope_gated`]) fails
+/// this step visibly with nothing signed; its rerun posts the same records
+/// (fixed delivery IDs).
+async fn admit(
+    log: &SealedBoxLog,
+    ballot_box: &SealedBox<'_>,
+) -> Result<Option<crate::services::electoral_log::ScopeAdmission>> {
+    if !log.gated {
+        return Ok(None);
+    }
+    let scope = crate::services::electoral_log_deferral::scope_key(
+        ballot_box.tenant_id,
+        &ballot_box.election_event_id.to_string(),
+    );
+    Ok(Some(
+        crate::services::electoral_log::ScopeAdmission::admit(&scope)
+            .await
+            .context("The tally's ballot-box record waits for its electoral log's order")?,
+    ))
+}
+
 async fn post_verified(
     log: &SealedBoxLog,
     ballot_box: &SealedBox<'_>,
     seal_hash: Hash,
     counted: u64,
 ) -> Result<()> {
+    let admission = admit(log, ballot_box).await?;
     let message = Message::tally_ballot_box_verified_message(
         EventIdString(ballot_box.election_event_id.to_string()),
         ballot_box.election_id,
@@ -754,7 +786,11 @@ async fn post_verified(
         "{VERIFIED_DELIVERY_PREFIX}:{}:{}:{}",
         ballot_box.tally_session_id, ballot_box.election_id, ballot_box.area_id
     );
-    deliver_once(log, delivery, &message).await
+    let delivered = deliver_once(log, delivery, &message).await;
+    if let Some(admission) = admission {
+        admission.end().await;
+    }
+    delivered
 }
 
 async fn post_rejected(
@@ -762,6 +798,7 @@ async fn post_rejected(
     ballot_box: &SealedBox<'_>,
     what_differs: String,
 ) -> Result<()> {
+    let admission = admit(log, ballot_box).await?;
     // The difference is part of the delivery id: a rerun that finds the
     // same difference posts nothing new, one that finds another posts it.
     let delivery = format!(
@@ -781,7 +818,11 @@ async fn post_rejected(
         ballot_box.tally_session_id.to_string(),
         &log.signing_data,
     )?;
-    deliver_once(log, delivery, &message).await
+    let delivered = deliver_once(log, delivery, &message).await;
+    if let Some(admission) = admission {
+        admission.end().await;
+    }
+    delivered
 }
 
 /// Appends `message` to the event's board once per `delivery_id`: a repeat
