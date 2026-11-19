@@ -5,7 +5,6 @@
 use keycloak::types::{RealmRepresentation, UserRepresentation};
 
 const ADMIN_USERNAME: &str = "admin";
-const UPDATE_PASSWORD_ACTION: &str = "UPDATE_PASSWORD";
 
 pub(super) enum TenantBootstrapAdminPolicy {
     ServiceAccount,
@@ -15,17 +14,14 @@ pub(super) enum TenantBootstrapAdminPolicy {
 
 impl TenantBootstrapAdminPolicy {
     /// New tenants seed only client-backed service accounts and a passwordless admin.
+    /// No required action is added: the hardened realm disables them all
+    /// (`UPDATE_PASSWORD` among them), and Keycloak skips a disabled one.
     pub(super) fn apply_to_realm(realm: &mut RealmRepresentation) {
         if let Some(users) = realm.users.as_mut() {
             users.retain_mut(|user| match Self::for_user(user) {
                 Self::ServiceAccount => true,
                 Self::PasswordlessAdmin => {
                     user.credentials = None;
-                    let actions = user.required_actions.get_or_insert_with(Vec::new);
-                    let update_password = UPDATE_PASSWORD_ACTION.to_string();
-                    if !actions.contains(&update_password) {
-                        actions.push(update_password);
-                    }
                     true
                 }
                 Self::DiscardHumanSeed => false,
@@ -78,7 +74,7 @@ mod tests {
         assert!(admin.credentials.is_none());
         assert_eq!(
             admin.required_actions.as_deref(),
-            Some(["VERIFY_EMAIL".into(), "UPDATE_PASSWORD".into()].as_slice())
+            Some(["VERIFY_EMAIL".into()].as_slice())
         );
         assert_eq!(admin.groups.as_deref(), Some(["/admin".into()].as_slice()));
         assert_eq!(

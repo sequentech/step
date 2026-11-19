@@ -146,3 +146,65 @@ fn verification_data_signed_by_another_key_than_the_configurations_manager_fail(
         "verification-data is not endorsed by the protocol manager of the Configuration"
     );
 }
+
+/// Verification data and result statements of one run, signed by its
+/// protocol manager (written by protocol-board's
+/// `signed_verification_data_and_result_statement_verify_with_the_configurations_manager`).
+/// Its batch holds a payload the ballot codec cannot read.
+fn run_signed(statement: &str) -> (i32, Value) {
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../protocol-board/tests/data/signed-export-v1.json"
+    ))
+    .unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let transcript = directory.path().join("verification.json");
+    // Each export is kept as text: its signature covers the exact bytes.
+    std::fs::write(&transcript, fixture["transcript"].as_str().unwrap()).unwrap();
+    let result = directory.path().join("result-statement.json");
+    std::fs::write(&result, fixture[statement].as_str().unwrap()).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_trustee"))
+        .env_remove("TRUSTEE_CONFIG_PATH")
+        .env_remove("B4_URL")
+        .args(["verify", "--transcript"])
+        .arg(&transcript)
+        .arg("--result")
+        .arg(&result)
+        .args([
+            "--configuration-hash",
+            fixture["request"]["configuration_hash"].as_str().unwrap(),
+            "--tally-id",
+            fixture["request"]["tally_id"].as_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    let report = serde_json::from_slice(&output.stdout).unwrap_or_else(|_| {
+        panic!(
+            "CLI did not emit a report: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )
+    });
+    (output.status.code().unwrap(), report)
+}
+
+#[test]
+fn signed_verification_data_and_result_statement_pass_the_result_check() {
+    let (code, report) = run_signed("result_statement");
+    assert_eq!(report["status"], "verified", "{report}");
+    assert_eq!(code, 0);
+    assert_eq!(report["transcript_signature"], "verified");
+    let counted = &report["result_check"]["contests"][0]["counted"];
+    assert_eq!(counted["total_valid_votes"], 3);
+    assert_eq!(counted["implicit_invalid_votes"], 1);
+    assert!(report["ballot_style_hash"].is_string());
+}
+
+#[test]
+fn a_result_statement_without_the_undecodable_vote_fails_the_result_check() {
+    let (code, report) = run_signed("result_statement_without_the_undecodable_vote");
+    assert_eq!(code, 1);
+    assert_eq!(report["status"], "invalid");
+    assert_eq!(
+        report["detail"],
+        "result statement, contest contest: batch implicit_invalid_votes stated 0, counted 1"
+    );
+}

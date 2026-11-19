@@ -70,7 +70,7 @@ impl DecodeBallots {
 
 impl DecodeBallots {
     #[instrument(err, skip(contest))]
-    fn decode_ballots(path: &Path, contest: &Contest) -> Result<Vec<DecodedVoteContest>> {
+    pub fn decode_ballots(path: &Path, contest: &Contest) -> Result<Vec<DecodedVoteContest>> {
         let file = fs::File::open(path).map_err(|e| Error::FileAccess(path.to_path_buf(), e))?;
         let reader = std::io::BufReader::new(file);
         let mut decoded_ballots: Vec<DecodedVoteContest> = vec![];

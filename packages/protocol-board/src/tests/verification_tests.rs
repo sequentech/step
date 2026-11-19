@@ -437,3 +437,127 @@ async fn portable_report_checks_ballot_inclusion_and_pinned_batch_hash() {
         VerificationStatus::Invalid
     );
 }
+
+/// The election verifier's inputs from one run: the signed verification
+/// data, and result statements signed by the same protocol manager, one of
+/// them with a wrong count. The batch holds two votes for candidate `a`, one
+/// for `b` and one payload the ballot codec cannot read, which the tally
+/// counts as an implicit invalid vote. `trustee`'s CLI tests read the file
+/// this test writes when `WBRAID_SIGNED_EXPORT_TEST_FIXTURE` names it
+/// (`protocol-board/tests/data/signed-export-v1.json`).
+#[tokio::test]
+async fn signed_verification_data_and_result_statement_verify_with_the_configurations_manager(
+) {
+    use crate::export_signature::{ExportKind, SignedExport};
+    use crate::verification::*;
+    let vote_a = {
+        let mut payload = [0; 30];
+        payload[..2].copy_from_slice(&[1, 2]);
+        payload
+    };
+    let vote_b = {
+        let mut payload = [0; 30];
+        payload[..2].copy_from_slice(&[1, 4]);
+        payload
+    };
+    let (keyed, messages, id, _) =
+        completed(3, 2, &[vote_a, vote_a, vote_b, [0xff; 30]]).await;
+    let transcript = PublicTranscript::new(
+        keyed
+            .ceremony
+            .board
+            .snapshot()
+            .iter()
+            .map(|m| m.ser())
+            .collect(),
+        Some(messages.iter().map(|m| m.ser()).collect()),
+    );
+    let request = VerificationRequest {
+        configuration_hash: HashHex::of(&keyed.ceremony.configuration_hash().0),
+        tally_id: Some(id.to_string()),
+        ballots_hash: None,
+        ballot_ciphertexts: vec![],
+    };
+    let signed_transcript = SignedExport::sign(
+        ExportKind::VerificationData,
+        &serde_json::to_vec(&transcript).unwrap(),
+        &keyed.ceremony.manager,
+    )
+    .unwrap();
+    let envelope = SignedExport::parse(&signed_transcript).unwrap();
+    let content: PublicTranscript =
+        serde_json::from_str(envelope.content.get()).unwrap();
+    let (report, anchors) = verify_transcript_with_anchors(&content, &request);
+    assert_eq!(report.status, VerificationStatus::Verified, "{report:?}");
+    assert_eq!(report.plaintexts.len(), 4);
+    let anchors = anchors.unwrap();
+    envelope
+        .verify(ExportKind::VerificationData, &anchors.protocol_manager)
+        .unwrap();
+
+    let statement = |implicit_invalid_votes: u64| {
+        let counts = serde_json::json!({
+            "total_valid_votes": 3,
+            "explicit_invalid_votes": 0,
+            "implicit_invalid_votes": implicit_invalid_votes,
+            "blank_votes": 0,
+            "candidates": {"a": 2, "b": 1},
+        });
+        let statement = serde_json::json!({
+            "version": 1,
+            "configuration_hash": request.configuration_hash.as_str(),
+            "election_id": "election",
+            "area_id": "area",
+            "ballot_style": {
+                "id": "style", "tenant_id": "tenant", "election_event_id": "event",
+                "election_id": "election", "area_id": "area",
+                "public_key": {
+                    "public_key": anchors.public_key,
+                    "is_demo": false,
+                    "configuration_id": anchors.configuration_id.to_string(),
+                },
+                "contests": [{
+                    "id": "contest", "tenant_id": "tenant",
+                    "election_event_id": "event", "election_id": "election",
+                    "max_votes": 1, "min_votes": 0, "winning_candidates_num": 0,
+                    "counting_algorithm": "plurality-at-large", "is_encrypted": false,
+                    "candidates": [
+                        {"id": "a", "tenant_id": "", "election_event_id": "",
+                         "election_id": "", "contest_id": ""},
+                        {"id": "b", "tenant_id": "", "election_event_id": "",
+                         "election_id": "", "contest_id": ""},
+                    ],
+                }],
+            },
+            "contests": [{
+                "contest_id": "contest",
+                "counting_algorithm": "plurality-at-large",
+                "result": counts,
+                "batches": [{"tally_id": id.to_string(), "multiplier": 1, "counts": counts}],
+                "tally_sheets": [],
+            }],
+        });
+        let signed = SignedExport::sign(
+            ExportKind::ResultStatement,
+            &serde_json::to_vec(&statement).unwrap(),
+            &keyed.ceremony.manager,
+        )
+        .unwrap();
+        SignedExport::parse(&signed)
+            .unwrap()
+            .verify(ExportKind::ResultStatement, &anchors.protocol_manager)
+            .unwrap();
+        String::from_utf8(signed).unwrap()
+    };
+    if let Ok(path) = std::env::var("WBRAID_SIGNED_EXPORT_TEST_FIXTURE") {
+        let fixture = serde_json::json!({
+            // As text: the signatures cover the exact bytes.
+            "transcript": String::from_utf8(signed_transcript).unwrap(),
+            "request": request,
+            "result_statement": statement(1),
+            "result_statement_without_the_undecodable_vote": statement(0),
+        });
+        std::fs::write(path, serde_json::to_vec_pretty(&fixture).unwrap())
+            .unwrap();
+    }
+}

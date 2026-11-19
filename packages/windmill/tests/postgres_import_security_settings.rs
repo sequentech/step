@@ -33,9 +33,10 @@ use uuid::Uuid;
 use windmill::postgres::signing::{get_signing_checks, list_signing_rules};
 use windmill::services::approval_matrix::store::get_latest_approval_matrix;
 use windmill::services::import::import_election_event::{
-    import_bundle_security_settings, imports_security_settings, APPROVAL_MATRIX_NOT_IMPORTED,
-    SIGNING_CHECKS_NOT_IMPORTED, SIGNING_RULES_NOT_IMPORTED,
+    import_bundle_security_settings, imports_security_settings, refuse_unevaluated_voting_policy,
+    APPROVAL_MATRIX_NOT_IMPORTED, SIGNING_CHECKS_NOT_IMPORTED, SIGNING_RULES_NOT_IMPORTED,
 };
+use windmill::services::election_event_status::UNEVALUATED_VOTING_POLICY_IMPORT;
 use windmill::services::signing::approve::{
     approve, ApproveInput, ApproveOutcome, NoDocumentSigner, SigningServices,
 };
@@ -226,6 +227,60 @@ async fn where_only_signed_packages_import_the_bundles_security_settings_are_lef
             [SIGNING_CHECKS_NOT_IMPORTED],
             "{policy:?}"
         );
+    }
+}
+
+#[tokio::test]
+async fn where_only_signed_packages_import_delegated_and_voter_weighted_voting_are_refused() {
+    let with = |w: &World, presentation: Value| {
+        let mut bundle = bundle(w);
+        bundle.election_event.presentation = Some(presentation);
+        bundle
+    };
+    let refused = [
+        json!({"delegated_voting_policy": "enabled"}),
+        json!({"weighted_voting_policy": "voters-weighted-voting"}),
+    ];
+    let allowed = [
+        json!({}),
+        json!({"delegated_voting_policy": "disabled",
+               "weighted_voting_policy": "areas-weighted-voting"}),
+    ];
+    // A tenant without the setting requires signed packages.
+    for policy in [None, Some("required"), Some("optional")] {
+        let w = world("imported-post").await;
+        if let Some(policy) = policy {
+            set_policy(&w, policy).await;
+        }
+        let mut client = w.pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let tenant = w.tenant.to_string();
+        for presentation in &refused {
+            let outcome = refuse_unevaluated_voting_policy(
+                &tx,
+                &tenant,
+                &with(&w, presentation.clone()).election_event,
+            )
+            .await;
+            if policy == Some("optional") {
+                assert!(outcome.is_ok(), "{policy:?} {presentation}");
+            } else {
+                assert_eq!(
+                    outcome.unwrap_err().to_string(),
+                    UNEVALUATED_VOTING_POLICY_IMPORT,
+                    "{policy:?} {presentation}"
+                );
+            }
+        }
+        for presentation in &allowed {
+            refuse_unevaluated_voting_policy(
+                &tx,
+                &tenant,
+                &with(&w, presentation.clone()).election_event,
+            )
+            .await
+            .unwrap();
+        }
     }
 }
 

@@ -1109,4 +1109,112 @@ mod tests {
 
         assert_eq!(lines, vec!["7".to_string(), UNDECODABLE_BALLOT_LINE.to_string()]);
     }
+
+    /// The election verifier recounts a batch with `count_contest_votes` and
+    /// requires the stored result, which velvet counts, to be the sum of the
+    /// batches: both must count an undecodable payload as an invalid ballot.
+    #[test]
+    fn velvet_and_the_result_statement_count_an_undecodable_payload_alike() {
+        use sequent_core::ballot::{Candidate, Weight};
+        use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+        use sequent_core::result_count::count_contest_votes;
+        use sequent_core::types::ceremonies::{CountingAlgType, ScopeOperation, TallyOperation};
+        use sequent_core::types::result_statement::ResultCounts;
+        use velvet::pipes::decode_ballots::DecodeBallots;
+        use velvet::pipes::do_tally::counting_algorithm::plurality_at_large::PluralityAtLarge;
+        use velvet::pipes::do_tally::tally::Tally;
+
+        let contest = Contest {
+            id: "contest".to_string(),
+            max_votes: 1,
+            min_votes: 0,
+            counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
+            candidates: ["a", "b"]
+                .map(|id| Candidate {
+                    id: id.to_string(),
+                    ..Candidate::default()
+                })
+                .to_vec(),
+            ..Contest::default()
+        };
+        let vote = |selected: Option<usize>| {
+            let decoded = DecodedVoteContest {
+                contest_id: contest.id.clone(),
+                is_explicit_invalid: false,
+                is_decline_to_vote: false,
+                is_blank_ballot: false,
+                invalid_errors: vec![],
+                invalid_alerts: vec![],
+                choices: contest
+                    .candidates
+                    .iter()
+                    .enumerate()
+                    .map(|(index, candidate)| DecodedVoteChoice {
+                        id: candidate.id.clone(),
+                        selected: if Some(index) == selected { 0 } else { -1 },
+                        write_in_text: None,
+                    })
+                    .collect(),
+            };
+            contest.encode_plaintext_contest(&decoded).expect("encode")
+        };
+        let mut undecodable = [0u8; 30];
+        undecodable[0] = 30;
+        let payloads = [vote(Some(0)), vote(Some(0)), vote(Some(1)), vote(None), undecodable];
+
+        // What windmill hands velvet, and what velvet counts.
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("ballots.csv");
+        fs::write(&path, decode_plaintexts_to_biguints(&payloads, &contest).join("\n"))
+            .expect("write");
+        let ballots = DecodeBallots::decode_ballots(&path, &contest).expect("decode");
+        let tally = Tally {
+            id: CountingAlgType::PluralityAtLarge,
+            scope_operation: ScopeOperation::Contest(TallyOperation::ProcessBallotsAll),
+            contest: contest.clone(),
+            ballots: ballots
+                .into_iter()
+                .map(|ballot| (ballot, Weight::default()))
+                .collect(),
+            census: payloads.len() as u64,
+            auditable_votes: 0,
+            tally_sheet_results: vec![],
+            tally_results: vec![],
+        };
+        let result = PluralityAtLarge::new(tally)
+            .process_ballots(TallyOperation::ProcessBallotsAll)
+            .expect("count");
+        // The result as `populate_results_tables` stores it and the result
+        // statement reads it back.
+        let stored = ResultCounts {
+            total_valid_votes: result.total_valid_votes,
+            explicit_invalid_votes: result.invalid_votes.explicit,
+            implicit_invalid_votes: result.invalid_votes.implicit,
+            blank_votes: result.total_blank_votes,
+            candidates: result
+                .candidate_result
+                .iter()
+                .map(|candidate| (candidate.candidate.id.clone(), candidate.total_count))
+                .collect(),
+        };
+        // The batch's counts in the statement, which the verifier recounts.
+        let batch = count_contest_votes(&contest, &payloads);
+        assert_eq!(batch.implicit_invalid_votes, 1);
+        assert_eq!(batch.total_valid_votes, 4);
+        let mismatches = |result: &ResultCounts| {
+            result
+                .fields(&batch)
+                .into_iter()
+                .filter(|(_, stated, counted)| stated != counted)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(mismatches(&stored), vec![]);
+
+        let mut changed = stored.clone();
+        changed.implicit_invalid_votes -= 1;
+        assert_eq!(
+            mismatches(&changed),
+            vec![("implicit_invalid_votes".to_string(), 0, 1)]
+        );
+    }
 }

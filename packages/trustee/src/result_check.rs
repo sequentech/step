@@ -254,6 +254,58 @@ mod tests {
     }
 
     #[test]
+    fn an_undecodable_vote_counts_as_an_implicit_invalid_vote() {
+        // A length byte beyond the payload: the codec cannot read it, and
+        // the tally counts it as an implicit invalid ballot.
+        let undecodable = STANDARD.encode([0xff_u8; 30]);
+        let plaintexts = [vote(Some(0)), vote(Some(0)), undecodable];
+        let mut with_invalid = counts(2, 2);
+        with_invalid.implicit_invalid_votes = 1;
+        let check = check_result(
+            &statement(with_invalid.clone(), with_invalid.clone()),
+            HASH,
+            TALLY,
+            &anchors(),
+            &plaintexts,
+        )
+        .unwrap();
+        assert_eq!(
+            check.report["contests"][0]["counted"]["implicit_invalid_votes"],
+            1
+        );
+        // A statement that left the undecodable vote out fails.
+        let error = check_result(
+            &statement(counts(2, 2), counts(2, 2)),
+            HASH,
+            TALLY,
+            &anchors(),
+            &plaintexts,
+        )
+        .err()
+        .unwrap()
+        .to_string();
+        assert!(
+            error.contains("batch implicit_invalid_votes stated 0, counted 1"),
+            "{error}"
+        );
+        // So does a result that left it out of the stored count.
+        let error = check_result(
+            &statement(with_invalid, counts(2, 2)),
+            HASH,
+            TALLY,
+            &anchors(),
+            &plaintexts,
+        )
+        .err()
+        .unwrap()
+        .to_string();
+        assert!(
+            error.contains("result implicit_invalid_votes stated 0, sum of its parts 1"),
+            "{error}"
+        );
+    }
+
+    #[test]
     fn batch_counts_that_differ_from_the_votes_fail() {
         let error = run(&statement(counts(3, 3), counts(3, 3)))
             .err()

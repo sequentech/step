@@ -68,7 +68,7 @@ use windmill::services::ballot_box_seal::{
 use windmill::services::election_event_status::{
     scheduled_change_applies, update_event_voting_status, update_scheduled_event_voting_status,
     update_scheduled_event_voting_status_for, SkippedElection, TransitionRefusal,
-    RECEIPTS_POLICY_REQUIRED,
+    RECEIPTS_POLICY_REQUIRED, UNEVALUATED_VOTING_POLICY_OPEN,
 };
 use windmill::services::electoral_log_board::{
     create_protocol_manager_keys, get_board_signing_key, get_event_databases, get_event_store,
@@ -274,6 +274,9 @@ struct Options {
     record_policy: Option<&'static str>,
     /// The event's receipts policy.
     receipts: &'static str,
+    /// The event's delegated and weighted voting policies; None leaves them
+    /// unset.
+    voting_policies: Option<(&'static str, &'static str)>,
 }
 
 impl Default for Options {
@@ -288,6 +291,7 @@ impl Default for Options {
             grace_secs: None,
             record_policy: None,
             receipts: "signed-by-ballot-box",
+            voting_policies: None,
         }
     }
 }
@@ -320,16 +324,23 @@ async fn world(options: Options) -> World {
             &event,
             &tenant,
             &serde_json::to_value(&event_status).unwrap(),
-            &match options.record_policy {
-                Some(record_policy) => json!({
-                    "ballot_box_seal_policy": options.policy,
-                    "ballot_box_seal_record_policy": record_policy,
-                    "receipts": {"policy": options.receipts},
-                }),
-                None => json!({
-                    "ballot_box_seal_policy": options.policy,
-                    "receipts": {"policy": options.receipts},
-                }),
+            &{
+                let mut presentation = match options.record_policy {
+                    Some(record_policy) => json!({
+                        "ballot_box_seal_policy": options.policy,
+                        "ballot_box_seal_record_policy": record_policy,
+                        "receipts": {"policy": options.receipts},
+                    }),
+                    None => json!({
+                        "ballot_box_seal_policy": options.policy,
+                        "receipts": {"policy": options.receipts},
+                    }),
+                };
+                if let Some((delegated, weighted)) = options.voting_policies {
+                    presentation["delegated_voting_policy"] = json!(delegated);
+                    presentation["weighted_voting_policy"] = json!(weighted);
+                }
+                presentation
             },
             &json!({"id": 1, "database_name": board, "is_archived": false}),
             &json!({"online": true, "kiosk": options.kiosk, "early_voting": options.early_voting}),
@@ -867,6 +878,66 @@ fn without_signed_receipts_voting_never_opens_where_only_signed_packages_import(
         drop(tx);
         // Voting that is open still closes.
         close_election(&w, w.election(), Some(&w.user)).await;
+        w.finish().await;
+    })
+}
+
+#[test]
+fn with_delegated_or_voter_weighted_voting_voting_never_opens_where_only_signed_packages_import() {
+    event_database::run(async {
+        // The tenant has no configuration signing setting: only signed
+        // packages import.
+        for voting_policies in [
+            Some(("enabled", "disabled-weighted-voting")),
+            Some(("disabled", "voters-weighted-voting")),
+        ] {
+            let w = world(Options {
+                kiosk: true,
+                voting_policies,
+                ..Default::default()
+            })
+            .await;
+            let kiosk = change_election(
+                &w,
+                w.election(),
+                VotingStatus::OPEN,
+                VotingStatusChannel::KIOSK,
+            )
+            .await
+            .unwrap_err();
+            assert_eq!(kiosk.to_string(), UNEVALUATED_VOTING_POLICY_OPEN, "{voting_policies:?}");
+            let mut client = w.client().await;
+            let tx = client.transaction().await.unwrap();
+            let event = update_event_voting_status(
+                &tx,
+                &w.tenant.to_string(),
+                Some(&w.user),
+                Some(ADMIN),
+                &w.event.to_string(),
+                &VotingStatus::OPEN,
+                &Some(vec![VotingStatusChannel::KIOSK]),
+            )
+            .await
+            .unwrap_err();
+            assert_eq!(event.to_string(), UNEVALUATED_VOTING_POLICY_OPEN, "{voting_policies:?}");
+            drop(tx);
+            w.finish().await;
+        }
+        // Weighted voting for areas opens.
+        let w = world(Options {
+            kiosk: true,
+            voting_policies: Some(("disabled", "areas-weighted-voting")),
+            ..Default::default()
+        })
+        .await;
+        change_election(
+            &w,
+            w.election(),
+            VotingStatus::OPEN,
+            VotingStatusChannel::KIOSK,
+        )
+        .await
+        .unwrap();
         w.finish().await;
     })
 }

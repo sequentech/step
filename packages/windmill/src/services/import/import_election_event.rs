@@ -15,6 +15,9 @@ use crate::services::approval_matrix::store::import_approval_matrix;
 use crate::services::ceremonies::keys_ceremony::{
     ceremony_public_key_state, verify_keys_ceremony_public_key, CeremonyPublicKeyState,
 };
+use crate::services::election_event_status::{
+    unevaluated_voting_policy, UNEVALUATED_VOTING_POLICY_IMPORT,
+};
 use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::electoral_log_board::get_event_board;
 use crate::services::import::import_publications::{
@@ -791,6 +794,25 @@ pub async fn imports_security_settings(
     ))
 }
 
+/// Refuses an election event with delegated or voter-weighted voting where
+/// only signed packages import (see [`unevaluated_voting_policy`]), before
+/// anything of it is written.
+pub async fn refuse_unevaluated_voting_policy(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event: &ElectionEvent,
+) -> Result<()> {
+    let presentation = election_event
+        .get_presentation()
+        .map_err(|err| anyhow!("Error parsing election event presentation: {err}"))?
+        .unwrap_or_default();
+    let signed_import_required = !imports_security_settings(hasura_transaction, tenant_id).await?;
+    if unevaluated_voting_policy(signed_import_required, &presentation) {
+        bail!(UNEVALUATED_VOTING_POLICY_IMPORT);
+    }
+    Ok(())
+}
+
 /// Saves the signing rules, certificate checks and approval matrix that
 /// `data` carries on its new election event, after its areas (whose
 /// `miru:area-threshold` may imply the transmit-results rule), logged for
@@ -1454,6 +1476,7 @@ pub async fn process_election_event_file(
         )
         .await?;
     }
+    refuse_unevaluated_voting_policy(hasura_transaction, &tenant_id, &data.election_event).await?;
 
     let election_ids: Vec<String> = data
         .elections

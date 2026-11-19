@@ -551,7 +551,7 @@ The admin portal's Logs tab, and the logs dialog of a user, call the Hasura acti
 The voting portal's ballot locator calls `list_cast_vote_messages` (Harvest `POST /list-cast-vote-messages`).
 
 - **Who can use it:** a voter with the `cast-vote` permission for the election, and only when the election event's `show_cast_vote_logs` presentation setting is `show-logs-tab`. The default is `hide-logs-tab`, and then the route answers 403. A request for a tenant other than the voter's own gets 401.
-- **Without a ballot ID**, it pages through the election's `CastVote` records and counts them.
+- **Without a ballot ID** (an empty `ballot_id`), it returns no entries: 200 with an empty list and a total of 0.
 - **With a ballot ID**, it looks among the requesting voter's own cast votes for one matching it. It queries pages of 2,500 records at increasing offsets and stops at the first match, so a ballot ID that matches nothing runs one query per 2,500 cast votes of the election.
 - **What it returns:** each entry has only the statement timestamp, the statement kind and the ballot ID. Harvest builds the entries from those columns without decoding the message, so the response carries no username, user ID, area, IP address, country or signed message, for the voter's own ballot or for anyone else's.
 - **Sorting:** by record ID (the default, newest first), statement timestamp, statement kind or ballot ID. Harvest answers 400 to any other field, such as the username. Only the record ID order uses an index (section 13).
@@ -775,7 +775,7 @@ A wrong root at the size of a supplied checkpoint is reported as `Diverged` only
 
 | Actor | Can |
 | --- | --- |
-| Voters with `cast-vote`, when the event's `show_cast_vote_logs` is `show-logs-tab` | List the ballot IDs, timestamps and kinds of their election's cast votes, and find their own through the ballot locator (section 9.2) |
+| Voters with `cast-vote`, when the event's `show_cast_vote_logs` is `show-logs-tab` | Find their own cast vote by its ballot ID through the ballot locator, which returns its timestamp and kind (section 9.2) |
 | Users with `logs-read` | List records, read their tenant's published checkpoints, request checkpoints and proofs |
 | Users of the super-admin tenant with `logs-read` | Through Harvest directly, list records and request checkpoints and proofs of any tenant |
 | Hasura's `admin-user` role | Read its tenant's published checkpoints |

@@ -7,7 +7,7 @@ use crate::postgres::ballot_box_seal::list_for_elections;
 use crate::postgres::election::{get_election_by_id, get_elections, update_election_voting_status};
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use crate::postgres::trusted_write;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::*;
 use sequent_core::election_config::package_verify::signatures_required;
@@ -946,8 +946,43 @@ pub fn receipts_policy_refused(signed_import_required: bool, policy: &ReceiptsPo
     signed_import_required && *policy != ReceiptsPolicy::SIGNED_BY_BALLOT_BOX
 }
 
-/// Refuses opening voting under [`receipts_policy_refused`]; other changes,
-/// and closing above all, are never refused for it.
+/// The refusal of an opening where only signed configuration packages
+/// import and the election event uses delegated or voter-weighted voting.
+pub const UNEVALUATED_VOTING_POLICY_OPEN: &str = "Voting can't open: where only signed \
+     configuration packages import, delegated voting and voter-weighted voting are not \
+     available. The election event's \"Delegated Voting Policy\" must be \"Disabled\" and its \
+     \"Weighted Voting Policy\" must not be \"Weighted Voting for Voters\".";
+
+/// The refusal of an import where only signed configuration packages import
+/// and the election event uses delegated or voter-weighted voting.
+pub const UNEVALUATED_VOTING_POLICY_IMPORT: &str = "The election event can't be imported: where \
+     only signed configuration packages import, delegated voting and voter-weighted voting are \
+     not available. Set \"Delegated Voting Policy\" to \"Disabled\" and \"Weighted Voting \
+     Policy\" to \"Disabled Weighted Voting\" or \"Weighted Voting for Areas\".";
+
+/// Whether `presentation` uses delegated voting or voter-weighted voting
+/// where only signed packages import: neither is part of that
+/// configuration. Weighted voting for areas is.
+pub fn unevaluated_voting_policy(
+    signed_import_required: bool,
+    presentation: &ElectionEventPresentation,
+) -> bool {
+    signed_import_required
+        && (presentation
+            .delegated_voting_policy
+            .clone()
+            .unwrap_or_default()
+            == DelegatedVotingPolicy::ENABLED
+            || presentation
+                .weighted_voting_policy
+                .clone()
+                .unwrap_or_default()
+                == WeightedVotingPolicy::VOTERS_WEIGHTED_VOTING)
+}
+
+/// Refuses opening voting under [`receipts_policy_refused`] and
+/// [`unevaluated_voting_policy`]; other changes, and closing above all, are
+/// never refused for them.
 async fn receipts_policy_refusal(
     hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
@@ -963,6 +998,15 @@ async fn receipts_policy_refusal(
     );
     if receipts_policy_refused(signed_import_required, &receipts_policy(election_event)?) {
         return Err(VotingTransitionError(RECEIPTS_POLICY_REQUIRED.to_string()).into());
+    }
+    // The import refuses these too; checked again here in case another path
+    // set them.
+    let presentation = election_event
+        .get_presentation()
+        .map_err(|err| anyhow!("Error parsing election event presentation: {err}"))?
+        .unwrap_or_default();
+    if unevaluated_voting_policy(signed_import_required, &presentation) {
+        return Err(VotingTransitionError(UNEVALUATED_VOTING_POLICY_OPEN.to_string()).into());
     }
     Ok(())
 }
@@ -1886,5 +1930,33 @@ mod receipts_policy_tests {
             false,
             &ReceiptsPolicy::SIGNED_BY_BALLOT_BOX
         ));
+    }
+
+    #[test]
+    fn where_only_signed_packages_import_delegated_and_voter_weighted_voting_are_refused() {
+        let presentation = |delegated, weighted| ElectionEventPresentation {
+            delegated_voting_policy: delegated,
+            weighted_voting_policy: weighted,
+            ..ElectionEventPresentation::default()
+        };
+        let refused = [
+            presentation(Some(DelegatedVotingPolicy::ENABLED), None),
+            presentation(None, Some(WeightedVotingPolicy::VOTERS_WEIGHTED_VOTING)),
+        ];
+        let allowed = [
+            presentation(None, None),
+            presentation(
+                Some(DelegatedVotingPolicy::DISABLED),
+                Some(WeightedVotingPolicy::DISABLED_WEIGHTED_VOTING),
+            ),
+            presentation(None, Some(WeightedVotingPolicy::AREAS_WEIGHTED_VOTING)),
+        ];
+        for presentation in &refused {
+            assert!(unevaluated_voting_policy(true, presentation));
+            assert!(!unevaluated_voting_policy(false, presentation));
+        }
+        for presentation in &allowed {
+            assert!(!unevaluated_voting_policy(true, presentation));
+        }
     }
 }
