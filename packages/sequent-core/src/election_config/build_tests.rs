@@ -5012,3 +5012,61 @@ fn a_mode_named_beside_the_source_event_marker_is_kept() {
         json!("pseudonym")
     );
 }
+
+#[test]
+fn a_new_event_with_no_presentation_gets_complete_pseudonym_defaults() {
+    let mut event = Map::new();
+    assert_eq!(
+        default_ballot_identity(&mut event, EventOrigin::New, &json!([])),
+        IdentityDefault::Kept,
+    );
+    assert_eq!(
+        event["presentation"],
+        json!({
+            "ballot_identity": "pseudonym",
+            "voter_signing_policy": "with-signature",
+            "network_data_policy": "do-not-store",
+            "receipts": {"policy": "signed-by-ballot-box"},
+        }),
+    );
+}
+
+#[test]
+fn a_null_presentation_is_defaulted_but_a_malformed_one_is_not_replaced() {
+    let mut event = Map::from_iter([("presentation".to_string(), Value::Null)]);
+    assert_eq!(
+        default_ballot_identity(
+            &mut event,
+            EventOrigin::Existing(None),
+            &json!([]),
+        ),
+        IdentityDefault::LegacyVoterId,
+    );
+    assert_eq!(
+        event["presentation"],
+        json!({"ballot_identity": "voter-id"})
+    );
+
+    event.insert("presentation".to_string(), json!("not an object"));
+    assert_eq!(
+        default_ballot_identity(&mut event, EventOrigin::New, &json!([])),
+        IdentityDefault::Kept,
+    );
+    assert_eq!(event["presentation"], json!("not an object"));
+}
+
+#[test]
+fn null_receipts_get_a_default_but_malformed_receipts_are_left_for_validation()
+{
+    for (receipts, expected) in [
+        (Value::Null, json!({"policy": "signed-by-ballot-box"})),
+        (json!("not an object"), json!("not an object")),
+    ] {
+        let mut event = Map::from_iter([(
+            "presentation".to_string(),
+            json!({"receipts": receipts}),
+        )]);
+        default_ballot_identity(&mut event, EventOrigin::New, &json!([]));
+        assert_eq!(event["presentation"]["receipts"], expected);
+    }
+}

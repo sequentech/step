@@ -562,6 +562,14 @@ const englishTranslation = {
                     },
                 },
                 event: {
+                    "ballot-identity-unknown": {
+                        lead: "Unknown ballot identity",
+                        text: "Unknown ballot identity — '{{value}}' is not supported. Use voter-id or pseudonym.",
+                    },
+                    "pseudonym-incompatible": {
+                        lead: "Incompatible pseudonym settings",
+                        text: "Incompatible pseudonym settings — {{reason}}. The platform refuses to import this configuration.",
+                    },
                     "checks-period-invalid": {
                         lead: "Ballot checks period not valid",
                         text: "Ballot checks period not valid — the period in which voters can check their cast ballot could not be read: {{reason}}",

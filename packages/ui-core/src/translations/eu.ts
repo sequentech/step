@@ -559,6 +559,14 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 event: {
+                    "ballot-identity-unknown": {
+                        lead: "Boto-paperaren identitate ezezaguna",
+                        text: "Boto-paperaren identitate ezezaguna — '{{value}}' ez da onartzen. Erabili voter-id edo pseudonym.",
+                    },
+                    "pseudonym-incompatible": {
+                        lead: "Ezizenaren ezarpen bateraezinak",
+                        text: "Ezizenaren ezarpen bateraezinak — {{reason}}. Plataformak ez du konfigurazio hau inportatzea onartzen.",
+                    },
                     "checks-period-invalid": {
                         lead: "Egiaztatze-epea ez da baliozkoa",
                         text: "Egiaztatze-epea ez da baliozkoa — ezin izan da irakurri hautesleek emandako botoa egiaztatzeko duten epea: {{reason}}",
