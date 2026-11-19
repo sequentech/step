@@ -15,6 +15,11 @@ on:
         description: 'Whether to push the images'
         required: true
         type: boolean
+      push_root_ecr:
+        description: 'Whether to also push the images to the root account ECR (581718213778)'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build-and-push:
@@ -179,6 +184,21 @@ jobs:
         username: oauth2accesstoken
         password: ${{ steps.gcp-auth.outputs.access_token }}
 
+    # Root account 581718213778: push once to ca-central-1 (Canada).
+    # Other regions in this account pull via ECR replication from ca-central-1.
+    # The GlobalDot ECR login above stays in the Docker config, which skopeo reads.
+    - name: Configure AWS credentials (root account)
+      if: inputs.push && inputs.push_root_ecr
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ca-central-1
+
+    - name: Login to Amazon ECR (root account)
+      if: inputs.push && inputs.push_root_ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
     # The prod registries have immutable tags, and rebuilding a commit changes its
     # digest. A short SHA tag there would stop a built commit getting a new tag.
     - name: Push to ECR and Artifact Registry
@@ -187,13 +207,21 @@ jobs:
         SERVICE: ${{ matrix.service }}
         TAG: ${{ inputs.tag || github.run_number }}
         ECR_REGISTRY: ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}
+        PUSH_ROOT_ECR: ${{ inputs.push_root_ecr }}
+        ROOT_ECR_REGISTRY: ${{ vars.AWS_ECR_REGISTRY }}
       run: |
         ecr="docker://$ECR_REGISTRY/$SERVICE"
+        root_ecr=()
+        if [ "$PUSH_ROOT_ECR" = "true" ]; then
+          root="docker://$ROOT_ECR_REGISTRY/$SERVICE"
+          root_ecr=("$root:$SHORT_SHA" "$root:$TAG")
+        fi
         dev="docker://europe-west4-docker.pkg.dev/sequentech-dev/sequent/$SERVICE"
         prod="docker://us-east1-docker.pkg.dev/sequent-production/sequent/$SERVICE"
         # prod9-euw1 (meta#14927). Same project and push identity, its own region.
         prod_euw1="docker://europe-west1-docker.pkg.dev/sequent-production/sequent/$SERVICE"
         .github/scripts/push_image.sh "$RUNNER_TEMP/image" \
           "$ecr:$SHORT_SHA" "$ecr:$TAG" \
+          "${root_ecr[@]}" \
           "$dev:$SHORT_SHA" "$dev:$TAG" \
           --immutable "$prod:$TAG" "$prod_euw1:$TAG"
