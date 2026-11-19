@@ -15,6 +15,11 @@ on:
         description: 'Whether to push the images'
         required: true
         type: boolean
+      push_root_ecr:
+        description: 'Whether to also push the images to the root account ECR (581718213778)'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build-and-push:
@@ -134,6 +139,21 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
+    # Root account 581718213778: push once to ca-central-1 (Canada).
+    # Other regions in the same account pull via ECR replication.
+    # The GlobalDot ECR login above stays in the Docker config.
+    - name: Configure AWS credentials (root account)
+      if: inputs.push && inputs.push_root_ecr
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ca-central-1
+
+    - name: Login to Amazon ECR (root account)
+      if: inputs.push && inputs.push_root_ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
     - name: Build & Push to ECR
       uses: docker/build-push-action@v6
       with:
@@ -143,6 +163,8 @@ jobs:
         tags: |
           ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ env.SHORT_SHA }}
           ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
+          ${{ inputs.push_root_ecr && format('{0}/{1}:{2}', vars.AWS_ECR_REGISTRY, matrix.service, env.SHORT_SHA) || '' }}
+          ${{ inputs.push_root_ecr && format('{0}/{1}:{2}', vars.AWS_ECR_REGISTRY, matrix.service, inputs.tag || github.run_number) || '' }}
         cache-from: type=registry,ref=${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:buildcache
         cache-to: type=registry,ref=${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:buildcache,mode=max
         build-contexts: ${{ matrix.build_contexts }}
