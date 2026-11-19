@@ -10,6 +10,7 @@ pub mod electoral_results;
 pub mod generation;
 pub mod initialization;
 pub mod manual_verification;
+pub mod ov_who_voted;
 pub mod participation;
 pub mod pdf_copies;
 pub mod report_variables;

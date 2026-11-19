@@ -52,10 +52,9 @@ pub async fn post_audit_log_outbox() -> Result<()> {
     match (audit, relay) {
         (Ok(_), Ok(_)) => Ok(()),
         (Err(error), Ok(_)) | (Ok(_), Err(error)) => Err(error.into()),
-        (Err(audit), Err(relay)) => Err(anyhow!(
-            "audit log outbox: {audit:#}; electoral-log outbox: {relay:#}"
-        )
-        .into()),
+        (Err(audit), Err(relay)) => {
+            Err(anyhow!("audit log outbox: {audit:#}; electoral-log outbox: {relay:#}").into())
+        }
     }
 }
 

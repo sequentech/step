@@ -514,7 +514,10 @@ async fn a_refused_admission_appends_nothing_and_a_later_one_does() {
     let log = store.log.clone();
     let mut board = BoardSigningLog::new(store);
     let error = board.admit("tenant/event").await.unwrap_err();
-    assert!(crate::services::electoral_log_deferral::is_scope_gated(&error), "{error:#}");
+    assert!(
+        crate::services::electoral_log_deferral::is_scope_gated(&error),
+        "{error:#}"
+    );
     board.end_admission().await;
     assert_eq!(*log.lock().unwrap(), ["admit tenant/event".to_string()]);
 
@@ -522,7 +525,10 @@ async fn a_refused_admission_appends_nothing_and_a_later_one_does() {
     let (log, entries) = (store.log.clone(), store.entries.clone());
     let mut board = BoardSigningLog::new(store);
     board.admit("tenant/event").await.unwrap();
-    let written = board.deliver("event-board", &deliveries(&Keys::new())).await.unwrap();
+    let written = board
+        .deliver("event-board", &deliveries(&Keys::new()))
+        .await
+        .unwrap();
     board.end_admission().await;
     assert_eq!(written, vec![true, true]);
     assert_eq!(entries.lock().unwrap().len(), 2);

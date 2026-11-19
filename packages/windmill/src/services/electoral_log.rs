@@ -15,6 +15,7 @@ use crate::services::electoral_log_board::TenantLog;
 use crate::services::electoral_log_checkpoint_copies::{
     store_checkpoint_copy, CheckpointCopyConfig,
 };
+use crate::services::electoral_log_pending::{PendingStatement, PendingStatementBody};
 use crate::services::insert_cast_vote::hash_voter_id;
 use crate::services::vault;
 use crate::tasks::electoral_log::{
@@ -32,7 +33,6 @@ use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::{CertificateAuthEventAction, *};
 use electoral_log::messages::statement::{StatementBody, StatementType};
 use electoral_log::signer::{is_signer_unavailable, software, SharedSigner};
-use crate::services::electoral_log_pending::{PendingStatement, PendingStatementBody};
 use electoral_log::{
     ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,
 };
@@ -352,11 +352,10 @@ impl ScopeAdmission {
             queue: None,
         };
         // First the action database's half: H(S) shared.
-        let hasura = get_hasura_pool()
-            .await
-            .get()
-            .await
-            .context("The electoral-log entry is refused: the action database is unavailable")?;
+        let hasura =
+            get_hasura_pool().await.get().await.context(
+                "The electoral-log entry is refused: the action database is unavailable",
+            )?;
         // Held by the admission before BEGIN: cancelled at any await, its drop
         // rolls back (never a pooled connection inside a transaction).
         admission.hasura = Some(hasura);
@@ -380,7 +379,9 @@ impl ScopeAdmission {
             .context("The electoral-log entry is refused: the task-queue database is unavailable")?
             .get()
             .await
-            .context("The electoral-log entry is refused: the task-queue database is unavailable")?;
+            .context(
+                "The electoral-log entry is refused: the task-queue database is unavailable",
+            )?;
         admission.queue = Some(queue);
         admission
             .queue
@@ -408,10 +409,20 @@ impl ScopeAdmission {
         // cancelled meanwhile, the admission's drop rolls back what it still holds
         // (never a pooled connection inside a transaction).
         for queue_half in [true, false] {
-            let slot = if queue_half { &self.queue } else { &self.hasura };
-            let Some(client) = slot.as_ref() else { continue };
+            let slot = if queue_half {
+                &self.queue
+            } else {
+                &self.hasura
+            };
+            let Some(client) = slot.as_ref() else {
+                continue;
+            };
             let ended = client.batch_execute("ROLLBACK").await;
-            let client = if queue_half { self.queue.take() } else { self.hasura.take() };
+            let client = if queue_half {
+                self.queue.take()
+            } else {
+                self.hasura.take()
+            };
             if let (Err(error), Some(client)) = (ended, client) {
                 warn!("Error ending the electoral-log scope transaction: {error}");
                 // Not returned to the pool inside a transaction: closed instead.
@@ -423,8 +434,10 @@ impl ScopeAdmission {
 
 impl Drop for ScopeAdmission {
     fn drop(&mut self) {
-        let clients: Vec<deadpool_postgres::Object> =
-            [self.queue.take(), self.hasura.take()].into_iter().flatten().collect();
+        let clients: Vec<deadpool_postgres::Object> = [self.queue.take(), self.hasura.take()]
+            .into_iter()
+            .flatten()
+            .collect();
         if clients.is_empty() {
             return;
         }
@@ -433,7 +446,9 @@ impl Drop for ScopeAdmission {
                 runtime.spawn(async move {
                     for client in clients {
                         if let Err(error) = client.batch_execute("ROLLBACK").await {
-                            warn!("Error ending a dropped electoral-log scope transaction: {error}");
+                            warn!(
+                                "Error ending a dropped electoral-log scope transaction: {error}"
+                            );
                             // Not returned to the pool inside a transaction.
                             let _ = deadpool_postgres::Object::take(client);
                         }
@@ -960,7 +975,10 @@ impl ElectoralLog {
         Ok(ElectoralLog {
             sd: SigningData::with_signers(system.clone(), "", system),
             elog_database: elog_database.to_string(),
-            scope: Some(crate::services::electoral_log_deferral::scope_key(tenant_id, election_event_id)),
+            scope: Some(crate::services::electoral_log_deferral::scope_key(
+                tenant_id,
+                election_event_id,
+            )),
         })
     }
 
@@ -983,7 +1001,10 @@ impl ElectoralLog {
         Ok(ElectoralLog {
             sd: SigningData::with_signers(software(sender_sk.clone()), "", system),
             elog_database: elog_database.to_string(),
-            scope: Some(crate::services::electoral_log_deferral::scope_key(tenant_id, election_event_id)),
+            scope: Some(crate::services::electoral_log_deferral::scope_key(
+                tenant_id,
+                election_event_id,
+            )),
         })
     }
 
@@ -1055,7 +1076,9 @@ impl ElectoralLog {
         Ok(ElectoralLog {
             sd: SigningData::with_signers(system.clone(), user_id, system),
             elog_database: elog_database.to_string(),
-            scope: Some(crate::services::electoral_log_deferral::scope_key(tenant_id, event_id)),
+            scope: Some(crate::services::electoral_log_deferral::scope_key(
+                tenant_id, event_id,
+            )),
         })
     }
 
@@ -1100,7 +1123,10 @@ impl ElectoralLog {
         Ok(ElectoralLog {
             sd: SigningData::with_signers(software(sk), "", system),
             elog_database: elog_database.to_string(),
-            scope: Some(crate::services::electoral_log_deferral::scope_key(tenant_id, election_event_id)),
+            scope: Some(crate::services::electoral_log_deferral::scope_key(
+                tenant_id,
+                election_event_id,
+            )),
         })
     }
 
@@ -1369,19 +1395,21 @@ impl ElectoralLog {
     ) -> Result<()> {
         let event = EventIdString(event_id);
 
-        self.post_built(|sd| Message::external_reconciliation_message(
-            event,
-            kind,
-            ExternalReconciliationSequenceString(sequence.to_string()),
-            ExternalReconciliationGeneratedAtString(generated_at.to_string()),
-            ExternalReconciliationInputHashString(input_sha256),
-            ExternalReconciliationOutputHashString(output_sha256),
-            artifact,
-            sd,
-            user_id,
-            username,
-        ))
-            .await
+        self.post_built(|sd| {
+            Message::external_reconciliation_message(
+                event,
+                kind,
+                ExternalReconciliationSequenceString(sequence.to_string()),
+                ExternalReconciliationGeneratedAtString(generated_at.to_string()),
+                ExternalReconciliationInputHashString(input_sha256),
+                ExternalReconciliationOutputHashString(output_sha256),
+                artifact,
+                sd,
+                user_id,
+                username,
+            )
+        })
+        .await
     }
 
     #[instrument(skip(self))]
@@ -1392,14 +1420,16 @@ impl ElectoralLog {
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<()> {
-        self.post_built(|sd| Message::results_publication_action_message(
-            EventIdString(event_id),
-            details,
-            sd,
-            user_id,
-            username,
-        ))
-            .await
+        self.post_built(|sd| {
+            Message::results_publication_action_message(
+                EventIdString(event_id),
+                details,
+                sd,
+                user_id,
+                username,
+            )
+        })
+        .await
     }
 
     /// Posts a new version of the election event's approval matrix, once per
@@ -1414,15 +1444,20 @@ impl ElectoralLog {
         username: Option<String>,
     ) -> Result<()> {
         let delivery_id = approval_matrix_delivery_id(version, &sha256);
-        self.post_built_with_delivery_id(|sd| Message::approval_matrix_updated_message(
-            EventIdString(event_id),
-            ApprovalMatrixVersion(version),
-            ApprovalMatrixDigestString(sha256),
-            sd,
-            user_id,
-            username,
-        ), delivery_id)
-            .await
+        self.post_built_with_delivery_id(
+            |sd| {
+                Message::approval_matrix_updated_message(
+                    EventIdString(event_id),
+                    ApprovalMatrixVersion(version),
+                    ApprovalMatrixDigestString(sha256),
+                    sd,
+                    user_id,
+                    username,
+                )
+            },
+            delivery_id,
+        )
+        .await
     }
 
     /// Posts a change to the election event's monitoring dashboards, once per
@@ -1436,14 +1471,19 @@ impl ElectoralLog {
         username: Option<String>,
     ) -> Result<()> {
         let delivery_id = monitoring_config_delivery_id(&details)?;
-        self.post_built_with_delivery_id(|sd| Message::monitoring_config_changed_message(
-            EventIdString(event_id),
-            details,
-            sd,
-            user_id,
-            username,
-        ), delivery_id)
-            .await
+        self.post_built_with_delivery_id(
+            |sd| {
+                Message::monitoring_config_changed_message(
+                    EventIdString(event_id),
+                    details,
+                    sd,
+                    user_id,
+                    username,
+                )
+            },
+            delivery_id,
+        )
+        .await
     }
 
     /// Posts a signed configuration package's import, once per package
@@ -1457,14 +1497,19 @@ impl ElectoralLog {
         username: Option<String>,
     ) -> Result<()> {
         let delivery_id = configuration_package_delivery_id(&details.package);
-        self.post_built_with_delivery_id(|sd| Message::configuration_package_with_content_hash_message(
-            EventIdString(event_id),
-            details,
-            sd,
-            user_id,
-            username,
-        ), delivery_id)
-            .await
+        self.post_built_with_delivery_id(
+            |sd| {
+                Message::configuration_package_with_content_hash_message(
+                    EventIdString(event_id),
+                    details,
+                    sd,
+                    user_id,
+                    username,
+                )
+            },
+            delivery_id,
+        )
+        .await
     }
 
     /// Posts the hash manifest of a generated report, once per manifest.
@@ -1477,14 +1522,19 @@ impl ElectoralLog {
         username: Option<String>,
     ) -> Result<()> {
         let delivery_id = report_generated_delivery_id(&details);
-        self.post_built_with_delivery_id(|sd| Message::report_generated_message(
-            EventIdString(event_id),
-            details,
-            sd,
-            user_id,
-            username,
-        ), delivery_id)
-            .await
+        self.post_built_with_delivery_id(
+            |sd| {
+                Message::report_generated_message(
+                    EventIdString(event_id),
+                    details,
+                    sd,
+                    user_id,
+                    username,
+                )
+            },
+            delivery_id,
+        )
+        .await
     }
 
     /// Posts a publication. For an event imported from a signed
@@ -1546,16 +1596,18 @@ impl ElectoralLog {
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
-        self.post_built(|sd| Message::election_open_message(
-            event,
-            election,
-            elections_ids,
-            voting_channel,
-            sd,
-            user_id,
-            username,
-        ))
-            .await
+        self.post_built(|sd| {
+            Message::election_open_message(
+                event,
+                election,
+                elections_ids,
+                voting_channel,
+                sd,
+                user_id,
+                username,
+            )
+        })
+        .await
     }
 
     #[instrument(skip(self))]
@@ -1570,15 +1622,10 @@ impl ElectoralLog {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
 
-        self.post_built(|sd| Message::election_pause_message(
-            event,
-            election,
-            voting_channel,
-            sd,
-            user_id,
-            username,
-        ))
-            .await
+        self.post_built(|sd| {
+            Message::election_pause_message(event, election, voting_channel, sd, user_id, username)
+        })
+        .await
     }
 
     #[instrument(skip(self))]
@@ -1594,16 +1641,18 @@ impl ElectoralLog {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
 
-        self.post_built(|sd| Message::election_close_message(
-            event,
-            election,
-            elections_ids,
-            voting_channel,
-            sd,
-            user_id,
-            username,
-        ))
-            .await
+        self.post_built(|sd| {
+            Message::election_close_message(
+                event,
+                election,
+                elections_ids,
+                voting_channel,
+                sd,
+                user_id,
+                username,
+            )
+        })
+        .await
     }
 
     #[instrument(skip_all)]
@@ -1620,16 +1669,18 @@ impl ElectoralLog {
             &error_message,
         ));
         let event_type = KeycloakEventTypeString(event_type);
-        self.post_built(|sd| Message::keycloak_user_event(
-            event,
-            event_type,
-            error_message,
-            user_id,
-            username,
-            sd,
-            None,
-        ))
-            .await
+        self.post_built(|sd| {
+            Message::keycloak_user_event(
+                event,
+                event_type,
+                error_message,
+                user_id,
+                username,
+                sd,
+                None,
+            )
+        })
+        .await
     }
 
     #[instrument(skip(self))]
@@ -1657,8 +1708,10 @@ impl ElectoralLog {
         let event = EventIdString(event_id);
         let election_ids = flatten_election_ids(election_ids_vec);
 
-        self.post_built(|sd| Message::key_insertion_start(event, sd, user_id, username, election_ids))
-            .await
+        self.post_built(|sd| {
+            Message::key_insertion_start(event, sd, user_id, username, election_ids)
+        })
+        .await
     }
 
     #[instrument(skip(self))]
@@ -1674,15 +1727,10 @@ impl ElectoralLog {
         let trustee_name = TrusteeNameString(trustee_name);
         let election_ids = flatten_election_ids(election_ids_vec);
 
-        self.post_built(|sd| Message::key_insertion_message(
-            event,
-            trustee_name,
-            sd,
-            user_id,
-            username,
-            election_ids,
-        ))
-            .await
+        self.post_built(|sd| {
+            Message::key_insertion_message(event, trustee_name, sd, user_id, username, election_ids)
+        })
+        .await
     }
 
     #[instrument(skip(self))]
@@ -1730,11 +1778,11 @@ impl ElectoralLog {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
 
-        self.post_built(|sd| Message::send_template(
-            event, election, sd, user_id, username, message, area_id,
-        )
-        .context("Error sending template"))
-            .await
+        self.post_built(|sd| {
+            Message::send_template(event, election, sd, user_id, username, message, area_id)
+                .context("Error sending template")
+        })
+        .await
     }
 
     #[instrument(skip(self))]
@@ -1788,17 +1836,19 @@ impl ElectoralLog {
         let election = ElectionIdString(election_ids);
         let contest = ContestIdString(contest_id);
 
-        self.post_built(|sd| Message::tally_tie_resolved(
-            event,
-            election,
-            contest,
-            resolution_id,
-            sd,
-            user_id,
-            username,
-        )
-        .context("Error posting tally tie resolved"))
-            .await
+        self.post_built(|sd| {
+            Message::tally_tie_resolved(
+                event,
+                election,
+                contest,
+                resolution_id,
+                sd,
+                user_id,
+                username,
+            )
+            .context("Error posting tally tie resolved")
+        })
+        .await
     }
 
     #[instrument(skip(self))]
@@ -1816,17 +1866,19 @@ impl ElectoralLog {
         let election = ElectionIdString(election_ids);
         let contest = ContestIdString(contest_id);
 
-        self.post_built(|sd| Message::tally_tie_resolution_updated(
-            event,
-            election,
-            contest,
-            resolution_id,
-            sd,
-            user_id,
-            username,
-        )
-        .context("Error posting tally tie resolution updated"))
-            .await
+        self.post_built(|sd| {
+            Message::tally_tie_resolution_updated(
+                event,
+                election,
+                contest,
+                resolution_id,
+                sd,
+                user_id,
+                username,
+            )
+            .context("Error posting tally tie resolution updated")
+        })
+        .await
     }
 
     #[instrument(skip(self))]
@@ -1839,15 +1891,17 @@ impl ElectoralLog {
         username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
-        self.post_built(|sd| Message::certificate_auth_event_message(
-            event,
-            action,
-            subject_dns,
-            sd,
-            user_id,
-            username,
-        ))
-            .await
+        self.post_built(|sd| {
+            Message::certificate_auth_event_message(
+                event,
+                action,
+                subject_dns,
+                sd,
+                user_id,
+                username,
+            )
+        })
+        .await
     }
 
     /// Publish a signed checkpoint of this event's electoral log.
@@ -3019,7 +3073,9 @@ mod postgres_wiring_tests {
             board: board.clone(),
             delivery_id: Uuid::new_v4().to_string(),
             message: message.clone(),
-            scope: Some(crate::services::electoral_log_deferral::scope_key(&tenant, &event)),
+            scope: Some(crate::services::electoral_log_deferral::scope_key(
+                &tenant, &event,
+            )),
         };
         prepared.post().await?;
         prepared.post().await?;
@@ -3917,10 +3973,16 @@ mod ordering_gate_tests {
             .post_built(|_| panic!("nothing is signed for a refused post"))
             .await
             .unwrap_err();
-        assert!(format!("{error:#}").contains("without its log's scope is refused"), "{error:#}");
+        assert!(
+            format!("{error:#}").contains("without its log's scope is refused"),
+            "{error:#}"
+        );
         // The lower-level gated append refuses it too (nothing is appended).
         let error = append_gated(None, "board", &[]).await.unwrap_err();
-        assert!(format!("{error:#}").contains("without its log's scope is refused"), "{error:#}");
+        assert!(
+            format!("{error:#}").contains("without its log's scope is refused"),
+            "{error:#}"
+        );
         // An entry prepared by an earlier release (no scope in its JSON) is refused.
         let prepared = PreparedVoterPasswordChangeLog {
             board: "board".into(),
@@ -3938,10 +4000,17 @@ mod ordering_gate_tests {
             scope: None,
         };
         let json = serde_json::to_value(&prepared).unwrap();
-        assert!(json.get("scope").is_none(), "an earlier release's shape: {json}");
-        let from_old_release: PreparedVoterPasswordChangeLog = serde_json::from_value(json).unwrap();
+        assert!(
+            json.get("scope").is_none(),
+            "an earlier release's shape: {json}"
+        );
+        let from_old_release: PreparedVoterPasswordChangeLog =
+            serde_json::from_value(json).unwrap();
         let error = from_old_release.post().await.unwrap_err();
-        assert!(format!("{error:#}").contains("must be prepared again"), "{error:#}");
+        assert!(
+            format!("{error:#}").contains("must be prepared again"),
+            "{error:#}"
+        );
     }
 
     /// An entry prepared by an earlier release (no scope) is given its log's scope
@@ -3951,7 +4020,14 @@ mod ordering_gate_tests {
         let key = voting_crypto::signing::SigningKey::generate().unwrap();
         let log = ElectoralLog::for_system_with_signing_key("board", &key);
         let message = log
-            .build_keycloak_event_message("event".into(), "UPDATE_PASSWORD".into(), String::new(), None, None, None)
+            .build_keycloak_event_message(
+                "event".into(),
+                "UPDATE_PASSWORD".into(),
+                String::new(),
+                None,
+                None,
+                None,
+            )
             .unwrap();
         let old = serde_json::json!({ "board": "board", "delivery_id": "d", "message": message });
         let mut entry: PreparedVoterPasswordChangeLog = serde_json::from_value(old).unwrap();
@@ -3959,9 +4035,15 @@ mod ordering_gate_tests {
         entry.with_scope_if_missing("tenant-1", "event-1");
         assert_eq!(
             entry.scope.as_deref(),
-            Some(crate::services::electoral_log_deferral::scope_key("tenant-1", "event-1").as_str())
+            Some(
+                crate::services::electoral_log_deferral::scope_key("tenant-1", "event-1").as_str()
+            )
         );
         entry.with_scope_if_missing("tenant-2", "event-2");
-        assert_eq!(entry.scope.as_deref(), Some("tenant-1/event-1"), "an existing scope is kept");
+        assert_eq!(
+            entry.scope.as_deref(),
+            Some("tenant-1/event-1"),
+            "an existing scope is kept"
+        );
     }
 }

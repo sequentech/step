@@ -10,8 +10,7 @@
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::electoral_log_checkpoint::{
     get_election_events_with_open_voting, get_election_events_with_recent_checkpoints,
-    get_electoral_log_checkpoints,
-    get_last_published_tree_size, PublishedCheckpoint,
+    get_electoral_log_checkpoints, get_last_published_tree_size, PublishedCheckpoint,
 };
 use crate::postgres::tally_session_execution::append_tally_session_log;
 use crate::services::ballot_box::{request_sequencer, wait_for_sequencer, CLOSING_SEQUENCER_WAIT};
@@ -30,7 +29,6 @@ use crate::services::tasks_execution::{post, update_fail, update_with_annotation
 use crate::tasks::audit_electoral_log::audit_electoral_log;
 use crate::types::tasks::ETasksExecution;
 use anyhow::{Context, Result};
-use std::collections::HashSet;
 use electoral_log::adapters::postgres::{AuditAnnotations, AuditOutcome};
 use electoral_log::domain::{LogQuery, OrderColumn, SortDirection};
 use electoral_log::messages::newtypes::ElectoralLogCheckpointReason;
@@ -39,6 +37,7 @@ use electoral_log::proofs::{verify_checkpoint_signature, Checkpoint, LogState};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde_json::Value;
+use std::collections::HashSet;
 use tracing::instrument;
 use voting_crypto::RistrettoCtx;
 
@@ -230,7 +229,11 @@ pub async fn publish_periodic_checkpoints() -> Result<PeriodicCheckpoints> {
     for (tenant_id, election_event_id) in recent.iter().filter(|event| !events.contains(event)) {
         match record_missing_checkpoints(tenant_id, election_event_id).await {
             Ok(0) => {}
-            Ok(recorded) => tracing::warn!(election_event_id, recorded, "Recorded missing checkpoint records"),
+            Ok(recorded) => tracing::warn!(
+                election_event_id,
+                recorded,
+                "Recorded missing checkpoint records"
+            ),
             Err(error) => tracing::error!(
                 election_event_id,
                 "Could not record the missing checkpoint records: {error:#}"
@@ -287,7 +290,10 @@ pub async fn record_missing_checkpoints(tenant_id: &str, election_event_id: &str
         .await?;
     let mut recorded = 0;
     let mut delivered = HashSet::new();
-    for checkpoint in checkpoints.iter().filter(|checkpoint| checkpoint.board_name == board) {
+    for checkpoint in checkpoints
+        .iter()
+        .filter(|checkpoint| checkpoint.board_name == board)
+    {
         let delivery_id = checkpoint_record_delivery_id(checkpoint);
         if store.delivered(&board, &delivery_id).await?.is_some() {
             delivered.insert(delivery_id);
@@ -318,7 +324,10 @@ pub async fn record_missing_checkpoints(tenant_id: &str, election_event_id: &str
                 recorded += 1;
             }
             Err(error) if crate::services::electoral_log_deferral::is_scope_gated(&error) => {
-                tracing::info!(election_event_id, "Missing checkpoint records wait for the log's order: {error:#}");
+                tracing::info!(
+                    election_event_id,
+                    "Missing checkpoint records wait for the log's order: {error:#}"
+                );
                 break;
             }
             Err(error) => return Err(error),
@@ -363,7 +372,10 @@ async fn publish_periodic_checkpoint(tenant_id: &str, election_event_id: &str) -
     // First the records of stored checkpoints that are missing from the log (a
     // checkpoint is never left unrecorded for good).
     if let Err(error) = record_missing_checkpoints(tenant_id, election_event_id).await {
-        tracing::error!(election_event_id, "Could not record the missing checkpoint records: {error:#}");
+        tracing::error!(
+            election_event_id,
+            "Could not record the missing checkpoint records: {error:#}"
+        );
     }
     let (board, checkpoint, last_published) = {
         let mut client = get_hasura_pool().await.get().await?;
@@ -884,7 +896,11 @@ mod periodic_checkpoint_tests {
             .iter()
             .map(|checkpoint| checkpoint.tree_size)
             .collect();
-        assert_eq!(missing, vec![43], "only the lost record; not another board's");
+        assert_eq!(
+            missing,
+            vec![43],
+            "only the lost record; not another board's"
+        );
         // Nothing recorded yet: all of this board's, oldest first.
         let missing: Vec<i64> = unrecorded_checkpoints(&checkpoints, "board", &HashSet::new())
             .iter()

@@ -108,12 +108,18 @@ fn permanent(error: anyhow::Error) -> anyhow::Error {
 
 /// Whether `error` is, or was caused by, a [`PermanentRelayFailure`].
 pub fn is_permanent_relay_failure(error: &anyhow::Error) -> bool {
-    error.chain().any(|cause| cause.is::<PermanentRelayFailure>())
+    error
+        .chain()
+        .any(|cause| cause.is::<PermanentRelayFailure>())
 }
 
 /// Takes the log scope's lock H(S) in the action database's transaction:
 /// exclusive for a certificate action, shared for a direct post.
-pub async fn lock_scope<C: GenericClient + Sync>(client: &C, scope: &str, exclusive: bool) -> Result<()> {
+pub async fn lock_scope<C: GenericClient + Sync>(
+    client: &C,
+    scope: &str,
+    exclusive: bool,
+) -> Result<()> {
     let sql = if exclusive {
         "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))"
     } else {
@@ -129,10 +135,12 @@ pub async fn lock_scope<C: GenericClient + Sync>(client: &C, scope: &str, exclus
         Err(error)
             if error.code() == Some(&tokio_postgres::error::SqlState::LOCK_NOT_AVAILABLE) =>
         {
-            Err(anyhow::Error::new(crate::services::electoral_log_deferral::ScopeBusy {
-                scope: scope.to_string(),
-                what: "an action is writing to its outbox",
-            }))
+            Err(anyhow::Error::new(
+                crate::services::electoral_log_deferral::ScopeBusy {
+                    scope: scope.to_string(),
+                    what: "an action is writing to its outbox",
+                },
+            ))
         }
         Err(error) => Err(anyhow::Error::new(error).context("The electoral log's scope is busy")),
     }
@@ -147,7 +155,9 @@ pub async fn outbox_gate<C: GenericClient + Sync>(client: &C, scope: &str) -> Re
         .split_once('/')
         .ok_or_else(|| anyhow!("Not a log scope: {scope}"))?;
     client
-        .batch_execute(&format!("SET LOCAL lock_timeout = '{OUTBOX_GATE_LOCK_TIMEOUT}'"))
+        .batch_execute(&format!(
+            "SET LOCAL lock_timeout = '{OUTBOX_GATE_LOCK_TIMEOUT}'"
+        ))
         .await
         .context("Error setting the scope lock's timeout")?;
     lock_scope(client, scope, false).await?;
@@ -240,7 +250,10 @@ pub fn checked_announcement(
         StatementBody::AdminPublicKey(tenant, Some(user), key)
             if tenant.0 == tenant_id && user == user_id && key.0 == public_key
     );
-    ensure!(announces, "The announcement is not of this entry's tenant, user and key");
+    ensure!(
+        announces,
+        "The announcement is not of this entry's tenant, user and key"
+    );
     Ok(message)
 }
 
@@ -261,8 +274,11 @@ pub async fn write_outbox_entry(
     );
     let delivery_id = statement.origin.delivery_id();
     let payload = serde_json::to_value(statement).context("Error serializing an outbox entry")?;
-    let key = crate::services::vault::get_or_create_pending_mac_key(hasura_transaction, &statement.tenant_id)
-        .await?;
+    let key = crate::services::vault::get_or_create_pending_mac_key(
+        hasura_transaction,
+        &statement.tenant_id,
+    )
+    .await?;
     let mac = crate::services::electoral_log_pending::pending_mac(&key, &delivery_id, statement)?;
     hasura_transaction
         .execute(
@@ -299,7 +315,10 @@ struct OutboxRow {
 /// Moves committed outbox rows to the electoral log, one scope head at a time;
 /// see the module documentation. Returns how many were relayed. `lock_client`
 /// holds the relay's lock for the pass; `client` does the work.
-pub async fn relay_electoral_log_outbox(lock_client: &mut Client, client: &mut Client) -> Result<usize> {
+pub async fn relay_electoral_log_outbox(
+    lock_client: &mut Client,
+    client: &mut Client,
+) -> Result<usize> {
     let lock = lock_client
         .transaction()
         .await
@@ -338,8 +357,13 @@ pub async fn relay_electoral_log_outbox(lock_client: &mut Client, client: &mut C
                 // Refused for a log's order (its tenant log has entries waiting
                 // or a batch is processing it): not a failure of the row; its
                 // scope waits for the next pass, no attempt is counted.
-                Err(failure) if crate::services::electoral_log_deferral::is_scope_gated(&failure) => {
-                    info!(delivery_id, "The outbox relay waits for a log's order: {failure:#}");
+                Err(failure)
+                    if crate::services::electoral_log_deferral::is_scope_gated(&failure) =>
+                {
+                    info!(
+                        delivery_id,
+                        "The outbox relay waits for a log's order: {failure:#}"
+                    );
                     held.insert(scope);
                 }
                 Err(failure) => {
@@ -349,7 +373,9 @@ pub async fn relay_electoral_log_outbox(lock_client: &mut Client, client: &mut C
             }
         }
     }
-    lock.commit().await.context("Error ending the outbox relay")?;
+    lock.commit()
+        .await
+        .context("Error ending the outbox relay")?;
     Ok(relayed)
 }
 
@@ -412,7 +438,8 @@ async fn relay_row(client: &mut Client, delivery_id: &str) -> Result<bool> {
         .context("Not a pending statement")
         .map_err(permanent)?;
     // The scope the row gates is the statement's own.
-    if statement.tenant_id != row.tenant_id || statement.election_event_id != row.election_event_id {
+    if statement.tenant_id != row.tenant_id || statement.election_event_id != row.election_event_id
+    {
         return Err(permanent(anyhow!(
             "The outbox row's statement is of another scope than its row"
         )));
@@ -467,8 +494,11 @@ async fn forward_announcement(
     let Some((user_id, public_key)) = statement.statement.admin() else {
         return Ok(());
     };
-    let announcement = announcement
-        .ok_or_else(|| permanent(anyhow!("An administrator-signed entry without its announcement")))?;
+    let announcement = announcement.ok_or_else(|| {
+        permanent(anyhow!(
+            "An administrator-signed entry without its announcement"
+        ))
+    })?;
     // The tenant log is prepared in a short transaction of its own, committed before
     // the announcement is admitted: the relay never holds the tenant-log lock while it
     // waits at its log's gate (a batch holding the tenant scope's lease may need that
@@ -519,7 +549,11 @@ async fn forward_announcement(
     Ok(())
 }
 
-async fn record_failure(client: &mut Client, delivery_id: &str, failure: &anyhow::Error) -> Result<()> {
+async fn record_failure(
+    client: &mut Client,
+    delivery_id: &str,
+    failure: &anyhow::Error,
+) -> Result<()> {
     let text = format!("{failure:#}");
     let attempts: i32 = client
         .query_one(
@@ -539,14 +573,21 @@ async fn record_failure(client: &mut Client, delivery_id: &str, failure: &anyhow
             "An electoral-log outbox entry keeps failing to be relayed; its log's later entries wait: {text}"
         );
     } else {
-        warn!(delivery_id, "Error relaying an electoral-log outbox entry: {text}");
+        warn!(
+            delivery_id,
+            "Error relaying an electoral-log outbox entry: {text}"
+        );
     }
     Ok(())
 }
 
 /// Sets a row that can never be relayed as it is aside: kept, alerted on, no
 /// longer heading its scope.
-async fn dead_letter(client: &mut Client, delivery_id: &str, failure: &anyhow::Error) -> Result<()> {
+async fn dead_letter(
+    client: &mut Client,
+    delivery_id: &str,
+    failure: &anyhow::Error,
+) -> Result<()> {
     let text = format!("{failure:#}");
     client
         .execute(
@@ -602,7 +643,11 @@ pub async fn replay_outbox_entry<C: GenericClient + Sync>(
 }
 
 /// [`replay_outbox_entry`] on the action database (the CLI).
-pub async fn replay_electoral_log_outbox_entry(delivery_id: &str, by: &str, reason: &str) -> Result<bool> {
+pub async fn replay_electoral_log_outbox_entry(
+    delivery_id: &str,
+    by: &str,
+    reason: &str,
+) -> Result<bool> {
     let client = crate::services::database::get_hasura_pool()
         .await
         .get()
@@ -622,8 +667,14 @@ pub async fn relay_now() -> Option<usize> {
     kick_relay(
         async {
             let pool = crate::services::database::get_hasura_pool().await;
-            let mut lock_client = pool.get().await.context("Error connecting to the action database")?;
-            let mut work_client = pool.get().await.context("Error connecting to the action database")?;
+            let mut lock_client = pool
+                .get()
+                .await
+                .context("Error connecting to the action database")?;
+            let mut work_client = pool
+                .get()
+                .await
+                .context("Error connecting to the action database")?;
             relay_electoral_log_outbox(&mut lock_client, &mut work_client).await
         },
         || {
@@ -636,7 +687,11 @@ pub async fn relay_now() -> Option<usize> {
 
 /// Runs `relay` for at most `wait`, then `dispatch`, whatever the relay did
 /// (another relay may hold the lock and relay the entry itself).
-async fn kick_relay<F>(relay: F, dispatch: impl FnOnce(), wait: std::time::Duration) -> Option<usize>
+async fn kick_relay<F>(
+    relay: F,
+    dispatch: impl FnOnce(),
+    wait: std::time::Duration,
+) -> Option<usize>
 where
     F: std::future::Future<Output = Result<usize>>,
 {
@@ -688,7 +743,8 @@ pub async fn cancel_electoral_log_entry(delivery_id: &str, by: &str, reason: &st
         );
     }
     let waiting =
-        crate::services::electoral_log_pending::cancel_waiting_entry(delivery_id, by, reason).await?;
+        crate::services::electoral_log_pending::cancel_waiting_entry(delivery_id, by, reason)
+            .await?;
     Ok(outbox > 0 || waiting)
 }
 
@@ -719,7 +775,9 @@ mod tests {
         // Another user, key or tenant than the entry's.
         assert!(checked_announcement(&bytes, TENANT, "other", "QUJD", &system_pk).is_err());
         assert!(checked_announcement(&bytes, TENANT, "admin-id", "WFla", &system_pk).is_err());
-        assert!(checked_announcement(&bytes, "another-tenant", "admin-id", "QUJD", &system_pk).is_err());
+        assert!(
+            checked_announcement(&bytes, "another-tenant", "admin-id", "QUJD", &system_pk).is_err()
+        );
         // Signed by another key than the tenant log's.
         let foreign = admin_key_announcement(&other, TENANT, "admin-id", None, "QUJD").unwrap();
         assert!(checked_announcement(&foreign, TENANT, "admin-id", "QUJD", &system_pk).is_err());
@@ -730,9 +788,13 @@ mod tests {
     async fn a_kick_waits_for_the_relay_at_most_its_bound_then_dispatches() {
         use std::sync::atomic::{AtomicUsize, Ordering};
         let dispatched = AtomicUsize::new(0);
-        let relayed = kick_relay(async { Ok(2) }, || {
-            dispatched.fetch_add(1, Ordering::SeqCst);
-        }, std::time::Duration::from_secs(1))
+        let relayed = kick_relay(
+            async { Ok(2) },
+            || {
+                dispatched.fetch_add(1, Ordering::SeqCst);
+            },
+            std::time::Duration::from_secs(1),
+        )
         .await;
         assert_eq!(relayed, Some(2));
         // A relay slower than the bound: the action goes on, the batch is
@@ -751,9 +813,13 @@ mod tests {
         .await;
         assert_eq!(slow, None);
         assert!(started.elapsed() < std::time::Duration::from_secs(5));
-        let failed = kick_relay(async { Err(anyhow!("down")) }, || {
-            dispatched.fetch_add(1, Ordering::SeqCst);
-        }, std::time::Duration::from_secs(1))
+        let failed = kick_relay(
+            async { Err(anyhow!("down")) },
+            || {
+                dispatched.fetch_add(1, Ordering::SeqCst);
+            },
+            std::time::Duration::from_secs(1),
+        )
         .await;
         assert_eq!(failed, None);
         assert_eq!(dispatched.load(Ordering::SeqCst), 3);
@@ -761,8 +827,8 @@ mod tests {
 
     #[test]
     fn permanent_failures_are_told_from_the_rest_through_context() {
-        let failure = permanent(anyhow!("The pending statement's MAC doesn't verify"))
-            .context("relaying");
+        let failure =
+            permanent(anyhow!("The pending statement's MAC doesn't verify")).context("relaying");
         assert!(is_permanent_relay_failure(&failure));
         assert!(!is_permanent_relay_failure(&anyhow!("connection reset")));
     }
@@ -773,8 +839,15 @@ mod tests {
         // key (the announcement travels signed with the entry).
         let source = include_str!("electoral_log_outbox.rs");
         let code = source.split("#[cfg(test)]").next().unwrap();
-        for forbidden in ["read_admin_user_signing_key", "get_admin_user_signing_key", "admin_user_signing_key"] {
-            assert!(!code.contains(forbidden), "the relay must not use {forbidden}");
+        for forbidden in [
+            "read_admin_user_signing_key",
+            "get_admin_user_signing_key",
+            "admin_user_signing_key",
+        ] {
+            assert!(
+                !code.contains(forbidden),
+                "the relay must not use {forbidden}"
+            );
         }
     }
 }
@@ -798,7 +871,10 @@ mod db_tests {
         };
         Arc::new(
             config
-                .create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls)
+                .create_pool(
+                    Some(deadpool_postgres::Runtime::Tokio1),
+                    tokio_postgres::NoTls,
+                )
                 .unwrap(),
         )
     }
@@ -836,9 +912,15 @@ mod db_tests {
 
     /// As the action writes it (its tenant made first: the vault's MAC key
     /// references it).
-    async fn write(tx: &Transaction<'_>, statement: &PendingStatement, announcement: &[u8]) -> String {
+    async fn write(
+        tx: &Transaction<'_>,
+        statement: &PendingStatement,
+        announcement: &[u8],
+    ) -> String {
         ensure_tenant(&**tx, &statement.tenant_id).await;
-        write_outbox_entry(tx, statement, announcement).await.unwrap()
+        write_outbox_entry(tx, statement, announcement)
+            .await
+            .unwrap()
     }
 
     async fn gate(pool: &deadpool_postgres::Pool, scope: &str) -> Result<()> {
@@ -864,7 +946,8 @@ mod db_tests {
 
     #[tokio::test]
     #[ignore = "requires HASURA_TEST_DATABASE_URL (a disposable migrated database) and the vault's settings"]
-    async fn a_post_during_an_uncommitted_action_waits_then_is_refused_until_relayed_or_cancelled() {
+    async fn a_post_during_an_uncommitted_action_waits_then_is_refused_until_relayed_or_cancelled()
+    {
         let pool = pool();
         let (scope, statement) = entry();
         let mut action = pool.get().await.unwrap();
@@ -922,7 +1005,10 @@ mod db_tests {
             tx.rollback().await.unwrap();
         });
         tokio::time::sleep(Duration::from_millis(500)).await;
-        assert!(!action.is_finished(), "the action waits for the post's append");
+        assert!(
+            !action.is_finished(),
+            "the action waits for the post's append"
+        );
         post_tx.rollback().await.unwrap();
         action.await.unwrap();
         // Other scopes are never held.
@@ -977,7 +1063,10 @@ mod db_tests {
             .collect();
         assert_eq!(
             ours,
-            vec![&(a.clone(), first_scope.clone()), &(b.clone(), second_scope.clone())]
+            vec![
+                &(a.clone(), first_scope.clone()),
+                &(b.clone(), second_scope.clone())
+            ]
         );
         client
             .execute(
@@ -1023,7 +1112,10 @@ mod db_tests {
             url: Some(url),
             ..Default::default()
         }
-        .create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls)
+        .create_pool(
+            Some(deadpool_postgres::Runtime::Tokio1),
+            tokio_postgres::NoTls,
+        )
         .unwrap();
         let mut client = pool.get().await.unwrap();
         let tx = client.transaction().await.unwrap();
@@ -1043,7 +1135,10 @@ mod db_tests {
 
     /// A system-signed statement of a fresh scope, written to the outbox with
     /// its MAC as `PendingStatement::queue` writes it.
-    async fn queue_system(pool: &deadpool_postgres::Pool, event: &str) -> (PendingStatement, String) {
+    async fn queue_system(
+        pool: &deadpool_postgres::Pool,
+        event: &str,
+    ) -> (PendingStatement, String) {
         let statement = PendingStatement::new(
             &tenant(),
             event,
@@ -1058,8 +1153,9 @@ mod db_tests {
         let key = crate::services::vault::get_or_create_pending_mac_key(&tx, &statement.tenant_id)
             .await
             .unwrap();
-        let mac = crate::services::electoral_log_pending::pending_mac(&key, &delivery_id, &statement)
-            .unwrap();
+        let mac =
+            crate::services::electoral_log_pending::pending_mac(&key, &delivery_id, &statement)
+                .unwrap();
         tx.execute(
             "INSERT INTO sequent_backend.electoral_log_outbox \
              (delivery_id, tenant_id, election_event_id, payload, mac) \
@@ -1087,7 +1183,10 @@ mod db_tests {
     }
 
     /// (waiting rows, copies on the event queue, the row's ord) of a delivery.
-    async fn waiting_state(queue: &deadpool_postgres::Pool, delivery_id: &str) -> (i64, i64, Option<i64>) {
+    async fn waiting_state(
+        queue: &deadpool_postgres::Pool,
+        delivery_id: &str,
+    ) -> (i64, i64, Option<i64>) {
         let client = queue.get().await.unwrap();
         let rows: i64 = client
             .query_one(
@@ -1164,7 +1263,11 @@ mod db_tests {
         relay_once(&pool).await;
         assert!(relayed(&pool, &delivery_id).await);
         let (rows, again, _) = waiting_state(&queue, &delivery_id).await;
-        assert_eq!((rows, again), (1, copies), "no second row, no second reference");
+        assert_eq!(
+            (rows, again),
+            (1, copies),
+            "no second row, no second reference"
+        );
         // Crash after the entry was stored and its row removed, before the mark:
         // it is written again (the board stores nothing twice: see
         // a_board_stores_a_delivery_once).
@@ -1197,7 +1300,8 @@ mod db_tests {
         let board = format!("test-relay-{}", uuid::Uuid::new_v4());
         store.create_board(&board).await.unwrap();
         let key = SigningKey::generate().unwrap();
-        let bytes = admin_key_announcement(&key, TENANT_FOR_BOARD, "admin-id", None, "QUJD").unwrap();
+        let bytes =
+            admin_key_announcement(&key, TENANT_FOR_BOARD, "admin-id", None, "QUJD").unwrap();
         let message = Message::record_deserialize(&bytes).unwrap();
         let entry = LogEntry {
             delivery_id: "pending:enrollment-windows:once".to_string(),
@@ -1208,7 +1312,11 @@ mod db_tests {
         let second = client.append(&board, &[entry.clone()]).await.unwrap();
         assert_eq!(first.len(), 1);
         assert!(second.is_empty(), "the same delivery is stored once");
-        assert!(store.delivered(&board, &entry.delivery_id).await.unwrap().is_some());
+        assert!(store
+            .delivered(&board, &entry.delivery_id)
+            .await
+            .unwrap()
+            .is_some());
     }
 
     const TENANT_FOR_BOARD: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
@@ -1244,7 +1352,11 @@ mod db_tests {
         // dead-lettered (kept).
         assert!(!relayed(&pool, &stuck).await);
         assert!(dead_lettered(&pool, &stuck).await.is_some());
-        assert_eq!(waiting_state(&queue, &stuck).await.0, 0, "a bad MAC is never relayed");
+        assert_eq!(
+            waiting_state(&queue, &stuck).await.0,
+            0,
+            "a bad MAC is never relayed"
+        );
     }
 
     /// The row's dead-letter reason, if it is dead-lettered.
@@ -1288,14 +1400,21 @@ mod db_tests {
         gate(&pool, &scope).await.unwrap();
         // Replay without fixing it: dead-lettered again. Fixed, then replayed:
         // relayed.
-        assert!(replay_outbox_entry(&**client, &poison, "op", "retry").await.unwrap());
+        assert!(replay_outbox_entry(&**client, &poison, "op", "retry")
+            .await
+            .unwrap());
         relay_once(&pool).await;
         assert!(dead_lettered(&pool, &poison).await.is_some());
         let mut c = pool.get().await.unwrap();
         let tx = c.transaction().await.unwrap();
-        let key = crate::services::vault::pending_mac_key(&tx, &tenant()).await.unwrap().unwrap();
+        let key = crate::services::vault::pending_mac_key(&tx, &tenant())
+            .await
+            .unwrap()
+            .unwrap();
         tx.rollback().await.unwrap();
-        let mac = crate::services::electoral_log_pending::pending_mac(&key, &poison, &poison_statement).unwrap();
+        let mac =
+            crate::services::electoral_log_pending::pending_mac(&key, &poison, &poison_statement)
+                .unwrap();
         client
             .execute(
                 "UPDATE sequent_backend.electoral_log_outbox SET mac = $2 WHERE delivery_id = $1",
@@ -1303,8 +1422,16 @@ mod db_tests {
             )
             .await
             .unwrap();
-        assert!(!replay_outbox_entry(&**client, &later, "op", "not dead-lettered").await.unwrap());
-        assert!(replay_outbox_entry(&**client, &poison, "op", "MAC restored").await.unwrap());
+        assert!(
+            !replay_outbox_entry(&**client, &later, "op", "not dead-lettered")
+                .await
+                .unwrap()
+        );
+        assert!(
+            replay_outbox_entry(&**client, &poison, "op", "MAC restored")
+                .await
+                .unwrap()
+        );
         relay_once(&pool).await;
         assert!(relayed(&pool, &poison).await);
         assert_eq!(waiting_state(&queue, &poison).await.0, 1);
@@ -1342,7 +1469,10 @@ mod db_tests {
                 &[&original],
             )
             .await;
-        assert!(copy.is_err(), "a replayed administrator signature is refused");
+        assert!(
+            copy.is_err(),
+            "a replayed administrator signature is refused"
+        );
         // Its payload changed (another subject): its MAC no longer verifies.
         client
             .execute(
@@ -1404,7 +1534,11 @@ mod db_tests {
             )
             .await
             .unwrap();
-        assert!(client.query_one(fresh, &[&backdated]).await.unwrap().get::<_, bool>(0));
+        assert!(client
+            .query_one(fresh, &[&backdated])
+            .await
+            .unwrap()
+            .get::<_, bool>(0));
         // And an update can't change it.
         client
             .execute(
@@ -1414,7 +1548,11 @@ mod db_tests {
             )
             .await
             .unwrap();
-        assert!(client.query_one(fresh, &[&delivery_id]).await.unwrap().get::<_, bool>(0));
+        assert!(client
+            .query_one(fresh, &[&delivery_id])
+            .await
+            .unwrap()
+            .get::<_, bool>(0));
         client
             .execute(
                 "UPDATE sequent_backend.electoral_log_outbox SET cancelled_at = now(), \
@@ -1429,7 +1567,10 @@ mod db_tests {
     #[ignore = "requires HASURA_TEST_DATABASE_URL and the vault's settings"]
     async fn a_tenants_mac_key_is_never_another_tenants() {
         let pool = pool();
-        let (a, b) = (uuid::Uuid::new_v4().to_string(), uuid::Uuid::new_v4().to_string());
+        let (a, b) = (
+            uuid::Uuid::new_v4().to_string(),
+            uuid::Uuid::new_v4().to_string(),
+        );
         assert_ne!(
             crate::services::vault::pending_mac_key_name(&a),
             crate::services::vault::pending_mac_key_name(&b)
@@ -1438,12 +1579,24 @@ mod db_tests {
         ensure_tenant(&**c, &a).await;
         ensure_tenant(&**c, &b).await;
         let tx = c.transaction().await.unwrap();
-        let key_a = crate::services::vault::get_or_create_pending_mac_key(&tx, &a).await.unwrap();
+        let key_a = crate::services::vault::get_or_create_pending_mac_key(&tx, &a)
+            .await
+            .unwrap();
         // B has none until it makes its own, and it is not A's.
-        assert!(crate::services::vault::pending_mac_key(&tx, &b).await.unwrap().is_none());
-        let key_b = crate::services::vault::get_or_create_pending_mac_key(&tx, &b).await.unwrap();
+        assert!(crate::services::vault::pending_mac_key(&tx, &b)
+            .await
+            .unwrap()
+            .is_none());
+        let key_b = crate::services::vault::get_or_create_pending_mac_key(&tx, &b)
+            .await
+            .unwrap();
         assert_ne!(key_a, key_b);
-        assert_eq!(crate::services::vault::pending_mac_key(&tx, &a).await.unwrap(), Some(key_a));
+        assert_eq!(
+            crate::services::vault::pending_mac_key(&tx, &a)
+                .await
+                .unwrap(),
+            Some(key_a)
+        );
         tx.rollback().await.unwrap();
     }
 

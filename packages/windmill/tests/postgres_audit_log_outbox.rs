@@ -676,7 +676,9 @@ fn exports_hold_what_the_list_shows_and_their_sql_verifies() {
                 Signature::from_bytes(bytes.try_into().unwrap()).unwrap()
             };
             sender.verify(&signature(2), &signed(&statement)).unwrap();
-            system_key.verify(&signature(3), &signed(&statement)).unwrap();
+            system_key
+                .verify(&signature(3), &signed(&statement))
+                .unwrap();
             // Not over the raw bytes (the scheme before v3).
             assert!(system_key.verify(&signature(3), &statement).is_err());
         }

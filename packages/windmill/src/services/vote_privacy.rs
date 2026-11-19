@@ -307,13 +307,9 @@ pub async fn queue_rejection(
         event_row.bulletin_board_reference,
     )
     .context("Event log unavailable")?;
-    let key = crate::services::electoral_log_board::get_board_signer(
-        &tx,
-        tenant,
-        Some(event),
-        &board,
-    )
-    .await?;
+    let key =
+        crate::services::electoral_log_board::get_board_signer(&tx, tenant, Some(event), &board)
+            .await?;
     let message = Message::private_ballot_event_message(
         event,
         pseudonym,

@@ -141,7 +141,7 @@ jobs:
     # Harvest's route tests create their own database on this server.
     services:
       postgres:
-        image: ${{ matrix.service == 'harvest' && 'postgres:16' || '' }}
+        image: ${{ matrix.service == 'harvest' && 'postgres:18' || '' }}
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
@@ -260,7 +260,7 @@ jobs:
       # The ballot box seal tests post to boards of their own on this server.
     services:
       postgres:
-        image: postgres:16
+        image: postgres:18
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
@@ -402,7 +402,7 @@ jobs:
       # The ballot box seal tests post to boards of their own on this server.
     services:
       postgres:
-        image: postgres:16
+        image: postgres:18
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test

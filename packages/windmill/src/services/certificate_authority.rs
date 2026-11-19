@@ -176,8 +176,8 @@ async fn record_certificate_action(
         crate::services::electoral_log_board::ensure_tenant_log(hasura_transaction, tenant_id)
             .await
             .context("Error getting the tenant log for the administrator's key")?;
-    let admin_public_key = voting_crypto::signing::VerificationKey::from_sk(&admin_key)?
-        .to_b64_string()?;
+    let admin_public_key =
+        voting_crypto::signing::VerificationKey::from_sk(&admin_key)?.to_b64_string()?;
     let announcement = crate::services::electoral_log_outbox::admin_key_announcement(
         &tenant_log.system_key,
         tenant_id,

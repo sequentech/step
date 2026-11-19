@@ -1300,9 +1300,7 @@ async fn signed_private_ballot(
         let authority = electoral_log::signer::software(authority_key.clone());
         let entries = vec![
             windmill::services::vote_privacy::received_log_entry(
-                &tenant,
-                &queued[0],
-                &authority,
+                &tenant, &queued[0], &authority,
             )?,
             windmill::services::vote_privacy::cast_log_entry(
                 &received,

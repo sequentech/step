@@ -225,7 +225,10 @@ async fn append_pending(
         let _admission = match crate::services::electoral_log::ScopeAdmission::admit(&scope).await {
             Ok(admission) => admission,
             Err(error) if crate::services::electoral_log_deferral::is_scope_gated(&error) => {
-                tracing::info!(scope, "The ballot box's sequencer waits for its log's order: {error:#}");
+                tracing::info!(
+                    scope,
+                    "The ballot box's sequencer waits for its log's order: {error:#}"
+                );
                 break;
             }
             Err(error) => return Err(error),

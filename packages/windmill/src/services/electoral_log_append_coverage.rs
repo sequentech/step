@@ -52,7 +52,10 @@ mod tests {
     }
 
     fn packages() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().to_path_buf()
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .to_path_buf()
     }
 
     fn sources(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -114,7 +117,11 @@ mod tests {
             sources(&root.join(crate_dir), &mut files);
             for file in files {
                 let src = without_test_modules(&std::fs::read_to_string(&file).unwrap());
-                let name = file.strip_prefix(&root).unwrap().to_string_lossy().to_string();
+                let name = file
+                    .strip_prefix(&root)
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string();
                 if name.ends_with("electoral_log_append_coverage.rs") {
                     continue;
                 }
@@ -134,7 +141,9 @@ mod tests {
         let classified = classified();
         let unclassified: Vec<_> = found
             .iter()
-            .filter(|(file, function)| !classified.contains_key(&(file.as_str(), function.as_str())))
+            .filter(|(file, function)| {
+                !classified.contains_key(&(file.as_str(), function.as_str()))
+            })
             .collect();
         assert!(
             unclassified.is_empty(),

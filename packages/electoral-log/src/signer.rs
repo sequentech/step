@@ -422,7 +422,9 @@ mod tests {
             "Error building the record: Error building keycloak event message: \
              the key service is unreachable: refused"
         );
-        assert!(!is_signer_unavailable(&anyhow!("the key service is unreachable")));
+        assert!(!is_signer_unavailable(&anyhow!(
+            "the key service is unreachable"
+        )));
         // Given as the context of another error.
         let as_context = anyhow!("error sending request")
             .context(SignerUnavailable::new("the key service is unreachable"))

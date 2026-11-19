@@ -331,15 +331,20 @@ pub async fn pending_mac_key(
     tenant_id: &str,
 ) -> Result<Option<[u8; 32]>> {
     // Only the tenant's own name: never a key under the bare prefix.
-    read_secret(hasura_transaction, tenant_id, None, &pending_mac_key_name(tenant_id))
-        .await?
-        .map(|hex_key| {
-            hex::decode(hex_key.trim())
-                .ok()
-                .and_then(|bytes| <[u8; 32]>::try_from(bytes).ok())
-                .ok_or_else(|| anyhow!("The pending-statement MAC key is unreadable"))
-        })
-        .transpose()
+    read_secret(
+        hasura_transaction,
+        tenant_id,
+        None,
+        &pending_mac_key_name(tenant_id),
+    )
+    .await?
+    .map(|hex_key| {
+        hex::decode(hex_key.trim())
+            .ok()
+            .and_then(|bytes| <[u8; 32]>::try_from(bytes).ok())
+            .ok_or_else(|| anyhow!("The pending-statement MAC key is unreadable"))
+    })
+    .transpose()
 }
 
 /// The tenant's pending-statement MAC key, made (32 random bytes) the first

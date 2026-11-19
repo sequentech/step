@@ -16,8 +16,7 @@ use crate::services::electoral_log_dead_letter::{
 };
 use crate::services::electoral_log_deferral::{
     bind_to_rows, in_wait_order, log_round, put_back, scope_of, stop_waiting, waiting_events,
-    waiting_ids,
-    Deferral, DeferralBackoff, WaitReason, Waiting, WaitingEvent, BOUNDED_WAIT_ENV,
+    waiting_ids, Deferral, DeferralBackoff, WaitReason, Waiting, WaitingEvent, BOUNDED_WAIT_ENV,
 };
 use crate::services::monitoring::login_counter::{
     count_login_attempts_apart, login_attempt, LoginAttempt,
@@ -290,14 +289,20 @@ async fn keep_failed_batch_waiting(
     // An event without a delivery ID can't wait (its row is keyed by it): the
     // batch is retried as before, and such an event is dead-lettered when built.
     anyhow::ensure!(
-        events
-            .iter()
-            .all(|event| event.delivery_id.as_deref().is_some_and(|id| !id.is_empty())),
+        events.iter().all(|event| event
+            .delivery_id
+            .as_deref()
+            .is_some_and(|id| !id.is_empty())),
         "the batch has an event without a delivery ID"
     );
     let events: Vec<LogEventInput> = events
         .iter()
-        .filter(|event| event.delivery_id.as_ref().is_some_and(|id| !handled.contains(id)))
+        .filter(|event| {
+            event
+                .delivery_id
+                .as_ref()
+                .is_some_and(|id| !handled.contains(id))
+        })
         .cloned()
         .collect();
     if events.is_empty() {
@@ -317,20 +322,24 @@ async fn keep_failed_batch_waiting(
     let (bound, heads) = bind_to_rows(&events, rows);
     let (expired, waiting): (Vec<&LogEventInput>, Vec<&LogEventInput>) = in_wait_order(&bound)
         .into_iter()
-        .partition(|event| {
-            backoff.bound_exceeded(event.deferral.as_ref(), now_ms)
-        });
+        .partition(|event| backoff.bound_exceeded(event.deferral.as_ref(), now_ms));
     if !expired.is_empty() {
         let why = format!(
             "retry past the bound of {} s ({}): its batch kept failing: {error:#}",
             backoff.bounded.as_secs(),
             BOUNDED_WAIT_ENV
         );
-        tracing::error!(count = expired.len(), "Dead-lettering electoral-log events whose batch kept failing: {why}");
+        tracing::error!(
+            count = expired.len(),
+            "Dead-lettering electoral-log events whose batch kept failing: {why}"
+        );
         let set_aside: Vec<(&LogEventInput, &str)> =
             expired.iter().map(|event| (*event, why.as_str())).collect();
         dead_letter_events(&set_aside, DeadLetterStage::Batch).await?;
-        let ids: Vec<String> = expired.iter().filter_map(|event| event.delivery_id.clone()).collect();
+        let ids: Vec<String> = expired
+            .iter()
+            .filter_map(|event| event.delivery_id.clone())
+            .collect();
         stop_waiting(&**client, &ids).await?;
     }
     if waiting.is_empty() {
@@ -411,7 +420,9 @@ fn statement_time(input: &LogEventInput, now: u64) -> u64 {
     let Some(deferral) = input.deferral else {
         return now;
     };
-    let since = u64::try_from(deferral.since_ms / 1000).unwrap_or(now).min(now);
+    let since = u64::try_from(deferral.since_ms / 1000)
+        .unwrap_or(now)
+        .min(now);
     input
         .event_time_ms
         .and_then(|millis| u64::try_from(millis / 1000).ok())
@@ -464,10 +475,17 @@ async fn keep_waiting_after_last_retry<'a>(
         let waiting: Vec<WaitingEvent> = keep
             .iter()
             .map(|event| {
-                let marker = event.delivery_id.as_ref().is_some_and(|id| markers.contains(id));
+                let marker = event
+                    .delivery_id
+                    .as_ref()
+                    .is_some_and(|id| markers.contains(id));
                 WaitingEvent {
                     event: (*event).clone(),
-                    reason: if marker { WaitReason::Retry } else { WaitReason::SignerUnavailable },
+                    reason: if marker {
+                        WaitReason::Retry
+                    } else {
+                        WaitReason::SignerUnavailable
+                    },
                     error: format!("kept to wait again after the last retry: {error}"),
                 }
             })
@@ -693,8 +711,15 @@ async fn store_batch_leased(events: &[LogEventInput]) -> std::result::Result<(),
             .transaction()
             .await
             .context("Error starting the electoral-log put-back transaction")?;
-        let summary =
-            put_back(&*tx, event_queue, &built.waiting, &waiting, &backoff, now_ms).await?;
+        let summary = put_back(
+            &*tx,
+            event_queue,
+            &built.waiting,
+            &waiting,
+            &backoff,
+            now_ms,
+        )
+        .await?;
         tx.commit()
             .await
             .context("Error committing the electoral-log events that wait")?;
@@ -739,11 +764,16 @@ async fn store_batch_leased(events: &[LogEventInput]) -> std::result::Result<(),
         &stored_ids,
         &built.waiting,
     );
-    if let Err(error) =
-        crate::services::electoral_log_deferral::release_scopes(&**queue_client, event_queue, &released)
-            .await
+    if let Err(error) = crate::services::electoral_log_deferral::release_scopes(
+        &**queue_client,
+        event_queue,
+        &released,
+    )
+    .await
     {
-        tracing::warn!("Error releasing the electoral-log entries waiting behind a stored one: {error:#}");
+        tracing::warn!(
+            "Error releasing the electoral-log entries waiting behind a stored one: {error:#}"
+        );
     }
     if !failures.is_empty() {
         // Settled by this run (put back, dead-lettered, settled, or stored): not
@@ -1189,7 +1219,10 @@ async fn build_batch_bounded<L: BatchLookups + Send>(
         let input = crate::services::privacy_signin::sanitized_event(original);
         let scope = scope_of(&input);
         // An event without a delivery ID is dead-lettered by `build_event`, never held.
-        let has_delivery_id = input.delivery_id.as_deref().is_some_and(|id| !id.is_empty());
+        let has_delivery_id = input
+            .delivery_id
+            .as_deref()
+            .is_some_and(|id| !id.is_empty());
         let ahead = held.get(&scope).cloned().or_else(|| {
             waiting
                 .ahead_of(&input)
@@ -1231,7 +1264,16 @@ async fn build_batch_bounded<L: BatchLookups + Send>(
                     .push((input.clone(), format!("{error:#}")));
             }
             Err(EventFailure::Deferred(error)) => {
-                bounded_head(&mut built, &mut held, &input, scope, WaitReason::Retry, error, backoff, now_ms);
+                bounded_head(
+                    &mut built,
+                    &mut held,
+                    &input,
+                    scope,
+                    WaitReason::Retry,
+                    error,
+                    backoff,
+                    now_ms,
+                );
             }
             Err(EventFailure::TenantMissing(error)) => {
                 bounded_head(
@@ -1290,15 +1332,23 @@ fn bounded_head(
     // Its bounded time only (its row's budget: earlier bounded stretches plus the
     // current one), never its time waiting for its signer or behind another entry.
     if backoff.bound_exceeded(input.deferral.as_ref(), now_ms) {
-        let waited = input.deferral.map_or(0, |deferral| deferral.bounded_ms(now_ms)) / 1000;
+        let waited = input
+            .deferral
+            .map_or(0, |deferral| deferral.bounded_ms(now_ms))
+            / 1000;
         let why = format!(
             "{} for {waited} s, past the bound of {} s ({}): {error}",
             reason.as_str(),
             backoff.bounded.as_secs(),
             BOUNDED_WAIT_ENV
         );
-        tracing::error!(delivery_id, "A bounded electoral-log head is dead-lettered: {why}");
-        built.deferred.push(format!("delivery {:?}: {why}", input.delivery_id));
+        tracing::error!(
+            delivery_id,
+            "A bounded electoral-log head is dead-lettered: {why}"
+        );
+        built
+            .deferred
+            .push(format!("delivery {:?}: {why}", input.delivery_id));
         built.dead_letters.push((input.clone(), why));
         return;
     }
@@ -1382,7 +1432,10 @@ async fn build_event<L: BatchLookups + Send>(
             // A reference to an unsigned statement a worker queued in the waiting
             // table. Checked before anything is signed; one that fails is poison
             // (dead-lettered, never signed).
-            let stored = lookups.pending_statement(delivery_id).await.map_err(Transient)?;
+            let stored = lookups
+                .pending_statement(delivery_id)
+                .await
+                .map_err(Transient)?;
             // No row: if the board already holds this delivery, it was stored
             // (and its row removed) by an earlier run: settled, not poison.
             if stored.is_none()
@@ -1400,7 +1453,14 @@ async fn build_event<L: BatchLookups + Send>(
             // removed then), for an operator to see and, if right, queue again.
             let statement_text = stored
                 .as_ref()
-                .map(|stored| stored.statement.to_string().chars().take(4_000).collect::<String>())
+                .map(|stored| {
+                    stored
+                        .statement
+                        .to_string()
+                        .chars()
+                        .take(4_000)
+                        .collect::<String>()
+                })
                 .unwrap_or_else(|| "no row: forged, or already stored and removed".to_string());
             let mac_key = lookups
                 .pending_mac_key(&input.tenant_id)
@@ -1927,7 +1987,9 @@ pub fn kick_electoral_log_batch_dispatcher() -> tokio::task::JoinHandle<()> {
         };
         match tokio::time::timeout(std::time::Duration::from_secs(5), send).await {
             Ok(Ok(())) => {}
-            Ok(Err(error)) => tracing::warn!("Error kicking the electoral-log dispatcher: {error:#}"),
+            Ok(Err(error)) => {
+                tracing::warn!("Error kicking the electoral-log dispatcher: {error:#}")
+            }
             Err(_) => tracing::warn!("Kicking the electoral-log dispatcher timed out"),
         }
     })
@@ -2268,9 +2330,9 @@ mod delivery_tests {
 mod batch_build_tests {
     use super::*;
     use crate::services::electoral_log_dead_letter::event_message;
-    use electoral_log::messages::statement::{Statement, StatementBody};
     use crate::services::electoral_log_deferral::{plan, WaitKey};
     use crate::services::electoral_log_pending::StoredPending;
+    use electoral_log::messages::statement::{Statement, StatementBody};
     use electoral_log::signer::{MessageSigner, SharedSigner, SignerUnavailable};
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
@@ -2588,9 +2650,16 @@ mod batch_build_tests {
         assert!(built.deferred.is_empty(), "{:?}", built.deferred);
         assert_eq!(
             waiting_ids(&built),
-            vec![("refused-1", WaitReason::Retry), ("refused-2", WaitReason::Held)]
+            vec![
+                ("refused-1", WaitReason::Retry),
+                ("refused-2", WaitReason::Held)
+            ]
         );
-        assert!(built.waiting[0].error.contains("refused"), "{}", built.waiting[0].error);
+        assert!(
+            built.waiting[0].error.contains("refused"),
+            "{}",
+            built.waiting[0].error
+        );
         assert!(
             !built
                 .by_board
@@ -2800,7 +2869,11 @@ mod batch_build_tests {
         // A tenant that does not exist (yet) is not dead-lettered at once: its
         // event waits as its scope's head, bounded.
         assert_eq!(waiting_ids(&built), vec![("t5", WaitReason::TenantMissing)]);
-        assert!(built.waiting[0].error.contains("does not exist"), "{}", built.waiting[0].error);
+        assert!(
+            built.waiting[0].error.contains("does not exist"),
+            "{}",
+            built.waiting[0].error
+        );
     }
 
     fn unknown_tenant_activity(delivery_id: &str) -> LogEventInput {
@@ -2838,13 +2911,20 @@ mod batch_build_tests {
         let backoff = DeferralBackoff::default();
         assert_eq!(backoff.bounded, std::time::Duration::from_secs(600));
         let now_ms = 10_000_000;
-        for (waited_ms, dead) in [(0, false), (599_000, false), (600_000, false), (600_001, true)] {
+        for (waited_ms, dead) in [
+            (0, false),
+            (599_000, false),
+            (600_000, false),
+            (600_001, true),
+        ] {
             let head = LogEventInput {
                 deferral: Some(Deferral {
                     rounds: 9,
                     since_ms: now_ms - waited_ms - 5_000,
                     order: 0,
-                    bounded_since_ms: Some(now_ms - waited_ms), bounded_used_ms: 0 }),
+                    bounded_since_ms: Some(now_ms - waited_ms),
+                    bounded_used_ms: 0,
+                }),
                 ..unknown_tenant_activity("m1")
             };
             let later = unknown_tenant_activity("m2");
@@ -2867,7 +2947,11 @@ mod batch_build_tests {
                 assert!(reason.contains(BOUNDED_WAIT_ENV), "{reason}");
                 assert_eq!(waiting_ids(&built), vec![("m2", WaitReason::TenantMissing)]);
             } else {
-                assert!(built.dead_letters.is_empty(), "{waited_ms}: {:?}", built.dead_letters);
+                assert!(
+                    built.dead_letters.is_empty(),
+                    "{waited_ms}: {:?}",
+                    built.dead_letters
+                );
                 assert_eq!(
                     waiting_ids(&built),
                     vec![("m1", WaitReason::TenantMissing), ("m2", WaitReason::Held)],
@@ -2886,7 +2970,10 @@ mod batch_build_tests {
             deferral: Some(Deferral {
                 rounds: 2,
                 since_ms: 1_000,
-                order: 0, bounded_since_ms: None, bounded_used_ms: 0 }),
+                order: 0,
+                bounded_since_ms: None,
+                bounded_used_ms: 0,
+            }),
             ..tenant_activity("head", DELETED_AN_EVENT)
         };
         let mut waiting = Waiting::default();
@@ -2931,17 +3018,28 @@ mod batch_build_tests {
                     rounds: 40,
                     since_ms: now_ms - 1_200_000,
                     order: 0,
-                    bounded_since_ms: None, bounded_used_ms: 0 }),
+                    bounded_since_ms: None,
+                    bounded_used_ms: 0,
+                }),
                 ..event
             };
-            let built = build_batch_bounded(&mut FakeLookups::new(), &[waited], &Waiting::default(), &backoff, now_ms)
-                .await
-                .unwrap();
+            let built = build_batch_bounded(
+                &mut FakeLookups::new(),
+                &[waited],
+                &Waiting::default(),
+                &backoff,
+                now_ms,
+            )
+            .await
+            .unwrap();
             assert!(built.dead_letters.is_empty(), "{:?}", built.dead_letters);
             assert_eq!(built.waiting.len(), 1);
             // Its bound starts when its row is first marked bounded (put_back,
             // tested on PostgreSQL), not at its first wait for the signer.
-            assert!(matches!(built.waiting[0].reason, WaitReason::Retry | WaitReason::TenantMissing));
+            assert!(matches!(
+                built.waiting[0].reason,
+                WaitReason::Retry | WaitReason::TenantMissing
+            ));
         }
     }
 
@@ -2954,12 +3052,17 @@ mod batch_build_tests {
                 rounds: 20,
                 since_ms: now_ms - 900_000,
                 order: 0,
-                bounded_since_ms: Some(now_ms - 600_001), bounded_used_ms: 0 }),
+                bounded_since_ms: Some(now_ms - 600_001),
+                bounded_used_ms: 0,
+            }),
             ..keycloak_event(Some("refused-1"), REFUSED_SIGNER_EVENT)
         };
         let built = build_batch_bounded(
             &mut FakeLookups::new(),
-            &[head, keycloak_event(Some("refused-2"), REFUSED_SIGNER_EVENT)],
+            &[
+                head,
+                keycloak_event(Some("refused-2"), REFUSED_SIGNER_EVENT),
+            ],
             &Waiting::default(),
             &backoff,
             now_ms,
@@ -2967,7 +3070,11 @@ mod batch_build_tests {
         .await
         .unwrap();
         assert_eq!(dead_letter_ids(&built), vec![Some("refused-1")]);
-        assert!(built.dead_letters[0].1.starts_with("retry for 600 s"), "{}", built.dead_letters[0].1);
+        assert!(
+            built.dead_letters[0].1.starts_with("retry for 600 s"),
+            "{}",
+            built.dead_letters[0].1
+        );
         // The next one of its log is now the head (bounded from its own first wait).
         assert_eq!(waiting_ids(&built), vec![("refused-2", WaitReason::Retry)]);
     }
@@ -2993,13 +3100,28 @@ mod batch_build_tests {
         sent.body = LogEventBody::Communications("your code".into());
         // Each alone, so that each is built (not held behind another).
         let cases = vec![
-            (keycloak_event(Some("k1"), DOWN_SIGNER_EVENT), "Error building keycloak event message"),
+            (
+                keycloak_event(Some("k1"), DOWN_SIGNER_EVENT),
+                "Error building keycloak event message",
+            ),
             (communication, "Error building send template message"),
-            (admin_event("a1", DOWN_SIGNER_EVENT, "operator"), "the key service is unreachable"),
-            (tenant_event("t1", "LOGIN", json!({"error": null})), "Error building keycloak event message"),
-            (tenant_activity("t2", DELETED_AN_EVENT), "Error building the tenant activity message"),
+            (
+                admin_event("a1", DOWN_SIGNER_EVENT, "operator"),
+                "the key service is unreachable",
+            ),
+            (
+                tenant_event("t1", "LOGIN", json!({"error": null})),
+                "Error building keycloak event message",
+            ),
+            (
+                tenant_activity("t2", DELETED_AN_EVENT),
+                "Error building the tenant activity message",
+            ),
             (sent, "Error building the message-sent entry"),
-            (keycloak_event(Some("t4"), DELETED_EVENT), "Error building keycloak event message"),
+            (
+                keycloak_event(Some("t4"), DELETED_EVENT),
+                "Error building keycloak event message",
+            ),
         ];
         for (event, context) in cases {
             let mut lookups = FakeLookups::new();
@@ -3011,8 +3133,15 @@ mod batch_build_tests {
                 .insert(TENANT, SignerOutage::Unavailable);
             let delivery = event.delivery_id.clone().unwrap();
             let built = build_batch(&mut lookups, &[event]).await.unwrap();
-            assert!(built.dead_letters.is_empty(), "{delivery}: {:?}", dead_letter_ids(&built));
-            assert!(built.deferred.is_empty(), "{delivery}: bounded retries are not used");
+            assert!(
+                built.dead_letters.is_empty(),
+                "{delivery}: {:?}",
+                dead_letter_ids(&built)
+            );
+            assert!(
+                built.deferred.is_empty(),
+                "{delivery}: bounded retries are not used"
+            );
             assert!(built.by_board.is_empty(), "{delivery}");
             assert_eq!(
                 waiting_ids(&built),
@@ -3020,7 +3149,10 @@ mod batch_build_tests {
             );
             let error = &built.waiting[0].error;
             assert!(error.contains(context), "{delivery}: {error}");
-            assert!(error.contains("the key service is unreachable"), "{delivery}: {error}");
+            assert!(
+                error.contains("the key service is unreachable"),
+                "{delivery}: {error}"
+            );
         }
     }
 
@@ -3065,7 +3197,10 @@ mod batch_build_tests {
             deferral: Some(Deferral {
                 rounds: 3,
                 since_ms: 1_000,
-                order: 0, bounded_since_ms: None, bounded_used_ms: 0 }),
+                order: 0,
+                bounded_since_ms: None,
+                bounded_used_ms: 0,
+            }),
             ..keycloak_event(Some("earlier"), EVENT)
         };
         let mut waiting = Waiting::default();
@@ -3083,7 +3218,11 @@ mod batch_build_tests {
             .unwrap();
 
         assert_eq!(waiting_ids(&built), vec![("new", WaitReason::Held)]);
-        assert!(built.waiting[0].error.contains("\"earlier\""), "{}", built.waiting[0].error);
+        assert!(
+            built.waiting[0].error.contains("\"earlier\""),
+            "{}",
+            built.waiting[0].error
+        );
         assert_eq!(
             delivery_ids(&built.by_board[&format!("board-{EVENT}")]),
             vec!["earlier:event"]
@@ -3091,7 +3230,8 @@ mod batch_build_tests {
     }
 
     #[tokio::test]
-    async fn a_signer_that_cannot_be_loaded_now_waits_and_a_refused_one_is_retried_then_dead_lettered() {
+    async fn a_signer_that_cannot_be_loaded_now_waits_and_a_refused_one_is_retried_then_dead_lettered(
+    ) {
         let mut lookups = FakeLookups::new();
         lookups.unavailable_lookups.insert(DOWN_LOOKUP_EVENT);
         let events = vec![
@@ -3105,7 +3245,9 @@ mod batch_build_tests {
 
         // Unavailable at lookup: waits (typed, not rebuilt from text).
         assert_eq!(built.waiting[0].reason, WaitReason::SignerUnavailable);
-        assert!(built.waiting[0].error.contains("the key service is unreachable"));
+        assert!(built.waiting[0]
+            .error
+            .contains("the key service is unreachable"));
         // Refused at lookup, on the admin-event path as on the others: the
         // first waits as its log's head (`retry`, bounded, then the dead-letter
         // queue), the later one of its log is held behind it.
@@ -3117,7 +3259,11 @@ mod batch_build_tests {
                 ("k2", WaitReason::Held)
             ]
         );
-        assert!(built.waiting[1].error.contains("(refused)"), "{}", built.waiting[1].error);
+        assert!(
+            built.waiting[1].error.contains("(refused)"),
+            "{}",
+            built.waiting[1].error
+        );
         assert!(built.deferred.is_empty(), "{:?}", built.deferred);
         assert!(built.dead_letters.is_empty());
         assert_eq!(
@@ -3138,7 +3284,9 @@ mod batch_build_tests {
         lookups
             .failing_signers
             .insert(DOWN_SIGNER_EVENT, SignerOutage::Refused);
-        lookups.failing_signers.insert(TENANT, SignerOutage::Refused);
+        lookups
+            .failing_signers
+            .insert(TENANT, SignerOutage::Refused);
 
         let built = build_batch(&mut lookups, &events).await.unwrap();
 
@@ -3198,12 +3346,14 @@ mod batch_build_tests {
             .reference_event(&forged_id)
             .unwrap();
         // A worker's row of another election event, referred to from this one.
-        let mut foreign = durable.queue_pending(&mut lookups,
+        let mut foreign = durable.queue_pending(
+            &mut lookups,
             &PendingStatement::new(TENANT, EVENT, problems("foreign")),
         );
         foreign.election_event_id = DOWN_SIGNER_EVENT.into();
         let foreign_id = foreign.delivery_id.clone().unwrap();
-        let trusted = durable.queue_pending(&mut lookups,
+        let trusted = durable.queue_pending(
+            &mut lookups,
             &PendingStatement::new(TENANT, DOWN_SIGNER_EVENT, problems("two posts")),
         );
         let trusted_id = trusted.delivery_id.clone().unwrap();
@@ -3216,7 +3366,11 @@ mod batch_build_tests {
         // one, queued first, waits; the forged reference waits behind it in its
         // scope, and is refused when its turn comes.)
         assert_eq!(durable.dead_letters, vec![foreign_id.clone()]);
-        assert_eq!(lookups.sign_calls.load(Ordering::SeqCst), 1, "only the trusted one");
+        assert_eq!(
+            lookups.sign_calls.load(Ordering::SeqCst),
+            1,
+            "only the trusted one"
+        );
         assert!(durable.board(DOWN_SIGNER_EVENT).is_empty());
         // The trusted one is stored under its own ID; the forged one is refused,
         // never signed.
@@ -3240,7 +3394,10 @@ mod batch_build_tests {
         lookups
             .failing_signers
             .insert(DOWN_SIGNER_EVENT, SignerOutage::Unavailable);
-        let announced = VerificationKey::from_sk(&admin).unwrap().to_b64_string().unwrap();
+        let announced = VerificationKey::from_sk(&admin)
+            .unwrap()
+            .to_b64_string()
+            .unwrap();
         lookups
             .announced
             .insert(("admin-id".to_string(), announced));
@@ -3270,7 +3427,11 @@ mod batch_build_tests {
             .round(&mut lookups, vec![trusted, impostor_event, wrong_user])
             .await;
         assert!(durable.dead_letters.is_empty(), "nothing is dropped");
-        assert_eq!(lookups.sign_calls.load(Ordering::SeqCst), 1, "only the genuine one is tried");
+        assert_eq!(
+            lookups.sign_calls.load(Ordering::SeqCst),
+            1,
+            "only the genuine one is tried"
+        );
         // The board's signer is back: the genuine entry is attested and stored;
         // the others wait, never attested (their keys are not announced).
         lookups.failing_signers.remove(DOWN_SIGNER_EVENT);
@@ -3294,8 +3455,8 @@ mod batch_build_tests {
 
     #[test]
     fn a_tenant_log_entry_announces_an_admin_key_only_when_signed_by_its_system_key() {
-        use electoral_log::messages::newtypes::{PublicKeyDerB64, TenantIdString};
         use electoral_log::messages::message::SigningData;
+        use electoral_log::messages::newtypes::{PublicKeyDerB64, TenantIdString};
         let system = SigningKey::generate().unwrap();
         let other = SigningKey::generate().unwrap();
         let admin_pk = "QUJD".to_string();
@@ -3314,12 +3475,42 @@ mod batch_build_tests {
             ElectoralLogMessage::try_from(&message).unwrap()
         };
         let system_pk = VerificationKey::from_sk(&system).unwrap();
-        assert!(announces_admin_key(&announce(&system, "admin-id"), TENANT, "admin-id", &admin_pk, &system_pk));
+        assert!(announces_admin_key(
+            &announce(&system, "admin-id"),
+            TENANT,
+            "admin-id",
+            &admin_pk,
+            &system_pk
+        ));
         // Another user, another key, another tenant, another signer: no.
-        assert!(!announces_admin_key(&announce(&system, "other"), TENANT, "admin-id", &admin_pk, &system_pk));
-        assert!(!announces_admin_key(&announce(&system, "admin-id"), TENANT, "admin-id", "WFla", &system_pk));
-        assert!(!announces_admin_key(&announce(&system, "admin-id"), UNKNOWN_TENANT, "admin-id", &admin_pk, &system_pk));
-        assert!(!announces_admin_key(&announce(&other, "admin-id"), TENANT, "admin-id", &admin_pk, &system_pk));
+        assert!(!announces_admin_key(
+            &announce(&system, "other"),
+            TENANT,
+            "admin-id",
+            &admin_pk,
+            &system_pk
+        ));
+        assert!(!announces_admin_key(
+            &announce(&system, "admin-id"),
+            TENANT,
+            "admin-id",
+            "WFla",
+            &system_pk
+        ));
+        assert!(!announces_admin_key(
+            &announce(&system, "admin-id"),
+            UNKNOWN_TENANT,
+            "admin-id",
+            &admin_pk,
+            &system_pk
+        ));
+        assert!(!announces_admin_key(
+            &announce(&other, "admin-id"),
+            TENANT,
+            "admin-id",
+            &admin_pk,
+            &system_pk
+        ));
     }
 
     #[tokio::test]
@@ -3405,7 +3596,10 @@ mod batch_build_tests {
         let mut lookups = FakeLookups::new();
         let built = build_batch_behind(
             &mut lookups,
-            &[keycloak_event(Some("k1"), EVENT), keycloak_event(Some("other"), KEYLESS_EVENT)],
+            &[
+                keycloak_event(Some("k1"), EVENT),
+                keycloak_event(Some("other"), KEYLESS_EVENT),
+            ],
             &waiting,
         )
         .await
@@ -3420,7 +3614,12 @@ mod batch_build_tests {
         let held = keycloak_event(Some("h1"), EVENT);
         let down = keycloak_event(Some("d1"), DOWN_SIGNER_EVENT);
         let down_stored = keycloak_event(Some("s2"), DOWN_SIGNER_EVENT);
-        let events = vec![stored.clone(), held.clone(), down.clone(), down_stored.clone()];
+        let events = vec![
+            stored.clone(),
+            held.clone(),
+            down.clone(),
+            down_stored.clone(),
+        ];
         let ids: HashSet<String> = ["s1", "s2"].map(String::from).into();
         let waiting = vec![
             WaitingEvent {
@@ -3502,13 +3701,19 @@ mod batch_build_tests {
         for _ in 0..5 {
             durable.round(&mut lookups, vec![]).await;
         }
-        assert!(durable.board(DOWN_SIGNER_EVENT).is_empty(), "nothing stored during the outage");
+        assert!(
+            durable.board(DOWN_SIGNER_EVENT).is_empty(),
+            "nothing stored during the outage"
+        );
         lookups.failing_signers.remove(DOWN_SIGNER_EVENT);
         durable.round(&mut lookups, vec![]).await;
         assert_eq!(durable.board(DOWN_SIGNER_EVENT), vec![delivery_id.as_str()]);
         let stored = Message::record_deserialize(&durable.messages[&delivery_id].message).unwrap();
         assert_eq!(stored.statement.head.timestamp, refused_at);
-        assert!(matches!(stored.statement.body, StatementBody::CastVoteError(..)));
+        assert!(matches!(
+            stored.statement.body,
+            StatementBody::CastVoteError(..)
+        ));
         stored
             .verify(&VerificationKey::from_sk(&lookups.signing_key).unwrap())
             .unwrap();
@@ -3563,7 +3768,11 @@ mod batch_build_tests {
         let stored_at = head_stored_at.expect("the head is stored after recovery");
         // The head waited at most its capped backoff after the recovery.
         assert!(stored_at <= 120 + 300, "head stored at {stored_at}");
-        assert_eq!(durable.board(DOWN_SIGNER_EVENT), arrived, "in arrival order, once each");
+        assert_eq!(
+            durable.board(DOWN_SIGNER_EVENT),
+            arrived,
+            "in arrival order, once each"
+        );
         assert!(durable.dead_letters.is_empty());
     }
 
@@ -3574,7 +3783,10 @@ mod batch_build_tests {
             deferral: Some(Deferral {
                 rounds: 3,
                 since_ms: 1_000,
-                order: 0, bounded_since_ms: None, bounded_used_ms: 0 }),
+                order: 0,
+                bounded_since_ms: None,
+                bounded_used_ms: 0,
+            }),
             ..keycloak_event(Some("waited"), DOWN_SIGNER_EVENT)
         };
         let marked = keycloak_event(Some("marked"), DOWN_SIGNER_EVENT);
@@ -3602,7 +3814,10 @@ mod batch_build_tests {
         event.deferral = Some(Deferral {
             rounds: 4,
             since_ms: 1_799_990_500_000,
-            order: 0, bounded_since_ms: None, bounded_used_ms: 0 });
+            order: 0,
+            bounded_since_ms: None,
+            bounded_used_ms: 0,
+        });
         assert_eq!(statement_time(&event, now), 1_799_990_000);
         // A time in the future, or long before it first waited: when it first waited.
         event.event_time_ms = Some(1_800_009_000_000);
@@ -3640,7 +3855,10 @@ mod batch_build_tests {
                 None,
             )
             .unwrap_err();
-        assert!(electoral_log::signer::is_signer_unavailable(&error), "{error:#}");
+        assert!(
+            electoral_log::signer::is_signer_unavailable(&error),
+            "{error:#}"
+        );
     }
 
     #[test]
@@ -3724,8 +3942,11 @@ mod batch_build_tests {
                 self.rows.remove(&id);
                 self.dead_letters.push(id);
             }
-            let queued: Vec<Option<String>> =
-                self.queued().into_iter().map(|event| event.delivery_id).collect();
+            let queued: Vec<Option<String>> = self
+                .queued()
+                .into_iter()
+                .map(|event| event.delivery_id)
+                .collect();
             for (event, deferral, delay) in plan(&built.waiting, &waiting, &self.backoff, now_ms) {
                 let id = event.delivery_id.clone().unwrap_or_default();
                 let due = now_ms + delay.as_millis() as i64;
@@ -3762,10 +3983,7 @@ mod batch_build_tests {
                 &stored_ids,
                 &built.waiting,
             );
-            let next = now_ms
-                + self
-                    .step_ms
-                    .unwrap_or(self.backoff.max.as_millis() as i64);
+            let next = now_ms + self.step_ms.unwrap_or(self.backoff.max.as_millis() as i64);
             for (_, (scope, _, due)) in self.rows.iter_mut() {
                 if released.contains(scope) {
                     *due = (*due).min(next);
@@ -3787,9 +4005,7 @@ mod batch_build_tests {
                 }
             }
             // The next round: by default once every waiting event is due.
-            self.now_ms += self
-                .step_ms
-                .unwrap_or(self.backoff.max.as_millis() as i64);
+            self.now_ms += self.step_ms.unwrap_or(self.backoff.max.as_millis() as i64);
         }
 
         /// A pending statement as a worker queues it: its row (in the table and
@@ -3858,7 +4074,11 @@ mod batch_build_tests {
             };
             durable.round(&mut lookups, fresh).await;
         }
-        assert_eq!(durable.dead_letters, vec!["poison"], "nothing more dead-lettered");
+        assert_eq!(
+            durable.dead_letters,
+            vec!["poison"],
+            "nothing more dead-lettered"
+        );
         assert!(durable.board(DOWN_SIGNER_EVENT).is_empty());
         let queued = durable.queued();
         assert_eq!(queued.len(), 4, "every event still waits, once");
@@ -3922,7 +4142,10 @@ mod batch_build_tests {
         assert_eq!(durable.queued().len(), 2);
         durable.round(&mut lookups, vec![]).await;
         assert!(durable.queue.is_empty());
-        assert_eq!(durable.board(DOWN_SIGNER_EVENT), vec!["r1:event", "r2:event"]);
+        assert_eq!(
+            durable.board(DOWN_SIGNER_EVENT),
+            vec!["r1:event", "r2:event"]
+        );
         assert!(durable.dead_letters.is_empty());
     }
 
@@ -4449,14 +4672,31 @@ mod pgmq_tests {
         let now_ms = chrono::Utc::now().timestamp_millis();
         let none = Waiting::default();
 
-        let first = put_back(&**client, &queues.events, &[waiting.clone()], &none, &backoff, now_ms)
-            .await
-            .unwrap();
+        let first = put_back(
+            &**client,
+            &queues.events,
+            &[waiting.clone()],
+            &none,
+            &backoff,
+            now_ms,
+        )
+        .await
+        .unwrap();
         // The batch is retried after an uncertain commit: still one copy.
-        let again = put_back(&**client, &queues.events, &[waiting.clone()], &none, &backoff, now_ms)
-            .await
-            .unwrap();
-        assert_eq!((first.put_back, again.put_back, again.already_waiting), (1, 0, 1));
+        let again = put_back(
+            &**client,
+            &queues.events,
+            &[waiting.clone()],
+            &none,
+            &backoff,
+            now_ms,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            (first.put_back, again.put_back, again.already_waiting),
+            (1, 0, 1)
+        );
         assert_eq!(queue_length(&client, &queues.events).await, 1);
         // Not due yet: the dispatcher reads nothing.
         let visible = client
@@ -4475,7 +4715,10 @@ mod pgmq_tests {
         assert_eq!(read.ahead_of(&newer).unwrap().delivery_id, w1);
         // Its message is the event as producers send it, with how long it waited.
         let row = client
-            .query_one(&format!("SELECT message FROM pgmq.q_{}", queues.events), &[])
+            .query_one(
+                &format!("SELECT message FROM pgmq.q_{}", queues.events),
+                &[],
+            )
             .await
             .unwrap();
         let parsed = parse_queued_event(row.get(0)).unwrap();
@@ -4500,7 +4743,8 @@ mod pgmq_tests {
 
     #[tokio::test]
     #[ignore = "requires PGMQ_TEST_DATABASE_URL and HASURA_DB__* (one disposable database with the Hasura migrations)"]
-    async fn gated_appends_waits_and_batches_racing_on_one_scope_keep_the_order_and_never_deadlock() {
+    async fn gated_appends_waits_and_batches_racing_on_one_scope_keep_the_order_and_never_deadlock()
+    {
         use crate::services::electoral_log::ScopeAdmission;
         use crate::services::electoral_log_deferral::{is_scope_gated, stop_waiting, take_leases};
         use std::sync::atomic::{AtomicUsize, Ordering};
@@ -4523,7 +4767,8 @@ mod pgmq_tests {
         // (read on another connection: what any other actor could see).
         for _ in 0..6 {
             let (pool, scope) = (pool.clone(), scope.clone());
-            let (admitted, refused, violations) = (admitted.clone(), refused.clone(), violations.clone());
+            let (admitted, refused, violations) =
+                (admitted.clone(), refused.clone(), violations.clone());
             tasks.push(tokio::spawn(async move {
                 for _ in 0..15 {
                     match ScopeAdmission::admit(&scope).await {
@@ -4553,7 +4798,12 @@ mod pgmq_tests {
         }
         // Entries starting to wait (the signer is down for them).
         for waiter in 0..3 {
-            let (pool, queue, tenant, event_id) = (pool.clone(), queues.events.clone(), tenant.clone(), event_id.clone());
+            let (pool, queue, tenant, event_id) = (
+                pool.clone(),
+                queues.events.clone(),
+                tenant.clone(),
+                event_id.clone(),
+            );
             let waits = waits.clone();
             tasks.push(tokio::spawn(async move {
                 for n in 0..5 {
@@ -4568,8 +4818,16 @@ mod pgmq_tests {
                     };
                     let mut client = pool.get().await.unwrap();
                     let tx = client.transaction().await.unwrap();
-                    put_back(&*tx, &queue, &[item], &Waiting::default(), &DeferralBackoff::default(),
-                        chrono::Utc::now().timestamp_millis()).await.unwrap();
+                    put_back(
+                        &*tx,
+                        &queue,
+                        &[item],
+                        &Waiting::default(),
+                        &DeferralBackoff::default(),
+                        chrono::Utc::now().timestamp_millis(),
+                    )
+                    .await
+                    .unwrap();
                     tx.commit().await.unwrap();
                     waits.fetch_add(1, Ordering::SeqCst);
                     tokio::time::sleep(std::time::Duration::from_millis(7)).await;
@@ -4604,21 +4862,41 @@ mod pgmq_tests {
         let results = tokio::time::timeout(std::time::Duration::from_secs(120), all)
             .await
             .expect("no deadlock: every actor finished");
-        assert!(results.iter().all(|result| result.is_ok()), "no actor panicked");
-        assert_eq!(violations.load(Ordering::SeqCst), 0, "an append was admitted while an entry waited");
-        assert!(admitted.load(Ordering::SeqCst) > 0, "appends were admitted when nothing waited");
-        assert!(refused.load(Ordering::SeqCst) > 0, "appends were refused while entries waited");
+        assert!(
+            results.iter().all(|result| result.is_ok()),
+            "no actor panicked"
+        );
+        assert_eq!(
+            violations.load(Ordering::SeqCst),
+            0,
+            "an append was admitted while an entry waited"
+        );
+        assert!(
+            admitted.load(Ordering::SeqCst) > 0,
+            "appends were admitted when nothing waited"
+        );
+        assert!(
+            refused.load(Ordering::SeqCst) > 0,
+            "appends were refused while entries waited"
+        );
         assert_eq!(waits.load(Ordering::SeqCst), 15);
         // What is left waiting, stored now.
         let client = pool.get().await.unwrap();
         let left: Vec<String> = client
-            .query("SELECT delivery_id FROM step_queue.electoral_log_waiting WHERE scope = $1", &[&scope])
+            .query(
+                "SELECT delivery_id FROM step_queue.electoral_log_waiting WHERE scope = $1",
+                &[&scope],
+            )
             .await
             .unwrap()
             .iter()
             .map(|row| row.get(0))
             .collect();
-        assert_eq!(drained.load(Ordering::SeqCst) + left.len(), 15, "every waiting entry is accounted for");
+        assert_eq!(
+            drained.load(Ordering::SeqCst) + left.len(),
+            15,
+            "every waiting entry is accounted for"
+        );
         stop_waiting(&**client, &left).await.unwrap();
         drop_queues(&*client, &queues).await;
     }
@@ -4627,7 +4905,9 @@ mod pgmq_tests {
     #[ignore = "requires PGMQ_TEST_DATABASE_URL and HASURA_DB__* (one disposable database with the Hasura migrations)"]
     async fn a_batchs_events_marked_in_flight_stay_visible_to_admission_if_its_worker_dies() {
         use crate::services::electoral_log::ScopeAdmission;
-        use crate::services::electoral_log_deferral::{is_scope_gated, mark_in_flight, stop_waiting, IN_FLIGHT_SECS};
+        use crate::services::electoral_log_deferral::{
+            is_scope_gated, mark_in_flight, stop_waiting, IN_FLIGHT_SECS,
+        };
         let url = std::env::var("PGMQ_TEST_DATABASE_URL").expect("PGMQ_TEST_DATABASE_URL");
         if std::env::var("QUEUE_DB__URL").is_err() {
             std::env::set_var("QUEUE_DB__URL", &url);
@@ -4646,16 +4926,45 @@ mod pgmq_tests {
         {
             let mut client = pool.get().await.unwrap();
             let tx = client.transaction().await.unwrap();
-            put_back(&*tx, &queues.events, &[WaitingEvent { event: of("old"), reason: WaitReason::SignerUnavailable, error: "u".into() }],
-                &Waiting::default(), &DeferralBackoff::default(), 1_000).await.unwrap();
+            put_back(
+                &*tx,
+                &queues.events,
+                &[WaitingEvent {
+                    event: of("old"),
+                    reason: WaitReason::SignerUnavailable,
+                    error: "u".into(),
+                }],
+                &Waiting::default(),
+                &DeferralBackoff::default(),
+                1_000,
+            )
+            .await
+            .unwrap();
             tx.commit().await.unwrap();
         }
         // A batch takes its events in hand: marked in flight BEFORE any attempt.
         let mut client = pool.get().await.unwrap();
         let tx = client.transaction().await.unwrap();
-        let marked = mark_in_flight(&*tx, &[of("a"), of("b"), of("old"), LogEventInput { delivery_id: None, ..of("c") }], 5_000).await.unwrap();
+        let marked = mark_in_flight(
+            &*tx,
+            &[
+                of("a"),
+                of("b"),
+                of("old"),
+                LogEventInput {
+                    delivery_id: None,
+                    ..of("c")
+                },
+            ],
+            5_000,
+        )
+        .await
+        .unwrap();
         tx.commit().await.unwrap();
-        assert_eq!(marked, 2, "a and b; old keeps its row; no delivery ID, no marker");
+        assert_eq!(
+            marked, 2,
+            "a and b; old keeps its row; no delivery ID, no marker"
+        );
         let row: (i64, i64, bool) = {
             let r = client.query_one(
                 "SELECT since_ms, ord, due_at > clock_timestamp() + make_interval(secs => $2::integer - 60) FROM step_queue.electoral_log_waiting WHERE delivery_id = $1",
@@ -4665,10 +4974,22 @@ mod pgmq_tests {
         assert_eq!((row.0, row.1), (1_000, 0), "an existing row is not touched");
         // The worker dies here (nothing more happens): its events still hold the
         // log, so no gated append gets ahead of them ...
-        let error = ScopeAdmission::admit(&scope).await.err().expect("refused while in flight");
+        let error = ScopeAdmission::admit(&scope)
+            .await
+            .err()
+            .expect("refused while in flight");
         assert!(is_scope_gated(&error), "{error:#}");
         // ... until the redelivered batch settles them (here: stored, rows removed).
-        stop_waiting(&**client, &[format!("a-{event_id}"), format!("b-{event_id}"), format!("old-{event_id}")]).await.unwrap();
+        stop_waiting(
+            &**client,
+            &[
+                format!("a-{event_id}"),
+                format!("b-{event_id}"),
+                format!("old-{event_id}"),
+            ],
+        )
+        .await
+        .unwrap();
         ScopeAdmission::admit(&scope).await.unwrap().end().await;
         drop_queues(&client, &queues).await;
     }
@@ -4696,7 +5017,12 @@ mod pgmq_tests {
         let admitted = Arc::new(AtomicUsize::new(0));
         let mut tasks = Vec::new();
         for worker in 0..2 {
-            let (pool, tenant, event_id, scope) = (pool.clone(), tenant.clone(), event_id.clone(), scope.clone());
+            let (pool, tenant, event_id, scope) = (
+                pool.clone(),
+                tenant.clone(),
+                event_id.clone(),
+                scope.clone(),
+            );
             tasks.push(tokio::spawn(async move {
                 for n in 0..40 {
                     let events: Vec<LogEventInput> = (0..5)
@@ -4711,10 +5037,15 @@ mod pgmq_tests {
                     take_leases(&*lease, &[scope.clone()]).await.unwrap();
                     let mut client = pool.get().await.unwrap();
                     let tx = client.transaction().await.unwrap();
-                    mark_in_flight(&*tx, &events, chrono::Utc::now().timestamp_millis()).await.unwrap();
+                    mark_in_flight(&*tx, &events, chrono::Utc::now().timestamp_millis())
+                        .await
+                        .unwrap();
                     tx.commit().await.unwrap();
                     tokio::time::sleep(std::time::Duration::from_millis(15)).await; // build + append
-                    let ids: Vec<String> = events.iter().filter_map(|e| e.delivery_id.clone()).collect();
+                    let ids: Vec<String> = events
+                        .iter()
+                        .filter_map(|e| e.delivery_id.clone())
+                        .collect();
                     stop_waiting(&**client, &ids).await.unwrap(); // stored
                     lease.rollback().await.unwrap();
                     tokio::time::sleep(std::time::Duration::from_millis(5)).await;
@@ -4741,10 +5072,20 @@ mod pgmq_tests {
             }));
         }
         let all = futures::future::join_all(tasks);
-        let results = tokio::time::timeout(std::time::Duration::from_secs(120), all).await.expect("no deadlock");
+        let results = tokio::time::timeout(std::time::Duration::from_secs(120), all)
+            .await
+            .expect("no deadlock");
         assert!(results.iter().all(|result| result.is_ok()));
-        assert_eq!(admitted.load(Ordering::SeqCst), 180, "every gated append admitted");
-        assert_eq!(refused.load(Ordering::SeqCst), 0, "no refusal without an outage");
+        assert_eq!(
+            admitted.load(Ordering::SeqCst),
+            180,
+            "every gated append admitted"
+        );
+        assert_eq!(
+            refused.load(Ordering::SeqCst),
+            0,
+            "no refusal without an outage"
+        );
         drop_queues(&*pool.get().await.unwrap(), &queues).await;
     }
 
@@ -4759,7 +5100,9 @@ mod pgmq_tests {
         // QUEUE_SEPARATE=1. Every actor must finish; the only errors allowed are
         // refusals for the log's order.
         use crate::services::electoral_log::ScopeAdmission;
-        use crate::services::electoral_log_deferral::{is_scope_gated, mark_in_flight, stop_waiting, take_leases};
+        use crate::services::electoral_log_deferral::{
+            is_scope_gated, mark_in_flight, stop_waiting, take_leases,
+        };
         use crate::services::electoral_log_outbox::lock_scope;
         use std::sync::atomic::{AtomicUsize, Ordering};
         let url = std::env::var("PGMQ_TEST_DATABASE_URL").expect("PGMQ_TEST_DATABASE_URL");
@@ -4780,23 +5123,47 @@ mod pgmq_tests {
         // prepares the tenant log in a short transaction of its own (committed), then
         // its announcement is admitted on the tenant scope (forward_announcement).
         for _ in 0..2 {
-            let (pool, tenant_scope, tenant_log) = (pool.clone(), tenant_scope.clone(), tenant_log.clone());
+            let (pool, tenant_scope, tenant_log) =
+                (pool.clone(), tenant_scope.clone(), tenant_log.clone());
             let (errors, gated, done) = (errors.clone(), gated.clone(), done.clone());
             tasks.push(tokio::spawn(async move {
                 for _ in 0..15 {
-                    let mut client = crate::services::database::get_hasura_pool().await.get().await.unwrap();
+                    let mut client = crate::services::database::get_hasura_pool()
+                        .await
+                        .get()
+                        .await
+                        .unwrap();
                     let tx = client.transaction().await.unwrap();
-                    tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", &[&format!("relay-test:{tenant_log}")]).await.unwrap();
+                    tx.query(
+                        "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+                        &[&format!("relay-test:{tenant_log}")],
+                    )
+                    .await
+                    .unwrap();
                     {
-                        let mut prepare = crate::services::database::get_hasura_pool().await.get().await.unwrap();
+                        let mut prepare = crate::services::database::get_hasura_pool()
+                            .await
+                            .get()
+                            .await
+                            .unwrap();
                         let ptx = prepare.transaction().await.unwrap();
-                        ptx.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", &[&tenant_log]).await.unwrap();
+                        ptx.query(
+                            "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+                            &[&tenant_log],
+                        )
+                        .await
+                        .unwrap();
                         ptx.commit().await.unwrap();
                     }
                     match ScopeAdmission::admit(&tenant_scope).await {
                         Ok(admission) => admission.end().await,
-                        Err(error) if is_scope_gated(&error) => { gated.fetch_add(1, Ordering::SeqCst); }
-                        Err(error) => { eprintln!("relay: {error:#}"); errors.fetch_add(1, Ordering::SeqCst); }
+                        Err(error) if is_scope_gated(&error) => {
+                            gated.fetch_add(1, Ordering::SeqCst);
+                        }
+                        Err(error) => {
+                            eprintln!("relay: {error:#}");
+                            errors.fetch_add(1, Ordering::SeqCst);
+                        }
                     }
                     tx.commit().await.unwrap();
                     done.fetch_add(1, Ordering::SeqCst);
@@ -4806,20 +5173,35 @@ mod pgmq_tests {
         // Audit writer: prepares (tenant-log lock, committed), then its pass is
         // admitted on the event scope.
         for _ in 0..2 {
-            let (pool, event_scope, tenant_log) = (pool.clone(), event_scope.clone(), tenant_log.clone());
+            let (pool, event_scope, tenant_log) =
+                (pool.clone(), event_scope.clone(), tenant_log.clone());
             let (errors, gated, done) = (errors.clone(), gated.clone(), done.clone());
             tasks.push(tokio::spawn(async move {
                 for _ in 0..15 {
                     {
-                        let mut client = crate::services::database::get_hasura_pool().await.get().await.unwrap();
+                        let mut client = crate::services::database::get_hasura_pool()
+                            .await
+                            .get()
+                            .await
+                            .unwrap();
                         let tx = client.transaction().await.unwrap();
-                        tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", &[&tenant_log]).await.unwrap();
+                        tx.query(
+                            "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+                            &[&tenant_log],
+                        )
+                        .await
+                        .unwrap();
                         tx.commit().await.unwrap();
                     }
                     match ScopeAdmission::admit(&event_scope).await {
                         Ok(admission) => admission.end().await,
-                        Err(error) if is_scope_gated(&error) => { gated.fetch_add(1, Ordering::SeqCst); }
-                        Err(error) => { eprintln!("audit: {error:#}"); errors.fetch_add(1, Ordering::SeqCst); }
+                        Err(error) if is_scope_gated(&error) => {
+                            gated.fetch_add(1, Ordering::SeqCst);
+                        }
+                        Err(error) => {
+                            eprintln!("audit: {error:#}");
+                            errors.fetch_add(1, Ordering::SeqCst);
+                        }
                     }
                     done.fetch_add(1, Ordering::SeqCst);
                 }
@@ -4828,16 +5210,27 @@ mod pgmq_tests {
         // Certificate action: H(S) exclusive (it writes its outbox) and the
         // tenant-log lock, in one action-database transaction.
         for _ in 0..2 {
-            let (pool, event_scope, tenant_log) = (pool.clone(), event_scope.clone(), tenant_log.clone());
+            let (pool, event_scope, tenant_log) =
+                (pool.clone(), event_scope.clone(), tenant_log.clone());
             let (errors, done) = (errors.clone(), done.clone());
             tasks.push(tokio::spawn(async move {
                 for _ in 0..15 {
-                    let mut client = crate::services::database::get_hasura_pool().await.get().await.unwrap();
+                    let mut client = crate::services::database::get_hasura_pool()
+                        .await
+                        .get()
+                        .await
+                        .unwrap();
                     let tx = client.transaction().await.unwrap();
                     if let Err(error) = lock_scope(&*tx, &event_scope, true).await {
-                        eprintln!("certificate: {error:#}"); errors.fetch_add(1, Ordering::SeqCst);
+                        eprintln!("certificate: {error:#}");
+                        errors.fetch_add(1, Ordering::SeqCst);
                     }
-                    tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", &[&tenant_log]).await.unwrap();
+                    tx.query(
+                        "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+                        &[&tenant_log],
+                    )
+                    .await
+                    .unwrap();
                     tokio::time::sleep(std::time::Duration::from_millis(3)).await;
                     tx.commit().await.unwrap();
                     done.fetch_add(1, Ordering::SeqCst);
@@ -4847,29 +5240,59 @@ mod pgmq_tests {
         // Batch: leases of both scopes, in-flight markers (Q(S) exclusive), its
         // tenant-log lock for an unplaced event, then settles and lets go.
         for worker in 0..2 {
-            let (pool, tenant, event_id, tenant_scope, event_scope, tenant_log) =
-                (pool.clone(), tenant.clone(), event_id.clone(), tenant_scope.clone(), event_scope.clone(), tenant_log.clone());
+            let (pool, tenant, event_id, tenant_scope, event_scope, tenant_log) = (
+                pool.clone(),
+                tenant.clone(),
+                event_id.clone(),
+                tenant_scope.clone(),
+                event_scope.clone(),
+                tenant_log.clone(),
+            );
             let done = done.clone();
             tasks.push(tokio::spawn(async move {
                 for n in 0..15 {
                     let events = vec![
-                        LogEventInput { delivery_id: Some(format!("d{worker}-{n}-e-{event_id}")), tenant_id: tenant.clone(), ..event(&event_id) },
-                        LogEventInput { delivery_id: Some(format!("d{worker}-{n}-t-{event_id}")), tenant_id: tenant.clone(), ..event("") },
+                        LogEventInput {
+                            delivery_id: Some(format!("d{worker}-{n}-e-{event_id}")),
+                            tenant_id: tenant.clone(),
+                            ..event(&event_id)
+                        },
+                        LogEventInput {
+                            delivery_id: Some(format!("d{worker}-{n}-t-{event_id}")),
+                            tenant_id: tenant.clone(),
+                            ..event("")
+                        },
                     ];
                     let mut lease_client = pool.get().await.unwrap();
                     let lease = lease_client.transaction().await.unwrap();
-                    take_leases(&*lease, &[event_scope.clone(), tenant_scope.clone()]).await.unwrap();
+                    take_leases(&*lease, &[event_scope.clone(), tenant_scope.clone()])
+                        .await
+                        .unwrap();
                     let mut client = pool.get().await.unwrap();
                     let tx = client.transaction().await.unwrap();
-                    mark_in_flight(&*tx, &events, chrono::Utc::now().timestamp_millis()).await.unwrap();
+                    mark_in_flight(&*tx, &events, chrono::Utc::now().timestamp_millis())
+                        .await
+                        .unwrap();
                     tx.commit().await.unwrap();
                     {
-                        let mut hasura = crate::services::database::get_hasura_pool().await.get().await.unwrap();
+                        let mut hasura = crate::services::database::get_hasura_pool()
+                            .await
+                            .get()
+                            .await
+                            .unwrap();
                         let tx = hasura.transaction().await.unwrap();
-                        tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", &[&tenant_log]).await.unwrap();
+                        tx.query(
+                            "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+                            &[&tenant_log],
+                        )
+                        .await
+                        .unwrap();
                         tx.commit().await.unwrap();
                     }
-                    let ids: Vec<String> = events.iter().filter_map(|e| e.delivery_id.clone()).collect();
+                    let ids: Vec<String> = events
+                        .iter()
+                        .filter_map(|e| e.delivery_id.clone())
+                        .collect();
                     stop_waiting(&**client, &ids).await.unwrap();
                     lease.rollback().await.unwrap();
                     done.fetch_add(1, Ordering::SeqCst);
@@ -4877,10 +5300,19 @@ mod pgmq_tests {
             }));
         }
         let all = futures::future::join_all(tasks);
-        let results = tokio::time::timeout(std::time::Duration::from_secs(180), all).await.expect("no deadlock: every actor finished");
-        assert!(results.iter().all(|result| result.is_ok()), "no actor panicked (a detected deadlock would)");
+        let results = tokio::time::timeout(std::time::Duration::from_secs(180), all)
+            .await
+            .expect("no deadlock: every actor finished");
+        assert!(
+            results.iter().all(|result| result.is_ok()),
+            "no actor panicked (a detected deadlock would)"
+        );
         assert_eq!(done.load(Ordering::SeqCst), 120);
-        assert_eq!(errors.load(Ordering::SeqCst), 0, "only refusals for the log's order");
+        assert_eq!(
+            errors.load(Ordering::SeqCst),
+            0,
+            "only refusals for the log's order"
+        );
         eprintln!("gated refusals (allowed): {}", gated.load(Ordering::SeqCst));
         drop_queues(&*pool.get().await.unwrap(), &queues).await;
     }
@@ -4888,22 +5320,49 @@ mod pgmq_tests {
     #[tokio::test]
     #[ignore = "requires PGMQ_TEST_DATABASE_URL pointing to a disposable database"]
     async fn at_the_last_retry_only_markers_and_open_bounded_heads_count_as_bounded() {
-        use crate::services::electoral_log_deferral::{bounded_row_ids, mark_in_flight, stop_waiting};
+        use crate::services::electoral_log_deferral::{
+            bounded_row_ids, mark_in_flight, stop_waiting,
+        };
         let pool = test_pool();
         let queues = test_queues(&pool, "lastretry").await;
         let unique = uuid::Uuid::new_v4().to_string();
-        let of = |name: &str| LogEventInput { delivery_id: Some(format!("{name}-{unique}")), ..event(&unique) };
+        let of = |name: &str| LogEventInput {
+            delivery_id: Some(format!("{name}-{unique}")),
+            ..event(&unique)
+        };
         let mut client = pool.get().await.unwrap();
         let tx = client.transaction().await.unwrap();
         mark_in_flight(&*tx, &[of("marker")], 1_000).await.unwrap();
-        for (name, reason) in [("signer", WaitReason::SignerUnavailable), ("held", WaitReason::Held), ("retry", WaitReason::Retry)] {
-            put_back(&*tx, &queues.events, &[WaitingEvent { event: of(name), reason, error: String::new() }],
-                &Waiting::default(), &DeferralBackoff::default(), 2_000).await.unwrap();
+        for (name, reason) in [
+            ("signer", WaitReason::SignerUnavailable),
+            ("held", WaitReason::Held),
+            ("retry", WaitReason::Retry),
+        ] {
+            put_back(
+                &*tx,
+                &queues.events,
+                &[WaitingEvent {
+                    event: of(name),
+                    reason,
+                    error: String::new(),
+                }],
+                &Waiting::default(),
+                &DeferralBackoff::default(),
+                2_000,
+            )
+            .await
+            .unwrap();
         }
         tx.commit().await.unwrap();
-        let ids: Vec<String> = ["marker", "signer", "held", "retry"].iter().map(|n| format!("{n}-{unique}")).collect();
+        let ids: Vec<String> = ["marker", "signer", "held", "retry"]
+            .iter()
+            .map(|n| format!("{n}-{unique}"))
+            .collect();
         let bounded = bounded_row_ids(&**client, &ids).await.unwrap();
-        let mut got: Vec<&str> = bounded.iter().map(|id| id.split('-').next().unwrap()).collect();
+        let mut got: Vec<&str> = bounded
+            .iter()
+            .map(|id| id.split('-').next().unwrap())
+            .collect();
         got.sort();
         // A marker (attempted, never put back) and an open bounded head are bounded;
         // a wait for the signer and a held one (each with its copy) are not.
@@ -4930,7 +5389,10 @@ mod pgmq_tests {
         .unwrap();
         assert_eq!(
             missing_waiting_columns(&*tx).await.unwrap(),
-            vec!["bounded_since_ms".to_string(), "bounded_used_ms".to_string()]
+            vec![
+                "bounded_since_ms".to_string(),
+                "bounded_used_ms".to_string()
+            ]
         );
         tx.rollback().await.unwrap();
         assert!(missing_waiting_columns(&**client).await.unwrap().is_empty());
@@ -4959,15 +5421,25 @@ mod pgmq_tests {
             async move {
                 let mut client = pool.get().await.unwrap();
                 let tx = client.transaction().await.unwrap();
-                put_back(&*tx, &queue, &[item], &Waiting::default(), &DeferralBackoff::default(), now_ms)
-                    .await
-                    .unwrap();
+                put_back(
+                    &*tx,
+                    &queue,
+                    &[item],
+                    &Waiting::default(),
+                    &DeferralBackoff::default(),
+                    now_ms,
+                )
+                .await
+                .unwrap();
                 tx.commit().await.unwrap();
             }
         };
         let id = format!("b1-{unique}");
         let mut head = WaitingEvent {
-            event: LogEventInput { delivery_id: Some(id.clone()), ..event(&unique) },
+            event: LogEventInput {
+                delivery_id: Some(id.clone()),
+                ..event(&unique)
+            },
             reason: WaitReason::SignerUnavailable,
             error: "unavailable".into(),
         };
@@ -4990,16 +5462,30 @@ mod pgmq_tests {
         // A later retry opens a new stretch, with the time already spent kept.
         head.reason = WaitReason::TenantMissing;
         put(head.clone(), 27_500_000).await;
-        assert_eq!(budget(&**client, id.clone()).await, (Some(27_500_000), 100_000));
+        assert_eq!(
+            budget(&**client, id.clone()).await,
+            (Some(27_500_000), 100_000)
+        );
         // Read back (also after a restart: a fresh read), whatever the message says.
         let forged = LogEventInput {
-            deferral: Some(Deferral { rounds: 1, since_ms: 1, order: 0, bounded_since_ms: Some(i64::MAX), bounded_used_ms: -1_000_000 }),
+            deferral: Some(Deferral {
+                rounds: 1,
+                since_ms: 1,
+                order: 0,
+                bounded_since_ms: Some(i64::MAX),
+                bounded_used_ms: -1_000_000,
+            }),
             ..head.event.clone()
         };
-        let rows = waiting_events(&**client, &[scope_of(&forged)]).await.unwrap();
+        let rows = waiting_events(&**client, &[scope_of(&forged)])
+            .await
+            .unwrap();
         let (bound, _) = bind_to_rows(&[forged], rows);
         let deferral = bound[0].deferral.unwrap();
-        assert_eq!((deferral.bounded_since_ms, deferral.bounded_used_ms), (Some(27_500_000), 100_000));
+        assert_eq!(
+            (deferral.bounded_since_ms, deferral.bounded_used_ms),
+            (Some(27_500_000), 100_000)
+        );
         // Not a false dead letter: 100 s + 500 s spent; the bound fires only past 600 s
         // of bounded time in total (the 7 h outage does not count).
         let backoff = DeferralBackoff::default();
@@ -5014,7 +5500,9 @@ mod pgmq_tests {
     #[ignore = "requires PGMQ_TEST_DATABASE_URL and HASURA_DB__* (one disposable database with the Hasura migrations)"]
     async fn a_tenant_missing_head_and_its_follower_hold_the_tenant_log_until_both_are_stored() {
         use crate::services::electoral_log::ScopeAdmission;
-        use crate::services::electoral_log_deferral::{is_scope_gated, stop_waiting, waiting_events};
+        use crate::services::electoral_log_deferral::{
+            is_scope_gated, stop_waiting, waiting_events,
+        };
         let url = std::env::var("PGMQ_TEST_DATABASE_URL").expect("PGMQ_TEST_DATABASE_URL");
         if std::env::var("QUEUE_DB__URL").is_err() {
             std::env::set_var("QUEUE_DB__URL", &url);
@@ -5044,22 +5532,40 @@ mod pgmq_tests {
         {
             let mut client = pool.get().await.unwrap();
             let tx = client.transaction().await.unwrap();
-            let summary = put_back(&*tx, &queues.events, &[head.clone(), follower.clone()],
-                &Waiting::default(), &DeferralBackoff::default(), chrono::Utc::now().timestamp_millis())
-                .await
-                .unwrap();
+            let summary = put_back(
+                &*tx,
+                &queues.events,
+                &[head.clone(), follower.clone()],
+                &Waiting::default(),
+                &DeferralBackoff::default(),
+                chrono::Utc::now().timestamp_millis(),
+            )
+            .await
+            .unwrap();
             tx.commit().await.unwrap();
             assert_eq!((summary.tenant_missing, summary.held), (1, 1));
         }
-        let waiting = waiting_events(&**pool.get().await.unwrap(), &[scope.clone()]).await.unwrap();
+        let waiting = waiting_events(&**pool.get().await.unwrap(), &[scope.clone()])
+            .await
+            .unwrap();
         assert_eq!(waiting.len(), 2);
         // Nothing of the tenant's log is admitted while either waits ...
         let error = ScopeAdmission::admit(&scope).await.err().expect("refused");
         assert!(is_scope_gated(&error), "{error:#}");
-        stop_waiting(&**pool.get().await.unwrap(), &[head.event.delivery_id.clone().unwrap()]).await.unwrap();
+        stop_waiting(
+            &**pool.get().await.unwrap(),
+            &[head.event.delivery_id.clone().unwrap()],
+        )
+        .await
+        .unwrap();
         // ... the head stored, its follower still holds the log (no overtaking) ...
         assert!(ScopeAdmission::admit(&scope).await.is_err());
-        stop_waiting(&**pool.get().await.unwrap(), &[follower.event.delivery_id.clone().unwrap()]).await.unwrap();
+        stop_waiting(
+            &**pool.get().await.unwrap(),
+            &[follower.event.delivery_id.clone().unwrap()],
+        )
+        .await
+        .unwrap();
         // ... and once both are stored, the log admits again.
         ScopeAdmission::admit(&scope).await.unwrap().end().await;
         drop_queues(&*pool.get().await.unwrap(), &queues).await;
@@ -5069,7 +5575,9 @@ mod pgmq_tests {
     #[ignore = "requires PGMQ_TEST_DATABASE_URL and HASURA_DB__* (one disposable database with the Hasura migrations)"]
     async fn an_append_is_admitted_only_while_nothing_of_its_scope_waits_or_is_in_hand() {
         use crate::services::electoral_log::ScopeAdmission;
-        use crate::services::electoral_log_deferral::{is_scope_gated, stop_waiting, take_leases, ScopeBusy, ScopeWaiting};
+        use crate::services::electoral_log_deferral::{
+            is_scope_gated, stop_waiting, take_leases, ScopeBusy, ScopeWaiting,
+        };
         let url = std::env::var("PGMQ_TEST_DATABASE_URL").expect("PGMQ_TEST_DATABASE_URL");
         if std::env::var("QUEUE_DB__URL").is_err() {
             std::env::set_var("QUEUE_DB__URL", &url);
@@ -5094,26 +5602,52 @@ mod pgmq_tests {
         {
             let mut client = pool.get().await.unwrap();
             let tx = client.transaction().await.unwrap();
-            put_back(&*tx, &queues.events, &[waiting_event.clone()], &Waiting::default(),
-                &DeferralBackoff::default(), chrono::Utc::now().timestamp_millis()).await.unwrap();
+            put_back(
+                &*tx,
+                &queues.events,
+                &[waiting_event.clone()],
+                &Waiting::default(),
+                &DeferralBackoff::default(),
+                chrono::Utc::now().timestamp_millis(),
+            )
+            .await
+            .unwrap();
             tx.commit().await.unwrap();
         }
-        let error = ScopeAdmission::admit(&scope).await.err().expect("refused while waiting");
+        let error = ScopeAdmission::admit(&scope)
+            .await
+            .err()
+            .expect("refused while waiting");
         assert!(is_scope_gated(&error), "{error:#}");
-        assert!(error.chain().any(|cause| cause.is::<ScopeWaiting>()), "{error:#}");
+        assert!(
+            error.chain().any(|cause| cause.is::<ScopeWaiting>()),
+            "{error:#}"
+        );
         // Another scope is not held by it.
-        ScopeAdmission::admit(&format!("{tenant}/{}", uuid::Uuid::new_v4())).await.unwrap().end().await;
+        ScopeAdmission::admit(&format!("{tenant}/{}", uuid::Uuid::new_v4()))
+            .await
+            .unwrap()
+            .end()
+            .await;
         // 3. Once stored (its row goes): admitted again.
-        stop_waiting(&**pool.get().await.unwrap(), &[format!("w1-{event_id}")]).await.unwrap();
+        stop_waiting(&**pool.get().await.unwrap(), &[format!("w1-{event_id}")])
+            .await
+            .unwrap();
         ScopeAdmission::admit(&scope).await.unwrap().end().await;
         // 4. A batch has events of the scope in hand: refused as busy.
         {
             let mut batch = pool.get().await.unwrap();
             let batch_tx = batch.transaction().await.unwrap();
             take_leases(&*batch_tx, &[scope.clone()]).await.unwrap();
-            let error = ScopeAdmission::admit(&scope).await.err().expect("refused while in hand");
+            let error = ScopeAdmission::admit(&scope)
+                .await
+                .err()
+                .expect("refused while in hand");
             assert!(is_scope_gated(&error), "{error:#}");
-            assert!(error.chain().any(|cause| cause.is::<ScopeBusy>()), "{error:#}");
+            assert!(
+                error.chain().any(|cause| cause.is::<ScopeBusy>()),
+                "{error:#}"
+            );
             batch_tx.rollback().await.unwrap();
         }
         // 5. While admitted, an entry of the scope that starts waiting comes
@@ -5125,24 +5659,40 @@ mod pgmq_tests {
         let starts_waiting = tokio::spawn(async move {
             let mut client = b_pool.get().await.unwrap();
             let tx = client.transaction().await.unwrap();
-            put_back(&*tx, &b_queue, &[b_event], &Waiting::default(),
-                &DeferralBackoff::default(), chrono::Utc::now().timestamp_millis()).await.unwrap();
+            put_back(
+                &*tx,
+                &b_queue,
+                &[b_event],
+                &Waiting::default(),
+                &DeferralBackoff::default(),
+                chrono::Utc::now().timestamp_millis(),
+            )
+            .await
+            .unwrap();
             tx.commit().await.unwrap();
         });
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-        assert!(!starts_waiting.is_finished(), "it waits for the admitted append");
+        assert!(
+            !starts_waiting.is_finished(),
+            "it waits for the admitted append"
+        );
         admission.end().await;
         starts_waiting.await.unwrap();
         // 6. A dropped admission (an early return) releases its locks too.
-        stop_waiting(&**pool.get().await.unwrap(), &[format!("w1-{event_id}")]).await.unwrap();
+        stop_waiting(&**pool.get().await.unwrap(), &[format!("w1-{event_id}")])
+            .await
+            .unwrap();
         drop(ScopeAdmission::admit(&scope).await.unwrap());
         tokio::time::sleep(std::time::Duration::from_millis(300)).await;
         let mut batch = pool.get().await.unwrap();
         let batch_tx = batch.transaction().await.unwrap();
-        tokio::time::timeout(std::time::Duration::from_secs(10), take_leases(&*batch_tx, &[scope.clone()]))
-            .await
-            .expect("the dropped admission released its lease")
-            .unwrap();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            take_leases(&*batch_tx, &[scope.clone()]),
+        )
+        .await
+        .expect("the dropped admission released its lease")
+        .unwrap();
         batch_tx.rollback().await.unwrap();
         drop_queues(&*pool.get().await.unwrap(), &queues).await;
     }
@@ -5150,7 +5700,9 @@ mod pgmq_tests {
     #[tokio::test]
     #[ignore = "requires PGMQ_TEST_DATABASE_URL pointing to a disposable database"]
     async fn a_batch_processing_a_scope_refuses_its_gated_appends_as_busy_not_failed() {
-        use crate::services::electoral_log_deferral::{direct_post_gate, is_scope_gated, take_leases, ScopeBusy};
+        use crate::services::electoral_log_deferral::{
+            direct_post_gate, is_scope_gated, take_leases, ScopeBusy,
+        };
         let pool = test_pool();
         let queues = test_queues(&pool, "lease").await;
         let scope = format!("{}/lease", uuid::Uuid::new_v4());
@@ -5164,14 +5716,22 @@ mod pgmq_tests {
         let gated_tx = gated.transaction().await.unwrap();
         let started = std::time::Instant::now();
         let error = direct_post_gate(&*gated_tx, &scope).await.unwrap_err();
-        assert!(started.elapsed() >= std::time::Duration::from_secs(4), "it waited");
+        assert!(
+            started.elapsed() >= std::time::Duration::from_secs(4),
+            "it waited"
+        );
         assert!(is_scope_gated(&error), "{error:#}");
-        assert!(error.chain().any(|cause| cause.is::<ScopeBusy>()), "{error:#}");
+        assert!(
+            error.chain().any(|cause| cause.is::<ScopeBusy>()),
+            "{error:#}"
+        );
         gated_tx.rollback().await.unwrap();
         // Another scope is not held.
         let mut other = pool.get().await.unwrap();
         let other_tx = other.transaction().await.unwrap();
-        direct_post_gate(&*other_tx, &format!("{scope}-other")).await.unwrap();
+        direct_post_gate(&*other_tx, &format!("{scope}-other"))
+            .await
+            .unwrap();
         other_tx.rollback().await.unwrap();
         // The batch ends: the scope admits again.
         batch_tx.rollback().await.unwrap();
@@ -5200,7 +5760,10 @@ mod pgmq_tests {
             tx.rollback().await.unwrap();
         });
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-        assert!(!batch.is_finished(), "the batch waits for the append in progress");
+        assert!(
+            !batch.is_finished(),
+            "the batch waits for the append in progress"
+        );
         gated_tx.rollback().await.unwrap();
         batch.await.unwrap();
     }
@@ -5211,7 +5774,11 @@ mod pgmq_tests {
         use crate::services::electoral_log_deferral::take_leases;
         let pool = test_pool();
         let base = uuid::Uuid::new_v4().to_string();
-        let (s1, s2, s3) = (format!("{base}/a"), format!("{base}/b"), format!("{base}/c"));
+        let (s1, s2, s3) = (
+            format!("{base}/a"),
+            format!("{base}/b"),
+            format!("{base}/c"),
+        );
         let mut tasks = Vec::new();
         for round in 0..40 {
             // Scopes given in different orders: leases are taken sorted.
@@ -5276,7 +5843,10 @@ mod pgmq_tests {
             b_tx.commit().await.unwrap();
         });
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-        assert!(!b.is_finished(), "the entry waits for the direct post's lock");
+        assert!(
+            !b.is_finished(),
+            "the entry waits for the direct post's lock"
+        );
         // A's append is done: it ends, and only then does B's entry start waiting.
         a_tx.rollback().await.unwrap();
         b.await.unwrap();
@@ -5289,15 +5859,14 @@ mod pgmq_tests {
         let other = pool.get().await.unwrap();
         let mut other = other;
         let other_tx = other.transaction().await.unwrap();
-        direct_post_gate(&*other_tx, &format!("{unique}/other")).await.unwrap();
+        direct_post_gate(&*other_tx, &format!("{unique}/other"))
+            .await
+            .unwrap();
         other_tx.rollback().await.unwrap();
         let client = pool.get().await.unwrap();
-        crate::services::electoral_log_deferral::stop_waiting(
-            &**client,
-            &[format!("g1-{unique}")],
-        )
-        .await
-        .unwrap();
+        crate::services::electoral_log_deferral::stop_waiting(&**client, &[format!("g1-{unique}")])
+            .await
+            .unwrap();
         drop_queues(&client, &queues).await;
     }
 
@@ -5378,9 +5947,12 @@ mod pgmq_tests {
         tx.batch_execute(&format!("SET LOCAL ROLE {reader}"))
             .await
             .unwrap();
-        tx.execute("SELECT statement FROM step_queue.electoral_log_waiting", &[])
-            .await
-            .unwrap();
+        tx.execute(
+            "SELECT statement FROM step_queue.electoral_log_waiting",
+            &[],
+        )
+        .await
+        .unwrap();
         let denied = tx
             .execute("DELETE FROM step_queue.electoral_log_waiting", &[])
             .await
@@ -5402,7 +5974,10 @@ mod pgmq_tests {
 
     /// The plan of `sql`, with sequential scans off.
     async fn plan_of(client: &tokio_postgres::Client, sql: String) -> String {
-        client.batch_execute("SET enable_seqscan = off").await.unwrap();
+        client
+            .batch_execute("SET enable_seqscan = off")
+            .await
+            .unwrap();
         let plan: Vec<String> = client
             .query(&format!("EXPLAIN {sql}"), &[])
             .await
@@ -5430,19 +6005,29 @@ mod pgmq_tests {
             .iter()
             .map(|row| row.get(0))
             .collect();
-        assert!(indexes.contains(&format!("q_{}_deferred_delivery", queues.events)), "{indexes:?}");
-        assert!(indexes.contains(&"electoral_log_waiting_scope".to_string()), "{indexes:?}");
+        assert!(
+            indexes.contains(&format!("q_{}_deferred_delivery", queues.events)),
+            "{indexes:?}"
+        );
+        assert!(
+            indexes.contains(&"electoral_log_waiting_scope".to_string()),
+            "{indexes:?}"
+        );
         // The plans use them (sequential scans off, so a tiny table shows the choice).
-        let delivery = plan_of(&client, format!(
+        let delivery = plan_of(
+            &client,
+            format!(
             "SELECT 1 FROM pgmq.q_{} WHERE headers->>'x-electoral-log-deferred-scope' IS NOT NULL \
              AND headers->>'x-electoral-log-deferred-delivery' = 'x'",
             queues.events
-        ))
+        ),
+        )
         .await;
         assert!(delivery.contains("_deferred_delivery"), "{delivery}");
         let scope = plan_of(
             &client,
-            "SELECT 1 FROM step_queue.electoral_log_waiting WHERE scope = ANY(ARRAY['x'])".to_string(),
+            "SELECT 1 FROM step_queue.electoral_log_waiting WHERE scope = ANY(ARRAY['x'])"
+                .to_string(),
         )
         .await;
         assert!(scope.contains("electoral_log_waiting_scope"), "{scope}");

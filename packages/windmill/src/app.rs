@@ -208,7 +208,11 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
         event!(
             Level::INFO,
             "Electoral-log entry {delivery_id}: {}",
-            if cancelled { "cancelled" } else { "nothing to cancel" }
+            if cancelled {
+                "cancelled"
+            } else {
+                "nothing to cancel"
+            }
         );
         return Ok(());
     }
@@ -227,7 +231,11 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
         event!(
             Level::INFO,
             "Electoral-log outbox entry {delivery_id}: {}",
-            if replayed { "replayed" } else { "not dead-lettered: nothing to replay" }
+            if replayed {
+                "replayed"
+            } else {
+                "not dead-lettered: nothing to replay"
+            }
         );
         return Ok(());
     }

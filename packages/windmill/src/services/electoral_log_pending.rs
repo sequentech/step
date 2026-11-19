@@ -65,14 +65,13 @@ use crate::tasks::electoral_log::{LogEventBody, LogEventInput, LogMessageType};
 use anyhow::{anyhow, ensure, Context, Result};
 use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::CertificateAuthEventAction;
-use voting_crypto::signing::{Signature, VerificationKey};
 use electoral_log::messages::newtypes::{
     BallotPublicationFailure, CastVoteErrorString, ElectionIdString, ErrorMessageString,
-    EventIdString, KeycloakEventTypeString, PseudonymHash,
-    VoterCountryString, VoterIpString,
+    EventIdString, KeycloakEventTypeString, PseudonymHash, VoterCountryString, VoterIpString,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use voting_crypto::signing::{Signature, VerificationKey};
 
 /// The only version of [`PendingStatement`].
 pub const PENDING_STATEMENT_VERSION: u32 = 1;
@@ -102,7 +101,11 @@ struct PendingRef {
 pub fn pending_ref(body: &str) -> Option<String> {
     let is_ref = serde_json::from_str::<serde_json::Value>(body)
         .ok()
-        .and_then(|value| value.as_object().map(|object| object.contains_key(PENDING_REF_KEY)))
+        .and_then(|value| {
+            value
+                .as_object()
+                .map(|object| object.contains_key(PENDING_REF_KEY))
+        })
         .unwrap_or(false);
     // A body with the key that isn't exactly a reference refers to nothing.
     is_ref.then(|| {
@@ -122,9 +125,16 @@ pub const ALERT_ENTRY_CANCELLED: &str = "electoral-log-entry-cancelled";
 /// is logged as an error under [`ALERT_ENTRY_CANCELLED`], naming who and why;
 /// the entry is lost for the log, so record the decision. Returns whether it
 /// was waiting.
-pub async fn cancel_waiting_entry(delivery_id: &str, requested_by: &str, reason: &str) -> Result<bool> {
+pub async fn cancel_waiting_entry(
+    delivery_id: &str,
+    requested_by: &str,
+    reason: &str,
+) -> Result<bool> {
     use crate::services::electoral_log_deferral::WAITING_TABLE;
-    anyhow::ensure!(!requested_by.trim().is_empty(), "Name who cancels the entry");
+    anyhow::ensure!(
+        !requested_by.trim().is_empty(),
+        "Name who cancels the entry"
+    );
     anyhow::ensure!(!reason.trim().is_empty(), "Say why the entry is cancelled");
     let client = crate::services::database::try_get_queue_pool()
         .await?
@@ -174,7 +184,11 @@ const MAC_DOMAIN: &[u8] = b"electoral-log pending v1";
 /// A system-signed pending statement's MAC: HMAC-SHA256 under the tenant's
 /// `electoral-log-pending-mac:<tenant id>` vault secret, over the domain, the delivery ID
 /// (length-prefixed) and the statement's JSON as its type writes it.
-pub fn pending_mac(key: &[u8; 32], delivery_id: &str, statement: &PendingStatement) -> Result<Vec<u8>> {
+pub fn pending_mac(
+    key: &[u8; 32],
+    delivery_id: &str,
+    statement: &PendingStatement,
+) -> Result<Vec<u8>> {
     use hmac::{Hmac, Mac};
     let mut mac = <Hmac<sha2::Sha256> as Mac>::new_from_slice(key)
         .map_err(|_| anyhow!("Unusable pending-statement MAC key"))?;
@@ -199,7 +213,8 @@ pub fn verify_pending_mac(
     expected.update(MAC_DOMAIN);
     expected.update(&(delivery_id.len() as u64).to_be_bytes());
     expected.update(delivery_id.as_bytes());
-    expected.update(&serde_json::to_vec(statement).context("Error serializing a pending statement")?);
+    expected
+        .update(&serde_json::to_vec(statement).context("Error serializing a pending statement")?);
     expected
         .verify_slice(given)
         .map_err(|_| anyhow!("The pending statement's MAC doesn't verify"))
@@ -381,8 +396,11 @@ impl PendingStatementBody {
                 admin_public_key,
                 admin_signature,
             } => {
-                let statement =
-                    Message::certificate_auth_event_statement(event, action.clone(), subject_dns.clone());
+                let statement = Message::certificate_auth_event_statement(
+                    event,
+                    action.clone(),
+                    subject_dns.clone(),
+                );
                 let admin_pk = VerificationKey::from_b64_string(admin_public_key)
                     .context("The administrator's public key is unreadable")?;
                 let signature = Signature::from_b64_string(admin_signature)
@@ -422,7 +440,12 @@ impl PendingStatementBody {
                 admin_public_key,
                 admin_signature,
                 ..
-            } => vec![user_id, optional_text(username), admin_public_key, admin_signature],
+            } => vec![
+                user_id,
+                optional_text(username),
+                admin_public_key,
+                admin_signature,
+            ],
         }
     }
 
@@ -521,14 +544,22 @@ impl PendingStatement {
         // The scope's lock (exclusive), as a certificate action takes it: a
         // direct post comes either before this entry or after it is stored.
         crate::services::electoral_log_outbox::lock_scope(&*tx, &self.scope(), true).await?;
-        let key = crate::services::vault::get_or_create_pending_mac_key(&tx, &self.tenant_id).await?;
+        let key =
+            crate::services::vault::get_or_create_pending_mac_key(&tx, &self.tenant_id).await?;
         let mac = pending_mac(&key, &delivery_id, self)?;
-        let payload = serde_json::to_value(self).context("Error serializing a pending statement")?;
+        let payload =
+            serde_json::to_value(self).context("Error serializing a pending statement")?;
         tx.execute(
             "INSERT INTO sequent_backend.electoral_log_outbox \
              (delivery_id, tenant_id, election_event_id, payload, mac) \
              VALUES ($1, $2::text::uuid, $3::text::uuid, $4, $5)",
-            &[&delivery_id, &self.tenant_id, &self.election_event_id, &payload, &mac],
+            &[
+                &delivery_id,
+                &self.tenant_id,
+                &self.election_event_id,
+                &payload,
+                &mac,
+            ],
         )
         .await
         .context("Error writing a pending statement to the outbox")?;
@@ -562,7 +593,8 @@ impl PendingStatement {
         let reference = crate::services::electoral_log_dead_letter::event_message(
             &self.reference_event(delivery_id)?,
         )?;
-        let statement = serde_json::to_value(self).context("Error serializing a pending statement")?;
+        let statement =
+            serde_json::to_value(self).context("Error serializing a pending statement")?;
         let queue = crate::services::celery_app::Queue::ElectoralLogEvent.queue_name();
         let (created_ms, order): (Option<i64>, i64) = match relayed {
             Some((created_ms, seq)) => (Some(created_ms), seq),
@@ -596,7 +628,10 @@ impl PendingStatement {
             .context("Error writing a pending statement")?;
         if !written.is_empty() {
             let msg_id: i64 = tx
-                .query_one("SELECT pgmq.send($1::text, $2::jsonb)", &[&queue, &reference])
+                .query_one(
+                    "SELECT pgmq.send($1::text, $2::jsonb)",
+                    &[&queue, &reference],
+                )
                 .await
                 .context("Error queueing a pending statement's reference")?
                 .get(0);
@@ -634,7 +669,8 @@ impl PendingStatement {
             pending_ref(&input.body.as_raw()).as_deref() == Some(delivery_id),
             "The reference names another delivery than its event's"
         );
-        let stored = stored.ok_or_else(|| anyhow!("No worker queued a pending statement {delivery_id:?}"))?;
+        let stored = stored
+            .ok_or_else(|| anyhow!("No worker queued a pending statement {delivery_id:?}"))?;
         let pending: PendingStatement =
             serde_json::from_value(stored.statement).context("Not a pending statement")?;
         ensure!(
@@ -674,7 +710,8 @@ impl PendingStatement {
             .and_then(|rest| rest.strip_prefix(self.origin.as_str()))
             .and_then(|rest| rest.strip_prefix(':'))
             .ok_or_else(|| anyhow!("The pending statement's delivery ID is not of its origin"))?;
-        Uuid::parse_str(uuid).context("The pending statement's delivery ID is not of its origin")?;
+        Uuid::parse_str(uuid)
+            .context("The pending statement's delivery ID is not of its origin")?;
         ensure!(self.occurred_at > 0, "The pending statement has no time");
         ensure!(
             self.occurred_at <= now.saturating_add(MAX_FUTURE_SECS),
@@ -760,7 +797,12 @@ mod tests {
     }
 
     fn reread(input: &LogEventInput, stored: &StoredPending) -> Result<PendingStatement> {
-        PendingStatement::read(input, Some(stored.clone()), Some(KEY), electoral_log::timestamp())
+        PendingStatement::read(
+            input,
+            Some(stored.clone()),
+            Some(KEY),
+            electoral_log::timestamp(),
+        )
     }
 
     #[test]
@@ -823,10 +865,13 @@ mod tests {
         moved.statement = serde_json::to_value(&other).unwrap();
         assert!(reread(&event, &moved).is_err());
         let mut elsewhere = stored.clone();
-        elsewhere.mac = Some(pending_mac(&KEY, "pending:ballot-publication:other", &pending).unwrap());
+        elsewhere.mac =
+            Some(pending_mac(&KEY, "pending:ballot-publication:other", &pending).unwrap());
         assert!(reread(&event, &elsewhere).is_err());
         // No key for the tenant: refused.
-        assert!(PendingStatement::read(&event, Some(stored), None, electoral_log::timestamp()).is_err());
+        assert!(
+            PendingStatement::read(&event, Some(stored), None, electoral_log::timestamp()).is_err()
+        );
     }
 
     #[test]
@@ -867,7 +912,9 @@ mod tests {
         assert!(reread(&event, &stored).is_ok());
 
         // No row: a reference forged on the queue names nothing a worker wrote.
-        assert!(PendingStatement::read(&event, None, Some(KEY), electoral_log::timestamp()).is_err());
+        assert!(
+            PendingStatement::read(&event, None, Some(KEY), electoral_log::timestamp()).is_err()
+        );
 
         // A reference to another delivery than its event's.
         let mut other_ref = event.clone();
@@ -923,7 +970,8 @@ mod tests {
         // Another producer's delivery ID.
         let mut squatting = event.clone();
         squatting.delivery_id = Some("readiness:entry".into());
-        squatting.body = LogEventBody::Plain(r#"{"pending_statement_ref":"readiness:entry"}"#.into());
+        squatting.body =
+            LogEventBody::Plain(r#"{"pending_statement_ref":"readiness:entry"}"#.into());
         assert!(reread(&squatting, &stored).is_err());
 
         // A time in the future, or long before the row was written.
@@ -996,7 +1044,11 @@ mod tests {
             read.statement.admin(),
             Some((
                 "admin-id",
-                VerificationKey::from_sk(&admin).unwrap().to_b64_string().unwrap().as_str()
+                VerificationKey::from_sk(&admin)
+                    .unwrap()
+                    .to_b64_string()
+                    .unwrap()
+                    .as_str()
             ))
         );
         // The board's signer (the system key here) attests; the sender is the admin.
@@ -1036,7 +1088,10 @@ mod tests {
             admin_public_key, ..
         } = &mut foreign.statement
         {
-            *admin_public_key = VerificationKey::from_sk(&other).unwrap().to_b64_string().unwrap();
+            *admin_public_key = VerificationKey::from_sk(&other)
+                .unwrap()
+                .to_b64_string()
+                .unwrap();
         }
         assert!(foreign.sign(&sd).is_err());
         // Its MAC binds its delivery ID: the same row under another one (a
@@ -1044,7 +1099,10 @@ mod tests {
         let (event, row) = queued(&pending);
         reread(&event, &row).unwrap();
         let (other_event, _) = queued(&pending);
-        assert!(reread(&other_event, &row).is_err(), "a copy under another delivery ID");
+        assert!(
+            reread(&other_event, &row).is_err(),
+            "a copy under another delivery ID"
+        );
         let mut unmacked = row.clone();
         unmacked.mac = None;
         assert!(reread(&event, &unmacked).is_err(), "no MAC");

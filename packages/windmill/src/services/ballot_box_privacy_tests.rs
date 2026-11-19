@@ -224,10 +224,23 @@ async fn privacy_sequencer_orders_bindings_and_deduplicates_recovery_on_runtime(
                 .await?;
         }
         if !simulate_queue_race {
-            sequencer_waits_behind_an_earlier_entry_of_its_log(&store, &board, &tenant, &event, &authority_key)
-                .await?;
+            sequencer_waits_behind_an_earlier_entry_of_its_log(
+                &store,
+                &board,
+                &tenant,
+                &event,
+                &authority_key,
+            )
+            .await?;
         }
-        append_pending(&store, &board, &tenant, &event, &electoral_log::signer::software(authority_key.clone())).await?;
+        append_pending(
+            &store,
+            &board,
+            &tenant,
+            &event,
+            &electoral_log::signer::software(authority_key.clone()),
+        )
+        .await?;
         let records = store
             .query(
                 &board,
@@ -266,7 +279,14 @@ async fn privacy_sequencer_orders_bindings_and_deduplicates_recovery_on_runtime(
                 &[&event, &received.id],
             ).await?;
         }
-        append_pending(&store, &board, &tenant, &event, &electoral_log::signer::software(authority_key.clone())).await?;
+        append_pending(
+            &store,
+            &board,
+            &tenant,
+            &event,
+            &electoral_log::signer::software(authority_key.clone()),
+        )
+        .await?;
         assert_eq!(
             store
                 .query(&board, &electoral_log::LogQuery::default())
@@ -276,7 +296,14 @@ async fn privacy_sequencer_orders_bindings_and_deduplicates_recovery_on_runtime(
         );
         assert_eq!(store.pending_count(&event).await?, 0);
         assert_eq!(
-            append_pending(&store, &board, &tenant, &event, &electoral_log::signer::software(authority_key.clone())).await?,
+            append_pending(
+                &store,
+                &board,
+                &tenant,
+                &event,
+                &electoral_log::signer::software(authority_key.clone())
+            )
+            .await?,
             0
         );
         let audit = store.audit(&board, &[]).await?;
@@ -469,7 +496,14 @@ async fn verify_private_acceptance(
     store
         .queue_privacy_message(event, "acceptance:resolution", &audit.record_serialize()?)
         .await?;
-    append_pending(store, board, tenant, event, &electoral_log::signer::software(authority_key.clone())).await?;
+    append_pending(
+        store,
+        board,
+        tenant,
+        event,
+        &electoral_log::signer::software(authority_key.clone()),
+    )
+    .await?;
     let all = store
         .query(board, &electoral_log::LogQuery::default())
         .await?;
@@ -683,7 +717,8 @@ impl electoral_log::signer::MessageSigner for CountingSigner {
     }
 
     fn sign(&self, bytes: &[u8]) -> Result<voting_crypto::signing::Signature> {
-        self.signed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        self.signed
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         electoral_log::signer::MessageSigner::sign(&self.key, bytes)
     }
 }
@@ -709,7 +744,10 @@ async fn sequencer_waits_behind_an_earlier_entry_of_its_log(
         url: Some(url),
         ..Default::default()
     }
-    .create_pool(Some(deadpool_postgres::Runtime::Tokio1), tokio_postgres::NoTls)?;
+    .create_pool(
+        Some(deadpool_postgres::Runtime::Tokio1),
+        tokio_postgres::NoTls,
+    )?;
     let mut client = pool.get().await?;
     {
         let queue = format!("seq_{}", &uuid::Uuid::new_v4().simple().to_string()[..12]);
@@ -742,9 +780,20 @@ async fn sequencer_waits_behind_an_earlier_entry_of_its_log(
     });
     let appended = append_pending(store, board, tenant, event, &signer).await?;
     assert_eq!(appended, 0, "the sequencer waits behind the waiting entry");
-    assert_eq!(signed.load(std::sync::atomic::Ordering::SeqCst), 0, "nothing signed");
-    assert!(store.query(board, &electoral_log::LogQuery::default()).await?.is_empty());
-    assert_eq!(store.pending_count(event).await?, pending_before, "the ballot stays pending");
+    assert_eq!(
+        signed.load(std::sync::atomic::Ordering::SeqCst),
+        0,
+        "nothing signed"
+    );
+    assert!(store
+        .query(board, &electoral_log::LogQuery::default())
+        .await?
+        .is_empty());
+    assert_eq!(
+        store.pending_count(event).await?,
+        pending_before,
+        "the ballot stays pending"
+    );
     // The waiting entry is stored (its row goes): the sequencer goes on.
     crate::services::electoral_log_deferral::stop_waiting(&**client, &[signin]).await?;
     Ok(())

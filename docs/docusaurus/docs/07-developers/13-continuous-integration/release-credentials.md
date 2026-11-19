@@ -18,7 +18,6 @@ deployments read their credentials from a GitHub environment named `release`.
 | Workflow | Jobs |
 | --- | --- |
 | `reusable_build_push.yml` | `build-and-push` |
-| `reusable_build_push_root.yml` | `build-and-push` |
 | `release.yml` | `trigger-beyond-release`, `trigger-deployer` |
 | `publish_release.yml` | `trigger-beyond-release`, `trigger-deployer` |
 
@@ -32,7 +31,7 @@ workflows and pass only the secrets those workflows declare.
 | `PAT` | Checking out `sequentech/beyond` and dispatching the beyond release and the deployer workflows |
 | `DOCKERHUB_TOKEN` | Docker Hub login during image builds |
 | `AWS_ACCESS_KEY_ID_GLOBALDOT`, `AWS_SECRET_ACCESS_KEY_GLOBALDOT` | Amazon ECR login in `reusable_build_push.yml` |
-| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Amazon ECR login in `reusable_build_push_root.yml` |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Amazon ECR login for the root-account images, in `reusable_build_push.yml` |
 
 The documentation preview and CLA workflows use the workflow's `GITHUB_TOKEN`
 and need none of these secrets.

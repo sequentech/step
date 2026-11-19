@@ -167,7 +167,10 @@ async fn task_queue_database() {
         .await
         .expect("task-queue test database");
     let driver = tokio::spawn(connection);
-    let tx = client.transaction().await.expect("task-queue setup transaction");
+    let tx = client
+        .transaction()
+        .await
+        .expect("task-queue setup transaction");
     pgmq_broker::setup::setup(
         &tx,
         &pgmq_broker::setup::Installation {

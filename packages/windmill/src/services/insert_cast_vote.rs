@@ -1131,7 +1131,10 @@ async fn get_electoral_log(
         &board_name,
     )
     .await?;
-    Ok(ElectoralLog::for_system_with_signer(board_name.as_str(), system))
+    Ok(ElectoralLog::for_system_with_signer(
+        board_name.as_str(),
+        system,
+    ))
 }
 
 fn effective_voting_channel_for_status(

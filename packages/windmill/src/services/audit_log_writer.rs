@@ -17,9 +17,7 @@ use crate::postgres::audit_log_outbox::{
     try_lock_audit_log_worker, AuditLogOutboxRow, AuditLogTarget, NewAuditLogEntry,
 };
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::electoral_log_board::{
-    ensure_tenant_log, get_board_client, get_board_signer,
-};
+use crate::services::electoral_log_board::{ensure_tenant_log, get_board_client, get_board_signer};
 use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, SecondsFormat, Utc};
@@ -183,8 +181,7 @@ pub async fn prepare_target_log<U: Usernames>(
                 .election_event_id
                 .map(|id| id.to_string())
                 .unwrap_or_default();
-            let system_key =
-                get_board_signer(&transaction, &tenant, Some(&event), &board).await?;
+            let system_key = get_board_signer(&transaction, &tenant, Some(&event), &board).await?;
             TargetLog {
                 board,
                 statement_event: event,
@@ -456,7 +453,10 @@ pub async fn post_target<U: Usernames>(
     let admission = match crate::services::electoral_log::ScopeAdmission::admit(&scope).await {
         Ok(admission) => admission,
         Err(error) if crate::services::electoral_log_deferral::is_scope_gated(&error) => {
-            tracing::info!(scope, "The audit log waits for its electoral log's order: {error:#}");
+            tracing::info!(
+                scope,
+                "The audit log waits for its electoral log's order: {error:#}"
+            );
             return Ok(PassOutcome::Gated);
         }
         Err(error) => return Err(error),

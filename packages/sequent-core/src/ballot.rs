@@ -4329,7 +4329,8 @@ mod electoral_log_signer_policy_tests {
 
     #[test]
     fn events_without_the_setting_keep_software_keys() {
-        let presentation: ElectionEventPresentation = serde_json::from_value(serde_json::json!({})).unwrap();
+        let presentation: ElectionEventPresentation =
+            serde_json::from_value(serde_json::json!({})).unwrap();
         assert_eq!(presentation.electoral_log_signer_policy, None);
         assert_eq!(
             presentation.electoral_log_signer_policy.unwrap_or_default(),
@@ -4339,13 +4340,21 @@ mod electoral_log_signer_policy_tests {
 
     #[test]
     fn the_setting_does_not_change_borsh_bytes_or_unset_json() {
-        let without = borsh::to_vec(&ElectionEventPresentation::default()).unwrap();
+        let without =
+            borsh::to_vec(&ElectionEventPresentation::default()).unwrap();
         let with = ElectionEventPresentation {
-            electoral_log_signer_policy: Some(ElectoralLogSignerPolicy::EXTERNAL),
+            electoral_log_signer_policy: Some(
+                ElectoralLogSignerPolicy::EXTERNAL,
+            ),
             ..ElectionEventPresentation::default()
         };
-        assert_eq!(borsh::to_vec(&with).unwrap(), without, "ballot_style_hash must not change");
-        let json = serde_json::to_value(ElectionEventPresentation::default()).unwrap();
+        assert_eq!(
+            borsh::to_vec(&with).unwrap(),
+            without,
+            "ballot_style_hash must not change"
+        );
+        let json =
+            serde_json::to_value(ElectionEventPresentation::default()).unwrap();
         assert!(json.get("electoral_log_signer_policy").is_none());
     }
 
@@ -4355,7 +4364,9 @@ mod electoral_log_signer_policy_tests {
         // ballot style always reads as unset (software). Windmill reads the
         // setting from the event's stored JSON only.
         let with = ElectionEventPresentation {
-            electoral_log_signer_policy: Some(ElectoralLogSignerPolicy::EXTERNAL),
+            electoral_log_signer_policy: Some(
+                ElectoralLogSignerPolicy::EXTERNAL,
+            ),
             ..ElectionEventPresentation::default()
         };
         let decoded: ElectionEventPresentation =
@@ -4365,12 +4376,20 @@ mod electoral_log_signer_policy_tests {
 
     #[test]
     fn the_setting_reads_and_writes_its_names_and_refuses_others() {
-        let presentation: ElectionEventPresentation =
-            serde_json::from_value(serde_json::json!({"electoral_log_signer_policy": "external"})).unwrap();
-        assert_eq!(presentation.electoral_log_signer_policy, Some(ElectoralLogSignerPolicy::EXTERNAL));
+        let presentation: ElectionEventPresentation = serde_json::from_value(
+            serde_json::json!({"electoral_log_signer_policy": "external"}),
+        )
+        .unwrap();
+        assert_eq!(
+            presentation.electoral_log_signer_policy,
+            Some(ElectoralLogSignerPolicy::EXTERNAL)
+        );
         let written = serde_json::to_value(&presentation).unwrap();
         assert_eq!(written["electoral_log_signer_policy"], "external");
-        assert_eq!("software".parse::<ElectoralLogSignerPolicy>().unwrap(), ElectoralLogSignerPolicy::SOFTWARE);
+        assert_eq!(
+            "software".parse::<ElectoralLogSignerPolicy>().unwrap(),
+            ElectoralLogSignerPolicy::SOFTWARE
+        );
         assert!(serde_json::from_value::<ElectionEventPresentation>(
             serde_json::json!({"electoral_log_signer_policy": "other"})
         )

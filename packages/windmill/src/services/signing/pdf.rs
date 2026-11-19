@@ -101,6 +101,8 @@ pub fn report_signing_action(report_type: &ReportType) -> Option<SigningAction> 
         // Downloaded from the tally for the SBEI to sign on paper: its
         // page has their signature boxes (known gap).
         ReportType::TRANSMISSION_REPORT => None,
+        // A list of voters, not a Post's certified count: not signed.
+        ReportType::OV_WHO_VOTED => None,
     }
 }
 

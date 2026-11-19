@@ -613,7 +613,10 @@ async fn gate_lock_shared<C: GenericClient + Sync>(
     what: &'static str,
 ) -> Result<()> {
     match client
-        .query("SELECT pg_advisory_xact_lock_shared(hashtextextended($1, 0))", &[&key])
+        .query(
+            "SELECT pg_advisory_xact_lock_shared(hashtextextended($1, 0))",
+            &[&key],
+        )
         .await
     {
         Ok(_) => Ok(()),
@@ -625,7 +628,9 @@ async fn gate_lock_shared<C: GenericClient + Sync>(
                 what,
             }))
         }
-        Err(error) => Err(anyhow::Error::new(error).context("Error taking an electoral-log gate lock")),
+        Err(error) => {
+            Err(anyhow::Error::new(error).context("Error taking an electoral-log gate lock"))
+        }
     }
 }
 
@@ -805,7 +810,12 @@ pub async fn mark_in_flight<C: GenericClient + Sync>(
 ) -> Result<usize> {
     let events: Vec<&LogEventInput> = events
         .iter()
-        .filter(|event| event.delivery_id.as_deref().is_some_and(|id| !id.is_empty()))
+        .filter(|event| {
+            event
+                .delivery_id
+                .as_deref()
+                .is_some_and(|id| !id.is_empty())
+        })
         .collect();
     if events.is_empty() {
         return Ok(0);
@@ -862,7 +872,10 @@ pub async fn release_scopes<C: GenericClient + Sync>(
         .collect();
     if !copies.is_empty() {
         client
-            .query("SELECT pgmq.set_vt($1, $2::bigint[], 0)", &[&queue, &copies])
+            .query(
+                "SELECT pgmq.set_vt($1, $2::bigint[], 0)",
+                &[&queue, &copies],
+            )
             .await
             .context("Error making a log's waiting entries due")?;
     }
@@ -1079,7 +1092,10 @@ pub fn plan(
         let deferral = event.deferral.unwrap_or(Deferral {
             rounds: 1,
             since_ms: now_ms,
-            order, bounded_since_ms: None, bounded_used_ms: 0 });
+            order,
+            bounded_since_ms: None,
+            bounded_used_ms: 0,
+        });
         planned.push((item.reason, event, deferral, delay));
     }
     planned
@@ -1212,7 +1228,10 @@ fn deferral_headers(event: &LogEventInput, deferral: &Deferral, item: &WaitingEv
     headers.insert(SINCE_HEADER.into(), Value::from(deferral.since_ms));
     headers.insert(ORDER_HEADER.into(), Value::from(deferral.order));
     headers.insert(ROUNDS_HEADER.into(), Value::from(deferral.rounds));
-    headers.insert(KIND_HEADER.into(), Value::String(item.reason.as_str().into()));
+    headers.insert(
+        KIND_HEADER.into(),
+        Value::String(item.reason.as_str().into()),
+    );
     headers.insert(
         REASON_HEADER.into(),
         Value::String(item.error.chars().take(MAX_REASON_CHARS).collect()),
@@ -1222,7 +1241,12 @@ fn deferral_headers(event: &LogEventInput, deferral: &Deferral, item: &WaitingEv
 
 /// Log one round: what waits, why, since when, and when it is tried next.
 /// Past the alert age, it is an error, so that a long outage is seen.
-pub fn log_round(summary: &PutBack, waiting_before: &Waiting, backoff: &DeferralBackoff, now_ms: i64) {
+pub fn log_round(
+    summary: &PutBack,
+    waiting_before: &Waiting,
+    backoff: &DeferralBackoff,
+    now_ms: i64,
+) {
     let oldest_since_ms = match (summary.oldest_since_ms, waiting_before.oldest_since_ms()) {
         (Some(a), Some(b)) => Some(a.min(b)),
         (a, b) => a.or(b),
@@ -1266,7 +1290,11 @@ mod tests {
     use super::*;
     use crate::tasks::electoral_log::{LogEventBody, LogMessageType};
 
-    fn event(delivery_id: &str, election_event_id: &str, deferral: Option<Deferral>) -> LogEventInput {
+    fn event(
+        delivery_id: &str,
+        election_event_id: &str,
+        deferral: Option<Deferral>,
+    ) -> LogEventInput {
         LogEventInput {
             delivery_id: Some(delivery_id.into()),
             election_event_id: election_event_id.into(),
@@ -1285,7 +1313,9 @@ mod tests {
     #[test]
     fn the_wait_doubles_and_stops_at_its_longest_for_any_number_of_rounds() {
         let backoff = DeferralBackoff::default();
-        let delays: Vec<u64> = (1..=9).map(|round| backoff.delay(round).as_secs()).collect();
+        let delays: Vec<u64> = (1..=9)
+            .map(|round| backoff.delay(round).as_secs())
+            .collect();
         // A scope's head is tried again at most every 30 s (a log's backlog
         // drains within about 30 s of its key service coming back).
         assert_eq!(delays, vec![5, 10, 20, 30, 30, 30, 30, 30, 30]);
@@ -1316,9 +1346,16 @@ mod tests {
         assert_eq!(DEFAULT_BOUNDED_WAIT, Duration::from_secs(600));
         let now = 1_000_000_000;
         let d = |since: Option<i64>, used: i64| Deferral {
-            rounds: 1, since_ms: 0, order: 0, bounded_since_ms: since, bounded_used_ms: used,
+            rounds: 1,
+            since_ms: 0,
+            order: 0,
+            bounded_since_ms: since,
+            bounded_used_ms: used,
         };
-        assert!(!backoff.bound_exceeded(None, now), "a first wait has spent nothing");
+        assert!(
+            !backoff.bound_exceeded(None, now),
+            "a first wait has spent nothing"
+        );
         assert!(!backoff.bound_exceeded(Some(&d(None, 0)), now));
         assert!(!backoff.bound_exceeded(Some(&d(Some(now), 0)), now));
         assert!(!backoff.bound_exceeded(Some(&d(Some(now - 600_000), 0)), now));
@@ -1336,11 +1373,23 @@ mod tests {
     #[test]
     fn every_head_reason_waits_on_its_own_backoff_and_holds_its_scope() {
         let backoff = DeferralBackoff::default();
-        for reason in [WaitReason::SignerUnavailable, WaitReason::TenantMissing, WaitReason::Retry] {
+        for reason in [
+            WaitReason::SignerUnavailable,
+            WaitReason::TenantMissing,
+            WaitReason::Retry,
+        ] {
             assert!(reason.is_head());
             let waiting = vec![
-                WaitingEvent { event: event("head", "e1", None), reason, error: String::new() },
-                WaitingEvent { event: event("later", "e1", None), reason: WaitReason::Held, error: String::new() },
+                WaitingEvent {
+                    event: event("head", "e1", None),
+                    reason,
+                    error: String::new(),
+                },
+                WaitingEvent {
+                    event: event("later", "e1", None),
+                    reason: WaitReason::Held,
+                    error: String::new(),
+                },
             ];
             let planned = plan(&waiting, &Waiting::default(), &backoff, 0);
             // The head: its own first wait (5 s); the held one: 1 s after it.
@@ -1350,7 +1399,10 @@ mod tests {
             // something else of it.
             let stored: HashSet<String> = ["other".to_string()].into();
             let events = vec![event("other", "e1", None)];
-            assert!(released_scopes(&events, &stored, &waiting).is_empty(), "{reason:?}");
+            assert!(
+                released_scopes(&events, &stored, &waiting).is_empty(),
+                "{reason:?}"
+            );
         }
         assert!(!WaitReason::Held.is_head());
         assert_eq!(WaitReason::TenantMissing.as_str(), "tenant-missing");
@@ -1359,40 +1411,116 @@ mod tests {
 
     #[test]
     fn a_bounded_start_comes_only_from_its_row_never_from_a_message() {
-        let row = event("x", "e1", Some(Deferral { rounds: 3, since_ms: 5_000, order: 2, bounded_since_ms: None, bounded_used_ms: 0 }));
+        let row = event(
+            "x",
+            "e1",
+            Some(Deferral {
+                rounds: 3,
+                since_ms: 5_000,
+                order: 2,
+                bounded_since_ms: None,
+                bounded_used_ms: 0,
+            }),
+        );
         let mut waiting = Waiting::default();
         waiting.add(scope_of(&row), WaitKey::of(&row));
         // A message claiming a later (or any) bounded start is ignored: a queue
         // writer can't move or extend the bound.
-        let forged = event("x", "e1", Some(Deferral { rounds: 3, since_ms: 1, order: 0, bounded_since_ms: Some(i64::MAX), bounded_used_ms: 0 }));
+        let forged = event(
+            "x",
+            "e1",
+            Some(Deferral {
+                rounds: 3,
+                since_ms: 1,
+                order: 0,
+                bounded_since_ms: Some(i64::MAX),
+                bounded_used_ms: 0,
+            }),
+        );
         let (bound, _) = bind_to_rows(&[forged.clone()], waiting.clone());
         let deferral = bound[0].deferral.unwrap();
-        assert_eq!((deferral.since_ms, deferral.order), (5_000, 2), "the row's, not the message's");
-        assert_eq!(deferral.bounded_since_ms, None, "no bounded start in its row yet");
+        assert_eq!(
+            (deferral.since_ms, deferral.order),
+            (5_000, 2),
+            "the row's, not the message's"
+        );
+        assert_eq!(
+            deferral.bounded_since_ms, None,
+            "no bounded start in its row yet"
+        );
         // The row's (written by a worker at its first bounded round) is the one.
         waiting.add_bounded("x".into(), Some(9_000), 0);
-        assert_eq!(bind_to_rows(&[forged], waiting).0[0].deferral.unwrap().bounded_since_ms, Some(9_000));
+        assert_eq!(
+            bind_to_rows(&[forged], waiting).0[0]
+                .deferral
+                .unwrap()
+                .bounded_since_ms,
+            Some(9_000)
+        );
     }
 
     #[test]
     fn a_deferral_keeps_when_and_where_it_first_waited() {
         let first = Deferral::next(None, 1_000, 3);
-        assert_eq!(first, Deferral { rounds: 1, since_ms: 1_000, order: 3, bounded_since_ms: None, bounded_used_ms: 0 });
+        assert_eq!(
+            first,
+            Deferral {
+                rounds: 1,
+                since_ms: 1_000,
+                order: 3,
+                bounded_since_ms: None,
+                bounded_used_ms: 0
+            }
+        );
         let later = Deferral::next(Some(first), 99_000, 0);
-        assert_eq!(later, Deferral { rounds: 2, since_ms: 1_000, order: 3, bounded_since_ms: None, bounded_used_ms: 0 });
-        let last = Deferral::next(Some(Deferral { rounds: u32::MAX, ..first }), 0, 0);
+        assert_eq!(
+            later,
+            Deferral {
+                rounds: 2,
+                since_ms: 1_000,
+                order: 3,
+                bounded_since_ms: None,
+                bounded_used_ms: 0
+            }
+        );
+        let last = Deferral::next(
+            Some(Deferral {
+                rounds: u32::MAX,
+                ..first
+            }),
+            0,
+            0,
+        );
         assert_eq!(last.rounds, u32::MAX);
     }
 
     #[test]
     fn an_event_waits_behind_earlier_ones_of_its_scope_only() {
-        let early = Deferral { rounds: 4, since_ms: 1_000, order: 0, bounded_since_ms: None, bounded_used_ms: 0 };
-        let late = Deferral { rounds: 1, since_ms: 5_000, order: 0, bounded_since_ms: None, bounded_used_ms: 0 };
+        let early = Deferral {
+            rounds: 4,
+            since_ms: 1_000,
+            order: 0,
+            bounded_since_ms: None,
+            bounded_used_ms: 0,
+        };
+        let late = Deferral {
+            rounds: 1,
+            since_ms: 5_000,
+            order: 0,
+            bounded_since_ms: None,
+            bounded_used_ms: 0,
+        };
         let mut waiting = Waiting::default();
         let x = event("x", "e1", Some(early));
         waiting.add(scope_of(&x), WaitKey::of(&x));
         // A new event, and one that waited later, stay behind it.
-        assert_eq!(waiting.ahead_of(&event("y", "e1", None)).unwrap().delivery_id, "x");
+        assert_eq!(
+            waiting
+                .ahead_of(&event("y", "e1", None))
+                .unwrap()
+                .delivery_id,
+            "x"
+        );
         assert!(waiting.ahead_of(&event("z", "e1", Some(late))).is_some());
         // Not a copy of itself, nor one of another scope.
         assert!(waiting.ahead_of(&event("x", "e1", Some(early))).is_none());
@@ -1405,17 +1533,50 @@ mod tests {
         assert_eq!(waiting.len(), 2);
         assert_eq!(waiting.oldest_since_ms(), Some(1_000));
         // The tenant's own events are one scope, whatever "no event" is spelled as.
-        assert_eq!(scope_of(&event("a", "", None)), scope_of(&event("b", "null", None)));
+        assert_eq!(
+            scope_of(&event("a", "", None)),
+            scope_of(&event("b", "null", None))
+        );
     }
 
     #[test]
     fn a_batch_builds_the_events_that_waited_first_in_their_order() {
         let events = vec![
             event("new-1", "e1", None),
-            event("held", "e1", Some(Deferral { rounds: 2, since_ms: 1_000, order: 1, bounded_since_ms: None, bounded_used_ms: 0 })),
+            event(
+                "held",
+                "e1",
+                Some(Deferral {
+                    rounds: 2,
+                    since_ms: 1_000,
+                    order: 1,
+                    bounded_since_ms: None,
+                    bounded_used_ms: 0,
+                }),
+            ),
             event("new-2", "e2", None),
-            event("first", "e1", Some(Deferral { rounds: 9, since_ms: 1_000, order: 0, bounded_since_ms: None, bounded_used_ms: 0 })),
-            event("later", "e1", Some(Deferral { rounds: 1, since_ms: 2_000, order: 0, bounded_since_ms: None, bounded_used_ms: 0 })),
+            event(
+                "first",
+                "e1",
+                Some(Deferral {
+                    rounds: 9,
+                    since_ms: 1_000,
+                    order: 0,
+                    bounded_since_ms: None,
+                    bounded_used_ms: 0,
+                }),
+            ),
+            event(
+                "later",
+                "e1",
+                Some(Deferral {
+                    rounds: 1,
+                    since_ms: 2_000,
+                    order: 0,
+                    bounded_since_ms: None,
+                    bounded_used_ms: 0,
+                }),
+            ),
         ];
         let order: Vec<&str> = in_wait_order(&events)
             .into_iter()
@@ -1426,7 +1587,13 @@ mod tests {
 
     #[test]
     fn the_deferral_survives_the_queue_format() {
-        let deferral = Deferral { rounds: 7, since_ms: 1_234, order: 2, bounded_since_ms: None, bounded_used_ms: 0 };
+        let deferral = Deferral {
+            rounds: 7,
+            since_ms: 1_234,
+            order: 2,
+            bounded_since_ms: None,
+            bounded_used_ms: 0,
+        };
         let waited = event("d1", "e1", Some(deferral));
         let encoded = serde_json::to_value(&waited).unwrap();
         assert_eq!(encoded["deferral"]["rounds"], 7);

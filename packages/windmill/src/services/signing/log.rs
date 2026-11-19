@@ -597,7 +597,16 @@ pub async fn post_outbox_snapshot<K: SigningLogKeys, B: SigningLogBoard>(
         }
         return Err(error);
     }
-    let pass = post_admitted(hasura_transaction, tenant_id, election_event_id, keys, board, board_name, rows).await;
+    let pass = post_admitted(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        keys,
+        board,
+        board_name,
+        rows,
+    )
+    .await;
     board.end_admission().await;
     pass
 }
