@@ -260,7 +260,12 @@ const BallotLocator: React.FC = () => {
                 if (requestId !== latestRequestId.current) {
                     return
                 }
+                // The rows shown were not this request's answer: the table starts over.
                 setSomethingWentWrongErr(true)
+                setRows([])
+                setTotal(0)
+                setTotalBound(TotalBound.Exact)
+                setPage(0)
                 setLoadingRows(false)
             }
         }
@@ -415,17 +420,19 @@ const BallotLocator: React.FC = () => {
 }
 
 // Past a capped total the number of ballots is only known once a page comes back short.
+// While another page loads, the rows shown are not that page's.
 const paginationCount = (
     totalBound: TotalBound,
     total: number,
     page: number,
     rowsPerPage: number,
-    rowsOnPage: number
+    rowsOnPage: number,
+    loading: boolean
 ): number => {
     if (totalBound !== TotalBound.MoreThan) {
         return total
     }
-    return rowsOnPage < rowsPerPage ? page * rowsPerPage + rowsOnPage : -1
+    return !loading && rowsOnPage < rowsPerPage ? page * rowsPerPage + rowsOnPage : -1
 }
 
 const LOADING_BAR_EDGES = ["top", "bottom"] as const
@@ -782,7 +789,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                 className="cast-vote-logs-pagination"
                 rowsPerPageOptions={[5, 10, 25, 50]}
                 component="div"
-                count={paginationCount(totalBound, total, page, rowsPerPage, rows.length)}
+                count={paginationCount(totalBound, total, page, rowsPerPage, rows.length, loading)}
                 rowsPerPage={rowsPerPage}
                 page={page}
                 onPageChange={handleChangePage}
