@@ -1227,6 +1227,7 @@ dependencies = [
  "log",
  "prost",
  "rayon",
+ "sequent-core",
  "serde",
  "serial_test",
  "strand",
@@ -1238,9 +1239,6 @@ dependencies = [
  "tonic-build",
  "tracing",
  "tracing-attributes",
- "tracing-log",
- "tracing-subscriber",
- "tracing-tree",
 ]
 
 [[package]]
@@ -3130,7 +3128,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
- "tracing-subscriber",
  "warp",
 ]
 
