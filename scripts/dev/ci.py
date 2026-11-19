@@ -45,7 +45,7 @@ STORY_SHARDS = {"admin-portal": 3}
 # Every sequent-core feature gate whose tests only run when named: the
 # election_config builder, preview and archive suites, and monitoring.
 SEQUENT_CORE_FEATURES = (
-    "keycloak,default_features,election_config_xlsx,"
+    "keycloak,default_features,election_config_xlsx,log,"
     "election_config_templates,election_config_archive,monitoring"
 )
 # Test arguments of the packages whose suites need features beyond the default.
