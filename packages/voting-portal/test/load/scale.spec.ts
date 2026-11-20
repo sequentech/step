@@ -5,6 +5,7 @@ import {chromium, test} from "@playwright/test"
 import {appendFileSync, readFileSync, writeFileSync} from "node:fs"
 import {dirname, join} from "node:path"
 import {castBallotAsVoter} from "./flow"
+import {voterCredentials} from "../../../voting-load/credentials.js"
 
 interface Workload {
     journey_timeout_ms?: number
@@ -15,6 +16,7 @@ interface Workload {
     vus: number
     username_prefix: string
     login_fields?: Record<string, string>
+    login?: {match_attributes?: string[]; voters_per_value?: number}
     login_url: string
     election_id: string
     election_event_id: string
@@ -143,11 +145,11 @@ test("finite Chromium voting shard", async () => {
                         const ids = await castBallotAsVoter(page, {
                             loginUrl: config.login_url,
                             castTimeoutMs: journeyTimeout,
-                            credentials: {
-                                ...config.login_fields,
-                                username: config.username_prefix + index,
-                                password: process.env.LOAD_PASSWORD!,
-                            },
+                            credentials: voterCredentials(
+                                config,
+                                index,
+                                process.env.LOAD_PASSWORD!
+                            ),
                             candidatesPattern: config.candidates_pattern,
                         })
                         await Promise.all(pending)
