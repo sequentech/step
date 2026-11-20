@@ -1306,6 +1306,11 @@ struct PackageTrustInput {
     required_approvals: u16,
     #[serde(default)]
     last: Option<crate::election_config::package_verify::LastImport>,
+    /// Format 2: the installation's signing policy JSON
+    /// (`InstalledSigning`). When present, the package is checked against
+    /// it for its tenant, exactly as the importer will.
+    #[serde(default)]
+    installed_signing: Option<String>,
 }
 
 /// The outcome of checking a package: the problems, and when there are none,
@@ -1319,6 +1324,11 @@ struct PackageCheck {
     signer: Option<crate::election_config::package_verify::CertificateIdentity>,
     approvers: Vec<crate::election_config::package_verify::CertificateIdentity>,
     freshness: Option<crate::election_config::package_verify::Freshness>,
+    /// Format 2: the enrolled IDs of the final signer and the approvers.
+    #[serde(default)]
+    signer_id: Option<String>,
+    #[serde(default)]
+    approver_ids: Vec<String>,
 }
 
 #[cfg(feature = "election_config_signing")]
@@ -1356,14 +1366,27 @@ pub fn verify_configuration_package_js(
         signer: None,
         approvers: Vec::new(),
         freshness: None,
+        signer_id: None,
+        approver_ids: Vec::new(),
     };
 
-    let trust = match PackageTrust::from_pem(
-        &input.package_roots,
-        &input.staff_roots,
-        &input.revocation_lists,
-        input.required_approvals,
-    ) {
+    let trust = match &input.installed_signing {
+        Some(json) => {
+            match crate::election_config::standalone_signing::InstalledSigning::read(json) {
+                Ok(installed) => installed
+                    .signing
+                    .trust_for(&installed.tenant_id, Vec::new()),
+                Err(report) => return to_js(&refused(report)),
+            }
+        }
+        None => PackageTrust::from_pem(
+            &input.package_roots,
+            &input.staff_roots,
+            &input.revocation_lists,
+            input.required_approvals,
+        ),
+    };
+    let trust = match trust {
         Ok(trust) => trust,
         Err(problem) => return to_js(&refused(Report::from_problem(problem))),
     };
@@ -1382,6 +1405,8 @@ pub fn verify_configuration_package_js(
         signer: Some(verified.signer),
         approvers: verified.approvers,
         freshness: Some(fresh),
+        signer_id: verified.signer_id,
+        approver_ids: verified.approver_ids,
     })
 }
 
@@ -2283,4 +2308,393 @@ impl CensusCsvReader {
             .map_err(|message| JsError::new(&message))?;
         serde_wasm_bindgen::to_value(&batch).map_err(JsError::from)
     }
+}
+
+// ---------------------------------------------------------------------------
+// Format-2 standalone signing: the same builders the signing companion uses.
+// ---------------------------------------------------------------------------
+
+/// What a standalone page shows about the installed policy.
+#[cfg(feature = "election_config_signing")]
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct InstalledSummary {
+    report: Report,
+    tenant_id: Option<String>,
+    policy_sha256: Option<String>,
+    required_approvals: u16,
+    signers: Vec<crate::election_config::signing_policy::EnrolledSigner>,
+}
+
+/// Reads and checks the installation's signing policy (`signing-policy.json`).
+#[cfg(feature = "election_config_signing")]
+#[wasm_bindgen(js_name = readInstalledSigning)]
+pub fn read_installed_signing_js(json: &str) -> Result<JsValue, JsError> {
+    use crate::election_config::standalone_signing::InstalledSigning;
+    match InstalledSigning::read(json) {
+        Ok(installed) => {
+            let digest = installed
+                .policy_sha256()
+                .map_err(|p| JsError::new(&p.message))?;
+            to_js(&InstalledSummary {
+                report: Report::default(),
+                tenant_id: Some(installed.tenant_id.clone()),
+                policy_sha256: Some(digest),
+                required_approvals: installed.signing.required_approvals,
+                signers: installed.signing.signers.clone(),
+            })
+        }
+        Err(report) => to_js(&InstalledSummary {
+            report,
+            tenant_id: None,
+            policy_sha256: None,
+            required_approvals: 0,
+            signers: Vec::new(),
+        }),
+    }
+}
+
+#[cfg(feature = "election_config_signing")]
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RequestOutput {
+    report: Report,
+    /// `request.json`, as written: what approvers open with the delivery.
+    request_json: Option<String>,
+    delivery: Option<File>,
+    code: Option<String>,
+}
+
+#[cfg(feature = "election_config_signing")]
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ConfigurationInput {
+    external_id: String,
+    name: String,
+    revision: u64,
+}
+
+/// The approval request for a plan: compiled as `compilePlan` compiles it
+/// (with the delivery profile's tenant sections), its content as a revision,
+/// bound to the installed policy.
+#[cfg(feature = "election_config_signing")]
+#[wasm_bindgen(js_name = approvalRequest)]
+pub fn approval_request_js(
+    plan: JsValue,
+    options: JsValue,
+    installed_signing: &str,
+    configuration: JsValue,
+) -> Result<JsValue, JsError> {
+    use crate::election_config::manifest::{
+        revision_content, ConfigurationRevision,
+    };
+    use crate::election_config::standalone_signing::{
+        approval_request, InstalledSigning,
+    };
+    let refused = |report: Report| RequestOutput {
+        report,
+        request_json: None,
+        delivery: None,
+        code: None,
+    };
+    let installed = match InstalledSigning::read(installed_signing) {
+        Ok(installed) => installed,
+        Err(report) => return to_js(&refused(report)),
+    };
+    let configuration: ConfigurationInput =
+        serde_wasm_bindgen::from_value(configuration).map_err(|error| {
+            JsError::new(&format!("bad configuration: {error}"))
+        })?;
+    let plan = plan_from_js(plan)?;
+    let profile = profile_from(&options)?;
+    let sources = sources_from(&options, &plan)?;
+    let tenant = match tenant_package_from(&options)? {
+        Ok(tenant) => tenant,
+        Err(report) => return to_js(&refused(report)),
+    };
+    let options = build_options(options)?;
+    let templates = match TemplateSet::builtin() {
+        Ok(templates) => templates,
+        Err(problem) => return to_js(&refused(Report::from_problem(problem))),
+    };
+    let mut compiled = match architect::compile_plan(architect::Compile {
+        plan: &plan,
+        templates: &templates,
+        options: &options,
+        profile: profile.as_ref(),
+        sources: sources.as_ref(),
+    }) {
+        Ok(compiled) => compiled,
+        Err(report) => return to_js(&refused(report)),
+    };
+    if let Some(tenant) = &tenant {
+        if let Err(problem) =
+            crate::election_config::tenant_package::add_to_layout(
+                &mut compiled.layout,
+                tenant,
+                &compiled.bundle.tenant_id,
+            )
+        {
+            return to_js(&refused(Report::from_problem(problem)));
+        }
+    }
+    let revision = match revision_content(&compiled, &[]) {
+        Ok(revision) => revision,
+        Err(report) => return to_js(&refused(report)),
+    };
+    let request = match approval_request(
+        &installed,
+        ConfigurationRevision {
+            external_id: configuration.external_id,
+            name: configuration.name,
+            revision: configuration.revision,
+            previous: None,
+        },
+        &revision,
+    ) {
+        Ok(request) => request,
+        Err(report) => return to_js(&refused(report)),
+    };
+    let delivery = match archive::zip(&revision.members) {
+        Ok(bytes) => File {
+            name: revision.delivery_name.clone(),
+            bytes,
+        },
+        Err(problem) => return to_js(&refused(Report::from_problem(problem))),
+    };
+    let request_json = serde_json::to_string_pretty(&request)
+        .map_err(|error| JsError::new(&error.to_string()))?;
+    to_js(&RequestOutput {
+        report: Report::default(),
+        code: Some(request.code.clone()),
+        request_json: Some(request_json),
+        delivery: Some(delivery),
+    })
+}
+
+#[cfg(feature = "election_config_signing")]
+fn read_request(
+    json: &str,
+) -> Result<crate::election_config::standalone_signing::ApprovalRequest, Report>
+{
+    serde_json::from_str(json).map_err(|error| {
+        Report::from_problem(
+            Problem::error(
+                crate::election_config::problem::Code::Unreadable,
+                "request.json",
+                format!("the approval request can't be read: {error}"),
+            )
+            .id("request.unreadable"),
+        )
+    })
+}
+
+/// Checks a request against its delivery and the installed policy: what
+/// every approver and the final signer do before signing anything.
+#[cfg(feature = "election_config_signing")]
+#[wasm_bindgen(js_name = checkApprovalRequest)]
+pub fn check_approval_request_js(
+    installed_signing: &str,
+    request_json: &str,
+    delivery: &[u8],
+) -> Result<JsValue, JsError> {
+    use crate::election_config::standalone_signing::{
+        check_request, InstalledSigning,
+    };
+    let report =
+        InstalledSigning::read(installed_signing).and_then(|installed| {
+            let request = read_request(request_json)?;
+            check_request(&installed, &request, delivery).map(|_| ())
+        });
+    to_js(&match report {
+        Ok(()) => Report::default(),
+        Err(report) => report,
+    })
+}
+
+/// One approval, checked as the importer will count it, before an approver's
+/// page hands it out. A report: empty when it counts.
+#[cfg(feature = "election_config_signing")]
+#[wasm_bindgen(js_name = checkApprovalV2)]
+pub fn check_approval_v2_js(
+    installed_signing: &str,
+    request_json: &str,
+    delivery: &[u8],
+    approval_json: &str,
+) -> Result<JsValue, JsError> {
+    use crate::election_config::standalone_signing::{
+        check_approval, check_request, InstalledSigning,
+    };
+    let now = chrono::DateTime::from_timestamp_millis(browser_now() as i64)
+        .ok_or_else(|| JsError::new("the browser's clock can't be read"))?;
+    let result =
+        InstalledSigning::read(installed_signing).and_then(|installed| {
+            let request = read_request(request_json)?;
+            let checked = check_request(&installed, &request, delivery)?;
+            let approval: crate::election_config::manifest::Approval =
+                serde_json::from_str(approval_json).map_err(|error| {
+                    Report::from_problem(
+                        Problem::error(
+                            crate::election_config::problem::Code::Unreadable,
+                            "approval",
+                            format!("the approval can't be read: {error}"),
+                        )
+                        .id("request.unreadable-approvals"),
+                    )
+                })?;
+            check_approval(&installed, &checked, &approval, now).map(|_| ())
+        });
+    to_js(&match result {
+        Ok(()) => Report::default(),
+        Err(report) => report,
+    })
+}
+
+/// The exact bytes an approver signs for `signer_id`.
+#[cfg(feature = "election_config_signing")]
+#[wasm_bindgen(js_name = approvalPayloadV2)]
+pub fn approval_payload_v2_js(
+    request_json: &str,
+    signer_id: &str,
+) -> Result<String, JsError> {
+    let request = read_request(request_json).map_err(|report| {
+        JsError::new(
+            &report
+                .errors()
+                .map(|p| p.message.clone())
+                .collect::<Vec<_>>()
+                .join("; "),
+        )
+    })?;
+    crate::election_config::manifest::approval_payload_v2(
+        &request.binding,
+        signer_id,
+    )
+    .map_err(|problem| JsError::new(&problem.message))
+}
+
+#[cfg(feature = "election_config_signing")]
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ManifestOutput {
+    report: Report,
+    manifest: Option<File>,
+}
+
+/// The format-2 manifest, once every approval, role and the separation rule
+/// hold under the installed policy at the browser's time. The caller signs
+/// `manifest.bytes` exactly.
+#[cfg(feature = "election_config_signing")]
+#[wasm_bindgen(js_name = assembleManifestV2)]
+pub fn assemble_manifest_v2_js(
+    installed_signing: &str,
+    request_json: &str,
+    delivery: &[u8],
+    approvals_json: &str,
+    final_signer: JsValue,
+) -> Result<JsValue, JsError> {
+    use crate::election_config::standalone_signing::{
+        assemble_manifest, check_request, FinalSigner, InstalledSigning,
+    };
+    let now = chrono::DateTime::from_timestamp_millis(browser_now() as i64)
+        .ok_or_else(|| JsError::new("the browser's clock can't be read"))?;
+    let final_signer: FinalSigner =
+        serde_wasm_bindgen::from_value(final_signer).map_err(|error| {
+            JsError::new(&format!("bad final signer: {error}"))
+        })?;
+    let result =
+        InstalledSigning::read(installed_signing).and_then(|installed| {
+            let request = read_request(request_json)?;
+            let approvals: Vec<crate::election_config::manifest::Approval> =
+                serde_json::from_str(approvals_json).map_err(|error| {
+                    Report::from_problem(
+                        Problem::error(
+                            crate::election_config::problem::Code::Unreadable,
+                            "approvals",
+                            format!("the approvals can't be read: {error}"),
+                        )
+                        .id("request.unreadable-approvals"),
+                    )
+                })?;
+            // Checked here, against the installed policy and its delivery: the
+            // page can't hand the assembly a request that wasn't.
+            let checked = check_request(&installed, &request, delivery)?;
+            let manifest = assemble_manifest(
+                &installed,
+                &checked,
+                approvals,
+                &final_signer,
+                now,
+            )?;
+            manifest.to_bytes().map_err(Report::from_problem)
+        });
+    to_js(&match result {
+        Ok(bytes) => ManifestOutput {
+            report: Report::default(),
+            manifest: Some(File {
+                name: crate::election_config::manifest::MANIFEST_MEMBER
+                    .to_string(),
+                bytes,
+            }),
+        },
+        Err(report) => ManifestOutput {
+            report,
+            manifest: None,
+        },
+    })
+}
+
+#[cfg(feature = "election_config_signing")]
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PackageOutput {
+    report: Report,
+    package: Option<File>,
+}
+
+/// The signed package, only once the importer's full check passes against
+/// the installed policy at the browser's time.
+#[cfg(feature = "election_config_signing")]
+#[wasm_bindgen(js_name = assemblePackageV2)]
+pub fn assemble_package_v2_js(
+    installed_signing: &str,
+    request_json: &str,
+    delivery: &[u8],
+    manifest: &[u8],
+    signature: &[u8],
+    chain_pem: &str,
+) -> Result<JsValue, JsError> {
+    use crate::election_config::standalone_signing::{
+        assemble_verified_package, check_request, InstalledSigning,
+    };
+    let now = chrono::DateTime::from_timestamp_millis(browser_now() as i64)
+        .ok_or_else(|| JsError::new("the browser's clock can't be read"))?;
+    let result =
+        InstalledSigning::read(installed_signing).and_then(|installed| {
+            let request = read_request(request_json)?;
+            let checked = check_request(&installed, &request, delivery)?;
+            assemble_verified_package(
+                &installed, &checked, manifest, signature, chain_pem, now,
+            )
+        });
+    to_js(&match result {
+        Ok(artifact) => PackageOutput {
+            report: Report::default(),
+            package: Some(File::from(&artifact)),
+        },
+        Err(report) => PackageOutput {
+            report,
+            package: None,
+        },
+    })
+}
+
+/// The SPKI pin a format-2 policy enrolls for a certificate (PEM).
+#[cfg(feature = "election_config_signing")]
+#[wasm_bindgen(js_name = spkiPin)]
+pub fn spki_pin_js(certificate_pem: &str) -> Result<String, JsError> {
+    crate::election_config::package_verify::spki_sha256_of_certificate(
+        certificate_pem,
+    )
+    .map_err(|reason| JsError::new(&reason))
 }

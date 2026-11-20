@@ -374,6 +374,19 @@ fn signatures_verify_only_over_their_bytes_with_the_matching_algorithm() {
             .unwrap();
         assert!(!verify_signature(&signer.cert, other, b"payload", &signature).unwrap());
     }
+    // RSA-PSS is never a platform signing algorithm, even for an RSA key.
+    assert!(
+        !windmill::services::signing::certificates::PLATFORM_SIGNING_ALGORITHMS
+            .contains(&SignatureAlgorithm::RsaPssSha256)
+    );
+    let signature = pki.maria.sign(b"payload");
+    assert!(!verify_signature(
+        &pki.maria.cert,
+        SignatureAlgorithm::RsaPssSha256,
+        b"payload",
+        &signature
+    )
+    .unwrap());
     // Someone else's key never verifies.
     let signature = pki.ana.sign(b"payload");
     assert!(!verify_signature(

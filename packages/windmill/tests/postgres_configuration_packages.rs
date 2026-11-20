@@ -100,6 +100,7 @@ fn approval(
         algorithm,
         certificate_chain: chain(who),
         signature: STANDARD.encode(who.sign(payload.as_bytes())),
+        signer_id: None,
     }
 }
 
@@ -142,6 +143,7 @@ fn package_signed_by(
             producer: BTreeMap::new(),
         },
         revocation_lists,
+        signing: None,
     };
     let pki = Pki::get();
     manifest.approvals = vec![
@@ -178,6 +180,10 @@ fn file_of(bytes: &[u8]) -> NamedTempFile {
 
 async fn tenant(tx: &Transaction<'_>, policy: &str) -> String {
     let id = Uuid::new_v4();
+    // Only the setter's transaction may write configuration_signing.
+    windmill::postgres::tenant::allow_configuration_signing_change(tx, &id.to_string())
+        .await
+        .unwrap();
     let root = Pki::get().root.pem();
     tx.execute(
         "INSERT INTO sequent_backend.tenant (id, slug, settings) VALUES ($1, $2, $3)",
@@ -482,8 +488,11 @@ async fn an_import_waits_for_the_tenants_import_in_progress() {
     assert_eq!(ids(&refused), vec!["package.rollback"]);
 }
 
+/// An unsigned import takes the tenant's import lock too: it can't read the
+/// signing policy while another import, or a change of the policy, is under
+/// way, so it is judged by the policy in force once it runs.
 #[tokio::test]
-async fn an_unsigned_import_does_not_wait_for_a_package_import() {
+async fn an_unsigned_import_waits_for_the_import_before_it_and_reads_the_policy_after_it() {
     let pool = schema::pool().await;
     let mut setup = pool.get().await.unwrap();
     let setup_tx = setup.transaction().await.unwrap();
@@ -491,23 +500,80 @@ async fn an_unsigned_import_does_not_wait_for_a_package_import() {
     setup_tx.commit().await.unwrap();
 
     let mut first = pool.get().await.unwrap();
-    let mut second = pool.get().await.unwrap();
     let first_tx = first.transaction().await.unwrap();
     admit_document(&first_tx, &tenant, file_of(&signed_package(1)))
         .await
         .unwrap();
 
-    let second_tx = second.transaction().await.unwrap();
-    let plain = zip(&members()).unwrap();
-    let (_, package) = tokio::time::timeout(
-        Duration::from_secs(5),
-        admit_document(&second_tx, &tenant, file_of(&plain)),
-    )
-    .await
-    .expect("an unsigned import reads nothing the lock protects")
-    .unwrap();
+    // Under the optional policy an unsigned file would import; it waits.
+    let mut second = pool.get().await.unwrap();
+    let waiting_tenant = tenant.clone();
+    let waiting = tokio::spawn(async move {
+        let tx = second.transaction().await.unwrap();
+        let plain = zip(&members()).unwrap();
+        admit_document(&tx, &waiting_tenant, file_of(&plain))
+            .await
+            .map(|(_, package)| package.is_some())
+            .map_err(|error| ids(&error))
+    });
+    tokio::time::sleep(Duration::from_millis(700)).await;
+    assert!(!waiting.is_finished(), "the unsigned import did not wait");
+
+    // Meanwhile the tenant's policy becomes required, through the setter's
+    // own write, in the transaction that holds the lock.
+    let required = json!({
+        "policy": "required",
+        "package_roots": Pki::get().root.pem(),
+        "staff_roots": Pki::get().root.pem(),
+        "required_approvals": 2,
+    });
+    windmill::postgres::tenant::write_configuration_signing(&first_tx, &tenant, &required)
+        .await
+        .unwrap();
+    first_tx.commit().await.unwrap();
+
+    let outcome = tokio::time::timeout(Duration::from_secs(10), waiting)
+        .await
+        .expect("the unsigned import ran once the lock was free")
+        .unwrap();
+    assert_eq!(outcome, Err(vec!["package.unsigned".to_string()]));
+}
+
+/// While an unsigned import runs, the tenant's policy can't change.
+#[tokio::test]
+async fn the_policy_does_not_change_under_a_running_unsigned_import() {
+    use sequent_core::election_config::package_verify::{
+        ConfigurationSigning, ConfigurationSigningPolicy,
+    };
+    use windmill::services::configuration_signing::{save, SaveOutcome};
+    let pool = schema::pool().await;
+    let mut setup = pool.get().await.unwrap();
+    let setup_tx = setup.transaction().await.unwrap();
+    let tenant = tenant(&setup_tx, "optional").await;
+    setup_tx.commit().await.unwrap();
+
+    let mut importer = pool.get().await.unwrap();
+    let import_tx = importer.transaction().await.unwrap();
+    let (_, package) = admit_document(&import_tx, &tenant, file_of(&zip(&members()).unwrap()))
+        .await
+        .unwrap();
     assert!(package.is_none());
-    first_tx.rollback().await.unwrap();
+
+    let mut admin = pool.get().await.unwrap();
+    let admin_tx = admin.transaction().await.unwrap();
+    let strict = ConfigurationSigning {
+        policy: ConfigurationSigningPolicy::Required,
+        package_roots: Pki::get().root.pem(),
+        staff_roots: Pki::get().root.pem(),
+        required_approvals: 2,
+        ..ConfigurationSigning::default()
+    };
+    let outcome = save(&admin_tx, &tenant, &strict, chrono::Utc::now())
+        .await
+        .unwrap();
+    assert!(matches!(outcome, SaveOutcome::Busy), "{outcome:?}");
+    drop(admin_tx);
+    import_tx.rollback().await.unwrap();
 }
 
 async fn event(tx: &Transaction<'_>, tenant: &str) -> String {

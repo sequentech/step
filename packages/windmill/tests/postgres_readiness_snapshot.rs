@@ -198,6 +198,7 @@ async fn imported_manifest(tx: &Transaction<'_>, ids: FixtureIds, revision: u64,
             producer: Default::default(),
         },
         revocation_lists: vec![],
+        signing: None,
     };
     let approvers = json!([{"subject":"CN=Fixture approver", "issuer":"CN=Fixture CA", "serial":"01", "fingerprint_sha256":"11".repeat(32)}]);
     let hash = sequent_core::election_config::manifest::sha256_hex(&manifest.to_bytes().unwrap());

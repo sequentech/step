@@ -5,6 +5,71 @@ import englishTranslation, {TranslationType} from "./en"
 
 const galegoTranslation: TranslationType = {
     translations: {
+        configurationSigning: {
+            title: "Confianza na sinatura de paquetes",
+            description:
+                "Que paquetes de configuración importa este inquilino: se un paquete debe estar asinado, as raíces ás que deben encadear a súa chave de sinatura e os certificados dos seus aprobadores, e cantas aprobacións de persoas distintas precisa. Aquí só se aceptan certificados, nunca chaves.",
+            current: "Agora:",
+            policy: "Sinaturas",
+            requiredApprovals: "Aprobacións requiridas",
+            requiredApprovalsHelp:
+                "Aprobacións válidas de persoas distintas que precisa un paquete (0 a 16).",
+            packageRoots: "Raíces de sinatura de paquetes (PEM)",
+            packageRootsHelp:
+                "As autoridades de certificación que emiten a chave que asina os paquetes.",
+            staffRoots: "Raíces de aprobadores (PEM)",
+            staffRootsHelp:
+                "As autoridades de certificación que emiten os certificados dos aprobadores.",
+            certificates_one: "{{count}} certificado.",
+            certificates_other: "{{count}} certificados.",
+            loadFile: "Cargar un ficheiro PEM",
+            save: "Comprobar e gardar",
+            saved: "Gardado. As importacións compróbanse con isto a partir de agora.",
+            refused: "Non gardado: corrixa os problemas seguintes.",
+            invalidApprovals: "As aprobacións deben ser un número enteiro de 0 a {{max}}.",
+            noAnswer: "A plataforma non respondeu; non consta que se gardase nada.",
+            states: {
+                "not-configured":
+                    "Sen configurar: os ficheiros sen asinar impórtanse, os paquetes asinados rexéitanse",
+                "optional":
+                    "Opcional: os paquetes asinados compróbanse, os ficheiros sen asinar impórtanse",
+                "required":
+                    "Requirida: só se importan paquetes asinados con {{approvals}} aprobacións",
+                "unreadable": "Ilexible: toda importación falla ata que se garde de novo",
+            },
+            policies: {
+                optional: "Opcional",
+                required: "Requirida",
+            },
+            columns: {
+                setting: "Axuste",
+                subject: "Suxeito",
+                validUntil: "Válido ata",
+                fingerprint: "Pegada SHA-256",
+                signerId: "ID do asinante",
+                name: "Nome",
+                roles: "Funcións",
+                keys: "Pegadas de clave (SPKI SHA-256)",
+            },
+            minimumFormat: "Formato de paquete máis antigo",
+            formats: {
+                v1: "Formato 1 (sen asinantes inscritos)",
+                v2: "Formato 2 (só asinantes inscritos)",
+            },
+            separation: "Asinante final",
+            separations: {separate: "Distinto dos aprobadores", allowed: "Pode ter aprobado tamén"},
+            loadPolicy: "Cargar o ficheiro de política de sinatura",
+            policyDigest: "SHA-256 da política:",
+            policyErrors: {
+                "not-json": "O ficheiro non é JSON.",
+                "not-a-policy": "O ficheiro non é unha política de sinatura.",
+                "other-tenant": "O ficheiro é doutro inquilino.",
+                "no-minimum": "A política debe indicar o seu formato mínimo de paquete.",
+                "unknown-field":
+                    "O ficheiro ten un campo que a política de sinatura non define (mal escrito?).",
+                "no-tenant": "O ficheiro debe indicar o seu tenant (tenant_id).",
+            },
+        },
         configurationPackage: englishTranslation.translations.configurationPackage,
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {

@@ -175,6 +175,7 @@
 /revoke-results-publication
 /save-approval-matrix
 /scheduled-event
+/set-configuration-signing
 /set-custom-url
 /set-google-service-account-key
 /set-role-permission

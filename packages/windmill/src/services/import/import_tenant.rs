@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::tenant::update_tenant;
+use crate::postgres::tenant::{lock_tenant, update_tenant};
 use crate::services::google_meet::{store_service_account_key, take_service_account_key};
+use crate::services::import::configuration_package_sections::keep_reserved_settings;
 use anyhow::{anyhow, Context, Result};
 use csv::StringRecord;
 use deadpool_postgres::Transaction;
@@ -126,9 +127,15 @@ pub async fn process_record(
     old_tenant_id: &str,
     record: &StringRecord,
 ) -> Result<()> {
-    info!("record: {:?}", record);
+    // The row holds the tenant's settings, which may hold secrets: log its
+    // shape, never its values.
+    info!(columns = record.len(), "restoring the tenant record");
 
-    let (tenant, service_account_key) = parse_tenant_record(old_tenant_id, record)?;
+    let (mut tenant, service_account_key) = parse_tenant_record(old_tenant_id, record)?;
+    // A backup restores settings, never what the tenant trusts: the installed
+    // configuration_signing stays, and so does its absence.
+    let installed = lock_tenant(hasura_transaction, old_tenant_id).await?;
+    tenant.settings = keep_reserved_settings(tenant.settings, installed.settings.as_ref());
 
     update_tenant(hasura_transaction, tenant, old_tenant_id)
         .await
@@ -201,6 +208,52 @@ mod tests {
 
     // A tenant export made before the `test` column existed has only nine columns;
     // it must still import, with `test` defaulting to None (backwards compatible).
+    // A backup carries the settings it was taken with, including what the
+    // tenant trusted then; restoring it keeps what the tenant trusts now.
+    #[test]
+    fn a_restored_backup_keeps_the_installed_configuration_signing() {
+        let record = StringRecord::from(vec![
+            "id",
+            "slug",
+            "",
+            "",
+            "",
+            "",
+            "true",
+            "",
+            r#"{"theme":"dark","configuration_signing":{"policy":"optional"}}"#,
+            "null",
+        ]);
+        let (tenant, _key) = parse_tenant_record("t", &record).expect("record parses");
+        let installed = json!({"configuration_signing": {"policy": "required"}, "theme": "light"});
+        assert_eq!(
+            keep_reserved_settings(tenant.settings.clone(), Some(&installed)),
+            Some(json!({"theme": "dark", "configuration_signing": {"policy": "required"}}))
+        );
+        // An old backup taken before signing was configured keeps it too.
+        let old = StringRecord::from(vec![
+            "id",
+            "slug",
+            "",
+            "",
+            "",
+            "",
+            "true",
+            "",
+            r#"{"theme":"dark"}"#,
+        ]);
+        let (old_tenant, _key) = parse_tenant_record("t", &old).expect("record parses");
+        assert_eq!(
+            keep_reserved_settings(old_tenant.settings, Some(&installed)),
+            Some(json!({"theme": "dark", "configuration_signing": {"policy": "required"}}))
+        );
+        // And where none is installed, a backup can't add one.
+        assert_eq!(
+            keep_reserved_settings(tenant.settings, Some(&json!({"theme": "light"}))),
+            Some(json!({"theme": "dark"}))
+        );
+    }
+
     #[test]
     fn a_pre_test_column_nine_field_export_still_imports() {
         let record =

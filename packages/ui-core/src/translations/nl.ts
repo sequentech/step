@@ -245,7 +245,7 @@ const dutchTranslation: TranslationType = {
                 "Dit wordt geïmporteerd. Elk van deze punten is waarschijnlijk niet wat bedoeld was.",
             warningsStrict: "De strikte modus staat aan, dus deze houden de build tegen.",
             messages: {
-                area: {
+                "area": {
                     "cycle": {
                         lead: "Gebieden binnen elkaar",
                         text: "Gebieden binnen elkaar — gebied '{{area}}' maakt deel uit van een kring van bovenliggende gebieden, waardoor het Beheerportaal zou vastlopen.",
@@ -283,13 +283,13 @@ const dutchTranslation: TranslationType = {
                         text: "Bovenliggend gebied onbekend — niets heeft de identificatie '{{parent}}'.",
                     },
                 },
-                ballot: {
+                "ballot": {
                     "no-elections": {
                         lead: "Geen verkiezingen",
                         text: "Geen verkiezingen — een verkiezingsevenement heeft er minstens één nodig.",
                     },
                 },
-                bundle: {
+                "bundle": {
                     "duplicate-id": {
                         lead: "Identificatie twee keer gebruikt",
                         text: "Identificatie twee keer gebruikt — {{id}} in {{kind}} wordt ook gebruikt door {{previous}}.",
@@ -319,7 +319,7 @@ const dutchTranslation: TranslationType = {
                         text: "Tenant is geen identificatie — '{{value}}' is geen geldige tenant-id.",
                     },
                 },
-                candidate: {
+                "candidate": {
                     "contest-missing": {
                         lead: "Stemming van de kandidaat ontbreekt",
                         text: "Stemming van de kandidaat ontbreekt — de kandidaat hoort bij een stemming die niet in dit bestand staat.",
@@ -341,7 +341,7 @@ const dutchTranslation: TranslationType = {
                         text: "Foto niet vastgelegd — de foto van een kandidaat staat op het stembiljet en nergens is vastgelegd welk document het is, dus hij kan achteraf niet op het platform worden gewijzigd of verwijderd.",
                     },
                 },
-                census: {
+                "census": {
                     "column-not-declared": {
                         lead: "Registerkolom niet gedeclareerd",
                         text: "Registerkolom niet gedeclareerd — {{message}}",
@@ -363,7 +363,7 @@ const dutchTranslation: TranslationType = {
                         text: "Kiezersregister in de zip onleesbaar — {{message}}",
                     },
                 },
-                channels: {
+                "channels": {
                     "early-voting-closed": {
                         lead: "Vervroegd stemmen uitgeschakeld",
                         text: "Vervroegd stemmen uitgeschakeld — {{areas}} staan vervroegd stemmen toe en het evenement opent dat kanaal niet, dus de instelling doet niets.",
@@ -389,13 +389,13 @@ const dutchTranslation: TranslationType = {
                         text: "Onbekende manier van stemmen — niets leest '{{name}}'. De manieren van stemmen waarop het platform reageert zijn {{allowed}}.",
                     },
                 },
-                contacts: {
+                "contacts": {
                     none: {
                         lead: "Geen contactpersonen",
                         text: "Geen contactpersonen — op de verkiezingsdag zijn dit de mensen die worden gebeld.",
                     },
                 },
-                contest: {
+                "contest": {
                     "algorithm-unknown": {
                         lead: "Onbekende telmethode",
                         text: "Onbekende telmethode — '{{value}}' is geen telalgoritme. Het platform accepteert {{allowed}}.",
@@ -509,13 +509,13 @@ const dutchTranslation: TranslationType = {
                         text: "Zelf invullen zonder invulvak — zelf een naam invullen is toegestaan en de stemming heeft geen invulvak, dus een kiezer kan nergens een naam typen.",
                     },
                 },
-                delivery: {
+                "delivery": {
                     "no-importable": {
                         lead: "Geen importeerbaar archief",
                         text: "Geen importeerbaar archief — deze zip bevat een plan maar niet het archief dat het Beheerportaal importeert, dus het kiezersregister en de bestanden die het noemt zitten er niet in.",
                     },
                 },
-                design: {
+                "design": {
                     "no-stable-key": {
                         lead: "Stembiljetontwerp zonder sleutel",
                         text: "Stembiljetontwerp zonder sleutel — {{kind}} {{id}} heeft geen naam of externe id, dus de stembiljetontwerpen ervan zijn na een import niet te herkennen.",
@@ -525,7 +525,7 @@ const dutchTranslation: TranslationType = {
                         text: "Stembiljetstijl onleesbaar — de stembiljetstijl van het platform kon niet worden gelezen om de digest van het ontwerp te berekenen: {{reason}}",
                     },
                 },
-                election: {
+                "election": {
                     "channels-differ": {
                         lead: "Verkiezing en evenement verschillen",
                         text: "Verkiezing en evenement verschillen — {{channels}} wijkt af van die van het evenement, dus de startknoppen voor deze verkiezing zouden niet overeenkomen.",
@@ -559,7 +559,7 @@ const dutchTranslation: TranslationType = {
                         text: "Ongeldig maken zonder tweede kans — een kiezer mag een uitgebracht stembiljet weggooien en heeft geen tweede poging om het te vervangen.",
                     },
                 },
-                event: {
+                "event": {
                     "ballot-identity-unknown": {
                         lead: "Onbekende stembiljetidentiteit",
                         text: "Onbekende stembiljetidentiteit — '{{value}}' wordt niet ondersteund. Gebruik voter-id of pseudonym.",
@@ -585,7 +585,7 @@ const dutchTranslation: TranslationType = {
                         text: "Onbekende evenementinstelling — '{{value}}' is geen geldige {{key}}. Het platform accepteert {{allowed}}.",
                     },
                 },
-                file: {
+                "file": {
                     "shared-scanovate-config": {
                         lead: "Gedeelde Scanovate-configuratie",
                         text: "Gedeelde Scanovate-configuratie — een configuratie van de Scanovate-authenticator wordt gedeeld met een andere provider. Geef Scanovate een eigen configuratie voordat u deze exporteert of importeert.",
@@ -635,13 +635,13 @@ const dutchTranslation: TranslationType = {
                         text: "Andere hoofdversie — het bestand komt van versie {{found}}, een andere hoofdversie dan {{current}} van dit platform. Dat verschil blokkeert de import niet en de andere controles van het bestand blijven gelden; instellingen die deze versie niet ondersteunt, worden mogelijk niet geïmporteerd.",
                     },
                 },
-                identifier: {
+                "identifier": {
                     duplicate: {
                         lead: "Identificatie twee keer gebruikt",
                         text: "Identificatie twee keer gebruikt — '{{identifier}}' wordt al gebruikt door {{first}}. Identificaties zijn uniek binnen het hele verkiezingsevenement, dus de tweede vervangt de eerste in plaats van te worden toegevoegd.",
                     },
                 },
-                ivr: {
+                "ivr": {
                     "language-not-spoken": {
                         lead: "Taal niet beschikbaar per telefoon",
                         text: "Taal niet beschikbaar per telefoon — het gesprek spreekt alleen Engels, Frans en Spaans, dus bellers krijgen {{languages}} niet aangeboden.",
@@ -654,13 +654,13 @@ const dutchTranslation: TranslationType = {
                             "Gesprekstekst ontbreekt — {{prompts}} heeft geen tekst in '{{language}}', en het telefoonsysteem weigert elk gesprek tot die er is.",
                     },
                 },
-                labels: {
+                "labels": {
                     "in-use": {
                         lead: "Rechtenlabels in gebruik",
                         text: "Rechtenlabels in gebruik — {{labels}}. Alles met een label is verborgen voor elke beheerder zonder dat label, dus wie dit importeert heeft er een op het eigen account nodig, anders toont het Beheerportaal een lege lijst.",
                     },
                 },
-                languages: {
+                "languages": {
                     "default-not-offered": {
                         lead: "Standaardtaal niet aangeboden",
                         text: "Standaardtaal niet aangeboden — '{{chosen}}' staat niet tussen {{offered}}, dus kiezers zouden in plaats daarvan de eerste krijgen.",
@@ -674,7 +674,7 @@ const dutchTranslation: TranslationType = {
                         text: "Geen talen — het stembiljet valt terug op Engels, wat een vangnet is en geen keuze.",
                     },
                 },
-                link: {
+                "link": {
                     "area-missing": {
                         lead: "Stembiljetkoppeling naar een ontbrekend gebied",
                         text: "Stembiljetkoppeling naar een ontbrekend gebied — een stemming staat op het stembiljet van een gebied dat niet in dit bestand staat.",
@@ -684,7 +684,7 @@ const dutchTranslation: TranslationType = {
                         text: "Stembiljetkoppeling naar een ontbrekende stemming — het stembiljet van een gebied noemt een stemming die niet in dit bestand staat.",
                     },
                 },
-                logo: {
+                "logo": {
                     "file-and-link": {
                         lead: "Twee logo's",
                         text: "Twee logo's — dit plan bevat zowel een geüpload logo ('{{file}}') als een link ('{{url}}'). Het bestand wordt meegeleverd; de link wordt genegeerd.",
@@ -698,7 +698,7 @@ const dutchTranslation: TranslationType = {
                         text: "Logobestand leeg — '{{file}}' is als logo opgegeven en bevat geen bytes. Een lege archiefvermelding laat de import mislukken in plaats van een afbeelding kwijt te raken.",
                     },
                 },
-                material: {
+                "material": {
                     "empty-document": {
                         lead: "Materiaal met een leeg document",
                         text: "Materiaal met een leeg document — het zou worden geïmporteerd als een link naar niets. Laat het document helemaal weg voor materiaal zonder bestand.",
@@ -724,13 +724,13 @@ const dutchTranslation: TranslationType = {
                         text: "Materiaal van een ander evenement — dit ondersteunend materiaal hoort bij een ander verkiezingsevenement.",
                     },
                 },
-                messages: {
+                "messages": {
                     "weekly-no-time": {
                         lead: "Een herhaling zonder uur",
                         text: "Een herhaling zonder uur — een bericht wordt elke week herhaald maar zegt niet op welk tijdstip, dus wie het verstuurt moet een uur kiezen dat niemand heeft opgeschreven.",
                     },
                 },
-                passwords: {
+                "passwords": {
                     "column-already-there": {
                         lead: "Wachtwoorden twee keer opgegeven",
                         text: "Wachtwoorden twee keer opgegeven — het kiezersregister heeft al een wachtwoordkolom, dus gegenereerde wachtwoorden zouden een tweede antwoord op dezelfde vraag zijn. Verwijder de kolom, of zet het genereren uit.",
@@ -744,7 +744,7 @@ const dutchTranslation: TranslationType = {
                         text: "Wachtwoorden zonder seed — de seed zorgt ervoor dat een nieuwe build dezelfde wachtwoorden oplevert in plaats van nieuwe.",
                     },
                 },
-                package: {
+                "package": {
                     "already-imported": {
                         lead: "Al geïmporteerd",
                         text: "Al geïmporteerd — revisie {{revision}} van deze configuratie is al eerder geïmporteerd; importeer een nieuwere revisie.",
@@ -889,8 +889,68 @@ const dutchTranslation: TranslationType = {
                         lead: "Manifest kan niet worden geschreven",
                         text: "Manifest kan niet worden geschreven — het manifest kon niet worden geschreven: {{reason}}",
                     },
+                    "needs-clock": {
+                        lead: "Geen vertrouwde tijd",
+                        text: "Geen vertrouwde tijd — deze controle heeft de eigen klok van het platform nodig, en die is niet meegegeven.",
+                    },
+                    "no-signing-policy": {
+                        lead: "Geen ondertekeningsbeleid",
+                        text: "Geen ondertekeningsbeleid — pakketten in formaat 2 hebben het geïnstalleerde ondertekeningsbeleid van de tenant nodig, en deze tenant heeft er geen.",
+                    },
+                    "mixed-format": {
+                        lead: "Gemengd pakketformaat",
+                        text: "Gemengd pakketformaat — het formaat van het manifest en de ondertekeningsgegevens komen niet overeen: een manifest in formaat 2 zegt voor wie het ondertekend is, een in formaat 1 niet.",
+                    },
+                    "wrong-tenant": {
+                        lead: "Pakket voor een andere tenant",
+                        text: "Pakket voor een andere tenant — het pakket is goedgekeurd en ondertekend voor een andere tenant.",
+                    },
+                    "policy-changed": {
+                        lead: "Ondertekeningsbeleid gewijzigd",
+                        text: "Ondertekeningsbeleid gewijzigd — het pakket is goedgekeurd en ondertekend onder een ondertekeningsbeleid dat niet het huidige van deze tenant is.",
+                    },
+                    "final-signer-role": {
+                        lead: "Verkeerde rol voor eindhandtekening",
+                        text: "Verkeerde rol voor eindhandtekening — de rol van de eindhandtekening moet final-signer zijn.",
+                    },
+                    "final-signer-not-enrolled": {
+                        lead: "Eindondertekenaar niet ingeschreven",
+                        text: "Eindondertekenaar niet ingeschreven — de sleutel die de eindhandtekening zette, is niet ingeschreven voor deze tenant.",
+                    },
+                    "final-signer-id-mismatch": {
+                        lead: "Verkeerde eindondertekenaar genoemd",
+                        text: "Verkeerde eindondertekenaar genoemd — het pakket noemt één eindondertekenaar, en de sleutel hoort bij een ander.",
+                    },
+                    "final-signer-approved": {
+                        lead: "Eindondertekenaar keurde ook goed",
+                        text: "Eindondertekenaar keurde ook goed — de eindondertekenaar heeft dit pakket ook goedgekeurd, en deze tenant houdt die rollen gescheiden.",
+                    },
+                    "approval-algorithm": {
+                        lead: "Goedkeuringsalgoritme geweigerd",
+                        text: "Goedkeuringsalgoritme geweigerd — formaat 2 aanvaardt alleen goedkeuringen gemaakt met RSA-PSS of ECDSA P-256.",
+                    },
+                    "approval-role-label": {
+                        lead: "Goedkeuringsrol is niet approver",
+                        text: "Goedkeuringsrol is niet approver — elke goedkeuring in formaat 2 moet de rol approver dragen.",
+                    },
+                    "approver-id-mismatch": {
+                        lead: "Goedkeurderssleutel niet ingeschreven",
+                        text: "Goedkeurderssleutel niet ingeschreven — de sleutel van een goedkeuring is niet ingeschreven voor de genoemde ondertekenaar, of voor deze tenant.",
+                    },
+                    "approver-role": {
+                        lead: "Ondertekenaar mag niet goedkeuren",
+                        text: "Ondertekenaar mag niet goedkeuren — een goedkeuring komt van iemand die niet als goedkeurder is ingeschreven.",
+                    },
+                    "duplicate-signer": {
+                        lead: "Dezelfde persoon keurde twee keer goed",
+                        text: "Dezelfde persoon keurde twee keer goed — één ingeschreven persoon keurde meer dan eens goed, met verschillende certificaten; iedereen keurt één keer goed.",
+                    },
+                    "downgrade-refused": {
+                        lead: "Pakket in formaat 1 geweigerd",
+                        text: "Pakket in formaat 1 geweigerd — deze tenant importeert alleen pakketten in formaat 2.",
+                    },
                 },
-                plan: {
+                "plan": {
                     "not-a-plan": {
                         lead: "Geen verkiezingsplan",
                         text: "Geen verkiezingsplan — het bestand kon niet als plan worden gelezen: {{error}}",
@@ -904,7 +964,7 @@ const dutchTranslation: TranslationType = {
                         text: "Plan onleesbaar — {{error}}",
                     },
                 },
-                reports: {
+                "reports": {
                     "duplicate": {
                         lead: "Rapport twee keer ingesteld",
                         text: "Rapport twee keer ingesteld — het rapport {{report}} is meer dan eens ingesteld voor dezelfde verkiezing.",
@@ -922,7 +982,7 @@ const dutchTranslation: TranslationType = {
                         text: "Formaat niet beschikbaar — het rapport {{report}} kan niet als {{format}} worden gemaakt.",
                     },
                 },
-                schedule: {
+                "schedule": {
                     "closes-before-opens": {
                         lead: "Sluit voordat het opent",
                         text: "Sluit voordat het opent — het stemmen zou nooit open zijn.",
@@ -944,13 +1004,13 @@ const dutchTranslation: TranslationType = {
                         text: "Stemperiode onvolledig — de periode moet handmatig worden geopend of gesloten in het Beheerportaal.",
                     },
                 },
-                scanovate: {
+                "scanovate": {
                     "credentials-included": {
                         lead: "Bestanden bevatten inloggegevens",
                         text: "Bestanden bevatten inloggegevens — de werkmap en de afgeleide plan-/importbestanden bevatten inloggegevens uit de realm, inclusief het echte Scanovate-geheim. Houd deze bestanden privé en versleuteld tijdens opslag en overdracht; deel ze alleen met beheerders die deze dienst mogen configureren.",
                     },
                 },
-                signing: {
+                "signing": {
                     "duplicate-action": {
                         lead: "Twee regels voor één actie",
                         text: "Twee regels voor één actie — '{{action}}' heeft meer dan één ondertekeningsregel. Houd er één.",
@@ -1000,7 +1060,7 @@ const dutchTranslation: TranslationType = {
                         text: "Werkmap vraagt een recente Architect — de werkmap bewaart dit ondertekeningsbeleid in bladen die een oudere Architect negeert. Open haar opnieuw vanuit blueprint.json of de leveringszip om het te behouden.",
                     },
                 },
-                threshold: {
+                "threshold": {
                     "above-trustees": {
                         lead: "Drempel te hoog",
                         text: "Drempel te hoog — {{threshold}} van de {{trustees}} sleutelhouders zijn vereist, wat niet haalbaar is. De sleutel zou worden gegenereerd en de uitslag zou nooit kunnen worden ontsleuteld.",
@@ -1014,7 +1074,7 @@ const dutchTranslation: TranslationType = {
                         text: "Drempel van nul — de telling kan zonder enige sleutelhouder worden geopend.",
                     },
                 },
-                trustee: {
+                "trustee": {
                     "email-malformed": {
                         lead: "Geen e-mailadres",
                         text: "Geen e-mailadres — '{{email}}' ziet er niet uit als een e-mailadres.",
@@ -1028,7 +1088,7 @@ const dutchTranslation: TranslationType = {
                         text: "Sleutelhouder zonder naam — de importeur koppelt de leden van de sleutelceremonie op naam aan de sleutelhouders die al in de tenant zijn ingericht, en een lege naam wordt stilzwijgend een lid dat niet bestaat.",
                     },
                 },
-                trustees: {
+                "trustees": {
                     "none": {
                         lead: "Geen sleutelhouders",
                         text: "Geen sleutelhouders — een verkiezingssleutel moet door minstens twee mensen worden beheerd. Met één kan die persoon elk stembiljet in zijn eentje ontsleutelen, en dat is juist wat de versleuteling moet voorkomen.",
@@ -1038,7 +1098,7 @@ const dutchTranslation: TranslationType = {
                         text: "Slechts één sleutelhouder — een verkiezingssleutel moet door minstens twee mensen worden beheerd. Met één kan die persoon elk stembiljet in zijn eentje ontsleutelen, en dat is juist wat de versleuteling moet voorkomen.",
                     },
                 },
-                voter: {
+                "voter": {
                     "area-unknown": {
                         lead: "Gebied van kiezer onbekend",
                         text: "Gebied van kiezer onbekend — niets heet '{{area}}'. Kiezers worden op naam aan hun gebied gekoppeld, dus deze kiezer zou geen stembiljet krijgen. Kopieer de naam van het gebied in plaats van hem opnieuw te typen.",
@@ -1056,7 +1116,7 @@ const dutchTranslation: TranslationType = {
                         text: "Kiezer zonder gebruikersnaam — daarmee logt de kiezer in en daarvan wordt het account afgeleid.",
                     },
                 },
-                voters: {
+                "voters": {
                     "duplicate-column": {
                         lead: "Kolom twee keer opgegeven",
                         text: "Kolom twee keer opgegeven — twee kolommen stellen allebei '{{column}}' in. Houd er maar één.",
@@ -1076,6 +1136,68 @@ const dutchTranslation: TranslationType = {
                     "vote-weight-out-of-range": {
                         lead: "Stemgewicht buiten bereik",
                         text: "Stemgewicht buiten bereik — {{value}} op rij {{row}} moet tussen {{min}} en {{max}} liggen.",
+                    },
+                },
+                "configuration-signing": {
+                    "invalid-stored-policy": {
+                        lead: "Onleesbaar ondertekeningsbeleid",
+                        text: "Onleesbaar ondertekeningsbeleid — het opgeslagen ondertekeningsbeleid van deze tenant is ongeldig, dus er wordt niets geïmporteerd tot een beheerder een geldig beleid opslaat.",
+                    },
+                    "no-package-roots": {
+                        lead: "Geen hoofdcertificaten voor pakketten",
+                        text: "Geen hoofdcertificaten voor pakketten — handtekeningen zijn verplicht, maar er is geen certificaatautoriteit ingesteld voor de ondertekeningssleutel van de organisatie.",
+                    },
+                    "no-staff-roots": {
+                        lead: "Geen hoofdcertificaten voor goedkeurders",
+                        text: "Geen hoofdcertificaten voor goedkeurders — goedkeuringen zijn verplicht, maar er is geen certificaatautoriteit ingesteld voor de certificaten van goedkeurders.",
+                    },
+                    "too-many-approvals": {
+                        lead: "Te veel goedkeuringen vereist",
+                        text: "Te veel goedkeuringen vereist — een tenant kan hoogstens 16 goedkeuringen vereisen.",
+                    },
+                    "no-approvals": {
+                        lead: "Geen goedkeuringen vereist",
+                        text: "Geen goedkeuringen vereist — handtekeningen zijn verplicht, maar goedkeuringen niet, dus een pakket heeft alleen de eindhandtekening nodig.",
+                    },
+                    "not-only-certificates": {
+                        lead: "Niet alleen certificaten",
+                        text: "Niet alleen certificaten — de vertrouwde hoofdcertificaten mogen alleen PEM-certificaten bevatten; al het andere, vooral een privésleutel, wordt geweigerd.",
+                    },
+                    "not-a-ca": {
+                        lead: "Hoofdcertificaat is geen CA",
+                        text: "Hoofdcertificaat is geen CA — een vertrouwd hoofdcertificaat moet een certificaatautoriteit zijn.",
+                    },
+                    "root-expired": {
+                        lead: "Hoofdcertificaat verlopen",
+                        text: "Hoofdcertificaat verlopen — een vertrouwd hoofdcertificaat is verlopen en kan geen handtekening meer staven.",
+                    },
+                    "root-not-yet-valid": {
+                        lead: "Hoofdcertificaat nog niet geldig",
+                        text: "Hoofdcertificaat nog niet geldig — de geldigheid van een vertrouwd hoofdcertificaat is nog niet begonnen.",
+                    },
+                },
+                "signing-policy": {
+                    "unreadable": {
+                        lead: "Onleesbaar beleidsbestand",
+                        text: "Onleesbaar beleidsbestand — het bestand met het ondertekeningsbeleid kan niet worden gelezen als het ondertekeningsbeleid van een tenant.",
+                    },
+                    "no-tenant": {
+                        lead: "Beleid zonder tenant",
+                        text: "Beleid zonder tenant — het bestand met het ondertekeningsbeleid moet zijn tenant vermelden.",
+                    },
+                    "not-v2": {
+                        lead: "Beleid is niet formaat 2",
+                        text: "Beleid is niet formaat 2 — deze pagina heeft een ondertekeningsbeleid nodig dat pakketten in formaat 2 vereist.",
+                    },
+                },
+                "request": {
+                    "unreadable": {
+                        lead: "Onleesbaar goedkeuringsverzoek",
+                        text: "Onleesbaar goedkeuringsverzoek — het bestand met het goedkeuringsverzoek kan niet worden gelezen.",
+                    },
+                    "unreadable-approvals": {
+                        lead: "Onleesbare goedkeuringen",
+                        text: "Onleesbare goedkeuringen — een of meer goedkeuringsbestanden kunnen niet worden gelezen.",
                     },
                 },
             },

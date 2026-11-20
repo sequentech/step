@@ -21,6 +21,7 @@ pub mod ceremonies;
 pub mod certificate_authority;
 pub mod cloudflare;
 pub mod compress;
+pub mod configuration_signing;
 pub mod consolidation;
 pub mod custom_url;
 pub mod database;
