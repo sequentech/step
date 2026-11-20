@@ -311,6 +311,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
         filter: {
             tenant_id: tenantId,
         },
+        pagination: {page: 1, perPage: 1000},
     })
 
     const selectableTemplates = useMemo(
