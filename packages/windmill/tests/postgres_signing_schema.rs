@@ -1470,11 +1470,23 @@ async fn the_tables_accept_exactly_the_enum_texts() {
         "signing_approval",
         "algorithm",
         &approval.id,
-        SignatureAlgorithm::iter(),
+        windmill::services::signing::certificates::PLATFORM_SIGNING_ALGORITHMS,
         "signing_approval_algorithm_known",
         "",
     )
     .await;
+    // RSA-PSS is a configuration-package algorithm only: the platform's own
+    // approvals table refuses it.
+    assert_eq!(
+        attempt(
+            &mut tx,
+            "UPDATE sequent_backend.signing_approval SET algorithm = $2 WHERE id = $1",
+            &[&approval.id, &"rsa-pss-sha256"],
+        )
+        .await,
+        Err("signing_approval_algorithm_known".to_string()),
+        "signing_approval.algorithm accepts rsa-pss-sha256"
+    );
     accepts_exactly(
         &mut tx,
         "signing_approval",

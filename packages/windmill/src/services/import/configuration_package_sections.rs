@@ -150,20 +150,36 @@ fn merged_settings(
     current: Option<&Value>,
     wanted: Option<&serde_json::Map<String, Value>>,
 ) -> Option<Value> {
-    let mut merged = merged_object(current, wanted)?;
-    if let Value::Object(map) = &mut merged {
-        for key in RESERVED_SETTINGS {
-            match current.and_then(|settings| settings.get(key)) {
-                Some(installed) => {
-                    map.insert(key.to_string(), installed.clone());
-                }
-                None => {
-                    map.remove(key);
-                }
-            }
-        }
+    let merged = merged_object(current, wanted)?;
+    keep_reserved_settings(Some(merged), current)
+}
+
+/// `settings` with every reserved setting replaced by the installed one, or
+/// removed where none is installed. Whatever writes a tenant's settings from
+/// a file (a package, a restored backup) passes them through this, so a file
+/// never decides what the tenant trusts. Settings that are not an object
+/// become one when there is an installed reserved setting to keep.
+pub fn keep_reserved_settings(settings: Option<Value>, installed: Option<&Value>) -> Option<Value> {
+    let kept: Vec<(&str, &Value)> = RESERVED_SETTINGS
+        .iter()
+        .filter_map(|key| {
+            installed
+                .and_then(|settings| settings.get(*key))
+                .map(|value| (*key, value))
+        })
+        .collect();
+    let mut map = match settings {
+        Some(Value::Object(map)) => map,
+        other if kept.is_empty() => return other,
+        _ => serde_json::Map::new(),
+    };
+    for key in RESERVED_SETTINGS {
+        map.remove(key);
     }
-    Some(merged)
+    for (key, value) in kept {
+        map.insert(key.to_string(), value.clone());
+    }
+    Some(Value::Object(map))
 }
 
 /// Tenant settings a package may not change: they decide what the tenant
@@ -815,9 +831,22 @@ pub fn trustee_reference_problems(
 #[path = "configuration_package_sections_tests.rs"]
 mod tests;
 
-/// Why a signed package may not be applied, given how it compares with the
-/// tenant's last import of its configuration (`None` when never imported)
-/// and the event this application imports it into.
+/// Why an application may not admit a signed package now, from its last import
+/// of the same configuration (`freshness`, and the event it went into):
+///
+/// - a newer revision is admitted;
+/// - a revision not newer than the last import (another package) is a rollback
+///   and refused;
+/// - **the same package again**:
+///   - **format 2: imported exactly once.** It is refused unless
+///     `imported_by_this_run`: this very invocation's election-event submission
+///     succeeded and recorded it, and the re-preview after that section (run()
+///     re-previews each section once applied) is checking its own result. A
+///     fresh replay, a retry or redelivery after the import committed, or a
+///     resumed earlier record is refused at the initial preview, before any
+///     write. A matching derived event id or prior record is never enough;
+///   - format 1 (unchanged): admitted again only into this application's own
+///     event, so a resumed application can settle; refused into another event.
 pub fn admission_problem(
     last: Option<(
         std::result::Result<
@@ -827,17 +856,43 @@ pub fn admission_problem(
         &str,
     )>,
     derived_event_id: &str,
+    format: sequent_core::election_config::manifest::ManifestFormat,
+    revision: u64,
+    imported_by_this_run: bool,
 ) -> Option<String> {
+    use sequent_core::election_config::manifest::ManifestFormat;
     use sequent_core::election_config::package_verify::Freshness;
+    use sequent_core::election_config::problem::{Code, Problem};
+    let problem = |p: Problem| format!("{}: {}", p.path, p.message);
     match last? {
         (Ok(Freshness::New), _) => None,
+        (Ok(Freshness::AlreadyImported), imported_into)
+            if format == ManifestFormat::V2
+                && imported_by_this_run
+                && imported_into == derived_event_id =>
+        {
+            None
+        }
+        (Ok(Freshness::AlreadyImported), imported_into) if format == ManifestFormat::V2 => {
+            Some(problem(
+                Problem::error(
+                    Code::Rollback,
+                    "manifest.configuration.revision",
+                    format!(
+                        "revision {revision} of this configuration is already imported (into \
+                         event {imported_into}); a format-2 package is imported exactly once"
+                    ),
+                )
+                .id("package.already-imported"),
+            ))
+        }
         (Ok(Freshness::AlreadyImported), imported_into) if imported_into == derived_event_id => {
             None
         }
         (Ok(Freshness::AlreadyImported), imported_into) => Some(format!(
             "this package was already imported into event {imported_into}, not by this application; it cannot be applied again"
         )),
-        (Err(problem), _) => Some(format!("{}: {}", problem.path, problem.message)),
+        (Err(p), _) => Some(problem(p)),
     }
 }
 

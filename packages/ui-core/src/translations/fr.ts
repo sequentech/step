@@ -250,7 +250,7 @@ const frenchTranslation: TranslationType = {
             warningsStrict:
                 "Le mode strict est activé, donc ces avertissements bloquent la génération.",
             messages: {
-                area: {
+                "area": {
                     "cycle": {
                         lead: "Zones imbriquées l'une dans l'autre",
                         text: "Zones imbriquées l'une dans l'autre — la zone '{{area}}' fait partie d'une boucle de parents, ce qui bloquerait le Portail d'administration.",
@@ -288,13 +288,13 @@ const frenchTranslation: TranslationType = {
                         text: "Zone parente inconnue — rien n'a l'identifiant '{{parent}}'.",
                     },
                 },
-                ballot: {
+                "ballot": {
                     "no-elections": {
                         lead: "Aucune élection",
                         text: "Aucune élection — un événement électoral en nécessite au moins une.",
                     },
                 },
-                bundle: {
+                "bundle": {
                     "duplicate-id": {
                         lead: "Identifiant utilisé deux fois",
                         text: "Identifiant utilisé deux fois — {{id}} dans {{kind}} est aussi utilisé par {{previous}}.",
@@ -324,7 +324,7 @@ const frenchTranslation: TranslationType = {
                         text: "Le tenant n'est pas un identifiant — '{{value}}' n'est pas un id de tenant valide.",
                     },
                 },
-                candidate: {
+                "candidate": {
                     "contest-missing": {
                         lead: "Scrutin du candidat manquant",
                         text: "Scrutin du candidat manquant — le candidat appartient à un scrutin qui ne figure pas dans ce fichier.",
@@ -346,7 +346,7 @@ const frenchTranslation: TranslationType = {
                         text: "Photo non enregistrée — la photo d'un candidat figure sur le bulletin et rien n'indique de quel document il s'agit, donc elle ne pourra plus être modifiée ni supprimée sur la plateforme.",
                     },
                 },
-                census: {
+                "census": {
                     "column-not-declared": {
                         lead: "Colonne du registre non déclarée",
                         text: "Colonne du registre non déclarée — {{message}}",
@@ -368,7 +368,7 @@ const frenchTranslation: TranslationType = {
                         text: "Registre illisible dans le zip — {{message}}",
                     },
                 },
-                channels: {
+                "channels": {
                     "early-voting-closed": {
                         lead: "Vote anticipé désactivé",
                         text: "Vote anticipé désactivé — {{areas}} autorisent le vote anticipé et l'événement n'ouvre pas ce canal, donc le paramètre n'a aucun effet.",
@@ -394,13 +394,13 @@ const frenchTranslation: TranslationType = {
                         text: "Mode de vote inconnu — rien ne lit '{{name}}'. Les modes de vote pris en compte par la plateforme sont {{allowed}}.",
                     },
                 },
-                contacts: {
+                "contacts": {
                     none: {
                         lead: "Aucun point de contact",
                         text: "Aucun point de contact — le jour de l'élection, ce sont les personnes qu'on appelle.",
                     },
                 },
-                contest: {
+                "contest": {
                     "algorithm-unknown": {
                         lead: "Méthode de dépouillement inconnue",
                         text: "Méthode de dépouillement inconnue — '{{value}}' n'est pas un algorithme de dépouillement. La plateforme accepte {{allowed}}.",
@@ -514,13 +514,13 @@ const frenchTranslation: TranslationType = {
                         text: "Candidats libres sans espace pour écrire — les candidatures libres sont autorisées et le scrutin n'a aucun emplacement prévu, donc un électeur n'a nulle part où saisir un nom.",
                     },
                 },
-                delivery: {
+                "delivery": {
                     "no-importable": {
                         lead: "Aucune archive importable",
                         text: "Aucune archive importable — ce zip contient un plan mais pas l'archive que le Portail d'administration importe, donc le registre et les fichiers qu'il nomme n'y sont pas.",
                     },
                 },
-                design: {
+                "design": {
                     "no-stable-key": {
                         lead: "Conception de bulletin sans clé",
                         text: "Conception de bulletin sans clé — {{kind}} {{id}} n'a ni nom ni identifiant externe, donc ses conceptions de bulletin ne peuvent pas être reconnues après une importation.",
@@ -530,7 +530,7 @@ const frenchTranslation: TranslationType = {
                         text: "Style de bulletin illisible — le style de bulletin de la plateforme n'a pas pu être lu pour calculer l'empreinte de sa conception : {{reason}}",
                     },
                 },
-                election: {
+                "election": {
                     "channels-differ": {
                         lead: "L'élection et l'événement divergent",
                         text: "L'élection et l'événement divergent — {{channels}} diffère de celui de l'événement, donc les commandes de démarrage de cette élection ne correspondraient pas.",
@@ -564,7 +564,7 @@ const frenchTranslation: TranslationType = {
                         text: "Annulation sans seconde chance — un électeur peut annuler un bulletin déposé sans avoir de seconde tentative pour le remplacer.",
                     },
                 },
-                event: {
+                "event": {
                     "ballot-identity-unknown": {
                         lead: "Identité du bulletin inconnue",
                         text: "Identité du bulletin inconnue — '{{value}}' n’est pas pris en charge. Utilisez voter-id ou pseudonym.",
@@ -590,7 +590,7 @@ const frenchTranslation: TranslationType = {
                         text: "Paramètre d'événement inconnu — '{{value}}' n'est pas un {{key}} valide. La plateforme accepte {{allowed}}.",
                     },
                 },
-                file: {
+                "file": {
                     "shared-scanovate-config": {
                         lead: "Configuration Scanovate partagée",
                         text: "Configuration Scanovate partagée — une configuration de l’authentificateur Scanovate est partagée avec un autre fournisseur. Attribuez à Scanovate sa propre configuration avant de l’exporter ou de l’importer.",
@@ -640,13 +640,13 @@ const frenchTranslation: TranslationType = {
                         text: "Autre version majeure — le fichier provient de la version {{found}}, d'une version majeure différente de la {{current}} de cette plateforme. Cette différence ne bloque pas l'import, et les autres contrôles du fichier s'appliquent toujours ; les réglages que cette version ne prend pas en charge peuvent ne pas être importés.",
                     },
                 },
-                identifier: {
+                "identifier": {
                     duplicate: {
                         lead: "Identifiant utilisé deux fois",
                         text: "Identifiant utilisé deux fois — '{{identifier}}' est déjà utilisé par {{first}}. Les identifiants sont uniques dans tout l'événement électoral, donc le second remplace le premier au lieu d'être ajouté.",
                     },
                 },
-                ivr: {
+                "ivr": {
                     "language-not-spoken": {
                         lead: "Langue non disponible par téléphone",
                         text: "Langue non disponible par téléphone — l'appel ne parle qu'anglais, français et espagnol, donc {{languages}} n'est pas proposé aux appelants.",
@@ -659,13 +659,13 @@ const frenchTranslation: TranslationType = {
                             "Message d'appel manquant — {{prompts}} n'a pas de texte en « {{language}} », et le système téléphonique refuse tous les appels tant qu'il n'en a pas.",
                     },
                 },
-                labels: {
+                "labels": {
                     "in-use": {
                         lead: "Étiquettes d'autorisation utilisées",
                         text: "Étiquettes d'autorisation utilisées — {{labels}}. Tout élément portant une étiquette est masqué pour chaque administrateur qui ne l'a pas, donc la personne qui importe ce fichier doit en avoir une sur son propre compte, sinon le Portail d'administration lui affichera une liste vide.",
                     },
                 },
-                languages: {
+                "languages": {
                     "default-not-offered": {
                         lead: "Langue par défaut non proposée",
                         text: "Langue par défaut non proposée — '{{chosen}}' ne fait pas partie de {{offered}}, donc les électeurs recevraient la première à la place.",
@@ -679,7 +679,7 @@ const frenchTranslation: TranslationType = {
                         text: "Aucune langue — le bulletin se rabat sur l'anglais, ce qui est un filet de sécurité plutôt qu'un choix.",
                     },
                 },
-                link: {
+                "link": {
                     "area-missing": {
                         lead: "Lien de bulletin vers une zone manquante",
                         text: "Lien de bulletin vers une zone manquante — un scrutin est placé sur le bulletin d'une zone qui ne figure pas dans ce fichier.",
@@ -689,7 +689,7 @@ const frenchTranslation: TranslationType = {
                         text: "Lien de bulletin vers un scrutin manquant — le bulletin d'une zone liste un scrutin qui ne figure pas dans ce fichier.",
                     },
                 },
-                logo: {
+                "logo": {
                     "file-and-link": {
                         lead: "Deux logos",
                         text: "Deux logos — ce plan contient à la fois un logo téléversé ('{{file}}') et un lien ('{{url}}'). C'est le fichier qui est livré ; le lien est ignoré.",
@@ -703,7 +703,7 @@ const frenchTranslation: TranslationType = {
                         text: "Fichier du logo vide — '{{file}}' est désigné comme logo et ne contient aucun octet. Une entrée d'archive vide fait échouer l'importation plutôt que de perdre une image.",
                     },
                 },
-                material: {
+                "material": {
                     "empty-document": {
                         lead: "Document d'information vide",
                         text: "Document d'information vide — il serait importé comme un lien vers rien. Omettez complètement le document pour une ressource qui n'a pas de fichier.",
@@ -729,13 +729,13 @@ const frenchTranslation: TranslationType = {
                         text: "Document d'un autre événement — ce document d'information appartient à un autre événement électoral.",
                     },
                 },
-                messages: {
+                "messages": {
                     "weekly-no-time": {
                         lead: "Une répétition sans heure",
                         text: "Une répétition sans heure — un message est répété chaque semaine sans préciser à quelle heure, donc la personne qui l'envoie doit choisir une heure que personne n'a notée.",
                     },
                 },
-                passwords: {
+                "passwords": {
                     "column-already-there": {
                         lead: "Mots de passe fournis deux fois",
                         text: "Mots de passe fournis deux fois — le registre a déjà une colonne de mot de passe, donc les mots de passe générés seraient une seconde réponse à la même question. Supprimez la colonne, ou désactivez la génération.",
@@ -749,7 +749,7 @@ const frenchTranslation: TranslationType = {
                         text: "Mots de passe sans graine — c'est la graine qui fait qu'une nouvelle génération produit les mêmes mots de passe plutôt que de nouveaux.",
                     },
                 },
-                package: {
+                "package": {
                     "already-imported": {
                         lead: "Déjà importée",
                         text: "Déjà importée — la révision {{revision}} de cette configuration a déjà été importée ; importez une révision plus récente.",
@@ -894,8 +894,68 @@ const frenchTranslation: TranslationType = {
                         lead: "Manifeste impossible à écrire",
                         text: "Manifeste impossible à écrire — le manifeste n'a pas pu être écrit : {{reason}}",
                     },
+                    "needs-clock": {
+                        lead: "Aucune heure de confiance",
+                        text: "Aucune heure de confiance — cette vérification a besoin de l'horloge de la plateforme, et aucune n'a été fournie.",
+                    },
+                    "no-signing-policy": {
+                        lead: "Aucune politique de signature",
+                        text: "Aucune politique de signature — les paquets au format 2 ont besoin de la politique de signature installée du tenant, et ce tenant n'en a pas.",
+                    },
+                    "mixed-format": {
+                        lead: "Format de paquet mélangé",
+                        text: "Format de paquet mélangé — le format du manifeste et ses informations de signature ne concordent pas : un manifeste au format 2 indique pour qui il est signé, un manifeste au format 1 non.",
+                    },
+                    "wrong-tenant": {
+                        lead: "Paquet d'un autre tenant",
+                        text: "Paquet d'un autre tenant — le paquet a été approuvé et signé pour un autre tenant.",
+                    },
+                    "policy-changed": {
+                        lead: "La politique de signature a changé",
+                        text: "La politique de signature a changé — le paquet a été approuvé et signé selon une politique de signature qui n'est pas celle, actuelle, de ce tenant.",
+                    },
+                    "final-signer-role": {
+                        lead: "Rôle de signature finale incorrect",
+                        text: "Rôle de signature finale incorrect — le rôle de la signature finale doit être final-signer.",
+                    },
+                    "final-signer-not-enrolled": {
+                        lead: "Signataire final non inscrit",
+                        text: "Signataire final non inscrit — la clé qui a fait la signature finale n'est pas inscrite pour ce tenant.",
+                    },
+                    "final-signer-id-mismatch": {
+                        lead: "Mauvais signataire final désigné",
+                        text: "Mauvais signataire final désigné — le paquet désigne un signataire final, et sa clé appartient à un autre.",
+                    },
+                    "final-signer-approved": {
+                        lead: "Le signataire final a aussi approuvé",
+                        text: "Le signataire final a aussi approuvé — le signataire final a aussi approuvé ce paquet, et ce tenant les garde séparés.",
+                    },
+                    "approval-algorithm": {
+                        lead: "Algorithme d'approbation refusé",
+                        text: "Algorithme d'approbation refusé — le format 2 n'accepte que les approbations faites avec RSA-PSS ou ECDSA P-256.",
+                    },
+                    "approval-role-label": {
+                        lead: "Le rôle d'approbation n'est pas approver",
+                        text: "Le rôle d'approbation n'est pas approver — toute approbation au format 2 doit porter le rôle approver.",
+                    },
+                    "approver-id-mismatch": {
+                        lead: "Clé d'approbateur non inscrite",
+                        text: "Clé d'approbateur non inscrite — la clé d'une approbation n'est pas inscrite pour le signataire qu'elle désigne, ou pour ce tenant.",
+                    },
+                    "approver-role": {
+                        lead: "Le signataire ne peut pas approuver",
+                        text: "Le signataire ne peut pas approuver — une approbation vient de quelqu'un qui n'est pas inscrit comme approbateur.",
+                    },
+                    "duplicate-signer": {
+                        lead: "La même personne a approuvé deux fois",
+                        text: "La même personne a approuvé deux fois — une personne inscrite a approuvé plus d'une fois, avec des certificats différents ; chaque personne approuve une fois.",
+                    },
+                    "downgrade-refused": {
+                        lead: "Paquet au format 1 refusé",
+                        text: "Paquet au format 1 refusé — ce tenant n'importe que des paquets au format 2.",
+                    },
                 },
-                plan: {
+                "plan": {
                     "not-a-plan": {
                         lead: "Pas un plan électoral",
                         text: "Pas un plan électoral — le fichier n'a pas pu être lu comme tel : {{error}}",
@@ -909,7 +969,7 @@ const frenchTranslation: TranslationType = {
                         text: "Plan illisible — {{error}}",
                     },
                 },
-                reports: {
+                "reports": {
                     "duplicate": {
                         lead: "Rapport configuré deux fois",
                         text: "Rapport configuré deux fois — le rapport {{report}} est configuré plus d'une fois pour la même élection.",
@@ -927,7 +987,7 @@ const frenchTranslation: TranslationType = {
                         text: "Format non disponible — le rapport {{report}} ne peut pas être généré au format {{format}}.",
                     },
                 },
-                schedule: {
+                "schedule": {
                     "closes-before-opens": {
                         lead: "Ferme avant d'ouvrir",
                         text: "Ferme avant d'ouvrir — le vote ne serait jamais ouvert.",
@@ -949,13 +1009,13 @@ const frenchTranslation: TranslationType = {
                         text: "Période de vote incomplète — la période devra être ouverte ou fermée manuellement dans le Portail d'administration.",
                     },
                 },
-                scanovate: {
+                "scanovate": {
                     "credentials-included": {
                         lead: "Fichiers contenant des identifiants",
                         text: "Fichiers contenant des identifiants — le classeur et les fichiers de plan/importation dérivés contiennent les identifiants fournis dans le realm, y compris le véritable secret Scanovate. Gardez ces fichiers privés et chiffrés lors du stockage et du transfert ; partagez-les uniquement avec les administrateurs autorisés à configurer ce service.",
                     },
                 },
-                signing: {
+                "signing": {
                     "duplicate-action": {
                         lead: "Deux règles pour une action",
                         text: "Deux règles pour une action — '{{action}}' a plus d'une règle de signature. N'en gardez qu'une.",
@@ -1005,7 +1065,7 @@ const frenchTranslation: TranslationType = {
                         text: "Classeur pour un Architect récent — le classeur garde cette politique de signature dans des feuilles qu'un Architect plus ancien ignore. Rouvrez-le depuis blueprint.json ou le zip de livraison pour la conserver.",
                     },
                 },
-                threshold: {
+                "threshold": {
                     "above-trustees": {
                         lead: "Seuil trop élevé",
                         text: "Seuil trop élevé — {{threshold}} dépositaires sur {{trustees}} sont requis, ce qui est impossible à atteindre. La clé serait générée et le résultat ne pourrait jamais être déchiffré.",
@@ -1019,7 +1079,7 @@ const frenchTranslation: TranslationType = {
                         text: "Seuil de zéro — le dépouillement pourrait être ouvert sans personne.",
                     },
                 },
-                trustee: {
+                "trustee": {
                     "email-malformed": {
                         lead: "Adresse e-mail invalide",
                         text: "Adresse e-mail invalide — '{{email}}' ne ressemble pas à une adresse e-mail.",
@@ -1033,7 +1093,7 @@ const frenchTranslation: TranslationType = {
                         text: "Dépositaire sans nom — l'importateur associe les membres de la cérémonie des clés par nom aux dépositaires déjà configurés dans le tenant, et un nom vide devient silencieusement un membre qui n'existe pas.",
                     },
                 },
-                trustees: {
+                "trustees": {
                     "none": {
                         lead: "Aucun dépositaire",
                         text: "Aucun dépositaire — une clé d'élection doit être détenue par au moins deux personnes. Avec une seule, cette personne peut déchiffrer chaque bulletin seule, alors que le chiffrement est justement là pour l'empêcher.",
@@ -1043,7 +1103,7 @@ const frenchTranslation: TranslationType = {
                         text: "Un seul dépositaire — une clé d'élection doit être détenue par au moins deux personnes. Avec une seule, cette personne peut déchiffrer chaque bulletin seule, alors que le chiffrement est justement là pour l'empêcher.",
                     },
                 },
-                voter: {
+                "voter": {
                     "area-unknown": {
                         lead: "Zone de l'électeur inconnue",
                         text: "Zone de l'électeur inconnue — rien ne s'appelle '{{area}}'. Les électeurs sont associés à leur zone par nom, donc cet électeur ne recevrait aucun bulletin. Copiez le nom depuis la zone plutôt que de le retaper.",
@@ -1061,7 +1121,7 @@ const frenchTranslation: TranslationType = {
                         text: "Électeur sans nom d'utilisateur — c'est l'identifiant de connexion et ce dont son compte est dérivé.",
                     },
                 },
-                voters: {
+                "voters": {
                     "duplicate-column": {
                         lead: "Colonne fournie deux fois",
                         text: "Colonne fournie deux fois — deux colonnes définissent toutes deux '{{column}}'. N'en gardez qu'une.",
@@ -1081,6 +1141,68 @@ const frenchTranslation: TranslationType = {
                     "vote-weight-out-of-range": {
                         lead: "Poids du vote hors limites",
                         text: "Poids du vote hors limites — {{value}} à la ligne {{row}} doit être compris entre {{min}} et {{max}}.",
+                    },
+                },
+                "configuration-signing": {
+                    "invalid-stored-policy": {
+                        lead: "Politique de signature illisible",
+                        text: "Politique de signature illisible — la politique de signature enregistrée de ce tenant n'est pas valide : rien n'est importé tant qu'un administrateur n'en enregistre pas une valide.",
+                    },
+                    "no-package-roots": {
+                        lead: "Aucune racine de signature de paquets",
+                        text: "Aucune racine de signature de paquets — les signatures sont exigées, mais aucune autorité de certification n'est définie pour la clé de signature de l'organisation.",
+                    },
+                    "no-staff-roots": {
+                        lead: "Aucune racine d'approbateurs",
+                        text: "Aucune racine d'approbateurs — les approbations sont exigées, mais aucune autorité de certification n'est définie pour les certificats des approbateurs.",
+                    },
+                    "too-many-approvals": {
+                        lead: "Trop d'approbations exigées",
+                        text: "Trop d'approbations exigées — un tenant peut exiger au plus 16 approbations.",
+                    },
+                    "no-approvals": {
+                        lead: "Aucune approbation exigée",
+                        text: "Aucune approbation exigée — les signatures sont exigées, mais aucune approbation : un paquet n'a besoin que de la signature finale.",
+                    },
+                    "not-only-certificates": {
+                        lead: "Pas uniquement des certificats",
+                        text: "Pas uniquement des certificats — les racines de confiance ne peuvent contenir que des certificats PEM ; tout le reste, une clé privée avant tout, est refusé.",
+                    },
+                    "not-a-ca": {
+                        lead: "La racine n'est pas une autorité",
+                        text: "La racine n'est pas une autorité — une racine de confiance doit être une autorité de certification.",
+                    },
+                    "root-expired": {
+                        lead: "Certificat racine expiré",
+                        text: "Certificat racine expiré — une racine de confiance a expiré et ne peut plus garantir aucune signature.",
+                    },
+                    "root-not-yet-valid": {
+                        lead: "Racine pas encore valide",
+                        text: "Racine pas encore valide — la validité d'une racine de confiance n'a pas encore commencé.",
+                    },
+                },
+                "signing-policy": {
+                    "unreadable": {
+                        lead: "Fichier de politique illisible",
+                        text: "Fichier de politique illisible — le fichier de politique de signature ne peut pas être lu comme la politique de signature d'un tenant.",
+                    },
+                    "no-tenant": {
+                        lead: "Politique sans tenant",
+                        text: "Politique sans tenant — le fichier de politique de signature doit indiquer son tenant.",
+                    },
+                    "not-v2": {
+                        lead: "La politique n'est pas au format 2",
+                        text: "La politique n'est pas au format 2 — cette page a besoin d'une politique de signature qui exige des paquets au format 2.",
+                    },
+                },
+                "request": {
+                    "unreadable": {
+                        lead: "Demande d'approbation illisible",
+                        text: "Demande d'approbation illisible — le fichier de demande d'approbation ne peut pas être lu.",
+                    },
+                    "unreadable-approvals": {
+                        lead: "Approbations illisibles",
+                        text: "Approbations illisibles — un ou plusieurs fichiers d'approbation ne peuvent pas être lus.",
                     },
                 },
             },

@@ -70,6 +70,7 @@ fn manifest() -> Manifest {
             )]),
         },
         revocation_lists: Vec::new(),
+        signing: None,
     }
 }
 
@@ -185,13 +186,23 @@ fn the_manifest_is_written_once_with_a_trailing_newline() {
 #[test]
 fn an_unknown_format_is_not_read_as_this_one() {
     let mut value = serde_json::to_value(manifest()).unwrap();
-    value["format"] = json!("sequent.configuration-manifest/2");
+    // Format 2 exists now; /3 is one this version never heard of.
+    value["format"] = json!("sequent.configuration-manifest/3");
     let bytes = serde_json::to_vec(&value).unwrap();
     assert!(serde_json::from_slice::<Manifest>(&bytes).is_err());
     assert_eq!(
         declared_format(&bytes).as_deref(),
-        Some("sequent.configuration-manifest/2")
+        Some("sequent.configuration-manifest/3")
     );
+}
+
+#[test]
+fn a_format_1_manifest_is_written_exactly_as_before() {
+    // No format-2 field appears in a format-1 manifest's bytes.
+    let bytes = String::from_utf8(manifest().to_bytes().unwrap()).unwrap();
+    assert!(!bytes.contains("\"signing\""));
+    assert!(!bytes.contains("\"signer_id\""));
+    assert!(bytes.contains("\"format\": \"sequent.configuration-manifest/1\""));
 }
 
 #[test]

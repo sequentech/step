@@ -582,8 +582,17 @@ pub async fn run(
                 }),
                 reconciled: true,
             },
-            (Ok(_), Ok(_)) => SectionStatus::Failed {
-                error: "the import finished but the target still differs from the package".into(),
+            // Say why: a blocker the re-preview found (another import of the
+            // package committed meanwhile, for one) rather than a bare "differs".
+            (Ok(_), Ok(after)) => SectionStatus::Failed {
+                error: if after.blockers.is_empty() {
+                    "the import finished but the target still differs from the package".into()
+                } else {
+                    format!(
+                        "the import finished, and the target now refuses the package: {}",
+                        after.blockers.join("; ")
+                    )
+                },
                 task_id: task_id.clone(),
             },
             (Err(error), Ok(_)) => SectionStatus::Failed {

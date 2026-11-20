@@ -345,6 +345,7 @@ mod tests {
                 producer: BTreeMap::new(),
             },
             revocation_lists: Vec::new(),
+            signing: None,
         };
         let payload = approval_payload(
             &manifest.configuration.external_id,
@@ -361,6 +362,7 @@ mod tests {
                 algorithm: SignatureAlgorithm::EcdsaP256Sha256,
                 certificate_chain: approver.chain_pem.clone(),
                 signature: STANDARD.encode(sign(&approver.key, payload.as_bytes())),
+                signer_id: None,
             });
         }
         let bytes = manifest.to_bytes().unwrap();

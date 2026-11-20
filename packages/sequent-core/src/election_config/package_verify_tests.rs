@@ -229,6 +229,7 @@ fn unsigned_manifest(revision: u64) -> Manifest {
             producer: BTreeMap::new(),
         },
         revocation_lists: Vec::new(),
+        signing: None,
     }
 }
 
@@ -246,6 +247,7 @@ fn approve(manifest: &mut Manifest, signer: &Signer, name: &str) {
         algorithm: SignatureAlgorithm::EcdsaP256Sha256,
         certificate_chain: signer.chain_pem.clone(),
         signature: STANDARD.encode(sign(&signer.key, payload.as_bytes())),
+        signer_id: None,
     });
 }
 
@@ -785,7 +787,9 @@ fn a_content_digest_that_does_not_match_the_content_is_refused() {
 fn a_manifest_in_an_unknown_format_is_refused_as_such() {
     let world = world();
     let mut value = serde_json::to_value(approved(&world, 8)).unwrap();
-    value["format"] = serde_json::json!("sequent.configuration-manifest/2");
+    // Format 2 exists now: an unknown one is a format this version never
+    // heard of.
+    value["format"] = serde_json::json!("sequent.configuration-manifest/3");
     let manifest = serde_json::to_vec(&value).unwrap();
     let bytes = package(
         "p.zip",
@@ -910,6 +914,7 @@ fn settings(
         package_roots: world.root.pem(),
         staff_roots: world.staff_root.pem(),
         required_approvals: 2,
+        ..ConfigurationSigning::default()
     }
 }
 
@@ -1523,3 +1528,233 @@ fn the_signature_members_are_named_as_the_manifest_module_names_them() {
         ("manifest.json", "manifest.sig", "manifest.chain.pem")
     );
 }
+
+// Checking a tenant's configuration signing setting before it is saved: what
+// an administrator types becomes the tenant's trust, so a setting that would
+// trust nothing, or trust something that cannot sign, is refused up front.
+
+fn checked(settings: &ConfigurationSigning, now: &str) -> TrustCheck {
+    settings.check(at(now))
+}
+
+/// Every problem's id, warnings included.
+fn check_ids(check: &TrustCheck) -> Vec<String> {
+    check
+        .report
+        .problems
+        .iter()
+        .filter_map(|problem| problem.id.clone())
+        .collect()
+}
+
+#[test]
+fn a_complete_required_setting_passes_and_names_its_roots() {
+    let world = world();
+    let check = checked(
+        &settings(&world, ConfigurationSigningPolicy::Required),
+        "2026-11-13T00:00:00Z",
+    );
+    assert!(check.report.is_empty(), "{:?}", check.report);
+    let names: Vec<(&str, &str)> = check
+        .anchors
+        .iter()
+        .map(|anchor| (anchor.setting.as_str(), anchor.subject.as_str()))
+        .collect();
+    assert_eq!(
+        names,
+        vec![
+            ("package_roots", "CN=Organization Root"),
+            ("staff_roots", "CN=Staff Root"),
+        ]
+    );
+    assert_eq!(check.anchors[0].not_after, "2040-01-01T00:00:00Z");
+    assert_eq!(check.anchors[0].fingerprint_sha256.len(), 64);
+}
+
+#[test]
+fn requiring_signatures_without_package_roots_is_refused() {
+    let world = world();
+    let mut setting = settings(&world, ConfigurationSigningPolicy::Required);
+    setting.package_roots = "  \n".to_string();
+    let check = checked(&setting, "2026-11-13T00:00:00Z");
+    assert_eq!(
+        check_ids(&check),
+        vec!["configuration-signing.no-package-roots"]
+    );
+    assert!(check.report.has_errors());
+
+    // The optional policy may leave them out: signed packages then fail,
+    // unsigned files import as before.
+    setting.policy = ConfigurationSigningPolicy::Optional;
+    setting.required_approvals = 0;
+    setting.staff_roots = String::new();
+    assert!(checked(&setting, "2026-11-13T00:00:00Z").report.is_empty());
+}
+
+#[test]
+fn approvals_without_staff_roots_are_refused() {
+    let world = world();
+    let mut setting = settings(&world, ConfigurationSigningPolicy::Required);
+    setting.staff_roots = String::new();
+    let check = checked(&setting, "2026-11-13T00:00:00Z");
+    assert_eq!(
+        check_ids(&check),
+        vec!["configuration-signing.no-staff-roots"]
+    );
+}
+
+#[test]
+fn more_approvals_than_the_limit_are_refused() {
+    let world = world();
+    let mut setting = settings(&world, ConfigurationSigningPolicy::Required);
+    setting.required_approvals = MAX_REQUIRED_APPROVALS;
+    assert!(checked(&setting, "2026-11-13T00:00:00Z").report.is_empty());
+    setting.required_approvals = MAX_REQUIRED_APPROVALS + 1;
+    let check = checked(&setting, "2026-11-13T00:00:00Z");
+    assert_eq!(
+        check_ids(&check),
+        vec!["configuration-signing.too-many-approvals"]
+    );
+}
+
+#[test]
+fn requiring_signatures_with_no_approvals_is_allowed_with_a_warning() {
+    let world = world();
+    let mut setting = settings(&world, ConfigurationSigningPolicy::Required);
+    setting.required_approvals = 0;
+    let check = checked(&setting, "2026-11-13T00:00:00Z");
+    assert_eq!(
+        check_ids(&check),
+        vec!["configuration-signing.no-approvals"]
+    );
+    assert!(!check.report.has_errors());
+}
+
+#[test]
+fn an_expired_or_not_yet_valid_root_is_refused() {
+    let world = world();
+    let setting = settings(&world, ConfigurationSigningPolicy::Required);
+    let late = checked(&setting, "2041-01-01T00:00:00Z");
+    assert_eq!(
+        check_ids(&late),
+        vec![
+            "configuration-signing.root-expired",
+            "configuration-signing.root-expired"
+        ]
+    );
+    let early = checked(&setting, "2019-01-01T00:00:00Z");
+    assert_eq!(
+        check_ids(&early),
+        vec![
+            "configuration-signing.root-not-yet-valid",
+            "configuration-signing.root-not-yet-valid"
+        ]
+    );
+    assert_eq!(late.report.errors().next().unwrap().path, "package_roots");
+}
+
+#[test]
+fn a_root_that_is_not_a_certificate_authority_is_refused() {
+    let world = world();
+    let mut setting = settings(&world, ConfigurationSigningPolicy::Required);
+    // A person's certificate pasted where the issuer's belongs.
+    setting.staff_roots = world.officer.certificate_pem.clone();
+    let check = checked(&setting, "2026-11-13T00:00:00Z");
+    assert_eq!(check_ids(&check), vec!["configuration-signing.not-a-ca"]);
+    assert_eq!(check.report.errors().next().unwrap().path, "staff_roots");
+}
+
+#[test]
+fn roots_that_cannot_be_read_are_refused_by_setting() {
+    let world = world();
+    let mut setting = settings(&world, ConfigurationSigningPolicy::Required);
+    setting.package_roots =
+        "-----BEGIN CERTIFICATE-----\n!!!\n-----END CERTIFICATE-----\n"
+            .to_string();
+    let check = checked(&setting, "2026-11-13T00:00:00Z");
+    assert_eq!(check_ids(&check), vec!["package.unreadable-trust"]);
+    assert_eq!(check.report.errors().next().unwrap().path, "package_roots");
+}
+
+#[test]
+fn a_checked_setting_admits_what_it_trusts_and_nothing_else() {
+    // The setting that passes the check is the one admission uses: a
+    // package from its roots is admitted, one from another tenant's roots
+    // is not.
+    let (ours_world, other) = (world(), world());
+    let setting = settings(&ours_world, ConfigurationSigningPolicy::Required);
+    assert!(checked(&setting, "2026-11-13T00:00:00Z").report.is_empty());
+    let ours = signed(&approved(&ours_world, 3), &ours_world.key, &members());
+    assert!(matches!(
+        admit(&ours, Some(&setting), Vec::new()),
+        Ok(Admission::Verified(_))
+    ));
+    let theirs = signed(&approved(&other, 3), &other.key, &members());
+    let report = admit(&theirs, Some(&setting), Vec::new()).unwrap_err();
+    assert!(ids(&report).contains(&"package.untrusted-signer".to_string()));
+}
+
+#[test]
+fn a_root_setting_with_a_private_key_in_it_is_refused() {
+    let world = world();
+    let mut setting = settings(&world, ConfigurationSigningPolicy::Required);
+    // A synthetic key pasted together with the root, as an export with
+    // its key would be.
+    let key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
+    setting.package_roots =
+        format!("{}{}", world.root.pem(), key.serialize_pem());
+    let check = checked(&setting, "2026-11-13T00:00:00Z");
+    assert_eq!(
+        check_ids(&check),
+        vec!["configuration-signing.not-only-certificates"]
+    );
+    assert!(check.report.problems[0].message.contains("PRIVATE KEY"));
+    assert!(setting.canonical().is_err());
+
+    // Text around the certificates, and an unclosed block, are refused too.
+    setting.package_roots = format!("note: our root\n{}", world.root.pem());
+    assert_eq!(
+        check_ids(&checked(&setting, "2026-11-13T00:00:00Z")),
+        vec!["configuration-signing.not-only-certificates"]
+    );
+    setting.package_roots = "-----BEGIN CERTIFICATE-----\nMIIB\n".to_string();
+    assert_eq!(
+        check_ids(&checked(&setting, "2026-11-13T00:00:00Z")),
+        vec!["configuration-signing.not-only-certificates"]
+    );
+}
+
+#[test]
+fn the_stored_roots_are_the_certificates_alone() {
+    let world = world();
+    let mut setting = settings(&world, ConfigurationSigningPolicy::Required);
+    setting.package_roots =
+        format!("\n\n  {}  \n{}\n", world.root.pem(), world.staff_root.pem());
+    setting.staff_roots = String::new();
+    setting.required_approvals = 0;
+    let canonical = setting.canonical().unwrap();
+    // Both certificates, the indented one included, in order, nothing else.
+    let mut expected = certificates_from_pem(&world.root.pem()).unwrap();
+    expected.extend(certificates_from_pem(&world.staff_root.pem()).unwrap());
+    assert_eq!(
+        certificates_from_pem(&canonical.package_roots).unwrap(),
+        expected
+    );
+    // The check counts what is stored: two roots, both named.
+    let check = checked(&setting, "2026-11-13T00:00:00Z");
+    assert_eq!(check.anchors.len(), 2);
+    assert!(canonical
+        .package_roots
+        .starts_with("-----BEGIN CERTIFICATE-----\n"));
+    assert!(canonical
+        .package_roots
+        .ends_with("-----END CERTIFICATE-----\n"));
+    assert_eq!(canonical.package_roots.matches("BEGIN").count(), 2);
+    assert!(canonical.package_roots.lines().all(|line| line.len() <= 64));
+    assert_eq!(canonical.staff_roots, "");
+    assert_eq!(canonical.policy, setting.policy);
+    assert_eq!(canonical.required_approvals, 0);
+}
+
+#[path = "package_verify_v2_tests.rs"]
+mod v2;

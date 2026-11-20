@@ -14,6 +14,13 @@ const mockGetUploadUrl = jest.fn()
 const mockOtherMutation = jest.fn()
 const mockFetch = jest.fn()
 
+// The trust section has its own tests (ConfigurationSigningSettings.test.tsx);
+// here it only has to be on the page.
+jest.mock("./ConfigurationSigningSettings", () => ({
+    ConfigurationSigningSettings: ({tenantId}: {tenantId: string}) => (
+        <div data-testid="configuration-signing">{tenantId}</div>
+    ),
+}))
 jest.mock("@/queries/ApplyConfigurationPackage", () => ({
     APPLY_CONFIGURATION_PACKAGE: "APPLY",
     LIST_PACKAGE_APPLICATIONS: "HISTORY",

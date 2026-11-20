@@ -286,6 +286,13 @@ signing_enum! {
         #[serde(rename = "ecdsa-p256-sha256")]
         #[strum(serialize = "ecdsa-p256-sha256")]
         EcdsaP256Sha256,
+        /// RSASSA-PSS exactly as format-2 configuration packages use it:
+        /// SHA-256, MGF1 with SHA-256, a 32-byte salt, a 2048–4096-bit key.
+        /// Only configuration-package approvals use it; the platform's own
+        /// signing tables accept the two above (their CHECK refuses this).
+        #[serde(rename = "rsa-pss-sha256")]
+        #[strum(serialize = "rsa-pss-sha256")]
+        RsaPssSha256,
     }
 }
 

@@ -439,17 +439,24 @@ fn blank_or_repeated_trustee_names_block() {
 }
 
 #[test]
-fn a_package_already_imported_is_admitted_only_into_this_applications_event() {
+fn a_format_1_package_already_imported_is_admitted_only_into_this_applications_event() {
+    use sequent_core::election_config::manifest::ManifestFormat::V1;
     use sequent_core::election_config::package_verify::{already_imported, Freshness};
     let derived = "00000000-0000-4000-8000-0000000000e1";
-    assert_eq!(admission_problem(None, derived), None);
+    assert_eq!(admission_problem(None, derived, V1, 1, false), None);
     assert_eq!(
-        admission_problem(Some((Ok(Freshness::New), "other")), derived),
+        admission_problem(Some((Ok(Freshness::New), "other")), derived, V1, 2, false),
         None
     );
-    // Resuming: this application imported it, into its own event.
+    // Resuming: this application imported it, into its own event (format 1, unchanged).
     assert_eq!(
-        admission_problem(Some((Ok(Freshness::AlreadyImported), derived)), derived),
+        admission_problem(
+            Some((Ok(Freshness::AlreadyImported), derived)),
+            derived,
+            V1,
+            2,
+            false
+        ),
         None
     );
     // Imported standalone, into another event: the event section would be
@@ -457,11 +464,92 @@ fn a_package_already_imported_is_admitted_only_into_this_applications_event() {
     let elsewhere = admission_problem(
         Some((Ok(Freshness::AlreadyImported), "e-standalone")),
         derived,
+        V1,
+        2,
+        false,
     )
     .unwrap();
     assert!(elsewhere.contains("already imported into event e-standalone"));
-    let older = admission_problem(Some((Err(already_imported(3)), "e")), derived).unwrap();
+    let older =
+        admission_problem(Some((Err(already_imported(3)), "e")), derived, V1, 3, false).unwrap();
     assert!(older.starts_with("manifest.configuration.revision: revision 3"));
+}
+
+#[test]
+fn a_format_2_package_is_imported_exactly_once() {
+    use sequent_core::election_config::manifest::ManifestFormat::V2;
+    use sequent_core::election_config::package_verify::Freshness;
+    let derived = "00000000-0000-4000-8000-0000000000e2";
+    // Never imported, or a newer revision: admitted.
+    assert_eq!(admission_problem(None, derived, V2, 1, false), None);
+    assert_eq!(
+        admission_problem(Some((Ok(Freshness::New), derived)), derived, V2, 2, false),
+        None
+    );
+    // The same package again: refused into its OWN event (no idempotent replay)...
+    let same = admission_problem(
+        Some((Ok(Freshness::AlreadyImported), derived)),
+        derived,
+        V2,
+        2,
+        false,
+    )
+    .unwrap();
+    assert!(
+        same.starts_with(
+            "manifest.configuration.revision: revision 2 of this configuration is already imported"
+        ),
+        "{same}"
+    );
+    assert!(
+        same.contains("a format-2 package is imported exactly once"),
+        "{same}"
+    );
+    // Only THIS invocation's own successful event import lets its convergence
+    // re-preview pass; the same package into another event never does.
+    assert_eq!(
+        admission_problem(
+            Some((Ok(Freshness::AlreadyImported), derived)),
+            derived,
+            V2,
+            2,
+            true
+        ),
+        None
+    );
+    assert!(admission_problem(
+        Some((Ok(Freshness::AlreadyImported), "e-other")),
+        derived,
+        V2,
+        2,
+        true
+    )
+    .is_some());
+    // ...and into any other event.
+    let other = admission_problem(
+        Some((Ok(Freshness::AlreadyImported), "e-other")),
+        derived,
+        V2,
+        2,
+        false,
+    )
+    .unwrap();
+    assert!(
+        other.contains("is already imported (into event e-other)"),
+        "{other}"
+    );
+    // A rollback (another package, older revision) stays its own refusal.
+    let rollback = sequent_core::election_config::problem::Problem::error(
+        sequent_core::election_config::problem::Code::Rollback,
+        "manifest.configuration.revision",
+        "revision 1 is not newer than revision 2, the last one imported",
+    );
+    let refused = admission_problem(Some((Err(rollback), derived)), derived, V2, 1, false).unwrap();
+    assert!(
+        refused.contains("is not newer than revision 2"),
+        "{refused}"
+    );
+    assert!(!refused.contains("already imported"), "{refused}");
 }
 
 #[test]
@@ -507,6 +595,45 @@ fn realm_only_messaging_channels_need_the_permission_when_the_import_publishes_t
         &[]
     ));
     assert!(!carries_messaging(None, None, &[]));
+}
+
+#[test]
+fn a_file_never_decides_the_tenants_configuration_signing() {
+    let installed = json!({"configuration_signing": {"policy": "required"}, "i18n": {}});
+    // A file naming another policy gets the installed one back.
+    assert_eq!(
+        keep_reserved_settings(
+            Some(json!({"configuration_signing": {"policy": "optional"}, "theme": "dark"})),
+            Some(&installed)
+        ),
+        Some(json!({"configuration_signing": {"policy": "required"}, "theme": "dark"}))
+    );
+    // A file without it, or without settings at all, does not remove it.
+    assert_eq!(
+        keep_reserved_settings(Some(json!({"theme": "dark"})), Some(&installed)),
+        Some(json!({"configuration_signing": {"policy": "required"}, "theme": "dark"}))
+    );
+    assert_eq!(
+        keep_reserved_settings(None, Some(&installed)),
+        Some(json!({"configuration_signing": {"policy": "required"}}))
+    );
+    assert_eq!(
+        keep_reserved_settings(Some(Value::Null), Some(&installed)),
+        Some(json!({"configuration_signing": {"policy": "required"}}))
+    );
+    // Where none is installed, a file can't add one.
+    assert_eq!(
+        keep_reserved_settings(
+            Some(json!({"configuration_signing": {"policy": "optional"}, "theme": "dark"})),
+            Some(&json!({"i18n": {}}))
+        ),
+        Some(json!({"theme": "dark"}))
+    );
+    assert_eq!(keep_reserved_settings(None, None), None);
+    assert_eq!(
+        keep_reserved_settings(Some(json!({"theme": "dark"})), None),
+        Some(json!({"theme": "dark"}))
+    );
 }
 
 #[test]

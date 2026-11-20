@@ -49,12 +49,17 @@ const NESTED_ZIP_SUFFIX: &str = ".zip";
 pub enum ManifestFormat {
     #[serde(rename = "sequent.configuration-manifest/1")]
     V1,
+    /// Approvals and the final signature are bound to the target tenant,
+    /// its policy digest and enrolled signer IDs.
+    #[serde(rename = "sequent.configuration-manifest/2")]
+    V2,
 }
 
 impl ManifestFormat {
     pub fn as_str(self) -> &'static str {
         match self {
             ManifestFormat::V1 => "sequent.configuration-manifest/1",
+            ManifestFormat::V2 => "sequent.configuration-manifest/2",
         }
     }
 }
@@ -64,12 +69,15 @@ impl ManifestFormat {
 pub enum ApprovalFormat {
     #[serde(rename = "sequent.configuration-approval/1")]
     V1,
+    #[serde(rename = "sequent.configuration-approval/2")]
+    V2,
 }
 
 impl ApprovalFormat {
     pub fn as_str(self) -> &'static str {
         match self {
             ApprovalFormat::V1 => "sequent.configuration-approval/1",
+            ApprovalFormat::V2 => "sequent.configuration-approval/2",
         }
     }
 }
@@ -88,6 +96,26 @@ pub struct Manifest {
     /// importer learns of a revoked key with the next package.
     #[serde(default)]
     pub revocation_lists: Vec<String>,
+    /// Format 2 only: what the final signature is bound to. Absent from a
+    /// format-1 manifest, which is written exactly as before.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signing: Option<SigningBinding>,
+}
+
+/// Format 2: the tenant, policy and final signer a manifest is signed for.
+/// Covered by the final signature, as the whole manifest is.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SigningBinding {
+    /// The tenant the package is for: another tenant refuses it.
+    pub tenant_id: String,
+    /// [`super::signing_policy::policy_sha256`] of the tenant's policy when
+    /// it was approved and signed.
+    pub policy_sha256: String,
+    /// The enrolled signer ID of the final signer.
+    pub final_signer_id: String,
+    /// Always `final-signer`, named so the signature says what it is.
+    pub role: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -147,8 +175,11 @@ pub struct Approval {
     pub algorithm: SignatureAlgorithm,
     /// The approver's certificate and its issuers, PEM, leaf first.
     pub certificate_chain: String,
-    /// The signature, base64 DER.
+    /// The signature, base64: DER for ECDSA, the raw block for RSA.
     pub signature: String,
+    /// Format 2: the approver's enrolled signer ID, as its payload names it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signer_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -218,6 +249,52 @@ pub fn approval_payload(
         "content_sha256": content_sha256,
     }))
     .map_err(|error| unwritable_content(error.to_string()))
+}
+
+/// The bytes a format-2 approval signs: the target tenant, the
+/// configuration's revision and content, the exact policy digest and the
+/// approver's signer ID and role. Unlike format 1 it differs per approver,
+/// so the code everyone compares is [`approval_code_v2`] of the shared part.
+pub fn approval_payload_v2(
+    binding: &ApprovalBinding,
+    signer_id: &str,
+) -> Result<String, Problem> {
+    canonical_json(&json!({
+        "format": ApprovalFormat::V2.as_str(),
+        "tenant_id": binding.tenant_id,
+        "external_id": binding.external_id,
+        "revision": binding.revision,
+        "content_sha256": binding.content_sha256,
+        "policy_sha256": binding.policy_sha256,
+        "signer_id": signer_id,
+        "role": "approver",
+    }))
+    .map_err(|error| unwritable_content(error.to_string()))
+}
+
+/// What every format-2 approval of a revision shares.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApprovalBinding {
+    pub tenant_id: String,
+    pub external_id: String,
+    pub revision: u64,
+    pub content_sha256: String,
+    pub policy_sha256: String,
+}
+
+/// The code everyone who approves or signs a format-2 revision compares
+/// aloud: the same for all of them, from what they all bind to.
+pub fn approval_code_v2(binding: &ApprovalBinding) -> Result<String, Problem> {
+    let shared = canonical_json(&json!({
+        "format": ApprovalFormat::V2.as_str(),
+        "tenant_id": binding.tenant_id,
+        "external_id": binding.external_id,
+        "revision": binding.revision,
+        "content_sha256": binding.content_sha256,
+        "policy_sha256": binding.policy_sha256,
+    }))
+    .map_err(|error| unwritable_content(error.to_string()))?;
+    Ok(approval_code(&shared))
 }
 
 /// The payload's signing code: the first 40 bits of its SHA-256, as
