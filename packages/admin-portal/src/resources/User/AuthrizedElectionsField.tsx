@@ -7,6 +7,7 @@ import {Chip, Stack} from "@mui/material"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useTranslation} from "react-i18next"
 import {AUTHORIZED_ELECTION_IDS} from "./ListUsers"
+import {electionAuthorizationKey} from "./electionAuthorizationKey"
 
 export const AuthorizedElectionsField = ({electionEventId}: {electionEventId?: string}) => {
     const {t} = useTranslation()
@@ -22,10 +23,6 @@ export const AuthorizedElectionsField = ({electionEventId}: {electionEventId?: s
         {
             filter: {
                 election_event_id: electionEventId,
-                alias: {
-                    format: "hasura-raw-query",
-                    value: {_in: ids},
-                },
             },
             pagination: {page: 1, perPage: 500},
             sort: {field: "id", order: "DESC"},
@@ -37,9 +34,11 @@ export const AuthorizedElectionsField = ({electionEventId}: {electionEventId?: s
 
     return (
         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-            {data?.map((e: any) => (
-                <Chip key={e.id} label={aliasRenderer(e) ?? ""} />
-            ))}
+            {data
+                ?.filter((e: any) => ids.includes(electionAuthorizationKey(e)))
+                .map((e: any) => (
+                    <Chip key={e.id} label={aliasRenderer(e) ?? ""} />
+                ))}
         </Stack>
     )
 }
