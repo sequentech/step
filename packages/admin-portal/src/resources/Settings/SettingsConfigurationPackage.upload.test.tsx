@@ -16,6 +16,9 @@ const mockFetch = jest.fn()
 
 // The trust section has its own tests (ConfigurationSigningSettings.test.tsx);
 // here it only has to be on the page.
+jest.mock("./ArchitectApprovalPolicy", () => ({
+    ArchitectApprovalPolicy: () => null,
+}))
 jest.mock("./ConfigurationSigningSettings", () => ({
     ConfigurationSigningSettings: ({tenantId}: {tenantId: string}) => (
         <div data-testid="configuration-signing">{tenantId}</div>

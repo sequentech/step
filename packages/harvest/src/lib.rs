@@ -313,6 +313,8 @@ fn build_application_with(
                 routes::export_tally_results::export_tally_results_route,
                 routes::google_meet::generate_google_meeting,
                 routes::google_meet::set_google_service_account_key,
+                routes::architect_approval_policy::get_architect_approval_policy,
+                routes::architect_approval_policy::set_architect_approval_policy,
                 routes::configuration_signing::set_configuration_signing,
                 routes::generate_preview_url::generate_preview_url,
                 routes::import_certificate_authority::import_certificate_authority,

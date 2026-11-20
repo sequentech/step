@@ -41,7 +41,21 @@ const meta = {
             status: {preview: {changes: unknown[]}}
         }
         tenantSection.status.preview.changes = [{action: "update", keys: ["language_conf"]}]
+        let approvalPolicy: {required_approvals: number | null; generation: string} = {
+            required_approvals: null,
+            generation: "0",
+        }
         graphql = graphqlBoundary({
+            ArchitectApprovalPolicy: () => ({
+                data: {get_architect_approval_policy: approvalPolicy},
+            }),
+            SetArchitectApprovalPolicy: ({variables}) => {
+                approvalPolicy = {
+                    required_approvals: variables.count ?? null,
+                    generation: String(Number(approvalPolicy.generation) + 1),
+                }
+                return {data: {set_architect_approval_policy: approvalPolicy}}
+            },
             ListPackageApplications: () => ({data: {sequent_backend_tasks_execution: []}}),
             ApplyConfigurationPackage: () => ({
                 data: {

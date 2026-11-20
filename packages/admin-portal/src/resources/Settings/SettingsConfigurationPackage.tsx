@@ -44,6 +44,7 @@ import {
 } from "@/queries/ApplyConfigurationPackage"
 import ElectionHeader from "@/components/ElectionHeader"
 import {ImportScreen} from "@/components/election-event/import-data/ImportScreen"
+import {ArchitectApprovalPolicy} from "./ArchitectApprovalPolicy"
 import {ConfigurationSigningSettings} from "./ConfigurationSigningSettings"
 import {
     ActiveSubmission,
@@ -281,6 +282,7 @@ export const SettingsConfigurationPackage: React.FC = () => {
             </Typography>
 
             <Divider sx={{my: 2}} />
+            <ArchitectApprovalPolicy key={tenantId} tenantId={tenantId} />
             {tenantId ? <ConfigurationSigningSettings key={tenantId} tenantId={tenantId} /> : null}
 
             <Divider sx={{my: 2}} />

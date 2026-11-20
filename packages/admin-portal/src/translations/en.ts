@@ -4,6 +4,18 @@
 
 const englishTranslation = {
     translations: {
+        architectApprovalPolicy: {
+            title: "Architect revision approvals",
+            field: "Required WebAuthn approvals",
+            help: "Leave blank for 2. A whole number from 1 to 16 applies to new submissions only.",
+            invalid: "Enter a whole number from 1 to 16, or leave blank.",
+            receiver: "The offline receiver has a separately configured minimum. Lowering this setting does not lower that minimum. The final signer is separate and does not count as an approver.",
+            save: "Save approval policy",
+            saved: "Approval policy saved.",
+            failed: "Could not save the approval policy. Reload Tenant Settings and try again.",
+            loading: "Loading Architect approval policy…",
+            unavailable: "Architect approval policy could not be loaded.",
+        },
         configurationSigning: {
             title: "Package signing trust",
             description:
