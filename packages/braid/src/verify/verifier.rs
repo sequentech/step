@@ -78,6 +78,9 @@ enum Check {
     2) The trustee verification keys have been correctly constructed.
     3) All trustees have signed the public key statement, which asserts correctness
     of private shares (VSS).
+    4) Each trustee's shares have the expected number of commitments and encrypted
+    shares and, under DkgCommitmentProofPolicy::SchnorrPok, carry a valid proof of
+    knowledge of the discrete log of the trustee's first commitment.
     */
     PK_VALID,
     /*
