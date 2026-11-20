@@ -117,7 +117,6 @@ export const Populated: Story = {
                     tenantId: TENANT_ID,
                     electionEventId: STORY_IDS.event,
                     electionId: STORY_IDS.election,
-                    electionAlias: "Council",
                     ...statsDateRange(),
                     timeResolution: "day",
                     bucketCount: 7,

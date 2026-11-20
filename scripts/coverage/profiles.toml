@@ -327,6 +327,7 @@ test_arguments = [
     "--skip", "materialized_dates_match_schedule_contract_and_remain_tenant_scoped",
     "--skip", "materialized_dates_follow_the_online_voting_channel",
     "--skip", "channel_enablement_and_pause_are_rechecked_from_the_writer",
+    "--skip", "election_scoped_voters_are_authorized_by_external_id_or_id",
 ]
 limitations = [
     "Native default FIPS profile with local synthetic PostgreSQL 16 on port 3322, which also hosts the electoral log, matching the Rust CI service fixtures.",
@@ -383,6 +384,7 @@ WBRAID_B4_PG_PASSWORD = "test"
 "src/services/ceremonies/tally_execution_tests.rs" = "Standalone tally execution planner and orchestration unit tests; production remains measured."
 "src/services/external/datafix_cast_vote_tests.rs" = "Standalone unit-test module under cfg(test); the Datafix vote use case remains measured."
 "src/services/insert_cast_vote_database_tests.rs" = "Standalone PostgreSQL test module under cfg(test); the cast-vote service and its queries remain measured."
+"src/services/users_election_scope_tests.rs" = "Standalone PostgreSQL test module under cfg(test) that needs the Hasura schema; the voter queries remain measured."
 "src/services/cast_ballot_tests.rs" = "Standalone unit-test module under cfg(test); casting a received ballot remains measured."
 "src/services/insert_cast_vote_tests.rs" = "Standalone unit-test module under cfg(test); the cast-vote service remains measured."
 "src/services/receive_ballot_tests.rs" = "Standalone unit-test module under cfg(test); receiving a ballot at review remains measured."

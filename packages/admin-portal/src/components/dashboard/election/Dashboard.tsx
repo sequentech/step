@@ -20,12 +20,10 @@ import {CastVotesPerDay, GetElectionStatsQuery, Sequent_Backend_Election} from "
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useQuery} from "@apollo/client"
 import {GET_ELECTION_STATS} from "@/queries/GetElectionStats"
-import {IElectionStatistics, translateFromPresentation} from "@sequentech/ui-core"
+import {IElectionStatistics} from "@sequentech/ui-core"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {useTranslation} from "react-i18next"
 
 export default function DashboardElection() {
-    const {i18n} = useTranslation()
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
     const record = useRecordContext<Sequent_Backend_Election>()
@@ -33,9 +31,6 @@ export default function DashboardElection() {
         DEFAULT_VOTES_TIME_SELECTION
     )
 
-    const electionAlias = record
-        ? translateFromPresentation(record.presentation, "alias", i18n.language)
-        : undefined
     const endDate = getToday()
     const startDate = daysBefore(endDate, 6)
     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -54,7 +49,6 @@ export default function DashboardElection() {
             electionId: record?.id,
             startDate: formatDate(startDate),
             endDate: formatDate(endDate),
-            electionAlias: electionAlias ?? undefined,
             userTimezone,
             timeResolution: votesTimeSelection.resolution,
             bucketCount: getVotesBucketCount(votesTimeSelection),

@@ -53,16 +53,22 @@ use std::sync::Arc;
 use tempfile::NamedTempFile;
 use tracing::{event, instrument, Level};
 
+/// The `authorized-election-ids` value naming an election: its external ID,
+/// or its ID when it has none, as Keycloak's authorization mapper reads it.
+pub fn election_voter_authorization_alias(id: &str, external_id: Option<&str>) -> String {
+    external_id
+        .filter(|value| !value.is_empty())
+        .unwrap_or(id)
+        .to_string()
+}
+
 fn election_voter_authorization_aliases(
     elections: impl IntoIterator<Item = (String, Option<String>)>,
 ) -> HashMap<String, String> {
     elections
         .into_iter()
         .map(|(id, external_id)| {
-            // Match Keycloak's authorization mapper for missing external IDs.
-            let alias = external_id
-                .filter(|value| !value.is_empty())
-                .unwrap_or_else(|| id.clone());
+            let alias = election_voter_authorization_alias(&id, external_id.as_deref());
             (id, alias)
         })
         .collect()
