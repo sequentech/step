@@ -56065,6 +56065,26 @@
             "deprecationReason": null
           },
           {
+            "name": "ciphertext_fingerprints",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "content",
             "description": null,
             "args": [],
@@ -56480,6 +56500,16 @@
             "defaultValue": null
           },
           {
+            "name": "ciphertext_fingerprints",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "String_array_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "content",
             "description": null,
             "type": {
@@ -56767,6 +56797,24 @@
             "defaultValue": null
           },
           {
+            "name": "ciphertext_fingerprints",
+            "description": null,
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null
+          },
+          {
             "name": "content",
             "description": null,
             "type": {
@@ -56911,6 +56959,26 @@
             "deprecationReason": null
           },
           {
+            "name": "ciphertext_fingerprints",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "content",
             "description": null,
             "args": [],
@@ -57049,6 +57117,26 @@
               "kind": "SCALAR",
               "name": "String",
               "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "ciphertext_fingerprints",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -57322,6 +57410,16 @@
             "defaultValue": null
           },
           {
+            "name": "ciphertext_fingerprints",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "content",
             "description": null,
             "type": {
@@ -57553,6 +57651,12 @@
             "deprecationReason": null
           },
           {
+            "name": "ciphertext_fingerprints",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "content",
             "description": "column name",
             "isDeprecated": false,
@@ -57658,6 +57762,24 @@
               "kind": "SCALAR",
               "name": "bytea",
               "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "ciphertext_fingerprints",
+            "description": null,
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
             },
             "defaultValue": null
           },
@@ -57848,6 +57970,24 @@
             "defaultValue": null
           },
           {
+            "name": "ciphertext_fingerprints",
+            "description": null,
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null
+          },
+          {
             "name": "content",
             "description": null,
             "type": {
@@ -57980,6 +58120,12 @@
           },
           {
             "name": "cast_ballot_signature",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "ciphertext_fingerprints",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
