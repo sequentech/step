@@ -138,6 +138,10 @@ jobs:
           -- --ignored
         working-directory: packages/windmill
 
+      - name: Run PostgreSQL-backed row conversion regressions
+        run: cargo test postgres::row_conversion_tests -- --ignored
+        working-directory: packages/windmill
+
   # ===========================================================================
   # JOB: run-frontend-tests
   # ===========================================================================
