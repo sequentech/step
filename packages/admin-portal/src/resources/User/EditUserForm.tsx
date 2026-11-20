@@ -67,6 +67,7 @@ import debounce from "lodash/debounce"
 import {CustomAutocompleteArrayInput} from "@sequentech/ui-essentials"
 import {useCustomNotify} from "@/hooks/useCustomNotify"
 import {AUTHORIZED_ELECTION_IDS} from "./ListUsers"
+import {electionAuthorizationKey} from "./electionAuthorizationKey"
 
 interface ListUserRolesProps {
     userId?: string
@@ -590,7 +591,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const formattedElections = electionsList?.map((e) => {
         return {
-            external_id: e.alias ?? "",
+            external_id: electionAuthorizationKey(e),
             id: e.id,
             name: aliasRenderer(e),
         }
