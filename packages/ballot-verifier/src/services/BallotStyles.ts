@@ -14,6 +14,58 @@ export interface GetPublishedBallotStylesQuery {
     sequent_backend_ballot_style: Array<BallotStyleRow & {ballot_publication_id: string}>
 }
 
+export enum EPublishedBallotStyleLookup {
+    FOUND = "FOUND",
+    NOT_LOADED = "NOT_LOADED",
+    NOT_PUBLISHED = "NOT_PUBLISHED",
+    UNREADABLE = "UNREADABLE",
+}
+
+export type PublishedBallotStyleLookup =
+    | {status: EPublishedBallotStyleLookup.FOUND; ballotStyle: IElectionDTO}
+    | {status: Exclude<EPublishedBallotStyleLookup, EPublishedBallotStyleLookup.FOUND>}
+
+/**
+ * Looks up the ballot style with the given id among those of published
+ * publications of the given election event. NOT_PUBLISHED is only returned
+ * once the ballot styles have loaded and none of the published ones of that
+ * election event has that id; NOT_LOADED and UNREADABLE mean the lookup could
+ * not be completed.
+ */
+export const findPublishedBallotStyle = (
+    data: GetPublishedBallotStylesQuery | undefined,
+    ballotStyleId: string | undefined,
+    electionEventId: string | null
+): PublishedBallotStyleLookup => {
+    if (!data) {
+        return {status: EPublishedBallotStyleLookup.NOT_LOADED}
+    }
+    const publishedPublicationIds = new Set(
+        data.sequent_backend_ballot_publication.map((publication) => publication.id)
+    )
+    const ballotStyle = data.sequent_backend_ballot_style.find(
+        (style) =>
+            style.id === ballotStyleId &&
+            style.election_event_id === electionEventId &&
+            publishedPublicationIds.has(style.ballot_publication_id)
+    )
+    if (!ballotStyle) {
+        return {status: EPublishedBallotStyleLookup.NOT_PUBLISHED}
+    }
+    if (!isString(ballotStyle.ballot_eml)) {
+        return {status: EPublishedBallotStyleLookup.UNREADABLE}
+    }
+    try {
+        return {
+            status: EPublishedBallotStyleLookup.FOUND,
+            ballotStyle: JSON.parse(ballotStyle.ballot_eml),
+        }
+    } catch (error) {
+        console.log(`Error loading EML: ${error}`)
+        return {status: EPublishedBallotStyleLookup.UNREADABLE}
+    }
+}
+
 export const updateBallotStyleAndSelection = (
     data: GetPublishedBallotStylesQuery,
     dispatch: AppDispatch
