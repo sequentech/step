@@ -19,6 +19,9 @@ interface ImportScreenProps {
     errors: string | null
     disableImport?: boolean
     refresh?: string
+    // The file can hold voter passwords or secret attributes: downloading it
+    // then needs the voter secret attribute read permission.
+    voterSecretSource?: boolean
 }
 
 export const ImportStyles = {
@@ -40,7 +43,15 @@ const PasswordInputStyle = styled(FormStyles.PasswordInput)`
 
 export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenProps>> = memo(
     (props: ImportScreenProps): React.JSX.Element => {
-        const {doCancel, uploadCallback, doImport, disableImport, refresh, errors} = props
+        const {
+            doCancel,
+            uploadCallback,
+            doImport,
+            disableImport,
+            refresh,
+            errors,
+            voterSecretSource,
+        } = props
         const {t} = useTranslation()
         const notify = useNotify()
         const [loading, setLoading] = useState<boolean>(false)
@@ -89,6 +100,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                         media_type: isEncrypted ? "application/ezip" : theFile.type,
                         size: theFile.size,
                         is_public: false,
+                        ...(voterSecretSource ? {voter_secret_attributes: true} : {}),
                     },
                 })
 

@@ -17113,6 +17113,16 @@
                   }
                 },
                 "defaultValue": null
+              },
+              {
+                "name": "voter_secret_attributes",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                },
+                "defaultValue": null
               }
             ],
             "type": {
