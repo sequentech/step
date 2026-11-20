@@ -800,7 +800,9 @@ mod tests {
         if std::env::var_os("CI").is_some() {
             // These fixtures are synthetic. Include Chrome's subprocess logs
             // in failed CI output so a closed connection has a useful cause.
-            logging.modify(|level| *level = tracing::level_filters::LevelFilter::DEBUG)?;
+            let (debug, _) =
+                sequent_core::util::init_log::build_filter(Some("debug,headless_chrome=debug"));
+            logging.modify(|filter| *filter = debug)?;
         }
 
         // Keep multiple elections and contests, the deliberately missing area,
