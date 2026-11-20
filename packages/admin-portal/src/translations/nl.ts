@@ -2668,6 +2668,7 @@ const dutchTranslation: TranslationType = {
                 ELECTORAL_RESULTS: "Verkiezingsresultaten",
                 MANUAL_VERIFICATION: "Handmatige Verificatie",
                 PARTICIPATION_REPORT: "Participatierapport",
+                OV_WHO_VOTED: "Lijst van kiezers die hebben gestemd",
                 STATISTICAL_REPORT: "Statistisch Rapport",
                 OVCS_EVENTS: "Monitoring Stemmen Buitenland - OVCS Gebeurtenissen",
                 AUDIT_LOGS: "Auditlogs",
@@ -3922,6 +3923,7 @@ const dutchTranslation: TranslationType = {
                 ACTIVITY_LOGS: "Activiteitenlogs",
                 MANUAL_VERIFICATION: "Handmatige Verificatie",
                 PARTICIPATION_REPORT: "Participatierapport",
+                OV_WHO_VOTED: "Lijst van kiezers die hebben gestemd",
             },
             method: {
                 email: "E-mail",

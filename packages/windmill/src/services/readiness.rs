@@ -32,7 +32,6 @@ use sequent_core::types::voter_import::VotersImportedEvidence;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use uuid::Uuid;
-use voting_crypto::signing::VerificationKey;
 use voting_crypto::RecordDeserialize;
 
 /// Where a readiness check stopped without a verdict, as error context. It
@@ -223,10 +222,10 @@ async fn voter_receipt_delivered(
     };
     let message = Message::record_deserialize(&delivered.message.message)?;
     let key =
-        crate::services::electoral_log_board::get_board_signing_key(tx, tenant, Some(event), board)
+        crate::services::electoral_log_board::get_board_public_key(tx, tenant, Some(event), board)
             .await?;
     message
-        .verify(&VerificationKey::from_sk(&key)?)
+        .verify(&key)
         .context("Voter-import evidence has an invalid electoral-log signature")?;
     if message.statement.head.event.0 != event {
         return Ok(false);

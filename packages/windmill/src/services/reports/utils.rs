@@ -46,3 +46,33 @@ pub async fn get_public_asset_template(filename: &str) -> Result<String> {
 
     Ok(template_hbs)
 }
+
+/// A CSV cell a spreadsheet would run as a formula starts with one of these;
+/// it is written after a `'`, so opening the file runs nothing.
+pub fn defuse_formula(text: &str) -> String {
+    match text.chars().next() {
+        Some('=' | '+' | '-' | '@' | '\t' | '\r') => format!("'{text}"),
+        _ => text.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::defuse_formula;
+
+    #[test]
+    fn a_cell_a_spreadsheet_would_run_is_written_after_a_quote() {
+        for (cell, written) in [
+            ("=1+1", "'=1+1"),
+            ("+63", "'+63"),
+            ("-x", "'-x"),
+            ("@SUM(A1)", "'@SUM(A1)"),
+            ("\tx", "'\tx"),
+            ("Dela Cruz", "Dela Cruz"),
+            ("", ""),
+            ("María-José", "María-José"),
+        ] {
+            assert_eq!(defuse_formula(cell), written);
+        }
+    }
+}

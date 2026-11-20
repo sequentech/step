@@ -564,7 +564,15 @@ const frenchTranslation: TranslationType = {
                         text: "Annulation sans seconde chance — un électeur peut annuler un bulletin déposé sans avoir de seconde tentative pour le remplacer.",
                     },
                 },
-                "event": {
+                event: {
+                    "ballot-identity-unknown": {
+                        lead: "Identité du bulletin inconnue",
+                        text: "Identité du bulletin inconnue — '{{value}}' n’est pas pris en charge. Utilisez voter-id ou pseudonym.",
+                    },
+                    "pseudonym-incompatible": {
+                        lead: "Paramètres de pseudonyme incompatibles",
+                        text: "Paramètres de pseudonyme incompatibles — {{reason}}. La plateforme refuse d’importer cette configuration.",
+                    },
                     "checks-period-invalid": {
                         lead: "Période de vérification non valide",
                         text: "Période de vérification non valide — la période pendant laquelle les électeurs peuvent vérifier leur bulletin n'a pas pu être lue : {{reason}}",

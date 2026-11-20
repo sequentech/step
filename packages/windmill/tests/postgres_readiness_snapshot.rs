@@ -239,7 +239,7 @@ async fn seal_tested_box(
     .await
     .unwrap();
     let built = electoral_log::seal::build(electoral_log::seal::BallotBoxSealManifest {
-        format: electoral_log::seal::SEAL_FORMAT_V1.into(),
+        format: electoral_log::seal::SEAL_FORMAT_V2.into(),
         tenant_id: ids.tenant.to_string(),
         election_event_id: ids.event.to_string(),
         election_id: ids.election.to_string(),

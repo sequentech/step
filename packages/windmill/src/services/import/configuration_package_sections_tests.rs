@@ -416,12 +416,9 @@ fn administrator_files_carry_only_the_producers_columns() {
             "the administrators file carries column 'hashed_password', which a package may not set",
         ]
     );
-    // Even so, the import file never carries them.
-    let written = String::from_utf8(absent_admin_rows(csv, &BTreeMap::new()).unwrap()).unwrap();
-    assert_eq!(
-        written,
-        "username,email,first_name,last_name,group_name\na,,,,admin\n"
-    );
+    // Do not silently strip credentials and make an altered request: reject
+    // the whole invalid roster before it can be staged for import.
+    assert!(absent_admin_rows(csv, &BTreeMap::new()).is_err());
     assert!(admin_column_problems(b"username,group_name\na,admin\n")
         .unwrap()
         .is_empty());
@@ -636,5 +633,174 @@ fn a_file_never_decides_the_tenants_configuration_signing() {
     assert_eq!(
         keep_reserved_settings(Some(json!({"theme": "dark"})), None),
         Some(json!({"theme": "dark"}))
+    );
+}
+
+#[test]
+fn admin_roster_supported_attributes_survive_and_secrets_are_rejected() {
+    let csv = b"username,group_name,permission_labels,trustee,title,sequent.read-only.mobile-number\nnew,admin,area-a|area-b,native-trustee,Officer,+123456\n";
+    assert!(admin_column_problems(csv).unwrap().is_empty());
+    let rows = read_admin_rows(csv).unwrap();
+    assert_eq!(rows[0].fields["title"], "Officer");
+    assert_eq!(absent_admin_rows(csv, &BTreeMap::new()).unwrap(), csv);
+    for column in ["password", "hashed_password", "private_key", "unknown"] {
+        let csv = format!("username,group_name,{column}\na,admin,\n");
+        assert!(!admin_column_problems(csv.as_bytes()).unwrap().is_empty());
+    }
+}
+
+#[test]
+fn admin_roster_existing_attributes_and_privileges_are_checked() {
+    use super::super::import_users::{
+        GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
+    };
+    let rows = read_admin_rows(b"username,group_name,permission_labels,trustee,title\none,admin,label-a,native-trustee,Officer\n").unwrap();
+    let denied = ImportUsersPrivileges::default();
+    let allowed = ImportUsersPrivileges {
+        group_assignment: GroupAssignmentPolicy::AnyGroup,
+        permission_labels: PermissionLabelPolicy::Allowed,
+    };
+    assert!(!admin_detail_problems(&rows, &BTreeMap::new(), &BTreeSet::new(), &denied).is_empty());
+    assert!(
+        admin_detail_problems(&rows, &BTreeMap::new(), &set(&["native-trustee"]), &allowed)
+            .is_empty()
+    );
+    let mut current = BTreeMap::from([(
+        "one".to_string(),
+        ExistingAdmin {
+            service_account: false,
+            fields: BTreeMap::from([
+                ("permission_labels".into(), set(&["label-a"])),
+                ("trustee".into(), set(&["native-trustee"])),
+                ("title".into(), set(&["Officer"])),
+            ]),
+        },
+    )]);
+    assert!(admin_detail_problems(&rows, &current, &set(&["native-trustee"]), &allowed).is_empty());
+    current
+        .get_mut("one")
+        .unwrap()
+        .fields
+        .insert("title".into(), set(&["Different"]));
+    let problems = admin_detail_problems(&rows, &current, &set(&["native-trustee"]), &allowed);
+    assert!(problems.iter().any(|p| p.contains("title")));
+    assert!(!problems.iter().any(|p| p.contains("Different")));
+}
+
+#[test]
+fn admin_roster_account_flags_are_typed_and_existing_values_must_match() {
+    use super::super::import_users::{
+        GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
+    };
+    let csv = b"username,group_name,enabled,email_verified\nOne,admin,TRUE,false\n";
+    let rows = read_admin_rows(csv).unwrap();
+    assert_eq!(rows[0].fields["enabled"], "true");
+    assert_eq!(rows[0].fields["email_verified"], "false");
+    let privileges = ImportUsersPrivileges {
+        group_assignment: GroupAssignmentPolicy::AnyGroup,
+        permission_labels: PermissionLabelPolicy::Allowed,
+    };
+    let mut current = BTreeMap::from([(
+        "one".into(),
+        ExistingAdmin {
+            service_account: false,
+            fields: BTreeMap::from([
+                ("enabled".into(), set(&["true"])),
+                ("email_verified".into(), set(&["false"])),
+            ]),
+        },
+    )]);
+    assert!(admin_detail_problems(&rows, &current, &BTreeSet::new(), &privileges).is_empty());
+    current.get_mut("one").unwrap().service_account = true;
+    assert!(!admin_detail_problems(&rows, &current, &BTreeSet::new(), &privileges).is_empty());
+    for csv in [
+        "username,group_name,enabled\na,admin,yes\n",
+        "username,group_name,email_verified\na,admin,\n",
+        "username,group_name\na,admin\nA,admin\n",
+        "username,group_name,group_name\na,admin,admin\n",
+        "username,group_name,permission_labels\na,admin,a||b\n",
+    ] {
+        assert!(read_admin_rows(csv.as_bytes()).is_err(), "{csv}");
+    }
+}
+
+#[test]
+fn admin_roster_permission_labels_are_reconciled_not_blocked() {
+    use super::super::import_users::{
+        GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
+    };
+    let rows =
+        read_admin_rows(b"username,group_name,permission_labels\nadmin,admin,area-a|area-b\n")
+            .unwrap();
+    let current = BTreeMap::from([("admin".into(), ExistingAdmin::default())]);
+    let allowed = ImportUsersPrivileges {
+        group_assignment: GroupAssignmentPolicy::AnyGroup,
+        permission_labels: PermissionLabelPolicy::Allowed,
+    };
+    assert!(admin_detail_problems(&rows, &current, &BTreeSet::new(), &allowed).is_empty());
+}
+
+#[test]
+fn admin_label_reconciliation_is_exact_idempotent_and_privileged() {
+    use super::super::import_users::{
+        GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
+    };
+    let allowed = ImportUsersPrivileges {
+        group_assignment: GroupAssignmentPolicy::AnyGroup,
+        permission_labels: PermissionLabelPolicy::Allowed,
+    };
+    let denied = ImportUsersPrivileges {
+        permission_labels: PermissionLabelPolicy::Forbidden,
+        ..allowed
+    };
+    let current = BTreeMap::from([(
+        "admin".into(),
+        ExistingAdmin {
+            fields: BTreeMap::from([("permission_labels".into(), set(&["old", "keep"]))]),
+            ..Default::default()
+        },
+    )]);
+    let rows =
+        read_admin_rows(b"username,group_name,permission_labels\nAdmin,admin,new|keep\n").unwrap();
+    assert_eq!(
+        admin_permission_label_updates(&rows, &current)["admin"],
+        set(&["keep", "new"])
+    );
+    assert!(!admin_detail_problems(&rows, &current, &BTreeSet::new(), &denied).is_empty());
+    let mut preview = admin_changes(
+        &rows,
+        &BTreeMap::from([("admin".into(), set(&["admin"]))]),
+        &set(&["admin"]),
+    );
+    preview_admin_permission_labels(&mut preview, &rows, &current);
+    assert!(preview.needs_apply);
+    assert_eq!(preview.changes[0]["action"], "update-permission-labels");
+    let same =
+        read_admin_rows(b"username,group_name,permission_labels\nadmin,admin,keep|old\n").unwrap();
+    assert!(admin_permission_label_updates(&same, &current).is_empty());
+    let omitted = read_admin_rows(b"username,group_name\nadmin,admin\n").unwrap();
+    assert!(admin_permission_label_updates(&omitted, &current).is_empty());
+    let clear = read_admin_rows(b"username,group_name,permission_labels\nadmin,admin,\n").unwrap();
+    assert!(admin_permission_label_updates(&clear, &current)["admin"].is_empty());
+    assert!(!admin_detail_problems(&clear, &current, &BTreeSet::new(), &denied).is_empty());
+    assert!(admin_detail_problems(&clear, &current, &BTreeSet::new(), &allowed).is_empty());
+    let mut service = current.clone();
+    service.get_mut("admin").unwrap().service_account = true;
+    assert!(!admin_detail_problems(&rows, &service, &BTreeSet::new(), &allowed).is_empty());
+    let mut conflict = admin_changes(
+        &rows,
+        &BTreeMap::from([("admin".into(), set(&["other"]))]),
+        &set(&["admin"]),
+    );
+    preview_admin_permission_labels(&mut conflict, &rows, &current);
+    assert!(!conflict.blockers.is_empty());
+    assert_eq!(conflict.changes[0]["action"], "conflict");
+    let changed =
+        read_admin_rows(b"username,group_name,permission_labels,title\nadmin,admin,new,Changed\n")
+            .unwrap();
+    assert!(
+        admin_detail_problems(&changed, &current, &BTreeSet::new(), &allowed)
+            .iter()
+            .any(|p| p.contains("title"))
     );
 }

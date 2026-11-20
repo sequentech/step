@@ -27,6 +27,74 @@ The Reports tab allows for the configuration, generation, and scheduling of repo
    - You can only choose a label that your own user carries (see [Assigning a Permission Label](../03-election/03-election_management_election_data.md#assigning-a-permission-label)). Otherwise the report is not saved and the Admin Portal shows **Error submitting Report**.
 6. Select **Save**.
 
+### Generating and previewing
+
+**Preview** draws the report's template with sample data and needs the
+`report-preview` permission. **Generate** reads the event's data and needs
+`report-generate`. Both need `report-read`. A report is generated only in the
+tenant and election event it belongs to.
+
+### List of Voters who Actually Voted
+
+This report lists the voters who cast an accepted ballot, for every Post
+(election) of the event or for the one Post the report names. One generation
+writes a PDF and a CSV of the same voters.
+
+1. Select **Add** and choose **List of Voters who Actually Voted** as the
+   **Report Type**.
+2. Leave **Election** blank to list **All Posts**, or choose one Post.
+3. Select **Save**, then **Generate** in the report's row menu.
+4. When the task finishes, download the result. A report configured with both
+   formats gives a ZIP with the PDF and the CSV.
+
+Generating it needs `voter-read` besides the report permissions, since it names
+voters. A report without a Post needs every Post's permission label.
+
+What the list contains:
+
+- **Who voted, not when or how.** For each Post and each of its areas: number,
+  name (last name, first name, suffix, middle name) and username. It never
+  shows a ballot time, channel, ballot ID or choice. The 2025 report's *Date
+  voted* column is not printed.
+- **Accepted ballots only.** A voter who revoted is listed once. Ballots
+  waiting for an external confirmation (pending) and rejected ballots are not
+  accepted votes.
+- **Per area:** voters who voted, registered voters who did not vote, and the
+  total. Voters whose account is in no area of the Post close the Post's list,
+  and a voter whose account no longer exists is shown as *(voter record not
+  found)*.
+- **Large lists** print the PDF in parts (by default 1,000 voters per part,
+  the template's *Max items per report*), delivered in a ZIP. The CSV holds
+  every voter.
+- The list is kept in the event's documents only: it is never sent by email,
+  and it is never generated on a schedule. A list report that carries a
+  schedule (for example one imported from an older version) has its
+  **Repeatable** setting turned off at its next run, with a failed task that
+  says why.
+
+In events whose ballots carry pseudonyms, the list is refused when a voter of a
+Post has a pending or rejected ballot and no accepted one, or after the voter
+identity mapping was purged: the system cannot then tell which voters cast an
+accepted ballot without resolving pseudonyms. A voter with a rejected ballot
+and an accepted one does not prevent the list. While voting is open, a ballot
+arriving during the generation can also make it fail; generating it again
+reads the ballot box anew.
+
+Accented and other Latin, Greek and Cyrillic letters print in the PDF. The PDF
+renderer has no fonts for Chinese, Japanese or Korean, so such characters print
+as boxes there; the CSV keeps every character.
+
+The list names voters, so its PDF is drawn with scripts turned off. It has no
+QR code; the report hash, system hash, version and the user who generated it
+are printed as text. A custom template from the 2025 version that draws a QR
+code with a script prints an empty space there.
+
+The CSV is UTF-8 with a header row, quoted as RFC 4180. Its columns are
+`election_id`, `election_external_id`, `election`, `post`, `area_id`, `area`,
+`number`, `last_name`, `first_name`, `middle_name`, `suffix`, `username` and
+`record` (`found` or `missing`). A cell that starts with `=`, `+`, `-` or `@`
+is written after a `'`, so a spreadsheet does not run it as a formula.
+
 ### Repeatable Reports
 
 Enabling the **Repeatable** option allows generating and sending reports repeatedly according to a schedule (Cron expression).

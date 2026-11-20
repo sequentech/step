@@ -2683,6 +2683,7 @@ const frenchTranslation: TranslationType = {
                 ELECTORAL_RESULTS: "Résultats Électoraux",
                 MANUAL_VERIFICATION: "Vérification Manuelle",
                 PARTICIPATION_REPORT: "Rapport de Participation",
+                OV_WHO_VOTED: "Liste des électeurs ayant voté",
                 STATISTICAL_REPORT: "Rapport Statistique",
                 OVCS_EVENTS: "Suivi du Vote à l'Étranger - Événements OVCS",
                 AUDIT_LOGS: "Journaux d'Audit",
@@ -3949,6 +3950,7 @@ const frenchTranslation: TranslationType = {
                 ACTIVITY_LOGS: "Journaux d'Activité",
                 MANUAL_VERIFICATION: "Vérification Manuelle",
                 PARTICIPATION_REPORT: "Rapport de Participation",
+                OV_WHO_VOTED: "Liste des électeurs ayant voté",
             },
             method: {
                 email: "Email",

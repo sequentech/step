@@ -561,7 +561,15 @@ const spanishTranslation: TranslationType = {
                         text: "Anular sin segunda oportunidad — un votante puede desechar una papeleta emitida y no tiene otro intento para sustituirla.",
                     },
                 },
-                "event": {
+                event: {
+                    "ballot-identity-unknown": {
+                        lead: "Identidad de papeleta desconocida",
+                        text: "Identidad de papeleta desconocida — '{{value}}' no es compatible. Use voter-id o pseudonym.",
+                    },
+                    "pseudonym-incompatible": {
+                        lead: "Configuración de seudónimo incompatible",
+                        text: "Configuración de seudónimo incompatible — {{reason}}. La plataforma rechaza importar esta configuración.",
+                    },
                     "checks-period-invalid": {
                         lead: "Periodo de comprobación no válido",
                         text: "Periodo de comprobación no válido — no se pudo leer el periodo en el que los votantes pueden comprobar su voto emitido: {{reason}}",

@@ -559,7 +559,15 @@ const catalanTranslation: TranslationType = {
                         text: "Anul·lar sense segona oportunitat — un votant pot descartar una papereta emesa i no té cap segon intent per substituir-la.",
                     },
                 },
-                "event": {
+                event: {
+                    "ballot-identity-unknown": {
+                        lead: "Identitat de papereta desconeguda",
+                        text: "Identitat de papereta desconeguda — '{{value}}' no és compatible. Feu servir voter-id o pseudonym.",
+                    },
+                    "pseudonym-incompatible": {
+                        lead: "Configuració de pseudònim incompatible",
+                        text: "Configuració de pseudònim incompatible — {{reason}}. La plataforma rebutja importar aquesta configuració.",
+                    },
                     "checks-period-invalid": {
                         lead: "Període de comprovació no vàlid",
                         text: "Període de comprovació no vàlid — no s'ha pogut llegir el període en què els votants poden comprovar el seu vot emès: {{reason}}",

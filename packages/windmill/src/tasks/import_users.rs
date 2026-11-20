@@ -164,7 +164,8 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
 /// The task's work, also run in-process by the package application, which
 /// must not wait on another task in its own queue. Not retried there.
 pub async fn execute(body: ImportUsersBody, task_execution: TasksExecution) -> Result<()> {
-    match run_import_users(&body, &task_execution).await {
+    let pool = get_hasura_pool().await;
+    match run_import_users(pool.as_ref(), &body, &task_execution).await {
         Ok(()) => Ok(()),
         Err(err) => {
             let problems = import_failure_problems(&err);
@@ -196,7 +197,10 @@ pub async fn execute(body: ImportUsersBody, task_execution: TasksExecution) -> R
     }
 }
 
+/// The import on the given Hasura database pool: the task's own in production,
+/// a test's private migrated database in tests.
 async fn run_import_users(
+    pool: &deadpool_postgres::Pool,
     body: &ImportUsersBody,
     task_execution: &TasksExecution,
 ) -> anyhow::Result<()> {
@@ -205,11 +209,7 @@ async fn run_import_users(
         .as_deref()
         .filter(|id| !id.is_empty());
     let is_admin = event_id.is_none();
-    let mut client = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .context("Failed to get Hasura DB pool")?;
+    let mut client = pool.get().await.context("Failed to get Hasura DB pool")?;
     let tx = client
         .transaction()
         .await
@@ -381,12 +381,6 @@ mod tests {
     async fn a_failed_import_cannot_resume_document_or_voter_processing() {
         let pool = super::import_test_schema::pool().await;
         let mut client = pool.get().await.unwrap();
-        let database: String = client
-            .query_one("SELECT current_database()", &[])
-            .await
-            .unwrap()
-            .get(0);
-        std::env::set_var("HASURA_DB__DBNAME", database);
         let tenant = uuid::Uuid::new_v4();
         let event = uuid::Uuid::new_v4();
         let task_id = uuid::Uuid::new_v4();
@@ -407,7 +401,7 @@ mod tests {
             "tenant_id":tenant.to_string(), "election_event_id":event.to_string(),
             "document_id":uuid::Uuid::new_v4().to_string(), "sha256":"ab".repeat(32),
         }));
-        let error = run_import_users(&input, &task).await.unwrap_err();
+        let error = run_import_users(&pool, &input, &task).await.unwrap_err();
         assert_eq!(error.to_string(), "Import task is no longer in progress");
         let tx = client.transaction().await.unwrap();
         let stored =

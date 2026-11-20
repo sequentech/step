@@ -450,14 +450,18 @@ mod tests {
         // Another tenant's imports are not held back.
         assert!(import_lock_is_free(&pool, &uuid::Uuid::new_v4().to_string()).await);
 
-        // Dropping it closes the connection, and the server releases the lock.
-        drop(held);
+        // Probe once while held, then drop it: closing the connection releases
+        // the lock asynchronously. This exercises the retry path regardless of
+        // how quickly PostgreSQL observes the closed connection.
+        let mut held = Some(held);
         let mut free = false;
         for _ in 0..50 {
             if import_lock_is_free(&pool, &tenant).await {
+                assert!(held.is_none(), "the lock was released before its hold");
                 free = true;
                 break;
             }
+            drop(held.take());
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         }
         assert!(free, "the lock outlived its hold");

@@ -16,7 +16,8 @@ use crate::postgres::certificate_authority::{
     delete_certificate_authorities, insert_certificate_authority, CertificateAuthorityRecord,
 };
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::electoral_log::ElectoralLog;
+use crate::services::electoral_log::admin_signed_certificate_event;
+use crate::services::electoral_log_outbox::write_outbox_entry;
 
 // The standard PEM (Privacy-Enhanced Mail) file format conventionally requires five dashes
 const CERT_BEGIN: &str = "-----BEGIN CERTIFICATE-----";
@@ -124,6 +125,90 @@ pub fn parse_certificate_pem(pem: &str) -> Result<ParsedCertificate> {
     })
 }
 
+/// Records a certificate action in the electoral log in the action's own
+/// transaction, failing closed: the administrator signs the entry now (their
+/// vault key, as a direct post would) and it is written to the action
+/// database's electoral-log outbox. If it can't be signed or written, the
+/// action is refused and nothing commits; if the action rolls back, so does
+/// the entry. After the commit the outbox's relay hands it to the electoral
+/// log, where the board attests it (`services::electoral_log_outbox`).
+async fn record_certificate_action(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Uuid,
+    action: CertificateAuthEventAction,
+    subjects: Vec<String>,
+    user_id: &str,
+    preferred_username: Option<String>,
+) -> Result<()> {
+    // The log's scope lock first (before the statement's time is taken), held
+    // until this transaction ends: a direct post of the log either appends
+    // before this entry is written or is refused until it is stored.
+    let scope = crate::services::electoral_log_deferral::scope_key(
+        tenant_id,
+        &election_event_id.to_string(),
+    );
+    crate::services::electoral_log_outbox::lock_scope(&**hasura_transaction, &scope, true).await?;
+    let admin_key = crate::services::vault::get_admin_user_signing_key(
+        hasura_transaction,
+        tenant_id,
+        user_id,
+        preferred_username.clone(),
+        None,
+        None,
+    )
+    .await
+    .context("Error getting the administrator's signing key for the electoral log")?;
+    let statement = admin_signed_certificate_event(
+        &admin_key,
+        tenant_id,
+        &election_event_id.to_string(),
+        action,
+        subjects,
+        user_id,
+        preferred_username,
+    )
+    .context("Error signing the certificate action's electoral-log entry")?;
+    // The announcement of the administrator's key, signed with the tenant
+    // log's system key, travels with the entry: the relay forwards it, checked,
+    // without reading any key.
+    let tenant_log =
+        crate::services::electoral_log_board::ensure_tenant_log(hasura_transaction, tenant_id)
+            .await
+            .context("Error getting the tenant log for the administrator's key")?;
+    let admin_public_key =
+        voting_crypto::signing::VerificationKey::from_sk(&admin_key)?.to_b64_string()?;
+    let announcement = crate::services::electoral_log_outbox::admin_key_announcement(
+        &tenant_log.system_key,
+        tenant_id,
+        user_id,
+        None,
+        &admin_public_key,
+    )
+    .context("Error signing the administrator's key announcement")?;
+    write_outbox_entry(hasura_transaction, &statement, &announcement)
+        .await
+        .context("Error recording the certificate action's electoral-log entry")?;
+    Ok(())
+}
+
+/// Commits a certificate action with its entry, then relays the outbox now,
+/// waiting a bounded time (`RELAY_KICK_WAIT`), and asks for a batch dispatch
+/// now, so the log's later posts (opening voting, say) are refused for as
+/// short a time as the signer allows. Best effort: beat relays and dispatches
+/// anyway; the gate is unchanged.
+async fn commit_recorded(hasura_transaction: Transaction<'_>, recorded: bool) -> Result<()> {
+    hasura_transaction
+        .commit()
+        .await
+        .context("Failed to commit transaction")?;
+    if recorded {
+        crate::services::electoral_log_outbox::relay_now().await;
+        crate::tasks::audit_log_outbox::kick_audit_log_outbox();
+    }
+    Ok(())
+}
+
 pub struct CertificateImportResult {
     pub inserted_count: i32,
     pub skipped_count: i32,
@@ -199,50 +284,24 @@ pub async fn import_certificate_authority(
         }
     }
 
-    let electoral_log = if !inserted_subjects.is_empty() {
-        let board_name = get_election_event_board(bulletin_board_reference)
+    // The entry, signed by the administrator, is written in the import's own
+    // transaction; if that fails, nothing commits (fail closed).
+    let recorded = !inserted_subjects.is_empty();
+    if recorded {
+        get_election_event_board(bulletin_board_reference)
             .ok_or_else(|| anyhow!("Missing bulletin board"))?;
-        match ElectoralLog::for_admin_user(
+        record_certificate_action(
             &hasura_transaction,
-            &board_name,
             tenant_id,
-            &election_event_id.to_string(),
+            election_event_id,
+            CertificateAuthEventAction::Import,
+            inserted_subjects,
             user_id,
-            preferred_username.clone(),
-            None,
-            None,
+            preferred_username,
         )
-        .await
-        {
-            Ok(log) => Some(log),
-            Err(e) => {
-                error!("Error initializing electoral log for CA import: {e:?}");
-                None
-            }
-        }
-    } else {
-        None
-    };
-
-    hasura_transaction
-        .commit()
-        .await
-        .context("Failed to commit transaction")?;
-
-    if let Some(log) = electoral_log {
-        if let Err(e) = log
-            .post_certificate_auth_event(
-                election_event_id.to_string(),
-                CertificateAuthEventAction::Import,
-                inserted_subjects,
-                Some(user_id.to_string()),
-                preferred_username,
-            )
-            .await
-        {
-            error!("Error posting CA import event to electoral log: {e:?}");
-        }
+        .await?;
     }
+    commit_recorded(hasura_transaction, recorded).await?;
 
     Ok(CertificateImportResult {
         inserted_count,
@@ -266,52 +325,26 @@ pub async fn delete_certificate_authority(
             .await
             .context("Failed to delete certificate authorities")?;
 
-    let electoral_log = if !deleted_subjects.is_empty() {
-        let board_name = get_election_event_board(bulletin_board_reference)
-            .ok_or_else(|| anyhow!("Missing bulletin board"))?;
-        match ElectoralLog::for_admin_user(
-            &hasura_transaction,
-            &board_name,
-            tenant_id,
-            &election_event_id.to_string(),
-            user_id,
-            preferred_username.clone(),
-            None,
-            None,
-        )
-        .await
-        {
-            Ok(log) => Some(log),
-            Err(e) => {
-                error!("Error initializing electoral log for CA delete: {e:?}");
-                None
-            }
-        }
-    } else {
-        None
-    };
-
     let deleted_count = deleted_subjects.len();
 
-    hasura_transaction
-        .commit()
-        .await
-        .context("Failed to commit transaction")?;
-
-    if let Some(log) = electoral_log {
-        if let Err(e) = log
-            .post_certificate_auth_event(
-                election_event_id.to_string(),
-                CertificateAuthEventAction::Delete,
-                deleted_subjects,
-                Some(user_id.to_string()),
-                preferred_username,
-            )
-            .await
-        {
-            error!("Error posting CA delete event to electoral log: {e:?}");
-        }
+    // The entry, signed by the administrator, is written in the deletion's own
+    // transaction; if that fails, nothing commits (fail closed).
+    let recorded = !deleted_subjects.is_empty();
+    if recorded {
+        get_election_event_board(bulletin_board_reference)
+            .ok_or_else(|| anyhow!("Missing bulletin board"))?;
+        record_certificate_action(
+            &hasura_transaction,
+            tenant_id,
+            election_event_id,
+            CertificateAuthEventAction::Delete,
+            deleted_subjects,
+            user_id,
+            preferred_username,
+        )
+        .await?;
     }
+    commit_recorded(hasura_transaction, recorded).await?;
 
     Ok(deleted_count as i32)
 }

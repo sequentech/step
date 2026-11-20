@@ -2838,14 +2838,14 @@ fn a_permission_label_no_administrator_holds_is_warned_about() {
     assert!(bundle.warnings.warnings().any(|problem| problem
         .message
         .contains("no administrator in the Admin Users sheet carries it")));
-    assert!(bundle
+    assert!(!bundle
         .warnings
         .warnings()
         .any(|problem| problem.message.contains("permission labels in use")));
 }
 
 #[test]
-fn a_label_an_administrator_does_hold_is_only_noted_not_flagged() {
+fn a_label_an_administrator_does_hold_is_not_flagged_twice() {
     let mut sheets: Vec<Sheet> = sound()
         .sheets()
         .iter()
@@ -2878,8 +2878,9 @@ fn a_label_an_administrator_does_hold_is_only_noted_not_flagged() {
         .warnings
         .warnings()
         .any(|problem| problem.message.contains("carries it")));
-    // Whoever imports still needs the label on their own attribute.
-    assert!(bundle
+    // The schema validator supplies the target-account reminder once; the
+    // workbook layer must not flag labels already covered by its roster.
+    assert!(!bundle
         .warnings
         .warnings()
         .any(|problem| problem.message.contains("permission labels in use")));
@@ -4458,5 +4459,614 @@ fn build_options_debug_does_not_disclose_base_realm_credentials() {
         assert!(diagnostic.contains("BuildOptions"));
         assert!(!diagnostic.contains(secret));
         assert!(!diagnostic.contains("liveness-secret"));
+    }
+}
+
+// -- ballot identity ------------------------------------------------------
+
+/// The sound document with its event row replaced by `extra` columns.
+fn with_event_columns(extra: Vec<(&str, Cell)>) -> Workbook {
+    let mut headers =
+        vec![text("external_id"), text("presentation.i18n.en.name")];
+    let mut values = vec![text("union-2027"), text("Union Election 2027")];
+    for (header, value) in extra {
+        headers.push(text(header));
+        values.push(value);
+    }
+    with_sheet("ElectionEvent", vec![headers, values])
+}
+
+fn ballot_identity_parameter(value: Cell) -> Vec<Vec<Cell>> {
+    vec![
+        vec![text("type"), text("key"), text("value")],
+        vec![
+            text("event"),
+            text("election_event.presentation.ballot_identity"),
+            value,
+        ],
+    ]
+}
+
+fn event_presentation(bundle: &Bundle) -> &Value {
+    &bundle.export["election_event"]["presentation"]
+}
+
+#[test]
+fn an_event_that_says_nothing_about_ballot_identity_is_pseudonymous() {
+    let bundle = built(&sound());
+    let presentation = event_presentation(&bundle);
+    assert_eq!(presentation["ballot_identity"], json!("pseudonym"));
+    // The default joins the platform's others rather than replacing them.
+    assert_eq!(presentation["otp"], json!("disabled"));
+    assert_eq!(presentation["elections_order"], json!("custom"));
+    assert_eq!(
+        presentation["i18n"]["en"]["name"],
+        json!("Union Election 2027")
+    );
+}
+
+#[test]
+fn an_explicit_ballot_identity_column_is_kept() {
+    let bundle = built(&with_event_columns(vec![(
+        "presentation.ballot_identity",
+        text("voter-id"),
+    )]));
+    assert_eq!(
+        event_presentation(&bundle)["ballot_identity"],
+        json!("voter-id")
+    );
+}
+
+#[test]
+fn a_ballot_identity_in_the_event_presentation_json_is_kept() {
+    let bundle = built(&with_event_columns(vec![(
+        "presentation",
+        text(r#"{"ballot_identity": "voter-id", "theme": "dark"}"#),
+    )]));
+    let presentation = event_presentation(&bundle);
+    assert_eq!(presentation["ballot_identity"], json!("voter-id"));
+    assert_eq!(presentation["theme"], json!("dark"));
+    assert_eq!(presentation["otp"], json!("disabled"));
+}
+
+#[test]
+fn an_event_presentation_json_without_ballot_identity_is_pseudonymous() {
+    let bundle = built(&with_event_columns(vec![(
+        "presentation",
+        text(r#"{"theme": "dark"}"#),
+    )]));
+    let presentation = event_presentation(&bundle);
+    assert_eq!(presentation["ballot_identity"], json!("pseudonym"));
+    assert_eq!(presentation["theme"], json!("dark"));
+}
+
+#[test]
+fn a_blank_or_null_ballot_identity_in_the_event_json_is_pseudonymous() {
+    for json_cell in [
+        r#"{"ballot_identity": ""}"#,
+        r#"{"ballot_identity": "   "}"#,
+        r#"{"ballot_identity": null}"#,
+    ] {
+        let bundle =
+            built(&with_event_columns(vec![("presentation", text(json_cell))]));
+        assert_eq!(
+            event_presentation(&bundle)["ballot_identity"],
+            json!("pseudonym"),
+            "{json_cell}"
+        );
+    }
+}
+
+#[test]
+fn a_ballot_identity_parameter_is_kept() {
+    let bundle = built(&with_sheet(
+        "Parameters",
+        ballot_identity_parameter(text("voter-id")),
+    ));
+    let presentation = event_presentation(&bundle);
+    assert_eq!(presentation["ballot_identity"], json!("voter-id"));
+    assert_eq!(presentation["otp"], json!("disabled"));
+}
+
+#[test]
+fn a_ballot_identity_parameter_outranks_the_event_row() {
+    // Parameters patch the event last, as every other dotted parameter does.
+    let mut workbook = with_event_columns(vec![(
+        "presentation",
+        text(r#"{"ballot_identity": "pseudonym", "theme": "dark"}"#),
+    )]);
+    let mut sheets: Vec<Sheet> = workbook.sheets().to_vec();
+    sheets.push(
+        Sheet::from_grid(
+            "Parameters",
+            &ballot_identity_parameter(text("voter-id")),
+        )
+        .unwrap(),
+    );
+    workbook = Workbook::new(sheets).unwrap();
+    let bundle = built(&workbook);
+    let presentation = event_presentation(&bundle);
+    assert_eq!(presentation["ballot_identity"], json!("voter-id"));
+    assert_eq!(presentation["theme"], json!("dark"));
+}
+
+#[test]
+fn a_blank_ballot_identity_parameter_leaves_the_default() {
+    for value in [Cell::Blank, text(""), text("  "), text("null")] {
+        let bundle = built(&with_sheet(
+            "Parameters",
+            ballot_identity_parameter(value.clone()),
+        ));
+        assert_eq!(
+            event_presentation(&bundle)["ballot_identity"],
+            json!("pseudonym"),
+            "{value:?}"
+        );
+    }
+}
+
+#[test]
+fn a_blank_ballot_identity_parameter_does_not_undo_the_event_row() {
+    let mut sheets: Vec<Sheet> = with_event_columns(vec![(
+        "presentation.ballot_identity",
+        text("voter-id"),
+    )])
+    .sheets()
+    .to_vec();
+    sheets.retain(|sheet| sheet.name != "Parameters");
+    sheets.push(
+        Sheet::from_grid("Parameters", &ballot_identity_parameter(text("")))
+            .unwrap(),
+    );
+    let bundle = built(&Workbook::new(sheets).unwrap());
+    assert_eq!(
+        event_presentation(&bundle)["ballot_identity"],
+        json!("voter-id")
+    );
+}
+
+#[test]
+fn a_base_export_keeps_its_ballot_identity() {
+    // An event reopened in Architect carries its presentation through the base
+    // export; its identity mode is immutable and must survive a rebuild.
+    let templates = TemplateSet::builtin().unwrap();
+    let bundle = build(
+        &sound(),
+        &templates,
+        &BuildOptions {
+            base_export: Some(json!({
+                "election_event": {"presentation": {
+                    "ballot_identity": "voter-id",
+                    "a_new_field": "from the base",
+                }},
+            })),
+            ..BuildOptions::default()
+        },
+        &Sources::default(),
+    )
+    .unwrap();
+    let presentation = event_presentation(&bundle);
+    assert_eq!(presentation["ballot_identity"], json!("voter-id"));
+    assert_eq!(presentation["a_new_field"], json!("from the base"));
+    assert_eq!(presentation["otp"], json!("disabled"));
+}
+
+// -- ballot identity of an existing event ---------------------------------
+
+/// The sound document built over `base`.
+fn built_on(workbook: &Workbook, base: Value) -> Bundle {
+    let templates = TemplateSet::builtin().unwrap();
+    build(
+        workbook,
+        &templates,
+        &BuildOptions {
+            base_export: Some(base),
+            ..BuildOptions::default()
+        },
+        &Sources::default(),
+    )
+    .unwrap_or_else(|report| panic!("expected a clean build, got:\n{report}"))
+}
+
+/// An event exported before `ballot_identity` existed.
+fn legacy_base() -> Value {
+    json!({"election_event": {"presentation": {"theme": "legacy"}}})
+}
+
+#[test]
+fn a_legacy_event_without_ballot_identity_stays_voter_id() {
+    // The platform has always read an absent mode as voter-id, and identity
+    // is immutable: the rebuild writes that mode out instead of changing it.
+    let bundle = built_on(&sound(), legacy_base());
+    let presentation = event_presentation(&bundle);
+    assert_eq!(presentation["ballot_identity"], json!("voter-id"));
+    assert_eq!(presentation["theme"], json!("legacy"));
+    assert_eq!(presentation["otp"], json!("disabled"));
+}
+
+#[test]
+fn a_legacy_event_with_a_blank_or_null_ballot_identity_stays_voter_id() {
+    for named in [json!(null), json!(""), json!("  ")] {
+        let base = json!({"election_event": {"presentation": {
+            "ballot_identity": named,
+        }}});
+        assert_eq!(
+            event_presentation(&built_on(&sound(), base))["ballot_identity"],
+            json!("voter-id"),
+            "{named}"
+        );
+    }
+}
+
+#[test]
+fn an_existing_event_row_with_no_presentation_stays_voter_id() {
+    // Only scrubbed fields: still an event row, so still an existing event.
+    let base = json!({"election_event": {"id": "event-uuid"}});
+    assert_eq!(
+        event_presentation(&built_on(&sound(), base))["ballot_identity"],
+        json!("voter-id")
+    );
+}
+
+#[test]
+fn a_base_export_without_an_event_row_is_a_new_configuration() {
+    let bundle = built_on(&sound(), json!({"version": "v11.0.0"}));
+    assert_eq!(
+        event_presentation(&bundle)["ballot_identity"],
+        json!("pseudonym")
+    );
+}
+
+#[test]
+fn an_explicit_ballot_identity_column_outranks_a_legacy_event() {
+    let workbook = with_event_columns(vec![(
+        "presentation.ballot_identity",
+        text("pseudonym"),
+    )]);
+    assert_eq!(
+        event_presentation(&built_on(&workbook, legacy_base()))
+            ["ballot_identity"],
+        json!("pseudonym")
+    );
+}
+
+#[test]
+fn an_explicit_ballot_identity_parameter_outranks_the_base_event() {
+    let workbook =
+        with_sheet("Parameters", ballot_identity_parameter(text("pseudonym")));
+    for base in [
+        legacy_base(),
+        json!({"election_event": {"presentation": {
+            "ballot_identity": "voter-id",
+        }}}),
+    ] {
+        assert_eq!(
+            event_presentation(&built_on(&workbook, base.clone()))
+                ["ballot_identity"],
+            json!("pseudonym"),
+            "{base}"
+        );
+    }
+}
+
+#[test]
+fn a_blank_or_null_parameter_keeps_an_existing_events_mode() {
+    // A parameter that names no mode is not a change of mode: neither a
+    // pseudonymous event nor a legacy one moves.
+    for value in [Cell::Blank, text("null")] {
+        let workbook =
+            with_sheet("Parameters", ballot_identity_parameter(value.clone()));
+        for (base, expected) in [
+            (
+                json!({"election_event": {"presentation": {
+                    "ballot_identity": "pseudonym",
+                }}}),
+                "pseudonym",
+            ),
+            (legacy_base(), "voter-id"),
+        ] {
+            assert_eq!(
+                event_presentation(&built_on(&workbook, base))
+                    ["ballot_identity"],
+                json!(expected),
+                "{value:?}"
+            );
+        }
+    }
+}
+
+// -- what a pseudonymous default brings with it ---------------------------
+
+#[test]
+fn a_pseudonymous_default_brings_what_the_platform_requires() {
+    let presentation = event_presentation(&built(&sound())).clone();
+    assert_eq!(presentation["ballot_identity"], json!("pseudonym"));
+    assert_eq!(
+        presentation["receipts"]["policy"],
+        json!("signed-by-ballot-box")
+    );
+    assert_eq!(
+        presentation["voter_signing_policy"],
+        json!("with-signature")
+    );
+    assert_eq!(presentation["network_data_policy"], json!("do-not-store"));
+}
+
+#[test]
+fn a_pseudonymous_default_keeps_the_authors_receipt_settings() {
+    let bundle = built(&with_event_columns(vec![
+        (
+            "presentation.receipts.checks_period_policy",
+            text("enabled"),
+        ),
+        ("presentation.network_data_policy", text("forensic-store")),
+    ]));
+    let presentation = event_presentation(&bundle);
+    assert_eq!(
+        presentation["receipts"]["policy"],
+        json!("signed-by-ballot-box")
+    );
+    assert_eq!(
+        presentation["receipts"]["checks_period_policy"],
+        json!("enabled")
+    );
+    assert_eq!(presentation["network_data_policy"], json!("forensic-store"));
+}
+
+#[test]
+fn an_explicit_or_existing_mode_gets_no_receipt_policy() {
+    for bundle in [
+        built(&with_event_columns(vec![(
+            "presentation.ballot_identity",
+            text("voter-id"),
+        )])),
+        built_on(&sound(), legacy_base()),
+    ] {
+        assert_eq!(
+            event_presentation(&bundle)["receipts"]["policy"],
+            Value::Null
+        );
+    }
+}
+
+#[test]
+fn a_new_reconciled_event_defaults_to_voter_id() {
+    let bundle = built(&with_event_columns(vec![(
+        "annotations.datafix:id",
+        text("external-event"),
+    )]));
+    assert_eq!(
+        event_presentation(&bundle)["ballot_identity"],
+        json!("voter-id")
+    );
+}
+
+#[test]
+fn an_explicit_pseudonym_gets_what_the_platform_requires() {
+    let bundle = built(&with_event_columns(vec![(
+        "presentation.ballot_identity",
+        text("pseudonym"),
+    )]));
+    assert_eq!(
+        event_presentation(&bundle)["receipts"]["policy"],
+        json!("signed-by-ballot-box")
+    );
+}
+
+#[test]
+fn a_new_telephone_event_defaults_to_voter_id() {
+    // A telephone vote cannot carry a voter signature, so the platform never
+    // publishes a pseudonymous event with the channel on.
+    let bundle = built(&with_event_columns(vec![(
+        "voting_channels.telephone",
+        text("true"),
+    )]));
+    let presentation = event_presentation(&bundle);
+    assert_eq!(presentation["ballot_identity"], json!("voter-id"));
+    assert_eq!(presentation["receipts"]["policy"], Value::Null);
+}
+
+#[test]
+fn an_explicit_mode_outranks_the_telephone_default() {
+    let bundle = built(&with_event_columns(vec![
+        ("voting_channels.telephone", text("true")),
+        ("presentation.ballot_identity", text("pseudonym")),
+    ]));
+    assert_eq!(
+        event_presentation(&bundle)["ballot_identity"],
+        json!("pseudonym")
+    );
+}
+
+#[test]
+fn a_new_event_with_a_telephone_election_defaults_to_voter_id() {
+    let bundle = built(&with_sheet(
+        "Elections",
+        vec![
+            vec![
+                text("external_id"),
+                text("presentation.i18n.en.name"),
+                text("voting_channels.telephone"),
+            ],
+            vec![text("statewide"), text("Statewide Officers"), text("true")],
+        ],
+    ));
+    assert_eq!(
+        event_presentation(&bundle)["ballot_identity"],
+        json!("voter-id")
+    );
+}
+
+#[test]
+fn an_existing_pseudonymous_event_keeps_its_own_settings() {
+    // Nothing is filled in on an event that already exists, even one that
+    // lacks what a pseudonym requires: that is the validator's to report.
+    let base = json!({"election_event": {"presentation": {
+        "ballot_identity": "pseudonym",
+        "receipts": {"checks_period_policy": "enabled"},
+    }}});
+    let bundle = built_on(&sound(), base);
+    let presentation = event_presentation(&bundle);
+    assert_eq!(presentation["ballot_identity"], json!("pseudonym"));
+    assert_eq!(presentation["receipts"]["policy"], Value::Null);
+    assert_eq!(
+        presentation["receipts"]["checks_period_policy"],
+        json!("enabled")
+    );
+    assert_eq!(presentation["network_data_policy"], Value::Null);
+}
+
+#[test]
+fn a_legacy_default_is_reported() {
+    let bundle = built_on(&sound(), legacy_base());
+    assert!(
+        bundle.warnings.problems.iter().any(|problem| problem.path
+            == "election_event.presentation.ballot_identity"),
+        "{}",
+        bundle.warnings
+    );
+    // A named mode, or a new configuration, says nothing.
+    for bundle in [
+        built(&sound()),
+        built_on(
+            &sound(),
+            json!({"election_event": {"presentation": {
+                "ballot_identity": "voter-id",
+            }}}),
+        ),
+    ] {
+        assert!(!bundle.warnings.problems.iter().any(|problem| problem.path
+            == "election_event.presentation.ballot_identity"));
+    }
+}
+
+#[test]
+fn a_telephone_channel_written_as_text_still_means_voter_id() {
+    let bundle = built(&with_sheet(
+        "Elections",
+        vec![
+            vec![
+                text("external_id"),
+                text("presentation.i18n.en.name"),
+                text("voting_channels"),
+            ],
+            vec![
+                text("statewide"),
+                text("Statewide Officers"),
+                text(r#"{"telephone": "true"}"#),
+            ],
+        ],
+    ));
+    assert_eq!(
+        event_presentation(&bundle)["ballot_identity"],
+        json!("voter-id")
+    );
+}
+
+/// The marker a workbook written from a reopened event carries beside its
+/// realm (`keycloak_event_realm_source_event_id`).
+fn with_source_event_marker(extra: Option<(&str, &str)>) -> Workbook {
+    let mut grid = vec![
+        vec![text("type"), text("key"), text("value")],
+        vec![
+            text("settings"),
+            text("keycloak_event_realm_source_event_id"),
+            text("3f6b9f52-0000-4000-8000-000000000001"),
+        ],
+    ];
+    if let Some((key, value)) = extra {
+        grid.push(vec![text("event"), text(key), text(value)]);
+    }
+    with_sheet("Parameters", grid)
+}
+
+#[test]
+fn a_workbook_from_an_existing_event_without_a_mode_stays_voter_id() {
+    // Written before the plan stated its mode: no base export, no column,
+    // but the event it came from is named beside its realm.
+    let bundle = built(&with_source_event_marker(None));
+    assert_eq!(
+        event_presentation(&bundle)["ballot_identity"],
+        json!("voter-id")
+    );
+    assert_eq!(
+        event_presentation(&bundle)["receipts"]["policy"],
+        Value::Null
+    );
+    assert!(bundle
+        .warnings
+        .problems
+        .iter()
+        .any(|problem| problem.path
+            == "election_event.presentation.ballot_identity"));
+}
+
+#[test]
+fn a_mode_named_beside_the_source_event_marker_is_kept() {
+    let bundle = built(&with_source_event_marker(Some((
+        "election_event.presentation.ballot_identity",
+        "pseudonym",
+    ))));
+    assert_eq!(
+        event_presentation(&bundle)["ballot_identity"],
+        json!("pseudonym")
+    );
+}
+
+#[test]
+fn a_new_event_with_no_presentation_gets_complete_pseudonym_defaults() {
+    let mut event = Map::new();
+    assert_eq!(
+        default_ballot_identity(&mut event, EventOrigin::New, &json!([])),
+        IdentityDefault::Kept,
+    );
+    assert_eq!(
+        event["presentation"],
+        json!({
+            "ballot_identity": "pseudonym",
+            "voter_signing_policy": "with-signature",
+            "network_data_policy": "do-not-store",
+            "receipts": {"policy": "signed-by-ballot-box"},
+        }),
+    );
+}
+
+#[test]
+fn a_null_presentation_is_defaulted_but_a_malformed_one_is_not_replaced() {
+    let mut event = Map::from_iter([("presentation".to_string(), Value::Null)]);
+    assert_eq!(
+        default_ballot_identity(
+            &mut event,
+            EventOrigin::Existing(None),
+            &json!([]),
+        ),
+        IdentityDefault::LegacyVoterId,
+    );
+    assert_eq!(
+        event["presentation"],
+        json!({"ballot_identity": "voter-id"})
+    );
+
+    event.insert("presentation".to_string(), json!("not an object"));
+    assert_eq!(
+        default_ballot_identity(&mut event, EventOrigin::New, &json!([])),
+        IdentityDefault::Kept,
+    );
+    assert_eq!(event["presentation"], json!("not an object"));
+}
+
+#[test]
+fn null_receipts_get_a_default_but_malformed_receipts_are_left_for_validation()
+{
+    for (receipts, expected) in [
+        (Value::Null, json!({"policy": "signed-by-ballot-box"})),
+        (json!("not an object"), json!("not an object")),
+    ] {
+        let mut event = Map::from_iter([(
+            "presentation".to_string(),
+            json!({"receipts": receipts}),
+        )]);
+        default_ballot_identity(&mut event, EventOrigin::New, &json!([]));
+        assert_eq!(event["presentation"]["receipts"], expected);
     }
 }

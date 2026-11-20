@@ -135,6 +135,10 @@ struct MemoryBoard {
     lose_answer: Option<String>,
     /// Holds the first call: says it started, then waits to be let go.
     gate: Option<(oneshot::Sender<()>, oneshot::Receiver<()>)>,
+    /// The electoral log has entries waiting: admission is refused.
+    refuse_admission: bool,
+    /// The scopes admission was asked for.
+    admitted: Vec<String>,
 }
 
 fn of(step: Uuid, event_type: StatementEventType) -> Option<String> {
@@ -165,6 +169,23 @@ impl MemoryBoard {
 }
 
 impl SigningLogBoard for MemoryBoard {
+    // These tests exercise the outbox itself; the electoral log's order gate
+    // (always admitting here) is tested where it is implemented.
+    async fn admit(&mut self, scope: &str) -> anyhow::Result<()> {
+        self.admitted.push(scope.to_string());
+        if self.refuse_admission {
+            return Err(anyhow::Error::new(
+                windmill::services::electoral_log_deferral::ScopeWaiting {
+                    scope: scope.to_string(),
+                    waiting: 1,
+                },
+            ));
+        }
+        Ok(())
+    }
+
+    async fn end_admission(&mut self) {}
+
     async fn deliver(&mut self, _: &str, deliveries: &[SigningLogDelivery]) -> Result<Vec<bool>> {
         if let Some((started, release)) = self.gate.take() {
             let _ = started.send(());
@@ -287,6 +308,7 @@ async fn a_pass_posts_every_entry_once_in_order() {
             posted: 4,
             already_on_board: 0,
             failed: None,
+            gated: false,
         })
     );
     assert_eq!(
@@ -472,6 +494,7 @@ async fn a_retry_after_a_lost_answer_posts_no_duplicate() {
             posted: 4,
             already_on_board: 2,
             failed: None,
+            gated: false,
         }
     );
     assert_eq!(
@@ -763,4 +786,51 @@ async fn the_snapshot_waits_for_a_step_being_written() {
     writing.commit().await.unwrap();
     assert_eq!(snapshot.await.unwrap(), OutboxSnapshot::Ready(last));
     remove(&pool, &scopes).await;
+}
+
+/// While the event's electoral log has entries waiting (or a batch is
+/// processing it), a pass is refused for the log's order: nothing is signed or
+/// posted, no row is marked failed or counted as an attempt, and every row is
+/// still there for the next pass, which posts them once admitted.
+#[tokio::test]
+async fn a_pass_refused_for_the_logs_order_signs_and_fails_nothing() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let s = scope(&tx).await;
+    step(&tx, s, SigningStatementKind::SigningRequestCreated, 1).await;
+    step(&tx, s, SigningStatementKind::SigningRequestSigned, 2).await;
+
+    let mut board = MemoryBoard {
+        refuse_admission: true,
+        ..Default::default()
+    };
+    let pass = pass_in(&tx, s, &mut board, 200).await.unwrap();
+    assert_eq!(
+        pass,
+        Some(OutboxPass {
+            gated: true,
+            ..OutboxPass::default()
+        })
+    );
+    assert_eq!(board.admitted, vec![format!("{}/{}", s.tenant, s.event)]);
+    assert_eq!(board.inserts, 0, "nothing posted");
+    let rows = outbox(&tx, s).await;
+    assert_eq!(rows.len(), 4);
+    assert!(
+        rows.iter().all(|row| !row.2 && row.3 == 0 && !row.4),
+        "unposted, no attempt counted, no error: {rows:?}"
+    );
+
+    // Admitted: the same rows are posted, in order, once.
+    board.refuse_admission = false;
+    let pass = pass_in(&tx, s, &mut board, 200).await.unwrap();
+    assert_eq!(
+        pass,
+        Some(OutboxPass {
+            posted: 4,
+            ..OutboxPass::default()
+        })
+    );
+    assert!(outbox(&tx, s).await.iter().all(|row| row.2 && row.3 == 0));
 }

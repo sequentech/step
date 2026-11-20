@@ -560,7 +560,15 @@ const tagalogTranslation: TranslationType = {
                         text: "Pag-spoil na walang pangalawang pagkakataon — puwedeng itapon ng botante ang naibotong balota at wala siyang pangalawang pagkakataon para palitan ito.",
                     },
                 },
-                "event": {
+                event: {
+                    "ballot-identity-unknown": {
+                        lead: "Hindi kilalang pagkakakilanlan ng balota",
+                        text: "Hindi kilalang pagkakakilanlan ng balota — hindi suportado ang '{{value}}'. Gamitin ang voter-id o pseudonym.",
+                    },
+                    "pseudonym-incompatible": {
+                        lead: "Hindi tugmang mga setting ng sagisag-panulat",
+                        text: "Hindi tugmang mga setting ng sagisag-panulat — {{reason}}. Hindi mai-import ng platform ang configuration na ito.",
+                    },
                     "checks-period-invalid": {
                         lead: "Hindi wasto ang panahon ng pagsusuri",
                         text: "Hindi wasto ang panahon ng pagsusuri — hindi mabasa ang panahon kung kailan masusuri ng mga botante ang kanilang naihulog na balota: {{reason}}",

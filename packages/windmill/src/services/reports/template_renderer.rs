@@ -180,6 +180,14 @@ pub fn generation_formats_in(
     }
 }
 
+/// Items per batch of a PDF printed in batches: the template's setting, at
+/// least one, so that a setting of 0 cannot divide by zero.
+pub fn items_per_report(configured: Option<usize>) -> i64 {
+    i64::try_from(configured.unwrap_or(DEFAULT_ITEMS_PER_REPORT_LIMIT))
+        .unwrap_or(i64::MAX)
+        .max(1)
+}
+
 /// The copies a generation prints: those of its report, and one for a
 /// generation that has no report, such as an export.
 pub fn generation_copies(report: Option<&Report>) -> u32 {
@@ -218,8 +226,21 @@ pub trait TemplateRenderer: Debug {
     /// or from other place than the reports TAB.
     fn get_initial_template_alias(&self) -> Option<String>;
 
-    async fn count_items(&self, hasura_transaction: &Transaction<'_>) -> Result<Option<i64>> {
+    /// How many items a real generation lists, when it renders its PDF in
+    /// batches ([`Self::renders_pdf_in_batches`]).
+    async fn count_items(
+        &self,
+        _hasura_transaction: &Transaction<'_>,
+        _keycloak_transaction: &Transaction<'_>,
+    ) -> Result<Option<i64>> {
         Ok(None)
+    }
+
+    /// Whether a real generation of `items_count` items renders its PDF in
+    /// batches of `per_report_limit` items, one PDF each, delivered in a
+    /// ZIP, instead of as one PDF.
+    fn renders_pdf_in_batches(&self, _items_count: i64, _per_report_limit: i64) -> bool {
+        false
     }
     async fn prepare_user_data_batch(
         &self,
@@ -744,10 +765,11 @@ pub trait TemplateRenderer: Debug {
     /// `None`: this report is not written in that format.
     async fn write_format(
         &self,
-        format: ReportFormat,
-        hasura_transaction: &Transaction<'_>,
-        stamp: Option<&ConfigurationStamp>,
-        directory: &Path,
+        _format: ReportFormat,
+        _hasura_transaction: &Transaction<'_>,
+        _keycloak_transaction: &Transaction<'_>,
+        _stamp: Option<&ConfigurationStamp>,
+        _directory: &Path,
     ) -> Result<Option<GeneratedFile>> {
         Ok(None)
     }
@@ -905,11 +927,16 @@ pub trait TemplateRenderer: Debug {
             generate_mode == GenerateReportMode::REAL,
         );
         let is_real = generate_mode == GenerateReportMode::REAL;
-        let items_count = self.count_items(&hasura_transaction).await?.unwrap_or(0);
+        // A preview draws sample data: it counts nothing.
+        let items_count = if is_real {
+            self.count_items(hasura_transaction, keycloak_transaction)
+                .await?
+                .unwrap_or(0)
+        } else {
+            0
+        };
         let report_options = ext_cfg.report_options.clone();
-        let per_report_limit = report_options
-            .max_items_per_report
-            .unwrap_or(DEFAULT_ITEMS_PER_REPORT_LIMIT) as i64;
+        let per_report_limit = items_per_report(report_options.max_items_per_report);
 
         info!("Items count: {items_count}, per report limit: {per_report_limit}");
         let zip_temp_dir = tempdir()?;
@@ -919,11 +946,11 @@ pub trait TemplateRenderer: Debug {
         // execute_report_inner() separated from execute_report()
         let rendered_pdf = if !formats.contains(&ReportFormat::Pdf) {
             None
-        } else if self.get_report_type() == ReportType::ACTIVITY_LOGS
-            && generate_mode == GenerateReportMode::REAL
+        } else if generate_mode == GenerateReportMode::REAL
+            && self.renders_pdf_in_batches(items_count, per_report_limit)
         {
             info!(
-                "Using batched processing because it's activity log: items_count ({}) > per_report_limit ({})",
+                "Rendering the PDF in batches: items_count ({}), per_report_limit ({})",
                 items_count, per_report_limit
             );
 
@@ -1046,6 +1073,7 @@ pub trait TemplateRenderer: Debug {
                 self.write_format(
                     *format,
                     hasura_transaction,
+                    keycloak_transaction,
                     stamp.as_ref(),
                     zip_temp_dir_path,
                 )
@@ -1650,6 +1678,16 @@ mod copies_and_formats_tests {
             copies: None,
             output_formats: formats,
         }
+    }
+
+    #[test]
+    fn a_batch_holds_at_least_one_item() {
+        assert_eq!(
+            items_per_report(None),
+            DEFAULT_ITEMS_PER_REPORT_LIMIT as i64
+        );
+        assert_eq!(items_per_report(Some(0)), 1);
+        assert_eq!(items_per_report(Some(250)), 250);
     }
 
     #[test]

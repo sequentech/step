@@ -711,6 +711,10 @@ fn the_warning_names_the_labels_in_use() {
         .find(|problem| problem.code == Code::PermissionLabel)
         .expect("expected a permission label warning");
     assert!(warning.message.contains("officers"));
+    assert!(warning.message.contains("target account"));
+    assert!(warning.message.contains("each election or report"));
+    assert!(!warning.message.contains("empty list"));
+    assert!(!warning.message.contains("invalid"));
 }
 
 #[test]
@@ -1808,4 +1812,110 @@ fn slates_still_resolve_after_the_importer_regenerates_ids() {
     assert!(!annotations
         .to_string()
         .contains("d1000000-0000-5000-8000-000000000000"));
+}
+
+// -- ballot identity ----------------------------------------------------------
+
+fn with_presentation(
+    presentation: serde_json::Value,
+) -> ImportElectionEventSchema {
+    let mut bundle = sound();
+    bundle.election_event.presentation = Some(presentation);
+    bundle
+}
+
+fn pseudonymous() -> serde_json::Value {
+    serde_json::json!({
+        "ballot_identity": "pseudonym",
+        "voter_signing_policy": "with-signature",
+        "receipts": {"policy": "signed-by-ballot-box"},
+    })
+}
+
+fn problem_ids(
+    bundle: &ImportElectionEventSchema,
+    severity: Severity,
+) -> Vec<String> {
+    validate(bundle)
+        .problems
+        .iter()
+        .filter(|problem| problem.severity == severity)
+        .filter_map(|problem| problem.id.clone())
+        .collect()
+}
+
+const INCOMPATIBLE: &str = "event.pseudonym-incompatible";
+
+#[test]
+fn a_known_ballot_identity_is_accepted() {
+    for presentation in [
+        serde_json::json!({"ballot_identity": "voter-id"}),
+        serde_json::json!({"ballot_identity": null}),
+        pseudonymous(),
+    ] {
+        let report = validate(&with_presentation(presentation.clone()));
+        assert!(!report.has_errors(), "{presentation}:\n{report}");
+    }
+}
+
+#[test]
+fn an_unknown_ballot_identity_is_refused() {
+    for value in ["Voter-ID", " voter-id ", "foo"] {
+        let bundle =
+            with_presentation(serde_json::json!({"ballot_identity": value}));
+        assert!(
+            problem_ids(&bundle, Severity::Error)
+                .contains(&"event.ballot-identity-unknown".to_string()),
+            "{value}"
+        );
+    }
+}
+
+#[test]
+fn a_pseudonym_without_signed_receipts_is_refused() {
+    // An error: the database refuses this event on insert anyway
+    // (1792400000000_vote_privacy_identity), so no import that worked fails.
+    for (key, value) in [
+        ("receipts", serde_json::json!({"policy": "disabled"})),
+        (
+            "voter_signing_policy",
+            serde_json::json!("without-signature"),
+        ),
+    ] {
+        let mut presentation = pseudonymous();
+        presentation[key] = value;
+        let bundle = with_presentation(presentation);
+        assert!(
+            problem_ids(&bundle, Severity::Error)
+                .contains(&INCOMPATIBLE.to_string()),
+            "{key}"
+        );
+    }
+}
+
+#[test]
+fn a_reconciled_pseudonym_is_refused() {
+    let mut bundle = with_presentation(pseudonymous());
+    bundle.election_event.annotations =
+        Some(serde_json::json!({"datafix:id": "external-event"}));
+    assert!(problem_ids(&bundle, Severity::Error)
+        .contains(&INCOMPATIBLE.to_string()));
+}
+
+#[test]
+fn a_pseudonym_with_a_telephone_election_is_refused() {
+    for telephone in [serde_json::json!(true), serde_json::json!("true")] {
+        let mut bundle = with_presentation(pseudonymous());
+        bundle.elections[0].voting_channels =
+            Some(serde_json::json!({ "telephone": telephone }));
+        assert!(
+            problem_ids(&bundle, Severity::Error)
+                .contains(&INCOMPATIBLE.to_string()),
+            "{telephone}"
+        );
+        // Voter id is what a telephone vote can carry.
+        bundle.election_event.presentation =
+            Some(serde_json::json!({"ballot_identity": "voter-id"}));
+        assert!(!validate(&bundle).has_errors(), "{telephone}");
+    }
 }

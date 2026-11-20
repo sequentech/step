@@ -53,9 +53,9 @@ lets you detect a later change.
 
 | Field                                | Content                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `format`                             | `step/ballot-box-seal/v1`                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `format`                             | `step/ballot-box-seal/v2`                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `tenant_id`                          | The tenant ID.                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `election_event`, `election`, `area` | Each an `id` and a `name`. The IDs are signed. The election and area names are those stored when the box was sealed (for seals made before the upgrade, see [below](#seals-made-before-the-upgrade)); the command checks them against the signed statement. The event name is not signed.                                                                                                                                          |
+| `election_event`, `election`, `area` | Each an `id` and a `name`. The IDs are signed. The election and area names are those stored when the box was sealed; the command checks them against the signed statement. The event name is not signed.                                                                                                                                          |
 | `closed_at`                          | When voting closed (the latest close of the election's channels that ran), UTC, in the form `2026-10-06T19:22:16Z`.                                                                                                                                                                                                                                                                                                                |
 | `grace_deadline`                     | When the grace period ended (equal to `closed_at` without one).                                                                                                                                                                                                                                                                                                                                                                    |
 | `sealed_at`                          | When the box was sealed.                                                                                                                                                                                                                                                                                                                                                                                                           |
@@ -178,29 +178,13 @@ the box, or the CastVote comparison differs), the verdict ends with ", but a
 requested check failed (marked ✗ above)". In every failure case the command
 exits with a non-zero status, so you can use it in scripts.
 
-### Seals made before the upgrade
+### Seals in an older format
 
-Seals made before the platform's migration `1791000001700` didn't store the
-election and area names. Their records carry the names as they were when the
-record was published. If an election or area was renamed between the seal and
-the publication, the command reports a genuine seal as **Seal NOT valid**,
-with a failed Names line:
-
-```text
-✗ Names              the record says <new election name>, <new area name>; the signed statement says "Ballot box of <old election name>, <old area name> sealed: …"
-```
-
-To tell such a record from a tampered one:
-
-1. Check that every other line is ✓: the names check runs after all the
-   cryptographic checks, so they are all printed.
-2. Run it with `--election-id` and `--area-id`: the IDs are signed, so the
-   Expected box line confirms the ballot box.
-3. Read the signed description in the Names line: it holds the names at the
-   time of the seal. Confirm with the organization that the election or area
-   was renamed from those names.
-
-If all three hold, the seal is genuine and only its readable names are newer.
+The command checks records of format `step/ballot-box-seal/v2`, whose
+signatures follow the log's signature scheme v3: Ed25519 over
+`sequent-electoral-log/statement-signature/v3`, a zero byte and the SHA-256 of
+the statement's bytes. Records of an older format are refused: their
+signatures don't verify under v3.
 
 ## What each line proves
 
@@ -217,7 +201,7 @@ If all three hold, the seal is genuine and only its readable names are newer.
 | Sender signature | The statement is a system entry: its sender is the system key itself.                                                                                                                               | The entry did not come from the system. A record signed by any other sender is "Seal NOT valid".            |
 | Time             | The seal time in the signed statement equals the manifest's, and close time ≤ grace deadline ≤ seal time.                                                                                           | The statement and the manifest disagree on the seal time, or the times are out of order.                    |
 | Close request    | The statement's Close voting request is the manifest's. The signing code and signers are shown, but they are not signed.                                                                            | The statement and the manifest disagree on the close request.                                               |
-| Log entry        | Not checked: where the entry is on the log is not signed. The command shows its leaf and log, or, for an older record, its entry ID.                                                                |                                                                                                             |
+| Log entry        | Not checked: where the entry is on the log is not signed. The command shows its leaf and log.                                                                |                                                                                                             |
 | Expected box     | With `--election-id` or `--area-id`, the signed IDs are the ones you gave.                                                                                                                          | The record is for another ballot box.                                                                       |
 
 What a valid seal does **not** prove on its own:

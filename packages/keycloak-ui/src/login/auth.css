@@ -890,37 +890,92 @@ html[data-a11y-contrast="high"] .sequent-auth :is(a, button, select):focus-visib
     min-height: 100svh;
 }
 
-/* Scanovate's own capture pages, embedded: as tall as the screen on phones. */
-.sequent-auth .scanovate-frame {
-    height: min(78vh, 760px);
-    min-height: 560px;
-    margin: 8px 0 0;
+/*
+ * The camera steps of the identity verification (ScanovateCapture): Scanovate's
+ * document scan and face check, and the page's own photo holding the ID. All
+ * three cover the whole window, in the colours of Scanovate's pages' theme
+ * (sequent_ui.json).
+ */
+.sequent-auth .scanovate-window {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
     overflow: hidden;
-    border: 1px solid #dce7e7;
-    border-radius: 14px;
-    background: #f4f7f8;
+    background: #173449;
+    color: #ffffff;
 }
+.sequent-auth .scanovate-frame,
 .sequent-auth .scanovate-frame iframe {
     display: block;
     width: 100%;
     height: 100%;
     border: 0;
 }
+/* Whose page this is, over a corner of the camera (Template, fullscreen layout). */
+.sequent-auth .auth-fullscreen-brand {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 1301;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: calc(50% - 150px);
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(23, 52, 73, 0.88);
+    color: #ffffff;
+    font-size: 13px;
+    line-height: 1.3;
+    /* Never in the way of the camera page under it. */
+    pointer-events: none;
+}
+.sequent-auth .auth-fullscreen-brand img {
+    display: block;
+    flex: none;
+    width: auto;
+    height: 20px;
+}
+.sequent-auth .auth-fullscreen-brand-context {
+    padding-inline-start: 10px;
+    border-inline-start: 1px solid rgba(255, 255, 255, 0.35);
+}
+/* What Keycloak has to say before the scan, out of the way of Scanovate's page. */
+.sequent-auth .scanovate-window-note {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    z-index: 1;
+    box-sizing: border-box;
+    width: max-content;
+    max-width: min(560px, calc(100% - 32px));
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.94);
+    color: #173449;
+    font-size: 14px;
+    text-align: center;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+.sequent-auth .scanovate-window-note p {
+    margin: 0;
+}
+.sequent-auth .scanovate-window-note p + p {
+    margin-top: 4px;
+}
 /* The page's own camera for the photo holding the ID (HoldingCamera). */
 .sequent-auth .scanovate-holding {
-    margin: 8px 0 0;
-    overflow: hidden;
-    border: 1px solid #dce7e7;
-    border-radius: 14px;
-    background: #173449;
-    aspect-ratio: 4 / 3;
+    position: absolute;
+    inset: 0;
 }
+/* The whole image, as it is sent: nothing of the photo is cropped away. */
 .sequent-auth .scanovate-holding video,
 .sequent-auth .scanovate-holding img {
     display: block;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
 }
 /* A mirror, as voters expect of a front camera; the photo itself is not mirrored. */
 .sequent-auth .scanovate-holding video {
@@ -929,20 +984,80 @@ html[data-a11y-contrast="high"] .sequent-auth :is(a, button, select):focus-visib
 .sequent-auth .scanovate-holding video[hidden] {
     display: none;
 }
+.sequent-auth .scanovate-window-heading {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    box-sizing: border-box;
+    width: min(720px, 100% - 380px);
+    padding: 20px 0 28px;
+    text-align: center;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+.sequent-auth .scanovate-window-heading h1 {
+    margin: 0;
+    font-size: 25px;
+    font-weight: 700;
+    line-height: 1.25;
+}
+.sequent-auth .scanovate-window-heading p {
+    margin: 6px 0 0;
+    font-size: 16px;
+    line-height: 1.4;
+}
+.sequent-auth .scanovate-holding-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: grid;
+    place-items: center;
+    width: 60px;
+    height: 60px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #ffffff;
+    cursor: pointer;
+}
+.sequent-auth .scanovate-holding-close svg {
+    width: 34px;
+    height: 34px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+}
+.sequent-auth .scanovate-holding-close:focus-visible {
+    outline: 3px solid #43e3a1;
+    outline-offset: -3px;
+}
+.sequent-auth .scanovate-holding-status,
+.sequent-auth .scanovate-holding-actions {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    box-sizing: border-box;
+    width: max-content;
+    max-width: calc(100% - 32px);
+    margin: 0;
+    transform: translateX(-50%);
+}
 .sequent-auth .scanovate-holding-status {
-    margin: 12px 0 0;
+    overflow: hidden;
+    border-radius: 5px;
+    background: rgba(13, 121, 106, 0.85);
     text-align: center;
 }
 .sequent-auth .scanovate-holding-status p {
-    margin: 0 0 8px;
-    color: #173449;
-    font-weight: 600;
+    margin: 0;
+    padding: 10px 16px;
+    color: #ffffff;
+    font-size: 22px;
+    line-height: 1.3;
 }
 .sequent-auth .scanovate-holding-progress {
     height: 6px;
-    overflow: hidden;
-    border-radius: 3px;
-    background: #e3eaee;
+    background: rgba(255, 255, 255, 0.25);
 }
 .sequent-auth .scanovate-holding-progress span {
     display: block;
@@ -950,31 +1065,43 @@ html[data-a11y-contrast="high"] .sequent-auth :is(a, button, select):focus-visib
     background: #43e3a1;
     transition: width 100ms linear;
 }
-/* The face check covers the whole window (ScanovateFrame). */
-.sequent-auth .scanovate-frame.scanovate-frame-window {
-    position: fixed;
-    inset: 0;
-    z-index: 1300;
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-    margin: 0;
-    border: 0;
-    border-radius: 0;
+.sequent-auth .scanovate-holding-actions {
+    width: min(420px, calc(100% - 32px));
+    padding: 16px;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
 }
-.sequent-auth .scanovate-start-over {
-    display: flex;
-    justify-content: center;
-    margin-top: 12px;
-}
+/* Narrow windows: Scanovate's titles take the top, so the mark goes to the bottom. */
 @media (max-width: 720px) {
-    .sequent-auth .scanovate-frame {
-        height: 100vh;
-        height: 100svh;
-        min-height: 480px;
-        margin-inline: calc(-1 * var(--auth-card-padding, 0px));
-        border-inline: 0;
-        border-radius: 0;
+    .sequent-auth .auth-fullscreen-brand {
+        top: auto;
+        bottom: max(12px, env(safe-area-inset-bottom));
+        left: 50%;
+        max-width: calc(100% - 24px);
+        transform: translateX(-50%);
+    }
+    /* Above the mark: a realm with a taller one says how tall, with the variable. */
+    .sequent-auth .scanovate-window-note,
+    .sequent-auth .scanovate-holding-status,
+    .sequent-auth .scanovate-holding-actions {
+        bottom: calc(
+            max(12px, env(safe-area-inset-bottom)) + var(--auth-fullscreen-brand-height, 40px) +
+                12px
+        );
+    }
+    .sequent-auth .scanovate-window-heading {
+        width: calc(100% - 140px);
+        padding-top: 14px;
+    }
+    .sequent-auth .scanovate-window-heading h1 {
+        font-size: 20px;
+    }
+    .sequent-auth .scanovate-window-heading p {
+        font-size: 14px;
+    }
+    .sequent-auth .scanovate-holding-status p {
+        font-size: 18px;
     }
 }
 @media (max-width: 520px) {

@@ -594,7 +594,7 @@ impl<'a> Builder<'a> {
         let candidates = self.build_candidates();
         let areas = self.build_areas();
         let area_contests = self.build_area_contests();
-        let event = self.build_election_event();
+        let event = self.build_election_event(&elections);
         // After the event, because a stale base event id is swapped out of the
         // realm's URLs and that id comes from the base export.
         let realm = self.build_realm();
@@ -1159,7 +1159,7 @@ impl<'a> Builder<'a> {
         merged
     }
 
-    fn build_election_event(&mut self) -> Value {
+    fn build_election_event(&mut self, elections: &Value) -> Value {
         let context = json!({
             "id": self.event_id,
             "tenant_id": self.tenant_id,
@@ -1172,6 +1172,20 @@ impl<'a> Builder<'a> {
         let event_id = self.event_id.clone();
         let tenant_id = self.tenant_id.clone();
         let base = self.base("election_event", SCRUB_EVENT);
+        // Unscrubbed, so a base event row counts even when the build scrubs
+        // every field it has.
+        let mut origin =
+            EventOrigin::of(self.base("election_event", &[]).as_ref());
+        // A workbook written from a reopened event before the plan stated its
+        // mode carries no base export, but it does carry the event it came
+        // from beside its realm. That event exists, so it is not new.
+        if origin == EventOrigin::New
+            && self
+                .parameter(realm::PARAM_EVENT_REALM_SOURCE_ID)
+                .is_some_and(|id| !value_as_text(id).trim().is_empty())
+        {
+            origin = EventOrigin::Existing(None);
+        }
         let mut event = self.under_base(
             event,
             "election_event",
@@ -1193,6 +1207,19 @@ impl<'a> Builder<'a> {
             {
                 self.report.push(problem);
             }
+        }
+        if default_ballot_identity(&mut event, origin, elections)
+            == IdentityDefault::LegacyVoterId
+        {
+            // Said out loud: a base export made before the setting existed
+            // may be meant only as a source of platform defaults.
+            self.warn(
+                "election_event.presentation.ballot_identity",
+                "the base export's event names no ballot_identity, so it is \
+                 built as voter-id, as the platform reads an event that \
+                 predates the setting. Set presentation.ballot_identity to \
+                 choose another mode.",
+            );
         }
 
         // The telephone channel's configuration, as the platform keeps it.
@@ -1822,6 +1849,171 @@ fn event_row(workbook: &Workbook) -> Result<Row, Problem> {
                  one election event"
             ),
         )),
+    }
+}
+
+/// Whether the event being built already exists somewhere, and the identity
+/// mode it carries there.
+#[derive(Debug, Clone, PartialEq)]
+enum EventOrigin {
+    /// No base export names an event: a configuration made from scratch.
+    New,
+    /// The base export carries an event row: one reopened in Architect
+    /// (`plan_from_event`) or an export handed to the build as its base. Holds
+    /// the mode that row names, if it names one.
+    Existing(Option<Value>),
+}
+
+impl EventOrigin {
+    fn of(base_event: Option<&Map<String, Value>>) -> Self {
+        match base_event {
+            None => EventOrigin::New,
+            Some(event) => EventOrigin::Existing(
+                event
+                    .get("presentation")
+                    .and_then(Value::as_object)
+                    .and_then(named_ballot_identity)
+                    .cloned(),
+            ),
+        }
+    }
+}
+
+const BALLOT_IDENTITY_KEY: &str = "ballot_identity";
+
+/// The presentation's identity mode, unless absent, null or blank.
+fn named_ballot_identity(presentation: &Map<String, Value>) -> Option<&Value> {
+    match presentation.get(BALLOT_IDENTITY_KEY)? {
+        Value::Null => None,
+        Value::String(text) if text.trim().is_empty() => None,
+        named => Some(named),
+    }
+}
+
+/// The identity mode an event gets when nothing names one.
+///
+/// A new configuration is pseudonymous, unless it needs what a pseudonym
+/// cannot give (see [`needs_voter_id`]). An existing event keeps the mode its
+/// base row names; one that names none predates the setting, and the platform
+/// has always read that absence as `voter-id` (`BallotIdentity::default()`).
+/// Identity is immutable, so the rebuild writes that mode out rather than
+/// quietly changing it.
+///
+/// Applied last, after the event row, the base export and the
+/// `election_event.*` parameters, so a mode any of them names wins. Absent,
+/// null or blank names none. Not a template default, because the template
+/// outranks the base and would rewrite a reopened event's mode.
+///
+/// A new configuration that ends up pseudonymous, whatever named the mode,
+/// gets the settings the platform requires of one where they are unset (see
+/// [`pseudonym_companions`]). An existing event's settings are its own and are
+/// never filled in: the validator reports what a pseudonym lacks instead.
+fn default_ballot_identity(
+    event: &mut Map<String, Value>,
+    origin: EventOrigin,
+    elections: &Value,
+) -> IdentityDefault {
+    use crate::types::vote_privacy::BallotIdentity;
+    let voter_id = needs_voter_id(event, elections);
+    let presentation = event
+        .entry("presentation".to_string())
+        .or_insert_with(|| Value::Object(Map::new()));
+    if presentation.is_null() {
+        *presentation = Value::Object(Map::new());
+    }
+    // Another shape is the validator's to report, not ours to replace.
+    let Some(presentation) = presentation.as_object_mut() else {
+        return IdentityDefault::Kept;
+    };
+    let new = origin == EventOrigin::New;
+    let mut outcome = IdentityDefault::Kept;
+    if named_ballot_identity(presentation).is_none() {
+        let mode = match origin {
+            EventOrigin::New if voter_id => json!(BallotIdentity::VoterId),
+            EventOrigin::New => json!(BallotIdentity::Pseudonym),
+            EventOrigin::Existing(Some(named)) => named,
+            EventOrigin::Existing(None) => {
+                outcome = IdentityDefault::LegacyVoterId;
+                json!(BallotIdentity::VoterId)
+            }
+        };
+        presentation.insert(BALLOT_IDENTITY_KEY.to_string(), mode);
+    }
+    if new
+        && presentation.get(BALLOT_IDENTITY_KEY)
+            == Some(&json!(BallotIdentity::Pseudonym))
+    {
+        pseudonym_companions(presentation);
+    }
+    outcome
+}
+
+/// What [`default_ballot_identity`] did, where the build should say so.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum IdentityDefault {
+    /// A mode was named, or the default needs no notice.
+    Kept,
+    /// An existing event named none and was written out as voter-id.
+    LegacyVoterId,
+}
+
+/// The annotation that turns on reconciliation with an external voter list.
+const DATAFIX_ID_KEY: &str = "datafix:id";
+
+/// Whether a new event needs ballots keyed by voter id.
+///
+/// The platform's own rules (windmill `services/vote_privacy.rs`):
+/// reconciliation with an external voter list is keyed by voter id, and a
+/// telephone vote cannot carry the voter signature a pseudonym requires, so
+/// a pseudonymous event with the telephone channel on, for the event or any
+/// of its elections, is never published.
+fn needs_voter_id(event: &Map<String, Value>, elections: &Value) -> bool {
+    let reconciled = event
+        .get("annotations")
+        .and_then(Value::as_object)
+        .is_some_and(|annotations| annotations.contains_key(DATAFIX_ID_KEY));
+    // `true` or `"true"`: windmill's own publication check reads the
+    // channel as text (`voting_channels->>'telephone'='true'`).
+    let telephone = |channels: Option<&Value>| match channels
+        .and_then(|channels| channels.get("telephone"))
+    {
+        Some(Value::Bool(on)) => *on,
+        Some(Value::String(text)) => text.trim() == "true",
+        _ => false,
+    };
+    let elections = elections.as_array().map(Vec::as_slice).unwrap_or(&[]);
+    reconciled
+        || telephone(event.get("voting_channels"))
+        || elections
+            .iter()
+            .any(|election| telephone(election.get("voting_channels")))
+}
+
+/// What the platform requires of a pseudonymous event, where unset.
+///
+/// Windmill refuses to publish or cast on a pseudonymous event without signed
+/// ballot-box receipts and voter signatures (`require_signed_receipts`), so a
+/// pseudonym without them would build an event nobody can vote in. A value
+/// the author set is kept, even an incompatible one: `validate`'s
+/// `check_ballot_identity` refuses that bundle, naming what is wrong, rather
+/// than the build silently overriding the author.
+fn pseudonym_companions(presentation: &mut Map<String, Value>) {
+    presentation
+        .entry("voter_signing_policy".to_string())
+        .or_insert_with(|| json!("with-signature"));
+    presentation
+        .entry("network_data_policy".to_string())
+        .or_insert_with(|| json!("do-not-store"));
+    let receipts = presentation
+        .entry("receipts".to_string())
+        .or_insert_with(|| Value::Object(Map::new()));
+    if receipts.is_null() {
+        *receipts = Value::Object(Map::new());
+    }
+    if let Some(receipts) = receipts.as_object_mut() {
+        receipts
+            .entry("policy".to_string())
+            .or_insert_with(|| json!("signed-by-ballot-box"));
     }
 }
 

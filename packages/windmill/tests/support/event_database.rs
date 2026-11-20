@@ -162,9 +162,10 @@ impl EventDatabase {
             if pending.is_empty() {
                 return appended;
             }
+            let signer = electoral_log::signer::software(key.clone());
             let entries: Vec<_> = pending
                 .iter()
-                .map(|ballot| ballot_record(&self.board, &event, ballot, key).unwrap())
+                .map(|ballot| ballot_record(&self.board, &event, ballot, &signer).unwrap())
                 .collect();
             self.store
                 .append(&self.board, &mut entries.into_iter().map(anyhow::Ok))

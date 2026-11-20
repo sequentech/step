@@ -15,14 +15,18 @@ ROOT = Path(__file__).resolve().parents[2]
 DOCKERFILE = ROOT / "packages/Dockerfile.keycloak"
 OFFLINE_DEPENDENCIES = ROOT / "packages/Dockerfile.offline-dependencies"
 COMELEC = ROOT / "packages/windmill/external-bin/janitor/templates/COMELEC/keycloak.hbs"
-# Every build of the Keycloak image, and how each passes the scripts context.
+# Every build of the Keycloak image outside CI's image matrix, and how each
+# passes the scripts context.
 IMAGE_BUILDS = {
     ".devcontainer/docker-compose.yml": "scripts: ../scripts",
     ".devcontainer/docker-compose-remote.yml": "scripts: ../scripts",
-    # reusable_build_push.yml takes its matrix, build contexts included, from here.
-    ".github/scripts/build_images.json": "scripts=./scripts",
-    ".github/workflows/reusable_build_push_root.yml": "scripts=./scripts",
 }
+# CI builds every image, Keycloak's included, from this matrix in
+# reusable_build_push.yml. The root-account ECR gets a copy of that build's
+# digest, not a build of its own (sequentech/step#4213).
+BUILD_MATRIX = ROOT / ".github/scripts/build_images.json"
+BUILD_WORKFLOW = ROOT / ".github/workflows/reusable_build_push.yml"
+WORKFLOWS = ROOT / ".github/workflows"
 
 
 def react_themes() -> dict[str, str]:
@@ -96,6 +100,30 @@ class KeycloakImageTests(unittest.TestCase):
         for path, context in IMAGE_BUILDS.items():
             with self.subTest(path=path):
                 self.assertIn(context, (ROOT / path).read_text())
+
+    def test_the_ci_build_of_the_image_passes_the_scripts_context(self):
+        (keycloak,) = [
+            image
+            for image in json.loads(BUILD_MATRIX.read_text())
+            if image.get("file") == DOCKERFILE.relative_to(ROOT).as_posix()
+        ]
+        self.assertIn("scripts=./scripts", keycloak["build_contexts"].splitlines())
+        # The matrix's contexts reach the build.
+        self.assertRegex(
+            BUILD_WORKFLOW.read_text(),
+            r"build-contexts:\s*\$\{\{\s*matrix\.build_contexts\s*\}\}",
+        )
+
+    def test_no_workflow_builds_the_image_outside_the_checked_builds(self):
+        # A workflow that names the Dockerfile builds the image itself: it
+        # has to be listed above so that its scripts context is checked.
+        dockerfile = DOCKERFILE.relative_to(ROOT).as_posix()
+        direct = sorted(
+            workflow.relative_to(ROOT).as_posix()
+            for workflow in WORKFLOWS.glob("*.y*ml")
+            if dockerfile in workflow.read_text()
+        )
+        self.assertEqual([path for path in direct if path not in IMAGE_BUILDS], [])
 
 
 class ComelecThemeTests(unittest.TestCase):

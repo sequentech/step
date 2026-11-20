@@ -776,6 +776,7 @@ class DevcontainerConfigTest(unittest.TestCase):
         "forwardPorts",
         "initializeCommand",
         "postCreateCommand",
+        "postStartCommand",
     }
 
     def setUp(self):
@@ -819,6 +820,20 @@ class DevcontainerConfigTest(unittest.TestCase):
                 shared = set(config) | set(self.default)
                 for key in sorted(shared - self.MODE_KEYS):
                     self.assertEqual(config.get(key), self.default.get(key), key)
+
+    def test_only_full_stack_autostarts_architect_and_admin_portal(self):
+        expected = (
+            "./.devcontainer/scripts/start-architect.sh && "
+            "./.devcontainer/scripts/start-admin-portal.sh"
+        )
+        self.assertEqual(self.default.get("postStartCommand"), expected)
+        for mode in self.manifest.modes:
+            with self.subTest(mode=mode.name):
+                config = self.config(mode)
+                if mode.name == "full":
+                    self.assertEqual(config.get("postStartCommand"), expected)
+                else:
+                    self.assertNotIn("postStartCommand", config)
 
     def test_only_modes_with_a_database_build_step_cli(self):
         # init-cli.sh configures step-cli against Hasura and Keycloak.

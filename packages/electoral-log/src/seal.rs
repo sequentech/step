@@ -29,7 +29,7 @@ use crate::messages::message::Message;
 use crate::messages::statement::{StatementBody, StatementType};
 
 /// The manifest format this module writes and reads.
-pub const SEAL_FORMAT_V1: &str = "step/ballot-box-seal/v1";
+pub const SEAL_FORMAT_V2: &str = "step/ballot-box-seal/v2";
 
 /// The channel recorded for a ballot whose annotations name none.
 pub const DEFAULT_SEAL_CHANNEL: &str = "ONLINE";
@@ -109,7 +109,7 @@ pub struct SealEntry {
 /// and stored; field order is part of the format.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct BallotBoxSealManifest {
-    /// [`SEAL_FORMAT_V1`].
+    /// [`SEAL_FORMAT_V2`].
     pub format: String,
     pub tenant_id: String,
     pub election_event_id: String,
@@ -554,7 +554,7 @@ pub struct SealCheck {
 /// time order, weights only on counted entries (at least 1) and no more
 /// counted ballots than eligible voters (one counted entry per voter).
 pub fn check_manifest(manifest: &BallotBoxSealManifest) -> Result<(), SealCheckError> {
-    if manifest.format != SEAL_FORMAT_V1 {
+    if manifest.format != SEAL_FORMAT_V2 {
         return fail(
             SealCheckStep::Format,
             format!("unknown format {}", manifest.format),
@@ -688,7 +688,7 @@ pub fn verify_record(
     expected_key: Option<&ExpectedKey>,
 ) -> Result<SealCheck, SealCheckError> {
     use SealCheckStep as Step;
-    if record.format != SEAL_FORMAT_V1 {
+    if record.format != SEAL_FORMAT_V2 {
         return fail(Step::Format, format!("unknown format {}", record.format));
     }
 
@@ -787,14 +787,24 @@ pub fn verify_record(
         .statement
         .record_serialize()
         .or_else(|error| fail(Step::Message, error.to_string()))?;
-    system_pk
-        .verify(&message.system_signature, &statement_bytes)
-        .or_else(|error| fail(Step::SystemSignature, error.to_string()))?;
+    use crate::signature::{verify, Domain};
     message
-        .sender
-        .pk
-        .verify(&message.sender_signature, &statement_bytes)
-        .or_else(|error| fail(Step::SenderSignature, error.to_string()))?;
+        .check_signature_version()
+        .or_else(|error| fail(Step::Message, format!("{error:#}")))?;
+    verify(
+        &system_pk,
+        &message.system_signature,
+        Domain::Statement,
+        &statement_bytes,
+    )
+    .or_else(|error| fail(Step::SystemSignature, format!("{error:#}")))?;
+    verify(
+        &message.sender.pk,
+        &message.sender_signature,
+        Domain::Statement,
+        &statement_bytes,
+    )
+    .or_else(|error| fail(Step::SenderSignature, format!("{error:#}")))?;
 
     // The sealer signs with the system key as sender: a seal is a system
     // entry, so any other sender is a forgery.

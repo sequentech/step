@@ -1297,18 +1297,17 @@ async fn signed_private_ballot(
             .await?
             .unwrap();
         let pending = store.pending_ballots(&event, 10).await?;
+        let authority = electoral_log::signer::software(authority_key.clone());
         let entries = vec![
             windmill::services::vote_privacy::received_log_entry(
-                &tenant,
-                &queued[0],
-                authority_key,
+                &tenant, &queued[0], &authority,
             )?,
             windmill::services::vote_privacy::cast_log_entry(
                 &received,
                 &tenant,
                 &event,
                 &pending[0],
-                authority_key,
+                &authority,
             )?,
         ];
         store

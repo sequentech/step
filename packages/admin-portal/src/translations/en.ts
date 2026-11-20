@@ -2857,6 +2857,7 @@ const englishTranslation = {
                 ELECTORAL_RESULTS: "Electoral Results",
                 MANUAL_VERIFICATION: "Manual Verification",
                 PARTICIPATION_REPORT: "Participation Report",
+                OV_WHO_VOTED: "List of Voters who Actually Voted",
                 STATISTICAL_REPORT: "Statistical Report",
                 OVCS_EVENTS: "Overseas Voting Monitoring - OVCS Events",
                 AUDIT_LOGS: "Audit Logs",
@@ -4127,6 +4128,7 @@ const englishTranslation = {
                 ACTIVITY_LOGS: "Activity Logs",
                 MANUAL_VERIFICATION: "Manual Verification",
                 PARTICIPATION_REPORT: "Participation Report",
+                OV_WHO_VOTED: "List of Voters who Actually Voted",
             },
             method: {
                 email: "Email",

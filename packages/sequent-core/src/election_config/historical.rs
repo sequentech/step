@@ -733,13 +733,16 @@ fn apply_voter_rows(
         "email_verified",
         "enabled",
         "authorized-election-ids",
+        "sequent.read-only.id-card-type",
+        "sequent.read-only.id-card-number",
+        "sequent.read-only.id-card-number-validated",
     ];
     for column in &sheet.headers {
         if !column.is_empty() && !ALLOWED.contains(&column.as_str()) {
             let origin = Origin::column(&sheet.name, column);
             return Err(Problem::error(
                 Code::ConflictingColumns, origin.to_string(),
-                "historical Voters accepts only username, email, email_verified, enabled and authorized-election-ids; identity and area come from SQL",
+                "historical Voters accepts only username, email, email_verified, enabled, authorized-election-ids and the reviewed id-card-type, id-card-number, id-card-number-validated attributes; identity and area come from SQL",
             ).at(&origin));
         }
     }
@@ -776,7 +779,15 @@ fn apply_voter_rows(
                 continue;
             }
             let valid = match column.as_str() {
-                "email" => matches!(value, Value::String(_) | Value::Null),
+                "email"
+                | "sequent.read-only.id-card-type"
+                | "sequent.read-only.id-card-number" => {
+                    matches!(value, Value::String(_) | Value::Null)
+                }
+                "sequent.read-only.id-card-number-validated" => matches!(
+                    value,
+                    Value::String(_) | Value::Bool(_) | Value::Null
+                ),
                 "enabled" | "email_verified" => match value {
                     Value::Bool(_) => true,
                     Value::String(text) => matches!(
@@ -875,6 +886,57 @@ fn apply_contest_rows(
     }
     Ok(())
 }
+/// Optional display-only supplements, keyed by the exact SQL CAND_CODE.
+/// Never replace source identity, affiliation or contest membership. A typo or
+/// duplicate is refused instead of silently dropping an operator's changes.
+fn apply_candidate_rows(
+    given: &[Row],
+    candidates: &mut BTreeMap<String, Row>,
+) -> Result<(), Problem> {
+    let mut seen = BTreeSet::new();
+    for given in given {
+        let id = text(given, "source_candidate_id")?;
+        if !seen.insert(id.clone()) {
+            return Err(Problem::error(
+                Code::DuplicateId,
+                given.origin(Some("source_candidate_id")).to_string(),
+                "candidate supplement is declared more than once",
+            ));
+        }
+        for (column, _) in &given.cells {
+            if column != "source_candidate_id"
+                && !["presentation", "description", "labels"]
+                    .contains(&column.as_str())
+                && !column.starts_with("presentation.")
+                && !column.starts_with("description.")
+            {
+                return Err(Problem::error(Code::ConflictingColumns,
+                    given.origin(Some(column)).to_string(),
+                    "candidate supplements may only set presentation, description or labels"));
+            }
+        }
+        let mut matched = false;
+        for candidate in candidates.values_mut().filter(|candidate| {
+            candidate.text("annotations.miru:candidate-id") == Some(id.as_str())
+        }) {
+            matched = true;
+            for (column, value) in &given.cells {
+                if column != "source_candidate_id" {
+                    set(candidate, column, value.clone());
+                }
+            }
+        }
+        if !matched {
+            return Err(Problem::error(
+                Code::DanglingReference,
+                given.origin(Some("source_candidate_id")).to_string(),
+                "candidate supplement has no in-scope SQL candidate",
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// A `Reports` row names its election by alias, as a schedule does, since the
 /// author never sees the external ids the source decides.
 fn reports_by_alias(
@@ -1106,6 +1168,7 @@ fn map(
             "elections",
             "areas",
             "contests",
+            "candidates",
             "scheduledevents",
             "ccsservers",
             "parameters",
@@ -1925,7 +1988,26 @@ fn map(
         "annotations.import:provenance",
         json!(provenance),
     );
+    // A historical event predates `ballot_identity`, and the platform has
+    // always read an event that names none as voter-id: the conversion keeps
+    // that mode rather than letting the build treat it as a new, pseudonymous
+    // configuration. A mode the supplemental workbook names is kept.
+    let named = event
+        .get("presentation.ballot_identity")
+        .is_some_and(|mode| match mode {
+            Value::Null => false,
+            Value::String(text) => !text.trim().is_empty(),
+            _ => true,
+        });
+    if !named {
+        set(
+            &mut event,
+            "presentation.ballot_identity",
+            json!(crate::types::vote_privacy::BallotIdentity::VoterId),
+        );
+    }
     apply_contest_rows(workbook.rows("contests"), &mut output_contests)?;
+    apply_candidate_rows(workbook.rows("candidates"), &mut output_candidates)?;
     let aliases: BTreeMap<String, String> = output_elections
         .values()
         .filter_map(|r| {

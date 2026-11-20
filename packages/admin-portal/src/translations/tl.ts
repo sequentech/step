@@ -2679,6 +2679,7 @@ const tagalogTranslation: TranslationType = {
                 ELECTORAL_RESULTS: "Mga Resulta ng Halalan",
                 MANUAL_VERIFICATION: "Manwal na Pag-verify",
                 PARTICIPATION_REPORT: "Ulat ng Pakikilahok",
+                OV_WHO_VOTED: "Listahan ng mga botanteng bumoto",
                 STATISTICAL_REPORT: "Ulat ng Istatistika",
                 OVCS_EVENTS: "Pagsubaybay ng Botohan sa Ibang Bansa - Mga Kaganapan ng OVCS",
                 AUDIT_LOGS: "Mga Talaan ng Awdit",
@@ -3941,6 +3942,7 @@ const tagalogTranslation: TranslationType = {
                 ACTIVITY_LOGS: "Mga Tala ng Aktibidad",
                 MANUAL_VERIFICATION: "Manwal na Pag-verify",
                 PARTICIPATION_REPORT: "Ulat ng Pakikilahok",
+                OV_WHO_VOTED: "Listahan ng mga botanteng bumoto",
             },
             method: {
                 email: "Email",

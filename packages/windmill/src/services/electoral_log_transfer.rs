@@ -284,7 +284,15 @@ pub async fn import_electoral_log(
         );
     }
     let store = get_event_store(election_event_id).await?;
-    let logs = store.import_logs(&manifest, &mut lines, &anchors).await?;
+    // A restore of records already signed into this event's fresh boards
+    // (nothing is signed here), admitted for the event's log order and held
+    // until it is done, like any other append. Refused: the import fails
+    // visibly and can be run again.
+    let scope = crate::services::electoral_log_deferral::scope_key(tenant_id, election_event_id);
+    let admission = crate::services::electoral_log::ScopeAdmission::admit(&scope).await?;
+    let imported = store.import_logs(&manifest, &mut lines, &anchors).await;
+    admission.end().await;
+    let logs = imported?;
     for key in &manifest.ballot_verification_keys {
         // Preserve original signing identity; this never becomes a clone's current key.
         super::public_ballot_keys::retain(hasura_transaction, tenant_id, election_event_id, key)

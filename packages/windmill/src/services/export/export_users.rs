@@ -240,6 +240,86 @@ fn get_user_record(
     .concat();
 }
 
+// Tenant account exports use the importer's single-group column. Voter exports
+// deliberately keep their existing schema and do not read group memberships.
+fn export_headers(
+    body: &ExportBody,
+    elections: &Option<Vec<ElectionHead>>,
+    attributes: &Vec<UserProfileAttribute>,
+) -> Result<Vec<String>> {
+    let mut headers = get_headers(elections, attributes)?;
+    if matches!(body, ExportBody::TenantUsers { .. }) {
+        headers.push("group_name".into());
+    }
+    Ok(headers)
+}
+
+fn export_attributes(
+    body: &ExportBody,
+    attributes: Vec<UserProfileAttribute>,
+) -> Vec<UserProfileAttribute> {
+    attributes
+        .into_iter()
+        .filter(|attribute| {
+            !matches!(body, ExportBody::TenantUsers { .. })
+                || attribute.name.as_deref() != Some("group_name")
+        })
+        .collect()
+}
+
+fn append_export_group(
+    body: &ExportBody,
+    record: &mut Vec<String>,
+    groups: &[String],
+) -> Result<()> {
+    if matches!(body, ExportBody::TenantUsers { .. }) {
+        let group = match groups {
+            [] => String::new(),
+            [group] => group.clone(),
+            _ => return Err(anyhow!("Cannot export an administrator with multiple groups: the group_name CSV column supports one membership per user. No memberships have been changed.").into()),
+        };
+        record.push(group);
+    }
+    Ok(())
+}
+
+/// Fetch a batch rather than issuing one Keycloak HTTP request per account.
+/// Both the user and group must belong to the requested tenant realm.
+async fn admin_export_groups(
+    transaction: &Transaction<'_>,
+    body: &ExportBody,
+    realm: &str,
+    users: &[User],
+) -> Result<HashMap<String, Vec<String>>> {
+    if !matches!(body, ExportBody::TenantUsers { .. }) || users.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let ids = users
+        .iter()
+        .map(|user| {
+            user.id
+                .clone()
+                .context("Administrator export account has no id")
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    let rows = transaction
+        .query(
+            "SELECT u.id, array_agg(g.name ORDER BY g.id) AS groups
+         FROM user_entity u
+         JOIN realm r ON r.id = u.realm_id
+         JOIN user_group_membership m ON m.user_id = u.id
+         JOIN keycloak_group g ON g.id = m.group_id AND g.realm_id = u.realm_id
+         WHERE r.name = $1 AND u.id = ANY($2)
+         GROUP BY u.id",
+            &[&realm, &ids],
+        )
+        .await
+        .context("Error reading administrator group memberships")?;
+    rows.into_iter()
+        .map(|row| Ok((row.try_get("id")?, row.try_get("groups")?)))
+        .collect()
+}
+
 #[instrument(err, skip(hasura_transaction))]
 pub async fn export_users_file(
     hasura_transaction: &Transaction<'_>,
@@ -364,7 +444,8 @@ pub async fn export_users_file(
                     .is_none_or(|name| !configured_secret_names.contains(name))
         })
         .collect::<Vec<_>>();
-    let headers = get_headers(&elections, &attributes)?;
+    let attributes = export_attributes(&body, attributes);
+    let headers = export_headers(&body, &elections, &attributes)?;
 
     // Pagination loop to export users in batches
     let batch_size = PgConfig::from_env()?.default_sql_batch_size;
@@ -434,6 +515,9 @@ pub async fn export_users_file(
 
         offset += users.len() as i32;
 
+        let groups_by_user =
+            admin_export_groups(&keycloak_transaction, &body, &realm, &users).await?;
+
         // Write each user record to the CSV file
         for mut user in users.clone() {
             if let (Some(decryptor), Some((tenant_id, election_event_id))) =
@@ -453,7 +537,19 @@ pub async fn export_users_file(
                         )
                     })?;
             }
-            let record = get_user_record(&elections, &areas_by_id, &user, &attributes);
+            let mut record = get_user_record(&elections, &areas_by_id, &user, &attributes);
+            let groups = user
+                .id
+                .as_ref()
+                .and_then(|id| groups_by_user.get(id))
+                .map(Vec::as_slice)
+                .unwrap_or_default();
+            append_export_group(&body, &mut record, groups).with_context(|| {
+                format!(
+                    "Error exporting administrator {}",
+                    user.username.as_deref().unwrap_or("unknown")
+                )
+            })?;
             writer
                 .write_record(&record)
                 .with_context(|| "Error writing record")?;
@@ -484,6 +580,96 @@ pub async fn export_users_file(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn tenant_body() -> ExportBody {
+        ExportBody::TenantUsers {
+            tenant_id: "tenant".into(),
+        }
+    }
+
+    #[test]
+    fn admin_export_includes_exact_group_name() {
+        let headers = export_headers(&tenant_body(), &None, &vec![]).unwrap();
+        assert_eq!(headers.last().unwrap(), "group_name");
+        let mut record = get_user_record(&None, &None, &User::default(), &vec![]);
+        append_export_group(&tenant_body(), &mut record, &["sbei".into()]).unwrap();
+        assert_eq!(record.last().unwrap(), "sbei");
+        assert_eq!(headers.len(), record.len());
+    }
+
+    #[test]
+    fn admin_export_without_group_keeps_empty_cell() {
+        let mut record = vec![];
+        append_export_group(&tenant_body(), &mut record, &[]).unwrap();
+        assert_eq!(record, vec![""]);
+    }
+
+    #[test]
+    fn admin_export_refuses_lossy_multiple_groups() {
+        let error = append_export_group(
+            &tenant_body(),
+            &mut vec![],
+            &["admin".into(), "trustee".into()],
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("multiple groups"));
+    }
+
+    #[test]
+    fn voter_export_does_not_include_membership_column() {
+        for event in [None, Some("event".into())] {
+            let body = ExportBody::Users {
+                tenant_id: "tenant".into(),
+                election_event_id: event,
+                election_id: None,
+                include_secret_attributes: false,
+            };
+            assert_eq!(
+                export_headers(&body, &None, &vec![]).unwrap(),
+                get_headers(&None, &vec![]).unwrap()
+            );
+            let mut record = vec!["existing".into()];
+            append_export_group(&body, &mut record, &["voter".into(), "other".into()]).unwrap();
+            assert_eq!(record, vec!["existing"]);
+        }
+    }
+
+    #[test]
+    fn admin_membership_is_not_a_spoofable_profile_attribute() {
+        let attributes = export_attributes(
+            &tenant_body(),
+            vec![attribute("group_name"), attribute("title")],
+        );
+        let headers = export_headers(&tenant_body(), &None, &attributes).unwrap();
+        let user = User {
+            attributes: Some(HashMap::from([
+                ("group_name".into(), vec!["fake-admin".into()]),
+                ("title".into(), vec!["Chair".into()]),
+            ])),
+            ..Default::default()
+        };
+        let mut record = get_user_record(&None, &None, &user, &attributes);
+        append_export_group(&tenant_body(), &mut record, &["trustee".into()]).unwrap();
+        assert_eq!(headers.iter().filter(|h| *h == "group_name").count(), 1);
+        assert_eq!(headers.len(), record.len());
+        assert_eq!(record.last().unwrap(), "trustee");
+        assert!(!record.contains(&"fake-admin".into()));
+        assert!(record.contains(&"Chair".into()));
+    }
+
+    #[test]
+    fn group_name_is_csv_escaped_without_changing_its_identity() {
+        let group = "Board, \"North\"";
+        let mut record = vec![];
+        append_export_group(&tenant_body(), &mut record, &[group.into()]).unwrap();
+        let mut writer = csv::Writer::from_writer(vec![]);
+        writer.write_record(record).unwrap();
+        let bytes = writer.into_inner().unwrap();
+        let mut reader = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .from_reader(bytes.as_slice());
+        assert_eq!(&reader.records().next().unwrap().unwrap()[0], group);
+    }
 
     fn attribute(name: &str) -> UserProfileAttribute {
         UserProfileAttribute {

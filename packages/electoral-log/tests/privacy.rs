@@ -505,3 +505,125 @@ async fn private_receipt_documents_require_exact_event_document_and_pseudonym() 
     );
     Ok(())
 }
+
+/// What a list of the voters who voted in a pseudonymous event can rely on.
+/// Participation flags are set by a valid or a pending ballot and are never
+/// removed, so they can name voters whose ballot was not accepted; the valid
+/// ballots' distinct identities are a subset of them. A purge removes the
+/// flags with the mapping while the ballots stay, so a list that compares the
+/// two counts notices both.
+#[tokio::test]
+#[ignore = "needs isolated ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn participation_flags_cover_the_accepted_voters_and_a_purge_empties_them() -> Result<()> {
+    let store = PostgresStore::new(std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")?.parse()?)?;
+    store.initialize().await?;
+    let event = Uuid::new_v4().to_string();
+    let election = Uuid::new_v4().to_string();
+    let area = Uuid::new_v4().to_string();
+    store.create_ballot_box(&event).await?;
+    store
+        .set_ballot_identity(&event, BallotIdentity::Pseudonym)
+        .await?;
+    let voters: Vec<String> = [
+        "revoter",
+        "pending",
+        "rejected-later",
+        "rejected",
+        "nonvoter",
+    ]
+    .map(String::from)
+    .to_vec();
+    store.allocate_voter_pseudonyms(&event, &voters).await?;
+    let mut code = std::collections::HashMap::new();
+    for voter in &voters {
+        code.insert(
+            voter.as_str(),
+            store
+                .voter_pseudonym(&event, voter)
+                .await?
+                .expect("allocated"),
+        );
+    }
+    assert!(!store.identity_mapping_purged(&event).await?);
+    let accept = |voter: &str, status: BallotStatus| {
+        let pseudonym = code[voter].clone();
+        let (event, election, area) = (event.clone(), election.clone(), area.clone());
+        let store = &store;
+        async move {
+            let ballot = Uuid::new_v4().simple().to_string();
+            match store
+                .accept_ballot(&AcceptBallot {
+                    election_event_id: &event,
+                    election_id: &election,
+                    area_id: &area,
+                    voter_id: &pseudonym,
+                    ballot_id: &ballot,
+                    format: "test",
+                    content: "ciphertext",
+                    voter_signature: None,
+                    pseudonym_hash: &[1; 64],
+                    ballot_hash: &[2; 64],
+                    voting_channel: "ONLINE",
+                    status,
+                    voter_ip: None,
+                    voter_country: None,
+                    username: None,
+                    allowed_votes: 0,
+                })
+                .await?
+            {
+                AcceptOutcome::Accepted { id, .. } => Ok::<_, anyhow::Error>((pseudonym, id)),
+                other => anyhow::bail!("unexpected {other:?}"),
+            }
+        }
+    };
+    accept("revoter", BallotStatus::Valid).await?;
+    accept("revoter", BallotStatus::Valid).await?;
+    accept("pending", BallotStatus::Pending).await?;
+    let (later, id) = accept("rejected-later", BallotStatus::Valid).await?;
+    assert!(
+        store
+            .set_ballot_status(
+                &event,
+                &later,
+                &id,
+                BallotStatus::Valid,
+                BallotStatus::Rejected
+            )
+            .await?
+    );
+    accept("rejected", BallotStatus::Rejected).await?;
+
+    let accepted = store
+        .participation(&event, Some(&election), None)
+        .await?
+        .voters;
+    assert_eq!(accepted, 1, "only the revoter has a valid ballot");
+    assert_eq!(
+        store
+            .privacy_participation_count(&event, Some(&election))
+            .await?,
+        3,
+        "flags stay for a pending and a later-rejected ballot"
+    );
+    let mut flagged = store.participating_voters(&event, Some(&election)).await?;
+    flagged.sort();
+    assert_eq!(flagged, ["pending", "rejected-later", "revoter"]);
+
+    store.purge_voter_pseudonyms(&event).await?;
+    assert!(store.identity_mapping_purged(&event).await?);
+    assert!(store
+        .participating_voters(&event, Some(&election))
+        .await?
+        .is_empty());
+    assert_eq!(
+        store
+            .participation(&event, Some(&election), None)
+            .await?
+            .voters,
+        1,
+        "the ballots outlive the mapping"
+    );
+    store.drop_ballot_box(&event).await?;
+    Ok(())
+}

@@ -141,7 +141,7 @@ jobs:
     # Harvest's route tests create their own database on this server.
     services:
       postgres:
-        image: ${{ matrix.service == 'harvest' && 'postgres:16' || '' }}
+        image: ${{ matrix.service == 'harvest' && 'postgres:18' || '' }}
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
@@ -258,9 +258,15 @@ jobs:
       CARGO_INCREMENTAL: "0"
       WBRAID_BOARD_DATABASE_URL: postgres://test:test@127.0.0.1:3322/test
       # The ballot box seal tests post to boards of their own on this server.
+      # The service's test database gets the Hasura migrations below, so code
+      # reading HASURA_DB__* finds the outbox; PGMQ and the tests' queues live
+      # in pgmq_test, the task-queue database of the code under test.
+      HASURA_TEST_DATABASE_URL: postgres://test:test@127.0.0.1:3322/test
+      PGMQ_TEST_DATABASE_URL: postgres://test:test@127.0.0.1:3322/pgmq_test
+      QUEUE_DB__URL: postgres://test:test@127.0.0.1:3322/pgmq_test
     services:
       postgres:
-        image: postgres:16
+        image: postgres:18
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
@@ -296,12 +302,16 @@ jobs:
           profile: dev
           features: default
 
+      - name: Prepare the Hasura and task-queue test databases
+        run: |
+          docker run --rm --network host --user "$(id -u):$(id -g)" --env HOME=/tmp \
+            --volume "$PWD:/step:ro" --workdir /step postgres:18 \
+            scripts/postgres/hasura_test_database.sh "$HASURA_TEST_DATABASE_URL"
+          docker exec "${{ job.services.postgres.id }}" createdb -U test pgmq_test
+
       - name: Run PGMQ transport contracts
-        env:
-          PGMQ_TEST_DATABASE_URL: postgres://test:test@127.0.0.1:3322/pgmq_test
         run: |
           # The tests install PGMQ and their queues themselves, as the setup job does.
-          docker exec "${{ job.services.postgres.id }}" createdb -U test pgmq_test
           cargo test --locked -p pgmq-broker -- --include-ignored --test-threads=1
           cargo test --locked -p windmill --lib pgmq_tests -- --ignored --test-threads=1
         working-directory: packages
@@ -340,6 +350,22 @@ jobs:
           services::users::tests::delegate_count_only_counts_eligible_delegators_without_a_ballot
           -- --ignored --exact
         working-directory: packages/windmill
+
+      - name: Run the PostgreSQL-backed electoral log signer tests
+        shell: bash
+        env:
+          # Synthetic test values only.
+          SECRETS_BACKEND: EnvVarMasterSecret
+          MASTER_SECRET: "1111111111111111111111111111111111111111111111111111111111111111"
+          ELECTORAL_LOG_PG_PROVISIONING_USER: ""
+          ELECTORAL_LOG_PG_READER_USER: ""
+          ELECTORAL_LOG_PG_BACKUP_USER: ""
+        run: |
+          cargo test --locked -p windmill --test postgres_external_log_signers -- --ignored --test-threads=1 \
+            | tee "$RUNNER_TEMP/external-log-signer-tests.log"
+          # An empty filter also succeeds; require that the tests actually ran.
+          grep --quiet --extended-regexp 'test result: ok\. [1-9][0-9]* passed' "$RUNNER_TEMP/external-log-signer-tests.log"
+        working-directory: packages
 
   # The PostgreSQL-backed checks of electoral-log, step-cli and Trellis. Each
   # selects a different package set, so in the Windmill job they rebuilt
@@ -386,7 +412,7 @@ jobs:
       # The ballot box seal tests post to boards of their own on this server.
     services:
       postgres:
-        image: postgres:16
+        image: postgres:18
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test

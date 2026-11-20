@@ -20,6 +20,7 @@
     5174,
     6011,
     "hasura:8080",
+    "harvest:8400",
     "vault:8200",
     "vault:8201",
     "simplesamlphp:8083",
@@ -57,6 +58,7 @@
   "onCreateCommand": "./.devcontainer/scripts/fix-cache-ownership.sh && direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
   "updateContentCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
   "postCreateCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/init-cli.sh'",
+  "postStartCommand": "./.devcontainer/scripts/start-architect.sh && ./.devcontainer/scripts/start-admin-portal.sh",
   // Adding host requirements so that there is no need to manually select the
   // machine to run on all the time
   "hostRequirements": {

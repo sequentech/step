@@ -2650,6 +2650,7 @@ const basqueTranslation: TranslationType = {
                 ELECTORAL_RESULTS: "Hauteskunde Emaitzak",
                 MANUAL_VERIFICATION: "Eskuzko Egiaztapena",
                 PARTICIPATION_REPORT: "Parte-hartze Txostena",
+                OV_WHO_VOTED: "Bozkatu duten hautesleen zerrenda",
                 STATISTICAL_REPORT: "Txosten Estatistikoa",
                 OVCS_EVENTS: "Atzerriko Bozketa Monitorizazioa - OVCS Gertaerak",
                 AUDIT_LOGS: "Auditoria Egunkariak",
@@ -3901,6 +3902,7 @@ const basqueTranslation: TranslationType = {
                 ACTIVITY_LOGS: "Jarduera Egunkariak",
                 MANUAL_VERIFICATION: "Eskuzko Egiaztapena",
                 PARTICIPATION_REPORT: "Parte-hartze Txostena",
+                OV_WHO_VOTED: "Bozkatu duten hautesleen zerrenda",
             },
             method: {
                 email: "Emaila",

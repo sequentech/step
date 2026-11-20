@@ -18,7 +18,7 @@ use crate::services::audit_log::{stage_entry, AuditActor};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::MinuteRange;
 use crate::services::electoral_log_board::{
-    ensure_tenant_log, get_board_client, get_board_signing_key, get_event_databases,
+    ensure_tenant_log, get_board_client, get_board_public_key, get_event_databases,
 };
 use crate::services::time_zones::parse_zone;
 use anyhow::{anyhow, ensure, Context, Result};
@@ -373,14 +373,14 @@ pub async fn exported_logs(
             .get(0);
         let board = get_election_event_board(reference)
             .ok_or_else(|| anyhow!("Election event {event} has no log"))?;
-        let key = get_board_signing_key(
+        let key = get_board_public_key(
             hasura_transaction,
             &request.tenant_id,
             Some(&event.to_string()),
             &board,
         )
         .await?;
-        return Ok(vec![event_log(event, board, public(&key)?)]);
+        return Ok(vec![event_log(event, board, key.to_b64_string()?)]);
     }
     let tenant_log = ensure_tenant_log(hasura_transaction, &request.tenant_id).await?;
     let mut logs = vec![ExportedLog {
@@ -404,7 +404,7 @@ pub async fn exported_logs(
             let Some(board) = get_election_event_board(row.get(1)) else {
                 continue;
             };
-            let key = get_board_signing_key(
+            let key = get_board_public_key(
                 hasura_transaction,
                 &request.tenant_id,
                 Some(&event.to_string()),
@@ -413,7 +413,7 @@ pub async fn exported_logs(
             .await;
             // An event without its key has no log to read.
             if let Ok(key) = key {
-                logs.push(event_log(event, board, public(&key)?));
+                logs.push(event_log(event, board, key.to_b64_string()?));
             }
         }
         // Deleted events' logs, kept in their retired databases.
@@ -520,6 +520,10 @@ pub struct ExportManifest {
     pub time_zone: String,
     pub entries: u64,
     pub logs: Vec<ExportedLog>,
+    /// How the entries' signatures verify: the electoral log's signature
+    /// scheme domain (Ed25519 over this domain, a zero byte and the SHA-256
+    /// of `statement`).
+    pub signature_scheme: String,
 }
 
 impl ExportManifest {
@@ -535,6 +539,9 @@ impl ExportManifest {
             time_zone: zone.name().to_string(),
             entries: logs.iter().map(|log| log.entries).sum(),
             logs,
+            signature_scheme: electoral_log::signature::Domain::Statement
+                .as_str()
+                .to_string(),
         }
     }
 }

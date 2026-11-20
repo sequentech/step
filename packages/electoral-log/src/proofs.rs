@@ -64,17 +64,20 @@ pub fn leaf_hash(log: &LogIdentity, entry: &LogEntry) -> Result<Vec<u8>> {
     Ok(Sha256::digest(preimage).to_vec())
 }
 
-/// Domain tag of signed checkpoint publications.
-pub const CHECKPOINT_FORMAT_V2: &str = "sequent-electoral-log-checkpoint-v2";
+/// Format tag of signed checkpoint publications.
+pub const CHECKPOINT_FORMAT_V3: &str = "sequent-electoral-log-checkpoint-v3";
 
-/// Bytes signed when a checkpoint is published: the compact JSON array
-/// `[CHECKPOINT_FORMAT_V2, log_name, log_uid, tree_size, hex(root), reason]`.
+/// A checkpoint's canonical bytes: the compact JSON array
+/// `[CHECKPOINT_FORMAT_V3, log_name, log_uid, tree_size, hex(root), reason]`.
+/// Its signature is over these bytes' v3 signed message
+/// ([`crate::signature`], [`crate::signature::CHECKPOINT_DOMAIN`]), see
+/// [`checkpoint_signed_message`].
 pub fn checkpoint_signing_bytes(
     checkpoint: &Checkpoint,
     reason: ElectoralLogCheckpointReason,
 ) -> Result<Vec<u8>> {
     Ok(serde_json::to_vec(&(
-        CHECKPOINT_FORMAT_V2,
+        CHECKPOINT_FORMAT_V3,
         &checkpoint.log_name,
         checkpoint.log_uid.hyphenated().to_string(),
         checkpoint.tree_size,
@@ -96,8 +99,24 @@ pub fn verify_checkpoint_signature(
 ) -> Result<()> {
     let pk = VerificationKey::from_b64_string(signer_pk)?;
     let signature = Signature::from_b64_string(signature)?;
-    pk.verify(&signature, &checkpoint_signing_bytes(checkpoint, reason)?)?;
-    Ok(())
+    crate::signature::verify(
+        &pk,
+        &signature,
+        crate::signature::Domain::Checkpoint,
+        &checkpoint_signing_bytes(checkpoint, reason)?,
+    )
+}
+
+/// What a checkpoint's signer signs: the v3 signed message of its canonical
+/// bytes.
+pub fn checkpoint_signed_message(
+    checkpoint: &Checkpoint,
+    reason: ElectoralLogCheckpointReason,
+) -> Result<Vec<u8>> {
+    Ok(crate::signature::signed_message(
+        crate::signature::Domain::Checkpoint,
+        &checkpoint_signing_bytes(checkpoint, reason)?,
+    ))
 }
 
 /// A stored record with evidence of its membership in the board's Trellis log.
@@ -241,11 +260,18 @@ mod tests {
         assert_eq!(
             String::from_utf8(bytes.clone()).unwrap(),
             format!(
-                r#"["{CHECKPOINT_FORMAT_V2}","board","00000000-0000-0000-0000-000000000003",9,"{}","TALLY_COMPLETED"]"#,
+                r#"["{CHECKPOINT_FORMAT_V3}","board","00000000-0000-0000-0000-000000000003",9,"{}","TALLY_COMPLETED"]"#,
                 "05".repeat(32)
             )
         );
-        let signature = sk.sign(&bytes).unwrap().to_b64_string().unwrap();
+        // A signature over the raw bytes (the earlier scheme) is refused.
+        let raw = sk.sign(&bytes).unwrap().to_b64_string().unwrap();
+        assert!(verify_checkpoint_signature(&checkpoint, tally, &pk, &raw).is_err());
+        let signature = sk
+            .sign(&checkpoint_signed_message(&checkpoint, tally).unwrap())
+            .unwrap()
+            .to_b64_string()
+            .unwrap();
         verify_checkpoint_signature(&checkpoint, tally, &pk, &signature).unwrap();
         let closed = ElectoralLogCheckpointReason::VotingClosed;
         assert!(verify_checkpoint_signature(&checkpoint, closed, &pk, &signature).is_err());

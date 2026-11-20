@@ -16,10 +16,21 @@ use tracing::{info, instrument};
 use voting_crypto::hash::hash_sha256;
 
 pub const ECIES_TOOL_PATH: &str = "/usr/local/bin/ecies-tool.jar";
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct EciesKeyPair {
     pub private_key_pem: String,
     pub public_key_pem: String,
+}
+
+/// Shows the public key only, so a logged key pair never carries the private
+/// key.
+impl std::fmt::Debug for EciesKeyPair {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EciesKeyPair")
+            .field("private_key_pem", &"<redacted>")
+            .field("public_key_pem", &self.public_key_pem)
+            .finish()
+    }
 }
 
 #[instrument(skip(password), err)]
@@ -85,14 +96,11 @@ pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
     })
 }
 
-#[instrument(skip(data), err)]
+#[instrument(skip(acm_key_pair, data), err)]
 pub fn ecies_sign_data(
     acm_key_pair: &EciesKeyPair,
     data: &str,
 ) -> Result<String> {
-    // Retrieve the PEM as a string
-    info!("pem: {}", acm_key_pair.private_key_pem);
-
     let temp_pem_file = generate_temp_file("private_key", ".pem")?;
     let temp_pem_file_path = temp_pem_file.path();
     let temp_pem_file_string = temp_pem_file_path.to_string_lossy().to_string();

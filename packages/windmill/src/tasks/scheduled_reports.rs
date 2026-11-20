@@ -50,13 +50,21 @@ pub enum ScheduledReportAuthorization {
     ExecutorDisabled,
     #[strum(to_string = "the schedule's user is not allowed to read reports")]
     MissingPermission,
+    #[strum(to_string = "this report names voters and is never generated on a schedule")]
+    NotSchedulable,
 }
 
 /// A scheduled report needs the same permission as generating it from the
-/// Reports tab, held by its user at the time of each run.
+/// Reports tab, held by its user at the time of each run. The list of voters
+/// who voted is never scheduled: it names voters, and the Reports tab
+/// generates it only for a user who may read them.
 pub fn authorize_scheduled_report(
+    report_type: &str,
     executor: Option<&ScheduledReportExecutor>,
 ) -> ScheduledReportAuthorization {
+    if ReportType::from_str(report_type).is_ok_and(|kind| kind == ReportType::OV_WHO_VOTED) {
+        return ScheduledReportAuthorization::NotSchedulable;
+    }
     let Some(executor) = executor else {
         return ScheduledReportAuthorization::ExecutorNotFound;
     };
@@ -335,7 +343,7 @@ pub async fn scheduled_reports(rate_seconds: u64) -> Result<()> {
                     continue;
                 }
             };
-        let authorization = authorize_scheduled_report(executor.as_ref());
+        let authorization = authorize_scheduled_report(&report.report_type, executor.as_ref());
         if authorization != ScheduledReportAuthorization::Authorized {
             warn!(
                 "Deactivating scheduled report id={id}: {authorization}",
@@ -513,7 +521,7 @@ mod tests {
     fn scheduled_report_runs_for_enabled_executor_with_report_read() {
         let executor = executor(true, &[Permissions::ADMIN_USER, Permissions::REPORT_READ]);
         assert_eq!(
-            authorize_scheduled_report(Some(&executor)),
+            authorize_scheduled_report("ACTIVITY_LOGS", Some(&executor)),
             ScheduledReportAuthorization::Authorized
         );
     }
@@ -521,7 +529,7 @@ mod tests {
     #[test]
     fn scheduled_report_skipped_when_executor_missing() {
         assert_eq!(
-            authorize_scheduled_report(None),
+            authorize_scheduled_report("ACTIVITY_LOGS", None),
             ScheduledReportAuthorization::ExecutorNotFound
         );
     }
@@ -530,8 +538,40 @@ mod tests {
     fn scheduled_report_skipped_when_executor_disabled() {
         let executor = executor(false, &[Permissions::REPORT_READ]);
         assert_eq!(
-            authorize_scheduled_report(Some(&executor)),
+            authorize_scheduled_report("ACTIVITY_LOGS", Some(&executor)),
             ScheduledReportAuthorization::ExecutorDisabled
+        );
+    }
+
+    #[test]
+    fn the_list_of_voters_who_voted_is_never_scheduled() {
+        // It names voters: a schedule would generate it without the
+        // `report-generate` and `voter-read` checks of the Reports tab.
+        // Rows written through the API or imported from release/9.0 can
+        // carry a schedule; it is turned off, whoever runs it.
+        let everything = executor(
+            true,
+            &[
+                Permissions::REPORT_READ,
+                Permissions::REPORT_GENERATE,
+                Permissions::VOTER_READ,
+            ],
+        );
+        assert_eq!(
+            authorize_scheduled_report("OV_WHO_VOTED", Some(&everything)),
+            ScheduledReportAuthorization::NotSchedulable
+        );
+        assert_eq!(
+            authorize_scheduled_report("OV_WHO_VOTED", None),
+            ScheduledReportAuthorization::NotSchedulable
+        );
+        assert_eq!(
+            ScheduledReportAuthorization::NotSchedulable.to_string(),
+            "this report names voters and is never generated on a schedule"
+        );
+        assert_eq!(
+            authorize_scheduled_report("PARTICIPATION_REPORT", Some(&everything)),
+            ScheduledReportAuthorization::Authorized
         );
     }
 
@@ -539,7 +579,7 @@ mod tests {
     fn scheduled_report_skipped_when_executor_lacks_report_read() {
         let executor = executor(true, &[Permissions::ADMIN_USER, Permissions::REPORT_WRITE]);
         assert_eq!(
-            authorize_scheduled_report(Some(&executor)),
+            authorize_scheduled_report("ACTIVITY_LOGS", Some(&executor)),
             ScheduledReportAuthorization::MissingPermission
         );
     }

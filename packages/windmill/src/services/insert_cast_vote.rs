@@ -15,7 +15,7 @@ use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::electoral_log_board::get_board_signing_key;
+use crate::services::electoral_log_board::get_board_signer;
 use crate::services::external::utils::{
     datafix_annotations, external_voter_lock_key, is_datafix_election_event,
     DATAFIX_VOTER_LOCK_SECS,
@@ -1124,16 +1124,16 @@ async fn get_electoral_log(
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")?;
 
-    let protocol_manager = get_board_signing_key(
+    let system = get_board_signer(
         hasura_transaction,
         tenant_id,
         Some(&election_event.id),
         &board_name,
     )
     .await?;
-    Ok(ElectoralLog::for_system_with_signing_key(
+    Ok(ElectoralLog::for_system_with_signer(
         board_name.as_str(),
-        &protocol_manager,
+        system,
     ))
 }
 

@@ -3598,6 +3598,7 @@ fn event_sheet(
     columns.push("presentation.elections_order".to_string());
     columns.push("presentation.show_cast_vote_logs".to_string());
     columns.push("presentation.ceremonies_policy".to_string());
+    columns.push("presentation.electoral_log_signer_policy".to_string());
     columns
         .push("presentation.language_conf.enabled_language_codes".to_string());
     columns
@@ -3629,6 +3630,12 @@ fn event_sheet(
     // The event's, which the Admin Portal's ceremony screens read: the
     // ceremony itself is made there after import, so no other place reaches.
     row.push(Cell::text(plan.ceremony_policy.to_string()));
+    // Events the Architect configures always have their electoral log signed
+    // by the installation's external signer; an installation without one
+    // refuses to make their boards rather than sign them in software.
+    row.push(Cell::text(
+        crate::ballot::ElectoralLogSignerPolicy::EXTERNAL.to_string(),
+    ));
     // A plan that chose no language leaves both blank: the event then takes
     // the template's, and the voter realm keeps the locales it already has,
     // where writing the English fallback would replace them with English alone.

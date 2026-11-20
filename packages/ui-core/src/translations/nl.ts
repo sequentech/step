@@ -559,7 +559,15 @@ const dutchTranslation: TranslationType = {
                         text: "Ongeldig maken zonder tweede kans — een kiezer mag een uitgebracht stembiljet weggooien en heeft geen tweede poging om het te vervangen.",
                     },
                 },
-                "event": {
+                event: {
+                    "ballot-identity-unknown": {
+                        lead: "Onbekende stembiljetidentiteit",
+                        text: "Onbekende stembiljetidentiteit — '{{value}}' wordt niet ondersteund. Gebruik voter-id of pseudonym.",
+                    },
+                    "pseudonym-incompatible": {
+                        lead: "Onverenigbare pseudonieminstellingen",
+                        text: "Onverenigbare pseudonieminstellingen — {{reason}}. Het platform weigert deze configuratie te importeren.",
+                    },
                     "checks-period-invalid": {
                         lead: "Controleperiode niet geldig",
                         text: "Controleperiode niet geldig — de periode waarin kiezers hun uitgebrachte stem kunnen controleren kon niet worden gelezen: {{reason}}",

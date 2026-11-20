@@ -97,6 +97,8 @@ pub const ORDERINGS: &[&str] = &["custom", "alphabetical", "random"];
 
 /// `EShowCastVoteLogsPolicy` — whether a voter can look up a ballot they cast.
 pub const CAST_VOTE_LOGS: &[&str] = &["show-logs-tab", "hide-logs-tab"];
+/// Who signs an event's electoral log (`ElectoralLogSignerPolicy`).
+pub const ELECTORAL_LOG_SIGNERS: &[&str] = &["software", "external"];
 
 /// Which language a voter starts in, before they choose one.
 ///
@@ -163,6 +165,7 @@ pub fn validate(bundle: &ImportElectionEventSchema) -> Report {
     check_images(bundle, &mut report);
     check_support_materials(bundle, &mut report);
     check_event_presentation(bundle, &mut report);
+    check_ballot_identity(bundle, &mut report);
     check_permission_labels(bundle, &mut report);
     check_unique_ids(bundle, &mut report);
     check_signing(bundle, &mut report);
@@ -311,6 +314,115 @@ fn check_slates(bundle: &ImportElectionEventSchema, report: &mut Report) {
     }
 }
 
+/// Whether the event's identity mode is one the platform knows, and whether a
+/// pseudonymous event has what the platform requires of one.
+///
+/// Both are errors, and neither refuses a bundle the platform would have
+/// imported: the database already refuses each of them when the event is
+/// inserted (`check_ballot_privacy_identity` in the
+/// `1792400000000_vote_privacy_identity` migration, and the channel triggers
+/// of `1792400000300_vote_privacy_channels`). An unknown mode is
+/// `Invalid ballot identity mode` there. A pseudonymous event without signed
+/// ballot-box receipts and voter signatures, with external voter
+/// reconciliation (`datafix:id`), or with the telephone channel on for the
+/// event or any election is refused too. Said here, the author hears it in
+/// Architect or step-cli, and an import stops before it creates the event's
+/// realm, rather than at the insert.
+fn check_ballot_identity(
+    bundle: &ImportElectionEventSchema,
+    report: &mut Report,
+) {
+    use crate::types::vote_privacy::BallotIdentity;
+    const AT: &str = "election_event.presentation.ballot_identity";
+    let event = &bundle.election_event;
+    let Some(presentation) = event
+        .presentation
+        .as_ref()
+        .and_then(|value| value.as_object())
+    else {
+        return;
+    };
+    let Some(value) = presentation
+        .get("ballot_identity")
+        .filter(|value| !value.is_null())
+    else {
+        return;
+    };
+    let mode = match serde_json::from_value::<BallotIdentity>(value.clone()) {
+        Ok(mode) => mode,
+        Err(_) => {
+            report.push(
+                Problem::error(
+                    Code::InvalidValue,
+                    AT,
+                    format!(
+                        "{value} is not a valid ballot_identity; expected one \
+                         of voter-id, pseudonym"
+                    ),
+                )
+                .id("event.ballot-identity-unknown")
+                .detail("value", &value.to_string()),
+            );
+            return;
+        }
+    };
+    if mode != BallotIdentity::Pseudonym {
+        return;
+    }
+    let receipts = presentation
+        .get("receipts")
+        .and_then(|receipts| receipts.get("policy"))
+        .and_then(serde_json::Value::as_str);
+    let signing = presentation
+        .get("voter_signing_policy")
+        .and_then(serde_json::Value::as_str);
+    // `true` or `"true"`, as windmill's publication check reads it as text.
+    let telephone = |channels: &Option<serde_json::Value>| match channels
+        .as_ref()
+        .and_then(|channels| channels.get("telephone"))
+    {
+        Some(serde_json::Value::Bool(on)) => *on,
+        Some(serde_json::Value::String(text)) => text.trim() == "true",
+        _ => false,
+    };
+    let mut refuse = |why: &str| {
+        report.push(
+            Problem::error(
+                Code::InvalidValue,
+                AT,
+                format!(
+                    "a pseudonymous event {why}; the platform refuses to \
+                     import it"
+                ),
+            )
+            .id("event.pseudonym-incompatible")
+            .detail("reason", why),
+        );
+    };
+    if receipts != Some("signed-by-ballot-box") {
+        refuse("needs receipts.policy signed-by-ballot-box");
+    }
+    if signing != Some("with-signature") {
+        refuse("needs voter_signing_policy with-signature");
+    }
+    if telephone(&event.voting_channels)
+        || bundle
+            .elections
+            .iter()
+            .any(|election| telephone(&election.voting_channels))
+    {
+        refuse("cannot take telephone votes, which carry no voter signature");
+    }
+    if event
+        .annotations
+        .as_ref()
+        .and_then(|annotations| annotations.get("datafix:id"))
+        .is_some()
+    {
+        refuse("cannot be reconciled with an external voter list (datafix:id)");
+    }
+}
+
 /// The event-level presentation values that reach a voter.
 ///
 /// One loop over the string-valued ones, because there were two single-purpose
@@ -331,6 +443,7 @@ fn check_event_presentation(
     for (key, allowed) in [
         ("elections_order", ORDERINGS),
         ("show_cast_vote_logs", CAST_VOTE_LOGS),
+        ("electoral_log_signer_policy", ELECTORAL_LOG_SIGNERS),
     ] {
         let Some(value) = presentation.get(key) else {
             continue;
@@ -1785,10 +1898,11 @@ fn check_permission_labels(
             Code::PermissionLabel,
             path,
             format!(
-                "permission labels in use: {}. Anything carrying a label is hidden \
-                 from every administrator without it, so whoever imports this needs \
-                 one of them on their own 'permission_labels' attribute or the Admin \
-                 Portal will show them an empty list.",
+                "permission labels in use: {}. Verify the target account has a \
+                 matching 'permission_labels' value for each election or report \
+                 it needs to see. Entities with no matching label are hidden \
+                 from that account. This is an access reminder, not a failed \
+                 import; the event bundle cannot verify the signed-in account.",
                 labels.join(", ")
             ),
         ).id("labels.in-use").detail("labels", labels.join(", ")));

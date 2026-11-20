@@ -163,7 +163,8 @@ public class ScanovateAuthenticator implements Authenticator {
       FaceMatchSettings faceMatch,
       DocumentLivenessSettings documentLiveness,
       HoldingPhotoPolicy holding,
-      int holdingSeconds) {}
+      int holdingSeconds,
+      PageLanguages pageLanguages) {}
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
@@ -260,7 +261,14 @@ public class ScanovateAuthenticator implements Authenticator {
               ScanovateAuthenticatorFactory.HOLDING_SECONDS,
               ScanovateAuthenticatorFactory.DEFAULT_HOLDING_SECONDS);
       return Optional.of(
-          new Services(onPrem, ocr, faceMatch, documentLiveness, holding, holdingSeconds));
+          new Services(
+              onPrem,
+              ocr,
+              faceMatch,
+              documentLiveness,
+              holding,
+              holdingSeconds,
+              PageLanguages.fromConfig(config)));
     } catch (ScanovateException e) {
       configurationFailure(context, component);
       showError(context, ScanovateError.INTERNAL, false);
@@ -278,19 +286,22 @@ public class ScanovateAuthenticator implements Authenticator {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     String caseId = authSession.getAuthNote(CASE_ID_NOTE);
     int maxAttempts = maxAttempts(config);
+    Map<String, String> ocrParameters = new LinkedHashMap<>();
+    ocrParameters.put(OCR_TYPE_PARAM, services.ocr().ocrType());
+    Map<String, String> livenessParameters = new LinkedHashMap<>();
+    pageLanguage(context, services.pageLanguages())
+        .ifPresent(
+            language -> {
+              ocrParameters.put(PageLanguages.PARAMETER, language);
+              livenessParameters.put(PageLanguages.PARAMETER, language);
+            });
     Map<String, Object> capture = new LinkedHashMap<>();
     capture.put(FTL_DOCUMENT_TYPE, documentTypeName(documentType(config, authSession)));
     capture.put(FTL_ATTEMPTS_LEFT, attemptsLeft(context, maxAttempts));
     capture.put(FTL_MAX_ATTEMPTS, maxAttempts);
     capture.put(
         FTL_OCR,
-        page(
-            context,
-            services.onPrem(),
-            OnPremService.OCR,
-            OCR_TOKEN_NOTE,
-            caseId,
-            Map.of(OCR_TYPE_PARAM, services.ocr().ocrType())));
+        page(context, services.onPrem(), OnPremService.OCR, OCR_TOKEN_NOTE, caseId, ocrParameters));
     capture.put(
         FTL_LIVENESS,
         page(
@@ -299,7 +310,7 @@ public class ScanovateAuthenticator implements Authenticator {
             OnPremService.LIVENESS,
             LIVENESS_TOKEN_NOTE,
             caseId,
-            Map.of()));
+            livenessParameters));
     HoldingPhotos photos = holdingFactory.apply(context.getSession());
     photos.discard(authSession.getAuthNote(HOLDING_TOKEN_NOTE));
     authSession.removeAuthNote(HOLDING_TOKEN_NOTE);
@@ -348,6 +359,14 @@ public class ScanovateAuthenticator implements Authenticator {
   }
 
   /** The capture page of a service, with a new token for the case. */
+  /** The language of the services' pages for this voter, when the pages have it. */
+  private Optional<String> pageLanguage(AuthenticationFlowContext context, PageLanguages pages) {
+    if (pages.isEmpty()) {
+      return Optional.empty();
+    }
+    return pages.of(context.getSession().getContext().resolveLocale(context.getUser()));
+  }
+
   private Map<String, Object> page(
       AuthenticationFlowContext context,
       OnPremSettings settings,

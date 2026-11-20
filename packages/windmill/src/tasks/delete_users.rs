@@ -51,7 +51,7 @@ pub struct DeleteUsersOutput {
 /// A failure on one voter does not abort the run. Every voter is attempted and
 /// the failures are reported together, so one bad row cannot leave the deletion
 /// half applied with no record of where it stopped.
-#[instrument(err)]
+#[instrument(err, skip(filter))]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]
 pub async fn delete_users(
