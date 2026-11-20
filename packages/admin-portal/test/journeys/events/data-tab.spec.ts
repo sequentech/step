@@ -83,7 +83,11 @@ const SAVED_PRESENTATION_DEFAULTS = {
         language_detection_policy: "browser-detect",
     },
     elections_order: "alphabetical",
-    voting_portal_countdown_policy: {policy: "NO_COUNTDOWN"},
+    voting_portal_countdown_policy: {
+        policy: "NO_COUNTDOWN",
+        countdown_anticipation_secs: 60,
+        countdown_alert_anticipation_secs: 180,
+    },
     custom_urls: {},
     skip_election_list: false,
     show_user_profile: false,
