@@ -10,6 +10,7 @@ use crate::postgres::configuration_packages;
 use crate::postgres::document::get_document;
 use crate::postgres::tasks_execution::get_tasks_by_annotation;
 use crate::services::audit_log::AuditActor;
+use crate::services::browser_package_policy::{admit_with_policy, BrowserPolicy};
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
 use crate::services::import::configuration_package::tenant_setting;
@@ -28,7 +29,7 @@ use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::election_config::manifest::read_zip;
 use sequent_core::election_config::package_contract::{Requirements, Section};
-use sequent_core::election_config::package_verify::{admit_for_tenant_at, Admission};
+use sequent_core::election_config::package_verify::Admission;
 use sequent_core::election_config::tenant_package::TrusteePublic;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
@@ -225,13 +226,14 @@ async fn execute(
     let bytes = std::fs::read(file.path()).context("could not read the package")?;
     // Verified against the tenant's signing trust. Its freshness against the
     // tenant's imports is the target's to check, before each section.
+    configuration_packages::lock_imports(&transaction, &body.tenant_id).await?;
+    let policy = BrowserPolicy::load(&body.tenant_id);
     let setting = tenant_setting(&transaction, &body.tenant_id).await?;
     let lists = configuration_packages::revocation_lists(&transaction, &body.tenant_id).await?;
-    transaction.commit().await?;
     let (members, signed_package, verified) =
         // Revalidated against the tenant's current policy immediately
         // before any section applies: a policy changed since preview refuses.
-        match admit_for_tenant_at(&bytes, setting.as_ref(), &body.tenant_id, lists, chrono::Utc::now()) {
+        match admit_with_policy(&bytes, setting.as_ref(), &body.tenant_id, lists, chrono::Utc::now(), &policy) {
             Ok(Admission::Unsigned) => (
                 read_zip(&bytes, "package").map_err(|p| anyhow!("{p}"))?,
                 None,
@@ -248,8 +250,28 @@ async fn execute(
                 ))
             }
         };
+    if let Some(package) = &verified {
+        let last = configuration_packages::last_import(
+            &transaction,
+            &body.tenant_id,
+            &package.manifest.configuration.external_id,
+        )
+        .await?;
+        crate::services::browser_package_policy::freshness(package, last.as_ref())
+            .map_err(|problem| anyhow!("{problem}"))?;
+    }
+    transaction.commit().await?;
     let package_sha256 = format!("{:x}", Sha256::digest(&bytes));
     let plan = plan_members(&members, package_sha256.clone(), &body.requirements)?;
+    // The event importer atomically persists the authoritative chain anchor.
+    // Without that section this application could mutate tenant state without
+    // ever recording the browser manifest, allowing a later replay.
+    if verified.as_ref().is_some_and(|package| {
+        sequent_core::election_config::webauthn_package::is_browser_verified(package)
+    }) && !plan.payloads.contains_key(&Section::ElectionEvent)
+    {
+        return Err(anyhow!("a security-key package must include an applicable election event so its revision is recorded"));
+    }
     let package_groups: BTreeSet<String> = match plan.payloads.get(&Section::RolePermissions) {
         Some(files) => files
             .iter()

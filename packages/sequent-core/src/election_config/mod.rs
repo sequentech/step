@@ -98,6 +98,15 @@ pub mod signing_policy;
 #[cfg(feature = "election_config_signing")]
 pub mod standalone_signing;
 
+/// Browser FIDO2 (WebAuthn) approvals and final signatures, checked offline
+/// against a separately provisioned roster of officials' keys.
+#[cfg(feature = "election_config_signing")]
+pub mod webauthn_proof;
+/// Browser-signed configuration packages: the versioned envelope, its
+/// dispatch, and its admission against a pinned roster.
+#[cfg(feature = "election_config_signing")]
+pub mod webauthn_package;
+
 /// What an importer says about a file that fails before, or beside, validation.
 pub mod import_problems;
 

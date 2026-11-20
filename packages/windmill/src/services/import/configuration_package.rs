@@ -13,8 +13,8 @@ use std::io::Write;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::election_config::package_verify::{
-    admit_for_tenant_at, already_imported, crls_from_pem, freshness, importable_member, Admission,
-    ConfigurationSigning, Freshness, VerifiedPackage, CONFIGURATION_SIGNING_SETTING,
+    already_imported, crls_from_pem, importable_member, Admission, ConfigurationSigning, Freshness,
+    VerifiedPackage, CONFIGURATION_SIGNING_SETTING,
 };
 use sequent_core::election_config::Rejected;
 use tempfile::NamedTempFile;
@@ -22,6 +22,7 @@ use tracing::{info, instrument};
 
 use crate::postgres::configuration_packages;
 use crate::postgres::tenant::get_tenant_by_id;
+use crate::services::browser_package_policy::{admit_with_policy, freshness, BrowserPolicy};
 use crate::services::electoral_log::{ElectoralLog, ElectoralLogAdminContext};
 use crate::services::electoral_log_board::get_event_board;
 use crate::services::import::rejection::reject;
@@ -69,12 +70,13 @@ pub async fn admit_document(
     let lists = configuration_packages::revocation_lists(hasura_transaction, tenant_id).await?;
 
     // Format 2 is bound to this tenant and its current policy digest.
-    let verified = match admit_for_tenant_at(
+    let verified = match admit_with_policy(
         &bytes,
         setting.as_ref(),
         tenant_id,
         lists,
         chrono::Utc::now(),
+        &BrowserPolicy::load(tenant_id),
     ) {
         Ok(Admission::Unsigned) => return Ok((temp_file, None)),
         Ok(Admission::Verified(verified)) => verified,
@@ -199,6 +201,7 @@ mod tests {
     #[test]
     fn an_import_logs_the_verified_content_hash_separately_from_the_manifest_hash() {
         let package = VerifiedPackage {
+            scheme: sequent_core::election_config::package_verify::VerificationScheme::Certificate,
             manifest: serde_json::from_value(serde_json::json!({
                 "format": "sequent.configuration-manifest/1",
                 "configuration": {"external_id": "approved-configuration", "name": "Election", "revision": 9, "previous": null},

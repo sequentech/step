@@ -161,12 +161,60 @@ impl PlatformTarget {
     /// event other than the one this application imports (then the event
     /// section would be refused after the tenant sections had changed).
     async fn admission_blocker(&self) -> Result<Option<String>> {
-        use sequent_core::election_config::package_verify::freshness;
-        let Some(verified) = &self.context.verified else {
+        use crate::services::browser_package_policy::{
+            admit_with_policy, admitted_as_before, freshness, recheck, BrowserPolicy, Recheck,
+        };
+        use sequent_core::election_config::package_verify::{Admission, Freshness};
+        use sequent_core::election_config::webauthn_package::is_browser_verified;
+        let policy = BrowserPolicy::load(&self.context.tenant_id);
+        let admitted = self.context.verified.as_deref();
+        match recheck(&policy, admitted) {
+            Recheck::Block(reason) => return Ok(Some(reason)),
+            Recheck::Proceed | Recheck::Readmit => {}
+        }
+        let Some(verified) = admitted else {
             return Ok(None);
         };
         let mut db: DbClient = get_hasura_pool().await.get().await?;
         let transaction = db.transaction().await?;
+        if matches!(recheck(&policy, Some(verified)), Recheck::Readmit) {
+            let bytes = self
+                .context
+                .signed_package
+                .as_deref()
+                .ok_or_else(|| anyhow!("verified package bytes are missing"))?;
+            let setting =
+                super::configuration_package::tenant_setting(&transaction, &self.context.tenant_id)
+                    .await?;
+            let lists = crate::postgres::configuration_packages::revocation_lists(
+                &transaction,
+                &self.context.tenant_id,
+            )
+            .await?;
+            match admit_with_policy(
+                bytes,
+                setting.as_ref(),
+                &self.context.tenant_id,
+                lists,
+                chrono::Utc::now(),
+                &policy,
+            ) {
+                Ok(Admission::Verified(again)) if admitted_as_before(verified, &again) => {}
+                Ok(_) => {
+                    return Ok(Some(
+                        "the package no longer has the same verified admission".into(),
+                    ))
+                }
+                Err(report) => {
+                    return Err(anyhow::Error::new(
+                        sequent_core::election_config::Rejected::new(
+                            "configuration package",
+                            report,
+                        ),
+                    ))
+                }
+            }
+        }
         let last = crate::postgres::configuration_packages::last_import_with_event(
             &transaction,
             &self.context.tenant_id,
@@ -174,6 +222,28 @@ impl PlatformTarget {
         )
         .await?;
         let event_id = derived_event_id(&self.context.tenant_id, &self.context.package_sha256);
+        if is_browser_verified(verified) {
+            return Ok(
+                match freshness(verified, last.as_ref().map(|(last, _)| last)) {
+                    Ok(Freshness::New) => None,
+                    Ok(Freshness::AlreadyImported)
+                        if self
+                            .event_imported_by_this_run
+                            .load(std::sync::atomic::Ordering::SeqCst)
+                            && last
+                                .as_ref()
+                                .is_some_and(|(_, imported)| imported == &event_id) =>
+                    {
+                        None
+                    }
+                    Ok(Freshness::AlreadyImported) => Some(
+                        "this security-key package is already imported; it may not be replayed"
+                            .into(),
+                    ),
+                    Err(problem) => Some(format!("{}: {}", problem.path, problem.message)),
+                },
+            );
+        }
         Ok(admission_problem(
             last.as_ref().map(|(last, imported_into)| {
                 (freshness(verified, Some(last)), imported_into.as_str())

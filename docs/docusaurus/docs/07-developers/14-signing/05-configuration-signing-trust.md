@@ -191,3 +191,62 @@ cargo test -p windmill --lib -- configuration import_tenant
 cargo test -p windmill --test postgres_configuration_signing --test postgres_configuration_packages
 yarn --cwd admin-portal jest src/resources/Settings/configurationSigning.test.ts src/resources/Settings/ConfigurationSigningSettings.test.tsx
 ```
+
+
+## Isolated browser-security-key preview
+
+This is default-off, non-production work. It does not replace certificate
+format 1/2 or enable signing in an enrollment-only or pending-only installation.
+No hardware-key, production-deployment or end-to-end election application claim
+follows from software-key tests.
+
+Architect's preview freezes the complete manifest before issuing the final
+WebAuthn challenge. Its final seal covers the exact manifest bytes, tenant,
+relying party, revision, previous manifest link and frozen ordered approval
+digests. The separate final signer cannot have approved. A successful finish
+assembles the stored delivery, verifies it with Step's core and atomically
+records the package and signed revision. The ZIP carries
+`manifest.webauthn.json`, not a certificate signature. A prior certificate
+package is not silently made the predecessor of a browser chain.
+
+Windmill must be provisioned **separately**, never from the ZIP or an imported
+tenant setting:
+
+- `WINDMILL_WEBAUTHN_PACKAGES_PREVIEW=nonproduction-isolated-test`
+- `WINDMILL_WEBAUTHN_PACKAGES_TENANT_ID`: destination tenant v4 UUID
+- `WINDMILL_WEBAUTHN_PACKAGES_ROSTER_FILE`: operator-provisioned public roster
+- `WINDMILL_WEBAUTHN_PACKAGES_ROSTER_SHA256`: independently checked lowercase SHA-256
+- `WINDMILL_WEBAUTHN_PACKAGES_REQUIRED_APPROVALS`: positive threshold
+
+The roster names the canonical tenant v4 UUID. UUID aliases cannot select another
+policy. An invalid preview switch fails closed. For the configured tenant,
+unsigned and certificate packages are refused, including during later
+application rechecks. ZIP directory ambiguity and duplicate/aliased signature
+metadata are rejected before unsigned fallback. Planning uses verified members.
+
+Under the tenant import lock, the next package must name the last persisted
+revision and manifest digest exactly; identical replay and older packages are
+refused. The first visible signed revision may exceed 1 after withdrawn drafts,
+but it must have no previous link when this tenant has no import history.
+Whole-package application requires an applicable election-event section so the
+event importer records the chain anchor. Sections remain separately committed:
+an interruption can leave earlier sections applied, not an atomic whole-package
+rollback. Re-preview and the persisted chain govern retries.
+
+Public roster export is not automatic receiving trust. Operators independently
+verify, provision and rotate both roster and pin. Changed model/FIDO trust,
+pending-only mode and revoked keys prevent new producer use. Stored browser
+artifacts require their immutable tenant/relying-party owner and a preview build;
+old detached preview seals cannot acquire ownership through a GET request.
+
+The paired integration fixture is emitted only by the synthetic Architect test
+when `ARCHITECT_SYNTHETIC_PACKAGE_FIXTURE_DIR` is set. With that directory,
+independent Windmill policy and a disposable migrated PostgreSQL:
+
+```sh
+cargo test -p windmill --test postgres_configuration_packages   browser_producer_package_uses_real_admission_and_persisted_chain -- --ignored
+```
+
+That test exercises real `admit_document`, `record`, committed history, replay
+refusal and the next exact previous link. It does not apply an election through
+live Hasura or Keycloak.
