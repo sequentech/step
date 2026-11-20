@@ -337,6 +337,8 @@ limitations = [
 issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.windmill.test_environment]
+# Match the regular Windmill CI job for ignored PGMQ cases, which share queue state.
+RUST_TEST_THREADS = "1"
 ELECTORAL_LOG_PG_PROVISIONING_USER = ""
 ELECTORAL_LOG_PG_READER_USER = ""
 ELECTORAL_LOG_PG_BACKUP_USER = ""
