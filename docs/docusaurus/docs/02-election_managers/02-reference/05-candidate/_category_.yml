@@ -1,2 +1,6 @@
 label: 'Candidate'
 position: 5
+link:
+  type: generated-index
+  slug: /election_managers/reference/candidate
+  description: 'The tabs of a candidate.'
