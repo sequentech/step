@@ -434,6 +434,7 @@ const galegoTranslation: TranslationType = {
                 "Non atopado, comprobe que o ID da Papeleta seja correcto e pertenezca a este usuario.",
             filterByBallotId: "Filtrar por ID da Papeleta",
             totalBallots: "Papeletas: {{total}}",
+            totalBallotsMoreThan: "Papeletas: máis de {{total}}",
             steps: {
                 lookup: "Localiza a túa Papeleta",
                 result: "Resultado",

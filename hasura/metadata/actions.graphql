@@ -1328,11 +1328,17 @@ type CastVoteEntry {
 type ListCastVoteMessagesOutput {
     list: [CastVoteEntry]!
     total: Int!
+    total_bound: TotalBound!
 }
 
 type DataListElectoralLog {
     items: [ElectoralLogRow]!
     total: TotalAggregate!
+}
+
+enum TotalBound {
+    EXACT
+    MORE_THAN
 }
 
 type ScheduledEventOutput2 {

@@ -31,6 +31,7 @@ import {ETasksExecution} from "@/types/tasksExecution"
 import {useLogsPermissions} from "@/resources/ElectionEvent/useLogsPermissions"
 import {MessageField} from "./MessageField"
 import {ThreeStateDatagridHeader} from "./ThreeStateDatagridHeader"
+import {StaleRowsIndicator} from "./StaleRowsIndicator"
 
 enum ExportFormat {
     CSV = "CSV",
@@ -227,71 +228,79 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 aside={aside}
             >
                 <ResetFilters />
-                <DatagridConfigurable
-                    header={ThreeStateDatagridHeader}
-                    omit={OMIT_FIELDS}
-                    bulkActionButtons={false}
-                >
-                    <NumberField source="id" label={String(t("logsScreen.column.id"))} />
-                    <FunctionField
-                        source="user_id"
-                        label={String(t("logsScreen.column.user_id"))}
-                        render={(record: any) => {
-                            const userId = JSON.parse(record.message).user_id
-                            return (
-                                <span style={{display: "block", textAlign: "center"}}>
-                                    {!userId || userId === "null" ? <span>-</span> : userId}
-                                </span>
-                            )
-                        }}
-                    />
-                    <FunctionField
-                        source="username"
-                        label={String(t("logsScreen.column.username"))}
-                        render={(record: any) => {
-                            const username = JSON.parse(record.message).username
-                            return (
-                                <span style={{display: "block", textAlign: "center"}}>
-                                    {!username || username === "null" ? <span>-</span> : username}
-                                </span>
-                            )
-                        }}
-                    />
-                    <FunctionField
-                        source="created"
-                        label={String(t("logsScreen.column.created"))}
-                        render={(record: any) => new Date(record.created * 1000).toLocaleString()}
-                    />
-                    <FunctionField
-                        source="statement_timestamp"
-                        label={String(t("logsScreen.column.statement_timestamp"))}
-                        render={(record: any) =>
-                            new Date(record.statement_timestamp * 1000).toLocaleString()
-                        }
-                    />
-                    <TextField source="statement_kind" />
-                    <FunctionField
-                        source="event_type"
-                        label={String(t("logsScreen.column.statement_kind"))}
-                        render={(record: any) => getHeadField(record, "event_type")}
-                    />
-                    <FunctionField
-                        source="log_type"
-                        label={String(t("logsScreen.column.log_type"))}
-                        render={(record: any) => getHeadField(record, "log_type")}
-                    />
-                    <FunctionField
-                        source="description"
-                        label={String(t("logsScreen.column.description"))}
-                        render={(record: any) => (
-                            <MessageField
-                                content={getHeadField(record, "description")}
-                                initialLength={50}
-                            />
-                        )}
-                    />
-                    <MessageField source="message" />
-                </DatagridConfigurable>
+                <StaleRowsIndicator>
+                    <DatagridConfigurable
+                        header={ThreeStateDatagridHeader}
+                        omit={OMIT_FIELDS}
+                        bulkActionButtons={false}
+                    >
+                        <NumberField source="id" label={String(t("logsScreen.column.id"))} />
+                        <FunctionField
+                            source="user_id"
+                            label={String(t("logsScreen.column.user_id"))}
+                            render={(record: any) => {
+                                const userId = JSON.parse(record.message).user_id
+                                return (
+                                    <span style={{display: "block", textAlign: "center"}}>
+                                        {!userId || userId === "null" ? <span>-</span> : userId}
+                                    </span>
+                                )
+                            }}
+                        />
+                        <FunctionField
+                            source="username"
+                            label={String(t("logsScreen.column.username"))}
+                            render={(record: any) => {
+                                const username = JSON.parse(record.message).username
+                                return (
+                                    <span style={{display: "block", textAlign: "center"}}>
+                                        {!username || username === "null" ? (
+                                            <span>-</span>
+                                        ) : (
+                                            username
+                                        )}
+                                    </span>
+                                )
+                            }}
+                        />
+                        <FunctionField
+                            source="created"
+                            label={String(t("logsScreen.column.created"))}
+                            render={(record: any) =>
+                                new Date(record.created * 1000).toLocaleString()
+                            }
+                        />
+                        <FunctionField
+                            source="statement_timestamp"
+                            label={String(t("logsScreen.column.statement_timestamp"))}
+                            render={(record: any) =>
+                                new Date(record.statement_timestamp * 1000).toLocaleString()
+                            }
+                        />
+                        <TextField source="statement_kind" />
+                        <FunctionField
+                            source="event_type"
+                            label={String(t("logsScreen.column.statement_kind"))}
+                            render={(record: any) => getHeadField(record, "event_type")}
+                        />
+                        <FunctionField
+                            source="log_type"
+                            label={String(t("logsScreen.column.log_type"))}
+                            render={(record: any) => getHeadField(record, "log_type")}
+                        />
+                        <FunctionField
+                            source="description"
+                            label={String(t("logsScreen.column.description"))}
+                            render={(record: any) => (
+                                <MessageField
+                                    content={getHeadField(record, "description")}
+                                    initialLength={50}
+                                />
+                            )}
+                        />
+                        <MessageField source="message" />
+                    </DatagridConfigurable>
+                </StaleRowsIndicator>
             </List>
             <ExportDialog
                 electionEventId={record?.id ?? ""}
