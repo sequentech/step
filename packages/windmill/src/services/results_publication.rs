@@ -8,11 +8,12 @@ use crate::postgres::election_event::{
 };
 use crate::postgres::tally_results_publication::{
     get_active_publication_for_route, get_publication_by_id, insert_publishing_publication,
-    list_active_public_publications, list_superseded_publications, mark_publication_failed,
-    mark_publication_published, mark_publication_superseded, revoke_publication,
-    set_publication_finalization_error, validate_new_publication_source,
+    list_active_public_publications, list_superseded_publications, lock_publication_for_publishing,
+    mark_publication_failed, mark_publication_published, mark_publication_superseded,
+    revoke_publication, set_publication_finalization_error, validate_new_publication_source,
     NewTallyResultsPublication, TallyResultsPublication,
 };
+use crate::postgres::tally_session::lock_tally_session_for_update;
 use crate::postgres::tally_session_execution::get_tally_session_execution_documents;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
@@ -58,6 +59,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 use thiserror::Error;
+use tracing::error;
 
 const RESULTS_PORTAL_CLIENT_ID: &str = "results-portal";
 const LEGACY_RESULTS_PORTAL_CLIENT_ID: &str = "voting-portal";
@@ -1432,6 +1434,10 @@ pub async fn publish_results_website_artifacts(
     election_event_id: &str,
     publication_id: &str,
 ) -> Result<()> {
+    // One attempt per publication at a time: a second worker waits here and
+    // then sees the stored status, so it never uploads to the same public
+    // paths or deletes artifacts another attempt published.
+    lock_publication_for_publishing(tx, tenant_id, election_event_id, publication_id).await?;
     let publication =
         get_publication_by_id(tx, tenant_id, election_event_id, publication_id).await?;
     match publication.publication_status {
@@ -1447,6 +1453,9 @@ pub async fn publish_results_website_artifacts(
         }
     }
     let selected_contests = selected_contest_ids(&publication)?;
+    // Cheap early refusal without the tally-session lock. The source is checked
+    // again under the lock right before activation.
+    validate_publication_source(tx, &publication, &selected_contests).await?;
     let source_sqlite = source_sqlite_file(tx, &publication).await?;
     let source_path: PathBuf = source_sqlite.path().to_path_buf();
     let current_presentation =
@@ -1493,6 +1502,35 @@ pub async fn publish_results_website_artifacts(
         .await?
     };
 
+    // The artifacts are uploaded without the tally-session row lock, which
+    // recount creation and post-tally finalization also take. Lock only now,
+    // check the source is still final and current, and activate.
+    let activation = async {
+        lock_tally_session_for_update(
+            tx,
+            &publication.tenant_id,
+            &publication.election_event_id,
+            &publication.tally_session_id,
+        )
+        .await?;
+        validate_publication_source(tx, &publication, &selected_contests).await
+    }
+    .await;
+    if let Err(err) = activation {
+        let uploaded = TallyResultsPublication {
+            documents: documents.clone(),
+            ..publication.clone()
+        };
+        if let Err(cleanup_err) = delete_superseded_publication_artifacts(tx, &uploaded).await {
+            error!(
+                error = ?cleanup_err,
+                publication_id = publication.id,
+                "Failed to delete the artifacts of a publication whose source changed"
+            );
+        }
+        return Err(err);
+    }
+
     mark_publication_published(
         tx,
         &publication,
@@ -1501,6 +1539,34 @@ pub async fn publish_results_website_artifacts(
     )
     .await?;
     Ok(())
+}
+
+async fn validate_publication_source(
+    tx: &Transaction<'_>,
+    publication: &TallyResultsPublication,
+    selected_contests: &[String],
+) -> Result<()> {
+    validate_new_publication_source(
+        tx,
+        &publication.tenant_id,
+        &publication.election_event_id,
+        &publication.tally_session_id,
+        &publication.tally_session_execution_id,
+        &publication.results_event_id,
+        &publication.election_ids,
+        selected_contests,
+        publication.route_election_id.as_deref(),
+    )
+    .await
+    .with_context(|| {
+        format!(
+            "Invalid source for publication {}: tally session {}, execution {}, results event {}",
+            publication.id,
+            publication.tally_session_id,
+            publication.tally_session_execution_id,
+            publication.results_event_id
+        )
+    })
 }
 
 async fn upload_latest_public_manifest(publication: &TallyResultsPublication) -> Result<()> {
