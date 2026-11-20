@@ -981,6 +981,22 @@ fn check_status_with_loaded_election(
                     format!("Election voting status is not open (={current_voting_status:?}) while voting before the closing date of the election"),
                 ));
             }
+
+            // The grace period extends voting that was open at the scheduled
+            // close. Voting that was closed by hand before it, or never
+            // opened, gets no grace.
+            let open_at_close = match current_voting_status {
+                VotingStatus::OPEN => true,
+                VotingStatus::CLOSED => dates_by_channel
+                    .last_stopped_at
+                    .is_some_and(|stopped| stopped.with_timezone(&Local) >= close_date_esq_event),
+                VotingStatus::NOT_STARTED | VotingStatus::PAUSED => false,
+            };
+            if now > close_date_esq_event && !open_at_close {
+                return Err(CastVoteError::CheckStatusFailed(format!(
+                    "Voting for voting_channel={voting_channel:?} was not open at the scheduled close (status {current_voting_status:?}), so the grace period does not apply"
+                )));
+            }
         } else {
             if now > close_date_esq_event {
                 return Err(CastVoteError::CheckStatusFailed(
@@ -998,11 +1014,11 @@ fn check_status_with_loaded_election(
     } else {
         // Preserve the pre-ticket acceptance rule: this exception is only
         // consulted when there is no configured online close date.
-        let allow_early_voting = is_early_voting_area
-            && election_status.status_by_channel(VotingStatusChannel::EARLY_VOTING)
-                == VotingStatus::OPEN
-            && election_status.status_by_channel(VotingStatusChannel::ONLINE)
-                == VotingStatus::NOT_STARTED;
+        let allow_early_voting = effective_voting_channel_for_status(
+            voting_channel,
+            is_early_voting_area,
+            election_status,
+        ) == VotingStatusChannel::EARLY_VOTING;
         let last_stopped_at = dates_by_channel
             .last_stopped_at
             .map(|val| val.with_timezone(&Local));
