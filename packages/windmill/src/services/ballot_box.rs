@@ -590,12 +590,33 @@ mod tests {
         );
     }
 
-    /// The sequencer against a real server, in the database of
-    /// `ELECTORAL_LOG_TEST_DATABASE_URL`.
+    /// The sequencer and its admission gate against the real test databases.
     #[tokio::test]
-    #[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+    #[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL and PGMQ_TEST_DATABASE_URL"]
     async fn the_sequencer_appends_each_accepted_ballot_once_in_order() -> Result<()> {
         let config = std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")?.parse()?;
+        let queue_url = std::env::var("PGMQ_TEST_DATABASE_URL")?;
+        anyhow::ensure!(
+            std::env::var("QUEUE_DB__URL").as_deref() == Ok(queue_url.as_str()),
+            "QUEUE_DB__URL must use the PGMQ test database for this test"
+        );
+        // Admission reads the queue database, not the ballot database. Set up
+        // its schema explicitly instead of relying on another parallel test.
+        {
+            let pool = crate::services::database::try_get_queue_pool().await?;
+            let mut client = pool.get().await?;
+            let tx = client.transaction().await?;
+            pgmq_broker::setup::setup(
+                &tx,
+                &pgmq_broker::setup::Installation {
+                    environment: "pgmq-test",
+                    queues: &[],
+                    roles: None,
+                },
+            )
+            .await?;
+            tx.commit().await?;
+        }
         let store = PostgresStore::new(config)?;
         store.initialize().await?;
         let event = uuid::Uuid::new_v4().to_string();
