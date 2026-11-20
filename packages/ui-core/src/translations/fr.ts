@@ -564,7 +564,7 @@ const frenchTranslation: TranslationType = {
                         text: "Annulation sans seconde chance — un électeur peut annuler un bulletin déposé sans avoir de seconde tentative pour le remplacer.",
                     },
                 },
-                event: {
+                "event": {
                     "ballot-identity-unknown": {
                         lead: "Identité du bulletin inconnue",
                         text: "Identité du bulletin inconnue — '{{value}}' n’est pas pris en charge. Utilisez voter-id ou pseudonym.",

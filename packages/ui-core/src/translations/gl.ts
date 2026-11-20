@@ -562,7 +562,7 @@ const galegoTranslation: TranslationType = {
                         text: "Anular sen segunda oportunidade — un votante pode descartar unha papeleta emitida e non ten un segundo intento para substituíla.",
                     },
                 },
-                event: {
+                "event": {
                     "ballot-identity-unknown": {
                         lead: "Identidade da papeleta descoñecida",
                         text: "Identidade da papeleta descoñecida — '{{value}}' non é compatible. Use voter-id ou pseudonym.",

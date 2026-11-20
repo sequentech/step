@@ -559,7 +559,7 @@ const catalanTranslation: TranslationType = {
                         text: "Anul·lar sense segona oportunitat — un votant pot descartar una papereta emesa i no té cap segon intent per substituir-la.",
                     },
                 },
-                event: {
+                "event": {
                     "ballot-identity-unknown": {
                         lead: "Identitat de papereta desconeguda",
                         text: "Identitat de papereta desconeguda — '{{value}}' no és compatible. Feu servir voter-id o pseudonym.",

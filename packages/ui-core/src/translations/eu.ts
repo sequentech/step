@@ -558,7 +558,7 @@ const basqueTranslation: TranslationType = {
                         text: "Baliogabetzea bigarren aukerarik gabe — hautesle batek emandako boto-txartel bat baztertu dezake eta ez du hura ordezkatzeko bigarren saiakerarik.",
                     },
                 },
-                event: {
+                "event": {
                     "ballot-identity-unknown": {
                         lead: "Boto-paperaren identitate ezezaguna",
                         text: "Boto-paperaren identitate ezezaguna — '{{value}}' ez da onartzen. Erabili voter-id edo pseudonym.",

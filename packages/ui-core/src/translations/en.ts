@@ -561,7 +561,7 @@ const englishTranslation = {
                         text: "Spoiling with no second chance — a voter may throw a cast ballot away and has no second attempt to replace it.",
                     },
                 },
-                event: {
+                "event": {
                     "ballot-identity-unknown": {
                         lead: "Unknown ballot identity",
                         text: "Unknown ballot identity — '{{value}}' is not supported. Use voter-id or pseudonym.",

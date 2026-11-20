@@ -560,7 +560,7 @@ const tagalogTranslation: TranslationType = {
                         text: "Pag-spoil na walang pangalawang pagkakataon — puwedeng itapon ng botante ang naibotong balota at wala siyang pangalawang pagkakataon para palitan ito.",
                     },
                 },
-                event: {
+                "event": {
                     "ballot-identity-unknown": {
                         lead: "Hindi kilalang pagkakakilanlan ng balota",
                         text: "Hindi kilalang pagkakakilanlan ng balota — hindi suportado ang '{{value}}'. Gamitin ang voter-id o pseudonym.",

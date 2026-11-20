@@ -559,7 +559,7 @@ const dutchTranslation: TranslationType = {
                         text: "Ongeldig maken zonder tweede kans — een kiezer mag een uitgebracht stembiljet weggooien en heeft geen tweede poging om het te vervangen.",
                     },
                 },
-                event: {
+                "event": {
                     "ballot-identity-unknown": {
                         lead: "Onbekende stembiljetidentiteit",
                         text: "Onbekende stembiljetidentiteit — '{{value}}' wordt niet ondersteund. Gebruik voter-id of pseudonym.",
