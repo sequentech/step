@@ -549,15 +549,16 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
 
     const approve = async () => {
         setConfirmApprove(false)
-        if (!chosenCandidate) {
+        const voterId = chosenCandidate?.voter.id
+        if (!voterId) {
             return
         }
         // The event asks for a fresh second factor before approving.
         if (stepUp && !isGoldUser()) {
-            await signInAgain(chosenCandidate.voter.id)
+            await signInAgain(voterId)
             return
         }
-        await sendApproval(chosenCandidate.voter.id)
+        await sendApproval(voterId)
     }
 
     const reject = async () => {
