@@ -1,0 +1,17 @@
+mutation SigningApprove(
+    $request_id: uuid!
+    $chain_pem: [String!]!
+    $algorithm: String!
+    $payload_signature_b64: String!
+) {
+    signingApprove(
+        request_id: $request_id
+        chain_pem: $chain_pem
+        algorithm: $algorithm
+        payload_signature_b64: $payload_signature_b64
+    ) {
+        status
+        count
+        required
+    }
+}

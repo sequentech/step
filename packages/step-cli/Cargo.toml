@@ -43,6 +43,8 @@ tokio-postgres = "0.7"
 deadpool-postgres = { version = "0.14", features = ["rt_tokio_1", "serde"] }
 
 hex = "0.4"
+# opens the signer's .p12 and signs signing requests, as windmill verifies them
+openssl = "0.10"
 ring = "0.17"
 sha2 = "0.10"
 base64 = "0.22"

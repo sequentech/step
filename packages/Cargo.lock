@@ -10336,6 +10336,7 @@ dependencies = [
  "hex",
  "libc",
  "native-tls",
+ "openssl",
  "postgres-native-tls",
  "protocol-board",
  "rand 0.9.3",

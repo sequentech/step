@@ -111,7 +111,10 @@ impl CustodyProofSubmission {
 /// Prints that the action waits for signatures and exits with
 /// [`EXIT_SIGNATURES_PENDING`].
 pub fn exit_pending(what: &str, pending: &PendingSignatures) -> ! {
-    println!("{what} is {pending}.");
+    println!(
+        "{what} is {pending}. Signers run `step sign-request --id {}`.",
+        pending.id
+    );
     std::process::exit(EXIT_SIGNATURES_PENDING);
 }
 

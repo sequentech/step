@@ -64,6 +64,7 @@ enum StepCommands {
     CompleteKeyCeremony(commands::complete_key_ceremony::Complete),
     GetKeyCeremonyStatus(commands::get_key_ceremony_status::GetKeyCeremonyStatus),
     StartTally(commands::start_tally::StartTallyCeremony),
+    SignRequest(commands::sign_request::SignRequest),
     UpdateTally(commands::update_tally_status::UpdateTallyStatus),
     SubmitTallyResolution(commands::submit_tally_resolution::SubmitTallyResolution),
     TallySheet(commands::tally_sheet::TallySheetCommand),
@@ -143,6 +144,9 @@ fn main() {
             StepCommands::CompleteKeyCeremony(complete) => complete.run(),
             StepCommands::GetKeyCeremonyStatus(status) => exit_on_error(status.run()),
             StepCommands::StartTally(start) => start.run(),
+            StepCommands::SignRequest(sign) => {
+                exit_on_error(sign.run().map_err(|error| format!("{error:#}")))
+            }
             StepCommands::UpdateTally(update) => update.run(),
             StepCommands::SubmitTallyResolution(submit) => submit.run(),
             StepCommands::TallySheet(command) => command.run(),
