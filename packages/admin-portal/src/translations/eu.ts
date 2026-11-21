@@ -4180,8 +4180,7 @@ const basqueTranslation: TranslationType = {
                     body: "Honek izen-ematea beheko erregistroko bozkatzailearekin lotzen du. Bozkatzaileari posta elektronikoz edo SMS bidez jakinarazten zaio, eta bozketa irekitzen denean saioa hasi ahal izango du botoa emateko.",
                     checked: "Bozkatzailearen identifikazio agiria aurrez aurre egiaztatu duzu.",
                     irreversible: "Hau ezin da desegin.",
-                    stepUp:
-                        "Onarpena bidali aurretik, berriro saioa hasteko eskatuko zaizu bigarren faktorearekin.",
+                    stepUp: "Onarpena bidali aurretik, berriro saioa hasteko eskatuko zaizu bigarren faktorearekin.",
                     confirm: "Onartu",
                 },
                 reject: "Baztertu izen-ematea",
@@ -4234,8 +4233,7 @@ const basqueTranslation: TranslationType = {
                 rejectError: "Ezin izan da izen-ematea baztertu",
                 rejectSuccess: "{{name}}: baztertua. Bozkatzaileari jakinarazi zaio.",
                 VoterApprovedAlready: "Bozkatzaile honek dagoeneko izena emanda du.",
-                stepUpError:
-                    "Onarpenak berriro saioa hastea eskatzen du bigarren faktorearekin. Saiatu berriro.",
+                stepUpError: "Onarpenak berriro saioa hastea eskatzen du bigarren faktorearekin. Saiatu berriro.",
             },
             export: {
                 success: "Eskaeren esportazioa ondo amaitu da",
