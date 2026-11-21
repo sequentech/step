@@ -5,12 +5,15 @@
 //! session, the same data the Admin Portal shows, and the stored ballots from
 //! the election event's ballot box.
 use super::ballot_box;
-use super::voting::{CastBallot, LoggedCast, StoredBallot, UserEvent, Voter, VotingRecords};
+use super::voting::{
+    CastBallot, LoggedCast, PrivacyPolicy, StoredBallot, UserEvent, Voter, VotingRecords,
+};
 use crate::ports::graphql::GraphqlClient;
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::{DateTime, Utc};
-use electoral_log::adapters::privacy::BallotIdentity;
+use electoral_log::adapters::privacy::{BallotBoxPrivacy, BallotIdentity};
 use electoral_log::messages::statement::{StatementLogType, StatementType};
+use sequent_core::types::{keycloak::Role, vote_privacy};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
@@ -33,6 +36,14 @@ const PUBLISHED_AREAS: &str =
     deleted_at: {_is_null: true},
     ballot_publication: {published_at: {_is_null: false}, deleted_at: {_is_null: true}}
   }) { area_id }
+}";
+
+const PRESENTATION: &str = "query AcceptancePresentation($tenant: uuid!, $event: uuid!) {
+  sequent_backend_election_event(where: {tenant_id: {_eq: $tenant}, id: {_eq: $event}}) { presentation }
+}";
+
+const GET_ROLES: &str = "query AcceptanceRoles($body: GetRolesInput!) {
+  get_roles(body: $body) { items { id name permissions } }
 }";
 
 /// The statement body of a cast under a pseudonym.
@@ -230,6 +241,46 @@ impl<G: GraphqlClient> VotingRecords for HasuraRecords<G> {
             }
         }
         Ok(ballot_ids)
+    }
+
+    fn privacy_policy(&self, event: &str) -> Result<PrivacyPolicy> {
+        #[derive(Deserialize)]
+        struct Presentation {
+            ballot_identity: Option<vote_privacy::BallotIdentity>,
+            network_data_policy: Option<vote_privacy::NetworkDataPolicy>,
+        }
+        #[derive(Deserialize)]
+        struct Row {
+            presentation: Option<Value>,
+        }
+        let rows: Vec<Row> = self.query(
+            PRESENTATION,
+            json!({"tenant": self.tenant_id, "event": event}),
+            &["sequent_backend_election_event"],
+        )?;
+        let row = rows
+            .into_iter()
+            .next()
+            .with_context(|| format!("Election event {event} not found"))?;
+        let presentation: Presentation =
+            serde_json::from_value(row.presentation.unwrap_or_else(|| json!({})))
+                .context("Invalid privacy settings in the election event's presentation")?;
+        Ok(PrivacyPolicy {
+            ballot_identity: presentation.ballot_identity,
+            network_data_policy: presentation.network_data_policy,
+        })
+    }
+
+    fn ballot_box_privacy(&self, event: &str) -> Result<BallotBoxPrivacy> {
+        ballot_box::ballot_box_privacy(event)
+    }
+
+    fn roles(&self) -> Result<Vec<Role>> {
+        self.query(
+            GET_ROLES,
+            json!({"body": {"tenant_id": self.tenant_id}}),
+            &["get_roles", "items"],
+        )
     }
 
     fn logged_casts(&self, event: &str, voter_id: &str) -> Result<Vec<LoggedCast>> {
@@ -432,5 +483,73 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("published_at: {_is_null: false}"));
+    }
+
+    #[test]
+    fn privacy_settings_are_read_from_the_event_presentation() {
+        let records = records(
+            QueuedGraphql::default()
+                .respond(
+                    json!({"data": {"sequent_backend_election_event": [{"presentation": {
+                        "ballot_identity": "pseudonym",
+                        "network_data_policy": "forensic-store",
+                        "css": "body {}"
+                    }}]}}),
+                )
+                .respond(
+                    json!({"data": {"sequent_backend_election_event": [{"presentation": null}]}}),
+                )
+                .respond(json!({"data": {"sequent_backend_election_event": []}}))
+                .respond(
+                    json!({"data": {"sequent_backend_election_event": [{"presentation": {
+                        "network_data_policy": "keep-everything"
+                    }}]}}),
+                ),
+        );
+        assert_eq!(
+            records.privacy_policy("event").unwrap(),
+            PrivacyPolicy {
+                ballot_identity: Some(vote_privacy::BallotIdentity::Pseudonym),
+                network_data_policy: Some(vote_privacy::NetworkDataPolicy::ForensicStore),
+            }
+        );
+        assert_eq!(
+            records.privacy_policy("event").unwrap(),
+            PrivacyPolicy::default()
+        );
+        let error = |result: Result<PrivacyPolicy>| format!("{:#}", result.unwrap_err());
+        assert!(error(records.privacy_policy("event")).contains("not found"));
+        assert!(error(records.privacy_policy("event")).contains("Invalid privacy settings"));
+        assert_eq!(
+            records.graphql.requests()[0]["variables"],
+            json!({"tenant": "tenant", "event": "event"})
+        );
+    }
+
+    #[test]
+    fn roles_are_read_with_their_permissions() {
+        let records = records(QueuedGraphql::default().respond(
+            json!({"data": {"get_roles": {"items": [
+                {"id": "1", "name": "admin", "permissions": ["voter-pseudonym-resolve", "forensic-read"]},
+                {"id": "2", "name": "empty", "permissions": null}
+            ]}}}),
+        ));
+        let roles = records.roles().unwrap();
+        assert_eq!(roles.len(), 2);
+        assert_eq!(roles[0].name.as_deref(), Some("admin"));
+        assert_eq!(
+            roles[0].permissions.as_deref(),
+            Some(
+                &[
+                    "voter-pseudonym-resolve".to_string(),
+                    "forensic-read".to_string()
+                ][..]
+            )
+        );
+        assert_eq!(roles[1].permissions, None);
+        assert_eq!(
+            records.graphql.requests()[0]["variables"],
+            json!({"body": {"tenant_id": "tenant"}})
+        );
     }
 }

@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # Voting stage of the post-qualification demonstration (PQRI D.4): the
-# failure conditions of D.4 and one witnessed check per Annex A D.4 condition.
+# failure conditions of D.4, one witnessed check per Annex A D.4 condition, and
+# automatic checks of what the event's records show about voter confidentiality
+# (D.4.6.1 and D.4.6.2), whose ids extend the condition's id.
 #
 # severity: critical (a failure, or no result, keeps the stage from passing)
 #           or advisory (a failure is only reported).
@@ -97,11 +99,35 @@ checks:
     source: PQRI Annex A D.4.6.1
     severity: critical
     method: witnessed
+  - id: annex-a.d.4.6.1.pseudonymous-ballots
+    title: The ballot box stores ballots under pseudonyms, as the election event's settings say
+    source: PQRI Annex A D.4.6.1
+    severity: critical
+    method: automatic
+    probe: pseudonymous-ballots
+  - id: annex-a.d.4.6.1.privileged-roles
+    title: Roles that can resolve pseudonyms or read network data (which users hold them is witnessed)
+    source: PQRI Annex A D.4.6.1
+    severity: advisory
+    method: automatic
+    probe: privileged-roles
   - id: annex-a.d.4.6.2
     title: "Ensure no cast vote is traceable to a voter."
     source: PQRI Annex A D.4.6.2
     severity: critical
     method: witnessed
+  - id: annex-a.d.4.6.2.network-data
+    title: Voters' IP addresses and countries are not stored (network data policy do-not-store)
+    source: PQRI Annex A D.4.6.2
+    severity: critical
+    method: automatic
+    probe: network-data-not-stored
+  - id: annex-a.d.4.6.2.ballot-box-unlinked
+    title: No ballot-box row has network data, a username or a voter id that is not a pseudonym
+    source: PQRI Annex A D.4.6.2
+    severity: critical
+    method: automatic
+    probe: ballot-box-unlinked
   - id: annex-a.d.4.7.1
     title: "Allow voters to edit selections until final submission."
     source: PQRI Annex A D.4.7.1

@@ -14,11 +14,12 @@ use super::{
 };
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use electoral_log::adapters::privacy::{normalize_privacy_code, BallotIdentity};
+use electoral_log::adapters::privacy::{normalize_privacy_code, BallotBoxPrivacy, BallotIdentity};
 use sequent_core::{
     ballot::{HashableBallot, SignedHashableBallot},
     encrypt::{hash_ballot_sha512, hash_multi_ballot_sha512},
     multi_ballot::{HashableMultiBallot, SignedHashableMultiBallot},
+    types::{keycloak::Role, permissions::Permissions, vote_privacy},
 };
 use std::collections::BTreeSet;
 
@@ -82,6 +83,14 @@ pub struct LoggedCast {
     pub vote_hash: String,
 }
 
+/// The privacy settings of the election event's presentation; unset values
+/// keep the platform's defaults.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct PrivacyPolicy {
+    pub ballot_identity: Option<vote_privacy::BallotIdentity>,
+    pub network_data_policy: Option<vote_privacy::NetworkDataPolicy>,
+}
+
 /// What the checks read. The Hasura implementation is in `super::hasura`.
 pub trait VotingRecords {
     fn voter(&self, event: &str, username: &str) -> Result<Option<Voter>>;
@@ -99,6 +108,11 @@ pub trait VotingRecords {
     /// Pseudonymous events: Ballot IDs of the cast vote statements in the
     /// event's log since `since`.
     fn private_casts(&self, event: &str, since: DateTime<Utc>) -> Result<BTreeSet<String>>;
+    fn privacy_policy(&self, event: &str) -> Result<PrivacyPolicy>;
+    /// Pseudonymous events: counts of the ballot-box rows that break pseudonymity.
+    fn ballot_box_privacy(&self, event: &str) -> Result<BallotBoxPrivacy>;
+    /// The tenant's roles with their permissions.
+    fn roles(&self) -> Result<Vec<Role>>;
 }
 
 /// Keycloak's event for a completed sign-in.
@@ -128,6 +142,35 @@ pub struct Facts {
     pub cast_ballots: Vec<CastBallot>,
     /// Pseudonymous events: Ballot IDs with a cast vote statement in the log.
     pub private_casts: BTreeSet<String>,
+    /// Read only for runs with a privacy check.
+    pub privacy: Option<PrivacyFacts>,
+}
+
+/// What the privacy checks read: settings and counts, never a voter or a ballot.
+#[derive(Debug)]
+pub struct PrivacyFacts {
+    pub policy: PrivacyPolicy,
+    /// Not read for voter-id events, whose ballots name their voters anyway.
+    pub ballot_box: Option<BallotBoxPrivacy>,
+    /// Why the roles could not be read, if they could not.
+    pub roles: Result<Vec<Role>, String>,
+}
+
+impl PrivacyFacts {
+    pub fn gather(
+        records: &impl VotingRecords,
+        event: &str,
+        identity: BallotIdentity,
+    ) -> Result<Self> {
+        Ok(Self {
+            policy: records.privacy_policy(event)?,
+            ballot_box: match identity {
+                BallotIdentity::Pseudonym => Some(records.ballot_box_privacy(event)?),
+                BallotIdentity::VoterId => None,
+            },
+            roles: records.roles().map_err(|error| format!("{error:#}")),
+        })
+    }
 }
 
 impl Facts {
@@ -227,6 +270,7 @@ impl Facts {
             presented_ballot_ids,
             cast_ballots,
             private_casts,
+            privacy: None,
         })
     }
 
@@ -247,10 +291,22 @@ impl Facts {
 
 /// The findings of one check, or why it cannot be decided with what the operator gave.
 pub fn probe(probe: Probe, facts: &Facts) -> Result<Vec<Finding>, String> {
-    if facts.voters.is_empty() {
+    if probe.needs_voters() && facts.voters.is_empty() {
         return Err("no voters were given".into());
     }
+    let privacy = || {
+        facts
+            .privacy
+            .as_ref()
+            .ok_or_else(|| "the privacy settings were not read".to_string())
+    };
     match (probe, facts.identity) {
+        (Probe::PseudonymousBallots, identity) => Ok(pseudonymous_ballots(identity, privacy()?)),
+        (Probe::NetworkDataNotStored, identity) => {
+            Ok(network_data_not_stored(identity, privacy()?))
+        }
+        (Probe::BallotBoxUnlinked, _) => Ok(ballot_box_unlinked(privacy()?)),
+        (Probe::PrivilegedRoles, _) => privileged_roles(privacy()?),
         (Probe::VoterAuthenticated, _) => Ok(voter_authenticated(facts)),
         (Probe::BallotPublished, _) => Ok(ballot_published(facts)),
         (Probe::BallotCast, BallotIdentity::VoterId) => Ok(ballot_cast(facts)),
@@ -604,6 +660,150 @@ fn ballot_stored_by_ballot_id(facts: &Facts) -> Result<Vec<Finding>, String> {
     Ok(findings)
 }
 
+/// Name of findings about the election event's settings.
+const ELECTION_EVENT: &str = "election event";
+
+/// Name of findings about the ballot box as a whole.
+const BALLOT_BOX: &str = "ballot box";
+
+const VOTER_ID_BALLOTS: &str =
+    "the ballot box stores ballots under voter ids (ballot identity voter-id), so each ballot names its voter";
+
+fn identity_name(identity: Option<vote_privacy::BallotIdentity>) -> &'static str {
+    match identity {
+        Some(vote_privacy::BallotIdentity::Pseudonym) => "pseudonym",
+        Some(vote_privacy::BallotIdentity::VoterId) => "voter-id",
+        None => "not set (voter-id)",
+    }
+}
+
+/// The ballot box and the event's presentation agree that ballots carry pseudonyms.
+fn pseudonymous_ballots(identity: BallotIdentity, privacy: &PrivacyFacts) -> Vec<Finding> {
+    let presented = privacy.policy.ballot_identity;
+    let detail = format!(
+        "presentation.ballot_identity is {}",
+        identity_name(presented)
+    );
+    vec![match identity {
+        BallotIdentity::VoterId => Finding::fail(
+            Subject::Stage,
+            ELECTION_EVENT,
+            format!("{VOTER_ID_BALLOTS}; {detail}"),
+        ),
+        BallotIdentity::Pseudonym if presented != Some(vote_privacy::BallotIdentity::Pseudonym) => {
+            Finding::fail(
+                Subject::Stage,
+                ELECTION_EVENT,
+                format!("the ballot box stores ballots under pseudonyms but {detail}"),
+            )
+        }
+        BallotIdentity::Pseudonym => Finding::pass(
+            Subject::Stage,
+            ELECTION_EVENT,
+            format!("the ballot box stores ballots under pseudonyms and {detail}"),
+        ),
+    }]
+}
+
+/// Under `forensic-store` the IP address and country of each cast are kept in
+/// the forensic tables next to its pseudonym and Ballot ID, so a cast can be
+/// traced to a network and, through it, to a person.
+fn network_data_not_stored(identity: BallotIdentity, privacy: &PrivacyFacts) -> Vec<Finding> {
+    use vote_privacy::NetworkDataPolicy;
+    let policy = privacy.policy.network_data_policy;
+    vec![match (identity, policy.unwrap_or_default()) {
+        (BallotIdentity::VoterId, _) => Finding::fail(
+            Subject::Stage,
+            ELECTION_EVENT,
+            format!("{VOTER_ID_BALLOTS}, with its IP address and country"),
+        ),
+        (BallotIdentity::Pseudonym, NetworkDataPolicy::ForensicStore) => Finding::fail(
+            Subject::Stage,
+            ELECTION_EVENT,
+            "presentation.network_data_policy is forensic-store: the IP address and country of each cast are kept in the forensic tables with its pseudonym and Ballot ID",
+        ),
+        (BallotIdentity::Pseudonym, NetworkDataPolicy::DoNotStore) => Finding::pass(
+            Subject::Stage,
+            ELECTION_EVENT,
+            match policy {
+                Some(_) => "presentation.network_data_policy is do-not-store",
+                None => "presentation.network_data_policy is not set (do-not-store)",
+            },
+        ),
+    }]
+}
+
+fn ballot_box_unlinked(privacy: &PrivacyFacts) -> Vec<Finding> {
+    let Some(counts) = &privacy.ballot_box else {
+        return vec![Finding::fail(Subject::Stage, BALLOT_BOX, VOTER_ID_BALLOTS)];
+    };
+    let checks = [
+        (
+            counts.ballots_with_network_data,
+            counts.ballots,
+            "ballots with an IP address or country",
+        ),
+        (
+            counts.ballots_with_username,
+            counts.ballots,
+            "ballots with a username other than their pseudonym",
+        ),
+        (
+            counts.ballots_without_pseudonym,
+            counts.ballots,
+            "ballots whose voter id is not an allocated pseudonym",
+        ),
+        (
+            counts.received_without_pseudonym,
+            counts.received,
+            "received ballots whose voter id is not an allocated pseudonym",
+        ),
+    ];
+    checks
+        .into_iter()
+        .map(|(found, of, what)| {
+            let detail = format!("{what}: {found} of {of}");
+            if found == 0 {
+                Finding::pass(Subject::Stage, BALLOT_BOX, detail)
+            } else {
+                Finding::fail(Subject::Stage, BALLOT_BOX, detail)
+            }
+        })
+        .collect()
+}
+
+/// Informational: who holds the roles is not in the event's records.
+fn privileged_roles(privacy: &PrivacyFacts) -> Result<Vec<Finding>, String> {
+    let roles = privacy
+        .roles
+        .as_ref()
+        .map_err(|error| format!("the tenant's roles cannot be read: {error}"))?;
+    Ok([
+        Permissions::VOTER_PSEUDONYM_RESOLVE,
+        Permissions::FORENSIC_READ,
+    ]
+    .iter()
+    .map(|permission| {
+        let permission = permission.to_string();
+        let holders: Vec<&str> = roles
+            .iter()
+            .filter(|role| {
+                role.permissions
+                    .as_ref()
+                    .is_some_and(|granted| granted.contains(&permission))
+            })
+            .filter_map(|role| role.name.as_deref())
+            .collect();
+        let detail = if holders.is_empty() {
+            "no role holds it".to_string()
+        } else {
+            format!("held by roles: {}", holders.join(", "))
+        };
+        Finding::pass(Subject::Stage, &permission, detail)
+    })
+    .collect())
+}
+
 /// Whether a ballot hash, SHA-512 truncated to 256 bits, is that of the full
 /// `sha512` hex digest.
 fn names_hash(ballot_hash: &str, sha512: &str) -> bool {
@@ -644,7 +844,7 @@ pub(crate) mod tests {
     }
 
     /// In-memory election event: two voters of one area who signed in and voted.
-    #[derive(Clone, Default)]
+    #[derive(Clone)]
     pub struct Event {
         pub voters: Vec<Voter>,
         pub events: BTreeMap<String, Vec<UserEvent>>,
@@ -654,6 +854,42 @@ pub(crate) mod tests {
         /// Ballots carry pseudonyms; each one's receipt Ballot ID is its code.
         pub pseudonymous: bool,
         pub private_casts: BTreeSet<String>,
+        pub policy: PrivacyPolicy,
+        pub ballot_box: BallotBoxPrivacy,
+        /// The tenant's roles, or why they cannot be read.
+        pub roles: Result<Vec<Role>, String>,
+    }
+
+    pub fn role(name: &str, permissions: &[&str]) -> Role {
+        Role {
+            id: Some(format!("id-{name}")),
+            name: Some(name.into()),
+            permissions: Some(permissions.iter().map(|p| (*p).into()).collect()),
+            access: None,
+            attributes: None,
+            client_roles: None,
+        }
+    }
+
+    impl Default for Event {
+        fn default() -> Self {
+            Self {
+                voters: vec![],
+                events: BTreeMap::new(),
+                published: BTreeSet::new(),
+                ballots: vec![],
+                logged: BTreeMap::new(),
+                pseudonymous: false,
+                private_casts: BTreeSet::new(),
+                policy: PrivacyPolicy::default(),
+                ballot_box: BallotBoxPrivacy::default(),
+                roles: Ok(vec![
+                    role("admin", &["voter-pseudonym-resolve", "forensic-read"]),
+                    role("auditor", &["forensic-read"]),
+                    role("support", &["user-read"]),
+                ]),
+            }
+        }
     }
 
     impl Event {
@@ -700,6 +936,15 @@ pub(crate) mod tests {
         pub fn voted_under_pseudonyms(usernames: &[&str]) -> Self {
             let mut event = Self::voted(usernames);
             event.pseudonymous = true;
+            event.policy = PrivacyPolicy {
+                ballot_identity: Some(vote_privacy::BallotIdentity::Pseudonym),
+                network_data_policy: Some(vote_privacy::NetworkDataPolicy::DoNotStore),
+            };
+            event.ballot_box = BallotBoxPrivacy {
+                ballots: usernames.len() as i64,
+                received: usernames.len() as i64,
+                ..Default::default()
+            };
             event.logged.clear();
             for (index, ballot) in event.ballots.iter_mut().enumerate() {
                 let code = format!("ABCD-{index:04}");
@@ -717,6 +962,20 @@ pub(crate) mod tests {
                     _ => b.ballot_id.clone(),
                 })
                 .collect()
+        }
+
+        fn pseudonym_only(&self) -> Result<()> {
+            if !self.pseudonymous {
+                anyhow::bail!("This event does not use pseudonyms");
+            }
+            Ok(())
+        }
+
+        /// Facts for a run of the privacy checks as well.
+        pub fn privacy_facts(&self, usernames: &[&str], presented: Vec<String>) -> Facts {
+            let mut facts = self.facts(usernames, presented);
+            facts.privacy = Some(PrivacyFacts::gather(self, "event", facts.identity).unwrap());
+            facts
         }
 
         fn voter_id_only(&self) -> Result<()> {
@@ -791,6 +1050,16 @@ pub(crate) mod tests {
         }
         fn private_casts(&self, _: &str, _: DateTime<Utc>) -> Result<BTreeSet<String>> {
             Ok(self.private_casts.clone())
+        }
+        fn privacy_policy(&self, _: &str) -> Result<PrivacyPolicy> {
+            Ok(self.policy.clone())
+        }
+        fn ballot_box_privacy(&self, _: &str) -> Result<BallotBoxPrivacy> {
+            self.pseudonym_only()?;
+            Ok(self.ballot_box)
+        }
+        fn roles(&self) -> Result<Vec<Role>> {
+            self.roles.clone().map_err(anyhow::Error::msg)
         }
     }
 
@@ -1196,5 +1465,139 @@ pub(crate) mod tests {
             ),
             ["stage checked voters: no presented Ballot ID names a cast ballot"]
         );
+    }
+
+    const PRIVACY: [Probe; 4] = [
+        Probe::PseudonymousBallots,
+        Probe::NetworkDataNotStored,
+        Probe::BallotBoxUnlinked,
+        Probe::PrivilegedRoles,
+    ];
+
+    #[test]
+    fn a_pseudonymous_event_passes_the_privacy_checks_without_voters() {
+        let event = Event::voted_under_pseudonyms(&["ana", "ben"]);
+        let facts = event.privacy_facts(&[], vec![]);
+        for which in PRIVACY {
+            let findings = probe(which, &facts).unwrap();
+            assert!(!findings.is_empty());
+            assert_eq!(failures(&findings), Vec::<String>::new(), "{which}");
+            for finding in &findings {
+                assert_eq!(finding.subject, Subject::Stage, "{which}");
+            }
+        }
+        assert_eq!(
+            probe(Probe::BallotCast, &facts).unwrap_err(),
+            "no voters were given"
+        );
+        let unread = event.facts(&[], vec![]);
+        assert!(probe(Probe::PseudonymousBallots, &unread).is_err());
+    }
+
+    #[test]
+    fn privileged_roles_are_listed_by_permission() {
+        let event = Event::voted_under_pseudonyms(&["ana"]);
+        let facts = event.privacy_facts(&[], vec![]);
+        let details: Vec<String> = probe(Probe::PrivilegedRoles, &facts)
+            .unwrap()
+            .iter()
+            .map(|finding| format!("{}: {}", finding.name, finding.detail))
+            .collect();
+        assert_eq!(
+            details,
+            [
+                "voter-pseudonym-resolve: held by roles: admin",
+                "forensic-read: held by roles: admin, auditor"
+            ]
+        );
+
+        let mut nobody = event.clone();
+        nobody.roles = Ok(vec![role("support", &[])]);
+        let findings = probe(Probe::PrivilegedRoles, &nobody.privacy_facts(&[], vec![])).unwrap();
+        assert!(findings.iter().all(|f| f.detail == "no role holds it"));
+
+        let mut unreadable = event.clone();
+        unreadable.roles = Err("not allowed".into());
+        let reason = probe(
+            Probe::PrivilegedRoles,
+            &unreadable.privacy_facts(&[], vec![]),
+        )
+        .unwrap_err();
+        assert!(reason.contains("not allowed"), "{reason}");
+    }
+
+    #[test]
+    fn each_privacy_breach_fails_its_check() {
+        type Break = fn(&mut Event);
+        let cases: [(Probe, Break, &str); 7] = [
+            (
+                Probe::PseudonymousBallots,
+                |event| event.policy.ballot_identity = None,
+                "stage election event: the ballot box stores ballots under pseudonyms but presentation.ballot_identity is not set (voter-id)",
+            ),
+            (
+                Probe::NetworkDataNotStored,
+                |event| {
+                    event.policy.network_data_policy =
+                        Some(vote_privacy::NetworkDataPolicy::ForensicStore)
+                },
+                "stage election event: presentation.network_data_policy is forensic-store: the IP address and country of each cast are kept in the forensic tables with its pseudonym and Ballot ID",
+            ),
+            (
+                Probe::BallotBoxUnlinked,
+                |event| event.ballot_box.ballots_with_network_data = 1,
+                "stage ballot box: ballots with an IP address or country: 1 of 2",
+            ),
+            (
+                Probe::BallotBoxUnlinked,
+                |event| event.ballot_box.ballots_with_username = 2,
+                "stage ballot box: ballots with a username other than their pseudonym: 2 of 2",
+            ),
+            (
+                Probe::BallotBoxUnlinked,
+                |event| event.ballot_box.ballots_without_pseudonym = 1,
+                "stage ballot box: ballots whose voter id is not an allocated pseudonym: 1 of 2",
+            ),
+            (
+                Probe::BallotBoxUnlinked,
+                |event| event.ballot_box.received_without_pseudonym = 1,
+                "stage ballot box: received ballots whose voter id is not an allocated pseudonym: 1 of 2",
+            ),
+            (
+                Probe::NetworkDataNotStored,
+                |event| event.policy.network_data_policy = None,
+                "",
+            ),
+        ];
+        for (which, breakage, expected) in cases {
+            let mut event = Event::voted_under_pseudonyms(&["ana", "ben"]);
+            breakage(&mut event);
+            let facts = event.privacy_facts(&[], vec![]);
+            let expected: Vec<&str> = [expected].into_iter().filter(|e| !e.is_empty()).collect();
+            assert_eq!(failed(which, &facts), expected, "{which}");
+            for other in PRIVACY.iter().filter(|other| **other != which) {
+                assert_eq!(failed(*other, &facts), Vec::<String>::new(), "{other}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_voter_id_event_fails_the_privacy_checks_cleanly() {
+        let event = Event::voted(&["ana", "ben"]);
+        let facts = event.privacy_facts(&["ana", "ben"], event.ballot_ids());
+        assert!(facts.privacy.as_ref().unwrap().ballot_box.is_none());
+        assert_eq!(
+            failed(Probe::PseudonymousBallots, &facts),
+            ["stage election event: the ballot box stores ballots under voter ids (ballot identity voter-id), so each ballot names its voter; presentation.ballot_identity is not set (voter-id)"]
+        );
+        assert_eq!(
+            failed(Probe::NetworkDataNotStored, &facts),
+            ["stage election event: the ballot box stores ballots under voter ids (ballot identity voter-id), so each ballot names its voter, with its IP address and country"]
+        );
+        assert_eq!(
+            failed(Probe::BallotBoxUnlinked, &facts),
+            ["stage ballot box: the ballot box stores ballots under voter ids (ballot identity voter-id), so each ballot names its voter"]
+        );
+        assert_eq!(failed(Probe::PrivilegedRoles, &facts), Vec::<String>::new());
     }
 }

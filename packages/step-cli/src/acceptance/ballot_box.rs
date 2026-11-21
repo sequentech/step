@@ -10,7 +10,7 @@ use electoral_log::adapters::ballot_box::BallotStatus;
 use electoral_log::adapters::ballot_box_reads::BallotIdMatch;
 use electoral_log::adapters::ballot_box_received::ReceivedStatus;
 use electoral_log::adapters::postgres::PostgresStore;
-use electoral_log::adapters::privacy::BallotIdentity;
+use electoral_log::adapters::privacy::{BallotBoxPrivacy, BallotIdentity};
 use std::collections::BTreeSet;
 use std::future::Future;
 use std::time::{Duration, Instant};
@@ -126,6 +126,13 @@ pub fn stored_ballots(election_event_id: &str, voter_ids: &[String]) -> Result<V
 pub fn ballot_identity(election_event_id: &str) -> Result<BallotIdentity> {
     with_store(election_event_id, |store| async move {
         store.ballot_identity(election_event_id).await
+    })
+}
+
+/// Counts of the event's ballot-box rows that break pseudonymity.
+pub fn ballot_box_privacy(election_event_id: &str) -> Result<BallotBoxPrivacy> {
+    with_store(election_event_id, |store| async move {
+        store.ballot_box_privacy(election_event_id).await
     })
 }
 

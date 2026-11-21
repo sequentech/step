@@ -47,6 +47,32 @@ pub enum Probe {
     ReceiptProduced,
     /// Each stored ballot matches the hash recorded in the event's log.
     BallotStored,
+    /// The event's ballots carry pseudonyms, as its presentation says.
+    PseudonymousBallots,
+    /// The event does not keep voters' IP addresses or countries.
+    NetworkDataNotStored,
+    /// No ballot-box row has network data, a username or a voter id that is
+    /// not an allocated pseudonym.
+    BallotBoxUnlinked,
+    /// The tenant roles that can resolve pseudonyms or read network data.
+    PrivilegedRoles,
+}
+
+impl Probe {
+    /// Whether the probe judges the voters named for the run.
+    pub fn needs_voters(self) -> bool {
+        match self {
+            Self::VoterAuthenticated
+            | Self::BallotPublished
+            | Self::BallotCast
+            | Self::ReceiptProduced
+            | Self::BallotStored => true,
+            Self::PseudonymousBallots
+            | Self::NetworkDataNotStored
+            | Self::BallotBoxUnlinked
+            | Self::PrivilegedRoles => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -79,7 +105,8 @@ pub struct Stage {
 pub enum Template {
     /// The voting conditions, for any organization.
     Voting,
-    /// The voting conditions plus one witnessed check per PQRI Annex A D.4 condition.
+    /// The voting conditions plus one witnessed check per PQRI Annex A D.4
+    /// condition and automatic checks of voter confidentiality.
     PqriVoting,
 }
 
@@ -174,9 +201,26 @@ mod tests {
         let annex = pqri
             .checks
             .iter()
-            .filter(|check| check.id.starts_with("annex-a."))
+            .filter(|check| check.id.starts_with("annex-a.") && check.method == Method::Witnessed)
             .count();
         assert_eq!(annex, 20);
+        let privacy: BTreeSet<_> = pqri
+            .checks
+            .iter()
+            .filter_map(|check| check.probe)
+            .filter(|probe| !probe.needs_voters())
+            .collect();
+        assert_eq!(privacy.len(), 4);
+        for check in &pqri.checks {
+            if let Some(probe) = check.probe.filter(|probe| !probe.needs_voters()) {
+                let condition = check.id.rsplit_once('.').unwrap().0;
+                assert_eq!(
+                    pqri.check(condition).unwrap().method,
+                    Method::Witnessed,
+                    "{probe}"
+                );
+            }
+        }
     }
 
     #[test]
