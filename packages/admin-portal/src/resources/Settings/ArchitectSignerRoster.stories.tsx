@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
-import {expect, userEvent, within} from "storybook/test"
+import {expect, userEvent, waitFor, within} from "storybook/test"
 import {i18n} from "@sequentech/ui-core"
 import {AdminStoryProvider, TENANT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
@@ -47,12 +47,26 @@ export const PrepareRoster: Story = {
             canvas.getByRole("button", {name: i18n.t("configurationPackage.roster.manage")})
         )
         const dialog = within(await within(document.body).findByRole("dialog"))
-        await expect(
-            dialog.getByLabelText(i18n.t("configurationPackage.roster.file"))
-        ).toBeVisible()
-        await expect(
-            dialog.getByRole("button", {name: i18n.t("configurationPackage.roster.review")})
-        ).toBeDisabled()
+        const input = dialog.getByLabelText<HTMLInputElement>(
+            i18n.t("configurationPackage.roster.file")
+        )
+        await waitFor(async () => {
+            await expect(input).toBeVisible()
+        })
+        const review = dialog.getByRole("button", {
+            name: i18n.t("configurationPackage.roster.review"),
+        })
+        await expect(review).toBeDisabled()
+        await userEvent.upload(
+            input,
+            new File(["{}"], "synthetic-roster.json", {type: "application/json"})
+        )
+        await expect(review).toBeDisabled()
+        await userEvent.type(
+            dialog.getByLabelText(i18n.t("configurationPackage.roster.expected")),
+            "ab".repeat(32)
+        )
+        await expect(review).toBeEnabled()
         await expect(
             dialog.queryByRole("button", {name: i18n.t("configurationPackage.roster.confirm")})
         ).not.toBeInTheDocument()

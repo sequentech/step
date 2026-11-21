@@ -249,3 +249,36 @@ fn persisted_managed_authority_is_a_fence_even_when_runtime_configuration_disapp
         ));
     }
 }
+
+#[test]
+fn file_pinned_policy_refuses_invalid_tenant_floor_unreadable_file_and_wrong_pin() {
+    let tenant = "00000000-0000-4000-8000-00000000000a";
+    let pin = "1".repeat(64);
+    let settings = |name: &str| match name {
+        NORMAL_SWITCH => Some(NORMAL_SWITCH_VALUE.into()),
+        TENANT => Some(tenant.into()),
+        ROSTER_FILE => Some("fixture-roster.json".into()),
+        ROSTER_SHA256 => Some(pin.clone()),
+        REQUIRED_APPROVALS => Some("2".into()),
+        _ => None,
+    };
+    assert!(matches!(
+        BrowserPolicy::from_sources("not-a-tenant", settings, |_| panic!("no roster read")),
+        BrowserPolicy::Unusable(reason) if reason.contains("destination tenant")
+    ));
+    for threshold in ["0", "-1", "not a number"] {
+        assert!(matches!(
+            BrowserPolicy::from_sources(tenant, |name| {
+                if name == REQUIRED_APPROVALS { Some(threshold.into()) } else { settings(name) }
+            }, |_| panic!("no roster read")),
+            BrowserPolicy::Unusable(reason) if reason.contains("at least one")
+        ));
+    }
+    let absent = BrowserPolicy::from_sources(tenant, settings, |path| {
+        assert_eq!(path, Path::new("fixture-roster.json"));
+        Err("fixture file not readable".into())
+    });
+    assert!(matches!(absent, BrowserPolicy::Unusable(reason) if reason.contains("can't be read")));
+    let wrong_pin = BrowserPolicy::from_sources(tenant, settings, |_| Ok("{}".into()));
+    assert!(matches!(wrong_pin, BrowserPolicy::Unusable(reason) if reason.contains("provisioned")));
+}

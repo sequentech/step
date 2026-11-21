@@ -27,6 +27,10 @@ mod types;
 mod test_claims;
 
 #[cfg(test)]
+#[path = "../tests/support/architect_trust_routes.rs"]
+mod architect_trust_routes;
+
+#[cfg(test)]
 #[path = "../tests/support/readiness_routes.rs"]
 mod readiness_routes;
 
