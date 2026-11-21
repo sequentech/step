@@ -4257,7 +4257,8 @@ const dutchTranslation: TranslationType = {
                 rejectError: "De inschrijving kon niet worden afgewezen",
                 rejectSuccess: "{{name}} afgewezen. De kiezer heeft bericht gekregen.",
                 VoterApprovedAlready: "Deze kiezer is al ingeschreven.",
-                stepUpError: "Voor de goedkeuring moet u opnieuw inloggen met uw tweede factor. Probeer het opnieuw.",
+                stepUpError:
+                    "Voor de goedkeuring moet u opnieuw inloggen met uw tweede factor. Probeer het opnieuw.",
             },
             export: {
                 success: "Export van aanvragen succesvol voltooid",

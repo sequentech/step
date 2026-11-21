@@ -4241,7 +4241,8 @@ const galegoTranslation: TranslationType = {
                 rejectError: "Non se puido rexeitar a inscrición",
                 rejectSuccess: "Inscrición de {{name}} rexeitada. Avisouse o votante.",
                 VoterApprovedAlready: "Este votante xa está inscrito.",
-                stepUpError: "A aprobación require que volva iniciar sesión co seu segundo factor. Ténteo de novo.",
+                stepUpError:
+                    "A aprobación require que volva iniciar sesión co seu segundo factor. Ténteo de novo.",
             },
             export: {
                 success: "A exportación de solicitudes completouse con éxito",

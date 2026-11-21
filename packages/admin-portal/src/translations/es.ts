@@ -4398,7 +4398,8 @@ const spanishTranslation: TranslationType = {
                 rejectError: "No se pudo rechazar la inscripción",
                 rejectSuccess: "Inscripción de {{name}} rechazada. Se ha avisado al votante.",
                 VoterApprovedAlready: "Este votante ya está inscrito.",
-                stepUpError: "La aprobación requiere que vuelva a iniciar sesión con su segundo factor. Inténtelo de nuevo.",
+                stepUpError:
+                    "La aprobación requiere que vuelva a iniciar sesión con su segundo factor. Inténtelo de nuevo.",
             },
             export: {
                 success: "La exportación de solicitudes se completó con éxito",

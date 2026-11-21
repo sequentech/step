@@ -4276,7 +4276,8 @@ const tagalogTranslation: TranslationType = {
                 rejectError: "Hindi matanggihan ang pagpapatala",
                 rejectSuccess: "Tinanggihan si {{name}}. Nasabihan na ang botante.",
                 VoterApprovedAlready: "Nakatala na ang botanteng ito.",
-                stepUpError: "Kailangan mong mag-sign in muli gamit ang iyong second factor para sa pag-apruba. Subukang muli.",
+                stepUpError:
+                    "Kailangan mong mag-sign in muli gamit ang iyong second factor para sa pag-apruba. Subukang muli.",
             },
             export: {
                 success: "Matagumpay na natapos ang pag-export ng mga aplikasyon",

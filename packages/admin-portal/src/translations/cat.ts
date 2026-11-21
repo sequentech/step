@@ -4260,7 +4260,8 @@ const catalanTranslation: TranslationType = {
                 rejectError: "No s'ha pogut rebutjar la inscripció",
                 rejectSuccess: "Inscripció de {{name}} rebutjada. S'ha avisat el votant.",
                 VoterApprovedAlready: "Aquest votant ja està inscrit.",
-                stepUpError: "L'aprovació requereix que torneu a iniciar la sessió amb el vostre segon factor. Torneu-ho a provar.",
+                stepUpError:
+                    "L'aprovació requereix que torneu a iniciar la sessió amb el vostre segon factor. Torneu-ho a provar.",
             },
             export: {
                 success: "L'exportació de sol·licituds s'ha completat amb èxit",

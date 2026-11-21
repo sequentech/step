@@ -4233,7 +4233,8 @@ const basqueTranslation: TranslationType = {
                 rejectError: "Ezin izan da izen-ematea baztertu",
                 rejectSuccess: "{{name}}: baztertua. Bozkatzaileari jakinarazi zaio.",
                 VoterApprovedAlready: "Bozkatzaile honek dagoeneko izena emanda du.",
-                stepUpError: "Onarpenak berriro saioa hastea eskatzen du bigarren faktorearekin. Saiatu berriro.",
+                stepUpError:
+                    "Onarpenak berriro saioa hastea eskatzen du bigarren faktorearekin. Saiatu berriro.",
             },
             export: {
                 success: "Eskaeren esportazioa ondo amaitu da",
