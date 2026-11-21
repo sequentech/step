@@ -7,6 +7,7 @@ FROM quay.io/keycloak/keycloak:26.7.5@sha256:37dbaf6f0722c9ec246335f36e1ef8b2e6c
 COPY --chown=keycloak:keycloak \
     action-token-login-bridge/target/sequent.action-token-login-bridge.jar \
     conditional-authenticators/target/sequent.conditional-authenticators.jar \
+    harvest-endpoint/target/sequent.harvest-endpoint.jar \
     message-otp-authenticator/target/sequent.message-otp-authenticator.jar \
     voter-enrollment/target/sequent.voter-enrollment.jar \
     /opt/keycloak/providers/
