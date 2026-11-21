@@ -75,6 +75,9 @@ class NoticeChannelTest {
     when(themes.getTheme(Theme.Type.LOGIN)).thenReturn(theme);
     Properties messages = new Properties();
     messages.setProperty(Utils.SEND_PENDING_SMS_I18N_KEY, "Your enrollment is pending: {0}");
+    messages.setProperty(Utils.SEND_REJECT_SMS_I18N_KEY, "Your enrollment was rejected: {0}");
+    messages.setProperty("INSUFFICIENT_INFORMATION", "Some required information is missing.");
+    messages.setProperty("NO_VOTER", "The data does not match any voter.");
     when(theme.getEnhancedMessages(any(), any())).thenReturn(messages);
     when(session.getProvider(SmsSenderProvider.class)).thenReturn(sms);
     when(session.getProvider(EmailTemplateProvider.class))
@@ -121,11 +124,65 @@ class NoticeChannelTest {
     assertEquals(WHATSAPP, request.getValue().destination());
     assertEquals(TENANT, request.getValue().tenantId());
     assertEquals(
-        "Your enrollment is pending: INSUFFICIENT_INFORMATION",
+        "Your enrollment is pending: Some required information is missing.",
         request.getValue().content().text());
     assertEquals("messagePendingSms", request.getValue().templateKey());
     assertEquals("en", request.getValue().language());
     verifyNoInteractions(sms);
+  }
+
+  private void sendRejected(String reasonKey) throws Exception {
+    Utils.sendRejectCommunication(
+        session,
+        realm,
+        Utils.MessageCourier.BOTH,
+        null,
+        PHONE,
+        reasonKey,
+        new HashMap<>(),
+        NoticeRecipient.fromEnrollment(authSession, MessageOTPAuthenticator.MOBILE_NUMBER_FIELD),
+        context);
+  }
+
+  private String rejectedText() throws Exception {
+    ArgumentCaptor<SendMessageRequest> request = ArgumentCaptor.forClass(SendMessageRequest.class);
+    verify(sender).send(request.capture());
+    assertEquals("messageRejectedSms", request.getValue().templateKey());
+    return request.getValue().content().text();
+  }
+
+  @Test
+  void aRejectionNoticeShowsTheTranslatedReason() throws Exception {
+    enrolledWith(MessageChannel.WHATSAPP, WHATSAPP);
+    sendRejected("NO_VOTER");
+    assertEquals("Your enrollment was rejected: The data does not match any voter.", rejectedText());
+  }
+
+  @Test
+  void aReasonWithoutTranslationKeepsItsKey() throws Exception {
+    enrolledWith(MessageChannel.WHATSAPP, WHATSAPP);
+    sendRejected("SOME_UNTRANSLATED_REASON");
+    assertEquals("Your enrollment was rejected: SOME_UNTRANSLATED_REASON", rejectedText());
+  }
+
+  @Test
+  void aMissingReasonIsNeverSentAsNull() throws Exception {
+    enrolledWith(MessageChannel.WHATSAPP, WHATSAPP);
+    sendRejected(null);
+    assertEquals("Your enrollment was rejected: ", rejectedText());
+  }
+
+  @Test
+  void theSmsFallbackGetsTheTranslatedReason() throws Exception {
+    sendRejected("NO_VOTER");
+    verify(sms)
+        .send(
+            eq(PHONE),
+            eq(Utils.SEND_REJECT_SMS_I18N_KEY),
+            eq(java.util.List.of("The data does not match any voter.", "")),
+            any(),
+            any(),
+            any());
   }
 
   @Test
