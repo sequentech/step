@@ -60,12 +60,32 @@ describe("approval step-up", () => {
     })
 
     it("resumes only the approval of the same tenant and event", () => {
+        const items = new Map<string, string>()
+        const storage = {
+            getItem: (key: string) => items.get(key) ?? null,
+            setItem: (key: string, value: string) => items.set(key, value),
+            removeItem: (key: string) => items.delete(key),
+        } as unknown as Storage
         const pending = {tenantId: "t1", electionEventId: "e1", applicationId: "a1", voterId: "v1"}
-        savePendingApproval(pending)
-        expect(readPendingApproval("t1", "e2")).toBeNull()
-        expect(readPendingApproval("t2", "e1")).toBeNull()
-        expect(readPendingApproval("t1", "e1")).toEqual(pending)
-        clearPendingApproval()
-        expect(readPendingApproval("t1", "e1")).toBeNull()
+        savePendingApproval(pending, storage)
+        expect(readPendingApproval("t1", "e2", storage)).toBeNull()
+        expect(readPendingApproval("t2", "e1", storage)).toBeNull()
+        expect(readPendingApproval(null, "e1", storage)).toBeNull()
+        expect(readPendingApproval("t1", "e1", storage)).toEqual(pending)
+        clearPendingApproval(storage)
+        expect(readPendingApproval("t1", "e1", storage)).toBeNull()
+    })
+
+    it("reads nothing when the storage can't be used", () => {
+        const blocked = {
+            getItem: () => {
+                throw new Error("blocked")
+            },
+            removeItem: () => {
+                throw new Error("blocked")
+            },
+        } as unknown as Storage
+        expect(readPendingApproval("t1", "e1", blocked)).toBeNull()
+        expect(() => clearPendingApproval(blocked)).not.toThrow()
     })
 })
