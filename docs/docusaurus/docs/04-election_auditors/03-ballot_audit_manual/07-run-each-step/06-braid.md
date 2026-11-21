@@ -13,8 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 This procedure checks the tally evidence on the restored bulletin board. The auditor does it.
 Braid checks signatures, configuration, public keys, mix evidence and references in published plaintext records.
-Its decryption routine checks proofs and recomputes plaintexts when it runs.
-See [Versions](../01-before-you-start.md#versions) for the decryption completion requirement before reporting verified decryption.
+It also checks the decryption proofs and recomputes the plaintexts of every batch; its success requires that recomputation.
 
 The ballot audit checks the encrypted ballots that went into the tally.
 Braid checks the cryptographic evidence that follows those inputs. You must do both parts.
