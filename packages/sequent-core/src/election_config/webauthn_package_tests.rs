@@ -538,6 +538,40 @@ fn an_invalid_json_envelope_is_refused_even_with_a_manifest() {
 }
 
 #[test]
+fn matching_manifest_digest_does_not_make_unreadable_json_valid() {
+    let w = world();
+    let mut built = build(&w, &[&w.a, &w.b], &w.signer);
+    built.manifest = b"{".to_vec();
+    built.envelope["manifest_sha256"] = sha256_hex(&built.manifest).into();
+
+    assert_eq!(
+        refusal(verify_browser_package(&built.zip(), &w.pinned(2), None)),
+        (Code::Unreadable, "package.unreadable-manifest".to_string())
+    );
+}
+
+#[test]
+fn a_signed_package_still_needs_a_readable_production_time() {
+    let w = world();
+    let members = delivery();
+    let mut manifest = plain_manifest(&members);
+    manifest.produced.at = "not a timestamp".to_string();
+    let built =
+        build_with_manifest(&w, &[&w.a, &w.b], &w.signer, members, manifest);
+    let bytes = built.zip();
+    let pinned = w.pinned(2);
+    // The clockless verifier can validate the signatures on the same bytes.
+    assert!(verify_browser_package(&bytes, &pinned, None).is_ok());
+    let now = chrono::DateTime::parse_from_rfc3339("2026-01-02T00:00:00Z")
+        .unwrap()
+        .with_timezone(&chrono::Utc);
+    assert_eq!(
+        refusal(verify_browser_package(&bytes, &pinned, Some(now))),
+        (Code::InvalidValue, "package.invalid-time".to_string())
+    );
+}
+
+#[test]
 fn a_browser_manifest_requires_a_configuration_and_a_positive_revision() {
     let w = world();
     let pinned = w.pinned(2);
@@ -1040,7 +1074,12 @@ fn a_first_browser_package_names_no_previous_revision() {
 
 #[test]
 fn malformed_zip_metadata_never_becomes_unsigned() {
-    assert!(admit(b"PK\x03\x04truncated", None, vec![]).is_err());
+    let bytes = b"PK\x03\x04truncated";
+    assert!(admit(bytes, None, vec![]).is_err());
+    let (code, id) =
+        refusal(verify_browser_package(bytes, &world().pinned(2), None));
+    assert_eq!(code, Code::Unreadable);
+    assert_eq!(id, "package.unreadable-zip");
 }
 
 #[test]

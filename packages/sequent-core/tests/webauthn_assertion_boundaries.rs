@@ -138,6 +138,13 @@ fn unreadable_assertion_fields_remain_distinct_from_signature_failure() {
             CONTENT,
         )
     };
+    let mut encoded_client_data = proof.clone();
+    encoded_client_data.client_data_json = "=".into();
+    assert_eq!(
+        verify(&encoded_client_data),
+        Err(ProofError::Encoding("the client data"))
+    );
+
     let mut malformed_json = proof.clone();
     malformed_json.client_data_json = URL_SAFE_NO_PAD.encode(b"{");
     assert!(matches!(
@@ -184,5 +191,29 @@ fn unreadable_assertion_fields_remain_distinct_from_signature_failure() {
     assert_eq!(
         verify(&malformed_signature),
         Err(ProofError::Encoding("the signature"))
+    );
+}
+
+#[test]
+fn malformed_provisioned_keys_are_not_usable() {
+    let (proof, mut roster) = assertion();
+    roster.keys[0].public_key = "=".into();
+    let encoded = serde_json::to_string(&roster).unwrap();
+    assert!(matches!(
+        Roster::read(&encoded),
+        Err(ProofError::Encoding("a roster public key"))
+    ));
+
+    // A caller supplying an already decoded roster gets a typed refusal too.
+    assert_eq!(
+        verify_proof(
+            &proof,
+            &roster,
+            Action::ApproveRevision,
+            CONFIGURATION,
+            1,
+            CONTENT,
+        ),
+        Err(ProofError::Encoding("the roster public key"))
     );
 }

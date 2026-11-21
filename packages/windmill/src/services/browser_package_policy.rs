@@ -370,5 +370,5 @@ pub fn freshness(
 }
 
 #[cfg(test)]
-#[path = "browser_package_policy_tests.rs"]
+#[path = "../../tests/support/browser_package_policy_tests.rs"]
 mod browser_package_policy_tests;

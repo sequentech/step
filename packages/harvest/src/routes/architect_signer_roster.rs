@@ -409,5 +409,5 @@ pub async fn activate_architect_signer_roster(
 }
 
 #[cfg(test)]
-#[path = "architect_signer_roster_tests.rs"]
+#[path = "../../tests/support/architect_signer_roster_tests.rs"]
 mod tests;
