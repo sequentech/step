@@ -144,6 +144,75 @@ fn each_voting_failure_condition_fails_the_stage() {
 }
 
 #[test]
+fn a_pseudonymous_voting_stage_passes_when_every_condition_holds() {
+    let stage = opened(Template::Voting);
+    let event = Event::voted_under_pseudonyms(&["ana", "ben"]);
+    let ran = run_all(&stage, &event, event.ballot_ids());
+    assert_eq!(ran.len(), 5);
+    assert!(ran
+        .iter()
+        .all(|(_, outcome)| *outcome == Ran::Recorded(Outcome::Pass)));
+    witness(&stage, "voting.ballot-displayed", Outcome::Pass);
+    assert_eq!(stage_verdict(&stage), Verdict::Passed);
+}
+
+#[test]
+fn a_pseudonymous_event_without_ballot_ids_runs_the_checks_that_need_none() {
+    let stage = opened(Template::PqriVoting);
+    let event = Event::voted_under_pseudonyms(&["ana", "ben"]);
+    let ran = run_all(&stage, &event, vec![]);
+    let recorded: Vec<&str> = ran
+        .iter()
+        .filter(|(_, outcome)| *outcome == Ran::Recorded(Outcome::Pass))
+        .map(|(id, _)| id.as_str())
+        .collect();
+    assert_eq!(
+        recorded,
+        [
+            "voting.authentication",
+            "voting.ballot-published",
+            "voting.ballot-cast"
+        ]
+    );
+    let not_run: Vec<&str> = ran
+        .iter()
+        .filter(|(_, outcome)| matches!(outcome, Ran::NotRun(_)))
+        .map(|(id, _)| id.as_str())
+        .collect();
+    assert_eq!(not_run, ["voting.receipt", "voting.ballot-stored"]);
+}
+
+#[test]
+fn each_pseudonymous_voting_failure_condition_fails_the_stage() {
+    type Break = fn(&mut Event);
+    let cases: [(&str, Break); 3] = [
+        ("voting.ballot-cast", |event| {
+            event.ballots[1].voter_id = "id-someone-else".into();
+        }),
+        ("voting.receipt", |event| {
+            event.ballots[1].receipt_ballot_id = Some("ABCD-9999".into());
+            event.private_casts.insert("ABCD-9999".into());
+        }),
+        ("voting.ballot-stored", |event| {
+            event.private_casts.clear();
+        }),
+    ];
+    for (check, breakage) in cases {
+        let stage = opened(Template::Voting);
+        let mut event = Event::voted_under_pseudonyms(&["ana", "ben"]);
+        let presented = event.ballot_ids();
+        breakage(&mut event);
+        let ran = run_all(&stage, &event, presented);
+        for (id, outcome) in &ran {
+            let failed = *outcome == Ran::Recorded(Outcome::Fail);
+            assert_eq!(failed, id == check, "{check}: {id}");
+        }
+        witness(&stage, "voting.ballot-displayed", Outcome::Pass);
+        assert_eq!(stage_verdict(&stage), Verdict::Failed, "{check}");
+    }
+}
+
+#[test]
 fn a_ballot_that_is_not_displayed_fails_the_stage() {
     let stage = opened(Template::Voting);
     let event = Event::voted(&["ana", "ben"]);

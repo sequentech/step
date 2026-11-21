@@ -5,10 +5,11 @@
 //! session, the same data the Admin Portal shows, and the stored ballots from
 //! the election event's ballot box.
 use super::ballot_box;
-use super::voting::{LoggedCast, StoredBallot, UserEvent, Voter, VotingRecords};
+use super::voting::{CastBallot, LoggedCast, StoredBallot, UserEvent, Voter, VotingRecords};
 use crate::ports::graphql::GraphqlClient;
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::{DateTime, Utc};
+use electoral_log::adapters::privacy::BallotIdentity;
 use electoral_log::messages::statement::{StatementLogType, StatementType};
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -33,6 +34,9 @@ const PUBLISHED_AREAS: &str =
     ballot_publication: {published_at: {_is_null: false}, deleted_at: {_is_null: true}}
   }) { area_id }
 }";
+
+/// The statement body of a cast under a pseudonym.
+const PRIVACY_CAST_VOTE: &str = "PrivacyCastVote";
 
 /// Rows per request of the election event's log.
 const LOG_PAGE: usize = 100;
@@ -90,13 +94,21 @@ impl<G: GraphqlClient> HasuraRecords<G> {
 
     /// Every entry of one kind about one user, oldest first.
     fn log(&self, event: &str, user_id: &str, kind: StatementType) -> Result<Vec<LogRow>> {
+        self.log_matching(
+            event,
+            json!({"statement_kind": kind.to_string(), "user_id": user_id}),
+        )
+    }
+
+    /// Every entry the filter matches, oldest first.
+    fn log_matching(&self, event: &str, filter: Value) -> Result<Vec<LogRow>> {
         let mut rows = Vec::new();
         loop {
             let page: Vec<LogRow> = self.query(
                 LIST_LOG,
                 json!({
                     "event": event,
-                    "filter": {"statement_kind": kind.to_string(), "user_id": user_id},
+                    "filter": filter,
                     "limit": LOG_PAGE,
                     "offset": rows.len(),
                 }),
@@ -183,8 +195,41 @@ impl<G: GraphqlClient> VotingRecords for HasuraRecords<G> {
         Ok(rows.into_iter().filter_map(|row| row.area_id).collect())
     }
 
+    fn ballot_identity(&self, event: &str) -> Result<BallotIdentity> {
+        ballot_box::ballot_identity(event)
+    }
+
     fn stored_ballots(&self, event: &str, voter_ids: &[String]) -> Result<Vec<StoredBallot>> {
         ballot_box::stored_ballots(event, voter_ids)
+    }
+
+    fn participants(&self, event: &str, voter_ids: &[String]) -> Result<BTreeSet<String>> {
+        ballot_box::participants(event, voter_ids)
+    }
+
+    fn cast_ballots(&self, event: &str, ballot_ids: &[String]) -> Result<Vec<CastBallot>> {
+        ballot_box::cast_ballots(event, ballot_ids)
+    }
+
+    fn private_casts(&self, event: &str, since: DateTime<Utc>) -> Result<BTreeSet<String>> {
+        // A pseudonymous cast is logged under the CastVote kind, by its pseudonym.
+        let rows = self.log_matching(
+            event,
+            json!({
+                "statement_kind": StatementType::CastVote.to_string(),
+                "statement_timestamp_from": since.to_rfc3339(),
+            }),
+        )?;
+        let mut ballot_ids = BTreeSet::new();
+        for row in rows {
+            let message: Value = serde_json::from_str(&row.message)?;
+            if let Some(ballot_id) =
+                message["statement"]["body"][PRIVACY_CAST_VOTE]["ballot_id"].as_str()
+            {
+                ballot_ids.insert(ballot_id.to_owned());
+            }
+        }
+        Ok(ballot_ids)
     }
 
     fn logged_casts(&self, event: &str, voter_id: &str) -> Result<Vec<LoggedCast>> {
@@ -350,6 +395,25 @@ mod tests {
         assert_eq!(
             records.graphql.requests()[0]["variables"]["filter"]["statement_kind"],
             "CastVote"
+        );
+    }
+
+    #[test]
+    fn pseudonymous_casts_in_the_log_give_their_ballot_ids_only() {
+        let message = |body: Value| {
+            let message = json!({"statement": {"body": body}, "ballot_id": "ABCD-0000"});
+            json!({"statement_timestamp": 1, "message": message.to_string()})
+        };
+        let records = records(QueuedGraphql::default().respond(log_page(vec![
+            message(json!({"PrivacyCastVote": {"ballot_id": "ABCD-0001", "pseudonym_hash": "00"}})),
+            message(json!({"CastVote": ["election", [1, 2], [3], "ip", "country"]})),
+        ])));
+        let since = DateTime::from_timestamp(60, 0).unwrap();
+        let ids = records.private_casts("event", since).unwrap();
+        assert_eq!(ids, BTreeSet::from(["ABCD-0001".to_string()]));
+        assert_eq!(
+            records.graphql.requests()[0]["variables"]["filter"],
+            json!({"statement_kind": "CastVote", "statement_timestamp_from": "1970-01-01T00:01:00+00:00"})
         );
     }
 
