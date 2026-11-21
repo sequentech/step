@@ -127,6 +127,20 @@ fn tenant_uuid_aliases_select_the_same_pinned_browser_policy() {
                 &policy
             )
             .is_err());
+            let event_json = br#" { "election_event": {} } "#;
+            let refusing = admit_with_policy(event_json, None, alias, vec![], Utc::now(), &policy)
+                .err()
+                .expect("unsigned JSON must not enter this tenant");
+            assert_eq!(
+                refusing.errors().next().unwrap().id.as_deref(),
+                Some("package.webauthn-required")
+            );
+            for legacy in [BrowserPolicy::Off, BrowserPolicy::OtherTenant] {
+                assert!(matches!(
+                    admit_with_policy(event_json, None, alias, vec![], Utc::now(), &legacy),
+                    Ok(Admission::Unsigned)
+                ));
+            }
             assert!(matches!(recheck(&policy, None), Recheck::Block(_)));
         }
     }
@@ -174,5 +188,64 @@ fn removing_mode_alone_never_reopens_legacy_admission() {
         )
         .is_err());
         assert!(matches!(recheck(&policy, None), Recheck::Block(_)));
+    }
+}
+
+#[test]
+fn managed_roster_mode_is_explicit_tenant_scoped_and_has_no_fallback() {
+    let values = [
+        (NORMAL_SWITCH, managed::MODE),
+        (TENANT, "00000000-0000-4000-8000-00000000000a"),
+        (managed::EXPECTED_RP_ID, "architect.ems.example"),
+        (managed::EXPECTED_ORIGIN, "https://architect.ems.example"),
+        (managed::ADMIN_SUBJECTS, "authorized-issuer-subject"),
+    ];
+    let mode = policy(&values);
+    let BrowserPolicy::Managed(config) = &mode else {
+        panic!("expected managed roster mode: {mode:?}");
+    };
+    assert_eq!(config.required, 2);
+    assert!(config.authorize_subject("authorized-issuer-subject"));
+    assert!(!config.authorize_subject("AUTHORIZED-ISSUER-SUBJECT"));
+    assert!(matches!(recheck(&mode, None), Recheck::Block(_)));
+    assert!(admit_with_policy(b"unsigned", None, values[1].1, vec![], Utc::now(), &mode).is_err());
+    assert!(matches!(policy(&values[..4]), BrowserPolicy::Unusable(_)));
+    let mut foreign_tenant = values;
+    foreign_tenant[1].1 = "00000000-0000-4000-8000-00000000000b";
+    assert!(matches!(
+        policy(&foreign_tenant),
+        BrowserPolicy::OtherTenant
+    ));
+    for (key, value) in [
+        (SWITCH, SWITCH_VALUE),
+        (ROSTER_FILE, ""),
+        (ROSTER_SHA256, ""),
+        (REQUIRED_APPROVALS, "0"),
+        (REQUIRED_APPROVALS, "17"),
+    ] {
+        let mut configured = values.to_vec();
+        configured.push((key, value));
+        assert!(matches!(policy(&configured), BrowserPolicy::Unusable(_)));
+    }
+}
+
+#[test]
+fn persisted_managed_authority_is_a_fence_even_when_runtime_configuration_disappears() {
+    let installed = || managed::Installed {
+        raw: "{}".into(),
+        sha256: "a".repeat(64),
+        generation: 1,
+        activated_by: "synthetic-administrator".into(),
+        activated_at: Utc::now(),
+    };
+    for mode in [BrowserPolicy::Off, BrowserPolicy::OtherTenant] {
+        assert!(matches!(
+            mode.clone().resolve_installed(None),
+            BrowserPolicy::Off | BrowserPolicy::OtherTenant
+        ));
+        assert!(matches!(
+            mode.resolve_installed(Some(installed())),
+            BrowserPolicy::Unusable(_)
+        ));
     }
 }

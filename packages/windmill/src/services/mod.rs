@@ -114,3 +114,4 @@ pub mod participation_authorization;
 pub mod privacy_signin;
 
 pub mod browser_package_policy;
+pub mod managed_webauthn_roster;

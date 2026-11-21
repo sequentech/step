@@ -10,13 +10,21 @@
 //! requiring a permission fails the second.
 
 use super::{
-    bearer, client, http, is_isolated_child, run_isolated, OTHER_TENANT_ID,
-    SUPER_ADMIN_TENANT_ID, TENANT_ID, USER_ID,
+    bearer, client, http, is_isolated_child, run_isolated,
+    run_isolated_with_env, OTHER_TENANT_ID, SUPER_ADMIN_TENANT_ID, TENANT_ID,
+    USER_ID,
 };
 use crate::test_claims::Claims;
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use chrono::Utc;
+use openssl::{
+    bn::BigNumContext,
+    ec::{EcGroup, EcKey, PointConversionForm},
+    nid::Nid,
+};
 use rocket::http::{ContentType, Status};
 use rocket::local::asynchronous::Client;
+use sequent_core::election_config::webauthn_proof::{Roster, ROSTER_FORMAT};
 use sequent_core::types::permissions::{Permissions, VoterPermissions};
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
@@ -25,6 +33,39 @@ use std::time::Duration;
 const EVENT_ID: &str = "test-event";
 const AREA_ID: &str = "test-area";
 const USERNAME: &str = "test-username";
+const ROSTER_RP_ID: &str = "architect.example";
+const ROSTER_ORIGIN: &str = "https://architect.example";
+
+fn public_roster_fixture() -> (String, String) {
+    let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).unwrap();
+    let mut context = BigNumContext::new().unwrap();
+    let mut keys = Vec::new();
+    for (i, role) in ["approver", "approver", "final-signer"]
+        .into_iter()
+        .enumerate()
+    {
+        let public = EcKey::generate(&group)
+            .unwrap()
+            .public_key()
+            .to_bytes(&group, PointConversionForm::UNCOMPRESSED, &mut context)
+            .unwrap();
+        keys.push(json!({
+            "key": format!("00000000-0000-4000-8000-{i:012x}"),
+            "credential_id": URL_SAFE_NO_PAD.encode([i as u8; 16]),
+            "subject": format!("synthetic-official-{i}"),
+            "role": role, "algorithm": "es256",
+            "public_key": URL_SAFE_NO_PAD.encode(public),
+            "record_sha256": "c".repeat(64),
+        }));
+    }
+    let public = json!({
+        "format": ROSTER_FORMAT, "tenant": TENANT_ID,
+        "rp_id": ROSTER_RP_ID, "origins": [ROSTER_ORIGIN], "keys": keys,
+    })
+    .to_string();
+    let digest = Roster::sha256(&public);
+    (public, digest)
+}
 const VOTING_PORTAL_CLIENT: &str = "voting-portal";
 // Some routes parse these ids as UUIDs before reaching a backend.
 pub(super) const UUID_TENANT_ID: &str = "00000000-0000-0000-0000-00000000000a";
@@ -63,6 +104,10 @@ enum Identity {
     Admin,
     /// An admin who has just authenticated at the gold level.
     Gold,
+    /// A just-authenticated ordinary Admin Portal operator.
+    RosterOperator,
+    /// A just-authenticated user who has tenant permission but not the deployment allowlist.
+    UnlistedRosterOperator,
     /// An admin of the super-admin tenant the child process configures.
     SuperAdmin,
     /// An admin of a tenant whose id is a UUID.
@@ -80,11 +125,18 @@ impl Identity {
             Self::UuidTenant => UUID_TENANT_ID,
             _ => TENANT_ID,
         };
-        let claims = Claims::new(tenant_id, USER_ID).username(USERNAME);
+        let subject = match self {
+            Self::UnlistedRosterOperator => "synthetic-unlisted-operator",
+            _ => USER_ID,
+        };
+        let claims = Claims::new(tenant_id, subject).username(USERNAME);
         match self {
             Self::Gold => claims
                 .acr(&Permissions::GOLD.to_string())
                 .auth_time(Utc::now().timestamp()),
+            Self::RosterOperator | Self::UnlistedRosterOperator => {
+                claims.auth_time(Utc::now().timestamp())
+            }
             Self::Voter | Self::PrivacyVoter => claims
                 .azp(VOTING_PORTAL_CLIENT)
                 .area(AREA_ID)
@@ -176,6 +228,7 @@ macro_rules! case {
 fn cases() -> Vec<Case> {
     use Permissions::*;
     use VoterPermissions::{ACK_SUPPORT_MATERIALS, CAST_VOTE};
+    let (roster_json, roster_sha256) = public_roster_fixture();
     vec![
         case!(PrivacyVoter, "/audit-ballot", {"election_id": ELECTION_ID, "ballot_id": "FTBE-MHRX"}, [CAST_VOTE], BACKEND, UNAUTHORIZED),
         case!(PrivacyVoter, "/ballot-box-log", {"election_event_id": UUID_EVENT_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
@@ -314,6 +367,8 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/get-manual-verification-pdf", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "voter_id": "test-voter"}, [VOTER_MANUALLY_VERIFY], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-voter-information-letter", {"election_event_id": EVENT_ID, "voter_id": "test-voter"}, [VOTER_INFORMATION_LETTER, DOCUMENT_PASSWORD_READ], BACKEND, FORBIDDEN_JSON),
         case!(Voter, "/get-ballot-files-urls", {"election_event_id": EVENT_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
+        case!(UuidTenant, "/get-architect-approval-policy", {"tenant_id": UUID_TENANT_ID}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED),
+        case!(UuidTenant, "/get-architect-approval-policy", {"tenant_id": OTHER_TENANT_ID}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], UNAUTHORIZED, UNAUTHORIZED),
         case!(Admin, "/get-approval-matrix", {"election_event_id": EVENT_ID}, [APPLICATION_READ], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/get-ballot-publication-changes", {"election_event_id": EVENT_ID, "ballot_publication_id": "test-publication"}, [PUBLISH_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/get-custom-url", {"redirect_to": "https://redirect.invalid"}, [ELECTION_EVENT_READ], BACKEND_TEXT, UNAUTHORIZED),
@@ -354,6 +409,15 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/import-templates", {"tenant_id": TENANT_ID, "document_id": "test-document"}, [TEMPLATE_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/import-tenant-config", {"tenant_id": TENANT_ID, "document_id": "test-document", "import_configurations": {}}, [TENANT_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/apply-configuration-package", {"tenant_id": TENANT_ID, "document_id": "test-document", "mode": "preview"}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED),
+        case!(RosterOperator, "/get-architect-signer-roster-status", {"tenant_id": TENANT_ID}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED_JSON),
+        case!(RosterOperator, "/get-architect-signer-roster-status", {"tenant_id": OTHER_TENANT_ID}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], UNAUTHORIZED_JSON, UNAUTHORIZED_JSON),
+        case!(RosterOperator, "/preview-architect-signer-roster", {"tenant_id": TENANT_ID, "roster_json": roster_json, "expected_sha256": roster_sha256}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED_JSON),
+        case!(RosterOperator, "/activate-architect-signer-roster", {"tenant_id": TENANT_ID, "roster_json": roster_json, "expected_sha256": roster_sha256, "generation": "0"}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED_JSON),
+        case!(UnlistedRosterOperator, "/preview-architect-signer-roster", {"tenant_id": TENANT_ID, "roster_json": roster_json, "expected_sha256": roster_sha256}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], FORBIDDEN_JSON, UNAUTHORIZED_JSON),
+        case!(UnlistedRosterOperator, "/activate-architect-signer-roster", {"tenant_id": TENANT_ID, "roster_json": roster_json, "expected_sha256": roster_sha256, "generation": "0"}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], FORBIDDEN_JSON, UNAUTHORIZED_JSON),
+        case!(Admin, "/activate-architect-signer-roster", {"tenant_id": TENANT_ID, "roster_json": roster_json, "expected_sha256": roster_sha256, "generation": "0"}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], FORBIDDEN_JSON, UNAUTHORIZED_JSON),
+        case!(RosterOperator, "/preview-architect-signer-roster", {"tenant_id": OTHER_TENANT_ID, "roster_json": roster_json, "expected_sha256": roster_sha256}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], UNAUTHORIZED_JSON, UNAUTHORIZED_JSON),
+        case!(RosterOperator, "/activate-architect-signer-roster", {"tenant_id": OTHER_TENANT_ID, "roster_json": roster_json, "expected_sha256": roster_sha256, "generation": "0"}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], UNAUTHORIZED_JSON, UNAUTHORIZED_JSON),
         // Import authorization runs before a task row can be created.
         case!(Admin, "/import-users", {"tenant_id": TENANT_ID, "document_id": "test-document"}, [USER_CREATE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/import-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "document_id": "test-document"}, [VOTER_CREATE], BACKEND, UNAUTHORIZED),
@@ -449,6 +513,8 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/scheduled-event", {"tenant_id": OTHER_TENANT_ID, "election_event_id": EVENT_ID, "event_processor": "CREATE_REPORT", "event_payload": {}}, [REPORT_GENERATE], UNAUTHORIZED, UNAUTHORIZED),
         // The other processors are not authorized, and only return an id.
         case!(Admin, "/scheduled-event", {"tenant_id": OTHER_TENANT_ID, "event_processor": "START_VOTING_PERIOD", "event_payload": {}}, [], BACKEND),
+        case!(UuidTenant, "/set-architect-approval-policy", {"tenant_id": UUID_TENANT_ID, "required_approvals": 2, "generation": "0"}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED),
+        case!(UuidTenant, "/set-architect-approval-policy", {"tenant_id": OTHER_TENANT_ID, "required_approvals": 2, "generation": "0"}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], UNAUTHORIZED, UNAUTHORIZED),
         case!(Admin, "/set-configuration-signing", {"tenant_id": TENANT_ID, "configuration_signing": {"policy": "optional"}}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/set-configuration-signing", {"tenant_id": OTHER_TENANT_ID, "configuration_signing": {"policy": "optional"}}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], UNAUTHORIZED, UNAUTHORIZED),
         case!(Admin, "/set-custom-url", {"origin": "https://origin.invalid", "redirect_to": "https://redirect.invalid", "dns_prefix": "test", "election_id": EVENT_ID, "key": "login"}, [ELECTION_EVENT_WRITE], BACKEND, FORBIDDEN),
@@ -534,9 +600,19 @@ async fn minimum_permissions_reach_the_backend_and_one_fewer_is_denied() {
     if !is_isolated_child() {
         // Nothing is scripted, so every Keycloak call gets HTTP 500.
         let peer = http::HttpServer::start(vec![]);
-        run_isolated(
+        // Only this isolated child sees the synthetic managed receiver. A
+        // correctly scoped roster candidate reaches the unconfigured DB;
+        // missing scope, unlisted operators and stale login stop before it.
+        run_isolated_with_env(
             "request_boundaries::route_permissions::minimum_permissions_reach_the_backend_and_one_fewer_is_denied",
             &peer.url,
+            &[
+                ("WINDMILL_WEBAUTHN_PACKAGES", "portal-managed"),
+                ("WINDMILL_WEBAUTHN_PACKAGES_TENANT_ID", TENANT_ID),
+                ("WINDMILL_WEBAUTHN_PACKAGES_EXPECTED_RP_ID", ROSTER_RP_ID),
+                ("WINDMILL_WEBAUTHN_PACKAGES_EXPECTED_ORIGIN", ROSTER_ORIGIN),
+                ("WINDMILL_WEBAUTHN_PACKAGES_ROSTER_ADMIN_SUBJECTS", USER_ID),
+            ],
         );
         peer.finish();
         return;
@@ -572,6 +648,48 @@ async fn minimum_permissions_reach_the_backend_and_one_fewer_is_denied() {
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[rocket::async_test]
+async fn pinned_roster_is_read_only_even_for_a_fresh_tenant_operator() {
+    if !is_isolated_child() {
+        use std::io::Write;
+        let (public, digest) = public_roster_fixture();
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        file.write_all(public.as_bytes()).unwrap();
+        let peer = http::HttpServer::start(vec![]);
+        run_isolated_with_env(
+            "request_boundaries::route_permissions::pinned_roster_is_read_only_even_for_a_fresh_tenant_operator",
+            &peer.url,
+            &[
+                ("WINDMILL_WEBAUTHN_PACKAGES", "site-pinned"),
+                ("WINDMILL_WEBAUTHN_PACKAGES_TENANT_ID", TENANT_ID),
+                ("WINDMILL_WEBAUTHN_PACKAGES_ROSTER_FILE", file.path().to_str().unwrap()),
+                ("WINDMILL_WEBAUTHN_PACKAGES_ROSTER_SHA256", &digest),
+                ("WINDMILL_WEBAUTHN_PACKAGES_REQUIRED_APPROVALS", "2"),
+            ],
+        );
+        peer.finish();
+        return;
+    }
+    let client = client().await;
+    let mut tested = 0;
+    for case in cases().iter().filter(|case| {
+        matches!(case.identity, Identity::RosterOperator)
+            && case.answer == BACKEND
+            && matches!(
+                case.path,
+                "/preview-architect-signer-roster"
+                    | "/activate-architect-signer-roster"
+            )
+    }) {
+        assert_eq!(
+            case.send(&client, &case.permissions).await,
+            Ok(FORBIDDEN_JSON)
+        );
+        tested += 1;
+    }
+    assert_eq!(tested, 2);
 }
 
 /// The routes that name a realm after the request's tenant or election event.

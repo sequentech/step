@@ -91,6 +91,9 @@ export interface AuthContextValues {
     isGoldUser: () => boolean
 
     reauthWithGold: (redirectUri: string) => Promise<void>
+
+    /** Require a new authentication in the existing tenant realm. */
+    reauthenticate?: () => Promise<void>
 }
 
 /**
@@ -348,6 +351,15 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         } catch (error) {
             console.error("Re-authentication failed:", error)
         }
+    }
+
+    const reauthenticate = async (): Promise<void> => {
+        if (!keycloak?.authenticated) throw new Error("No authenticated tenant realm")
+        // Exact same-origin Settings route, without carrying an activation candidate.
+        await keycloak.login({
+            prompt: "login",
+            redirectUri: window.location.origin + window.location.pathname,
+        })
     }
 
     const createKeycloak = (tenantId?: string) => {
@@ -611,6 +623,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 updateTokenAndPermissionLabels,
                 isGoldUser,
                 reauthWithGold,
+                reauthenticate,
                 initKeycloak,
             }}
         >

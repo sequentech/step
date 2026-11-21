@@ -31,7 +31,7 @@ const UUID_TENANT_ID: &str = "00000000-0000-0000-0000-00000000000a";
 const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
-const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 220;
+const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 223;
 
 const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
 
@@ -61,6 +61,23 @@ pub(crate) fn run_isolated_with_postgres(
     keycloak_url: &str,
     postgres: bool,
 ) -> String {
+    run_isolated_config(test, keycloak_url, postgres, &[])
+}
+
+fn run_isolated_with_env(
+    test: &str,
+    keycloak_url: &str,
+    fixture_env: &[(&str, &str)],
+) -> String {
+    run_isolated_config(test, keycloak_url, false, fixture_env)
+}
+
+fn run_isolated_config(
+    test: &str,
+    keycloak_url: &str,
+    postgres: bool,
+    fixture_env: &[(&str, &str)],
+) -> String {
     use std::process::{Command, Stdio};
     use std::time::{Duration, Instant};
     let marker = tempfile::NamedTempFile::new().unwrap();
@@ -77,6 +94,7 @@ pub(crate) fn run_isolated_with_postgres(
         .env("KEYCLOAK_ADMIN_CLIENT_ID", "synthetic-admin")
         .env("KEYCLOAK_ADMIN_CLIENT_SECRET", "synthetic-secret")
         .env("SUPER_ADMIN_TENANT_ID", SUPER_ADMIN_TENANT_ID)
+        .envs(fixture_env.iter().copied())
         .stdin(Stdio::null())
         .stdout(output.try_clone().unwrap())
         .stderr(output);

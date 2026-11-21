@@ -250,3 +250,67 @@ cargo test -p windmill --test postgres_configuration_packages   browser_producer
 That test exercises real `admit_document`, `record`, committed history, replay
 refusal and the next exact previous link. It does not apply an election through
 live Hasura or Keycloak.
+
+## Optional receiver-managed signer roster
+
+An already provisioned receiver using `WINDMILL_WEBAUTHN_PACKAGES=site-pinned`
+keeps the exact file, independently provisioned digest and approval minimum
+it already trusts. Tenant Settings can show that pin read-only. A portal
+upload cannot change it. Do not remove or replace the existing pin as part
+of a software upgrade.
+
+A new receiving installation can instead explicitly opt into
+`WINDMILL_WEBAUTHN_PACKAGES=portal-managed`. Provision the **same** settings
+on Harvest, Windmill workers and any job runner that admits packages,
+against the same local receiver database:
+
+| Setting | Purpose |
+| --- | --- |
+| `WINDMILL_WEBAUTHN_PACKAGES_TENANT_ID` | Canonical lower-case v4 UUID of the protected **destination** tenant. |
+| `WINDMILL_WEBAUTHN_PACKAGES_EXPECTED_RP_ID` | Exact lower-case producer relying-party hostname. |
+| `WINDMILL_WEBAUTHN_PACKAGES_EXPECTED_ORIGIN` | Exact producer HTTPS origin, with a port only when the browser origin includes it. |
+| `WINDMILL_WEBAUTHN_PACKAGES_ROSTER_ADMIN_SUBJECTS` | Comma-separated, exact verified receiver Keycloak account subjects authorized to provision trust. Not usernames or a role that a ZIP can assign. |
+| `WINDMILL_WEBAUTHN_PACKAGES_REQUIRED_APPROVALS` | The **receiver** floor, an integer 1–16; unset defaults to 2, plus a separate final signer. This is independent of the Architect's producer threshold. |
+
+Do not set the preview switch, a roster file or the file's digest in portal
+mode. Apply the additive receiver roster migration before starting these
+updated Harvest and Windmill binaries in any mode, and apply Hasura metadata
+before opening the portal. The browser-signature-only tenant cannot import any
+package before its first valid roster is activated, during an unavailable
+trust store, or with invalid authority. Other tenants keep their existing
+legacy policy. Once a tenant activates a roster, updated workers refuse it
+if the environment is later removed, misconfigured, or points to a
+different tenant. All writer processes must have matching configuration, and
+older binaries must be fenced before enabling portal mode; never roll them
+back over an activated managed tenant. Do not set portal-managed mode on an
+existing receiver as
+part of an unrelated release; switching trust sources is a separate operator
+decision. Never roll back a partially applied package, the roster generation,
+or the persisted import chain to work around a trust change.
+
+1. Get the exact, public signer-roster JSON exported by Architect.
+2. Independently confirm the lowercase SHA-256 through a trusted channel
+   with the producer or authorized custodian, **not** from the ZIP, its
+   surrounding message alone, or by copying a digest computed from the
+   unverified file. The server compares exact UTF-8 bytes to the supplied
+   fingerprint; it cannot authenticate the operator's out-of-band channel.
+3. In the receiving Admin Portal, open the matching tenant's Settings and
+   preview the JSON with the independently confirmed digest. Review the
+   destination, RP/origin, digest and signer counts.
+4. Explicitly activate that exact preview. The authenticated operator needs
+   the tenant's package-administration permissions, an allowlisted account,
+   and a real Keycloak authentication within five minutes. Refreshing a
+   token does not count. Activation compares the preview's generation, holds
+   both tenant package-work locks and records the old/new digest and actor
+   in the same transaction. It stores the public roster only in local receiver
+   authority, not in exported tenant settings. It does not require a restart.
+
+The public file must be UTF-8, no more than 256 KiB, without reformatting or
+line-ending changes. It is not a private credential and never comes from the
+ZIP. The receiver rechecks the current generation, digest and floor under
+the existing locks. A managed package Apply requires the exact successful
+Preview task from the same verified tenant-portal operator, with matching
+package bytes, normalized profile requirements and coverage; a rotation invalidates older previews even when the package
+would still verify. Pause and reconcile a previously started package before
+rotating; a partial application is not made resumable under different
+trust by simply refreshing the preview.
