@@ -1182,6 +1182,7 @@ pub async fn confirm_application(
         admin_id,
         &user,
         ApplicationStatus::ACCEPTED,
+        None,
     )
     .await
     .map_err(|err| anyhow!("Error sending communication response: {err}"))?;
@@ -1227,6 +1228,9 @@ pub async fn reject_application(
     // the applicant's one channel.
     let user = applicant_user(&applicant_data);
 
+    // The reason and message saved with the rejection go to the voter.
+    let rejection = RejectionNotice::from_annotations(application.annotations.as_ref());
+
     send_application_communication_response(
         hasura_transaction,
         tenant_id,
@@ -1236,6 +1240,7 @@ pub async fn reject_application(
         admin_id,
         &user,
         ApplicationStatus::REJECTED,
+        rejection.as_ref(),
     )
     .await
     .map_err(|err| anyhow!("Error sending communication response: {err}"))?;
@@ -1454,6 +1459,164 @@ fn verified_channel_attributes(
     attributes
 }
 
+/// Why a reviewed application was rejected, as it reaches the voter: the
+/// reason key and the free text the officer wrote. Read from the stored
+/// application annotations, so a retry sends the same notice.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RejectionNotice {
+    pub reason: Option<String>,
+    pub message: Option<String>,
+}
+
+impl RejectionNotice {
+    pub fn new(reason: Option<&str>, message: Option<&str>) -> Option<Self> {
+        let clean = |text: Option<&str>| {
+            text.map(str::trim)
+                .filter(|text| !text.is_empty())
+                .map(str::to_string)
+        };
+        let notice = Self {
+            reason: clean(reason),
+            message: clean(message),
+        };
+        (notice != Self::default()).then_some(notice)
+    }
+
+    /// The notice an application's annotations hold, if any.
+    pub fn from_annotations(annotations: Option<&Value>) -> Option<Self> {
+        let text = |key| annotations.and_then(|value| application_text(value, key));
+        Self::new(text("rejection_reason"), text("rejection_message"))
+    }
+}
+
+/// The key of a rejection reason as the default texts name it: officers
+/// send `no-matching-voter`, the automatic check stores `NO_VOTER`.
+fn canonical_reason_key(reason: &str) -> String {
+    let reason = reason.trim();
+    reason
+        .parse::<ApplicationRejectReason>()
+        .ok()
+        .or_else(|| serde_json::from_value(Value::String(reason.to_string())).ok())
+        .map(|known| known.to_string())
+        .unwrap_or_else(|| reason.to_string())
+}
+
+/// Text that goes into an HTML email body: escaped, with line breaks kept.
+fn escape_html_text(text: &str) -> String {
+    let mut escaped = String::with_capacity(text.len());
+    for character in text.chars() {
+        match character {
+            '&' => escaped.push_str("&amp;"),
+            '<' => escaped.push_str("&lt;"),
+            '>' => escaped.push_str("&gt;"),
+            '"' => escaped.push_str("&quot;"),
+            '\'' => escaped.push_str("&#39;"),
+            '\n' => escaped.push_str("<br>"),
+            other => escaped.push(other),
+        }
+    }
+    escaped
+}
+
+/// The template variables of a rejection notice. `rejection_message` is the
+/// officer's text as written (control characters dropped), for plain text and
+/// SMS; `rejection_message_html` is the same text escaped for an HTML body.
+/// Both are empty when absent, so `{{#if ...}}` can test them.
+fn rejection_variables(
+    notice: &RejectionNotice,
+    reason_texts: &HashMap<String, String>,
+) -> serde_json::Map<String, Value> {
+    let key = notice
+        .reason
+        .as_deref()
+        .map(canonical_reason_key)
+        .unwrap_or_default();
+    let reason = reason_texts
+        .get(&key)
+        .cloned()
+        .unwrap_or_else(|| key.clone());
+    let message: String = notice
+        .message
+        .as_deref()
+        .unwrap_or_default()
+        .replace("\r\n", "\n")
+        .chars()
+        .filter(|character| !character.is_control() || *character == '\n')
+        .collect();
+    let message = message.trim().to_string();
+    let mut variables = serde_json::Map::new();
+    variables.insert("rejection_reason_key".into(), Value::String(key));
+    variables.insert("rejection_reason".into(), Value::String(reason));
+    variables.insert(
+        "rejection_message_html".into(),
+        Value::String(escape_html_text(&message)),
+    );
+    variables.insert("rejection_message".into(), Value::String(message));
+    variables
+}
+
+/// The default texts of the rejection reasons in `lang`, or in the default
+/// language when it has none.
+fn default_reason_texts(
+    i18n_data: &I18nContent<HashMap<String, Option<Value>>>,
+    lang: &str,
+) -> HashMap<String, String> {
+    [lang, DEFAULT_LANG]
+        .into_iter()
+        .find_map(|code| {
+            let reasons = i18n_data
+                .get(code)?
+                .get("application")?
+                .as_ref()?
+                .get("reasons")?;
+            serde_json::from_value(reasons.clone()).ok()
+        })
+        .unwrap_or_default()
+}
+
+/// The event's overrides (`application.reasons.<reason>`, same scopes as the
+/// other application texts) over the default reason texts.
+fn apply_reason_overrides(
+    mut texts: HashMap<String, String>,
+    presentation: &ElectionEventPresentation,
+    lang: &str,
+) -> HashMap<String, String> {
+    let overrides = presentation
+        .i18n
+        .as_ref()
+        .and_then(|val| val.get(lang))
+        .map(template_translations)
+        .unwrap_or_default();
+    for (key, text) in overrides {
+        if let Some(reason) = key.strip_prefix("application.reasons.") {
+            texts.insert(reason.to_string(), text);
+        }
+    }
+    texts
+}
+
+/// The texts of the rejection reasons for the event: defaults plus overrides.
+async fn rejection_reason_texts(
+    presentation: &ElectionEventPresentation,
+) -> Result<HashMap<String, String>> {
+    let lang = presentation
+        .language_conf
+        .clone()
+        .unwrap_or_default()
+        .default_language_code
+        .unwrap_or(DEFAULT_LANG.into());
+    let json_data = get_public_asset_template(PUBLIC_ASSETS_I18N_DEFAULTS)
+        .await
+        .map_err(|e| anyhow!("Error getting the i18n defaults file {e:?}"))?;
+    let i18n_data: I18nContent<HashMap<String, Option<Value>>> = deserialize_str(&json_data)
+        .map_err(|e| anyhow!("Error parsing the i18n_defaults data file {e:?}"))?;
+    Ok(apply_reason_overrides(
+        default_reason_texts(&i18n_data, &lang),
+        presentation,
+        &lang,
+    ))
+}
+
 /// The application result's content on `channel`: the email for email, the
 /// SMS text for the other channels (an approved template, where the channel
 /// needs one, comes from the event's bindings).
@@ -1567,6 +1730,7 @@ pub async fn application_result_delivery(
     user: &User,
     voter_id: Option<String>,
     verdict: ApplicationStatus,
+    rejection: Option<&RejectionNotice>,
 ) -> Result<Option<Delivery>> {
     let Some(found) = voter_channel(user.email.as_deref(), user.attributes.as_ref()) else {
         return Ok(None);
@@ -1598,6 +1762,10 @@ pub async fn application_result_delivery(
         &mut variables,
         time_context.variables_for(first_attribute(user, AREA_ID_ATTR_NAME).map(String::as_str)),
     );
+    if let (ApplicationStatus::REJECTED, Some(notice)) = (&verdict, rejection) {
+        let reason_texts = rejection_reason_texts(&presentation).await?;
+        variables.extend(rejection_variables(notice, &reason_texts));
+    }
     let content =
         application_result_content(channel, verdict.clone(), presentation, &variables).await?;
     let alias = application_template_alias(&verdict);
@@ -1642,7 +1810,7 @@ pub async fn application_retry(
     let event_id = event_id.to_string();
     let Some(row) = hasura_transaction
         .query_opt(
-            "SELECT applicant_data FROM sequent_backend.applications
+            "SELECT applicant_data, annotations FROM sequent_backend.applications
              WHERE id::text = $1 AND tenant_id = $2",
             &[&application_id, &record.tenant_id],
         )
@@ -1670,6 +1838,13 @@ pub async fn application_retry(
             applicant_user(&applicant_data)
         }
     };
+    // The reason and message the officer saved, so the retry says the same.
+    let rejection = match verdict {
+        ApplicationStatus::REJECTED => RejectionNotice::from_annotations(
+            row.try_get::<_, Option<Value>>("annotations")?.as_ref(),
+        ),
+        _ => None,
+    };
     match application_result_delivery(
         hasura_transaction,
         &tenant_id,
@@ -1678,6 +1853,7 @@ pub async fn application_retry(
         &user,
         record.voter_id.clone(),
         verdict,
+        rejection.as_ref(),
     )
     .await?
     {
@@ -1692,6 +1868,7 @@ pub async fn application_retry(
 /// record. Called after Keycloak was already changed, so it never fails the
 /// review: a problem is logged, and the ledger row (or its absence) is the
 /// record.
+#[allow(clippy::too_many_arguments)]
 #[instrument(err, skip_all)]
 pub async fn send_application_communication_response(
     hasura_transaction: &Transaction<'_>,
@@ -1702,6 +1879,7 @@ pub async fn send_application_communication_response(
     admin_id: &str,
     user: &User,
     response_verdict: ApplicationStatus,
+    rejection: Option<&RejectionNotice>,
 ) -> Result<()> {
     let _ = admin_id;
     if !matches!(
@@ -1730,6 +1908,7 @@ pub async fn send_application_communication_response(
             user,
             voter_id.clone(),
             response_verdict.clone(),
+            rejection,
         )
         .await?;
         match delivery {
@@ -1918,6 +2097,183 @@ mod tests {
             ("country".to_string(), "Spain/Madrid".to_string()),
             ("embassy".to_string(), "Madrid PE".to_string()),
         ])
+    }
+
+    const DEFAULTS: &str =
+        include_str!("../../../../.devcontainer/minio/public-assets/i18n_defaults.json");
+
+    fn default_i18n() -> I18nContent<HashMap<String, Option<Value>>> {
+        deserialize_str(DEFAULTS).unwrap()
+    }
+
+    fn default_rejected_texts(lang: &str) -> (String, String, String) {
+        let i18n = default_i18n();
+        let application: ApplicationCommunication = deserialize_value(
+            i18n.get(lang)
+                .unwrap()
+                .get("application")
+                .unwrap()
+                .clone()
+                .unwrap(),
+        )
+        .unwrap();
+        let rejected = application.rejected;
+        (
+            rejected.sms.message,
+            rejected.email.plaintext_body,
+            rejected.email.html_body.unwrap(),
+        )
+    }
+
+    fn render_default(template: &str, notice: Option<&RejectionNotice>) -> String {
+        let en_texts = default_reason_texts(&default_i18n(), "en");
+        let mut variables = serde_json::json!({
+            "user": {"first_name": "Ana", "last_name": "Diaz"}
+        })
+        .as_object()
+        .unwrap()
+        .clone();
+        if let Some(notice) = notice {
+            variables.extend(rejection_variables(notice, &en_texts));
+        }
+        sequent_core::services::reports::render_template_text(template, variables).unwrap()
+    }
+
+    #[test]
+    fn rejection_reasons_are_read_in_either_spelling() {
+        assert_eq!(canonical_reason_key("NO_VOTER"), "no-matching-voter");
+        assert_eq!(
+            canonical_reason_key("no-matching-voter"),
+            "no-matching-voter"
+        );
+        assert_eq!(canonical_reason_key(" EMAIL_IN_USE "), "email-in-use");
+        assert_eq!(canonical_reason_key("something-else"), "something-else");
+    }
+
+    #[test]
+    fn every_rejection_reason_has_a_default_text() {
+        let i18n = default_i18n();
+        for lang in ["en", "tl"] {
+            let texts = default_reason_texts(&i18n, lang);
+            for variant in <ApplicationRejectReason as strum::VariantNames>::VARIANTS {
+                let key = canonical_reason_key(variant);
+                assert!(
+                    texts.get(&key).is_some_and(|text| !text.is_empty()),
+                    "{lang}: no text for {key}"
+                );
+            }
+        }
+        // A language without its own texts uses the default language's.
+        assert_eq!(
+            default_reason_texts(&i18n, "xx"),
+            default_reason_texts(&i18n, "en")
+        );
+    }
+
+    #[test]
+    fn an_event_overrides_the_text_of_a_reason() {
+        let presentation = ElectionEventPresentation {
+            i18n: Some(HashMap::from([(
+                "en".to_string(),
+                HashMap::from([(
+                    "application.reasons.no-matching-voter".to_string(),
+                    Some("Not in our roll".to_string()),
+                )]),
+            )])),
+            ..Default::default()
+        };
+        let texts = apply_reason_overrides(
+            default_reason_texts(&default_i18n(), "en"),
+            &presentation,
+            "en",
+        );
+        assert_eq!(texts["no-matching-voter"], "Not in our roll");
+        assert_eq!(texts["other"], "Other");
+    }
+
+    #[test]
+    fn a_rejection_notice_is_read_from_the_stored_annotations() {
+        let annotations = serde_json::json!({
+            "rejection_reason": "no-matching-voter",
+            "rejection_message": "  Please visit the office.  "
+        });
+        assert_eq!(
+            RejectionNotice::from_annotations(Some(&annotations)),
+            Some(RejectionNotice {
+                reason: Some("no-matching-voter".to_string()),
+                message: Some("Please visit the office.".to_string()),
+            })
+        );
+        let blank = serde_json::json!({"rejection_reason": null, "rejection_message": "  "});
+        assert_eq!(RejectionNotice::from_annotations(Some(&blank)), None);
+        assert_eq!(RejectionNotice::from_annotations(None), None);
+    }
+
+    #[test]
+    fn the_default_rejection_texts_show_the_reason_and_the_message() {
+        let notice =
+            RejectionNotice::new(Some("NO_VOTER"), Some("Bring your ID, it's required.")).unwrap();
+        let (sms, plaintext, html) = default_rejected_texts("en");
+
+        let sms = render_default(&sms, Some(&notice));
+        assert!(sms.contains("Reason: No matching voter."), "{sms}");
+        assert!(sms.contains("Bring your ID, it's required."), "{sms}");
+        let plaintext = render_default(&plaintext, Some(&notice));
+        assert!(
+            plaintext.contains("Reason: No matching voter"),
+            "{plaintext}"
+        );
+        assert!(plaintext.contains("it's required."), "{plaintext}");
+        let html = render_default(&html, Some(&notice));
+        assert!(html.contains("Reason: No matching voter"), "{html}");
+        assert!(html.contains("Bring your ID, it&#39;s required."), "{html}");
+    }
+
+    #[test]
+    fn the_default_rejection_texts_without_reason_or_message_say_only_that() {
+        let (sms, plaintext, html) = default_rejected_texts("en");
+        for text in [sms, plaintext, html] {
+            let rendered = render_default(&text, None);
+            assert!(rendered.contains("has been rejected."), "{rendered}");
+            assert!(!rendered.contains("Reason"), "{rendered}");
+            assert!(!rendered.contains("Message from"), "{rendered}");
+        }
+        // Only a reason: no empty message line.
+        let notice = RejectionNotice::new(Some("insufficient-information"), None).unwrap();
+        let (sms, ..) = default_rejected_texts("en");
+        let rendered = render_default(&sms, Some(&notice));
+        assert!(rendered.contains("Reason: Missing data."), "{rendered}");
+        assert!(!rendered.contains("Message from"), "{rendered}");
+    }
+
+    /// The officer's text is free: in the HTML body it can't add markup.
+    #[test]
+    fn the_officers_message_is_escaped_in_the_html_email() {
+        let notice = RejectionNotice::new(
+            Some("other"),
+            Some("<script>alert(1)</script> & <a href=\"x\">link</a>\nSecond line"),
+        )
+        .unwrap();
+        let (.., html) = default_rejected_texts("en");
+        let rendered = render_default(&html, Some(&notice));
+        assert!(!rendered.contains("<script"), "{rendered}");
+        assert!(!rendered.contains("<a href"), "{rendered}");
+        assert!(
+            rendered.contains("&lt;script&gt;alert(1)&lt;/script&gt; &amp; "),
+            "{rendered}"
+        );
+        assert!(rendered.contains("<br>Second line"), "{rendered}");
+        // A template that uses the plain variable still gets it escaped.
+        let plain = render_default("{{rejection_message}}", Some(&notice));
+        assert!(!plain.contains("<script"), "{plain}");
+    }
+
+    #[test]
+    fn control_characters_of_the_message_are_dropped() {
+        let notice = RejectionNotice::new(None, Some("one\u{7}\r\ntwo\u{1b}[0m")).unwrap();
+        let variables = rejection_variables(&notice, &HashMap::new());
+        assert_eq!(variables["rejection_message"], "one\ntwo[0m");
+        assert_eq!(variables["rejection_reason"], "");
     }
 
     fn filter_for(fields: &[&str], data: &HashMap<String, String>) -> ListUsersFilter {
