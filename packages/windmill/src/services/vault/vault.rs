@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::secret::{get_secret_by_id, get_secret_by_key, insert_secret, Secret};
+use crate::postgres::secret::{
+    delete_secret_by_key, get_secret_by_id, get_secret_by_key, insert_secret, Secret,
+};
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::vault::{
     aws_secret_manager::AwsSecretManager, env_var_master_secret::EnvVarMasterSecret,
@@ -111,6 +113,18 @@ pub async fn save_secret(
     save_secret_and_return(hasura_transaction, tenant_id, election_event_id, key, value)
         .await
         .map(|_| ())
+}
+
+#[instrument(skip(hasura_transaction, value), err)]
+pub async fn replace_secret(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+    key: &str,
+    value: &str,
+) -> Result<()> {
+    delete_secret_by_key(hasura_transaction, tenant_id, election_event_id, key).await?;
+    save_secret(hasura_transaction, tenant_id, election_event_id, key, value).await
 }
 
 #[instrument(skip(hasura_transaction, value), err)]
