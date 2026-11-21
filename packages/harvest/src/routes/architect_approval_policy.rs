@@ -150,6 +150,38 @@ pub async fn set_architect_approval_policy(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::authorization::test_claims::{
+        admin_claims, CALLER_TENANT_ID, OTHER_TENANT_ID,
+    };
+
+    #[test]
+    fn policy_reads_and_writes_share_the_same_tenant_permission_gate() {
+        let permission_names: Vec<String> = PACKAGE_PERMISSIONS
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+        let roles: Vec<&str> =
+            permission_names.iter().map(String::as_str).collect();
+        let local_administrator = admin_claims(CALLER_TENANT_ID, &roles);
+        assert!(authorized(&local_administrator, CALLER_TENANT_ID).is_ok());
+        assert_eq!(
+            authorized(&local_administrator, OTHER_TENANT_ID)
+                .unwrap_err()
+                .0,
+            Status::Unauthorized,
+        );
+        for omitted in 0..roles.len() {
+            let mut incomplete = roles.clone();
+            incomplete.remove(omitted);
+            let claims = admin_claims(CALLER_TENANT_ID, &incomplete);
+            assert_eq!(
+                authorized(&claims, CALLER_TENANT_ID).unwrap_err().0,
+                Status::Unauthorized,
+                "missing {} must deny both policy actions",
+                roles[omitted],
+            );
+        }
+    }
 
     #[test]
     fn only_blank_or_supported_positive_integer() {

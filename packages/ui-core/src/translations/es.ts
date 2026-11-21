@@ -747,6 +747,26 @@ const spanishTranslation: TranslationType = {
                     },
                 },
                 "package": {
+                    "ambiguous-signature-member": {
+                        lead: "Archivo de firma ambiguo",
+                        text: "Archivo de firma ambiguo — {{file}} debe usar el nombre exacto del archivo de firma y estar en la raíz del paquete.",
+                    },
+                    "webauthn-not-enabled": {
+                        lead: "Firmas con llave deshabilitadas",
+                        text: "Firmas con llave deshabilitadas — Este importador no está configurado para verificar las llaves de seguridad de los responsables. No se importó nada.",
+                    },
+                    "webauthn-refused": {
+                        lead: "Firmas con llave rechazadas",
+                        text: "Firmas con llave rechazadas — No se pudieron verificar las firmas o aprobaciones: {{reason}}",
+                    },
+                    "content-mismatch": {
+                        lead: "El contenido del paquete no coincide",
+                        text: "El contenido del paquete no coincide — El resumen criptográfico del manifiesto no coincide con el contenido del paquete. No se importó nada.",
+                    },
+                    "webauthn-not-next": {
+                        lead: "El paquete no es la siguiente revisión",
+                        text: "El paquete no es la siguiente revisión — Este paquete no continúa desde la última revisión importada para esta configuración.",
+                    },
                     "already-imported": {
                         lead: "Ya importada",
                         text: "Ya importada — la revisión {{revision}} de esta configuración ya se importó; importa una revisión más reciente.",

@@ -184,6 +184,9 @@ export const PermissionRequired: Story = {
     args: {allowed: false},
     play: async ({canvasElement}) => {
         await expect(within(canvasElement).getByTestId("package-not-permitted")).toBeVisible()
+        await expect(
+            within(canvasElement).queryByText(i18n.t("architectApprovalPolicy.title"))
+        ).not.toBeInTheDocument()
         expect(graphql.calls).toEqual([])
     },
 }

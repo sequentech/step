@@ -222,3 +222,5 @@
 /preview-scheduled-outcome-change
 /save-lifecycle-policies
 /readiness-check
+/get-architect-approval-policy
+/set-architect-approval-policy

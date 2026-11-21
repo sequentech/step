@@ -10,7 +10,8 @@ const spanishTranslation: TranslationType = {
             field: "Aprobaciones WebAuthn requeridas",
             help: "En blanco equivale a 2. Un número entero del 1 al 16 solo se aplica a los nuevos envíos.",
             invalid: "Introduce un número entero del 1 al 16 o deja el campo en blanco.",
-            receiver: "El sistema receptor sin conexión tiene su propio mínimo. Reducir este valor no reduce ese mínimo. La firma final es independiente y no cuenta como aprobación.",
+            receiver:
+                "El sistema receptor sin conexión tiene su propio mínimo. Reducir este valor no reduce ese mínimo. La firma final es independiente y no cuenta como aprobación.",
             save: "Guardar política de aprobación",
             saved: "Se guardó la política de aprobación.",
             failed: "No se pudo guardar la política. Recarga la configuración de la organización e inténtalo de nuevo.",

@@ -112,7 +112,9 @@ impl BrowserPolicy {
             }
         }
         let Some(tenant) = set(TENANT) else {
-            return BrowserPolicy::Unusable(format!("browser package mode is set without {TENANT}"));
+            return BrowserPolicy::Unusable(format!(
+                "browser package mode is set without {TENANT}"
+            ));
         };
         let configured_tenant =
             match sequent_core::services::uuid_validation::parse_uuid_v4(tenant.trim()) {

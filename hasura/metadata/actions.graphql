@@ -2133,13 +2133,15 @@ type SetVoterAuthenticationOutput {
 }
 
 type Query {
-    get_architect_approval_policy(tenant_id: String!): ArchitectApprovalPolicyOutput
+    get_architect_approval_policy(
+        tenant_id: String!
+    ): ArchitectApprovalPolicyOutput
 }
 
 type Mutation {
     set_architect_approval_policy(
-        tenant_id: String!,
-        required_approvals: Int,
+        tenant_id: String!
+        required_approvals: Int
         generation: String!
     ): ArchitectApprovalPolicyOutput
 }

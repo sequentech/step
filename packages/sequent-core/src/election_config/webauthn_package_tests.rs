@@ -967,3 +967,74 @@ fn noncanonical_signature_metadata_cannot_be_unsigned() {
         assert!(admit(&bytes, None, vec![]).is_err(), "{name}");
     }
 }
+
+#[test]
+fn pinned_policy_keeps_the_configured_minimum_and_exact_metadata() {
+    let w = world();
+    let mut text: Value = serde_json::from_str(&w.roster_text()).unwrap();
+    // These are supported deployment shapes, not the signing origins used
+    // by the P-256 fixture below.
+    text["origins"] = serde_json::json!([
+        "https://architect2.ems.example:8443",
+        "http://localhost",
+        "http://127.0.0.1:3000",
+    ]);
+    let text = text.to_string();
+    let digest = Roster::sha256(&text);
+    let pinned = PinnedRoster::load(&text, &digest, TENANT, 1).unwrap();
+    assert_eq!(pinned.tenant(), TENANT);
+    assert_eq!(pinned.rp_id(), RP);
+    assert_eq!(pinned.required(), 1);
+    assert_eq!(pinned.sha256(), digest);
+
+    let built = build(&w, &[&w.a, &w.b], &w.signer);
+    let verified = verify_browser_package(&built.zip(), &w.pinned(1), None)
+        .expect("the receiver's independently pinned count is a minimum");
+    assert_eq!(verified.approvers, [w.a.subject, w.b.subject]);
+    assert_eq!(verified.final_signer, w.signer.subject);
+}
+
+#[test]
+fn browser_detection_distinguishes_ordinary_delivery_from_browser_package() {
+    let w = world();
+    let ordinary = zip(&delivery()).unwrap();
+    assert!(!has_browser_members(&ordinary));
+    assert_eq!(
+        refusal(verify_browser_package(&ordinary, &w.pinned(2), None)),
+        (Code::Unsigned, "package.webauthn-no-envelope".to_owned())
+    );
+    assert!(has_browser_members(
+        &build(&w, &[&w.a, &w.b], &w.signer).zip()
+    ));
+}
+
+#[test]
+fn browser_problem_preserves_the_typed_failure_and_localization_context() {
+    use ProofError::*;
+    let cases = [
+        (Format("proof"), Code::Unreadable, "not a proof document"),
+        (Roster("no usable keys".into()), Code::UntrustedSigner, "the roster is not usable: no usable keys"),
+        (Encoding("key"), Code::Unreadable, "key is not base64url"),
+        (Binding("tenant"), Code::IntegrityMismatch, "the binding is not for this tenant"),
+        (UnknownKey("official-1".into()), Code::UntrustedSigner, "key official-1 is not on the roster"),
+        (WrongKey("official-1".into()), Code::UntrustedSigner,
+         "key official-1 is not this person's, this credential or for this role"),
+        (AuthenticatorData("unavailable"), Code::BadSignature, "the authenticator data is not acceptable: unavailable"),
+        (Signature, Code::BadSignature, "the signature does not verify"),
+        (SignerApproved, Code::NotApproved, "the final signer approved this revision too"),
+        (Policy("no tenant".into()), Code::UntrustedSigner, "the pinned signing policy is not usable: no tenant"),
+    ];
+    for (failure, code, reason) in cases {
+        let report = proof_refused(&failure);
+        let mut errors = report.errors();
+        let problem = errors.next().expect("one refusal");
+        assert!(errors.next().is_none());
+        assert_eq!(problem.code, code);
+        assert_eq!(problem.id.as_deref(), Some("package.webauthn-refused"));
+        assert_eq!(problem.path, ENVELOPE_MEMBER);
+        assert_eq!(
+            problem.details.get("reason").map(String::as_str),
+            Some(reason)
+        );
+    }
+}

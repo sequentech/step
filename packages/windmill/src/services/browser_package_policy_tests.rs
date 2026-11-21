@@ -42,17 +42,15 @@ fn configured_but_incomplete_policy_never_falls_back() {
     ] {
         let policy = policy(&values);
         assert!(matches!(policy, BrowserPolicy::Unusable(_)));
-        assert!(
-            admit_with_policy(
-                b"legacy upload",
-                None,
-                "00000000-0000-4000-8000-00000000000a",
-                vec![],
-                Utc::now(),
-                &policy
-            )
-            .is_err()
-        );
+        assert!(admit_with_policy(
+            b"legacy upload",
+            None,
+            "00000000-0000-4000-8000-00000000000a",
+            vec![],
+            Utc::now(),
+            &policy
+        )
+        .is_err());
         assert!(matches!(recheck(&policy, None), Recheck::Block(_)));
     }
 }
@@ -79,8 +77,8 @@ fn another_tenant_keeps_legacy_policy() {
 
 #[test]
 fn tenant_uuid_aliases_select_the_same_pinned_browser_policy() {
-    use base64::Engine;
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    use base64::Engine;
     let canonical = "00000000-0000-4000-8000-00000000000a";
     let key = |id: u8, role: &str| {
         let mut point = vec![id; 65];
@@ -120,10 +118,15 @@ fn tenant_uuid_aliases_select_the_same_pinned_browser_policy() {
                 matches!(policy, BrowserPolicy::BrowserOnly(_)),
                 "{policy:?}"
             );
-            assert!(
-                admit_with_policy(b"legacy unsigned", None, alias, vec![], Utc::now(), &policy)
-                    .is_err()
-            );
+            assert!(admit_with_policy(
+                b"legacy unsigned",
+                None,
+                alias,
+                vec![],
+                Utc::now(),
+                &policy
+            )
+            .is_err());
             assert!(matches!(recheck(&policy, None), Recheck::Block(_)));
         }
     }
@@ -161,17 +164,15 @@ fn removing_mode_alone_never_reopens_legacy_admission() {
     for name in [TENANT, ROSTER_FILE, ROSTER_SHA256, REQUIRED_APPROVALS] {
         let policy = policy(&[(name, "")]);
         assert!(matches!(policy, BrowserPolicy::Unusable(_)));
-        assert!(
-            admit_with_policy(
-                b"new legacy upload",
-                None,
-                "00000000-0000-4000-8000-00000000000a",
-                vec![],
-                Utc::now(),
-                &policy
-            )
-            .is_err()
-        );
+        assert!(admit_with_policy(
+            b"new legacy upload",
+            None,
+            "00000000-0000-4000-8000-00000000000a",
+            vec![],
+            Utc::now(),
+            &policy
+        )
+        .is_err());
         assert!(matches!(recheck(&policy, None), Recheck::Block(_)));
     }
 }

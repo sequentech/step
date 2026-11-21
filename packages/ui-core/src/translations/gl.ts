@@ -748,6 +748,26 @@ const galegoTranslation: TranslationType = {
                     },
                 },
                 "package": {
+                    "ambiguous-signature-member": {
+                        lead: "Ficheiro de sinatura ambiguo",
+                        text: "Ficheiro de sinatura ambiguo — {{file}} debe ter o nome exacto do ficheiro de sinatura e estar na raíz do paquete.",
+                    },
+                    "webauthn-not-enabled": {
+                        lead: "Sinaturas con chave desactivadas",
+                        text: "Sinaturas con chave desactivadas — Este importador non está configurado para verificar as chaves de seguridade das persoas responsables. Non se importou nada.",
+                    },
+                    "webauthn-refused": {
+                        lead: "Sinaturas con chave rexeitadas",
+                        text: "Sinaturas con chave rexeitadas — Non se puideron verificar as sinaturas ou aprobacións: {{reason}}",
+                    },
+                    "content-mismatch": {
+                        lead: "O contido do paquete non coincide",
+                        text: "O contido do paquete non coincide — O resumo criptográfico do manifesto non coincide co contido do paquete. Non se importou nada.",
+                    },
+                    "webauthn-not-next": {
+                        lead: "O paquete non é a seguinte revisión",
+                        text: "O paquete non é a seguinte revisión — Este paquete non continúa desde a última revisión importada para esta configuración.",
+                    },
                     "already-imported": {
                         lead: "Xa importada",
                         text: "Xa importada — a revisión {{revision}} desta configuración xa se importou; importe unha revisión máis recente.",
