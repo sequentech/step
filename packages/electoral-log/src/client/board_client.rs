@@ -1095,6 +1095,28 @@ impl BoardClient {
         self.client.has_database(database_name).await
     }
 
+    /// The most entries one transaction on `database_name` may hold
+    /// (immudb's `MaxTxEntries` setting of the database). The session must be
+    /// open on `database_name`.
+    #[instrument(skip(self), level = "trace")]
+    pub async fn max_tx_entries(&mut self, database_name: &str) -> Result<usize> {
+        let response = self.client.database_settings().await?;
+        let settings = response.get_ref();
+        if settings.database != database_name {
+            return Err(anyhow!(
+                "The session is on database {}, not {database_name}",
+                settings.database
+            ));
+        }
+        let max_tx_entries = settings
+            .settings
+            .as_ref()
+            .and_then(|settings| settings.max_tx_entries.as_ref())
+            .ok_or_else(|| anyhow!("Database {database_name} reports no MaxTxEntries"))?
+            .value;
+        Ok(usize::try_from(max_tx_entries)?)
+    }
+
     /// Creates the requested immudb database if it doesnt exist.
     /// Also creates the electoral log table.
     #[instrument(skip(self))]
