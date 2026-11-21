@@ -174,6 +174,7 @@ async fn post_attempt_outcome(
         event_time_ms: None,
         details: None,
         admin_event: None,
+        deferral: None,
     };
     try_get_celery_app()
         .await?

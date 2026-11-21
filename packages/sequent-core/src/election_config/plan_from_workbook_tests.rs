@@ -1471,6 +1471,120 @@ fn a_schedule_typed_by_hand_is_read_and_an_unknown_event_kept_with_a_warning() {
     assert!(warnings[0].message.contains("SEND_REMINDER"));
 }
 
+/// The plan has one voting window for the whole event. A workbook that gives
+/// each election its own row (as the COMELEC conversion does, one row per
+/// election) reads as that window when every row names the same instant, and
+/// is refused when they differ: a later row never silently replaces an
+/// earlier one.
+#[test]
+fn per_election_voting_windows_read_as_one_only_when_they_agree() {
+    use serde_json::json;
+    let elections = |ids: &[&str]| {
+        sheet_of(
+            "Elections",
+            ids.iter()
+                .map(|id| vec![("external_id", json!(id))])
+                .collect(),
+        )
+    };
+    let rows = |closes: [&str; 2]| {
+        vec![
+            elections(&["e1", "e2"]),
+            sheet_of(
+                "ScheduledEvents",
+                vec![
+                    vec![
+                        ("election.external_id", json!("e1")),
+                        ("event_type", json!("START_VOTING_PERIOD")),
+                        (
+                            "scheduled_datetime",
+                            json!("2026-11-10T23:46:00+08:00"),
+                        ),
+                    ],
+                    vec![
+                        ("election.external_id", json!("e2")),
+                        ("event_type", json!("START_VOTING_PERIOD")),
+                        // The same instant, written with another offset.
+                        ("scheduled_datetime", json!("2026-11-10T15:46:00Z")),
+                    ],
+                    vec![
+                        ("election.external_id", json!("e1")),
+                        ("event_type", json!("END_VOTING_PERIOD")),
+                        ("scheduled_datetime", json!(closes[0])),
+                    ],
+                    vec![
+                        ("election.external_id", json!("e2")),
+                        ("event_type", json!("END_VOTING_PERIOD")),
+                        ("scheduled_datetime", json!(closes[1])),
+                    ],
+                ],
+            ),
+        ]
+    };
+
+    let agreed = plan_from_workbook(&minimal(rows([
+        "2026-11-30T23:46:00+08:00",
+        "2026-11-30T23:46:00+08:00",
+    ])))
+    .expect("one window for every election");
+    let schedule = &agreed.plan.schedule;
+    assert_eq!(
+        schedule.voting_opens.as_ref().unwrap().local,
+        "2026-11-10T23:46"
+    );
+    assert_eq!(
+        schedule.voting_closes.as_ref().unwrap().local,
+        "2026-11-30T23:46"
+    );
+    assert!(warnings_of(&agreed).is_empty());
+
+    let refused = errors_of(&minimal(rows([
+        "2026-11-30T23:46:00+08:00",
+        "2026-12-01T23:46:00+08:00",
+    ])));
+    assert_eq!(refused.len(), 1, "{refused:?}");
+    assert!(
+        refused[0].message.contains("END_VOTING_PERIOD"),
+        "{}",
+        refused[0].message
+    );
+    assert_eq!(
+        refused[0].at.as_ref().unwrap().column.as_deref(),
+        Some("scheduled_datetime")
+    );
+
+    // Rows for some elections only: the event-wide window would also open
+    // and close the elections the workbook gave no date for. Refused.
+    let mut partial =
+        rows(["2026-11-30T23:46:00+08:00", "2026-11-30T23:46:00+08:00"]);
+    partial[0] = elections(&["e1", "e2", "e3"]);
+    let refused = errors_of(&minimal(partial));
+    assert_eq!(refused.len(), 2, "{refused:?}");
+    assert!(
+        refused.iter().all(|p| p.message.contains("e3")),
+        "{refused:?}"
+    );
+    assert!(refused
+        .iter()
+        .any(|p| p.message.contains("START_VOTING_PERIOD")));
+    assert!(refused
+        .iter()
+        .any(|p| p.message.contains("END_VOTING_PERIOD")));
+
+    // A row for an election the workbook does not have: refused.
+    let mut unknown =
+        rows(["2026-11-30T23:46:00+08:00", "2026-11-30T23:46:00+08:00"]);
+    unknown[0] = elections(&["e1"]);
+    let refused = errors_of(&minimal(unknown));
+    assert!(
+        refused
+            .iter()
+            .any(|p| p.message.contains("e2")
+                && p.message.contains("no election")),
+        "{refused:?}"
+    );
+}
+
 #[test]
 fn a_ceremony_sheet_reads_its_keys_and_refuses_what_it_cannot_mean() {
     use serde_json::json;

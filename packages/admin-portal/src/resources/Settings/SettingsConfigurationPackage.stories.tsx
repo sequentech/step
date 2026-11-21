@@ -5,6 +5,7 @@ import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, within, waitFor} from "storybook/test"
 import {i18n} from "@sequentech/ui-core"
 import {AdminStoryProvider, TENANT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
+import {resourceBoundary} from "@/__stories__/resourceBoundary"
 import {storyId} from "@/__stories__/fixtures"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {SettingsConfigurationPackage} from "./SettingsConfigurationPackage"
@@ -19,12 +20,16 @@ interface Scenario {
 const DOCUMENT_ID = storyId(41, 1)
 const TASK_ID = storyId(41, 2)
 let graphql: ReturnType<typeof graphqlBoundary>
+let data: ReturnType<typeof resourceBoundary>
 const meta = {
     title: "Admin/Settings/SettingsConfigurationPackage",
     component: SettingsConfigurationPackage,
     args: {allowed: true, blocked: false, unavailable: false},
     beforeEach: async ({args}) => {
         sessionStorage.clear()
+        // The page also shows the tenant's signing card, which reads the
+        // tenant record; no signing configured yet.
+        data = resourceBoundary({sequent_backend_tenant: [{id: TENANT_ID, settings: {}}]})
         const annotations = record(
             "previewed",
             args.blocked ? ["Unknown role: synthetic-reviewer"] : []
@@ -68,7 +73,11 @@ const meta = {
         return () => sessionStorage.clear()
     },
     render: ({allowed}) => (
-        <AdminStoryProvider boundary={graphql} roles={allowed ? PACKAGE_PERMISSIONS : []}>
+        <AdminStoryProvider
+            boundary={graphql}
+            dataProvider={data.provider}
+            roles={allowed ? PACKAGE_PERMISSIONS : []}
+        >
             <SettingsConfigurationPackage />
         </AdminStoryProvider>
     ),

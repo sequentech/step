@@ -88,6 +88,16 @@ pub mod tenant_package;
 #[cfg(feature = "election_config_signing")]
 pub mod package_verify;
 
+/// The v2 signing policy: enrolled signers with stable IDs, their roles and
+/// keys, and the policy digest approvals bind to.
+#[cfg(feature = "election_config_signing")]
+pub mod signing_policy;
+
+/// Format-2 signing without a service: the request, approval and final
+/// assembly a standalone Election Architect and the signing companion share.
+#[cfg(feature = "election_config_signing")]
+pub mod standalone_signing;
+
 /// What an importer says about a file that fails before, or beside, validation.
 pub mod import_problems;
 

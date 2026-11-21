@@ -136,7 +136,7 @@ impl SealEnvironment for TestEnvironment {
         tenant_id: &str,
         election_event_id: &str,
         board: &str,
-    ) -> Result<SigningKey> {
+    ) -> Result<electoral_log::signer::SharedSigner> {
         ProductionSealEnvironment
             .signing_key(hasura_transaction, tenant_id, election_event_id, board)
             .await
@@ -3123,7 +3123,7 @@ fn a_close_schedules_its_new_seals() {
 fn junk_seal_entries_neither_block_nor_hide_the_genuine_one() {
     event_database::run(async {
         use electoral_log::messages::message::{Message, SigningData};
-        use electoral_log::seal::{build, BallotBoxSealManifest, SEAL_FORMAT_V1};
+        use electoral_log::seal::{build, BallotBoxSealManifest, SEAL_FORMAT_V2};
         let w = world(Options::default()).await;
         let (election, area) = (w.election(), w.areas[0]);
         cast(&w, election, area, "voter-a", BallotStatus::Valid, "a").await;
@@ -3133,7 +3133,7 @@ fn junk_seal_entries_neither_block_nor_hide_the_genuine_one() {
         // More than one page of board reads (100).
         for index in 0..105u64 {
             let built = build(BallotBoxSealManifest {
-                format: SEAL_FORMAT_V1.to_string(),
+                format: SEAL_FORMAT_V2.to_string(),
                 tenant_id: w.tenant.to_string(),
                 election_event_id: w.event.to_string(),
                 election_id: election.to_string(),

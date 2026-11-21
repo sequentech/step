@@ -292,24 +292,147 @@ fn report_request(tenant_id: &str, report_id: &str) -> Value {
     json!({"report_id": report_id, "tenant_id": tenant_id, "report_mode": "REAL"})
 }
 
+/// What generating a real report needs: reading reports and generating them.
+const GENERATOR: [Permissions; 2] =
+    [Permissions::REPORT_READ, Permissions::REPORT_GENERATE];
+/// A generator who may also read voters, as the list of voters who voted
+/// names them.
+const VOTER_LIST_GENERATOR: [Permissions; 3] = [
+    Permissions::REPORT_READ,
+    Permissions::REPORT_GENERATE,
+    Permissions::VOTER_READ,
+];
+
 #[rocket::async_test]
-async fn a_report_is_generated_under_the_tenant_its_request_names() {
-    // Pinned as found: the caller's own tenant is authorized, while the
-    // report is read, and its task row written, in the body's tenant.
+async fn a_report_of_another_tenant_is_refused_before_it_is_read() {
     let services = Services::on_test_database().await;
     let client = services.client().await;
     let caller = rows::event(&services.hasura).await;
     let other = rows::event(&services.hasura).await;
     let report_id = other
-        .report(&services.hasura, "CREDENTIALS", TEMPLATE_ALIAS)
+        .report(&services.hasura, "OV_WHO_VOTED", TEMPLATE_ALIAS)
+        .await;
+
+    let (status, _) = text(
+        post(
+            &client,
+            "/generate-report",
+            &reader(&caller, &GENERATOR),
+            &report_request(&other.tenant_id, &report_id),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Unauthorized);
+    // Naming the caller's own tenant does not reach the other tenant's report.
+    let response = post(
+        &client,
+        "/generate-report",
+        &reader(&caller, &GENERATOR),
+        &report_request(&caller.tenant_id, &report_id),
+    )
+    .await;
+    assert_eq!(
+        text(response).await,
+        (Status::NotFound, "Report not found".into())
+    );
+    assert!(services.ledger.tasks().is_empty());
+    assert!(services.tasks.sent().is_empty());
+}
+
+#[rocket::async_test]
+async fn a_report_requested_for_another_event_is_refused() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let report_id = event
+        .report(&services.hasura, "OV_WHO_VOTED", TEMPLATE_ALIAS)
+        .await;
+    let mut request = report_request(&event.tenant_id, &report_id);
+    request["election_event_id"] = json!(uuid::Uuid::new_v4().to_string());
+
+    let response = post(
+        &client,
+        "/generate-report",
+        &reader(&event, &GENERATOR),
+        &request,
+    )
+    .await;
+    assert_eq!(
+        text(response).await,
+        (
+            Status::BadRequest,
+            "The report belongs to another election event".into()
+        )
+    );
+    assert!(services.ledger.tasks().is_empty());
+}
+
+#[rocket::async_test]
+async fn generating_a_report_needs_generate_and_previewing_it_needs_preview() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let report_id = event
+        .report(&services.hasura, "OV_WHO_VOTED", TEMPLATE_ALIAS)
+        .await;
+    let mut preview = report_request(&event.tenant_id, &report_id);
+    preview["report_mode"] = json!("PREVIEW");
+
+    for (permissions, request) in [
+        (
+            vec![Permissions::REPORT_READ],
+            report_request(&event.tenant_id, &report_id),
+        ),
+        (
+            vec![Permissions::REPORT_READ, Permissions::REPORT_PREVIEW],
+            report_request(&event.tenant_id, &report_id),
+        ),
+        (
+            vec![Permissions::REPORT_READ, Permissions::REPORT_GENERATE],
+            preview.clone(),
+        ),
+    ] {
+        let response = post(
+            &client,
+            "/generate-report",
+            &reader(&event, &permissions),
+            &request,
+        )
+        .await;
+        assert_eq!(response.status(), Status::Unauthorized, "{permissions:?}");
+    }
+    assert!(services.ledger.tasks().is_empty());
+
+    let response = post(
+        &client,
+        "/generate-report",
+        &reader(
+            &event,
+            &[Permissions::REPORT_READ, Permissions::REPORT_PREVIEW],
+        ),
+        &preview,
+    )
+    .await;
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(services.tasks.sent()[0].kwargs["report_mode"], "PREVIEW");
+}
+
+#[rocket::async_test]
+async fn the_list_of_voters_who_voted_is_generated_for_all_posts_by_a_task() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let report_id = event
+        .report(&services.hasura, "OV_WHO_VOTED", TEMPLATE_ALIAS)
         .await;
 
     let (status, body) = json(
         post(
             &client,
             "/generate-report",
-            &reader(&caller, &[Permissions::REPORT_READ]),
-            &report_request(&other.tenant_id, &report_id),
+            &reader(&event, &VOTER_LIST_GENERATOR),
+            &report_request(&event.tenant_id, &report_id),
         )
         .await,
     )
@@ -317,13 +440,76 @@ async fn a_report_is_generated_under_the_tenant_its_request_names() {
     assert_eq!(status, Status::Ok, "{body}");
     let tasks = services.ledger.tasks();
     assert_eq!(tasks.len(), 1);
-    assert_eq!(tasks[0].tenant_id, other.tenant_id);
+    assert_eq!(tasks[0].task_type, "GENERATE_REPORT");
+    assert_eq!(tasks[0].tenant_id, event.tenant_id);
     let sent = services.tasks.sent();
     assert_eq!(sent[0].name, "generate_report");
-    assert_eq!(sent[0].kwargs["report"]["tenant_id"], other.tenant_id);
+    assert_eq!(sent[0].kwargs["report"]["report_type"], "OV_WHO_VOTED");
+    assert_eq!(sent[0].kwargs["report"]["election_id"], Value::Null);
+    assert_eq!(sent[0].kwargs["report"]["tenant_id"], event.tenant_id);
     assert_eq!(sent[0].kwargs["document_id"], body["document_id"]);
-    assert_eq!(sent[0].kwargs["may_read_secret_attributes"], false);
-    assert!(services.electoral_log.entries().is_empty());
+}
+
+#[rocket::async_test]
+async fn the_list_of_voters_who_voted_names_voters_so_it_needs_voter_read() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let report_id = event
+        .report(&services.hasura, "OV_WHO_VOTED", TEMPLATE_ALIAS)
+        .await;
+
+    let (status, message) = text(
+        post(
+            &client,
+            "/generate-report",
+            &reader(&event, &GENERATOR),
+            &report_request(&event.tenant_id, &report_id),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Unauthorized);
+    assert!(message.contains("voter-read"), "{message}");
+    assert!(services.ledger.tasks().is_empty());
+    assert!(services.tasks.sent().is_empty());
+
+    // Its preview draws sample voters: the report permissions suffice.
+    let mut preview = report_request(&event.tenant_id, &report_id);
+    preview["report_mode"] = json!("PREVIEW");
+    let response = post(
+        &client,
+        "/generate-report",
+        &reader(
+            &event,
+            &[Permissions::REPORT_READ, Permissions::REPORT_PREVIEW],
+        ),
+        &preview,
+    )
+    .await;
+    assert_eq!(response.status(), Status::Ok);
+}
+
+#[rocket::async_test]
+async fn an_all_posts_list_needs_every_posts_label() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.labelled_election(&services.hasura, "madrid").await;
+    let report_id = event
+        .report(&services.hasura, "OV_WHO_VOTED", TEMPLATE_ALIAS)
+        .await;
+
+    let response = post(
+        &client,
+        "/generate-report",
+        &reader(&event, &VOTER_LIST_GENERATOR),
+        &report_request(&event.tenant_id, &report_id),
+    )
+    .await;
+    assert_eq!(response.status(), Status::Forbidden);
+    assert!(services.ledger.tasks().is_empty());
+    assert!(services.tasks.sent().is_empty());
 }
 
 #[rocket::async_test]
@@ -335,7 +521,7 @@ async fn unknown_reports_and_report_types_are_refused() {
         .report(&services.hasura, "NOT_A_REPORT_TYPE", TEMPLATE_ALIAS)
         .await;
 
-    let claims = reader(&event, &[Permissions::REPORT_READ]);
+    let claims = reader(&event, &GENERATOR);
     let unknown = uuid::Uuid::new_v4().to_string();
     let response = post(
         &client,
@@ -394,6 +580,7 @@ async fn a_report_declaring_secret_attributes_is_logged_before_it_is_generated()
                 &event,
                 &[
                     Permissions::REPORT_READ,
+                    Permissions::REPORT_GENERATE,
                     Permissions::VOTER_SECRET_ATTRIBUTE_READ,
                 ],
             ),
@@ -430,7 +617,7 @@ async fn a_report_declaring_secret_attributes_needs_their_read_permission() {
     let response = post(
         &client,
         "/generate-report",
-        &reader(&event, &[Permissions::REPORT_READ]),
+        &reader(&event, &GENERATOR),
         &report_request(&event.tenant_id, &report_id),
     )
     .await;
@@ -456,6 +643,7 @@ async fn a_secret_attribute_report_that_cannot_be_logged_is_not_generated() {
             &event,
             &[
                 Permissions::REPORT_READ,
+                Permissions::REPORT_GENERATE,
                 Permissions::VOTER_SECRET_ATTRIBUTE_READ,
             ],
         ),
@@ -529,30 +717,30 @@ async fn report_routes_answer_500_when_the_database_is_unreachable() {
         tenant_id: uuid::Uuid::new_v4().to_string(),
         election_event_id: uuid::Uuid::new_v4().to_string(),
     };
-    for (path, permission, body) in [
+    for (path, permissions, body) in [
         (
             "/render-document-pdf",
-            Permissions::REPORT_READ,
+            &[Permissions::REPORT_READ][..],
             render_request(&event, "document"),
         ),
         (
             "/generate-template",
-            Permissions::REPORT_READ,
+            &[Permissions::REPORT_READ][..],
             ballot_images(&event),
         ),
         (
             "/generate-report",
-            Permissions::REPORT_READ,
+            &GENERATOR[..],
             report_request(&event.tenant_id, "report"),
         ),
         (
             "/encrypt-report",
-            Permissions::REPORT_WRITE,
+            &[Permissions::REPORT_WRITE][..],
             encrypt_request(&event),
         ),
         (
             "/generate-transmission-report",
-            Permissions::TRANSMISSION_REPORT_GENERATE,
+            &[Permissions::TRANSMISSION_REPORT_GENERATE][..],
             transmission_request(
                 &event,
                 Some(&uuid::Uuid::new_v4().to_string()),
@@ -561,7 +749,7 @@ async fn report_routes_answer_500_when_the_database_is_unreachable() {
         ),
     ] {
         let response =
-            post(&client, path, &reader(&event, &[permission]), &body).await;
+            post(&client, path, &reader(&event, permissions), &body).await;
         let (status, message) = text(response).await;
         assert_eq!(status, Status::InternalServerError, "{path}");
         assert!(message.contains("Connection refused"), "{path}: {message}");
@@ -629,7 +817,7 @@ async fn a_report_whose_action_needs_signatures_is_not_generated_here() {
         let report_id = event
             .report(&services.hasura, report_type, TEMPLATE_ALIAS)
             .await;
-        let claims = reader(&event, &[Permissions::REPORT_READ]);
+        let claims = reader(&event, &GENERATOR);
         let request = report_request(&event.tenant_id, &report_id);
 
         let (generated, body) =

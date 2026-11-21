@@ -170,9 +170,19 @@ pub async fn ensure_election_audit_boards(
             .map(|id| get_election_board(tenant_id, id, &slug)),
     );
     for identity in identities {
-        let existing = client.has_board(&identity).await?;
         client.create_board(&identity).await?;
-        if !existing && !dont_auto_generate_keys {
+        // Keys are made for any board that has none, also an existing board
+        // whose earlier creation failed: a keyless board is repaired, never
+        // left to be skipped.
+        if !dont_auto_generate_keys
+            && !crate::services::electoral_log_board::board_has_key(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                &identity,
+            )
+            .await?
+        {
             create_protocol_manager_keys(
                 hasura_transaction,
                 tenant_id,

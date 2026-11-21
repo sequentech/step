@@ -1,0 +1,35 @@
+{
+  "about": "Electoral log signature scheme v3: Ed25519 (pure) over domain || 0x00 || SHA-256(canonical bytes). Synthetic key; generated independently with Node's Ed25519 (tests/data/gen_signature_v3_vectors.mjs).",
+  "signing_key_seed_hex": "0707070707070707070707070707070707070707070707070707070707070707",
+  "public_key_b64": "6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=",
+  "vectors": [
+    {
+      "name": "statement",
+      "domain": "sequent-electoral-log/statement-signature/v3",
+      "canonical_hex": "73746174656d656e74207265636f7264206279746573",
+      "signed_message_hex": "73657175656e742d656c6563746f72616c2d6c6f672f73746174656d656e742d7369676e61747572652f7633000c21bb0b194a67e695bb07280f0eb665597b6c7af0a86d84e43ad9ff748679da",
+      "signature_b64": "8SBOAf2hi7b6ABVxaUVoyDsBblEqa2NAnhbYXDvSmchVXZyO+4702Jmam2VqnJzcqxR8jv+5I8EDe9WQS/XHAQ=="
+    },
+    {
+      "name": "statement-empty",
+      "domain": "sequent-electoral-log/statement-signature/v3",
+      "canonical_hex": "",
+      "signed_message_hex": "73657175656e742d656c6563746f72616c2d6c6f672f73746174656d656e742d7369676e61747572652f763300e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "signature_b64": "5TFp2sxXnA8K1IIzkT7CZ1WfQ/07Yfr/ZuPbpwi5XcUHgQN1/mCFbMAOXnSsTxs6ei1Gqt9NgM6TpUQfkHQ5Dw=="
+    },
+    {
+      "name": "statement-real",
+      "domain": "sequent-electoral-log/statement-signature/v3",
+      "canonical_hex": "070000006576656e742d310d00f153650000000001001600000054616c6c792073657373696f6e206f70656e6e65642e0c010a000000656c656374696f6e2d31",
+      "signed_message_hex": "73657175656e742d656c6563746f72616c2d6c6f672f73746174656d656e742d7369676e61747572652f763300cc5c5bb963b73ed85607b3a25c21ff5dbaabe288563daa8c23ce458611ebad16",
+      "signature_b64": "OsgzgpDgkPmq0nC0ZKMS9m+xhmuRZgqc0o9b8JvLWn/N5wrPCpncR7AlnR6ySEEx60TtjwdV9lU2XsjMzAxdCg=="
+    },
+    {
+      "name": "checkpoint",
+      "domain": "sequent-electoral-log/checkpoint-signature/v3",
+      "canonical_hex": "5b2273657175656e742d656c6563746f72616c2d6c6f672d636865636b706f696e742d7633222c22626f617264222c2230303030303030302d303030302d303030302d303030302d303030303030303030303033222c392c2230353035303530353035303530353035303530353035303530353035303530353035303530353035303530353035303530353035303530353035303530353035222c2254414c4c595f434f4d504c45544544225d",
+      "signed_message_hex": "73657175656e742d656c6563746f72616c2d6c6f672f636865636b706f696e742d7369676e61747572652f763300261a9fed28fd5d9cc46a897eb5bccc70989797d86ee77c592777df566d74a6e0",
+      "signature_b64": "wfB1scmkMjUpAszKrf2RTJukN/sH0D+mL20GSFp0uQUQYXsWOt2uxYyyrdsDLsv/XgKiZ0Pd6f3oA7vl9wqkAg=="
+    }
+  ]
+}

@@ -37,7 +37,7 @@
 //!   material keep their *file names* and lose their contents, which is why the
 //!   wizard says so when a workbook is opened.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::Value;
 
@@ -142,6 +142,8 @@ pub fn plan_from_workbook(workbook: &Workbook) -> Result<ReadPlan, Report> {
         return Err(report);
     }
     carry_unread_columns(workbook, &mut plan);
+    // After, because carry_unread_columns replaces the event's columns.
+    carry_ballot_identity(workbook, &mut plan);
     Ok(ReadPlan {
         sources: crate::election_config::sources::Sources {
             census: (!voters.is_empty()).then(|| {
@@ -456,6 +458,29 @@ const ENTITY_SHEETS: [&str; 5] = [
     "candidates",
     "areas",
 ];
+
+/// The event's identity mode, carried whatever else happens.
+///
+/// A reopened event states its mode on the ElectionEvent row
+/// (`presentation.ballot_identity`, see `plan_from_event`), and a workbook made
+/// from it carries no base export. [`carry_unread_columns`] carries nothing
+/// when the writer refuses some other part of the plan, and the build would
+/// then make a legacy event pseudonymous. Identity is immutable, so this one
+/// column is kept on its own.
+fn carry_ballot_identity(workbook: &Workbook, plan: &mut Blueprint) {
+    const COLUMN: &str = "presentation.ballot_identity";
+    let Some(value) = workbook
+        .rows("electionevent")
+        .first()
+        .and_then(|row| row.get(COLUMN))
+        .filter(|value| !blank(value))
+    else {
+        return;
+    };
+    plan.columns
+        .entry(COLUMN.to_string())
+        .or_insert_with(|| value.clone());
+}
 
 /// Keep, on each entity, the columns of its row the plan did not take in.
 ///
@@ -1238,11 +1263,41 @@ fn read_schedule(
     plan: &mut Blueprint,
     report: &mut Report,
 ) {
+    // Per voting-window event: the elections its rows name, the first such
+    // row, and whether a row without an election (the whole event) was seen.
+    let mut named: BTreeMap<String, (BTreeSet<String>, Row, bool)> =
+        BTreeMap::new();
+    let known: BTreeSet<&str> = plan
+        .elections
+        .iter()
+        .map(|election| election.external_id.as_str())
+        .collect();
     for row in workbook.rows("scheduledevents") {
         let kind = text(row, "event_type");
         let when = text(row, "scheduled_datetime");
         if when.is_empty() {
             continue;
+        }
+        if kind == "START_VOTING_PERIOD" || kind == "END_VOTING_PERIOD" {
+            let election = text(row, "election.external_id");
+            let entry = named
+                .entry(kind.clone())
+                .or_insert_with(|| (BTreeSet::new(), row.clone(), false));
+            if election.is_empty() {
+                entry.2 = true;
+            } else if !known.contains(election.as_str()) {
+                refuse(
+                    report,
+                    row,
+                    "election.external_id",
+                    Code::DanglingReference,
+                    format!(
+                        "'{election}' names no election in the Elections sheet"
+                    ),
+                );
+            } else {
+                entry.0.insert(election);
+            }
         }
         // Written as an instant, because the platform's scheduler parses it with
         // `parse_from_rfc3339` and an offset-less value never fires. Read back the
@@ -1251,18 +1306,74 @@ fn read_schedule(
         let stamp = Timestamp::from_rfc3339(&when)
             .unwrap_or_else(|_| Timestamp::utc(when.clone()));
 
-        match kind.as_str() {
-            "START_VOTING_PERIOD" => plan.schedule.voting_opens = Some(stamp),
-            "END_VOTING_PERIOD" => plan.schedule.voting_closes = Some(stamp),
-            other => warn_about(
+        // The plan has one voting window for the whole event. A row per
+        // election (as the COMELEC conversion writes) reads as that window
+        // when every row names the same instant; a row that names another is
+        // refused, never silently replacing the one read before it.
+        let window = match kind.as_str() {
+            "START_VOTING_PERIOD" => Some(&mut plan.schedule.voting_opens),
+            "END_VOTING_PERIOD" => Some(&mut plan.schedule.voting_closes),
+            _ => None,
+        };
+        match window {
+            Some(slot @ None) => *slot = Some(stamp),
+            Some(Some(read)) => {
+                let same = match (read.instant(), stamp.instant()) {
+                    (Ok(a), Ok(b)) => a == b,
+                    _ => *read == stamp,
+                };
+                if !same {
+                    refuse(
+                        report,
+                        row,
+                        "scheduled_datetime",
+                        Code::InvalidValue,
+                        format!(
+                            "{kind} is {when} here but {} on an earlier row: \
+                             the event has one voting window, so every \
+                             election's {kind} must be the same instant",
+                            read.local
+                        ),
+                    );
+                }
+            }
+            None => warn_about(
                 report,
                 row,
                 "event_type",
                 format!(
-                    "'{other}' is not a voting-window event, so the wizard has \
+                    "'{kind}' is not a voting-window event, so the wizard has \
                      no screen for it. It is kept in the file it came from."
                 ),
             ),
+        }
+    }
+
+    // Rows per election become the one event-wide window only when they
+    // cover every election: otherwise that window would also open and close
+    // the elections the workbook gave no date for.
+    for (kind, (elections, first, whole_event)) in &named {
+        if *whole_event || elections.is_empty() {
+            continue;
+        }
+        let missing: Vec<&str> = known
+            .iter()
+            .copied()
+            .filter(|id| !elections.contains(*id))
+            .collect();
+        if !missing.is_empty() {
+            refuse(
+                report,
+                first,
+                "election.external_id",
+                Code::InvalidValue,
+                format!(
+                    "{kind} is given per election but not for {}: the event \
+                     has one voting window, so every election needs the same \
+                     {kind}",
+                    missing.join(", ")
+                ),
+            );
         }
     }
 

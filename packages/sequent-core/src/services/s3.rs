@@ -458,8 +458,9 @@ pub async fn get_document_url(
 }
 
 /// Creates a presigned upload URL and selects the endpoint that the caller can
-/// actually reach.
-#[instrument(err, ret)]
+/// actually reach. The URL lets anyone upload to the key until it expires, so
+/// the span does not record it.
+#[instrument(err)]
 pub async fn get_upload_url(
     key: String,
     is_public: bool,

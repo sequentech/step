@@ -192,6 +192,7 @@ fn log_event(
         event_time_ms: Some(chrono::Utc::now().timestamp_millis()),
         details: None,
         admin_event: None,
+        deferral: None,
     })
 }
 

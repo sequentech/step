@@ -1,0 +1,390 @@
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+#![recursion_limit = "256"]
+//! Harvest, the platform's HTTP API: [`rocket`] starts it.
+#[macro_use]
+extern crate rocket;
+
+use dotenv::dotenv;
+use sequent_core::services::connection::LastDatafixAccessToken;
+use sequent_core::util::init_log::init_log_with_filter;
+use services::dependencies::HarvestServices;
+use windmill::services::{
+    celery_app::{init_celery_app, set_is_app_active},
+    plugins_manager::plugin_manager::init_plugin_manager,
+    probe::{setup_probe, AppName},
+};
+
+mod adapters;
+mod ports;
+mod routes;
+mod services;
+mod types;
+
+#[cfg(test)]
+#[path = "../../sequent-core/tests/support/claims.rs"]
+mod test_claims;
+
+#[cfg(test)]
+#[path = "../tests/support/readiness_routes.rs"]
+mod readiness_routes;
+
+#[cfg(test)]
+#[path = "../tests/support/request_boundaries.rs"]
+mod request_boundaries;
+
+#[cfg(test)]
+#[path = "../tests/support/error_contracts.rs"]
+mod error_contracts;
+
+#[cfg(test)]
+#[path = "../tests/support/route_services.rs"]
+mod route_services;
+
+#[cfg(test)]
+#[path = "../tests/support/signing_action_routes.rs"]
+mod signing_action_routes;
+
+#[cfg(test)]
+#[path = "../tests/support/hasura_signing_permissions.rs"]
+mod hasura_signing_permissions;
+
+/// Harvest's start-up and application, for its binary and for builds that
+/// add their own installation (such as an external electoral log signer)
+/// before calling it.
+pub async fn rocket() -> rocket::Rocket<rocket::Build> {
+    dotenv().ok();
+    init_log_with_filter(true, services::request_logging::enabled);
+
+    setup_probe(AppName::HARVEST).await;
+    set_is_app_active(true);
+    init_plugin_manager().await.unwrap();
+    // Build the task-queue client before requests need it, without making Harvest wait for
+    // the task-queue database.
+    tokio::spawn(async {
+        while let Err(error) = init_celery_app().await {
+            tracing::warn!("The task queues are not reachable yet: {error:#}");
+            tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+        }
+    });
+
+    build_application()
+}
+
+/// Register the same routes and managed state for production and local HTTP
+/// tests. Starting probes, plugins and worker processes remains a startup step.
+fn build_application() -> rocket::Rocket<rocket::Build> {
+    build_application_with(HarvestServices::production())
+}
+
+fn build_application_with(
+    services: HarvestServices,
+) -> rocket::Rocket<rocket::Build> {
+    let fake_provider_routes = services.messaging_fake_provider_routes;
+    let rocket = rocket::build()
+        .attach(services::request_logging::fairing())
+        .attach(routes::electoral_log_proofs::fairing())
+        .attach(services::tenant_activity::fairing())
+        .register(
+            "/",
+            catchers![
+                routes::error_catchers::internal_error,
+                routes::error_catchers::not_found,
+                routes::error_catchers::default
+            ],
+        )
+        .register(
+            "/monitoring",
+            catchers![services::monitoring::monitoring_catcher],
+        )
+        .register(
+            "/api/datafix",
+            catchers![
+                routes::error_catchers::datafix_invalid_request,
+                routes::error_catchers::datafix_malformed_body,
+                routes::error_catchers::datafix_forbidden
+            ],
+        )
+        .mount(
+            "/api/datafix",
+            routes![
+                routes::api_datafix::add_voter,
+                routes::api_datafix::update_voter,
+                routes::api_datafix::delete_voter,
+                routes::api_datafix::unmark_voted,
+                routes::api_datafix::mark_voted,
+                routes::api_datafix::replace_pin,
+            ],
+        )
+        .mount(
+            "/",
+            routes![
+                routes::ballot_publication::get_ballot_publication_changes,
+                routes::ballot_publication::generate_ballot_publication,
+                routes::ballot_publication::publish_ballot,
+                routes::receipt_document::receipt_document,
+                routes::ballot_privacy::ballot_box_log,
+                routes::ballot_privacy::ballot_box_log_authorize,
+                routes::ballot_privacy::ballot_box_own,
+                routes::ballot_privacy::ballot_box_entry,
+                routes::ballot_privacy::ballot_box_keys,
+                routes::ballot_privacy::ballot_privacy_settings,
+                routes::ballot_privacy::resolve_voter_pseudonym,
+                routes::ballot_privacy::forensic_network_summary,
+                routes::ballot_privacy::forensic_network_detail,
+
+                routes::ballot_publication_prepare_preview::prepare_ballot_publication_preview,
+                routes::voter_electoral_log::list_cast_vote_messages,
+                routes::ballot_checks::locate_ballot,
+                routes::insert_cast_vote::insert_cast_vote,
+                routes::receive_ballot::receive_ballot,
+                routes::audit_ballot::audit_ballot,
+                routes::cast_ballot::cast_ballot,
+                routes::fetch_document::fetch_document,
+                routes::document_password::get_document_password,
+                routes::elections::create_election,
+                routes::areas::upsert_area,
+                routes::election_event_stats::get_election_event_stats,
+                routes::election_stats::get_election_stats,
+                routes::scheduled_event::create_scheduled_event,
+                routes::import_areas::import_areas_route,
+                routes::import_areas::upsert_areas_route,
+                routes::electoral_log::list_electoral_log,
+                routes::electoral_log_proofs::checkpoint,
+                routes::electoral_log_proofs::inclusion,
+                routes::electoral_log_proofs::consistency,
+                routes::electoral_log_audit::audit_electoral_log,
+                routes::electoral_log_console::electoral_log_console_page,
+                routes::electoral_log_console::electoral_log_console_record,
+                routes::electoral_log_console::electoral_log_console_query,
+                routes::electoral_log_console::electoral_log_console_tenants,
+                routes::readiness::readiness_check,
+                routes::task_queues::task_queues_overview,
+                routes::task_queues::task_queues_throughput,
+                routes::task_queues::task_queues_messages,
+                routes::task_queues::task_queues_dead_letters,
+                routes::task_queues::task_queues_query,
+                routes::export_election_event::export_election_event_route,
+                routes::export_election_event_logs::export_election_event_logs_route,
+                routes::insert_election_event::insert_election_event_f,
+                routes::import_candidates::import_candidates_route,
+                routes::insert_election_event::import_election_event_f,
+                routes::delete_election_event::delete_election_event_f,
+                routes::delete_tenant::delete_tenant_f,
+                routes::import_tenant_config::import_tenant_config_route,
+                routes::apply_configuration_package::apply_configuration_package_route,
+                routes::export_tenant_config::export_tenant_config_route,
+                routes::export_tenant_logs::export_tenant_logs_route,
+                routes::insert_tenant::insert_tenant,
+                routes::users::create_user,
+                routes::users::import_users_f,
+                routes::users::export_users_f,
+                routes::users::export_tenant_users_f,
+                routes::users::delete_user,
+                routes::users::delete_users,
+                routes::users::get_users,
+                routes::users::count_users,
+                routes::ballot_files::get_ballot_files_urls,
+                routes::voter_cast_votes::get_voter_cast_votes,
+                routes::users::get_user,
+                routes::users::reveal_voter_secret_attribute,
+                routes::users::edit_user,
+                routes::users::get_user_profile_attributes,
+                routes::users::get_user_profile_configuration,
+                routes::roles::list_user_roles,
+                routes::roles::set_user_role,
+                routes::roles::delete_user_role,
+                routes::roles::create_role,
+                routes::roles::delete_role,
+                routes::roles::get_roles,
+                routes::permissions::create_permission,
+                routes::permissions::delete_permission,
+                routes::permissions::get_permissions,
+                routes::permissions::set_role_permission,
+                routes::permissions::delete_role_permission,
+                routes::approval_matrix::get_approval_matrix,
+                routes::approval_matrix::evaluate_approval_matrix,
+                routes::approval_matrix::save_approval_matrix,
+                routes::phone_blacklist::create_phone_blacklist_entry,
+                routes::phone_blacklist::delete_phone_blacklist_entry,
+                routes::messaging::send_message,
+                routes::privacy_signin::retain_signin_network,
+                routes::privacy_signin::signin_network_policy,
+                routes::messaging::create_messenger_link,
+                routes::messaging::messenger_link_status,
+                routes::messaging::confirm_messenger_link,
+                routes::messaging::messaging_callbacks,
+                routes::messaging::upsert_messaging_account,
+                routes::messaging::delete_messaging_account,
+                routes::messaging::replace_messaging_account_credentials,
+                routes::messaging::check_messaging_account,
+                routes::messaging::messaging_account_callback_url,
+                routes::messaging::messaging_account_change_impact,
+                routes::messaging::messaging_callback_status,
+                routes::messaging::test_messaging_account,
+                routes::messaging::update_event_messaging_config,
+                routes::messaging_insights::messaging_event_stats,
+                routes::messaging_insights::messaging_audience_preview,
+                routes::messaging_insights::messaging_voter_counts,
+                routes::messaging_insights::messaging_recount_voters,
+                routes::messaging_insights::messaging_monthly_volumes,
+                routes::messaging_insights::find_by_support_reference,
+                routes::upload_document::get_upload_url,
+                routes::keys_ceremony::create_keys_ceremony,
+                routes::keys_ceremony::get_custody_request,
+                routes::keys_ceremony::confirm_key_custody,
+                routes::keys_ceremony::list_keys_ceremonies,
+                routes::trustee_boards::list_trustee_boards,
+                routes::trustee_updates::trustee_event_updates,
+                routes::trustee_updates::request_server_custody,
+                routes::trustee_updates::submit_trustee_action_result,
+                routes::trustee_boards::report_trustee_board,
+                routes::b4::board_messages,
+                routes::b4::initiate_board_message,
+                routes::b4::confirm_board_message,
+                routes::tally_ceremony::create_tally_ceremony,
+                routes::tally_ceremony::authorize_tally_custody,
+                routes::keys_ceremony::custody_proof_signature_status,
+                routes::tally_ceremony::submit_tally_resolution,
+                routes::voting_status::update_event_status,
+                routes::voting_status::update_election_status,
+                routes::tally_ceremony::update_tally_ceremony,
+                routes::tally_ceremony::recount_tally_session,
+                routes::tally_sheets::create_new_tally_sheet,
+                routes::tally_sheets::review_tally_sheet,
+                routes::tally_sheets::preview_tally_sheet_import,
+                routes::tally_sheets::create_tally_sheet_import,
+                routes::tally_sheets::review_tally_sheet_import,
+                routes::external_reconciliation::create_reconciliation_import,
+                routes::external_reconciliation::apply_reconciliation_changes,
+                routes::create_ballot_receipt::create_ballot_receipt,
+                routes::support_materials::acknowledge_support_materials_route,
+                routes::support_materials::get_support_materials_acknowledgment_route,
+                routes::election_dates::manage_election_dates,
+                routes::custom_urls::update_custom_url,
+                routes::custom_urls::get_custom_url,
+                routes::miru_plugin::create_transmission_package,
+                routes::miru_plugin::send_transmission_package,
+                routes::miru_plugin::upload_signature,
+                routes::miru_plugin::record_transmission_download,
+                routes::export_tasks_execution::export_tasks_execution_route,
+                routes::limit_access_by_countries::limit_access_by_countries,
+                routes::export_template::export_template,
+                routes::import_templates::import_templates_route,
+                routes::election_event_stats::get_election_event_top_votes_by_ip,
+                routes::monitoring::list_dashboards,
+                routes::monitoring::get_dashboard,
+                routes::monitoring::render_widget,
+                routes::monitoring_config::validate_config,
+                routes::monitoring_config::save_config,
+                routes::monitoring_config::reset_config_to_preset,
+                routes::monitoring_config::list_presets,
+                routes::monitoring_config::set_dashboard_mode,
+                routes::monitoring_config::list_config,
+                routes::monitoring_config::get_config,
+                routes::monitoring_export::export_monitoring,
+                routes::export_ballot_publication::export_ballot_publication_route,
+                routes::reports::render_document_pdf,
+                routes::reports::generate_template,
+                routes::reports::generate_report,
+                routes::reports::generate_transmission_report,
+                routes::manual_verification_pdf::get_manual_verification_pdf,
+                routes::reports::encrypt_report_route,
+                routes::results_publication::configure_results_website_policy,
+                routes::results_publication::publish_results_website,
+                routes::results_publication::resolve_results_publication,
+                routes::results_publication::fetch_results_artifact,
+                routes::results_publication::revoke_results_publication,
+                routes::results_publication::refresh_results_publication_index,
+                routes::templates::get_user_template,
+                routes::applications::verify_user_application,
+                routes::applications::change_application_status,
+                routes::applications::reject_application_email_in_use,
+                routes::export_application::export_application_route,
+                routes::import_application::import_application_route,
+                routes::trustees::export_trustees_route,
+                routes::realm_attributes::get_realm_attributes_route,
+                routes::realm_attributes::update_realm_attributes_route,
+                routes::realm_password_policy::get_realm_password_policy_route,
+                routes::realm_password_policy::update_realm_password_policy_route,
+                routes::voter_information_letter::generate_voter_information_letter,
+                routes::set_voter_authentication::set_voter_authentication,
+                routes::export_tally_results::export_tally_results_route,
+                routes::google_meet::generate_google_meeting,
+                routes::google_meet::set_google_service_account_key,
+                routes::configuration_signing::set_configuration_signing,
+                routes::generate_preview_url::generate_preview_url,
+                routes::import_certificate_authority::import_certificate_authority,
+                routes::delete_certificate_authority::delete_certificate_authority_route,
+                routes::export_certificate_authority::export_certificate_authority_route,
+                routes::get_certificate_authorities_pem::get_cas_pem,
+                routes::signing::get_signing_request,
+                routes::signing::approve_signing_request,
+                routes::signing::report_signing_open_failure,
+                routes::signing::handover_signing_request,
+                routes::signing::cancel_signing_request,
+                routes::signing::export_signing_requests,
+                routes::signing::save_signing_rule,
+                routes::signing::signing_rule_capacity,
+                routes::signing::signing_event_info,
+                routes::reports::signing_held_report_requests,
+                routes::signing_certificates::import_signing_issuers,
+                routes::signing_certificates::remove_signing_issuer,
+                routes::signing_certificates::put_signing_checks,
+                routes::signing_certificates::register_staff_certificate_route,
+                routes::signing_certificates::revoke_staff_certificate_route,
+                routes::signing_certificates::check_signing_certificate,
+                routes::signing::prepare_signing_pdf,
+                routes::election_dates::apply_schedule_recompute,
+                routes::schedule_import::preview_schedule_import,
+                routes::schedule_import::import_schedule,
+                routes::schedule_import::export_schedule,
+                routes::scheduled_outcomes::get_scheduled_outcomes,
+                routes::scheduled_outcomes::preview_scheduled_outcome_change,
+                routes::scheduled_outcomes::save_lifecycle_policies_route,
+                routes::scheduled_outcomes::get_lifecycle_snapshots,
+            ],
+        )
+        .mount("/", routes![routes::plugins::plugin_routes])
+        .mount("/", routes![
+            routes::plugin_platform::tenant_plugins,
+            routes::plugin_platform::set_tenant_plugin_state,
+            routes::plugin_platform::execute_plugin_operation,
+        ])
+        .attach(routes::plugin_platform::registry_fairing())
+        .manage(LastDatafixAccessToken::init())
+        .manage(services);
+    // Only with MESSAGING_FAKE_PROVIDER_ROUTES=ENABLED (development).
+    routes::fake_provider::mount(rocket, fake_provider_routes)
+}
+
+#[cfg(test)]
+mod application_tests {
+    use crate::services::dependencies::HarvestServices;
+    use rocket::http::Method;
+    use std::collections::BTreeSet;
+
+    /// The application the binary launches, with the production services:
+    /// built without starting it, so nothing is contacted.
+    #[test]
+    fn the_production_application_serves_the_electoral_log_proofs() {
+        let application = super::build_application();
+        let posts: BTreeSet<String> = application
+            .routes()
+            .filter(|route| route.method == Method::Post)
+            .map(|route| route.uri.path().to_string())
+            .collect();
+        for path in [
+            "/electoral-log/checkpoint",
+            "/electoral-log/inclusion",
+            "/electoral-log/consistency",
+        ] {
+            assert!(posts.contains(path), "{path} is not registered");
+        }
+        assert!(
+            application.state::<HarvestServices>().is_some(),
+            "routes read the production services from managed state"
+        );
+    }
+}

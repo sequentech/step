@@ -11,7 +11,7 @@ use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::electoral_log_board::{
-    get_board_signing_key, get_event_databases, get_event_store,
+    get_board_signer, get_event_databases, get_event_store,
 };
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
@@ -25,6 +25,7 @@ use electoral_log::messages::newtypes::{
     VoterIpString, VotingChannelString,
 };
 use electoral_log::ports::ElectoralLogStore;
+use electoral_log::signer::SharedSigner;
 use electoral_log::LogEntry;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -145,9 +146,9 @@ pub fn ballot_record(
     board: &str,
     election_event_id: &str,
     ballot: &PendingBallot,
-    signing_key: &SigningKey,
+    signing_key: &SharedSigner,
 ) -> Result<LogEntry> {
-    let log = ElectoralLog::for_voter_with_signing_key(board, &ballot.voter_id, signing_key);
+    let log = ElectoralLog::for_voter_with_signer(board, &ballot.voter_id, signing_key.clone());
     let message = Message::cast_vote_with_channel_message(
         EventIdString(election_event_id.to_string()),
         ElectionIdString(Some(ballot.election_id.clone())),
@@ -181,9 +182,9 @@ pub async fn sequence_event(tenant_id: &str, election_event_id: &str) -> Result<
         let event = get_election_event_by_id(&transaction, tenant_id, election_event_id).await?;
         let board = get_election_event_board(event.bulletin_board_reference)
             .context("Election event has no electoral-log board")?;
-        let protocol_manager =
-            get_board_signing_key(&transaction, tenant_id, Some(election_event_id), &board).await?;
-        (board, protocol_manager.clone())
+        let system =
+            get_board_signer(&transaction, tenant_id, Some(election_event_id), &board).await?;
+        (board, system)
     };
     let store = get_event_store(election_event_id).await?;
     let holder = uuid::Uuid::new_v4().to_string();
@@ -206,26 +207,48 @@ async fn append_pending(
     board: &str,
     tenant_id: &str,
     election_event_id: &str,
-    signing_key: &SigningKey,
+    signing_key: &SharedSigner,
 ) -> Result<usize> {
     let started = Instant::now();
     let mut appended = 0;
     let private = store.ballot_identity(election_event_id).await?
         == electoral_log::adapters::privacy::BallotIdentity::Pseudonym;
+    let scope = crate::services::electoral_log_deferral::scope_key(tenant_id, election_event_id);
 
     loop {
+        // Each round is admitted for its log's order BEFORE anything is signed:
+        // not while the log has entries waiting (or an outbox entry not relayed),
+        // nor while a batch is processing events of the log, so a ballot never
+        // gets ahead of an earlier entry of its log that was already attempted.
+        // Refused: nothing signed, nothing appended; the ballots stay in their
+        // durable pending queues and the beat runs the sequencer again.
+        let _admission = match crate::services::electoral_log::ScopeAdmission::admit(&scope).await {
+            Ok(admission) => admission,
+            Err(error) if crate::services::electoral_log_deferral::is_scope_gated(&error) => {
+                tracing::info!(
+                    scope,
+                    "The ballot box's sequencer waits for its log's order: {error:#}"
+                );
+                break;
+            }
+            Err(error) => return Err(error),
+        };
         // Received evidence is queued in the receive transaction. Drain it before
         // casts so a fast confirmation can never overtake its authority binding.
         let received = store
             .pending_received_ballots(election_event_id, SEQUENCER_BATCH)
             .await?;
         if !received.is_empty() {
-            let entries = received
-                .iter()
-                .map(|item| {
-                    crate::services::vote_privacy::received_log_entry(tenant_id, item, signing_key)
-                })
-                .collect::<Result<Vec<_>>>()?;
+            // One signing call for the whole batch (see `signer::batch`): the
+            // builder is pure, so it may run twice.
+            let entries = electoral_log::signer::batch(signing_key, |key| {
+                received
+                    .iter()
+                    .map(|item| {
+                        crate::services::vote_privacy::received_log_entry(tenant_id, item, key)
+                    })
+                    .collect::<Result<Vec<_>>>()
+            })?;
             store
                 .append(board, &mut entries.into_iter().map(Ok))
                 .await?;
@@ -271,7 +294,6 @@ async fn append_pending(
         if pending.is_empty() {
             break;
         }
-        let mut entries = Vec::with_capacity(pending.len() * 2);
         let received: HashMap<(String, String, String), _> = if private {
             store
                 .received_ballots_for_hashes(
@@ -297,44 +319,50 @@ async fn append_pending(
         } else {
             HashMap::new()
         };
-        for ballot in &pending {
-            if private {
-                let received = received
-                    .get(&(
-                        ballot.election_id.clone(),
-                        ballot.voter_id.clone(),
-                        ballot.ballot_id.clone(),
-                    ))
-                    .context("A pseudonymous cast requires its received ballot")?;
-                // Even when receive/cast commit after our queue-empty check,
-                // append the binding first. Stable delivery IDs deduplicate it
-                // if it was already appended or its outbox is retried later.
-                entries.push(crate::services::vote_privacy::received_log_entry(
-                    tenant_id,
-                    &electoral_log::adapters::privacy::PendingReceivedBallot {
-                        id: 0,
-                        queued_at: received.received_at,
-                        kind: electoral_log::adapters::privacy::ReceivedEvidenceKind::Received,
-                        ballot: received.clone(),
-                    },
-                    signing_key,
-                )?);
-                entries.push(crate::services::vote_privacy::cast_log_entry(
-                    received,
-                    tenant_id,
-                    election_event_id,
-                    ballot,
-                    signing_key,
-                )?);
-            } else {
-                entries.push(ballot_record(
-                    board,
-                    election_event_id,
-                    ballot,
-                    signing_key,
-                )?);
+        // One signing call for the whole batch (see `signer::batch`): the
+        // builders are pure (no writes, no randomness), so they may run twice.
+        let entries = electoral_log::signer::batch(signing_key, |signing_key| {
+            let mut entries = Vec::with_capacity(pending.len() * 2);
+            for ballot in &pending {
+                if private {
+                    let received = received
+                        .get(&(
+                            ballot.election_id.clone(),
+                            ballot.voter_id.clone(),
+                            ballot.ballot_id.clone(),
+                        ))
+                        .context("A pseudonymous cast requires its received ballot")?;
+                    // Even when receive/cast commit after our queue-empty check,
+                    // append the binding first. Stable delivery IDs deduplicate it
+                    // if it was already appended or its outbox is retried later.
+                    entries.push(crate::services::vote_privacy::received_log_entry(
+                        tenant_id,
+                        &electoral_log::adapters::privacy::PendingReceivedBallot {
+                            id: 0,
+                            queued_at: received.received_at,
+                            kind: electoral_log::adapters::privacy::ReceivedEvidenceKind::Received,
+                            ballot: received.clone(),
+                        },
+                        signing_key,
+                    )?);
+                    entries.push(crate::services::vote_privacy::cast_log_entry(
+                        received,
+                        tenant_id,
+                        election_event_id,
+                        ballot,
+                        signing_key,
+                    )?);
+                } else {
+                    entries.push(ballot_record(
+                        board,
+                        election_event_id,
+                        ballot,
+                        signing_key,
+                    )?);
+                }
             }
-        }
+            Ok(entries)
+        })?;
         store
             .append(board, &mut entries.into_iter().map(anyhow::Ok))
             .await?;
@@ -562,12 +590,33 @@ mod tests {
         );
     }
 
-    /// The sequencer against a real server, in the database of
-    /// `ELECTORAL_LOG_TEST_DATABASE_URL`.
+    /// The sequencer and its admission gate against the real test databases.
     #[tokio::test]
-    #[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+    #[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL and PGMQ_TEST_DATABASE_URL"]
     async fn the_sequencer_appends_each_accepted_ballot_once_in_order() -> Result<()> {
         let config = std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")?.parse()?;
+        let queue_url = std::env::var("PGMQ_TEST_DATABASE_URL")?;
+        anyhow::ensure!(
+            std::env::var("QUEUE_DB__URL").as_deref() == Ok(queue_url.as_str()),
+            "QUEUE_DB__URL must use the PGMQ test database for this test"
+        );
+        // Admission reads the queue database, not the ballot database. Set up
+        // its schema explicitly instead of relying on another parallel test.
+        {
+            let pool = crate::services::database::try_get_queue_pool().await?;
+            let mut client = pool.get().await?;
+            let tx = client.transaction().await?;
+            pgmq_broker::setup::setup(
+                &tx,
+                &pgmq_broker::setup::Installation {
+                    environment: "pgmq-test",
+                    queues: &[],
+                    roles: None,
+                },
+            )
+            .await?;
+            tx.commit().await?;
+        }
         let store = PostgresStore::new(config)?;
         store.initialize().await?;
         let event = uuid::Uuid::new_v4().to_string();
@@ -603,13 +652,27 @@ mod tests {
         }
 
         assert_eq!(
-            append_pending(&store, &board, &uuid::Uuid::nil().to_string(), &event, &key).await?,
+            append_pending(
+                &store,
+                &board,
+                &uuid::Uuid::nil().to_string(),
+                &event,
+                &electoral_log::signer::software(key.clone())
+            )
+            .await?,
             3
         );
         assert_eq!(store.pending_count(&event).await?, 0);
         // Nothing waits, so a second run appends nothing.
         assert_eq!(
-            append_pending(&store, &board, &uuid::Uuid::nil().to_string(), &event, &key).await?,
+            append_pending(
+                &store,
+                &board,
+                &uuid::Uuid::nil().to_string(),
+                &event,
+                &electoral_log::signer::software(key.clone())
+            )
+            .await?,
             0
         );
 

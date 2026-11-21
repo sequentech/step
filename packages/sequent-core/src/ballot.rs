@@ -63,11 +63,23 @@ pub type I18nContent<T = Option<String>> = HashMap<String, T>;
 
 pub type Annotations = HashMap<String, String>;
 
-#[derive(PartialEq, Debug, Clone, Canonical)]
+#[derive(PartialEq, Clone, Canonical)]
 pub struct ReplicationChoice {
     pub ciphertext: cryptography::cryptosystem::naoryung::Ciphertext<cryptography::context::RistrettoCtx, 1>,
     pub plaintext: [u8; 30],
     pub randomness: <cryptography::context::RistrettoCtx as cryptography::context::Context>::Scalar,
+}
+
+/// Shows the ciphertext only: the plaintext and the randomness reveal the
+/// vote.
+impl std::fmt::Debug for ReplicationChoice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ReplicationChoice")
+            .field("ciphertext", &self.ciphertext)
+            .field("plaintext", &"<redacted>")
+            .field("randomness", &"<redacted>")
+            .finish()
+    }
 }
 
 #[derive(
@@ -1340,6 +1352,14 @@ pub struct ElectionEventPresentation {
     pub enrollment: Option<Enrollment>,
     pub otp: Option<Otp>,
     pub voter_signing_policy: Option<VoterSigningPolicy>,
+    /// Who signs the event's electoral log entries; missing means
+    /// [`ElectoralLogSignerPolicy::SOFTWARE`], as before this field existed.
+    /// Skipped by Borsh, as `ballot_tracker_policy` is: a positional field
+    /// would change `ballot_style_hash` for every election. Not written when
+    /// unset, so re-serialized events don't gain the key.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub electoral_log_signer_policy: Option<ElectoralLogSignerPolicy>,
     pub voter_certificate_policy: Option<VoterCertificatePolicy>,
     pub weighted_voting_policy: Option<WeightedVotingPolicy>,
     pub ceremonies_policy: Option<CeremoniesPolicy>,
@@ -2403,6 +2423,36 @@ pub enum ContestEncryptionPolicy {
     #[strum(serialize = "single-contest")]
     #[serde(rename = "single-contest")]
     SINGLE_CONTEST,
+}
+
+/// Who holds the keys that sign an election event's electoral log.
+#[allow(non_camel_case_types)]
+#[derive(
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+    JsonSchema,
+)]
+pub enum ElectoralLogSignerPolicy {
+    /// The platform's own keys, kept in its vault (the behaviour of every
+    /// event created before this setting existed).
+    #[default]
+    #[strum(serialize = "software")]
+    #[serde(rename = "software")]
+    SOFTWARE,
+    /// A signer the installation provides, whose keys are held outside the
+    /// platform. An event that asks for it is refused, never signed with
+    /// software keys, where none is installed.
+    #[strum(serialize = "external")]
+    #[serde(rename = "external")]
+    EXTERNAL,
 }
 
 #[allow(non_camel_case_types)]
@@ -4344,5 +4394,79 @@ mod candidates_layout_tests {
             borsh::to_vec(&paper).unwrap(),
             borsh::to_vec(&legacy).unwrap()
         );
+    }
+}
+
+#[cfg(test)]
+mod electoral_log_signer_policy_tests {
+    use super::*;
+
+    #[test]
+    fn events_without_the_setting_keep_software_keys() {
+        let presentation: ElectionEventPresentation =
+            serde_json::from_value(serde_json::json!({})).unwrap();
+        assert_eq!(presentation.electoral_log_signer_policy, None);
+        assert_eq!(
+            presentation.electoral_log_signer_policy.unwrap_or_default(),
+            ElectoralLogSignerPolicy::SOFTWARE
+        );
+    }
+
+    #[test]
+    fn the_setting_does_not_change_borsh_bytes_or_unset_json() {
+        let without =
+            borsh::to_vec(&ElectionEventPresentation::default()).unwrap();
+        let with = ElectionEventPresentation {
+            electoral_log_signer_policy: Some(
+                ElectoralLogSignerPolicy::EXTERNAL,
+            ),
+            ..ElectionEventPresentation::default()
+        };
+        assert_eq!(
+            borsh::to_vec(&with).unwrap(),
+            without,
+            "ballot_style_hash must not change"
+        );
+        let json =
+            serde_json::to_value(ElectionEventPresentation::default()).unwrap();
+        assert!(json.get("electoral_log_signer_policy").is_none());
+    }
+
+    #[test]
+    fn a_borsh_round_trip_drops_the_setting_so_it_is_read_from_json_only() {
+        // The consequence of the Borsh skip: a presentation decoded from a
+        // ballot style always reads as unset (software). Windmill reads the
+        // setting from the event's stored JSON only.
+        let with = ElectionEventPresentation {
+            electoral_log_signer_policy: Some(
+                ElectoralLogSignerPolicy::EXTERNAL,
+            ),
+            ..ElectionEventPresentation::default()
+        };
+        let decoded: ElectionEventPresentation =
+            borsh::from_slice(&borsh::to_vec(&with).unwrap()).unwrap();
+        assert_eq!(decoded.electoral_log_signer_policy, None);
+    }
+
+    #[test]
+    fn the_setting_reads_and_writes_its_names_and_refuses_others() {
+        let presentation: ElectionEventPresentation = serde_json::from_value(
+            serde_json::json!({"electoral_log_signer_policy": "external"}),
+        )
+        .unwrap();
+        assert_eq!(
+            presentation.electoral_log_signer_policy,
+            Some(ElectoralLogSignerPolicy::EXTERNAL)
+        );
+        let written = serde_json::to_value(&presentation).unwrap();
+        assert_eq!(written["electoral_log_signer_policy"], "external");
+        assert_eq!(
+            "software".parse::<ElectoralLogSignerPolicy>().unwrap(),
+            ElectoralLogSignerPolicy::SOFTWARE
+        );
+        assert!(serde_json::from_value::<ElectionEventPresentation>(
+            serde_json::json!({"electoral_log_signer_policy": "other"})
+        )
+        .is_err());
     }
 }

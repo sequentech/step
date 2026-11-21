@@ -247,7 +247,7 @@ const englishTranslation = {
                 "This will import. Each of these is something that is probably not what was meant.",
             warningsStrict: "Strict mode is on, so these stop the build.",
             messages: {
-                area: {
+                "area": {
                     "cycle": {
                         lead: "Areas inside each other",
                         text: "Areas inside each other — area '{{area}}' is part of a loop of parents, which would hang the Admin Portal.",
@@ -285,13 +285,13 @@ const englishTranslation = {
                         text: "Parent area unknown — nothing has the identifier '{{parent}}'.",
                     },
                 },
-                ballot: {
+                "ballot": {
                     "no-elections": {
                         lead: "No elections",
                         text: "No elections — an election event needs at least one.",
                     },
                 },
-                bundle: {
+                "bundle": {
                     "duplicate-id": {
                         lead: "Identifier used twice",
                         text: "Identifier used twice — {{id}} in {{kind}} is also used by {{previous}}.",
@@ -321,7 +321,7 @@ const englishTranslation = {
                         text: "Tenant is not an identifier — '{{value}}' is not a valid tenant id.",
                     },
                 },
-                candidate: {
+                "candidate": {
                     "contest-missing": {
                         lead: "Candidate's contest missing",
                         text: "Candidate's contest missing — the candidate belongs to a contest that is not in this file.",
@@ -343,7 +343,7 @@ const englishTranslation = {
                         text: "Picture not recorded — a candidate's picture is on the ballot and nothing records which document it is, so it cannot be changed or removed on the platform afterwards.",
                     },
                 },
-                census: {
+                "census": {
                     "column-not-declared": {
                         lead: "Census column not declared",
                         text: "Census column not declared — {{message}}",
@@ -365,7 +365,7 @@ const englishTranslation = {
                         text: "Census in the zip unreadable — {{message}}",
                     },
                 },
-                channels: {
+                "channels": {
                     "early-voting-closed": {
                         lead: "Early voting switched off",
                         text: "Early voting switched off — {{areas}} allow early voting and the event does not open that channel, so the setting does nothing.",
@@ -391,13 +391,13 @@ const englishTranslation = {
                         text: "Unknown way of voting — nothing reads '{{name}}'. The ways of voting the platform acts on are {{allowed}}.",
                     },
                 },
-                contacts: {
+                "contacts": {
                     none: {
                         lead: "No points of contact",
                         text: "No points of contact — on election day this is who gets called.",
                     },
                 },
-                contest: {
+                "contest": {
                     "algorithm-unknown": {
                         lead: "Unknown counting method",
                         text: "Unknown counting method — '{{value}}' is not a counting algorithm. The platform accepts {{allowed}}.",
@@ -511,13 +511,13 @@ const englishTranslation = {
                         text: "Write-ins with nowhere to write — write-ins are allowed and the contest has no write-in slot, so a voter has nowhere to type a name.",
                     },
                 },
-                delivery: {
+                "delivery": {
                     "no-importable": {
                         lead: "No importable archive",
                         text: "No importable archive — this zip has a plan but not the archive the Admin Portal imports, so the census and the files it names are not in it.",
                     },
                 },
-                design: {
+                "design": {
                     "no-stable-key": {
                         lead: "Ballot design without a key",
                         text: "Ballot design without a key — {{kind}} {{id}} has no name or external id, so its ballot designs can't be recognized after an import.",
@@ -527,7 +527,7 @@ const englishTranslation = {
                         text: "Ballot style unreadable — the platform's ballot style could not be read to compute its design digest: {{reason}}",
                     },
                 },
-                election: {
+                "election": {
                     "channels-differ": {
                         lead: "Election and event disagree",
                         text: "Election and event disagree — {{channels}} differs from the event's, so the start controls for this election would not match.",
@@ -561,7 +561,15 @@ const englishTranslation = {
                         text: "Spoiling with no second chance — a voter may throw a cast ballot away and has no second attempt to replace it.",
                     },
                 },
-                event: {
+                "event": {
+                    "ballot-identity-unknown": {
+                        lead: "Unknown ballot identity",
+                        text: "Unknown ballot identity — '{{value}}' is not supported. Use voter-id or pseudonym.",
+                    },
+                    "pseudonym-incompatible": {
+                        lead: "Incompatible pseudonym settings",
+                        text: "Incompatible pseudonym settings — {{reason}}. The platform refuses to import this configuration.",
+                    },
                     "checks-period-invalid": {
                         lead: "Ballot checks period not valid",
                         text: "Ballot checks period not valid — the period in which voters can check their cast ballot could not be read: {{reason}}",
@@ -579,7 +587,7 @@ const englishTranslation = {
                         text: "Unknown event setting — '{{value}}' is not a valid {{key}}. The platform accepts {{allowed}}.",
                     },
                 },
-                file: {
+                "file": {
                     "shared-scanovate-config": {
                         lead: "Shared Scanovate configuration",
                         text: "Shared Scanovate configuration — a Scanovate authenticator configuration is shared with another provider. Give Scanovate its own configuration before exporting or importing it.",
@@ -629,13 +637,13 @@ const englishTranslation = {
                         text: "Different major version — the file comes from version {{found}}, a different major version from this platform's {{current}}. That difference does not block the import, and the file's other checks still apply; settings this version does not support may not be imported.",
                     },
                 },
-                identifier: {
+                "identifier": {
                     duplicate: {
                         lead: "Identifier used twice",
                         text: "Identifier used twice — '{{identifier}}' is already used by {{first}}. Identifiers are unique across the whole election event, so the second replaces the first instead of being added.",
                     },
                 },
-                ivr: {
+                "ivr": {
                     "language-not-spoken": {
                         lead: "Language not spoken by phone",
                         text: "Language not spoken by phone — the telephone call speaks only English, French and Spanish, so callers are not offered {{languages}}.",
@@ -648,13 +656,13 @@ const englishTranslation = {
                             "Call prompt missing — {{prompts}} has no words in '{{language}}', and the telephone system refuses every call until it does.",
                     },
                 },
-                labels: {
+                "labels": {
                     "in-use": {
                         lead: "Permission labels in use",
                         text: "Permission labels in use — {{labels}}. Anything carrying a label is hidden from every administrator without it, so whoever imports this needs one of them on their own account or the Admin Portal will show them an empty list.",
                     },
                 },
-                languages: {
+                "languages": {
                     "default-not-offered": {
                         lead: "Default language not offered",
                         text: "Default language not offered — '{{chosen}}' is not among {{offered}}, so voters would get the first one instead.",
@@ -668,7 +676,7 @@ const englishTranslation = {
                         text: "No languages — the ballot falls back to English, which is a safety net rather than a choice.",
                     },
                 },
-                link: {
+                "link": {
                     "area-missing": {
                         lead: "Ballot link to missing area",
                         text: "Ballot link to missing area — a contest is put on the ballot of an area that is not in this file.",
@@ -678,7 +686,7 @@ const englishTranslation = {
                         text: "Ballot link to missing contest — an area's ballot lists a contest that is not in this file.",
                     },
                 },
-                logo: {
+                "logo": {
                     "file-and-link": {
                         lead: "Two logos",
                         text: "Two logos — this plan carries both an uploaded logo ('{{file}}') and a link ('{{url}}'). The file is what ships; the link is ignored.",
@@ -692,7 +700,7 @@ const englishTranslation = {
                         text: "Logo file empty — '{{file}}' is named as the logo and carries no bytes. An empty archive entry fails the import rather than losing a picture.",
                     },
                 },
-                material: {
+                "material": {
                     "empty-document": {
                         lead: "Material with an empty document",
                         text: "Material with an empty document — it would import as a link to nothing. Leave the document out entirely for a material that has no file.",
@@ -718,13 +726,13 @@ const englishTranslation = {
                         text: "Material from another event — this support material belongs to a different election event.",
                     },
                 },
-                messages: {
+                "messages": {
                     "weekly-no-time": {
                         lead: "A repeat with no hour",
                         text: "A repeat with no hour — a message repeats every week but does not say at what time, so whoever sends it has to choose an hour nobody wrote down.",
                     },
                 },
-                passwords: {
+                "passwords": {
                     "column-already-there": {
                         lead: "Passwords given twice",
                         text: "Passwords given twice — the census already has a password column, so generated passwords would be a second answer to the same question. Remove the column, or turn generating off.",
@@ -738,7 +746,7 @@ const englishTranslation = {
                         text: "Passwords without a seed — the seed is what makes a rebuild produce the same passwords rather than new ones.",
                     },
                 },
-                package: {
+                "package": {
                     "already-imported": {
                         lead: "Already imported",
                         text: "Already imported — revision {{revision}} of this configuration was imported before; import a newer revision instead.",
@@ -883,8 +891,68 @@ const englishTranslation = {
                         lead: "Manifest can't be written",
                         text: "Manifest can't be written — the manifest could not be written: {{reason}}",
                     },
+                    "needs-clock": {
+                        lead: "No trusted time",
+                        text: "No trusted time — this check needs the platform's own clock, and none was given.",
+                    },
+                    "no-signing-policy": {
+                        lead: "No signing policy",
+                        text: "No signing policy — format-2 packages need the tenant's installed signing policy, and this tenant has none.",
+                    },
+                    "mixed-format": {
+                        lead: "Mixed package format",
+                        text: "Mixed package format — the manifest's format and its signing details don't agree: a format-2 manifest says who it is signed for, and a format-1 one doesn't.",
+                    },
+                    "wrong-tenant": {
+                        lead: "Package for another tenant",
+                        text: "Package for another tenant — the package was approved and signed for another tenant.",
+                    },
+                    "policy-changed": {
+                        lead: "Signing policy changed",
+                        text: "Signing policy changed — the package was approved and signed under a signing policy that is not this tenant's current one.",
+                    },
+                    "final-signer-role": {
+                        lead: "Wrong final signature role",
+                        text: "Wrong final signature role — the final signature's role must be final-signer.",
+                    },
+                    "final-signer-not-enrolled": {
+                        lead: "Final signer not enrolled",
+                        text: "Final signer not enrolled — the key that made the final signature is not enrolled for this tenant.",
+                    },
+                    "final-signer-id-mismatch": {
+                        lead: "Wrong final signer named",
+                        text: "Wrong final signer named — the package names one final signer, and its key belongs to another.",
+                    },
+                    "final-signer-approved": {
+                        lead: "Final signer also approved",
+                        text: "Final signer also approved — the final signer also approved this package, and this tenant keeps them separate.",
+                    },
+                    "approval-algorithm": {
+                        lead: "Approval algorithm refused",
+                        text: "Approval algorithm refused — format 2 accepts approvals made with RSA-PSS or ECDSA P-256 only.",
+                    },
+                    "approval-role-label": {
+                        lead: "Approval role is not approver",
+                        text: "Approval role is not approver — every format-2 approval must carry the role approver.",
+                    },
+                    "approver-id-mismatch": {
+                        lead: "Approver key not enrolled",
+                        text: "Approver key not enrolled — an approval's key is not enrolled for the signer it names, or for this tenant.",
+                    },
+                    "approver-role": {
+                        lead: "Signer may not approve",
+                        text: "Signer may not approve — an approval comes from someone who is not enrolled as an approver.",
+                    },
+                    "duplicate-signer": {
+                        lead: "Same person approved twice",
+                        text: "Same person approved twice — one enrolled person approved more than once, with different certificates; a person approves once.",
+                    },
+                    "downgrade-refused": {
+                        lead: "Format-1 package refused",
+                        text: "Format-1 package refused — this tenant imports format-2 packages only.",
+                    },
                 },
-                plan: {
+                "plan": {
                     "not-a-plan": {
                         lead: "Not an election plan",
                         text: "Not an election plan — the file could not be read as one: {{error}}",
@@ -898,7 +966,7 @@ const englishTranslation = {
                         text: "Plan unreadable — {{error}}",
                     },
                 },
-                reports: {
+                "reports": {
                     "duplicate": {
                         lead: "Report set twice",
                         text: "Report set twice — the {{report}} report is set more than once for the same election.",
@@ -916,7 +984,7 @@ const englishTranslation = {
                         text: "Format not available — the {{report}} report can't be generated as {{format}}.",
                     },
                 },
-                schedule: {
+                "schedule": {
                     "closes-before-opens": {
                         lead: "Closes before it opens",
                         text: "Closes before it opens — voting would never be open.",
@@ -938,13 +1006,13 @@ const englishTranslation = {
                         text: "Voting window incomplete — the period will have to be opened or closed by hand in the Admin Portal.",
                     },
                 },
-                scanovate: {
+                "scanovate": {
                     "credentials-included": {
                         lead: "Files contain credentials",
                         text: "Files contain credentials — the workbook and derived plan/import files include credentials supplied in the realm, including the real Scanovate secret. Keep these files private and encrypted in storage and transit; share them only with administrators authorized to configure this service.",
                     },
                 },
-                signing: {
+                "signing": {
                     "duplicate-action": {
                         lead: "Two rules for one action",
                         text: "Two rules for one action — '{{action}}' has more than one signing rule. Keep one.",
@@ -994,7 +1062,7 @@ const englishTranslation = {
                         text: "Workbook needs current Architect — the workbook keeps this signing policy in sheets an older Architect ignores. Reopen it from blueprint.json or the delivery zip to keep it.",
                     },
                 },
-                threshold: {
+                "threshold": {
                     "above-trustees": {
                         lead: "Threshold too high",
                         text: "Threshold too high — {{threshold}} of {{trustees}} trustees are required, which cannot be met. The key would be generated and the result could never be decrypted.",
@@ -1008,7 +1076,7 @@ const englishTranslation = {
                         text: "Threshold of zero — the tally could be opened without any trustee at all.",
                     },
                 },
-                trustee: {
+                "trustee": {
                     "email-malformed": {
                         lead: "Not an email address",
                         text: "Not an email address — '{{email}}' does not look like one.",
@@ -1022,7 +1090,7 @@ const englishTranslation = {
                         text: "Trustee without a name — the importer resolves the key ceremony's members by name against the trustees already provisioned in the tenant, and an empty one silently becomes a member who does not exist.",
                     },
                 },
-                trustees: {
+                "trustees": {
                     "none": {
                         lead: "No trustees",
                         text: "No trustees — an election key needs at least two people to hold it. With one, that person can decrypt every ballot on their own, which is the guarantee the encryption is there to provide.",
@@ -1032,7 +1100,7 @@ const englishTranslation = {
                         text: "Only one trustee — an election key needs at least two people to hold it. With one, that person can decrypt every ballot on their own, which is the guarantee the encryption is there to provide.",
                     },
                 },
-                voter: {
+                "voter": {
                     "area-unknown": {
                         lead: "Voter's area unknown",
                         text: "Voter's area unknown — nothing is called '{{area}}'. Voters are matched to their area by name, so this voter would get no ballot. Copy the name from the area rather than retyping it.",
@@ -1050,7 +1118,7 @@ const englishTranslation = {
                         text: "Voter without a username — it is what they sign in as and what their account is derived from.",
                     },
                 },
-                voters: {
+                "voters": {
                     "duplicate-column": {
                         lead: "Column given twice",
                         text: "Column given twice — two columns both set '{{column}}'. Keep only one of them.",
@@ -1070,6 +1138,68 @@ const englishTranslation = {
                     "vote-weight-out-of-range": {
                         lead: "Vote weight out of range",
                         text: "Vote weight out of range — {{value}} on row {{row}} must be between {{min}} and {{max}}.",
+                    },
+                },
+                "configuration-signing": {
+                    "invalid-stored-policy": {
+                        lead: "Unreadable signing policy",
+                        text: "Unreadable signing policy — this tenant's stored signing policy is not valid, so nothing imports until an administrator saves a valid one.",
+                    },
+                    "no-package-roots": {
+                        lead: "No package signing roots",
+                        text: "No package signing roots — signatures are required, but no certificate authority for the organization's signing key is set.",
+                    },
+                    "no-staff-roots": {
+                        lead: "No approver roots",
+                        text: "No approver roots — approvals are required, but no certificate authority for approvers' certificates is set.",
+                    },
+                    "too-many-approvals": {
+                        lead: "Too many approvals required",
+                        text: "Too many approvals required — a tenant may require at most 16 approvals.",
+                    },
+                    "no-approvals": {
+                        lead: "No approvals required",
+                        text: "No approvals required — signatures are required, but no approval is, so a package needs only the final signature.",
+                    },
+                    "not-only-certificates": {
+                        lead: "Not only certificates",
+                        text: "Not only certificates — the trusted roots may hold only PEM certificates; anything else, a private key above all, is refused.",
+                    },
+                    "not-a-ca": {
+                        lead: "Root is not a CA",
+                        text: "Root is not a CA — a trusted root must be a certificate authority.",
+                    },
+                    "root-expired": {
+                        lead: "Root certificate expired",
+                        text: "Root certificate expired — a trusted root has expired and can no longer vouch for any signature.",
+                    },
+                    "root-not-yet-valid": {
+                        lead: "Root not yet valid",
+                        text: "Root not yet valid — a trusted root's validity has not started yet.",
+                    },
+                },
+                "signing-policy": {
+                    "unreadable": {
+                        lead: "Unreadable signing policy file",
+                        text: "Unreadable signing policy file — the signing policy file can't be read as a tenant's signing policy.",
+                    },
+                    "no-tenant": {
+                        lead: "Policy without a tenant",
+                        text: "Policy without a tenant — the signing policy file must name its tenant.",
+                    },
+                    "not-v2": {
+                        lead: "Policy is not format 2",
+                        text: "Policy is not format 2 — this page needs a signing policy that requires format-2 packages.",
+                    },
+                },
+                "request": {
+                    "unreadable": {
+                        lead: "Unreadable approval request",
+                        text: "Unreadable approval request — the approval request file can't be read.",
+                    },
+                    "unreadable-approvals": {
+                        lead: "Unreadable approvals",
+                        text: "Unreadable approvals — one or more approval files can't be read.",
                     },
                 },
             },

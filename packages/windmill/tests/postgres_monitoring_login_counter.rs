@@ -40,6 +40,7 @@ fn keycloak(event_type: &str, user_id: Option<&str>, event_time_ms: Option<i64>)
         event_time_ms,
         details: None,
         admin_event: None,
+        deferral: None,
     }
 }
 

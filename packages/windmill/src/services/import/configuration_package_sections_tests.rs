@@ -416,12 +416,9 @@ fn administrator_files_carry_only_the_producers_columns() {
             "the administrators file carries column 'hashed_password', which a package may not set",
         ]
     );
-    // Even so, the import file never carries them.
-    let written = String::from_utf8(absent_admin_rows(csv, &BTreeMap::new()).unwrap()).unwrap();
-    assert_eq!(
-        written,
-        "username,email,first_name,last_name,group_name\na,,,,admin\n"
-    );
+    // Do not silently strip credentials and make an altered request: reject
+    // the whole invalid roster before it can be staged for import.
+    assert!(absent_admin_rows(csv, &BTreeMap::new()).is_err());
     assert!(admin_column_problems(b"username,group_name\na,admin\n")
         .unwrap()
         .is_empty());
@@ -442,17 +439,24 @@ fn blank_or_repeated_trustee_names_block() {
 }
 
 #[test]
-fn a_package_already_imported_is_admitted_only_into_this_applications_event() {
+fn a_format_1_package_already_imported_is_admitted_only_into_this_applications_event() {
+    use sequent_core::election_config::manifest::ManifestFormat::V1;
     use sequent_core::election_config::package_verify::{already_imported, Freshness};
     let derived = "00000000-0000-4000-8000-0000000000e1";
-    assert_eq!(admission_problem(None, derived), None);
+    assert_eq!(admission_problem(None, derived, V1, 1, false), None);
     assert_eq!(
-        admission_problem(Some((Ok(Freshness::New), "other")), derived),
+        admission_problem(Some((Ok(Freshness::New), "other")), derived, V1, 2, false),
         None
     );
-    // Resuming: this application imported it, into its own event.
+    // Resuming: this application imported it, into its own event (format 1, unchanged).
     assert_eq!(
-        admission_problem(Some((Ok(Freshness::AlreadyImported), derived)), derived),
+        admission_problem(
+            Some((Ok(Freshness::AlreadyImported), derived)),
+            derived,
+            V1,
+            2,
+            false
+        ),
         None
     );
     // Imported standalone, into another event: the event section would be
@@ -460,11 +464,92 @@ fn a_package_already_imported_is_admitted_only_into_this_applications_event() {
     let elsewhere = admission_problem(
         Some((Ok(Freshness::AlreadyImported), "e-standalone")),
         derived,
+        V1,
+        2,
+        false,
     )
     .unwrap();
     assert!(elsewhere.contains("already imported into event e-standalone"));
-    let older = admission_problem(Some((Err(already_imported(3)), "e")), derived).unwrap();
+    let older =
+        admission_problem(Some((Err(already_imported(3)), "e")), derived, V1, 3, false).unwrap();
     assert!(older.starts_with("manifest.configuration.revision: revision 3"));
+}
+
+#[test]
+fn a_format_2_package_is_imported_exactly_once() {
+    use sequent_core::election_config::manifest::ManifestFormat::V2;
+    use sequent_core::election_config::package_verify::Freshness;
+    let derived = "00000000-0000-4000-8000-0000000000e2";
+    // Never imported, or a newer revision: admitted.
+    assert_eq!(admission_problem(None, derived, V2, 1, false), None);
+    assert_eq!(
+        admission_problem(Some((Ok(Freshness::New), derived)), derived, V2, 2, false),
+        None
+    );
+    // The same package again: refused into its OWN event (no idempotent replay)...
+    let same = admission_problem(
+        Some((Ok(Freshness::AlreadyImported), derived)),
+        derived,
+        V2,
+        2,
+        false,
+    )
+    .unwrap();
+    assert!(
+        same.starts_with(
+            "manifest.configuration.revision: revision 2 of this configuration is already imported"
+        ),
+        "{same}"
+    );
+    assert!(
+        same.contains("a format-2 package is imported exactly once"),
+        "{same}"
+    );
+    // Only THIS invocation's own successful event import lets its convergence
+    // re-preview pass; the same package into another event never does.
+    assert_eq!(
+        admission_problem(
+            Some((Ok(Freshness::AlreadyImported), derived)),
+            derived,
+            V2,
+            2,
+            true
+        ),
+        None
+    );
+    assert!(admission_problem(
+        Some((Ok(Freshness::AlreadyImported), "e-other")),
+        derived,
+        V2,
+        2,
+        true
+    )
+    .is_some());
+    // ...and into any other event.
+    let other = admission_problem(
+        Some((Ok(Freshness::AlreadyImported), "e-other")),
+        derived,
+        V2,
+        2,
+        false,
+    )
+    .unwrap();
+    assert!(
+        other.contains("is already imported (into event e-other)"),
+        "{other}"
+    );
+    // A rollback (another package, older revision) stays its own refusal.
+    let rollback = sequent_core::election_config::problem::Problem::error(
+        sequent_core::election_config::problem::Code::Rollback,
+        "manifest.configuration.revision",
+        "revision 1 is not newer than revision 2, the last one imported",
+    );
+    let refused = admission_problem(Some((Err(rollback), derived)), derived, V2, 1, false).unwrap();
+    assert!(
+        refused.contains("is not newer than revision 2"),
+        "{refused}"
+    );
+    assert!(!refused.contains("already imported"), "{refused}");
 }
 
 #[test]
@@ -510,4 +595,212 @@ fn realm_only_messaging_channels_need_the_permission_when_the_import_publishes_t
         &[]
     ));
     assert!(!carries_messaging(None, None, &[]));
+}
+
+#[test]
+fn a_file_never_decides_the_tenants_configuration_signing() {
+    let installed = json!({"configuration_signing": {"policy": "required"}, "i18n": {}});
+    // A file naming another policy gets the installed one back.
+    assert_eq!(
+        keep_reserved_settings(
+            Some(json!({"configuration_signing": {"policy": "optional"}, "theme": "dark"})),
+            Some(&installed)
+        ),
+        Some(json!({"configuration_signing": {"policy": "required"}, "theme": "dark"}))
+    );
+    // A file without it, or without settings at all, does not remove it.
+    assert_eq!(
+        keep_reserved_settings(Some(json!({"theme": "dark"})), Some(&installed)),
+        Some(json!({"configuration_signing": {"policy": "required"}, "theme": "dark"}))
+    );
+    assert_eq!(
+        keep_reserved_settings(None, Some(&installed)),
+        Some(json!({"configuration_signing": {"policy": "required"}}))
+    );
+    assert_eq!(
+        keep_reserved_settings(Some(Value::Null), Some(&installed)),
+        Some(json!({"configuration_signing": {"policy": "required"}}))
+    );
+    // Where none is installed, a file can't add one.
+    assert_eq!(
+        keep_reserved_settings(
+            Some(json!({"configuration_signing": {"policy": "optional"}, "theme": "dark"})),
+            Some(&json!({"i18n": {}}))
+        ),
+        Some(json!({"theme": "dark"}))
+    );
+    assert_eq!(keep_reserved_settings(None, None), None);
+    assert_eq!(
+        keep_reserved_settings(Some(json!({"theme": "dark"})), None),
+        Some(json!({"theme": "dark"}))
+    );
+}
+
+#[test]
+fn admin_roster_supported_attributes_survive_and_secrets_are_rejected() {
+    let csv = b"username,group_name,permission_labels,trustee,title,sequent.read-only.mobile-number\nnew,admin,area-a|area-b,native-trustee,Officer,+123456\n";
+    assert!(admin_column_problems(csv).unwrap().is_empty());
+    let rows = read_admin_rows(csv).unwrap();
+    assert_eq!(rows[0].fields["title"], "Officer");
+    assert_eq!(absent_admin_rows(csv, &BTreeMap::new()).unwrap(), csv);
+    for column in ["password", "hashed_password", "private_key", "unknown"] {
+        let csv = format!("username,group_name,{column}\na,admin,\n");
+        assert!(!admin_column_problems(csv.as_bytes()).unwrap().is_empty());
+    }
+}
+
+#[test]
+fn admin_roster_existing_attributes_and_privileges_are_checked() {
+    use super::super::import_users::{
+        GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
+    };
+    let rows = read_admin_rows(b"username,group_name,permission_labels,trustee,title\none,admin,label-a,native-trustee,Officer\n").unwrap();
+    let denied = ImportUsersPrivileges::default();
+    let allowed = ImportUsersPrivileges {
+        group_assignment: GroupAssignmentPolicy::AnyGroup,
+        permission_labels: PermissionLabelPolicy::Allowed,
+    };
+    assert!(!admin_detail_problems(&rows, &BTreeMap::new(), &BTreeSet::new(), &denied).is_empty());
+    assert!(
+        admin_detail_problems(&rows, &BTreeMap::new(), &set(&["native-trustee"]), &allowed)
+            .is_empty()
+    );
+    let mut current = BTreeMap::from([(
+        "one".to_string(),
+        ExistingAdmin {
+            service_account: false,
+            fields: BTreeMap::from([
+                ("permission_labels".into(), set(&["label-a"])),
+                ("trustee".into(), set(&["native-trustee"])),
+                ("title".into(), set(&["Officer"])),
+            ]),
+        },
+    )]);
+    assert!(admin_detail_problems(&rows, &current, &set(&["native-trustee"]), &allowed).is_empty());
+    current
+        .get_mut("one")
+        .unwrap()
+        .fields
+        .insert("title".into(), set(&["Different"]));
+    let problems = admin_detail_problems(&rows, &current, &set(&["native-trustee"]), &allowed);
+    assert!(problems.iter().any(|p| p.contains("title")));
+    assert!(!problems.iter().any(|p| p.contains("Different")));
+}
+
+#[test]
+fn admin_roster_account_flags_are_typed_and_existing_values_must_match() {
+    use super::super::import_users::{
+        GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
+    };
+    let csv = b"username,group_name,enabled,email_verified\nOne,admin,TRUE,false\n";
+    let rows = read_admin_rows(csv).unwrap();
+    assert_eq!(rows[0].fields["enabled"], "true");
+    assert_eq!(rows[0].fields["email_verified"], "false");
+    let privileges = ImportUsersPrivileges {
+        group_assignment: GroupAssignmentPolicy::AnyGroup,
+        permission_labels: PermissionLabelPolicy::Allowed,
+    };
+    let mut current = BTreeMap::from([(
+        "one".into(),
+        ExistingAdmin {
+            service_account: false,
+            fields: BTreeMap::from([
+                ("enabled".into(), set(&["true"])),
+                ("email_verified".into(), set(&["false"])),
+            ]),
+        },
+    )]);
+    assert!(admin_detail_problems(&rows, &current, &BTreeSet::new(), &privileges).is_empty());
+    current.get_mut("one").unwrap().service_account = true;
+    assert!(!admin_detail_problems(&rows, &current, &BTreeSet::new(), &privileges).is_empty());
+    for csv in [
+        "username,group_name,enabled\na,admin,yes\n",
+        "username,group_name,email_verified\na,admin,\n",
+        "username,group_name\na,admin\nA,admin\n",
+        "username,group_name,group_name\na,admin,admin\n",
+        "username,group_name,permission_labels\na,admin,a||b\n",
+    ] {
+        assert!(read_admin_rows(csv.as_bytes()).is_err(), "{csv}");
+    }
+}
+
+#[test]
+fn admin_roster_permission_labels_are_reconciled_not_blocked() {
+    use super::super::import_users::{
+        GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
+    };
+    let rows =
+        read_admin_rows(b"username,group_name,permission_labels\nadmin,admin,area-a|area-b\n")
+            .unwrap();
+    let current = BTreeMap::from([("admin".into(), ExistingAdmin::default())]);
+    let allowed = ImportUsersPrivileges {
+        group_assignment: GroupAssignmentPolicy::AnyGroup,
+        permission_labels: PermissionLabelPolicy::Allowed,
+    };
+    assert!(admin_detail_problems(&rows, &current, &BTreeSet::new(), &allowed).is_empty());
+}
+
+#[test]
+fn admin_label_reconciliation_is_exact_idempotent_and_privileged() {
+    use super::super::import_users::{
+        GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
+    };
+    let allowed = ImportUsersPrivileges {
+        group_assignment: GroupAssignmentPolicy::AnyGroup,
+        permission_labels: PermissionLabelPolicy::Allowed,
+    };
+    let denied = ImportUsersPrivileges {
+        permission_labels: PermissionLabelPolicy::Forbidden,
+        ..allowed
+    };
+    let current = BTreeMap::from([(
+        "admin".into(),
+        ExistingAdmin {
+            fields: BTreeMap::from([("permission_labels".into(), set(&["old", "keep"]))]),
+            ..Default::default()
+        },
+    )]);
+    let rows =
+        read_admin_rows(b"username,group_name,permission_labels\nAdmin,admin,new|keep\n").unwrap();
+    assert_eq!(
+        admin_permission_label_updates(&rows, &current)["admin"],
+        set(&["keep", "new"])
+    );
+    assert!(!admin_detail_problems(&rows, &current, &BTreeSet::new(), &denied).is_empty());
+    let mut preview = admin_changes(
+        &rows,
+        &BTreeMap::from([("admin".into(), set(&["admin"]))]),
+        &set(&["admin"]),
+    );
+    preview_admin_permission_labels(&mut preview, &rows, &current);
+    assert!(preview.needs_apply);
+    assert_eq!(preview.changes[0]["action"], "update-permission-labels");
+    let same =
+        read_admin_rows(b"username,group_name,permission_labels\nadmin,admin,keep|old\n").unwrap();
+    assert!(admin_permission_label_updates(&same, &current).is_empty());
+    let omitted = read_admin_rows(b"username,group_name\nadmin,admin\n").unwrap();
+    assert!(admin_permission_label_updates(&omitted, &current).is_empty());
+    let clear = read_admin_rows(b"username,group_name,permission_labels\nadmin,admin,\n").unwrap();
+    assert!(admin_permission_label_updates(&clear, &current)["admin"].is_empty());
+    assert!(!admin_detail_problems(&clear, &current, &BTreeSet::new(), &denied).is_empty());
+    assert!(admin_detail_problems(&clear, &current, &BTreeSet::new(), &allowed).is_empty());
+    let mut service = current.clone();
+    service.get_mut("admin").unwrap().service_account = true;
+    assert!(!admin_detail_problems(&rows, &service, &BTreeSet::new(), &allowed).is_empty());
+    let mut conflict = admin_changes(
+        &rows,
+        &BTreeMap::from([("admin".into(), set(&["other"]))]),
+        &set(&["admin"]),
+    );
+    preview_admin_permission_labels(&mut conflict, &rows, &current);
+    assert!(!conflict.blockers.is_empty());
+    assert_eq!(conflict.changes[0]["action"], "conflict");
+    let changed =
+        read_admin_rows(b"username,group_name,permission_labels,title\nadmin,admin,new,Changed\n")
+            .unwrap();
+    assert!(
+        admin_detail_problems(&changed, &current, &BTreeSet::new(), &allowed)
+            .iter()
+            .any(|p| p.contains("title"))
+    );
 }

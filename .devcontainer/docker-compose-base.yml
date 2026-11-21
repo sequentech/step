@@ -610,11 +610,13 @@ services:
     ports:
       - ${SCANOVATE_LIVENESS_PORT}:5050
     # Keycloak's token verification and result callback, which carry a secret
-    # the voter's browser never sees, and Sequent's theme of the capture page.
+    # the voter's browser never sees, Sequent's theme of the capture page and
+    # its texts in Filipino, next to the image's English and Hebrew ones.
     # The other configuration files are the image's own.
     volumes:
       - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/liveness/service_config.json:/app/config/service_config.json:ro,z
       - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/liveness/sequent_ui.json:/app/config/sequent_ui.json:ro,z
+      - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/liveness/locales/tl.json:/app/config/locales/default/tl.json:ro,z
     depends_on:
       - scanovate-presentation-detection
       - scanovate-injection-detection
@@ -664,12 +666,13 @@ services:
       - ${SCANOVATE_OCR_PORT}:5040
     # Keycloak's token verification and result callback, as for Liveness Plus,
     # Sequent's theme of the capture page and its camera settings per device
-    # (sequent_video.json). The page itself is the image's
-    # own (scripts/dev/test_scanovate_ocr_page.py).
+    # (sequent_video.json), and its texts in Filipino. The page itself is the
+    # image's own (scripts/dev/test_scanovate_ocr_page.py).
     volumes:
       - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/ocr/service_config.json:/app/config/service_config.json:ro,z
       - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/ocr/sequent_ui.json:/app/config/sequent_ui.json:ro,z
       - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/ocr/sequent_video.json:/app/config/sequent_video.json:ro,z
+      - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/ocr/locales/tl.json:/app/config/locales/default/tl.json:ro,z
 
   harvest-edge:
     profiles: ["full", "base"]
@@ -720,10 +723,13 @@ services:
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       # The OVCS's identity, as the ER transmission packages it re-seals name it.
-      MIRU_DEVICE_ID: ${MIRU_DEVICE_ID:-}
-      MIRU_SERIAL_NUMBER: ${MIRU_SERIAL_NUMBER:-}
-      MIRU_IP_ADDRESS: ${MIRU_IP_ADDRESS:-}
-      MIRU_MAC_ADDRESS: ${MIRU_MAC_ADDRESS:-}
+      # A blank local value falls back to .env.development's demo identity
+      # (kept equal by scripts/dev/test_compose_environment.py); set a
+      # non-blank one to override.
+      MIRU_DEVICE_ID: ${MIRU_DEVICE_ID:-SQUNT420535311}
+      MIRU_SERIAL_NUMBER: ${MIRU_SERIAL_NUMBER:-SEQ-NT-52706782}
+      MIRU_IP_ADDRESS: ${MIRU_IP_ADDRESS:-192.168.1.67}
+      MIRU_MAC_ADDRESS: ${MIRU_MAC_ADDRESS:-3C:7E:5A:89:4D:2F}
       WINDMILL_SECRET_EXPORT_GRANT_TTL_SECONDS: ${WINDMILL_SECRET_EXPORT_GRANT_TTL_SECONDS:-86400}
       LOG_LEVEL: ${LOG_LEVEL}
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
@@ -1255,10 +1261,13 @@ services:
       KIOSK_VOTING_PORTAL_URL: ${KIOSK_VOTING_PORTAL_URL:-}
       RESULTS_PORTAL_URL: ${RESULTS_PORTAL_URL}
       # The OVCS's identity, as its ER transmission packages name it.
-      MIRU_DEVICE_ID: ${MIRU_DEVICE_ID:-}
-      MIRU_SERIAL_NUMBER: ${MIRU_SERIAL_NUMBER:-}
-      MIRU_IP_ADDRESS: ${MIRU_IP_ADDRESS:-}
-      MIRU_MAC_ADDRESS: ${MIRU_MAC_ADDRESS:-}
+      # A blank local value falls back to .env.development's demo identity
+      # (kept equal by scripts/dev/test_compose_environment.py); set a
+      # non-blank one to override.
+      MIRU_DEVICE_ID: ${MIRU_DEVICE_ID:-SQUNT420535311}
+      MIRU_SERIAL_NUMBER: ${MIRU_SERIAL_NUMBER:-SEQ-NT-52706782}
+      MIRU_IP_ADDRESS: ${MIRU_IP_ADDRESS:-192.168.1.67}
+      MIRU_MAC_ADDRESS: ${MIRU_MAC_ADDRESS:-3C:7E:5A:89:4D:2F}
       KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
       AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}

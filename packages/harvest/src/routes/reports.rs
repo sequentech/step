@@ -312,11 +312,18 @@ pub async fn generate_report(
 ) -> Result<Json<GenerateReportResponse>, (Status, String)> {
     let input = body.into_inner();
     info!("Generating report: {input:?}");
+    // The report is read in the tenant the request names, so that is the
+    // tenant authorized; generating needs the mode's own permission, as the
+    // Reports tab asks for it.
+    let mode_permission = match input.report_mode {
+        GenerateReportMode::REAL => Permissions::REPORT_GENERATE,
+        GenerateReportMode::PREVIEW => Permissions::REPORT_PREVIEW,
+    };
     authorize(
         &claims,
         true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::REPORT_READ],
+        Some(input.tenant_id.clone()),
+        vec![Permissions::REPORT_READ, mode_permission],
     )?;
 
     let mut hasura_db_client: DbClient =
@@ -364,6 +371,21 @@ pub async fn generate_report(
         )
     })?
     .ok_or_else(|| (Status::NotFound, "Report not found".to_string()))?;
+    // The task row is written under the event the request names.
+    if input
+        .election_event_id
+        .as_ref()
+        .is_some_and(|event| *event != report.election_event_id)
+    {
+        return Err((
+            Status::BadRequest,
+            "The report belongs to another election event".to_string(),
+        ));
+    }
+    // Permission labels belong to the caller's own tenant: the elections are
+    // looked up there. A super-admin acting on another tenant (the only
+    // caller whose tenant can differ, see `authorize`) is therefore not
+    // label-restricted, as on the other super-admin routes.
     authorize_election_permission_labels(
         &hasura_transaction,
         &claims,
@@ -375,6 +397,18 @@ pub async fn generate_report(
         ReportType::from_str(&report.report_type).map_err(|error| {
             (Status::BadRequest, format!("Invalid report type: {error}"))
         })?;
+    // The list of voters who voted names them: whoever generates it must
+    // be allowed to read voters. Its preview draws sample voters.
+    if report_type == ReportType::OV_WHO_VOTED
+        && input.report_mode == GenerateReportMode::REAL
+    {
+        authorize(
+            &claims,
+            true,
+            Some(report.tenant_id.clone()),
+            vec![Permissions::VOTER_READ],
+        )?;
+    }
     if input.report_mode == GenerateReportMode::REAL {
         if let Some(refusal) = signed_generation_refusal(
             &hasura_transaction,

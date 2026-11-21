@@ -21,6 +21,7 @@ export enum EReportType {
     MANUAL_VERIFICATION = ETemplateType.MANUAL_VERIFICATION,
     PARTICIPATION_REPORT = ETemplateType.PARTICIPATION_REPORT,
     CREDENTIALS = ETemplateType.CREDENTIALS,
+    OV_WHO_VOTED = ETemplateType.OV_WHO_VOTED,
 }
 
 export enum EReportElectionPolicy {
@@ -96,6 +97,19 @@ export const reportTypeConfig: {
         templateRequired: false,
         electionPolicy: EReportElectionPolicy.ELECTION_NOT_ALLOWED,
         associatedTemplateType: ETemplateType.CREDENTIALS,
+    },
+    // The list of voters who voted: for all Posts, or the one Post it names.
+    // Never scheduled: a list of named voters is not mailed.
+    [EReportType.OV_WHO_VOTED]: {
+        actions: [
+            ReportActions.EDIT,
+            ReportActions.DELETE,
+            ReportActions.PREVIEW,
+            ReportActions.GENERATE,
+        ],
+        templateRequired: false,
+        electionPolicy: EReportElectionPolicy.ELECTION_ALLOWED,
+        associatedTemplateType: ETemplateType.OV_WHO_VOTED,
     },
     default: {
         actions: [ReportActions.EDIT, ReportActions.DELETE, ReportActions.PREVIEW],

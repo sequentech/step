@@ -300,9 +300,15 @@ fn cases() -> Vec<Case> {
         case!(Gold, "/generate-ballot-publication", {"election_event_id": EVENT_ID}, [PUBLISH_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/generate-google-meeting", {"summary": "test", "description": "test", "start_date_time": "2030-01-01T10:00:00Z", "end_date_time": "2030-01-01T11:00:00Z", "time_zone": "UTC", "attendee_emails": []}, [GOOGLE_MEET_LINK], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-preview-url", {"tenant_id": TENANT_ID, "document_id": "test-document"}, [GENERATE_PREVIEW], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/generate-report", {"report_id": "test-report", "tenant_id": TENANT_ID, "report_mode": "PREVIEW"}, [REPORT_READ], BACKEND, UNAUTHORIZED),
-        // The permission is checked in the caller's tenant, not the body's.
-        case!(Admin, "/generate-report", {"report_id": "test-report", "tenant_id": OTHER_TENANT_ID, "report_mode": "PREVIEW"}, [REPORT_READ], BACKEND, UNAUTHORIZED),
+        // A preview needs report-preview and a generation report-generate,
+        // both with report-read.
+        case!(Admin, "/generate-report", {"report_id": "test-report", "tenant_id": TENANT_ID, "report_mode": "PREVIEW"}, [REPORT_READ, REPORT_PREVIEW], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/generate-report", {"report_id": "test-report", "tenant_id": TENANT_ID, "report_mode": "REAL"}, [REPORT_READ, REPORT_GENERATE], BACKEND, UNAUTHORIZED),
+        // The report is read in the request's tenant, so that tenant is the
+        // one authorized: another tenant's report is refused before any read.
+        case!(Admin, "/generate-report", {"report_id": "test-report", "tenant_id": OTHER_TENANT_ID, "report_mode": "PREVIEW"}, [REPORT_READ, REPORT_PREVIEW], UNAUTHORIZED, UNAUTHORIZED),
+        // A super-admin may act on another tenant, with the same permissions.
+        case!(SuperAdmin, "/generate-report", {"report_id": "test-report", "tenant_id": TENANT_ID, "report_mode": "PREVIEW"}, [REPORT_READ, REPORT_PREVIEW], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-transmission-report", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "election_id": ELECTION_ID, "tally_session_id": ELECTION_ID}, [TRANSMISSION_REPORT_GENERATE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-template", {"type": "BallotImages", "election_event_id": EVENT_ID, "election_id": "test-election", "tally_session_id": "test-session"}, [REPORT_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/get-manual-verification-pdf", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "voter_id": "test-voter"}, [VOTER_MANUALLY_VERIFY], BACKEND, UNAUTHORIZED),
@@ -443,6 +449,8 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/scheduled-event", {"tenant_id": OTHER_TENANT_ID, "election_event_id": EVENT_ID, "event_processor": "CREATE_REPORT", "event_payload": {}}, [REPORT_GENERATE], UNAUTHORIZED, UNAUTHORIZED),
         // The other processors are not authorized, and only return an id.
         case!(Admin, "/scheduled-event", {"tenant_id": OTHER_TENANT_ID, "event_processor": "START_VOTING_PERIOD", "event_payload": {}}, [], BACKEND),
+        case!(Admin, "/set-configuration-signing", {"tenant_id": TENANT_ID, "configuration_signing": {"policy": "optional"}}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/set-configuration-signing", {"tenant_id": OTHER_TENANT_ID, "configuration_signing": {"policy": "optional"}}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], UNAUTHORIZED, UNAUTHORIZED),
         case!(Admin, "/set-custom-url", {"origin": "https://origin.invalid", "redirect_to": "https://redirect.invalid", "dns_prefix": "test", "election_id": EVENT_ID, "key": "login"}, [ELECTION_EVENT_WRITE], BACKEND, FORBIDDEN),
         case!(Admin, "/set-google-service-account-key", {"service_account_key": {}}, [TENANT_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/set-role-permission", {"tenant_id": TENANT_ID, "role_id": "test-role", "permission_name": "test-permission"}, [USER_PERMISSION_WRITE, ROLE_WRITE], BACKEND_TEXT, UNAUTHORIZED),

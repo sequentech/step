@@ -5,6 +5,71 @@ import englishTranslation, {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        configurationSigning: {
+            title: "Tiwala sa paglagda ng package",
+            description:
+                "Aling mga configuration package ang ini-import ng tenant na ito: kung kailangang nakalagda ang package, ang mga root na dapat pagmulan ng signing key nito at ng mga sertipiko ng mga nag-aapruba, at ilang apruba mula sa magkakaibang tao ang kailangan. Mga sertipiko lamang ang tinatanggap dito, hindi kailanman mga key.",
+            current: "Ngayon:",
+            policy: "Mga lagda",
+            requiredApprovals: "Kinakailangang apruba",
+            requiredApprovalsHelp:
+                "Mga wastong apruba mula sa magkakaibang tao na kailangan ng package (0 hanggang 16).",
+            packageRoots: "Mga root sa paglagda ng package (PEM)",
+            packageRootsHelp:
+                "Ang mga certificate authority na naglalabas ng key na lumalagda sa mga package.",
+            staffRoots: "Mga root ng nag-aapruba (PEM)",
+            staffRootsHelp:
+                "Ang mga certificate authority na naglalabas ng mga sertipiko ng mga nag-aapruba.",
+            certificates_one: "{{count}} sertipiko.",
+            certificates_other: "{{count}} sertipiko.",
+            loadFile: "Mag-load ng PEM file",
+            save: "Suriin at i-save",
+            saved: "Na-save. Sinusuri na ang mga import batay rito.",
+            refused: "Hindi na-save: ayusin ang mga problema sa ibaba.",
+            invalidApprovals: "Ang apruba ay dapat buong numero mula 0 hanggang {{max}}.",
+            noAnswer: "Walang sagot ang platform; walang alam na na-save.",
+            states: {
+                "not-configured":
+                    "Hindi naka-configure: ini-import ang mga file na walang lagda, tinatanggihan ang mga nakalagdang package",
+                "optional":
+                    "Opsyonal: sinusuri ang mga nakalagdang package, ini-import ang mga walang lagda",
+                "required":
+                    "Kinakailangan: tanging mga nakalagdang package na may {{approvals}} apruba ang ini-import",
+                "unreadable": "Hindi mabasa: bigo ang bawat import hanggang i-save muli",
+            },
+            policies: {
+                optional: "Opsyonal",
+                required: "Kinakailangan",
+            },
+            columns: {
+                setting: "Setting",
+                subject: "Subject",
+                validUntil: "Wasto hanggang",
+                fingerprint: "SHA-256 fingerprint",
+                signerId: "ID ng signer",
+                name: "Pangalan",
+                roles: "Mga tungkulin",
+                keys: "Mga key pin (SPKI SHA-256)",
+            },
+            minimumFormat: "Pinakalumang format ng package",
+            formats: {
+                v1: "Format 1 (walang naka-enroll na signer)",
+                v2: "Format 2 (naka-enroll na signer lamang)",
+            },
+            separation: "Huling signer",
+            separations: {separate: "Hiwalay sa mga approver", allowed: "Maaari ring nag-approve"},
+            loadPolicy: "I-load ang file ng signing policy",
+            policyDigest: "SHA-256 ng policy:",
+            policyErrors: {
+                "not-json": "Hindi JSON ang file.",
+                "not-a-policy": "Hindi signing policy ang file.",
+                "other-tenant": "Para sa ibang tenant ang file.",
+                "no-minimum": "Dapat sabihin ng policy ang minimum na format ng package.",
+                "unknown-field":
+                    "May field ang file na hindi tinutukoy ng signing policy (mali ang baybay?).",
+                "no-tenant": "Dapat pangalanan ng file ang tenant nito (tenant_id).",
+            },
+        },
         configurationPackage: englishTranslation.translations.configurationPackage,
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
@@ -2625,6 +2690,7 @@ const tagalogTranslation: TranslationType = {
                 ELECTORAL_RESULTS: "Mga Resulta ng Halalan",
                 MANUAL_VERIFICATION: "Manwal na Pag-verify",
                 PARTICIPATION_REPORT: "Ulat ng Pakikilahok",
+                OV_WHO_VOTED: "Listahan ng mga botanteng bumoto",
                 STATISTICAL_REPORT: "Ulat ng Istatistika",
                 OVCS_EVENTS: "Pagsubaybay ng Botohan sa Ibang Bansa - Mga Kaganapan ng OVCS",
                 AUDIT_LOGS: "Mga Talaan ng Awdit",
@@ -3887,6 +3953,7 @@ const tagalogTranslation: TranslationType = {
                 ACTIVITY_LOGS: "Mga Tala ng Aktibidad",
                 MANUAL_VERIFICATION: "Manwal na Pag-verify",
                 PARTICIPATION_REPORT: "Ulat ng Pakikilahok",
+                OV_WHO_VOTED: "Listahan ng mga botanteng bumoto",
             },
             method: {
                 email: "Email",

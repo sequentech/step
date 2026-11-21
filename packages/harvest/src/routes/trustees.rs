@@ -33,7 +33,7 @@ pub struct ExportTrusteesOutput {
     task_execution: TasksExecution,
 }
 
-#[instrument(skip(services, claims))]
+#[instrument(skip(services, claims, input))]
 #[post("/export-trustees", format = "json", data = "<input>")]
 pub async fn export_trustees_route(
     claims: jwt::JwtClaims,

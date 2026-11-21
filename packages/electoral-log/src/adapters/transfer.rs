@@ -112,7 +112,7 @@ pub struct SignedCheckpoint {
     pub reason: ElectoralLogCheckpointReason,
     /// DER/base64 public key of the signer.
     pub signer_pk: String,
-    /// Base64 signature over `checkpoint_signing_bytes`.
+    /// Base64 signature of `checkpoint_signed_message` (signature scheme v3).
     pub signature: String,
 }
 

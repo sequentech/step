@@ -125,6 +125,8 @@ regex = { version = "1.10" }
 futures = "0.3"
 # for hashing passwords in import users
 sha2 = { version = "0.10", features = ["oid"] }
+# The electoral log pending statements' MAC (HMAC-SHA256), in production code.
+hmac = "0.12"
 ring = "0.17"
 # serializing
 hex = "0.4"
@@ -149,7 +151,6 @@ rustls = { version = "0.23.32", features = ["ring"] }
 
 [dev-dependencies]
 dhat = "0.3"
-hmac = "0.12"
 messaging = { path = "../messaging", features = ["test-support"] }
 
 [package.metadata.component]

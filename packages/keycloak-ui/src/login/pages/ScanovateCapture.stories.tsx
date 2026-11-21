@@ -144,19 +144,41 @@ async function heading(canvasElement: HTMLElement, name: string) {
     return within(canvasElement).findByRole("heading", {level: 1, name}, {timeout: 5000})
 }
 
+/**
+ * Every camera step covers the whole window, so that the camera is what the
+ * voter sees from the start and the steps don't change layout between them.
+ * ID R&D's face capture also needs it: it takes a frame much smaller than the
+ * window for open DevTools and refuses to start.
+ */
+async function expectFillsWindow(canvasElement: HTMLElement, selector: string) {
+    await waitFor(() => {
+        const element = canvasElement.querySelector(selector)
+        expect(element).not.toBeNull()
+        const box = element!.getBoundingClientRect()
+        expect([box.left, box.top, box.width, box.height]).toEqual([
+            0,
+            0,
+            window.innerWidth,
+            window.innerHeight,
+        ])
+    })
+}
+
 export const DocumentStep: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(await heading(canvasElement, "Scan your ID")).toBeVisible()
-        await expect(canvas.getByText("Step 3 of 4 · Verify identity")).toBeVisible()
-        await expect(canvas.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "3")
+        await expect(await heading(canvasElement, "Scan your ID")).toBeInTheDocument()
         await expect(
             canvas.getByText(
-                "Follow the instructions below to scan your Driver’s License. Then we will check your face."
+                "Follow the instructions on the screen to scan your Driver’s License. Then we will check your face."
             )
-        ).toBeVisible()
+        ).toBeInTheDocument()
         await expect(canvas.queryByText(/more time/)).not.toBeInTheDocument()
         const frame = await scanovateFrame(canvasElement, FAKE_OCR)
+        await expectFillsWindow(canvasElement, ".scanovate-window")
+        await expectFillsWindow(canvasElement, ".scanovate-window iframe")
+        // Nothing of the card is left around the camera.
+        await expect(canvasElement.querySelector(".auth-card")).toBeNull()
         await expect(frame).toHaveAttribute("allow", "camera *; microphone *")
         await expect(frame).toHaveAccessibleName("ID scan")
         await waitFor(() => expect(frame.ownerDocument.activeElement).toBe(frame))
@@ -195,8 +217,8 @@ export const DocumentStepSpanish: Story = {
     args: {locale: "es"},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(await heading(canvasElement, "Escanee su documento")).toBeVisible()
-        await expect(canvas.getByText("Paso 3 de 4 · Verificar identidad")).toBeVisible()
+        await expect(await heading(canvasElement, "Escanee su documento")).toBeInTheDocument()
+        await expect(canvas.getByText(/para escanear su permiso de conducir/)).toBeInTheDocument()
     },
 }
 
@@ -205,7 +227,9 @@ export const WithStepBack: Story = {
     beforeEach: keepSubmissions,
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await heading(canvasElement, "Scan your ID")
+        // The camera covers the window: closing it gives the way back.
+        await press(canvasElement, FAKE_OCR, `Fail ${ScanovateErrorCode.UserPressedClose}`)
+        await heading(canvasElement, "The scan was closed")
         await userEvent.click(canvas.getByRole("button", {name: "Back"}))
         await waitFor(() => expect(submissions).toHaveLength(1))
         await expect(submissions[0].get("back")).toBe("true")
@@ -218,25 +242,16 @@ export const FaceStep: Story = {
         const canvas = within(canvasElement)
         await heading(canvasElement, "Scan your ID")
         await press(canvasElement, FAKE_OCR, "Finish")
-        await expect(await heading(canvasElement, "Check your face")).toBeVisible()
+        await expect(await heading(canvasElement, "Check your face")).toBeInTheDocument()
         await expect(
             canvas.getByText(
-                "Your ID is scanned. Follow the instructions below so we can confirm it is you in front of the camera."
+                "Your ID is scanned. Follow the instructions on the screen so we can confirm it is you in front of the camera."
             )
-        ).toBeVisible()
+        ).toBeInTheDocument()
         const frame = await scanovateFrame(canvasElement, FAKE_LIVENESS)
         await expect(frame).toHaveAccessibleName("Face check")
-        // ID R&D's face capture takes a frame much smaller than the window
-        // for open DevTools and refuses to start, so it fills the window.
-        await waitFor(() => {
-            const box = frame.getBoundingClientRect()
-            expect([box.left, box.top, box.width, box.height]).toEqual([
-                0,
-                0,
-                window.innerWidth,
-                window.innerHeight,
-            ])
-        })
+        await expectFillsWindow(canvasElement, ".scanovate-window")
+        await expectFillsWindow(canvasElement, ".scanovate-window iframe")
     },
 }
 
@@ -337,12 +352,13 @@ export const InvalidToken: Story = {
     },
 }
 
-/** A voter stuck in a Scanovate page can ask for new tokens. */
+/** A voter stuck in a Scanovate page closes it, and can ask for new tokens. */
 export const StartOverDuringStep: Story = {
     beforeEach: keepSubmissions,
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await heading(canvasElement, "Scan your ID")
+        await press(canvasElement, FAKE_OCR, `Fail ${ScanovateErrorCode.UserPressedClose}`)
+        await heading(canvasElement, "The scan was closed")
         await userEvent.click(canvas.getByRole("button", {name: "Start over"}))
         await waitFor(() => expect(submissions).toHaveLength(1))
         await expect([...submissions[0].entries()]).toEqual([["action", "retry"]])
@@ -436,6 +452,10 @@ export const HoldingStep: Story = {
             )
         ).toBeVisible()
         await expect(canvas.getByLabelText("Camera")).toBeVisible()
+        // The same layout as Scanovate's two steps: the camera over the whole window.
+        await expectFillsWindow(canvasElement, ".scanovate-window")
+        await expectFillsWindow(canvasElement, ".scanovate-window video")
+        await expect(canvasElement.querySelector(".auth-card")).toBeNull()
         await expect(canvas.queryByRole("button", {name: "Take photo"})).toBeNull()
         await expect(await canvas.findByText(/^Hold still: \d$/, {}, {timeout: 5000})).toBeVisible()
         await expect(canvas.getByRole("progressbar", {name: "Holding still"})).toBeVisible()
@@ -454,6 +474,37 @@ export const HoldingStep: Story = {
         const body = init.body as Blob
         await expect(body.type).toBe("image/jpeg")
         await expect(body.size).toBeGreaterThan(0)
+    },
+}
+
+/** Closing the holding photo, as Scanovate's pages allow, offers to open it again. */
+export const HoldingClosed: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () => fakeCameraAndUploads(200, true, true),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        await userEvent.click(canvas.getByRole("button", {name: "Close"}))
+        await expect(await heading(canvasElement, "The scan was closed")).toBeVisible()
+        await expect(canvas.getByRole("button", {name: "Start over"})).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Try again"}))
+        await expect(await heading(canvasElement, "Take a photo holding your ID")).toBeVisible()
+        await expect(uploads).toHaveLength(0)
+    },
+}
+
+/** The photo to check keeps the layout: the photo over the whole window. */
+export const HoldingReview: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () => fakeCameraAndUploads(),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        await expect(await autoPhoto(canvasElement)).toBeVisible()
+        await expectFillsWindow(canvasElement, ".scanovate-window")
+        await expectFillsWindow(canvasElement, ".scanovate-window img")
+        await expect(canvas.getByRole("button", {name: "Use this photo"})).toBeVisible()
+        await expect(canvas.getByRole("button", {name: "Take it again"})).toBeVisible()
     },
 }
 

@@ -91,3 +91,83 @@ BEGIN
     END LOOP;
 END
 $$;
+
+-- The electoral log's entries that wait for their board's signer (Windmill's
+-- `services::electoral_log_deferral`): one row per delivery ID, in a table only
+-- the workers write. An event waiting on the event queue has its row (`statement`
+-- NULL); an unsigned statement a worker queued has its typed statement here, and the
+-- event queue only carries a reference to it. Producers (Harvest, Keycloak) can
+-- neither add nor change rows: writing to the queues gives no way to have a board
+-- sign a statement, nor to hold a log's direct posts.
+CREATE TABLE IF NOT EXISTS step_queue.electoral_log_waiting (
+    delivery_id text PRIMARY KEY,
+    scope text NOT NULL,
+    since_ms bigint NOT NULL,
+    ord bigint NOT NULL,
+    due_at timestamptz NOT NULL,
+    statement jsonb,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS electoral_log_waiting_scope
+    ON step_queue.electoral_log_waiting (scope);
+-- The message that is the row's copy on the event queue, if one was sent: a
+-- put-back checks that exact message, not producer-writable headers.
+ALTER TABLE step_queue.electoral_log_waiting ADD COLUMN IF NOT EXISTS copy_msg_id bigint;
+-- A system-signed pending statement's MAC, copied from the action database's
+-- outbox: the batch task checks it again before signing.
+ALTER TABLE step_queue.electoral_log_waiting ADD COLUMN IF NOT EXISTS mac bytea;
+-- A bounded head's budget (its tenant missing, or a retry), kept by the workers only (a
+-- queue message cannot set or reset it): the bounded time it has already spent, in
+-- milliseconds, and when its current bounded stretch started (NULL outside one). A
+-- round that waits for the signer or behind another entry closes the stretch (adds it
+-- to the time spent) and does not count; the bound (ELECTORAL_LOG_BOUNDED_WAIT_SECS)
+-- is on the total, so neither a restart nor alternating rounds can extend it.
+ALTER TABLE step_queue.electoral_log_waiting ADD COLUMN IF NOT EXISTS bounded_since_ms bigint;
+ALTER TABLE step_queue.electoral_log_waiting ADD COLUMN IF NOT EXISTS bounded_used_ms bigint NOT NULL DEFAULT 0;
+
+-- A waiting event's copy on a queue is looked up by its delivery header.
+DO $$
+DECLARE
+    queue text;
+BEGIN
+    FOREACH queue IN ARRAY string_to_array(current_setting('step.queue.queues'), ',') LOOP
+        EXECUTE format(
+            'CREATE INDEX IF NOT EXISTS %I ON pgmq.%I ((headers->>%L)) WHERE headers->>%L IS NOT NULL',
+            'q_' || queue || '_deferred_delivery', 'q_' || queue,
+            'x-electoral-log-deferred-delivery', 'x-electoral-log-deferred-scope');
+    END LOOP;
+END
+$$;
+
+DO $$
+DECLARE
+    worker text := current_setting('step.queue.worker_role');
+    reader text := current_setting('step.queue.reader_role');
+BEGIN
+    IF worker <> '' THEN
+        EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON step_queue.electoral_log_waiting TO %I',
+            worker);
+    END IF;
+    IF reader <> '' THEN
+        EXECUTE format('GRANT SELECT ON step_queue.electoral_log_waiting TO %I', reader);
+    END IF;
+END
+$$;
+
+-- Harvest (the producer role) posts scoped entries itself, so it must see whether
+-- a scope has entries waiting (the direct-post gate): it may read the scope column
+-- only, never a statement, and may not write the table.
+DO $$
+DECLARE
+    producer text := current_setting('step.queue.producer_role');
+BEGIN
+    IF producer <> '' THEN
+        EXECUTE format('GRANT SELECT (scope) ON step_queue.electoral_log_waiting TO %I', producer);
+    END IF;
+END
+$$;
+
+-- No function lets the producer role queue a pending statement: it is shared by
+-- Harvest and Keycloak, so it would let Keycloak have entries signed. (An earlier
+-- revision had one; it is dropped.)
+DROP FUNCTION IF EXISTS step_queue.queue_pending_statement(text, jsonb, jsonb, integer);

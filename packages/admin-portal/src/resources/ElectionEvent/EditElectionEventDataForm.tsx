@@ -140,6 +140,7 @@ import {
 import {SettingsLanguageSelector} from "../../components/SettingsLanguageSelector"
 import {PrivacySettings} from "@/components/election-event/PrivacySettings"
 import {BallotReceiptsInput} from "./BallotReceiptsInput"
+import {keepUnsubmittedValues} from "@/services/keepUnsubmittedValues"
 import {
     VOTER_SIGNING_POLICY_SOURCE,
     areReceiptsSignedByBallotBox,
@@ -191,12 +192,24 @@ const EventSaveButton: React.FC<
     const context = useSaveContext()
     const notify = useNotify()
     const {t} = useTranslation()
+    const {getValues} = useFormContext()
     return (
         <SaveContextProvider
             value={{
                 ...context,
                 save: async (...args: Parameters<NonNullable<typeof context.save>>) => {
-                    const [data, callbacks] = args
+                    const [submitted, callbacks] = args
+                    // The update writes the whole presentation, but react-hook-form leaves
+                    // disabled inputs out of the submit: the receipts policy once voting
+                    // started, the voter signing policy with signed receipts. Their values,
+                    // still in the form, are kept (meta#15035).
+                    const data = {
+                        ...submitted,
+                        presentation: keepUnsubmittedValues(
+                            submitted.presentation ?? {},
+                            getValues("presentation")
+                        ),
+                    }
                     let failed = false
                     try {
                         const errors = await context.save?.(data, {

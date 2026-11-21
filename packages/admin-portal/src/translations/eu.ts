@@ -5,6 +5,70 @@ import englishTranslation, {TranslationType} from "./en"
 
 const basqueTranslation: TranslationType = {
     translations: {
+        configurationSigning: {
+            title: "Paketeen sinaduraren konfiantza",
+            description:
+                "Maizter honek zein konfigurazio-pakete inportatzen dituen: paketeak sinatuta egon behar duen, bere sinadura-gakoak eta onesleen ziurtagiriek zein errotara kateatu behar duten, eta pertsona desberdinen zenbat onespen behar dituen. Hemen ziurtagiriak soilik onartzen dira, inoiz ez gakoak.",
+            current: "Orain:",
+            policy: "Sinadurak",
+            requiredApprovals: "Beharrezko onespenak",
+            requiredApprovalsHelp:
+                "Pakete batek behar dituen pertsona desberdinen onespen baliodunak (0tik 16ra).",
+            packageRoots: "Paketeen sinadura-erroak (PEM)",
+            packageRootsHelp:
+                "Paketeak sinatzen dituen gakoa jaulkitzen duten ziurtagiri-agintaritzak.",
+            staffRoots: "Onesleen erroak (PEM)",
+            staffRootsHelp: "Onesleen ziurtagiriak jaulkitzen dituzten ziurtagiri-agintaritzak.",
+            certificates_one: "Ziurtagiri {{count}}.",
+            certificates_other: "{{count}} ziurtagiri.",
+            loadFile: "Kargatu PEM fitxategi bat",
+            save: "Egiaztatu eta gorde",
+            saved: "Gordeta. Hemendik aurrera inportazioak honen arabera egiaztatzen dira.",
+            refused: "Ez da gorde: konpondu beheko arazoak.",
+            invalidApprovals: "Onespenak 0 eta {{max}} arteko zenbaki osoa izan behar du.",
+            noAnswer: "Plataformak ez du erantzun; ez dago jakiterik ezer gorde den.",
+            states: {
+                "not-configured":
+                    "Konfiguratu gabe: sinatu gabeko fitxategiak inportatzen dira, sinatutako paketeak baztertzen dira",
+                "optional":
+                    "Aukerakoa: sinatutako paketeak egiaztatzen dira, sinatu gabekoak inportatzen dira",
+                "required":
+                    "Derrigorrezkoa: {{approvals}} onespeneko pakete sinatuak soilik inportatzen dira",
+                "unreadable": "Irakurtezina: inportazio orok huts egiten du berriro gorde arte",
+            },
+            policies: {
+                optional: "Aukerakoa",
+                required: "Derrigorrezkoa",
+            },
+            columns: {
+                setting: "Ezarpena",
+                subject: "Gaia",
+                validUntil: "Baliozkoa noiz arte",
+                fingerprint: "SHA-256 hatz-marka",
+                signerId: "Sinatzailearen IDa",
+                name: "Izena",
+                roles: "Rolak",
+                keys: "Gako-pinak (SPKI SHA-256)",
+            },
+            minimumFormat: "Pakete-formatu zaharrena",
+            formats: {
+                v1: "1. formatua (sinatzaile inskribaturik gabe)",
+                v2: "2. formatua (sinatzaile inskribatuak soilik)",
+            },
+            separation: "Azken sinatzailea",
+            separations: {separate: "Onesleengandik bereizia", allowed: "Onetsi ere egin dezake"},
+            loadPolicy: "Kargatu sinadura-politikaren fitxategia",
+            policyDigest: "Politikaren SHA-256:",
+            policyErrors: {
+                "not-json": "Fitxategia ez da JSON.",
+                "not-a-policy": "Fitxategia ez da sinadura-politika bat.",
+                "other-tenant": "Fitxategia beste maizter batena da.",
+                "no-minimum": "Politikak pakete-formatu minimoa adierazi behar du.",
+                "unknown-field":
+                    "Fitxategiak sinadura-politikak definitzen ez duen eremu bat du (gaizki idatzita?).",
+                "no-tenant": "Fitxategiak bere tenanta adierazi behar du (tenant_id).",
+            },
+        },
         configurationPackage: englishTranslation.translations.configurationPackage,
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
@@ -2597,6 +2661,7 @@ const basqueTranslation: TranslationType = {
                 ELECTORAL_RESULTS: "Hauteskunde Emaitzak",
                 MANUAL_VERIFICATION: "Eskuzko Egiaztapena",
                 PARTICIPATION_REPORT: "Parte-hartze Txostena",
+                OV_WHO_VOTED: "Bozkatu duten hautesleen zerrenda",
                 STATISTICAL_REPORT: "Txosten Estatistikoa",
                 OVCS_EVENTS: "Atzerriko Bozketa Monitorizazioa - OVCS Gertaerak",
                 AUDIT_LOGS: "Auditoria Egunkariak",
@@ -3848,6 +3913,7 @@ const basqueTranslation: TranslationType = {
                 ACTIVITY_LOGS: "Jarduera Egunkariak",
                 MANUAL_VERIFICATION: "Eskuzko Egiaztapena",
                 PARTICIPATION_REPORT: "Parte-hartze Txostena",
+                OV_WHO_VOTED: "Bozkatu duten hautesleen zerrenda",
             },
             method: {
                 email: "Emaila",

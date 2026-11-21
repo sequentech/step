@@ -7,6 +7,7 @@ use anyhow::Result;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
+use crate::signer::{software, MessageSigner, SharedSigner};
 use tracing::instrument;
 use voting_crypto::hash::HASH_LENGTH_BYTES;
 use voting_crypto::signing::Signature;
@@ -38,6 +39,10 @@ pub const GENERIC_EVENT: &'static str = "Generic Event";
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, std::fmt::Debug)]
 pub struct Message {
+    /// The signature scheme of its signatures
+    /// ([`crate::signature::SIGNATURE_VERSION`]); first, so a stored
+    /// message's bytes start with it.
+    pub signature_version: u8,
     pub sender: Sender,
     pub sender_signature: Signature,
     pub system_signature: Signature,
@@ -64,7 +69,7 @@ impl Message {
     pub fn ballot_received_message(
         pseudonym: &str,
         evidence: super::privacy::BallotReceivedEvidence,
-        system_key: &SigningKey,
+        system_key: &dyn MessageSigner,
     ) -> Result<Self> {
         let receipt: serde_json::Value = serde_json::from_str(&evidence.received_ballot_json)?;
         let ballot_id = receipt
@@ -88,7 +93,7 @@ impl Message {
     pub fn privacy_cast_vote_message(
         pseudonym: &str,
         evidence: super::privacy::BallotCastEvidence,
-        system_key: &SigningKey,
+        system_key: &dyn MessageSigner,
     ) -> Result<Self> {
         let event = evidence.election_event_id.clone();
         let election = evidence.election_id.clone();
@@ -108,7 +113,7 @@ impl Message {
         event: &str,
         pseudonym: &str,
         evidence: super::privacy::PrivateBallotEvent,
-        system_key: &SigningKey,
+        system_key: &dyn MessageSigner,
     ) -> Result<Self> {
         let election = evidence.election_id.clone();
         let ballot_id = evidence.ballot_id.clone();
@@ -130,7 +135,7 @@ impl Message {
         pseudonym: &str,
         evidence: super::privacy::PrivateBallotEvent,
         occurred_at: u64,
-        system_key: &SigningKey,
+        system_key: &dyn MessageSigner,
     ) -> Result<Self> {
         let election = evidence.election_id.clone();
         let ballot_id = evidence.ballot_id.clone();
@@ -152,7 +157,7 @@ impl Message {
         ballot_id: Option<String>,
         body: StatementBody,
         occurred_at: Option<u64>,
-        system_key: &SigningKey,
+        system_key: &dyn MessageSigner,
     ) -> Result<Self> {
         let hash = super::privacy::pseudonym_hash(pseudonym)
             .ok_or_else(|| anyhow::anyhow!("Invalid canonical pseudonym"))?;
@@ -305,9 +310,9 @@ impl Message {
         Message::sign(
             statement,
             artifact,
-            &sd.sender_sk,
+            sd.sender.as_ref(),
             &sd.sender_name,
-            &sd.system_sk,
+            sd.system.as_ref(),
             user_id,
             username,
             None, /* election_id: a reconciliation run is event-wide, not tied to one election */
@@ -560,9 +565,9 @@ impl Message {
         Message::sign(
             Statement::new(head, body),
             None,
-            &sd.sender_sk,
+            sd.sender.as_ref(),
             &sd.sender_name,
-            &sd.system_sk,
+            sd.system.as_ref(),
             user_id,
             username,
             None,
@@ -721,9 +726,9 @@ impl Message {
         Message::sign(
             Statement::new(head, body),
             None,
-            &sd.sender_sk,
+            sd.sender.as_ref(),
             &sd.sender_name,
-            &sd.system_sk,
+            sd.system.as_ref(),
             user_id,
             username,
             None,
@@ -766,9 +771,9 @@ impl Message {
         Message::sign(
             Statement::new(head, body),
             None,
-            &sd.sender_sk,
+            sd.sender.as_ref(),
             &sd.sender_name,
-            &sd.system_sk,
+            sd.system.as_ref(),
             user_id,
             username,
             election_id,
@@ -801,9 +806,9 @@ impl Message {
         Message::sign(
             Statement::new(head, body),
             None,
-            &sd.sender_sk,
+            sd.sender.as_ref(),
             &sd.sender_name,
-            &sd.system_sk,
+            sd.system.as_ref(),
             user_id,
             username,
             election_id,
@@ -963,6 +968,55 @@ impl Message {
         Self::from_body(event, body, sd, user_id, username, election.0, None, None)
     }
 
+    /// The statement of a certificate-authority event, unsigned: what its
+    /// sender (the administrator) signs. Its time is [`crate::timestamp`].
+    pub fn certificate_auth_event_statement(
+        event: EventIdString,
+        action: CertificateAuthEventAction,
+        subject_dns: Vec<String>,
+    ) -> Statement {
+        let body =
+            StatementBody::CertificateAuthEvent(action, CertificateSubjectDnsString(subject_dns));
+        Statement::new(StatementHead::from_body(event, &body), body)
+    }
+
+    /// A message whose sender already signed `statement` (the sender's own,
+    /// unchanged signature); only the system signature is made now. The
+    /// sender's signature is checked first: a message is never attested for
+    /// a signature that doesn't verify.
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_sender_signature(
+        statement: Statement,
+        sender_name: &str,
+        sender_pk: VerificationKey,
+        sender_signature: Signature,
+        system: &dyn MessageSigner,
+        user_id: Option<String>,
+        username: Option<String>,
+        election_id: Option<String>,
+        area_id: Option<String>,
+        ballot_id: Option<String>,
+    ) -> Result<Message> {
+        use crate::signature::{sign, verify, Domain};
+        let bytes = statement.record_serialize()?;
+        verify(&sender_pk, &sender_signature, Domain::Statement, &bytes)
+            .map_err(|error| anyhow::anyhow!("the sender's signature doesn't verify: {error}"))?;
+        let system_signature = sign(system, Domain::Statement, &bytes)?;
+        Ok(Message {
+            signature_version: crate::signature::SIGNATURE_VERSION,
+            sender: Sender::new(sender_name.to_string(), sender_pk),
+            sender_signature,
+            system_signature,
+            statement,
+            artifact: None,
+            user_id,
+            username,
+            election_id,
+            area_id,
+            ballot_id,
+        })
+    }
+
     pub fn certificate_auth_event_message(
         event: EventIdString,
         action: CertificateAuthEventAction,
@@ -1112,9 +1166,9 @@ impl Message {
         Message::sign(
             Statement::new(head, body),
             None,
-            &sd.sender_sk,
+            sd.sender.as_ref(),
             &sd.sender_name,
-            &sd.system_sk,
+            sd.system.as_ref(),
             None,
             None,
             Some(election_id.to_string()),
@@ -1141,9 +1195,9 @@ impl Message {
         Message::sign(
             Statement::new(head, body),
             None,
-            &sd.sender_sk,
+            sd.sender.as_ref(),
             &sd.sender_name,
-            &sd.system_sk,
+            sd.system.as_ref(),
             user_id,
             username,
             None,
@@ -1168,9 +1222,9 @@ impl Message {
         Message::sign(
             statement,
             None,
-            &sd.sender_sk,
+            sd.sender.as_ref(),
             &sd.sender_name,
-            &sd.system_sk,
+            sd.system.as_ref(),
             user_id,
             username,
             election_id,
@@ -1182,9 +1236,9 @@ impl Message {
     pub fn sign(
         statement: Statement,
         artifact: Option<Vec<u8>>,
-        sender_sk: &SigningKey,
+        sender: &dyn MessageSigner,
         sender_name: &str,
-        system_sk: &SigningKey,
+        system: &dyn MessageSigner,
         user_id: Option<String>,
         username: Option<String>,
         election_id: Option<String>,
@@ -1192,12 +1246,25 @@ impl Message {
         ballot_id: Option<String>,
     ) -> Result<Message> {
         let bytes = statement.record_serialize()?;
-        let sender_signature: Signature = sender_sk.sign(&bytes)?;
-        let system_signature: Signature = system_sk.sign(&bytes)?;
-        let sender_pk = VerificationKey::from_sk(&sender_sk)?;
+        let sender_signature: Signature =
+            crate::signature::sign(sender, crate::signature::Domain::Statement, &bytes)?;
+        // The same signer object in both roles (a system-authored message)
+        // signs once: one key signing the same bytes gives a valid signature
+        // for both, and a remote signer would make a second round trip.
+        // `ptr::eq` compares the vtable too, so two different signer types
+        // that happen to share an address are never taken as one.
+        #[allow(ambiguous_wide_pointer_comparisons)]
+        let same_signer = std::ptr::eq(sender, system);
+        let system_signature: Signature = if same_signer {
+            sender_signature.clone()
+        } else {
+            crate::signature::sign(system, crate::signature::Domain::Statement, &bytes)?
+        };
+        let sender_pk = sender.public_key()?;
         let sender = Sender::new(sender_name.to_string(), sender_pk);
 
         Ok(Message {
+            signature_version: crate::signature::SIGNATURE_VERSION,
             sender,
             sender_signature,
             system_signature,
@@ -1211,10 +1278,30 @@ impl Message {
         })
     }
 
+    /// Refuses a message whose signatures are of another scheme than this
+    /// build's.
+    pub fn check_signature_version(&self) -> Result<()> {
+        if self.signature_version != crate::signature::SIGNATURE_VERSION {
+            return Err(anyhow::anyhow!(
+                "the message's signatures are of scheme v{}, not v{} (refused)",
+                self.signature_version,
+                crate::signature::SIGNATURE_VERSION
+            ));
+        }
+        Ok(())
+    }
+
     pub fn verify(&self, system_pk: &VerificationKey) -> Result<()> {
+        use crate::signature::{verify, Domain};
+        self.check_signature_version()?;
         let bytes = self.statement.record_serialize()?;
-        self.sender.pk.verify(&self.sender_signature, &bytes)?;
-        system_pk.verify(&self.system_signature, &bytes)?;
+        verify(
+            &self.sender.pk,
+            &self.sender_signature,
+            Domain::Statement,
+            &bytes,
+        )?;
+        verify(system_pk, &self.system_signature, Domain::Statement, &bytes)?;
 
         Ok(())
     }
@@ -1265,23 +1352,61 @@ impl Sender {
 }
 
 pub struct SigningData {
-    sender_sk: SigningKey,
+    sender: SharedSigner,
     sender_name: String,
-    system_sk: SigningKey,
+    system: SharedSigner,
 }
 impl SigningData {
-    pub fn system_public_key(&self) -> Result<VerificationKey> {
-        VerificationKey::from_sk(&self.system_sk)
+    /// A message whose sender already signed `statement`, attested now with
+    /// this system signer ([`Message::with_sender_signature`]).
+    #[allow(clippy::too_many_arguments)]
+    pub fn attest(
+        &self,
+        statement: Statement,
+        sender_name: &str,
+        sender_pk: VerificationKey,
+        sender_signature: Signature,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Message> {
+        Message::with_sender_signature(
+            statement,
+            sender_name,
+            sender_pk,
+            sender_signature,
+            self.system.as_ref(),
+            user_id,
+            username,
+            None,
+            None,
+            None,
+        )
     }
-    /// Sign arbitrary bytes with the event system key.
-    pub fn system_sign(&self, msg: &[u8]) -> Result<Signature> {
-        self.system_sk.sign(msg)
+    pub fn system_public_key(&self) -> Result<VerificationKey> {
+        self.system.public_key()
+    }
+    /// Signs `canonical` with the event system key under `domain`
+    /// ([`crate::signature`]): never raw bytes.
+    pub fn system_sign(
+        &self,
+        domain: crate::signature::Domain,
+        canonical: &[u8],
+    ) -> Result<Signature> {
+        crate::signature::sign(self.system.as_ref(), domain, canonical)
     }
     pub fn new(sender_sk: SigningKey, sender_name: &str, system_sk: SigningKey) -> SigningData {
+        Self::with_signers(software(sender_sk), sender_name, software(system_sk))
+    }
+    /// With signers whose keys may be held elsewhere (see [`MessageSigner`]).
+    pub fn with_signers(
+        sender: SharedSigner,
+        sender_name: &str,
+        system: SharedSigner,
+    ) -> SigningData {
         SigningData {
-            sender_sk,
+            sender,
             sender_name: sender_name.to_string(),
-            system_sk,
+            system,
         }
     }
 }
@@ -1289,3 +1414,108 @@ impl SigningData {
 #[cfg(test)]
 #[path = "../../tests/support/message_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod attest_tests {
+    use super::*;
+
+    fn certificate(sd: &SigningData) -> (Statement, Message) {
+        let statement = crate::with_timestamp(1_800_000_000, || {
+            Message::certificate_auth_event_statement(
+                EventIdString("event".into()),
+                CertificateAuthEventAction::Import,
+                vec!["CN=one".into()],
+            )
+        });
+        let direct = crate::with_timestamp(1_800_000_000, || {
+            Message::certificate_auth_event_message(
+                EventIdString("event".into()),
+                CertificateAuthEventAction::Import,
+                vec!["CN=one".into()],
+                sd,
+                Some("admin-id".into()),
+                Some("admin".into()),
+            )
+        })
+        .unwrap();
+        (statement, direct)
+    }
+
+    #[test]
+    fn an_admin_signature_made_earlier_is_attested_into_the_same_message() {
+        let admin = SigningKey::generate().unwrap();
+        let system = SigningKey::generate().unwrap();
+        let sd = SigningData::new(admin.clone(), "", system.clone());
+        let (statement, direct) = certificate(&sd);
+        let admin_signature = crate::signature::sign(
+            &admin,
+            crate::signature::Domain::Statement,
+            &statement.record_serialize().unwrap(),
+        )
+        .unwrap();
+        let attested = sd
+            .attest(
+                statement,
+                "",
+                VerificationKey::from_sk(&admin).unwrap(),
+                admin_signature,
+                Some("admin-id".into()),
+                Some("admin".into()),
+            )
+            .unwrap();
+        attested
+            .verify(&VerificationKey::from_sk(&system).unwrap())
+            .unwrap();
+        assert_eq!(attested.sender_signature, direct.sender_signature);
+        assert_eq!(attested.sender.pk, direct.sender.pk);
+        assert_eq!(
+            attested.statement.record_serialize().unwrap(),
+            direct.statement.record_serialize().unwrap()
+        );
+    }
+
+    #[test]
+    fn a_signature_that_does_not_verify_is_never_attested() {
+        let admin = SigningKey::generate().unwrap();
+        let other = SigningKey::generate().unwrap();
+        let system = SigningKey::generate().unwrap();
+        let sd = SigningData::new(admin.clone(), "", system.clone());
+        let (statement, _) = certificate(&sd);
+        let signature = crate::signature::sign(
+            &admin,
+            crate::signature::Domain::Statement,
+            &statement.record_serialize().unwrap(),
+        )
+        .unwrap();
+        let (statement, _) = certificate(&sd);
+        // Another key named as the sender.
+        assert!(sd
+            .attest(
+                statement,
+                "",
+                VerificationKey::from_sk(&other).unwrap(),
+                signature.clone(),
+                None,
+                None,
+            )
+            .is_err());
+        // A tampered statement (another subject).
+        let tampered = crate::with_timestamp(1_800_000_000, || {
+            Message::certificate_auth_event_statement(
+                EventIdString("event".into()),
+                CertificateAuthEventAction::Import,
+                vec!["CN=two".into()],
+            )
+        });
+        assert!(sd
+            .attest(
+                tampered,
+                "",
+                VerificationKey::from_sk(&admin).unwrap(),
+                signature,
+                None,
+                None,
+            )
+            .is_err());
+    }
+}

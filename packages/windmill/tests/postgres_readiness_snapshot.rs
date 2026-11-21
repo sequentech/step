@@ -198,6 +198,7 @@ async fn imported_manifest(tx: &Transaction<'_>, ids: FixtureIds, revision: u64,
             producer: Default::default(),
         },
         revocation_lists: vec![],
+        signing: None,
     };
     let approvers = json!([{"subject":"CN=Fixture approver", "issuer":"CN=Fixture CA", "serial":"01", "fingerprint_sha256":"11".repeat(32)}]);
     let hash = sequent_core::election_config::manifest::sha256_hex(&manifest.to_bytes().unwrap());
@@ -238,7 +239,7 @@ async fn seal_tested_box(
     .await
     .unwrap();
     let built = electoral_log::seal::build(electoral_log::seal::BallotBoxSealManifest {
-        format: electoral_log::seal::SEAL_FORMAT_V1.into(),
+        format: electoral_log::seal::SEAL_FORMAT_V2.into(),
         tenant_id: ids.tenant.to_string(),
         election_event_id: ids.event.to_string(),
         election_id: ids.election.to_string(),

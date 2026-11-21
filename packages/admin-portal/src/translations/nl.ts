@@ -5,6 +5,74 @@ import englishTranslation, {TranslationType} from "./en"
 
 const dutchTranslation: TranslationType = {
     translations: {
+        configurationSigning: {
+            title: "Vertrouwen in pakketondertekening",
+            description:
+                "Welke configuratiepakketten deze tenant importeert: of een pakket ondertekend moet zijn, naar welke roots de ondertekeningssleutel en de certificaten van de goedkeurders moeten leiden, en hoeveel goedkeuringen van verschillende personen nodig zijn. Hier worden alleen certificaten geaccepteerd, nooit sleutels.",
+            current: "Nu:",
+            policy: "Handtekeningen",
+            requiredApprovals: "Vereiste goedkeuringen",
+            requiredApprovalsHelp:
+                "Geldige goedkeuringen van verschillende personen die een pakket nodig heeft (0 tot 16).",
+            packageRoots: "Roots voor pakketondertekening (PEM)",
+            packageRootsHelp:
+                "De certificaatautoriteiten die de sleutel uitgeven die de pakketten ondertekent.",
+            staffRoots: "Roots van goedkeurders (PEM)",
+            staffRootsHelp:
+                "De certificaatautoriteiten die de certificaten van de goedkeurders uitgeven.",
+            certificates_one: "{{count}} certificaat.",
+            certificates_other: "{{count}} certificaten.",
+            loadFile: "Een PEM-bestand laden",
+            save: "Controleren en opslaan",
+            saved: "Opgeslagen. Importen worden voortaan hiermee gecontroleerd.",
+            refused: "Niet opgeslagen: los de onderstaande problemen op.",
+            invalidApprovals: "Goedkeuringen moeten een geheel getal van 0 tot {{max}} zijn.",
+            noAnswer: "Het platform gaf geen antwoord; er is niets bekend als opgeslagen.",
+            states: {
+                "not-configured":
+                    "Niet ingesteld: niet-ondertekende bestanden worden geïmporteerd, ondertekende pakketten geweigerd",
+                "optional":
+                    "Optioneel: ondertekende pakketten worden gecontroleerd, niet-ondertekende bestanden geïmporteerd",
+                "required":
+                    "Vereist: alleen ondertekende pakketten met {{approvals}} goedkeuringen worden geïmporteerd",
+                "unreadable": "Onleesbaar: elke import mislukt tot opnieuw is opgeslagen",
+            },
+            policies: {
+                optional: "Optioneel",
+                required: "Vereist",
+            },
+            columns: {
+                setting: "Instelling",
+                subject: "Onderwerp",
+                validUntil: "Geldig tot",
+                fingerprint: "SHA-256-vingerafdruk",
+                signerId: "Ondertekenaar-ID",
+                name: "Naam",
+                roles: "Rollen",
+                keys: "Sleutelpins (SPKI SHA-256)",
+            },
+            minimumFormat: "Oudste pakketformaat",
+            formats: {
+                v1: "Formaat 1 (geen ingeschreven ondertekenaars)",
+                v2: "Formaat 2 (alleen ingeschreven ondertekenaars)",
+            },
+            separation: "Laatste ondertekenaar",
+            separations: {
+                separate: "Gescheiden van de goedkeurders",
+                allowed: "Mag ook hebben goedgekeurd",
+            },
+            loadPolicy: "Ondertekeningsbeleid laden",
+            policyDigest: "SHA-256 van het beleid:",
+            policyErrors: {
+                "not-json": "Het bestand is geen JSON.",
+                "not-a-policy": "Het bestand is geen ondertekeningsbeleid.",
+                "other-tenant": "Het bestand is voor een andere tenant.",
+                "no-minimum": "Het beleid moet zijn minimale pakketformaat vermelden.",
+                "unknown-field":
+                    "Het bestand bevat een veld dat het ondertekeningsbeleid niet kent (verkeerd gespeld?).",
+                "no-tenant": "Het bestand moet zijn tenant vermelden (tenant_id).",
+            },
+        },
         configurationPackage: englishTranslation.translations.configurationPackage,
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
@@ -2611,6 +2679,7 @@ const dutchTranslation: TranslationType = {
                 ELECTORAL_RESULTS: "Verkiezingsresultaten",
                 MANUAL_VERIFICATION: "Handmatige Verificatie",
                 PARTICIPATION_REPORT: "Participatierapport",
+                OV_WHO_VOTED: "Lijst van kiezers die hebben gestemd",
                 STATISTICAL_REPORT: "Statistisch Rapport",
                 OVCS_EVENTS: "Monitoring Stemmen Buitenland - OVCS Gebeurtenissen",
                 AUDIT_LOGS: "Auditlogs",
@@ -3865,6 +3934,7 @@ const dutchTranslation: TranslationType = {
                 ACTIVITY_LOGS: "Activiteitenlogs",
                 MANUAL_VERIFICATION: "Handmatige Verificatie",
                 PARTICIPATION_REPORT: "Participatierapport",
+                OV_WHO_VOTED: "Lijst van kiezers die hebben gestemd",
             },
             method: {
                 email: "E-mail",

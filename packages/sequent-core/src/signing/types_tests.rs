@@ -437,6 +437,7 @@ fn request_and_certificate_enums_use_kebab_case_values() {
     assert_wire(&[
         (SignatureAlgorithm::RsaPkcs1Sha256, "rsa-pkcs1-sha256"),
         (SignatureAlgorithm::EcdsaP256Sha256, "ecdsa-p256-sha256"),
+        (SignatureAlgorithm::RsaPssSha256, "rsa-pss-sha256"),
     ]);
     assert_wire(&[
         (StaffCertificateRegistration::FirstUse, "first-use"),

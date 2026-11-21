@@ -25,7 +25,7 @@ use crate::election_config::paths::{deep_merge, set_path, split_path};
 use crate::election_config::presets::{
     self, AuthPreset, PresetInput, RealmPatch, RequirementKind, PARAM_AUTH_TYPE,
 };
-use crate::election_config::problem::Code;
+use crate::election_config::problem::{Code, Problem};
 use crate::election_config::sheet::SHEET_VOTERS;
 use crate::election_config::sheet::{
     Origin, SHEET_ADMIN_USERS, SHEET_ELECTIONS, SHEET_REPORTS,
@@ -892,24 +892,22 @@ impl Builder<'_> {
             };
             warnings.push(format!(
                 "permission label '{label}' is used by {}{more}{nobody}. \
-                 Anything carrying a label is hidden from every administrator \
-                 without it — the event imports cleanly and then lists nothing.",
+                 These labelled entities are hidden from administrators \
+                 without a matching permission_labels value. Existing target \
+                 accounts may already carry the label; verify them before import.",
                 listed.join(", ")
             ));
         }
 
-        let mut all: Vec<&str> =
-            used.iter().map(|(label, _)| label.as_str()).collect();
-        all.sort_unstable();
-        warnings.push(format!(
-            "permission labels in use: {}. Whoever imports this event needs one \
-             of them on their own 'permission_labels' attribute, or the Admin \
-             Portal will show them an empty list.",
-            all.join(", ")
-        ));
-
+        // The schema validator supplies the target-account reminder. This pass
+        // knows the workbook roster, so report only actual coverage gaps rather
+        // than duplicating the reminder even when every label is accounted for.
         for warning in warnings {
-            self.warn("permission_label", warning);
+            self.report.push(Problem::warning(
+                Code::PermissionLabel,
+                "permission_label",
+                warning,
+            ));
         }
     }
 

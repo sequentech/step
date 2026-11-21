@@ -8,13 +8,14 @@ use crate::services::celery_app::try_get_celery_app;
 use crate::services::database::{get_hasura_pool, PgConfig};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log_board::get_board_client;
-use crate::services::electoral_log_board::get_board_signing_key;
+use crate::services::electoral_log_board::get_board_signer;
 use crate::services::electoral_log_board::get_event_board;
 use crate::services::electoral_log_board::get_tenant_board;
 use crate::services::electoral_log_board::TenantLog;
 use crate::services::electoral_log_checkpoint_copies::{
     store_checkpoint_copy, CheckpointCopyConfig,
 };
+use crate::services::electoral_log_pending::{PendingStatement, PendingStatementBody};
 use crate::services::insert_cast_vote::hash_voter_id;
 use crate::services::vault;
 use crate::tasks::electoral_log::{
@@ -31,6 +32,7 @@ use electoral_log::domain::{
 use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::{CertificateAuthEventAction, *};
 use electoral_log::messages::statement::{StatementBody, StatementType};
+use electoral_log::signer::{is_signer_unavailable, software, SharedSigner};
 use electoral_log::{
     ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,
 };
@@ -65,6 +67,51 @@ pub const BALLOT_ID_LENGTH_BYTES: usize = HASH_LENGTH_BYTES / 2;
 /// Ballot_id input is in HEX, each byte is represented in 2 chars.
 pub const BALLOT_ID_LENGTH_CHARS: usize = BALLOT_ID_LENGTH_BYTES * 2;
 
+/// The certificate-authority event of an action, signed now by its
+/// administrator (`admin_key`, their vault key, the same key a direct post
+/// signs with) over the exact statement, at this time: the administrator's
+/// proof is made at the time of the action and carried unchanged. Only the
+/// board's attestation is left for the batch task, which checks this signature
+/// against the key the tenant log announces for `user_id` before adding it.
+pub fn admin_signed_certificate_event(
+    admin_key: &SigningKey,
+    tenant_id: &str,
+    election_event_id: &str,
+    action: CertificateAuthEventAction,
+    subject_dns: Vec<String>,
+    user_id: &str,
+    username: Option<String>,
+) -> Result<PendingStatement> {
+    use voting_crypto::RecordSerialize;
+    let occurred_at = electoral_log::timestamp();
+    let statement = electoral_log::with_timestamp(occurred_at, || {
+        Message::certificate_auth_event_statement(
+            EventIdString(election_event_id.to_string()),
+            action.clone(),
+            subject_dns.clone(),
+        )
+    });
+    let admin_signature = electoral_log::signature::sign(
+        admin_key,
+        electoral_log::signature::Domain::Statement,
+        &statement.record_serialize()?,
+    )?;
+    let mut pending = PendingStatement::new(
+        tenant_id,
+        election_event_id,
+        PendingStatementBody::AdminCertificateEvent {
+            action,
+            subject_dns,
+            user_id: user_id.to_string(),
+            username,
+            admin_public_key: VerificationKey::from_sk(admin_key)?.to_b64_string()?,
+            admin_signature: admin_signature.to_b64_string()?,
+        },
+    );
+    pending.occurred_at = occurred_at;
+    Ok(pending)
+}
+
 /// Record failures after the publication transaction has ended, so rollback
 /// cannot erase the diagnostic and the external write holds no DB connection.
 #[instrument(skip_all, err)]
@@ -78,28 +125,53 @@ pub async fn log_ballot_publication_failure(
         .election_event_id
         .as_deref()
         .context("Publication task has no election event")?;
-    let log = {
-        let mut db = get_hasura_pool().await.get().await?;
-        let tx = db.transaction().await?;
-        let event = get_election_event_by_id(&tx, &task.tenant_id, event_id).await?;
-        let board = get_election_event_board(event.bulletin_board_reference)
-            .context("Election event is missing its electoral-log board")?;
-        let log = ElectoralLog::new(&tx, &task.tenant_id, Some(event_id), &board).await?;
-        tx.commit().await?;
-        log
-    };
-    let message = Message::ballot_publication_failure_message(
-        EventIdString(event_id.to_owned()),
-        BallotPublicationFailure {
+    let statement = PendingStatementBody::BallotPublicationFailure {
+        failure: BallotPublicationFailure {
             publication_id: BallotPublicationIdString(publication_id.to_owned()),
             task_id: task.id.clone(),
             stage,
             error: ErrorMessageString(error_message.to_owned()),
         },
-        &log.sd,
-        Some(task.executed_by_user.clone()),
-    )?;
-    log.post(&message).await
+        username: Some(task.executed_by_user.clone()),
+    };
+    // A best-effort diagnostic (its callers only log a failure): while the
+    // board's signer is unavailable it is queued unsigned instead of lost.
+    let log = match publication_failure_log(task, event_id).await {
+        Ok(log) => log,
+        Err(error) if is_signer_unavailable(&error) => {
+            return PendingStatement::new(&task.tenant_id, event_id, statement)
+                .queue()
+                .await
+                .map(|_| ());
+        }
+        Err(error) => return Err(error),
+    };
+    // Signed only once admitted for its log's order (a refused round signs nothing).
+    match log.post_built(|sd| statement.message(event_id, sd)).await {
+        // Its signer is unavailable, or its log has entries waiting or is busy:
+        // queued behind them (never lost).
+        Err(error)
+            if is_signer_unavailable(&error)
+                || crate::services::electoral_log_deferral::is_scope_gated(&error) =>
+        {
+            PendingStatement::new(&task.tenant_id, event_id, statement)
+                .queue()
+                .await
+                .map(|_| ())
+        }
+        result => result,
+    }
+}
+
+async fn publication_failure_log(task: &TasksExecution, event_id: &str) -> Result<ElectoralLog> {
+    let mut db = get_hasura_pool().await.get().await?;
+    let tx = db.transaction().await?;
+    let event = get_election_event_by_id(&tx, &task.tenant_id, event_id).await?;
+    let board = get_election_event_board(event.bulletin_board_reference)
+        .context("Election event is missing its electoral-log board")?;
+    let log = ElectoralLog::new(&tx, &task.tenant_id, Some(event_id), &board).await?;
+    tx.commit().await?;
+    Ok(log)
 }
 
 /// Identifies the admin user whose request caused a voter password change.
@@ -185,27 +257,211 @@ pub struct PreparedVoterPasswordChangeLog {
     board: String,
     delivery_id: String,
     message: ElectoralLogMessage,
+    /// The log's scope, for its post to be refused while the scope has entries
+    /// waiting for the signer. Absent from entries prepared by an earlier release.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    scope: Option<String>,
 }
 
 impl PreparedVoterPasswordChangeLog {
+    /// An entry prepared by an earlier release carries no scope: its task (which
+    /// knows the tenant and the election event it was prepared for) gives it its
+    /// log's scope before posting it, so it is admitted in order instead of refused.
+    pub fn with_scope_if_missing(&mut self, tenant_id: &str, election_event_id: &str) {
+        if self.scope.is_none() {
+            self.scope = Some(crate::services::electoral_log_deferral::scope_key(
+                tenant_id,
+                election_event_id,
+            ));
+        }
+    }
+
     #[instrument(skip(self), err)]
     pub async fn post(&self) -> Result<()> {
         let entries = [LogEntry {
             delivery_id: self.delivery_id.clone(),
             message: self.message.clone(),
         }];
-        retry_with_exponential_backoff(
-            || async {
-                get_board_client()
-                    .await?
-                    .append(&self.board, &entries)
-                    .await?;
-                Ok(())
-            },
-            5,
-            Duration::from_millis(100),
+        append_gated(self.scope.as_deref(), &self.board, &entries).await
+    }
+}
+
+/// Appends a direct post's entries to `board`. While `scope` has entries
+/// waiting for the signer, the post is refused and nothing is stored (the log
+/// keeps its order: `direct_post_gate`); the scope's lock is held, in a
+/// task-queue database transaction, until the append is done, so no entry can
+/// start waiting in between. A post without a scope is refused.
+async fn append_gated(scope: Option<&str>, board: &str, entries: &[LogEntry]) -> Result<()> {
+    // A post that names no scope is refused (fail closed): it could not be kept in
+    // its log's order. (Entries prepared by an earlier release carry none.)
+    let scope = scope.ok_or_else(|| {
+        anyhow!(
+            "An electoral-log post without its log's scope is refused (it could not keep \
+             the log's order); an entry prepared by an earlier release is given its scope by \
+             its task, any other must be prepared again"
         )
-        .await
+    })?;
+    let admission = ScopeAdmission::admit(scope).await?;
+    let appended = append_admitted(board, entries).await;
+    admission.end().await;
+    appended
+}
+
+/// The append of an admitted post (retried a few times; idempotent by delivery ID).
+async fn append_admitted(board: &str, entries: &[LogEntry]) -> Result<()> {
+    retry_with_exponential_backoff(
+        || async {
+            get_board_client().await?.append(board, entries).await?;
+            Ok(())
+        },
+        5,
+        Duration::from_millis(100),
+    )
+    .await
+}
+
+/// An append to a scope's log admitted for its order: held from [`Self::admit`]
+/// until [`Self::end`] (or drop), around the signing and appending of one round.
+///
+/// Admission takes, in this order (the one lock order of every gated path):
+/// H(S) shared in the action database (refused while S has an outbox entry not
+/// yet relayed: `outbox_gate`), then S's processing lease shared and S's lock
+/// shared in the task-queue database (refused while a batch is processing S or
+/// while S has waiting entries: `direct_post_gate`). While it is held no entry
+/// of S can start waiting and no batch can process S. Under it a path may ONLY
+/// sign and append (no other blocking lock, e.g. a tenant log's creation or the
+/// vault), so no cycle can form. A refusal ([`is_scope_gated`]) signs nothing;
+/// a durable path keeps its item and tries again, without counting a failure.
+///
+/// Each half is a transaction on its own pooled connection; nothing is written
+/// in them. On drop without [`Self::end`] (an early return or a panic) they are
+/// rolled back by a task that owns the connections, so a connection is never
+/// returned to its pool inside an open transaction.
+pub struct ScopeAdmission {
+    scope: String,
+    hasura: Option<deadpool_postgres::Object>,
+    queue: Option<deadpool_postgres::Object>,
+}
+
+impl ScopeAdmission {
+    /// Admits an append to `scope`'s log, or refuses it (see the type).
+    pub async fn admit(scope: &str) -> Result<ScopeAdmission> {
+        let mut admission = ScopeAdmission {
+            scope: scope.to_string(),
+            hasura: None,
+            queue: None,
+        };
+        // First the action database's half: H(S) shared.
+        let hasura =
+            get_hasura_pool().await.get().await.context(
+                "The electoral-log entry is refused: the action database is unavailable",
+            )?;
+        // Held by the admission before BEGIN: cancelled at any await, its drop
+        // rolls back (never a pooled connection inside a transaction).
+        admission.hasura = Some(hasura);
+        admission
+            .hasura
+            .as_ref()
+            .expect("set above")
+            .batch_execute("BEGIN")
+            .await
+            .context("Error starting the electoral-log scope transaction")?;
+        crate::services::electoral_log_outbox::outbox_gate(
+            &***admission.hasura.as_ref().expect("set above"),
+            scope,
+        )
+        .await?;
+        // Then the task-queue database's half: the lease, then the scope lock.
+        // Without that database the gate can't be checked: refused (never
+        // appended out of order), not a panic.
+        let queue = crate::services::database::try_get_queue_pool()
+            .await
+            .context("The electoral-log entry is refused: the task-queue database is unavailable")?
+            .get()
+            .await
+            .context(
+                "The electoral-log entry is refused: the task-queue database is unavailable",
+            )?;
+        admission.queue = Some(queue);
+        admission
+            .queue
+            .as_ref()
+            .expect("set above")
+            .batch_execute("BEGIN")
+            .await
+            .context("Error starting the electoral-log scope transaction")?;
+        crate::services::electoral_log_deferral::direct_post_gate(
+            &***admission.queue.as_ref().expect("set above"),
+            scope,
+        )
+        .await?;
+        Ok(admission)
+    }
+
+    /// The scope admitted.
+    pub fn scope(&self) -> &str {
+        &self.scope
+    }
+
+    /// Ends the admission: releases its locks (nothing was written).
+    pub async fn end(mut self) {
+        // Each client is taken out only once its ROLLBACK is done: if this is
+        // cancelled meanwhile, the admission's drop rolls back what it still holds
+        // (never a pooled connection inside a transaction).
+        for queue_half in [true, false] {
+            let slot = if queue_half {
+                &self.queue
+            } else {
+                &self.hasura
+            };
+            let Some(client) = slot.as_ref() else {
+                continue;
+            };
+            let ended = client.batch_execute("ROLLBACK").await;
+            let client = if queue_half {
+                self.queue.take()
+            } else {
+                self.hasura.take()
+            };
+            if let (Err(error), Some(client)) = (ended, client) {
+                warn!("Error ending the electoral-log scope transaction: {error}");
+                // Not returned to the pool inside a transaction: closed instead.
+                let _ = deadpool_postgres::Object::take(client);
+            }
+        }
+    }
+}
+
+impl Drop for ScopeAdmission {
+    fn drop(&mut self) {
+        let clients: Vec<deadpool_postgres::Object> = [self.queue.take(), self.hasura.take()]
+            .into_iter()
+            .flatten()
+            .collect();
+        if clients.is_empty() {
+            return;
+        }
+        match tokio::runtime::Handle::try_current() {
+            Ok(runtime) => {
+                runtime.spawn(async move {
+                    for client in clients {
+                        if let Err(error) = client.batch_execute("ROLLBACK").await {
+                            warn!(
+                                "Error ending a dropped electoral-log scope transaction: {error}"
+                            );
+                            // Not returned to the pool inside a transaction.
+                            let _ = deadpool_postgres::Object::take(client);
+                        }
+                    }
+                });
+            }
+            Err(_) => {
+                // No runtime to roll back on: the connections are closed, never pooled.
+                for client in clients {
+                    let _ = deadpool_postgres::Object::take(client);
+                }
+            }
+        }
     }
 }
 
@@ -255,6 +511,7 @@ pub async fn prepare_voter_password_change(
         board,
         delivery_id: Uuid::new_v4().to_string(),
         message,
+        scope: electoral_log.scope.clone(),
     })
 }
 
@@ -484,11 +741,12 @@ async fn prepare_voter_secret_attribute_audit(
         board,
         delivery_id: Uuid::new_v4().to_string(),
         message,
+        scope: electoral_log.scope.clone(),
     })
 }
 
 /// Prefix of the delivery IDs of checkpoint statements, which are unique per log size.
-const CHECKPOINT_DELIVERY_PREFIX: &str = "electoral-log-checkpoint:";
+pub const CHECKPOINT_DELIVERY_PREFIX: &str = "electoral-log-checkpoint:";
 /// Prefix of the delivery IDs of continuation statements, unique per continued log.
 const CONTINUATION_DELIVERY_PREFIX: &str = "electoral-log-continuation:";
 /// Prefix of the delivery IDs of approval matrix versions: `<version>:<sha256>`.
@@ -556,7 +814,9 @@ pub fn sign_checkpoint(
             root: hex::encode(&checkpoint.root),
             reason: reason.to_string(),
             signer_pk: sd.system_public_key()?.to_b64_string()?,
-            signature: sd.system_sign(&bytes)?.to_b64_string()?,
+            signature: sd
+                .system_sign(electoral_log::signature::Domain::Checkpoint, &bytes)?
+                .to_b64_string()?,
         },
     )
 }
@@ -606,6 +866,12 @@ fn csv_log_entry(row: ElectoralLogRow) -> Result<LogEntry> {
 pub struct ElectoralLog {
     pub(crate) sd: SigningData,
     pub(crate) elog_database: String,
+    /// The log's scope (tenant and election event) when its constructor knows it
+    /// ([`ElectoralLog::new`], `new_from_sk`, `for_voter`, `for_admin_user`): its
+    /// direct posts are refused while the scope has entries waiting for the
+    /// signer, so the log keeps its order
+    /// ([`crate::services::electoral_log_deferral::direct_post_gate`]).
+    pub(crate) scope: Option<String>,
 }
 
 pub fn flatten_election_ids(election_ids: Option<Vec<String>>) -> Option<String> {
@@ -629,13 +895,16 @@ impl ElectoralLog {
         report: &crate::domain::readiness::ReadinessReport,
         actor: &crate::services::audit_log::AuditActor,
     ) -> Result<()> {
-        let message = self.readiness_verified_message(event_id, report, actor)?;
         let entry_id = report
             .log_entry_id
             .as_ref()
             .context("Readiness entry has no delivery identity")?;
-        self.post_with_delivery_id(&message, format!("readiness:{entry_id}"))
-            .await
+        // Signed (with this log's signing data) only once admitted.
+        self.post_built_with_delivery_id(
+            |_| self.readiness_verified_message(event_id, report, actor),
+            format!("readiness:{entry_id}"),
+        )
+        .await
     }
 
     /// The signed ReadinessVerified entry. It is the person's USER entry when
@@ -695,7 +964,7 @@ impl ElectoralLog {
         let election_event_id =
             election_event_id_opt.ok_or(anyhow!("Election event id is required"))?;
 
-        let protocol_manager = get_board_signing_key(
+        let system = get_board_signer(
             hasura_transaction,
             tenant_id,
             Some(election_event_id),
@@ -704,8 +973,12 @@ impl ElectoralLog {
         .await?;
 
         Ok(ElectoralLog {
-            sd: SigningData::new(protocol_manager.clone(), "", protocol_manager.clone()),
+            sd: SigningData::with_signers(system.clone(), "", system),
             elog_database: elog_database.to_string(),
+            scope: Some(crate::services::electoral_log_deferral::scope_key(
+                tenant_id,
+                election_event_id,
+            )),
         })
     }
 
@@ -717,18 +990,21 @@ impl ElectoralLog {
         elog_database: &str,
         sender_sk: &SigningKey,
     ) -> Result<Self> {
-        let protocol_manager = get_board_signing_key(
+        let system = get_board_signer(
             hasura_transaction,
             tenant_id,
             Some(election_event_id),
             elog_database,
         )
         .await?;
-        let system_sk = protocol_manager.clone();
 
         Ok(ElectoralLog {
-            sd: SigningData::new(sender_sk.clone(), "", system_sk),
+            sd: SigningData::with_signers(software(sender_sk.clone()), "", system),
             elog_database: elog_database.to_string(),
+            scope: Some(crate::services::electoral_log_deferral::scope_key(
+                tenant_id,
+                election_event_id,
+            )),
         })
     }
 
@@ -739,6 +1015,27 @@ impl ElectoralLog {
         Self {
             sd: SigningData::new(system_sk.clone(), "", system_sk.clone()),
             elog_database: elog_database.to_string(),
+            scope: None,
+        }
+    }
+
+    /// As [`ElectoralLog::for_system_with_signing_key`], with a board signer
+    /// from [`get_board_signer`] (a software key or an external signer).
+    pub fn for_system_with_signer(elog_database: &str, system: SharedSigner) -> Self {
+        Self {
+            sd: SigningData::with_signers(system.clone(), "", system),
+            elog_database: elog_database.to_string(),
+            scope: None,
+        }
+    }
+
+    /// As [`ElectoralLog::for_voter_with_signing_key`], with a board signer
+    /// from [`get_board_signer`].
+    pub fn for_voter_with_signer(elog_database: &str, user_id: &str, system: SharedSigner) -> Self {
+        Self {
+            sd: SigningData::with_signers(system.clone(), user_id, system),
+            elog_database: elog_database.to_string(),
+            scope: None,
         }
     }
 
@@ -752,6 +1049,7 @@ impl ElectoralLog {
         Self {
             sd: SigningData::new(system_sk.clone(), user_id, system_sk.clone()),
             elog_database: elog_database.to_string(),
+            scope: None,
         }
     }
 
@@ -772,14 +1070,15 @@ impl ElectoralLog {
         user_id: &str,
         voter_signing_key: &Option<VerificationKey>,
     ) -> Result<Self> {
-        let protocol_manager =
-            get_board_signing_key(hasura_transaction, tenant_id, Some(event_id), elog_database)
-                .await?;
-        let system_sk = protocol_manager.clone();
+        let system =
+            get_board_signer(hasura_transaction, tenant_id, Some(event_id), elog_database).await?;
 
         Ok(ElectoralLog {
-            sd: SigningData::new(system_sk.clone(), user_id, system_sk),
+            sd: SigningData::with_signers(system.clone(), user_id, system),
             elog_database: elog_database.to_string(),
+            scope: Some(crate::services::electoral_log_deferral::scope_key(
+                tenant_id, event_id,
+            )),
         })
     }
 
@@ -803,14 +1102,13 @@ impl ElectoralLog {
         user_area_id: Option<String>,
     ) -> Result<Self> {
         let election_ids = flatten_election_ids(election_ids_vec);
-        let protocol_manager = get_board_signing_key(
+        let system = get_board_signer(
             hasura_transaction,
             tenant_id,
             Some(election_event_id),
             elog_database,
         )
         .await?;
-        let system_sk = protocol_manager.clone();
 
         let sk = vault::get_admin_user_signing_key(
             hasura_transaction,
@@ -823,8 +1121,12 @@ impl ElectoralLog {
         .await?;
 
         Ok(ElectoralLog {
-            sd: SigningData::new(sk, "", system_sk),
+            sd: SigningData::with_signers(software(sk), "", system),
             elog_database: elog_database.to_string(),
+            scope: Some(crate::services::electoral_log_deferral::scope_key(
+                tenant_id,
+                election_event_id,
+            )),
         })
     }
 
@@ -839,11 +1141,9 @@ impl ElectoralLog {
         pk_der_b64: &str,
         area_id: &str,
     ) -> Result<()> {
-        let protocol_manager =
-            get_board_signing_key(hasura_transaction, tenant_id, Some(event_id), elog_database)
-                .await?;
-        let system_sk = protocol_manager.clone();
-        let sd = SigningData::new(system_sk.clone(), "", system_sk.clone());
+        let system =
+            get_board_signer(hasura_transaction, tenant_id, Some(event_id), elog_database).await?;
+        let sd = SigningData::with_signers(system.clone(), "", system);
 
         let pseudonym = hash_voter_id(&user_id)?;
         let message = Message::voter_public_key_message(
@@ -873,6 +1173,7 @@ impl ElectoralLog {
             event_time_ms: None,
             details: None,
             admin_event: None,
+            deferral: None,
         };
 
         let celery_app = try_get_celery_app().await?;
@@ -900,6 +1201,13 @@ impl ElectoralLog {
         user_area_id: Option<String>,
     ) -> Result<()> {
         let elog_database = tenant_log.board.as_str();
+        // Admitted for the tenant log's order before it is signed: not while
+        // the tenant's own scope has entries waiting (e.g. one that arrived
+        // before the tenant existed) or a batch is processing it. Refused:
+        // nothing signed; the key is kept and announced by the backfill (as
+        // after any failed announcement).
+        let scope = crate::services::electoral_log_deferral::scope_key(tenant_id, "");
+        let admission = ScopeAdmission::admit(&scope).await?;
         let system_sk = tenant_log.system_key.clone();
         let sd = SigningData::new(system_sk.clone(), "", system_sk.clone());
 
@@ -916,11 +1224,19 @@ impl ElectoralLog {
         let elog = ElectoralLog {
             sd,
             elog_database: elog_database.to_string(),
+            scope: None,
         };
 
-        let ret = elog
-            .post_with_delivery_id(&message, admin_pk_delivery_id(user_id, pk_der_b64))
-            .await;
+        // Appended under the admission held above (not admitted again).
+        let ret = append_admitted(
+            &elog.elog_database,
+            &[LogEntry {
+                delivery_id: admin_pk_delivery_id(user_id, pk_der_b64),
+                message: (&message).try_into()?,
+            }],
+        )
+        .await;
+        admission.end().await;
 
         if ret.is_err() {
             tracing::error!(
@@ -947,23 +1263,38 @@ impl ElectoralLog {
         voter_username: Option<String>,
         area_id: String,
     ) -> Result<()> {
-        let event = EventIdString(event_id.clone());
-        let election = ElectionIdString(election_id);
-        let error = CastVoteErrorString(error);
-        let ip = VoterIpString(voter_ip);
-        let country = VoterCountryString(voter_country);
-
         let message = Message::cast_vote_error_message(
-            event,
-            election,
-            pseudonym_h,
-            error,
+            EventIdString(event_id.clone()),
+            ElectionIdString(election_id.clone()),
+            pseudonym_h.clone(),
+            CastVoteErrorString(error.clone()),
             &self.sd,
-            ip,
-            country,
+            VoterIpString(voter_ip),
+            VoterCountryString(voter_country),
             Some(voter_id.clone()),
-            area_id,
-        )?;
+            area_id.clone(),
+        );
+        // Already queued and best-effort (the refusal stands whatever happens to
+        // its audit, and its caller only logs a failure): while the board's
+        // signer is unavailable it is queued unsigned, for the batch task to
+        // sign, instead of lost. The unsigned statement keeps no IP or country.
+        let message = match message {
+            Ok(message) => message,
+            Err(failure) if is_signer_unavailable(&failure) => {
+                let statement = PendingStatementBody::CastVoteError {
+                    election_id,
+                    pseudonym: pseudonym_h,
+                    error,
+                    voter_id: voter_id.clone(),
+                    area_id,
+                };
+                return PendingStatement::new(&tenant_id, &event_id, statement)
+                    .queue()
+                    .await
+                    .map(|_| ());
+            }
+            Err(failure) => return Err(failure),
+        };
         let board_message: ElectoralLogMessage = (&message).try_into().with_context(|| {
             "Error converting Message::cast_vote_error_message into ElectoralLogMessage"
         })?;
@@ -981,6 +1312,7 @@ impl ElectoralLog {
             event_time_ms: None,
             details: None,
             admin_event: None,
+            deferral: None,
         };
         let celery_app = try_get_celery_app().await?;
         celery_app
@@ -1032,6 +1364,7 @@ impl ElectoralLog {
             event_time_ms: None,
             details: None,
             admin_event: None,
+            deferral: None,
         };
         let celery_app = try_get_celery_app().await?;
         celery_app
@@ -1062,20 +1395,21 @@ impl ElectoralLog {
     ) -> Result<()> {
         let event = EventIdString(event_id);
 
-        let message = Message::external_reconciliation_message(
-            event,
-            kind,
-            ExternalReconciliationSequenceString(sequence.to_string()),
-            ExternalReconciliationGeneratedAtString(generated_at.to_string()),
-            ExternalReconciliationInputHashString(input_sha256),
-            ExternalReconciliationOutputHashString(output_sha256),
-            artifact,
-            &self.sd,
-            user_id,
-            username,
-        )?;
-
-        self.post(&message).await
+        self.post_built(|sd| {
+            Message::external_reconciliation_message(
+                event,
+                kind,
+                ExternalReconciliationSequenceString(sequence.to_string()),
+                ExternalReconciliationGeneratedAtString(generated_at.to_string()),
+                ExternalReconciliationInputHashString(input_sha256),
+                ExternalReconciliationOutputHashString(output_sha256),
+                artifact,
+                sd,
+                user_id,
+                username,
+            )
+        })
+        .await
     }
 
     #[instrument(skip(self))]
@@ -1086,15 +1420,16 @@ impl ElectoralLog {
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<()> {
-        let message = Message::results_publication_action_message(
-            EventIdString(event_id),
-            details,
-            &self.sd,
-            user_id,
-            username,
-        )?;
-
-        self.post(&message).await
+        self.post_built(|sd| {
+            Message::results_publication_action_message(
+                EventIdString(event_id),
+                details,
+                sd,
+                user_id,
+                username,
+            )
+        })
+        .await
     }
 
     /// Posts a new version of the election event's approval matrix, once per
@@ -1109,16 +1444,20 @@ impl ElectoralLog {
         username: Option<String>,
     ) -> Result<()> {
         let delivery_id = approval_matrix_delivery_id(version, &sha256);
-        let message = Message::approval_matrix_updated_message(
-            EventIdString(event_id),
-            ApprovalMatrixVersion(version),
-            ApprovalMatrixDigestString(sha256),
-            &self.sd,
-            user_id,
-            username,
-        )?;
-
-        self.post_with_delivery_id(&message, delivery_id).await
+        self.post_built_with_delivery_id(
+            |sd| {
+                Message::approval_matrix_updated_message(
+                    EventIdString(event_id),
+                    ApprovalMatrixVersion(version),
+                    ApprovalMatrixDigestString(sha256),
+                    sd,
+                    user_id,
+                    username,
+                )
+            },
+            delivery_id,
+        )
+        .await
     }
 
     /// Posts a change to the election event's monitoring dashboards, once per
@@ -1132,15 +1471,19 @@ impl ElectoralLog {
         username: Option<String>,
     ) -> Result<()> {
         let delivery_id = monitoring_config_delivery_id(&details)?;
-        let message = Message::monitoring_config_changed_message(
-            EventIdString(event_id),
-            details,
-            &self.sd,
-            user_id,
-            username,
-        )?;
-
-        self.post_with_delivery_id(&message, delivery_id).await
+        self.post_built_with_delivery_id(
+            |sd| {
+                Message::monitoring_config_changed_message(
+                    EventIdString(event_id),
+                    details,
+                    sd,
+                    user_id,
+                    username,
+                )
+            },
+            delivery_id,
+        )
+        .await
     }
 
     /// Posts a signed configuration package's import, once per package
@@ -1154,15 +1497,19 @@ impl ElectoralLog {
         username: Option<String>,
     ) -> Result<()> {
         let delivery_id = configuration_package_delivery_id(&details.package);
-        let message = Message::configuration_package_with_content_hash_message(
-            EventIdString(event_id),
-            details,
-            &self.sd,
-            user_id,
-            username,
-        )?;
-
-        self.post_with_delivery_id(&message, delivery_id).await
+        self.post_built_with_delivery_id(
+            |sd| {
+                Message::configuration_package_with_content_hash_message(
+                    EventIdString(event_id),
+                    details,
+                    sd,
+                    user_id,
+                    username,
+                )
+            },
+            delivery_id,
+        )
+        .await
     }
 
     /// Posts the hash manifest of a generated report, once per manifest.
@@ -1175,15 +1522,19 @@ impl ElectoralLog {
         username: Option<String>,
     ) -> Result<()> {
         let delivery_id = report_generated_delivery_id(&details);
-        let message = Message::report_generated_message(
-            EventIdString(event_id),
-            details,
-            &self.sd,
-            user_id,
-            username,
-        )?;
-
-        self.post_with_delivery_id(&message, delivery_id).await
+        self.post_built_with_delivery_id(
+            |sd| {
+                Message::report_generated_message(
+                    EventIdString(event_id),
+                    details,
+                    sd,
+                    user_id,
+                    username,
+                )
+            },
+            delivery_id,
+        )
+        .await
     }
 
     /// Posts a publication. For an event imported from a signed
@@ -1199,15 +1550,18 @@ impl ElectoralLog {
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<()> {
-        let message = self.election_published_message(
-            event_id,
-            election_ids_vec,
-            ballot_pub_id,
-            configuration,
-            user_id,
-            username,
-        )?;
-        self.post(&message).await
+        // Signed (with this log's signing data) only once admitted.
+        self.post_built(|_| {
+            self.election_published_message(
+                event_id,
+                election_ids_vec,
+                ballot_pub_id,
+                configuration,
+                user_id,
+                username,
+            )
+        })
+        .await
     }
 
     fn election_published_message(
@@ -1242,17 +1596,18 @@ impl ElectoralLog {
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
-        let message = Message::election_open_message(
-            event,
-            election,
-            elections_ids,
-            voting_channel,
-            &self.sd,
-            user_id,
-            username,
-        )?;
-
-        self.post(&message).await
+        self.post_built(|sd| {
+            Message::election_open_message(
+                event,
+                election,
+                elections_ids,
+                voting_channel,
+                sd,
+                user_id,
+                username,
+            )
+        })
+        .await
     }
 
     #[instrument(skip(self))]
@@ -1267,16 +1622,10 @@ impl ElectoralLog {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
 
-        let message = Message::election_pause_message(
-            event,
-            election,
-            voting_channel,
-            &self.sd,
-            user_id,
-            username,
-        )?;
-
-        self.post(&message).await
+        self.post_built(|sd| {
+            Message::election_pause_message(event, election, voting_channel, sd, user_id, username)
+        })
+        .await
     }
 
     #[instrument(skip(self))]
@@ -1292,17 +1641,18 @@ impl ElectoralLog {
         let event = EventIdString(event_id);
         let election = election_id.map(|id| ElectionIdString(Some(id)));
 
-        let message = Message::election_close_message(
-            event,
-            election,
-            elections_ids,
-            voting_channel,
-            &self.sd,
-            user_id,
-            username,
-        )?;
-
-        self.post(&message).await
+        self.post_built(|sd| {
+            Message::election_close_message(
+                event,
+                election,
+                elections_ids,
+                voting_channel,
+                sd,
+                user_id,
+                username,
+            )
+        })
+        .await
     }
 
     #[instrument(skip_all)]
@@ -1319,16 +1669,18 @@ impl ElectoralLog {
             &error_message,
         ));
         let event_type = KeycloakEventTypeString(event_type);
-        let message = Message::keycloak_user_event(
-            event,
-            event_type,
-            error_message,
-            user_id,
-            username,
-            &self.sd,
-            None,
-        )?;
-        self.post(&message).await
+        self.post_built(|sd| {
+            Message::keycloak_user_event(
+                event,
+                event_type,
+                error_message,
+                user_id,
+                username,
+                sd,
+                None,
+            )
+        })
+        .await
     }
 
     #[instrument(skip(self))]
@@ -1341,9 +1693,8 @@ impl ElectoralLog {
     ) -> Result<()> {
         let event = EventIdString(event_id);
 
-        let message = Message::keygen_message(event, &self.sd, user_id, username, election_id)?;
-
-        self.post(&message).await
+        self.post_built(|sd| Message::keygen_message(event, sd, user_id, username, election_id))
+            .await
     }
 
     #[instrument(skip(self))]
@@ -1357,10 +1708,10 @@ impl ElectoralLog {
         let event = EventIdString(event_id);
         let election_ids = flatten_election_ids(election_ids_vec);
 
-        let message =
-            Message::key_insertion_start(event, &self.sd, user_id, username, election_ids)?;
-
-        self.post(&message).await
+        self.post_built(|sd| {
+            Message::key_insertion_start(event, sd, user_id, username, election_ids)
+        })
+        .await
     }
 
     #[instrument(skip(self))]
@@ -1376,16 +1727,10 @@ impl ElectoralLog {
         let trustee_name = TrusteeNameString(trustee_name);
         let election_ids = flatten_election_ids(election_ids_vec);
 
-        let message = Message::key_insertion_message(
-            event,
-            trustee_name,
-            &self.sd,
-            user_id,
-            username,
-            election_ids,
-        )?;
-
-        self.post(&message).await
+        self.post_built(|sd| {
+            Message::key_insertion_message(event, trustee_name, sd, user_id, username, election_ids)
+        })
+        .await
     }
 
     #[instrument(skip(self))]
@@ -1400,9 +1745,8 @@ impl ElectoralLog {
         let election_ids = flatten_election_ids(election_ids_vec);
         let election = ElectionIdString(election_ids);
 
-        let message = Message::tally_open_message(event, election, &self.sd, user_id, username)?;
-
-        self.post(&message).await
+        self.post_built(|sd| Message::tally_open_message(event, election, sd, user_id, username))
+            .await
     }
 
     #[instrument(skip(self))]
@@ -1417,9 +1761,8 @@ impl ElectoralLog {
         let election_ids = flatten_election_ids(election_ids_vec);
         let election = ElectionIdString(election_ids);
 
-        let message = Message::tally_close_message(event, election, &self.sd, user_id, username)?;
-
-        self.post(&message).await
+        self.post_built(|sd| Message::tally_close_message(event, election, sd, user_id, username))
+            .await
     }
 
     #[instrument(skip(self))]
@@ -1435,12 +1778,11 @@ impl ElectoralLog {
         let event = EventIdString(event_id);
         let election = ElectionIdString(election_id);
 
-        let message = Message::send_template(
-            event, election, &self.sd, user_id, username, message, area_id,
-        )
-        .map_err(|e| anyhow!("Error sending template: {e:?}"))?;
-
-        self.post(&message).await
+        self.post_built(|sd| {
+            Message::send_template(event, election, sd, user_id, username, message, area_id)
+                .context("Error sending template")
+        })
+        .await
     }
 
     #[instrument(skip(self))]
@@ -1454,11 +1796,11 @@ impl ElectoralLog {
         let election_ids = flatten_election_ids(election_ids_vec);
         let election = ElectionIdString(election_ids);
 
-        let message =
-            Message::tally_resumed_with_resolution(event, election, resolution_ids, &self.sd)
-                .map_err(|e| anyhow!("Error posting tally resumed with resolution: {e:?}"))?;
-
-        self.post(&message).await
+        self.post_built(|sd| {
+            Message::tally_resumed_with_resolution(event, election, resolution_ids, sd)
+                .context("Error posting tally resumed with resolution")
+        })
+        .await
     }
 
     #[instrument(skip(self))]
@@ -1472,11 +1814,11 @@ impl ElectoralLog {
         let election_ids = flatten_election_ids(election_ids_vec);
         let election = ElectionIdString(election_ids);
 
-        let message =
-            Message::tally_paused_pending_resolutions(event, election, resolution_ids, &self.sd)
-                .map_err(|e| anyhow!("Error posting tally paused pending resolution: {e:?}"))?;
-
-        self.post(&message).await
+        self.post_built(|sd| {
+            Message::tally_paused_pending_resolutions(event, election, resolution_ids, sd)
+                .context("Error posting tally paused pending resolution")
+        })
+        .await
     }
 
     #[instrument(skip(self))]
@@ -1494,18 +1836,19 @@ impl ElectoralLog {
         let election = ElectionIdString(election_ids);
         let contest = ContestIdString(contest_id);
 
-        let message = Message::tally_tie_resolved(
-            event,
-            election,
-            contest,
-            resolution_id,
-            &self.sd,
-            user_id,
-            username,
-        )
-        .map_err(|e| anyhow!("Error posting tally tie resolved: {e:?}"))?;
-
-        self.post(&message).await
+        self.post_built(|sd| {
+            Message::tally_tie_resolved(
+                event,
+                election,
+                contest,
+                resolution_id,
+                sd,
+                user_id,
+                username,
+            )
+            .context("Error posting tally tie resolved")
+        })
+        .await
     }
 
     #[instrument(skip(self))]
@@ -1523,18 +1866,19 @@ impl ElectoralLog {
         let election = ElectionIdString(election_ids);
         let contest = ContestIdString(contest_id);
 
-        let message = Message::tally_tie_resolution_updated(
-            event,
-            election,
-            contest,
-            resolution_id,
-            &self.sd,
-            user_id,
-            username,
-        )
-        .map_err(|e| anyhow!("Error posting tally tie resolution updated: {e:?}"))?;
-
-        self.post(&message).await
+        self.post_built(|sd| {
+            Message::tally_tie_resolution_updated(
+                event,
+                election,
+                contest,
+                resolution_id,
+                sd,
+                user_id,
+                username,
+            )
+            .context("Error posting tally tie resolution updated")
+        })
+        .await
     }
 
     #[instrument(skip(self))]
@@ -1547,15 +1891,17 @@ impl ElectoralLog {
         username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
-        let message = Message::certificate_auth_event_message(
-            event,
-            action,
-            subject_dns,
-            &self.sd,
-            user_id,
-            username,
-        )?;
-        self.post(&message).await
+        self.post_built(|sd| {
+            Message::certificate_auth_event_message(
+                event,
+                action,
+                subject_dns,
+                sd,
+                user_id,
+                username,
+            )
+        })
+        .await
     }
 
     /// Publish a signed checkpoint of this event's electoral log.
@@ -1606,30 +1952,51 @@ impl ElectoralLog {
         );
         hasura_transaction.commit().await?;
         // Record the stored publication in the log. The delivery ID is fixed per log size,
-        // so publishing the same size again, or retrying, records it once.
-        let message = Message::electoral_log_checkpoint_message(
-            EventIdString(election_event_id.to_string()),
-            ElectoralLogCheckpointV2 {
-                log_uid: checkpoint.log_uid.hyphenated().to_string(),
-                tree_size: checkpoint.tree_size,
-                root: published.root.clone(),
-                reason: stored
-                    .reason
-                    .parse()
-                    .with_context(|| format!("Unknown checkpoint reason {}", stored.reason))?,
-            },
-            &self.sd,
-        )?;
-        self.post_with_delivery_id(
-            &message,
-            format!(
-                "{CHECKPOINT_DELIVERY_PREFIX}{}:{}",
-                checkpoint.log_uid, checkpoint.tree_size
-            ),
+        // so publishing the same size again, or retrying, records it once. Refused for
+        // the log's order (or failed), the record is not lost: the checkpoint is stored,
+        // and `record_missing_checkpoints` records it later (signed only when admitted).
+        let reason = stored
+            .reason
+            .parse()
+            .with_context(|| format!("Unknown checkpoint reason {}", stored.reason))?;
+        self.post_checkpoint_record(
+            election_event_id,
+            &checkpoint.log_uid.hyphenated().to_string(),
+            checkpoint.tree_size,
+            &published.root,
+            reason,
         )
         .await
-        .context("The checkpoint was stored but could not be recorded in the log")?;
+        .context("The checkpoint was stored but could not be recorded in the log yet")?;
         Ok(checkpoint)
+    }
+
+    /// Records a stored checkpoint in the log, once per log size (fixed delivery
+    /// ID), signed only once the record is admitted for the log's order.
+    pub async fn post_checkpoint_record(
+        &self,
+        election_event_id: &str,
+        log_uid: &str,
+        tree_size: u64,
+        root: &str,
+        reason: ElectoralLogCheckpointReason,
+    ) -> Result<()> {
+        self.post_built_with_delivery_id(
+            |sd| {
+                Message::electoral_log_checkpoint_message(
+                    EventIdString(election_event_id.to_string()),
+                    ElectoralLogCheckpointV2 {
+                        log_uid: log_uid.to_string(),
+                        tree_size,
+                        root: root.to_string(),
+                        reason,
+                    },
+                    sd,
+                )
+            },
+            format!("{CHECKPOINT_DELIVERY_PREFIX}{log_uid}:{tree_size}"),
+        )
+        .await
     }
 
     /// Record that this board continues a log, whose last checkpoint is `previous`,
@@ -1641,18 +2008,19 @@ impl ElectoralLog {
         election_event_id: &str,
         previous: &electoral_log::proofs::Checkpoint,
     ) -> Result<()> {
-        let message = Message::electoral_log_continuation_message(
-            EventIdString(election_event_id.to_string()),
-            ElectoralLogContinuation {
-                previous_log_name: previous.log_name.clone(),
-                previous_log_uid: previous.log_uid.hyphenated().to_string(),
-                tree_size: previous.tree_size,
-                root: hex::encode(&previous.root),
+        self.post_built_with_delivery_id(
+            |sd| {
+                Message::electoral_log_continuation_message(
+                    EventIdString(election_event_id.to_string()),
+                    ElectoralLogContinuation {
+                        previous_log_name: previous.log_name.clone(),
+                        previous_log_uid: previous.log_uid.hyphenated().to_string(),
+                        tree_size: previous.tree_size,
+                        root: hex::encode(&previous.root),
+                    },
+                    sd,
+                )
             },
-            &self.sd,
-        )?;
-        self.post_with_delivery_id(
-            &message,
             format!("{CONTINUATION_DELIVERY_PREFIX}{}", previous.log_uid),
         )
         .await
@@ -1664,6 +2032,36 @@ impl ElectoralLog {
             .await
     }
 
+    /// Posts the message `build` makes, signed only once the post is admitted
+    /// for its log's order (`ScopeAdmission`): a refused post signs nothing.
+    async fn post_built<F>(&self, build: F) -> Result<()>
+    where
+        F: FnOnce(&SigningData) -> Result<Message>,
+    {
+        self.post_built_with_delivery_id(build, Uuid::new_v4().to_string())
+            .await
+    }
+
+    /// [`Self::post_built`] under a delivery ID; a repeated delivery ID appends nothing.
+    async fn post_built_with_delivery_id<F>(&self, build: F, delivery_id: String) -> Result<()>
+    where
+        F: FnOnce(&SigningData) -> Result<Message>,
+    {
+        // Without its scope a post can't be kept in order: refused before signing.
+        let scope = self.scope.as_deref().ok_or_else(|| {
+            anyhow!("An electoral-log post without its log's scope is refused (it could not keep the log's order)")
+        })?;
+        let admission = ScopeAdmission::admit(scope).await?;
+        let message = build(&self.sd)?;
+        let ms = vec![LogEntry {
+            delivery_id,
+            message: (&message).try_into()?,
+        }];
+        let appended = append_admitted(&self.elog_database, &ms).await;
+        admission.end().await;
+        appended
+    }
+
     /// Append a message under a delivery ID; a repeated delivery ID appends nothing.
     #[instrument(skip(self, message), err)]
     async fn post_with_delivery_id(&self, message: &Message, delivery_id: String) -> Result<()> {
@@ -1673,19 +2071,7 @@ impl ElectoralLog {
             message: board_message,
         }];
 
-        retry_with_exponential_backoff(
-            // The closure we want to call repeatedly
-            || async {
-                let client = get_board_client().await?;
-                client.append(self.elog_database.as_str(), &ms).await?;
-                Ok(())
-            },
-            // Maximum number of retries:
-            5,
-            // Initial backoff:
-            Duration::from_millis(100),
-        )
-        .await
+        append_gated(self.scope.as_deref(), &self.elog_database, &ms).await
     }
 
     /// Builds a keycloak event message and returns the resulting ElectoralLogMessage.
@@ -1737,7 +2123,7 @@ impl ElectoralLog {
             message_body,
             area_id,
         )
-        .map_err(|e| anyhow!("Error creating send template message: {:?}", e))?;
+        .context("Error creating send template message")?;
         let board_message: ElectoralLogMessage = message.try_into()?;
         Ok(board_message)
     }
@@ -1748,10 +2134,20 @@ impl ElectoralLog {
         let mut entries = reader
             .deserialize::<ElectoralLogRow>()
             .map(|row| csv_log_entry(row.context("Failed to read electoral-log CSV row")?));
-        get_board_client()
+        // A restore of records already signed (nothing is signed here), still
+        // admitted for the log's order and held until it is done, like any
+        // other append: never while the log has entries waiting or a batch is
+        // processing it. Refused: the import fails visibly and can be run again.
+        let scope = self.scope.as_deref().ok_or_else(|| {
+            anyhow!("An electoral-log import without its log's scope is refused (it could not keep the log's order)")
+        })?;
+        let admission = ScopeAdmission::admit(scope).await?;
+        let imported = get_board_client()
             .await?
             .append_iter(&self.elog_database, &mut entries)
-            .await?;
+            .await;
+        admission.end().await;
+        imported?;
         Ok(())
     }
 }
@@ -2395,18 +2791,42 @@ pub fn get_cols_match_count_and_select(
             ElectoralLogVarCharColumn::UserId,
             (SqlCompOperators::Equal, user_id.to_string()),
         );
+        // A hex filter holds no LIKE wildcards: this matches a prefix.
         cols_match_select.insert(
             ElectoralLogVarCharColumn::BallotId,
-            (SqlCompOperators::Like, ballot_id_filter.to_string()),
+            (SqlCompOperators::Like, format!("{ballot_id_filter}%")),
         );
     }
 
     (cols_match_count, cols_match_select)
 }
 
-/// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input
-/// ballot_id_filter is restricted to be an even number of characters, so that can be converted
-/// to a byte array
+/// Lowercases a Ballot ID prefix and checks that it is an even number of hex
+/// characters, no longer than a Ballot ID.
+pub fn normalize_ballot_id_filter(ballot_id_filter: &str) -> Result<String> {
+    let ballot_id_filter = ballot_id_filter.trim().to_ascii_lowercase();
+    ensure!(
+        ballot_id_filter.len() % 2 == 0
+            && ballot_id_filter.len() <= BALLOT_ID_LENGTH_CHARS
+            && ballot_id_filter.chars().all(|c| c.is_ascii_hexdigit()),
+        "Incorrect ballot_id, it must be an even number of hexadecimal characters, at most {BALLOT_ID_LENGTH_CHARS}"
+    );
+    Ok(ballot_id_filter)
+}
+
+/// Page size and offset of a voter's request, with the page size capped at
+/// MAX_ROWS_PER_PAGE.
+fn cast_vote_page(limit: Option<i64>, offset: Option<i64>) -> (i64, i64) {
+    let max_rows = MAX_ROWS_PER_PAGE as i64;
+    (
+        limit.unwrap_or(max_rows).clamp(0, max_rows),
+        offset.unwrap_or(0).max(0),
+    )
+}
+
+/// Returns the entries for statement_kind = "CastVote" or, with a ballot_id_filter, the
+/// voter's own entry which ballot_id starts with it. The filter is restricted to an even
+/// number of hex characters, so that can be converted to a byte array
 #[instrument(skip_all)]
 pub async fn list_cast_vote_messages(
     input: GetElectoralLogBody,
@@ -2414,14 +2834,11 @@ pub async fn list_cast_vote_messages(
     user_id: &str,
     username: &str,
 ) -> Result<CastVoteMessagesOutput> {
-    ensure!(
-        ballot_id_filter.chars().count() % 2 == 0 && ballot_id_filter.is_ascii(),
-        "Incorrect ballot_id, the length must be an even number of characters"
-    );
+    let ballot_id_filter = normalize_ballot_id_filter(ballot_id_filter)?;
+    let ballot_id_filter = ballot_id_filter.as_str();
     check_cast_vote_order_by(input.order_by.as_ref())?;
     // The limits are used to cut the output after filtering the ballot id.
-    // Because ballot_id cannot be filtered at SQL level the sql limit is constant
-    let output_limit: i64 = input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64);
+    let (output_limit, mut offset) = cast_vote_page(input.limit, input.offset);
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let board_name = get_event_board(
         input.tenant_id.as_str(),
@@ -2434,9 +2851,8 @@ pub async fn list_cast_vote_messages(
 
     let limit: i64 = match ballot_id_filter.is_empty() {
         false => ELECTORAL_LOG_ROWS_LIMIT as i64, // When there is a filter, need to fetch all entries by batches.
-        true => input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64),
+        true => output_limit,
     };
-    let mut offset: i64 = input.offset.unwrap_or(0);
     let mut list: Vec<CastVoteEntry> = Vec::with_capacity(MAX_ROWS_PER_PAGE); // Filtered messages.
     let (cols_match_count, cols_match_select) =
         get_cols_match_count_and_select(&election_id, user_id, ballot_id_filter);
@@ -2470,6 +2886,11 @@ pub async fn list_cast_vote_messages(
             if (list.len() as i64) >= output_limit || filter_matched {
                 break;
             }
+        }
+        // A short batch is the last one, so a filter without a match costs
+        // one read, not one per batch of the election's cast votes.
+        if (t_entries as i64) < limit {
+            break;
         }
         offset += limit;
     }
@@ -2565,6 +2986,7 @@ mod password_change_tests {
             board: "event-board".to_string(),
             delivery_id: "delivery-id".to_string(),
             message: prepared_message(),
+            scope: None,
         };
 
         let serialized = serde_json::to_value(&prepared).unwrap();
@@ -2645,10 +3067,15 @@ mod postgres_wiring_tests {
             Some("username".into()),
             None,
         )?;
+        // As prepared now (with its log's scope; one without is refused:
+        // ordering_gate_tests), posted twice: stored once.
         let prepared = PreparedVoterPasswordChangeLog {
             board: board.clone(),
             delivery_id: Uuid::new_v4().to_string(),
             message: message.clone(),
+            scope: Some(crate::services::electoral_log_deferral::scope_key(
+                &tenant, &event,
+            )),
         };
         prepared.post().await?;
         prepared.post().await?;
@@ -2678,6 +3105,130 @@ mod postgres_wiring_tests {
         databases.drop_event(&tenant, &event).await?;
         assert!(!databases.has_event(&event).await?);
         Ok(())
+    }
+
+    fn cast_vote(index: u8, user_id: &str) -> LogEntry {
+        LogEntry {
+            delivery_id: format!("cast-vote-{index}"),
+            message: ElectoralLogMessage {
+                id: 0,
+                created: 1_785_700_000 + i64::from(index),
+                sender_pk: "sender-public-key".to_string(),
+                statement_timestamp: 1_785_700_000 + i64::from(index),
+                statement_kind: StatementType::CastVote.to_string(),
+                message: vec![index],
+                version: "1".to_string(),
+                user_id: Some(user_id.to_string()),
+                username: Some(format!("{user_id}-name")),
+                election_id: Some("election-id".to_string()),
+                area_id: Some("area-id".to_string()),
+                ballot_id: Some(format!("{index:02x}").repeat(BALLOT_ID_LENGTH_BYTES)),
+            },
+        }
+    }
+
+    async fn cast_votes(
+        tenant: &str,
+        event: &str,
+        (limit, offset): (Option<i64>, Option<i64>),
+        ballot_id_filter: &str,
+        user_id: &str,
+    ) -> Result<CastVoteMessagesOutput> {
+        let input = GetElectoralLogBody {
+            tenant_id: tenant.to_string(),
+            election_event_id: event.to_string(),
+            election_id: Some("election-id".to_string()),
+            limit,
+            offset,
+            ..Default::default()
+        };
+        list_cast_vote_messages(input, ballot_id_filter, user_id, "voter-name").await
+    }
+
+    #[test]
+    #[ignore = "requires a disposable ELECTORAL_LOG_PG_* database and ENV_SLUG"]
+    fn cast_vote_log_pages_are_capped_and_a_filter_finds_the_voters_own_prefix() {
+        crate::services::electoral_log_board::test_runtime().block_on(
+            cast_vote_log_pages_are_capped_and_a_filter_finds_the_voters_own_prefix_on_runtime(),
+        );
+    }
+
+    async fn cast_vote_log_pages_are_capped_and_a_filter_finds_the_voters_own_prefix_on_runtime() {
+        let tenant = Uuid::new_v4().to_string();
+        let event = Uuid::new_v4().to_string();
+        let slug = std::env::var("ENV_SLUG").expect("ENV_SLUG");
+        let board = get_event_board(&tenant, &event, &slug);
+        let databases = crate::services::electoral_log_board::get_event_databases()
+            .await
+            .expect("electoral-log databases");
+        databases
+            .create_event(&tenant, &event)
+            .await
+            .expect("event database");
+        let client = get_board_client().await.expect("board client");
+        client.create_board(&board).await.expect("board");
+        // 60 cast votes of another voter, then the voter's own ballot abab...ab.
+        let mut entries: Vec<LogEntry> = (0..60u8)
+            .map(|index| cast_vote(index, "voter-two-id"))
+            .collect();
+        entries.push(cast_vote(0xab, "voter-one-id"));
+        let stored = client.append(&board, &entries).await.expect("cast votes");
+        assert_eq!(stored.len(), 61);
+
+        let page = cast_votes(
+            &tenant,
+            &event,
+            (Some(1_000_000), Some(-5)),
+            "",
+            "voter-one-id",
+        )
+        .await
+        .expect("a capped page");
+        assert_eq!(page.list.len(), MAX_ROWS_PER_PAGE);
+        assert_eq!(page.total, 61);
+        let last = cast_votes(&tenant, &event, (None, Some(60)), "", "voter-one-id")
+            .await
+            .expect("the last page");
+        assert_eq!(last.list.len(), 1);
+
+        let own_ballot_id = "ab".repeat(BALLOT_ID_LENGTH_BYTES);
+        for filter in ["ABAB", own_ballot_id.as_str()] {
+            let found = cast_votes(&tenant, &event, (None, None), filter, "voter-one-id")
+                .await
+                .expect("the voter's ballot");
+            assert_eq!(
+                found
+                    .list
+                    .iter()
+                    .map(|entry| entry.ballot_id.as_str())
+                    .collect::<Vec<_>>(),
+                vec![own_ballot_id.as_str()],
+                "filter {filter:?}"
+            );
+        }
+        // Another voter's ballot, a ballot ID that is not the prefix of any
+        // ballot, and LIKE wildcards find nothing.
+        for (filter, user_id) in [
+            ("abab", "voter-two-id"),
+            ("baba", "voter-one-id"),
+            ("cdcd", "voter-one-id"),
+        ] {
+            let found = cast_votes(&tenant, &event, (None, None), filter, user_id)
+                .await
+                .expect("no ballot");
+            assert!(found.list.is_empty(), "filter {filter:?} of {user_id}");
+        }
+        assert!(
+            cast_votes(&tenant, &event, (None, None), "%%", "voter-one-id")
+                .await
+                .is_err()
+        );
+
+        client.delete_board(&board).await.expect("delete board");
+        databases
+            .drop_event(&tenant, &event)
+            .await
+            .expect("drop event database");
     }
 }
 
@@ -2738,6 +3289,58 @@ mod cast_vote_entry_tests {
                 .to_string();
             assert!(error.contains(&field.to_string()), "{error}");
         }
+    }
+
+    #[test]
+    fn ballot_id_filter_accepts_an_even_length_hex_prefix() {
+        assert_eq!(normalize_ballot_id_filter("").expect("no filter"), "");
+        assert_eq!(
+            normalize_ballot_id_filter(" AB12 ").expect("a prefix"),
+            "ab12"
+        );
+        let full_ballot_id = "0a".repeat(BALLOT_ID_LENGTH_BYTES);
+        assert_eq!(
+            normalize_ballot_id_filter(&full_ballot_id).expect("a whole Ballot ID"),
+            full_ballot_id
+        );
+    }
+
+    #[test]
+    fn ballot_id_filter_rejects_wildcards_odd_or_overlong_input() {
+        let overlong = "0a".repeat(BALLOT_ID_LENGTH_BYTES + 1);
+        for filter in ["%%", "__", "a%", "zz", "abc", "ab 1", overlong.as_str()] {
+            assert!(
+                normalize_ballot_id_filter(filter).is_err(),
+                "accepted {filter:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn filtered_select_matches_the_voters_ballot_id_from_its_start() {
+        let (count, select) = get_cols_match_count_and_select("election-id", "voter-id", "ab12");
+        assert!(!count.contains_key(&ElectoralLogVarCharColumn::BallotId));
+        assert!(!count.contains_key(&ElectoralLogVarCharColumn::UserId));
+        assert_eq!(
+            select
+                .get(&ElectoralLogVarCharColumn::UserId)
+                .map(|(_, value)| value.as_str()),
+            Some("voter-id")
+        );
+        let (operator, pattern) = select
+            .get(&ElectoralLogVarCharColumn::BallotId)
+            .expect("a Ballot ID clause");
+        assert!(matches!(operator, SqlCompOperators::Like));
+        assert_eq!(pattern, "ab12%");
+    }
+
+    #[test]
+    fn cast_vote_page_is_capped_at_the_page_size() {
+        let max = MAX_ROWS_PER_PAGE as i64;
+        assert_eq!(cast_vote_page(None, None), (max, 0));
+        assert_eq!(cast_vote_page(Some(10), Some(20)), (10, 20));
+        assert_eq!(cast_vote_page(Some(1_000_000), Some(-5)), (max, 0));
+        assert_eq!(cast_vote_page(Some(-1), None), (0, 0));
     }
 }
 
@@ -3351,5 +3954,96 @@ mod readiness_verified_tests {
         assert!(log
             .readiness_verified_message("official", &unidentified, &operator())
             .is_err());
+    }
+}
+
+#[cfg(test)]
+mod ordering_gate_tests {
+    use super::*;
+
+    /// A post that names no scope (e.g. a password-change entry serialized by an
+    /// earlier release, or a log made from a signer alone) is refused before it is
+    /// signed: it could not be kept in its log's order.
+    #[tokio::test]
+    async fn a_post_without_its_logs_scope_is_refused_before_signing() {
+        let key = voting_crypto::signing::SigningKey::generate().unwrap();
+        let log = ElectoralLog::for_system_with_signing_key("board", &key);
+        assert!(log.scope.is_none());
+        let error = log
+            .post_built(|_| panic!("nothing is signed for a refused post"))
+            .await
+            .unwrap_err();
+        assert!(
+            format!("{error:#}").contains("without its log's scope is refused"),
+            "{error:#}"
+        );
+        // The lower-level gated append refuses it too (nothing is appended).
+        let error = append_gated(None, "board", &[]).await.unwrap_err();
+        assert!(
+            format!("{error:#}").contains("without its log's scope is refused"),
+            "{error:#}"
+        );
+        // An entry prepared by an earlier release (no scope in its JSON) is refused.
+        let prepared = PreparedVoterPasswordChangeLog {
+            board: "board".into(),
+            delivery_id: "old-release".into(),
+            message: log
+                .build_keycloak_event_message(
+                    "event".into(),
+                    "UPDATE_PASSWORD".into(),
+                    String::new(),
+                    None,
+                    None,
+                    None,
+                )
+                .unwrap(),
+            scope: None,
+        };
+        let json = serde_json::to_value(&prepared).unwrap();
+        assert!(
+            json.get("scope").is_none(),
+            "an earlier release's shape: {json}"
+        );
+        let from_old_release: PreparedVoterPasswordChangeLog =
+            serde_json::from_value(json).unwrap();
+        let error = from_old_release.post().await.unwrap_err();
+        assert!(
+            format!("{error:#}").contains("must be prepared again"),
+            "{error:#}"
+        );
+    }
+
+    /// An entry prepared by an earlier release (no scope) is given its log's scope
+    /// by its task; an entry that has one keeps it.
+    #[test]
+    fn an_old_release_entry_is_given_its_tasks_scope_and_a_scoped_one_keeps_its_own() {
+        let key = voting_crypto::signing::SigningKey::generate().unwrap();
+        let log = ElectoralLog::for_system_with_signing_key("board", &key);
+        let message = log
+            .build_keycloak_event_message(
+                "event".into(),
+                "UPDATE_PASSWORD".into(),
+                String::new(),
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+        let old = serde_json::json!({ "board": "board", "delivery_id": "d", "message": message });
+        let mut entry: PreparedVoterPasswordChangeLog = serde_json::from_value(old).unwrap();
+        assert!(entry.scope.is_none());
+        entry.with_scope_if_missing("tenant-1", "event-1");
+        assert_eq!(
+            entry.scope.as_deref(),
+            Some(
+                crate::services::electoral_log_deferral::scope_key("tenant-1", "event-1").as_str()
+            )
+        );
+        entry.with_scope_if_missing("tenant-2", "event-2");
+        assert_eq!(
+            entry.scope.as_deref(),
+            Some("tenant-1/event-1"),
+            "an existing scope is kept"
+        );
     }
 }

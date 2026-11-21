@@ -20,6 +20,11 @@ on:
         description: 'Whether to push the images'
         required: true
         type: boolean
+      push_root:
+        description: 'Whether to also push the images marked root_ecr to the root account (581718213778) ECR'
+        required: false
+        type: boolean
+        default: false
     secrets:
       PAT:
         required: false
@@ -28,6 +33,10 @@ on:
       AWS_ACCESS_KEY_ID_GLOBALDOT:
         required: false
       AWS_SECRET_ACCESS_KEY_GLOBALDOT:
+        required: false
+      AWS_ACCESS_KEY_ID:
+        required: false
+      AWS_SECRET_ACCESS_KEY:
         required: false
 
 permissions:
@@ -201,6 +210,22 @@ jobs:
         username: oauth2accesstoken
         password: ${{ steps.gcp-auth.outputs.access_token }}
 
+    # Root account 581718213778: push once to ca-central-1 (Canada). Its other
+    # regions pull via ECR replication from ca-central-1. Only images marked
+    # root_ecr in build_images.json have a repository there. Sets the AWS
+    # credentials for later steps, so it goes after everything using Globaldot's.
+    - name: Configure AWS credentials (root account)
+      if: inputs.push && inputs.push_root && matrix.root_ecr
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ca-central-1
+
+    - name: Login to Amazon ECR (root account)
+      if: inputs.push && inputs.push_root && matrix.root_ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
     # The prod registry has immutable tags, and rebuilding a commit changes its
     # digest. A short SHA tag there would stop a built commit getting a new tag.
     - name: Push to ECR and Artifact Registry
@@ -209,12 +234,18 @@ jobs:
         SERVICE: ${{ matrix.service }}
         TAG: ${{ inputs.tag || github.run_number }}
         ECR_REGISTRY: ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}
+        ROOT_ECR_REGISTRY: ${{ inputs.push_root && matrix.root_ecr && vars.AWS_ECR_REGISTRY || '' }}
       run: |
         ecr="docker://$ECR_REGISTRY/$SERVICE"
         dev="docker://europe-west4-docker.pkg.dev/sequentech-dev/sequent/$SERVICE"
         prod="docker://us-east1-docker.pkg.dev/sequent-production/sequent/$SERVICE"
+        root=()
+        if [ -n "$ROOT_ECR_REGISTRY" ]; then
+          root=("docker://$ROOT_ECR_REGISTRY/$SERVICE:$SHORT_SHA" "docker://$ROOT_ECR_REGISTRY/$SERVICE:$TAG")
+        fi
         .github/scripts/push_image.sh "$RUNNER_TEMP/image" \
           "$ecr:$SHORT_SHA" "$ecr:$TAG" \
+          "${root[@]}" \
           "$dev:$SHORT_SHA" "$dev:$TAG" \
           --immutable "$prod:$TAG"
 

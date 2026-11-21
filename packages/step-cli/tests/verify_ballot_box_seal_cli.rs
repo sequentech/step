@@ -10,7 +10,7 @@ use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::seal::{
     ballot_hash, build, fingerprint, BallotBoxSealManifest, SealDisposition, SealEntry, SealRecord,
     SealRecordCloseRequest, SealRecordLogEntry, SealRecordNames, SealRecordSigner,
-    DEFAULT_SEAL_CHANNEL, SEAL_FORMAT_V1,
+    DEFAULT_SEAL_CHANNEL, SEAL_FORMAT_V2,
 };
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -54,7 +54,7 @@ fn sample_entries() -> Vec<SealEntry> {
 
 fn manifest(entries: Vec<SealEntry>) -> BallotBoxSealManifest {
     BallotBoxSealManifest {
-        format: SEAL_FORMAT_V1.to_string(),
+        format: SEAL_FORMAT_V2.to_string(),
         tenant_id: "tenant".to_string(),
         election_event_id: "event".to_string(),
         election_id: ELECTION.to_string(),

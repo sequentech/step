@@ -1185,3 +1185,302 @@ fn legacy_restriction_archive_rejects_malformed_lists_before_normalizing() {
         );
     }
 }
+
+/// A reopened event keeps the identity mode it was created with. One that
+/// names none predates the setting and is voter-id, as the platform reads it;
+/// the pseudonym default is only for new configurations.
+#[test]
+fn a_reopened_event_keeps_its_ballot_identity() {
+    use crate::election_config::build::{build, BuildOptions};
+    use crate::election_config::render::TemplateSet;
+    use crate::election_config::sources::Sources;
+
+    for (named, expected) in [
+        (Some("voter-id"), "voter-id"),
+        (Some("pseudonym"), "pseudonym"),
+        (None, "voter-id"),
+    ] {
+        let mut export = admin_export();
+        if let Some(named) = named {
+            export["election_event"]["presentation"]["ballot_identity"] =
+                serde_json::json!(named);
+        }
+        let plan = plan_from_event(&export).expect("a readable export").plan;
+        let sources = Sources::from_plan(&plan);
+        let workbook = super::super::architect::to_workbook(&plan, &sources)
+            .expect("the plan compiles to rows");
+        let options = BuildOptions {
+            base_export: plan.base_export.clone(),
+            ..BuildOptions::default()
+        };
+        let bundle = build(
+            &workbook,
+            &TemplateSet::builtin().unwrap(),
+            &options,
+            &sources,
+        )
+        .unwrap_or_else(|report| panic!("a clean build:\n{report}"));
+        assert_eq!(
+            bundle.export["election_event"]["presentation"]["ballot_identity"],
+            serde_json::json!(expected),
+            "{named:?}"
+        );
+    }
+}
+
+/// The author can still change a reopened legacy event's mode on purpose.
+#[test]
+fn a_plan_column_outranks_a_reopened_legacy_events_ballot_identity() {
+    use crate::election_config::build::{build, BuildOptions};
+    use crate::election_config::render::TemplateSet;
+    use crate::election_config::sources::Sources;
+
+    let mut plan = plan_from_event(&admin_export())
+        .expect("a readable export")
+        .plan;
+    plan.columns.insert(
+        "presentation.ballot_identity".to_string(),
+        serde_json::json!("pseudonym"),
+    );
+    let sources = Sources::from_plan(&plan);
+    let workbook = super::super::architect::to_workbook(&plan, &sources)
+        .expect("the plan compiles to rows");
+    let options = BuildOptions {
+        base_export: plan.base_export.clone(),
+        ..BuildOptions::default()
+    };
+    let bundle = build(
+        &workbook,
+        &TemplateSet::builtin().unwrap(),
+        &options,
+        &sources,
+    )
+    .unwrap_or_else(|report| panic!("a clean build:\n{report}"));
+    assert_eq!(
+        bundle.export["election_event"]["presentation"]["ballot_identity"],
+        serde_json::json!("pseudonym")
+    );
+}
+
+/// A reopened event states its mode on the plan itself, so the mode survives
+/// a trip through a workbook, which carries no base export.
+#[test]
+fn a_reopened_event_states_its_ballot_identity_without_the_base() {
+    use crate::election_config::build::{build, BuildOptions};
+    use crate::election_config::render::TemplateSet;
+    use crate::election_config::sources::Sources;
+
+    for (named, expected) in [
+        (None, "voter-id"),
+        (Some(serde_json::json!(null)), "voter-id"),
+        (Some(serde_json::json!("pseudonym")), "pseudonym"),
+    ] {
+        let mut export = admin_export();
+        if let Some(named) = named.clone() {
+            export["election_event"]["presentation"]["ballot_identity"] = named;
+        }
+        let mut plan =
+            plan_from_event(&export).expect("a readable export").plan;
+        assert_eq!(
+            plan.columns["presentation.ballot_identity"],
+            serde_json::json!(expected),
+            "{named:?}"
+        );
+        plan.base_export = None;
+        let sources = Sources::from_plan(&plan);
+        let workbook = super::super::architect::to_workbook(&plan, &sources)
+            .expect("the plan compiles to rows");
+        let bundle = build(
+            &workbook,
+            &TemplateSet::builtin().unwrap(),
+            &BuildOptions::default(),
+            &sources,
+        )
+        .unwrap_or_else(|report| panic!("a clean build:\n{report}"));
+        assert_eq!(
+            bundle.export["election_event"]["presentation"]["ballot_identity"],
+            serde_json::json!(expected),
+            "{named:?}"
+        );
+    }
+}
+
+#[cfg(feature = "election_config_xlsx")]
+use crate::election_config::{
+    architect::Blueprint, paths::Cell, sheet::Sheet, sources::Sources,
+};
+
+/// A legacy event reopened, saved as a real .xlsx and opened again, carries
+/// its voter-id mode: through the plan, through the workbook's bytes, and
+/// into the build. `parameter` adds a `key`/`value` row to the Parameters
+/// sheet, as a hand edit would.
+#[cfg(feature = "election_config_xlsx")]
+fn legacy_reopened_as_xlsx(parameter: Option<(&str, &str)>) -> Blueprint {
+    legacy_reopened_as_xlsx_with(parameter, false)
+}
+
+/// `pre_patch` drops the event's `presentation.ballot_identity` column, as a
+/// workbook written before the plan stated its mode would lack it.
+#[cfg(feature = "election_config_xlsx")]
+fn legacy_reopened_as_xlsx_with(
+    parameter: Option<(&str, &str)>,
+    pre_patch: bool,
+) -> Blueprint {
+    use crate::election_config::sheet::Workbook;
+    let plan = plan_from_event(&admin_export())
+        .expect("a readable export")
+        .plan;
+    let sources = Sources::from_plan(&plan);
+    let mut sheets = super::super::architect::to_workbook(&plan, &sources)
+        .expect("the plan compiles to rows")
+        .sheets()
+        .to_vec();
+    if pre_patch {
+        let event = sheets
+            .iter_mut()
+            .find(|sheet| sheet.key == "electionevent")
+            .expect("an ElectionEvent sheet");
+        event
+            .headers
+            .retain(|header| header != "presentation.ballot_identity");
+        for row in &mut event.rows {
+            row.cells
+                .retain(|(header, _)| header != "presentation.ballot_identity");
+        }
+        assert!(
+            sheets.iter().any(|sheet| sheet.key == "parameters"
+                && sheet.rows.iter().any(|row| row.text("key")
+                    == Some("keycloak_event_realm_source_event_id"))),
+            "the reopened workbook carries the source event marker"
+        );
+    }
+    if let Some((key, value)) = parameter {
+        let text = |value: &serde_json::Value| match value {
+            serde_json::Value::String(text) => Cell::text(text.clone()),
+            other => Cell::text(other.to_string()),
+        };
+        let mut grid: Vec<Vec<Cell>> =
+            vec![vec![Cell::text("key"), Cell::text("value")]];
+        if let Some(at) =
+            sheets.iter().position(|sheet| sheet.name == "Parameters")
+        {
+            let existing = sheets.remove(at);
+            grid = vec![existing
+                .headers
+                .iter()
+                .map(|h| Cell::text(h.clone()))
+                .collect()];
+            for row in &existing.rows {
+                grid.push(
+                    existing
+                        .headers
+                        .iter()
+                        .map(|header| {
+                            row.get(header).map(text).unwrap_or(Cell::Blank)
+                        })
+                        .collect(),
+                );
+            }
+        }
+        let headers: Vec<String> = grid[0]
+            .iter()
+            .map(|cell| match cell {
+                Cell::Text(text) => text.clone(),
+                _ => String::new(),
+            })
+            .collect();
+        grid.push(
+            headers
+                .iter()
+                .map(|header| match header.as_str() {
+                    "key" => Cell::text(key),
+                    "value" => Cell::text(value),
+                    _ => Cell::Blank,
+                })
+                .collect(),
+        );
+        sheets.push(Sheet::from_grid("Parameters", &grid).unwrap());
+    }
+    let bytes = crate::election_config::xlsx_write::write_xlsx(
+        &Workbook::new(sheets).unwrap(),
+    )
+    .expect("an .xlsx");
+    crate::election_config::open::open_named(&bytes, Some("reopened.xlsx"))
+        .unwrap_or_else(|report| panic!("the .xlsx opens:\n{report}"))
+        .plan
+}
+
+#[cfg(feature = "election_config_xlsx")]
+#[test]
+fn a_legacy_event_keeps_voter_id_through_a_real_xlsx_round_trip() {
+    use crate::election_config::build::{build, BuildOptions};
+    use crate::election_config::render::TemplateSet;
+
+    let plan = legacy_reopened_as_xlsx(None);
+    assert_eq!(
+        plan.columns.get("presentation.ballot_identity"),
+        Some(&serde_json::json!("voter-id"))
+    );
+    let sources = Sources::from_plan(&plan);
+    let workbook = super::super::architect::to_workbook(&plan, &sources)
+        .expect("the plan compiles to rows");
+    let bundle = build(
+        &workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &sources,
+    )
+    .unwrap_or_else(|report| panic!("a clean build:\n{report}"));
+    assert_eq!(
+        bundle.export["election_event"]["presentation"]["ballot_identity"],
+        serde_json::json!("voter-id")
+    );
+}
+
+/// A hand-edited workbook the writer refuses carries none of its other
+/// unread columns, but it still carries the event's identity mode.
+#[cfg(feature = "election_config_xlsx")]
+#[test]
+fn a_workbook_the_writer_refuses_still_keeps_the_events_identity() {
+    // The writer refuses an empty field in a dotted realm path.
+    let plan = legacy_reopened_as_xlsx(Some((
+        "keycloak_event_realm.realm.",
+        "source",
+    )));
+    assert!(
+        super::super::architect::to_workbook(&plan, &Sources::from_plan(&plan))
+            .is_err(),
+        "the fixture must make the writer refuse the plan"
+    );
+    assert_eq!(
+        plan.columns.get("presentation.ballot_identity"),
+        Some(&serde_json::json!("voter-id"))
+    );
+}
+
+/// A workbook written from a reopened legacy event before the plan stated its
+/// mode has no identity column and no base export. Its source event marker
+/// keeps it voter-id: it is an existing event, not a new configuration.
+#[cfg(feature = "election_config_xlsx")]
+#[test]
+fn a_workbook_written_before_the_mode_was_stated_stays_voter_id() {
+    use crate::election_config::build::{build, BuildOptions};
+    use crate::election_config::render::TemplateSet;
+
+    let plan = legacy_reopened_as_xlsx_with(None, true);
+    assert_eq!(plan.columns.get("presentation.ballot_identity"), None);
+    let sources = Sources::from_plan(&plan);
+    let workbook = super::super::architect::to_workbook(&plan, &sources)
+        .expect("the plan compiles to rows");
+    let bundle = build(
+        &workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &sources,
+    )
+    .unwrap_or_else(|report| panic!("a clean build:\n{report}"));
+    assert_eq!(
+        bundle.export["election_event"]["presentation"]["ballot_identity"],
+        serde_json::json!("voter-id")
+    );
+}

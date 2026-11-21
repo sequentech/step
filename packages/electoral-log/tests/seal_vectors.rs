@@ -1,20 +1,20 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Ballot box seal manifest test vectors (`tests/data/ballot_box_seal_v1.json`).
+//! Ballot box seal manifest test vectors (`tests/data/ballot_box_seal_v2.json`).
 //! Each vector gives the manifest's header, its entries (unsorted, with the
 //! ballot content they hash) and the expected Borsh bytes and SHA-512. A
 //! change to the manifest's encoding or ordering fails here.
 //!
-//! Regenerate after a deliberate format change (a new format version, never
-//! v1) with `cargo test -p electoral-log --test seal_vectors -- --ignored`.
+//! Regenerated for format v2 (the v3 log signature scheme); regenerate
+//! only with a new format version, with `cargo test -p electoral-log --test seal_vectors -- --ignored`.
 
 use electoral_log::seal::*;
 use serde::{Deserialize, Serialize};
 
 const VECTORS_PATH: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/tests/data/ballot_box_seal_v1.json"
+    "/tests/data/ballot_box_seal_v2.json"
 );
 
 #[derive(Serialize, Deserialize)]
@@ -55,7 +55,7 @@ struct Vector {
 impl Vector {
     fn manifest(&self) -> BallotBoxSealManifest {
         BallotBoxSealManifest {
-            format: SEAL_FORMAT_V1.to_string(),
+            format: SEAL_FORMAT_V2.to_string(),
             tenant_id: self.tenant_id.clone(),
             election_event_id: self.election_event_id.clone(),
             election_id: self.election_id.clone(),
@@ -130,7 +130,7 @@ fn vector(
 fn generated() -> VectorFile {
     use SealDisposition::*;
     VectorFile {
-        format: SEAL_FORMAT_V1.to_string(),
+        format: SEAL_FORMAT_V2.to_string(),
         about: "Ballot box seal manifest vectors: build(manifest) sorts the entries, \
                 manifest_borsh_hex is the manifest's Borsh bytes and seal_hash their SHA-512. \
                 ballot_hash is the SHA-512 of content's UTF-8 bytes."
@@ -198,7 +198,7 @@ fn generated() -> VectorFile {
 fn the_committed_vectors_still_hold() {
     let text = std::fs::read_to_string(VECTORS_PATH).unwrap();
     let file: VectorFile = serde_json::from_str(&text).unwrap();
-    assert_eq!(file.format, SEAL_FORMAT_V1);
+    assert_eq!(file.format, SEAL_FORMAT_V2);
     let names: Vec<&str> = file
         .vectors
         .iter()
@@ -265,7 +265,7 @@ fn the_empty_box_is_encoded_field_by_field() {
         bytes
     };
     let vector = &generated().vectors[0];
-    let mut expected = text(SEAL_FORMAT_V1);
+    let mut expected = text(SEAL_FORMAT_V2);
     expected.extend(text(&vector.tenant_id));
     expected.extend(text(&vector.election_event_id));
     expected.extend(text(&vector.election_id));
@@ -301,7 +301,7 @@ fn an_entry_is_encoded_field_by_field() {
 }
 
 #[test]
-#[ignore = "writes tests/data/ballot_box_seal_v1.json"]
+#[ignore = "writes tests/data/ballot_box_seal_v2.json"]
 fn write_vectors() {
     let text = serde_json::to_string_pretty(&generated()).unwrap();
     std::fs::write(VECTORS_PATH, text + "\n").unwrap();

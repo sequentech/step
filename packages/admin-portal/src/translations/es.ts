@@ -5,6 +5,74 @@ import englishTranslation, {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        configurationSigning: {
+            title: "Confianza en la firma de paquetes",
+            description:
+                "Qué paquetes de configuración importa este inquilino: si un paquete debe estar firmado, las raíces a las que deben encadenar su clave de firma y los certificados de sus aprobadores, y cuántas aprobaciones de personas distintas necesita. Aquí solo se aceptan certificados, nunca claves.",
+            current: "Ahora:",
+            policy: "Firmas",
+            requiredApprovals: "Aprobaciones requeridas",
+            requiredApprovalsHelp:
+                "Aprobaciones válidas de personas distintas que necesita un paquete (0 a 16).",
+            packageRoots: "Raíces de firma de paquetes (PEM)",
+            packageRootsHelp:
+                "Las autoridades de certificación que emiten la clave que firma los paquetes.",
+            staffRoots: "Raíces de aprobadores (PEM)",
+            staffRootsHelp:
+                "Las autoridades de certificación que emiten los certificados de los aprobadores.",
+            certificates_one: "{{count}} certificado.",
+            certificates_other: "{{count}} certificados.",
+            loadFile: "Cargar un archivo PEM",
+            save: "Comprobar y guardar",
+            saved: "Guardado. Las importaciones se comprueban con esto a partir de ahora.",
+            refused: "No guardado: corrija los problemas siguientes.",
+            invalidApprovals: "Las aprobaciones deben ser un número entero de 0 a {{max}}.",
+            noAnswer: "La plataforma no respondió; no consta que se haya guardado nada.",
+            states: {
+                "not-configured":
+                    "Sin configurar: los archivos sin firma se importan, los paquetes firmados se rechazan",
+                "optional":
+                    "Opcional: los paquetes firmados se comprueban, los archivos sin firma se importan",
+                "required":
+                    "Requerida: solo se importan paquetes firmados con {{approvals}} aprobaciones",
+                "unreadable": "Ilegible: toda importación falla hasta que se guarde de nuevo",
+            },
+            policies: {
+                optional: "Opcional",
+                required: "Requerida",
+            },
+            columns: {
+                setting: "Ajuste",
+                subject: "Sujeto",
+                validUntil: "Válido hasta",
+                fingerprint: "Huella SHA-256",
+                signerId: "ID del firmante",
+                name: "Nombre",
+                roles: "Funciones",
+                keys: "Huellas de clave (SPKI SHA-256)",
+            },
+            minimumFormat: "Formato de paquete más antiguo",
+            formats: {
+                v1: "Formato 1 (sin firmantes inscritos)",
+                v2: "Formato 2 (solo firmantes inscritos)",
+            },
+            separation: "Firmante final",
+            separations: {
+                separate: "Distinto de los aprobadores",
+                allowed: "Puede haber aprobado también",
+            },
+            loadPolicy: "Cargar el archivo de política de firma",
+            policyDigest: "SHA-256 de la política:",
+            policyErrors: {
+                "not-json": "El archivo no es JSON.",
+                "not-a-policy": "El archivo no es una política de firma.",
+                "other-tenant": "El archivo es de otro inquilino.",
+                "no-minimum": "La política debe indicar su formato mínimo de paquete.",
+                "unknown-field":
+                    "El archivo tiene un campo que la política de firma no define (¿mal escrito?).",
+                "no-tenant": "El archivo debe indicar su tenant (tenant_id).",
+            },
+        },
         configurationPackage: {
             tab: "Paquete de configuración",
             title: "Importar un paquete de configuración",
@@ -2680,6 +2748,7 @@ const spanishTranslation: TranslationType = {
                 ELECTORAL_RESULTS: "Resultados Electorales",
                 MANUAL_VERIFICATION: "Verificación Manual",
                 PARTICIPATION_REPORT: "Informe de Participación",
+                OV_WHO_VOTED: "Lista de votantes que votaron",
                 STATISTICAL_REPORT: "Informe Estadístico",
                 OVCS_EVENTS: "Monitoreo de Votación en el Extranjero - Eventos OVCS",
                 AUDIT_LOGS: "Registros de Auditoría",
@@ -3935,6 +4004,7 @@ const spanishTranslation: TranslationType = {
                 ACTIVITY_LOGS: "Registros de Actividades",
                 MANUAL_VERIFICATION: "Verificación Manual",
                 PARTICIPATION_REPORT: "Informe de Participación",
+                OV_WHO_VOTED: "Lista de votantes que votaron",
             },
             method: {
                 email: "Email",
