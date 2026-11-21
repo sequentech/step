@@ -1,0 +1,44 @@
+{
+  "comment": "This is a template for the election fixture",
+  "todo": "This file needs to be populated with actual election data",
+  "instructions": [
+    "1. Create a test election event using step-cli or admin portal",
+    "2. Configure: 1 election, 1 contest (Plurality at Large), 3 candidates, 1 area",
+    "3. Cast 10-20 test votes",
+    "4. Complete key ceremony",
+    "5. Export the election event with --bulletin-board and --tally flags",
+    "6. Copy the exported JSON here as election-fixture.json",
+    "7. Anonymize any sensitive voter data",
+    "8. Verify the fixture can be imported successfully"
+  ],
+  "expected_structure": {
+    "election_event": {
+      "name": "Integration Test Election",
+      "description": "Test election for CI integration test",
+      "encryption_protocol": "RSA256",
+      "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
+    },
+    "elections": [{
+      "name": "Test Election 2025",
+      "contests": [{
+        "name": "Test Contest",
+        "counting_algorithm": "plurality-at-large",
+        "num_winners": 2,
+        "candidates": [
+          {"name": "Alice"},
+          {"name": "Bob"},
+          {"name": "Carol"}
+        ]
+      }]
+    }],
+    "areas": [{
+      "name": "Test District"
+    }],
+    "bulletin_board": {
+      "note": "Should contain encrypted votes from test voters"
+    },
+    "key_ceremony": {
+      "note": "Should be in completed state with valid keys"
+    }
+  }
+}

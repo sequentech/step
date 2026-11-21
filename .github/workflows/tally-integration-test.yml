@@ -1,0 +1,359 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# This workflow runs tally integration tests against a PRODUCTION environment.
+# Required GitHub Secrets:
+#   - PRODUCTION_GRAPHQL_ENDPOINT: Production GraphQL API endpoint
+#   - PRODUCTION_KEYCLOAK_URL: Production Keycloak authentication URL
+#   - PRODUCTION_KEYCLOAK_USER: Keycloak admin username
+#   - PRODUCTION_KEYCLOAK_PASSWORD: Keycloak admin password
+#   - PRODUCTION_KEYCLOAK_CLIENT_ID: Keycloak client ID
+#   - PRODUCTION_KEYCLOAK_CLIENT_SECRET: Keycloak client secret
+#   - PRODUCTION_TENANT_ID: Production tenant ID for testing
+
+name: Tally Integration Test (Production)
+
+on:
+  pull_request:
+    branches: [ 'main', 'fix/**', 'release/**' ]
+  push:
+    branches: [ 'main' ]
+  workflow_dispatch:
+  schedule:
+    # Run nightly at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  CARGO_TARGET_DIR: rust-local-target
+  RUSTFLAGS: "-C target-feature=-crt-static -lgcc_eh -lm"
+  # Production environment configuration
+  ENVIRONMENT: "production"
+  GRAPHQL_ENDPOINT: ${{ secrets.PRODUCTION_GRAPHQL_ENDPOINT || 'https://api.sequentech.io/v1/graphql' }}
+  KEYCLOAK_URL: ${{ secrets.PRODUCTION_KEYCLOAK_URL || 'https://auth.sequentech.io' }}
+  TEST_TENANT_ID: ${{ secrets.PRODUCTION_TENANT_ID || '90505c8a-23a9-4cdf-a26b-4e19f6a097d5' }}
+  TEST_OUTPUT_DIR: "/tmp/tally-test-output"
+  PERFORMANCE_THRESHOLD_PERCENT: 10
+
+jobs:
+  tally-integration-test:
+    runs-on: gcp-selfhosted-ubuntu24
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            protobuf-compiler \
+            musl-tools \
+            libssl-dev \
+            pkg-config \
+            musl-dev \
+            libunwind-dev \
+            postgresql-client \
+            jq \
+            sqlite3
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.90.0
+          components: rustfmt
+          targets: x86_64-unknown-linux-musl
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache Cargo build
+        uses: actions/cache@v4
+        with:
+          path: packages/step-cli/rust-local-target
+          key: ${{ runner.os }}-cargo-build-tally-test-${{ hashFiles('packages/step-cli/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-tally-test-
+            ${{ runner.os }}-cargo-build-
+
+      - name: Link openssl
+        working-directory: packages/step-cli
+        run: |
+          sudo ln -sf /usr/include/x86_64-linux-gnu/openssl/opensslconf.h /usr/include/openssl/opensslconf.h
+          sudo ln -sf /usr/include/x86_64-linux-gnu/openssl/configuration.h /usr/include/openssl/configuration.h
+
+      - name: Build step-cli
+        working-directory: packages/step-cli
+        env:
+          OPENSSL_DIR: /usr
+          OPENSSL_LIB_DIR: /usr/lib/x86_64-linux-gnu
+          OPENSSL_STATIC: 1
+          PKG_CONFIG_ALLOW_CROSS: 1
+          OPENSSL_NO_VENDOR: 0
+          CARGO_BUILD_JOBS: 4
+        run: cargo build --release --target x86_64-unknown-linux-musl
+
+      - name: Create test output directory
+        run: mkdir -p ${{ env.TEST_OUTPUT_DIR }}
+
+      # Skip Docker services for production environment
+      # - name: Start Docker services for test
+      #   run: |
+      #     cd .devcontainer
+      #     docker compose up -d postgres graphql-engine keycloak immudb windmill beat trustee1 trustee2
+      #
+      #     # Wait for services to be ready
+      #     echo "Waiting for services to start..."
+      #     sleep 30
+      #
+      #     # Check service health
+      #     docker compose ps
+      #
+      # - name: Wait for PostgreSQL to be ready
+      #   run: |
+      #     echo "Waiting for PostgreSQL to accept connections..."
+      #     for i in {1..30}; do
+      #       if docker exec step-postgres-1 pg_isready -U postgres > /dev/null 2>&1; then
+      #         echo "PostgreSQL is ready!"
+      #         break
+      #       fi
+      #       echo "Waiting... ($i/30)"
+      #       sleep 2
+      #     done
+
+      - name: Configure step-cli for production environment
+        working-directory: packages/step-cli
+        env:
+          KEYCLOAK_USER: ${{ secrets.PRODUCTION_KEYCLOAK_USER }}
+          KEYCLOAK_PASSWORD: ${{ secrets.PRODUCTION_KEYCLOAK_PASSWORD }}
+          KEYCLOAK_CLIENT_ID: ${{ secrets.PRODUCTION_KEYCLOAK_CLIENT_ID }}
+          KEYCLOAK_CLIENT_SECRET: ${{ secrets.PRODUCTION_KEYCLOAK_CLIENT_SECRET }}
+        run: |
+          ./rust-local-target/x86_64-unknown-linux-musl/release/seq step config \
+            --tenant-id "${{ env.TEST_TENANT_ID }}" \
+            --endpoint-url "${{ env.GRAPHQL_ENDPOINT }}" \
+            --keycloak-url "${{ env.KEYCLOAK_URL }}" \
+            --keycloak-user "$KEYCLOAK_USER" \
+            --keycloak-password "$KEYCLOAK_PASSWORD" \
+            --keycloak-client-id "$KEYCLOAK_CLIENT_ID" \
+            --keycloak-client-secret "$KEYCLOAK_CLIENT_SECRET"
+
+      - name: Import test election fixture
+        working-directory: packages/step-cli
+        run: |
+          echo "Importing test election fixture to production..."
+          ./rust-local-target/x86_64-unknown-linux-musl/release/seq step import-election \
+            --file-path ./test-fixtures/tally-integration-test/election-fixture.json
+
+          # Store the election event ID for later steps
+          # This will be extracted from the import output
+          echo "TEST_ELECTION_EVENT_ID=<to-be-extracted>" >> $GITHUB_ENV
+
+      - name: Record test start time
+        run: echo "TEST_START_TIME=$(date +%s)" >> $GITHUB_ENV
+
+      - name: Start tally ceremony
+        working-directory: packages/step-cli
+        run: |
+          echo "Starting tally ceremony..."
+          ./rust-local-target/x86_64-unknown-linux-musl/release/seq step start-tally \
+            --election-event-id "${{ env.TEST_ELECTION_EVENT_ID }}" \
+            --tally-type "ELECTORAL_RESULTS"
+
+          # Store tally ID for later steps
+          echo "TEST_TALLY_ID=<to-be-extracted>" >> $GITHUB_ENV
+
+      - name: Confirm trustee keys for tally
+        working-directory: packages/step-cli
+        run: |
+          echo "Confirming trustee keys..."
+          # This step assumes trustees are already configured in the fixture
+          # In a real scenario, this would be done by trustee authentication
+          echo "Trustee key confirmation step - to be implemented"
+
+      - name: Complete tally ceremony
+        working-directory: packages/step-cli
+        run: |
+          echo "Updating tally status to IN_PROGRESS to complete the tally..."
+          ./rust-local-target/x86_64-unknown-linux-musl/release/seq step update-tally \
+            --election-event-id "${{ env.TEST_ELECTION_EVENT_ID }}" \
+            --tally-id "${{ env.TEST_TALLY_ID }}" \
+            --status "IN_PROGRESS"
+
+      - name: Wait for tally to complete
+        run: |
+          echo "Waiting for tally computation to complete..."
+          # Poll for tally completion (max 5 minutes)
+          for i in {1..60}; do
+            # Check tally status via API or database
+            echo "Waiting for tally completion... ($i/60)"
+            sleep 5
+            # TODO: Add actual status check
+            if [ $i -eq 60 ]; then
+              echo "Tally did not complete in time"
+              exit 1
+            fi
+          done
+
+      - name: Download tally results
+        working-directory: packages/step-cli
+        run: |
+          echo "Downloading tally results..."
+          ./rust-local-target/x86_64-unknown-linux-musl/release/seq step download-tally-results \
+            --election-event-id "${{ env.TEST_ELECTION_EVENT_ID }}" \
+            --tally-id "${{ env.TEST_TALLY_ID }}" \
+            --output-dir "${{ env.TEST_OUTPUT_DIR }}"
+
+      - name: Record test end time and calculate duration
+        run: |
+          TEST_END_TIME=$(date +%s)
+          DURATION=$((TEST_END_TIME - TEST_START_TIME))
+          echo "TEST_DURATION=$DURATION" >> $GITHUB_ENV
+          echo "Tally completed in $DURATION seconds"
+
+      - name: Validate tally results
+        run: |
+          echo "Validating tally results..."
+
+          # Run validation script
+          python3 .github/scripts/validate-tally-results.py \
+            --output-dir "${{ env.TEST_OUTPUT_DIR }}" \
+            --expected-results-file "packages/step-cli/test-fixtures/tally-integration-test/expected-results.json"
+
+      - name: Check SQLite database structure
+        run: |
+          echo "Checking SQLite database structure..."
+
+          # Find the SQLite database file
+          DB_FILE=$(find "${{ env.TEST_OUTPUT_DIR }}" -name "results.db" -o -name "*.db" | head -1)
+
+          if [ -z "$DB_FILE" ]; then
+            echo "Error: No SQLite database found in output directory"
+            exit 1
+          fi
+
+          echo "Found database: $DB_FILE"
+
+          # Check for expected tables
+          TABLES=$(sqlite3 "$DB_FILE" ".tables")
+          echo "Database tables: $TABLES"
+
+          # Verify key tables exist
+          for table in election_event election contest area candidate; do
+            if ! echo "$TABLES" | grep -q "$table"; then
+              echo "Error: Required table '$table' not found in database"
+              exit 1
+            fi
+          done
+
+          echo "Database structure validation passed!"
+
+      - name: Check report generation
+        run: |
+          echo "Checking for generated reports..."
+
+          # Check for HTML reports
+          HTML_COUNT=$(find "${{ env.TEST_OUTPUT_DIR }}" -name "*.html" | wc -l)
+          echo "Found $HTML_COUNT HTML report(s)"
+
+          if [ "$HTML_COUNT" -eq 0 ]; then
+            echo "Warning: No HTML reports found"
+          fi
+
+          # Check for XLSX exports (if applicable)
+          XLSX_COUNT=$(find "${{ env.TEST_OUTPUT_DIR }}" -name "*.xlsx" | wc -l)
+          echo "Found $XLSX_COUNT XLSX file(s)"
+
+      - name: Load performance baseline
+        id: baseline
+        continue-on-error: true
+        run: |
+          # Try to load previous baseline from artifacts
+          if [ -f ".github/performance-baseline.json" ]; then
+            BASELINE_DURATION=$(jq -r '.duration' .github/performance-baseline.json)
+            echo "baseline_duration=$BASELINE_DURATION" >> $GITHUB_OUTPUT
+            echo "Previous baseline: $BASELINE_DURATION seconds"
+          else
+            echo "No previous baseline found"
+            echo "baseline_duration=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check performance regression
+        if: steps.baseline.outputs.baseline_duration != '0'
+        run: |
+          BASELINE=${{ steps.baseline.outputs.baseline_duration }}
+          CURRENT=${{ env.TEST_DURATION }}
+
+          # Calculate percentage change
+          CHANGE=$(echo "scale=2; (($CURRENT - $BASELINE) / $BASELINE) * 100" | bc)
+          echo "Performance change: ${CHANGE}%"
+
+          # Check if regression exceeds threshold
+          THRESHOLD=${{ env.PERFORMANCE_THRESHOLD_PERCENT }}
+          if (( $(echo "$CHANGE > $THRESHOLD" | bc -l) )); then
+            echo "⚠️ WARNING: Performance regression detected!"
+            echo "Current: ${CURRENT}s, Baseline: ${BASELINE}s, Change: ${CHANGE}%"
+            echo "This exceeds the threshold of ${THRESHOLD}%"
+            # Don't fail, just warn
+            echo "::warning::Performance regression of ${CHANGE}% detected (threshold: ${THRESHOLD}%)"
+          else
+            echo "✅ Performance is within acceptable range"
+          fi
+
+      - name: Update performance baseline
+        if: github.ref == 'refs/heads/main'
+        run: |
+          # Update baseline on main branch
+          mkdir -p .github
+          echo "{\"duration\": ${{ env.TEST_DURATION }}, \"timestamp\": \"$(date -Iseconds)\", \"commit\": \"${{ github.sha }}\"}" > .github/performance-baseline.json
+          echo "Updated performance baseline: ${{ env.TEST_DURATION }} seconds"
+
+      - name: Upload performance baseline artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-baseline
+          path: .github/performance-baseline.json
+          retention-days: 90
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tally-test-results
+          path: ${{ env.TEST_OUTPUT_DIR }}
+          retention-days: 7
+
+      - name: Generate test summary
+        if: always()
+        run: |
+          echo "## Tally Integration Test Summary 🗳️" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Duration | ${{ env.TEST_DURATION }} seconds |" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | ${{ github.ref_name }} |" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "${{ env.TEST_OUTPUT_DIR }}/results.db" ]; then
+            echo "| Database | ✅ Generated |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Database | ❌ Missing |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # Skip Docker cleanup for production environment
+      # - name: Cleanup Docker services
+      #   if: always()
+      #   run: |
+      #     cd .devcontainer
+      #     docker compose down

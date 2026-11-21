@@ -1,0 +1,313 @@
+{
+  "comment": "IRV (Instant Runoff Voting / Ranked Choice) election fixture",
+  "applications": [],
+  "area_contests": [
+    {
+      "area_id": "73ca4972-e458-500c-b5b9-a587d409c581",
+      "contest_id": "4c2a7c27-609b-58f0-8fa7-ac9d16a5516d",
+      "id": "487bea4c-1890-548f-a25c-6e51609cf222"
+    }
+  ],
+  "areas": [
+    {
+      "annotations": null,
+      "created_at": "2025-01-15T10:00:00.000000Z",
+      "description": "RCV test district",
+      "election_event_id": "7620137c-c9b9-56a7-ae78-f7f28991805e",
+      "id": "73ca4972-e458-500c-b5b9-a587d409c581",
+      "labels": null,
+      "last_updated_at": "2025-01-15T10:00:00.000000Z",
+      "name": "RCV District",
+      "parent_id": null,
+      "presentation": {
+        "allow_early_voting": "no_early_voting"
+      },
+      "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+      "type": null
+    }
+  ],
+  "candidates": [
+    {
+      "alias": null,
+      "annotations": null,
+      "contest_id": "4c2a7c27-609b-58f0-8fa7-ac9d16a5516d",
+      "created_at": "2025-01-15T10:00:00.000000Z",
+      "description": "Progressive candidate",
+      "election_event_id": "7620137c-c9b9-56a7-ae78-f7f28991805e",
+      "id": "88ff5d8a-320b-5c6c-b984-b17286eda95d",
+      "image_document_id": null,
+      "is_public": false,
+      "labels": null,
+      "last_updated_at": "2025-01-15T10:00:00.000000Z",
+      "name": "Alice Johnson",
+      "presentation": {
+        "i18n": {
+          "en": {
+            "name": "Alice Johnson",
+            "description": "Progressive candidate"
+          }
+        }
+      },
+      "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+      "type": null
+    },
+    {
+      "alias": null,
+      "annotations": null,
+      "contest_id": "4c2a7c27-609b-58f0-8fa7-ac9d16a5516d",
+      "created_at": "2025-01-15T10:00:00.000000Z",
+      "description": "Independent candidate",
+      "election_event_id": "7620137c-c9b9-56a7-ae78-f7f28991805e",
+      "id": "efd914b7-31af-5e68-9cb4-1023af5e45fd",
+      "image_document_id": null,
+      "is_public": false,
+      "labels": null,
+      "last_updated_at": "2025-01-15T10:00:00.000000Z",
+      "name": "Bob Smith",
+      "presentation": {
+        "i18n": {
+          "en": {
+            "name": "Bob Smith",
+            "description": "Independent candidate"
+          }
+        }
+      },
+      "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+      "type": null
+    },
+    {
+      "alias": null,
+      "annotations": null,
+      "contest_id": "4c2a7c27-609b-58f0-8fa7-ac9d16a5516d",
+      "created_at": "2025-01-15T10:00:00.000000Z",
+      "description": "Green party candidate",
+      "election_event_id": "7620137c-c9b9-56a7-ae78-f7f28991805e",
+      "id": "65ddccdc-8a3a-5a09-a9da-9995a39c5497",
+      "image_document_id": null,
+      "is_public": false,
+      "labels": null,
+      "last_updated_at": "2025-01-15T10:00:00.000000Z",
+      "name": "Carol Green",
+      "presentation": {
+        "i18n": {
+          "en": {
+            "name": "Carol Green",
+            "description": "Green party candidate"
+          }
+        }
+      },
+      "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+      "type": null
+    },
+    {
+      "alias": null,
+      "annotations": null,
+      "contest_id": "4c2a7c27-609b-58f0-8fa7-ac9d16a5516d",
+      "created_at": "2025-01-15T10:00:00.000000Z",
+      "description": "Conservative candidate",
+      "election_event_id": "7620137c-c9b9-56a7-ae78-f7f28991805e",
+      "id": "f0ff5697-4914-59ca-963f-1ae84c3dfc66",
+      "image_document_id": null,
+      "is_public": false,
+      "labels": null,
+      "last_updated_at": "2025-01-15T10:00:00.000000Z",
+      "name": "David Brown",
+      "presentation": {
+        "i18n": {
+          "en": {
+            "name": "David Brown",
+            "description": "Conservative candidate"
+          }
+        }
+      },
+      "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+      "type": null
+    }
+  ],
+  "contests": [
+    {
+      "alias": null,
+      "annotations": null,
+      "conditions": null,
+      "counting_algorithm": "instant-runoff-voting",
+      "created_at": "2025-01-15T10:00:00.000000Z",
+      "description": "Rank candidates in order of preference (1st, 2nd, 3rd, 4th)",
+      "election_event_id": "7620137c-c9b9-56a7-ae78-f7f28991805e",
+      "election_id": "3f111af5-6bb9-5c06-a443-0a12cbfe27b9",
+      "id": "4c2a7c27-609b-58f0-8fa7-ac9d16a5516d",
+      "image_document_id": null,
+      "is_acclaimed": false,
+      "is_active": true,
+      "is_encrypted": true,
+      "labels": null,
+      "last_updated_at": "2025-01-15T10:00:00.000000Z",
+      "max_votes": 4,
+      "min_votes": 1,
+      "name": "Mayor Election (RCV)",
+      "presentation": {
+        "candidates_order": "alphabetical",
+        "i18n": {
+          "en": {
+            "name": "Mayor Election (RCV)",
+            "description": "Rank candidates in order of preference (1st, 2nd, 3rd, 4th)"
+          }
+        }
+      },
+      "tally_configuration": {
+        "method": "irv",
+        "enable_ties": false,
+        "quota_threshold": 50
+      },
+      "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+      "voting_type": "ranked-choice",
+      "winning_candidates_num": 1
+    }
+  ],
+  "election_event": {
+    "alias": null,
+    "annotations": null,
+    "audit_election_event_id": null,
+    "bulletin_board_reference": {
+      "database_name": "test_irv_integration",
+      "id": 3,
+      "is_archived": false
+    },
+    "created_at": "2025-01-15T10:00:00.000000Z",
+    "description": "IRV/RCV integration test election",
+    "encryption_protocol": "RSA256",
+    "id": "7620137c-c9b9-56a7-ae78-f7f28991805e",
+    "is_archived": false,
+    "is_audit": null,
+    "labels": null,
+    "name": "IRV Test Election",
+    "presentation": {
+      "ceremonies_policy": "manual-ceremonies",
+      "contest_encryption_policy": "single-contest",
+      "custom_urls": {},
+      "decoded_ballot_inclusion_policy": "not-included",
+      "delegated_voting_policy": "disabled",
+      "elections_order": "alphabetical",
+      "i18n": {
+        "en": {
+          "name": "IRV Test Election",
+          "description": "IRV/RCV integration test election"
+        }
+      },
+      "language_conf": {
+        "default_language_code": "en",
+        "enabled_language_codes": [
+          "en"
+        ]
+      },
+      "locked_down": "not-locked-down",
+      "materials": {
+        "activated": false
+      },
+      "show_cast_vote_logs": "hide-logs-tab",
+      "show_user_profile": false,
+      "skip_election_list": false,
+      "voter_signing_policy": "no-signature",
+      "voting_portal_countdown_policy": {
+        "policy": "NO_COUNTDOWN"
+      },
+      "weighted_voting_policy": "disabled-weighted-voting"
+    },
+    "public_key": null,
+    "statistics": {
+      "num_emails_sent": 0,
+      "num_sms_sent": 0
+    },
+    "status": null,
+    "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+    "updated_at": "2025-01-15T10:00:00.000000Z",
+    "user_boards": null,
+    "voting_channels": {
+      "early_voting": false,
+      "kiosk": false,
+      "online": true
+    }
+  },
+  "elections": [
+    {
+      "alias": "Mayor 2025",
+      "annotations": null,
+      "created_at": "2025-01-15T10:00:00.000000Z",
+      "description": "Mayoral election using ranked choice voting",
+      "election_event_id": "7620137c-c9b9-56a7-ae78-f7f28991805e",
+      "eml": null,
+      "id": "3f111af5-6bb9-5c06-a443-0a12cbfe27b9",
+      "image_document_id": null,
+      "initialization_report_generated": false,
+      "is_consolidated_ballot_encoding": null,
+      "is_kiosk": false,
+      "keys_ceremony_id": null,
+      "labels": null,
+      "last_updated_at": "2025-01-15T10:00:00.000000Z",
+      "name": "Mayor 2025",
+      "num_allowed_revotes": null,
+      "permission_label": null,
+      "presentation": {
+        "i18n": {
+          "en": {
+            "name": "Mayor 2025",
+            "description": "Mayoral election using ranked choice voting"
+          }
+        },
+        "language_conf": {
+          "default_language_code": "en",
+          "enabled_language_codes": [
+            "en"
+          ]
+        }
+      },
+      "receipts": null,
+      "spoil_ballot_option": null,
+      "statistics": {},
+      "status": {
+        "allow_tally": "allowed",
+        "early_voting_period_dates": {
+          "first_paused_at": null,
+          "first_started_at": null,
+          "first_stopped_at": null,
+          "last_paused_at": null,
+          "last_started_at": null,
+          "last_stopped_at": null
+        },
+        "early_voting_status": "NOT_STARTED",
+        "init_report": "allowed",
+        "is_published": false,
+        "kiosk_voting_period_dates": {
+          "first_paused_at": null,
+          "first_started_at": null,
+          "first_stopped_at": null,
+          "last_paused_at": null,
+          "last_started_at": null,
+          "last_stopped_at": null
+        },
+        "kiosk_voting_status": "NOT_STARTED",
+        "voting_period_dates": {
+          "first_paused_at": null,
+          "first_started_at": null,
+          "first_stopped_at": null,
+          "last_paused_at": null,
+          "last_started_at": null,
+          "last_stopped_at": null
+        },
+        "voting_status": "NOT_STARTED"
+      },
+      "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+      "voting_channels": {
+        "early_voting": null,
+        "kiosk": null,
+        "online": true,
+        "paper": null,
+        "telephone": null
+      }
+    }
+  ],
+  "keycloak_event_realm": null,
+  "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+  "keys_ceremonies": [],
+  "reports": [],
+  "scheduled_events": []
+}
