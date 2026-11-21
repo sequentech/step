@@ -15,7 +15,7 @@ use ring::rand::SystemRandom;
 use ring::signature::{EcdsaKeyPair, KeyPair, ECDSA_P256_SHA256_ASN1_SIGNING};
 
 use super::*;
-use crate::election_config::archive::zip;
+use crate::election_config::archive::{zip, zip_stored};
 use crate::election_config::manifest::{
     file_entries, ConfigurationRevision, Content, Manifest, PreviousRevision,
     Produced,
@@ -1080,6 +1080,56 @@ fn malformed_zip_metadata_never_becomes_unsigned() {
         refusal(verify_browser_package(bytes, &world().pinned(2), None));
     assert_eq!(code, Code::Unreadable);
     assert_eq!(id, "package.unreadable-zip");
+}
+
+#[test]
+fn damaged_stored_members_are_refused_before_and_after_signature_verification()
+{
+    let w = world();
+    let built = build(&w, &[&w.a, &w.b], &w.signer);
+    let pinned = w.pinned(2);
+    let mut members = built.members.clone();
+    members.extend([
+        Artifact {
+            name: MANIFEST_MEMBER.to_string(),
+            bytes: built.manifest,
+        },
+        Artifact {
+            name: ENVELOPE_MEMBER.to_string(),
+            bytes: serde_json::to_vec(&built.envelope).unwrap(),
+        },
+    ]);
+    let package = zip_stored(&members).unwrap();
+    assert!(verify_browser_package(&package, &pinned, None).is_ok());
+
+    // Model damage in a stored member without changing its directory or checksum.
+    let wanted = [MANIFEST_MEMBER, ENVELOPE_MEMBER];
+    for (marker, is_signature_metadata) in [
+        (b"Overseas Voting 2028".as_slice(), true),
+        (members[0].bytes.as_slice(), false),
+    ] {
+        let mut damaged = package.clone();
+        let mut locations = package
+            .windows(marker.len())
+            .enumerate()
+            .filter_map(|(offset, bytes)| (bytes == marker).then_some(offset));
+        let start = locations.next().expect("the stored fixture member exists");
+        assert!(locations.next().is_none());
+        damaged[start] ^= 1;
+        assert_eq!(
+            member_names(&damaged).unwrap(),
+            member_names(&package).unwrap()
+        );
+        // Payload damage appears only after the intact envelope has been read.
+        assert_eq!(
+            named_members(&damaged, &wanted).is_err(),
+            is_signature_metadata
+        );
+        assert_eq!(
+            refusal(verify_browser_package(&damaged, &pinned, None)),
+            (Code::Unreadable, "package.unreadable-zip".to_string())
+        );
+    }
 }
 
 #[test]

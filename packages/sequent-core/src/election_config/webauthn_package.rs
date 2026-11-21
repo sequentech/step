@@ -476,5 +476,5 @@ pub fn browser_freshness(
 }
 
 #[cfg(test)]
-#[path = "webauthn_package_tests.rs"]
+#[path = "../../tests/support/webauthn_package_tests.rs"]
 mod webauthn_package_tests;

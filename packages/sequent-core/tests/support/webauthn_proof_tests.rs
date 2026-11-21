@@ -694,3 +694,39 @@ fn reads_only_the_roster_the_verifier_was_provisioned_with() {
         Err(ProofError::Roster(_))
     ));
 }
+
+#[test]
+fn malformed_snapshot_credentials_are_refused_for_both_bundle_roles() {
+    let approver = official("u-approver", Role::Approver);
+    let signer = official("u-signer", Role::FinalSigner);
+    let valid_roster = roster(&[&approver, &signer]);
+    let valid_bundle = bundle(&[&approver], &signer);
+    assert!(verify_bundle(&valid_bundle, &valid_roster, 1).is_ok());
+
+    // A typed roster supplied by a caller gets the same refusal as initial
+    // enrollment, even when the assertion names the same malformed encoding.
+    for final_signer in [false, true] {
+        let mut roster = valid_roster.clone();
+        let mut bundle = valid_bundle.clone();
+        let proof = if final_signer {
+            &mut bundle.final_signature
+        } else {
+            &mut bundle.approvals[0]
+        };
+        let entry = roster
+            .keys
+            .iter_mut()
+            .find(|entry| entry.key == proof.binding.signer)
+            .unwrap();
+        entry.credential_id = "=".into();
+        proof.credential_id = entry.credential_id.clone();
+        assert!(matches!(
+            Roster::read(&serde_json::to_string(&roster).unwrap()),
+            Err(ProofError::Encoding("a roster credential id"))
+        ));
+        assert!(matches!(
+            verify_bundle(&bundle, &roster, 1),
+            Err(ProofError::Encoding("a roster credential id"))
+        ));
+    }
+}

@@ -953,5 +953,5 @@ pub fn verify_bundle_for_manifest(
 }
 
 #[cfg(test)]
-#[path = "webauthn_proof_tests.rs"]
+#[path = "../../tests/support/webauthn_proof_tests.rs"]
 mod webauthn_proof_tests;
