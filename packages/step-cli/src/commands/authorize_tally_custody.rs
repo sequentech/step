@@ -6,6 +6,7 @@ use crate::{
     types::hasura_types::*,
     utils::{
         read_config::read_config,
+        signing::{exit_pending, StepOutcome},
         trustees::{store_custody_request::get_custody_request_content, trustee_graphql_request},
     },
 };
@@ -44,13 +45,11 @@ impl AuthorizeTallyCustodyCommand {
             &self.tally_id,
             &self.trustee_config,
         ) {
-            Ok(is_valid) => {
-                if is_valid {
-                    println!("{}", "Success! Successfully confirmed key".green());
-                } else {
-                    eprintln!("{}", "Error! Failed to confirm key".red())
-                }
+            Ok(StepOutcome::Recorded) => {
+                println!("{}", "Success! Successfully confirmed key".green());
             }
+            Ok(StepOutcome::Invalid) => eprintln!("{}", "Error! Failed to confirm key".red()),
+            Ok(StepOutcome::Pending(pending)) => exit_pending("Your tally key step", &pending),
             Err(err) => {
                 eprintln!("Failed to confirm key: {}", err)
             }
@@ -64,18 +63,22 @@ pub fn confirm_key(
 ) -> Result<bool, Box<dyn std::error::Error>> {
     let keys_file = std::env::var_os("TRUSTEE_CONFIG_PATH")
         .ok_or("TRUSTEE_CONFIG_PATH must name your native trustee keys file")?;
-    confirm_key_with_keys(
+    match confirm_key_with_keys(
         election_event_id,
         tally_id,
         std::path::Path::new(&keys_file),
-    )
+    )? {
+        StepOutcome::Recorded => Ok(true),
+        StepOutcome::Invalid => Ok(false),
+        StepOutcome::Pending(pending) => Err(format!("the tally key step is {pending}").into()),
+    }
 }
 
 fn confirm_key_with_keys(
     election_event_id: &str,
     tally_id: &str,
     keys_file: &std::path::Path,
-) -> Result<bool, Box<dyn std::error::Error>> {
+) -> Result<StepOutcome, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
@@ -108,7 +111,10 @@ fn confirm_key_with_keys(
         let response_body: Response<authorize_tally_custody::ResponseData> = response.json()?;
         if let Some(data) = response_body.data {
             if let Some(e) = data.authorize_tally_custody {
-                Ok(e.is_valid)
+                Ok(StepOutcome::of(
+                    e.is_valid,
+                    crate::pending_signatures!(e.signing_request),
+                ))
             } else {
                 Err(Box::from("failed updating status"))
             }

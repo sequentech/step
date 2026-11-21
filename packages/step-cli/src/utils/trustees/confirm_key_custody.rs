@@ -4,7 +4,7 @@
 
 use crate::{
     types::hasura_types::*,
-    utils::{read_config::read_config, trustees::trustee_graphql_request},
+    utils::{read_config::read_config, signing::StepOutcome, trustees::trustee_graphql_request},
 };
 use graphql_client::{GraphQLQuery, Response};
 
@@ -14,7 +14,6 @@ use graphql_client::{GraphQLQuery, Response};
     query_path = "src/graphql/confirm_key_custody.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
-
 pub struct ConfirmKeyCustody;
 
 impl ConfirmKeyCustody {
@@ -22,7 +21,7 @@ impl ConfirmKeyCustody {
         election_event_id: &str,
         key_ceremony_id: &str,
         custody_proof_json: &str,
-    ) -> Result<bool, Box<dyn std::error::Error>> {
+    ) -> Result<StepOutcome, Box<dyn std::error::Error>> {
         let config = read_config()?;
         let client = reqwest::blocking::Client::new();
 
@@ -42,7 +41,10 @@ impl ConfirmKeyCustody {
             let response_body: Response<confirm_key_custody::ResponseData> = response.json()?;
             if let Some(data) = response_body.data {
                 if let Some(e) = data.confirm_key_custody {
-                    Ok(e.is_valid)
+                    Ok(StepOutcome::of(
+                        e.is_valid,
+                        crate::pending_signatures!(e.signing_request),
+                    ))
                 } else {
                     Err(Box::from("Failed to get key"))
                 }

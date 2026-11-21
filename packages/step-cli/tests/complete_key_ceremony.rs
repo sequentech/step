@@ -33,6 +33,7 @@ struct Request {
 
 struct Run {
     output: String,
+    status: Option<i32>,
     requests: Vec<Request>,
 }
 
@@ -221,6 +222,7 @@ impl Cli {
         let requests = std::mem::take(&mut *requests.lock().unwrap());
 
         Run {
+            status: output.status.code(),
             output: format!(
                 "{}{}",
                 String::from_utf8_lossy(&output.stdout),
@@ -237,6 +239,62 @@ fn downloaded(custody_request: &str) -> String {
 
 fn checked(is_valid: bool) -> String {
     json!({"data": {"confirm_key_custody": {"is_valid": is_valid}}}).to_string()
+}
+
+/// The exit status of a step that waits for signatures.
+const SIGNATURES_PENDING: i32 = 3;
+
+fn signing_request() -> Value {
+    json!({"id": "4e0c0d6e-8f35-4c3b-9a43-0b8f1d1c2a11", "code": "K7Q-2M",
+           "required": 1, "expires_at": null})
+}
+
+fn pending() -> String {
+    json!({"data": {"confirm_key_custody": {"is_valid": true, "signing_request": signing_request()}}})
+        .to_string()
+}
+
+#[test]
+fn a_step_that_needs_the_trustees_signature_is_not_reported_as_done() {
+    let cli = Cli::new();
+    let encoded = serde_json::to_string(&cli.request(KEY_CEREMONY_ID)).unwrap();
+    let run = cli.complete(KEY_CEREMONY_ID, vec![downloaded(&encoded), pending()]);
+    assert_eq!(run.status, Some(SIGNATURES_PENDING), "{}", run.output);
+    assert!(!run.output.contains("Success"), "{}", run.output);
+    assert!(
+        run.output.contains(
+            "waiting for 1 signature (request 4e0c0d6e-8f35-4c3b-9a43-0b8f1d1c2a11, code K7Q-2M)"
+        ),
+        "{}",
+        run.output
+    );
+    assert_eq!(cli.stored(None), None);
+}
+
+#[test]
+fn a_tally_step_that_needs_the_trustees_signature_is_not_reported_as_done() {
+    let cli = Cli::new();
+    cli.store(
+        None,
+        &serde_json::to_string(&cli.request(KEY_CEREMONY_ID)).unwrap(),
+    );
+    let run = cli.execute(
+        &[
+            "step",
+            "confirm-key-tally",
+            "--election-event-id",
+            ELECTION_EVENT_ID,
+            "--tally-id",
+            "synthetic-tally",
+        ],
+        KEY_CEREMONY_ID,
+        vec![json!({"data": {"authorize_tally_custody":
+            {"is_valid": true, "signing_request": signing_request()}}})
+        .to_string()],
+    );
+    assert_eq!(run.status, Some(SIGNATURES_PENDING), "{}", run.output);
+    assert!(!run.output.contains("Success"), "{}", run.output);
+    assert!(run.output.contains("code K7Q-2M"), "{}", run.output);
 }
 
 #[test]

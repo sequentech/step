@@ -8,6 +8,7 @@ pub mod hasura;
 pub mod keycloak;
 pub mod publication;
 pub mod read_config;
+pub mod signing;
 pub mod tally;
 pub mod tasks;
 pub mod trustees;

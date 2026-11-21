@@ -2,11 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::utils::trustees::{
-    confirm_key_custody::ConfirmKeyCustody,
-    get_trustee_custody_request::GetTrusteeCustodyRequest,
-    store_custody_request::{
-        download_custody_request, read_stored_custody_request, store_event_custody_request,
+use crate::utils::{
+    signing::{exit_pending, Signed, StepOutcome},
+    trustees::{
+        confirm_key_custody::ConfirmKeyCustody,
+        get_trustee_custody_request::GetTrusteeCustodyRequest,
+        store_custody_request::{
+            download_custody_request, read_stored_custody_request, store_event_custody_request,
+        },
     },
 };
 use clap::Args;
@@ -36,7 +39,8 @@ impl Complete {
             &self.key_ceremony_id,
             &self.trustee_config,
         ) {
-            Ok(path) => {
+            Ok(Signed::Pending(pending)) => exit_pending("Your key custody step", &pending),
+            Ok(Signed::Done(path)) => {
                 println!(
                     "{}",
                     format!(
@@ -59,18 +63,21 @@ pub fn complete_ceremony(
 ) -> Result<String, Box<dyn std::error::Error>> {
     let keys_file = std::env::var_os("TRUSTEE_CONFIG_PATH")
         .ok_or("TRUSTEE_CONFIG_PATH must name your native trustee keys file")?;
-    complete_ceremony_with_keys(
+    match complete_ceremony_with_keys(
         election_event_id,
         key_ceremony_id,
         std::path::Path::new(&keys_file),
-    )
+    )? {
+        Signed::Done(path) => Ok(path),
+        Signed::Pending(pending) => Err(format!("the key custody step is {pending}").into()),
+    }
 }
 
 fn complete_ceremony_with_keys(
     election_event_id: &str,
     key_ceremony_id: &str,
     keys_file: &std::path::Path,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<Signed<String>, Box<dyn std::error::Error>> {
     let (request, path) = match GetTrusteeCustodyRequest::get_trustee_custody_request(
         election_event_id,
         key_ceremony_id,
@@ -96,9 +103,12 @@ fn complete_ceremony_with_keys(
     }
     let secrets = protocol_board::TrusteeSecrets::parse(&std::fs::read_to_string(keys_file)?)?;
     let proof = custody.attest(&secrets)?;
-    if !ConfirmKeyCustody::check(election_event_id, key_ceremony_id, &proof)? {
-        return Err("Failed to confirm native key custody".into());
+    match ConfirmKeyCustody::check(election_event_id, key_ceremony_id, &proof)? {
+        StepOutcome::Invalid => Err("Failed to confirm native key custody".into()),
+        StepOutcome::Pending(pending) => Ok(Signed::Pending(pending)),
+        StepOutcome::Recorded => {
+            store_event_custody_request(election_event_id, &request)?;
+            Ok(Signed::Done(path.to_string_lossy().into_owned()))
+        }
     }
-    store_event_custody_request(election_event_id, &request)?;
-    Ok(path.to_string_lossy().into_owned())
 }

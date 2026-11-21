@@ -11,5 +11,11 @@ mutation ConfirmKeyCustody(
             }
         ) {
             is_valid
+            signing_request {
+                id
+                code
+                required
+                expires_at
+            }
         }
     }
