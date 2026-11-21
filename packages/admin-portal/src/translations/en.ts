@@ -688,6 +688,15 @@ const englishTranslation = {
                         disabled: "Disabled",
                     },
                 },
+                kioskChannelAuthenticationPolicy: {
+                    policyLabel: "Kiosk Channel Authentication Policy",
+                    helperText:
+                        "With Attested, a kiosk vote is accepted only when the login carries the kiosk channel attestation claim configured in Keycloak.",
+                    options: {
+                        "client-identity": "Client identity",
+                        "attested": "Attested",
+                    },
+                },
                 languageDetectionPolicy: {
                     policyLabel: "Language Detection Policy",
                     options: {
