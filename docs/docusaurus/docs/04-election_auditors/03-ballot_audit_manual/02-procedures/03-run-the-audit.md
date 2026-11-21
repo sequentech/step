@@ -92,6 +92,7 @@ ballot-audit: exit status 0 (all steps passed)
 1. If the command shows `WARNING: pg_restore reported ... error(s)`, read the log that the
    warning names in `~/audit/output/restore`. Write each error in the audit notes. The command
    then stops with `not auditing: the restore of ... had errors` and exit status `4`.
+   Stop here and ask for a backup that restores without errors.
 2. Read the exit status in the last line of the command:
 
    | Exit status | Meaning |
