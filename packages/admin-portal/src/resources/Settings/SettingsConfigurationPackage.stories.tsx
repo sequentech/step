@@ -16,6 +16,7 @@ interface Scenario {
     allowed: boolean
     blocked: boolean
     unavailable: boolean
+    managedRoster: boolean
 }
 const DOCUMENT_ID = storyId(41, 1)
 const TASK_ID = storyId(41, 2)
@@ -24,7 +25,7 @@ let data: ReturnType<typeof resourceBoundary>
 const meta = {
     title: "Admin/Settings/SettingsConfigurationPackage",
     component: SettingsConfigurationPackage,
-    args: {allowed: true, blocked: false, unavailable: false},
+    args: {allowed: true, blocked: false, unavailable: false, managedRoster: false},
     beforeEach: async ({args}) => {
         sessionStorage.clear()
         // The page also shows the tenant's signing card, which reads the
@@ -56,6 +57,18 @@ const meta = {
                 }
                 return {data: {set_architect_approval_policy: approvalPolicy}}
             },
+            ArchitectSignerRosterStatus: () => ({
+                data: {
+                    get_architect_signer_roster_status: {
+                        __typename: "ArchitectSignerRosterStatus",
+                        mode: args.managedRoster ? "portal_managed" : "not_enabled",
+                        generation: "0",
+                        active_sha256: null,
+                        required_approvals: 2,
+                        can_manage: args.managedRoster,
+                    },
+                },
+            }),
             ListPackageApplications: () => ({data: {sequent_backend_tasks_execution: []}}),
             ApplyConfigurationPackage: () => ({
                 data: {
@@ -91,6 +104,7 @@ const meta = {
             boundary={graphql}
             dataProvider={data.provider}
             roles={allowed ? PACKAGE_PERMISSIONS : []}
+            auth={{userId: "story-operator"}}
         >
             <SettingsConfigurationPackage />
         </AdminStoryProvider>
@@ -101,6 +115,11 @@ type Story = StoryObj<Scenario>
 
 async function preview(canvasElement: HTMLElement) {
     const canvas = within(canvasElement)
+    await waitFor(() =>
+        expect(
+            canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
+        ).toBeEnabled()
+    )
     const advanced = canvas.getByTestId("package-advanced") as HTMLDetailsElement
     if (!advanced.open)
         await userEvent.click(canvas.getByText(i18n.t("configurationPackage.advanced")))
@@ -115,7 +134,9 @@ async function preview(canvasElement: HTMLElement) {
 }
 
 export const PreviewAndConfirm: Story = {
-    parameters: {widgets: ["ApplicationTable", "ProposedChanges"]},
+    parameters: {
+        widgets: ["SettingsConfigurationPackageForScope", "ApplicationTable", "ProposedChanges"],
+    },
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByTestId("package-apply")).toBeDisabled()
@@ -194,6 +215,11 @@ export const PermissionRequired: Story = {
 export const UploadFirst: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
+        await waitFor(() =>
+            expect(
+                canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
+            ).toBeEnabled()
+        )
         const advanced = canvas.getByTestId("package-advanced") as HTMLDetailsElement
         await expect(advanced.open).toBe(false)
         await expect(canvas.getByTestId("package-apply")).toBeDisabled()
@@ -207,5 +233,31 @@ export const UploadFirst: Story = {
             canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
         )
         await expect(within(document.body).getByTestId("package-upload-drawer")).toBeVisible()
+    },
+}
+
+export const RosterNotInstalled: Story = {
+    args: {managedRoster: true},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const manage = await canvas.findByRole("button", {
+            name: i18n.t("configurationPackage.roster.manage"),
+        })
+        await expect(
+            canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
+        ).toBeDisabled()
+        await expect(canvas.getByText(i18n.t("configurationPackage.roster.noRoster"))).toBeVisible()
+        await userEvent.click(manage)
+        const dialog = within(await within(document.body).findByRole("dialog"))
+        await expect(
+            dialog.getByRole("button", {name: i18n.t("configurationPackage.roster.review")})
+        ).toBeDisabled()
+        await expect(
+            dialog.queryByRole("button", {name: i18n.t("configurationPackage.roster.confirm")})
+        ).not.toBeInTheDocument()
+        expect(
+            graphql.calls.filter(({name}) => /^(Activate|Preview)ArchitectSignerRoster$/.test(name))
+        ).toHaveLength(0)
+        expect(graphql.unexpected).toEqual([])
     },
 }

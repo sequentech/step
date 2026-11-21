@@ -6,6 +6,7 @@ pub mod applications;
 pub mod apply_configuration_package;
 pub mod approval_matrix;
 pub mod architect_approval_policy;
+pub mod architect_signer_roster;
 pub mod areas;
 pub mod b4;
 pub mod ballot_checks;

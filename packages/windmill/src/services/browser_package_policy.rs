@@ -6,8 +6,8 @@
 //! officials' browser security keys (WebAuthn), for one tenant of an
 //! deployment. Preview and normal-site opt-ins are independent.
 //!
-//! What a tenant trusts here comes from the deployment alone, never from a
-//! package, an imported tenant record or the tenant's settings: an explicit
+//! What a tenant trusts here never comes from a package, an imported tenant
+//! record or the tenant's settings. Site-pinned and preview use deployment trust: an explicit
 //! switch, the one tenant it applies to, a roster file and its SHA-256 pin,
 //! and the approvals required ([`SWITCH`] and the names beside it).
 //!
@@ -23,10 +23,16 @@
 //!   only, checked against the pinned roster ([`BrowserPolicy::BrowserOnly`]).
 //!   A certificate-signed or unsigned file is refused: no downgrade.
 //!
+//! An explicit portal-managed deployment instead uses the local, separately
+//! authorized receiver roster and an independent receiver minimum; it still
+//! never trusts a package or tenant settings to choose authority.
+//!
 //! The policy is read when an import or application holds the tenant's
 //! lock, and read again under the import lock before each section of an
 //! application is applied ([`recheck`]).
 
+use super::managed_webauthn_roster::{self as managed, Binding, Config};
+use deadpool_postgres::Transaction;
 use std::path::Path;
 
 use chrono::{DateTime, Utc};
@@ -65,6 +71,10 @@ pub enum BrowserPolicy {
     Unusable(String),
     /// This tenant imports browser-signed packages only, on this roster.
     BrowserOnly(PinnedRoster),
+    /// Portal mode configured for this tenant; resolve the local roster before admission.
+    Managed(Config),
+    /// Portal mode with locally activated authority.
+    ManagedOnly(PinnedRoster, Binding),
 }
 
 impl BrowserPolicy {
@@ -84,6 +94,47 @@ impl BrowserPolicy {
         )
     }
 
+    /// Resolve protected tenant roster state while the caller holds its import
+    /// lock (or the application claim on a section recheck).
+    pub async fn load_with_db(tx: &Transaction<'_>, tenant_id: &str) -> Self {
+        Self::load(tenant_id).resolve_with_db(tx, tenant_id).await
+    }
+
+    pub async fn resolve_with_db(self, tx: &Transaction<'_>, tenant_id: &str) -> Self {
+        // Once a tenant activates managed authority, no updated runtime
+        // without matching deployment settings may downgrade it to legacy,
+        // including an accidental environment removal or tenant reassignment.
+        if matches!(self, Self::Unusable(_)) {
+            return self;
+        }
+        match managed::read(tx, tenant_id).await {
+            Ok(installed) => self.resolve_installed(installed),
+            Err(_) => Self::Unusable("Could not read the receiver roster authority".into()),
+        }
+    }
+
+    fn resolve_installed(self, installed: Option<managed::Installed>) -> Self {
+        match (self, installed) {
+            (Self::Managed(config), Some(row)) => match config.active(row) {
+                Ok((pinned, binding)) => Self::ManagedOnly(pinned, binding),
+                Err(reason) => Self::Unusable(reason),
+            },
+            (Self::Managed(_), None) => Self::Unusable("No active receiver roster".into()),
+            (_, Some(_)) => Self::Unusable(
+                "The tenant has managed receiver trust but this runtime is not configured for it"
+                    .into(),
+            ),
+            (mode, None) => mode,
+        }
+    }
+
+    pub fn managed_binding(&self) -> Option<&Binding> {
+        match self {
+            Self::ManagedOnly(_, binding) => Some(binding),
+            _ => None,
+        }
+    }
+
     /// [`BrowserPolicy::load`] from `var` and `read`, for a test to supply.
     pub fn from_sources(
         tenant_id: &str,
@@ -91,10 +142,11 @@ impl BrowserPolicy {
         read: impl Fn(&Path) -> Result<String, String>,
     ) -> Self {
         let set = |name: &str| var(name).filter(|value| !value.trim().is_empty());
-        match (var(SWITCH), var(NORMAL_SWITCH)) {
+        let managed_mode = match (var(SWITCH), var(NORMAL_SWITCH)) {
             (None, None) => {
                 if [TENANT, ROSTER_FILE, ROSTER_SHA256, REQUIRED_APPROVALS]
-                    .iter()
+                    .into_iter()
+                    .chain(managed::MANAGED_VARS)
                     .any(|name| var(name).is_some())
                 {
                     return BrowserPolicy::Unusable(
@@ -103,14 +155,16 @@ impl BrowserPolicy {
                 }
                 return BrowserPolicy::Off;
             }
-            (Some(value), None) if value == SWITCH_VALUE => {}
-            (None, Some(value)) if value == NORMAL_SWITCH_VALUE => {}
+            (Some(value), None) if value == SWITCH_VALUE => false,
+            (None, Some(value)) if value == NORMAL_SWITCH_VALUE => false,
+            (None, Some(value)) if value == managed::MODE => true,
             _ => {
                 return BrowserPolicy::Unusable(format!(
-                    "set only {SWITCH}={SWITCH_VALUE} or {NORMAL_SWITCH}={NORMAL_SWITCH_VALUE}"
+                    "set only {SWITCH}={SWITCH_VALUE} or {NORMAL_SWITCH} to {NORMAL_SWITCH_VALUE} or {}",
+                    managed::MODE
                 ))
             }
-        }
+        };
         let Some(tenant) = set(TENANT) else {
             return BrowserPolicy::Unusable(format!(
                 "browser package mode is set without {TENANT}"
@@ -134,6 +188,31 @@ impl BrowserPolicy {
             return BrowserPolicy::OtherTenant;
         }
         let canonical_tenant = configured_tenant.hyphenated().to_string();
+        if managed_mode {
+            if var(TENANT).as_deref() != Some(canonical_tenant.as_str()) {
+                return Self::Unusable(format!("{TENANT} must be a canonical v4 UUID"));
+            }
+            if [ROSTER_FILE, ROSTER_SHA256]
+                .into_iter()
+                .any(|name| var(name).is_some())
+            {
+                return Self::Unusable(
+                    "Portal-managed and file-pinned roster settings cannot be combined".into(),
+                );
+            }
+            return match Config::from_sources(canonical_tenant, var) {
+                Ok(config) => Self::Managed(config),
+                Err(reason) => Self::Unusable(reason),
+            };
+        }
+        if managed::MANAGED_VARS
+            .into_iter()
+            .any(|name| var(name).is_some())
+        {
+            return Self::Unusable(
+                "Portal-managed roster settings require portal-managed mode".into(),
+            );
+        }
         let (Some(file), Some(pin), Some(required)) = (
             set(ROSTER_FILE),
             set(ROSTER_SHA256),
@@ -204,11 +283,25 @@ pub fn admit_with_policy(
             admit_for_tenant_at(bytes, setting, tenant_id, revocation_lists, now)
         }
         BrowserPolicy::Unusable(why) => Err(Report::from_problem(unusable(why))),
-        BrowserPolicy::BrowserOnly(pinned) => {
+        BrowserPolicy::Managed(_) => Err(Report::from_problem(unusable(
+            "No active receiver roster was loaded",
+        ))),
+        BrowserPolicy::BrowserOnly(pinned) | BrowserPolicy::ManagedOnly(pinned, _) => {
             // A malformed stored setting still stops everything, as it does
             // for every other file.
             if let Some(setting) = setting {
                 setting.check_stored()?;
+            }
+            // Ordinary event exports are JSON objects, not malformed ZIPs.
+            // Classify only complete JSON before opening a ZIP; admission
+            // still refuses it under this policy, just like any unsigned file.
+            // Bound the extra diagnostic parse of untrusted input; larger
+            // inputs keep the existing archive diagnostic and refusal.
+            if bytes.len() <= 16 * 1024 * 1024
+                && bytes.iter().copied().find(|b| !b.is_ascii_whitespace()) == Some(b'{')
+                && serde_json::from_slice::<serde::de::IgnoredAny>(bytes).is_ok()
+            {
+                return Err(Report::from_problem(browser_only()));
             }
             let names = sequent_core::election_config::manifest::member_names(bytes)
                 .map_err(Report::from_problem)?;
@@ -242,8 +335,15 @@ pub fn recheck(policy: &BrowserPolicy, admitted: Option<&VerifiedPackage>) -> Re
             "security-key packages are no longer admitted for this tenant".to_string(),
         ),
         (BrowserPolicy::Unusable(why), _) => Recheck::Block(unusable(why).message),
-        (BrowserPolicy::BrowserOnly(_), false) => Recheck::Block(browser_only().message),
-        (BrowserPolicy::BrowserOnly(_), true) => Recheck::Readmit,
+        (BrowserPolicy::Managed(_), _) => {
+            Recheck::Block(unusable("No active receiver roster was loaded").message)
+        }
+        (BrowserPolicy::BrowserOnly(_) | BrowserPolicy::ManagedOnly(_, _), false) => {
+            Recheck::Block(browser_only().message)
+        }
+        (BrowserPolicy::BrowserOnly(_) | BrowserPolicy::ManagedOnly(_, _), true) => {
+            Recheck::Readmit
+        }
     }
 }
 

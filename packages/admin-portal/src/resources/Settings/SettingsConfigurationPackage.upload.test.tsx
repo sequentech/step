@@ -16,6 +16,15 @@ const mockFetch = jest.fn()
 
 // The trust section has its own tests (ConfigurationSigningSettings.test.tsx);
 // here it only has to be on the page.
+jest.mock("./ArchitectSignerRoster", () => ({
+    ArchitectSignerRoster: () => null,
+    rosterStateAllowsImport: () => true,
+    useArchitectSignerRoster: () => ({
+        status: {mode: "not_enabled"},
+        loading: false,
+        read: async () => ({mode: "not_enabled"}),
+    }),
+}))
 jest.mock("./ArchitectApprovalPolicy", () => ({
     ArchitectApprovalPolicy: () => null,
 }))
@@ -60,7 +69,7 @@ jest.mock("react-admin", () => ({
 jest.mock("@/providers/TenantContextProvider", () => ({useTenantStore: () => ["t1"]}))
 jest.mock("@/providers/AuthContextProvider", () => {
     const React = require("react")
-    return {AuthContext: React.createContext({isAuthorized: () => true})}
+    return {AuthContext: React.createContext({isAuthorized: () => true, userId: "operator"})}
 })
 jest.mock("@/providers/SettingsContextProvider", () => ({
     SettingsContext: require("react").createContext({globalSettings: {}}),

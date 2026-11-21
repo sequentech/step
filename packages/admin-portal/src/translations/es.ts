@@ -87,6 +87,53 @@ const spanishTranslation: TranslationType = {
             },
         },
         configurationPackage: {
+            roster: {
+                title: "Lista de firmantes de Architect",
+                loading: "Comprobando la configuración de confianza…",
+                active: "Lista activa: {{hash}}. El receptor requiere al menos {{approvals}} aprobaciones distintas y una firma final independiente.",
+                noRoster:
+                    "No hay una lista de firmantes activa. La importación de paquetes firmados está bloqueada hasta que actives una.",
+                unavailable:
+                    "No se pudo verificar la configuración de confianza. La importación de paquetes está en pausa.",
+                locked: "Solo los responsables autorizados pueden modificar esta lista de firmantes.",
+                sitePinned:
+                    "El operador del sistema administra esta lista. No puedes reemplazarla aquí.",
+                manage: "Importar lista de firmantes",
+                alreadyActive: "Esta huella ya está activa para esta organización.",
+                activeConfirmed: "El receptor confirmó la nueva lista activa.",
+                independent:
+                    "Usa la lista pública de Architect y obtén su huella SHA-256 por otro canal de confianza. No tomes la huella del mismo archivo o paquete.",
+                file: "Lista pública de firmantes (.json)",
+                expected: "Huella SHA-256 esperada",
+                hashHelp: "Introduce los 64 caracteres hexadecimales en minúsculas.",
+                candidate: "Huella verificada: {{hash}}",
+                signers: "Claves de aprobación: {{approvers}}. Claves de firma final: {{signers}}.",
+                origin: "Parte de confianza: {{rp}}. Orígenes permitidos: {{origins}}.",
+                confirmEffect:
+                    "La activación cambia los firmantes de confianza de esta organización. Vuelve a previsualizar los paquetes comprobados con la lista anterior.",
+                cancel: "Cancelar",
+                signIn: "Iniciar sesión de nuevo",
+                confirm: "Activar lista de firmantes",
+                review: "Verificar lista",
+                previewAgain:
+                    "Cambió la configuración de confianza o la vista previa seleccionada. Vuelve a previsualizar el paquete antes de aplicarlo.",
+                importUnavailable:
+                    "El receptor no está preparado para importar este paquete. Comprueba el estado de la lista de firmantes.",
+                error: {
+                    file: "Selecciona un archivo JSON UTF-8 no vacío, de hasta 256 KiB y sin marca de orden de bytes.",
+                    freshAuth:
+                        "Vuelve a iniciar sesión para activar la lista. Después, elige el archivo y confirma su huella otra vez.",
+                    forbidden:
+                        "No tienes autorización para administrar la lista de firmantes de esta organización.",
+                    conflict:
+                        "La lista cambió o se está procesando un paquete. Recarga la lista y vuelve a verificar el archivo.",
+                    preview:
+                        "No se pudo verificar la lista. Comprueba el archivo y la huella confirmada por separado.",
+                    activate:
+                        "El receptor no confirmó la activación. Comprueba la huella activa antes de intentarlo de nuevo.",
+                    login: "No se pudo iniciar una sesión nueva. Vuelve a iniciar sesión y regresa aquí.",
+                },
+            },
             advanced: "Opciones avanzadas",
             legacySetup: "Configurar certificados heredados",
             verificationNote:

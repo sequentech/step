@@ -71,6 +71,8 @@ pub struct ApplyContext {
     /// importer admits it itself, so the tenant's signing policy applies to
     /// the event exactly as it does to a standalone import.
     pub signed_package: Option<Vec<u8>>,
+    pub managed_roster_binding: Option<crate::services::managed_webauthn_roster::Binding>,
+    pub managed_preview_operator_binding: Option<String>,
     /// Groups the package's roles section defines, so administrators may name
     /// them before that section has run.
     pub package_groups: BTreeSet<String>,
@@ -166,18 +168,23 @@ impl PlatformTarget {
         };
         use sequent_core::election_config::package_verify::{Admission, Freshness};
         use sequent_core::election_config::webauthn_package::is_browser_verified;
-        let policy = BrowserPolicy::load(&self.context.tenant_id);
         let admitted = self.context.verified.as_deref();
-        match recheck(&policy, admitted) {
-            Recheck::Block(reason) => return Ok(Some(reason)),
-            Recheck::Proceed | Recheck::Readmit => {}
+        let mut db: DbClient = get_hasura_pool().await.get().await?;
+        let transaction = db.transaction().await?;
+        let policy = BrowserPolicy::load_with_db(&transaction, &self.context.tenant_id).await;
+        if policy.managed_binding() != self.context.managed_roster_binding.as_ref() {
+            return Ok(Some(
+                "The receiver roster changed after this application started".into(),
+            ));
+        }
+        let recheck = recheck(&policy, admitted);
+        if let Recheck::Block(reason) = recheck {
+            return Ok(Some(reason));
         }
         let Some(verified) = admitted else {
             return Ok(None);
         };
-        let mut db: DbClient = get_hasura_pool().await.get().await?;
-        let transaction = db.transaction().await?;
-        if matches!(recheck(&policy, Some(verified)), Recheck::Readmit) {
+        if recheck == Recheck::Readmit {
             let bytes = self
                 .context
                 .signed_package
@@ -623,6 +630,14 @@ impl PlatformTarget {
 
 #[async_trait]
 impl PackageTarget for PlatformTarget {
+    fn managed_roster_binding(&self) -> Option<&crate::services::managed_webauthn_roster::Binding> {
+        self.context.managed_roster_binding.as_ref()
+    }
+
+    fn managed_preview_operator_binding(&self) -> Option<&str> {
+        self.context.managed_preview_operator_binding.as_deref()
+    }
+
     async fn hold_imports(&self) -> Result<Box<dyn std::any::Any + Send>> {
         let held = crate::postgres::configuration_packages::hold_imports(
             get_hasura_pool().await.as_ref(),

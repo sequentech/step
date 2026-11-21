@@ -227,6 +227,16 @@ struct Built {
 fn build(w: &World, approvers: &[&Official], signer: &Official) -> Built {
     let members = delivery();
     let manifest = plain_manifest(&members);
+    build_with_manifest(w, approvers, signer, members, manifest)
+}
+
+fn build_with_manifest(
+    w: &World,
+    approvers: &[&Official],
+    signer: &Official,
+    members: Vec<Artifact>,
+    manifest: Manifest,
+) -> Built {
     let manifest_bytes = manifest.to_bytes().unwrap();
     let manifest_sha256 = sha256_hex(&manifest_bytes);
     let mut bundle = Bundle {
@@ -505,6 +515,49 @@ fn reads_only_the_one_envelope_version_it_knows_and_nothing_extra_in_it() {
 }
 
 #[test]
+fn an_invalid_json_envelope_is_refused_even_with_a_manifest() {
+    let w = world();
+    let built = build(&w, &[&w.a, &w.b], &w.signer);
+    let package = zip(&[
+        Artifact {
+            name: MANIFEST_MEMBER.to_string(),
+            bytes: built.manifest,
+        },
+        Artifact {
+            name: ENVELOPE_MEMBER.to_string(),
+            bytes: b"{".to_vec(),
+        },
+    ])
+    .unwrap();
+    let (code, id) =
+        refusal(verify_browser_package(&package, &w.pinned(2), None));
+    assert_eq!(
+        (code, id.as_str()),
+        (Code::Unreadable, "package.webauthn-unreadable")
+    );
+}
+
+#[test]
+fn a_browser_manifest_requires_a_configuration_and_a_positive_revision() {
+    let w = world();
+    let pinned = w.pinned(2);
+    let mut nameless = plain_manifest(&delivery());
+    nameless.configuration.external_id.clear();
+    let mut unnumbered = plain_manifest(&delivery());
+    unnumbered.configuration.revision = 0;
+    for manifest in [nameless, unnumbered] {
+        let built =
+            build(&w, &[&w.a, &w.b], &w.signer).with_manifest(&manifest);
+        let (code, id) =
+            refusal(verify_browser_package(&built.zip(), &pinned, None));
+        assert_eq!(
+            (code, id.as_str()),
+            (Code::InvalidValue, "package.webauthn-revision")
+        );
+    }
+}
+
+#[test]
 fn refuses_a_manifest_the_envelope_does_not_name() {
     let w = world();
     let mut built = build(&w, &[&w.a, &w.b], &w.signer);
@@ -658,6 +711,53 @@ fn refuses_an_incoherent_previous_revision() {
         let (_, id) =
             refusal(verify_browser_package(&built.zip(), &w.pinned(2), None));
         assert_eq!(id, "package.webauthn-previous");
+    }
+}
+
+#[test]
+fn a_valid_seal_does_not_excuse_an_incorrect_manifest_content_digest() {
+    let w = world();
+    let members = delivery();
+    let mut manifest = plain_manifest(&members);
+    manifest.content_sha256 = "a".repeat(64);
+    let built =
+        build_with_manifest(&w, &[&w.a, &w.b], &w.signer, members, manifest);
+    let (code, id) =
+        refusal(verify_browser_package(&built.zip(), &w.pinned(2), None));
+    assert_eq!(
+        (code, id.as_str()),
+        (Code::IntegrityMismatch, "package.content-mismatch")
+    );
+}
+
+#[test]
+fn a_browser_envelope_must_name_the_same_revision_identity_as_the_manifest() {
+    let w = world();
+    let pinned = w.pinned(2);
+    for (field, wrong, expected) in [
+        (
+            "external_id",
+            serde_json::json!("other-demo"),
+            "configuration",
+        ),
+        ("revision", serde_json::json!(9), "revision"),
+        (
+            "content_sha256",
+            serde_json::json!("d".repeat(64)),
+            "content",
+        ),
+    ] {
+        let mut built = build(&w, &[&w.a, &w.b], &w.signer);
+        built.envelope["bundle"][field] = wrong;
+        let report =
+            verify_browser_package(&built.zip(), &pinned, None).unwrap_err();
+        let problem = report.errors().next().expect("the binding refusal");
+        assert_eq!(problem.code, Code::IntegrityMismatch, "{expected}");
+        assert_eq!(problem.id.as_deref(), Some("package.webauthn-refused"));
+        assert_eq!(
+            problem.details.get("reason"),
+            Some(&format!("the binding is not for this package's {expected}"))
+        );
     }
 }
 

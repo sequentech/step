@@ -70,13 +70,14 @@ pub async fn admit_document(
     let lists = configuration_packages::revocation_lists(hasura_transaction, tenant_id).await?;
 
     // Format 2 is bound to this tenant and its current policy digest.
+    let policy = BrowserPolicy::load_with_db(hasura_transaction, tenant_id).await;
     let verified = match admit_with_policy(
         &bytes,
         setting.as_ref(),
         tenant_id,
         lists,
         chrono::Utc::now(),
-        &BrowserPolicy::load(tenant_id),
+        &policy,
     ) {
         Ok(Admission::Unsigned) => return Ok((temp_file, None)),
         Ok(Admission::Verified(verified)) => verified,

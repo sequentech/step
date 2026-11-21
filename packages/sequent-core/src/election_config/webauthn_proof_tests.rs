@@ -491,6 +491,68 @@ fn trusts_only_the_roster_it_was_given() {
 }
 
 #[test]
+fn a_pinned_roster_requires_a_tenant_and_a_lowercase_relying_party() {
+    let w = world();
+    let mut roster = w.roster();
+    let original = serde_json::to_string(&roster).unwrap();
+    assert_eq!(
+        PinnedRoster::load(&original, &Roster::sha256(&original), "", 2)
+            .unwrap_err(),
+        ProofError::Policy("no tenant".to_string())
+    );
+    roster.rp_id.clear();
+    let text = serde_json::to_string(&roster).unwrap();
+    assert_eq!(
+        PinnedRoster::load(&text, &Roster::sha256(&text), "t", 2).unwrap_err(),
+        ProofError::Roster("no relying party, tenant or origin".to_string())
+    );
+    for rp in ["Architect.ems.example", "architect.ems.example/path"] {
+        roster.rp_id = rp.to_string();
+        let text = serde_json::to_string(&roster).unwrap();
+        assert_eq!(
+            PinnedRoster::load(&text, &Roster::sha256(&text), "t", 2)
+                .unwrap_err(),
+            ProofError::Policy(
+                "the relying party is not a lowercase host name".to_string()
+            ),
+            "{rp}"
+        );
+    }
+    roster.rp_id = "architect-dev.ems.example".to_string();
+    let text = serde_json::to_string(&roster).unwrap();
+    assert!(PinnedRoster::load(&text, &Roster::sha256(&text), "t", 2).is_ok());
+}
+
+#[test]
+fn pinned_roster_origins_are_exact_authorities() {
+    let w = world();
+    let mut roster = w.roster();
+    for (origin, allowed) in [
+        ("https://architect-ems.example:15176", true),
+        ("http://localhost:15176", true),
+        ("http://127.0.0.1", true),
+        ("https://architect-ems.example:", false),
+        ("https://architect-ems.example:invalid", false),
+        ("https://architect-ems.example:151760", false),
+        ("https://:15176", false),
+    ] {
+        roster.origins = vec![origin.to_string()];
+        let text = serde_json::to_string(&roster).unwrap();
+        let result = PinnedRoster::load(&text, &Roster::sha256(&text), "t", 2);
+        if allowed {
+            assert!(result.is_ok(), "{origin}");
+        } else {
+            assert_eq!(
+                result.unwrap_err(),
+                ProofError::Policy(format!(
+                    "origin {origin} is not one exact origin"
+                ))
+            );
+        }
+    }
+}
+
+#[test]
 fn reads_only_a_well_formed_roster() {
     let w = world();
     let good = serde_json::to_value(w.roster()).unwrap();
