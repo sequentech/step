@@ -9,7 +9,7 @@
 // server's own preview again before anything changes; this page never skips it
 // and never resubmits on its own.
 
-import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
+import React, {useContext, useEffect, useId, useMemo, useRef, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {useMutation, useQuery} from "@apollo/client"
 import {
@@ -94,6 +94,8 @@ export const SettingsConfigurationPackage: React.FC = () => {
     )
     const [typedDocumentId, setTypedDocumentId] = useState("")
     const [openUpload, setOpenUpload] = useState(false)
+    const [legacySetupTenant, setLegacySetupTenant] = useState<string | null>(null)
+    const legacySetupId = useId()
     const [confirming, setConfirming] = useState(false)
     const [previewed, setPreviewed] = useState<PreviewedPackage | null>(null)
     const [error, setError] = useState<string | null>(null)
@@ -106,6 +108,7 @@ export const SettingsConfigurationPackage: React.FC = () => {
     // Another tenant is not what was previewed, nor the task it follows.
     useEffect(() => {
         setPreviewed(null)
+        setLegacySetupTenant(null)
         const recalled = recalledSubmission(tenantId)
         setSubmitted(recalled)
         setRequirements(recalled?.requirements ?? COMPLETE_DELIVERY)
@@ -282,69 +285,97 @@ export const SettingsConfigurationPackage: React.FC = () => {
             </Typography>
 
             <Divider sx={{my: 2}} />
-            <ArchitectApprovalPolicy key={tenantId} tenantId={tenantId} />
-            {tenantId ? <ConfigurationSigningSettings key={tenantId} tenantId={tenantId} /> : null}
-
-            <Divider sx={{my: 2}} />
-            <Typography variant="h6" component="h3">
-                {t("configurationPackage.requirements")}
+            <Button variant="contained" disabled={running} onClick={() => setOpenUpload(true)}>
+                {t("configurationPackage.upload")}
+            </Button>
+            <Typography variant="body2" sx={{mt: 1}}>
+                {t("configurationPackage.verificationNote")}
             </Typography>
-            {PACKAGE_SECTIONS.map((section) => (
-                <FormControlLabel
-                    key={section}
-                    control={
-                        <Checkbox
-                            checked={requirements.sections.includes(section)}
-                            onChange={() => toggleSection(section)}
-                            inputProps={{"aria-label": section}}
-                        />
-                    }
-                    label={String(t(`configurationPackage.sections.${section}`))}
-                />
-            ))}
-            <FormControlLabel
-                control={
-                    <Checkbox
-                        checked={requirements.census === "required"}
-                        onChange={(event) =>
-                            changeRequirements({
-                                ...requirements,
-                                census: event.target.checked ? "required" : "optional",
-                            })
-                        }
-                        inputProps={{"aria-label": "census"}}
-                    />
-                }
-                label={String(t("configurationPackage.censusRequired"))}
-            />
 
-            <Divider sx={{my: 2}} />
-            <Box sx={{display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap"}}>
-                <Button variant="contained" disabled={running} onClick={() => setOpenUpload(true)}>
-                    {t("configurationPackage.upload")}
-                </Button>
-                <TextField
-                    size="small"
-                    label={String(t("configurationPackage.documentId"))}
-                    value={typedDocumentId}
-                    onChange={(event) => {
-                        setPreviewed(null)
-                        setTypedDocumentId(event.target.value)
-                    }}
-                />
-                <Button
-                    variant="outlined"
-                    disabled={running || !typedDocumentId.trim()}
-                    onClick={() => {
-                        const document = typedDocumentId.trim()
-                        setDocumentId(document)
-                        // A typed document id carries no entered digest.
-                        setExpectedSha(null)
-                        submit("preview", document, null)
-                    }}
-                >
-                    {t("configurationPackage.preview")}
-                </Button>
+            <Box key={tenantId} component="details" sx={{my: 2}} data-testid="package-advanced">
+                <Typography component="summary" sx={{cursor: "pointer", width: "fit-content"}}>
+                    {t("configurationPackage.advanced")}
+                </Typography>
+                <Box sx={{mt: 2}}>
+                    <Typography variant="h6" component="h3">
+                        {t("configurationPackage.requirements")}
+                    </Typography>
+                    {PACKAGE_SECTIONS.map((section) => (
+                        <FormControlLabel
+                            key={section}
+                            control={
+                                <Checkbox
+                                    checked={requirements.sections.includes(section)}
+                                    onChange={() => toggleSection(section)}
+                                    inputProps={{"aria-label": section}}
+                                />
+                            }
+                            label={String(t(`configurationPackage.sections.${section}`))}
+                        />
+                    ))}
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={requirements.census === "required"}
+                                onChange={(event) =>
+                                    changeRequirements({
+                                        ...requirements,
+                                        census: event.target.checked ? "required" : "optional",
+                                    })
+                                }
+                                inputProps={{"aria-label": "census"}}
+                            />
+                        }
+                        label={String(t("configurationPackage.censusRequired"))}
+                    />
+                </Box>
+                <Box sx={{display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap"}}>
+                    <TextField
+                        size="small"
+                        label={String(t("configurationPackage.documentId"))}
+                        value={typedDocumentId}
+                        onChange={(event) => {
+                            setPreviewed(null)
+                            setTypedDocumentId(event.target.value)
+                        }}
+                    />
+                    <Button
+                        variant="outlined"
+                        disabled={running || !typedDocumentId.trim()}
+                        onClick={() => {
+                            const document = typedDocumentId.trim()
+                            setDocumentId(document)
+                            // A typed document id carries no entered digest.
+                            setExpectedSha(null)
+                            submit("preview", document, null)
+                        }}
+                    >
+                        {t("configurationPackage.preview")}
+                    </Button>
+                </Box>
+                {tenantId && (
+                    <Box sx={{my: 2}}>
+                        <Button
+                            variant="text"
+                            aria-expanded={legacySetupTenant === tenantId}
+                            aria-controls={legacySetupId}
+                            onClick={() =>
+                                setLegacySetupTenant(
+                                    legacySetupTenant === tenantId ? null : tenantId
+                                )
+                            }
+                        >
+                            {t("configurationPackage.legacySetup")}
+                        </Button>
+                        <Box id={legacySetupId}>
+                            {legacySetupTenant === tenantId && (
+                                <ConfigurationSigningSettings key={tenantId} tenantId={tenantId} />
+                            )}
+                        </Box>
+                    </Box>
+                )}
+            </Box>
+            <Box>
                 <Button
                     variant="contained"
                     color="warning"
@@ -435,6 +466,8 @@ export const SettingsConfigurationPackage: React.FC = () => {
                     )
                 })}
             </List>
+
+            <ArchitectApprovalPolicy key={tenantId} tenantId={tenantId} />
 
             {/* The page's own upload: no election-event dry run, no shared import state. */}
             <Drawer

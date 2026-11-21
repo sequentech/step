@@ -79,6 +79,10 @@ const englishTranslation = {
             },
         },
         configurationPackage: {
+            advanced: "Advanced options",
+            legacySetup: "Legacy certificate setup",
+            verificationNote:
+                "The server checks the ZIP using the trust already configured for this tenant. Uploading does not apply changes.",
             tab: "Configuration package",
             title: "Import a configuration package",
             description:

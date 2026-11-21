@@ -122,6 +122,29 @@ it("is not offered without every permission", () => {
     render(<SettingsConfigurationPackage />)
     expect(screen.getByTestId("package-not-permitted")).toBeTruthy()
     expect(screen.queryByText("configurationPackage.upload")).toBeNull()
+    expect(screen.queryByTestId("package-advanced")).toBeNull()
+    expect(screen.queryByTestId("configuration-signing")).toBeNull()
+})
+
+it("makes Upload package first and opens legacy setup only through Advanced", () => {
+    render(<SettingsConfigurationPackage />)
+    const upload = screen.getByRole("button", {name: "configurationPackage.upload"})
+    const advanced = screen.getByTestId("package-advanced") as HTMLDetailsElement
+    expect(upload.compareDocumentPosition(advanced) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(advanced.open).toBe(false)
+    expect(screen.queryByTestId("configuration-signing")).toBeNull()
+    fireEvent.click(screen.getByText("configurationPackage.advanced"))
+    expect(advanced.open).toBe(true)
+    const setup = screen.getByRole("button", {name: "configurationPackage.legacySetup"})
+    expect(setup.getAttribute("aria-expanded")).toBe("false")
+    fireEvent.click(setup)
+    expect(setup.getAttribute("aria-expanded")).toBe("true")
+    const editor = screen.getByTestId("configuration-signing")
+    expect(editor.textContent).toBe("t1")
+    expect(
+        document.getElementById(setup.getAttribute("aria-controls") ?? "")?.contains(editor)
+    ).toBe(true)
+    expect(mockApply).not.toHaveBeenCalled()
 })
 
 it("previews an upload first, showing members, blockers and the task, and refuses to apply", async () => {

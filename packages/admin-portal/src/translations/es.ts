@@ -86,6 +86,10 @@ const spanishTranslation: TranslationType = {
             },
         },
         configurationPackage: {
+            advanced: "Opciones avanzadas",
+            legacySetup: "Configurar certificados heredados",
+            verificationNote:
+                "El servidor comprueba el ZIP con la configuración de confianza del inquilino. Subir el archivo no aplica cambios.",
             tab: "Paquete de configuración",
             title: "Importar un paquete de configuración",
             description:

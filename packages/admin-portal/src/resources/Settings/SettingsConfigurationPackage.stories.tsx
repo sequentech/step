@@ -101,6 +101,9 @@ type Story = StoryObj<Scenario>
 
 async function preview(canvasElement: HTMLElement) {
     const canvas = within(canvasElement)
+    const advanced = canvas.getByTestId("package-advanced") as HTMLDetailsElement
+    if (!advanced.open)
+        await userEvent.click(canvas.getByText(i18n.t("configurationPackage.advanced")))
     await userEvent.type(
         canvas.getByRole("textbox", {name: i18n.t("configurationPackage.documentId")}),
         DOCUMENT_ID
@@ -182,5 +185,24 @@ export const PermissionRequired: Story = {
     play: async ({canvasElement}) => {
         await expect(within(canvasElement).getByTestId("package-not-permitted")).toBeVisible()
         expect(graphql.calls).toEqual([])
+    },
+}
+
+export const UploadFirst: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const advanced = canvas.getByTestId("package-advanced") as HTMLDetailsElement
+        await expect(advanced.open).toBe(false)
+        await expect(canvas.getByTestId("package-apply")).toBeDisabled()
+        await userEvent.click(canvas.getByText(i18n.t("configurationPackage.advanced")))
+        await expect(advanced.open).toBe(true)
+        await expect(
+            canvas.getByRole("button", {name: i18n.t("configurationPackage.legacySetup")})
+        ).toHaveAttribute("aria-expanded", "false")
+        await userEvent.click(canvas.getByText(i18n.t("configurationPackage.advanced")))
+        await userEvent.click(
+            canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
+        )
+        await expect(within(document.body).getByTestId("package-upload-drawer")).toBeVisible()
     },
 }
