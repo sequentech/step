@@ -35,6 +35,7 @@ message GetMessagesRequest {
 
 message GetMessagesReply {
   repeated GrpcB3Message messages = 1;
+  bool truncated = 2;
 }
 
 message PutMessagesRequest {
