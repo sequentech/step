@@ -38,6 +38,9 @@ pub const DATAFIX_LAST_APPLIED_SEQUENCE_KEY: &str = "datafix:last_applied_sequen
 /// Whether the most recent reconciliation apply had per-row failures. A true
 /// value permits retrying that same Sequence; a successful apply clears it.
 pub const DATAFIX_LAST_APPLY_HAD_FAILURES_KEY: &str = "datafix:last_apply_had_failures";
+/// A `DatafixSetVotedConflictPolicy` value. When absent the event uses the
+/// policy's default.
+pub const DATAFIX_SET_VOTED_CONFLICT_POLICY_KEY: &str = "datafix:set_voted_conflict_policy";
 /// Lifetime of the per-voter Datafix advisory lock. Must exceed the slowest
 /// VoterView round-trip so the lock outlives an in-flight SOAP call.
 pub const DATAFIX_VOTER_LOCK_SECS: i64 = 300;
@@ -478,6 +481,54 @@ mod tests {
             DATAFIX_PSW_POLICY_KEY: r#"{"base":"password-only","size":6,"characters":"numeric"}"#,
             DATAFIX_VOTERVIEW_REQ_KEY: r#"{"url":"https://example.invalid","usr":"user","psw":"secret","county_mun":"county"}"#,
         })
+    }
+
+    fn datafix_annotations_with_policy(policy: &str) -> serde_json::Value {
+        let mut annotations = datafix_annotations("datafix-id");
+        annotations[DATAFIX_SET_VOTED_CONFLICT_POLICY_KEY] = json!(policy);
+        annotations
+    }
+
+    #[test]
+    fn set_voted_conflict_policy_defaults_to_hold_for_review() {
+        let event = datafix_event("event", Some(datafix_annotations("datafix-id")));
+        assert_eq!(
+            event.get_annotations().unwrap().set_voted_conflict_policy,
+            DatafixSetVotedConflictPolicy::HoldForReview
+        );
+    }
+
+    #[test]
+    fn set_voted_conflict_policy_reads_every_configured_value() {
+        for (value, policy) in [
+            (
+                "validate-and-reconcile",
+                DatafixSetVotedConflictPolicy::ValidateAndReconcile,
+            ),
+            (
+                "hold-for-review",
+                DatafixSetVotedConflictPolicy::HoldForReview,
+            ),
+            ("discard", DatafixSetVotedConflictPolicy::Discard),
+        ] {
+            let event = datafix_event("event", Some(datafix_annotations_with_policy(value)));
+            assert_eq!(
+                event.get_annotations().unwrap().set_voted_conflict_policy,
+                policy,
+                "{value}"
+            );
+        }
+    }
+
+    #[test]
+    fn unknown_set_voted_conflict_policy_is_a_configuration_error() {
+        let event = datafix_event("event", Some(datafix_annotations_with_policy("accept")));
+        let err = event.get_annotations().unwrap_err();
+        assert!(
+            err.to_string()
+                .contains(DATAFIX_SET_VOTED_CONFLICT_POLICY_KEY),
+            "{err}"
+        );
     }
 
     #[test]
