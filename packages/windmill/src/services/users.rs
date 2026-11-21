@@ -1914,6 +1914,30 @@ pub async fn get_realm_email_uniqueness(
     )
 }
 
+/// True when `lookup_users` has something to match on: a name, username or
+/// email filter, or at least one attribute.
+pub fn lookup_has_criteria(filter: &ListUsersFilter) -> bool {
+    filter.email.is_some()
+        || filter.first_name.is_some()
+        || filter.last_name.is_some()
+        || filter.username.is_some()
+        || filter
+            .attributes
+            .as_ref()
+            .is_some_and(|attributes| !attributes.is_empty())
+}
+
+/// The WHERE condition of the dynamic attribute branch in `lookup_users`.
+/// Without attribute conditions it matches nothing, so the branch stays valid
+/// SQL and adds no candidates.
+fn dynamic_attr_where_clause(conditions: &[String]) -> String {
+    if conditions.is_empty() {
+        "FALSE".to_string()
+    } else {
+        conditions.join(" OR ")
+    }
+}
+
 /// Use only for verifying application!, does not work as it seems for other situations, then use list_users instead.
 #[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
 pub async fn lookup_users(
@@ -1921,6 +1945,11 @@ pub async fn lookup_users(
     keycloak_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
 ) -> Result<Vec<User>> {
+    if !lookup_has_criteria(&filter) {
+        // Nothing to match on: an empty WHERE would be a SQL error.
+        return Ok(vec![]);
+    }
+
     let low_sql_limit = PgConfig::from_env()
         .map_err(|e| anyhow!("Error getting low_sql_limit {e:?}"))?
         .low_sql_limit;
@@ -1997,10 +2026,7 @@ pub async fn lookup_users(
         params.push(value);
     }
 
-    let dynamic_attr_clause = match dynamic_attr_conditions.is_empty() {
-        true => "".to_string(),
-        false => dynamic_attr_conditions.join(" OR "),
-    };
+    let dynamic_attr_clause = dynamic_attr_where_clause(&dynamic_attr_conditions);
     let no_service_accounts = service_account_exclusion("u");
 
     debug!("parameters count: {}", next_param_number - 1);
@@ -2519,6 +2545,28 @@ pub async fn list_users_has_voted(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lookup_without_criteria_has_nothing_to_match() {
+        let mut filter = ListUsersFilter::new("tenant-a", "realm-a");
+        assert!(!lookup_has_criteria(&filter));
+        filter.attributes = Some(HashMap::new());
+        assert!(!lookup_has_criteria(&filter));
+        filter.attributes = Some(HashMap::from([("k".to_string(), "v".to_string())]));
+        assert!(lookup_has_criteria(&filter));
+        filter.attributes = None;
+        filter.email = Some(FilterOption::IsEqualNormalized("a@b.test".to_string()));
+        assert!(lookup_has_criteria(&filter));
+    }
+
+    #[test]
+    fn empty_dynamic_attribute_clause_is_valid_sql() {
+        assert_eq!(dynamic_attr_where_clause(&[]), "FALSE");
+        assert_eq!(
+            dynamic_attr_where_clause(&["a".to_string(), "b".to_string()]),
+            "a OR b"
+        );
+    }
 
     /// A filter's debug output keeps its scope and paging but none of the
     /// voter data that selects users.

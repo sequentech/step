@@ -8,7 +8,7 @@ use super::approval_matrix::store::get_current_approval_matrix;
 use super::approval_matrix::{FieldMatch, IdentityMethod};
 use super::users::{
     check_is_user_verified, get_realm_email_uniqueness, get_user_ids_by_email, get_username_by_id,
-    lookup_users, EmailUniqueness, FilterOption, ListUsersFilter,
+    lookup_has_criteria, lookup_users, EmailUniqueness, FilterOption, ListUsersFilter,
 };
 use crate::postgres::application::get_permission_label_from_post;
 use crate::postgres::area::get_elections_by_area;
@@ -1918,6 +1918,32 @@ mod tests {
             ("country".to_string(), "Spain/Madrid".to_string()),
             ("embassy".to_string(), "Madrid PE".to_string()),
         ])
+    }
+
+    fn filter_for(fields: &[&str], data: &HashMap<String, String>) -> ListUsersFilter {
+        let fields: Vec<String> = fields.iter().map(|f| f.to_string()).collect();
+        get_filter_from_applicant_data(
+            "tenant".to_string(),
+            Some("event".to_string()),
+            None,
+            None,
+            "realm".to_string(),
+            None,
+            &fields,
+            data,
+        )
+        .unwrap()
+    }
+
+    /// Comparing only fields the lookup ignores leaves nothing to match on, so
+    /// the lookup returns no voters instead of running an invalid query.
+    #[test]
+    fn an_applicant_with_nothing_to_match_on_gives_a_filter_without_criteria() {
+        let data = census_applicant("1980-01-01");
+        assert!(!lookup_has_criteria(&filter_for(&[], &data)));
+        assert!(!lookup_has_criteria(&filter_for(&["embassy"], &data)));
+        assert!(lookup_has_criteria(&filter_for(&["firstName"], &data)));
+        assert!(lookup_has_criteria(&filter_for(&["dateOfBirth"], &data)));
     }
 
     #[test]
