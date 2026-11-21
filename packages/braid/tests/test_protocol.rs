@@ -23,6 +23,13 @@ fn test_protocol_memory() {
         }
     }
 }
+/// All MAX_TRUSTEES trustees mix, so the verifier's mixing chain holds the
+/// ballots and one hash per mix, and every batch must still be verified.
+#[test]
+fn test_protocol_memory_all_trustees_mix() {
+    let ctx = RistrettoCtx;
+    braid::test::protocol_test_memory::run_with_trustees(10, 1, ctx, 12, 12);
+}
 /*
 #[tokio::test]
 #[ignore]
