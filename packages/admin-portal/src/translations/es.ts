@@ -4344,6 +4344,7 @@ const spanishTranslation: TranslationType = {
                     body: "Esto vincula la inscripción con el votante del registro que aparece abajo. Se avisa al votante por correo electrónico o SMS y podrá iniciar sesión para votar cuando se abra la votación.",
                     checked: "Ha comprobado el documento de identidad del votante cara a cara.",
                     irreversible: "Esto no se puede deshacer.",
+                    stepUp: "Se le pedirá que vuelva a iniciar sesión con su segundo factor antes de enviar la aprobación.",
                     confirm: "Aprobar",
                 },
                 reject: "Rechazar la inscripción",
@@ -4397,6 +4398,7 @@ const spanishTranslation: TranslationType = {
                 rejectError: "No se pudo rechazar la inscripción",
                 rejectSuccess: "Inscripción de {{name}} rechazada. Se ha avisado al votante.",
                 VoterApprovedAlready: "Este votante ya está inscrito.",
+                stepUpError: "La aprobación requiere que vuelva a iniciar sesión con su segundo factor. Inténtelo de nuevo.",
             },
             export: {
                 success: "La exportación de solicitudes se completó con éxito",

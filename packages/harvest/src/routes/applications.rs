@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::iter::Map;
 use std::str::FromStr;
 
+use crate::services::approval_step_up::check_approval_step_up;
 use crate::services::audit;
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
@@ -393,6 +394,13 @@ pub async fn change_application_status(
             )
         })?;
     } else {
+        check_approval_step_up(
+            &hasura_transaction,
+            &claims,
+            &input.tenant_id,
+            &input.election_event_id,
+        )
+        .await?;
         let mut keycloak_db_client: DbClient = services
             .databases
             .keycloak()

@@ -4207,6 +4207,7 @@ const catalanTranslation: TranslationType = {
                     body: "Això vincula la inscripció amb el votant del registre que apareix a sota. S'avisa el votant per correu electrònic o SMS i podrà iniciar la sessió per votar quan s'obri la votació.",
                     checked: "Heu comprovat el document d'identitat del votant cara a cara.",
                     irreversible: "Això no es pot desfer.",
+                    stepUp: "Se us demanarà que torneu a iniciar la sessió amb el vostre segon factor abans d'enviar l'aprovació.",
                     confirm: "Aprova",
                 },
                 reject: "Rebutja la inscripció",
@@ -4259,6 +4260,7 @@ const catalanTranslation: TranslationType = {
                 rejectError: "No s'ha pogut rebutjar la inscripció",
                 rejectSuccess: "Inscripció de {{name}} rebutjada. S'ha avisat el votant.",
                 VoterApprovedAlready: "Aquest votant ja està inscrit.",
+                stepUpError: "L'aprovació requereix que torneu a iniciar la sessió amb el vostre segon factor. Torneu-ho a provar.",
             },
             export: {
                 success: "L'exportació de sol·licituds s'ha completat amb èxit",

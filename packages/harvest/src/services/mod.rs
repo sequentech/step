@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod access;
+pub mod approval_step_up;
 pub mod audit;
 pub mod authorization;
 pub mod dependencies;
