@@ -123,9 +123,11 @@ impl Fairing for TrusteeCheckLogging {
     }
 }
 
-/// Successful checks are visible at debug verbosity, including Rocket's
-/// request/response logs and shared helper spans. Warnings and errors always
-/// retain their normal visibility. Poisoned state falls back to normal logs.
+/// Successful checks are visible when harvest's own level is debug or more
+/// verbose, including Rocket's request/response logs and shared helper spans.
+/// A directive for another target (`info,hyper=debug`) doesn't show them.
+/// Warnings and errors always retain their normal visibility. Poisoned state
+/// falls back to normal logs.
 pub fn enabled(metadata: &Metadata<'_>, level: LevelFilter) -> bool {
     if *metadata.level() <= Level::WARN || level >= LevelFilter::DEBUG {
         return true;

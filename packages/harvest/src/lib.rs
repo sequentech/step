@@ -55,7 +55,11 @@ mod hasura_signing_permissions;
 /// before calling it.
 pub async fn rocket() -> rocket::Rocket<rocket::Build> {
     dotenv().ok();
-    init_log_with_filter(true, services::request_logging::enabled);
+    init_log_with_filter(
+        true,
+        env!("CARGO_CRATE_NAME"),
+        services::request_logging::enabled,
+    );
 
     setup_probe(AppName::HARVEST).await;
     set_is_app_active(true);

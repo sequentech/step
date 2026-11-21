@@ -60,17 +60,21 @@ fn exercise_filter() {
     let observed = Arc::new(Mutex::new(Vec::new()));
     let filter_allow = Arc::clone(&allow);
     let filter_observed = Arc::clone(&observed);
-    let handle = init_log_with_filter(true, move |metadata, level| {
-        if metadata.target() == "custody::fixture" {
-            filter_observed
-                .lock()
-                .unwrap()
-                .push((level, *metadata.level()));
-            filter_allow.load(Ordering::SeqCst)
-        } else {
-            true
-        }
-    });
+    let handle = init_log_with_filter(
+        true,
+        "custody::fixture",
+        move |metadata, level| {
+            if metadata.target() == "custody::fixture" {
+                filter_observed
+                    .lock()
+                    .unwrap()
+                    .push((level, *metadata.level()));
+                filter_allow.load(Ordering::SeqCst)
+            } else {
+                true
+            }
+        },
+    );
     tracing::info!(target: "custody::fixture", "FILTER_INFO_VISIBLE");
     tracing::debug!(target: "custody::fixture", "FILTER_DEBUG_HIDDEN");
     allow.store(false, Ordering::SeqCst);
@@ -89,4 +93,15 @@ fn exercise_filter() {
     ] {
         assert!(observed.lock().unwrap().contains(&pair));
     }
+    // A more verbose directive for another target doesn't change the level
+    // the callback sees.
+    observed.lock().unwrap().clear();
+    handle
+        .reload(EnvFilter::new("info,other::fixture=debug"))
+        .unwrap();
+    tracing::info!(target: "custody::fixture", "FILTER_INFO_OTHER_TARGET");
+    assert_eq!(
+        *observed.lock().unwrap(),
+        vec![(LevelFilter::INFO, Level::INFO)]
+    );
 }

@@ -23,7 +23,11 @@
 //! Independently of `LOG_LEVEL`, [`SqlParameterFilter`] keeps SQL driver
 //! parameters out of the output at any level.
 
+use tracing::callsite::{Callsite, Identifier};
+use tracing::field::FieldSet;
 use tracing::level_filters::LevelFilter;
+use tracing::metadata::Kind;
+use tracing::subscriber::Interest;
 use tracing::{Level, Metadata};
 use tracing_log::NormalizeEvent;
 use tracing_subscriber::filter::{self, FilterExt};
@@ -186,14 +190,70 @@ pub fn build_filter(spec: Option<&str>) -> (EnvFilter, Option<String>) {
 /// can be muted with a directive. Returns a handle that can replace the
 /// filter at runtime.
 pub fn init_log(set_global: bool) -> LogReloadHandle {
-    init_log_with_filter(set_global, |_, _| true)
+    init_log_with_filter(set_global, "", |_, _| true)
+}
+
+struct ProbeCallsite;
+
+static PROBE_CALLSITE: ProbeCallsite = ProbeCallsite;
+
+static PROBE_METADATA: Metadata<'static> = Metadata::new(
+    "log_level_probe",
+    "",
+    Level::ERROR,
+    None,
+    None,
+    None,
+    FieldSet::new(&[], Identifier(&PROBE_CALLSITE)),
+    Kind::EVENT,
+);
+
+impl Callsite for ProbeCallsite {
+    fn set_interest(&self, _: Interest) {}
+
+    fn metadata(&self) -> &Metadata<'_> {
+        &PROBE_METADATA
+    }
+}
+
+/// The most verbose level `filter` enables for events of `target`.
+fn target_level<S>(
+    filter: &EnvFilter,
+    target: &str,
+    cx: &Context<'_, S>,
+) -> LevelFilter {
+    [
+        Level::TRACE,
+        Level::DEBUG,
+        Level::INFO,
+        Level::WARN,
+        Level::ERROR,
+    ]
+    .into_iter()
+    .find(|level| {
+        let probe = Metadata::new(
+            "log_level_probe",
+            target,
+            *level,
+            None,
+            None,
+            None,
+            FieldSet::new(&[], Identifier(&PROBE_CALLSITE)),
+            Kind::EVENT,
+        );
+        filter.enabled(&probe, cx.clone())
+    })
+    .map_or(LevelFilter::OFF, LevelFilter::from_level)
 }
 
 /// Initialize the usual logger with an additional request-aware filter. The
-/// callback receives the most verbose level the current filter enables, so
-/// debug checks follow runtime filter changes as well as LOG_LEVEL at startup.
+/// callback receives the level the current filter applies to `target`, the
+/// caller's own crate, so debug checks follow that crate's level through
+/// runtime filter changes as well as LOG_LEVEL at startup. A directive that
+/// only makes another target more verbose doesn't change it.
 pub fn init_log_with_filter(
     set_global: bool,
+    target: &'static str,
     enabled: impl Fn(&Metadata<'_>, LevelFilter) -> bool + Send + Sync + 'static,
 ) -> LogReloadHandle {
     let layer = HierarchicalLayer::default()
@@ -210,11 +270,9 @@ pub fn init_log_with_filter(
     let (filter, error) = build_filter(spec.as_deref());
     let (filter, reload_handle) = reload::Layer::new(filter);
     let current_filter = reload_handle.clone();
-    let request_filter = filter::dynamic_filter_fn(move |metadata, _| {
+    let request_filter = filter::dynamic_filter_fn(move |metadata, cx| {
         current_filter
-            .with_current(|filter| filter.max_level_hint())
-            .ok()
-            .flatten()
+            .with_current(|filter| target_level(filter, target, cx))
             .map_or(true, |level| enabled(metadata, level))
     });
     let subscriber = Registry::default()
@@ -407,6 +465,48 @@ mod tests {
 
     fn has(seen: &[String], level: &str, target: &str) -> bool {
         seen.iter().any(|s| s == &format!("{level} {target}"))
+    }
+
+    /// The level `target_level` reports for `target` under `spec`.
+    fn level_of(spec: &str, target: &'static str) -> LevelFilter {
+        let (filter, _) = build_filter(Some(spec));
+        let level = Arc::new(Mutex::new(None));
+        let found = Arc::clone(&level);
+        let probe = filter::dynamic_filter_fn(move |_, cx| {
+            if let Ok(mut found) = found.lock() {
+                *found = Some(target_level(&filter, target, cx));
+            }
+            true
+        });
+        let subscriber =
+            Registry::default().with(Seen::default().with_filter(probe));
+        tracing::subscriber::with_default(subscriber, || {
+            tracing::error!(target: "probe::fixture", "e");
+        });
+        let level = level.lock().ok().and_then(|level| *level);
+        level.unwrap_or(LevelFilter::OFF)
+    }
+
+    #[test]
+    fn target_level_follows_the_target_not_the_most_verbose_directive() {
+        assert_eq!(level_of("debug", "harvest"), LevelFilter::DEBUG);
+        assert_eq!(level_of("trace", "harvest"), LevelFilter::TRACE);
+        assert_eq!(level_of("debug", "rocket"), LevelFilter::INFO);
+        assert_eq!(level_of("info,hyper=debug", "harvest"), LevelFilter::INFO);
+        assert_eq!(level_of("info,hyper=debug", "hyper"), LevelFilter::DEBUG);
+        assert_eq!(
+            level_of("info,harvest=debug", "harvest"),
+            LevelFilter::DEBUG
+        );
+        assert_eq!(level_of("warn", "harvest"), LevelFilter::WARN);
+        assert_eq!(level_of("off", "harvest"), LevelFilter::OFF);
+        assert_eq!(level_of("info,harvest=off", "harvest"), LevelFilter::OFF);
+    }
+
+    #[test]
+    fn probe_callsite_describes_the_probe() {
+        PROBE_CALLSITE.set_interest(Interest::never());
+        assert_eq!(PROBE_CALLSITE.metadata().name(), "log_level_probe");
     }
 
     #[test]
