@@ -103,8 +103,9 @@ An Area can be linked to Contests in several Elections. To keep a voter in that 
 
 - List each Election the voter may take part in, by the Election's external ID. If an Election has no external ID, use its ID.
 - Give each Election as a separate value. In a voter import CSV, separate them with `|` (for example `election-a|election-b`); a comma-separated cell is read as one value that matches no Election.
-- A voter without the attribute is authorized for every Election in their Area. So is a voter with an empty (null) value, even if the attribute also lists other Elections.
-- The attribute only narrows the Area: listing an Election that isn't linked to the voter's Area doesn't add the voter to it.
+- A voter without the attribute, or with only an empty (null) value, is authorized for every Election in their Area.
+- Don't mix an empty value with listed Elections. The lists and counts below then include the voter in every Election of the Area, but the voter can only vote in the listed ones.
+- List only Elections linked to the voter's Area. The lists and counts below ignore an Election outside the Area, so the voter doesn't appear in it.
 
 An Election's **Voters** tab, its **Eligible Voters** count on the Dashboard, and its **Export** only include voters authorized for that Election. **Delete** with **Delete all matching** uses the same rule.
 
