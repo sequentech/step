@@ -71,6 +71,8 @@ pub struct ApplyContext {
     /// importer admits it itself, so the tenant's signing policy applies to
     /// the event exactly as it does to a standalone import.
     pub signed_package: Option<Vec<u8>>,
+    pub managed_roster_binding: Option<crate::services::managed_webauthn_roster::Binding>,
+    pub managed_preview_operator_binding: Option<String>,
     /// Groups the package's roles section defines, so administrators may name
     /// them before that section has run.
     pub package_groups: BTreeSet<String>,
@@ -161,12 +163,65 @@ impl PlatformTarget {
     /// event other than the one this application imports (then the event
     /// section would be refused after the tenant sections had changed).
     async fn admission_blocker(&self) -> Result<Option<String>> {
-        use sequent_core::election_config::package_verify::freshness;
-        let Some(verified) = &self.context.verified else {
-            return Ok(None);
+        use crate::services::browser_package_policy::{
+            admit_with_policy, admitted_as_before, freshness, recheck, BrowserPolicy, Recheck,
         };
+        use sequent_core::election_config::package_verify::{Admission, Freshness};
+        use sequent_core::election_config::webauthn_package::is_browser_verified;
+        let admitted = self.context.verified.as_deref();
         let mut db: DbClient = get_hasura_pool().await.get().await?;
         let transaction = db.transaction().await?;
+        let policy = BrowserPolicy::load_with_db(&transaction, &self.context.tenant_id).await;
+        if policy.managed_binding() != self.context.managed_roster_binding.as_ref() {
+            return Ok(Some(
+                "The receiver roster changed after this application started".into(),
+            ));
+        }
+        let recheck = recheck(&policy, admitted);
+        if let Recheck::Block(reason) = recheck {
+            return Ok(Some(reason));
+        }
+        let Some(verified) = admitted else {
+            return Ok(None);
+        };
+        if recheck == Recheck::Readmit {
+            let bytes = self
+                .context
+                .signed_package
+                .as_deref()
+                .ok_or_else(|| anyhow!("verified package bytes are missing"))?;
+            let setting =
+                super::configuration_package::tenant_setting(&transaction, &self.context.tenant_id)
+                    .await?;
+            let lists = crate::postgres::configuration_packages::revocation_lists(
+                &transaction,
+                &self.context.tenant_id,
+            )
+            .await?;
+            match admit_with_policy(
+                bytes,
+                setting.as_ref(),
+                &self.context.tenant_id,
+                lists,
+                chrono::Utc::now(),
+                &policy,
+            ) {
+                Ok(Admission::Verified(again)) if admitted_as_before(verified, &again) => {}
+                Ok(_) => {
+                    return Ok(Some(
+                        "the package no longer has the same verified admission".into(),
+                    ))
+                }
+                Err(report) => {
+                    return Err(anyhow::Error::new(
+                        sequent_core::election_config::Rejected::new(
+                            "configuration package",
+                            report,
+                        ),
+                    ))
+                }
+            }
+        }
         let last = crate::postgres::configuration_packages::last_import_with_event(
             &transaction,
             &self.context.tenant_id,
@@ -174,6 +229,28 @@ impl PlatformTarget {
         )
         .await?;
         let event_id = derived_event_id(&self.context.tenant_id, &self.context.package_sha256);
+        if is_browser_verified(verified) {
+            return Ok(
+                match freshness(verified, last.as_ref().map(|(last, _)| last)) {
+                    Ok(Freshness::New) => None,
+                    Ok(Freshness::AlreadyImported)
+                        if self
+                            .event_imported_by_this_run
+                            .load(std::sync::atomic::Ordering::SeqCst)
+                            && last
+                                .as_ref()
+                                .is_some_and(|(_, imported)| imported == &event_id) =>
+                    {
+                        None
+                    }
+                    Ok(Freshness::AlreadyImported) => Some(
+                        "this security-key package is already imported; it may not be replayed"
+                            .into(),
+                    ),
+                    Err(problem) => Some(format!("{}: {}", problem.path, problem.message)),
+                },
+            );
+        }
         Ok(admission_problem(
             last.as_ref().map(|(last, imported_into)| {
                 (freshness(verified, Some(last)), imported_into.as_str())
@@ -553,6 +630,14 @@ impl PlatformTarget {
 
 #[async_trait]
 impl PackageTarget for PlatformTarget {
+    fn managed_roster_binding(&self) -> Option<&crate::services::managed_webauthn_roster::Binding> {
+        self.context.managed_roster_binding.as_ref()
+    }
+
+    fn managed_preview_operator_binding(&self) -> Option<&str> {
+        self.context.managed_preview_operator_binding.as_deref()
+    }
+
     async fn hold_imports(&self) -> Result<Box<dyn std::any::Any + Send>> {
         let held = crate::postgres::configuration_packages::hold_imports(
             get_hasura_pool().await.as_ref(),

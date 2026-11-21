@@ -327,11 +327,14 @@ test_arguments = [
     "--skip", "materialized_dates_match_schedule_contract_and_remain_tenant_scoped",
     "--skip", "materialized_dates_follow_the_online_voting_channel",
     "--skip", "channel_enablement_and_pause_are_rechecked_from_the_writer",
+    # Requires the dedicated paired Architect fixture and independent receiver policy.
+    "--skip", "browser_producer_package_uses_real_admission_and_persisted_chain",
 ]
 limitations = [
     "Native default FIPS profile with local synthetic PostgreSQL 16 on port 3322, which also hosts the electoral log, matching the Rust CI service fixtures.",
     "Includes isolated PostgreSQL sequencer, receive/cast, public-key recovery, delegation and dead-letter contracts. Live renderer, Java, S3, scale benchmarks and scheduling tests requiring the full devenv schema remain separate; their production code remains measured.",
     "Cloud transports, complete election workflows, optional features and branch coverage require separate evidence.",
+    "The browser-package producer/receiver contract needs the paired Architect fixture and independent receiver policy; run its dedicated ignored test separately.",
     "Existing inline tests contribute to LLVM source counters; this aggregate is not production-only coverage.",
 ]
 issue = "https://github.com/sequentech/meta/issues/13302"

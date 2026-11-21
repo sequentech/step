@@ -72,6 +72,18 @@ pub enum ErrorCode {
     /// An enrollment's application that can't be rejected as its email
     /// being in use: the server's own checks didn't confirm it.
     ApplicationNotRejectable,
+    #[strum(serialize = "architect-roster-fresh-auth-required")]
+    ArchitectRosterFreshAuthRequired,
+    #[strum(serialize = "architect-roster-management-forbidden")]
+    ArchitectRosterManagementForbidden,
+    #[strum(serialize = "architect-roster-stale-generation")]
+    ArchitectRosterStaleGeneration,
+    #[strum(serialize = "architect-roster-package-busy")]
+    ArchitectRosterPackageBusy,
+    #[strum(serialize = "architect-roster-invalid")]
+    ArchitectRosterInvalid,
+    #[strum(serialize = "architect-roster-unavailable")]
+    ArchitectRosterUnavailable,
     // Add any other needed error codes
 }
 

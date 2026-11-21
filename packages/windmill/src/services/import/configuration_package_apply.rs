@@ -45,6 +45,7 @@ pub enum ApplyMode {
 #[derive(Debug, Clone)]
 pub struct PackagePlan {
     pub package_sha256: String,
+    pub requirements: Requirements,
     pub coverage: Coverage,
     pub payloads: BTreeMap<Section, Vec<Artifact>>,
 }
@@ -62,7 +63,10 @@ pub fn plan_members(
     requirements: &Requirements,
 ) -> Result<PackagePlan> {
     let entries = file_entries(members).map_err(|p| anyhow!("{p}"))?;
-    let coverage = coverage(&entries, requirements);
+    let mut requirements = requirements.clone();
+    requirements.sections.sort_unstable();
+    requirements.sections.dedup();
+    let coverage = coverage(&entries, &requirements);
     let mut payloads: BTreeMap<Section, Vec<Artifact>> = BTreeMap::new();
     let present = |section: Section| {
         matches!(
@@ -101,6 +105,7 @@ pub fn plan_members(
     }
     Ok(PackagePlan {
         package_sha256,
+        requirements,
         coverage,
         payloads,
     })
@@ -150,6 +155,14 @@ pub enum TaskState {
 /// existing importers and with the requesting administrator's permissions.
 #[async_trait]
 pub trait PackageTarget: Send + Sync {
+    fn managed_roster_binding(&self) -> Option<&crate::services::managed_webauthn_roster::Binding> {
+        None
+    }
+
+    fn managed_preview_operator_binding(&self) -> Option<&str> {
+        None
+    }
+
     async fn preview(&self, section: Section, files: &[Artifact]) -> Result<SectionPreview>;
     /// Record a submission before it starts (its task row), so an
     /// interruption leaves its identity behind. `None` for a section whose
@@ -258,6 +271,12 @@ pub struct ApplicationRecord {
     pub format: String,
     pub tenant_id: String,
     pub package_sha256: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub managed_roster_binding: Option<crate::services::managed_webauthn_roster::Binding>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub managed_preview_operator_binding: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub managed_requirements: Option<Requirements>,
     pub mode: ApplyMode,
     pub coverage: Coverage,
     pub sections: Vec<SectionRecord>,
@@ -323,6 +342,40 @@ fn converged(preview: &SectionPreview) -> bool {
     !preview.needs_apply && preview.blockers.is_empty()
 }
 
+fn application_started(record: &ApplicationRecord) -> bool {
+    (record.mode == ApplyMode::Apply && record.outcome == Outcome::Running)
+        || record.sections.iter().any(|section| {
+            !section.history.submissions.is_empty()
+                || section.history.in_flight.is_some()
+                || section.history.applied
+        })
+}
+
+/// A changed trust policy can invalidate a clean preview but cannot move a
+/// partial application to a new authority, even via an intervening preview.
+fn require_same_roster(
+    mode: ApplyMode,
+    prior: Option<&ApplicationRecord>,
+    current: Option<&crate::services::managed_webauthn_roster::Binding>,
+) -> Result<()> {
+    let previous = prior.and_then(|record| record.managed_roster_binding.as_ref());
+    if current == previous {
+        return Ok(());
+    }
+    let started = prior.is_some_and(application_started);
+    if started {
+        return Err(anyhow!(
+            "the receiver roster changed since this package application began; resolve the previous application before retrying"
+        ));
+    }
+    if mode == ApplyMode::Apply {
+        return Err(anyhow!(
+            "preview the package again under the current receiver roster before applying"
+        ));
+    }
+    Ok(())
+}
+
 /// Preview, and in [`ApplyMode::Apply`] apply, every section in order.
 ///
 /// `prior` is the saved record of an earlier run of the same package on the
@@ -344,10 +397,29 @@ pub async fn run(
             ));
         }
     }
+    require_same_roster(mode, prior, target.managed_roster_binding())?;
+    if target.managed_roster_binding().is_some()
+        && prior.is_some_and(|record| {
+            application_started(record)
+                && (record.managed_requirements.as_ref() != Some(&plan.requirements)
+                    || record.coverage != plan.coverage)
+        })
+    {
+        return Err(anyhow!(
+            "the confirmed plan changed since package application began; resolve the previous application before retrying"
+        ));
+    }
     let mut record = ApplicationRecord {
         format: APPLICATION_FORMAT.to_string(),
         tenant_id: tenant_id.to_string(),
         package_sha256: plan.package_sha256.clone(),
+        managed_roster_binding: target.managed_roster_binding().cloned(),
+        managed_preview_operator_binding: target
+            .managed_preview_operator_binding()
+            .map(str::to_owned),
+        managed_requirements: target
+            .managed_roster_binding()
+            .map(|_| plan.requirements.clone()),
         mode,
         coverage: plan.coverage.clone(),
         sections: Section::APPLY_ORDER
@@ -683,3 +755,54 @@ async fn stop(
 #[cfg(test)]
 #[path = "configuration_package_apply_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod managed_roster_binding_tests {
+    use super::*;
+    use crate::services::managed_webauthn_roster::Binding;
+    use std::collections::BTreeMap;
+
+    fn binding(generation: i64) -> Binding {
+        Binding {
+            sha256: "c".repeat(64),
+            generation,
+            required_approvals: 2,
+        }
+    }
+
+    fn preview(generation: i64) -> ApplicationRecord {
+        ApplicationRecord {
+            format: APPLICATION_FORMAT.to_string(),
+            tenant_id: "tenant".into(),
+            package_sha256: "package".into(),
+            managed_roster_binding: Some(binding(generation)),
+            managed_preview_operator_binding: None,
+            managed_requirements: Some(Requirements::default()),
+            mode: ApplyMode::Preview,
+            coverage: Coverage {
+                members: vec![],
+                sections: BTreeMap::new(),
+                census: sequent_core::election_config::package_contract::SectionState::NotIncluded,
+            },
+            sections: vec![],
+            outcome: Outcome::Previewed,
+        }
+    }
+
+    #[test]
+    fn managed_apply_needs_a_current_preview_even_after_same_digest_rotation() {
+        assert!(require_same_roster(ApplyMode::Apply, None, Some(&binding(1))).is_err());
+        let record = preview(1);
+        assert!(require_same_roster(ApplyMode::Apply, Some(&record), Some(&binding(1))).is_ok());
+        assert!(require_same_roster(ApplyMode::Apply, Some(&record), Some(&binding(2))).is_err());
+        assert!(require_same_roster(ApplyMode::Preview, Some(&record), Some(&binding(2))).is_ok());
+        let mut interrupted = record;
+        interrupted.mode = ApplyMode::Apply;
+        interrupted.outcome = Outcome::Running;
+        assert!(
+            require_same_roster(ApplyMode::Preview, Some(&interrupted), Some(&binding(2))).is_err()
+        );
+        assert!(require_same_roster(ApplyMode::Apply, Some(&interrupted), None).is_err());
+        assert!(require_same_roster(ApplyMode::Apply, None, None).is_ok());
+    }
+}

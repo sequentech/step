@@ -88,7 +88,10 @@ export const CreateAndOpenTheEvent: Story = {
                 i18n: {en: expect.objectContaining({name: "Council event"})},
             },
         })
-        await expect(await within(document.body).findByText("Election Event created")).toBeVisible()
+        // The Snackbar can be mounted before its entrance transition makes it visible.
+        await waitFor(() =>
+            expect(within(document.body).getByText("Election Event created")).toBeVisible()
+        )
         const location = within(canvasElement).getByLabelText("Current location")
         await waitFor(() =>
             expect(location).toHaveTextContent(`/sequent_backend_election_event/${event.id}`)

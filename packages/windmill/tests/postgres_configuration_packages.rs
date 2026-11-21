@@ -8,6 +8,8 @@
 //! certificates come from the signing tests' OpenSSL PKI: an RSA and an EC
 //! approver, and an EC package signing key.
 
+#[path = "support/browser_admission_fixture.rs"]
+mod browser_admission_fixture;
 #[path = "support/schema.rs"]
 mod schema;
 #[path = "support/signing_pki.rs"]
@@ -761,4 +763,362 @@ async fn an_event_without_a_package_has_no_stamp() {
         .unwrap()
         .is_none());
     tx.rollback().await.unwrap();
+}
+
+/// Paired producer/receiver contract, using the exact bytes downloaded from
+/// Architect's synthetic WebAuthn route test. Run alone against a disposable
+/// migrated database with the independently provisioned WINDMILL_WEBAUTHN_*
+/// policy environment and ARCHITECT_SYNTHETIC_PACKAGE_FIXTURE_DIR.
+/// No package member supplies trust, and no test changes process-wide policy.
+#[tokio::test]
+#[ignore = "requires the paired synthetic producer fixture and isolated database"]
+async fn browser_producer_package_uses_real_admission_and_persisted_chain() {
+    use sequent_core::election_config::package_verify::VerificationScheme;
+    use windmill::services::browser_package_policy::{BrowserPolicy, SWITCH_VALUE};
+    let directory = std::path::PathBuf::from(
+        std::env::var_os("ARCHITECT_SYNTHETIC_PACKAGE_FIXTURE_DIR")
+            .expect("synthetic fixture directory"),
+    );
+    let policy: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(directory.join("policy.json")).unwrap()).unwrap();
+    let tenant = policy["tenant"].as_str().unwrap();
+    let tenant_uuid = Uuid::parse_str(tenant).unwrap();
+    assert_eq!(tenant_uuid.hyphenated().to_string(), tenant);
+    assert_eq!(
+        std::env::var("WINDMILL_WEBAUTHN_PACKAGES_PREVIEW").unwrap(),
+        SWITCH_VALUE
+    );
+    assert!(matches!(
+        BrowserPolicy::load(tenant),
+        BrowserPolicy::BrowserOnly(_)
+    ));
+    let first = std::fs::read(directory.join("package.zip")).unwrap();
+    let second = std::fs::read(directory.join("package-r2.zip")).unwrap();
+    let expected = std::fs::read(directory.join("expected-importable.zip")).unwrap();
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    tx.execute(
+        "INSERT INTO sequent_backend.tenant (id, slug) VALUES ($1, $2)",
+        &[&tenant_uuid, &format!("synthetic-browser-{tenant}")],
+    )
+    .await
+    .unwrap();
+
+    // Unknown predecessor, unsigned downgrade and certificate downgrade fail
+    // before importing any document, even with no tenant signing setting.
+    let error = admit_document(&tx, tenant, file_of(&second))
+        .await
+        .unwrap_err();
+    assert!(ids(&error).contains(&"package.webauthn-not-next".into()));
+    assert!(admit_document(&tx, tenant, file_of(b"legacy unsigned"))
+        .await
+        .is_err());
+    assert!(admit_document(&tx, tenant, file_of(&signed_package(1)))
+        .await
+        .is_err());
+
+    // UUID aliases are the same policy and the same tenant lock.
+    let alias = tenant_uuid.simple().to_string().to_uppercase();
+    let (file, admitted) = admit_document(&tx, &alias, file_of(&first)).await.unwrap();
+    let admitted = admitted.unwrap();
+    assert!(matches!(
+        admitted.scheme,
+        VerificationScheme::Browser { .. }
+    ));
+    assert_eq!(
+        admitted.manifest_sha256,
+        policy["manifest_sha256"].as_str().unwrap()
+    );
+    assert_eq!(std::fs::read(file.path()).unwrap(), expected);
+    record(&tx, tenant, &Uuid::new_v4().to_string(), &admitted)
+        .await
+        .unwrap();
+    tx.commit().await.unwrap();
+
+    // Fresh transaction: history is persisted, not just an in-memory result.
+    let tx = client.transaction().await.unwrap();
+    let replay = admit_document(&tx, tenant, file_of(&first))
+        .await
+        .unwrap_err();
+    assert!(ids(&replay).contains(&"package.already-imported".into()));
+    let (_, admitted_second) = admit_document(&tx, tenant, file_of(&second)).await.unwrap();
+    let admitted_second = admitted_second.unwrap();
+    let previous = admitted_second
+        .manifest
+        .configuration
+        .previous
+        .as_ref()
+        .unwrap();
+    assert_eq!(previous.revision, 1);
+    assert_eq!(previous.manifest_sha256, admitted.manifest_sha256);
+    record(&tx, tenant, &Uuid::new_v4().to_string(), &admitted_second)
+        .await
+        .unwrap();
+    tx.commit().await.unwrap();
+
+    let tx = client.transaction().await.unwrap();
+    assert!(admit_document(&tx, tenant, file_of(&first)).await.is_err());
+    let replay = admit_document(&tx, tenant, file_of(&second))
+        .await
+        .unwrap_err();
+    assert!(ids(&replay).contains(&"package.already-imported".into()));
+    tx.rollback().await.unwrap();
+}
+
+/// Run the real section readmission against an owned migrated database. The
+/// child has an independent policy environment and cannot inherit site trust.
+#[tokio::test]
+async fn managed_section_readmits_its_sealed_package_but_stops_after_replay_or_rotation() {
+    const CHILD: &str = "STEP_RECEIVER_READMISSION_FIXTURE";
+    const ACTOR: &str = "synthetic-independent-operator";
+    let host = std::env::var("HASURA_DB__HOST").expect("disposable test PostgreSQL host");
+    assert!(matches!(host.as_str(), "127.0.0.1" | "localhost" | "::1"));
+    assert_eq!(std::env::var("HASURA_DB__USER").unwrap(), "test");
+    if let Some(directory) = std::env::var_os(CHILD) {
+        use sequent_core::election_config::package_contract::Section;
+        use sequent_core::election_config::package_verify::VerificationScheme;
+        use std::sync::{atomic::AtomicBool, Arc};
+        use windmill::services::{
+            browser_package_policy::BrowserPolicy,
+            database::get_hasura_pool,
+            import::{
+                configuration_package_apply::PackageTarget,
+                configuration_package_target::{derived_event_id, ApplyContext, PlatformTarget},
+            },
+            managed_webauthn_roster,
+        };
+
+        let dir = std::path::PathBuf::from(directory);
+        let expected_db = std::fs::read_to_string(dir.join("database")).unwrap();
+        assert!(expected_db.starts_with("windmill_schema_"));
+        assert_eq!(std::env::var("HASURA_DB__DBNAME").unwrap(), expected_db);
+        let tenant = std::fs::read_to_string(dir.join("tenant")).unwrap();
+        let roster = std::fs::read_to_string(dir.join("roster.json")).unwrap();
+        let bytes = std::fs::read(dir.join("package.zip")).unwrap();
+        let config = managed_webauthn_roster::config(&tenant).unwrap().unwrap();
+        let pool = get_hasura_pool().await;
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let refused = admit_document(&tx, &tenant, file_of(&bytes))
+            .await
+            .unwrap_err();
+        assert!(ids(&refused).contains(&"package.webauthn-policy-unusable".into()));
+        tx.rollback().await.unwrap();
+
+        let tx = client.transaction().await.unwrap();
+        assert!(configuration_packages::try_lock_package_work(&tx, &tenant)
+            .await
+            .unwrap());
+        let active = managed_webauthn_roster::install(
+            &tx,
+            &config,
+            &config.candidate(roster.as_bytes()).unwrap(),
+            0,
+            ACTOR,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        tx.commit().await.unwrap();
+
+        let tx = client.transaction().await.unwrap();
+        let unsealed = zip(&members()).unwrap();
+        let refused = admit_document(&tx, &tenant, file_of(&unsealed))
+            .await
+            .unwrap_err();
+        assert!(ids(&refused).contains(&"package.webauthn-required".into()));
+        let (_, verified) = admit_document(&tx, &tenant, file_of(&bytes)).await.unwrap();
+        let verified = verified.unwrap();
+        assert!(matches!(
+            verified.scheme,
+            VerificationScheme::Browser { .. }
+        ));
+        let policy = BrowserPolicy::load_with_db(&tx, &tenant).await;
+        let binding = policy.managed_binding().cloned().unwrap();
+        assert_eq!(binding.generation, active.generation);
+        tx.rollback().await.unwrap();
+
+        let package_sha256 = sha256_hex(&bytes);
+        let event_id = derived_event_id(&tenant, &package_sha256);
+        let target = PlatformTarget {
+            context: ApplyContext {
+                tenant_id: tenant.clone(),
+                executed_by: ACTOR.into(),
+                audit_actor: None,
+                event_import: serde_json::from_value(json!({
+                    "tenant_id": tenant, "document_id": Uuid::new_v4().to_string(),
+                }))
+                .unwrap(),
+                package_sha256,
+                signed_package: Some(bytes),
+                managed_roster_binding: Some(binding),
+                managed_preview_operator_binding: None,
+                package_groups: Default::default(),
+                package_trustees: Default::default(),
+                verified: Some(Arc::new(*verified)),
+            },
+            event_imported_by_this_run: AtomicBool::new(false),
+        };
+        let section = [Artifact {
+            name: "tenant-configuration.json".into(),
+            bytes: b"{}".to_vec(),
+        }];
+        let admission_lock = target.hold_imports().await.unwrap();
+        let preview = target
+            .preview(Section::TenantConfiguration, &section)
+            .await
+            .unwrap();
+        assert!(preview.blockers.is_empty(), "{:?}", preview.blockers);
+        drop(admission_lock);
+
+        let tx = client.transaction().await.unwrap();
+        configuration_packages::lock_imports(&tx, &tenant)
+            .await
+            .unwrap();
+        record(
+            &tx,
+            &tenant,
+            &event_id,
+            target.context.verified.as_deref().unwrap(),
+        )
+        .await
+        .unwrap();
+        tx.commit().await.unwrap();
+
+        let admission_lock = target.hold_imports().await.unwrap();
+        let blocked = target
+            .preview(Section::TenantConfiguration, &section)
+            .await
+            .unwrap();
+        assert!(blocked
+            .blockers
+            .iter()
+            .any(|b| b.contains("may not be replayed")));
+        // Only this run's verified successful event import may converge.
+        target
+            .event_imported_by_this_run
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        let converged = target
+            .preview(Section::TenantConfiguration, &section)
+            .await
+            .unwrap();
+        assert!(converged.blockers.is_empty(), "{:?}", converged.blockers);
+        drop(admission_lock);
+
+        let tx = client.transaction().await.unwrap();
+        // The previous hold closes its connection asynchronously. Retry
+        // briefly instead of racing PostgreSQL's release of that test lock.
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                if configuration_packages::try_lock_package_work(&tx, &tenant)
+                    .await
+                    .unwrap()
+                {
+                    return;
+                }
+                tokio::time::sleep(Duration::from_millis(25)).await;
+            }
+        })
+        .await
+        .expect("the previous test hold released its lock");
+        // Same officials with a new independently approved byte-exact roster.
+        let rotated = config.candidate(format!("{roster}\n").as_bytes()).unwrap();
+        assert!(
+            managed_webauthn_roster::install(&tx, &config, &rotated, active.generation, ACTOR)
+                .await
+                .unwrap()
+                .is_some()
+        );
+        tx.commit().await.unwrap();
+
+        let _admission_lock = target.hold_imports().await.unwrap();
+        let blocked = target
+            .preview(Section::TenantConfiguration, &section)
+            .await
+            .unwrap();
+        assert!(blocked
+            .blockers
+            .iter()
+            .any(|b| b.contains("roster changed")));
+        return;
+    }
+
+    let mut client = schema::pool().await.get().await.unwrap();
+    let database: String = client
+        .query_one("SELECT current_database()", &[])
+        .await
+        .unwrap()
+        .get(0);
+    assert!(database.starts_with("windmill_schema_"));
+    let tenant = Uuid::new_v4();
+    let tx = client.transaction().await.unwrap();
+    tx.execute(
+        "INSERT INTO sequent_backend.tenant (id, slug) VALUES ($1, $2)",
+        &[&tenant, &format!("synthetic-managed-{tenant}")],
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+
+    let directory = tempfile::tempdir().unwrap();
+    let fixture = browser_admission_fixture::fixture(&tenant.to_string());
+    std::fs::write(directory.path().join("database"), &database).unwrap();
+    std::fs::write(directory.path().join("tenant"), tenant.to_string()).unwrap();
+    std::fs::write(directory.path().join("roster.json"), fixture.roster).unwrap();
+    std::fs::write(directory.path().join("package.zip"), fixture.package).unwrap();
+    let mut command = tokio::process::Command::new(std::env::current_exe().unwrap());
+    command
+        .kill_on_drop(true)
+        .env_clear()
+        .args([
+            "--exact",
+            "managed_section_readmits_its_sealed_package_but_stops_after_replay_or_rotation",
+            "--nocapture",
+        ])
+        .env(CHILD, directory.path())
+        .env("HASURA_DB__DBNAME", database)
+        .env("WINDMILL_WEBAUTHN_PACKAGES", "portal-managed")
+        .env("WINDMILL_WEBAUTHN_PACKAGES_TENANT_ID", tenant.to_string())
+        .env(
+            "WINDMILL_WEBAUTHN_PACKAGES_EXPECTED_RP_ID",
+            browser_admission_fixture::RP,
+        )
+        .env(
+            "WINDMILL_WEBAUTHN_PACKAGES_EXPECTED_ORIGIN",
+            browser_admission_fixture::ORIGIN,
+        )
+        .env("WINDMILL_WEBAUTHN_PACKAGES_ROSTER_ADMIN_SUBJECTS", ACTOR);
+    for key in [
+        "HASURA_DB__HOST",
+        "HASURA_DB__PORT",
+        "HASURA_DB__USER",
+        "HASURA_DB__PASSWORD",
+        "KEYCLOAK_DB__HOST",
+        "KEYCLOAK_DB__PORT",
+        "KEYCLOAK_DB__USER",
+        "KEYCLOAK_DB__PASSWORD",
+        "KEYCLOAK_DB__DBNAME",
+        "LOW_SQL_LIMIT",
+        "DEFAULT_SQL_LIMIT",
+        "DEFAULT_SQL_BATCH_SIZE",
+        "LLVM_PROFILE_FILE",
+        "LD_LIBRARY_PATH",
+    ] {
+        if let Some(value) = std::env::var_os(key) {
+            command.env(key, value);
+        }
+    }
+    let output = tokio::time::timeout(Duration::from_secs(30), command.output())
+        .await
+        .expect("isolated section readmission timed out")
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success()
+            && stdout.contains("running 1 test")
+            && stdout.contains("test result: ok. 1 passed; 0 failed;"),
+        "isolated readmission did not run exactly one successful test:\n{stdout}\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
