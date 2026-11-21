@@ -4,6 +4,19 @@
 
 const englishTranslation = {
     translations: {
+        architectApprovalPolicy: {
+            title: "Architect revision approvals",
+            field: "Required WebAuthn approvals",
+            help: "Leave blank for 2. A whole number from 1 to 16 applies to new submissions only.",
+            invalid: "Enter a whole number from 1 to 16, or leave blank.",
+            receiver:
+                "The offline receiver has a separately configured minimum. Lowering this setting does not lower that minimum. The final signer is separate and does not count as an approver.",
+            save: "Save approval policy",
+            saved: "Approval policy saved.",
+            failed: "Could not save the approval policy. Reload Tenant Settings and try again.",
+            loading: "Loading Architect approval policy…",
+            unavailable: "Architect approval policy could not be loaded.",
+        },
         configurationSigning: {
             title: "Package signing trust",
             description:
@@ -67,6 +80,55 @@ const englishTranslation = {
             },
         },
         configurationPackage: {
+            roster: {
+                title: "Architect signer roster",
+                loading: "Checking receiver trust…",
+                active: "Active roster: {{hash}}. The receiver requires at least {{approvals}} distinct approvals and a separate final signer.",
+                noRoster:
+                    "No signer roster is active. Signed package imports are blocked until a roster is activated.",
+                unavailable: "Receiver trust could not be verified. Package imports are paused.",
+                locked: "Only authorized roster managers can change this roster.",
+                sitePinned:
+                    "This roster is managed by the site operator. It cannot be replaced here.",
+                manage: "Import signer roster",
+                alreadyActive: "This fingerprint is already active for this tenant.",
+                activeConfirmed: "The receiver confirmed the new active roster.",
+                independent:
+                    "Use the public roster from Architect and obtain its SHA-256 fingerprint through a separate trusted channel. Do not take the fingerprint from the same file or package.",
+                file: "Public signer roster (.json)",
+                expected: "Expected SHA-256 fingerprint",
+                hashHelp: "Enter all 64 lowercase hexadecimal characters.",
+                candidate: "Verified fingerprint: {{hash}}",
+                signers: "Approver keys: {{approvers}}. Final signer keys: {{signers}}.",
+                origin: "Relying party: {{rp}}. Allowed origins: {{origins}}.",
+                confirmEffect:
+                    "Activation changes which signers the receiver trusts for this tenant. Packages previewed against the previous roster must be previewed again.",
+                cancel: "Cancel",
+                signIn: "Sign in again",
+                confirm: "Activate signer roster",
+                review: "Verify roster",
+                previewAgain:
+                    "Trust or the selected preview changed. Preview this package again before applying.",
+                importUnavailable:
+                    "The receiver is not ready to import this package. Check the signer roster status.",
+                error: {
+                    file: "Choose a non-empty UTF-8 JSON file no larger than 256 KiB, without a byte order mark.",
+                    freshAuth:
+                        "Sign in again before activating. After signing in, choose the file and confirm its fingerprint again.",
+                    forbidden: "You are not authorized to manage this tenant’s signer roster.",
+                    conflict:
+                        "The roster changed or a package operation is in progress. Reload the roster, then verify the file again.",
+                    preview:
+                        "The roster could not be verified. Check the file and independently confirmed fingerprint.",
+                    activate:
+                        "The receiver did not confirm activation. Check the active fingerprint before trying again.",
+                    login: "Could not start a new sign-in. Sign in again and return here.",
+                },
+            },
+            advanced: "Advanced options",
+            legacySetup: "Legacy certificate setup",
+            verificationNote:
+                "The server checks the ZIP using the trust already configured for this tenant. Uploading does not apply changes.",
             tab: "Configuration package",
             title: "Import a configuration package",
             description:

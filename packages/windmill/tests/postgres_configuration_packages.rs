@@ -762,3 +762,104 @@ async fn an_event_without_a_package_has_no_stamp() {
         .is_none());
     tx.rollback().await.unwrap();
 }
+
+/// Paired producer/receiver contract, using the exact bytes downloaded from
+/// Architect's synthetic WebAuthn route test. Run alone against a disposable
+/// migrated database with the independently provisioned WINDMILL_WEBAUTHN_*
+/// policy environment and ARCHITECT_SYNTHETIC_PACKAGE_FIXTURE_DIR.
+/// No package member supplies trust, and no test changes process-wide policy.
+#[tokio::test]
+#[ignore = "requires the paired synthetic producer fixture and isolated database"]
+async fn browser_producer_package_uses_real_admission_and_persisted_chain() {
+    use sequent_core::election_config::package_verify::VerificationScheme;
+    use windmill::services::browser_package_policy::{BrowserPolicy, SWITCH_VALUE};
+    let directory = std::path::PathBuf::from(
+        std::env::var_os("ARCHITECT_SYNTHETIC_PACKAGE_FIXTURE_DIR")
+            .expect("synthetic fixture directory"),
+    );
+    let policy: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(directory.join("policy.json")).unwrap()).unwrap();
+    let tenant = policy["tenant"].as_str().unwrap();
+    let tenant_uuid = Uuid::parse_str(tenant).unwrap();
+    assert_eq!(tenant_uuid.hyphenated().to_string(), tenant);
+    assert_eq!(
+        std::env::var("WINDMILL_WEBAUTHN_PACKAGES_PREVIEW").unwrap(),
+        SWITCH_VALUE
+    );
+    assert!(matches!(
+        BrowserPolicy::load(tenant),
+        BrowserPolicy::BrowserOnly(_)
+    ));
+    let first = std::fs::read(directory.join("package.zip")).unwrap();
+    let second = std::fs::read(directory.join("package-r2.zip")).unwrap();
+    let expected = std::fs::read(directory.join("expected-importable.zip")).unwrap();
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    tx.execute(
+        "INSERT INTO sequent_backend.tenant (id, slug) VALUES ($1, $2)",
+        &[&tenant_uuid, &format!("synthetic-browser-{tenant}")],
+    )
+    .await
+    .unwrap();
+
+    // Unknown predecessor, unsigned downgrade and certificate downgrade fail
+    // before importing any document, even with no tenant signing setting.
+    let error = admit_document(&tx, tenant, file_of(&second))
+        .await
+        .unwrap_err();
+    assert!(ids(&error).contains(&"package.webauthn-not-next".into()));
+    assert!(admit_document(&tx, tenant, file_of(b"legacy unsigned"))
+        .await
+        .is_err());
+    assert!(admit_document(&tx, tenant, file_of(&signed_package(1)))
+        .await
+        .is_err());
+
+    // UUID aliases are the same policy and the same tenant lock.
+    let alias = tenant_uuid.simple().to_string().to_uppercase();
+    let (file, admitted) = admit_document(&tx, &alias, file_of(&first)).await.unwrap();
+    let admitted = admitted.unwrap();
+    assert!(matches!(
+        admitted.scheme,
+        VerificationScheme::Browser { .. }
+    ));
+    assert_eq!(
+        admitted.manifest_sha256,
+        policy["manifest_sha256"].as_str().unwrap()
+    );
+    assert_eq!(std::fs::read(file.path()).unwrap(), expected);
+    record(&tx, tenant, &Uuid::new_v4().to_string(), &admitted)
+        .await
+        .unwrap();
+    tx.commit().await.unwrap();
+
+    // Fresh transaction: history is persisted, not just an in-memory result.
+    let tx = client.transaction().await.unwrap();
+    let replay = admit_document(&tx, tenant, file_of(&first))
+        .await
+        .unwrap_err();
+    assert!(ids(&replay).contains(&"package.already-imported".into()));
+    let (_, admitted_second) = admit_document(&tx, tenant, file_of(&second)).await.unwrap();
+    let admitted_second = admitted_second.unwrap();
+    let previous = admitted_second
+        .manifest
+        .configuration
+        .previous
+        .as_ref()
+        .unwrap();
+    assert_eq!(previous.revision, 1);
+    assert_eq!(previous.manifest_sha256, admitted.manifest_sha256);
+    record(&tx, tenant, &Uuid::new_v4().to_string(), &admitted_second)
+        .await
+        .unwrap();
+    tx.commit().await.unwrap();
+
+    let tx = client.transaction().await.unwrap();
+    assert!(admit_document(&tx, tenant, file_of(&first)).await.is_err());
+    let replay = admit_document(&tx, tenant, file_of(&second))
+        .await
+        .unwrap_err();
+    assert!(ids(&replay).contains(&"package.already-imported".into()));
+    tx.rollback().await.unwrap();
+}

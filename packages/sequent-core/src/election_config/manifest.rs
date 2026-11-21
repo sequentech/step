@@ -978,27 +978,8 @@ fn read_members(
     budget: &mut Budget,
     wanted: impl Fn(&str) -> bool,
 ) -> Result<Vec<Artifact>, Problem> {
-    let names = central_directory_names(bytes, budget.members_left)
-        .map_err(|reason| unreadable_zip(what, reason))?;
-    if names.len() > budget.members_left {
-        return Err(budget.too_many_members(what));
-    }
-    let mut seen = std::collections::BTreeSet::new();
-    for name in &names {
-        if !seen.insert(name.as_str()) {
-            return Err(Problem::error(
-                Code::Unreadable,
-                what,
-                format!("'{name}' appears twice in {what}"),
-            )
-            .id("package.duplicate-member")
-            .detail("file", name)
-            .detail("archive", what));
-        }
-    }
-
-    let mut archive = ::zip::ZipArchive::new(Cursor::new(bytes))
-        .map_err(|error| unreadable_zip(what, error.to_string()))?;
+    let (mut archive, names) =
+        canonical_archive(bytes, what, budget.members_left)?;
     budget.take_members(archive.len().max(names.len()), what)?;
     let mut members: Vec<Artifact> = Vec::new();
     for index in 0..archive.len() {
@@ -1049,6 +1030,15 @@ fn central_directory_names(
         .find(|at| bytes[*at..].starts_with(END_OF_CENTRAL_DIRECTORY))
         .ok_or_else(|| "it has no central directory".to_string())?;
 
+    if end + 22 + read(end + 20, 2)? as usize != bytes.len()
+        || read(end + 4, 2)? != 0
+        || read(end + 6, 2)? != 0
+        || read(end + 8, 2)? != read(end + 10, 2)?
+    {
+        return Err("inconsistent archive end or multiple disks".into());
+    }
+    let mut directory_end = end;
+    let mut directory_size = read(end + 12, 4)?;
     let mut count = read(end + 10, 2)?;
     let mut offset = read(end + 16, 4)?;
     if count == u64::from(u16::MAX) || offset == u64::from(u32::MAX) {
@@ -1063,12 +1053,28 @@ fn central_directory_names(
         }) {
             return Err("its zip64 directory is missing".to_string());
         }
+        if read(zip64 + 16, 4)? != 0
+            || read(zip64 + 20, 4)? != 0
+            || read(zip64 + 24, 8)? != read(zip64 + 32, 8)?
+            || read(locator + 4, 4)? != 0
+            || read(locator + 16, 4)? != 1
+            || zip64.checked_add(12).and_then(|at| {
+                at.checked_add(usize::try_from(read(zip64 + 4, 8).ok()?).ok()?)
+            }) != Some(locator)
+        {
+            return Err("inconsistent zip64 directory".into());
+        }
+        directory_end = zip64;
+        directory_size = read(zip64 + 40, 8)?;
         count = read(zip64 + 32, 8)?;
         offset = read(zip64 + 48, 8)?;
     }
 
     let mut at = usize::try_from(offset)
         .map_err(|_| "its central directory is out of range".to_string())?;
+    if offset.checked_add(directory_size) != Some(directory_end as u64) {
+        return Err("inconsistent central directory size".into());
+    }
     let mut names = Vec::new();
     for _ in 0..count {
         if names.len() > most {
@@ -1086,8 +1092,18 @@ fn central_directory_names(
         let name = bytes
             .get(at + 46..at + 46 + name_length)
             .ok_or_else(|| "it ends early".to_string())?;
-        names.push(String::from_utf8_lossy(name).into_owned());
-        at += 46 + name_length + extra_length + comment_length;
+        names.push(
+            std::str::from_utf8(name)
+                .map_err(|_| "non-UTF8 member name")?
+                .to_string(),
+        );
+        at = at
+            .checked_add(46 + name_length + extra_length + comment_length)
+            .filter(|at| *at <= directory_end)
+            .ok_or("directory entry out of range")?;
+    }
+    if names.len() <= most && at != directory_end {
+        return Err("central directory count does not match its size".into());
     }
     Ok(names)
 }
@@ -1216,12 +1232,131 @@ fn expand(
     what: &str,
     limits: ArchiveLimits,
 ) -> Result<Payload, Problem> {
+    expand_where(bytes, what, limits, |name| !is_signature_member(name))
+}
+
+fn expand_where(
+    bytes: &[u8],
+    what: &str,
+    limits: ArchiveLimits,
+    wanted: impl Fn(&str) -> bool,
+) -> Result<Payload, Problem> {
     let mut budget = Budget::new(limits);
-    let members = read_members(bytes, what, &mut budget, |name| {
-        !is_signature_member(name)
-    })?;
+    let members = read_members(bytes, what, &mut budget, wanted)?;
     let files = entries_at(&members, 1, &mut budget)?;
     Ok(Payload { members, files })
+}
+
+/// Every member name in a package's central directory, as stored: nothing
+/// is expanded. For a verifier deciding which kind of signature a package
+/// carries before it reads any of it.
+pub fn member_names(bytes: &[u8]) -> Result<Vec<String>, Problem> {
+    let (_, names) = canonical_archive(bytes, PACKAGE, MAX_PACKAGE_MEMBERS)?;
+    for name in &names {
+        let base = name
+            .rsplit(['/', '\\'])
+            .next()
+            .unwrap_or(name)
+            .to_ascii_lowercase();
+        if [MANIFEST_MEMBER, SIGNATURE_MEMBER, CHAIN_MEMBER]
+            .contains(&base.as_str())
+            && name != &base
+        {
+            return Err(Problem::error(
+                Code::Unreadable,
+                PACKAGE,
+                "signature metadata must use its one exact root member name",
+            )
+            .id("package.ambiguous-signature-member")
+            .detail("file", name));
+        }
+    }
+    Ok(names)
+}
+
+/// One validated directory view for dispatch and expansion. The reader must
+/// agree exactly with the bounded raw directory, including duplicates, before
+/// any member is classified. Preambles and inconsistent directories are refused.
+fn canonical_archive<'a>(
+    bytes: &'a [u8],
+    what: &str,
+    most: usize,
+) -> Result<(::zip::ZipArchive<Cursor<&'a [u8]>>, Vec<String>), Problem> {
+    let names = central_directory_names(bytes, most)
+        .map_err(|reason| unreadable_zip(what, reason))?;
+    if names.len() > most {
+        return Err(Budget::new(ArchiveLimits::PACKAGE).too_many_members(what));
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    for name in &names {
+        if !seen.insert(name.as_str()) {
+            return Err(Problem::error(
+                Code::Unreadable,
+                what,
+                format!("'{name}' appears twice in {what}"),
+            )
+            .id("package.duplicate-member")
+            .detail("file", name)
+            .detail("archive", what));
+        }
+    }
+    let mut archive = ::zip::ZipArchive::new(Cursor::new(bytes))
+        .map_err(|error| unreadable_zip(what, error.to_string()))?;
+    if archive.offset() != 0 || archive.len() != names.len() {
+        return Err(unreadable_zip(what, "ambiguous archive directory".into()));
+    }
+    for (index, name) in names.iter().enumerate() {
+        let entry = archive
+            .by_index(index)
+            .map_err(|error| unreadable_zip(what, error.to_string()))?;
+        if entry.name() != name || entry.name_raw() != name.as_bytes() {
+            return Err(unreadable_zip(
+                what,
+                "archive readers disagree about member names".into(),
+            ));
+        }
+    }
+    Ok((archive, names))
+}
+
+/// Non-ZIP legacy uploads (for example tar.gz) retain their old admission.
+/// Any recognizable ZIP must first pass canonical metadata validation.
+pub fn admission_member_names(
+    bytes: &[u8],
+) -> Result<Option<Vec<String>>, Problem> {
+    // Bounded recognition only: never ask the ZIP parser to allocate from
+    // attacker-controlled counts before checking our own directory budget.
+    let tail = &bytes[bytes.len().saturating_sub(22 + u16::MAX as usize)..];
+    if bytes.starts_with(b"PK")
+        || tail.windows(4).any(|part| part == END_OF_CENTRAL_DIRECTORY)
+    {
+        member_names(bytes).map(Some)
+    } else {
+        Ok(None)
+    }
+}
+
+/// Reads exactly the members named in `wanted` (small ones: a manifest and
+/// its signature envelope), within [`ArchiveLimits::SIGNATURE`], before the
+/// delivery is expanded. A name that appears twice is refused, as always.
+pub fn named_members(
+    bytes: &[u8],
+    wanted: &[&str],
+) -> Result<Vec<Artifact>, Problem> {
+    let mut budget = Budget::new(ArchiveLimits::SIGNATURE);
+    read_members(bytes, PACKAGE, &mut budget, |name| wanted.contains(&name))
+}
+
+/// [`payload`] without the members `signature` names as the package's
+/// signature (besides the three of format 1 and 2, which are never part of
+/// a delivery either).
+pub fn payload_without(
+    bytes: &[u8],
+    signature: &[&str],
+) -> Result<Payload, Problem> {
+    expand_where(bytes, PACKAGE, ArchiveLimits::PACKAGE, |name| {
+        !is_signature_member(name) && !signature.contains(&name)
+    })
 }
 
 /// The signed package: the delivery's members, then the manifest, its
