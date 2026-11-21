@@ -4470,7 +4470,8 @@ const englishTranslation = {
                     body: "This links the enrollment to the registry voter below. The voter is told by email or text message and can sign in to vote when voting opens.",
                     checked: "You checked the voter's ID face to face.",
                     irreversible: "This can't be undone.",
-                    stepUp: "You'll be asked to sign in again with your second factor before the approval is sent.",
+                    stepUp:
+                        "You'll be asked to sign in again with your second factor before the approval is sent.",
                     confirm: "Approve",
                 },
                 reject: "Reject enrollment",
@@ -4523,7 +4524,8 @@ const englishTranslation = {
                 rejectError: "The enrollment could not be rejected",
                 rejectSuccess: "{{name}} rejected. The voter has been told.",
                 VoterApprovedAlready: "This voter is already enrolled.",
-                stepUpError: "The approval needs you to sign in again with your second factor. Try again.",
+                stepUpError:
+                    "The approval needs you to sign in again with your second factor. Try again.",
             },
             export: {
                 success: "Applications export finished successfully",

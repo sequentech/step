@@ -4188,7 +4188,8 @@ const galegoTranslation: TranslationType = {
                     body: "Isto vincula a inscrición co votante do rexistro que aparece abaixo. Avísase o votante por correo electrónico ou SMS e poderá iniciar sesión para votar cando se abra a votación.",
                     checked: "Comprobou o documento de identidade do votante cara a cara.",
                     irreversible: "Isto non se pode desfacer.",
-                    stepUp: "Pediráselle que volva iniciar sesión co seu segundo factor antes de enviar a aprobación.",
+                    stepUp:
+                        "Pediráselle que volva iniciar sesión co seu segundo factor antes de enviar a aprobación.",
                     confirm: "Aprobar",
                 },
                 reject: "Rexeitar a inscrición",
@@ -4241,7 +4242,8 @@ const galegoTranslation: TranslationType = {
                 rejectError: "Non se puido rexeitar a inscrición",
                 rejectSuccess: "Inscrición de {{name}} rexeitada. Avisouse o votante.",
                 VoterApprovedAlready: "Este votante xa está inscrito.",
-                stepUpError: "A aprobación require que volva iniciar sesión co seu segundo factor. Ténteo de novo.",
+                stepUpError:
+                    "A aprobación require que volva iniciar sesión co seu segundo factor. Ténteo de novo.",
             },
             export: {
                 success: "A exportación de solicitudes completouse con éxito",
