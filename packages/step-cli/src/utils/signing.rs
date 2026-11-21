@@ -6,6 +6,7 @@
 //! action answers a signing request instead of running, and runs only once
 //! the request has collected them.
 
+use sha2::{Digest, Sha256};
 use std::fmt;
 
 /// The exit status of a command whose action now waits for signatures:
@@ -81,11 +82,47 @@ impl StepOutcome {
     }
 }
 
+/// The fields a key step sends besides its custody proof, as the admin
+/// portal sends them: the first call names the proof's SHA-256, which the
+/// trustee's signing request binds; once signed, the call names the request.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CustodyProofSubmission {
+    pub custody_proof_sha256: Option<String>,
+    pub signing_request_id: Option<String>,
+}
+
+impl CustodyProofSubmission {
+    pub fn new(custody_proof_json: &str, signing_request_id: Option<&str>) -> Self {
+        match signing_request_id {
+            Some(id) => CustodyProofSubmission {
+                custody_proof_sha256: None,
+                signing_request_id: Some(id.to_owned()),
+            },
+            None => CustodyProofSubmission {
+                custody_proof_sha256: Some(hex::encode(Sha256::digest(
+                    custody_proof_json.as_bytes(),
+                ))),
+                signing_request_id: None,
+            },
+        }
+    }
+}
+
 /// Prints that the action waits for signatures and exits with
 /// [`EXIT_SIGNATURES_PENDING`].
 pub fn exit_pending(what: &str, pending: &PendingSignatures) -> ! {
     println!("{what} is {pending}.");
     std::process::exit(EXIT_SIGNATURES_PENDING);
+}
+
+/// [`exit_pending`] for a trustee's key step, which the trustee takes again
+/// once signed.
+pub fn exit_pending_step(what: &str, pending: &PendingSignatures) -> ! {
+    println!(
+        "Once it is signed, run this command again with --signing-request-id {}.",
+        pending.id
+    );
+    exit_pending(what, pending)
 }
 
 #[cfg(test)]
@@ -112,6 +149,26 @@ mod tests {
         assert_eq!(
             StepOutcome::of(false, Some(request())),
             StepOutcome::Invalid
+        );
+    }
+
+    #[test]
+    fn a_key_step_names_its_proofs_hash_until_it_names_the_signed_request() {
+        assert_eq!(
+            CustodyProofSubmission::new("abc", None),
+            CustodyProofSubmission {
+                custody_proof_sha256: Some(
+                    "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad".into()
+                ),
+                signing_request_id: None,
+            }
+        );
+        assert_eq!(
+            CustodyProofSubmission::new("abc", Some("r1")),
+            CustodyProofSubmission {
+                custody_proof_sha256: None,
+                signing_request_id: Some("r1".into()),
+            }
         );
     }
 

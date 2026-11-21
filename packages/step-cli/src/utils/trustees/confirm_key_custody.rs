@@ -4,7 +4,11 @@
 
 use crate::{
     types::hasura_types::*,
-    utils::{read_config::read_config, signing::StepOutcome, trustees::trustee_graphql_request},
+    utils::{
+        read_config::read_config,
+        signing::{CustodyProofSubmission, StepOutcome},
+        trustees::trustee_graphql_request,
+    },
 };
 use graphql_client::{GraphQLQuery, Response};
 
@@ -21,14 +25,18 @@ impl ConfirmKeyCustody {
         election_event_id: &str,
         key_ceremony_id: &str,
         custody_proof_json: &str,
+        signing_request_id: Option<&str>,
     ) -> Result<StepOutcome, Box<dyn std::error::Error>> {
         let config = read_config()?;
         let client = reqwest::blocking::Client::new();
 
+        let submission = CustodyProofSubmission::new(custody_proof_json, signing_request_id);
         let variables = confirm_key_custody::Variables {
             election_event_id: election_event_id.to_string(),
             keys_ceremony_id: key_ceremony_id.to_string(),
             custody_proof_json: custody_proof_json.to_string(),
+            custody_proof_sha256: submission.custody_proof_sha256,
+            signing_request_id: submission.signing_request_id,
         };
 
         let request_body = ConfirmKeyCustody::build_query(variables);
