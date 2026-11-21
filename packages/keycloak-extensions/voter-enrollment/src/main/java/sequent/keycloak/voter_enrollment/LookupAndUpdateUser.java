@@ -17,6 +17,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
@@ -107,11 +108,21 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
   private static final String ENROLLMENT_REPLY_BY = "enrollmentReplyBy";
 
-  public static final String VERIFICATION_COMPLETED = "verificationCompleted";
+  /**
+   * Which part of the enrollment this lookup runs, see {@link LookupStage}: a contact check between
+   * a DECIDE and a FINISH lookup reaches only the voters the decision lets continue.
+   */
+  public static final String LOOKUP_STAGE = "lookup-stage";
+
+  public static final String VERIFICATION_COMPLETED =
+      sequent.keycloak.authenticator.Utils.DECISION_RECORDED;
   public static final String VERIFICATION_STATUS = "verificationStatus";
   static final String VERIFICATION_REJECTION_REASON = "verificationRejectionReason";
   static final String VERIFICATION_MISMATCHED_FIELDS = "verificationMismatchedFields";
   static final String FIELDS_MATCH = "fields_match";
+  static final String DECISION_USER_ID_NOTE = "decisionUserId";
+  static final String DECISION_APPLICATION_ID_NOTE = "decisionApplicationId";
+  static final String ENROLLMENT_FINISHED_NOTE = "enrollmentFinished";
 
   /** The pending page support reference from the application record. */
   static final String SUPPORT_REFERENCE_NOTE = "sequent.support-reference";
@@ -194,6 +205,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   public void authenticate(AuthenticationFlowContext context) {
     log.info("authenticate(): start");
 
+    LookupStage stage = LookupStage.fromConfig(configValue(context, LOOKUP_STAGE));
+    if (stage == LookupStage.FINISH) {
+      finishAfterContactCheck(context);
+      return;
+    }
+
     boolean completedVerification =
         Boolean.parseBoolean(
             context.getAuthenticationSession().getAuthNote(VERIFICATION_COMPLETED));
@@ -201,69 +218,13 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
     // Prevent multiple submissions
     if (completedVerification) {
-      String lateRejection =
-          context.getAuthenticationSession().getAuthNote(EMAIL_IN_USE_REJECTION_NOTE);
-      if (lateRejection != null) {
-        // Windmill hasn't recorded the rejection yet: ask again rather than show a result
-        rejectEmailInUse(context, LateRejection.fromNote(lateRejection));
+      if (stage == LookupStage.DECIDE
+          && LookupStage.continuesAfterDecision(
+              context.getAuthenticationSession().getAuthNote(VERIFICATION_STATUS))) {
+        context.success();
         return;
       }
-      String template = null;
-      String verificationStatus =
-          context.getAuthenticationSession().getAuthNote(VERIFICATION_STATUS);
-      String rejectionReason =
-          context.getAuthenticationSession().getAuthNote(VERIFICATION_REJECTION_REASON);
-      String verificationMismatchedFields =
-          context.getAuthenticationSession().getAuthNote(VERIFICATION_MISMATCHED_FIELDS);
-
-      log.infov("authenticate(): verificationStatus {0}", verificationStatus);
-      log.infov("authenticate(): rejectionReason {0}", rejectionReason);
-      log.infov("authenticate(): verificationMismatchedFields {0}", verificationMismatchedFields);
-
-      ObjectMapper om = new ObjectMapper();
-      TypeReference<HashMap<String, String>> typeRef =
-          new TypeReference<HashMap<String, String>>() {};
-
-      Map<String, String> mismatchedFields = null;
-
-      if (verificationMismatchedFields != null) {
-        try {
-          mismatchedFields = om.readValue(verificationMismatchedFields, typeRef);
-        } catch (JsonProcessingException e) {
-          e.printStackTrace();
-          throw new IllegalStateException(e);
-        }
-      }
-
-      switch (verificationStatus) {
-        case "ACCEPTED":
-          template = "registration-finish.ftl";
-          break;
-        case "PENDING":
-          template = "registration-manual-finish.ftl";
-          break;
-        case "REJECTED":
-          template = "registration-rejected-finish.ftl";
-      }
-
-      if ("PENDING".equals(verificationStatus)) {
-        setNoticeChannel(context);
-      }
-      Response form =
-          context
-              .form()
-              .setAttribute("rejectReason", rejectionReason)
-              .setAttribute("mismatchedFields", mismatchedFields)
-              .setAttribute(
-                  REPLY_BY_PAGE_ATTRIBUTE,
-                  "PENDING".equals(verificationStatus) ? replyByPage(context) : null)
-              .setAttribute(
-                  EnrollmentWindows.DATE_TIME_ZONE_MESSAGE_ATTRIBUTE,
-                  EnrollmentWindows.dateTimeZoneMessageKey(
-                      context.getRealm(), context.getSession().getContext().resolveLocale(null)))
-              .createForm(template);
-      context.challenge(form);
-
+      showRecordedResult(context);
       return;
     }
 
@@ -440,6 +401,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
       // Store the fields_match in the auth session
       context.getAuthenticationSession().setAuthNote(FIELDS_MATCH, fieldsMatch);
+      if (userId != null) {
+        context.getAuthenticationSession().setAuthNote(DECISION_USER_ID_NOTE, userId);
+      }
+      if (applicationId != null) {
+        context.getAuthenticationSession().setAuthNote(DECISION_APPLICATION_ID_NOTE, applicationId);
+      }
 
       log.infov("Stored fields_match in auth session: {0}", fieldsMatch);
 
@@ -452,6 +419,184 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       context.getEvent().error("Error generating approval: " + e.getMessage());
       return;
     }
+
+    if (stage == LookupStage.DECIDE && LookupStage.continuesAfterDecision(verificationStatus)) {
+      log.infov("authenticate(): {0}, checking the contact before finishing", verificationStatus);
+      context.success();
+      return;
+    }
+
+    finish(
+        context,
+        stage,
+        new Decision(
+            verificationStatus,
+            rejectionReason,
+            fieldsMatchNode,
+            applicantDataMap,
+            applicationId,
+            user));
+  }
+
+  /** What windmill decided for the application, as finishing the enrollment needs it. */
+  record Decision(
+      String status,
+      String rejectionReason,
+      JsonNode fieldsMatch,
+      Map<String, String> applicantData,
+      String applicationId,
+      UserModel user) {}
+
+  /**
+   * Shows the result already recorded for this enrollment: Keycloak runs a step again on a reload.
+   */
+  private void showRecordedResult(AuthenticationFlowContext context) {
+    String lateRejection =
+        context.getAuthenticationSession().getAuthNote(EMAIL_IN_USE_REJECTION_NOTE);
+    if (lateRejection != null) {
+      // Windmill hasn't recorded the rejection yet: ask again rather than show a result
+      rejectEmailInUse(context, LateRejection.fromNote(lateRejection));
+      return;
+    }
+    String template = null;
+    String verificationStatus = context.getAuthenticationSession().getAuthNote(VERIFICATION_STATUS);
+    String rejectionReason =
+        context.getAuthenticationSession().getAuthNote(VERIFICATION_REJECTION_REASON);
+    String verificationMismatchedFields =
+        context.getAuthenticationSession().getAuthNote(VERIFICATION_MISMATCHED_FIELDS);
+
+    log.infov("authenticate(): verificationStatus {0}", verificationStatus);
+    log.infov("authenticate(): rejectionReason {0}", rejectionReason);
+    log.infov("authenticate(): verificationMismatchedFields {0}", verificationMismatchedFields);
+
+    ObjectMapper om = new ObjectMapper();
+    TypeReference<HashMap<String, String>> typeRef =
+        new TypeReference<HashMap<String, String>>() {};
+
+    Map<String, String> mismatchedFields = null;
+
+    if (verificationMismatchedFields != null) {
+      try {
+        mismatchedFields = om.readValue(verificationMismatchedFields, typeRef);
+      } catch (JsonProcessingException e) {
+        e.printStackTrace();
+        throw new IllegalStateException(e);
+      }
+    }
+
+    switch (verificationStatus) {
+      case "ACCEPTED":
+        template = "registration-finish.ftl";
+        break;
+      case "PENDING":
+        template = "registration-manual-finish.ftl";
+        break;
+      case "REJECTED":
+        template = "registration-rejected-finish.ftl";
+    }
+
+    if ("PENDING".equals(verificationStatus)) {
+      setNoticeChannel(context);
+    }
+    Response form =
+        context
+            .form()
+            .setAttribute("rejectReason", rejectionReason)
+            .setAttribute("mismatchedFields", mismatchedFields)
+            .setAttribute(
+                REPLY_BY_PAGE_ATTRIBUTE,
+                "PENDING".equals(verificationStatus) ? replyByPage(context) : null)
+            .setAttribute(
+                EnrollmentWindows.DATE_TIME_ZONE_MESSAGE_ATTRIBUTE,
+                EnrollmentWindows.dateTimeZoneMessageKey(
+                    context.getRealm(), context.getSession().getContext().resolveLocale(null)))
+            .createForm(template);
+    context.challenge(form);
+  }
+
+  /**
+   * The {@link LookupStage#FINISH} lookup: finishes the enrollment a {@link LookupStage#DECIDE}
+   * lookup decided, once the steps between them checked the contact.
+   */
+  private void finishAfterContactCheck(AuthenticationFlowContext context) {
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    String sessionId = authSession.getParentSession().getId();
+    String status = authSession.getAuthNote(VERIFICATION_STATUS);
+    String userId = authSession.getAuthNote(DECISION_USER_ID_NOTE);
+    UserModel user =
+        userId == null
+            ? null
+            : context.getSession().users().getUserById(context.getRealm(), userId);
+    if (!Boolean.parseBoolean(authSession.getAuthNote(VERIFICATION_COMPLETED))
+        || ("ACCEPTED".equals(status) && user == null)) {
+      log.errorv("finishAfterContactCheck(): no decision to finish, status {0}", status);
+      context.failureChallenge(
+          AuthenticationFlowError.INTERNAL_ERROR,
+          context
+              .form()
+              .setError(Utils.ERROR_GENERATING_APPROVAL, sessionId)
+              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+      return;
+    }
+    if (Boolean.parseBoolean(authSession.getAuthNote(ENROLLMENT_FINISHED_NOTE))) {
+      showRecordedResult(context);
+      return;
+    }
+    authSession.setAuthNote(ENROLLMENT_FINISHED_NOTE, Boolean.toString(Boolean.TRUE));
+
+    Utils.buildEventDetails(
+        context.newEvent().event(EventType.REGISTER),
+        authSession,
+        user,
+        context.getSession(),
+        this.getClass().getSimpleName());
+
+    String fieldsMatch = authSession.getAuthNote(FIELDS_MATCH);
+    try {
+      finish(
+          context,
+          LookupStage.FINISH,
+          new Decision(
+              status,
+              authSession.getAuthNote(VERIFICATION_REJECTION_REASON),
+              fieldsMatch == null
+                  ? NullNode.getInstance()
+                  : new ObjectMapper().readTree(fieldsMatch),
+              Utils.buildApplicantData(context.getSession(), authSession),
+              authSession.getAuthNote(DECISION_APPLICATION_ID_NOTE),
+              user));
+    } catch (IOException e) {
+      log.errorv("finishAfterContactCheck(): {0}", e.getMessage());
+      context.failureChallenge(
+          AuthenticationFlowError.INTERNAL_ERROR,
+          context
+              .form()
+              .setError(Utils.ERROR_GENERATING_APPROVAL, sessionId)
+              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+    }
+  }
+
+  /** Shows the decision and, for an accepted voter, updates them and lets them in. */
+  private void finish(AuthenticationFlowContext context, LookupStage stage, Decision decision) {
+    RealmModel realm = context.getRealm();
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    Map<String, String> configMap = config.getConfig();
+    boolean autoLogin = Boolean.parseBoolean(configMap.get(AUTO_LOGIN));
+    boolean auto2FA = Boolean.parseBoolean(configMap.get(AUTO_2FA));
+    List<String> unsetAttributesList = parseAttributesList(configMap.get(UNSET_ATTRIBUTES));
+    List<String> updateAttributesList = parseAttributesList(configMap.get(UPDATE_ATTRIBUTES));
+    MessageCourier messageCourier =
+        MessageCourier.fromString(configMap.get(MESSAGE_COURIER_ATTRIBUTE));
+    String sessionId = context.getAuthenticationSession().getParentSession().getId();
+    String password =
+        context.getAuthenticationSession().getAuthNote(RegistrationPage.FIELD_PASSWORD);
+    ObjectMapper om = new ObjectMapper();
+    String verificationStatus = decision.status();
+    String rejectionReason = decision.rejectionReason();
+    JsonNode fieldsMatchNode = decision.fieldsMatch();
+    Map<String, String> applicantDataMap = decision.applicantData();
+    String applicationId = decision.applicationId();
+    UserModel user = decision.user();
 
     // If was rejected show the manual verification screen or rejected screen and send a
     // comunnication
@@ -523,16 +668,20 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               .error(
                   "The data provided for enrollment does not match any existing user in the registry");
 
-          sendRejectCommunication(
-              context.getSession(),
-              realm,
-              messageCourier,
-              email,
-              mobileNumber,
-              rejectionReason,
-              mismatchedFields,
-              enrollmentRecipient(context),
-              context);
+          if (stage.messagesUncheckedContacts()) {
+            sendRejectCommunication(
+                context.getSession(),
+                realm,
+                messageCourier,
+                email,
+                mobileNumber,
+                rejectionReason,
+                mismatchedFields,
+                enrollmentRecipient(context),
+                context);
+          } else {
+            log.info("authenticate(): rejected before the contact check, sending nothing");
+          }
           return;
         }
       } catch (Exception error) {
@@ -739,6 +888,11 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       Map<String, Object> annotations, AuthenticationSessionModel authSession) {
     identityMethod(authSession)
         .ifPresent(method -> annotations.put(IDENTITY_METHOD, method.name()));
+  }
+
+  private static String configValue(AuthenticationFlowContext context, String key) {
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    return config == null ? null : config.getConfig().get(key);
   }
 
   private static String telUserAttribute(AuthenticationFlowContext context) {
@@ -1275,6 +1429,18 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     noMatchingVoterPolicy.setOptions(
         Arrays.stream(NoMatchingVoterPolicy.values()).map(Enum::name).toList());
 
+    ProviderConfigProperty lookupStage =
+        new ProviderConfigProperty(
+            LOOKUP_STAGE,
+            "Lookup stage",
+            "DECIDE_AND_FINISH decides and finishes the enrollment in this step. DECIDE only"
+                + " decides: a rejected voter sees the result, approved and pending voters go on"
+                + " to the next steps, such as the contact code. FINISH then finishes what DECIDE"
+                + " decided, and needs the same settings.",
+            ProviderConfigProperty.LIST_TYPE,
+            LookupStage.DECIDE_AND_FINISH.name());
+    lookupStage.setOptions(Arrays.stream(LookupStage.values()).map(Enum::name).toList());
+
     // Define configuration properties
     return List.of(
         new ProviderConfigProperty(
@@ -1322,7 +1488,8 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             ProviderConfigProperty.STRING_TYPE,
             ""),
         messageCourier,
-        noMatchingVoterPolicy);
+        noMatchingVoterPolicy,
+        lookupStage);
   }
 
   @Override

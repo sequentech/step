@@ -404,8 +404,8 @@
                     "userSetupAllowed": false
                 },
                 {
-                    "authenticator": "message-otp-authenticator",
-                    "authenticatorConfig": "otp",
+                    "authenticator": "scanovate-authenticator",
+                    "authenticatorConfig": "scanovate-registration",
                     "authenticatorFlow": false,
                     "autheticatorFlow": false,
                     "priority": 17,
@@ -413,11 +413,20 @@
                     "userSetupAllowed": false
                 },
                 {
-                    "authenticator": "scanovate-authenticator",
-                    "authenticatorConfig": "scanovate-registration",
+                    "authenticator": "lookup-and-update-user",
+                    "authenticatorConfig": "lookup-register-decide",
                     "authenticatorFlow": false,
                     "autheticatorFlow": false,
                     "priority": 18,
+                    "requirement": "REQUIRED",
+                    "userSetupAllowed": false
+                },
+                {
+                    "authenticator": "message-otp-authenticator",
+                    "authenticatorConfig": "otp",
+                    "authenticatorFlow": false,
+                    "autheticatorFlow": false,
+                    "priority": 19,
                     "requirement": "REQUIRED",
                     "userSetupAllowed": false
                 },
@@ -426,7 +435,7 @@
                     "authenticatorConfig": "lookup-register",
                     "authenticatorFlow": false,
                     "autheticatorFlow": false,
-                    "priority": 19,
+                    "priority": 20,
                     "requirement": "REQUIRED",
                     "userSetupAllowed": false
                 },
@@ -435,7 +444,7 @@
                     "authenticatorConfig": "manual-verif",
                     "authenticatorFlow": false,
                     "autheticatorFlow": false,
-                    "priority": 20,
+                    "priority": 21,
                     "requirement": "DISABLED",
                     "userSetupAllowed": false
                 }
@@ -1081,6 +1090,22 @@
             "id": "df01dda4-482b-4a8d-af5b-bde8f548c293"
         },
         {
+            "alias": "lookup-register-decide",
+            "config": {
+                "auto-login": "false",
+                "messageCourierAttribute": "CHOSEN",
+                "telUserAttribute": "sequent.read-only.mobile-number",
+                "update-attributes": "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,sequent.read-only.id-card-number,sequent.read-only.id-card-type",
+                "search-attributes": "firstName,middleName,lastName,embassy,dateOfBirth",
+                "auto-2fa": "true",
+                "unset-attributes": "email,sequent.read-only.mobile-number,sequent.read-only.id-card-number-validated",
+                "no-matching-voter-policy": "PENDING_APPROVAL",
+                "reply-by-hours": "72",
+                "lookup-stage": "DECIDE"
+            },
+            "id": "6f3c2a91-4d7e-4b8a-9c15-2e8d7f0a3b64"
+        },
+        {
             "alias": "lookup-register",
             "config": {
                 "auto-login": "false",
@@ -1091,7 +1116,8 @@
                 "auto-2fa": "true",
                 "unset-attributes": "email,sequent.read-only.mobile-number,sequent.read-only.id-card-number-validated",
                 "no-matching-voter-policy": "PENDING_APPROVAL",
-                "reply-by-hours": "72"
+                "reply-by-hours": "72",
+                "lookup-stage": "FINISH"
             },
             "id": "d51051b5-d9b5-414b-9fee-259a4de08ba3"
         },
