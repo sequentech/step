@@ -15,7 +15,7 @@ The Dashboard provides administrators with a snapshot of an individual Electionâ
 
 ## Metrics
 - **Eligible Voters**  
-  Displays the total number of voters eligible to participate in this Election.
+  Displays the total number of voters eligible to participate in this Election: enabled voters in one of its Areas whose `authorized-election-ids` attribute includes this Election or has an empty (null) value, or who don't have the attribute. The Election's **Voters** tab uses the same rule but also lists disabled voters; see [Restricting voters to specific Elections](./04-election_management_election_voters.md#restricting-voters-to-specific-elections).
 
 - **Actual Voters (Enrolled Voters)**  
   Shows the count of enabled/enrolled voters who can cast a ballot in this Election.
