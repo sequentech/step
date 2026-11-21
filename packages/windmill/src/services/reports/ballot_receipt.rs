@@ -21,6 +21,39 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
+/// Whether the voter cast `ballot_id` in the given election and area. A
+/// receipt is only rendered for such a ballot.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn voter_cast_ballot(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    voter_id: &str,
+    area_id: &str,
+    ballot_id: &str,
+) -> Result<bool> {
+    let tenant_uuid =
+        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant id: {:?}", err))?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election event id: {:?}", err))?;
+    let election_uuid = parse_uuid_v4(election_id)
+        .map_err(|err| anyhow!("Error parsing election id: {:?}", err))?;
+
+    let cast_votes = postgres::cast_vote::get_cast_votes(
+        hasura_transaction,
+        &tenant_uuid,
+        &election_event_uuid,
+        &election_uuid,
+        voter_id,
+    )
+    .await?;
+
+    Ok(cast_votes.iter().any(|cv| {
+        cv.ballot_id.as_deref() == Some(ballot_id) && cv.area_id.as_deref() == Some(area_id)
+    }))
+}
+
 /// Wrapper struct for data specific to the ballot and the voter
 /// which won't be needed in the preview mode.
 #[derive(Serialize, Deserialize, Debug)]
@@ -127,28 +160,17 @@ impl TemplateRenderer for BallotTemplate {
                 }
             };
 
-        let tennant_uuid = parse_uuid_v4(self.get_tenant_id().as_str())
-            .map_err(|err| anyhow!("Error parsing tenant id: {:?}", err))?;
-        let election_event_uuid = parse_uuid_v4(self.get_election_event_id().as_str())
-            .map_err(|err| anyhow!("Error parsing election event id: {:?}", err))?;
-
-        let ballot_uui = parse_uuid_v4(election_id.as_str())
-            .map_err(|err| anyhow!("Error parsing election id: {:?}", err))?;
-
-        let cast_votes = postgres::cast_vote::get_cast_votes(
+        if !voter_cast_ballot(
             hasura_transaction,
-            &tennant_uuid,
-            &election_event_uuid,
-            &ballot_uui,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            election_id,
             voter_id,
+            area_id,
+            ballot_id,
         )
-        .await?;
-
-        // Verify that the vote has been casted
-        if !cast_votes.iter().any(|cv| {
-            cv.ballot_id.as_deref().map_or(false, |id| id == ballot_id)
-                && cv.area_id.as_deref().map_or(false, |id| id == area_id)
-        }) {
+        .await?
+        {
             return Err(anyhow!("BallotID not found in cast votes for {voter_id}"));
         }
 
