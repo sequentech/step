@@ -17,9 +17,11 @@ use uuid::Uuid;
 use windmill::postgres::election::get_elections;
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::postgres::election_initialization::list_election_initializations;
+use windmill::postgres::signing_report_release::set_result_pdf;
 use windmill::services::election_event_status::TransitionRefusal;
 use windmill::services::initialization_record::{
-    stage_initialization_log, store_initialization, INITIALIZATION_AREA_IDS_ANNOTATION,
+    record_released_initialization, stage_initialization_log, store_initialization,
+    INITIALIZATION_AREA_IDS_ANNOTATION,
 };
 use windmill::services::initialization_scope::initialization_refusals;
 
@@ -261,6 +263,75 @@ impl World {
         )
         .await
         .unwrap();
+    }
+
+    /// Makes `session`'s report of `post` one the tally holds for its
+    /// signatures: its results have no rendering, a `signing_tally_hold`
+    /// row waits for the request, and the tally completed.
+    async fn hold(&self, tx: &Transaction<'_>, session: Uuid, post: Uuid) -> Uuid {
+        let results: Uuid = tx
+            .query_one(
+                "SELECT results_event_id FROM sequent_backend.tally_session_execution
+                 WHERE tally_session_id = $1",
+                &[&session],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        execute(
+            tx,
+            "UPDATE sequent_backend.results_election SET documents = $3
+             WHERE results_event_id = $1 AND election_id = $2",
+            &[
+                &results,
+                &post,
+                &json!({ "json": Uuid::new_v4().to_string() }),
+            ],
+        )
+        .await;
+        execute(
+            tx,
+            "INSERT INTO sequent_backend.signing_tally_hold
+                 (tenant_id, election_event_id, results_event_id, action, report_type,
+                  election_id, file_name, base_document_id, base_sha256, requested_by,
+                  requested_by_username)
+             VALUES ($1, $2, $3, 'generate-reports', 'INITIALIZATION_REPORT', $4,
+                     'report.pdf', $5, 'base-sha', 'user-1', 'sbei.dubai')",
+            &[&self.tenant, &self.event, &results, &post, &Uuid::new_v4()],
+        )
+        .await;
+        self.completed(tx, session).await;
+        results
+    }
+
+    async fn completed(&self, tx: &Transaction<'_>, session: Uuid) {
+        execute(
+            tx,
+            "UPDATE sequent_backend.tally_session SET execution_status = 'SUCCESS'
+             WHERE id = $1",
+            &[&session],
+        )
+        .await;
+    }
+
+    /// The signed report of `post` released into `results` as its PDF.
+    async fn release(
+        &self,
+        tx: &Transaction<'_>,
+        results: Uuid,
+        post: Uuid,
+    ) -> (
+        Uuid,
+        Vec<windmill::postgres::election_initialization::ElectionInitialization>,
+    ) {
+        let pdf = Uuid::new_v4();
+        set_result_pdf(tx, self.tenant, self.event, results, post, None, pdf)
+            .await
+            .unwrap();
+        let recorded = record_released_initialization(tx, self.tenant, self.event, results, post)
+            .await
+            .unwrap();
+        (pdf, recorded)
     }
 
     async fn initialized(&self, tx: &Transaction<'_>, post: Uuid) -> bool {
@@ -1660,4 +1731,176 @@ async fn report_creation_inputs_are_guarded_while_progress_and_annotations_remai
     execute(&tx, "UPDATE sequent_backend.tally_session SET area_ids = area_ids, execution_status = 'SUCCESS', is_execution_completed = true, annotations = '{}' WHERE id = $1", &[&session]).await;
     w.store(&tx, session, w.p1).await;
     assert!(!w.initialized(&tx, w.p1).await);
+}
+
+/// With the `generate-reports` rule required the tally holds the report:
+/// completing it records nothing and doesn't fail; the release of the signed
+/// report records the countries with the signed PDF and the Post's flag,
+/// once.
+#[tokio::test]
+async fn a_held_report_initializes_the_post_only_once_its_signed_report_is_released() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let world = World::new(&tx, "post").await;
+    let (session, _) = world
+        .report(&tx, world.p1, &[world.a, world.b], false, "hash-1")
+        .await;
+    let results = world.hold(&tx, session, world.p1).await;
+
+    // The tally completes: nothing recorded, no error.
+    let stored = store_initialization(
+        &tx,
+        &world.tenant.to_string(),
+        &world.event.to_string(),
+        &session.to_string(),
+        &world.p1.to_string(),
+    )
+    .await
+    .unwrap();
+    assert!(stored.is_empty());
+    assert!(
+        list_election_initializations(&tx, world.tenant, world.event)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert!(!world.initialized(&tx, world.p1).await);
+    assert_eq!(
+        world.refusals(&tx).await,
+        sorted(vec![
+            (world.name(world.p1), "initialization-report-required"),
+            (world.name(world.p2), "initialization-report-required"),
+        ])
+    );
+
+    // The signed report is released.
+    let (pdf, recorded) = world.release(&tx, results, world.p1).await;
+    assert_eq!(recorded.len(), 2);
+    let rows = list_election_initializations(&tx, world.tenant, world.event)
+        .await
+        .unwrap();
+    let mut areas: Vec<Option<Uuid>> = rows.iter().map(|row| row.area_id).collect();
+    areas.sort();
+    let mut expected = vec![Some(world.a), Some(world.b)];
+    expected.sort();
+    assert_eq!(areas, expected);
+    for row in &rows {
+        assert_eq!(row.tally_session_id, session);
+        assert_eq!(row.results_event_id, Some(results));
+        assert_eq!(row.report_hash.as_deref(), Some("hash-1"));
+        assert_eq!(row.document_id, Some(pdf));
+        assert_eq!(row.created_by_username.as_deref(), Some("sbei.dubai"));
+    }
+    assert!(world.initialized(&tx, world.p1).await);
+    assert!(!world.initialized(&tx, world.p2).await);
+
+    // Released twice: nothing recorded again.
+    let again = record_released_initialization(&tx, world.tenant, world.event, results, world.p1)
+        .await
+        .unwrap();
+    assert_eq!(again, rows);
+    assert_eq!(
+        list_election_initializations(&tx, world.tenant, world.event)
+            .await
+            .unwrap(),
+        rows
+    );
+}
+
+/// The release records against the tally that produced the released
+/// results: not when a later run of it produced others, not before it
+/// completed, and never for another Post.
+#[tokio::test]
+async fn a_release_records_only_against_its_own_completed_results() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let world = World::new(&tx, "post").await;
+    let (session, _) = world
+        .report(&tx, world.p1, &[world.a, world.b], false, "hash-1")
+        .await;
+    let results = world.hold(&tx, session, world.p1).await;
+
+    // Not completed yet.
+    execute(
+        &tx,
+        "UPDATE sequent_backend.tally_session SET execution_status = 'IN_PROGRESS' WHERE id = $1",
+        &[&session],
+    )
+    .await;
+    let (_, recorded) = world.release(&tx, results, world.p1).await;
+    assert!(recorded.is_empty());
+    assert!(!world.initialized(&tx, world.p1).await);
+    // Its completion then records it, the document being there.
+    world.completed(&tx, session).await;
+    world.store(&tx, session, world.p1).await;
+    assert!(world.initialized(&tx, world.p1).await);
+
+    // Another Post's results don't initialize p2.
+    assert!(
+        record_released_initialization(&tx, world.tenant, world.event, results, world.p2)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert!(!world.initialized(&tx, world.p2).await);
+
+    // A later run of p2's tally: the older results' release records nothing.
+    let (session, _) = world
+        .report(&tx, world.p2, &[world.c], false, "hash-2")
+        .await;
+    let old_results = world.hold(&tx, session, world.p2).await;
+    let newer = Uuid::new_v4();
+    execute(
+        &tx,
+        "INSERT INTO sequent_backend.results_event (id, tenant_id, election_event_id)
+         VALUES ($1, $2, $3)",
+        &[&newer, &world.tenant, &world.event],
+    )
+    .await;
+    execute(
+        &tx,
+        "INSERT INTO sequent_backend.tally_session_execution
+             (id, tenant_id, election_event_id, tally_session_id, current_message_id,
+              results_event_id, created_at)
+         VALUES ($1, $2, $3, $4, 2, $5, now() + interval '1 second')",
+        &[
+            &Uuid::new_v4(),
+            &world.tenant,
+            &world.event,
+            &session,
+            &newer,
+        ],
+    )
+    .await;
+    let (_, recorded) = world.release(&tx, old_results, world.p2).await;
+    assert!(recorded.is_empty());
+    assert!(!world.initialized(&tx, world.p2).await);
+}
+
+/// Without a hold a report with no document still fails closed.
+#[tokio::test]
+async fn a_report_without_document_or_hold_still_fails() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let world = World::new(&tx, "post").await;
+    let (session, _) = world
+        .report(&tx, world.p1, &[world.a, world.b], false, "hash-1")
+        .await;
+    world.hold(&tx, session, world.p1).await;
+    execute(
+        &tx,
+        "DELETE FROM sequent_backend.signing_tally_hold WHERE election_id = $1",
+        &[&world.p1],
+    )
+    .await;
+    let error = store_initialization(
+        &tx,
+        &world.tenant.to_string(),
+        &world.event.to_string(),
+        &session.to_string(),
+        &world.p1.to_string(),
+    )
+    .await
+    .unwrap_err();
+    assert!(error.to_string().contains("missing its hash or document"));
 }

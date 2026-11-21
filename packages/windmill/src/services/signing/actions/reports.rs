@@ -15,7 +15,9 @@
 //! releases the latest signed revision where the unsigned report would have
 //! gone, wrapped in its configured password as it would have been, and
 //! [`mail_held_report`] sends the e-mail it held back, after that commit and
-//! once.
+//! once. A Post's released initialization report records its initialization
+//! in the same transaction; its electoral log entries are staged after the
+//! commit.
 
 use super::super::guard::{GuardOutcome, GuardRequest, RequestScope, SigningDocument};
 use super::super::log::SystemOutcome;
@@ -44,6 +46,7 @@ use crate::services::ceremonies::encrypter::encrypt_directory_contents_sql;
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
 use crate::services::document_password::save_password;
 use crate::services::documents::upload_and_return_document_with_annotations;
+use crate::services::initialization_record::record_released_initialization;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::reports::generation::{
     attach_report_manifest, manifest_of, manifest_of_document, released_manifest, ReportRequester,
@@ -600,6 +603,29 @@ pub async fn release_report(
         &released,
     )
     .await?;
+    // A Post's initialization report the tally held: the Post is
+    // initialized now that its signed report is released, never before.
+    if let ReleaseTarget::TallyResult {
+        results_event_id,
+        election_id,
+        area_id: None,
+        report_type,
+    } = &release.release.target
+    {
+        if matches!(
+            ReportType::from_str(report_type),
+            Ok(ReportType::INITIALIZATION_REPORT)
+        ) {
+            record_released_initialization(
+                hasura_transaction,
+                tenant_id,
+                event_id,
+                *results_event_id,
+                *election_id,
+            )
+            .await?;
+        }
+    }
     Ok(json!({
         "document_id": released.document_id,
         "sha256": latest.sha256,

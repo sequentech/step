@@ -7,12 +7,14 @@
 
 use crate::services::ballot_box_seal::sink::PendingSealSink;
 use crate::services::database::get_hasura_pool;
+use crate::services::initialization_record::stage_initialization_log;
 use crate::services::signing::actions::reports::{mail_held_report, HeldMail, StoredReports};
 use crate::services::signing::actions::{
     run_dispatched, ProductionEffects, RunOutcome, SignedActionTask,
 };
 use crate::services::signing::pdf::S3RevisionStore;
 use crate::tasks::seal_ballot_boxes::kick_ballot_box_sealer;
+use crate::tasks::signing_log_outbox::kick_signing_log_outbox;
 use crate::types::error::Result;
 use anyhow::anyhow;
 use celery::error::TaskError;
@@ -48,6 +50,18 @@ pub async fn run_signed_action(
     let outcome = run_dispatched(&mut client, &ProductionEffects::default(), &seal, &task).await?;
     if matches!(outcome, RunOutcome::Executed(_)) {
         kick_ballot_box_sealer();
+        // A released initialization report recorded its Post's
+        // initialization; its electoral log entries go after that commit
+        // (the signing sweep stages any left behind).
+        match stage_initialization_log(&mut client, task.tenant_id, task.election_event_id).await {
+            Ok(0) => {}
+            Ok(_) => {
+                kick_signing_log_outbox();
+            }
+            Err(error) => {
+                warn!(%request_id, "initialization log entries not staged yet: {error:?}")
+            }
+        }
     }
     // A released report's held e-mail goes after its release committed,
     // once, also when another copy of the task released it.

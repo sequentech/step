@@ -13,9 +13,10 @@ use crate::domain::tally_ceremony::{EXECUTER_USERNAME_ANNOTATION, EXECUTER_USER_
 use crate::ports::tally_ceremony::TallyCreationReader;
 use crate::postgres::election::set_election_initialization_report_generated;
 use crate::postgres::election_initialization::{
-    find_post_report, insert_election_initialization, list_election_initializations,
-    lock_post_for_initialization, lock_unstaged_initializations, mark_initialization_log_staged,
-    ElectionInitialization, NewElectionInitialization,
+    find_post_report, initialization_sessions_of_results, insert_election_initialization,
+    list_election_initializations, lock_post_for_initialization, lock_unstaged_initializations,
+    mark_initialization_log_staged, post_report_is_held, ElectionInitialization,
+    NewElectionInitialization,
 };
 use crate::postgres::signing::lock_signing_event;
 use crate::postgres::tally_session::get_tally_session_by_id;
@@ -27,6 +28,7 @@ use crate::services::signing::log::{stage_step, Actor, LogScope, LogStep, System
 use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client, Transaction};
 use electoral_log::messages::newtypes::SigningStatementKind;
+use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::hasura::core::TallySession;
 use sequent_core::types::results::ResultDocuments;
 use serde_json::{json, Value};
@@ -124,13 +126,24 @@ async fn report_of(
     Ok((report_hash, document_id))
 }
 
+/// What recording an initialization does when the Post's report has no
+/// document yet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnreleasedReport {
+    /// The tally completing: a report it holds for its signatures
+    /// (`signing_tally_hold`) records nothing yet; it is recorded once the
+    /// signed report is released ([`record_released_initialization`]).
+    AwaitSignatures,
+    /// The release: the document must be there.
+    Refuse,
+}
+
 /// Stores the initialization of `election_id` by the completed
-/// initialization report tally `tally_session_id`: one row per country (see
-/// [`initialization_plan`]) and the Post's flag. Under a lock on the Post,
-/// so reports of its countries completing at once see each other's rows. A
-/// session already recorded for the Post (a re-run of its tally) records
-/// nothing again. The electoral log entries are staged after the commit
-/// ([`stage_initialization_log`]).
+/// initialization report tally `tally_session_id`, against the results of
+/// its last execution: one row per country (see [`initialization_plan`])
+/// and the Post's flag. A report the tally holds for its signatures records
+/// nothing yet ([`UnreleasedReport::AwaitSignatures`]). See
+/// [`store_initialization_of_results`].
 #[instrument(skip(hasura_transaction), err)]
 pub async fn store_initialization(
     hasura_transaction: &Transaction<'_>,
@@ -138,6 +151,47 @@ pub async fn store_initialization(
     election_event_id: &str,
     tally_session_id: &str,
     election_id: &str,
+) -> Result<Vec<ElectionInitialization>> {
+    let results_event_id = get_last_tally_session_execution(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await?
+    .and_then(|execution| execution.results_event_id)
+    .map(|id| Uuid::parse_str(&id))
+    .transpose()?;
+    store_initialization_of_results(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        results_event_id,
+        election_id,
+        UnreleasedReport::AwaitSignatures,
+    )
+    .await
+}
+
+/// Stores the initialization of `election_id` by the initialization report
+/// tally `tally_session_id` whose report is in results `results_event_id`:
+/// one row per country (see [`initialization_plan`]) and the Post's flag.
+/// Under a lock on the Post, so reports of its countries completing at once
+/// see each other's rows. A session already recorded for the Post (a re-run
+/// of its tally, or a second release) records nothing again. A report
+/// without its hash or document fails, unless `unreleased` lets a held one
+/// wait for its signatures (nothing recorded). The electoral log entries
+/// are staged after the commit ([`stage_initialization_log`]).
+#[instrument(skip(hasura_transaction), err)]
+pub async fn store_initialization_of_results(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    results_event_id: Option<Uuid>,
+    election_id: &str,
+    unreleased: UnreleasedReport,
 ) -> Result<Vec<ElectionInitialization>> {
     let tenant = Uuid::parse_str(tenant_id)?;
     let event = Uuid::parse_str(election_event_id)?;
@@ -167,16 +221,6 @@ pub async fn store_initialization(
         tally_session_id,
     )
     .await?;
-    let results_event_id = get_last_tally_session_execution(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        tally_session_id,
-    )
-    .await?
-    .and_then(|execution| execution.results_event_id)
-    .map(|id| Uuid::parse_str(&id))
-    .transpose()?;
     let snapshot = PgTallyCreationReader::new(hasura_transaction)
         .event_snapshot(tenant_id, election_event_id)
         .await?;
@@ -201,6 +245,25 @@ pub async fn store_initialization(
     );
     let (report_hash, document_id) =
         report_of(hasura_transaction, tenant, election, results_event_id).await?;
+    if document_id.is_none() && unreleased == UnreleasedReport::AwaitSignatures {
+        if let Some(results_event_id) = results_event_id {
+            if post_report_is_held(
+                hasura_transaction,
+                tenant,
+                event,
+                results_event_id,
+                election,
+            )
+            .await?
+            {
+                info!(
+                    "Initialization of {election_id} by {tally_session_id} awaits the signatures \
+                     of its report; it is recorded once the signed report is released"
+                );
+                return Ok(vec![]);
+            }
+        }
+    }
     anyhow::ensure!(
         report_hash.is_some() && document_id.is_some(),
         "The initialization report is missing its hash or document; voting remains uninitialized"
@@ -251,6 +314,80 @@ pub async fn store_initialization(
             &true,
         )
         .await?;
+    }
+    Ok(stored)
+}
+
+/// Records the initialization of `election_id` once its initialization
+/// report, held by the tally for its signatures, is released into results
+/// `results_event_id` (the Post's report, not a country's): against the
+/// initialization report tally that produced those results, never "the
+/// session's last execution". Nothing is recorded, with a warning, when no
+/// such tally exists, when it hasn't completed (its completion records it,
+/// now that the document is there), or when a later run of it produced
+/// other results (that run's report initializes). In the release's
+/// transaction, which holds the request's row lock and no signing lock; it
+/// takes the Post's row lock. Idempotent: a second release records nothing
+/// again.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn record_released_initialization(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    results_event_id: Uuid,
+    election_id: Uuid,
+) -> Result<Vec<ElectionInitialization>> {
+    let sessions = initialization_sessions_of_results(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        results_event_id,
+    )
+    .await?;
+    let mut stored = Vec::new();
+    for (session, last_results) in sessions {
+        if last_results != Some(results_event_id) {
+            warn!(
+                "Initialization report {session} was run again after results \
+                 {results_event_id}; their release initializes nothing"
+            );
+            continue;
+        }
+        let tally_session = get_tally_session_by_id(
+            hasura_transaction,
+            &tenant_id.to_string(),
+            &election_event_id.to_string(),
+            &session.to_string(),
+        )
+        .await?;
+        let covers_post = tally_session
+            .election_ids
+            .as_ref()
+            .is_some_and(|ids| ids.contains(&election_id.to_string()));
+        if !covers_post {
+            continue;
+        }
+        if tally_session.execution_status.as_deref()
+            != Some(TallyExecutionStatus::SUCCESS.to_string().as_str())
+        {
+            warn!(
+                "Initialization report {session} hasn't completed; its completion records \
+                 the initialization of {election_id}"
+            );
+            continue;
+        }
+        stored.extend(
+            store_initialization_of_results(
+                hasura_transaction,
+                &tenant_id.to_string(),
+                &election_event_id.to_string(),
+                &session.to_string(),
+                Some(results_event_id),
+                &election_id.to_string(),
+                UnreleasedReport::Refuse,
+            )
+            .await?,
+        );
     }
     Ok(stored)
 }
