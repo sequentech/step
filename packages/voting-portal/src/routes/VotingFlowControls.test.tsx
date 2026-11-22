@@ -423,6 +423,68 @@ describe("Confirmation ballot locator links", () => {
     })
 })
 
+describe("admin-portal preview of a publication made after key generation", () => {
+    beforeEach(() => {
+        // The ballot style has keys and is not marked as demo, so the preview
+        // flag is the only thing that says no real ballot can be cast.
+        mockDisableAuth = false
+        sessionStorage.setItem("isDemo", "true")
+        expect(mockState.ballotStyles["election-1"]!.ballot_eml.public_key?.is_demo).toBe(false)
+    })
+
+    it("does not send the ballot when casting from Review", async () => {
+        const {router} = renderRoute(<ReviewScreen />, "review")
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
+        await waitFor(() =>
+            expect(mockDispatch).toHaveBeenCalledWith(
+                expect.objectContaining({type: "castVotes/addCastVotes"})
+            )
+        )
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/review`)
+    })
+
+    it("keeps the demo flag across gold reauthentication", async () => {
+        mockState.elections["election-1"]!.presentation = {
+            ...mockState.elections["election-1"]!.presentation,
+            consolidated_report_policy: EConsolidatedReportPolicy.DO_NOT_GENERATE,
+            cast_vote_gold_level: ECastVoteGoldLevelPolicy.GOLD_LEVEL,
+        }
+        renderRoute(<ReviewScreen />, "review")
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
+        await waitFor(() => expect(mockReauthWithGold).toHaveBeenCalledTimes(1))
+        expect(JSON.parse(sessionStorage.getItem(BALLOT_DATA_KEY)!)).toMatchObject({isDemo: true})
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+    })
+
+    it("shows the demo confirmation: no ballot locator link and no receipt", async () => {
+        renderRoute(<ConfirmationScreen />, "confirmation")
+        const links = screen.getAllByTestId("ballot-id")
+        expect(links.length).toBeGreaterThan(0)
+        for (const link of links) {
+            expect(link.getAttribute("href") ?? "").not.toContain("ballot-locator")
+            expect(link).not.toHaveAttribute("target")
+        }
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "confirmationScreen.printButton"}))
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+    })
+
+    it("still casts for real outside a preview", async () => {
+        sessionStorage.removeItem("isDemo")
+        renderRoute(<ReviewScreen />, "review")
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
+        await waitFor(() => expect(mockInsertCastVote).toHaveBeenCalledTimes(1))
+    })
+})
+
 describe("Ballot ID copy visibility", () => {
     it("can hide the complete receipt ID row without hiding verification or actions", async () => {
         setUpState({storedConfirmation: true})
