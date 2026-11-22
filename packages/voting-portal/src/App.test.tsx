@@ -94,6 +94,35 @@ const cases = [
     },
 ]
 
+test("an authenticated session drops what an earlier preview left in the tab", async () => {
+    const previewKeys = ["isDemo", "areaId", "documentId", "publicationId"]
+    previewKeys.forEach((key) => sessionStorage.setItem(key, "true"))
+    mockState = store.getState()
+    const router = createMemoryRouter(
+        [
+            {
+                path: "/tenant/:tenantId/event/:eventId",
+                element: <App />,
+                children: [{path: "election-chooser", element: <div>Route content</div>}],
+            },
+        ],
+        {initialEntries: ["/tenant/tenant/event/event/election-chooser"]}
+    )
+    const view = render(
+        <ThemeProvider theme={theme}>
+            <RouterProvider router={router} />
+        </ThemeProvider>
+    )
+    try {
+        await view.findByText("Route content")
+        previewKeys.forEach((key) => expect(sessionStorage.getItem(key)).toBeNull())
+    } finally {
+        view.unmount()
+        router.dispose()
+        sessionStorage.clear()
+    }
+})
+
 describe.each(["election-chooser", "support-materials"])("event styling on %s", (route) => {
     test.each(cases)(
         "applies the appropriate presentation $name",
