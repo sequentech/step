@@ -38,7 +38,9 @@ use std::sync::Arc;
 use std::time::Duration;
 use uuid::Uuid;
 use windmill::postgres::signing::{insert_staff_certificate, NewStaffCertificate};
-use windmill::services::signing::approve::{approve_operational, NoDocumentSigner, SigningServices};
+use windmill::services::signing::approve::{
+    approve_operational, NoDocumentSigner, SigningServices,
+};
 use windmill::services::signing::certificates::{CertificateIdentity, OpensslCertificateVerifier};
 use windmill::services::signing::crl::{refresh_chain_crls, refresh_event_crls, CrlFetcher};
 use windmill::services::signing::directory::UserDirectory;
@@ -405,7 +407,12 @@ async fn assess(
         .unwrap()
 }
 
-fn probe(w: &World, official: &Official, request: Uuid, reservation: &Reservation) -> DeviceCaProbe {
+fn probe(
+    w: &World,
+    official: &Official,
+    request: Uuid,
+    reservation: &Reservation,
+) -> DeviceCaProbe {
     DeviceCaProbe {
         tenant: w.tenant,
         event: w.event,
@@ -436,7 +443,10 @@ async fn a_scope_exists_only_for_a_waiting_hardware_initialize_request() {
 
     // A legacy tenant signs with P12 certificates, not a device.
     assert_eq!(refused(scope(&w, &official, request.id).await), UNAVAILABLE);
-    assert_eq!(refused(prepare(&w, &official, request.id).await), UNAVAILABLE);
+    assert_eq!(
+        refused(prepare(&w, &official, request.id).await),
+        UNAVAILABLE
+    );
 
     promote(&w).await;
     let row = w.request(request.id).await;
@@ -550,11 +560,18 @@ async fn the_ca_assessment_answers_only_an_exact_live_reservation() {
         format!("official/{}/{}", w.tenant, official.caller.user_id)
     );
     assert_eq!(
-        (assessment.key_version, assessment.certificate_id, assessment.profile),
+        (
+            assessment.key_version,
+            assessment.certificate_id,
+            assessment.profile
+        ),
         (1, official.certificate, "yubihsm")
     );
     assert_eq!(
-        (assessment.cert_fingerprint.as_str(), assessment.cert_spki.as_str()),
+        (
+            assessment.cert_fingerprint.as_str(),
+            assessment.cert_spki.as_str()
+        ),
         (
             official.identity.fingerprint_sha256.as_str(),
             official.identity.spki_sha256.as_str()
@@ -568,9 +585,11 @@ async fn the_ca_assessment_answers_only_an_exact_live_reservation() {
 
     // Another pinned tenant, a nil identifier, another device profile and
     // a reservation nobody holds are not assessed.
-    assert!(assess(&w, Uuid::new_v4(), RequiredCaDevice::YubiHsm, &exact)
-        .await
-        .is_none());
+    assert!(
+        assess(&w, Uuid::new_v4(), RequiredCaDevice::YubiHsm, &exact)
+            .await
+            .is_none()
+    );
     let nil = DeviceCaProbe {
         fence: Uuid::nil(),
         ..exact.clone()
