@@ -352,6 +352,9 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot, toHashableMultiBallot} = provideBallotService()
     const submit = useSubmit()
+    // Whether a ballot is really cast must not depend on the preview flag in
+    // session storage, which outlives the preview. A preview runs with
+    // DISABLE_AUTH, which already keeps it from casting.
     const isDemo = !!ballotStyle?.ballot_eml?.public_key?.is_demo
     const {globalSettings} = useContext(SettingsContext)
     const authContext = useContext(AuthContext)
@@ -738,8 +741,22 @@ export const ReviewScreen: React.FC = () => {
             return submit({error: errorType}, {method: "post"})
         }
 
+        // Restore confirmation data after the reauthentication reload.
+        const restoreConfirmationScreenData = () =>
+            dispatch(
+                setConfirmationScreenData({
+                    electionId: ballotData.electionId,
+                    confirmationScreenData: {
+                        ballotId: ballotData.ballotId,
+                        isDemo: ballotData.isDemo,
+                        auditButtonCfg: ballotData.auditButtonCfg,
+                    },
+                })
+            )
+
         if (ballotData?.isDemo) {
             addFakeCastVote()
+            restoreConfirmationScreenData()
             clearSessionStorageBallotData()
             isCastingBallot.current = false
             return submit(null, {method: "post"})
@@ -757,17 +774,7 @@ export const ReviewScreen: React.FC = () => {
             return submit({error: errorType}, {method: "post"})
         }
 
-        // Restore confirmation data after the reauthentication reload.
-        dispatch(
-            setConfirmationScreenData({
-                electionId: ballotData.electionId,
-                confirmationScreenData: {
-                    ballotId: ballotData.ballotId,
-                    isDemo: ballotData.isDemo,
-                    auditButtonCfg: ballotData.auditButtonCfg,
-                },
-            })
-        )
+        restoreConfirmationScreenData()
         clearSessionStorageBallotData()
         return submit(null, {method: "post"})
     }

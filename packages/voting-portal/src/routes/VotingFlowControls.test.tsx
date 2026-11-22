@@ -423,6 +423,110 @@ describe("Confirmation ballot locator links", () => {
     })
 })
 
+describe("admin-portal preview of a publication made after key generation", () => {
+    beforeEach(() => {
+        // The ballot style has keys and is not marked as demo. A preview runs
+        // with authentication disabled and leaves a flag in session storage.
+        mockDisableAuth = true
+        sessionStorage.setItem("isDemo", "true")
+        expect(mockState.ballotStyles["election-1"]!.ballot_eml.public_key?.is_demo).toBe(false)
+    })
+
+    it("does not send the ballot when casting from Review", async () => {
+        renderRoute(<ReviewScreen />, "review")
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
+        await waitFor(() =>
+            expect(mockDispatch).toHaveBeenCalledWith(
+                expect.objectContaining({type: "castVotes/addCastVotes"})
+            )
+        )
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+    })
+
+    it("shows the demo confirmation: no ballot locator link and no receipt", async () => {
+        const user = userEvent.setup()
+        renderRoute(<ConfirmationScreen />, "confirmation")
+        const links = screen.getAllByTestId("ballot-id")
+        expect(links.length).toBeGreaterThan(0)
+        for (const link of links) {
+            expect(link.getAttribute("href") ?? "").not.toContain("ballot-locator")
+            expect(link).not.toHaveAttribute("target")
+        }
+        const print = screen.getByRole("button", {name: "confirmationScreen.printButton"})
+        await user.click(print)
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        // The demo dialog can be opened again: the button is not left loading.
+        expect(print).toBeEnabled()
+    })
+
+    it("never skips a real cast because of a leftover preview flag", async () => {
+        mockDisableAuth = false
+        renderRoute(<ReviewScreen />, "review")
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
+        await waitFor(() => expect(mockInsertCastVote).toHaveBeenCalledTimes(1))
+    })
+})
+
+describe("demo election with gold reauthentication", () => {
+    it("keeps the demo flag and the ballot ID across the reauthentication", async () => {
+        mockDisableAuth = false
+        mockState.ballotStyles["election-1"]!.ballot_eml.public_key!.is_demo = true
+        const election = mockState.elections["election-1"]!
+        const presentation = {
+            ...election.presentation,
+            consolidated_report_policy: EConsolidatedReportPolicy.DO_NOT_GENERATE,
+            cast_vote_gold_level: ECastVoteGoldLevelPolicy.GOLD_LEVEL,
+        }
+        election.presentation = presentation
+        const review = renderRoute(<ReviewScreen />, "review")
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
+        await waitFor(() => expect(mockReauthWithGold).toHaveBeenCalledTimes(1))
+        expect(JSON.parse(sessionStorage.getItem(BALLOT_DATA_KEY)!)).toMatchObject({isDemo: true})
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        review.unmount()
+
+        // The reauthentication reload empties the store.
+        mockState = store.getState()
+        mockIsGoldUser = true
+        mockElectionQueryData = {
+            sequent_backend_election: [
+                {id: election.id, presentation, status: {voting_status: "open"}},
+            ],
+        }
+        mockDispatch.mockImplementation((action) => {
+            if (setConfirmationScreenData.match(action)) {
+                mockState = {
+                    ...mockState,
+                    confirmationScreenData: confirmationScreenDataReducer(
+                        mockState.confirmationScreenData,
+                        action
+                    ),
+                }
+            }
+        })
+        const recoveredReview = renderRoute(<ReviewScreen />, "review")
+        await waitFor(() =>
+            expect(mockState.confirmationScreenData["election-1"]).toMatchObject({
+                ballotId: BALLOT_ID,
+                isDemo: true,
+            })
+        )
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        expect(sessionStorage.getItem(BALLOT_DATA_KEY)).toBeNull()
+        recoveredReview.unmount()
+
+        const {router} = renderRoute(<ConfirmationScreen />, "confirmation")
+        expect(screen.getByText(BALLOT_ID)).toBeInTheDocument()
+        expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/confirmation`)
+    })
+})
+
 describe("Ballot ID copy visibility", () => {
     it("can hide the complete receipt ID row without hiding verification or actions", async () => {
         setUpState({storedConfirmation: true})
