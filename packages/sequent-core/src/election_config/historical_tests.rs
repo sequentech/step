@@ -1230,6 +1230,55 @@ fn source_charsets_and_nullable_affiliations_preserve_text_without_invention() {
         Some("Résumé")
     );
 }
+/// mysqldump converts every value to its connection charset (`SET NAMES`), so
+/// a latin1 column arrives as UTF-8 in a default dump. Reading it by the
+/// column's declared charset turned `PEÑA` into `PEÃ‘A` without any warning.
+#[test]
+fn mysqldump_text_is_read_in_the_connection_charset_not_the_column_charset() {
+    let (source, xlsx) = fixture();
+    let source = String::from_utf8(source).unwrap();
+    let name = |sql: &[u8]| {
+        adapt(sql, &xlsx, &reviewed())
+            .unwrap()
+            .workbook
+            .rows("candidates")[0]
+            .text("presentation.i18n.en.name")
+            .map(str::to_owned)
+    };
+    // Default mysqldump: UTF-8 bytes, latin1 column.
+    let utf8_dump = format!(
+        "/*!50503 SET NAMES utf8mb4 */;\n{}",
+        source
+            .replace(
+                "`NAMEONBALLOT` text",
+                "`NAMEONBALLOT` varchar(50) CHARACTER SET latin1"
+            )
+            .replace("Example Candidate", "PEÑA, JOSÉ")
+    );
+    assert_eq!(name(utf8_dump.as_bytes()).as_deref(), Some("PEÑA, JOSÉ"));
+    // --default-character-set=latin1: latin1 bytes, utf8mb4 column.
+    let latin1_dump = format!(
+        "/*!40101 SET NAMES latin1 */;\n{}",
+        source
+            .replace(
+                "`NAMEONBALLOT` text",
+                "`NAMEONBALLOT` varchar(50) CHARACTER SET utf8mb4"
+            )
+            .replace("Example Candidate", "__NAME__")
+    );
+    let at = latin1_dump.find("__NAME__").unwrap();
+    let mut latin1_dump = latin1_dump.into_bytes();
+    latin1_dump.splice(at..at + 8, b"PE\xd1A".iter().copied());
+    assert_eq!(name(&latin1_dump).as_deref(), Some("PEÑA"));
+    // Bytes that are not valid in the connection charset are still refused.
+    let mut invalid = format!("SET NAMES utf8mb4;\n{source}").into_bytes();
+    let at = invalid
+        .windows(b"Example Candidate".len())
+        .position(|w| w == b"Example Candidate")
+        .unwrap();
+    invalid.splice(at..at + 7, [0xff]);
+    refused_code(&invalid, &xlsx, &reviewed(), Code::InvalidValue);
+}
 #[test]
 fn missing_and_ambiguous_workbook_metadata_is_not_silently_filled_in() {
     let (sql, xlsx) = fixture();

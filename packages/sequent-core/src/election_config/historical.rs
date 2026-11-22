@@ -477,10 +477,14 @@ impl<'a> Data<'a> {
                 "source value is null",
             ));
         };
+        // mysqldump converts every value to its connection charset, so that is
+        // what the bytes are in; the declared column charset only describes
+        // storage. A dump that never declared one is read by the declaration.
         let charset = self
             .table
-            .column_charsets
-            .get(column)
+            .data_charset
+            .as_ref()
+            .or(self.table.column_charsets.get(column))
             .or(self.table.charset.as_ref())
             .map(String::as_str)
             .unwrap_or("ascii");

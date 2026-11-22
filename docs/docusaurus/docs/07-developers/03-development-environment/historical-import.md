@@ -132,7 +132,12 @@ mail country and embassy instead of a country, embassy and precinct; see the
 voter area joins below.
 
 Literals remain bytes, preserving leading zeros and binary picture content.
-Mapped text uses declared UTF-8 or MySQL latin1 encoding. Binary content remains
+Mapped text is decoded in the dump's connection charset (`SET NAMES`), which is
+what mysqldump converts every value to, whatever charset the column declares:
+a default dump of a `latin1` column is UTF-8. UTF-8 (`utf8`, `utf8mb3`,
+`utf8mb4`) and MySQL latin1 are supported. A dump without `SET NAMES` is read
+by the declared column or table charset, and a table whose rows were written
+under two different `SET NAMES` is refused (`sql.mixed-charset`). Binary content remains
 in the unmodified original; this profile does not publish candidate photographs
 from opaque blobs.
 

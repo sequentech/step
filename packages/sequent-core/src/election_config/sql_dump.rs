@@ -28,6 +28,10 @@ pub struct SqlTable {
     pub column_charsets: BTreeMap<String, String>,
     pub unique_keys: Vec<Vec<String>>,
     pub primary_key: Vec<String>,
+    /// The connection charset (`SET NAMES`) in effect when the rows were read.
+    /// mysqldump writes every literal in it, whatever the column declares, so
+    /// text is decoded by it; `None` when the dump never declared one.
+    pub data_charset: Option<String>,
 }
 
 #[derive(Debug, Default)]
@@ -316,6 +320,8 @@ pub fn read_mysql_dump(bytes: &[u8]) -> Result<SqlDump, DumpError> {
     let mut dump = SqlDump::default();
     let mut declared = BTreeSet::new();
     let mut row_count = 0;
+    // The connection charset every following literal is written in.
+    let mut names: Option<String> = None;
     for statement in tokens.split(|t| t.symbol(b';')).filter(|s| !s.is_empty())
     {
         let first = &statement[0];
@@ -433,6 +439,12 @@ pub fn read_mysql_dump(bytes: &[u8]) -> Result<SqlDump, DumpError> {
             if !statement.get(at).is_some_and(|t| t.word("VALUES")) {
                 return Err(first.error("sql.unsupported-statement"));
             }
+            // One table's rows must share one encoding to be decoded at all.
+            if table.rows.is_empty() {
+                table.data_charset = names.clone();
+            } else if table.data_charset != names {
+                return Err(first.error("sql.mixed-charset"));
+            }
             at += 1;
             if at == statement.len() {
                 return Err(first.error("sql.syntax"));
@@ -497,6 +509,9 @@ pub fn read_mysql_dump(bytes: &[u8]) -> Result<SqlDump, DumpError> {
             }
             if statement.len() < 3 {
                 return Err(first.error("sql.syntax"));
+            }
+            if statement[1].word("NAMES") {
+                names = Some(identifier(statement, 2)?.to_ascii_lowercase());
             }
         } else if first.word("LOCK") {
             if statement.len() != 4
