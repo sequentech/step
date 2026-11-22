@@ -139,7 +139,7 @@ export const computeRosterFingerprint = async (bytes: ArrayBuffer): Promise<stri
     // Forge's default is a raw byte string. Do not decode/re-encode it as UTF-8.
     // Bounded chunks avoid spreading the full 256 KiB upload into one call.
     for (let offset = 0; offset < raw.length; offset += 0x4000) {
-        digest.update(String.fromCharCode(...raw.subarray(offset, offset + 0x4000)))
+        digest.update(String.fromCharCode(...Array.from(raw.subarray(offset, offset + 0x4000))))
     }
     return digest.digest().toHex()
 }
