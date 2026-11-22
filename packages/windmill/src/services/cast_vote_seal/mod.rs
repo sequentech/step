@@ -48,7 +48,7 @@ use voting_crypto::signing::VerificationKey;
 use voting_crypto::RecordDeserialize;
 
 /// Most ballots one call of the opener carries.
-pub const MAX_OPEN_BATCH: usize = 256;
+pub const MAX_OPEN_BATCH: usize = 64;
 /// Most `CastVoteSealKeyPublished` entries a pin check reads.
 const PIN_READ_LIMIT: i64 = 16;
 
