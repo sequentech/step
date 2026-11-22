@@ -62,6 +62,32 @@ Page-help dialogs have
 `.confirm-cast-ballot-dialog`, `.review-ballot-id-help-dialog`, `.logout-dialog`
 and `.session-expiry-dialog`.
 
+## Branding from the first page
+
+The Voting Portal shows nothing of its default look before it knows the Election
+Event's own. This matters most when voters arrive from an external identity
+provider and should not notice a change of application.
+
+- Until the voter is logged in and the event's presentation has been read, the
+  page is white with one neutral progress indicator: no header, logo, footer or
+  theme colour. The Custom CSS applies to it as soon as the event's public
+  configuration has loaded. Its hooks are `.app-awaiting-login`,
+  `.neutral-loader` and `.neutral-loader-progress`.
+- The event's Custom CSS and logo stay in place through the login, and reach the
+  Error screen too.
+- The page that the login service shows for an instant while it posts a SAML
+  message on carries no header, logo, version or footer. Style it from the event
+  realm's login CSS with `body.saml-post-form-page`, `#kc-saml-post-progress`,
+  `#kc-page-title` and `#kc-saml-post-message`; its two texts are the realm
+  localization keys `saml.post-form.title` and `saml.post-form.message`, hidden
+  from view unless that CSS shows them.
+- The browser tab has no icon until the event is known. It then shows the
+  event's **Browser tab icon URL**, or the platform's icon unless **Platform
+  branding** is set to **Hide**. The tab's title is the event's **Browser tab
+  title**.
+- With **Platform branding** set to **Hide**, the page wrapper also carries
+  `.platform-branding-hidden`.
+
 ## Individual contests
 
 On both Vote and Review, a contest with `external_id: "1001"` has the class
