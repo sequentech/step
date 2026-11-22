@@ -5,47 +5,10 @@ set -euo pipefail
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# This is to resolve an issue where nix -fzero-call-used-regs=used-gpr hardening
-# flag, which is not supported when compiling C code for WebAssembly targets
-# (used by the ring cryptographic library):
-export NIX_HARDENING_ENABLE=""
-export CFLAGS_wasm32_unknown_unknown="${CFLAGS_wasm32_unknown_unknown:-} -O3 -ffunction-sections -fdata-sections -fno-exceptions"
+# Regenerates the committed sequent-core tgz files and their yarn.lock hashes.
+# The release package needs wasm-opt, which the sequent-core flake provides:
+#   cd packages/sequent-core && nix develop --command ../../.devcontainer/scripts/build-sequent-core.sh
+# For development builds use scripts/dev/step-dev wasm instead.
 
-TARGET_DIR=/workspaces/step/packages/sequent-core
-cd "$TARGET_DIR"
-
-# The shared packages/target dir is owned by root (service containers build
-# into it), so build into the package-local target dir instead.
-export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$TARGET_DIR/rust-local-target}"
-which rustc
-rustc --version
-which cargo
-cargo --version
-which wasm-pack
-wasm-pack --version
-which wasm-bindgen
-wasm-bindgen --version
-
-wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest,default_features
-wasm-pack -v pack . 2>&1 | tee output.log
-
-cd ..
-hash=$(grep "shasum:" sequent-core/output.log | awk '{printf $4}')
-hash="${hash}\\\""
-awk -v hash="${hash}" '
-  /sequent-core-0.1.0.tgz#/ {
-    sub(/#.*/, "#"hash"")
-  }
-  { print }
-' yarn.lock > yarn.lock.tmp
-
-mv yarn.lock.tmp yarn.lock
-
-rm sequent-core/output.log
-rm ./ui-core/rust/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
-cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ui-core/rust/sequent-core-0.1.0.tgz
-cp sequent-core/pkg/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz
-cp sequent-core/pkg/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz
-cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
-
-rm -rf node_modules ui-core/node_modules voting-portal/node_modules ballot-verifier/node_modules admin-portal/node_modules
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+exec "${root}/scripts/dev/step-dev" wasm --release-package
