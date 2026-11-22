@@ -235,11 +235,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     const retryInterval = globalSettings.QUERY_POLL_INTERVAL_MS
 
     async function printBallotReceiptReport() {
-        setIsHitPrint(true)
         if (isDemo) {
             setOpenPrintDemoModal(true)
             return
         }
+        setIsHitPrint(true)
         if (!documentId) {
             if (!ballotTrackerUrl) {
                 setIsHitPrint(false)
