@@ -125,11 +125,25 @@ fn received_context(
 
 /// Verify the actual encrypted payload, including its hash and voter signature.
 /// An attestation over a hash alone cannot demonstrate this check.
+///
+/// An election event whose cast votes are sealed to its HSM key logs the
+/// sealed ballot (`hsm-seal-v1`) instead: nobody outside the tally can open
+/// it, so its voter signature can't be checked here. It must be a
+/// well-formed sealed ballot whose inner Ballot ID is the receipt's ballot
+/// hash; the receipt's signature, checked separately, binds that hash to the
+/// voter's key and ballot signature.
 fn voter_ballot(
     evidence: &BallotReceivedEvidence,
     received: &ReceivedBallot,
 ) -> bool {
     let statement = &received.statement;
+    if let Ok(sealed) =
+        electoral_log::cast_vote_seal::SealedBallot::from_content(
+            &evidence.encrypted_ballot,
+        )
+    {
+        return sealed.ballot_id == statement.ballot_hash;
+    }
     if let Ok(ballot) =
         serde_json::from_str::<SignedHashableBallot>(&evidence.encrypted_ballot)
     {

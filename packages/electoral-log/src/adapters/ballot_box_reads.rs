@@ -160,6 +160,29 @@ pub fn tally_ballots_query(
     ))
 }
 
+/// [`tally_ballots_query`] with each ballot's Ballot ID and format, as rows
+/// `(voter_id, content, voting_channel, ballot_id, format)`: what opening a
+/// ballot sealed to its event's key needs to rebuild its associated data.
+pub fn tally_ballots_with_ids_query(
+    election_event_id: &str,
+    election_id: &str,
+    area_id: &str,
+) -> Result<String> {
+    let event = canonical_uuid(election_event_id)?;
+    let election = canonical_uuid(election_id)?;
+    let area = canonical_uuid(area_id)?;
+    Ok(format!(
+        "SELECT DISTINCT ON (b.voter_id) b.voter_id, b.content, b.voting_channel, b.ballot_id, \
+                b.format \
+         FROM ballot_box_ballot b \
+         WHERE b.election_event_id = '{event}' AND b.election_id = '{election}' \
+           AND b.area_id = '{area}' AND b.status = '{VALID}' \
+           AND NOT EXISTS (SELECT 1 FROM ballot_box_pending p \
+                           WHERE p.election_event_id = b.election_event_id AND p.seq = b.seq) \
+         ORDER BY b.voter_id, b.seq DESC"
+    ))
+}
+
 fn stored_ballot(row: &Row) -> Result<StoredBallot> {
     let status: String = row.try_get(5)?;
     Ok(StoredBallot {

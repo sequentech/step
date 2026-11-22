@@ -180,6 +180,8 @@ struct VerifiedBox {
     seal_hash: Hash,
     /// The stored content of each counted (ballot hash, Ballot ID).
     contents: HashMap<(Hash, String), String>,
+    /// The stored format of each of those ballots.
+    formats: HashMap<(Hash, String), String>,
 }
 
 /// Checks the ballot box against its seal and counts it from the manifest.
@@ -216,7 +218,33 @@ pub async fn sealed_box_ballots(
         manifest,
         seal_hash,
         contents,
+        formats,
     } = verified;
+    // A sealed event's counted ballots are opened through the HSM opener and
+    // checked against their Ballot IDs before they are counted; its seal must
+    // be a sealed-ballot (v3) manifest, and any other event's a v2 one.
+    let sealing = crate::services::cast_vote_seal::sealing(
+        hasura_transaction,
+        ballot_box.tenant_id,
+        ballot_box.election_event_id,
+    )
+    .await?;
+    let contents = match open_counted(&sealing, ballot_box, &manifest, contents, &formats).await? {
+        Ok(contents) => contents,
+        Err(Rejection(what_differs)) => {
+            error!(
+                election_id = ballot_box.election_id,
+                area_id = ballot_box.area_id,
+                "The ballot box does not match its seal: {what_differs}"
+            );
+            post_rejected(log, ballot_box, what_differs).await?;
+            return Err(anyhow!(
+                "The ballot box of {}, {} does not match its seal",
+                ballot_box.election_name,
+                ballot_box.area_name
+            ));
+        }
+    };
     let merge_result = count_manifest(&manifest, contents, weighted_voting_policy)?;
     post_verified(log, ballot_box, seal_hash, manifest.ballots_counted()).await?;
     info!(
@@ -228,6 +256,75 @@ pub async fn sealed_box_ballots(
         merge_result,
         seal_hash: hex::encode(seal_hash),
     })
+}
+
+/// The counted ballots' voter ballots: as stored for an event that doesn't
+/// seal its cast votes, and opened through the HSM opener (each checked
+/// against its Ballot ID) for one that does. The outer error is an
+/// operational failure (no opener, or it can't answer); the inner one, a box
+/// whose seal or ballots don't fit its event's sealing.
+async fn open_counted(
+    sealing: &crate::services::cast_vote_seal::Sealing,
+    ballot_box: &SealedBox<'_>,
+    manifest: &BallotBoxSealManifest,
+    contents: HashMap<(Hash, String), String>,
+    formats: &HashMap<(Hash, String), String>,
+) -> Result<std::result::Result<HashMap<(Hash, String), String>, Rejection>> {
+    use crate::services::cast_vote_seal::{
+        check_row_format, open_rows, OpenError, SealedRow, Sealing,
+    };
+    use electoral_log::seal::{SEAL_FORMAT_V2, SEAL_FORMAT_V3};
+    let expected = match sealing {
+        Sealing::Legacy => SEAL_FORMAT_V2,
+        Sealing::Required(_) => SEAL_FORMAT_V3,
+    };
+    if manifest.format != expected {
+        return Ok(Err(Rejection(format!(
+            "the seal's manifest is {}, but the event's cast votes need {expected}",
+            manifest.format
+        ))));
+    }
+    let mut keys = Vec::with_capacity(contents.len());
+    let mut rows = Vec::with_capacity(contents.len());
+    for (key, content) in contents {
+        let format = formats.get(&key).cloned().unwrap_or_default();
+        if let Err(error) = check_row_format(sealing, &format, &key.1) {
+            return Ok(Err(Rejection(error.to_string())));
+        }
+        rows.push(SealedRow {
+            election_id: ballot_box.election_id.to_string(),
+            area_id: ballot_box.area_id.to_string(),
+            ballot_id: key.1.clone(),
+            format,
+            content,
+        });
+        keys.push(key);
+    }
+    if rows.is_empty() {
+        return Ok(Ok(HashMap::new()));
+    }
+    let Some(key) = sealing.key()? else {
+        return Ok(Ok(keys
+            .into_iter()
+            .zip(rows)
+            .map(|(key, row)| (key, row.content))
+            .collect()));
+    };
+    match open_rows(
+        ballot_box.tenant_id,
+        ballot_box.election_event_id,
+        key,
+        &rows,
+    )
+    .await
+    {
+        Ok(opened) => Ok(Ok(keys.into_iter().zip(opened).collect())),
+        Err(OpenError::Ballot(reason)) => Ok(Err(Rejection(reason))),
+        Err(OpenError::Unavailable(error)) => Err(error.context(format!(
+            "The sealed ballots of {}, {} can't be opened",
+            ballot_box.election_name, ballot_box.area_name
+        ))),
+    }
 }
 
 /// Refuses a box with accepted ballots that aren't on the electoral log,
@@ -315,6 +412,7 @@ async fn verify_box(
     let mut stored = StoredBallots {
         keys: Vec::new(),
         contents: HashMap::new(),
+        formats: HashMap::new(),
         incomplete: false,
     };
     let read = log
@@ -327,6 +425,7 @@ async fn verify_box(
             let key = (ballot_hash(&ballot.content)?, ballot.ballot_id);
             if counted.contains(&key) && !stored.contents.contains_key(&key) {
                 stored.contents.insert(key.clone(), ballot.content);
+                stored.formats.insert(key.clone(), ballot.format);
             }
             stored.keys.push(key);
             Ok(())
@@ -454,6 +553,7 @@ async fn verify_box(
         manifest,
         seal_hash,
         contents: stored.contents,
+        formats: stored.formats,
     }))
 }
 
@@ -665,6 +765,8 @@ struct StoredBallots {
     keys: Vec<(Hash, String)>,
     /// The content of the ballots the manifest counts, once per key.
     contents: HashMap<(Hash, String), String>,
+    /// The stored format of each of those ballots.
+    formats: HashMap<(Hash, String), String>,
     /// Whether a ballot has no content or no Ballot ID.
     incomplete: bool,
 }

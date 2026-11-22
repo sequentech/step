@@ -137,6 +137,13 @@ async fn cast_copies(
         ballot_hash: row.try_get(5)?,
         voting_channel: row.try_get(6)?,
     };
+    // A sealed ballot is bound to its own row (election, area, Ballot ID):
+    // a copy under another Ballot ID would never open at the tally.
+    if electoral_log::cast_vote_seal::is_sealed_format(&source.format) {
+        return Err(anyhow!(
+            "The ballot to clone is sealed to its election event's HSM key and can't be duplicated"
+        ));
+    }
     let allowed_votes = get_allowed_votes(
         &hasura_transaction,
         tenant_id,

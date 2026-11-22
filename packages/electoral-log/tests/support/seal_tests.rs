@@ -596,6 +596,22 @@ fn another_format_is_refused() {
         |manifest| manifest.format = "step/ballot-box-seal/v0".to_string(),
         SealCheckStep::Format,
     );
+    assert_rule(
+        |manifest| manifest.format = "step/ballot-box-seal/v4".to_string(),
+        SealCheckStep::Format,
+    );
+}
+
+#[test]
+fn a_sealed_cast_votes_manifest_is_v3_and_checks_as_v2_does() {
+    assert!(is_known_format(SEAL_FORMAT_V2) && is_known_format(SEAL_FORMAT_V3));
+    assert!(!is_known_format("step/ballot-box-seal/v1"));
+    let mut sealed = manifest(sample_entries());
+    sealed.format = SEAL_FORMAT_V3.to_string();
+    assert!(check_manifest(&sealed).is_ok());
+    // The same rules hold.
+    sealed.eligible_voters = 1;
+    assert!(check_manifest(&sealed).is_err());
 }
 
 #[test]

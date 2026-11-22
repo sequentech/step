@@ -399,3 +399,194 @@ async fn board_calls_are_retried() {
     let failing = with_board_retries(|| async { Err::<(), _>(anyhow!("down")) }).await;
     assert_eq!(failing.unwrap_err().to_string(), "down");
 }
+
+/// A box of an event whose cast votes are sealed: the manifest (v3) lists
+/// the stored sealed bytes, and the counted ballots are opened before they
+/// are counted.
+mod sealed_cast_votes {
+    use super::*;
+    use crate::services::cast_vote_seal::{seal_ballot, testing, RowScope, Sealing};
+    use electoral_log::seal::SEAL_FORMAT_V3;
+
+    struct Ids {
+        tenant: String,
+        event: String,
+        election: String,
+        area: String,
+    }
+
+    impl Ids {
+        fn new() -> Self {
+            Ids {
+                tenant: Uuid::new_v4().to_string(),
+                event: Uuid::new_v4().to_string(),
+                election: Uuid::new_v4().to_string(),
+                area: Uuid::new_v4().to_string(),
+            }
+        }
+
+        fn sealed_box(&self) -> SealedBox<'_> {
+            SealedBox {
+                tenant_id: &self.tenant,
+                election_event_id: &self.event,
+                election_id: &self.election,
+                area_id: &self.area,
+                election_name: "Post",
+                area_name: "Area",
+                tally_session_id: "session",
+            }
+        }
+    }
+
+    type Stored = (
+        BallotBoxSealManifest,
+        HashMap<(Hash, String), String>,
+        HashMap<(Hash, String), String>,
+    );
+
+    /// One counted ballot, stored sealed (or not), with its manifest.
+    fn stored(
+        ids: &Ids,
+        key: &crate::services::cast_vote_seal::SealKey,
+        seed: &str,
+        format: &str,
+        seal: bool,
+    ) -> (Stored, String) {
+        let (content, ballot_id, hash) = testing::ballot(seed);
+        let stored = if seal {
+            seal_ballot(
+                key,
+                RowScope {
+                    tenant_id: &ids.tenant,
+                    election_event_id: &ids.event,
+                    election_id: &ids.election,
+                    area_id: &ids.area,
+                },
+                "hashable-ballot",
+                &ballot_id,
+                &hash,
+                &content,
+            )
+            .unwrap()
+            .to_content()
+            .unwrap()
+        } else {
+            content.clone()
+        };
+        let row_key = (ballot_hash(&stored).unwrap(), ballot_id.clone());
+        let manifest = electoral_log::seal::build(BallotBoxSealManifest {
+            format: format.into(),
+            tenant_id: ids.tenant.clone(),
+            election_event_id: ids.event.clone(),
+            election_id: ids.election.clone(),
+            area_id: ids.area.clone(),
+            closed_at: 1,
+            grace_deadline: 2,
+            sealed_at: 3,
+            close_request_id: None,
+            eligible_voters: 1,
+            entries: vec![SealEntry {
+                ballot_hash: row_key.0,
+                ballot_id,
+                disposition: SealDisposition::Counted,
+                weight: 1,
+                channel: "ONLINE".into(),
+            }],
+        })
+        .unwrap()
+        .manifest;
+        let stored_format = if seal {
+            "hsm-seal-v1+hashable-ballot"
+        } else {
+            "hashable-ballot"
+        };
+        (
+            (
+                manifest,
+                HashMap::from([(row_key.clone(), stored)]),
+                HashMap::from([(row_key, stored_format.to_string())]),
+            ),
+            content,
+        )
+    }
+
+    #[tokio::test]
+    async fn counted_sealed_ballots_open_to_their_voter_ballots() {
+        let ids = Ids::new();
+        let key = testing::event_key(&ids.tenant, &ids.event);
+        let sealing = Sealing::Required(Some(key.clone()));
+        let ((manifest, contents, formats), content) =
+            stored(&ids, &key, "counted", SEAL_FORMAT_V3, true);
+        let opened = open_counted(&sealing, &ids.sealed_box(), &manifest, contents, &formats)
+            .await
+            .unwrap()
+            .unwrap_or_else(|Rejection(reason)| panic!("{reason}"));
+        assert_eq!(
+            opened.into_values().collect::<Vec<_>>(),
+            vec![content.clone()]
+        );
+        // A legacy box is counted as stored.
+        let ((manifest, contents, formats), _) =
+            stored(&ids, &key, "legacy", SEAL_FORMAT_V2, false);
+        let kept = open_counted(
+            &Sealing::Legacy,
+            &ids.sealed_box(),
+            &manifest,
+            contents.clone(),
+            &formats,
+        )
+        .await
+        .unwrap()
+        .unwrap_or_else(|Rejection(reason)| panic!("{reason}"));
+        assert_eq!(kept, contents);
+    }
+
+    #[tokio::test]
+    async fn a_box_that_does_not_fit_its_events_sealing_is_rejected() {
+        let ids = Ids::new();
+        let key = testing::event_key(&ids.tenant, &ids.event);
+        let sealing = Sealing::Required(Some(key.clone()));
+        let rejected = |result: Result<
+            std::result::Result<HashMap<(Hash, String), String>, Rejection>,
+        >| { matches!(result, Ok(Err(Rejection(_)))) };
+        // A v3 seal in a legacy event, a v2 seal in a sealed one.
+        let ((manifest, contents, formats), _) = stored(&ids, &key, "a", SEAL_FORMAT_V3, true);
+        assert!(rejected(
+            open_counted(
+                &Sealing::Legacy,
+                &ids.sealed_box(),
+                &manifest,
+                contents,
+                &formats
+            )
+            .await
+        ));
+        let ((manifest, contents, formats), _) = stored(&ids, &key, "b", SEAL_FORMAT_V2, true);
+        assert!(rejected(
+            open_counted(&sealing, &ids.sealed_box(), &manifest, contents, &formats).await
+        ));
+        // A plaintext ballot under a v3 seal.
+        let ((manifest, contents, formats), _) = stored(&ids, &key, "c", SEAL_FORMAT_V3, false);
+        assert!(rejected(
+            open_counted(&sealing, &ids.sealed_box(), &manifest, contents, &formats).await
+        ));
+        // Another ballot's sealed bytes under this one's Ballot ID.
+        let ((manifest, contents, formats), _) = stored(&ids, &key, "d", SEAL_FORMAT_V3, true);
+        let ((_, other, _), _) = stored(&ids, &key, "e", SEAL_FORMAT_V3, true);
+        let swapped: HashMap<_, _> = contents.keys().cloned().zip(other.into_values()).collect();
+        assert!(rejected(
+            open_counted(&sealing, &ids.sealed_box(), &manifest, swapped, &formats).await
+        ));
+        // Without the key the box can't be counted: an operational error.
+        let ((manifest, contents, formats), _) = stored(&ids, &key, "f", SEAL_FORMAT_V3, true);
+        assert!(open_counted(
+            &Sealing::Required(None),
+            &ids.sealed_box(),
+            &manifest,
+            contents,
+            &formats
+        )
+        .await
+        .is_err());
+    }
+}

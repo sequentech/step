@@ -15,6 +15,7 @@ pub mod ballot_box_seal;
 pub mod ballot_checks;
 pub mod ballot_styles;
 pub mod cast_ballot;
+pub mod cast_vote_seal;
 pub mod cast_votes;
 pub mod celery_app;
 pub mod ceremonies;

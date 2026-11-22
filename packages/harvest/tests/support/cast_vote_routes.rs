@@ -430,6 +430,12 @@ fn error_answers() -> Vec<(CastVoteError, Status, &'static str, &'static str)> {
             "hash mismatch",
             "BallotIdMismatch",
         ),
+        (
+            BallotSealFailed(detail()),
+            Status::InternalServerError,
+            "InternalServerError",
+            "InternalServerError",
+        ),
     ]
 }
 

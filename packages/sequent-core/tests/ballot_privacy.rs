@@ -428,6 +428,58 @@ fn authority_signature_does_not_replace_the_voter_ballot_check() {
     assert_eq!(checks.received, CheckStatus::Failed);
 }
 
+/// The evidence of an event that seals its cast votes carries the sealed
+/// ballot: it is accepted with the inner Ballot ID, never another one.
+#[test]
+fn a_sealed_ballot_is_accepted_with_its_inner_ballot_id_only() {
+    let (trusted, proof) = fixture();
+    let message = decode(proof.received_entry.as_deref().unwrap());
+    let StatementBody::BallotReceived(evidence) = message.statement.body else {
+        panic!("fixture");
+    };
+    let receipt: sequent_core::ballot_receipt::ReceivedBallot =
+        serde_json::from_str(&evidence.received_ballot_json).unwrap();
+    let sealed = |ballot_id: &str| {
+        let hash = format!("{ballot_id}{}", "0".repeat(64));
+        electoral_log::cast_vote_seal::SealedBallot {
+            v: 1,
+            key_id: "cast-vote-seal/tenant/event".into(),
+            key_version: 1,
+            inner_format: "hashable-ballot".into(),
+            ballot_id: ballot_id.into(),
+            cast_vote_hash: hash,
+            sealed: STANDARD.encode([1u8; 94]),
+        }
+        .to_content()
+        .unwrap()
+    };
+    let with_ballot = |encrypted_ballot: String| {
+        let mut proof = proof.clone();
+        let mut evidence = evidence.clone();
+        evidence.encrypted_ballot = encrypted_ballot;
+        proof.received_entry = Some(encode(
+            &Message::ballot_received_message(PSEUDONYM, evidence, &key(3))
+                .unwrap(),
+        ));
+        verify_ballot_log_proof(&trusted, &proof).checks
+    };
+    let checks = with_ballot(sealed(&receipt.statement.ballot_hash));
+    assert_eq!(checks.binding, CheckStatus::Passed);
+    assert_eq!(checks.received, CheckStatus::Passed);
+    assert_eq!(checks.ballot_id, CheckStatus::Passed);
+    let other = "ab".repeat(32);
+    assert_ne!(other, receipt.statement.ballot_hash);
+    assert_eq!(with_ballot(sealed(&other)).received, CheckStatus::Failed);
+    // A malformed sealed ballot is neither a ballot nor a sealed one.
+    let mut malformed: serde_json::Value =
+        serde_json::from_str(&sealed(&receipt.statement.ballot_hash)).unwrap();
+    malformed["sealed"] = "not base64!".into();
+    assert_eq!(
+        with_ballot(malformed.to_string()).received,
+        CheckStatus::Failed
+    );
+}
+
 #[test]
 fn canonical_entry_bytes_reject_trailing_data() {
     let (trusted, mut proof) = fixture();

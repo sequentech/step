@@ -59,6 +59,7 @@ use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::EventIdString;
 use electoral_log::seal::{
     ballot_hash, build, BallotBoxSealManifest, SealDisposition, SealEntry, SEAL_FORMAT_V2,
+    SEAL_FORMAT_V3,
 };
 use electoral_log::LogEntry;
 use sequent_core::ballot::{
@@ -174,6 +175,8 @@ struct Prepared {
     signing_key: electoral_log::signer::SharedSigner,
     census: Census,
     names: SealedNames,
+    /// Whether the event's cast votes are sealed to its HSM key.
+    sealing: crate::services::cast_vote_seal::Sealing,
 }
 
 /// Seals the ballot box of seal `seal_id` if it is pending and due. An
@@ -303,6 +306,13 @@ async fn prepare(
     )
     .await
     .context(SealErrorCategory::Keystore)?;
+    let sealing = crate::services::cast_vote_seal::sealing(
+        &transaction,
+        &seal.tenant_id.to_string(),
+        &seal.election_event_id.to_string(),
+    )
+    .await
+    .context(SealErrorCategory::Settings)?;
     transaction.commit().await?;
     let alias = election
         .external_id
@@ -322,6 +332,7 @@ async fn prepare(
         signing_key,
         census,
         names,
+        sealing,
     }))
 }
 
@@ -373,6 +384,7 @@ async fn seal_prepared(client: &mut DbClient, prepared: Prepared) -> Result<Seal
         signing_key,
         census,
         names,
+        sealing,
     } = prepared;
     let ballot_box = ids.ballot_box();
     // Admitted for the electoral log's order before anything is locked or
@@ -490,7 +502,21 @@ async fn seal_prepared(client: &mut DbClient, prepared: Prepared) -> Result<Seal
             return Err(anyhow!(reason).context(SealErrorCategory::Ballots))
         }
     }
-    let entries = match entries(&ballots, &census) {
+    // A sealed event's ballots are opened through the HSM opener, each
+    // checked against its Ballot ID; the manifest records the stored sealed
+    // bytes' hash and that Ballot ID (format v3).
+    let opened = open_box(
+        &sealing,
+        &seal.tenant_id.to_string(),
+        &ids.ballot_box(),
+        &ballots,
+    )
+    .await;
+    let built_entries = opened.and_then(|opened| match &opened {
+        Some(opened) => sealed_entries(&ballots, opened, &census).map(|e| (e, SEAL_FORMAT_V3)),
+        None => entries(&ballots, &census).map(|e| (e, SEAL_FORMAT_V2)),
+    });
+    let (entries, manifest_format) = match built_entries {
         Ok(entries) => entries,
         Err(EntriesError::Incident(reason)) => {
             return fail(
@@ -517,7 +543,7 @@ async fn seal_prepared(client: &mut DbClient, prepared: Prepared) -> Result<Seal
     let sealed_at = DateTime::<Utc>::from_timestamp(seconds, 0)
         .ok_or_else(|| anyhow!("The current time is not representable"))?;
     let built = build(BallotBoxSealManifest {
-        format: SEAL_FORMAT_V2.to_string(),
+        format: manifest_format.to_string(),
         tenant_id: seal.tenant_id.to_string(),
         election_event_id: ids.election_event_id.clone(),
         election_id: ids.election_id.clone(),
@@ -871,6 +897,80 @@ pub fn entries(
     ballots: &[BoxBallot],
     census: &Census,
 ) -> std::result::Result<Vec<SealEntry>, EntriesError> {
+    entries_with(ballots, None, census)
+}
+
+/// [`entries`] for a box of sealed ballots, given each ballot's opened voter
+/// ballot in the same order (see [`open_box`], which checked it against the
+/// ballot's Ballot ID). The entries record the stored sealed bytes' hash.
+pub fn sealed_entries(
+    ballots: &[BoxBallot],
+    opened: &[String],
+    census: &Census,
+) -> std::result::Result<Vec<SealEntry>, EntriesError> {
+    if opened.len() != ballots.len() {
+        return Err(EntriesError::Retry(format!(
+            "{} ballots opened for {} in the box",
+            opened.len(),
+            ballots.len()
+        )));
+    }
+    entries_with(ballots, Some(opened), census)
+}
+
+/// The voter ballots of a sealed event's box, opened through the
+/// installation's HSM opener in the ballots' order and checked against
+/// their Ballot IDs; `None` for an event that doesn't seal its cast votes.
+/// A ballot stored the other way (plaintext in a sealed event, sealed in
+/// another), or one that doesn't open or match its Ballot ID, is an
+/// incident; a missing opener, or one that can't answer now, is retried.
+pub async fn open_box(
+    sealing: &crate::services::cast_vote_seal::Sealing,
+    tenant_id: &str,
+    ballot_box: &BallotBoxId<'_>,
+    ballots: &[BoxBallot],
+) -> std::result::Result<Option<Vec<String>>, EntriesError> {
+    use crate::services::cast_vote_seal::{
+        check_row_format, open_rows, OpenError, SealedRow, Sealing,
+    };
+    for ballot in ballots {
+        check_row_format(sealing, &ballot.format, &ballot.ballot_id)
+            .map_err(|error| EntriesError::Incident(error.to_string()))?;
+    }
+    if *sealing == Sealing::Legacy {
+        return Ok(None);
+    }
+    if ballots.is_empty() {
+        return Ok(Some(Vec::new()));
+    }
+    let key = sealing
+        .key()
+        .map_err(|error| EntriesError::Retry(error.to_string()))?
+        .ok_or_else(|| EntriesError::Retry("the event's key is missing".to_string()))?;
+    let rows: Vec<SealedRow> = ballots
+        .iter()
+        .map(|ballot| SealedRow {
+            election_id: ballot_box.election_id.to_string(),
+            area_id: ballot_box.area_id.to_string(),
+            ballot_id: ballot.ballot_id.clone(),
+            format: ballot.format.clone(),
+            content: ballot.content.clone(),
+        })
+        .collect();
+    open_rows(tenant_id, ballot_box.election_event_id, key, &rows)
+        .await
+        .map(Some)
+        .map_err(|error| match error {
+            OpenError::Unavailable(error) => EntriesError::Retry(format!("{error:#}")),
+            OpenError::Ballot(reason) => EntriesError::Incident(reason),
+        })
+}
+
+fn entries_with(
+    ballots: &[BoxBallot],
+    opened: Option<&[String]>,
+    census: &Census,
+) -> std::result::Result<Vec<SealEntry>, EntriesError> {
     // Each voter's latest valid ballot.
     let mut latest: HashMap<&str, i64> = HashMap::new();
     for ballot in ballots
@@ -892,14 +992,18 @@ pub fn entries(
                 ballot.seq
             )));
         }
-        let computed = computed_ballot_id(&ballot.content, &ballot.format).map_err(|error| {
-            EntriesError::Retry(format!("the ballot {} can't be read: {error}", ballot.seq))
-        })?;
-        if computed != ballot.ballot_id {
-            return Err(EntriesError::Incident(format!(
-                "a ballot does not match its Ballot ID (stored {}, content hashes to {computed})",
-                ballot.ballot_id
-            )));
+        // An opened sealed ballot was checked against its Ballot ID.
+        if opened.is_none() {
+            let computed =
+                computed_ballot_id(&ballot.content, &ballot.format).map_err(|error| {
+                    EntriesError::Retry(format!("the ballot {} can't be read: {error}", ballot.seq))
+                })?;
+            if computed != ballot.ballot_id {
+                return Err(EntriesError::Incident(format!(
+                    "a ballot does not match its Ballot ID (stored {}, content hashes to {computed})",
+                    ballot.ballot_id
+                )));
+            }
         }
         let (disposition, weight) = match ballot.status {
             BallotStatus::Rejected => (SealDisposition::Discarded, 0),
@@ -1199,6 +1303,175 @@ mod tests {
     #[test]
     fn an_empty_box_has_no_entries() {
         assert!(entries(&[], &Census::new()).unwrap().is_empty());
+    }
+
+    /// A box of an event that seals its cast votes: each ballot sealed to
+    /// the event's key, as the cast stores it.
+    struct SealedBox {
+        tenant: String,
+        event: String,
+        election: String,
+        area: String,
+        key: crate::services::cast_vote_seal::SealKey,
+    }
+
+    impl SealedBox {
+        fn new() -> Self {
+            let tenant = Uuid::new_v4().to_string();
+            let event = Uuid::new_v4().to_string();
+            SealedBox {
+                key: crate::services::cast_vote_seal::testing::event_key(&tenant, &event),
+                tenant,
+                event,
+                election: Uuid::new_v4().to_string(),
+                area: Uuid::new_v4().to_string(),
+            }
+        }
+
+        fn ids(&self) -> BallotBoxId<'_> {
+            BallotBoxId {
+                election_event_id: &self.event,
+                election_id: &self.election,
+                area_id: &self.area,
+            }
+        }
+
+        fn sealed(&self, mut ballot: BoxBallot) -> BoxBallot {
+            let mut hash = hex::decode(&ballot.ballot_id).unwrap();
+            hash.extend([7u8; 32]);
+            let envelope = crate::services::cast_vote_seal::seal_ballot(
+                &self.key,
+                crate::services::cast_vote_seal::RowScope {
+                    tenant_id: &self.tenant,
+                    election_event_id: &self.event,
+                    election_id: &self.election,
+                    area_id: &self.area,
+                },
+                SINGLE,
+                &ballot.ballot_id,
+                &hash,
+                &ballot.content,
+            )
+            .unwrap();
+            ballot.format = format!("hsm-seal-v1+{SINGLE}");
+            ballot.content = envelope.to_content().unwrap();
+            ballot
+        }
+
+        fn sealing(&self) -> crate::services::cast_vote_seal::Sealing {
+            crate::services::cast_vote_seal::Sealing::Required(Some(self.key.clone()))
+        }
+    }
+
+    #[tokio::test]
+    async fn a_sealed_box_is_opened_checked_and_records_the_sealed_bytes() {
+        let sealed_box = SealedBox::new();
+        let plain = [
+            row("alice", BallotStatus::Valid, "a1", 1),
+            row("bob", BallotStatus::Rejected, "b1", 2),
+            row("alice", BallotStatus::Valid, "a2", 3),
+        ];
+        let ballots: Vec<BoxBallot> = plain
+            .iter()
+            .cloned()
+            .map(|b| sealed_box.sealed(b))
+            .collect();
+        let opened = open_box(
+            &sealed_box.sealing(),
+            &sealed_box.tenant,
+            &sealed_box.ids(),
+            &ballots,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        assert_eq!(
+            opened,
+            plain.iter().map(|b| b.content.clone()).collect::<Vec<_>>()
+        );
+        let census = Census::from([("alice".to_string(), 2)]);
+        let sealed_box_entries = sealed_entries(&ballots, &opened, &census).unwrap();
+        // The same dispositions as the plaintext box, over the sealed bytes.
+        let plain_entries = entries(&plain, &census).unwrap();
+        for ((sealed, plain_entry), ballot) in
+            sealed_box_entries.iter().zip(&plain_entries).zip(&ballots)
+        {
+            assert_eq!(sealed.ballot_id, plain_entry.ballot_id);
+            assert_eq!(sealed.disposition, plain_entry.disposition);
+            assert_eq!(sealed.weight, plain_entry.weight);
+            assert_eq!(sealed.ballot_hash, ballot_hash(&ballot.content).unwrap());
+            assert_ne!(sealed.ballot_hash, plain_entry.ballot_hash);
+        }
+        assert!(matches!(
+            sealed_entries(&ballots, &opened[..1], &census),
+            Err(EntriesError::Retry(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn a_box_that_does_not_fit_its_events_sealing_is_an_incident() {
+        let sealed_box = SealedBox::new();
+        let alice = sealed_box.sealed(row("alice", BallotStatus::Valid, "a1", 1));
+        let bob = sealed_box.sealed(row("bob", BallotStatus::Valid, "b1", 2));
+        let open = |ballots: Vec<BoxBallot>, sealing: crate::services::cast_vote_seal::Sealing| {
+            let sealed_box = &sealed_box;
+            async move { open_box(&sealing, &sealed_box.tenant, &sealed_box.ids(), &ballots).await }
+        };
+        // A plaintext ballot in a sealed event, a sealed one in a legacy event.
+        let plain = row("carol", BallotStatus::Valid, "c1", 3);
+        assert!(matches!(
+            open(vec![alice.clone(), plain.clone()], sealed_box.sealing()).await,
+            Err(EntriesError::Incident(_))
+        ));
+        assert!(matches!(
+            open(
+                vec![alice.clone()],
+                crate::services::cast_vote_seal::Sealing::Legacy
+            )
+            .await,
+            Err(EntriesError::Incident(_))
+        ));
+        assert_eq!(
+            open(
+                vec![plain],
+                crate::services::cast_vote_seal::Sealing::Legacy
+            )
+            .await
+            .unwrap(),
+            None
+        );
+        // Bob's sealed ballot under Alice's Ballot ID does not open.
+        let mut swapped = alice.clone();
+        swapped.content = bob.content.clone();
+        assert!(matches!(
+            open(vec![swapped], sealed_box.sealing()).await,
+            Err(EntriesError::Incident(_))
+        ));
+        // Moved to another area: its associated data is the old one's.
+        let other = SealedBox {
+            area: Uuid::new_v4().to_string(),
+            key: sealed_box.key.clone(),
+            tenant: sealed_box.tenant.clone(),
+            event: sealed_box.event.clone(),
+            election: sealed_box.election.clone(),
+        };
+        assert!(matches!(
+            open_box(
+                &other.sealing(),
+                &other.tenant,
+                &other.ids(),
+                &[alice.clone()]
+            )
+            .await,
+            Err(EntriesError::Incident(_))
+        ));
+        // Without the key, ballots wait; an empty box needs none.
+        let unkeyed = crate::services::cast_vote_seal::Sealing::Required(None);
+        assert!(matches!(
+            open(vec![alice], unkeyed.clone()).await,
+            Err(EntriesError::Retry(_))
+        ));
+        assert_eq!(open(vec![], unkeyed).await.unwrap(), Some(vec![]));
     }
 
     fn file_with(text: &str) -> std::fs::File {
