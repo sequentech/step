@@ -641,3 +641,29 @@ impl PostgresStore {
         Ok(row.try_get(0)?)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_sealed_tally_query_adds_ids_and_formats_to_the_same_selection() {
+        let event = "0E4A8A3B-2F37-4B4F-A6D3-5D2C9F1E7B40";
+        let election = "a3d9b7f2-1c64-4e0a-8b5e-9f7c2d1a6e83";
+        let area = "c8e1f4a7-6b2d-4f93-a0c5-3e9d8b7a1f62";
+        let plain = tally_ballots_query(event, election, area).unwrap();
+        let sealed = tally_ballots_with_ids_query(event, election, area).unwrap();
+        assert!(sealed.starts_with(
+            "SELECT DISTINCT ON (b.voter_id) b.voter_id, b.content, b.voting_channel, b.ballot_id, b.format FROM"
+        ));
+        // The same rows: everything after the selected columns is the plain query's.
+        let tail = |query: &str| query[query.find("FROM").unwrap()..].to_string();
+        assert_eq!(tail(&sealed), tail(&plain));
+        assert!(sealed.contains("'0e4a8a3b-2f37-4b4f-a6d3-5d2c9f1e7b40'"));
+        for bad in ["x' OR '1'='1", "", "not-a-uuid"] {
+            assert!(tally_ballots_with_ids_query(bad, election, area).is_err());
+            assert!(tally_ballots_with_ids_query(event, bad, area).is_err());
+            assert!(tally_ballots_with_ids_query(event, election, bad).is_err());
+        }
+    }
+}

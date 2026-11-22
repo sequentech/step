@@ -392,6 +392,48 @@ mod tests {
     }
 
     #[test]
+    fn the_key_pin_is_a_signed_statement_of_the_event() {
+        use crate::messages::message::{Message, SigningData};
+        use crate::messages::statement::{StatementBody, StatementType};
+        let key = voting_crypto::signing::SigningKey::generate().unwrap();
+        let signer = crate::signer::software(key.clone());
+        let pin = CastVoteSealKeyPin {
+            tenant_id: TENANT.into(),
+            election_event_id: EVENT.into(),
+            key_id: key_id(TENANT, EVENT).unwrap(),
+            key_version: 3,
+            format: SEAL_FORMAT.into(),
+            public_key: format!("04{}", "33".repeat(64)),
+            fingerprint: "44".repeat(32),
+        };
+        let message = Message::cast_vote_seal_key_published_message(
+            pin.clone(),
+            &SigningData::with_signers(signer.clone(), "", signer),
+        )
+        .unwrap();
+        let head = &message.statement.head;
+        assert!(matches!(head.kind, StatementType::CastVoteSealKeyPublished));
+        assert_eq!(head.event.0, EVENT);
+        assert_eq!(
+            head.description,
+            format!(
+                "Cast votes are sealed to HSM key {} version 3 (fingerprint {}).",
+                pin.key_id, pin.fingerprint
+            )
+        );
+        assert!(matches!(
+            &message.statement.body,
+            StatementBody::CastVoteSealKeyPublished(signed) if *signed == pin
+        ));
+        message
+            .verify(&voting_crypto::signing::VerificationKey::from_sk(&key).unwrap())
+            .unwrap();
+        let stored: crate::ElectoralLogMessage = (&message).try_into().unwrap();
+        assert_eq!(stored.statement_kind, "CastVoteSealKeyPublished");
+        assert_eq!(stored.user_id, None);
+    }
+
+    #[test]
     fn key_ids_are_canonical() {
         assert_eq!(
             key_id(&TENANT.to_uppercase(), EVENT).unwrap(),
