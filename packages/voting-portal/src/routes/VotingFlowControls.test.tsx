@@ -446,19 +446,56 @@ describe("admin-portal preview of a publication made after key generation", () =
         expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/review`)
     })
 
-    it("keeps the demo flag across gold reauthentication", async () => {
-        mockState.elections["election-1"]!.presentation = {
-            ...mockState.elections["election-1"]!.presentation,
+    it("keeps the demo flag and the ballot ID across gold reauthentication", async () => {
+        const election = mockState.elections["election-1"]!
+        const presentation = {
+            ...election.presentation,
             consolidated_report_policy: EConsolidatedReportPolicy.DO_NOT_GENERATE,
             cast_vote_gold_level: ECastVoteGoldLevelPolicy.GOLD_LEVEL,
         }
-        renderRoute(<ReviewScreen />, "review")
+        election.presentation = presentation
+        const review = renderRoute(<ReviewScreen />, "review")
         await userEvent
             .setup()
             .click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
         await waitFor(() => expect(mockReauthWithGold).toHaveBeenCalledTimes(1))
         expect(JSON.parse(sessionStorage.getItem(BALLOT_DATA_KEY)!)).toMatchObject({isDemo: true})
         expect(mockInsertCastVote).not.toHaveBeenCalled()
+        review.unmount()
+
+        // The reauthentication reload empties the store.
+        mockState = store.getState()
+        mockIsGoldUser = true
+        mockElectionQueryData = {
+            sequent_backend_election: [
+                {id: election.id, presentation, status: {voting_status: "open"}},
+            ],
+        }
+        mockDispatch.mockImplementation((action) => {
+            if (setConfirmationScreenData.match(action)) {
+                mockState = {
+                    ...mockState,
+                    confirmationScreenData: confirmationScreenDataReducer(
+                        mockState.confirmationScreenData,
+                        action
+                    ),
+                }
+            }
+        })
+        const recoveredReview = renderRoute(<ReviewScreen />, "review")
+        await waitFor(() =>
+            expect(mockState.confirmationScreenData["election-1"]).toMatchObject({
+                ballotId: BALLOT_ID,
+                isDemo: true,
+            })
+        )
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        expect(sessionStorage.getItem(BALLOT_DATA_KEY)).toBeNull()
+        recoveredReview.unmount()
+
+        const {router} = renderRoute(<ConfirmationScreen />, "confirmation")
+        expect(screen.getByText(BALLOT_ID)).toBeInTheDocument()
+        expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/confirmation`)
     })
 
     it("shows the demo confirmation: no ballot locator link and no receipt", async () => {
