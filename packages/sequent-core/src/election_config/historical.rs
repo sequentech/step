@@ -103,6 +103,26 @@ pub enum AffiliationPolicy {
     RequireKnownParty,
     PreserveUnresolvedCode,
 }
+/// What to do with text the dump may have narrowed. mysqldump converts every
+/// value to its connection charset and writes `?` for a character that charset
+/// cannot hold, so a `?` in a text column declared wider than that charset may
+/// be a lost letter; the dump cannot say which.
+#[derive(
+    Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq,
+)]
+#[serde(rename_all = "kebab-case")]
+pub enum ConnectionCharsetPolicy {
+    /// Refuse such values: export again in a charset as wide as the columns.
+    #[default]
+    RequireLossless,
+    /// Import them as written. Bound to the reviewed source files.
+    AcceptReplacedCharacters,
+}
+impl ConnectionCharsetPolicy {
+    fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
+}
 /// How a preserved source voter is joined to the area it votes in.
 ///
 /// The join is a named contract rather than an implicit assumption, and the
@@ -183,6 +203,13 @@ pub struct HistoricalOptions {
     pub source_digests: Option<SourceDigests>,
     #[serde(default)]
     pub affiliation: AffiliationPolicy,
+    /// Absent unless accepted, so earlier reviewed decisions keep their exact
+    /// encoding and digest.
+    #[serde(
+        default,
+        skip_serializing_if = "ConnectionCharsetPolicy::is_default"
+    )]
+    pub connection_charset: ConnectionCharsetPolicy,
     /// Offset for timezone-less historical Excel dates. No implicit local timezone.
     pub schedule_offset_minutes: Option<i32>,
 }
@@ -239,6 +266,79 @@ fn problem(
         message,
     )
 }
+/// How many characters a charset can hold, in order; `None` for one this
+/// profile does not read.
+fn charset_width(charset: &str) -> Option<u8> {
+    match charset.to_ascii_lowercase().as_str() {
+        "ascii" => Some(0),
+        "latin1" => Some(1),
+        "utf8" | "utf8mb3" => Some(2),
+        "utf8mb4" => Some(3),
+        _ => None,
+    }
+}
+/// Text values that may have lost characters: a `?` in a text column declared
+/// in a wider charset than the connection charset its rows were written in.
+/// One problem per column, at its first such row. Binary columns are never
+/// converted, and a dump without `SET NAMES` was not converted either.
+fn replaced_characters(dump: &SqlDump) -> Report {
+    const TEXT: [&str; 8] = [
+        "char",
+        "varchar",
+        "tinytext",
+        "text",
+        "mediumtext",
+        "longtext",
+        "enum",
+        "set",
+    ];
+    let mut report = Report::default();
+    for (name, table) in &dump.tables {
+        let Some(written) = table.data_charset.as_deref() else {
+            continue;
+        };
+        let Some(width) = charset_width(written) else {
+            continue;
+        };
+        for (index, column) in table.columns.iter().enumerate() {
+            if !table
+                .column_types
+                .get(column)
+                .is_some_and(|t| TEXT.contains(&t.as_str()))
+            {
+                continue;
+            }
+            let Some(declared) =
+                table.column_charsets.get(column).or(table.charset.as_ref())
+            else {
+                continue;
+            };
+            if charset_width(declared).is_none_or(|w| w <= width) {
+                continue;
+            }
+            let suspect: Vec<usize> = (0..table.rows.len())
+                .filter(|&row| {
+                    matches!(table.rows[row].get(index),
+                        Some(SqlValue::Bytes(b)) if b.contains(&b'?'))
+                })
+                .collect();
+            if let Some(&first) = suspect.first() {
+                report.push(problem(
+                    name,
+                    first,
+                    column,
+                    Code::NotApproved,
+                    &format!(
+                        "{} value(s) contain '?', which mysqldump writes for characters a {written} connection cannot hold in this {} column; export again with --default-character-set=utf8mb4, or review and accept the replaced characters",
+                        suspect.len(),
+                        declared.to_ascii_lowercase(),
+                    ),
+                ));
+            }
+        }
+    }
+    report
+}
 fn fail(summary: Summary, p: Problem) -> Refused {
     let mut report = Report::default();
     report.push(p);
@@ -284,6 +384,15 @@ pub fn adapt(
                 .count()
         })
         .sum();
+    if options.connection_charset == ConnectionCharsetPolicy::RequireLossless {
+        let report = replaced_characters(&dump);
+        if !report.problems.is_empty() {
+            return Err(Refused {
+                summary: summary.clone(),
+                report,
+            });
+        }
+    }
     let (dump, source_schema) =
         schema::normalize(dump).map_err(|p| fail(summary.clone(), p))?;
     summary.source_schema = source_schema;
@@ -1391,8 +1500,10 @@ fn map(
         || options.post_coverage == PostCoverage::WorkbookPostsOnly
         || options.precinct_coverage == PostCoverage::WorkbookPostsOnly
         || options.affiliation == AffiliationPolicy::PreserveUnresolvedCode
+        || options.connection_charset
+            == ConnectionCharsetPolicy::AcceptReplacedCharacters
     {
-        let digests=options.source_digests.as_ref().ok_or_else(||Problem::error(Code::NotApproved,"historical decisions sourceDigests","explicit associations or limited post coverage must be bound to both source-file hashes"))?;
+        let digests=options.source_digests.as_ref().ok_or_else(||Problem::error(Code::NotApproved,"historical decisions sourceDigests","explicit associations, limited coverage and accepted exceptions must be bound to both source-file hashes"))?;
         if digests.sql_sha256 != summary.sql_sha256
             || digests.workbook_sha256 != summary.workbook_sha256
         {

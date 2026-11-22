@@ -43,6 +43,20 @@ fn records_the_connection_charset_the_rows_were_written_in() {
 }
 
 #[test]
+fn records_each_column_type_so_text_can_be_told_from_binary() {
+    let dump = read_mysql_dump(
+        b"CREATE TABLE `t` (`id` int NOT NULL, `name` VARCHAR(50) CHARACTER SET utf8mb3, `photo` longblob COMMENT 'x', `kind` enum('a','b'), PRIMARY KEY (`id`));",
+    )
+    .unwrap();
+    let types = &dump.tables["t"].column_types;
+    assert_eq!(types["id"], "int");
+    assert_eq!(types["name"], "varchar");
+    assert_eq!(types["photo"], "longblob");
+    assert_eq!(types["kind"], "enum");
+    assert_eq!(types.len(), 4);
+}
+
+#[test]
 fn refuses_rows_of_one_table_written_in_different_connection_charsets() {
     for second in ["SET NAMES latin1;", "SET NAMES utf8;"] {
         let sql = format!(

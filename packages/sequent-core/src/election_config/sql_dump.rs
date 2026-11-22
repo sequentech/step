@@ -32,6 +32,8 @@ pub struct SqlTable {
     /// mysqldump writes every literal in it, whatever the column declares, so
     /// text is decoded by it; `None` when the dump never declared one.
     pub data_charset: Option<String>,
+    /// Each column's declared type keyword, lowercase (`varchar`, `longblob`).
+    pub column_types: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Default)]
@@ -375,6 +377,14 @@ pub fn read_mysql_dump(bytes: &[u8]) -> Result<SqlDump, DumpError> {
                     }
                     if let Some(cs) = charset(group) {
                         table.column_charsets.insert(column.clone(), cs);
+                    }
+                    if let Some(Kind::Word(kind)) =
+                        group.get(1).map(|t| &t.kind)
+                    {
+                        table.column_types.insert(
+                            column.clone(),
+                            String::from_utf8_lossy(kind).to_ascii_lowercase(),
+                        );
                     }
                     table.columns.push(column);
                 } else if head.word("PRIMARY") || head.word("UNIQUE") {

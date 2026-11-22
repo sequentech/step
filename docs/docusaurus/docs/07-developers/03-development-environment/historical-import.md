@@ -137,7 +137,14 @@ what mysqldump converts every value to, whatever charset the column declares:
 a default dump of a `latin1` column is UTF-8. UTF-8 (`utf8`, `utf8mb3`,
 `utf8mb4`) and MySQL latin1 are supported. A dump without `SET NAMES` is read
 by the declared column or table charset, and a table whose rows were written
-under two different `SET NAMES` is refused (`sql.mixed-charset`). Binary content remains
+under two different `SET NAMES` is refused (`sql.mixed-charset`).
+
+mysqldump writes `?` for every character its connection charset cannot hold.
+So a `?` in a text column declared wider than the dump's `SET NAMES` (for
+example a `utf8mb3` name column in a `latin1` dump) may be a lost letter, and
+the conversion is refused as not approved, naming the column, its first such row
+and the count. Export again with `--default-character-set=utf8mb4`. Binary
+columns are never converted and are not checked. Binary content remains
 in the unmodified original; this profile does not publish candidate photographs
 from opaque blobs.
 
@@ -332,8 +339,8 @@ is dropped silently. The preserved count is reported in the summary and stored i
 provenance as `preservedVoters`.
 
 The advanced CLI decisions contract remains available: limited post/precinct
-coverage, explicit associations and preserving unresolved affiliation codes
-require both source SHA-256 values. Changed bytes invalidate those decisions.
+coverage, explicit associations, preserving unresolved affiliation codes and
+accepting replaced characters require both source SHA-256 values. Changed bytes invalidate those decisions.
 No source policy controls or separate file pickers appear in the drawer.
 
 Candidate references are resolved against the whole source before any seat is
@@ -402,6 +409,9 @@ are one-based per base table, in original INSERT order. Optional coverage mode
 `workbook-posts-only` limits the corresponding post or precinct scope to
 workbook matches and reports excluded rows. Optional affiliation mode
 `preserve-unresolved-code` retains the source code without inventing party names.
+Optional `"connectionCharset": "accept-replaced-characters"` imports text with
+characters the dump's connection charset replaced by `?`, as written; it is left
+out of the decisions when not set, so earlier decision digests are unchanged.
 
 The source, decision and profile provenance is carried in the event's
 `import:provenance` annotation. The native ZIP contains the existing event JSON
