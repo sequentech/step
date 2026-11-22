@@ -37,6 +37,9 @@ use windmill::postgres::signing::{update_signing_request_status, SigningRequestT
 use windmill::services::consolidation::download_log::{
     prepare_hardware_manual_archive, DownloadRefusal, Downloader, TransmissionDownload,
 };
+use windmill::services::consolidation::eml_generator::{
+    prepend_miru_annotation, MIRU_TALLY_SESSION_DATA,
+};
 use windmill::services::consolidation::xz_compress::xz_compress;
 use windmill::services::documents::ordinary_document_url_allowed;
 use windmill::services::signing::actions::transmission::{
@@ -111,7 +114,21 @@ fn ids(documents: &[Uuid]) -> HashSet<String> {
 
 /// A tally session of the world's event.
 async fn tally_session(w: &World) -> Uuid {
+    tally_session_with(w, &[]).await
+}
+
+/// A tally session of the world's event that holds `packages`, stored as
+/// the package builder stores them.
+async fn tally_session_with(w: &World, packages: &[MiruTransmissionPackageData]) -> Uuid {
     let (ceremony, session) = (Uuid::new_v4(), Uuid::new_v4());
+    let annotations = (!packages.is_empty()).then(|| {
+        let mut annotations = serde_json::Map::new();
+        annotations.insert(
+            prepend_miru_annotation(MIRU_TALLY_SESSION_DATA),
+            json!(serde_json::to_string(packages).unwrap()),
+        );
+        serde_json::Value::Object(annotations)
+    });
     w.execute(
         "INSERT INTO sequent_backend.keys_ceremony
              (id, tenant_id, election_event_id, trustee_ids, threshold)
@@ -121,12 +138,31 @@ async fn tally_session(w: &World) -> Uuid {
     .await;
     w.execute(
         "INSERT INTO sequent_backend.tally_session
-             (id, tenant_id, election_event_id, keys_ceremony_id, threshold)
-         VALUES ($1, $2, $3, $4, 1)",
-        &[&session, &w.tenant, &w.event, &ceremony],
+             (id, tenant_id, election_event_id, keys_ceremony_id, threshold, annotations)
+         VALUES ($1, $2, $3, $4, 1, $5)",
+        &[&session, &w.tenant, &w.event, &ceremony, &annotations],
     )
     .await;
     session
+}
+
+/// The world's country votes in a contest of the world's Post: the link the
+/// manual archive route reads the event of a Post and country from.
+async fn link_country_to_post(w: &World) {
+    let contest = Uuid::new_v4();
+    w.execute(
+        "INSERT INTO sequent_backend.contest (id, tenant_id, election_event_id, election_id)
+         VALUES ($1, $2, $3, $4)",
+        &[&contest, &w.tenant, &w.event, &w.post],
+    )
+    .await;
+    w.execute(
+        "INSERT INTO sequent_backend.area_contest
+             (id, tenant_id, election_event_id, area_id, contest_id)
+         VALUES ($1, $2, $3, $4, $5)",
+        &[&Uuid::new_v4(), &w.tenant, &w.event, &w.area, &contest],
+    )
+    .await;
 }
 
 /// Registers `document` as the `kind` member of package revision `revision`
@@ -530,14 +566,52 @@ async fn manual_archive(
 #[tokio::test]
 async fn the_manual_archive_route_gives_nothing_to_a_caller_it_does_not_know() {
     let w = world("miru-manual").await;
-    let download = |election: Uuid| TransmissionDownload {
+    // The event's required transmit-results rule: a hardware tenant's send
+    // check is an error without one, not an answer.
+    w.rule(ACTION, 1, RequesterSigning::NotAllowed, None).await;
+    // A real package of the world's Post and country, for a destination
+    // that receives it by hand, in a tally session of the event: every
+    // refusal below is of a download that names this package's own archive.
+    link_country_to_post(&w).await;
+    let archive = Uuid::new_v4();
+    let package = MiruTransmissionPackageData {
+        election_id: w.post.to_string(),
+        area_id: w.area.to_string(),
+        servers: vec![MiruCcsServer {
+            name: "by-hand".into(),
+            tag: "tag-by-hand".into(),
+            address: String::new(),
+            public_key_pem: String::new(),
+            send_logs: None,
+        }],
+        documents: vec![MiruDocument {
+            document_ids: MiruDocumentIds {
+                eml: Uuid::new_v4().to_string(),
+                xz: Uuid::new_v4().to_string(),
+                all_servers: archive.to_string(),
+                csv: None,
+            },
+            transaction_id: "tx".into(),
+            servers_sent_to: vec![],
+            created_at: "2028-05-12T10:00:00+08:00".into(),
+            signatures: vec![],
+            sha256: None,
+        }],
+        logs: vec![],
+        threshold: 1,
+        signing_request: None,
+        ovcs_public_key: None,
+    };
+    let tally = tally_session_with(&w, &[package]).await;
+    let download_of = |election: Uuid, tally: Uuid| TransmissionDownload {
         tenant_id: w.tenant.to_string(),
         election_event_id: w.event.to_string(),
         election_id: election.to_string(),
         area_id: w.area.to_string(),
-        tally_session_id: Uuid::new_v4().to_string(),
-        document_id: Uuid::new_v4().to_string(),
+        tally_session_id: tally.to_string(),
+        document_id: archive.to_string(),
     };
+    let download = |election: Uuid| download_of(election, tally);
     let downloader = Downloader {
         user_id: "auditor".into(),
         username: Some("auditor-name".into()),
@@ -573,6 +647,38 @@ async fn the_manual_archive_route_gives_nothing_to_a_caller_it_does_not_know() {
     );
 
     promote(&w).await;
+    // The control: the same download by the same permitted caller, refused
+    // a moment ago for the legacy tenant, now passes every "no package"
+    // refusal. The route finds the package and its archive, and stops one
+    // check further: the rule requires signatures and no request signed
+    // this package (TEST FICTION: no hardware quorum exists here, so the
+    // archive itself is never handed out).
+    assert_eq!(
+        manual_archive(&w, &download(w.post), &auditor, &downloader).await,
+        Some(DownloadRefusal::NotAPackageFile),
+        "a permitted caller does not reach the package"
+    );
+    // Promotion alone opens nothing to the callers the route doesn't know.
+    assert_eq!(
+        manual_archive(
+            &w,
+            &download(w.post),
+            &caller("auditor", &[], &[&w.label]),
+            &downloader
+        )
+        .await,
+        Some(DownloadRefusal::NoPackage)
+    );
+    assert_eq!(
+        manual_archive(
+            &w,
+            &download(w.post),
+            &caller("someone-else", &[Permissions::MIRU_DOWNLOAD], &[&w.label]),
+            &downloader
+        )
+        .await,
+        Some(DownloadRefusal::NoPackage)
+    );
     // A Post the event doesn't have, and a Post the caller doesn't reach.
     assert_eq!(
         manual_archive(&w, &download(Uuid::new_v4()), &auditor, &downloader).await,
@@ -586,6 +692,12 @@ async fn the_manual_archive_route_gives_nothing_to_a_caller_it_does_not_know() {
             &downloader
         )
         .await,
+        Some(DownloadRefusal::NoPackage)
+    );
+    // A tally session of the event that holds no package.
+    let empty = tally_session(&w).await;
+    assert_eq!(
+        manual_archive(&w, &download_of(w.post, empty), &auditor, &downloader).await,
         Some(DownloadRefusal::NoPackage)
     );
     // A tenant that is no id is an error.

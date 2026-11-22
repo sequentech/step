@@ -9,6 +9,7 @@
 //! the browser. Uses the real Initialize voting approval and action paths.
 
 use super::signing::{signing_failure, SigningReply};
+use crate::services::audit;
 use crate::services::dependencies::HarvestServices;
 use crate::services::operational_portal_auth::OperationalPortalClaims;
 use crate::services::signing_http::{
@@ -21,8 +22,13 @@ use rocket::State;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::{future::Future, pin::Pin};
 use uuid::Uuid;
+use windmill::postgres::audit_log_outbox::AuditLogTarget;
+use windmill::services::audit_log::{
+    self, AdminAction, AdminChange, AuditObject, FieldChange,
+};
 use windmill::services::signing::approve::approve_operational;
 use windmill::services::signing::operational_approval::OperationalApprovalInput;
 use windmill::services::signing::operational_initialize::{
@@ -30,6 +36,71 @@ use windmill::services::signing::operational_initialize::{
     prepare_initialize_signing, InitializeSigningScope,
 };
 use windmill::services::signing::SigningCaller;
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
+
+/// The ledger's attempt table has no `audit_change` trigger: a route that
+/// changes an attempt stages the entry itself, in the event's log.
+const ATTEMPT: &str = "operational_initialize_attempt";
+
+fn attempt_change(
+    claims: &JwtClaims,
+    scope: &InitializeSigningScope,
+    attempt: Uuid,
+) -> AdminChange {
+    audit::change(
+        claims,
+        AuditLogTarget {
+            tenant_id: scope.tenant(),
+            election_event_id: Some(scope.event()),
+        },
+        AuditObject::new(ATTEMPT, attempt, None),
+        AdminAction::Update,
+    )
+}
+
+/// An official discarded their own unused attempt.
+fn attempt_cancelled(
+    claims: &JwtClaims,
+    scope: &InitializeSigningScope,
+    attempt: Uuid,
+) -> AdminChange {
+    attempt_change(claims, scope, attempt)
+        .with_changes(vec![FieldChange::new(
+            "step",
+            None,
+            Some(&json!("discarded")),
+        )])
+        .with_extra(json!({"signing_request_id": scope.request()}))
+        .with_description("Cancelled an unused Initialize signing attempt")
+}
+
+/// The fixed page an attempt returns its official to.
+fn attempt_return_recorded(
+    claims: &JwtClaims,
+    scope: &InitializeSigningScope,
+    attempt: Uuid,
+    page: ReturnPage,
+) -> AdminChange {
+    let election = page.election_id.map(|id| json!(id));
+    attempt_change(claims, scope, attempt)
+        .with_changes(vec![
+            FieldChange::new(
+                "return_path",
+                None,
+                Some(&json!(page.path.as_str())),
+            ),
+            FieldChange::new(
+                "return_panel",
+                None,
+                Some(&json!(page.panel.as_str())),
+            ),
+            FieldChange::new("return_election_id", None, election.as_ref()),
+        ])
+        .with_extra(json!({"signing_request_id": scope.request()}))
+        .with_description(
+            "Recorded the return page of an Initialize signing attempt",
+        )
+}
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -449,7 +520,15 @@ pub(crate) async fn cancel_unused(
             "Can't cancel an attempt after it could have reached the device.",
         ));
     }
+    // The entry commits with the discard, or neither does.
+    audit_log::stage(
+        &tx,
+        &attempt_cancelled(&claims.0, &scoped, input.attempt),
+    )
+    .await
+    .map_err(SigningError::internal)?;
     tx.commit().await.map_err(SigningError::internal)?;
+    kick_audit_log_outbox();
     Ok(Json(Outcome {
         phase: Phase::Unavailable,
     }))
@@ -587,7 +666,9 @@ pub(crate) async fn start(
     {
         return Err(broker_error(BrokerFailure::Unavailable));
     }
-    let saved: bool=client.query_one(
+    // The return page and its audit entry commit together.
+    let tx = client.transaction().await.map_err(SigningError::internal)?;
+    let saved: bool=tx.query_one(
        "SELECT sequent_backend.operational_initialize_record_browser_return($1,$2,$3,$4,$5,$6,$7,$8)",
        &[&tenant,&prepared.event(),&prepared.request(),&caller.user_id,&redirect.attempt,
          &page.path.as_str(),&page.panel.as_str(),&page.election_id],
@@ -599,6 +680,14 @@ pub(crate) async fn start(
             "This signing attempt could not preserve its return page. Check its status.",
         ));
     }
+    audit_log::stage(
+        &tx,
+        &attempt_return_recorded(&claims.0, &prepared, redirect.attempt, page),
+    )
+    .await
+    .map_err(SigningError::internal)?;
+    tx.commit().await.map_err(SigningError::internal)?;
+    kick_audit_log_outbox();
     Ok(Json(Begin {
         attempt: redirect.attempt,
         redirect: redirect.location.to_string(),

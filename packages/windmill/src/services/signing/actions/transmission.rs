@@ -829,3 +829,7 @@ pub async fn upload_signature_refusal(
         });
     Ok(live.then_some(TransmissionRefusal::SignedByRequest))
 }
+
+#[cfg(test)]
+#[path = "transmission_registry_tests.rs"]
+mod registry_tests;
