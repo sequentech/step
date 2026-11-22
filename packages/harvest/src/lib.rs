@@ -61,6 +61,20 @@ pub async fn rocket() -> rocket::Rocket<rocket::Build> {
     dotenv().ok();
     init_log_with_filter(true, services::request_logging::enabled);
 
+    let services = HarvestServices::production();
+    let policy =
+        services.databases.hasura().await.get().await.expect(
+            "The shared operational signing database must be available",
+        );
+    windmill::services::signing::operational_policy::assert_startup_policy(
+        &policy,
+    )
+    .await
+    .expect(
+        "Verify the shared operational signing policy before starting Harvest",
+    );
+    drop(policy);
+
     setup_probe(AppName::HARVEST).await;
     set_is_app_active(true);
     init_plugin_manager().await.unwrap();
@@ -73,11 +87,12 @@ pub async fn rocket() -> rocket::Rocket<rocket::Build> {
         }
     });
 
-    build_application()
+    build_application_with(services)
 }
 
 /// Register the same routes and managed state for production and local HTTP
 /// tests. Starting probes, plugins and worker processes remains a startup step.
+#[cfg(test)]
 fn build_application() -> rocket::Rocket<rocket::Build> {
     build_application_with(HarvestServices::production())
 }
@@ -337,6 +352,7 @@ fn build_application_with(
                 routes::signing::save_signing_rule,
                 routes::signing::signing_rule_capacity,
                 routes::signing::signing_event_info,
+                routes::signing::miru_operational_signing_mode,
                 routes::reports::signing_held_report_requests,
                 routes::signing_certificates::import_signing_issuers,
                 routes::signing_certificates::remove_signing_issuer,

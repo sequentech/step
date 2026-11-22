@@ -231,6 +231,26 @@ pub fn stored_document_key(tenant_id: &str, document: &Document) -> String {
     s3::get_document_key(tenant_id, election_event_id, &document.id, &name)
 }
 
+/// Application-wide negative egress gate for the actual stored document.
+/// Signed MIRU releases use the dedicated exact-file route instead.
+pub async fn ordinary_document_url_allowed(
+    tx: &Transaction<'_>,
+    tenant_id: &str,
+    document: &Document,
+) -> anyhow::Result<bool> {
+    use crate::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
+    let tenant = uuid::Uuid::parse_str(tenant_id)?;
+    if signing_mode(tx, tenant).await? != OperationalSigningMode::HsmRequired {
+        return Ok(true);
+    }
+    // The operational document registry is not part of this checkpoint:
+    // documents of an HSM-required tenant stay withheld until it is.
+    let _ = document;
+    Err(anyhow::anyhow!(
+        "Operational document inventory is not available"
+    ))
+}
+
 #[instrument(err)]
 pub async fn get_document_url(
     hasura_transaction: &Transaction<'_>,
@@ -251,6 +271,9 @@ pub async fn get_document_url(
         return Ok(None);
     };
 
+    if !ordinary_document_url_allowed(hasura_transaction, tenant_id, &document).await? {
+        return Ok(None);
+    }
     let document_s3_key = stored_document_key(tenant_id, &document);
 
     let bucket = if document.is_public.unwrap_or(false) {

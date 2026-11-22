@@ -381,6 +381,14 @@ services:
     ]
 
   graphql-engine:
+    healthcheck:
+      # The cli-migrations entrypoint applies metadata and migrations before it
+      # serves on 8080, so healthy means the schema Harvest/Windmill check exists.
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/healthz"]
+      interval: 3s
+      timeout: 5s
+      retries: 100
+      start_period: 30s
     profiles: ["full", "base"]
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}hasura
@@ -697,6 +705,8 @@ services:
     volumes_from:
       - devcontainer
     depends_on:
+      graphql-engine:
+        condition: service_healthy
       devcontainer:
         condition: service_started
       task-queues-setup:
@@ -1175,6 +1185,8 @@ services:
     volumes_from:
       - devcontainer
     depends_on:
+      graphql-engine:
+        condition: service_healthy
       devcontainer:
         condition: service_started
       postgres-keycloak:

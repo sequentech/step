@@ -22,6 +22,7 @@ use crate::services::reports::generation::ReportRequester;
 use crate::services::signing::actions::transmission::{
     LoadedPackage, PostSbeis, SbeiDirectory, SbeiIdentity, TransmissionPackages,
 };
+use crate::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
 use crate::services::signing::pdf::{RevisionStore, S3RevisionStore};
 use crate::services::time_zones::{event_time_zone, offset_at};
 use crate::types::miru_plugin::{
@@ -273,7 +274,7 @@ impl TransmissionPackages for StoredPackages {
         loaded: &LoadedPackage,
         members: Vec<ACMTrustee>,
         signatures: Vec<MiruSignature>,
-    ) -> Result<String> {
+    ) -> Result<crate::services::signing::actions::transmission::StoredSignedArchive> {
         let at = place(request)?;
         let now_utc = Utc::now();
         let zone = transmission_zone(
@@ -348,6 +349,21 @@ impl TransmissionPackages for StoredPackages {
             &ReportRequester::default(),
         )
         .await?;
+        let stored = crate::services::signing::actions::transmission::StoredSignedArchive {
+            document_id: all_servers.document.id.clone(),
+            archive_sha256: all_servers.sha256.to_ascii_lowercase(),
+            eml_document_id: latest.document_ids.eml.clone(),
+            xz_document_id: latest.document_ids.xz.clone(),
+        };
+        if signing_mode(hasura_transaction, request.tenant_id).await?
+            == OperationalSigningMode::HsmRequired
+        {
+            // The operational MIRU artifact registry is not part of this
+            // checkpoint, so an HSM-required tenant cannot bind a signed package yet.
+            return Err(anyhow!(
+                "Operational MIRU artifact registry is not available"
+            ));
+        }
         package.documents.push(resealed_document(
             &latest,
             &all_servers,
@@ -368,7 +384,7 @@ impl TransmissionPackages for StoredPackages {
             tally_annotations,
         )
         .await?;
-        Ok(all_servers.document.id)
+        Ok(stored)
     }
 }
 

@@ -112,6 +112,8 @@ openssl = "0.10"
 # Parses the CMS SignedData of PDF signatures (services::signing).
 cms = "0.2.3"
 der = { version = "0.7", features = ["alloc", "oid"] }
+spki = { version = "0.7.3", features = ["alloc"] }
+x509-cert = { version = "0.2.5", default-features = false }
 rusqlite = { version = "0.32", features = ["bundled"] }
 
 ecies = { version = "0.2.7", optional = true }

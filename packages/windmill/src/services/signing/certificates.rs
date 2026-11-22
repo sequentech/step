@@ -689,6 +689,59 @@ fn revocation_check(
     })
 }
 
+/// Positive operational proof cannot inherit the legacy "accept unchecked"
+/// setting. Every non-anchor requires a correctly signed complete CRL with
+/// an explicit NextUpdate and no accepted indication of revocation. Missing,
+/// future, delta, malformed and expired lists provide no positive proof.
+pub(crate) fn operational_revocation_until(
+    path: &[X509],
+    crls: &[StoredCrl],
+    now: DateTime<Utc>,
+) -> Option<DateTime<Utc>> {
+    if path.len() < 2 {
+        return None;
+    }
+    let lists: Vec<StoredList> = crls
+        .iter()
+        .filter_map(|stored| {
+            let der = stored.der.as_deref()?;
+            Some(StoredList {
+                crl: X509Crl::from_der(der).ok()?,
+                scope: list_scope(der).ok()?,
+                url: stored.url.clone(),
+                fetched_at: stored.fetched_at,
+            })
+        })
+        .collect();
+    // Evidence is used immediately at the fenced hardware boundary, not as
+    // a general-purpose certificate-authentication or trust assertion.
+    let mut until = now.checked_add_signed(chrono::TimeDelta::seconds(30))?;
+    for pair in path.windows(2) {
+        let (certificate, issuer) = (&pair[0], &pair[1]);
+        let points = distribution_points(certificate);
+        let usable: Vec<_> = lists_for(&lists, certificate, issuer)
+            .into_iter()
+            .filter(|list| list.scope.points.is_empty() || !points.is_empty())
+            .collect();
+        if usable
+            .iter()
+            .any(|list| matches!(list.crl.get_by_cert(certificate), CrlStatus::Revoked(_)))
+        {
+            return None;
+        }
+        // Revocation completeness is based on authenticated list contents.
+        // Stored fetch time is only a supplemental sanity check.
+        let proof = usable
+            .iter()
+            .filter(|list| list.scope.this_update <= now && list.fetched_at <= now)
+            .filter_map(|list| list.scope.next_update)
+            .filter(|next| *next > now)
+            .max()?;
+        until = until.min(proof);
+    }
+    (until > now).then_some(until)
+}
+
 /// `valid-now` over every certificate of the path.
 pub(crate) fn validity_check(path: &[X509], now: DateTime<Utc>) -> Result<CertificateCheckResult> {
     for (index, certificate) in path.iter().enumerate() {

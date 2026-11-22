@@ -147,6 +147,14 @@ services:
     entrypoint: /opt/vault/entrypoint.sh
 
   graphql-engine:
+    healthcheck:
+      # The cli-migrations entrypoint applies metadata and migrations before it
+      # serves on 8080, so healthy means the schema Harvest/Windmill check exists.
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/healthz"]
+      interval: 3s
+      timeout: 5s
+      retries: 100
+      start_period: 30s
     profiles: ["full", "base"]
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
     pull_policy: never
@@ -345,6 +353,8 @@ services:
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/harvest:STEP_VERSION
     pull_policy: never
     depends_on:
+      graphql-engine:
+        condition: service_healthy
       task-queues-setup:
         condition: service_completed_successfully
     environment:
@@ -674,6 +684,8 @@ services:
     pull_policy: never
     restart: always
     depends_on:
+      graphql-engine:
+        condition: service_healthy
       task-queues-setup:
         condition: service_completed_successfully
       configure-minio:

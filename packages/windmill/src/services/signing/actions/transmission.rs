@@ -18,6 +18,8 @@
 use super::super::guard::{
     effective_rule, GuardOutcome, GuardRequest, RequestScope, SigningDocument,
 };
+use super::super::operational_policy::{signing_mode, OperationalSigningMode};
+use super::super::operational_quorum::has_operational_quorum;
 use super::super::{SigningCaller, SigningError, SigningResult};
 use super::{gate, refuse, EffectProgress};
 use crate::postgres::signing::{
@@ -38,7 +40,9 @@ use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
 use deadpool_postgres::Transaction;
 use openssl::x509::X509;
-use sequent_core::signing::{SigningAction, SigningRequestStatus, TransmitResultsSubject};
+use sequent_core::signing::{
+    canonical_json, SigningAction, SigningRequestStatus, TransmitResultsSubject,
+};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -120,6 +124,15 @@ impl PackageToSign<'_> {
     }
 }
 
+const DESTINATION_CONFIGURATION_SHA256: &str = "destination_configuration_sha256";
+
+/// Names alone do not authorize the endpoint, key, or archive entry.
+fn destination_configuration_hash(servers: &[MiruCcsServer]) -> Result<String> {
+    let value = serde_json::to_value(servers)?;
+    let canonical = canonical_json(&value).map_err(|error| anyhow!(error.to_string()))?;
+    Ok(sha256_hex(canonical.as_bytes()))
+}
+
 /// The signing request a new transmission package waits for: `None` when
 /// the event's rule needs no signatures (the package is sent as in 2025).
 /// The requester must reach the Post. Call it before the tally session's
@@ -148,13 +161,30 @@ pub async fn guard_transmission_package(
             false => Ok(None),
         };
     };
+    let mode = signing_mode(hasura_transaction, package.tenant_id)
+        .await
+        .context("Operational signing policy unavailable")?;
     let outcome = gate(
         hasura_transaction,
         requester,
         ACTION,
         package.tenant_id,
         package.election_event_id,
-        || async { Ok(package.guard_request()?) },
+        || async {
+            let mut request = package.guard_request()?;
+            if mode == OperationalSigningMode::HsmRequired {
+                let digest = destination_configuration_hash(package.servers)?;
+                let subject = request
+                    .subject
+                    .as_object_mut()
+                    .context("Invalid transmission signing subject")?;
+                subject.insert(
+                    DESTINATION_CONFIGURATION_SHA256.into(),
+                    Value::String(digest),
+                );
+            }
+            Ok(request)
+        },
     )
     .await?;
     Ok(match outcome {
@@ -318,6 +348,14 @@ pub struct LoadedPackage {
     pub sbeis: Option<PostSbeis>,
 }
 
+/// Evidence produced by the trusted archive builder, not the tally annotations.
+pub struct StoredSignedArchive {
+    pub document_id: String,
+    pub archive_sha256: String,
+    pub eml_document_id: String,
+    pub xz_document_id: String,
+}
+
 /// Where transmission packages are kept: the tally session's annotations,
 /// and their documents.
 #[async_trait]
@@ -333,7 +371,7 @@ pub trait TransmissionPackages: Send + Sync {
 
     /// Builds the package once more, for its stored destinations, with
     /// `members`, and keeps it as its latest document with `signatures`.
-    /// Sends nothing. Answers the new `all_servers` document id.
+    /// Sends nothing. Answers the exact generated archive and input references.
     async fn store_signed(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -341,7 +379,7 @@ pub trait TransmissionPackages: Send + Sync {
         loaded: &LoadedPackage,
         members: Vec<ACMTrustee>,
         signatures: Vec<MiruSignature>,
-    ) -> Result<String>;
+    ) -> Result<StoredSignedArchive>;
 }
 
 /// The effect of an executed transmit-results request: the package it
@@ -390,8 +428,20 @@ pub async fn sign_package(
     {
         return Err(changed("its compressed results"));
     }
-    if destination_names(&loaded.package.servers) != subject.destinations() {
+    let destination_sha256 = destination_configuration_hash(&loaded.package.servers)?;
+    if destination_names(&loaded.package.servers) != subject.destinations()
+        || (signing_mode(hasura_transaction, request.tenant_id).await?
+            == OperationalSigningMode::HsmRequired
+            && request
+                .subject
+                .get(DESTINATION_CONFIGURATION_SHA256)
+                .and_then(Value::as_str)
+                != Some(destination_sha256.as_str()))
+    {
         return Err(changed("its destinations"));
+    }
+    if loaded.tally_session_id != subject.tally_session_id {
+        return Err(changed("its tally session"));
     }
     if approvals.len() < usize::try_from(request.required).unwrap_or(usize::MAX) {
         return Err(refuse(
@@ -402,11 +452,16 @@ pub async fn sign_package(
     let (members, signatures) = package_members(approvals, loaded.sbeis.as_ref())?;
 
     progress.reach_outside();
-    let all_servers_document_id = packages
+    let stored = packages
         .store_signed(hasura_transaction, request, &loaded, members, signatures)
         .await?;
     Ok(json!({
-        "all_servers_document_id": all_servers_document_id,
+        "all_servers_document_id": stored.document_id,
+        "archive_sha256": stored.archive_sha256,
+        "eml_document_id": stored.eml_document_id,
+        "xz_document_id": stored.xz_document_id,
+        "tally_session_id": loaded.tally_session_id,
+        "destination_configuration_sha256": destination_sha256,
         "package_sha256": subject.package_sha256,
         "eml_sha256": subject.eml_sha256,
         "signatures": approvals.len(),
@@ -486,13 +541,35 @@ fn signature_set(signatures: &[MiruSignature]) -> Vec<(String, String)> {
 /// while the event's rule needs signatures it doesn't have, or while its
 /// request waits; as in 2025 otherwise (no rule, and no request or one that
 /// ended without running).
-#[instrument(skip(hasura_transaction, package), err)]
 pub async fn transmission_send_check(
     hasura_transaction: &Transaction<'_>,
     tenant_id: Uuid,
     election_event_id: Uuid,
     package: &MiruTransmissionPackageData,
 ) -> Result<std::result::Result<TransmissionSendCheck, TransmissionRefusal>> {
+    transmission_send_check_bound(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        None,
+        package,
+        None,
+    )
+    .await
+}
+
+/// Preflight may only check the immutable record. Any byte release must also
+/// pass the SHA-256 of the exact pinned object or private downloaded file.
+#[instrument(skip(hasura_transaction, package, observed_archive_sha256), err)]
+pub async fn transmission_send_check_bound(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    tally_session_id: Option<Uuid>,
+    package: &MiruTransmissionPackageData,
+    observed_archive_sha256: Option<&str>,
+) -> Result<std::result::Result<TransmissionSendCheck, TransmissionRefusal>> {
+    let mode = signing_mode(hasura_transaction, tenant_id).await?;
     let request = match &package.signing_request {
         Some(signing) => {
             let id = Uuid::parse_str(&signing.id).context("Error reading the request id")?;
@@ -521,6 +598,112 @@ pub async fn transmission_send_check(
         let approvals =
             list_signing_approvals(hasura_transaction, tenant_id, election_event_id, request.id)
                 .await?;
+        if mode == OperationalSigningMode::HsmRequired {
+            let rule =
+                effective_rule(hasura_transaction, tenant_id, election_event_id, ACTION).await?;
+            let subject: TransmitResultsSubject =
+                serde_json::from_value(request.subject.clone())
+                    .context("Invalid executed transmission signing subject")?;
+            let exact = request.action == ACTION
+                && request.election_id == Uuid::parse_str(&package.election_id).ok()
+                && request.election_id.is_some()
+                && request.area_id == Uuid::parse_str(&package.area_id).ok()
+                && request.area_id.is_some()
+                && package
+                    .signing_request
+                    .as_ref()
+                    .is_some_and(|p| p.code == request.code && p.required == request.required)
+                && request.document_sha256.as_deref() == Some(subject.eml_sha256.as_str())
+                && built.is_some()
+                && request
+                    .execution_result
+                    .as_ref()
+                    .and_then(|r| r.get("eml_sha256"))
+                    .and_then(Value::as_str)
+                    == Some(subject.eml_sha256.as_str())
+                && request
+                    .execution_result
+                    .as_ref()
+                    .and_then(|r| r.get("package_sha256"))
+                    .and_then(Value::as_str)
+                    == Some(subject.package_sha256.as_str())
+                && destination_names(&package.servers) == subject.destinations();
+            let Some(tally) = tally_session_id else {
+                return Ok(not_it);
+            };
+            let Some(election) = request.election_id else {
+                return Ok(not_it);
+            };
+            let Some(area) = request.area_id else {
+                return Ok(not_it);
+            };
+            let Ok(archive) = Uuid::parse_str(&latest.document_ids.all_servers) else {
+                return Ok(not_it);
+            };
+            let Ok(eml) = Uuid::parse_str(&latest.document_ids.eml) else {
+                return Ok(not_it);
+            };
+            let Ok(xz) = Uuid::parse_str(&latest.document_ids.xz) else {
+                return Ok(not_it);
+            };
+            let result = request
+                .execution_result
+                .as_ref()
+                .context("Missing executed package result")?;
+            let archive_sha = result.get("archive_sha256").and_then(Value::as_str);
+            let destination_sha = destination_configuration_hash(&package.servers)?;
+            let executed_tally = result
+                .get("tally_session_id")
+                .and_then(Value::as_str)
+                .and_then(|id| Uuid::parse_str(id).ok());
+            let exact_bytes = archive_sha.is_some_and(|digest| {
+                digest.len() == 64
+                    && digest
+                        .bytes()
+                        .all(|b| b.is_ascii_digit() || matches!(b, b'a'..=b'f'))
+            }) && observed_archive_sha256
+                .is_none_or(|observed| Some(observed) == archive_sha);
+            if !exact
+                || !exact_bytes
+                || Uuid::parse_str(&subject.tally_session_id).ok() != Some(tally)
+                || executed_tally != Some(tally)
+                || result.get("eml_document_id").and_then(Value::as_str)
+                    != Some(latest.document_ids.eml.as_str())
+                || result.get("xz_document_id").and_then(Value::as_str)
+                    != Some(latest.document_ids.xz.as_str())
+                || request.document_id != Some(eml)
+                || request
+                    .subject
+                    .get(DESTINATION_CONFIGURATION_SHA256)
+                    .and_then(Value::as_str)
+                    != Some(destination_sha.as_str())
+                || result
+                    .get(DESTINATION_CONFIGURATION_SHA256)
+                    .and_then(Value::as_str)
+                    != Some(destination_sha.as_str())
+                || !registered_revision(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    tally,
+                    election,
+                    area,
+                    archive,
+                    archive_sha,
+                    eml,
+                    &subject.eml_sha256,
+                    xz,
+                    &subject.package_sha256,
+                )
+                .await?
+            {
+                return Ok(not_it);
+            }
+            let minimum = i64::from(rule.required()).max(package.threshold);
+            if !has_operational_quorum(hasura_transaction, request, &approvals, minimum).await? {
+                return Ok(not_it);
+            }
+        }
         let mut expected = vec![];
         for approval in &approvals {
             let Some(signature) = &approval.document_signature else {
@@ -546,7 +729,7 @@ pub async fn transmission_send_check(
             SigningRequestStatus::Waiting | SigningRequestStatus::Completed
         )
     });
-    if rule.is_required() || waiting {
+    if mode == OperationalSigningMode::HsmRequired || rule.is_required() || waiting {
         return Ok(Err(TransmissionRefusal::NotSigned {
             code: request.as_ref().map(|request| request.code.clone()),
             status: request.as_ref().map(|request| request.status),
@@ -571,6 +754,43 @@ pub async fn transmission_send_check(
         return Ok(Err(TransmissionRefusal::SignaturesShort(short)));
     }
     Ok(Ok(TransmissionSendCheck::Unsigned))
+}
+
+/// All three exact bytes must be of a single server-recorded revision.
+#[allow(clippy::too_many_arguments)]
+async fn registered_revision(
+    tx: &Transaction<'_>,
+    tenant: Uuid,
+    event: Uuid,
+    tally: Uuid,
+    election: Uuid,
+    area: Uuid,
+    archive: Uuid,
+    archive_sha: Option<&str>,
+    eml: Uuid,
+    eml_sha: &str,
+    xz: Uuid,
+    xz_sha: &str,
+) -> Result<bool> {
+    // The MIRU custody registry is not part of this checkpoint, so no
+    // HSM-required revision can be proven yet.
+    let _ = (
+        tx,
+        tenant,
+        event,
+        tally,
+        election,
+        area,
+        archive,
+        archive_sha,
+        eml,
+        eml_sha,
+        xz,
+        xz_sha,
+    );
+    Err(anyhow!(
+        "Operational MIRU custody registry is not available"
+    ))
 }
 
 /// Why a 2025 signature upload is refused: the event's rule needs

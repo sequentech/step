@@ -43,6 +43,7 @@ use crate::services::reports::report_variables::configuration_stamp_without_temp
 use crate::services::signing::actions::transmission::{
     guard_transmission_package, sha256_hex, PackageToSign,
 };
+use crate::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
 use crate::services::signing::SigningCaller;
 use crate::types::miru_plugin::{
     MiruCcsServer, MiruDocument, MiruDocumentHashes, MiruDocumentIds, MiruSignature,
@@ -613,6 +614,20 @@ pub async fn create_transmission_package_service(
         [&eml_document.id, &xz_document.id],
     )
     .await?;
+
+    // Register all generated objects as operational before their document
+    // rows are visible. In hard mode the provisional archive and loose
+    // EML/XZ/CSV never become generic-download or export candidates.
+    let scoped_tenant = parse(tenant_id, "tenant id")?;
+    if signing_mode(&hasura_transaction, scoped_tenant).await?
+        == OperationalSigningMode::HsmRequired
+    {
+        // The operational MIRU artifact registry is not part of this
+        // checkpoint, so an HSM-required tenant cannot create a package yet.
+        return Err(anyhow!(
+            "Operational MIRU artifact registry is not available"
+        ));
+    }
 
     let new_transmission_package_data = MiruTransmissionPackageData {
         election_id: election_id.to_string(),
