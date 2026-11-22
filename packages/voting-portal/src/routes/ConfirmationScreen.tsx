@@ -42,10 +42,7 @@ import {isElectionOpenForVoting} from "../services/VotingAvailability"
 import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import {TenantEventType} from ".."
 import {clearBallot} from "../store/ballotSelections/ballotSelectionsSlice"
-import {
-    selectBallotStyleByElectionId,
-    selectFirstBallotStyle,
-} from "../store/ballotStyles/ballotStylesSlice"
+import {selectBallotStyleByElectionId, showDemo} from "../store/ballotStyles/ballotStylesSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {useMutation, useQuery} from "@apollo/client/react"
 import {CREATE_BALLOT_RECEIPT} from "../queries/CreateBallotReceipt"
@@ -155,8 +152,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     const {globalSettings} = useContext(SettingsContext)
     const [errorDialog, setErrorDialog] = useState<boolean>(false)
     const [openPrintDemoModal, setOpenPrintDemoModal] = useState<boolean>(false)
-    const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
-    const isDemo = oneBallotStyle?.ballot_eml.public_key?.is_demo
+    const isDemo = useAppSelector(showDemo(electionId))
     const [isPolling, setIsPolling] = useState<boolean>(false)
 
     let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
@@ -406,7 +402,9 @@ const ConfirmationScreen: React.FC = () => {
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
     const [openDemoBallotUrlHelp, setDemoBallotUrlHelp] = useState(false)
     const {hashBallot, hashMultiBallot} = provideBallotService()
-    const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
+    // Also true in an admin-portal preview, where the ballot style of a
+    // publication made after key generation is not marked as demo.
+    const isDemoBallot = useAppSelector(showDemo(electionId))
     const electionBallotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const auditButtonCfg =
         electionBallotStyle?.ballot_eml?.election_presentation?.audit_button_cfg ??
@@ -439,8 +437,7 @@ const ConfirmationScreen: React.FC = () => {
                 ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
                 : hashBallot(auditableBallot as IAuditableSingleBallot)
             const ballotIdStored = (auditableBallot && hashableBallot) || undefined
-            const isDemoStored = oneBallotStyle?.ballot_eml.public_key?.is_demo
-            return {ballotIdStored, isDemoStored}
+            return {ballotIdStored, isDemoStored: isDemoBallot}
         }
     }
 
