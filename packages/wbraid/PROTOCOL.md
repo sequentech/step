@@ -167,10 +167,12 @@ canonically.
 Plaintext payloads are embedded into group elements in blocks of **30 bytes**.
 
 $\mathsf{EncodeElement}(b) \to G$, for a payload $b$ of at most 30 bytes:
-place the 30 payload bytes at positions $1..30$ of a 32-byte candidate encoding; for
-$i = 0..127$ and $j = 0..63$, set byte $0 := 2i$ and byte $31 := j$; return the first
-candidate that is a valid canonical ristretto255 encoding. (The expected number of
-trials is small; failure probability is negligible.)
+place the 30 payload bytes at positions $1..30$ of a 32-byte candidate encoding; trying
+$j = 0..63$ in the outer loop and, for each $j$, $i = 0..127$ in the inner loop, set
+byte $31 := j$ and byte $0 := 2i$; return the first candidate that is a valid canonical
+ristretto255 encoding. (The trial order matters because it determines *which* valid
+candidate is "first"; the expected number of trials is small and failure probability is
+negligible.)
 
 $\mathsf{DecodeElement}(P) \to b$: return bytes $1..30$ of the canonical encoding of
 $P$.
@@ -278,7 +280,8 @@ h_i = \mathsf{H2G}(\mathit{seed},\, i) \quad \text{for } i = 1..N
 $$
 
 with $i$ encoded as a 64-bit big-endian integer under the distinguishing tag
-`"independent_generators"`, and
+`"independent_generators_ristretto"` (group-qualified: the implementation is generic over
+the group, and this is the ristretto255 instantiation's tag), and
 $\mathit{seed} = \mathrm{ctx}(\texttt{"shuffle\_generators"}, \mathit{input})$ bound to
 the configuration and to the input ciphertext list of the mix instance (Section 2.4).
 Under the random-oracle model for $\mathsf{H2G}$, finding a non-trivial
