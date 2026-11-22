@@ -43,11 +43,21 @@ export const translateWithFallback = (
     defaultLang?: string
 ): string | undefined => {
     const record = item as PlainObject
-    for (const lang of getFallbackLanguages(record, uiLang, defaultLang)) {
-        for (const key of keys) {
-            const value = translateFromPresentation(record, key, lang)
-            if (value) return value
+    // Look only at the presentation first: given the whole item,
+    // translateFromPresentation would return a top-level legacy field as soon as
+    // the first language has no translation.
+    const presentation = getPresentation(record)
+    if (presentation) {
+        for (const lang of getFallbackLanguages(record, uiLang, defaultLang)) {
+            for (const key of keys) {
+                const value = translateFromPresentation(presentation, key, lang)
+                if (value) return value
+            }
         }
+    }
+    for (const key of keys) {
+        const value = translateFromPresentation(record, key, uiLang)
+        if (value) return value
     }
     return undefined
 }
