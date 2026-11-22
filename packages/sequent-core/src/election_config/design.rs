@@ -275,6 +275,9 @@ pub fn ballot_design_digest(
     if let Value::Object(map) = &mut normalised {
         // The style's own id: windmill mints a v4 one per publication.
         map.remove("id");
+        // The receiver provisions and verifies this public receipt key when
+        // publishing, after the design was signed. It is not ballot design.
+        map.remove("ballot_box_key");
     }
 
     let mut bytes = Vec::new();

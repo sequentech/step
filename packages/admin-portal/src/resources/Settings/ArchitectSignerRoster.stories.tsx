@@ -51,8 +51,12 @@ export const PrepareRoster: Story = {
             i18n.t("configurationPackage.roster.file")
         )
         await waitFor(async () => {
-            await expect(input).toBeVisible()
+            await expect(
+                dialog.getByRole("button", {name: i18n.t("configurationPackage.roster.browse")})
+            ).toBeVisible()
+            await expect(dialog.getByText(i18n.t("configurationPackage.roster.drop"))).toBeVisible()
         })
+        await expect(input).toBeInTheDocument()
         const review = dialog.getByRole("button", {
             name: i18n.t("configurationPackage.roster.review"),
         })
@@ -61,11 +65,12 @@ export const PrepareRoster: Story = {
             input,
             new File(["{}"], "synthetic-roster.json", {type: "application/json"})
         )
+        await expect(review).toBeEnabled()
+        const fingerprint = dialog.getByLabelText(i18n.t("configurationPackage.roster.expected"))
+        await userEvent.type(fingerprint, "malformed")
         await expect(review).toBeDisabled()
-        await userEvent.type(
-            dialog.getByLabelText(i18n.t("configurationPackage.roster.expected")),
-            "ab".repeat(32)
-        )
+        await userEvent.clear(fingerprint)
+        await userEvent.type(fingerprint, "AB".repeat(32))
         await expect(review).toBeEnabled()
         await expect(
             dialog.queryByRole("button", {name: i18n.t("configurationPackage.roster.confirm")})

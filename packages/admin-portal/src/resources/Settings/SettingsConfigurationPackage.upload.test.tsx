@@ -88,6 +88,7 @@ jest.mock("@/components/styles/FormStyles", () => ({
 jest.mock(
     "@sequentech/ui-essentials",
     () => ({
+        disabledButtonStyle: {},
         ProblemList: () => null,
         DropFile: ({
             handleFiles,

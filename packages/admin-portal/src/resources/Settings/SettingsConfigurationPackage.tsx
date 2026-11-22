@@ -12,6 +12,7 @@
 import React, {useContext, useEffect, useId, useMemo, useRef, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {useMutation, useQuery} from "@apollo/client"
+import {disabledButtonStyle} from "@sequentech/ui-essentials"
 import {
     Alert,
     Box,
@@ -105,6 +106,9 @@ const SettingsConfigurationPackageForScope: React.FC<{
     const allowed = !!authContext.userId && mayApplyPackages(tenantId, authContext.isAuthorized)
     const roster = useArchitectSignerRoster(tenantId, authContext.userId, allowed)
     const permitsImport = rosterStateAllowsImport(roster.status)
+    const showManualEntry = roster.status !== null && roster.status.mode !== "unavailable"
+    const rosterStatusId = useId()
+    const advancedHeadingId = useId()
     const packageRequest = useRef(false)
 
     // A reload in the same tenant resumes the task it was following, with the
@@ -121,6 +125,9 @@ const SettingsConfigurationPackageForScope: React.FC<{
     )
     const [typedDocumentId, setTypedDocumentId] = useState("")
     const [openUpload, setOpenUpload] = useState(false)
+    useEffect(() => {
+        if (!permitsImport) setOpenUpload(false)
+    }, [permitsImport])
     const [legacySetupTenant, setLegacySetupTenant] = useState<string | null>(null)
     const legacySetupId = useId()
     const [confirming, setConfirming] = useState(false)
@@ -414,7 +421,11 @@ const SettingsConfigurationPackageForScope: React.FC<{
             <Button
                 variant="contained"
                 disabled={running || !permitsImport}
-                onClick={() => setOpenUpload(true)}
+                aria-describedby={!permitsImport ? rosterStatusId : undefined}
+                sx={{"&&.Mui-disabled": disabledButtonStyle}}
+                onClick={() => {
+                    if (!running && permitsImport) setOpenUpload(true)
+                }}
             >
                 {t("configurationPackage.upload")}
             </Button>
@@ -426,15 +437,21 @@ const SettingsConfigurationPackageForScope: React.FC<{
                 tenantId={tenantId}
                 status={roster.status}
                 loading={roster.loading}
+                statusTextId={rosterStatusId}
                 refresh={roster.read}
             />
 
-            <Box key={tenantId} component="details" sx={{my: 2}} data-testid="package-advanced">
-                <Typography component="summary" sx={{cursor: "pointer", width: "fit-content"}}>
+            <Box
+                component="section"
+                aria-labelledby={advancedHeadingId}
+                sx={{my: 2}}
+                data-testid="package-advanced"
+            >
+                <Typography id={advancedHeadingId} component="h3" variant="h6">
                     {t("configurationPackage.advanced")}
                 </Typography>
                 <Box sx={{mt: 2}}>
-                    <Typography variant="h6" component="h3">
+                    <Typography variant="subtitle1" component="h4">
                         {t("configurationPackage.requirements")}
                     </Typography>
                     {PACKAGE_SECTIONS.map((section) => (
@@ -466,30 +483,39 @@ const SettingsConfigurationPackageForScope: React.FC<{
                         label={String(t("configurationPackage.censusRequired"))}
                     />
                 </Box>
-                <Box sx={{display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap"}}>
-                    <TextField
-                        size="small"
-                        label={String(t("configurationPackage.documentId"))}
-                        value={typedDocumentId}
-                        onChange={(event) => {
-                            setPreviewed(null)
-                            setTypedDocumentId(event.target.value)
-                        }}
-                    />
-                    <Button
-                        variant="outlined"
-                        disabled={running || !permitsImport || !typedDocumentId.trim()}
-                        onClick={() => {
-                            const document = typedDocumentId.trim()
-                            setDocumentId(document)
-                            // A typed document id carries no entered digest.
-                            setExpectedSha(null)
-                            submit("preview", document, null)
-                        }}
-                    >
-                        {t("configurationPackage.preview")}
-                    </Button>
-                </Box>
+                {showManualEntry && (
+                    <Box sx={{display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap"}}>
+                        <TextField
+                            size="small"
+                            label={String(
+                                t(
+                                    roster.status?.mode === "portal_managed"
+                                        ? "configurationPackage.signedDocumentId"
+                                        : "configurationPackage.documentId"
+                                )
+                            )}
+                            disabled={running || !permitsImport}
+                            value={typedDocumentId}
+                            onChange={(event) => {
+                                setPreviewed(null)
+                                setTypedDocumentId(event.target.value)
+                            }}
+                        />
+                        <Button
+                            variant="outlined"
+                            disabled={running || !permitsImport || !typedDocumentId.trim()}
+                            onClick={() => {
+                                const document = typedDocumentId.trim()
+                                setDocumentId(document)
+                                // A typed document id carries no entered digest.
+                                setExpectedSha(null)
+                                submit("preview", document, null)
+                            }}
+                        >
+                            {t("configurationPackage.preview")}
+                        </Button>
+                    </Box>
+                )}
                 {roster.status?.mode === "not_enabled" && (
                     <Box sx={{my: 2}}>
                         <Button
@@ -616,7 +642,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
             {/* The page's own upload: no election-event dry run, no shared import state. */}
             <Drawer
                 anchor="right"
-                open={openUpload}
+                open={openUpload && permitsImport}
                 onClose={() => setOpenUpload(false)}
                 PaperProps={{"aria-label": String(t("configurationPackage.uploadTitle"))}}
                 sx={{"& .MuiDrawer-paper": {width: {xs: "100%", sm: "min(640px, 100%)"}}}}
