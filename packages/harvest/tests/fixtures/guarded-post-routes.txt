@@ -138,6 +138,7 @@
 /messaging/recount-voters
 /messaging/voter-counts
 /miru/create-transmission-package
+/miru/operational-signing-mode
 /miru/record-download
 /miru/send-transmission-package
 /miru/upload-signature

@@ -693,7 +693,7 @@ fn revocation_check(
 /// setting. Every non-anchor requires a correctly signed complete CRL with
 /// an explicit NextUpdate and no accepted indication of revocation. Missing,
 /// future, delta, malformed and expired lists provide no positive proof.
-pub(crate) fn operational_revocation_until(
+pub fn operational_revocation_until(
     path: &[X509],
     crls: &[StoredCrl],
     now: DateTime<Utc>,

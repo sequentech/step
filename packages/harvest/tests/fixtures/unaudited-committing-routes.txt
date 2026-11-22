@@ -11,5 +11,7 @@ fake_provider.rs: development-only fake messaging provider; its commit ends a re
 fetch_document.rs: reads a document and returns its download URL; the commit only ends the read
 messaging_insights.rs: read-only statistics; a recount only queues bookkeeping for derived counts
 monitoring.rs: read-only dashboards and widgets; the commit only ends a read
+operational_initialize.rs: unmounted candidate (operational-signing-candidate); the commits keep an official's own Initialize ceremony state in the operational ledger, which records the actor and time itself
+private_operational_ca.rs: unmounted candidate (operational-signing-private-ca-candidate) for the private CA service; the commit only ends a read of the CA enrollment
 support_materials.rs: voting portal routes where voters acknowledge support materials in their own account
 voter_cast_votes.rs: voting portal route that reads a voter's own cast votes

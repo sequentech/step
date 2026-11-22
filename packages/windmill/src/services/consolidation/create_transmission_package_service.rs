@@ -622,11 +622,37 @@ pub async fn create_transmission_package_service(
     if signing_mode(&hasura_transaction, scoped_tenant).await?
         == OperationalSigningMode::HsmRequired
     {
-        // The operational MIRU artifact registry is not part of this
-        // checkpoint, so an HSM-required tenant cannot create a package yet.
-        return Err(anyhow!(
-            "Operational MIRU artifact registry is not available"
-        ));
+        let event = parse(&election_event.id, "event id")?;
+        let tally = parse(tally_session_id, "tally session id")?;
+        let election = parse(election_id, "election id")?;
+        let country = parse(area_id, "area id")?;
+        let revision = parse(
+            &all_servers_document.document.id,
+            "provisional archive document id",
+        )?;
+        for (kind, id, hash) in [
+            (
+                "archive",
+                all_servers_document.document.id.as_str(),
+                all_servers_document.sha256.to_ascii_lowercase(),
+            ),
+            ("eml", eml_document.id.as_str(), sha256_hex(eml.as_bytes())),
+            (
+                "xz",
+                xz_document.id.as_str(),
+                sha256_hex(&base_compressed_xml),
+            ),
+            ("csv", csv_document.id.as_str(), sha256_hex(csv.as_bytes())),
+        ] {
+            let document_id = parse(id, "operational artifact document id")?;
+            let registered: bool = hasura_transaction.query_one(
+                "SELECT sequent_backend.operational_miru_register_artifact($1,$2,$3,$4,$5,$6,$7,$8,$9,NULL)",
+                &[&scoped_tenant,&event,&tally,&election,&country,&revision,&document_id,&kind,&hash],
+            ).await?.try_get(0)?;
+            if !registered {
+                return Err(anyhow!("Cannot classify new operational MIRU output"));
+            }
+        }
     }
 
     let new_transmission_package_data = MiruTransmissionPackageData {

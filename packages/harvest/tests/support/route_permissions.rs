@@ -468,9 +468,12 @@ fn cases() -> Vec<Case> {
         case!(UuidTenant, "/messaging/recount-voters", {"election_event_id": UUID_EVENT_ID}, [MESSAGING_CONFIG_READ], BACKEND, UNAUTHORIZED_JSON),
         // The task row is written before the permission check.
         case!(Admin, "/miru/create-transmission-package", {"election_event_id": EVENT_ID, "election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session", "force": false}, [MIRU_CREATE], BACKEND, BACKEND),
+        // Reads only the caller's own tenant policy; another tenant id is refused.
+        case!(UuidTenant, "/miru/operational-signing-mode", {"tenant_id": UUID_TENANT_ID}, [MIRU_SIGN], BACKEND, FORBIDDEN_JSON),
         case!(Admin, "/miru/record-download", {"election_event_id": EVENT_ID, "election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session", "document_id": "test-document"}, [MIRU_DOWNLOAD], BACKEND, UNAUTHORIZED),
         case!(Admin, "/miru/send-transmission-package", {"election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session"}, [MIRU_SEND], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/miru/upload-signature", {"election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session", "document_id": "test-document", "password": "test-password"}, [MIRU_SIGN], BACKEND_TEXT, UNAUTHORIZED),
+        // Checks the tenant's signing policy in the database before anything else.
+        case!(Admin, "/miru/upload-signature", {"election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session", "document_id": "test-document", "password": "test-password"}, [MIRU_SIGN], BACKEND, UNAUTHORIZED),
         // Plugins receive the claims and make their own decisions.
         case!(UuidTenant, "/monitoring/export", {"election_event_id": UUID_EVENT_ID, "dashboard_id": "overview", "snapshot_revision": 1, "format": "CSV"}, [MONITORING_VIEW], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/monitoring/get-config", {"election_event_id": UUID_EVENT_ID, "kind": "widget", "key": "turnout"}, [MONITORING_CONFIGURE], BACKEND, UNAUTHORIZED_JSON),

@@ -772,25 +772,28 @@ async fn registered_revision(
     xz: Uuid,
     xz_sha: &str,
 ) -> Result<bool> {
-    // The MIRU custody registry is not part of this checkpoint, so no
-    // HSM-required revision can be proven yet.
-    let _ = (
-        tx,
-        tenant,
-        event,
-        tally,
-        election,
-        area,
-        archive,
-        archive_sha,
-        eml,
-        eml_sha,
-        xz,
-        xz_sha,
-    );
-    Err(anyhow!(
-        "Operational MIRU custody registry is not available"
-    ))
+    tx.query_one(
+        "SELECT EXISTS (
+            SELECT FROM sequent_backend.operational_miru_revision_artifact first
+            JOIN sequent_backend.operational_miru_revision_artifact second
+              USING (tenant_id,event_id,tally_session_id,election_id,area_id,revision_id)
+            JOIN sequent_backend.operational_miru_revision_artifact third
+              USING (tenant_id,event_id,tally_session_id,election_id,area_id,revision_id)
+            JOIN sequent_backend.operational_miru_artifact a
+              ON (a.tenant_id,a.event_id,a.document_id)=(first.tenant_id,first.event_id,first.document_id)
+            JOIN sequent_backend.operational_miru_artifact e
+              ON (e.tenant_id,e.event_id,e.document_id)=(second.tenant_id,second.event_id,second.document_id)
+            JOIN sequent_backend.operational_miru_artifact x
+              ON (x.tenant_id,x.event_id,x.document_id)=(third.tenant_id,third.event_id,third.document_id)
+            WHERE (first.tenant_id,first.event_id,first.tally_session_id,first.election_id,first.area_id)
+                  = ($1,$2,$3,$4,$5)
+              AND first.revision_id=$6
+              AND (first.kind,first.document_id,a.content_sha256)=('archive',$6,$7)
+              AND (second.kind,second.document_id,e.content_sha256)=('eml',$8,$9)
+              AND (third.kind,third.document_id,x.content_sha256)=('xz',$10,$11)
+        )",
+        &[&tenant,&event,&tally,&election,&area,&archive,&archive_sha,&eml,&eml_sha,&xz,&xz_sha],
+    ).await?.try_get(0).context("Invalid MIRU custody result")
 }
 
 /// Why a 2025 signature upload is refused: the event's rule needs

@@ -17,7 +17,11 @@ pub mod guard;
 pub mod issuers;
 pub mod log;
 pub mod operational_approval;
+#[cfg(feature = "operational-signing-candidate")]
+pub mod operational_ca;
 pub mod operational_cms;
+#[cfg(feature = "operational-signing-candidate")]
+pub mod operational_initialize;
 pub mod operational_policy;
 mod operational_quorum;
 pub mod pades;

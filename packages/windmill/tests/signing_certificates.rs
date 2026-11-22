@@ -1584,3 +1584,111 @@ fn downloaded_lists_never_roll_back() {
     assert!(open_ended.is_current(now()));
     assert!(!open_ended.is_current(now() + Duration::days(2)));
 }
+
+/// One version of an issuer's list is one list: different bytes under the
+/// stored number, or under the stored date when either list has no number,
+/// are refused, and so is an unnumbered list after a numbered one.
+#[test]
+fn a_stored_list_is_replaced_only_by_a_later_version() {
+    use windmill::postgres::signing_certificates::StaffCrlRow;
+    use windmill::services::signing::crl::check_crl;
+    let pki = Pki::get();
+    let ca = &pki.individual_ca;
+    let stored_at = pki_now() - 86_400;
+    let later = stored_at + 3600;
+    let list = |this_update: i64, number: Option<u32>, revoked: &[u32]| {
+        let extensions: Vec<Vec<u8>> = number.map(crl_number).into_iter().collect();
+        crl_with(
+            ca,
+            &ca.key,
+            revoked,
+            this_update,
+            Some(this_update + 7 * 86_400),
+            &extensions,
+        )
+    };
+    let stored_row = |der: Vec<u8>| StaffCrlRow {
+        id: Uuid::nil(),
+        tenant_id: TENANT,
+        election_event_id: EVENT,
+        issuer_id: Uuid::nil(),
+        issuer_fingerprint: String::new(),
+        url: CRL_URL.to_owned(),
+        der: Some(der),
+        this_update: None,
+        next_update: None,
+        fetched_at: now(),
+        last_ok_at: Some(now()),
+        status: sequent_core::signing::CrlStatus::Ok,
+        last_error: None,
+    };
+    let same_version = "different revocation lists share the same version";
+
+    // After a numbered list.
+    let numbered = stored_row(list(stored_at, Some(10), &[]));
+    assert!(check_crl(
+        &list(stored_at, Some(10), &[]),
+        &ca.cert,
+        Some(&numbered),
+        now()
+    )
+    .is_ok());
+    assert!(check_crl(
+        &list(later, Some(11), &[]),
+        &ca.cert,
+        Some(&numbered),
+        now()
+    )
+    .is_ok());
+    for (bytes, error) in [
+        (list(stored_at, Some(10), &[7]), same_version),
+        (list(later, Some(10), &[]), same_version),
+        (
+            list(later, None, &[]),
+            "a numbered stored list cannot be replaced by an unnumbered list",
+        ),
+    ] {
+        assert_eq!(
+            check_crl(&bytes, &ca.cert, Some(&numbered), now())
+                .unwrap_err()
+                .to_string(),
+            error
+        );
+    }
+
+    // After a list without a number, the date is the version.
+    let unnumbered = stored_row(list(stored_at, None, &[]));
+    for bytes in [
+        list(stored_at, None, &[]),
+        list(later, None, &[7]),
+        list(later, Some(1), &[]),
+    ] {
+        assert!(check_crl(&bytes, &ca.cert, Some(&unnumbered), now()).is_ok());
+    }
+    for bytes in [list(stored_at, None, &[7]), list(stored_at, Some(1), &[])] {
+        assert_eq!(
+            check_crl(&bytes, &ca.cert, Some(&unnumbered), now())
+                .unwrap_err()
+                .to_string(),
+            same_version
+        );
+    }
+
+    // A stored list that no longer reads can't vouch for its successor.
+    let unreadable = stored_row(b"not a revocation list".to_vec());
+    assert_eq!(
+        check_crl(
+            &list(later, Some(11), &[]),
+            &ca.cert,
+            Some(&unreadable),
+            now()
+        )
+        .unwrap_err()
+        .to_string(),
+        "not a revocation list"
+    );
+    // A row that keeps no list (it was never downloaded) compares nothing.
+    let mut never = stored_row(vec![]);
+    never.der = None;
+    assert!(check_crl(&list(later, None, &[]), &ca.cert, Some(&never), now()).is_ok());
+}

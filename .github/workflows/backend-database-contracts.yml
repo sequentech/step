@@ -51,6 +51,10 @@ jobs:
         run: >-
           docker run --rm --user postgres --volume "$PWD:/step:ro" --workdir /step
           postgres:18-bookworm scripts/postgres/check_migrations.sh
+      - name: Operational signing ledger contract, role by role
+        run: scripts/postgres/operational_signing_contract/run.sh
+        env:
+          POSTGRES_IMAGE: postgres:18-bookworm
 
   hasura-metadata:
     name: Hasura metadata is consistent

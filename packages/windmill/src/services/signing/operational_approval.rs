@@ -111,9 +111,20 @@ async fn load(
     let reservation: Uuid = found
         .try_get(2)
         .context("Missing operational reservation")?;
-    // The device-provenance registry is not part of this checkpoint, so no
-    // operational receipt can be accepted until it is.
-    let device_profile: Option<String> = None;
+    let device_profile: Option<String> = tx
+        .query_one(
+            "SELECT sequent_backend.operational_signing_recorded_device_profile($1,$2,$3,$4,$5)",
+            &[
+                &row.tenant_id,
+                &row.election_event_id,
+                &row.id,
+                &caller.user_id,
+                &reservation,
+            ],
+        )
+        .await
+        .context("Cannot check provenance of the applied device receipt")?
+        .try_get(0)?;
     // The normal application cannot accept or count a disposable fixture
     // signature after database restore or profile reconfiguration.
     if device_profile.as_deref() != Some("yubihsm") {

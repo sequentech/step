@@ -16,6 +16,8 @@ name = "generate-logs"
 path = "external-bin/generate_logs.rs"
 
 [features]
+# Compile-only, opt-in; no routes, provisioning or policy activation.
+operational-signing-candidate = []
 default = ["fips_full"]
 fips_core = ["dep:postgres-openssl", "dep:ecies"]
 fips_full = ["dep:postgres-openssl", "dep:ecies"]

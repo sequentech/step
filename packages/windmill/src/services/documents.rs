@@ -243,12 +243,22 @@ pub async fn ordinary_document_url_allowed(
     if signing_mode(tx, tenant).await? != OperationalSigningMode::HsmRequired {
         return Ok(true);
     }
-    // The operational document registry is not part of this checkpoint:
-    // documents of an HSM-required tenant stay withheld until it is.
-    let _ = document;
-    Err(anyhow::anyhow!(
-        "Operational document inventory is not available"
-    ))
+    let event = document
+        .election_event_id
+        .as_deref()
+        .filter(|id| !id.is_empty())
+        .map(uuid::Uuid::parse_str)
+        .transpose()?;
+    let document_id = uuid::Uuid::parse_str(&document.id)?;
+    let withheld: Option<bool> = tx
+        .query_one(
+            "SELECT sequent_backend.operational_miru_generic_withhold($1,$2,$3)",
+            &[&tenant, &event, &document_id],
+        )
+        .await?
+        .try_get(0)?;
+    Ok(!withheld
+        .ok_or_else(|| anyhow::anyhow!("Operational document inventory not yet verified"))?)
 }
 
 #[instrument(err)]

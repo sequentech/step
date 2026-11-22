@@ -60,9 +60,17 @@ pub mod miru_plugin;
 pub mod monitoring;
 pub mod monitoring_config;
 pub mod monitoring_export;
+#[cfg(feature = "operational-signing-candidate")]
+pub(crate) mod operational_initialize;
+#[cfg(feature = "operational-signing-candidate")]
+pub(crate) mod operational_initialize_broker;
+#[cfg(feature = "operational-signing-candidate")]
+pub(crate) mod operational_setup;
 pub mod permissions;
 pub mod phone_blacklist;
 pub mod plugins;
+#[cfg(feature = "operational-signing-private-ca-candidate")]
+pub(crate) mod private_operational_ca;
 pub mod readiness;
 pub mod realm_attributes;
 pub mod realm_password_policy;
