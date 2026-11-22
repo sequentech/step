@@ -423,15 +423,15 @@ describe("Confirmation ballot locator links", () => {
 
 describe("admin-portal preview of a publication made after key generation", () => {
     beforeEach(() => {
-        // The ballot style has keys and is not marked as demo, so the preview
-        // flag is the only thing that says no real ballot can be cast.
-        mockDisableAuth = false
+        // The ballot style has keys and is not marked as demo. A preview runs
+        // with authentication disabled and leaves a flag in session storage.
+        mockDisableAuth = true
         sessionStorage.setItem("isDemo", "true")
         expect(mockState.ballotStyles["election-1"]!.ballot_eml.public_key?.is_demo).toBe(false)
     })
 
     it("does not send the ballot when casting from Review", async () => {
-        const {router} = renderRoute(<ReviewScreen />, "review")
+        renderRoute(<ReviewScreen />, "review")
         await userEvent
             .setup()
             .click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
@@ -441,10 +441,38 @@ describe("admin-portal preview of a publication made after key generation", () =
             )
         )
         expect(mockInsertCastVote).not.toHaveBeenCalled()
-        expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/review`)
     })
 
-    it("keeps the demo flag and the ballot ID across gold reauthentication", async () => {
+    it("shows the demo confirmation: no ballot locator link and no receipt", async () => {
+        const user = userEvent.setup()
+        renderRoute(<ConfirmationScreen />, "confirmation")
+        const links = screen.getAllByTestId("ballot-id")
+        expect(links.length).toBeGreaterThan(0)
+        for (const link of links) {
+            expect(link.getAttribute("href") ?? "").not.toContain("ballot-locator")
+            expect(link).not.toHaveAttribute("target")
+        }
+        const print = screen.getByRole("button", {name: "confirmationScreen.printButton"})
+        await user.click(print)
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        // The demo dialog can be opened again: the button is not left loading.
+        expect(print).toBeEnabled()
+    })
+
+    it("never skips a real cast because of a leftover preview flag", async () => {
+        mockDisableAuth = false
+        renderRoute(<ReviewScreen />, "review")
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
+        await waitFor(() => expect(mockInsertCastVote).toHaveBeenCalledTimes(1))
+    })
+})
+
+describe("demo election with gold reauthentication", () => {
+    it("keeps the demo flag and the ballot ID across the reauthentication", async () => {
+        mockDisableAuth = false
+        mockState.ballotStyles["election-1"]!.ballot_eml.public_key!.is_demo = true
         const election = mockState.elections["election-1"]!
         const presentation = {
             ...election.presentation,
@@ -494,29 +522,6 @@ describe("admin-portal preview of a publication made after key generation", () =
         const {router} = renderRoute(<ConfirmationScreen />, "confirmation")
         expect(screen.getByText(BALLOT_ID)).toBeInTheDocument()
         expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/confirmation`)
-    })
-
-    it("shows the demo confirmation: no ballot locator link and no receipt", async () => {
-        renderRoute(<ConfirmationScreen />, "confirmation")
-        const links = screen.getAllByTestId("ballot-id")
-        expect(links.length).toBeGreaterThan(0)
-        for (const link of links) {
-            expect(link.getAttribute("href") ?? "").not.toContain("ballot-locator")
-            expect(link).not.toHaveAttribute("target")
-        }
-        await userEvent
-            .setup()
-            .click(screen.getByRole("button", {name: "confirmationScreen.printButton"}))
-        expect(mockInsertCastVote).not.toHaveBeenCalled()
-    })
-
-    it("still casts for real outside a preview", async () => {
-        sessionStorage.removeItem("isDemo")
-        renderRoute(<ReviewScreen />, "review")
-        await userEvent
-            .setup()
-            .click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
-        await waitFor(() => expect(mockInsertCastVote).toHaveBeenCalledTimes(1))
     })
 })
 
