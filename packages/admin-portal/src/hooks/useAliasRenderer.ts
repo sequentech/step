@@ -6,44 +6,92 @@ import {translateFromPresentation} from "@sequentech/ui-core"
 import {useCallback} from "react"
 import {useTranslation} from "react-i18next"
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+type PlainObject = Record<string, unknown>
+
+const isPlainObject = (value: unknown): value is PlainObject =>
     typeof value === "object" && value !== null && !Array.isArray(value)
+
+const getPresentation = (item: PlainObject): PlainObject | undefined => {
+    if (isPlainObject(item.i18n)) return item
+    return isPlainObject(item.presentation) ? item.presentation : undefined
+}
+
+// The item may have no translation for the UI language or English, so also try
+// its own default language and, as a last resort, any language it does have.
+const getFallbackLanguages = (item: PlainObject, uiLang: string, defaultLang?: string) => {
+    const presentation = getPresentation(item)
+    const languageConf = isPlainObject(presentation?.language_conf)
+        ? presentation.language_conf
+        : undefined
+    const itemDefaultLang = languageConf?.default_language_code
+    const available = isPlainObject(presentation?.i18n) ? Object.keys(presentation.i18n) : []
+
+    const languages = [
+        uiLang,
+        defaultLang,
+        typeof itemDefaultLang === "string" ? itemDefaultLang : undefined,
+        "en",
+        ...available,
+    ]
+    return Array.from(new Set(languages.filter((lang): lang is string => !!lang)))
+}
+
+export const translateWithFallback = (
+    item: object,
+    keys: string[],
+    uiLang: string,
+    defaultLang?: string
+): string | undefined => {
+    const record = item as PlainObject
+    // Look only at the presentation first: given the whole item,
+    // translateFromPresentation would return a top-level legacy field as soon as
+    // the first language has no translation.
+    const presentation = getPresentation(record)
+    if (presentation) {
+        for (const lang of getFallbackLanguages(record, uiLang, defaultLang)) {
+            for (const key of keys) {
+                const value = translateFromPresentation(presentation, key, lang)
+                if (value) return value
+            }
+        }
+    }
+    for (const key of keys) {
+        const value = translateFromPresentation(record, key, uiLang)
+        if (value) return value
+    }
+    return undefined
+}
+
+export const renderAlias = (item: unknown, uiLang: string, defaultLang?: string): string => {
+    const t = (x: unknown) =>
+        (isPlainObject(x) && translateWithFallback(x, ["alias", "name"], uiLang, defaultLang)) ||
+        "-"
+
+    if (item == null) return "-"
+
+    if (isPlainObject(item)) {
+        return t(item)
+    }
+
+    const s = String(item).trim()
+    if (!s) return "-"
+
+    if (s.startsWith("{")) {
+        try {
+            return t(JSON.parse(s))
+        } catch {
+            return "-"
+        }
+    }
+
+    return "-"
+}
 
 export function useAliasRenderer() {
     const {i18n} = useTranslation()
 
     const aliasRenderer = useCallback(
-        (item: unknown, defaultLang?: string) => {
-            const t = (x: any) =>
-                translateFromPresentation(x, "alias", i18n.language) ||
-                translateFromPresentation(x, "name", i18n.language) ||
-                (defaultLang
-                    ? translateFromPresentation(x, "alias", defaultLang) ||
-                      translateFromPresentation(x, "name", defaultLang)
-                    : undefined) ||
-                translateFromPresentation(x, "alias", "en") ||
-                translateFromPresentation(x, "name", "en") ||
-                "-"
-
-            if (item == null) return "-"
-
-            if (isPlainObject(item)) {
-                return t(item)
-            }
-
-            const s = String(item).trim()
-            if (!s) return "-"
-
-            if (s.startsWith("{")) {
-                try {
-                    return t(JSON.parse(s))
-                } catch {
-                    return "-"
-                }
-            }
-
-            return "-"
-        },
+        (item: unknown, defaultLang?: string) => renderAlias(item, i18n.language, defaultLang),
         [i18n.language]
     )
 
