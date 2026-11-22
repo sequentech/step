@@ -61,6 +61,16 @@ describe("renderAlias", () => {
         expect(renderAlias(JSON.stringify(frenchOnly.presentation), "es")).toBe("Municipale")
     })
 
+    it("prefers a translation in a fallback language over legacy fields", () => {
+        expect(renderAlias({...frenchOnly, name: "Legacy name"}, "es")).toBe("Municipale")
+    })
+
+    it("falls back to legacy fields when no language has a value", () => {
+        const item = {name: "Legacy name", presentation: {i18n: {fr: {alias: ""}}}}
+        expect(renderAlias(item, "es")).toBe("Legacy name")
+        expect(renderAlias({alias: "Legacy alias", name: "Legacy name"}, "es")).toBe("Legacy alias")
+    })
+
     it("returns a dash only when no language has a value", () => {
         expect(renderAlias({presentation: {i18n: {fr: {alias: ""}}}}, "es")).toBe("-")
         expect(renderAlias(null, "es")).toBe("-")
