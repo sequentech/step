@@ -744,8 +744,22 @@ export const ReviewScreen: React.FC = () => {
             return submit({error: errorType}, {method: "post"})
         }
 
+        // Restore confirmation data after the reauthentication reload.
+        const restoreConfirmationScreenData = () =>
+            dispatch(
+                setConfirmationScreenData({
+                    electionId: ballotData.electionId,
+                    confirmationScreenData: {
+                        ballotId: ballotData.ballotId,
+                        isDemo: ballotData.isDemo,
+                        auditButtonCfg: ballotData.auditButtonCfg,
+                    },
+                })
+            )
+
         if (ballotData?.isDemo) {
             addFakeCastVote()
+            restoreConfirmationScreenData()
             clearSessionStorageBallotData()
             isCastingBallot.current = false
             return submit(null, {method: "post"})
@@ -763,17 +777,7 @@ export const ReviewScreen: React.FC = () => {
             return submit({error: errorType}, {method: "post"})
         }
 
-        // Restore confirmation data after the reauthentication reload.
-        dispatch(
-            setConfirmationScreenData({
-                electionId: ballotData.electionId,
-                confirmationScreenData: {
-                    ballotId: ballotData.ballotId,
-                    isDemo: ballotData.isDemo,
-                    auditButtonCfg: ballotData.auditButtonCfg,
-                },
-            })
-        )
+        restoreConfirmationScreenData()
         clearSessionStorageBallotData()
         return submit(null, {method: "post"})
     }
