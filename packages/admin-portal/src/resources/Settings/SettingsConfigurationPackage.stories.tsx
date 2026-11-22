@@ -120,9 +120,6 @@ async function preview(canvasElement: HTMLElement) {
             canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
         ).toBeEnabled()
     )
-    const advanced = canvas.getByTestId("package-advanced") as HTMLDetailsElement
-    if (!advanced.open)
-        await userEvent.click(canvas.getByText(i18n.t("configurationPackage.advanced")))
     await userEvent.type(
         canvas.getByRole("textbox", {name: i18n.t("configurationPackage.documentId")}),
         DOCUMENT_ID
@@ -220,15 +217,13 @@ export const UploadFirst: Story = {
                 canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
             ).toBeEnabled()
         )
-        const advanced = canvas.getByTestId("package-advanced") as HTMLDetailsElement
-        await expect(advanced.open).toBe(false)
+        await expect(
+            canvas.getByRole("region", {name: i18n.t("configurationPackage.advanced")})
+        ).toBeVisible()
         await expect(canvas.getByTestId("package-apply")).toBeDisabled()
-        await userEvent.click(canvas.getByText(i18n.t("configurationPackage.advanced")))
-        await expect(advanced.open).toBe(true)
         await expect(
             canvas.getByRole("button", {name: i18n.t("configurationPackage.legacySetup")})
         ).toHaveAttribute("aria-expanded", "false")
-        await userEvent.click(canvas.getByText(i18n.t("configurationPackage.advanced")))
         await userEvent.click(
             canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
         )
@@ -247,8 +242,30 @@ export const RosterNotInstalled: Story = {
             canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
         ).toBeDisabled()
         await expect(canvas.getByText(i18n.t("configurationPackage.roster.noRoster"))).toBeVisible()
+        const upload = canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
+        const disabled = window.getComputedStyle(upload)
+        const reference = window.getComputedStyle(canvas.getByTestId("package-apply"))
+        await expect([disabled.backgroundColor, disabled.color, disabled.border]).toEqual([
+            reference.backgroundColor,
+            reference.color,
+            reference.border,
+        ])
+        await expect(upload).toHaveAttribute("aria-describedby")
+        await expect(
+            canvas.getByRole("textbox", {name: i18n.t("configurationPackage.signedDocumentId")})
+        ).toBeDisabled()
+        await expect(
+            canvas.queryByRole("button", {name: i18n.t("configurationPackage.legacySetup")})
+        ).not.toBeInTheDocument()
         await userEvent.click(manage)
-        const dialog = within(await within(document.body).findByRole("dialog"))
+        const dialog = within(
+            await within(document.body).findByRole("dialog", {
+                name: i18n.t("configurationPackage.roster.manage"),
+            })
+        )
+        await expect(
+            dialog.getByRole("button", {name: i18n.t("configurationPackage.roster.browse")})
+        ).toBeVisible()
         await expect(
             dialog.getByRole("button", {name: i18n.t("configurationPackage.roster.review")})
         ).toBeDisabled()

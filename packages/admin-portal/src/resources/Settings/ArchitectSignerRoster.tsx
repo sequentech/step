@@ -3,18 +3,11 @@
 
 import React, {useContext, useEffect, useId, useRef, useState} from "react"
 import {gql, useApolloClient, useMutation, useQuery} from "@apollo/client"
-import {
-    Alert,
-    Box,
-    Button,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    TextField,
-    Typography,
-} from "@mui/material"
+import {Alert, Box, Button, Drawer, TextField, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
+import {CustomDropFile} from "@sequentech/ui-essentials"
+import forge from "node-forge/lib/forge"
+import "node-forge/lib/sha256"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 
@@ -37,7 +30,12 @@ type RosterReview = {
     origins: string[]
 }
 
-type Candidate = {body: string; expectedSha: string; review: RosterReview}
+type Candidate = {
+    body: string
+    expectedSha: string
+    matchedEnteredFingerprint: boolean
+    review: RosterReview
+}
 
 export const ARCHITECT_SIGNER_ROSTER_STATUS = gql`
     query ArchitectSignerRosterStatus($tenantId: uuid!) {
@@ -95,7 +93,15 @@ const fingerprint = /^[0-9a-f]{64}$/
 const generation = /^(?:0|[1-9][0-9]*)$/
 const MAX_ROSTER_BYTES = 262144
 
-type Failure = "file" | "freshAuth" | "forbidden" | "conflict" | "preview" | "activate" | "login"
+type Failure =
+    | "file"
+    | "computeHash"
+    | "freshAuth"
+    | "forbidden"
+    | "conflict"
+    | "preview"
+    | "activate"
+    | "login"
 
 const hasError = (error: unknown, code: string): boolean => {
     if (!error || typeof error !== "object") return false
@@ -103,14 +109,39 @@ const hasError = (error: unknown, code: string): boolean => {
     return graphQLErrors?.some((item) => item.extensions?.code === code) ?? false
 }
 
-export const readExactRoster = async (file: File): Promise<string> => {
+const readRoster = async (file: File): Promise<{body: string; bytes: ArrayBuffer}> => {
     if (!file.size || file.size > MAX_ROSTER_BYTES) throw new Error("roster size")
     const bytes = await file.arrayBuffer()
     const data = new Uint8Array(bytes)
     if (data[0] === 0xef && data[1] === 0xbb && data[2] === 0xbf) throw new Error("roster BOM")
     // A signature pin names the actual source bytes. Never normalize quotes,
     // whitespace or line endings, or repair invalid UTF-8.
-    return new TextDecoder("utf-8", {fatal: true, ignoreBOM: true}).decode(data)
+    const body = new TextDecoder("utf-8", {fatal: true, ignoreBOM: true}).decode(data)
+    return {body, bytes}
+}
+
+export const readExactRoster = async (file: File): Promise<string> => (await readRoster(file)).body
+
+export const computeRosterFingerprint = async (bytes: ArrayBuffer): Promise<string> => {
+    const subtle = globalThis.crypto?.subtle
+    if (subtle) {
+        try {
+            const digest = await subtle.digest("SHA-256", bytes)
+            return Array.from(new Uint8Array(digest), (byte) =>
+                byte.toString(16).padStart(2, "0")
+            ).join("")
+        } catch {
+            // The existing offline LAN portal can be served without Web Crypto.
+        }
+    }
+    const digest = forge.md.sha256.create()
+    const raw = new Uint8Array(bytes)
+    // Forge's default is a raw byte string. Do not decode/re-encode it as UTF-8.
+    // Bounded chunks avoid spreading the full 256 KiB upload into one call.
+    for (let offset = 0; offset < raw.length; offset += 0x4000) {
+        digest.update(String.fromCharCode(...raw.subarray(offset, offset + 0x4000)))
+    }
+    return digest.digest().toHex()
 }
 
 export const rosterStateAllowsImport = (status: RosterStatus | null): boolean =>
@@ -200,16 +231,21 @@ const RosterSetup: React.FC<{
     const {reauthenticate} = useContext(AuthContext)
     const client = useApolloClient()
     const dialogId = useId()
-    const fileId = useId()
+    const comparisonId = useId()
     const [open, setOpen] = useState(false)
     const [file, setFile] = useState<File | null>(null)
     const [sha, setSha] = useState("")
+    const enteredSha = sha.trim().toLowerCase()
+    const malformedSha = enteredSha !== "" && !fingerprint.test(enteredSha)
     const [candidate, setCandidate] = useState<Candidate | null>(null)
     const [failure, setFailure] = useState<Failure | null>(null)
     const [busy, setBusy] = useState(false)
     const [confirmedSha, setConfirmedSha] = useState<string | null>(null)
     const inFlight = useRef(false)
+    const operation = useRef<"review" | "activate" | "login" | null>(null)
+    const sequence = useRef(0)
     const fileInput = useRef<HTMLInputElement>(null)
+    const reviewedHeading = useRef<HTMLHeadingElement>(null)
     const mounted = useRef(true)
     const current = useRef(status)
     current.current = status
@@ -237,41 +273,84 @@ const RosterSetup: React.FC<{
         setFailure(null)
     }
     useEffect(() => {
-        // Polling or a fresh response from another operator can invalidate this preview.
+        // Rotate an in-flight read-only review, without invalidating an activation that
+        // legitimately causes the authority to advance.
+        if (operation.current === "review") {
+            sequence.current++
+            operation.current = null
+            inFlight.current = false
+            setBusy(false)
+        }
         discardFiles()
-    }, [status.generation, status.active_sha256])
-    const close = () => {
+    }, [status.generation, status.active_sha256, status.required_approvals])
+    useEffect(() => {
+        if (candidate) reviewedHeading.current?.focus()
+    }, [candidate])
+    const selectFiles = (files: FileList) => {
         if (inFlight.current) return
+        const next = files.length === 1 ? files[0] : null
+        setCandidate(null)
+        const valid =
+            next && /\.json$/i.test(next.name) && next.size > 0 && next.size <= MAX_ROSTER_BYTES
+        setFile(valid ? next : null)
+        setFailure(valid ? null : "file")
+    }
+    const close = () => {
+        if (inFlight.current && operation.current !== "review") return
+        // Read-only verification can be abandoned; its result must never refill a reopened drawer.
+        sequence.current++
+        release()
         reset()
         setOpen(false)
     }
-    const hold = () => {
+    const hold = (kind: NonNullable<typeof operation.current>) => {
+        operation.current = kind
         inFlight.current = true
         setBusy(true)
         setFailure(null)
+        return ++sequence.current
     }
     const release = () => {
+        operation.current = null
         inFlight.current = false
         setBusy(false)
     }
     const review = async () => {
-        if (!file || !fingerprint.test(sha) || inFlight.current) return
-        hold()
+        if (!file || malformedSha || inFlight.current) return
+        const request = hold("review")
+        const isCurrent = () =>
+            mounted.current &&
+            sequence.current === request &&
+            current.current.generation === status.generation &&
+            current.current.active_sha256 === status.active_sha256 &&
+            current.current.required_approvals === status.required_approvals
         setCandidate(null)
         try {
-            let body: string
+            let roster: Awaited<ReturnType<typeof readRoster>>
             try {
-                body = await readExactRoster(file)
+                roster = await readRoster(file)
             } catch {
-                setFailure("file")
+                if (isCurrent()) setFailure("file")
                 return
             }
-            if (!mounted.current || current.current.generation !== status.generation) return
+            if (!isCurrent()) return
+            const matchedEnteredFingerprint = enteredSha !== ""
+            let reviewedSha = enteredSha
+            if (!matchedEnteredFingerprint) {
+                try {
+                    reviewedSha = await computeRosterFingerprint(roster.bytes)
+                    if (!fingerprint.test(reviewedSha)) throw new Error("invalid computed SHA-256")
+                } catch {
+                    if (isCurrent()) setFailure("computeHash")
+                    return
+                }
+                if (!isCurrent()) return
+            }
             const {data} = await client.query<{
                 preview_architect_signer_roster: RosterReview | null
             }>({
                 query: PREVIEW,
-                variables: {tenantId, roster: body, sha},
+                variables: {tenantId, roster: roster.body, sha: reviewedSha},
                 context: {
                     ...role,
                     fetchOptions: {method: "POST"},
@@ -279,11 +358,11 @@ const RosterSetup: React.FC<{
                 },
                 fetchPolicy: "no-cache",
             })
-            if (!mounted.current) return
+            if (!isCurrent()) return
             const result = data.preview_architect_signer_roster
             if (
                 !result ||
-                result.candidate_sha256 !== sha ||
+                result.candidate_sha256 !== reviewedSha ||
                 typeof result.generation !== "string" ||
                 !generation.test(result.generation) ||
                 !Number.isSafeInteger(result.approver_count) ||
@@ -298,20 +377,25 @@ const RosterSetup: React.FC<{
             }
             if (result.generation !== current.current.generation) {
                 discardFiles()
-                await refresh()
                 setFailure("conflict")
+                void refresh().catch(() => undefined)
                 return
             }
-            setCandidate({body, expectedSha: sha, review: result})
+            setCandidate({
+                body: roster.body,
+                expectedSha: reviewedSha,
+                matchedEnteredFingerprint,
+                review: result,
+            })
         } catch (error) {
-            if (mounted.current)
+            if (isCurrent())
                 setFailure(
                     hasError(error, "architect-roster-management-forbidden")
                         ? "forbidden"
                         : "preview"
                 )
         } finally {
-            if (mounted.current) release()
+            if (isCurrent()) release()
         }
     }
     const alreadyActive = candidate !== null && candidate.expectedSha === status.active_sha256
@@ -320,10 +404,11 @@ const RosterSetup: React.FC<{
             !candidate ||
             inFlight.current ||
             candidate.review.generation !== current.current.generation ||
+            candidate.review.approver_count < current.current.required_approvals ||
             candidate.expectedSha === current.current.active_sha256
         )
             return
-        hold()
+        hold("activate")
         try {
             const {data} = await activate({
                 variables: {
@@ -373,7 +458,7 @@ const RosterSetup: React.FC<{
         if (!reauthenticate || inFlight.current) return
         // Leave the roster out of navigation, storage, and any replay after login.
         reset()
-        hold()
+        hold("login")
         try {
             await reauthenticate()
         } catch {
@@ -399,33 +484,51 @@ const RosterSetup: React.FC<{
                     {t("configurationPackage.roster.activeConfirmed")}
                 </Alert>
             )}
-            <Dialog open={open} onClose={close} aria-labelledby={dialogId} fullWidth>
-                <DialogTitle id={dialogId}>{t("configurationPackage.roster.manage")}</DialogTitle>
-                <DialogContent>
+            <Drawer
+                anchor="right"
+                open={open}
+                onClose={close}
+                PaperProps={{"role": "dialog", "aria-modal": true, "aria-labelledby": dialogId}}
+                sx={{"& .MuiDrawer-paper": {width: {xs: "100%", sm: "min(640px, 100%)"}}}}
+            >
+                <Box sx={{p: 2}} data-testid="signer-roster-drawer">
+                    <Typography component="h2" variant="h5" id={dialogId} sx={{mb: 2}}>
+                        {t("configurationPackage.roster.manage")}
+                    </Typography>
                     <Typography variant="body2" paragraph>
                         {t("configurationPackage.roster.independent")}
                     </Typography>
-                    <Typography component="label" htmlFor={fileId} display="block" variant="body2">
-                        {t("configurationPackage.roster.file")}
-                    </Typography>
-                    <input
-                        id={fileId}
-                        type="file"
+                    <CustomDropFile
                         accept=".json,application/json"
                         disabled={busy}
+                        handleFiles={selectFiles}
                         ref={fileInput}
-                        onChange={(event) => {
-                            setFile(event.target.files?.[0] ?? null)
-                            setCandidate(null)
-                            setFailure(null)
-                        }}
-                    />
+                        inputLabel={t("configurationPackage.roster.file")}
+                        browseLabel={t("configurationPackage.roster.browse")}
+                        showFileName={false}
+                        errorMessage={t("configurationPackage.roster.error.file")}
+                    >
+                        <Box sx={{p: 2}}>
+                            <Typography sx={{fontWeight: "bold"}}>
+                                {t("configurationPackage.roster.drop")}
+                            </Typography>
+                            <Typography component="span" sx={{textDecoration: "underline"}}>
+                                {t("configurationPackage.roster.browse")}
+                            </Typography>
+                            <Typography variant="body2">
+                                {t("configurationPackage.roster.file")}
+                            </Typography>
+                        </Box>
+                    </CustomDropFile>
+                    <Typography variant="body2" aria-live="polite" sx={{overflowWrap: "anywhere"}}>
+                        {file?.name}
+                    </Typography>
                     <TextField
                         label={t("configurationPackage.roster.expected")}
                         value={sha}
-                        inputProps={{autoCapitalize: "none", spellCheck: false, maxLength: 64}}
+                        inputProps={{autoCapitalize: "none", spellCheck: false}}
                         helperText={t("configurationPackage.roster.hashHelp")}
-                        error={sha !== "" && !fingerprint.test(sha)}
+                        error={malformedSha}
                         fullWidth
                         disabled={busy}
                         onChange={(event) => {
@@ -436,12 +539,28 @@ const RosterSetup: React.FC<{
                         sx={{mt: 2}}
                     />
                     {candidate && (
-                        <Box sx={{mt: 2}}>
-                            <Typography variant="body2">
+                        <Box sx={{mt: 2, overflowWrap: "anywhere"}}>
+                            <Typography
+                                component="h3"
+                                variant="subtitle1"
+                                tabIndex={-1}
+                                ref={reviewedHeading}
+                                aria-describedby={comparisonId}
+                            >
                                 {t("configurationPackage.roster.candidate", {
                                     hash: candidate.review.candidate_sha256,
                                 })}
                             </Typography>
+                            <Alert
+                                id={comparisonId}
+                                severity={candidate.matchedEnteredFingerprint ? "info" : "warning"}
+                            >
+                                {t(
+                                    candidate.matchedEnteredFingerprint
+                                        ? "configurationPackage.roster.fingerprintMatched"
+                                        : "configurationPackage.roster.fingerprintComputed"
+                                )}
+                            </Alert>
                             <Typography variant="body2">
                                 {t("configurationPackage.roster.signers", {
                                     approvers: candidate.review.approver_count,
@@ -470,9 +589,18 @@ const RosterSetup: React.FC<{
                             {t(`configurationPackage.roster.error.${failure}`)}
                         </Alert>
                     )}
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={close} disabled={busy}>
+                </Box>
+                <Box
+                    sx={{
+                        p: 2,
+                        pt: 0,
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        gap: 1,
+                        flexWrap: "wrap",
+                    }}
+                >
+                    <Button onClick={close} disabled={busy && operation.current !== "review"}>
                         {t("configurationPackage.roster.cancel")}
                     </Button>
                     {failure === "freshAuth" && reauthenticate && (
@@ -487,6 +615,7 @@ const RosterSetup: React.FC<{
                             disabled={
                                 busy ||
                                 alreadyActive ||
+                                candidate.review.approver_count < status.required_approvals ||
                                 candidate.review.generation !== status.generation
                             }
                             onClick={() => void confirm()}
@@ -496,14 +625,14 @@ const RosterSetup: React.FC<{
                     ) : (
                         <Button
                             variant="contained"
-                            disabled={busy || !file || !fingerprint.test(sha)}
+                            disabled={busy || !file || malformedSha}
                             onClick={() => void review()}
                         >
                             {t("configurationPackage.roster.review")}
                         </Button>
                     )}
-                </DialogActions>
-            </Dialog>
+                </Box>
+            </Drawer>
         </>
     )
 }
@@ -512,8 +641,9 @@ export const ArchitectSignerRoster: React.FC<{
     tenantId: string
     status: RosterStatus | null
     loading: boolean
+    statusTextId?: string
     refresh: () => Promise<RosterStatus | null>
-}> = ({tenantId, status, loading, refresh}) => {
+}> = ({tenantId, status, loading, statusTextId, refresh}) => {
     const {t} = useTranslation()
     const {userId} = useContext(AuthContext)
     if (status?.mode === "not_enabled") return null
@@ -529,7 +659,12 @@ export const ArchitectSignerRoster: React.FC<{
             <Typography component="h3" variant="subtitle1">
                 {t("configurationPackage.roster.title")}
             </Typography>
-            <Typography variant="body2" sx={{overflowWrap: "anywhere"}} aria-live="polite">
+            <Typography
+                id={statusTextId}
+                variant="body2"
+                sx={{overflowWrap: "anywhere"}}
+                aria-live="polite"
+            >
                 {ready
                     ? t("configurationPackage.roster.active", {
                           hash: status.active_sha256,
@@ -543,6 +678,11 @@ export const ArchitectSignerRoster: React.FC<{
                                 : "configurationPackage.roster.unavailable"
                       )}
             </Typography>
+            {!loading && (!status || status.mode === "unavailable") && (
+                <Button variant="text" onClick={() => void refresh()}>
+                    {t("configurationPackage.roster.retry")}
+                </Button>
+            )}
             {status?.mode === "site_pinned" && (
                 <Typography variant="body2">
                     {t("configurationPackage.roster.sitePinned")}

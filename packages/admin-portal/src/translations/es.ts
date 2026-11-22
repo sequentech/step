@@ -102,11 +102,19 @@ const spanishTranslation: TranslationType = {
                 alreadyActive: "Esta huella ya está activa para esta organización.",
                 activeConfirmed: "El receptor confirmó la nueva lista activa.",
                 independent:
-                    "Usa la lista pública de Architect y obtén su huella SHA-256 por otro canal de confianza. No tomes la huella del mismo archivo o paquete.",
+                    "Usa la lista pública de Architect. Si tienes su huella SHA-256 de otro canal de confianza, introdúcela abajo. No tomes la huella esperada del mismo archivo o paquete.",
                 file: "Lista pública de firmantes (.json)",
-                expected: "Huella SHA-256 esperada",
-                hashHelp: "Introduce los 64 caracteres hexadecimales en minúsculas.",
-                candidate: "Huella verificada: {{hash}}",
+                drop: "Suelta aquí la lista pública de firmantes o",
+                browse: "Busca un archivo de lista de firmantes",
+                retry: "Volver a comprobar la configuración de confianza",
+                expected: "Huella SHA-256 esperada (opcional)",
+                hashHelp:
+                    "Introduce una huella hexadecimal de 64 caracteres o deja el campo vacío para calcularla del archivo seleccionado.",
+                candidate: "Huella de la lista de firmantes: {{hash}}",
+                fingerprintMatched:
+                    "El receptor confirmó que la lista coincide con la huella que introdujiste.",
+                fingerprintComputed:
+                    "Calculada del archivo seleccionado. Esta huella no se comparó con una de otra fuente independiente.",
                 signers: "Claves de aprobación: {{approvers}}. Claves de firma final: {{signers}}.",
                 origin: "Parte de confianza: {{rp}}. Orígenes permitidos: {{origins}}.",
                 confirmEffect:
@@ -120,15 +128,17 @@ const spanishTranslation: TranslationType = {
                 importUnavailable:
                     "El receptor no está preparado para importar este paquete. Comprueba el estado de la lista de firmantes.",
                 error: {
+                    computeHash:
+                        "No se pudo calcular la huella. Vuelve a seleccionar el archivo o introduce la huella esperada.",
                     file: "Selecciona un archivo JSON UTF-8 no vacío, de hasta 256 KiB y sin marca de orden de bytes.",
                     freshAuth:
-                        "Vuelve a iniciar sesión para activar la lista. Después, elige el archivo y confirma su huella otra vez.",
+                        "Vuelve a iniciar sesión con tu cuenta habitual. Después, abre Configuración → Paquete de configuración, elige de nuevo el archivo y verifica su huella.",
                     forbidden:
                         "No tienes autorización para administrar la lista de firmantes de esta organización.",
                     conflict:
                         "La lista cambió o se está procesando un paquete. Recarga la lista y vuelve a verificar el archivo.",
                     preview:
-                        "No se pudo verificar la lista. Comprueba el archivo y la huella confirmada por separado.",
+                        "No se pudo verificar la lista. Comprueba la exportación de Architect y, si introdujiste una huella, asegúrate de que coincida.",
                     activate:
                         "El receptor no confirmó la activación. Comprueba la huella activa antes de intentarlo de nuevo.",
                     login: "No se pudo iniciar una sesión nueva. Vuelve a iniciar sesión y regresa aquí.",
@@ -159,6 +169,7 @@ const spanishTranslation: TranslationType = {
             uploadTitle: "Subir un paquete de configuración",
             uploadSubtitle: "El zip de la entrega, desde un medio extraíble",
             uploadParagraph: "Primero se previsualiza; la subida por sí sola no aplica nada.",
+            signedDocumentId: "ID de documento ZIP firmado existente",
             documentId: "O el id de un documento ya subido",
             preview: "Vista previa",
             apply: "Aplicar",

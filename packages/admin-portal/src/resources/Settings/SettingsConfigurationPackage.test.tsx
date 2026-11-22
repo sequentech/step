@@ -3,9 +3,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {act, fireEvent, render, screen} from "@testing-library/react"
+import {ThemeProvider} from "@mui/material/styles"
+import {adminTheme} from "../../../../ui-essentials/src/services/theme"
 import {record} from "./configurationPackage.fixture"
 import {COMPLETE_DELIVERY} from "./configurationPackage"
 import type {RosterStatus} from "./ArchitectSignerRoster"
+
+// LinkBehavior is not exercised by these controls.
+jest.mock("react-router-dom", () => ({Link: "a"}))
+jest.mock(
+    "@sequentech/ui-essentials",
+    () => ({
+        disabledButtonStyle: jest.requireActual("../../../../ui-essentials/src/services/theme")
+            .disabledButtonStyle,
+    }),
+    {virtual: true}
+)
 
 const mockApply = jest.fn()
 const mockManagedApply = jest.fn()
@@ -163,15 +176,14 @@ it("is not offered without every permission", () => {
     expect(screen.queryByTestId("configuration-signing")).toBeNull()
 })
 
-it("makes Upload package first and opens legacy setup only through Advanced", () => {
+it("shows Advanced controls without an accordion and keeps explicit generic legacy setup", () => {
     render(<SettingsConfigurationPackage />)
     const upload = screen.getByRole("button", {name: "configurationPackage.upload"})
-    const advanced = screen.getByTestId("package-advanced") as HTMLDetailsElement
+    const advanced = screen.getByRole("region", {name: "configurationPackage.advanced"})
     expect(upload.compareDocumentPosition(advanced) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(advanced.open).toBe(false)
+    expect(advanced.querySelector("summary")).toBeNull()
+    expect(screen.getByRole("checkbox", {name: "census"})).toBeTruthy()
     expect(screen.queryByTestId("configuration-signing")).toBeNull()
-    fireEvent.click(screen.getByText("configurationPackage.advanced"))
-    expect(advanced.open).toBe(true)
     const setup = screen.getByRole("button", {name: "configurationPackage.legacySetup"})
     expect(setup.getAttribute("aria-expanded")).toBe("false")
     fireEvent.click(setup)
@@ -738,4 +750,76 @@ it("does not reuse a successful managed Preview when the signed-in actor switche
     mockActor = ""
     view.rerender(<SettingsConfigurationPackage />)
     expect(screen.getByTestId("package-not-permitted")).toBeTruthy()
+})
+
+const expectDisabledLikeApply = (upload: HTMLButtonElement) => {
+    expect(upload.disabled).toBe(true)
+    expect(upload.classList.contains("Mui-disabled")).toBe(true)
+    const uploadStyle = window.getComputedStyle(upload)
+    const reference = window.getComputedStyle(applyButton())
+    expect(applyButton().disabled).toBe(true)
+    expect([uploadStyle.backgroundColor, uploadStyle.color, uploadStyle.border]).toEqual([
+        reference.backgroundColor,
+        reference.color,
+        reference.border,
+    ])
+    expect(uploadStyle.backgroundColor).toBe("rgba(15, 5, 76, 0.4)")
+}
+
+it("keeps managed trust roster-only and unlocks ZIP/document selection only after active status", async () => {
+    mockRoster = {...managedRoster, generation: "0", active_sha256: null}
+    const page = () => (
+        <ThemeProvider theme={adminTheme}>
+            <SettingsConfigurationPackage />
+        </ThemeProvider>
+    )
+    const view = render(page())
+    const upload = screen.getByRole("button", {
+        name: "configurationPackage.upload",
+    }) as HTMLButtonElement
+    expect(upload.disabled).toBe(true)
+    expectDisabledLikeApply(upload)
+    expect(upload.getAttribute("aria-describedby")).toBeTruthy()
+    fireEvent.click(upload)
+    expect(screen.queryByTestId("package-upload-drawer")).toBeNull()
+    const documentId = screen.getByRole("textbox", {
+        name: "configurationPackage.signedDocumentId",
+    }) as HTMLInputElement
+    expect(documentId.disabled).toBe(true)
+    expect(screen.getByRole("checkbox", {name: "census"})).toBeTruthy()
+    expect(screen.queryByText("configurationPackage.legacySetup")).toBeNull()
+    expect(screen.queryByTestId("configuration-signing")).toBeNull()
+
+    mockRoster = managedRoster
+    view.rerender(page())
+    expect(upload.disabled).toBe(false)
+    expect(documentId.disabled).toBe(false)
+    expect(screen.queryByText("configurationPackage.legacySetup")).toBeNull()
+    fireEvent.change(documentId, {target: {value: "existing-zip"}})
+    mockApply.mockResolvedValueOnce(accepted("task-doc"))
+    await act(async () =>
+        fireEvent.click(screen.getByRole("button", {name: "configurationPackage.preview"}))
+    )
+    expect(mockApply).toHaveBeenCalledWith({
+        variables: {
+            tenantId: "t1",
+            documentId: "existing-zip",
+            mode: "preview",
+            requirements: COMPLETE_DELIVERY,
+        },
+    })
+    expect(mockManagedApply).not.toHaveBeenCalled()
+    // A running preview uses the same existing disabled style as pending trust.
+    expectDisabledLikeApply(upload)
+})
+
+it("never flashes a legacy trust or document choice while receiver status is unknown", () => {
+    mockRoster = null
+    const view = render(<SettingsConfigurationPackage />)
+    expect(screen.getByRole("region", {name: "configurationPackage.advanced"})).toBeTruthy()
+    expect(screen.queryByText("configurationPackage.legacySetup")).toBeNull()
+    expect(screen.queryByRole("textbox", {name: "configurationPackage.documentId"})).toBeNull()
+    mockRoster = {...legacyRoster, mode: "unavailable"}
+    view.rerender(<SettingsConfigurationPackage />)
+    expect(screen.queryByText("configurationPackage.legacySetup")).toBeNull()
 })

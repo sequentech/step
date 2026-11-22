@@ -94,11 +94,19 @@ const englishTranslation = {
                 alreadyActive: "This fingerprint is already active for this tenant.",
                 activeConfirmed: "The receiver confirmed the new active roster.",
                 independent:
-                    "Use the public roster from Architect and obtain its SHA-256 fingerprint through a separate trusted channel. Do not take the fingerprint from the same file or package.",
+                    "Use the public roster from Architect. If you have its SHA-256 fingerprint from a separate trusted channel, enter it below. Do not take the expected fingerprint from the same file or package.",
                 file: "Public signer roster (.json)",
-                expected: "Expected SHA-256 fingerprint",
-                hashHelp: "Enter all 64 lowercase hexadecimal characters.",
-                candidate: "Verified fingerprint: {{hash}}",
+                drop: "Drop the public signer roster here or",
+                browse: "Browse for a roster file",
+                retry: "Check receiver trust again",
+                expected: "Expected SHA-256 fingerprint (optional)",
+                hashHelp:
+                    "Enter a 64-character hexadecimal fingerprint or leave this blank to calculate it from the selected file.",
+                candidate: "Roster fingerprint: {{hash}}",
+                fingerprintMatched:
+                    "The receiver confirmed that the roster matches the fingerprint you entered.",
+                fingerprintComputed:
+                    "Calculated from the selected file. This fingerprint was not compared with one from an independent source.",
                 signers: "Approver keys: {{approvers}}. Final signer keys: {{signers}}.",
                 origin: "Relying party: {{rp}}. Allowed origins: {{origins}}.",
                 confirmEffect:
@@ -112,14 +120,16 @@ const englishTranslation = {
                 importUnavailable:
                     "The receiver is not ready to import this package. Check the signer roster status.",
                 error: {
+                    computeHash:
+                        "The fingerprint could not be calculated. Try the file again or enter the expected fingerprint.",
                     file: "Choose a non-empty UTF-8 JSON file no larger than 256 KiB, without a byte order mark.",
                     freshAuth:
-                        "Sign in again before activating. After signing in, choose the file and confirm its fingerprint again.",
+                        "Sign in again using your usual account. Then reopen Settings → Configuration package, select the file again, and verify its fingerprint.",
                     forbidden: "You are not authorized to manage this tenant’s signer roster.",
                     conflict:
                         "The roster changed or a package operation is in progress. Reload the roster, then verify the file again.",
                     preview:
-                        "The roster could not be verified. Check the file and independently confirmed fingerprint.",
+                        "The roster could not be verified. Check the Architect export and, if you entered a fingerprint, make sure it matches.",
                     activate:
                         "The receiver did not confirm activation. Check the active fingerprint before trying again.",
                     login: "Could not start a new sign-in. Sign in again and return here.",
@@ -150,6 +160,7 @@ const englishTranslation = {
             uploadTitle: "Upload a configuration package",
             uploadSubtitle: "The delivery zip from removable media",
             uploadParagraph: "It is previewed first; nothing is applied from the upload itself.",
+            signedDocumentId: "Existing signed ZIP document ID",
             documentId: "Or an uploaded document id",
             preview: "Preview",
             apply: "Apply",
