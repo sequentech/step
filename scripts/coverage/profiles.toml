@@ -253,7 +253,7 @@ issue = "https://github.com/sequentech/meta/issues/13755"
 
 [profiles.harvest]
 package = "harvest"
-features = []
+features = ["operational-signing-private-ca-candidate"]
 test_arguments = ["--include-ignored", "--skip", "a_widget_checks_saves_and_draws_through_the_real_renderer", "--skip", "every_preset_widget_passes_the_real_engine_and_the_sanitizer"]
 limitations = [
     "Native tests with declared default dependencies, including Windmill's default FIPS feature selection.",
@@ -261,6 +261,7 @@ limitations = [
     "Route tests run against a private migrated database on the PostgreSQL server HASURA_DB__* names, with in-memory task ledger, broker and storage and a local Keycloak stand-in.",
     "Includes isolated electoral-log storage, signed proof, resolution-audit and receipt contracts; the two live-renderer tests remain separate. Deployed Keycloak, S3 and complete worker-side workflows remain outside this profile.",
     "Existing inline unit tests contribute to LLVM source counters; branch and deployment coverage are separate scopes.",
+    "Builds the default-off operational-signing-private-ca-candidate feature, so its unmounted Initialize, setup and private CA routes, broker client and portal guard are measured. Their tests mount them on a local Rocket client: the broker is an in-process stand-in driving the ledger contract as the database superuser, the private broker client talks to a local HTTPS stand-in, and the private CA server's mTLS peer is presented through the local client, not a TLS handshake. Officials' keys are software keys; no device or identity provider is involved.",
 ]
 issue = "https://github.com/sequentech/meta/issues/13302"
 
@@ -315,7 +316,7 @@ ELECTORAL_LOG_PG_SSLMODE = "disable"
 
 [profiles.windmill]
 package = "windmill"
-features = []
+features = ["operational-signing-candidate"]
 test_arguments = [
     "--include-ignored",
     "--skip", "test_generate_export_csv_data_120k_memory",
@@ -333,7 +334,8 @@ test_arguments = [
 limitations = [
     "Native default FIPS profile with local synthetic PostgreSQL 16 on port 3322, which also hosts the electoral log, matching the Rust CI service fixtures.",
     "Includes isolated PostgreSQL sequencer, receive/cast, public-key recovery, delegation and dead-letter contracts. Live renderer, Java, S3, scale benchmarks and scheduling tests requiring the full devenv schema remain separate; their production code remains measured.",
-    "Cloud transports, complete election workflows, optional features and branch coverage require separate evidence.",
+    "Cloud transports, complete election workflows, other optional features and branch coverage require separate evidence.",
+    "Builds the default-off operational-signing-candidate feature, so its Initialize scope and CA assessment services are measured against the ledger contract with software keys enrolled as the database superuser; no device is involved.",
     "The browser-package producer/receiver contract needs the paired Architect fixture and independent receiver policy; run its dedicated ignored test separately.",
     "Existing inline tests contribute to LLVM source counters; this aggregate is not production-only coverage.",
 ]

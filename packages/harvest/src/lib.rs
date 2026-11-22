@@ -54,6 +54,10 @@ mod signing_action_routes;
 #[path = "../tests/support/hasura_signing_permissions.rs"]
 mod hasura_signing_permissions;
 
+#[cfg(all(test, feature = "operational-signing-candidate"))]
+#[path = "../tests/support/operational_signing_routes.rs"]
+mod operational_signing_routes;
+
 /// Harvest's start-up and application, for its binary and for builds that
 /// add their own installation (such as an external electoral log signer)
 /// before calling it.
