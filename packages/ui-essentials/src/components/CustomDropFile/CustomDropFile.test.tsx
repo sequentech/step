@@ -130,6 +130,20 @@ it("shows no drop target while disabled and only guards file drags on the page",
     expect(handleFiles).not.toHaveBeenCalled()
 })
 
+it("prevents browser navigation for files dropped outside the dropzone only while mounted", () => {
+    const handleFiles = jest.fn()
+    const {unmount} = renderDrop({handleFiles})
+
+    expect(fireEvent.dragOver(document.body, {dataTransfer: {types: ["Files"]}})).toBe(false)
+    expect(fireEvent.drop(document.body, {dataTransfer: {types: ["Files"]}})).toBe(false)
+    expect(fireEvent.dragOver(document.body, {dataTransfer: {types: ["text/plain"]}})).toBe(true)
+    expect(fireEvent.drop(document.body, {dataTransfer: {types: ["text/plain"]}})).toBe(true)
+    expect(handleFiles).not.toHaveBeenCalled()
+
+    unmount()
+    expect(fireEvent.drop(document.body, {dataTransfer: {types: ["Files"]}})).toBe(true)
+})
+
 it("ignores cancellation and empty drops without invoking the importer", () => {
     const handleFiles = jest.fn()
     const {ref, container} = renderDrop({handleFiles})

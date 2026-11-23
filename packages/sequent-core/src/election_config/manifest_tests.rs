@@ -28,6 +28,7 @@ fn delivery_members() -> Vec<Artifact> {
 fn content() -> Content {
     Content {
         files: file_entries(&delivery_members()).unwrap(),
+        ballot_design_digest_algorithm: Default::default(),
         ballot_designs: vec![BallotDesign {
             area: "North".to_string(),
             election: "officers".to_string(),
@@ -1062,4 +1063,28 @@ fn a_complete_zip64_archive_has_one_canonical_view() {
         read_zip(&bytes, "package").unwrap(),
         vec![artifact("a.csv", b"one"), artifact("b.csv", b"two")]
     );
+}
+
+#[test]
+fn only_absence_defaults_the_design_algorithm_and_v1_encoding_is_unchanged() {
+    let legacy = content();
+    let v1 = serde_json::to_value(&legacy).unwrap();
+    assert!(v1.get("ballot_design_digest_algorithm").is_none());
+    assert_eq!(
+        serde_json::from_value::<Content>(v1.clone())
+            .unwrap()
+            .sha256()
+            .unwrap(),
+        legacy.sha256().unwrap()
+    );
+    let mut candidate = v1.clone();
+    for bad in [json!(null), json!("v3"), json!(2)] {
+        candidate["ballot_design_digest_algorithm"] = bad;
+        assert!(serde_json::from_value::<Content>(candidate.clone()).is_err());
+    }
+    candidate["ballot_design_digest_algorithm"] = json!("v2");
+    let v2 = serde_json::from_value::<Content>(candidate.clone()).unwrap();
+    assert_eq!(v2.ballot_design_digest_algorithm, DesignDigestAlgorithm::V2);
+    assert_eq!(serde_json::to_value(&v2).unwrap(), candidate);
+    assert_ne!(v2.sha256().unwrap(), legacy.sha256().unwrap());
 }

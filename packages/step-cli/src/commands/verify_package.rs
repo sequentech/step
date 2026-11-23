@@ -324,6 +324,7 @@ mod tests {
         ];
         let content = Content {
             files: file_entries(&members).unwrap(),
+            ballot_design_digest_algorithm: Default::default(),
             ballot_designs: Vec::new(),
             reports: Vec::new(),
         };

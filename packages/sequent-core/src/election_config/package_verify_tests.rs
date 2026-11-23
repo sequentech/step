@@ -197,6 +197,7 @@ fn members() -> Vec<Artifact> {
 fn unsigned_manifest(revision: u64) -> Manifest {
     let content = Content {
         files: file_entries(&members()).unwrap(),
+        ballot_design_digest_algorithm: Default::default(),
         ballot_designs: vec![BallotDesign {
             area: "North".to_string(),
             election: "officers".to_string(),
@@ -1758,3 +1759,57 @@ fn the_stored_roots_are_the_certificates_alone() {
 
 #[path = "package_verify_v2_tests.rs"]
 mod v2;
+
+#[test]
+fn v2_still_authenticates_the_raw_messaging_bytes_and_algorithm() {
+    use super::super::design::DesignDigestAlgorithm;
+
+    let world = world();
+    let with_messaging = |sender: &str| {
+        let mut delivery = members();
+        delivery[0].bytes = zip(&[
+            Artifact {
+                name: "export_election_event-1.json".to_string(),
+                bytes: serde_json::to_vec(&serde_json::json!({"messaging_config": {"sender": sender}})).unwrap(),
+            },
+            Artifact {
+                name: "export_areas-1.csv".to_string(),
+                bytes: b"id,name\n".to_vec(),
+            },
+        ])
+        .unwrap();
+        delivery
+    };
+    let original = with_messaging("x");
+    let mut manifest = unsigned_manifest(8);
+    manifest.content.files = file_entries(&original).unwrap();
+    manifest.content.ballot_design_digest_algorithm = DesignDigestAlgorithm::V2;
+    manifest.content_sha256 = manifest.content.sha256().unwrap();
+    approve(&mut manifest, &world.manager, "Configuration Manager");
+    approve(&mut manifest, &world.officer, "Security Officer");
+
+    let verified = verify_package(
+        &signed(&manifest, &world.key, &original),
+        &trust(&world),
+    )
+    .unwrap();
+    assert_eq!(
+        verified.manifest.content.ballot_design_digest_algorithm,
+        DesignDigestAlgorithm::V2
+    );
+    assert!(refused(
+        &signed(&manifest, &world.key, &with_messaging("y")),
+        &trust(&world)
+    )
+    .iter()
+    .any(|id| id == "package.file-changed"));
+
+    // Even a final signer cannot downgrade the algorithm after the approvals.
+    manifest.content.ballot_design_digest_algorithm = DesignDigestAlgorithm::V1;
+    manifest.content_sha256 = manifest.content.sha256().unwrap();
+    assert!(!refused(
+        &signed(&manifest, &world.key, &original),
+        &trust(&world)
+    )
+    .is_empty());
+}

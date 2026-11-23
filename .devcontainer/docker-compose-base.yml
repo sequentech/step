@@ -223,8 +223,17 @@ services:
     environment:
       - HOSTNAME_EXTERNAL=localhost
       - S3_HOSTNAME=localhost:4566
+    volumes:
+      - "${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scripts/localstack-wbraid-ready.sh:/etc/localstack/init/ready.d/localstack-wbraid-ready.sh:ro,z"
+      - "${LOCAL_WORKSPACE_FOLDER:-..}/packages/wbraid/s3-cors.json:/aws/s3-cors.json:ro,z"
     healthcheck:
-      test: [ "CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health" ]
+      # A previous configure-localstack exit cannot prove readiness after an emulator restart.
+      test:
+        - CMD-SHELL
+        - >-
+          curl -fsS http://127.0.0.1:4566/_localstack/init/ready |
+          python3 -c 'import json,sys; x=json.load(sys.stdin); sys.exit(not(x["completed"] and
+          any(s["name"]=="localstack-wbraid-ready.sh" and s["state"]=="SUCCESSFUL" for s in x["scripts"])))'
       interval: 5s
       timeout: 10s
       retries: 25

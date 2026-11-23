@@ -122,8 +122,25 @@ fn package_signed_by(
     key: &Issued,
     revocation_lists: Vec<String>,
 ) -> Vec<u8> {
+    package_signed_with_design_algorithm(
+        revision,
+        reports,
+        key,
+        revocation_lists,
+        Default::default(),
+    )
+}
+
+fn package_signed_with_design_algorithm(
+    revision: u64,
+    reports: Vec<ReportSetting>,
+    key: &Issued,
+    revocation_lists: Vec<String>,
+    ballot_design_digest_algorithm: sequent_core::election_config::design::DesignDigestAlgorithm,
+) -> Vec<u8> {
     let content = Content {
         files: file_entries(&members()).unwrap(),
+        ballot_design_digest_algorithm,
         ballot_designs: Vec::new(),
         reports,
     };
@@ -1121,4 +1138,36 @@ async fn managed_section_readmits_its_sealed_package_but_stops_after_replay_or_r
         "isolated readmission did not run exactly one successful test:\n{stdout}\n{}",
         String::from_utf8_lossy(&output.stderr)
     );
+}
+
+#[tokio::test]
+async fn v2_design_algorithm_survives_verified_import_provenance() {
+    use sequent_core::election_config::design::DesignDigestAlgorithm;
+
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let tenant = tenant(&tx, "required").await;
+    let event = Uuid::new_v4().to_string();
+    let bytes = package_signed_with_design_algorithm(
+        1,
+        Vec::new(),
+        signing_key(),
+        Vec::new(),
+        DesignDigestAlgorithm::V2,
+    );
+    let (file, admitted) = admit_document(&tx, &tenant, file_of(&bytes)).await.unwrap();
+    assert_eq!(std::fs::read(file.path()).unwrap(), members()[0].bytes);
+    let admitted = admitted.unwrap();
+    assert_eq!(
+        admitted.manifest.content.ballot_design_digest_algorithm,
+        DesignDigestAlgorithm::V2
+    );
+    record(&tx, &tenant, &event, &admitted).await.unwrap();
+    let (stored, hash) = configuration_packages::manifest_of_event(&tx, &tenant, &event)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(stored, admitted.manifest);
+    assert_eq!(hash, admitted.manifest_sha256);
+    tx.rollback().await.unwrap();
 }

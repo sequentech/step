@@ -33,7 +33,7 @@ use sha2::{Digest, Sha256};
 use crate::signing::{canonical_json, crockford_code, SignatureAlgorithm};
 
 use super::archive::{zip, Artifact};
-use super::design::BallotDesign;
+use super::design::{BallotDesign, DesignDigestAlgorithm};
 use super::problem::{Code, Problem};
 
 pub const MANIFEST_MEMBER: &str = "manifest.json";
@@ -138,6 +138,10 @@ pub struct PreviousRevision {
 pub struct Content {
     pub files: Vec<FileEntry>,
     pub ballot_designs: Vec<BallotDesign>,
+    /// Absent only for legacy V1; omitting it preserves the old signed
+    /// content hash. Unknown values and explicit null are rejected.
+    #[serde(default, skip_serializing_if = "DesignDigestAlgorithm::is_v1")]
+    pub ballot_design_digest_algorithm: DesignDigestAlgorithm,
     pub reports: Vec<ReportSetting>,
 }
 
@@ -450,6 +454,19 @@ pub fn revision_content(
     compiled: &super::architect::Compiled,
     previous_designs: &[BallotDesign],
 ) -> Result<RevisionContent, super::problem::Report> {
+    revision_content_with_algorithm(
+        compiled,
+        previous_designs,
+        DesignDigestAlgorithm::V1,
+    )
+}
+
+/// Assemble the same signed files and reports with the specified design projection.
+pub fn revision_content_with_algorithm(
+    compiled: &super::architect::Compiled,
+    previous_designs: &[BallotDesign],
+    algorithm: DesignDigestAlgorithm,
+) -> Result<RevisionContent, super::problem::Report> {
     use super::problem::Report;
 
     let delivery = super::archive::delivery(&compiled.layout)
@@ -457,7 +474,10 @@ pub fn revision_content(
     let Payload { members, files } =
         expand(&delivery.bytes, "delivery", ArchiveLimits::PACKAGE)
             .map_err(Report::from_problem)?;
-    let digests = super::preview::ballot_design_digests(&compiled.bundle)?;
+    let digests = super::preview::ballot_design_digests_with_algorithm(
+        &compiled.bundle,
+        algorithm,
+    )?;
     let ballot_designs = super::design::versioned(previous_designs, digests);
     let reports = report_settings(&compiled.bundle)?;
 
@@ -467,6 +487,7 @@ pub fn revision_content(
         content: Content {
             files,
             ballot_designs,
+            ballot_design_digest_algorithm: algorithm,
             reports,
         },
     })

@@ -831,5 +831,5 @@ pub async fn upload_signature_refusal(
 }
 
 #[cfg(test)]
-#[path = "transmission_registry_tests.rs"]
+#[path = "../../../../tests/support/transmission_registry_tests.rs"]
 mod registry_tests;

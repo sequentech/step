@@ -120,6 +120,7 @@ pub(super) fn fixture(tenant: &str) -> Fixture {
     }];
     let content = Content {
         files: file_entries(&members).unwrap(),
+        ballot_design_digest_algorithm: Default::default(),
         ballot_designs: vec![],
         reports: vec![],
     };

@@ -53,6 +53,9 @@ pub(crate) fn platform(
                     Err(error) => panic!("accept failed: {error}"),
                 }
             };
+            // Darwin can carry O_NONBLOCK onto the accepted socket; only
+            // the listener needs a nonblocking accept loop.
+            stream.set_nonblocking(false).unwrap();
             stream
                 .set_read_timeout(Some(Duration::from_secs(5)))
                 .unwrap();
@@ -95,6 +98,8 @@ pub(crate) fn platform(
             realm: "tenant-fixture".into(),
             client_id: "api-key-client".into(),
             client_secret: None,
+            otp_file: None,
+            keycloak_ca_file: None,
             username: "trustee1".into(),
             password: "fixture-password".into(),
         },
