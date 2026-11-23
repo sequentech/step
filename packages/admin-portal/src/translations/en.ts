@@ -1412,6 +1412,8 @@ const englishTranslation = {
             voterLoginURL: "Voter Login URL",
             voterEnrollURL: "Voter Enroll URL",
             voterEnrollKioskURL: "Voter Enroll Kiosk URL",
+            showQrCode: "Show QR code: {{link}}",
+            closeQrCode: "Close",
             ballotBoxes: {
                 show: "Show ballot boxes",
                 loadError:

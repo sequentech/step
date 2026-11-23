@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {render as renderWith, screen} from "@testing-library/react"
+import {fireEvent, render as renderWith, screen} from "@testing-library/react"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {VoterPortalLinks} from "./VoterPortalLinks"
 
@@ -29,8 +29,40 @@ jest.mock("@/services/UrlGeneration", () => ({
         `${base}/tenant/${tenant}/event/${event}/${action}`,
 }))
 jest.mock("react-i18next", () => ({
-    useTranslation: () => ({t: (key: string) => key}),
+    useTranslation: () => ({
+        t: (key: string, options?: {link?: string}) =>
+            options?.link ? `${key}:${options.link}` : key,
+    }),
 }))
+// The dialog shows its title and content while open; the QR exposes what it encodes.
+jest.mock("@sequentech/ui-essentials", () => {
+    const React = require("react")
+    return {
+        Dialog: ({
+            open,
+            title,
+            cancel,
+            handleClose,
+            children,
+        }: {
+            open: boolean
+            title: string
+            cancel: string
+            handleClose: (confirmed: boolean) => void
+            children: React.ReactNode
+        }) =>
+            open
+                ? React.createElement(
+                      "div",
+                      {"role": "dialog", "aria-label": title},
+                      children,
+                      React.createElement("button", {onClick: () => handleClose(false)}, cancel)
+                  )
+                : null,
+        QRCode: ({value}: {value: string}) =>
+            React.createElement("svg", {"data-testid": "qr-code", "data-value": value}),
+    }
+})
 
 // The deployment's portal addresses, as the settings provider gives them.
 const Settings: React.FC<{children: React.ReactNode}> = ({children}) => (
@@ -96,6 +128,41 @@ describe("VoterPortalLinks", () => {
             )
         }
     )
+
+    it.each([
+        ["dashboard.voterLoginURL", "/login"],
+        ["dashboard.voterEnrollURL", "/enroll"],
+    ])("shows a QR code of the %s", (label, action) => {
+        render(<VoterPortalLinks electionEvent={event()} />)
+        expect(screen.queryByRole("dialog")).toBeNull()
+        fireEvent.click(screen.getByRole("button", {name: `dashboard.showQrCode:${label}`}))
+        const dialog = screen.getByRole("dialog", {name: label})
+        const url = `${PORTAL}/tenant/${TENANT}/event/${EVENT}${action}`
+        expect(screen.getByTestId("qr-code").getAttribute("data-value")).toBe(url)
+        expect(dialog.textContent).toContain(url)
+    })
+
+    it("shows a QR code of the kiosk login for the kiosk to scan", () => {
+        mockSettings = {VOTING_PORTAL_URL: PORTAL, KIOSK_VOTING_PORTAL_URL: KIOSK_PORTAL}
+        render(<VoterPortalLinks electionEvent={event(true)} />)
+        fireEvent.click(
+            screen.getByRole("button", {
+                name: "dashboard.showQrCode:dashboard.voterEnrollKioskURL",
+            })
+        )
+        expect(screen.getByTestId("qr-code").getAttribute("data-value")).toBe(
+            `${KIOSK_PORTAL}/tenant/${TENANT}/event/${EVENT}/login?kiosk`
+        )
+    })
+
+    it("closes the QR code", () => {
+        render(<VoterPortalLinks electionEvent={event()} />)
+        fireEvent.click(
+            screen.getByRole("button", {name: "dashboard.showQrCode:dashboard.voterLoginURL"})
+        )
+        fireEvent.click(screen.getByRole("button", {name: "dashboard.closeQrCode"}))
+        expect(screen.queryByRole("dialog")).toBeNull()
+    })
 
     it("shows no links until the tenant and event are known", () => {
         mockTenant = null

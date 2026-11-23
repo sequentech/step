@@ -1190,6 +1190,8 @@ const basqueTranslation: TranslationType = {
             voterLoginURL: "Bozkatzaile Sarrera URLa",
             voterEnrollURL: "Bozkatzaile Matrikula URLa",
             voterEnrollKioskURL: "Bozkatzaile Matrikula Kiosko URLa",
+            showQrCode: "Erakutsi QR kodea: {{link}}",
+            closeQrCode: "Itxi",
             ballotBoxes: {
                 show: "Erakutsi hautestontziak",
                 loadError:

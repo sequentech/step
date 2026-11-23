@@ -1188,6 +1188,8 @@ const galegoTranslation: TranslationType = {
             voterLoginURL: "URL de Inicio de Sesión do Votante",
             voterEnrollURL: "URL de Rexistro do Votante",
             voterEnrollKioskURL: "Kiosk URL de inscripción de votantes",
+            showQrCode: "Amosar código QR: {{link}}",
+            closeQrCode: "Pechar",
             ballotBoxes: {
                 show: "Amosar as urnas",
                 loadError:
