@@ -7,7 +7,7 @@
 
 use sequent_core::util::init_log::init_log;
 use tracing::Level;
-use tracing_subscriber::filter::LevelFilter;
+use tracing_subscriber::EnvFilter;
 
 #[test]
 fn default_logging_keeps_enabled_events_and_supports_level_reload() {
@@ -15,9 +15,9 @@ fn default_logging_keeps_enabled_events_and_supports_level_reload() {
     let handle = init_log(true);
     assert!(tracing::enabled!(Level::INFO));
     assert!(!tracing::enabled!(Level::DEBUG));
-    handle.reload(LevelFilter::DEBUG).unwrap();
+    handle.reload(EnvFilter::new("debug")).unwrap();
     assert!(tracing::enabled!(Level::DEBUG));
-    handle.reload(LevelFilter::ERROR).unwrap();
+    handle.reload(EnvFilter::new("error")).unwrap();
     assert!(!tracing::enabled!(Level::WARN));
     assert!(tracing::enabled!(Level::ERROR));
 }
