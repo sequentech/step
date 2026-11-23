@@ -8,8 +8,9 @@
 
 use crate::postgres::configuration_packages;
 use crate::postgres::document::get_document;
-use crate::postgres::tasks_execution::get_tasks_by_annotation;
+use crate::postgres::tasks_execution::{get_task_by_id_with_transaction, get_tasks_by_annotation};
 use crate::services::audit_log::AuditActor;
+use crate::services::browser_package_policy::{admit_with_policy, BrowserPolicy};
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
 use crate::services::import::configuration_package::tenant_setting;
@@ -18,6 +19,7 @@ use crate::services::import::configuration_package_apply::{
 };
 use crate::services::import::configuration_package_sections::read_group_roles;
 use crate::services::import::configuration_package_target::{ApplyContext, PlatformTarget};
+use crate::services::managed_webauthn_roster::Binding;
 use crate::services::tasks_execution::update_with_annotations;
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::error::Result;
@@ -28,7 +30,7 @@ use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::election_config::manifest::read_zip;
 use sequent_core::election_config::package_contract::{Requirements, Section};
-use sequent_core::election_config::package_verify::{admit_for_tenant_at, Admission};
+use sequent_core::election_config::package_verify::Admission;
 use sequent_core::election_config::tenant_package::TrusteePublic;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
@@ -51,6 +53,12 @@ pub struct ApplyConfigurationPackageBody {
     pub tenant_id: String,
     pub document_id: String,
     pub mode: ApplyMode,
+    /// What the operator previewed. Required for portal-managed Apply.
+    #[serde(default)]
+    pub preview_task_id: Option<String>,
+    /// Server-stamped preview-specific digest of the verified operator.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub managed_preview_operator_binding: Option<String>,
     /// What the delivery must contain; a required section that is absent
     /// refuses the application.
     #[serde(default)]
@@ -159,6 +167,39 @@ fn choose_prior(
         .with_context(|| format!("the saved application of task {id} cannot be read"))
 }
 
+/// A managed application names the exact successful preview it confirmed.
+fn confirms_managed_preview(
+    row: &TasksExecution,
+    tenant_id: &str,
+    package_sha256: &str,
+    binding: &Binding,
+    operator_binding: &str,
+    plan: &crate::services::import::configuration_package_apply::PackagePlan,
+) -> bool {
+    if row.tenant_id != tenant_id
+        || row.task_type != ETasksExecution::APPLY_CONFIGURATION_PACKAGE.to_string()
+        || row.execution_status != TasksExecutionStatus::SUCCESS.to_string()
+    {
+        return false;
+    }
+    row.annotations
+        .as_ref()
+        .and_then(|annotations| annotations.get(APPLICATION_KEY))
+        .and_then(|value| serde_json::from_value::<ApplicationRecord>(value.clone()).ok())
+        .is_some_and(|record| {
+            record.format
+                == crate::services::import::configuration_package_apply::APPLICATION_FORMAT
+                && record.tenant_id == tenant_id
+                && record.package_sha256 == package_sha256
+                && record.mode == ApplyMode::Preview
+                && record.outcome == Outcome::Previewed
+                && record.managed_roster_binding.as_ref() == Some(binding)
+                && record.managed_preview_operator_binding.as_deref() == Some(operator_binding)
+                && record.managed_requirements.as_ref() == Some(&plan.requirements)
+                && record.coverage == plan.coverage
+        })
+}
+
 /// A run that stopped before it held the claim: the row may be a live run's.
 #[derive(Debug)]
 struct Unclaimed(anyhow::Error);
@@ -225,13 +266,14 @@ async fn execute(
     let bytes = std::fs::read(file.path()).context("could not read the package")?;
     // Verified against the tenant's signing trust. Its freshness against the
     // tenant's imports is the target's to check, before each section.
+    configuration_packages::lock_imports(&transaction, &body.tenant_id).await?;
+    let policy = BrowserPolicy::load_with_db(&transaction, &body.tenant_id).await;
     let setting = tenant_setting(&transaction, &body.tenant_id).await?;
     let lists = configuration_packages::revocation_lists(&transaction, &body.tenant_id).await?;
-    transaction.commit().await?;
     let (members, signed_package, verified) =
         // Revalidated against the tenant's current policy immediately
         // before any section applies: a policy changed since preview refuses.
-        match admit_for_tenant_at(&bytes, setting.as_ref(), &body.tenant_id, lists, chrono::Utc::now()) {
+        match admit_with_policy(&bytes, setting.as_ref(), &body.tenant_id, lists, chrono::Utc::now(), &policy) {
             Ok(Admission::Unsigned) => (
                 read_zip(&bytes, "package").map_err(|p| anyhow!("{p}"))?,
                 None,
@@ -248,8 +290,56 @@ async fn execute(
                 ))
             }
         };
+    if let Some(package) = &verified {
+        let last = configuration_packages::last_import(
+            &transaction,
+            &body.tenant_id,
+            &package.manifest.configuration.external_id,
+        )
+        .await?;
+        crate::services::browser_package_policy::freshness(package, last.as_ref())
+            .map_err(|problem| anyhow!("{problem}"))?;
+    }
     let package_sha256 = format!("{:x}", Sha256::digest(&bytes));
     let plan = plan_members(&members, package_sha256.clone(), &body.requirements)?;
+    let operator_binding = policy.managed_binding().map(|_| {
+        body.managed_preview_operator_binding.as_deref().filter(|stamp| {
+            stamp.len() == 64 && stamp.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        }).ok_or_else(|| anyhow!("sign in to this tenant's Admin Portal to preview or apply under the managed roster"))
+    }).transpose()?;
+    if let (ApplyMode::Apply, Some(binding), Some(operator_binding)) =
+        (body.mode, policy.managed_binding(), operator_binding)
+    {
+        let refuse = || {
+            anyhow!("confirm your successful preview of this package under the current receiver roster before applying")
+        };
+        let preview_id = body.preview_task_id.as_deref().ok_or_else(refuse)?;
+        let preview = get_task_by_id_with_transaction(&transaction, &body.tenant_id, preview_id)
+            .await
+            .map_err(|_| refuse())?;
+        let canonical_tenant =
+            sequent_core::services::uuid_validation::parse_uuid_v4(&body.tenant_id)?.to_string();
+        if !confirms_managed_preview(
+            &preview,
+            &canonical_tenant,
+            &package_sha256,
+            binding,
+            operator_binding,
+            &plan,
+        ) {
+            return Err(refuse());
+        }
+    }
+    transaction.commit().await?;
+    // The event importer atomically persists the authoritative chain anchor.
+    // Without that section this application could mutate tenant state without
+    // ever recording the browser manifest, allowing a later replay.
+    if verified.as_ref().is_some_and(|package| {
+        sequent_core::election_config::webauthn_package::is_browser_verified(package)
+    }) && !plan.payloads.contains_key(&Section::ElectionEvent)
+    {
+        return Err(anyhow!("a security-key package must include an applicable election event so its revision is recorded"));
+    }
     let package_groups: BTreeSet<String> = match plan.payloads.get(&Section::RolePermissions) {
         Some(files) => files
             .iter()
@@ -282,6 +372,8 @@ async fn execute(
             event_import: body.event_import.clone(),
             package_sha256: package_sha256.clone(),
             signed_package,
+            managed_roster_binding: policy.managed_binding().cloned(),
+            managed_preview_operator_binding: operator_binding.map(str::to_owned),
             package_groups,
             package_trustees,
             verified,
@@ -374,6 +466,9 @@ mod tests {
             format: "sequent.package-application/1".into(),
             tenant_id: "t".into(),
             package_sha256: "p".into(),
+            managed_roster_binding: None,
+            managed_preview_operator_binding: None,
+            managed_requirements: None,
             mode: ApplyMode::Apply,
             coverage: Coverage {
                 members: vec![],
@@ -383,6 +478,97 @@ mod tests {
             sections: vec![],
             outcome,
         }
+    }
+
+    #[test]
+    fn a_managed_apply_requires_the_exact_successful_preview_not_a_newer_unconfirmed_one() {
+        let active = Binding {
+            sha256: "a".repeat(64),
+            generation: 2,
+            required_approvals: 2,
+        };
+        let mut preview = record(Outcome::Previewed);
+        preview.mode = ApplyMode::Preview;
+        preview.managed_requirements = Some(Requirements::default());
+        let operator = "b".repeat(64);
+        preview.managed_preview_operator_binding = Some(operator.clone());
+        let mut plan = crate::services::import::configuration_package_apply::PackagePlan {
+            package_sha256: "p".into(),
+            requirements: Requirements::default(),
+            coverage: preview.coverage.clone(),
+            payloads: BTreeMap::new(),
+        };
+        preview.managed_roster_binding = Some(Binding {
+            generation: 1,
+            ..active.clone()
+        });
+        let old_row = row("old", Some(&preview));
+        assert!(!confirms_managed_preview(
+            &old_row, "t", "p", &active, &operator, &plan
+        ));
+        preview.managed_roster_binding = Some(active.clone());
+        let current_row = row("confirmed", Some(&preview));
+        assert!(!confirms_managed_preview(
+            &current_row,
+            "t",
+            "p",
+            &active,
+            &"c".repeat(64),
+            &plan
+        ));
+        let mut unstamped = preview.clone();
+        unstamped.managed_preview_operator_binding = None;
+        assert!(!confirms_managed_preview(
+            &row("old-unstamped", Some(&unstamped)),
+            "t",
+            "p",
+            &active,
+            &operator,
+            &plan
+        ));
+        assert!(confirms_managed_preview(
+            &current_row,
+            "t",
+            "p",
+            &active,
+            &operator,
+            &plan
+        ));
+        plan.requirements.sections = vec![Section::Trustees];
+        assert!(!confirms_managed_preview(
+            &current_row,
+            "t",
+            "p",
+            &active,
+            &operator,
+            &plan
+        ));
+        plan.requirements = Requirements::default();
+        assert!(!confirms_managed_preview(
+            &current_row,
+            "other",
+            "p",
+            &active,
+            &operator,
+            &plan
+        ));
+        assert!(!confirms_managed_preview(
+            &current_row,
+            "t",
+            "other",
+            &active,
+            &operator,
+            &plan
+        ));
+        preview.mode = ApplyMode::Apply;
+        assert!(!confirms_managed_preview(
+            &row("not-preview", Some(&preview)),
+            "t",
+            "p",
+            &active,
+            &operator,
+            &plan
+        ));
     }
 
     #[test]

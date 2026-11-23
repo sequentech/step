@@ -48,6 +48,7 @@ use sequent_core::ballot::PeriodDates;
 use sequent_core::ballot::VotingPeriodDates;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::{AllowTallyStatus, LanguageDetectionPolicy};
+use sequent_core::election_config::design::DesignDigestAlgorithm;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::connection;
@@ -1665,6 +1666,7 @@ pub async fn process_election_event_file(
     election_event_id: String,
     tenant_id: String,
     is_importing_keys: bool,
+    design_algorithm: DesignDigestAlgorithm,
 ) -> Result<(
     ImportElectionEventSchema,
     HashMap<String, String>,
@@ -1775,6 +1777,22 @@ pub async fn process_election_event_file(
     .await?;
 
     ensure_new_election_event(hasura_transaction, &election_event_id).await?;
+
+    if design_algorithm == DesignDigestAlgorithm::V2 {
+        if let Some(config) = data.messaging_config.as_ref() {
+            // Refuse bad or out-of-tenant bindings before external writes.
+            // The actual save still enforces all ordinary checks.
+            crate::services::messaging::config::preflight_import_event_messaging_config(
+                hasura_transaction,
+                &Uuid::parse_str(&tenant_id).context("Error parsing the tenant id")?,
+                &election_ids,
+                config,
+                &replacement_map,
+                object.messaging_config_permission,
+            )
+            .await?;
+        }
+    }
 
     upsert_keycloak_realm(
         tenant_id.as_str(),
@@ -1947,6 +1965,11 @@ pub async fn process_election_event_file(
                 .with_context(|| "Error publishing the messaging channels to the event's realm")?;
             }
             ImportOutcome::NotImported(reason) => {
+                // V2 omits these settings from the *ballot* digest, not
+                // from package validation. Refuse a signed V2 import that
+                // cannot store its declared settings in the target tenant,
+                // rather than proceeding with an unconfigured event.
+                ensure!(design_algorithm == DesignDigestAlgorithm::V1, "{reason}");
                 warn!(%tenant_id, %election_event_id, "{reason}");
                 notes.push(reason);
             }
@@ -2573,6 +2596,10 @@ pub async fn process_document(
     let file_sha256 = crate::services::task_audit::file_sha256(temp_file_path.as_file_mut())?;
     let declared_sha256 =
         configuration_package::typed_checksum(object.sha256.clone(), package.as_ref());
+    let design_algorithm = package
+        .as_ref()
+        .map(|verified| verified.manifest.content.ballot_design_digest_algorithm)
+        .unwrap_or_default();
 
     let (zip_entries, spooled_entries, file_election_event_schema) =
         get_zip_entries(temp_file_path, &document_type).await?;
@@ -2612,6 +2639,7 @@ pub async fn process_document(
         election_event_id.clone(),
         tenant_id.clone(),
         is_importing_keys,
+        design_algorithm,
     )
     .await
     .map_err(|err| {

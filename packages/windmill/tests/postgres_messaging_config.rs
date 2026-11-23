@@ -590,3 +590,66 @@ async fn messenger_codes_are_refused_without_the_callback_address() {
     ));
     tx.rollback().await.unwrap();
 }
+
+#[tokio::test]
+async fn strict_import_preflight_checks_permission_and_target_bindings_without_writing() {
+    use windmill::services::messaging::config::preflight_import_event_messaging_config;
+
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let target = world(&tx, 0xb020).await;
+    let other = world(&tx, 0xb021).await;
+    let sms = ready_sms(&tx, &target, "b020-key").await;
+    let foreign_sms = ready_sms(&tx, &other, "b021-key").await;
+    let imported_account = Uuid::new_v4().to_string();
+    let replacements = [(sms.to_string(), imported_account.clone())].into();
+    let notices = |account| {
+        json!({"version": 1, "channels": [
+            {"channel": "SMS", "account_id": account, "purposes": ["NOTICE"]}
+        ]})
+    };
+    let config = notices(imported_account);
+    let denied = preflight_import_event_messaging_config(
+        &tx,
+        &target.tenant,
+        &[],
+        &config,
+        &replacements,
+        MessagingConfigPermission::NOT_PERMITTED,
+    )
+    .await
+    .unwrap_err()
+    .to_string();
+    assert!(denied.contains("messaging-config-write"));
+    preflight_import_event_messaging_config(
+        &tx,
+        &target.tenant,
+        &[],
+        &config,
+        &replacements,
+        MessagingConfigPermission::PERMITTED,
+    )
+    .await
+    .unwrap();
+    for invalid in [
+        notices(foreign_sms.to_string()),
+        json!({"channels": "not a list"}),
+        json!({"version": 1, "channels": [], "election_channels": {"missing-election": ["SMS"]}}),
+    ] {
+        let refused = preflight_import_event_messaging_config(
+            &tx,
+            &target.tenant,
+            &[],
+            &invalid,
+            &replacements,
+            MessagingConfigPermission::PERMITTED,
+        )
+        .await
+        .unwrap_err()
+        .to_string();
+        assert!(refused.starts_with("Messaging configuration not imported: "));
+    }
+    assert_eq!(stored_by(&tx, &target).await, None);
+    assert_eq!(stored_by(&tx, &other).await, None);
+    tx.rollback().await.unwrap();
+}

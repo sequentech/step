@@ -249,10 +249,41 @@ pub struct DesignDigest {
     pub sha256: String,
 }
 
-/// The digest of one ballot style.
+/// The signed projection used by the producer and the publishing receiver.
+/// This is independent of the signature/manifest format and the per-ballot
+/// revision counter.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum DesignDigestAlgorithm {
+    #[default]
+    V1,
+    V2,
+}
+
+impl DesignDigestAlgorithm {
+    pub(crate) fn is_v1(&self) -> bool {
+        *self == Self::V1
+    }
+}
+
+const V2_DOMAIN: &[u8] = b"sequent.ballot-design/v2\n";
+const EVENT_ANNOTATIONS: &str = "election_event_annotations";
+const JANITOR_MESSAGING: &str = "janitor.param.event.messaging_config";
+
+/// The historical digest of one ballot style.
 pub fn ballot_design_digest(
     style: &BallotStyle,
     keys: &DesignKeys,
+) -> Result<DesignDigest, Problem> {
+    ballot_design_digest_with_algorithm(style, keys, DesignDigestAlgorithm::V1)
+}
+
+pub fn ballot_design_digest_with_algorithm(
+    style: &BallotStyle,
+    keys: &DesignKeys,
+    algorithm: DesignDigestAlgorithm,
 ) -> Result<DesignDigest, Problem> {
     let key_of = |kind: EntityKind, id: &str| {
         keys.key(id)
@@ -275,9 +306,34 @@ pub fn ballot_design_digest(
     if let Value::Object(map) = &mut normalised {
         // The style's own id: windmill mints a v4 one per publication.
         map.remove("id");
+        // The receiver provisions and verifies this public receipt key when
+        // publishing, after the design was signed. It is not ballot design.
+        map.remove("ballot_box_key");
+        if algorithm == DesignDigestAlgorithm::V2 {
+            // These two root event annotations mirror messaging configuration.
+            // Never remove the same keys from any other annotation object.
+            if let Some(Value::Object(annotations)) =
+                map.get_mut(EVENT_ANNOTATIONS)
+            {
+                annotations.remove(
+                    crate::types::messaging::MESSAGING_CONFIG_ANNOTATION,
+                );
+                annotations.remove(JANITOR_MESSAGING);
+                if annotations.is_empty() {
+                    map.remove(EVENT_ANNOTATIONS);
+                }
+            } else if matches!(map.get(EVENT_ANNOTATIONS), Some(Value::Null)) {
+                map.remove(EVENT_ANNOTATIONS);
+            }
+        }
     }
 
-    let mut bytes = Vec::new();
+    // Without this domain separator an old publisher that overlooked an
+    // unknown manifest field could accept a V2 design with no messaging.
+    let mut bytes = match algorithm {
+        DesignDigestAlgorithm::V1 => Vec::new(),
+        DesignDigestAlgorithm::V2 => V2_DOMAIN.to_vec(),
+    };
     write_sorted(&normalised, &mut bytes);
     Ok(DesignDigest {
         area,
@@ -291,9 +347,23 @@ pub fn ballot_design_digests(
     styles: &[BallotStyle],
     keys: &DesignKeys,
 ) -> Result<Vec<DesignDigest>, Problem> {
+    ballot_design_digests_with_algorithm(
+        styles,
+        keys,
+        DesignDigestAlgorithm::V1,
+    )
+}
+
+pub fn ballot_design_digests_with_algorithm(
+    styles: &[BallotStyle],
+    keys: &DesignKeys,
+    algorithm: DesignDigestAlgorithm,
+) -> Result<Vec<DesignDigest>, Problem> {
     let mut digests = styles
         .iter()
-        .map(|style| ballot_design_digest(style, keys))
+        .map(|style| {
+            ballot_design_digest_with_algorithm(style, keys, algorithm)
+        })
         .collect::<Result<Vec<_>, _>>()?;
     digests.sort_by(|left, right| {
         (&left.area, &left.election).cmp(&(&right.area, &right.election))

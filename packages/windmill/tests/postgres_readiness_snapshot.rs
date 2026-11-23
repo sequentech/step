@@ -18,7 +18,9 @@ use electoral_log::messages::statement::{StatementEventType, StatementLogType};
 use electoral_log::ports::ElectoralLogStore;
 use electoral_log::{ElectoralLogMessage, LogEntry, LogQuery};
 use event_database::{run, EventDatabase};
-use sequent_core::election_config::design::{ballot_design_digests, BallotDesign, DesignKeys};
+use sequent_core::election_config::design::{
+    ballot_design_digests_with_algorithm, BallotDesign, DesignDigestAlgorithm, DesignKeys,
+};
 use sequent_core::election_config::manifest::{
     ConfigurationRevision, Content, Manifest, ManifestFormat, Produced,
 };
@@ -91,6 +93,17 @@ struct FixtureIds {
 /// Configuration admission/certificate validation has its own package tests;
 /// this fixture persists the metadata that a successful admission supplies.
 async fn published_content(tx: &Transaction<'_>, ids: FixtureIds) -> Content {
+    published_content_with_algorithm(tx, ids, DesignDigestAlgorithm::V1, |_| {})
+        .await
+        .0
+}
+
+async fn published_content_with_algorithm(
+    tx: &Transaction<'_>,
+    ids: FixtureIds,
+    algorithm: DesignDigestAlgorithm,
+    change_published_style: impl FnOnce(&mut sequent_core::ballot::BallotStyle),
+) -> (Content, Uuid) {
     let (tenant, event) = (ids.tenant.to_string(), ids.event.to_string());
     tx.execute(
         "UPDATE sequent_backend.election_event SET presentation = $2 WHERE id = $1",
@@ -125,7 +138,7 @@ async fn published_content(tx: &Transaction<'_>, ids: FixtureIds) -> Content {
         .await
         .unwrap();
     let keys = DesignKeys::of_entities(&areas, &elections, &contests, &candidates).unwrap();
-    let style = sequent_core::ballot_style::create_ballot_style(
+    let mut style = sequent_core::ballot_style::create_ballot_style(
         Uuid::new_v4().to_string(),
         areas
             .iter()
@@ -146,16 +159,18 @@ async fn published_content(tx: &Transaction<'_>, ids: FixtureIds) -> Content {
         Some("ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4".into()),
     )
     .unwrap();
-    let designs = ballot_design_digests(&[style.clone()], &keys)
-        .unwrap()
-        .into_iter()
-        .map(|design| BallotDesign {
-            area: design.area,
-            election: design.election,
-            sha256: design.sha256,
-            version: 1,
-        })
-        .collect();
+    let designs =
+        ballot_design_digests_with_algorithm(std::slice::from_ref(&style), &keys, algorithm)
+            .unwrap()
+            .into_iter()
+            .map(|design| BallotDesign {
+                area: design.area,
+                election: design.election,
+                sha256: design.sha256,
+                version: 1,
+            })
+            .collect();
+    change_published_style(&mut style);
     let publication = Uuid::new_v4();
     tx.execute("INSERT INTO sequent_backend.ballot_publication (id, tenant_id, election_event_id, election_id) VALUES ($1, $2, $3, $4)", &[&publication, &ids.tenant, &ids.event, &ids.election]).await.unwrap();
     tx.execute("INSERT INTO sequent_backend.ballot_style (id, tenant_id, election_event_id, election_id, area_id, ballot_publication_id, ballot_eml) VALUES ($1, $2, $3, $4, $5, $6, $7)", &[&Uuid::parse_str(&style.id).unwrap(), &ids.tenant, &ids.event, &ids.election, &ids.area, &publication, &serde_json::to_string(&style).unwrap()]).await.unwrap();
@@ -172,11 +187,15 @@ async fn published_content(tx: &Transaction<'_>, ids: FixtureIds) -> Content {
     .await
     .unwrap()
     .expect("Publication completed");
-    Content {
-        files: vec![],
-        ballot_designs: designs,
-        reports: vec![],
-    }
+    (
+        Content {
+            files: vec![],
+            ballot_design_digest_algorithm: algorithm,
+            ballot_designs: designs,
+            reports: vec![],
+        },
+        publication,
+    )
 }
 
 async fn imported_manifest(tx: &Transaction<'_>, ids: FixtureIds, revision: u64, content: Content) {
@@ -923,4 +942,70 @@ fn real_snapshot_requires_delivered_valid_receipt_and_current_full_census_withou
         tested_db.drop().await;
         db.drop().await;
     });
+}
+
+#[tokio::test]
+async fn publication_uses_the_persisted_design_algorithm_without_relaxing_non_messaging() {
+    use windmill::services::ballot_styles::design_check::check_publication_designs;
+
+    let mut db = schema::pool().await.get().await.unwrap();
+    let tx = db.transaction().await.unwrap();
+    let tenant = Uuid::new_v4();
+    tx.execute(
+        "INSERT INTO sequent_backend.tenant (id, slug) VALUES ($1, $2)",
+        &[&tenant, &format!("design-{tenant}")],
+    )
+    .await
+    .unwrap();
+
+    // The fixture uses a single external ID for this tenant; give each
+    // comparison its own signed revision as a real import would.
+    for (revision, (algorithm, change_design, accepted)) in (1..).zip([
+        (DesignDigestAlgorithm::V1, false, false),
+        (DesignDigestAlgorithm::V2, false, true),
+        (DesignDigestAlgorithm::V2, true, false),
+    ]) {
+        let ids = FixtureIds {
+            tenant,
+            event: Uuid::new_v4(),
+            election: Uuid::new_v4(),
+            area: Uuid::new_v4(),
+        };
+        tx.execute("INSERT INTO sequent_backend.election_event (id, tenant_id, encryption_protocol, status) VALUES ($1, $2, 'RSA256', '{}'::jsonb)", &[&ids.event, &tenant]).await.unwrap();
+        tx.execute("INSERT INTO sequent_backend.election (id, tenant_id, election_event_id, status) VALUES ($1, $2, $3, '{}'::jsonb)", &[&ids.election, &tenant, &ids.event]).await.unwrap();
+        tx.execute("INSERT INTO sequent_backend.area (id, tenant_id, election_event_id, name) VALUES ($1, $2, $3, 'Area A')", &[&ids.area, &tenant, &ids.event]).await.unwrap();
+        let (content, publication) =
+            published_content_with_algorithm(&tx, ids, algorithm, |style| {
+                let annotations = style
+                    .election_event_annotations
+                    .get_or_insert_with(Default::default);
+                annotations.insert("messaging:config".into(), "runtime choice".into());
+                annotations.insert(
+                    "janitor.param.event.messaging_config".into(),
+                    "runtime choice".into(),
+                );
+                if change_design {
+                    annotations.insert("ballot-facing-copy".into(), "changed".into());
+                }
+            })
+            .await;
+        imported_manifest(&tx, ids, revision, content).await;
+        let checked = check_publication_designs(
+            &tx,
+            &tenant.to_string(),
+            &ids.event.to_string(),
+            &publication.to_string(),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        assert_eq!(
+            checked.mismatches.is_empty(),
+            accepted,
+            "{algorithm:?}, non-messaging change={change_design}"
+        );
+        assert_eq!(checked.digests.len(), 1);
+        assert_eq!(checked.manifest_sha256.len(), 64);
+    }
+    tx.rollback().await.unwrap();
 }

@@ -27,6 +27,10 @@ mod types;
 mod test_claims;
 
 #[cfg(test)]
+#[path = "../tests/support/architect_trust_routes.rs"]
+mod architect_trust_routes;
+
+#[cfg(test)]
 #[path = "../tests/support/readiness_routes.rs"]
 mod readiness_routes;
 
@@ -57,6 +61,20 @@ pub async fn rocket() -> rocket::Rocket<rocket::Build> {
     dotenv().ok();
     init_log_with_filter(true, services::request_logging::enabled);
 
+    let services = HarvestServices::production();
+    let policy =
+        services.databases.hasura().await.get().await.expect(
+            "The shared operational signing database must be available",
+        );
+    windmill::services::signing::operational_policy::assert_startup_policy(
+        &policy,
+    )
+    .await
+    .expect(
+        "Verify the shared operational signing policy before starting Harvest",
+    );
+    drop(policy);
+
     setup_probe(AppName::HARVEST).await;
     set_is_app_active(true);
     init_plugin_manager().await.unwrap();
@@ -69,11 +87,12 @@ pub async fn rocket() -> rocket::Rocket<rocket::Build> {
         }
     });
 
-    build_application()
+    build_application_with(services)
 }
 
 /// Register the same routes and managed state for production and local HTTP
 /// tests. Starting probes, plugins and worker processes remains a startup step.
+#[cfg(test)]
 fn build_application() -> rocket::Rocket<rocket::Build> {
     build_application_with(HarvestServices::production())
 }
@@ -313,6 +332,11 @@ fn build_application_with(
                 routes::export_tally_results::export_tally_results_route,
                 routes::google_meet::generate_google_meeting,
                 routes::google_meet::set_google_service_account_key,
+                routes::architect_approval_policy::get_architect_approval_policy,
+                routes::architect_approval_policy::set_architect_approval_policy,
+                routes::architect_signer_roster::get_architect_signer_roster_status,
+                routes::architect_signer_roster::preview_architect_signer_roster,
+                routes::architect_signer_roster::activate_architect_signer_roster,
                 routes::configuration_signing::set_configuration_signing,
                 routes::generate_preview_url::generate_preview_url,
                 routes::import_certificate_authority::import_certificate_authority,
@@ -328,6 +352,7 @@ fn build_application_with(
                 routes::signing::save_signing_rule,
                 routes::signing::signing_rule_capacity,
                 routes::signing::signing_event_info,
+                routes::signing::miru_operational_signing_mode,
                 routes::reports::signing_held_report_requests,
                 routes::signing_certificates::import_signing_issuers,
                 routes::signing_certificates::remove_signing_issuer,

@@ -9,6 +9,11 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+# Candidate code compiles for dedicated verification without mounting routes.
+operational-signing-candidate = ["windmill/operational-signing-candidate", "reqwest/rustls-tls"]
+operational-signing-private-ca-candidate = ["operational-signing-candidate", "rocket/mtls", "dep:openssl"]
+
 [dependencies]
 sequent-plugin-api = { path = "../plugins/api" }
 sequent-plugin-host = { path = "../plugins/host" }
@@ -65,6 +70,7 @@ lru = "0.16"
 quick-xml = "0.32"
 serde_yaml = "0.9"
 sha2 = "0.10"
+openssl = { version = "0.10", optional = true }
 
 [dev-dependencies]
 tracing-subscriber = "0.3"

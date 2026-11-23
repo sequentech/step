@@ -13,8 +13,8 @@
 //!
 //! Downloads run outside any transaction: a refresh reads what to download
 //! in one short transaction, downloads, and stores each outcome in another.
-//! No signing step writes `staff_crl`, so these writes don't take the
-//! event's signing lock. A failed download is retried by the dry run only
+//! Publishing an accepted list takes the event's signing lock and repeats
+//! monotonic validation against the current stored list. A failed download is retried by the dry run only
 //! after [`CRL_RETRY_AFTER_MINUTES`]; one download of a list runs at a time
 //! in a process.
 //!
@@ -23,6 +23,7 @@
 //! redirects, and are limited in size and time. Stored errors are generic.
 
 use crate::postgres::certificate_authority::StaffIssuerRow;
+use crate::postgres::signing::lock_signing_event;
 use crate::postgres::signing_certificates::{
     list_active_staff_certificates, list_staff_crls, upsert_staff_crl, CrlDownload, StaffCrlRow,
 };
@@ -365,16 +366,29 @@ pub fn check_crl(
     if scope.this_update > now + Span::minutes(CRL_CLOCK_SKEW_MINUTES) {
         bail!("the list is dated in the future");
     }
-    if let Some(previous) = previous
-        .and_then(|row| row.der.as_deref())
-        .and_then(|der| list_scope(der).ok())
-    {
-        if scope.this_update < previous.this_update {
+    if let Some(previous_der) = previous.and_then(|row| row.der.as_deref()) {
+        let previous_scope = list_scope(previous_der)?;
+        if scope.this_update < previous_scope.this_update {
             bail!("the list is older than the stored one");
         }
-        if let (Some(number), Some(previous)) = (&scope.number, &previous.number) {
-            if number < previous {
-                bail!("the list's number is lower than the stored one's");
+        if der != previous_der {
+            match (&scope.number, &previous_scope.number) {
+                (Some(number), Some(prior)) if number < prior => {
+                    bail!("the list's number is lower than the stored one's");
+                }
+                (Some(number), Some(prior)) if number == prior => {
+                    bail!("different revocation lists share the same version");
+                }
+                (None, Some(_)) => {
+                    bail!("a numbered stored list cannot be replaced by an unnumbered list")
+                }
+                (current, prior)
+                    if (current.is_none() || prior.is_none())
+                        && scope.this_update == previous_scope.this_update =>
+                {
+                    bail!("different revocation lists share the same version");
+                }
+                _ => {}
             }
         }
     }
@@ -433,14 +447,51 @@ pub async fn store_download(
     target: &CrlTarget,
     download: &CrlDownload,
 ) -> Result<StaffCrlRow> {
-    upsert_staff_crl(
+    // The fetch already finished outside any transaction. Serialize the
+    // accepted input change with event trust changes and the short
+    // representative operational CA/device claim checks.
+    lock_signing_event(
         hasura_transaction,
         target.issuer.tenant_id,
         target.issuer.election_event_id,
+    )
+    .await?;
+    let tenant = target.issuer.tenant_id;
+    let event = target.issuer.election_event_id;
+    let fingerprint = issuer_fingerprint(&target.issuer_certificate)?;
+    let anchors = load_staff_anchors(hasura_transaction, tenant, event).await?;
+    let Some((_, issuer)) = anchors.iter().find(|(row, certificate)| {
+        row.id == target.issuer.id
+            && issuer_fingerprint(certificate).is_ok_and(|actual| actual == fingerprint)
+    }) else {
+        bail!("the revocation list issuer is no longer configured");
+    };
+    let stored = list_staff_crls(hasura_transaction, tenant, event).await?;
+    let previous = stored.iter().find(|row| {
+        row.url == target.url
+            && row.issuer_id == target.issuer.id
+            && row.issuer_fingerprint == fingerprint
+    });
+    let current_result = match download {
+        CrlDownload::Ok { der, .. } => {
+            // Download-time validation used a stale read: a different
+            // replica might have already committed a higher version.
+            check_crl(der, issuer, previous, Utc::now()).unwrap_or_else(|error| {
+                CrlDownload::Unavailable {
+                    error: error.to_string(),
+                }
+            })
+        }
+        CrlDownload::Unavailable { .. } => download.clone(),
+    };
+    upsert_staff_crl(
+        hasura_transaction,
+        tenant,
+        event,
         target.issuer.id,
-        &issuer_fingerprint(&target.issuer_certificate)?,
+        &fingerprint,
         &target.url,
-        download,
+        &current_result,
     )
     .await
 }
@@ -631,9 +682,9 @@ pub async fn refresh_targets(
         let transaction = client.transaction().await?;
         let row = store_download(&transaction, &target, &download).await?;
         transaction.commit().await?;
-        match download {
-            CrlDownload::Ok { .. } => refresh.ok.push(row.url),
-            CrlDownload::Unavailable { .. } => refresh.unavailable.push(row.url),
+        match row.status {
+            CrlStatus::Ok => refresh.ok.push(row.url),
+            _ => refresh.unavailable.push(row.url),
         }
     }
     Ok(refresh)

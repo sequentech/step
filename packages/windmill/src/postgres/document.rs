@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
@@ -22,12 +23,35 @@ pub async fn get_exportable_document_ids(
     election_event_id: &str,
     include_voter_secrets: bool,
 ) -> Result<std::collections::HashSet<String>> {
-    let rows = transaction.query(
-        "SELECT id, annotations FROM sequent_backend.document WHERE tenant_id = $1 AND election_event_id = $2",
-        &[&parse_uuid_v4(tenant_id)?, &parse_uuid_v4(election_event_id)?],
-    ).await?;
+    let tenant = parse_uuid_v4(tenant_id)?;
+    let event = parse_uuid_v4(election_event_id)?;
+    let query = if signing_mode(transaction, tenant).await? == OperationalSigningMode::HsmRequired {
+        // One READ COMMITTED statement and one classification snapshot:
+        // neither a just-committed object nor its registry membership can
+        // appear in only half of the export decision.
+        "WITH gate AS MATERIALIZED (
+             SELECT sequent_backend.operational_miru_export_exclusions($1,$2) AS withheld
+         )
+         SELECT gate.withheld IS NOT NULL AS inventory_ready, doc.id, doc.annotations
+         FROM gate LEFT JOIN LATERAL (
+             SELECT id,annotations FROM sequent_backend.document
+             WHERE tenant_id=$1 AND election_event_id=$2 AND NOT (id=ANY(gate.withheld))
+         ) doc ON true"
+    } else {
+        "SELECT true AS inventory_ready, id, annotations FROM sequent_backend.document
+         WHERE tenant_id=$1 AND election_event_id=$2"
+    };
+    let rows = transaction.query(query, &[&tenant, &event]).await?;
     let mut ids = std::collections::HashSet::new();
     for row in rows {
+        if !row.try_get::<_, bool>("inventory_ready")? {
+            return Err(anyhow!(
+                "Operational MIRU export inventory not yet verified"
+            ));
+        }
+        let Some(id) = row.try_get::<_, Option<Uuid>>("id")? else {
+            continue;
+        };
         let annotations: Option<serde_json::Value> = row.try_get("annotations")?;
         let access = annotations
             .map(serde_json::from_value::<DocumentAnnotations>)
@@ -43,7 +67,7 @@ pub async fn get_exportable_document_ids(
         if include_voter_secrets
             || !access.is_some_and(|value| value.requires_voter_secret_attribute_read())
         {
-            ids.insert(row.try_get::<_, Uuid>("id")?.to_string());
+            ids.insert(id.to_string());
         }
     }
     Ok(ids)

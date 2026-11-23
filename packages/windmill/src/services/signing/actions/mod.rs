@@ -40,6 +40,8 @@ pub mod voting;
 
 use super::executors::{ExecutionOutcome, PostCommit, PostCommitTask, SigningExecutor};
 use super::guard::{effective_rule, guard, GuardOutcome, GuardRequest};
+use super::operational_policy::{signing_mode, OperationalSigningMode};
+use super::operational_quorum::has_operational_quorum;
 use super::requests::{claim_dispatched, finish_dispatched, DispatchedResult};
 use super::{SigningCaller, SigningError, SigningResult};
 use crate::postgres::signing::{
@@ -556,6 +558,7 @@ pub async fn run_claimed(
 
     // The effect: the request's row lock, not the event's signing lock.
     let transaction = client.transaction().await?;
+    let mode = signing_mode(&transaction, tenant_id).await?;
     let Some(request) =
         lock_signing_request(&transaction, tenant_id, election_event_id, request_id).await?
     else {
@@ -578,6 +581,31 @@ pub async fn run_claimed(
                     list_signing_approvals(&transaction, tenant_id, election_event_id, request_id)
                         .await?;
                 let progress = EffectProgress::default();
+                if mode == OperationalSigningMode::HsmRequired {
+                    let current =
+                        effective_rule(&transaction, tenant_id, election_event_id, request.action)
+                            .await?;
+                    if !has_operational_quorum(
+                        &transaction,
+                        &request,
+                        &approvals,
+                        i64::from(current.required()),
+                    )
+                    .await?
+                    {
+                        transaction.rollback().await?;
+                        return settle_failure(
+                            client,
+                            task,
+                            refuse(
+                                "hardware-signatures-missing",
+                                "The request lacks an applied hardware signing quorum.",
+                            ),
+                            &progress,
+                        )
+                        .await;
+                    }
+                }
                 let committed =
                     match run_effect(&transaction, effects, seal, &request, &approvals, &progress)
                         .await

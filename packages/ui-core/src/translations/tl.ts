@@ -749,6 +749,26 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 "package": {
+                    "ambiguous-signature-member": {
+                        lead: "Hindi malinaw na file ng lagda",
+                        text: "Hindi malinaw na file ng lagda — Dapat eksakto ang pangalan ng file ng lagda na {{file}} at nasa pinakapangunahing folder ito ng pakete.",
+                    },
+                    "webauthn-not-enabled": {
+                        lead: "Hindi aktibo ang mga lagda gamit ang susi",
+                        text: "Hindi aktibo ang mga lagda gamit ang susi — Hindi naka-configure ang pang-import na ito para beripikahin ang mga security key ng mga opisyal. Walang na-import.",
+                    },
+                    "webauthn-refused": {
+                        lead: "Tinanggihan ang mga lagdang may security key",
+                        text: "Tinanggihan ang mga lagdang may security key — Hindi mabeberipika ang mga lagda o pag-apruba: {{reason}}",
+                    },
+                    "content-mismatch": {
+                        lead: "Hindi tugma ang nilalaman ng pakete",
+                        text: "Hindi tugma ang nilalaman ng pakete — Hindi tugma ang hash sa manifest sa nilalaman ng pakete. Walang na-import.",
+                    },
+                    "webauthn-not-next": {
+                        lead: "Hindi ito ang susunod na rebisyon",
+                        text: "Hindi ito ang susunod na rebisyon — Hindi sumusunod ang paketeng ito sa huling rebisyong na-import para sa configuration na ito.",
+                    },
                     "already-imported": {
                         lead: "Na-import na",
                         text: "Na-import na — na-import na dati ang revision {{revision}} ng configuration na ito; mag-import ng mas bagong revision.",

@@ -22,6 +22,8 @@ use super::certificates::{
 };
 use super::executors::{ExecutionOutcome, PostCommit, SigningExecutorRegistry};
 use super::log::{Actor, SystemOutcome};
+use super::operational_approval::{OperationalApprovalInput, OperationalEvidence};
+use super::operational_policy::{signing_mode, OperationalSigningMode};
 use super::pdf::{PanelDocument, PdfPrepared};
 use super::requests::{
     cancel_request, execution_failure, expire_request, is_overdue, is_the_trustee, read_request,
@@ -221,6 +223,52 @@ pub async fn approve(
     caller: &SigningCaller,
     tenant_id: Uuid,
     input: &ApproveInput,
+    now: DateTime<Utc>,
+) -> SigningResult<ApproveOutcome> {
+    approve_ingress(
+        client,
+        services,
+        caller,
+        tenant_id,
+        Ingress::Legacy(input),
+        now,
+    )
+    .await
+}
+
+/// Records exact, already-settled device receipts. No direct route is
+/// installed; the private operational flow must use server enrollment.
+pub async fn approve_operational(
+    client: &mut Client,
+    services: &SigningServices,
+    caller: &SigningCaller,
+    tenant_id: Uuid,
+    input: &OperationalApprovalInput,
+    now: DateTime<Utc>,
+) -> SigningResult<ApproveOutcome> {
+    approve_ingress(
+        client,
+        services,
+        caller,
+        tenant_id,
+        Ingress::Operational(input),
+        now,
+    )
+    .await
+}
+
+#[derive(Clone, Copy)]
+enum Ingress<'a> {
+    Legacy(&'a ApproveInput),
+    Operational(&'a OperationalApprovalInput),
+}
+
+async fn approve_ingress(
+    client: &mut Client,
+    services: &SigningServices,
+    caller: &SigningCaller,
+    tenant_id: Uuid,
+    input: Ingress<'_>,
     now: DateTime<Utc>,
 ) -> SigningResult<ApproveOutcome> {
     let mut transaction = client
@@ -499,10 +547,22 @@ async fn approve_in(
     services: &SigningServices,
     caller: &SigningCaller,
     tenant_id: Uuid,
-    input: &ApproveInput,
+    ingress: Ingress<'_>,
     now: DateTime<Utc>,
 ) -> SigningResult<Step> {
-    let found = read_request(transaction, tenant_id, input.request_id).await?;
+    let mode = signing_mode(transaction, tenant_id)
+        .await
+        .map_err(|error| SigningError::Forbidden(error.to_string()))?;
+    let request_id = match (ingress, mode) {
+        (Ingress::Legacy(input), OperationalSigningMode::LegacyP12) => input.request_id,
+        (Ingress::Operational(input), OperationalSigningMode::HsmRequired) => input.request_id,
+        _ => {
+            return Err(SigningError::Forbidden(
+                "This signing method is not allowed for the tenant.".into(),
+            ))
+        }
+    };
+    let found = read_request(transaction, tenant_id, request_id).await?;
 
     // 1. Who may sign: decided before any lock, and before anything of
     // the request's state is told. A refusal is logged.
@@ -516,20 +576,6 @@ async fn approve_in(
             message,
             None,
             SigningError::Forbidden(message.into()),
-        )
-        .await;
-    }
-    if let Err(error) = check_document_inputs(&found, input, services) {
-        let request = relock(transaction, &found).await?;
-        let detail = error.to_string();
-        return refusal(
-            transaction,
-            &request,
-            caller,
-            &SignRefusal::Document.to_string(),
-            &detail,
-            None,
-            error,
         )
         .await;
     }
@@ -589,6 +635,36 @@ async fn approve_in(
             CertificateCheckId::AlreadySigned,
             "You already signed this request.".into(),
             None,
+        )
+        .await;
+    }
+
+    let evidence = match ingress {
+        Ingress::Legacy(_) => None,
+        Ingress::Operational(input) => Some(
+            OperationalEvidence::load(transaction, services, &request, caller, input, &approvals)
+                .await?,
+        ),
+    };
+    let input = match (ingress, &evidence) {
+        (Ingress::Legacy(input), None) => input,
+        (Ingress::Operational(_), Some(evidence)) => &evidence.input,
+        _ => {
+            return Err(SigningError::Conflict(
+                "Signing evidence is unavailable.".into(),
+            ))
+        }
+    };
+    if let Err(error) = check_document_inputs(&request, input, services) {
+        let detail = error.to_string();
+        return refusal(
+            transaction,
+            &request,
+            caller,
+            &SignRefusal::Document.to_string(),
+            &detail,
+            None,
+            error,
         )
         .await;
     }
@@ -674,8 +750,14 @@ async fn approve_in(
 
     // 4. The signer's registered certificate, or its first use.
     let certificate_id = match &verification.registration {
-        RegistrationState::Registered(row) => row.id,
-        RegistrationState::FirstUse => {
+        RegistrationState::Registered(row)
+            if evidence
+                .as_ref()
+                .is_none_or(|item| item.certificate_id == row.id) =>
+        {
+            row.id
+        }
+        RegistrationState::FirstUse if evidence.is_none() => {
             register_first_use(
                 transaction,
                 &verification_input,
@@ -685,7 +767,9 @@ async fn approve_in(
             .await?
             .id
         }
-        RegistrationState::NotRegistered => {
+        RegistrationState::Registered(_)
+        | RegistrationState::FirstUse
+        | RegistrationState::NotRegistered => {
             return refuse(
                 transaction,
                 &request,
@@ -791,10 +875,15 @@ async fn approve_in(
     )
     .await;
     match recorded {
-        Ok(()) => savepoint
-            .commit()
-            .await
-            .context("Error keeping the signature")?,
+        Ok(()) => {
+            if let Some(evidence) = &evidence {
+                evidence.mark_applied(&savepoint).await?;
+            }
+            savepoint
+                .commit()
+                .await
+                .context("Error keeping the signature")?;
+        }
         Err(SigningError::Refused { check, message, .. }) => {
             savepoint
                 .rollback()

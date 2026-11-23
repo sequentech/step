@@ -44,8 +44,8 @@ use windmill::services::signing::actions::eml::{DocumentSigners, EmlDocumentSign
 use windmill::services::signing::actions::transmission::{
     guard_transmission_package, normalise_fingerprint, sha256_hex, sign_package,
     transmission_send_check, transmission_subject_key, upload_signature_refusal, LoadedPackage,
-    PackageToSign, PostSbeis, SbeiDirectory, SbeiIdentity, TransmissionPackages,
-    TransmissionRefusal, TransmissionSendCheck,
+    PackageToSign, PostSbeis, SbeiDirectory, SbeiIdentity, StoredSignedArchive,
+    TransmissionPackages, TransmissionRefusal, TransmissionSendCheck,
 };
 use windmill::services::signing::actions::{
     executors, run_dispatched, EffectProgress, NoSeal, RunOutcome, SignedActionDispatcher,
@@ -490,7 +490,7 @@ impl TransmissionPackages for Packages {
         _loaded: &LoadedPackage,
         members: Vec<ACMTrustee>,
         signatures: Vec<MiruSignature>,
-    ) -> anyhow::Result<String> {
+    ) -> anyhow::Result<StoredSignedArchive> {
         self.builds
             .lock()
             .unwrap()
@@ -499,8 +499,16 @@ impl TransmissionPackages for Packages {
         let mut signed = package.documents[0].clone();
         signed.document_ids.all_servers = "signed".into();
         signed.signatures = signatures;
+        // Mirror the real builder's typed evidence: the stored document's
+        // identity, its digest, and the EML/XZ identities it was built from.
+        let stored = StoredSignedArchive {
+            document_id: signed.document_ids.all_servers.clone(),
+            archive_sha256: sha256_hex(&serde_json::to_vec(&signed)?),
+            eml_document_id: signed.document_ids.eml.clone(),
+            xz_document_id: signed.document_ids.xz.clone(),
+        };
         package.documents.push(signed);
-        Ok("signed".into())
+        Ok(stored)
     }
 }
 
