@@ -5,7 +5,116 @@ import englishTranslation, {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
-        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        ballotPrivacy: {
+            title: "Registre de l'urna",
+            subtitle:
+                "Totes les paperetes emeses en aquesta elecció, llistades amb un pseudònim en lloc del nom del votant.",
+            private: "Els votants només hi apareixen com a pseudònims",
+            signed: "Signat per l'autoritat electoral i l'urna",
+            device: "Comprovat al vostre dispositiu",
+            own: "La vostra papereta és a l'urna",
+            listedAs: "Llistada com a",
+            check: "Comprova la meva papereta",
+            copy: "Copia l'ID de la Papereta",
+            ballotIdHelp: "Sobre el vostre ID de la Papereta",
+            castTime: "Emesa el {{time}}",
+            timesIn: "Zona horària: {{zone}}",
+            signedEntries: "Entrades signades del registre ({{count}})",
+            noMatchHelp:
+                "Comproveu que no hi hagi errors d'escriptura. Els codis fan servir els dígits del 0 al 9 i lletres majúscules, sense I, L, O ni U.",
+            helpSections: {
+                pseudonyms: {
+                    title: "Pseudònims",
+                    text: "Cada votant apareix amb un pseudònim, un codi com 7QKM-2HXD. El registre mai no diu qui és el votant.",
+                },
+                signatures: {
+                    title: "Signatures",
+                    text: "L'autoritat electoral signa quina clau de votant fa servir cada pseudònim. L'urna signa cada papereta que rep i cada emissió.",
+                },
+                checks: {
+                    title: "Comprovacions al vostre dispositiu",
+                    text: "Obriu una papereta per comprovar-ne les signatures en aquest navegador. Qualsevol persona en pot baixar les entrades signades i tornar-les a comprovar.",
+                },
+            },
+            copied: "ID de la Papereta copiat",
+            copyFailed:
+                "No s'ha pogut copiar l'ID de la Papereta. Seleccioneu el codi per copiar-lo.",
+            search: "Cerca un ID de la Papereta o un pseudònim",
+            placeholder: "ID de la Papereta o pseudònim",
+            clear: "Esborra la cerca",
+            ballots_one: "{{count}} papereta",
+            ballots_other: "{{count}} paperetes",
+            matches: "{{count}} de {{total}} paperetes coincideixen",
+            capped: "Més de {{count}} de {{total}} paperetes coincideixen; escriviu més caràcters del codi",
+            ballotId: "ID de la Papereta",
+            pseudonym: "Pseudònim",
+            castAt: "Emesa",
+            channel: "Canal",
+            yours: "La vostra",
+            channels: {
+                online: "En línia",
+                kiosk: "Quiosc",
+                telephone: "Telèfon",
+            },
+            previous: "Anterior",
+            next: "Següent",
+            rows: "Files per pàgina",
+            noMatch: "Cap ID de la Papereta ni pseudònim no comença per {{prefix}}",
+            noBallots: "Encara no s'ha emès cap papereta.",
+            invalidPrefix:
+                "Els codis fan servir els dígits del 0 al 9 i lletres majúscules, sense I, L, O ni U. Introduïu fins a vuit caràcters.",
+            loadError: "No s'ha pogut carregar el registre de l'urna. Torneu-ho a provar.",
+            retry: "Torna-ho a provar",
+            help: "Sobre el registre de l'urna",
+            helpText:
+                "Cada votant apareix amb un pseudònim, un codi com 7QKM-2HXD. El registre mai no diu qui és el votant. L'autoritat electoral signa quina clau de votant fa servir cada pseudònim. Obriu una papereta per comprovar-ne les signatures en aquest navegador.",
+            detailTitle: "Papereta {{ballotId}}",
+            checking: "S'estan comprovant les signatures…",
+            passed: "S'han superat les quatre comprovacions",
+            verified: "Comprovat en aquest dispositiu amb les claus publicades.",
+            failed: "Una comprovació ha fallat",
+            failedHelp: "No us refieu d'aquesta entrada.",
+            pending: "Encara s'està afegint al registre",
+            pendingHelp:
+                "Les entrades signades poden aparèixer després d'emetre una papereta. Torneu-ho a comprovar més tard.",
+            proofError:
+                "No s'han pogut carregar les entrades signades o les claus publicades. Torneu-ho a provar.",
+            checkLabels: {
+                binding: "Clau de votant registrada",
+                received: "Papereta rebuda",
+                ballotId: "ID de la Papereta",
+                cast: "Papereta emesa",
+            },
+            checkDescriptions: {
+                binding:
+                    "L'autoritat electoral va signar quina clau de votant fa servir aquest pseudònim.",
+                received: "L'urna va rebre una papereta signada amb aquesta clau de votant.",
+                ballotId: "L'ID de la Papereta es calcula a partir d'aquesta papereta signada.",
+                cast: "La mateixa clau va emetre la papereta, i l'urna en va confirmar l'emissió.",
+            },
+            states: {
+                passed: "Superada",
+                failed: "No coincideix.",
+                pending: "Encara no és al registre.",
+            },
+            neverPublished:
+                "No es publica mai: el nom, el nom d'usuari, l'adreça IP, el país ni el dispositiu del votant.",
+            download: "Baixa les entrades signades del registre",
+            downloadAction: "Baixa",
+            close: "Tanca",
+            systemKey: "Clau del registre de l'esdeveniment electoral",
+            boxKey: "Clau de l'urna",
+            userLogs:
+                "Les entrades pròpies d'un votant: inicis de sessió i missatges. Les seves paperetes són al registre amb un pseudònim, de manera que mai no apareixen aquí; només una resolució registrada els vincula.",
+            ballotSection: "Papereta i pseudònim",
+            resolution: "Resolució del pseudònim",
+            resolutionHelp:
+                "La resposta només va arribar a qui la va demanar. El votant mai no s'anomena en aquest registre.",
+            reason: "Motiu indicat",
+            // Admin portal strings; the voting portal never renders them.
+            settings: englishTranslation.translations.ballotPrivacy.settings,
+            forensic: englishTranslation.translations.ballotPrivacy.forensic,
+        },
         startup: {
             error: "No s’ha pogut iniciar el portal de votació. Torneu-ho a provar.",
             retry: "Torneu-ho a provar",
@@ -580,7 +689,7 @@ const catalanTranslation: TranslationType = {
                 ok: "D'acord",
             },
             tabs: {
-                logs: "Logs",
+                logs: "Registres",
                 ballotLocator: "Localitzador de la Papereta",
             },
             column: {

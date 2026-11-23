@@ -5,7 +5,116 @@ import englishTranslation, {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
-        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        ballotPrivacy: {
+            title: "Talaan ng ballot box",
+            subtitle:
+                "Lahat ng balotang naihulog sa halalang ito, nakalista sa ilalim ng sagisag (pseudonym) sa halip na pangalan ng botante.",
+            private: "Lumalabas lamang ang mga botante bilang sagisag",
+            signed: "Nilagdaan ng awtoridad ng halalan at ng ballot box",
+            device: "Sinuri sa iyong device",
+            own: "Nasa ballot box ang iyong balota",
+            listedAs: "Nakalista bilang",
+            check: "Suriin ang aking balota",
+            copy: "Kopyahin ang Ballot ID",
+            ballotIdHelp: "Tungkol sa iyong Ballot ID",
+            castTime: "Naihulog noong {{time}}",
+            timesIn: "Mga oras ayon sa {{zone}}",
+            signedEntries: "Mga nilagdaang entry sa talaan ({{count}})",
+            noMatchHelp:
+                "Tingnan kung may mali sa pagta-type. Gumagamit ang mga code ng mga numerong 0 hanggang 9 at malalaking titik, maliban sa I, L, O at U.",
+            helpSections: {
+                pseudonyms: {
+                    title: "Mga sagisag",
+                    text: "Nakalista ang bawat botante sa ilalim ng isang sagisag, isang code gaya ng 7QKM-2HXD. Hindi kailanman sinasabi ng talaan kung sino ang botante.",
+                },
+                signatures: {
+                    title: "Mga lagda",
+                    text: "Nilalagdaan ng awtoridad ng halalan kung aling voter key ang ginagamit ng bawat sagisag. Nilalagdaan ng ballot box ang bawat balotang natatanggap nito at ang bawat paghuhulog.",
+                },
+                checks: {
+                    title: "Mga pagsusuri sa iyong device",
+                    text: "Magbukas ng balota upang suriin ang mga lagda nito sa browser na ito. Maaaring i-download ng sinuman ang mga nilagdaang entry nito at suriin muli ang mga ito.",
+                },
+            },
+            copied: "Nakopya ang Ballot ID",
+            copyFailed: "Hindi makopya ang Ballot ID. Piliin ang code upang kopyahin ito.",
+            search: "Maghanap ng Ballot ID o sagisag",
+            placeholder: "Ballot ID o sagisag",
+            clear: "Burahin ang hinahanap",
+            ballots_one: "{{count}} balota",
+            ballots_other: "{{count}} balota",
+            matches: "{{count}} sa {{total}} balota ang tumutugma",
+            capped: "Higit sa {{count}} sa {{total}} balota ang tumutugma; i-type pa ang iba pang bahagi ng code",
+            ballotId: "Ballot ID",
+            pseudonym: "Sagisag",
+            castAt: "Naihulog",
+            channel: "Paraan",
+            yours: "Iyo",
+            channels: {
+                online: "Online",
+                kiosk: "Kiosk",
+                telephone: "Telepono",
+            },
+            previous: "Nakaraan",
+            next: "Susunod",
+            rows: "Hanay bawat pahina",
+            noMatch: "Walang Ballot ID o sagisag na nagsisimula sa {{prefix}}",
+            noBallots: "Wala pang balotang naihulog.",
+            invalidPrefix:
+                "Gumagamit ang mga code ng mga numerong 0 hanggang 9 at malalaking titik, maliban sa I, L, O at U. Maglagay ng hanggang walong character.",
+            loadError: "Hindi ma-load ang talaan ng ballot box. Pakisubukang muli.",
+            retry: "Subukang muli",
+            help: "Tungkol sa talaan ng ballot box",
+            helpText:
+                "Nakalista ang bawat botante sa ilalim ng isang sagisag, isang code gaya ng 7QKM-2HXD. Hindi kailanman sinasabi ng talaan kung sino ang botante. Nilalagdaan ng awtoridad ng halalan kung aling voter key ang ginagamit ng bawat sagisag. Magbukas ng balota upang suriin ang mga lagda nito sa browser na ito.",
+            detailTitle: "Balota {{ballotId}}",
+            checking: "Sinusuri ang mga lagda…",
+            passed: "Pumasa ang lahat ng apat na pagsusuri",
+            verified: "Sinuri sa device na ito gamit ang mga nailathalang key.",
+            failed: "May pagsusuring hindi pumasa",
+            failedHelp: "Huwag umasa sa entry na ito.",
+            pending: "Idinaragdag pa sa talaan",
+            pendingHelp:
+                "Maaaring lumabas ang mga nilagdaang entry pagkatapos maihulog ang balota. Suriin muli mamaya.",
+            proofError:
+                "Hindi ma-load ang mga nilagdaang entry o ang mga nailathalang key. Subukang muli.",
+            checkLabels: {
+                binding: "Nakarehistro ang voter key",
+                received: "Natanggap ang balota",
+                ballotId: "Ballot ID",
+                cast: "Naihulog ang balota",
+            },
+            checkDescriptions: {
+                binding:
+                    "Nilagdaan ng awtoridad ng halalan kung aling voter key ang ginagamit ng sagisag na ito.",
+                received:
+                    "Nakatanggap ang ballot box ng balotang nilagdaan gamit ang voter key na iyon.",
+                ballotId: "Kinukuwenta ang Ballot ID mula sa nilagdaang balotang iyon.",
+                cast: "Ang parehong key ang naghulog ng balota, at kinumpirma ng ballot box ang paghuhulog.",
+            },
+            states: {
+                passed: "Pumasa",
+                failed: "Hindi tumutugma.",
+                pending: "Wala pa sa talaan.",
+            },
+            neverPublished:
+                "Hindi kailanman inilalathala: ang pangalan, username, IP address, bansa o device ng botante.",
+            download: "I-download ang mga nilagdaang entry ng talaan",
+            downloadAction: "I-download",
+            close: "Isara",
+            systemKey: "Key ng talaan ng halalan",
+            boxKey: "Key ng ballot box",
+            userLogs:
+                "Ang sariling mga entry ng isang botante: mga pag-sign in at mga mensahe. Nasa talaan ang kanyang mga balota sa ilalim ng isang sagisag, kaya hindi lumalabas ang mga ito rito; tanging isang nakatalang resolusyon ang nag-uugnay sa dalawa.",
+            ballotSection: "Balota at sagisag",
+            resolution: "Resolusyon ng sagisag",
+            resolutionHelp:
+                "Sa taong humiling lamang napunta ang sagot. Hindi kailanman pinapangalanan ang botante sa talaang ito.",
+            reason: "Ibinigay na dahilan",
+            // Admin portal strings; the voting portal never renders them.
+            settings: englishTranslation.translations.ballotPrivacy.settings,
+            forensic: englishTranslation.translations.ballotPrivacy.forensic,
+        },
         startup: {
             error: "Hindi masimulan ang portal ng pagboto. Pakisubukang muli.",
             retry: "Subukang muli",
@@ -576,7 +685,7 @@ const tagalogTranslation: TranslationType = {
                 ok: "OK",
             },
             tabs: {
-                logs: "Logs",
+                logs: "Mga Talaan",
                 ballotLocator: "Tagahanap ng Balota",
             },
             column: {
