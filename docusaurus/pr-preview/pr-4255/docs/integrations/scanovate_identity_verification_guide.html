@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Scanovate Identity Verification | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/integrations/scanovate_identity_verification_guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Scanovate Identity Verification | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4255/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/integrations/scanovate_identity_verification_guide"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/integrations/scanovate_identity_verification_guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/integrations/scanovate_identity_verification_guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Scanovate Identity Verification","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/integrations/scanovate_identity_verification_guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4255/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4255/assets/js/runtime~main.6d049f6a.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4255/assets/js/runtime~main.83997868.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4255/assets/js/main.bd140909.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -374,6 +374,19 @@ unmasked source rather than using another row to repair a masked source.
 Scanovate must have its own authenticator configuration, not one shared with
 another provider. Its settings are kept byte-for-byte when structural platform
 identifiers are rewritten during build and import.</p>
+<p>Keycloak&#x27;s export hides, as <code>**********</code>, the secret and also <strong>every setting
+the exporting server&#x27;s authenticator doesn&#x27;t declare</strong>: one a newer version
+added (<code>page-languages</code> on a server that predates it) or one an earlier
+version read and a later one dropped (<code>ocr-url</code>, <code>capture-sides</code>,
+<code>max-image-bytes</code>). Such a setting had no effect on the exporting server, and
+its value isn&#x27;t in the file. An import leaves these settings out, so the
+importing server&#x27;s defaults apply, and warns with the configuration&#x27;s alias
+and the settings&#x27; names (<em>Scanovate settings left out</em>); installed as text
+they would stop the authenticator (<em>Scanovate configuration invalid:
+component=capture</em>, for a masked <code>page-languages</code>). A masked <code>liveness-secret</code>
+is still refused. An event imported on another installation still needs that
+installation&#x27;s own <code>liveness-url</code> and <code>liveness-secret</code>: the file carries the
+exporting server&#x27;s.</p>
 <p><strong>The workbook, saved plan and derived import files contain credentials.</strong> The
 whole realm can also contain other credentials already present in the source;
 no other credentials are fetched or unmasked. Protect all of these files with
