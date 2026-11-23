@@ -73,7 +73,7 @@ class BuildImageMatrixTests(unittest.TestCase):
              "results-portal", "harvest", "windmill", "hasura", "loadtesting"},
         )
 
-    def test_only_release_pushes_to_the_root_account(self):
+    def test_only_non_ovcs_release_pushes_to_the_root_account(self):
         callers = {
             "release.yml": "build-and-push",
             "pr_build.yml": "build-and-push",
@@ -84,7 +84,12 @@ class BuildImageMatrixTests(unittest.TestCase):
                 workflow = yaml.safe_load((ROOT / ".github/workflows" / name).read_text())
                 job = workflow["jobs"][job_id]
                 self.assertEqual(job["uses"], "./.github/workflows/reusable_build_push.yml")
-                self.assertEqual(job["with"].get("push_root", False), name == "release.yml")
+                self.assertEqual(
+                    job["with"].get("push_root", False),
+                    "${{ github.ref_name != 'ovcs' }}" if name == "release.yml" else False,
+                )
+                if name == "release.yml":
+                    self.assertTrue(job["with"].get("push"))
 
     def test_architect_scope_excludes_delivery(self):
         result = self.select("architect")

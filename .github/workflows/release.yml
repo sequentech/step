@@ -349,7 +349,8 @@ jobs:
     with:
       tag: ${{ needs.release.outputs.VERSION }}
       push: true
-      push_root: true
+      # OVCS does not publish to the root account's Canada registry.
+      push_root: ${{ github.ref_name != 'ovcs' }}
 
   trigger-beyond-release:
     needs: [release]
