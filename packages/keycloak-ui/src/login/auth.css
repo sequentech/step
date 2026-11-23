@@ -964,6 +964,34 @@ html[data-a11y-contrast="high"] .sequent-auth :is(a, button, select):focus-visib
 .sequent-auth .scanovate-window-note p + p {
     margin-top: 4px;
 }
+/* The other camera for the document scan, over a corner of Scanovate's page. */
+.sequent-auth .scanovate-camera-switch {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 0 16px 0 12px;
+    border: 0;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.94);
+    color: #173449;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.sequent-auth .scanovate-camera-switch svg {
+    width: 24px;
+    height: 24px;
+}
+.sequent-auth .scanovate-camera-switch:focus-visible {
+    outline: 3px solid #43e3a1;
+    outline-offset: 2px;
+}
 /* The page's own camera for the photo holding the ID (HoldingCamera). */
 .sequent-auth .scanovate-holding {
     position: absolute;

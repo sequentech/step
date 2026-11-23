@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-import {useEffect, useReducer, useRef, type Dispatch, type ReactNode} from "react"
+import {useEffect, useReducer, useRef, useState, type Dispatch, type ReactNode} from "react"
 import {kcSanitize} from "keycloakify/lib/kcSanitize"
 import Box from "@mui/material/Box"
 import Button from "@mui/material/Button"
 import {SymbolTone, TemplateLayout, type TemplateLabel} from "../Template"
-import {ArrowIcon, CameraOffIcon, CheckIcon} from "../icons"
+import {ArrowIcon, CameraOffIcon, CheckIcon, SwitchCameraIcon} from "../icons"
 import type {MessageKey} from "../i18n"
 import {
     acceptsMessage,
@@ -15,6 +15,15 @@ import {
     parseScanovateMessage,
     type CaptureEvent,
 } from "../scanovate/capture"
+import {
+    CameraFacing,
+    cameraCount,
+    canChooseCamera,
+    otherFacing,
+    storeFacing,
+    storedFacing,
+    watchFrame,
+} from "../scanovate/camera"
 import {ACTION_PARAM, CaptureAction} from "../scanovate/form"
 import type {ScanovatePageProps} from "../scanovate/pageProps"
 import {HoldingCamera} from "../scanovate/HoldingCamera"
@@ -57,6 +66,9 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
         initialCaptureState
     )
     const formRef = useRef<HTMLFormElement | null>(null)
+    // The camera of the document scan, as last chosen on this device.
+    const [facing, setFacing] = useState(() => storedFacing(deviceStorage()))
+    const cameras = useCameraCount(state.stage === CaptureStage.Document)
 
     // Keycloak has the results from Scanovate already: the form only moves the flow on.
     useEffect(() => {
@@ -153,6 +165,13 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
     const service = state.stage === CaptureStage.Document ? scanovate.ocr : scanovate.liveness
     const message = state.stage === CaptureStage.Document ? kcContext.message : undefined
     const attemptsUsed = scanovate.attemptsLeft < scanovate.maxAttempts
+    // Only the document scan picks a side, and only a page of this origin can
+    // be told which. The face check opens the front camera by itself.
+    const cameraChoice =
+        state.stage === CaptureStage.Document && canChooseCamera(service.url, window.location.href)
+    const switchLabel = text(
+        facing === CameraFacing.Rear ? "scanovateUseFrontCamera" : "scanovateUseRearCamera"
+    )
     return (
         <CaptureWindow
             {...page}
@@ -161,11 +180,28 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
         >
             <ScanovateFrame
                 // A new mount opens a new Scanovate session with the same token.
-                key={`${state.stage}-${state.attempt}`}
+                // So does the other camera: the page opens its camera once.
+                key={`${state.stage}-${state.attempt}-${cameraChoice ? facing : ""}`}
                 url={service.url}
                 title={text(frame.frame)}
                 dispatch={dispatch}
+                facing={cameraChoice ? facing : undefined}
             />
+            {cameraChoice && cameras > 1 && (
+                <button
+                    type="button"
+                    className="scanovate-camera-switch"
+                    lang={switchLabel.lang}
+                    onClick={() => {
+                        const chosen = otherFacing(facing)
+                        storeFacing(deviceStorage(), chosen)
+                        setFacing(chosen)
+                    }}
+                >
+                    <SwitchCameraIcon />
+                    <span>{switchLabel.text}</span>
+                </button>
+            )}
             {(message !== undefined || attemptsUsed) && (
                 <div className="scanovate-window-note">
                     {message !== undefined && (
@@ -181,6 +217,41 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
             )}
         </CaptureWindow>
     )
+}
+
+/** The browser's storage for this site, where there is one. */
+function deviceStorage(): Storage | undefined {
+    try {
+        return window.localStorage
+    } catch {
+        return undefined
+    }
+}
+
+/**
+ * How many cameras the device has, while `watching`.
+ *
+ * A browser lists one camera until the voter has allowed the camera, which
+ * happens inside Scanovate's page, so the count is taken again every second
+ * until there is more than one.
+ */
+function useCameraCount(watching: boolean): number {
+    const [count, setCount] = useState(0)
+    useEffect(() => {
+        if (!watching || count > 1) return
+        let stopped = false
+        const look = () =>
+            void cameraCount(navigator.mediaDevices).then((found) => {
+                if (!stopped) setCount(found)
+            })
+        look()
+        const timer = window.setInterval(look, 1000)
+        return () => {
+            stopped = true
+            window.clearInterval(timer)
+        }
+    }, [watching, count])
+    return count
 }
 
 /**
@@ -233,9 +304,17 @@ function ScanovateFrame(props: {
     url: string
     title: TemplateLabel
     dispatch: Dispatch<CaptureEvent>
+    // The camera the page is to open, where this page can tell it.
+    facing?: CameraFacing
 }) {
-    const {url, title, dispatch} = props
+    const {url, title, dispatch, facing} = props
     const ref = useRef<HTMLIFrameElement | null>(null)
+
+    // The rear camera is what the page opens by itself: nothing to tell it.
+    useEffect(() => {
+        if (facing !== CameraFacing.Front || ref.current === null) return
+        return watchFrame(ref.current, facing)
+    }, [facing])
 
     useEffect(() => {
         const listen = (event: MessageEvent) => {
