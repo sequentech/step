@@ -110,6 +110,30 @@ pub struct ForensicNetworkRecord<'a> {
     pub recorded_at: DateTime<Utc>,
 }
 
+/// How many of an event's ballot-box rows break pseudonymity. Counts only, so
+/// reading them links nobody to a ballot.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct BallotBoxPrivacy {
+    pub ballots: i64,
+    /// Ballots with an IP address or a country.
+    pub ballots_with_network_data: i64,
+    /// Ballots with a username other than their voter id.
+    pub ballots_with_username: i64,
+    /// Ballots whose voter id is not an allocated pseudonym.
+    pub ballots_without_pseudonym: i64,
+    pub received: i64,
+    /// Received ballots whose voter id is not an allocated pseudonym.
+    pub received_without_pseudonym: i64,
+}
+
+/// Whether the voter id of ballot-box row `b` is not an allocated pseudonym:
+/// in the mapping or, once the mapping is purged, in the pseudonym
+/// reservations that outlive it.
+const NOT_A_PSEUDONYM: &str = "NOT EXISTS (SELECT 1 FROM sequent_backend.voter_pseudonym m
+        WHERE m.election_event_id = $1::text::uuid AND m.pseudonym = b.voter_id)
+    AND NOT EXISTS (SELECT 1 FROM sequent_backend.ballot_code c
+        WHERE c.election_event_id = $1::text::uuid AND c.kind = 'pseudonym' AND c.code = b.voter_id)";
+
 /// Retention dates are supplied by the operator's policy; no duration is guessed.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case", tag = "kind", content = "before")]
@@ -398,6 +422,41 @@ impl PostgresStore {
             )
             .await?
             .is_some_and(|row| row.get(0)))
+    }
+
+    /// Count the event's ballot-box rows that carry network data, a username or
+    /// a voter id that is not an allocated pseudonym.
+    pub async fn ballot_box_privacy(&self, event: &str) -> Result<BallotBoxPrivacy> {
+        let client = self.client().await?;
+        let ballots = client
+            .query_one(
+                &format!(
+                    "SELECT count(*),
+                        count(*) FILTER (WHERE voter_ip IS NOT NULL OR voter_country IS NOT NULL),
+                        count(*) FILTER (WHERE username IS NOT NULL AND username <> voter_id),
+                        count(*) FILTER (WHERE {NOT_A_PSEUDONYM})
+                     FROM ballot_box_ballot b WHERE b.election_event_id = $1::text::uuid"
+                ),
+                &[&event],
+            )
+            .await?;
+        let received = client
+            .query_one(
+                &format!(
+                    "SELECT count(*), count(*) FILTER (WHERE {NOT_A_PSEUDONYM})
+                     FROM ballot_box_received b WHERE b.election_event_id = $1::text::uuid"
+                ),
+                &[&event],
+            )
+            .await?;
+        Ok(BallotBoxPrivacy {
+            ballots: ballots.try_get(0)?,
+            ballots_with_network_data: ballots.try_get(1)?,
+            ballots_with_username: ballots.try_get(2)?,
+            ballots_without_pseudonym: ballots.try_get(3)?,
+            received: received.try_get(0)?,
+            received_without_pseudonym: received.try_get(1)?,
+        })
     }
 
     /// Counts immutable first-vote flags without reading ballots or timestamps.

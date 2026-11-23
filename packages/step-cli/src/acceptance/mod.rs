@@ -20,7 +20,7 @@ use anyhow::{anyhow, bail, ensure, Context, Result};
 use chrono::{DateTime, Utc};
 use clap::Subcommand;
 pub use definition::Template;
-use definition::{Method, Stage};
+use definition::{Check, Method, Probe, Stage};
 use ledger::{CheckResult, Finding, Ledger, Opening, Outcome, Subject};
 use std::{
     collections::BTreeSet,
@@ -28,7 +28,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use verdict::Verdict;
-use voting::{Facts, VotingRecords};
+use voting::{Facts, PrivacyFacts, VotingRecords};
 
 /// Acceptance stage lifecycle. Every operation exits nonzero on failure.
 #[derive(Debug, Subcommand)]
@@ -205,25 +205,31 @@ fn run(
             "Check {id} is witnessed; use acceptance record"
         );
     }
+    let selected: Vec<(&Check, Probe)> = stage
+        .checks
+        .iter()
+        .filter(|check| only.is_empty() || only.contains(&check.id))
+        .filter_map(|check| Some((check, check.probe?)))
+        .collect();
+    // The privacy checks read settings and counts, and need no voters.
+    let privacy = selected.iter().any(|(_, probe)| !probe.needs_voters());
     ensure!(
-        !voters.is_empty(),
+        !voters.is_empty() || privacy,
         "Name the voters with --voter or --voters-file"
     );
-    let facts = Facts::gather(
+    let event = &ledger.opening.election_event_id;
+    let mut facts = Facts::gather(
         records,
-        &ledger.opening.election_event_id,
+        event,
         voters,
         ballot_ids,
         ledger.opening.started_at,
     )?;
+    if privacy {
+        facts.privacy = Some(PrivacyFacts::gather(records, event, facts.identity)?);
+    }
     let mut ran = Vec::new();
-    for check in &stage.checks {
-        let Some(probe) = check.probe else {
-            continue;
-        };
-        if !only.is_empty() && !only.contains(&check.id) {
-            continue;
-        }
+    for (check, probe) in selected {
         let outcome = match voting::probe(probe, &facts) {
             Ok(findings) => {
                 let failed = findings.iter().any(|f| f.outcome == Outcome::Fail);

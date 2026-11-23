@@ -9,6 +9,7 @@ use super::{
     *,
 };
 use chrono::Duration;
+use sequent_core::types::vote_privacy::NetworkDataPolicy;
 
 struct Stage {
     _directory: tempfile::TempDir,
@@ -171,7 +172,11 @@ fn a_pseudonymous_event_without_ballot_ids_runs_the_checks_that_need_none() {
         [
             "voting.authentication",
             "voting.ballot-published",
-            "voting.ballot-cast"
+            "voting.ballot-cast",
+            "annex-a.d.4.6.1.pseudonymous-ballots",
+            "annex-a.d.4.6.1.privileged-roles",
+            "annex-a.d.4.6.2.network-data",
+            "annex-a.d.4.6.2.ballot-box-unlinked"
         ]
     );
     let not_run: Vec<&str> = ran
@@ -212,6 +217,132 @@ fn each_pseudonymous_voting_failure_condition_fails_the_stage() {
     }
 }
 
+const PRIVACY_CHECKS: [&str; 4] = [
+    "annex-a.d.4.6.1.pseudonymous-ballots",
+    "annex-a.d.4.6.1.privileged-roles",
+    "annex-a.d.4.6.2.network-data",
+    "annex-a.d.4.6.2.ballot-box-unlinked",
+];
+
+fn outcomes(ran: &[(String, Ran)], wanted: Ran) -> Vec<&str> {
+    ran.iter()
+        .filter(|(_, outcome)| *outcome == wanted)
+        .map(|(id, _)| id.as_str())
+        .collect()
+}
+
+fn witness_all(stage: &Stage) {
+    let checks = Ledger::read(&stage.ledger).unwrap().opening.stage.checks;
+    for check in checks.iter().filter(|c| c.method == Method::Witnessed) {
+        witness(stage, &check.id, Outcome::Pass);
+    }
+}
+
+#[test]
+fn a_pseudonymous_pqri_voting_stage_passes_when_every_condition_holds() {
+    let stage = opened(Template::PqriVoting);
+    let event = Event::voted_under_pseudonyms(&["ana", "ben"]);
+    let ran = run_all(&stage, &event, event.ballot_ids());
+    assert_eq!(ran.len(), 9);
+    assert_eq!(outcomes(&ran, Ran::Recorded(Outcome::Pass)).len(), 9);
+    witness_all(&stage);
+    assert_eq!(stage_verdict(&stage), Verdict::Passed);
+    let ledger = Ledger::read(&stage.ledger).unwrap();
+    let roles = ledger
+        .results()
+        .find(|(_, result)| result.check_id == "annex-a.d.4.6.1.privileged-roles")
+        .unwrap()
+        .1;
+    let details: Vec<&str> = roles.findings.iter().map(|f| f.detail.as_str()).collect();
+    assert_eq!(
+        details,
+        ["held by roles: admin", "held by roles: admin, auditor"]
+    );
+}
+
+#[test]
+fn the_privacy_checks_run_without_voters_or_ballot_ids() {
+    let stage = opened(Template::PqriVoting);
+    let event = Event::voted_under_pseudonyms(&["ana", "ben"]);
+    let only: Vec<String> = PRIVACY_CHECKS.iter().map(|id| id.to_string()).collect();
+    let ran = run(&stage.ledger, &event, &[], vec![], &only, "operator", now()).unwrap();
+    assert_eq!(outcomes(&ran, Ran::Recorded(Outcome::Pass)), PRIVACY_CHECKS);
+
+    let ran = run(&stage.ledger, &event, &[], vec![], &[], "operator", now()).unwrap();
+    assert_eq!(outcomes(&ran, Ran::Recorded(Outcome::Pass)), PRIVACY_CHECKS);
+    let not_run: Vec<(&str, &str)> = ran
+        .iter()
+        .filter_map(|(id, outcome)| match outcome {
+            Ran::NotRun(reason) => Some((id.as_str(), reason.as_str())),
+            Ran::Recorded(_) => None,
+        })
+        .collect();
+    assert_eq!(not_run.len(), 5);
+    assert!(not_run
+        .iter()
+        .all(|(_, reason)| *reason == "no voters were given"));
+}
+
+#[test]
+fn a_voter_id_event_fails_the_privacy_checks_without_stopping_the_run() {
+    let stage = opened(Template::PqriVoting);
+    let event = Event::voted(&["ana", "ben"]);
+    let ran = run_all(&stage, &event, event.ballot_ids());
+    assert_eq!(
+        outcomes(&ran, Ran::Recorded(Outcome::Fail)),
+        [
+            "annex-a.d.4.6.1.pseudonymous-ballots",
+            "annex-a.d.4.6.2.network-data",
+            "annex-a.d.4.6.2.ballot-box-unlinked"
+        ]
+    );
+    assert_eq!(outcomes(&ran, Ran::Recorded(Outcome::Pass)).len(), 6);
+    witness_all(&stage);
+    assert_eq!(stage_verdict(&stage), Verdict::Failed);
+}
+
+#[test]
+fn each_privacy_breach_fails_the_pqri_voting_stage() {
+    type Break = fn(&mut Event);
+    let cases: [(&str, Break); 3] = [
+        ("annex-a.d.4.6.1.pseudonymous-ballots", |event| {
+            event.policy.ballot_identity = None;
+        }),
+        ("annex-a.d.4.6.2.network-data", |event| {
+            event.policy.network_data_policy = Some(NetworkDataPolicy::ForensicStore);
+        }),
+        ("annex-a.d.4.6.2.ballot-box-unlinked", |event| {
+            event.ballot_box.ballots_with_network_data = 1;
+        }),
+    ];
+    for (check, breakage) in cases {
+        let stage = opened(Template::PqriVoting);
+        let mut event = Event::voted_under_pseudonyms(&["ana", "ben"]);
+        breakage(&mut event);
+        let ran = run_all(&stage, &event, event.ballot_ids());
+        assert_eq!(outcomes(&ran, Ran::Recorded(Outcome::Fail)), [check]);
+        witness_all(&stage);
+        assert_eq!(stage_verdict(&stage), Verdict::Failed, "{check}");
+    }
+}
+
+#[test]
+fn unreadable_roles_leave_only_their_advisory_check_unrun() {
+    let stage = opened(Template::PqriVoting);
+    let mut event = Event::voted_under_pseudonyms(&["ana", "ben"]);
+    event.roles = Err("not allowed".into());
+    let ran = run_all(&stage, &event, event.ballot_ids());
+    assert_eq!(outcomes(&ran, Ran::Recorded(Outcome::Pass)).len(), 8);
+    let (id, outcome) = ran
+        .iter()
+        .find(|(_, outcome)| matches!(outcome, Ran::NotRun(_)))
+        .unwrap();
+    assert_eq!(id, "annex-a.d.4.6.1.privileged-roles");
+    assert!(matches!(outcome, Ran::NotRun(reason) if reason.contains("not allowed")));
+    witness_all(&stage);
+    assert_eq!(stage_verdict(&stage), Verdict::Passed);
+}
+
 #[test]
 fn a_ballot_that_is_not_displayed_fails_the_stage() {
     let stage = opened(Template::Voting);
@@ -224,7 +355,7 @@ fn a_ballot_that_is_not_displayed_fails_the_stage() {
 #[test]
 fn a_failed_annex_condition_fails_the_pqri_voting_stage() {
     let stage = opened(Template::PqriVoting);
-    let event = Event::voted(&["ana", "ben"]);
+    let event = Event::voted_under_pseudonyms(&["ana", "ben"]);
     run_all(&stage, &event, event.ballot_ids());
     let witnessed: Vec<String> = Ledger::read(&stage.ledger)
         .unwrap()
