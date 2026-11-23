@@ -278,6 +278,13 @@ const App = () => {
 
     useEffect(() => {
         if (isAuthenticated) {
+            // A voter's session is never a preview: drop what an earlier
+            // preview left in this tab, so nothing shows it as a demo.
+            if (!globalSettings.DISABLE_AUTH) {
+                for (const key of ["isDemo", "areaId", "documentId", "publicationId"]) {
+                    sessionStorage.removeItem(key)
+                }
+            }
             return
         }
 
