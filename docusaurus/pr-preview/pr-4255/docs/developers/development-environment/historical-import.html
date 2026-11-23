@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Historical SQL and workbook import | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/developers/development-environment/historical-import"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Historical SQL and workbook import | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4255/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/developers/development-environment/historical-import"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/developers/development-environment/historical-import" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/developers/development-environment/historical-import" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Historical SQL and workbook import","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/developers/development-environment/historical-import"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4255/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4255/assets/js/runtime~main.ddc0d5c4.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4255/assets/js/runtime~main.6d049f6a.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4255/assets/js/main.bd140909.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -107,7 +107,18 @@ of a renamed column, even when their values agree.</p>
 mail country and embassy instead of a country, embassy and precinct; see the
 voter area joins below.</p>
 <p>Literals remain bytes, preserving leading zeros and binary picture content.
-Mapped text uses declared UTF-8 or MySQL latin1 encoding. Binary content remains
+Mapped text is decoded in the dump&#x27;s connection charset (<code>SET NAMES</code>), which is
+what mysqldump converts every value to, whatever charset the column declares:
+a default dump of a <code>latin1</code> column is UTF-8. UTF-8 (<code>utf8</code>, <code>utf8mb3</code>,
+<code>utf8mb4</code>) and MySQL latin1 are supported. A dump without <code>SET NAMES</code> is read
+by the declared column or table charset, and a table whose rows were written
+under two different <code>SET NAMES</code> is refused (<code>sql.mixed-charset</code>).</p>
+<p>mysqldump writes <code>?</code> for every character its connection charset cannot hold.
+So a <code>?</code> in a text column declared wider than the dump&#x27;s <code>SET NAMES</code> (for
+example a <code>utf8mb3</code> name column in a <code>latin1</code> dump) may be a lost letter, and
+the conversion is refused as not approved, naming the column, its first such row
+and the count. Export again with <code>--default-character-set=utf8mb4</code>. Binary
+columns are never converted and are not checked. Binary content remains
 in the unmodified original; this profile does not publish candidate photographs
 from opaque blobs.</p>
 <p>The workbook carries everything the dump does not. It contains <code>ElectionEvent</code>,
@@ -280,8 +291,8 @@ or impossible date of birth, or an area without an embassy/country label. Nothin
 is dropped silently. The preserved count is reported in the summary and stored in
 provenance as <code>preservedVoters</code>.</p>
 <p>The advanced CLI decisions contract remains available: limited post/precinct
-coverage, explicit associations and preserving unresolved affiliation codes
-require both source SHA-256 values. Changed bytes invalidate those decisions.
+coverage, explicit associations, preserving unresolved affiliation codes and
+accepting replaced characters require both source SHA-256 values. Changed bytes invalidate those decisions.
 No source policy controls or separate file pickers appear in the drawer.</p>
 <p>Candidate references are resolved against the whole source before any seat is
 selected, whatever the scope policy. A <code>candidate.POST_CODE</code> with no
@@ -309,7 +320,10 @@ displayed hashes and review the row associations against the original files:</p>
 are one-based per base table, in original INSERT order. Optional coverage mode
 <code>workbook-posts-only</code> limits the corresponding post or precinct scope to
 workbook matches and reports excluded rows. Optional affiliation mode
-<code>preserve-unresolved-code</code> retains the source code without inventing party names.</p>
+<code>preserve-unresolved-code</code> retains the source code without inventing party names.
+Optional <code>&quot;connectionCharset&quot;: &quot;accept-replaced-characters&quot;</code> imports text with
+characters the dump&#x27;s connection charset replaced by <code>?</code>, as written; it is left
+out of the decisions when not set, so earlier decision digests are unchanged.</p>
 <p>The source, decision and profile provenance is carried in the event&#x27;s
 <code>import:provenance</code> annotation. The native ZIP contains the existing event JSON
 and scheduled-event CSV members. Configuration-only conversion emits no voter
