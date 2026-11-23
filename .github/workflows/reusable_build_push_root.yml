@@ -19,7 +19,7 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-24.04
-    if: github.event_name == 'workflow_call'
+    if: github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch'
     strategy:
       matrix:
         include:
@@ -122,14 +122,13 @@ jobs:
         username: ${{ vars.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    # Root account 581718213778: push once to ca-central-1 (Canada).
-    # Other regions in the same account pull via ECR replication.
+    # Root account 581718213778: publish to eu-west-1 (Ireland).
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ca-central-1
+        aws-region: eu-west-1
 
     - name: Login to Amazon ECR
       id: login-ecr
@@ -142,8 +141,8 @@ jobs:
         file: ${{ matrix.file }}
         push: ${{ inputs.push }}
         tags: |
-          ${{ vars.AWS_ECR_REGISTRY }}/${{ matrix.service }}:${{ env.SHORT_SHA }}
-          ${{ vars.AWS_ECR_REGISTRY }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
+          ${{ steps.login-ecr.outputs.registry }}/${{ matrix.service }}:${{ env.SHORT_SHA }}
+          ${{ steps.login-ecr.outputs.registry }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
         cache-from: type=gha,scope=${{ matrix.service }}-root-cac1
         cache-to: type=gha,mode=max,scope=${{ matrix.service }}-root-cac1
         build-contexts: ${{ matrix.build_contexts }}
