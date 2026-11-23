@@ -7,7 +7,6 @@
 //! recomputes the stored tree, and checks every published checkpoint: its signature,
 //! its signer, and that it is part of the log's history. The result is recorded on a
 //! task execution; findings are reported, never repaired.
-use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::electoral_log_checkpoint::{
     get_election_events_with_open_voting, get_election_events_with_recent_checkpoints,
@@ -502,8 +501,9 @@ pub async fn log_to_tally(
 }
 
 /// Audit an election event's electoral log against its published checkpoints: the
-/// event's board, its elections' boards, and the sealed logs it continues when the
-/// event was imported, each against the checkpoints published of it.
+/// event's board and the sealed logs it continues when the event was imported, each
+/// against the checkpoints published of it, and the empty boards of its elections and
+/// areas.
 #[instrument(err)]
 pub async fn run_electoral_log_audit(
     tenant_id: &str,
@@ -520,15 +520,10 @@ pub async fn run_electoral_log_audit(
             .to_b64_string()?;
     let published =
         get_electoral_log_checkpoints(&transaction, tenant_id, election_event_id).await?;
-    let elections = get_elections(&transaction, tenant_id, election_event_id).await?;
     transaction.commit().await?;
     drop(client);
     let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
-    let election_boards = own_election_boards(
-        tenant_id,
-        elections.iter().map(|election| election.id.as_str()),
-        &slug,
-    );
+    let platform_prefix = platform_board_prefix(tenant_id, &slug);
 
     let (own, imported): (Vec<_>, Vec<_>) = published
         .iter()
@@ -562,30 +557,30 @@ pub async fn run_electoral_log_audit(
     let store = get_event_store(election_event_id).await?;
     let report = store.audit(&board, &checkpoints).await?;
     findings.extend(report.findings());
-    // Every other log of the event's database: the boards of the event's elections,
-    // which are open like the event's board, and the sealed logs an imported event's
-    // board continues. Each is audited against the checkpoints published of it: none
-    // of an election's board, whose records are still checked against their leaves
-    // and tree; those of a continued log were published before the export and carry
-    // the source event's signatures.
+    // Every other log of the event's database: the sealed logs an imported event's
+    // board continues, audited against the checkpoints published of them before the
+    // export, which carry the source event's signatures; and the empty boards the
+    // platform creates for the event's elections and areas, which nothing writes to
+    // and of which no checkpoints are published.
     let logs = store.logs().await?;
     for log in &logs {
         let name = &log.checkpoint.log_name;
-        let kind = classify_log(name, log.state, &board, &election_boards);
-        match kind {
-            AuditedLog::EventBoard => continue,
-            AuditedLog::Unexpected => findings.push(format!(
-                "Log {name} is not sealed but is neither the event's board nor the board \
-                 of one of its elections"
-            )),
-            AuditedLog::ElectionBoard | AuditedLog::Continued => {}
+        if *name == board {
+            continue;
+        }
+        let kind = classify_log(name, log.state, log.checkpoint.tree_size, &platform_prefix);
+        if kind == AuditedLog::Unexpected {
+            findings.push(format!(
+                "Log {name} is not sealed but is neither the event's board nor an empty \
+                 election or area board"
+            ));
         }
         let publications: Vec<_> = imported
             .iter()
             .filter(|publication| publication.board_name == *name)
             .cloned()
             .collect();
-        let (checkpoints, signature_findings) = check_imported_publications(name, &publications);
+        let (checkpoints, signature_findings) = check_log_publications(kind, name, &publications);
         let label = kind.label();
         findings.extend(
             signature_findings
@@ -615,62 +610,84 @@ pub async fn run_electoral_log_audit(
     })
 }
 
-/// What the audit makes of a log of the event's database.
+/// What the audit makes of a log of the event's database other than its board.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AuditedLog {
-    /// The event's board.
-    EventBoard,
-    /// The board of one of the event's elections.
-    ElectionBoard,
+    /// An empty open board that the platform creates for each election and area of
+    /// the event (`ensure_election_audit_boards`) and never writes to. It outlives
+    /// its election or area, and is created before their row is committed.
+    PlatformBoard,
     /// A sealed log that an imported event's board continues.
     Continued,
-    /// An open log that is neither the event's board nor one of its elections'.
+    /// An open log that is neither the event's board nor an empty platform board.
     Unexpected,
 }
 
 impl AuditedLog {
-    /// How the findings of an audited log other than the event's board name it.
+    /// How the log's findings name it.
     fn label(self) -> &'static str {
         match self {
-            AuditedLog::EventBoard => "Event board",
-            AuditedLog::ElectionBoard => "Election board",
+            AuditedLog::PlatformBoard => "Election or area board",
             AuditedLog::Continued => "Continued log",
             AuditedLog::Unexpected => "Unexpected log",
         }
     }
 }
 
-/// Classify a log of the event's database by its name and state: its board, its
-/// elections' boards (`election_boards`), which are open like the board, and else
-/// the sealed logs an import continues. Any other open log is unexpected.
-fn classify_log(
-    name: &str,
-    state: LogState,
-    event_board: &str,
-    election_boards: &HashSet<String>,
-) -> AuditedLog {
-    if name == event_board {
-        AuditedLog::EventBoard
-    } else if election_boards.contains(name) {
-        AuditedLog::ElectionBoard
-    } else if state == LogState::Sealed {
+/// Classify a log of the event's database other than its board by its name, state
+/// and stored size: a sealed log is one an import continues; an open one must be an
+/// empty board named as the platform names election and area boards
+/// (`platform_prefix` followed by an ID's 32 hexadecimal digits). The stored size is
+/// not trusted: the log's audit still checks it against the records and the tree.
+fn classify_log(name: &str, state: LogState, tree_size: u64, platform_prefix: &str) -> AuditedLog {
+    if state == LogState::Sealed {
         AuditedLog::Continued
+    } else if tree_size == 0 && is_platform_board(name, platform_prefix) {
+        AuditedLog::PlatformBoard
     } else {
         AuditedLog::Unexpected
     }
 }
 
-/// The names of the boards the platform creates for an event's elections (see
-/// `ensure_election_audit_boards`).
-fn own_election_boards<'a>(
-    tenant_id: &str,
-    election_ids: impl IntoIterator<Item = &'a str>,
-    slug: &str,
-) -> HashSet<String> {
-    election_ids
-        .into_iter()
-        .map(|election_id| get_election_board(tenant_id, election_id, slug))
-        .collect()
+/// The start of the names `get_election_board` gives the boards of this tenant's
+/// elections and areas.
+fn platform_board_prefix(tenant_id: &str, slug: &str) -> String {
+    get_election_board(tenant_id, "", slug)
+}
+
+/// Whether `name` is `prefix` followed by an ID without dashes.
+fn is_platform_board(name: &str, prefix: &str) -> bool {
+    name.strip_prefix(prefix)
+        .is_some_and(|id| id.len() == 32 && id.bytes().all(|byte| byte.is_ascii_hexdigit()))
+}
+
+/// The checkpoints to audit a log other than the event's board against, and the
+/// findings about its publications. A continued (or unexpected) log's checkpoints
+/// must verify with the key they name; the platform publishes none of an election
+/// or area board, so each that names one is a finding and none is used.
+fn check_log_publications(
+    kind: AuditedLog,
+    log: &str,
+    published: &[PublishedCheckpoint],
+) -> (Vec<Checkpoint>, Vec<String>) {
+    match kind {
+        AuditedLog::PlatformBoard => (
+            Vec::new(),
+            published
+                .iter()
+                .map(|publication| {
+                    format!(
+                        "Published checkpoint at size {} names this board, but the platform \
+                         publishes no checkpoints of election or area boards",
+                        publication.tree_size
+                    )
+                })
+                .collect(),
+        ),
+        AuditedLog::Continued | AuditedLog::Unexpected => {
+            check_imported_publications(log, published)
+        }
+    }
 }
 
 /// Check the signatures, signers and reasons of published checkpoints, returning the
@@ -688,10 +705,9 @@ fn check_publications(
     )
 }
 
-/// Like `check_publications` for the checkpoints of a log other than the event's
-/// board, such as one an imported board continues, whose checkpoints were signed by
-/// the key of the event it was exported from: their signatures must verify against
-/// the key they name.
+/// Like `check_publications` for the checkpoints of a log an imported board continues,
+/// which were signed by the key of the event it was exported from: their signatures
+/// must verify against the key they name.
 fn check_imported_publications(
     log: &str,
     published: &[PublishedCheckpoint],
@@ -940,82 +956,142 @@ mod log_classification_tests {
 
     const TENANT: &str = "90505c8a-23a9-4cdf-a123-456789abcdef";
     const ELECTION: &str = "d9fda03a-6930-4f2f-bee8-4f113fdb7b62";
-    const OTHER_ELECTION: &str = "0b6c1f7e-2a4d-4e8b-9c3f-5d7e9a1b2c3d";
-    const EVENT_BOARD: &str = "devtenant90505c8a23a94cdfaevent1f2e3d4c5b6a47988a7b6c5d4e3f2a1b";
+    const AREA: &str = "b2c8d350-4f3c-4f85-87c8-c61cd3ed8ec8";
+    /// An election whose row was deleted, or never committed: its board stays.
+    const GONE: &str = "5e4d3c2b-1a09-4f8e-8d7c-6b5a49382716";
     /// The name the platform gives `ELECTION`'s board with slug `dev` (as observed
     /// in a dev audit that wrongly reported it).
     const ELECTION_BOARD: &str =
         "devtenant90505c8a23a94cdfaelectiond9fda03a69304f2fbee84f113fdb7b62";
 
-    fn own_boards() -> HashSet<String> {
-        own_election_boards(TENANT, [ELECTION, OTHER_ELECTION], "dev")
+    fn prefix() -> String {
+        platform_board_prefix(TENANT, "dev")
+    }
+
+    fn classify(name: &str, state: LogState, tree_size: u64) -> AuditedLog {
+        classify_log(name, state, tree_size, &prefix())
+    }
+
+    fn publication(board: &str, size: i64) -> PublishedCheckpoint {
+        PublishedCheckpoint {
+            board_name: board.into(),
+            log_uid: uuid::Uuid::nil(),
+            tree_size: size,
+            root: "00".into(),
+            reason: "PERIODIC".into(),
+            signer_pk: String::new(),
+            signature: String::new(),
+        }
     }
 
     #[test]
-    fn own_election_boards_are_named_as_the_platform_creates_them() {
-        let boards = own_boards();
-        assert_eq!(boards.len(), 2);
-        assert!(boards.contains(ELECTION_BOARD), "{boards:?}");
-        assert!(boards.contains(&get_election_board(TENANT, OTHER_ELECTION, "dev")));
+    fn election_and_area_boards_share_the_platform_prefix() {
+        // `ensure_election_audit_boards` names the boards of elections and of areas
+        // (`upsert_area`) with `get_election_board`.
+        assert_eq!(get_election_board(TENANT, ELECTION, "dev"), ELECTION_BOARD);
+        assert!(ELECTION_BOARD.starts_with(&prefix()), "{}", prefix());
+        assert!(get_election_board(TENANT, AREA, "dev").starts_with(&prefix()));
     }
 
     #[test]
-    fn the_event_board_is_audited_on_its_own() {
-        for state in [LogState::Open, LogState::Sealed] {
+    fn an_empty_open_election_or_area_board_is_expected() {
+        assert_eq!(
+            classify(ELECTION_BOARD, LogState::Open, 0),
+            AuditedLog::PlatformBoard
+        );
+        for id in [AREA, GONE] {
+            let board = get_election_board(TENANT, id, "dev");
             assert_eq!(
-                classify_log(EVENT_BOARD, state, EVENT_BOARD, &own_boards()),
-                AuditedLog::EventBoard
+                classify(&board, LogState::Open, 0),
+                AuditedLog::PlatformBoard,
+                "{board}"
             );
         }
     }
 
     #[test]
-    fn an_open_board_of_one_of_the_events_elections_is_expected() {
-        // Every event creates one open board per election in its database.
+    fn a_platform_board_with_records_is_unexpected() {
+        // Nothing writes to these boards: every electoral-log entry goes to the
+        // event's board.
         assert_eq!(
-            classify_log(ELECTION_BOARD, LogState::Open, EVENT_BOARD, &own_boards()),
-            AuditedLog::ElectionBoard
+            classify(ELECTION_BOARD, LogState::Open, 1),
+            AuditedLog::Unexpected
         );
     }
 
     #[test]
-    fn a_sealed_imported_log_is_a_continued_log() {
+    fn a_sealed_log_is_a_continued_log() {
         // An imported event's logs keep the source event's names, e.g. the board of
         // an election whose ID the import replaced.
-        let imported = get_election_board(TENANT, "5e4d3c2b-1a09-4f8e-8d7c-6b5a49382716", "dev");
+        let imported = get_election_board(TENANT, GONE, "dev");
         assert_eq!(
-            classify_log(&imported, LogState::Sealed, EVENT_BOARD, &own_boards()),
+            classify(&imported, LogState::Sealed, 0),
+            AuditedLog::Continued
+        );
+        assert_eq!(
+            classify("anything", LogState::Sealed, 7),
             AuditedLog::Continued
         );
     }
 
     #[test]
-    fn an_open_log_that_is_not_one_of_the_events_boards_is_unexpected() {
-        // Control: the same name is expected while it is one of the event's boards.
-        let foreign = get_election_board(TENANT, "5e4d3c2b-1a09-4f8e-8d7c-6b5a49382716", "dev");
-        assert_eq!(
-            classify_log(&foreign, LogState::Open, EVENT_BOARD, &own_boards()),
-            AuditedLog::Unexpected
-        );
-        let with_it = own_election_boards(
-            TENANT,
-            [ELECTION, "5e4d3c2b-1a09-4f8e-8d7c-6b5a49382716"],
-            "dev",
-        );
-        assert_eq!(
-            classify_log(&foreign, LogState::Open, EVENT_BOARD, &with_it),
-            AuditedLog::ElectionBoard
-        );
-        // Another environment's board of the same election is not the event's.
+    fn an_open_log_not_named_as_a_platform_board_is_unexpected() {
+        let other_tenant =
+            get_election_board("11111111-2222-4333-8444-555555555555", ELECTION, "dev");
         let other_slug = get_election_board(TENANT, ELECTION, "prod");
-        assert_eq!(
-            classify_log(&other_slug, LogState::Open, EVENT_BOARD, &own_boards()),
-            AuditedLog::Unexpected
+        let other_event_board = format!(
+            "{}event{}",
+            &prefix()[..prefix().len() - "election".len()],
+            "d9fda03a69304f2fbee84f113fdb7b62"
         );
-        // Without elections, only the event's board is expected.
-        assert_eq!(
-            classify_log(ELECTION_BOARD, LogState::Open, EVENT_BOARD, &HashSet::new()),
-            AuditedLog::Unexpected
+        for name in [
+            other_tenant.as_str(),
+            other_slug.as_str(),
+            other_event_board.as_str(),
+            &format!("{}{}", prefix(), "not-a-uuid"),
+            &format!("{}{}", prefix(), "d9fda03a69304f2fbee84f113fdb7b6"),
+            &format!("{}{}", prefix(), "d9fda03a69304f2fbee84f113fdb7b62aa"),
+            &format!("{}{}", prefix(), "z9fda03a69304f2fbee84f113fdb7b62"),
+        ] {
+            assert_eq!(
+                classify(name, LogState::Open, 0),
+                AuditedLog::Unexpected,
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn checkpoints_published_of_a_platform_board_are_findings() {
+        // The platform publishes no checkpoints of election or area boards, so one
+        // that names such a board is reported, not checked against a key it names.
+        let (checkpoints, findings) = check_log_publications(
+            AuditedLog::PlatformBoard,
+            ELECTION_BOARD,
+            &[publication(ELECTION_BOARD, 3)],
+        );
+        assert!(checkpoints.is_empty());
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert!(findings[0].contains("size 3"), "{findings:?}");
+        assert!(
+            findings[0].contains("publishes no checkpoints"),
+            "{findings:?}"
+        );
+        // Without publications there is nothing to report.
+        let (checkpoints, findings) =
+            check_log_publications(AuditedLog::PlatformBoard, ELECTION_BOARD, &[]);
+        assert!(checkpoints.is_empty() && findings.is_empty());
+        // Control: a continued log's publication goes through the signature checks.
+        let (_, findings) = check_log_publications(
+            AuditedLog::Continued,
+            ELECTION_BOARD,
+            &[publication(ELECTION_BOARD, 3)],
+        );
+        assert!(
+            findings
+                .iter()
+                .all(|f| !f.contains("publishes no checkpoints")),
+            "{findings:?}"
         );
     }
 }
