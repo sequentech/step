@@ -611,6 +611,10 @@ const tagalogTranslation: TranslationType = {
                         lead: "Naka-mask na integration secret",
                         text: "Naka-mask na integration secret — ang Scanovate configuration na '{{config}}' ay may placeholder ng Keycloak (**********) sa halip na ang liveness secret nito, kaya ang pag-import nito ay mag-i-install ng placeholder. I-export muli ang event nang kasama ang integration secrets; ang configuration na ibinabahagi ng Scanovate sa ibang authenticator ay kailangan munang magkaroon ng sarili.",
                     },
+                    "masked-scanovate-settings": {
+                        lead: "Mga setting ng Scanovate na hindi isinama",
+                        text: "Mga setting ng Scanovate na hindi isinama — ang Scanovate configuration na '{{config}}' ay may placeholder ng Keycloak (**********) sa halip na ang mga setting na ito: {{settings}}. Hindi ginagamit ang mga ito ng server na nag-export ng event, kaya hindi nakasama ang mga value nito; hindi isinama ang mga ito at ang mga default ng server na ito ang gagamitin. Suriin ang configuration pagkatapos ng pag-import.",
+                    },
                     "not-a-bundle": {
                         lead: "Hindi export ng election event",
                         text: "Hindi export ng election event — nabasa ang file pero wala itong hugis ng isang export: {{reason}}",

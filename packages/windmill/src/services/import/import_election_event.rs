@@ -1556,15 +1556,20 @@ async fn read_election_event_schema(
         event!(Level::WARN, "election event import: {warning}");
         warnings.push(warning);
     }
-    let original_data: ImportElectionEventSchema = deserialize_str(data_str).map_err(|err| {
-        let message = err.to_string();
-        reject(
-            "election event file",
-            import_problems::not_a_bundle(&message),
-        )
-        .context(message)
-    })?;
+    let mut original_data: ImportElectionEventSchema =
+        deserialize_str(data_str).map_err(|err| {
+            let message = err.to_string();
+            reject(
+                "election event file",
+                import_problems::not_a_bundle(&message),
+            )
+            .context(message)
+        })?;
     check_bundle(&original_data)?;
+    for warning in drop_masked_scanovate_settings(&mut original_data) {
+        event!(Level::WARN, "election event import: {warning}");
+        warnings.push(warning);
+    }
     reject_masked_integration_secrets(&original_data)?;
     let (schema, replacement_map) =
         replace_ids(data_str, &original_data, event_id, tenant_id.clone())?;
@@ -1590,12 +1595,32 @@ fn version_warning(imported_version: &str, current_version: &str) -> Result<Opti
     }
 }
 
+/// Leaves out the Scanovate settings, other than the secret, that arrive as
+/// Keycloak's export placeholder, and says which.
+///
+/// Keycloak masks a secret and also every setting the exporting server's
+/// authenticator does not declare, so those settings had no effect there and
+/// their values are not in the file. Installed as text they break the
+/// authenticator (a masked `page-languages` stopped every capture); left out,
+/// this server's defaults apply. The Scanovate settings of the imported realm
+/// are taken from this data after the IDs are rewritten
+/// (`restore_remapped_integration_secrets`), so it is the one place to do it.
+fn drop_masked_scanovate_settings(data: &mut ImportElectionEventSchema) -> Vec<Problem> {
+    let Some(realm) = data.keycloak_event_realm.as_mut() else {
+        return Vec::new();
+    };
+    sequent_core::election_config::scanovate::drop_masked_settings(realm)
+        .iter()
+        .map(|(config, keys)| import_problems::masked_scanovate_settings(config, keys))
+        .collect()
+}
+
 /// Refuses a bundle whose realm would install Keycloak's export placeholder
 /// as a Scanovate `liveness-secret`.
 ///
 /// An export made without integration secrets carries `**********` in their
 /// place, and Keycloak stores an imported realm's authenticator settings as
-/// given. Nothing is stripped or taken from elsewhere: the operator exports
+/// given. The secret is not stripped or taken from elsewhere: the operator exports
 /// the event again with integration secrets included. Names configurations,
 /// never values. Shared provider configurations are refused too: their settings
 /// cannot be preserved as opaque Scanovate data during ID remapping.
@@ -3702,6 +3727,58 @@ mod tests {
         assert_eq!(
             realm["authenticatorConfig"][0]["config"]["liveness-secret"],
             secret
+        );
+    }
+
+    /// Keycloak masks, besides secrets, the settings the exporting server's
+    /// Scanovate authenticator does not declare. Installed as text, a masked
+    /// `page-languages` stopped every capture ("Scanovate configuration
+    /// invalid: component=capture"). They are left out, with a warning that
+    /// names them, and everything else in the configuration is unchanged.
+    #[tokio::test]
+    async fn masked_scanovate_settings_other_than_the_secret_are_left_out() {
+        std::env::set_var(ENV_VAR_APP_VERSION, DEV_APP_VERSION);
+        // Synthetic values only.
+        let mut bundle: serde_json::Value =
+            serde_json::from_str(&a_bundle_with_a_dangling_election()).expect("the fixture parses");
+        bundle["contests"][0]["election_id"] =
+            serde_json::json!("e1000000-0000-5000-8000-000000000000");
+        bundle["keycloak_event_realm"] = serde_json::json!({
+            "authenticationFlows": [{"authenticationExecutions": [
+                {"authenticator": "scanovate-authenticator",
+                 "authenticatorConfig": "scanovate-registration"}]}],
+            "authenticatorConfig": [{"alias": "scanovate-registration", "config": {
+                "liveness-url": "https://liveness.example.test/callback",
+                "liveness-secret": "synthetic-liveness-secret-imported",
+                "max-attempts": "5",
+                "page-languages": "**********",
+                "ocr-url": "**********",
+                "capture-sides": "**********"}}]
+        });
+
+        let (schema, _, warnings) =
+            get_election_event_schema(&bundle.to_string(), None, TENANT.to_string())
+                .await
+                .expect("masked settings other than the secret do not stop the import");
+        let realm = schema.keycloak_event_realm.expect("the realm travels");
+        assert_eq!(
+            realm["authenticatorConfig"][0]["config"],
+            serde_json::json!({
+                "liveness-url": "https://liveness.example.test/callback",
+                "liveness-secret": "synthetic-liveness-secret-imported",
+                "max-attempts": "5"})
+        );
+        let warning = warnings
+            .iter()
+            .find(|problem| problem.id.as_deref() == Some("file.masked-scanovate-settings"))
+            .expect("the operator is told");
+        assert_eq!(
+            warning.details.get("config").map(String::as_str),
+            Some("scanovate-registration")
+        );
+        assert_eq!(
+            warning.details.get("settings").map(String::as_str),
+            Some("capture-sides, ocr-url, page-languages")
         );
     }
 

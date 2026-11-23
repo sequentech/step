@@ -610,6 +610,10 @@ const catalanTranslation: TranslationType = {
                         lead: "Secret d'integració emmascarat",
                         text: "Secret d'integració emmascarat — la configuració d'Scanovate «{{config}}» conté el marcador de Keycloak (**********) en lloc del seu secret de liveness, de manera que importar-la instal·laria el marcador. Exporta l'esdeveniment de nou incloent-hi els secrets d'integració; una configuració que Scanovate comparteix amb un altre autenticador primer en necessita una de pròpia.",
                     },
+                    "masked-scanovate-settings": {
+                        lead: "Paràmetres de Scanovate omesos",
+                        text: "Paràmetres de Scanovate omesos — la configuració de Scanovate «{{config}}» conté el marcador de Keycloak (**********) en lloc d'aquests paràmetres: {{settings}}. El servidor que va exportar l'esdeveniment no els fa servir, de manera que els seus valors no han viatjat; s'ometen i s'apliquen els valors per defecte d'aquest servidor. Revisa la configuració després de la importació.",
+                    },
                     "not-a-bundle": {
                         lead: "No és una exportació d'esdeveniment electoral",
                         text: "No és una exportació d'esdeveniment electoral — el fitxer s'ha llegit però no en té la forma: {{reason}}",

@@ -612,6 +612,10 @@ const englishTranslation = {
                         lead: "Masked integration secret",
                         text: "Masked integration secret — the Scanovate configuration '{{config}}' holds Keycloak's placeholder (**********) instead of its liveness secret, so importing it would install the placeholder. Export the event again with integration secrets included; a configuration Scanovate shares with another authenticator needs its own first.",
                     },
+                    "masked-scanovate-settings": {
+                        lead: "Scanovate settings left out",
+                        text: "Scanovate settings left out — the Scanovate configuration '{{config}}' holds Keycloak's placeholder (**********) instead of these settings: {{settings}}. The server that exported the event does not use them, so their values did not travel; they are left out and this server's defaults apply. Check the configuration after the import.",
+                    },
                     "not-a-bundle": {
                         lead: "Not an election event export",
                         text: "Not an election event export — the file was read but does not have the shape of one: {{reason}}",

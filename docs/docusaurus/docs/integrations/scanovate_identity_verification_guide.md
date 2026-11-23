@@ -557,6 +557,20 @@ Scanovate must have its own authenticator configuration, not one shared with
 another provider. Its settings are kept byte-for-byte when structural platform
 identifiers are rewritten during build and import.
 
+Keycloak's export hides, as `**********`, the secret and also **every setting
+the exporting server's authenticator doesn't declare**: one a newer version
+added (`page-languages` on a server that predates it) or one an earlier
+version read and a later one dropped (`ocr-url`, `capture-sides`,
+`max-image-bytes`). Such a setting had no effect on the exporting server, and
+its value isn't in the file. An import leaves these settings out, so the
+importing server's defaults apply, and warns with the configuration's alias
+and the settings' names (*Scanovate settings left out*); installed as text
+they would stop the authenticator (*Scanovate configuration invalid:
+component=capture*, for a masked `page-languages`). A masked `liveness-secret`
+is still refused. An event imported on another installation still needs that
+installation's own `liveness-url` and `liveness-secret`: the file carries the
+exporting server's.
+
 **The workbook, saved plan and derived import files contain credentials.** The
 whole realm can also contain other credentials already present in the source;
 no other credentials are fetched or unmasked. Protect all of these files with
