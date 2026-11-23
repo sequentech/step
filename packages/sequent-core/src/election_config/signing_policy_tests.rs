@@ -294,3 +294,11 @@ fn an_enrollment_without_signers_is_empty() {
         .unwrap()
         .is_empty());
 }
+
+#[test]
+fn invalid_staff_roots_are_not_fingerprinted_as_a_trusted_policy() {
+    let mut policy = v2_policy();
+    assert!(policy_sha256(&policy).is_ok());
+    policy.staff_roots = "not a certificate".to_string();
+    assert!(policy_sha256(&policy).is_err());
+}

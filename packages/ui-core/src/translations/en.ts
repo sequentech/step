@@ -747,6 +747,26 @@ const englishTranslation = {
                     },
                 },
                 "package": {
+                    "ambiguous-signature-member": {
+                        lead: "Ambiguous signature file",
+                        text: "Ambiguous signature file — {{file}} must use the exact signature file name and be at the root of the package.",
+                    },
+                    "webauthn-not-enabled": {
+                        lead: "Security-key signatures disabled",
+                        text: "Security-key signatures disabled — This importer isn't configured to verify officials' security keys. Nothing was imported.",
+                    },
+                    "webauthn-refused": {
+                        lead: "Security-key signatures rejected",
+                        text: "Security-key signatures rejected — The signatures or approvals could not be verified: {{reason}}",
+                    },
+                    "content-mismatch": {
+                        lead: "Package contents don't match",
+                        text: "Package contents don't match — The manifest's content digest doesn't match the package contents. Nothing was imported.",
+                    },
+                    "webauthn-not-next": {
+                        lead: "Unexpected package revision",
+                        text: "Unexpected package revision — This package does not continue from the last revision imported for this configuration.",
+                    },
                     "already-imported": {
                         lead: "Already imported",
                         text: "Already imported — revision {{revision}} of this configuration was imported before; import a newer revision instead.",

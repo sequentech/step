@@ -4,7 +4,7 @@
 
 import React from "react"
 export {default as useTemplate} from "./useTemplate"
-export {default as theme, adminTheme} from "./services/theme"
+export {default as theme, adminTheme, disabledButtonStyle} from "./services/theme"
 export {default as Header, HeaderErrorVariant} from "./components/Header/Header"
 export {default as Dialog} from "./components/Dialog/Dialog"
 export {default as CustomDropFile} from "./components/CustomDropFile/CustomDropFile"

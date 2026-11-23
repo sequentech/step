@@ -214,6 +214,16 @@ jobs:
           TEST_SCRIPT: ${{ matrix.script }}
         run: bash -euo pipefail -c "$TEST_SCRIPT"
 
+      # The operational signing candidate modules are off by default; compile
+      # them here so they cannot drift from the default build unnoticed.
+      - name: Check the operational signing candidate features
+        if: matrix.service == 'harvest'
+        env:
+          PROTOC: "/usr/bin/protoc"
+          CARGO_BUILD_JOBS: ${{ matrix.build_jobs || 4 }}
+        working-directory: packages/harvest
+        run: cargo check --locked --features operational-signing-private-ca-candidate --lib
+
   # Windmill has PostgreSQL-backed tests, so it uses a dedicated job with an
   # unconditional service container instead of matrix-dependent service YAML.
   run-windmill-tests:

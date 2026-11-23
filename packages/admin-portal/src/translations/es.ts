@@ -5,6 +5,19 @@ import englishTranslation, {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        architectApprovalPolicy: {
+            title: "Aprobaciones de revisión de Architect",
+            field: "Aprobaciones WebAuthn requeridas",
+            help: "En blanco equivale a 2. Un número entero del 1 al 16 solo se aplica a los nuevos envíos.",
+            invalid: "Introduce un número entero del 1 al 16 o deja el campo en blanco.",
+            receiver:
+                "El sistema receptor sin conexión tiene su propio mínimo. Reducir este valor no reduce ese mínimo. La firma final es independiente y no cuenta como aprobación.",
+            save: "Guardar política de aprobación",
+            saved: "Se guardó la política de aprobación.",
+            failed: "No se pudo guardar la política. Recarga la configuración de la organización e inténtalo de nuevo.",
+            loading: "Cargando la política de aprobación de Architect…",
+            unavailable: "No se pudo cargar la política de aprobación de Architect.",
+        },
         configurationSigning: {
             title: "Confianza en la firma de paquetes",
             description:
@@ -74,6 +87,67 @@ const spanishTranslation: TranslationType = {
             },
         },
         configurationPackage: {
+            roster: {
+                title: "Lista de firmantes de Architect",
+                loading: "Comprobando la configuración de confianza…",
+                active: "Lista activa: {{hash}}. El receptor requiere al menos {{approvals}} aprobaciones distintas y una firma final independiente.",
+                noRoster:
+                    "No hay una lista de firmantes activa. La importación de paquetes firmados está bloqueada hasta que actives una.",
+                unavailable:
+                    "No se pudo verificar la configuración de confianza. La importación de paquetes está en pausa.",
+                locked: "Solo los responsables autorizados pueden modificar esta lista de firmantes.",
+                sitePinned:
+                    "El operador del sistema administra esta lista. No puedes reemplazarla aquí.",
+                manage: "Importar lista de firmantes",
+                alreadyActive: "Esta huella ya está activa para esta organización.",
+                activeConfirmed: "El receptor confirmó la nueva lista activa.",
+                independent:
+                    "Usa la lista pública de Architect. Si tienes su huella SHA-256 de otro canal de confianza, introdúcela abajo. No tomes la huella esperada del mismo archivo o paquete.",
+                file: "Lista pública de firmantes (.json)",
+                drop: "Suelta aquí la lista pública de firmantes o",
+                browse: "Busca un archivo de lista de firmantes",
+                retry: "Volver a comprobar la configuración de confianza",
+                expected: "Huella SHA-256 esperada (opcional)",
+                hashHelp:
+                    "Introduce una huella hexadecimal de 64 caracteres o deja el campo vacío para calcularla del archivo seleccionado.",
+                candidate: "Huella de la lista de firmantes: {{hash}}",
+                fingerprintMatched:
+                    "El receptor confirmó que la lista coincide con la huella que introdujiste.",
+                fingerprintComputed:
+                    "Calculada del archivo seleccionado. Esta huella no se comparó con una de otra fuente independiente.",
+                signers: "Claves de aprobación: {{approvers}}. Claves de firma final: {{signers}}.",
+                origin: "Parte de confianza: {{rp}}. Orígenes permitidos: {{origins}}.",
+                confirmEffect:
+                    "La activación cambia los firmantes de confianza de esta organización. Vuelve a previsualizar los paquetes comprobados con la lista anterior.",
+                cancel: "Cancelar",
+                signIn: "Iniciar sesión de nuevo",
+                confirm: "Activar lista de firmantes",
+                review: "Verificar lista",
+                previewAgain:
+                    "Cambió la configuración de confianza o la vista previa seleccionada. Vuelve a previsualizar el paquete antes de aplicarlo.",
+                importUnavailable:
+                    "El receptor no está preparado para importar este paquete. Comprueba el estado de la lista de firmantes.",
+                error: {
+                    computeHash:
+                        "No se pudo calcular la huella. Vuelve a seleccionar el archivo o introduce la huella esperada.",
+                    file: "Selecciona un archivo JSON UTF-8 no vacío, de hasta 256 KiB y sin marca de orden de bytes.",
+                    freshAuth:
+                        "Vuelve a iniciar sesión con tu cuenta habitual. Después, abre Configuración → Paquete de configuración, elige de nuevo el archivo y verifica su huella.",
+                    forbidden:
+                        "No tienes autorización para administrar la lista de firmantes de esta organización.",
+                    conflict:
+                        "La lista cambió o se está procesando un paquete. Recarga la lista y vuelve a verificar el archivo.",
+                    preview:
+                        "No se pudo verificar la lista. Comprueba la exportación de Architect y, si introdujiste una huella, asegúrate de que coincida.",
+                    activate:
+                        "El receptor no confirmó la activación. Comprueba la huella activa antes de intentarlo de nuevo.",
+                    login: "No se pudo iniciar una sesión nueva. Vuelve a iniciar sesión y regresa aquí.",
+                },
+            },
+            advanced: "Opciones avanzadas",
+            legacySetup: "Configurar certificados heredados",
+            verificationNote:
+                "El servidor comprueba el ZIP con la configuración de confianza del inquilino. Subir el archivo no aplica cambios.",
             tab: "Paquete de configuración",
             title: "Importar un paquete de configuración",
             description:
@@ -95,6 +169,7 @@ const spanishTranslation: TranslationType = {
             uploadTitle: "Subir un paquete de configuración",
             uploadSubtitle: "El zip de la entrega, desde un medio extraíble",
             uploadParagraph: "Primero se previsualiza; la subida por sí sola no aplica nada.",
+            signedDocumentId: "ID de documento ZIP firmado existente",
             documentId: "O el id de un documento ya subido",
             preview: "Vista previa",
             apply: "Aplicar",

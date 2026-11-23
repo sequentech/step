@@ -27,6 +27,31 @@ export const APPLY_CONFIGURATION_PACKAGE = gql`
     }
 `
 
+/** A managed receiver binds Apply to the exact successful Preview task. Legacy
+ * and site-pinned receivers still use the original operation. */
+export const APPLY_MANAGED_CONFIGURATION_PACKAGE = gql`
+    mutation ApplyManagedConfigurationPackage(
+        $tenantId: String!
+        $documentId: String!
+        $requirements: jsonb
+        $previewTaskId: uuid!
+    ) {
+        apply_configuration_package(
+            tenant_id: $tenantId
+            document_id: $documentId
+            mode: "apply"
+            requirements: $requirements
+            preview_task_id: $previewTaskId
+        ) {
+            task_execution {
+                id
+                execution_status
+                annotations
+            }
+        }
+    }
+`
+
 /** The tenant's earlier package applications, newest first. */
 export const LIST_PACKAGE_APPLICATIONS = gql`
     query ListPackageApplications($tenantId: uuid!) {

@@ -16,6 +16,8 @@ name = "generate-logs"
 path = "external-bin/generate_logs.rs"
 
 [features]
+# Compile-only, opt-in; no routes, provisioning or policy activation.
+operational-signing-candidate = []
 default = ["fips_full"]
 fips_core = ["dep:postgres-openssl", "dep:ecies"]
 fips_full = ["dep:postgres-openssl", "dep:ecies"]
@@ -112,6 +114,8 @@ openssl = "0.10"
 # Parses the CMS SignedData of PDF signatures (services::signing).
 cms = "0.2.3"
 der = { version = "0.7", features = ["alloc", "oid"] }
+spki = { version = "0.7.3", features = ["alloc"] }
+x509-cert = { version = "0.2.5", default-features = false }
 rusqlite = { version = "0.32", features = ["bundled"] }
 
 ecies = { version = "0.2.7", optional = true }

@@ -253,6 +253,48 @@ pub const NOT_IMPORTED: &str = "Messaging configuration not imported";
 /// Who stored an imported configuration.
 pub const IMPORTED_BY: &str = "import";
 
+fn imported_messaging_config(
+    config: &Value,
+    replacement_map: &std::collections::HashMap<String, String>,
+    permission: MessagingConfigPermission,
+) -> std::result::Result<EventMessagingConfig, String> {
+    if permission != MessagingConfigPermission::PERMITTED {
+        return Err(format!(
+            "{NOT_IMPORTED}: importing it needs the messaging-config-write permission"
+        ));
+    }
+    serde_json::from_value(with_original_account_ids(config, replacement_map))
+        .map_err(|_| format!("{NOT_IMPORTED}: it can't be read"))
+}
+
+/// Check the typed settings of a signed V2 event before provisioning its
+/// realm or creating boards. The same tenant-scoped rules are checked again
+/// when storing the settings; keep references locked through that save.
+pub async fn preflight_import_event_messaging_config(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    elections: &[String],
+    config: &Value,
+    replacement_map: &std::collections::HashMap<String, String>,
+    permission: MessagingConfigPermission,
+) -> Result<()> {
+    let parsed = imported_messaging_config(config, replacement_map, permission)
+        .map_err(anyhow::Error::msg)?;
+    lock_referenced_accounts(tx, tenant_id, &parsed).await?;
+    let accounts: Vec<AccountSummary> = list_messaging_accounts(tx, tenant_id)
+        .await?
+        .iter()
+        .map(account_summary)
+        .collect();
+    if let Err(errors) = parsed.validate(&tenant_id.to_string(), &accounts, elections) {
+        return Err(anyhow!(
+            "{NOT_IMPORTED}: {}",
+            serde_json::to_string(&errors)?
+        ));
+    }
+    Ok(())
+}
+
 /// Stores an imported event's configuration only as
 /// `update_event_messaging_config` would: when the importer holds
 /// `messaging-config-write` and it validates against the importing
@@ -266,16 +308,9 @@ pub async fn import_event_messaging_config(
     replacement_map: &std::collections::HashMap<String, String>,
     permission: MessagingConfigPermission,
 ) -> Result<ImportOutcome> {
-    if permission != MessagingConfigPermission::PERMITTED {
-        return Ok(ImportOutcome::NotImported(format!(
-            "{NOT_IMPORTED}: importing it needs the messaging-config-write permission"
-        )));
-    }
-    let config = with_original_account_ids(config, replacement_map);
-    let Ok(parsed) = serde_json::from_value::<EventMessagingConfig>(config) else {
-        return Ok(ImportOutcome::NotImported(format!(
-            "{NOT_IMPORTED}: it can't be read"
-        )));
+    let parsed = match imported_messaging_config(config, replacement_map, permission) {
+        Ok(parsed) => parsed,
+        Err(reason) => return Ok(ImportOutcome::NotImported(reason)),
     };
     match save_event_messaging_config_as(
         tx,

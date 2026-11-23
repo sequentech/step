@@ -86,9 +86,40 @@ impl PlatformClient {
             .timeout(REQUEST_TIMEOUT)
             .build()
             .context("building the platform's HTTP client")?;
+        let token_http = if credentials.client_id
+            == crate::login::NATIVE_TRUSTEE_CLIENT
+        {
+            let path = credentials
+                .keycloak_ca_file
+                .as_ref()
+                .context("the native trustee client needs its site CA")?;
+            let pem = std::fs::read(path).map_err(|_| {
+                anyhow::anyhow!("cannot read the Keycloak CA certificate file")
+            })?;
+            let certs = reqwest::Certificate::from_pem_bundle(&pem)
+                .context("loading the Keycloak CA certificates")?;
+            if certs.is_empty() {
+                anyhow::bail!("the Keycloak CA file has no certificates");
+            }
+            let mut builder = reqwest::Client::builder()
+                .timeout(REQUEST_TIMEOUT)
+                .redirect(reqwest::redirect::Policy::none())
+                .https_only(true)
+                .no_proxy()
+                .tls_built_in_root_certs(false);
+            for certificate in certs {
+                builder = builder.add_root_certificate(certificate);
+            }
+            builder
+                .build()
+                .context("building the native trustee Keycloak client")?
+        } else {
+            // Keep the established shared transport for other clients.
+            http.clone()
+        };
         Ok(PlatformClient {
             tokens: Arc::new(Mutex::new(TokenSource::new(
-                http.clone(),
+                token_http,
                 credentials,
             ))),
             http,

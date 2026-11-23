@@ -755,6 +755,7 @@ type Mutation {
 
 type Mutation {
     apply_configuration_package(
+        preview_task_id: uuid
         tenant_id: String!
         document_id: String!
         mode: String!
@@ -2130,6 +2131,69 @@ type ExportTrusteesOutput {
 type SetVoterAuthenticationOutput {
     success: Boolean!
     message: String
+}
+
+type Query {
+    get_architect_approval_policy(
+        tenant_id: String!
+    ): ArchitectApprovalPolicyOutput
+}
+
+type Mutation {
+    set_architect_approval_policy(
+        tenant_id: String!
+        required_approvals: Int
+        generation: String!
+    ): ArchitectApprovalPolicyOutput
+}
+
+type ArchitectApprovalPolicyOutput {
+    required_approvals: Int
+    generation: String!
+}
+
+type Query {
+    get_architect_signer_roster_status(
+        tenant_id: uuid!
+    ): ArchitectSignerRosterStatus
+    preview_architect_signer_roster(
+        tenant_id: uuid!
+        roster_json: String!
+        expected_sha256: String!
+    ): ArchitectSignerRosterPreview
+}
+
+type Mutation {
+    activate_architect_signer_roster(
+        tenant_id: uuid!
+        roster_json: String!
+        expected_sha256: String!
+        generation: String!
+    ): ArchitectSignerRosterStatus
+}
+
+enum ArchitectSignerRosterMode {
+    not_enabled
+    site_pinned
+    portal_managed
+    unavailable
+}
+
+type ArchitectSignerRosterStatus {
+    mode: ArchitectSignerRosterMode!
+    generation: String!
+    active_sha256: String
+    required_approvals: Int!
+    can_manage: Boolean!
+}
+
+type ArchitectSignerRosterPreview {
+    generation: String!
+    candidate_sha256: String!
+    approver_count: Int!
+    final_signer_count: Int!
+    rp_id: String!
+    origins: [String!]!
 }
 
 type SetConfigurationSigningOutput {

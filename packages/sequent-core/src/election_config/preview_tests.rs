@@ -981,6 +981,67 @@ fn the_same_plan_has_the_same_design_digests() {
 }
 
 #[test]
+fn a_published_receipt_key_does_not_change_the_signed_design() {
+    use crate::ballot::{BallotBoxKey, ReceiptsPolicy};
+
+    let bundle = built(&two_elections());
+    let approved =
+        design::versioned(&[], ballot_design_digests(&bundle).unwrap());
+    let (schema, mut styles) = ballot_styles(
+        &bundle,
+        bundle.export.clone(),
+        &PreviewOptions::default(),
+    )
+    .unwrap();
+    let keys = DesignKeys::of_entities(
+        &schema.areas,
+        &schema.elections,
+        &schema.contests,
+        &schema.candidates,
+    )
+    .unwrap();
+    let compare = |styles: &[BallotStyle]| {
+        let digests = design::ballot_design_digests(styles, &keys).unwrap();
+        design::mismatches(&approved, &digests)
+    };
+
+    assert!(styles.iter().all(|style| style.ballot_box_key.is_none()));
+    assert!(compare(&styles).is_empty());
+
+    // An explicit null also represents the same legacy, pre-publish style.
+    let mut null_key = serde_json::to_value(&styles[0]).unwrap();
+    null_key["ballot_box_key"] = Value::Null;
+    styles[0] = serde_json::from_value(null_key).unwrap();
+    assert!(compare(&styles).is_empty());
+
+    // The receiver attaches the validated receipt key only at publication.
+    for id in ["test-key-1", "test-key-2"] {
+        styles[0].ballot_box_key = Some(BallotBoxKey {
+            key_id: id.to_string(),
+            public_key: format!("synthetic-public-key-{id}"),
+        });
+        assert!(compare(&styles).is_empty());
+    }
+
+    // Receipt *policy* is approved design; it must still be checked.
+    let receipt = styles[0]
+        .election_event_presentation
+        .as_mut()
+        .unwrap()
+        .receipts
+        .as_mut()
+        .unwrap();
+    receipt.policy = Some(ReceiptsPolicy::DISABLED);
+    assert_eq!(compare(&styles).len(), 1);
+
+    let mut changed = two_elections();
+    changed.elections[1].contests[0].candidates[0].name =
+        Translated::new("Alicia");
+    let altered = ballot_design_digests(&built(&changed)).unwrap();
+    assert_eq!(design::mismatches(&approved, &altered).len(), 1);
+}
+
+#[test]
 fn design_digests_survive_the_importer_renumbering_every_id() {
     let mut plan = two_elections();
     plan.elections[0].contests[0].candidates[0].image = Some(CandidateImage {

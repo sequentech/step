@@ -18,6 +18,10 @@ MODE="${1:-}"
 cd "${ROOT}"
 
 # shellcheck source=/dev/null
+if [[ -e .devcontainer/.comelec-receiver.env || -L .devcontainer/.comelec-receiver.env ]]; then
+    echo "This workspace is marked COMELEC receiver. Use the verified named receiver entry; generic automatic start is refused." >&2
+    exit 1
+fi
 source .devcontainer/.env.development
 
 # Record the host workspace path for Docker bind mounts. The Dev Containers CLI

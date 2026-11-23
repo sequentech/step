@@ -239,6 +239,12 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
         );
         return Ok(());
     }
+    if matches!(&opt, CeleryOpt::Consume { .. }) {
+        let client = get_hasura_pool().await.get().await?;
+        crate::services::signing::operational_policy::assert_startup_policy(&client)
+            .await
+            .context("Verify the shared operational signing policy before consuming tasks")?;
+    }
     setup_probe(AppName::WINDMILL).await;
 
     let cpus = celery_cfg::get_worker_threads();

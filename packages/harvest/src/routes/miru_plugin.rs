@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
 use crate::services::signing_gate::Guarded;
 use crate::services::signing_http::{
     SigningError as SigningFailure, SigningErrorCode,
@@ -10,17 +11,20 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::services::jwt;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
+use uuid::Uuid;
 use windmill::services::consolidation::download_log::{
     record_transmission_download as windmill_record_download, DownloadRefusal,
     Downloader, RecordedDownload, TransmissionDownload,
 };
 use windmill::services::consolidation::send_transmission_package_service::SendRefusal;
 use windmill::services::signing::actions::transmission::TransmissionRefusal;
+use windmill::services::signing::operational_policy::require_legacy_signing;
 use windmill::services::signing::SigningCaller;
 use windmill::services::tasks_execution::*;
 use windmill::tasks::miru_plugin_tasks::upload_signature_task;
@@ -191,11 +195,12 @@ pub struct UploadSignatureInput {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UploadSignatureOutput {}
 
-#[instrument(skip(claims, input))]
+#[instrument(skip(claims, input, services))]
 #[post("/miru/upload-signature", format = "json", data = "<input>")]
 pub async fn upload_signature(
     claims: jwt::JwtClaims,
     input: Json<UploadSignatureInput>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<UploadSignatureOutput>, Guarded<(Status, String)>> {
     let body = input.into_inner();
     authorize(
@@ -204,6 +209,25 @@ pub async fn upload_signature(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::MIRU_SIGN],
     )?;
+
+    {
+        let tenant = Uuid::parse_str(&claims.hasura_claims.tenant_id)
+            .map_err(|_| SigningFailure::forbidden("Invalid tenant."))?;
+        let mut client = services
+            .databases
+            .hasura()
+            .await
+            .get()
+            .await
+            .map_err(SigningFailure::internal)?;
+        let policy_tx = client
+            .transaction()
+            .await
+            .map_err(SigningFailure::internal)?;
+        require_legacy_signing(&policy_tx, tenant)
+            .await
+            .map_err(|error| SigningFailure::forbidden(error.to_string()))?;
+    }
 
     let Some(username) = claims.preferred_username.clone() else {
         return Err((

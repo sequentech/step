@@ -28,6 +28,7 @@ fn delivery_members() -> Vec<Artifact> {
 fn content() -> Content {
     Content {
         files: file_entries(&delivery_members()).unwrap(),
+        ballot_design_digest_algorithm: Default::default(),
         ballot_designs: vec![BallotDesign {
             area: "North".to_string(),
             election: "officers".to_string(),
@@ -820,6 +821,7 @@ fn zip64_locator(record_at: u64) -> Vec<u8> {
     let mut locator = ZIP64_LOCATOR.to_vec();
     locator.resize(20, 0);
     locator[8..16].copy_from_slice(&record_at.to_le_bytes());
+    locator[16..20].copy_from_slice(&1u32.to_le_bytes());
     locator
 }
 
@@ -828,6 +830,8 @@ fn zip64_locator(record_at: u64) -> Vec<u8> {
 fn zip64_end_of_directory(count: u64, offset: u64) -> Vec<u8> {
     let mut end = ZIP64_END_OF_CENTRAL_DIRECTORY.to_vec();
     end.resize(56, 0);
+    end[4..12].copy_from_slice(&44u64.to_le_bytes());
+    end[24..32].copy_from_slice(&count.to_le_bytes());
     end[32..40].copy_from_slice(&count.to_le_bytes());
     end[48..56].copy_from_slice(&offset.to_le_bytes());
     end
@@ -840,7 +844,9 @@ fn zip64_directory(names: &[&str]) -> Vec<u8> {
         .flat_map(|name| directory_entry(name))
         .collect();
     let record_at = bytes.len() as u64;
-    bytes.extend(zip64_end_of_directory(names.len() as u64, 0));
+    let mut end64 = zip64_end_of_directory(names.len() as u64, 0);
+    end64[40..48].copy_from_slice(&record_at.to_le_bytes());
+    bytes.extend(end64);
     bytes.extend(zip64_locator(record_at));
     bytes.extend(end_of_directory(u16::MAX, u32::MAX));
     bytes
@@ -855,12 +861,14 @@ fn a_file_without_a_zips_end_record_is_not_a_zip() {
 #[test]
 fn a_directory_that_starts_where_no_entry_is_is_refused() {
     let mut no_entry = vec![0u8; 46];
-    no_entry.extend(end_of_directory(1, 0));
+    let mut end = end_of_directory(1, 0);
+    end[12..16].copy_from_slice(&46u32.to_le_bytes());
+    no_entry.extend(end);
     assert_eq!(unreadable(&no_entry), "its central directory is damaged");
 
     assert_eq!(
         unreadable(&end_of_directory(1, 4000)),
-        "its central directory is damaged"
+        "inconsistent central directory size"
     );
 }
 
@@ -871,20 +879,26 @@ fn a_directory_entry_cut_short_is_refused() {
     // 24 leaves a file shorter than the 46 bytes an entry's header takes.
     for kept in 4..24 {
         let mut bytes = entry[..kept].to_vec();
-        bytes.extend(end_of_directory(1, 0));
+        let mut end = end_of_directory(1, 0);
+        end[12..16].copy_from_slice(&(kept as u32).to_le_bytes());
+        bytes.extend(end);
         assert_eq!(unreadable(&bytes), "it ends early", "cut at {kept}");
     }
 
     let mut long_name = directory_entry("a.csv");
     long_name[28..30].copy_from_slice(&500u16.to_le_bytes());
-    long_name.extend(end_of_directory(1, 0));
+    let mut end = end_of_directory(1, 0);
+    end[12..16].copy_from_slice(&(long_name.len() as u32).to_le_bytes());
+    long_name.extend(end);
     assert_eq!(unreadable(&long_name), "it ends early");
 }
 
 #[test]
 fn a_directory_with_no_file_behind_it_is_refused() {
     let mut bytes = directory_entry("a.csv");
-    bytes.extend(end_of_directory(1, 0));
+    let mut end = end_of_directory(1, 0);
+    end[12..16].copy_from_slice(&(bytes.len() as u32).to_le_bytes());
+    bytes.extend(end);
     assert_eq!(
         central_directory_names(&bytes, 8),
         Ok(vec!["a.csv".to_string()])
@@ -906,7 +920,11 @@ fn a_name_used_twice_cannot_hide_behind_a_directory_that_counts_no_entries() {
     let end = twice.len() - 22;
     twice[end + 10..end + 12].fill(0);
 
-    assert_eq!(central_directory_names(&twice, 8), Ok(Vec::new()));
+    // Conflicting disk and total counts are rejected before enumeration.
+    assert_eq!(
+        central_directory_names(&twice, 8),
+        Err("inconsistent archive end or multiple disks".into())
+    );
     unreadable(&twice);
 }
 
@@ -966,7 +984,7 @@ fn a_zip64_file_without_its_zip64_directory_is_refused() {
     let mut cut = ZIP64_END_OF_CENTRAL_DIRECTORY.to_vec();
     cut.extend(zip64_locator(0));
     cut.extend(end_of_directory(u16::MAX, 0));
-    assert_eq!(unreadable(&cut), "it ends early");
+    assert_eq!(unreadable(&cut), "inconsistent zip64 directory");
 }
 
 fn directory_of(zipped: &[u8]) -> usize {
@@ -1023,4 +1041,50 @@ fn a_package_missing_one_signature_member_says_which() {
     assert_eq!(opened.chain.as_deref(), Some(&b"chain"[..]));
     assert_eq!(opened.signature, None);
     assert_eq!(opened.members, delivery_members());
+}
+
+#[test]
+fn a_complete_zip64_archive_has_one_canonical_view() {
+    let mut bytes =
+        zip(&[artifact("a.csv", b"one"), artifact("b.csv", b"two")]).unwrap();
+    let end_at = bytes.len() - 22;
+    let offset =
+        u32::from_le_bytes(bytes[end_at + 16..end_at + 20].try_into().unwrap());
+    let size =
+        u32::from_le_bytes(bytes[end_at + 12..end_at + 16].try_into().unwrap());
+    bytes.truncate(end_at);
+    let mut end64 = zip64_end_of_directory(2, u64::from(offset));
+    end64[40..48].copy_from_slice(&u64::from(size).to_le_bytes());
+    bytes.extend(end64);
+    bytes.extend(zip64_locator(end_at as u64));
+    bytes.extend(end_of_directory(u16::MAX, u32::MAX));
+    assert_eq!(member_names(&bytes).unwrap(), vec!["a.csv", "b.csv"]);
+    assert_eq!(
+        read_zip(&bytes, "package").unwrap(),
+        vec![artifact("a.csv", b"one"), artifact("b.csv", b"two")]
+    );
+}
+
+#[test]
+fn only_absence_defaults_the_design_algorithm_and_v1_encoding_is_unchanged() {
+    let legacy = content();
+    let v1 = serde_json::to_value(&legacy).unwrap();
+    assert!(v1.get("ballot_design_digest_algorithm").is_none());
+    assert_eq!(
+        serde_json::from_value::<Content>(v1.clone())
+            .unwrap()
+            .sha256()
+            .unwrap(),
+        legacy.sha256().unwrap()
+    );
+    let mut candidate = v1.clone();
+    for bad in [json!(null), json!("v3"), json!(2)] {
+        candidate["ballot_design_digest_algorithm"] = bad;
+        assert!(serde_json::from_value::<Content>(candidate.clone()).is_err());
+    }
+    candidate["ballot_design_digest_algorithm"] = json!("v2");
+    let v2 = serde_json::from_value::<Content>(candidate.clone()).unwrap();
+    assert_eq!(v2.ballot_design_digest_algorithm, DesignDigestAlgorithm::V2);
+    assert_eq!(serde_json::to_value(&v2).unwrap(), candidate);
+    assert_ne!(v2.sha256().unwrap(), legacy.sha256().unwrap());
 }

@@ -80,3 +80,33 @@ fn every_exemption_names_a_committing_route_without_an_audit() {
         .collect();
     assert!(stale.is_empty(), "stale exemptions: {stale:?}");
 }
+
+/// The Initialize ceremony's attempt table has no `audit_change` trigger,
+/// so the file-level check above is not enough for its routes: each ledger
+/// function that changes an attempt is followed, in the same route and
+/// before its commit, by an entry the route stages itself.
+#[test]
+fn each_initialize_attempt_change_stages_its_entry_before_committing() {
+    let source = include_str!("../../src/routes/operational_initialize.rs");
+    for function in [
+        "operational_initialize_discard_unredeemed(",
+        "operational_initialize_record_browser_return(",
+    ] {
+        let calls: Vec<usize> =
+            source.match_indices(function).map(|(at, _)| at).collect();
+        assert_eq!(calls.len(), 1, "{function} is called once");
+        // What is left of the route after the call.
+        let rest = &source[calls[0]..];
+        let rest = &rest[..rest.find("\n}\n").expect("the route ends")];
+        let staged = rest
+            .find("audit_log::stage(")
+            .unwrap_or_else(|| panic!("{function} stages no audit entry"));
+        let committed = rest
+            .find(".commit()")
+            .unwrap_or_else(|| panic!("{function} is never committed"));
+        assert!(
+            staged < committed,
+            "{function} commits before its audit entry is staged"
+        );
+    }
+}

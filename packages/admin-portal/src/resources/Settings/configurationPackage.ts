@@ -158,6 +158,48 @@ export const readApplication = (annotations: unknown): ApplicationView | null =>
     }
 }
 
+export interface ManagedPreviewBinding {
+    sha256: string
+    generation: string
+    requiredApprovals: number
+}
+
+/** Only the completed Preview's own, server-persisted trust and import plan
+ * can authorize confirmation. Never substitute the roster observed at upload. */
+export const readManagedPreview = (
+    annotations: unknown,
+    tenantId: string,
+    requirements: PackageRequirements
+): ManagedPreviewBinding | null => {
+    const record = asObject(asObject(annotations).application)
+    if (
+        record.format !== "sequent.package-application/1" ||
+        record.tenantId !== tenantId ||
+        record.mode !== "preview" ||
+        record.outcome !== "previewed"
+    )
+        return null
+    const binding = asObject(record.managedRosterBinding)
+    const plan = asObject(record.managedRequirements)
+    if (
+        typeof binding.sha256 !== "string" ||
+        !/^[0-9a-f]{64}$/.test(binding.sha256) ||
+        !Number.isSafeInteger(binding.generation) ||
+        binding.generation < 1 ||
+        !Number.isSafeInteger(binding.requiredApprovals) ||
+        binding.requiredApprovals < 1 ||
+        !Array.isArray(plan.sections) ||
+        new Set(plan.sections).size !== plan.sections.length ||
+        !sameRequirements({sections: plan.sections, census: plan.census}, requirements)
+    )
+        return null
+    return {
+        sha256: binding.sha256,
+        generation: String(binding.generation),
+        requiredApprovals: binding.requiredApprovals,
+    }
+}
+
 /** How many sections a preview would change. */
 export const sectionsToChange = (view: ApplicationView): number =>
     view.sections.filter((s) => s.preview?.needsApply).length
@@ -167,6 +209,8 @@ export interface PreviewedPackage {
     documentId: string
     requirements: PackageRequirements
     view: ApplicationView
+    taskId?: string
+    managedBinding?: ManagedPreviewBinding | null
 }
 
 const sameRequirements = (a: PackageRequirements, b: PackageRequirements): boolean =>

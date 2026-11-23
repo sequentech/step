@@ -426,3 +426,42 @@ fn a_contest_list_that_is_not_a_list_is_hashed_as_it_is() {
         r#"{"candidates":"none","contests":null}"#
     );
 }
+
+#[test]
+fn v2_excludes_only_root_event_messaging_and_preserves_v1() {
+    let keys = event_keys();
+    let base = style("s1", "a1", "e1");
+    let digest = |style: &BallotStyle, algorithm| {
+        ballot_design_digest_with_algorithm(style, &keys, algorithm).unwrap()
+    };
+    let v1 = ballot_design_digest(&base, &keys).unwrap();
+    let v2 = digest(&base, DesignDigestAlgorithm::V2);
+    assert_ne!(v1, v2, "even without messaging, V2 is domain separated");
+    assert_eq!(digest(&base, DesignDigestAlgorithm::V1), v1);
+
+    let mut changed = base.clone();
+    changed.election_event_annotations = Some(Default::default());
+    assert_eq!(digest(&changed, DesignDigestAlgorithm::V2), v2);
+    let mut annotations = changed.election_event_annotations.take().unwrap();
+    for field in [
+        crate::types::messaging::MESSAGING_CONFIG_ANNOTATION,
+        "janitor.param.event.messaging_config",
+    ] {
+        annotations.insert(field.to_string(), "target".to_string());
+        changed.election_event_annotations = Some(annotations.clone());
+        assert_eq!(digest(&changed, DesignDigestAlgorithm::V2), v2);
+        assert_ne!(digest(&changed, DesignDigestAlgorithm::V1), v1);
+    }
+
+    annotations
+        .insert("voter-facing-annotation".to_string(), "changed".to_string());
+    changed.election_event_annotations = Some(annotations);
+    assert_ne!(digest(&changed, DesignDigestAlgorithm::V2), v2);
+
+    let mut same_key_elsewhere = serde_json::to_value(&base).unwrap();
+    same_key_elsewhere["election_annotations"] =
+        json!({"messaging:config": "still ballot design"});
+    let changed: BallotStyle =
+        serde_json::from_value(same_key_elsewhere).unwrap();
+    assert_ne!(digest(&changed, DesignDigestAlgorithm::V2), v2);
+}
