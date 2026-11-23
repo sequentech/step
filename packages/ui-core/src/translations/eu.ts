@@ -609,6 +609,10 @@ const basqueTranslation: TranslationType = {
                         lead: "Integrazio-sekretu ezkutatua",
                         text: "Integrazio-sekretu ezkutatua — Scanovate-ren '{{config}}' konfigurazioak Keycloak-en marka (**********) du liveness sekretuaren ordez, eta inportatuz gero marka hori instalatuko litzateke. Esportatu gertaera berriro integrazio-sekretuak barne; Scanovate-k beste autentifikatzaile batekin partekatzen duen konfigurazio batek berea behar du lehenik.",
                     },
+                    "masked-scanovate-settings": {
+                        lead: "Scanovate-ren ezarpenak kanpoan utzi dira",
+                        text: "Scanovate-ren ezarpenak kanpoan utzi dira — Scanovate-ren '{{config}}' konfigurazioak Keycloak-en marka (**********) du ezarpen hauen ordez: {{settings}}. Gertaera esportatu zuen zerbitzariak ez ditu erabiltzen, eta haien balioak ez dira iritsi; kanpoan uzten dira eta zerbitzari honen balio lehenetsiak aplikatzen dira. Berrikusi konfigurazioa inportazioaren ondoren.",
+                    },
                     "not-a-bundle": {
                         lead: "Ez da hauteskunde-gertaera baten esportazioa",
                         text: "Ez da hauteskunde-gertaera baten esportazioa — fitxategia irakurri da, baina ez du horren forma: {{reason}}",

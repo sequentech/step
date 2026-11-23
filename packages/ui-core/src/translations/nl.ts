@@ -610,6 +610,10 @@ const dutchTranslation: TranslationType = {
                         lead: "Gemaskeerd integratiegeheim",
                         text: "Gemaskeerd integratiegeheim — de Scanovate-configuratie '{{config}}' bevat de plaatshouder van Keycloak (**********) in plaats van het liveness-geheim, dus importeren zou de plaatshouder installeren. Exporteer het evenement opnieuw met integratiegeheimen; een configuratie die Scanovate met een andere authenticator deelt, heeft eerst een eigen configuratie nodig.",
                     },
+                    "masked-scanovate-settings": {
+                        lead: "Scanovate-instellingen weggelaten",
+                        text: "Scanovate-instellingen weggelaten — de Scanovate-configuratie '{{config}}' bevat de plaatshouder van Keycloak (**********) in plaats van deze instellingen: {{settings}}. De server die het evenement exporteerde gebruikt ze niet, dus hun waarden zijn niet meegekomen; ze worden weggelaten en de standaardwaarden van deze server gelden. Controleer de configuratie na het importeren.",
+                    },
                     "not-a-bundle": {
                         lead: "Geen export van een verkiezingsevenement",
                         text: "Geen export van een verkiezingsevenement — het bestand is gelezen maar heeft niet de vorm van een export: {{reason}}",

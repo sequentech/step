@@ -615,6 +615,10 @@ const frenchTranslation: TranslationType = {
                         lead: "Secret d'intégration masqué",
                         text: "Secret d'intégration masqué — la configuration Scanovate « {{config}} » contient l'espace réservé de Keycloak (**********) au lieu de son secret de liveness ; l'importer installerait cet espace réservé. Exportez de nouveau l'événement en incluant les secrets d'intégration ; une configuration que Scanovate partage avec un autre authentificateur doit d'abord avoir la sienne.",
                     },
+                    "masked-scanovate-settings": {
+                        lead: "Paramètres Scanovate omis",
+                        text: "Paramètres Scanovate omis — la configuration Scanovate « {{config}} » contient le marqueur de Keycloak (**********) à la place de ces paramètres : {{settings}}. Le serveur qui a exporté l'événement ne les utilise pas, leurs valeurs n'ont donc pas été transmises ; ils sont omis et les valeurs par défaut de ce serveur s'appliquent. Vérifiez la configuration après l'import.",
+                    },
                     "not-a-bundle": {
                         lead: "Pas un export d'événement électoral",
                         text: "Pas un export d'événement électoral — le fichier a été lu mais n'en a pas la structure : {{reason}}",
