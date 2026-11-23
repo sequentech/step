@@ -294,4 +294,21 @@ mod tests {
         assert_eq!(version.code, Code::IncompatibleVersion);
         assert_eq!(version.details["found"], "8.1.0");
     }
+
+    /// Left-out Scanovate settings do not stop the import: the operator is
+    /// told which configuration and which settings, never a value.
+    #[test]
+    fn masked_scanovate_settings_are_a_warning_naming_them() {
+        let keys = ["ocr-url".to_string(), "page-languages".to_string()];
+        let problem =
+            masked_scanovate_settings("scanovate-registration", &keys);
+        assert_eq!(problem.severity, Severity::Warning);
+        assert_eq!(
+            problem.id.as_deref(),
+            Some("file.masked-scanovate-settings")
+        );
+        assert_eq!(problem.details["config"], "scanovate-registration");
+        assert_eq!(problem.details["settings"], "ocr-url, page-languages");
+        assert!(problem.to_string().contains("ocr-url, page-languages"));
+    }
 }

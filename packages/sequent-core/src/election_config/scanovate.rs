@@ -158,29 +158,20 @@ pub fn credential_notice(realm: &Value) -> Option<Problem> {
 /// masked `page-languages` stops every capture). The secret's mask is left
 /// for [`validate`] to refuse.
 pub fn drop_masked_settings(realm: &mut Value) -> Vec<(String, Vec<String>)> {
-    let indexes: Vec<usize> = configs(realm)
+    let used: Vec<(usize, String)> = configs(realm)
         .into_iter()
-        .map(|(index, _, _)| index)
+        .map(|(index, config, _)| {
+            let alias = config.get("alias").and_then(Value::as_str);
+            (index, alias.unwrap_or("Scanovate").to_string())
+        })
         .collect();
-    let Some(all) = realm
-        .get_mut("authenticatorConfig")
-        .and_then(Value::as_array_mut)
-    else {
-        return Vec::new();
-    };
     let mut dropped = Vec::new();
-    for index in indexes {
-        let Some(config) = all.get_mut(index).and_then(Value::as_object_mut)
-        else {
-            continue;
-        };
-        let alias = config
-            .get("alias")
-            .and_then(Value::as_str)
-            .unwrap_or("Scanovate")
-            .to_string();
-        let Some(settings) =
-            config.get_mut("config").and_then(Value::as_object_mut)
+    for (index, alias) in used {
+        let Some(settings) = realm
+            .get_mut("authenticatorConfig")
+            .and_then(|configs| configs.get_mut(index))
+            .and_then(|config| config.get_mut("config"))
+            .and_then(Value::as_object_mut)
         else {
             continue;
         };
@@ -191,14 +182,13 @@ pub fn drop_masked_settings(realm: &mut Value) -> Vec<(String, Vec<String>)> {
             })
             .map(|(key, _)| key.clone())
             .collect();
-        if keys.is_empty() {
-            continue;
-        }
         keys.sort();
         for key in &keys {
             settings.remove(key);
         }
-        dropped.push((alias, keys));
+        if !keys.is_empty() {
+            dropped.push((alias, keys));
+        }
     }
     dropped
 }
@@ -311,6 +301,24 @@ mod tests {
             assert!(drop_masked_settings(&mut source).is_empty());
             validate(&source).unwrap();
         }
+        // A configuration with no settings, or known only by its id, and a
+        // realm with no configurations at all.
+        let mut bare = json!({
+            "authenticationFlows": [{"authenticationExecutions": [
+                {"authenticator": PROVIDER, "authenticatorConfig": "bare-id"},
+                {"authenticator": PROVIDER, "authenticatorConfig": "by-id"}
+            ]}],
+            "authenticatorConfig": [
+                {"id": "bare-id"},
+                {"id": "by-id", "config": {"ocr-url": "**********", "n": 5}}
+            ]
+        });
+        assert_eq!(
+            drop_masked_settings(&mut bare),
+            vec![("Scanovate".to_string(), vec!["ocr-url".to_string()])]
+        );
+        assert_eq!(bare["authenticatorConfig"][1]["config"], json!({"n": 5}));
+        assert!(drop_masked_settings(&mut json!({})).is_empty());
         // The masked secret is not dropped: it is still refused.
         let mut masked = realm("custom", "**********");
         assert!(drop_masked_settings(&mut masked).is_empty());
