@@ -231,6 +231,36 @@ pub fn stored_document_key(tenant_id: &str, document: &Document) -> String {
     s3::get_document_key(tenant_id, election_event_id, &document.id, &name)
 }
 
+/// Application-wide negative egress gate for the actual stored document.
+/// Signed MIRU releases use the dedicated exact-file route instead.
+pub async fn ordinary_document_url_allowed(
+    tx: &Transaction<'_>,
+    tenant_id: &str,
+    document: &Document,
+) -> anyhow::Result<bool> {
+    use crate::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
+    let tenant = uuid::Uuid::parse_str(tenant_id)?;
+    if signing_mode(tx, tenant).await? != OperationalSigningMode::HsmRequired {
+        return Ok(true);
+    }
+    let event = document
+        .election_event_id
+        .as_deref()
+        .filter(|id| !id.is_empty())
+        .map(uuid::Uuid::parse_str)
+        .transpose()?;
+    let document_id = uuid::Uuid::parse_str(&document.id)?;
+    let withheld: Option<bool> = tx
+        .query_one(
+            "SELECT sequent_backend.operational_miru_generic_withhold($1,$2,$3)",
+            &[&tenant, &event, &document_id],
+        )
+        .await?
+        .try_get(0)?;
+    Ok(!withheld
+        .ok_or_else(|| anyhow::anyhow!("Operational document inventory not yet verified"))?)
+}
+
 #[instrument(err)]
 pub async fn get_document_url(
     hasura_transaction: &Transaction<'_>,
@@ -251,6 +281,9 @@ pub async fn get_document_url(
         return Ok(None);
     };
 
+    if !ordinary_document_url_allowed(hasura_transaction, tenant_id, &document).await? {
+        return Ok(None);
+    }
     let document_s3_key = stored_document_key(tenant_id, &document);
 
     let bucket = if document.is_public.unwrap_or(false) {

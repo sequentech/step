@@ -5,6 +5,8 @@ pub mod api_datafix;
 pub mod applications;
 pub mod apply_configuration_package;
 pub mod approval_matrix;
+pub mod architect_approval_policy;
+pub mod architect_signer_roster;
 pub mod areas;
 pub mod b4;
 pub mod ballot_checks;
@@ -58,9 +60,17 @@ pub mod miru_plugin;
 pub mod monitoring;
 pub mod monitoring_config;
 pub mod monitoring_export;
+#[cfg(feature = "operational-signing-candidate")]
+pub(crate) mod operational_initialize;
+#[cfg(feature = "operational-signing-candidate")]
+pub(crate) mod operational_initialize_broker;
+#[cfg(feature = "operational-signing-candidate")]
+pub(crate) mod operational_setup;
 pub mod permissions;
 pub mod phone_blacklist;
 pub mod plugins;
+#[cfg(feature = "operational-signing-private-ca-candidate")]
+pub(crate) mod private_operational_ca;
 pub mod readiness;
 pub mod realm_attributes;
 pub mod realm_password_policy;

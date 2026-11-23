@@ -2087,3 +2087,269 @@ async fn preparing_a_pdf_for_an_action_without_one_is_refused_and_logged() {
         w.assert_two_entries_per_step().await;
     }
 }
+
+// ------------------------------------------- the operational (device) CMS
+
+/// A self-signed certificate of a P-256 key, as an enrolled device key has.
+fn p256_self_signed(common_name: &str) -> (X509, PKey<Private>) {
+    use openssl::ec::{Asn1Flag, EcGroup, EcKey};
+    use openssl::nid::Nid;
+    let mut group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).unwrap();
+    group.set_asn1_flag(Asn1Flag::NAMED_CURVE);
+    let key = PKey::from_ec_key(EcKey::generate(&group).unwrap()).unwrap();
+    let mut name = X509NameBuilder::new().unwrap();
+    name.append_entry_by_text("CN", common_name).unwrap();
+    let name = name.build();
+    let mut builder = X509::builder().unwrap();
+    builder.set_version(2).unwrap();
+    let serial = BigNum::from_u32(rand_serial())
+        .unwrap()
+        .to_asn1_integer()
+        .unwrap();
+    builder.set_serial_number(&serial).unwrap();
+    builder.set_subject_name(&name).unwrap();
+    builder.set_issuer_name(&name).unwrap();
+    builder.set_pubkey(&key).unwrap();
+    builder
+        .set_not_before(&Asn1Time::days_from_now(0).unwrap())
+        .unwrap();
+    builder
+        .set_not_after(&Asn1Time::days_from_now(30).unwrap())
+        .unwrap();
+    builder.sign(&key, MessageDigest::sha256()).unwrap();
+    (builder.build(), key)
+}
+
+/// Why the operational artifact of `official`'s prepared `revision` is
+/// refused, asked with or without the event's signing lock.
+async fn artifact_refusal(
+    w: &World,
+    store: &MemoryStore,
+    request: &SigningRequestRow,
+    official: &str,
+    revision: i32,
+    enrollment: &windmill::services::signing::certificates::CertificateIdentity,
+    locked: bool,
+) -> String {
+    let mut client = w.pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    if locked {
+        lock_signing_event(&tx, w.tenant, w.event).await.unwrap();
+    }
+    match windmill::services::signing::pdf::operational_pdf_artifact(
+        &tx, request, official, revision, enrollment, store,
+    )
+    .await
+    {
+        Ok(_) => panic!("expected the artifact to be refused"),
+        Err(error) => error.to_string(),
+    }
+}
+
+/// What a device signs for a PDF is derived on the server from the revision
+/// prepared for the official and the enrolled certificate: the artifact
+/// names the stored revision's digests, and its CMS takes only the enrolled
+/// key's signature of the exact attributes. Nothing here calls a device:
+/// the key is a software P-256 key.
+#[tokio::test]
+async fn the_operational_artifact_is_derived_from_the_prepared_revision_and_the_enrollment() {
+    use windmill::services::signing::certificates::CertificateIdentity;
+    use windmill::services::signing::pdf::operational_pdf_artifact;
+    let (label, required, _) = PRESETS[1];
+    let w = world(label).await;
+    w.rule(ER, required, RequesterSigning::NotAllowed, None)
+        .await;
+    let store = Arc::new(MemoryStore::default());
+    let (x509, key) = p256_self_signed("official");
+    let pem = String::from_utf8(x509.to_pem().unwrap()).unwrap();
+    let official = PdfSigner {
+        caller: w.signer("official", ER),
+        certificate: cert_with_pem("official", "official", "official", &pem),
+        x509,
+        key,
+    };
+    // The enrollment's chain: the leaf again, which is not repeated, and
+    // an issuer certificate.
+    let (issuer, _) = self_signed("An issuer");
+    let enrollment =
+        CertificateIdentity::of(&official.x509, &[official.x509.clone(), issuer.clone()]).unwrap();
+    let (request_id, _) = er_request(&w, &store).await;
+    let prepared = prepare(&w, &store, &official, request_id, at(1))
+        .await
+        .unwrap();
+    let request = w.request(request_id).await;
+    let row = revisions(&w, request_id)
+        .await
+        .into_iter()
+        .find(|row| row.state == DocumentRevisionState::Prepared)
+        .unwrap();
+    assert_eq!(row.revision, prepared.revision);
+
+    let artifact = {
+        let mut client = w.pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        lock_signing_event(&tx, w.tenant, w.event).await.unwrap();
+        match operational_pdf_artifact(
+            &tx,
+            &request,
+            "official",
+            prepared.revision,
+            &enrollment,
+            &*store,
+        )
+        .await
+        {
+            Ok(artifact) => artifact,
+            Err(error) => panic!("no operational artifact: {error:?}"),
+        }
+    };
+    assert_eq!(artifact.revision, prepared.revision);
+    assert_eq!(
+        BASE64.encode(artifact.byte_range_sha256),
+        prepared.digest_b64
+    );
+    assert_eq!(
+        Some(hex::encode(artifact.base_sha256)),
+        request.document_sha256
+    );
+    assert_eq!(Some(hex::encode(artifact.parent_sha256)), row.parent_sha256);
+    assert_eq!(hex::encode(artifact.prepared_pdf_sha256), row.sha256);
+    assert_eq!(
+        Some(hex::encode(artifact.byte_range_sha256)),
+        row.digest_sha256
+    );
+
+    // The device signs the attributes, which name the revision's digest;
+    // the CMS carries the leaf and the issuer, each once.
+    let digest = artifact.byte_range_sha256;
+    let cms = artifact.cms;
+    let message = cms.exact_message().to_vec();
+    assert!(message.windows(32).any(|window| window == &digest[..]));
+    let mut signer = Signer::new(MessageDigest::sha256(), &official.key).unwrap();
+    signer.update(&message).unwrap();
+    let signature = signer.sign_to_vec().unwrap();
+    let cms = cms.finish(&signature).unwrap();
+    let leaf_der = official.x509.to_der().unwrap();
+    let issuer_der = issuer.to_der().unwrap();
+    let count = |needle: &[u8]| {
+        cms.windows(needle.len())
+            .filter(|window| *window == needle)
+            .count()
+    };
+    assert_eq!(count(&leaf_der), 1);
+    assert_eq!(count(&issuer_der), 1);
+    assert_eq!(count(&signature), 1);
+
+    // Without the event's signing lock the caller holds nothing.
+    assert_eq!(
+        artifact_refusal(
+            &w,
+            &store,
+            &request,
+            "official",
+            prepared.revision,
+            &enrollment,
+            false
+        )
+        .await,
+        "The prepared signing request is unavailable."
+    );
+    // Someone else's revision, or one that was never prepared.
+    assert_eq!(
+        artifact_refusal(
+            &w,
+            &store,
+            &request,
+            "someone-else",
+            prepared.revision,
+            &enrollment,
+            true
+        )
+        .await,
+        "The report has no prepared revision for you."
+    );
+    assert_eq!(
+        artifact_refusal(
+            &w,
+            &store,
+            &request,
+            "official",
+            prepared.revision + 7,
+            &enrollment,
+            true
+        )
+        .await,
+        "The report has no prepared revision for you."
+    );
+    // Another certificate than the one the revision was prepared for.
+    let other = CertificateIdentity::of(&issuer, &[]).unwrap();
+    assert_eq!(
+        artifact_refusal(
+            &w,
+            &store,
+            &request,
+            "official",
+            prepared.revision,
+            &other,
+            true
+        )
+        .await,
+        "The document was prepared for a different certificate."
+    );
+    // A revision prepared for an RSA certificate has no operational CMS.
+    let rsa = &pdf_signers(&w, ER, 1).await[0];
+    let rsa_prepared = prepare(&w, &store, rsa, request_id, at(1)).await.unwrap();
+    let rsa_enrollment = CertificateIdentity::of(&rsa.x509, &[]).unwrap();
+    let refusal = artifact_refusal(
+        &w,
+        &store,
+        &request,
+        &rsa.caller.user_id,
+        rsa_prepared.revision,
+        &rsa_enrollment,
+        true,
+    )
+    .await;
+    assert!(
+        refusal.contains("Error preparing the operational CMS"),
+        "{refusal}"
+    );
+    // A request that signs no PDF has no artifact either.
+    let close = SigningAction::CloseVoting;
+    w.rule(close, 1, RequesterSigning::NotAllowed, None).await;
+    let other_request = w
+        .start(
+            &caller("operator", &[], &[&w.label]),
+            close,
+            subject(1),
+            at(0),
+        )
+        .await;
+    assert_eq!(
+        artifact_refusal(
+            &w,
+            &store,
+            &w.request(other_request.id).await,
+            "official",
+            1,
+            &enrollment,
+            true
+        )
+        .await,
+        "The prepared signing request is unavailable."
+    );
+
+    // Once the tenant requires hardware, the browser's prepare is closed.
+    w.execute(
+        "INSERT INTO sequent_backend.operational_signing_required_tenant (tenant_id) VALUES ($1)",
+        &[&w.tenant],
+    )
+    .await;
+    match prepare(&w, &store, &official, request_id, at(2)).await {
+        Err(SigningError::Forbidden(message)) => assert_eq!(
+            message,
+            "This tenant requires hardware-backed official signing."
+        ),
+        other => panic!("expected the prepare to be forbidden, got {other:?}"),
+    }
+}

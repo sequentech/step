@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const basqueTranslation: TranslationType = {
     translations: {
+        architectApprovalPolicy: englishTranslation.translations.architectApprovalPolicy,
         configurationSigning: {
             title: "Paketeen sinaduraren konfiantza",
             description:

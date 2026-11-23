@@ -1,0 +1,147 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+//! The first activation-free orchestration slice: one Initialize voting
+//! payload approval, with the real signing access and receipt rules.
+//! This does not authorize the step-up client or contact a device.
+
+use super::approve::sign_refusal;
+use super::operational_policy::{signing_mode, OperationalSigningMode};
+use super::operational_quorum::check_operational_approvals;
+use super::requests::{is_overdue, lock_request, read_request};
+use super::{SigningCaller, SigningError, SigningResult};
+use crate::postgres::signing::{list_signing_approvals, SigningRequestRow};
+use anyhow::Context;
+use deadpool_postgres::Transaction;
+use sequent_core::signing::{sha256_hex, SigningAction, SigningRequestStatus, SigningRule};
+use uuid::Uuid;
+
+/// Only this service can construct a scope from the authorized request.
+pub struct InitializeSigningScope {
+    request: SigningRequestRow,
+    actor: Uuid,
+}
+
+impl InitializeSigningScope {
+    pub fn tenant(&self) -> Uuid {
+        self.request.tenant_id
+    }
+
+    pub fn event(&self) -> Uuid {
+        self.request.election_event_id
+    }
+
+    pub fn request(&self) -> Uuid {
+        self.request.id
+    }
+
+    /// The exact single Post bound to the canonical Initialize request.
+    pub fn election(&self) -> Option<Uuid> {
+        self.request.election_id
+    }
+
+    pub fn actor(&self) -> Uuid {
+        self.actor
+    }
+
+    pub fn payload_sha256(&self) -> &str {
+        &self.request.payload_sha256
+    }
+}
+
+fn unavailable() -> SigningError {
+    SigningError::Forbidden("Device signing for this request is not available.".into())
+}
+
+async fn scope(
+    tx: &Transaction<'_>,
+    caller: &SigningCaller,
+    tenant: Uuid,
+    request_id: Uuid,
+    changes_state: bool,
+) -> SigningResult<InitializeSigningScope> {
+    if signing_mode(tx, tenant)
+        .await
+        .context("Read signing mode")?
+        != OperationalSigningMode::HsmRequired
+    {
+        return Err(unavailable());
+    }
+    let initial = read_request(tx, tenant, request_id).await?;
+    if initial.action != SigningAction::InitializeVoting {
+        return Err(unavailable());
+    }
+    if sign_refusal(tx, caller, &initial).await?.is_some() {
+        return Err(unavailable());
+    }
+    let request = if changes_state {
+        lock_request(tx, tenant, request_id).await?
+    } else {
+        initial
+    };
+    let rule: SigningRule = serde_json::from_value(request.rule_snapshot.clone())
+        .context("Read frozen signing rule")?;
+    if rule.action != request.action
+        || rule.validate().is_err()
+        || !rule.is_required()
+        || i32::from(rule.required()) != request.required
+        || request.document_id.is_some()
+        || request.document_sha256.is_some()
+        || sha256_hex(request.canonical_payload.as_bytes()) != request.payload_sha256
+    {
+        return Err(unavailable());
+    }
+    let actor = Uuid::parse_str(&caller.user_id)
+        .ok()
+        .filter(|id| !id.is_nil() && id.to_string() == caller.user_id)
+        .ok_or_else(unavailable)?;
+    Ok(InitializeSigningScope { request, actor })
+}
+
+/// Same authorization and immutable scope without requiring a live attempt.
+pub async fn initialize_signing_scope(
+    tx: &Transaction<'_>,
+    caller: &SigningCaller,
+    tenant: Uuid,
+    request: Uuid,
+) -> SigningResult<InitializeSigningScope> {
+    scope(tx, caller, tenant, request, false).await
+}
+
+/// Checked both when starting PAR and when a currently authenticated
+/// browser returns from the step-up. The private orchestrator must
+/// independently recheck the same immutable tuple when reserving.
+pub async fn prepare_initialize_signing(
+    tx: &Transaction<'_>,
+    caller: &SigningCaller,
+    tenant: Uuid,
+    request_id: Uuid,
+) -> SigningResult<InitializeSigningScope> {
+    let scoped = scope(tx, caller, tenant, request_id, true).await?;
+    let request = &scoped.request;
+    if request.status != SigningRequestStatus::Waiting || is_overdue(tx, request).await? {
+        return Err(SigningError::Closed {
+            status: request.status,
+            message: "This request can no longer receive another approval.".into(),
+        });
+    }
+    Ok(scoped)
+}
+
+/// Returns true only for this currently authorized actor's exact persisted
+/// approval, never other actors' receipts or an inferred successful response.
+pub async fn initialize_signing_applied(
+    tx: &Transaction<'_>,
+    caller: &SigningCaller,
+    tenant: Uuid,
+    request_id: Uuid,
+) -> SigningResult<bool> {
+    let scoped = scope(tx, caller, tenant, request_id, false).await?;
+    let request = &scoped.request;
+    let rows = list_signing_approvals(tx, tenant, request.election_event_id, request.id).await?;
+    let Some(approval) = rows.iter().find(|row| row.user_id == caller.user_id) else {
+        return Ok(false);
+    };
+    Ok(check_operational_approvals(tx, request, std::slice::from_ref(approval)).await?)
+}

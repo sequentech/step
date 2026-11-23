@@ -6,6 +6,7 @@
 //! The task does the work; this checks the caller holds every section's
 //! permission and stamps the rights the event import uses from their token.
 
+use crate::routes::architect_signer_roster::is_tenant_portal_token;
 use crate::routes::insert_election_event::stamp_initiators;
 use crate::services::audit;
 use crate::services::authorization::authorize;
@@ -13,11 +14,12 @@ use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::election_config::package_contract::Requirements;
-use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::{jwt::JwtClaims, uuid_validation::parse_uuid_v4};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use sha2::{Digest, Sha256};
 use tracing::instrument;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::import::configuration_package_apply::ApplyMode;
@@ -36,6 +38,9 @@ pub struct ApplyConfigurationPackageInput {
     /// The action declares it nullable: absent and null both mean none.
     #[serde(default)]
     requirements: Option<Requirements>,
+    /// Exact successful preview for portal-managed package application.
+    #[serde(default)]
+    preview_task_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -64,6 +69,40 @@ fn authorize_apply(
         Some(tenant_id.to_string()),
         PACKAGE_PERMISSIONS.to_vec(),
     )
+}
+
+/// Bind the selected Preview to the verified actor without returning their
+/// OIDC subject or creating a stable cross-task identifier in task records.
+fn managed_preview_operator_binding(
+    claims: &JwtClaims,
+    tenant_id: &str,
+    mode: ApplyMode,
+    current_task: &str,
+    confirmed_preview: Option<&str>,
+) -> Option<String> {
+    let tenant = parse_uuid_v4(tenant_id).ok()?;
+    if tenant.to_string() != tenant_id
+        || claims.hasura_claims.tenant_id != tenant_id
+        || !is_tenant_portal_token(claims, tenant_id)
+        || claims.sub.is_empty()
+        || claims.sub.len() > 255
+    {
+        return None;
+    }
+    let preview_task = match mode {
+        ApplyMode::Preview => current_task,
+        ApplyMode::Apply => confirmed_preview?,
+    };
+    let preview = parse_uuid_v4(preview_task).ok()?;
+    if preview.to_string() != preview_task {
+        return None;
+    }
+    let mut hash = Sha256::new();
+    hash.update(b"sequent-package-preview-operator/1\0");
+    hash.update(tenant.as_bytes());
+    hash.update(preview.as_bytes());
+    hash.update(claims.sub.as_bytes());
+    Some(format!("{:x}", hash.finalize()))
 }
 
 #[instrument(skip(claims, activity))]
@@ -114,11 +153,20 @@ pub async fn apply_configuration_package_route(
             format!("Failed to insert task execution record: {error:?}"),
         )
     })?;
+    let operator_binding = managed_preview_operator_binding(
+        &claims,
+        &input.tenant_id,
+        input.mode,
+        &task_execution.id,
+        input.preview_task_id.as_deref(),
+    );
     let body = ApplyConfigurationPackageBody {
         tenant_id: input.tenant_id.clone(),
         document_id: input.document_id.clone(),
         mode: input.mode,
         requirements: input.requirements.unwrap_or_default(),
+        preview_task_id: input.preview_task_id,
+        managed_preview_operator_binding: operator_binding,
         event_import,
         audit_actor: Some(audit::actor(&claims)),
         executed_by,
@@ -153,6 +201,50 @@ mod tests {
         let roles: Vec<String> = held.iter().map(|p| p.to_string()).collect();
         let roles: Vec<&str> = roles.iter().map(String::as_str).collect();
         admin_claims(CALLER_TENANT_ID, &roles)
+    }
+
+    #[test]
+    fn managed_operator_binding_uses_verified_subject_and_the_specific_preview()
+    {
+        let tenant = CALLER_TENANT_ID;
+        let first = "550e8400-e29b-41d4-a716-446655440000";
+        let second = "550e8400-e29b-41d4-a716-446655440001";
+        let mut claims = admin_claims(tenant, &[]);
+        claims.iss = format!("https://login.example/realms/tenant-{tenant}");
+        claims.sub = "test-subject-1".into();
+        let stamp = |claims: &JwtClaims, mode, current, preview| {
+            managed_preview_operator_binding(
+                claims, tenant, mode, current, preview,
+            )
+        };
+        let preview = stamp(&claims, ApplyMode::Preview, first, None).unwrap();
+        claims.preferred_username = Some("A different display name".into());
+        assert_eq!(
+            stamp(&claims, ApplyMode::Apply, second, Some(first)),
+            Some(preview.clone())
+        );
+        assert_ne!(
+            stamp(&claims, ApplyMode::Preview, second, None),
+            Some(preview.clone())
+        );
+        claims.sub = "test-subject-2".into();
+        assert_ne!(
+            stamp(&claims, ApplyMode::Apply, second, Some(first)),
+            Some(preview)
+        );
+        assert!(stamp(&claims, ApplyMode::Apply, second, None).is_none());
+        claims.iss = format!(
+            "https://login.example/realms/tenant-{tenant}-event-sample"
+        );
+        assert!(stamp(&claims, ApplyMode::Preview, first, None).is_none());
+        assert!(managed_preview_operator_binding(
+            &claims,
+            OTHER_TENANT_ID,
+            ApplyMode::Preview,
+            first,
+            None
+        )
+        .is_none());
     }
 
     #[test]

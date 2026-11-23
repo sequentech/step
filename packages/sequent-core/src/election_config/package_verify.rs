@@ -727,13 +727,37 @@ fn admission_for(
     if let Some(settings) = settings {
         settings.check_stored()?;
     }
+    // Never downgrade an unreadable or ambiguous ZIP to an unsigned upload.
+    let names = super::manifest::admission_member_names(bytes)
+        .map_err(Report::from_problem)?;
+    // A browser-signed (WebAuthn) envelope, or anything named like one, is
+    // never "unsigned" and never read here: it has its own verifier, with
+    // its own pinned roster, which this tenant setting does not provide.
+    if names.as_ref().is_some_and(|names| {
+        names
+            .iter()
+            .any(|name| super::webauthn_package::is_browser_member(name))
+    }) {
+        return Err(Report::from_problem(
+            super::webauthn_package::needs_browser_verifier(),
+        ));
+    }
     // Format 2 required means signatures required, whatever the policy says:
     // an unsigned file must never get round the enrollment.
     let required = settings.is_some_and(|settings| {
         settings.policy == ConfigurationSigningPolicy::Required
             || settings.effective_minimum_format() == PackageFormat::V2
     });
-    if !has_signature_members(bytes) {
+    if !names.as_ref().is_some_and(|names| {
+        names.iter().any(|name| {
+            [
+                super::manifest::MANIFEST_MEMBER,
+                super::manifest::SIGNATURE_MEMBER,
+                super::manifest::CHAIN_MEMBER,
+            ]
+            .contains(&name.as_str())
+        })
+    }) {
         return if required {
             Err(Report::from_problem(unsigned(&[
                 super::manifest::MANIFEST_MEMBER,
@@ -802,9 +826,23 @@ pub struct CertificateIdentity {
     pub spki_sha256: String,
 }
 
+/// Which strict verifier admitted a package. Set by that verifier alone
+/// ([`verify_package`] and its format-2 path, or
+/// `super::webauthn_package::verify_browser_package`); importers decide on
+/// it, never on a signer's names or any other display string.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum VerificationScheme {
+    /// A certificate signature: format 1 or 2.
+    Certificate,
+    /// Officials' browser security keys, against the roster this pin names.
+    Browser { roster_sha256: String },
+}
+
 /// A package that passed every check. Only now may its members be read.
 #[derive(Debug, Clone)]
 pub struct VerifiedPackage {
+    /// How it was verified.
+    pub scheme: VerificationScheme,
     pub manifest: Manifest,
     pub manifest_sha256: String,
     pub signer: CertificateIdentity,
@@ -871,6 +909,16 @@ fn verify(
     trust: &PackageTrust,
     now: Option<DateTime<Utc>>,
 ) -> Result<VerifiedPackage, Report> {
+    let names =
+        super::manifest::member_names(bytes).map_err(Report::from_problem)?;
+    if names
+        .iter()
+        .any(|name| super::webauthn_package::is_browser_member(name))
+    {
+        return Err(Report::from_problem(
+            super::webauthn_package::needs_browser_verifier(),
+        ));
+    }
     let signed = signature_members(bytes).map_err(Report::from_problem)?;
     let (Some(manifest_bytes), Some(signature), Some(chain)) =
         (&signed.manifest, &signed.signature, &signed.chain)
@@ -954,6 +1002,7 @@ fn verify(
     }
 
     Ok(VerifiedPackage {
+        scheme: VerificationScheme::Certificate,
         manifest_sha256: sha256_hex(manifest_bytes),
         manifest,
         signer,
@@ -965,14 +1014,14 @@ fn verify(
 }
 
 /// Whether `at` is later than `now` by more than [`CLOCK_SKEW_ALLOWANCE`].
-fn is_after(at: UnixTime, now: DateTime<Utc>) -> bool {
+pub(super) fn is_after(at: UnixTime, now: DateTime<Utc>) -> bool {
     let latest = u64::try_from(now.timestamp())
         .unwrap_or_default()
         .saturating_add(CLOCK_SKEW_ALLOWANCE.as_secs());
     at.as_secs() > latest
 }
 
-fn signed_in_the_future(at: &str, now: DateTime<Utc>) -> Problem {
+pub(super) fn signed_in_the_future(at: &str, now: DateTime<Utc>) -> Problem {
     Problem::error(
         Code::InvalidValue,
         "manifest.produced.at",
@@ -1376,6 +1425,7 @@ fn verify_v2(
         return Err(report);
     }
     Ok(VerifiedPackage {
+        scheme: VerificationScheme::Certificate,
         manifest_sha256: sha256_hex(manifest_bytes),
         manifest,
         signer,
@@ -1658,7 +1708,7 @@ fn not_from_the_future(
     Ok(())
 }
 
-fn compare_entries(
+pub(super) fn compare_entries(
     actual: &[FileEntry],
     listed: &[FileEntry],
     within: &str,
@@ -1732,7 +1782,7 @@ fn compare_entries(
     }
 }
 
-fn read_manifest(bytes: &[u8]) -> Result<Manifest, Problem> {
+pub(super) fn read_manifest(bytes: &[u8]) -> Result<Manifest, Problem> {
     match declared_format(bytes) {
         Some(format)
             if format == ManifestFormat::V1.as_str()
@@ -1955,7 +2005,7 @@ fn verify_with(
     }
 }
 
-fn unix_time(rfc3339: &str) -> Result<UnixTime, Problem> {
+pub(super) fn unix_time(rfc3339: &str) -> Result<UnixTime, Problem> {
     let parsed = DateTime::parse_from_rfc3339(rfc3339).map_err(|error| {
         Problem::error(
             Code::InvalidValue,

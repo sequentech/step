@@ -33,6 +33,8 @@ use super::certificates::CertificateIdentity;
 use super::directory::KeycloakUserDirectory;
 use super::guard::effective_rule;
 use super::log::Actor;
+use super::operational_cms::OperationalCms;
+use super::operational_policy::require_legacy_signing;
 use super::pades::{
     append_signature_page, finalize, prepare_revision, rebuild_revision, signature_fields,
     CmsTrust, PadesError, SignatureAppearance, SignatureFieldSpec, SignaturePageTexts,
@@ -734,6 +736,108 @@ pub struct DocumentRevisionView {
     pub url: Option<String>,
 }
 
+/// Exact, server-derived fields from a held, prepared PDF revision. The
+/// operational HSM request signs `cms.exact_message()` rather than its digest.
+/// The caller must keep its request and certificate scope locked through the
+/// reservation of this binding; this function never calls the device.
+pub struct OperationalPdfArtifact {
+    pub base_sha256: [u8; 32],
+    pub parent_sha256: [u8; 32],
+    pub byte_range_sha256: [u8; 32],
+    pub prepared_pdf_sha256: [u8; 32],
+    pub revision: i32,
+    pub cms: OperationalCms,
+}
+
+/// Loads and rebuilds the exact PDF revision under the event's existing
+/// approval lock. This is shared server data, never a browser-supplied PDF,
+/// digest, certificate selection, or arbitrary message to sign.
+pub async fn operational_pdf_artifact(
+    tx: &Transaction<'_>,
+    request: &SigningRequestRow,
+    official: &str,
+    revision: i32,
+    enrollment: &CertificateIdentity,
+    store: &dyn RevisionStore,
+) -> SigningResult<OperationalPdfArtifact> {
+    let tenant = request.tenant_id;
+    let event = request.election_event_id;
+    if request.action.document() != DocumentKind::Pdf
+        || request.status != SigningRequestStatus::Waiting
+        || !super::certificates::holds_signing_event_lock(tx, tenant, event).await?
+    {
+        return Err(SigningError::Conflict(
+            "The prepared signing request is unavailable.".into(),
+        ));
+    }
+    let base = get_latest_document_revision(tx, tenant, event, request.id, RevisionLock::ForUpdate)
+        .await?
+        .ok_or_else(|| SigningError::Conflict("The report has no PDF revision.".into()))?;
+    let prepared =
+        get_prepared_document_revision(tx, tenant, event, request.id, revision, official)
+            .await?
+            .ok_or_else(|| {
+                SigningError::Conflict("The report has no prepared revision for you.".into())
+            })?;
+    if prepared.parent_sha256.as_deref() != Some(base.sha256.as_str()) {
+        return Err(pades_failure(PadesError::StaleRevision));
+    }
+    let appearance: StoredAppearance = serde_json::from_value(
+        prepared
+            .appearance
+            .ok_or_else(|| anyhow!("The prepared revision has no appearance"))?,
+    )
+    .context("Error reading the prepared appearance")?;
+    if appearance.certificate_sha256 != enrollment.fingerprint_sha256 {
+        return Err(SigningError::Conflict(
+            "The document was prepared for a different certificate.".into(),
+        ));
+    }
+    let field = prepared
+        .field_index
+        .and_then(|field| usize::try_from(field).ok())
+        .ok_or_else(|| anyhow!("The prepared revision has no signature field"))?;
+    let parent = sha256_bytes(prepared.parent_sha256.as_deref(), "parent")?;
+    let digest = sha256_bytes(prepared.digest_sha256.as_deref(), "digest")?;
+    let latest = load_revision(tx, store, &base).await?;
+    let rebuilt = rebuild_revision(&latest, parent, field, &appearance.pades(), digest)
+        .map_err(pades_failure)?;
+    let prepared_pdf_sha256: [u8; 32] = Sha256::digest(rebuilt.bytes()).into();
+    if prepared_pdf_sha256 != sha256_bytes(Some(&prepared.sha256), "prepared PDF")? {
+        return Err(SigningError::Conflict(
+            "The prepared PDF bytes changed.".into(),
+        ));
+    }
+    let mut der = vec![X509::from_pem(enrollment.pem.as_bytes())
+        .and_then(|x| x.to_der())
+        .context("Error encoding the enrolled certificate")?];
+    let chain = X509::stack_from_pem(enrollment.chain_pem.as_bytes())
+        .context("Error parsing the enrolled issuer certificates")?;
+    for issuer in chain {
+        let certificate = issuer
+            .to_der()
+            .context("Error encoding the enrolled issuer certificate")?;
+        if !der.contains(&certificate) {
+            der.push(certificate);
+        }
+    }
+    let cms = OperationalCms::prepare(
+        &der,
+        sha256_bytes(Some(&enrollment.fingerprint_sha256), "certificate")?,
+        sha256_bytes(Some(&enrollment.spki_sha256), "key")?,
+        digest,
+    )
+    .context("Error preparing the operational CMS")?;
+    Ok(OperationalPdfArtifact {
+        base_sha256: sha256_bytes(request.document_sha256.as_deref(), "base PDF")?,
+        parent_sha256: parent,
+        byte_range_sha256: digest,
+        prepared_pdf_sha256,
+        revision,
+        cms,
+    })
+}
+
 /// What a signer's browser signs: the digest of the revision prepared for
 /// them, which approving with `revision` completes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -822,6 +926,9 @@ pub async fn prepare_pdf(
         .transaction()
         .await
         .context("Error starting the prepare")?;
+    require_legacy_signing(&transaction, tenant_id)
+        .await
+        .map_err(|error| SigningError::Forbidden(error.to_string()))?;
     let step = prepare_in(
         &transaction,
         sources,
