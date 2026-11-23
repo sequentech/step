@@ -56,8 +56,8 @@ Understand the voting process:
 
 ### 🔍 For Auditors
 Verify election integrity:
-- [Ballot Verification](../04-election_auditors/02-tutorials/02-auditor_ballot-image-audit.md)
-- [Election Verification](../04-election_auditors/02-tutorials/01-auditor_results-verification.md)
+- [Ballot Audit Manual](../04-election_auditors/03-ballot_audit_manual/00-ballot_audit_manual.md)
+- [What the Ballot Audit Verifies](../04-election_auditors/04-ballot_audit_explanation.md)
 - [Ballot Signature](../04-election_auditors/ballot_signature.md)
 
 ### 💻 For Developers
