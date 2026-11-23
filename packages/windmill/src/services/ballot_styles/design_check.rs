@@ -13,7 +13,7 @@ use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::{ConfigurationDesignDigest, PublishedConfiguration};
 use sequent_core::ballot::BallotStyle;
 use sequent_core::election_config::design::{
-    ballot_design_digests, mismatches, DesignDigest, DesignKeys, DesignMismatch,
+    ballot_design_digests_with_algorithm, mismatches, DesignDigest, DesignKeys, DesignMismatch,
 };
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use tracing::instrument;
@@ -148,8 +148,12 @@ async fn check_designs(
     .filter_map(|row| row.ballot_eml)
     .map(|eml| deserialize_str::<BallotStyle>(&eml).map_err(|error| anyhow!("{error}")))
     .collect::<Result<Vec<_>>>()?;
-    let digests =
-        ballot_design_digests(&styles, &keys).map_err(|problem| anyhow!(problem.message))?;
+    let digests = ballot_design_digests_with_algorithm(
+        &styles,
+        &keys,
+        manifest.content.ballot_design_digest_algorithm,
+    )
+    .map_err(|problem| anyhow!(problem.message))?;
 
     Ok(Some(DesignCheck {
         mismatches: mismatches(&manifest.content.ballot_designs, &digests),

@@ -188,6 +188,7 @@ fn delivery() -> Vec<Artifact> {
 fn plain_manifest(members: &[Artifact]) -> Manifest {
     let content = Content {
         files: file_entries(members).unwrap(),
+        ballot_design_digest_algorithm: Default::default(),
         ballot_designs: vec![],
         reports: vec![],
     };
@@ -1226,4 +1227,32 @@ fn browser_problem_preserves_the_typed_failure_and_localization_context() {
             Some(reason)
         );
     }
+}
+
+#[test]
+fn v2_webauthn_seal_still_covers_the_raw_messaging_file() {
+    use crate::election_config::design::DesignDigestAlgorithm;
+
+    let w = world();
+    let pinned = w.pinned(2);
+    let members = vec![Artifact {
+        name: "settings.json".to_string(),
+        bytes: serde_json::to_vec(
+            &serde_json::json!({"messaging_config": {"sender": "x"}}),
+        )
+        .unwrap(),
+    }];
+    let mut manifest = plain_manifest(&members);
+    manifest.content.ballot_design_digest_algorithm = DesignDigestAlgorithm::V2;
+    manifest.content_sha256 = manifest.content.sha256().unwrap();
+    let mut package =
+        build_with_manifest(&w, &[&w.a, &w.b], &w.signer, members, manifest);
+    assert!(verify_browser_package(&package.zip(), &pinned, None).is_ok());
+    package.members[0].bytes = serde_json::to_vec(
+        &serde_json::json!({"messaging_config": {"sender": "y"}}),
+    )
+    .unwrap();
+    let report =
+        verify_browser_package(&package.zip(), &pinned, None).unwrap_err();
+    assert!(ids(&report).iter().any(|id| id == "package.file-changed"));
 }
