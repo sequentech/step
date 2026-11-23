@@ -35,34 +35,38 @@ jest.mock("react-i18next", () => ({
     }),
 }))
 // The dialog shows its title and content while open; the QR exposes what it encodes.
-jest.mock("@sequentech/ui-essentials", () => {
-    const React = require("react")
-    return {
-        Dialog: ({
-            open,
-            title,
-            cancel,
-            handleClose,
-            children,
-        }: {
-            open: boolean
-            title: string
-            cancel: string
-            handleClose: (confirmed: boolean) => void
-            children: React.ReactNode
-        }) =>
-            open
-                ? React.createElement(
-                      "div",
-                      {"role": "dialog", "aria-label": title},
-                      children,
-                      React.createElement("button", {onClick: () => handleClose(false)}, cancel)
-                  )
-                : null,
-        QRCode: ({value}: {value: string}) =>
-            React.createElement("svg", {"data-testid": "qr-code", "data-value": value}),
-    }
-})
+jest.mock(
+    "@sequentech/ui-essentials",
+    () => {
+        const React = require("react")
+        return {
+            Dialog: ({
+                open,
+                title,
+                cancel,
+                handleClose,
+                children,
+            }: {
+                open: boolean
+                title: string
+                cancel: string
+                handleClose: (confirmed: boolean) => void
+                children: React.ReactNode
+            }) =>
+                open
+                    ? React.createElement(
+                          "div",
+                          {"role": "dialog", "aria-label": title},
+                          children,
+                          React.createElement("button", {onClick: () => handleClose(false)}, cancel)
+                      )
+                    : null,
+            QRCode: ({value}: {value: string}) =>
+                React.createElement("svg", {"data-testid": "qr-code", "data-value": value}),
+        }
+    },
+    {virtual: true}
+)
 
 // The deployment's portal addresses, as the settings provider gives them.
 const Settings: React.FC<{children: React.ReactNode}> = ({children}) => (

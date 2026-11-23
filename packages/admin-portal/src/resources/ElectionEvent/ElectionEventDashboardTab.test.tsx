@@ -37,7 +37,9 @@ jest.mock("react-i18next", () => ({
     useTranslation: () => ({t: (key: string) => key}),
 }))
 // The links' QR code dialog is covered by VoterPortalLinks' own tests.
-jest.mock("@sequentech/ui-essentials", () => ({Dialog: () => null, QRCode: () => null}))
+jest.mock("@sequentech/ui-essentials", () => ({Dialog: () => null, QRCode: () => null}), {
+    virtual: true,
+})
 jest.mock("@apollo/client", () => ({
     gql: (parts: TemplateStringsArray) => parts.join(""),
     useMutation: () => [jest.fn(), {loading: false}],

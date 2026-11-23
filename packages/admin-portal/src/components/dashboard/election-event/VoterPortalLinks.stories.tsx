@@ -104,6 +104,7 @@ export const KioskOnTheVotingPortal: Story = {
 
 export const KioskQrCode: Story = {
     args: {kiosk: true},
+    parameters: {widgets: ["VoterPortalLinkQrCode"]},
     play: async ({canvasElement}) => {
         const button = await within(canvasElement).findByRole("button", {
             name: "Show QR code: Voter Enroll Kiosk URL",
