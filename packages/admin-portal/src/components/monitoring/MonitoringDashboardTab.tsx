@@ -125,15 +125,24 @@ export function MonitoringDashboardTab({
             </>
         )
     }
+    const configured = list.mode === EMonitoringMode.CONFIGURED
+    const empty = configured && !list.dashboards.length
     const controls = (
-        <Stack spacing={1} sx={{mb: 2}}>
+        <Stack spacing={1} sx={{mb: empty ? 0 : 2}}>
             <FormControlLabel
                 label={t("monitoring.configuredDashboards")}
                 control={
                     <Switch
-                        inputProps={{role: "switch"}}
-                        checked={list.mode === EMonitoringMode.CONFIGURED}
-                        disabled={configure !== EMonitoringCapability.GRANTED || changingMode}
+                        slotProps={{
+                            input: {"role": "switch", "aria-disabled": changingMode || undefined},
+                        }}
+                        checked={configured}
+                        disabled={configure !== EMonitoringCapability.GRANTED}
+                        sx={
+                            changingMode
+                                ? (theme) => ({opacity: theme.palette.action.disabledOpacity})
+                                : undefined
+                        }
                         onChange={(_event, checked) => void changeMode(checked)}
                     />
                 }
@@ -141,44 +150,34 @@ export function MonitoringDashboardTab({
             {modeError && <Alert severity="error">{t("monitoring.modeChangeError")}</Alert>}
         </Stack>
     )
-    if (list.mode !== EMonitoringMode.CONFIGURED)
-        // Within the standard dashboard's bounds, so the switch lines up with it.
-        return (
-            <StandardDashboardContent>
-                {controls}
-                {legacy}
-                {footer}
-            </StandardDashboardContent>
-        )
-    if (!list.dashboards.length) {
-        return (
-            <Stack spacing={2}>
-                {controls}
-                <Alert severity="info">{t("monitoring.noDashboards")}</Alert>
-                {below}
-                {footer}
-            </Stack>
-        )
-    }
+    // A shared parent keeps focus on the switch when the dashboard changes mode.
     return (
-        <>
+        <StandardDashboardContent
+            sx={{
+                ...(configured && {maxWidth: "none"}),
+                ...(empty && {display: "flex", flexDirection: "column", gap: 2}),
+            }}
+        >
             {controls}
-            <MonitoringProvider
-                storageKey={`monitoring:${electionEventId}:${electionId ?? ""}`}
-                actions={actions ?? editor.actions}
-            >
-                <MonitoringDashboard
-                    electionEventId={electionEventId as string}
-                    electionId={electionId}
-                    dashboards={list.dashboards}
-                    presetTitle={list.preset?.title}
-                    configure={configure}
-                    refreshSeconds={list.refresh_seconds}
-                />
-                {editor.element}
-            </MonitoringProvider>
-            {below}
+            {configured && !empty && (
+                <MonitoringProvider
+                    storageKey={`monitoring:${electionEventId}:${electionId ?? ""}`}
+                    actions={actions ?? editor.actions}
+                >
+                    <MonitoringDashboard
+                        electionEventId={electionEventId as string}
+                        electionId={electionId}
+                        dashboards={list.dashboards}
+                        presetTitle={list.preset?.title}
+                        configure={configure}
+                        refreshSeconds={list.refresh_seconds}
+                    />
+                    {editor.element}
+                </MonitoringProvider>
+            )}
+            {empty && <Alert severity="info">{t("monitoring.noDashboards")}</Alert>}
+            {configured ? below : legacy}
             {footer}
-        </>
+        </StandardDashboardContent>
     )
 }
