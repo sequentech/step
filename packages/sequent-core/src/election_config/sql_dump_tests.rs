@@ -21,6 +21,67 @@ fn reads_original_bytes_in_binary_literals_and_escaped_text() {
 }
 
 #[test]
+fn records_the_connection_charset_the_rows_were_written_in() {
+    // mysqldump writes every literal in its connection charset (SET NAMES),
+    // whatever charset the column declares.
+    let dump = read_mysql_dump(
+        "/*!50503 SET NAMES utf8mb4 */;\nCREATE TABLE `named` (`label` varchar(20) CHARACTER SET latin1) DEFAULT CHARSET=latin1;\nINSERT INTO `named` VALUES ('PEÑA');\nCREATE TABLE `empty` (`id` int);"
+            .as_bytes(),
+    )
+    .unwrap();
+    assert_eq!(
+        dump.tables["named"].data_charset.as_deref(),
+        Some("utf8mb4")
+    );
+    assert_eq!(dump.tables["named"].column_charsets["label"], "latin1");
+    assert_eq!(dump.tables["empty"].data_charset, None);
+    let undeclared = read_mysql_dump(
+        b"CREATE TABLE `plain` (`id` int);\nINSERT INTO `plain` VALUES (1);",
+    )
+    .unwrap();
+    assert_eq!(undeclared.tables["plain"].data_charset, None);
+}
+
+#[test]
+fn records_each_column_type_so_text_can_be_told_from_binary() {
+    let dump = read_mysql_dump(
+        b"CREATE TABLE `t` (`id` int NOT NULL, `name` VARCHAR(50) CHARACTER SET utf8mb3, `photo` longblob COMMENT 'x', `kind` enum('a','b'), PRIMARY KEY (`id`));",
+    )
+    .unwrap();
+    let types = &dump.tables["t"].column_types;
+    assert_eq!(types["id"], "int");
+    assert_eq!(types["name"], "varchar");
+    assert_eq!(types["photo"], "longblob");
+    assert_eq!(types["kind"], "enum");
+    assert_eq!(types.len(), 4);
+}
+
+#[test]
+fn refuses_rows_of_one_table_written_in_different_connection_charsets() {
+    for second in ["SET NAMES latin1;", "SET NAMES utf8;"] {
+        let sql = format!(
+            "SET NAMES utf8mb4;\nCREATE TABLE `t` (`v` text);\nINSERT INTO `t` VALUES ('a');\n{second}\nINSERT INTO `t` VALUES ('b');"
+        );
+        assert_eq!(
+            read_mysql_dump(sql.as_bytes()).unwrap_err().code,
+            "sql.mixed-charset"
+        );
+    }
+    let before_any = "CREATE TABLE `t` (`v` text);\nINSERT INTO `t` VALUES ('a');\nSET NAMES utf8mb4;\nINSERT INTO `t` VALUES ('b');";
+    assert_eq!(
+        read_mysql_dump(before_any.as_bytes()).unwrap_err().code,
+        "sql.mixed-charset"
+    );
+    // A charset change between tables is fine: each keeps its own.
+    let dump = read_mysql_dump(
+        b"SET NAMES utf8mb4;\nCREATE TABLE `a` (`v` text);\nINSERT INTO `a` VALUES ('x');\nSET NAMES latin1;\nCREATE TABLE `b` (`v` text);\nINSERT INTO `b` VALUES ('y');",
+    )
+    .unwrap();
+    assert_eq!(dump.tables["a"].data_charset.as_deref(), Some("utf8mb4"));
+    assert_eq!(dump.tables["b"].data_charset.as_deref(), Some("latin1"));
+}
+
+#[test]
 fn understands_mysql_dump_envelope_without_executing_statements() {
     let sql = br#"/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 DROP TABLE IF EXISTS `example`;
