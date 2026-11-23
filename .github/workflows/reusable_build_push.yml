@@ -210,20 +210,21 @@ jobs:
         username: oauth2accesstoken
         password: ${{ steps.gcp-auth.outputs.access_token }}
 
-    # Root account 581718213778: push once to ca-central-1 (Canada). Its other
-    # regions pull via ECR replication from ca-central-1. Only images marked
-    # root_ecr in build_images.json have a repository there. Sets the AWS
-    # credentials for later steps, so it goes after everything using Globaldot's.
+    # Root account 581718213778: OVCS pushes to eu-west-1 (Ireland).
+    # Other releases retain ca-central-1 (Canada) for ECR replication.
+    # Only publish images marked root_ecr. These credentials go after
+    # everything using Globaldot's credentials.
     - name: Configure AWS credentials (root account)
       if: inputs.push && inputs.push_root && matrix.root_ecr
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ca-central-1
+        aws-region: ${{ github.ref_name == 'ovcs' && 'eu-west-1' || 'ca-central-1' }}
 
     - name: Login to Amazon ECR (root account)
       if: inputs.push && inputs.push_root && matrix.root_ecr
+      id: root-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
     # The prod registry has immutable tags, and rebuilding a commit changes its
@@ -234,7 +235,7 @@ jobs:
         SERVICE: ${{ matrix.service }}
         TAG: ${{ inputs.tag || github.run_number }}
         ECR_REGISTRY: ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}
-        ROOT_ECR_REGISTRY: ${{ inputs.push_root && matrix.root_ecr && vars.AWS_ECR_REGISTRY || '' }}
+        ROOT_ECR_REGISTRY: ${{ inputs.push_root && matrix.root_ecr && steps.root-ecr.outputs.registry || '' }}
       run: |
         ecr="docker://$ECR_REGISTRY/$SERVICE"
         dev="docker://europe-west4-docker.pkg.dev/sequentech-dev/sequent/$SERVICE"

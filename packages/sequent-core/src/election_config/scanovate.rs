@@ -145,6 +145,54 @@ pub fn credential_notice(realm: &Value) -> Option<Problem> {
     ).id("scanovate.credentials-included"))
 }
 
+/// Leaves out of each Scanovate configuration the settings that hold a mask
+/// in place of a value, other than the secret, and returns them by
+/// configuration alias, sorted.
+///
+/// Keycloak's partial export writes `**********` for a secret and also for
+/// every setting the exporting server's authenticator does not declare: one a
+/// newer version added, or one an older version read and a newer one dropped.
+/// Such a setting had no effect where the event was exported, and its value
+/// did not travel, so the importing authenticator's default is what stands for
+/// it: installing the mask as text would make that default unreachable (a
+/// masked `page-languages` stops every capture). The secret's mask is left
+/// for [`validate`] to refuse.
+pub fn drop_masked_settings(realm: &mut Value) -> Vec<(String, Vec<String>)> {
+    let used: Vec<(usize, String)> = configs(realm)
+        .into_iter()
+        .map(|(index, config, _)| {
+            let alias = config.get("alias").and_then(Value::as_str);
+            (index, alias.unwrap_or("Scanovate").to_string())
+        })
+        .collect();
+    let mut dropped = Vec::new();
+    for (index, alias) in used {
+        let Some(settings) = realm
+            .get_mut("authenticatorConfig")
+            .and_then(|configs| configs.get_mut(index))
+            .and_then(|config| config.get_mut("config"))
+            .and_then(Value::as_object_mut)
+        else {
+            continue;
+        };
+        let mut keys: Vec<String> = settings
+            .iter()
+            .filter(|(key, value)| {
+                key.as_str() != SECRET && value.as_str().is_some_and(is_masked)
+            })
+            .map(|(key, _)| key.clone())
+            .collect();
+        keys.sort();
+        for key in &keys {
+            settings.remove(key);
+        }
+        if !keys.is_empty() {
+            dropped.push((alias, keys));
+        }
+    }
+    dropped
+}
+
 /// Restore service settings after structural IDs were rewritten in the same realm.
 ///
 /// The entire settings map is opaque, including future provider fields. Realm,
@@ -219,6 +267,74 @@ mod tests {
                 assert_eq!(rewritten["authenticatorConfig"][0]["id"], "new-id");
             }
         }
+    }
+
+    /// Keycloak's partial export masks, besides secrets, every setting the
+    /// exporting server's authenticator does not declare (one a newer version
+    /// added, or an older one dropped). Those are left out rather than
+    /// installed as text; the secret's mask and real values stay.
+    #[test]
+    fn masked_settings_other_than_the_secret_are_left_out() {
+        for reference in ["custom", "config-id"] {
+            let mut source = realm(reference, "synthetic-real");
+            let settings = &mut source["authenticatorConfig"][0]["config"];
+            settings["page-languages"] = json!("**********");
+            settings["ocr-url"] = json!(" ***** ");
+            settings["max-attempts"] = json!("5");
+            settings["liveness-url"] =
+                json!("https://x.example.test/biometric");
+            assert_eq!(
+                drop_masked_settings(&mut source),
+                vec![(
+                    "custom".to_string(),
+                    vec!["ocr-url".to_string(), "page-languages".to_string()]
+                )]
+            );
+            assert_eq!(
+                source["authenticatorConfig"][0]["config"],
+                json!({
+                    "liveness-secret": "synthetic-real", "future-setting": "opaque-id",
+                    "max-attempts": "5", "liveness-url": "https://x.example.test/biometric"
+                })
+            );
+            // Nothing left to drop, and the realm still validates.
+            assert!(drop_masked_settings(&mut source).is_empty());
+            validate(&source).unwrap();
+        }
+        // A configuration with no settings, or known only by its id, and a
+        // realm with no configurations at all.
+        let mut bare = json!({
+            "authenticationFlows": [{"authenticationExecutions": [
+                {"authenticator": PROVIDER, "authenticatorConfig": "bare-id"},
+                {"authenticator": PROVIDER, "authenticatorConfig": "by-id"}
+            ]}],
+            "authenticatorConfig": [
+                {"id": "bare-id"},
+                {"id": "by-id", "config": {"ocr-url": "**********", "n": 5}}
+            ]
+        });
+        assert_eq!(
+            drop_masked_settings(&mut bare),
+            vec![("Scanovate".to_string(), vec!["ocr-url".to_string()])]
+        );
+        assert_eq!(bare["authenticatorConfig"][1]["config"], json!({"n": 5}));
+        assert!(drop_masked_settings(&mut json!({})).is_empty());
+        // The masked secret is not dropped: it is still refused.
+        let mut masked = realm("custom", "**********");
+        assert!(drop_masked_settings(&mut masked).is_empty());
+        assert!(validate(&masked).is_err());
+        // Another provider's configuration is not Scanovate's to change.
+        let mut other = json!({
+            "authenticationFlows": [{"authenticationExecutions": [{
+                "authenticator": "other-provider", "authenticatorConfig": "theirs"
+            }]}],
+            "authenticatorConfig": [{"alias": "theirs", "config": {"x": "**********"}}]
+        });
+        assert!(drop_masked_settings(&mut other).is_empty());
+        assert_eq!(
+            other["authenticatorConfig"][0]["config"]["x"],
+            "**********"
+        );
     }
 
     #[test]
