@@ -18,7 +18,7 @@ use deadpool_postgres::Transaction;
 use serde_json::json;
 use uuid::Uuid;
 
-#[path = "../../../../tests/support/schema.rs"]
+#[path = "schema.rs"]
 mod schema;
 
 /// The values the custody query binds.

@@ -170,7 +170,188 @@ fn private_setting(
 
 #[cfg(test)]
 mod tests {
-    use super::validate_native_keycloak_url;
+    use super::*;
+    use std::process::Command;
+
+    const CASE: &str = "TRUSTEE_TEST_CONFIG_CASE";
+
+    #[test]
+    fn start_config_uses_only_the_requested_credentials_and_requires_valid_settings(
+    ) {
+        let tmp = tempfile::tempdir().unwrap();
+        let password = tmp.path().join("password");
+        let client = tmp.path().join("client");
+        let multiline = tmp.path().join("multiline");
+        let oversized = tmp.path().join("oversized");
+        let empty = tmp.path().join("empty");
+        std::fs::write(&password, "fixture-password\r\n").unwrap();
+        std::fs::write(&client, "fixture-client\n").unwrap();
+        std::fs::write(&multiline, "fixture\nsecond-line\n").unwrap();
+        std::fs::write(&oversized, "x".repeat(4097)).unwrap();
+        std::fs::write(&empty, "\r\n").unwrap();
+
+        // Exercise the real environment reader in subprocesses, with no
+        // ambient configuration and no process-wide environment mutations
+        // in the (parallel) test runner. Nothing connects to a server.
+        for case in [
+            "native-file",
+            "public-direct",
+            "missing-board",
+            "missing-password",
+            "native-missing-otp",
+            "native-plaintext",
+            "conflicting-inputs",
+            "missing-file",
+            "multiline",
+            "oversized",
+            "empty",
+        ] {
+            let mut child = Command::new(std::env::current_exe().unwrap());
+            child
+                .args([
+                    "--exact",
+                    "config::tests::read_in_isolation",
+                    "--nocapture",
+                ])
+                .env_clear()
+                .env(CASE, case)
+                .env(B4_URL, "https://board.fixture.invalid")
+                .env(TRUSTEE_CONFIG_PATH, "fixture-keys.json")
+                .env(TRUSTEE_NAME, "fixture-trustee")
+                .env(TRUSTEE_PLATFORM_URL, "https://portal.fixture.invalid")
+                .env(TRUSTEE_KEYCLOAK_URL, "https://id.fixture.invalid")
+                .env(TRUSTEE_KEYCLOAK_REALM, "fixture-realm")
+                .env(TRUSTEE_KEYCLOAK_CLIENT_ID, NATIVE_TRUSTEE_CLIENT)
+                .env(TRUSTEE_PASSWORD_FILE, &password)
+                .env(TRUSTEE_KEYCLOAK_CLIENT_SECRET_FILE, &client)
+                .env(TRUSTEE_OTP_FILE, tmp.path().join("otp"))
+                .env(TRUSTEE_KEYCLOAK_CA_FILE, tmp.path().join("ca.pem"));
+            if let Some(profile) = std::env::var_os("LLVM_PROFILE_FILE") {
+                child.env("LLVM_PROFILE_FILE", profile);
+            }
+            match case {
+                "public-direct" => {
+                    child.env(TRUSTEE_KEYCLOAK_CLIENT_ID, "fixture-public");
+                    child.env_remove(TRUSTEE_KEYCLOAK_CLIENT_SECRET_FILE);
+                    child.env_remove(TRUSTEE_PASSWORD_FILE);
+                    child.env_remove(TRUSTEE_OTP_FILE);
+                    child.env(TRUSTEE_KEYCLOAK_CA_FILE, "");
+                    child.env(TRUSTEE_PASSWORD, "fixture-direct");
+                }
+                "missing-board" => {
+                    child.env_remove(B4_URL);
+                }
+                "missing-password" => {
+                    child.env_remove(TRUSTEE_PASSWORD_FILE);
+                }
+                "native-missing-otp" => {
+                    child.env_remove(TRUSTEE_OTP_FILE);
+                }
+                "native-plaintext" => {
+                    child
+                        .env(TRUSTEE_KEYCLOAK_URL, "http://id.fixture.invalid");
+                }
+                "conflicting-inputs" => {
+                    child.env(TRUSTEE_PASSWORD, "fixture-direct");
+                }
+                "missing-file" => {
+                    child.env(TRUSTEE_PASSWORD_FILE, tmp.path().join("absent"));
+                }
+                "multiline" => {
+                    child.env(TRUSTEE_PASSWORD_FILE, &multiline);
+                }
+                "oversized" => {
+                    child.env(TRUSTEE_PASSWORD_FILE, &oversized);
+                }
+                "empty" => {
+                    child.env(TRUSTEE_PASSWORD_FILE, &empty);
+                }
+                _ => {}
+            }
+            let result = child.output().unwrap();
+            assert!(
+                result.status.success()
+                    && String::from_utf8_lossy(&result.stdout)
+                        .contains("test result: ok. 1 passed;"),
+                "{case}: {} {}",
+                String::from_utf8_lossy(&result.stdout),
+                String::from_utf8_lossy(&result.stderr)
+            );
+        }
+    }
+
+    #[test]
+    fn read_in_isolation() {
+        let Ok(case) = std::env::var(CASE) else {
+            return;
+        };
+        let result = if case == "public-direct" {
+            Config::read(
+                Some("https://explicit.fixture.invalid".to_string()),
+                Some(PathBuf::from("explicit-keys.json")),
+            )
+        } else {
+            Config::read(Some(String::new()), Some(PathBuf::new()))
+        };
+        match case.as_str() {
+            "native-file" => {
+                let actual = result
+                    .expect("synthetic native configuration should succeed");
+                assert_eq!(actual.b4_url, "https://board.fixture.invalid");
+                assert_eq!(
+                    actual.keys_file,
+                    PathBuf::from("fixture-keys.json")
+                );
+                assert_eq!(
+                    actual.platform_url,
+                    "https://portal.fixture.invalid"
+                );
+                assert_eq!(actual.trustee_name, "fixture-trustee");
+                assert_eq!(actual.credentials.username, "fixture-trustee");
+                assert_eq!(actual.credentials.realm, "fixture-realm");
+                assert_eq!(actual.credentials.password, "fixture-password");
+                assert_eq!(
+                    actual.credentials.client_secret.as_deref(),
+                    Some("fixture-client")
+                );
+                assert!(actual.credentials.otp_file.unwrap().ends_with("otp"));
+                assert!(actual
+                    .credentials
+                    .keycloak_ca_file
+                    .unwrap()
+                    .ends_with("ca.pem"));
+            }
+            "public-direct" => {
+                let actual = result
+                    .expect("synthetic public configuration should succeed");
+                assert_eq!(actual.b4_url, "https://explicit.fixture.invalid");
+                assert_eq!(
+                    actual.keys_file,
+                    PathBuf::from("explicit-keys.json")
+                );
+                assert_eq!(actual.credentials.password, "fixture-direct");
+                assert!(actual.credentials.client_secret.is_none());
+                assert!(actual.credentials.otp_file.is_none());
+                assert!(actual.credentials.keycloak_ca_file.is_none());
+            }
+            invalid => {
+                let expected = match invalid {
+                    "missing-board" => "--b4-url was not given: B4_URL is not set",
+                    "missing-password" => "trustee password is not configured",
+                    "native-missing-otp" => "the native trustee client requires its private client secret, OTP file and site CA",
+                    "native-plaintext" => "the native trustee Keycloak URL must be HTTPS without user information, query or fragment",
+                    "conflicting-inputs" => "configure TRUSTEE_PASSWORD or TRUSTEE_PASSWORD_FILE, not both",
+                    "missing-file" => "cannot read private setting TRUSTEE_PASSWORD_FILE",
+                    "multiline" | "oversized" | "empty" => "invalid private setting TRUSTEE_PASSWORD_FILE",
+                    _ => unreachable!(),
+                };
+                let error = result
+                    .err()
+                    .expect("unsafe or incomplete configuration was accepted");
+                assert_eq!(format!("{error:#}"), expected);
+            }
+        }
+    }
 
     #[test]
     fn native_auth_accepts_https_but_not_plaintext_or_url_credentials() {
