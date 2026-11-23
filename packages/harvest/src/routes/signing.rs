@@ -58,6 +58,9 @@ use windmill::services::signing::approve::{
 };
 use windmill::services::signing::crl::{refresh_chain_crls, HttpCrlFetcher};
 use windmill::services::signing::directory::KeycloakUserDirectory;
+use windmill::services::signing::operational_policy::{
+    require_legacy_signing, signing_mode, OperationalSigningMode,
+};
 use windmill::services::signing::pdf::PdfPrepared;
 use windmill::services::signing::requests::{
     cancel, event_info, export_requests, get_panel, handover, reads_event_info,
@@ -230,7 +233,14 @@ pub struct RequestIdOutput {
 
 #[derive(Debug, Serialize)]
 pub struct PanelOutput {
+    panel: SigningPanelWithMode,
+}
+
+#[derive(Debug, Serialize)]
+struct SigningPanelWithMode {
+    #[serde(flatten)]
     panel: SigningPanel,
+    operational_signing_mode: &'static str,
 }
 
 #[instrument(skip(claims, services))]
@@ -238,6 +248,14 @@ pub struct PanelOutput {
 pub async fn get_signing_request(
     claims: JwtClaims,
     services: &State<HarvestServices>,
+    body: Json<RequestIdInput>,
+) -> SigningReply<PanelOutput> {
+    get_signing_request_with_scope(claims, services, body).await
+}
+
+async fn get_signing_request_with_scope(
+    claims: JwtClaims,
+    services: &HarvestServices,
     body: Json<RequestIdInput>,
 ) -> SigningReply<PanelOutput> {
     let tenant_id = tenant_of(&claims)?;
@@ -249,6 +267,14 @@ pub async fn get_signing_request(
         hasura_client.transaction().await.map_err(internal)?;
     let keycloak_transaction =
         keycloak_client.transaction().await.map_err(internal)?;
+    let operational_signing_mode =
+        match signing_mode(&hasura_transaction, tenant_id)
+            .await
+            .map_err(internal)?
+        {
+            OperationalSigningMode::LegacyP12 => "legacy-p12",
+            OperationalSigningMode::HsmRequired => "hsm-required",
+        };
     let panel = get_panel(
         &hasura_transaction,
         &keycloak_transaction,
@@ -259,7 +285,12 @@ pub async fn get_signing_request(
     )
     .await
     .map_err(signing_failure)?;
-    Ok(Json(PanelOutput { panel }))
+    Ok(Json(PanelOutput {
+        panel: SigningPanelWithMode {
+            panel,
+            operational_signing_mode,
+        },
+    }))
 }
 
 #[derive(Debug, Deserialize)]
@@ -290,6 +321,13 @@ pub async fn approve_signing_request(
     body: Json<ApproveBody>,
 ) -> SigningReply<ApproveOutcome> {
     let tenant_id = tenant_of(&claims)?;
+    let mut client = hasura(services).await?;
+    {
+        let policy_tx = client.transaction().await.map_err(internal)?;
+        require_legacy_signing(&policy_tx, tenant_id)
+            .await
+            .map_err(|error| SigningFailure::forbidden(error.to_string()))?;
+    }
     let body = body.into_inner();
     let input = ApproveInput {
         request_id: uuid_of(&body.request_id, "request_id")?,
@@ -312,7 +350,6 @@ pub async fn approve_signing_request(
         revision: body.revision,
     };
     let caller = writer(&claims, tenant_id, services).await?;
-    let mut client = hasura(services).await?;
     // The chain's revocation lists, outside any lock: a download failure
     // is left to the checks, which refuse or accept per the event.
     let request = {
@@ -363,10 +400,14 @@ pub async fn report_signing_open_failure(
     body: Json<OpenFailureBody>,
 ) -> SigningReply<RequestIdOutput> {
     let tenant_id = tenant_of(&claims)?;
+
     let request_id = uuid_of(&body.request_id, "request_id")?;
     let caller = writer(&claims, tenant_id, services).await?;
     let mut client = hasura(services).await?;
     let transaction = client.transaction().await.map_err(internal)?;
+    require_legacy_signing(&transaction, tenant_id)
+        .await
+        .map_err(|error| SigningFailure::forbidden(error.to_string()))?;
     let result = report_open_failure(
         &transaction,
         &caller,
@@ -631,6 +672,13 @@ pub async fn signing_rule_capacity(
     Ok(Json(capacity))
 }
 
+#[derive(Debug, Serialize)]
+pub struct EventInfoWithMode {
+    #[serde(flatten)]
+    event: SigningEventInfo,
+    operational_signing_mode: &'static str,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct EventInfoBody {
     election_event_id: String,
@@ -645,7 +693,7 @@ pub async fn signing_event_info(
     claims: JwtClaims,
     services: &State<HarvestServices>,
     body: Json<EventInfoBody>,
-) -> SigningReply<SigningEventInfo> {
+) -> SigningReply<EventInfoWithMode> {
     require(&claims, vec![])?;
     let caller = SigningCaller::from_claims(&claims);
     // Any one of several permissions reads it.
@@ -663,6 +711,14 @@ pub async fn signing_event_info(
         hasura_client.transaction().await.map_err(internal)?;
     let keycloak_transaction =
         keycloak_client.transaction().await.map_err(internal)?;
+    let operational_signing_mode =
+        match signing_mode(&hasura_transaction, tenant_id)
+            .await
+            .map_err(internal)?
+        {
+            OperationalSigningMode::LegacyP12 => "legacy-p12",
+            OperationalSigningMode::HsmRequired => "hsm-required",
+        };
     let info = event_info(
         &hasura_transaction,
         &keycloak_transaction,
@@ -672,7 +728,49 @@ pub async fn signing_event_info(
     )
     .await
     .map_err(signing_failure)?;
-    Ok(Json(info))
+    Ok(Json(EventInfoWithMode {
+        event: info,
+        operational_signing_mode,
+    }))
+}
+
+/// The independent MIRU legacy upload permission sees only this tenant's
+/// current mode. It does not acquire access to signers, events, or keys.
+#[derive(Debug, Serialize)]
+pub struct MiruOperationalSigningModeOutput {
+    tenant_id: Uuid,
+    mode: &'static str,
+}
+
+#[derive(Deserialize)]
+pub struct MiruOperationalSigningModeInput {
+    tenant_id: Uuid,
+}
+
+#[instrument(skip_all)]
+#[post("/miru/operational-signing-mode", format = "json", data = "<body>")]
+pub async fn miru_operational_signing_mode(
+    claims: JwtClaims,
+    services: &State<HarvestServices>,
+    body: Json<MiruOperationalSigningModeInput>,
+) -> SigningReply<MiruOperationalSigningModeOutput> {
+    require(&claims, vec![Permissions::MIRU_SIGN])?;
+    let tenant = tenant_of(&claims)?;
+    if body.tenant_id != tenant {
+        return Err(signing_failure(SigningError::Forbidden(
+            "This signing policy belongs to another tenant.".into(),
+        )));
+    }
+    let mut client = hasura(services).await?;
+    let tx = client.transaction().await.map_err(internal)?;
+    let mode = match signing_mode(&tx, tenant).await.map_err(internal)? {
+        OperationalSigningMode::LegacyP12 => "legacy-p12",
+        OperationalSigningMode::HsmRequired => "hsm-required",
+    };
+    Ok(Json(MiruOperationalSigningModeOutput {
+        tenant_id: tenant,
+        mode,
+    }))
 }
 
 #[derive(Debug, Deserialize)]
@@ -692,9 +790,15 @@ pub async fn prepare_signing_pdf(
     body: Json<PdfPrepareBody>,
 ) -> SigningReply<PdfPrepared> {
     let tenant_id = tenant_of(&claims)?;
+    let mut client = hasura(services).await?;
+    {
+        let policy_tx = client.transaction().await.map_err(internal)?;
+        require_legacy_signing(&policy_tx, tenant_id)
+            .await
+            .map_err(|error| SigningFailure::forbidden(error.to_string()))?;
+    }
     let request_id = uuid_of(&body.request_id, "request_id")?;
     let caller = writer(&claims, tenant_id, services).await?;
-    let mut client = hasura(services).await?;
     let prepared = services
         .signing
         .documents

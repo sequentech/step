@@ -13,6 +13,8 @@
 //! the trustee's route consumes the completed request ([`consume_gate`]).
 
 use super::log::SystemOutcome;
+use super::operational_policy::{signing_mode, OperationalSigningMode};
+use super::operational_quorum::has_operational_quorum;
 use super::requests::{
     cancel_request, expire_request, is_overdue, is_the_trustee, read_request, relock,
     stage_request_step,
@@ -162,12 +164,19 @@ pub async fn effective_rule(
     election_event_id: Uuid,
     action: SigningAction,
 ) -> anyhow::Result<SigningRule> {
-    Ok(
-        get_signing_rule(hasura_transaction, tenant_id, election_event_id, action)
-            .await?
-            .map(|row| row.rule)
-            .unwrap_or_else(|| SigningRule::default_for(action)),
-    )
+    let mode = signing_mode(hasura_transaction, tenant_id).await?;
+    let effective = get_signing_rule(hasura_transaction, tenant_id, election_event_id, action)
+        .await?
+        .map(|row| row.rule);
+    if mode == OperationalSigningMode::HsmRequired {
+        let rule = effective
+            .filter(SigningRule::is_required)
+            .with_context(|| format!("Hardware signing needs a required rule for {action}."))?;
+        rule.validate()
+            .context("Invalid required hardware signing rule")?;
+        return Ok(rule);
+    }
+    Ok(effective.unwrap_or_else(|| SigningRule::default_for(action)))
 }
 
 /// [`guard_at`] now.
@@ -451,6 +460,9 @@ pub async fn consume_gate(
     request_id: Uuid,
     expected_subject: &Value,
 ) -> SigningResult<SigningRequestRow> {
+    let mode = signing_mode(hasura_transaction, tenant_id)
+        .await
+        .context("Operational signing policy unavailable")?;
     let found = read_request(hasura_transaction, tenant_id, request_id).await?;
     if found.election_event_id != election_event_id || found.action != action {
         return Err(SigningError::NotFound(
@@ -491,6 +503,22 @@ pub async fn consume_gate(
                 request.code, request.status
             ),
         });
+    }
+    if mode == OperationalSigningMode::HsmRequired {
+        let current =
+            effective_rule(hasura_transaction, tenant_id, election_event_id, action).await?;
+        if !has_operational_quorum(
+            hasura_transaction,
+            &request,
+            &approvals,
+            i64::from(current.required()),
+        )
+        .await?
+        {
+            return Err(SigningError::Forbidden(
+                "This trustee request lacks an applied hardware signing quorum.".into(),
+            ));
+        }
     }
     if canonical(&request.subject, "subject")? != canonical(expected_subject, "subject")? {
         return Err(SigningError::Conflict(format!(

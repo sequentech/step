@@ -139,6 +139,13 @@ let breakpoints: BreakpointsOptions = {
 }
 
 // A two-tone ring stays visible on light and dark tenant backgrounds.
+// Keep application-specific disabled actions aligned with the standard button.
+export const disabledButtonStyle = {
+    background: "rgba(15, 5, 76, 0.4)",
+    border: "1px solid rgba(255, 255, 255, 0.4)",
+    color: palette.white,
+}
+
 const keyboardFocusStyle = {
     outline: `2px solid ${palette.black}`,
     outlineOffset: "2px",
@@ -173,11 +180,7 @@ let MuiButton: Components["MuiButton"] = {
                 color: palette.white,
                 backgroundColor: palette.brandColor,
             },
-            "&.Mui-disabled": {
-                background: "rgba(15, 5, 76, 0.4)",
-                border: "1px solid rgba(255, 255, 255, 0.4)",
-                color: palette.white,
-            },
+            "&.Mui-disabled": disabledButtonStyle,
 
             "borderRadius": "0",
             [`@media (min-width: ${breakpoints.values!.sm!}px)`]: {

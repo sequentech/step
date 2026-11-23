@@ -54,7 +54,7 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 
 use super::build::{Bundle, JsonTable};
-use super::design::{self, DesignDigest, DesignKeys};
+use super::design::{self, DesignDigest, DesignDigestAlgorithm, DesignKeys};
 use super::emit::{JsonField, SCHEDULED_EVENT_COLUMNS};
 use super::ids::IdFactory;
 use super::problem::{Code, Problem, Report};
@@ -400,6 +400,14 @@ pub fn preview_publication(
 pub fn ballot_design_digests(
     bundle: &Bundle,
 ) -> Result<Vec<DesignDigest>, Report> {
+    ballot_design_digests_with_algorithm(bundle, DesignDigestAlgorithm::V1)
+}
+
+/// Digests from the same ballot-style builder, using a declared signed projection.
+pub fn ballot_design_digests_with_algorithm(
+    bundle: &Bundle,
+    algorithm: DesignDigestAlgorithm,
+) -> Result<Vec<DesignDigest>, Report> {
     let (schema, styles) = ballot_styles(
         bundle,
         bundle.export.clone(),
@@ -415,7 +423,8 @@ pub fn ballot_design_digests(
         .map_err(Report::from_problem)?,
         |keys, image| keys.with_document(&image.document_id, &image.file_name),
     );
-    design::ballot_design_digests(&styles, &keys).map_err(Report::from_problem)
+    design::ballot_design_digests_with_algorithm(&styles, &keys, algorithm)
+        .map_err(Report::from_problem)
 }
 
 /// The platform's ballot styles for `document`, one per area and election.

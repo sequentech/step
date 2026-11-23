@@ -41,6 +41,8 @@ use windmill::services::signing::issuers::{
     import_staff_issuers, remove_staff_issuer, update_signing_checks,
 };
 use windmill::services::signing::log::Actor;
+use windmill::services::signing::operational_policy::require_legacy_signing;
+
 use windmill::services::signing::staff_certificates::{
     check_certificate, register_staff_certificate, revoke_registration,
     RegistrationRefusalReason, RegistrationRefused, RevokeOutcome,
@@ -334,6 +336,12 @@ pub async fn register_staff_certificate_route(
     )?;
     let input = input.into_inner();
     let tenant_id = tenant_of(&claims)?;
+    let mut client = hasura(services).await?;
+    let transaction =
+        client.transaction().await.map_err(SigningError::internal)?;
+    require_legacy_signing(&transaction, tenant_id)
+        .await
+        .map_err(|error| SigningError::forbidden(error.to_string()))?;
     let directory = directory(services).await;
     let holder = directory
         .people(tenant_id, std::slice::from_ref(&input.user_id))
@@ -343,9 +351,6 @@ pub async fn register_staff_certificate_route(
         .ok_or_else(|| SigningError::not_found("No such user"))?;
     let officer_name =
         caller_display_name(&claims, tenant_id, &directory).await?;
-    let mut client = hasura(services).await?;
-    let transaction =
-        client.transaction().await.map_err(SigningError::internal)?;
     audit::act_for(&transaction, &claims).await?;
     let outcome = register_staff_certificate(
         &transaction,
@@ -545,11 +550,15 @@ pub async fn check_signing_certificate(
         return Err(SigningError::not_found("No such signing request"));
     }
     let tenant_id = tenant_of(&claims)?;
+
     let id = parse_id(id, "request id")?;
     let mut client = hasura(services).await?;
     let request = {
         let transaction =
             client.transaction().await.map_err(SigningError::internal)?;
+        require_legacy_signing(&transaction, tenant_id)
+            .await
+            .map_err(|error| SigningError::forbidden(error.to_string()))?;
         get_signing_request_in_tenant(&transaction, tenant_id, id)
             .await
             .map_err(SigningError::internal)?

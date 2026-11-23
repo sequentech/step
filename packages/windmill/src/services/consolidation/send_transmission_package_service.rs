@@ -24,7 +24,10 @@ use crate::{
     services::{
         database::get_hasura_pool,
         documents::{get_document_as_temp_file, upload_and_return_document},
-        signing::actions::transmission::{transmission_send_check, TransmissionRefusal},
+        signing::{
+            actions::transmission::{transmission_send_check_bound, TransmissionRefusal},
+            operational_policy::{signing_mode, OperationalSigningMode},
+        },
         time_zones::event_time_zone,
     },
     types::miru_plugin::{
@@ -34,7 +37,7 @@ use crate::{
 };
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use reqwest::multipart;
 use sequent_core::services::translations::Name;
 use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
@@ -56,11 +59,25 @@ const SEND_ELECTION_RESULTS_API_PATH: &str = "/api/receiver/v1/acm/election-resu
 
 const SEND_LOGS_API_PATH: &str = "/api/receiver/v1/acm/audit-logs";
 
+fn sha256_archive(path: &Path) -> Result<String> {
+    let mut file = std::fs::File::open(path).context("Cannot open exact MIRU archive")?;
+    let mut hash = openssl::sha::Sha256::new();
+    let mut buf = [0_u8; 64 * 1024];
+    loop {
+        let len = file.read(&mut buf)?;
+        if len == 0 {
+            return Ok(hex::encode(hash.finish()));
+        }
+        hash.update(&buf[..len]);
+    }
+}
+
 #[instrument(err)]
 async fn send_package_to_ccs_server(
     transmission_package_path: &Path,
     ccs_server: &MiruCcsServer,
     is_log: bool,
+    require_tls: bool,
 ) -> Result<()> {
     // Read the file contents into a Vec<u8>
     let transmission_package_bytes = std::fs::read(transmission_package_path)?;
@@ -73,9 +90,15 @@ async fn send_package_to_ccs_server(
 
     let uri = format!("{}{}", ccs_server.address, base_url);
     info!("Sending package to url {}", uri);
-    let client = reqwest::Client::builder()
-        .danger_accept_invalid_certs(true)
-        .build()?;
+    let mut client = reqwest::Client::builder();
+    if require_tls {
+        client = client
+            .https_only(true)
+            .redirect(reqwest::redirect::Policy::none());
+    } else {
+        client = client.danger_accept_invalid_certs(true);
+    }
+    let client = client.build()?;
 
     // Create a multipart form
     let form = multipart::Form::new().part(
@@ -237,12 +260,14 @@ pub async fn signed_transmission_refusal(
     if network_destinations(&package.servers).is_empty() {
         return Ok(Some(SendRefusal::ManualReceiptOnly));
     }
-    Ok(transmission_send_check(
+    Ok(transmission_send_check_bound(
         &hasura_transaction,
         Uuid::parse_str(tenant_id).with_context(|| "Error parsing the tenant id")?,
         Uuid::parse_str(&election_event.id)
             .with_context(|| "Error parsing the election event id")?,
+        Some(tally_session_uuid),
         &package,
+        None,
     )
     .await?
     .err()
@@ -397,6 +422,59 @@ async fn record_new_log(
     Ok(())
 }
 
+/// Revalidate the exact verified local archive against the current tally
+/// generation at each network effect. The row lock lives through the bounded
+/// HTTP transfer, then is released before the separate outcome logger takes
+/// its own tally lock. The outer send and signing-policy locks remain held.
+#[allow(clippy::too_many_arguments)]
+async fn send_current_hardware_member(
+    tx: &Transaction<'_>,
+    tenant: Uuid,
+    event: Uuid,
+    tally: Uuid,
+    election: &str,
+    area: &str,
+    expected_archive: &str,
+    expected_hash: &str,
+    member: &Path,
+    server: &MiruCcsServer,
+    logs: bool,
+) -> Result<Result<()>> {
+    tx.batch_execute("SAVEPOINT operational_miru_current_member")
+        .await?;
+    let effect = async {
+        let locked = lock_transmission_data(
+            tx,
+            &tenant.to_string(),
+            &event.to_string(),
+            &tally.to_string(),
+        )
+        .await?;
+        let current = locked
+            .packages
+            .iter()
+            .find(|package| package.election_id == election && package.area_id == area)
+            .ok_or_else(|| anyhow!("The operational MIRU revision is no longer current"))?;
+        if !current.servers.contains(server)
+            || get_latest_miru_document(&current.documents)
+                .is_none_or(|latest| latest.document_ids.all_servers != expected_archive)
+        {
+            return Err(anyhow!(
+                "The operational MIRU archive or destination changed"
+            ));
+        }
+        transmission_send_check_bound(tx, tenant, event, Some(tally), current, Some(expected_hash))
+            .await?
+            .map_err(anyhow::Error::new)?;
+        Ok(send_package_to_ccs_server(member, server, logs, true).await)
+    }
+    .await;
+    tx.batch_execute(
+        "ROLLBACK TO SAVEPOINT operational_miru_current_member; RELEASE SAVEPOINT operational_miru_current_member",
+    ).await?;
+    effect
+}
+
 #[instrument(err)]
 pub async fn send_transmission_package_service(
     tenant_id: &str,
@@ -471,6 +549,22 @@ pub async fn send_transmission_package_service(
         info!("transmission package document not found, skipping");
         return Ok(());
     };
+    let tenant_uuid = Uuid::parse_str(tenant_id).context("Invalid tenant id")?;
+    let event_uuid = Uuid::parse_str(&election_event.id).context("Invalid election event id")?;
+    let tally_uuid = Uuid::parse_str(tally_session_id).context("Invalid tally session id")?;
+    let hardware = signing_mode(&hasura_transaction, tenant_uuid).await?
+        == OperationalSigningMode::HsmRequired;
+    // Request and registered revision must match before loading any archive.
+    transmission_send_check_bound(
+        &hasura_transaction,
+        tenant_uuid,
+        event_uuid,
+        Some(tally_uuid),
+        &transmission_area_election,
+        None,
+    )
+    .await?
+    .map_err(anyhow::Error::new)?;
 
     let document = get_document(
         &hasura_transaction,
@@ -488,6 +582,23 @@ pub async fn send_transmission_package_service(
 
     let mut compressed_zip = get_document_as_temp_file(tenant_id, &document).await?;
 
+    let verified_archive_sha = if hardware {
+        let archive_sha = sha256_archive(compressed_zip.path())?;
+        // Verify the exact private local file that unzip below will open.
+        transmission_send_check_bound(
+            &hasura_transaction,
+            tenant_uuid,
+            event_uuid,
+            Some(tally_uuid),
+            &transmission_area_election,
+            Some(&archive_sha),
+        )
+        .await?
+        .map_err(anyhow::Error::new)?;
+        Some(archive_sha)
+    } else {
+        None
+    };
     let zip_output_temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
     unzip_file(compressed_zip.path(), zip_output_temp_dir.path())?;
 
@@ -501,17 +612,6 @@ pub async fn send_transmission_package_service(
         .map(|value| value.name.clone())
         .collect();
 
-    // A package that needs signatures goes once its signing request ran,
-    // with the request's signatures; otherwise with the Post's 2025 minimum.
-    transmission_send_check(
-        &hasura_transaction,
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing the tenant id")?,
-        Uuid::parse_str(&election_event.id)
-            .with_context(|| "Error parsing the election event id")?,
-        &transmission_area_election,
-    )
-    .await?
-    .map_err(anyhow::Error::new)?;
     // The log lines and send times are in the event's primary zone.
     let zone = event_time_zone(
         &hasura_transaction,
@@ -533,7 +633,25 @@ pub async fn send_transmission_package_service(
         let second_zip_path =
             second_zip_folder_path.join(format!("er_{}.zip", area_annotations.station_id));
         let election_name = election.get_name(&election.get_default_language());
-        match send_package_to_ccs_server(&second_zip_path, ccs_server, false).await {
+        let transfer = if let Some(hash) = verified_archive_sha.as_deref() {
+            send_current_hardware_member(
+                &hasura_transaction,
+                tenant_uuid,
+                event_uuid,
+                tally_uuid,
+                election_id,
+                area_id,
+                &miru_document.document_ids.all_servers,
+                hash,
+                &second_zip_path,
+                ccs_server,
+                false,
+            )
+            .await?
+        } else {
+            send_package_to_ccs_server(&second_zip_path, ccs_server, false, false).await
+        };
+        match transfer {
             Ok(_) => {
                 let time_now = Utc::now().with_timezone(&zone);
                 let new_log = send_transmission_package_to_ccs_log(
@@ -607,7 +725,25 @@ pub async fn send_transmission_package_service(
         let logs_zip_path =
             second_zip_folder_path.join(format!("al_{}.zip", area_annotations.station_id));
         if with_logs {
-            match send_package_to_ccs_server(&logs_zip_path, ccs_server, true).await {
+            let transfer = if let Some(hash) = verified_archive_sha.as_deref() {
+                send_current_hardware_member(
+                    &hasura_transaction,
+                    tenant_uuid,
+                    event_uuid,
+                    tally_uuid,
+                    election_id,
+                    area_id,
+                    &miru_document.document_ids.all_servers,
+                    hash,
+                    &logs_zip_path,
+                    ccs_server,
+                    true,
+                )
+                .await?
+            } else {
+                send_package_to_ccs_server(&logs_zip_path, ccs_server, true, false).await
+            };
+            match transfer {
                 Ok(_) => {
                     let new_log = send_logs_to_ccs_log(
                         &Utc::now().with_timezone(&zone),

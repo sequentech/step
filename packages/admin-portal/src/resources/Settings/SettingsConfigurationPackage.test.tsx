@@ -3,12 +3,51 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {act, fireEvent, render, screen} from "@testing-library/react"
+import {ThemeProvider} from "@mui/material/styles"
+import {adminTheme} from "../../../../ui-essentials/src/services/theme"
 import {record} from "./configurationPackage.fixture"
+import {COMPLETE_DELIVERY} from "./configurationPackage"
+import type {RosterStatus} from "./ArchitectSignerRoster"
+
+// LinkBehavior is not exercised by these controls.
+jest.mock("react-router-dom", () => ({Link: "a"}))
+jest.mock(
+    "@sequentech/ui-essentials",
+    () => ({
+        disabledButtonStyle: jest.requireActual("../../../../ui-essentials/src/services/theme")
+            .disabledButtonStyle,
+    }),
+    {virtual: true}
+)
 
 const mockApply = jest.fn()
+const mockManagedApply = jest.fn()
+const rosterSha = "a1".repeat(32)
+const legacyRoster: RosterStatus = {
+    mode: "not_enabled",
+    generation: "0",
+    active_sha256: null,
+    required_approvals: 2,
+    can_manage: false,
+}
+const managedRoster: RosterStatus = {
+    ...legacyRoster,
+    mode: "portal_managed",
+    generation: "1",
+    active_sha256: rosterSha,
+}
+let mockRoster: RosterStatus | null = legacyRoster
+const mockRosterRead = jest.fn(async (): Promise<RosterStatus | null> => mockRoster)
+jest.mock("./ArchitectSignerRoster", () => ({
+    ArchitectSignerRoster: () => null,
+    rosterStateAllowsImport: (status: RosterStatus | null) =>
+        status?.mode === "not_enabled" || !!status?.active_sha256,
+    useArchitectSignerRoster: () => ({status: mockRoster, loading: false, read: mockRosterRead}),
+}))
 const mockTaskQuery = jest.fn()
 let mockTask: any = null
 let mockAllowed = true
+let mockActor = "operator-a"
 let mockTenant = "t1"
 let mockTaskError: unknown = undefined
 let mockSha = ""
@@ -18,6 +57,9 @@ const mockHistoryOptions = jest.fn()
 
 // The trust section has its own tests (ConfigurationSigningSettings.test.tsx);
 // here it only has to be on the page.
+jest.mock("./ArchitectApprovalPolicy", () => ({
+    ArchitectApprovalPolicy: () => null,
+}))
 jest.mock("./ConfigurationSigningSettings", () => ({
     ConfigurationSigningSettings: ({tenantId}: {tenantId: string}) => (
         <div data-testid="configuration-signing">{tenantId}</div>
@@ -25,11 +67,12 @@ jest.mock("./ConfigurationSigningSettings", () => ({
 }))
 jest.mock("@/queries/ApplyConfigurationPackage", () => ({
     APPLY_CONFIGURATION_PACKAGE: "APPLY",
+    APPLY_MANAGED_CONFIGURATION_PACKAGE: "MANAGED",
     LIST_PACKAGE_APPLICATIONS: "HISTORY",
     GET_PACKAGE_TASK: "TASK",
 }))
 jest.mock("@apollo/client", () => ({
-    useMutation: () => [mockApply],
+    useMutation: (op: string) => [op === "MANAGED" ? mockManagedApply : mockApply],
     useQuery: (query: string, options: any) => {
         if (query === "TASK") {
             mockTaskQuery(options)
@@ -57,7 +100,14 @@ jest.mock("react-i18next", () => ({
 jest.mock("@/providers/TenantContextProvider", () => ({useTenantStore: () => [mockTenant]}))
 jest.mock("@/providers/AuthContextProvider", () => {
     const React = require("react")
-    return {AuthContext: React.createContext({isAuthorized: () => mockAllowed})}
+    return {
+        AuthContext: React.createContext({
+            isAuthorized: () => mockAllowed,
+            get userId() {
+                return mockActor
+            },
+        }),
+    }
 })
 // The real drawer and screen are exercised in SettingsConfigurationPackage.upload.test.tsx.
 jest.mock("@/components/election-event/import-data/ImportScreen", () => ({
@@ -84,9 +134,12 @@ beforeEach(() => {
     sessionStorage.clear()
     mockTask = null
     mockAllowed = true
+    mockActor = "operator-a"
     mockTenant = "t1"
     mockTaskError = undefined
     mockSha = ""
+    mockRoster = legacyRoster
+    mockRosterRead.mockImplementation(async () => mockRoster)
 })
 
 /** Click Apply and confirm it: the application is never one click. */
@@ -119,6 +172,28 @@ it("is not offered without every permission", () => {
     render(<SettingsConfigurationPackage />)
     expect(screen.getByTestId("package-not-permitted")).toBeTruthy()
     expect(screen.queryByText("configurationPackage.upload")).toBeNull()
+    expect(screen.queryByTestId("package-advanced")).toBeNull()
+    expect(screen.queryByTestId("configuration-signing")).toBeNull()
+})
+
+it("shows Advanced controls without an accordion and keeps explicit generic legacy setup", () => {
+    render(<SettingsConfigurationPackage />)
+    const upload = screen.getByRole("button", {name: "configurationPackage.upload"})
+    const advanced = screen.getByRole("region", {name: "configurationPackage.advanced"})
+    expect(upload.compareDocumentPosition(advanced) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(advanced.querySelector("summary")).toBeNull()
+    expect(screen.getByRole("checkbox", {name: "census"})).toBeTruthy()
+    expect(screen.queryByTestId("configuration-signing")).toBeNull()
+    const setup = screen.getByRole("button", {name: "configurationPackage.legacySetup"})
+    expect(setup.getAttribute("aria-expanded")).toBe("false")
+    fireEvent.click(setup)
+    expect(setup.getAttribute("aria-expanded")).toBe("true")
+    const editor = screen.getByTestId("configuration-signing")
+    expect(editor.textContent).toBe("t1")
+    expect(
+        document.getElementById(setup.getAttribute("aria-controls") ?? "")?.contains(editor)
+    ).toBe(true)
+    expect(mockApply).not.toHaveBeenCalled()
 })
 
 it("previews an upload first, showing members, blockers and the task, and refuses to apply", async () => {
@@ -566,4 +641,185 @@ describe("a failed or uncertain submission never brings an old preview's Apply b
         view.rerender(<SettingsConfigurationPackage />)
         expect(applyButton().disabled).toBe(true)
     })
+})
+
+const finishManagedPreview = (overrides: Record<string, unknown> = {}) => {
+    const annotated = record("previewed")
+    Object.assign(annotated.application, {
+        managedRosterBinding: {sha256: rosterSha, generation: 1, requiredApprovals: 2},
+        managedRequirements: COMPLETE_DELIVERY,
+        ...overrides,
+    })
+    mockTask = task("task-p", "SUCCESS", annotated)
+}
+
+it("uses the exact successful server-bound Preview only after managed Apply confirmation", async () => {
+    mockRoster = managedRoster
+    const view = await previewed()
+    expect(applyButton().disabled).toBe(true)
+    finishManagedPreview()
+    view.rerender(<SettingsConfigurationPackage />)
+    expect(applyButton().disabled).toBe(false)
+    fireEvent.click(applyButton())
+    expect(mockManagedApply).not.toHaveBeenCalled()
+    mockManagedApply.mockResolvedValueOnce(accepted("task-a"))
+    await act(async () => {
+        const confirm = screen.getByTestId("package-apply-confirm")
+        fireEvent.click(confirm)
+        fireEvent.click(confirm)
+    })
+    expect(mockManagedApply).toHaveBeenCalledTimes(1)
+    expect(mockManagedApply).toHaveBeenCalledWith({
+        variables: {
+            tenantId: "t1",
+            documentId: "doc-1",
+            requirements: COMPLETE_DELIVERY,
+            previewTaskId: "task-p",
+        },
+    })
+    expect(mockApply).toHaveBeenCalledTimes(1)
+})
+
+it("drops a managed Preview when confirmation refetch observes a rotated roster", async () => {
+    mockRoster = managedRoster
+    const view = await previewed()
+    finishManagedPreview()
+    view.rerender(<SettingsConfigurationPackage />)
+    mockRosterRead.mockResolvedValueOnce({
+        ...managedRoster,
+        generation: "2",
+        active_sha256: "b2".repeat(32),
+    })
+    await apply()
+    expect(mockManagedApply).not.toHaveBeenCalled()
+    expect(mockApply).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId("package-error").textContent).toBe(
+        "configurationPackage.roster.previewAgain"
+    )
+    expect(screen.queryByTestId("package-run")).toBeNull()
+})
+
+it("does not consider an old trust binding applicable after observing another generation", async () => {
+    mockRoster = managedRoster
+    const view = await previewed()
+    finishManagedPreview()
+    view.rerender(<SettingsConfigurationPackage />)
+    expect(applyButton().disabled).toBe(false)
+    mockRoster = {...managedRoster, generation: "2"}
+    view.rerender(<SettingsConfigurationPackage />)
+    expect(applyButton().disabled).toBe(true)
+    expect(screen.getByText("configurationPackage.roster.previewAgain")).toBeTruthy()
+    expect(mockManagedApply).not.toHaveBeenCalled()
+})
+
+it.each([null, {...managedRoster, generation: "0", active_sha256: null}])(
+    "blocks starting a package upload until receiver trust is ready (%p)",
+    (status) => {
+        mockRoster = status
+        render(<SettingsConfigurationPackage />)
+        expect(
+            (screen.getByText("configurationPackage.upload") as HTMLButtonElement).disabled
+        ).toBe(true)
+        expect(mockApply).not.toHaveBeenCalled()
+    }
+)
+
+it("keeps imported ZIP history readable but will not apply a restored managed preview", async () => {
+    mockRoster = managedRoster
+    const view = await previewed()
+    finishManagedPreview()
+    view.rerender(<SettingsConfigurationPackage />)
+    expect(applyButton().disabled).toBe(false)
+    view.unmount()
+    render(<SettingsConfigurationPackage />)
+    expect(screen.getByTestId("package-task").textContent).toContain("task-p")
+    expect(applyButton().disabled).toBe(true)
+    expect(mockManagedApply).not.toHaveBeenCalled()
+})
+
+it("does not reuse a successful managed Preview when the signed-in actor switches in the same tenant", async () => {
+    mockRoster = managedRoster
+    const view = await previewed()
+    finishManagedPreview()
+    view.rerender(<SettingsConfigurationPackage />)
+    expect(applyButton().disabled).toBe(false)
+    mockActor = "operator-b"
+    view.rerender(<SettingsConfigurationPackage />)
+    expect(applyButton().disabled).toBe(true)
+    expect(mockManagedApply).not.toHaveBeenCalled()
+    mockActor = ""
+    view.rerender(<SettingsConfigurationPackage />)
+    expect(screen.getByTestId("package-not-permitted")).toBeTruthy()
+})
+
+const expectDisabledLikeApply = (upload: HTMLButtonElement) => {
+    expect(upload.disabled).toBe(true)
+    expect(upload.classList.contains("Mui-disabled")).toBe(true)
+    const uploadStyle = window.getComputedStyle(upload)
+    const reference = window.getComputedStyle(applyButton())
+    expect(applyButton().disabled).toBe(true)
+    expect([uploadStyle.backgroundColor, uploadStyle.color, uploadStyle.border]).toEqual([
+        reference.backgroundColor,
+        reference.color,
+        reference.border,
+    ])
+    expect(uploadStyle.backgroundColor).toBe("rgba(15, 5, 76, 0.4)")
+}
+
+it("keeps managed trust roster-only and unlocks ZIP/document selection only after active status", async () => {
+    mockRoster = {...managedRoster, generation: "0", active_sha256: null}
+    const page = () => (
+        <ThemeProvider theme={adminTheme}>
+            <SettingsConfigurationPackage />
+        </ThemeProvider>
+    )
+    const view = render(page())
+    const upload = screen.getByRole("button", {
+        name: "configurationPackage.upload",
+    }) as HTMLButtonElement
+    expect(upload.disabled).toBe(true)
+    expectDisabledLikeApply(upload)
+    expect(upload.getAttribute("aria-describedby")).toBeTruthy()
+    fireEvent.click(upload)
+    expect(screen.queryByTestId("package-upload-drawer")).toBeNull()
+    const documentId = screen.getByRole("textbox", {
+        name: "configurationPackage.signedDocumentId",
+    }) as HTMLInputElement
+    expect(documentId.disabled).toBe(true)
+    expect(screen.getByRole("checkbox", {name: "census"})).toBeTruthy()
+    expect(screen.queryByText("configurationPackage.legacySetup")).toBeNull()
+    expect(screen.queryByTestId("configuration-signing")).toBeNull()
+
+    mockRoster = managedRoster
+    view.rerender(page())
+    expect(upload.disabled).toBe(false)
+    expect(documentId.disabled).toBe(false)
+    expect(screen.queryByText("configurationPackage.legacySetup")).toBeNull()
+    fireEvent.change(documentId, {target: {value: "existing-zip"}})
+    mockApply.mockResolvedValueOnce(accepted("task-doc"))
+    await act(async () =>
+        fireEvent.click(screen.getByRole("button", {name: "configurationPackage.preview"}))
+    )
+    expect(mockApply).toHaveBeenCalledWith({
+        variables: {
+            tenantId: "t1",
+            documentId: "existing-zip",
+            mode: "preview",
+            requirements: COMPLETE_DELIVERY,
+        },
+    })
+    expect(mockManagedApply).not.toHaveBeenCalled()
+    // A running preview uses the same existing disabled style as pending trust.
+    expectDisabledLikeApply(upload)
+})
+
+it("never flashes a legacy trust or document choice while receiver status is unknown", () => {
+    mockRoster = null
+    const view = render(<SettingsConfigurationPackage />)
+    expect(screen.getByRole("region", {name: "configurationPackage.advanced"})).toBeTruthy()
+    expect(screen.queryByText("configurationPackage.legacySetup")).toBeNull()
+    expect(screen.queryByRole("textbox", {name: "configurationPackage.documentId"})).toBeNull()
+    mockRoster = {...legacyRoster, mode: "unavailable"}
+    view.rerender(<SettingsConfigurationPackage />)
+    expect(screen.queryByText("configurationPackage.legacySetup")).toBeNull()
 })

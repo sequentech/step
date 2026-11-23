@@ -12,11 +12,18 @@ use std::time::{Duration, Instant};
 use anyhow::{Context as _, Result};
 use async_trait::async_trait;
 use protocol_board::trustee_sessions::RequestHeaders;
+use std::{
+    fs::File,
+    io::Read,
+    path::{Path, PathBuf},
+};
+
 use serde::Deserialize;
 use tokio::sync::Mutex;
 use tracing::{info, warn};
 
-use crate::platform::call;
+/// Client reserved for explicitly provisioned native trustees.
+pub(crate) const NATIVE_TRUSTEE_CLIENT: &str = "sequent-native-trustee";
 
 /// How long before its expiry a token is renewed.
 const RENEWAL_MARGIN: Duration = Duration::from_secs(30);
@@ -33,6 +40,9 @@ pub(crate) struct Credentials {
     /// The trustee's name.
     pub(crate) username: String,
     pub(crate) password: String,
+    /// Operator-updated private file; only one current code, never an OTP seed.
+    pub(crate) otp_file: Option<PathBuf>,
+    pub(crate) keycloak_ca_file: Option<PathBuf>,
 }
 
 /// Access tokens of the trustee's user, renewed before they expire.
@@ -41,6 +51,7 @@ pub(crate) struct TokenSource {
     token_url: String,
     credentials: Credentials,
     token: Option<Token>,
+    last_otp: Option<String>,
 }
 
 /// The token source shared by the platform's calls and the board's.
@@ -99,6 +110,7 @@ impl TokenSource {
             token_url,
             credentials,
             token: None,
+            last_otp: None,
         }
     }
 
@@ -125,7 +137,7 @@ impl TokenSource {
         Ok(self.token.insert(token).access.as_str())
     }
 
-    async fn log_in(&self) -> Result<Token> {
+    async fn log_in(&mut self) -> Result<Token> {
         let credentials = &self.credentials;
         let mut form = vec![
             ("grant_type", "password"),
@@ -136,6 +148,16 @@ impl TokenSource {
         ];
         if let Some(secret) = &credentials.client_secret {
             form.push(("client_secret", secret.as_str()));
+        }
+        let otp = credentials.otp_file.as_deref().map(read_otp).transpose()?;
+        if let Some(code) = &otp {
+            // Don't hammer Keycloak with the same expired/invalid code each
+            // poll. A fresh input is required even after a failed login.
+            if self.last_otp.as_ref() == Some(code) {
+                anyhow::bail!("a fresh trustee OTP is required");
+            }
+            self.last_otp = Some(code.clone());
+            form.push(("otp", code.as_str()));
         }
         let token = self.request(&form).await.with_context(|| {
             format!(
@@ -165,15 +187,72 @@ impl TokenSource {
 
     async fn request(&self, form: &[(&str, &str)]) -> Result<Token> {
         let requested_at = Instant::now();
-        let answer: TokenResponse =
-            call(self.http.post(&self.token_url).form(form))
-                .await
-                .with_context(|| format!("POST {}", self.token_url))?;
+        // Do not log a provider error body, which might contain submitted
+        // authentication material or an unexpected token.
+        let response = self
+            .http
+            .post(&self.token_url)
+            .form(form)
+            .send()
+            .await
+            .map_err(|_| anyhow::anyhow!("Keycloak token request failed"))?;
+        if !response.status().is_success() {
+            anyhow::bail!(
+                "Keycloak token request returned HTTP {}",
+                response.status()
+            );
+        }
+        let answer: TokenResponse = response.json().await.map_err(|_| {
+            anyhow::anyhow!("Keycloak returned an invalid token response")
+        })?;
         let lifetime = Duration::from_secs(answer.expires_in);
         Ok(Token {
             access: answer.access_token,
             refresh: answer.refresh_token,
             renew_at: requested_at + lifetime.saturating_sub(RENEWAL_MARGIN),
         })
+    }
+}
+
+fn read_otp(path: &Path) -> Result<String> {
+    let mut raw = String::new();
+    File::open(path)
+        .and_then(|file| file.take(16).read_to_string(&mut raw))
+        .map_err(|_| {
+            anyhow::anyhow!("cannot read the private trustee OTP file")
+        })?;
+    let code = raw.trim_end_matches(['\r', '\n']);
+    if raw.len() > 8
+        || code.len() != 6
+        || !code.bytes().all(|b| b.is_ascii_digit())
+    {
+        anyhow::bail!("the trustee OTP file must contain one six-digit code");
+    }
+    Ok(code.to_owned())
+}
+
+#[cfg(test)]
+mod otp_tests {
+    use super::read_otp;
+
+    #[test]
+    fn reads_a_single_six_digit_otp_and_does_not_echo_invalid_contents() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file = tmp.path().join("otp");
+        std::fs::write(&file, "012345\r\n").unwrap();
+        assert!(read_otp(&file).is_ok_and(|code| code == "012345"));
+        for invalid in [
+            "too-private-to-log",
+            "012345\n6",
+            " 012345",
+            "01234",
+            "012345\n\n\n",
+        ] {
+            std::fs::write(&file, invalid).unwrap();
+            assert!(!read_otp(&file)
+                .unwrap_err()
+                .to_string()
+                .contains(invalid));
+        }
     }
 }

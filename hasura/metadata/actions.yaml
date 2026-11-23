@@ -1946,6 +1946,73 @@ actions:
       permissions:
           - role: tenant-write
           - role: admin-user
+    - name: get_architect_approval_policy
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/get-architect-approval-policy
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tenant-write
+          - role: admin-user
+    - name: set_architect_approval_policy
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/set-architect-approval-policy
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tenant-write
+          - role: admin-user
+    - name: get_architect_signer_roster_status
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/get-architect-signer-roster-status
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tenant-write
+    - name: preview_architect_signer_roster
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/preview-architect-signer-roster
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tenant-write
+    - name: activate_architect_signer_roster
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/activate-architect-signer-roster
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tenant-write
     - name: set_configuration_signing
       definition:
           kind: synchronous
@@ -3235,6 +3302,20 @@ actions:
       comment: Read trusted lifecycle snapshots per Post and event
 custom_types:
     enums:
+        - name: ArchitectSignerRosterMode
+          values:
+              - description: null
+                is_deprecated: null
+                value: not_enabled
+              - description: null
+                is_deprecated: null
+                value: site_pinned
+              - description: null
+                is_deprecated: null
+                value: portal_managed
+              - description: null
+                is_deprecated: null
+                value: unavailable
         - name: EarlyVotingPolicy
           values:
               - description: null
@@ -3468,6 +3549,9 @@ custom_types:
         - name: ExportTrusteesOutput
         - name: SetVoterAuthenticationOutput
         - name: ApplyConfigurationPackageOutput
+        - name: ArchitectApprovalPolicyOutput
+        - name: ArchitectSignerRosterStatus
+        - name: ArchitectSignerRosterPreview
         - name: SetConfigurationSigningOutput
         - name: ImportTenantOutput
         - name: ExportElectionEventOutput

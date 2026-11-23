@@ -2386,7 +2386,7 @@ pub fn approval_request_js(
     configuration: JsValue,
 ) -> Result<JsValue, JsError> {
     use crate::election_config::manifest::{
-        revision_content, ConfigurationRevision,
+        revision_content_with_algorithm, ConfigurationRevision,
     };
     use crate::election_config::standalone_signing::{
         approval_request, InstalledSigning,
@@ -2438,7 +2438,11 @@ pub fn approval_request_js(
             return to_js(&refused(Report::from_problem(problem)));
         }
     }
-    let revision = match revision_content(&compiled, &[]) {
+    let revision = match revision_content_with_algorithm(
+        &compiled,
+        &[],
+        super::design::DesignDigestAlgorithm::V2,
+    ) {
         Ok(revision) => revision,
         Err(report) => return to_js(&refused(report)),
     };

@@ -4,6 +4,19 @@
 
 const englishTranslation = {
     translations: {
+        architectApprovalPolicy: {
+            title: "Architect revision approvals",
+            field: "Required WebAuthn approvals",
+            help: "Leave blank for 2. A whole number from 1 to 16 applies to new submissions only.",
+            invalid: "Enter a whole number from 1 to 16, or leave blank.",
+            receiver:
+                "The offline receiver has a separately configured minimum. Lowering this setting does not lower that minimum. The final signer is separate and does not count as an approver.",
+            save: "Save approval policy",
+            saved: "Approval policy saved.",
+            failed: "Could not save the approval policy. Reload Tenant Settings and try again.",
+            loading: "Loading Architect approval policy…",
+            unavailable: "Architect approval policy could not be loaded.",
+        },
         configurationSigning: {
             title: "Package signing trust",
             description:
@@ -67,6 +80,65 @@ const englishTranslation = {
             },
         },
         configurationPackage: {
+            roster: {
+                title: "Architect signer roster",
+                loading: "Checking receiver trust…",
+                active: "Active roster: {{hash}}. The receiver requires at least {{approvals}} distinct approvals and a separate final signer.",
+                noRoster:
+                    "No signer roster is active. Signed package imports are blocked until a roster is activated.",
+                unavailable: "Receiver trust could not be verified. Package imports are paused.",
+                locked: "Only authorized roster managers can change this roster.",
+                sitePinned:
+                    "This roster is managed by the site operator. It cannot be replaced here.",
+                manage: "Import signer roster",
+                alreadyActive: "This fingerprint is already active for this tenant.",
+                activeConfirmed: "The receiver confirmed the new active roster.",
+                independent:
+                    "Use the public roster from Architect. If you have its SHA-256 fingerprint from a separate trusted channel, enter it below. Do not take the expected fingerprint from the same file or package.",
+                file: "Public signer roster (.json)",
+                drop: "Drop the public signer roster here or",
+                browse: "Browse for a roster file",
+                retry: "Check receiver trust again",
+                expected: "Expected SHA-256 fingerprint (optional)",
+                hashHelp:
+                    "Enter a 64-character hexadecimal fingerprint or leave this blank to calculate it from the selected file.",
+                candidate: "Roster fingerprint: {{hash}}",
+                fingerprintMatched:
+                    "The receiver confirmed that the roster matches the fingerprint you entered.",
+                fingerprintComputed:
+                    "Calculated from the selected file. This fingerprint was not compared with one from an independent source.",
+                signers: "Approver keys: {{approvers}}. Final signer keys: {{signers}}.",
+                origin: "Relying party: {{rp}}. Allowed origins: {{origins}}.",
+                confirmEffect:
+                    "Activation changes which signers the receiver trusts for this tenant. Packages previewed against the previous roster must be previewed again.",
+                cancel: "Cancel",
+                signIn: "Sign in again",
+                confirm: "Activate signer roster",
+                review: "Verify roster",
+                previewAgain:
+                    "Trust or the selected preview changed. Preview this package again before applying.",
+                importUnavailable:
+                    "The receiver is not ready to import this package. Check the signer roster status.",
+                error: {
+                    computeHash:
+                        "The fingerprint could not be calculated. Try the file again or enter the expected fingerprint.",
+                    file: "Choose a non-empty UTF-8 JSON file no larger than 256 KiB, without a byte order mark.",
+                    freshAuth:
+                        "Sign in again using your usual account. Then reopen Settings → Configuration package, select the file again, and verify its fingerprint.",
+                    forbidden: "You are not authorized to manage this tenant’s signer roster.",
+                    conflict:
+                        "The roster changed or a package operation is in progress. Reload the roster, then verify the file again.",
+                    preview:
+                        "The roster could not be verified. Check the Architect export and, if you entered a fingerprint, make sure it matches.",
+                    activate:
+                        "The receiver did not confirm activation. Check the active fingerprint before trying again.",
+                    login: "Could not start a new sign-in. Sign in again and return here.",
+                },
+            },
+            advanced: "Advanced options",
+            legacySetup: "Legacy certificate setup",
+            verificationNote:
+                "The server checks the ZIP using the trust already configured for this tenant. Uploading does not apply changes.",
             tab: "Configuration package",
             title: "Import a configuration package",
             description:
@@ -88,6 +160,7 @@ const englishTranslation = {
             uploadTitle: "Upload a configuration package",
             uploadSubtitle: "The delivery zip from removable media",
             uploadParagraph: "It is previewed first; nothing is applied from the upload itself.",
+            signedDocumentId: "Existing signed ZIP document ID",
             documentId: "Or an uploaded document id",
             preview: "Preview",
             apply: "Apply",

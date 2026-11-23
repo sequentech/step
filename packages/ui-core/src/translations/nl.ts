@@ -745,6 +745,26 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 "package": {
+                    "ambiguous-signature-member": {
+                        lead: "Onduidelijk ondertekeningsbestand",
+                        text: "Onduidelijk ondertekeningsbestand — {{file}} moet de exacte naam van het ondertekeningsbestand hebben en in de hoofdmap van het pakket staan.",
+                    },
+                    "webauthn-not-enabled": {
+                        lead: "Beveiligingssleutelhandtekeningen uitgeschakeld",
+                        text: "Beveiligingssleutelhandtekeningen uitgeschakeld — Deze importfunctie is niet ingesteld om de beveiligingssleutels van bevoegde personen te verifiëren. Er is niets geïmporteerd.",
+                    },
+                    "webauthn-refused": {
+                        lead: "Beveiligingssleutelhandtekeningen afgewezen",
+                        text: "Beveiligingssleutelhandtekeningen afgewezen — De handtekeningen of goedkeuringen konden niet worden geverifieerd: {{reason}}",
+                    },
+                    "content-mismatch": {
+                        lead: "Pakketinhoud komt niet overeen",
+                        text: "Pakketinhoud komt niet overeen — De inhoudshash in het manifest komt niet overeen met de pakketinhoud. Er is niets geïmporteerd.",
+                    },
+                    "webauthn-not-next": {
+                        lead: "Het pakket is niet de volgende revisie",
+                        text: "Het pakket is niet de volgende revisie — Dit pakket sluit niet aan op de laatst geïmporteerde revisie van deze configuratie.",
+                    },
                     "already-imported": {
                         lead: "Al geïmporteerd",
                         text: "Al geïmporteerd — revisie {{revision}} van deze configuratie is al eerder geïmporteerd; importeer een nieuwere revisie.",
