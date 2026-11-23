@@ -86,6 +86,34 @@ class BuildImageMatrixTests(unittest.TestCase):
                 self.assertEqual(job["uses"], "./.github/workflows/reusable_build_push.yml")
                 self.assertEqual(job["with"].get("push_root", False), name == "release.yml")
 
+    def test_root_ecr_uses_ireland_for_ovcs_and_canada_otherwise(self):
+        workflow = yaml.safe_load(
+            (ROOT / ".github/workflows/reusable_build_push.yml").read_text()
+        )
+        steps = {
+            step["name"]: step for step in workflow["jobs"]["build-and-push"]["steps"]
+        }
+        credentials = steps["Configure AWS credentials (root account)"]
+        self.assertEqual(
+            credentials["with"]["aws-region"],
+            "${{ github.ref_name == 'ovcs' && 'eu-west-1' || 'ca-central-1' }}",
+        )
+        login = steps["Login to Amazon ECR (root account)"]
+        self.assertEqual(login["id"], "root-ecr")
+        gate = "inputs.push && inputs.push_root && matrix.root_ecr"
+        self.assertEqual(credentials["if"], gate)
+        self.assertEqual(login["if"], gate)
+        push = steps["Push to ECR and Artifact Registry"]
+        self.assertEqual(
+            push["env"]["ROOT_ECR_REGISTRY"],
+            "${{ inputs.push_root && matrix.root_ecr && steps.root-ecr.outputs.registry || '' }}",
+        )
+        self.assertEqual(
+            push["env"]["ECR_REGISTRY"], "${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}"
+        )
+        self.assertIn("europe-west4-docker.pkg.dev", push["run"])
+        self.assertIn("us-east1-docker.pkg.dev", push["run"])
+
     def test_architect_scope_excludes_delivery(self):
         result = self.select("architect")
         self.assertEqual(result.returncode, 0, result.stderr)

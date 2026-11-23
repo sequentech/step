@@ -167,6 +167,16 @@ export function CameraOffIcon() {
     )
 }
 
+export function SwitchCameraIcon() {
+    return (
+        <Icon>
+            <path d="M9.5 5.5h5l1.5 2h2.5A2.5 2.5 0 0 1 21 10v7.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5V10a2.5 2.5 0 0 1 2.5-2.5H8z" />
+            <path d="M9 12.5a3 3 0 0 1 5.2-1.6M15 14.5a3 3 0 0 1-5.2 1.6" />
+            <path d="M14.5 9.5v1.6h-1.6M9.5 17.5v-1.6h1.6" />
+        </Icon>
+    )
+}
+
 export function CloseIcon() {
     return (
         <Icon>

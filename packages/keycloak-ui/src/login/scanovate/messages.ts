@@ -23,6 +23,8 @@ export const scanovateEnglish = {
     scanovateDocumentStepLead:
         "Follow the instructions on the screen to scan your {0}. Then we will check your face.",
     scanovateDocumentFrameTitle: "ID scan",
+    scanovateUseFrontCamera: "Use the front camera",
+    scanovateUseRearCamera: "Use the rear camera",
     scanovateFaceStepTitle: "Check your face",
     scanovateFaceStepLead:
         "Your ID is scanned. Follow the instructions on the screen so we can confirm it is you in front of the camera.",
@@ -130,6 +132,8 @@ export const scanovateSpanish: Record<keyof typeof scanovateEnglish, string> = {
     scanovateDocumentStepLead:
         "Siga las instrucciones de la pantalla para escanear su {0}. Después comprobaremos su cara.",
     scanovateDocumentFrameTitle: "Escaneo del documento",
+    scanovateUseFrontCamera: "Usar la cámara frontal",
+    scanovateUseRearCamera: "Usar la cámara trasera",
     scanovateFaceStepTitle: "Compruebe su cara",
     scanovateFaceStepLead:
         "Su documento está escaneado. Siga las instrucciones de la pantalla para confirmar que es usted quien está frente a la cámara.",
