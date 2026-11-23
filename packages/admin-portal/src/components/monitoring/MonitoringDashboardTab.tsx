@@ -142,11 +142,13 @@ export function MonitoringDashboardTab({
         </Stack>
     )
     if (list.mode !== EMonitoringMode.CONFIGURED)
+        // Within the standard dashboard's bounds, so the switch lines up with it.
         return (
-            <>
+            <StandardDashboardContent>
                 {controls}
-                {standard}
-            </>
+                {legacy}
+                {footer}
+            </StandardDashboardContent>
         )
     if (!list.dashboards.length) {
         return (
