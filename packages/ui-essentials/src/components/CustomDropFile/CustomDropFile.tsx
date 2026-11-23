@@ -66,6 +66,11 @@ export interface DropFileProps {
     handleFiles: (files: FileList) => void | Promise<void>
     multiple?: boolean
     accept?: string
+    disabled?: boolean
+    inputLabel?: string
+    browseLabel?: string
+    /** Set false when the caller renders its own authoritative selection. */
+    showFileName?: boolean
     /** Localized fallback shown when the importing callback throws or rejects. */
     errorMessage?: string
 }
@@ -78,6 +83,10 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
             handleFiles,
             accept,
             multiple,
+            disabled = false,
+            inputLabel = "Drop Input File",
+            browseLabel,
+            showFileName = true,
             children,
             errorMessage = "Could not import this file. Please try again.",
         },
@@ -92,7 +101,7 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
 
         /** Keep picker and drop imports on the same failure and retry path. */
         const importFiles = async (files: FileList | null) => {
-            if (inFlight.current || !files?.[0]) return
+            if (disabled || inFlight.current || !files?.[0]) return
             inFlight.current = true
             setBusy(true)
             setFailed(false)
@@ -129,6 +138,7 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
         const handleDrag: DragEventHandler<HTMLElement> = (e) => {
             e.preventDefault()
             e.stopPropagation()
+            if (disabled) return
             if (e.type === "dragenter" || e.type === "dragover") {
                 setDragActive(true)
             } else if (e.type === "dragleave") {
@@ -151,7 +161,7 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
         }
         // triggers the input when the button is clicked
         const onButtonClick = () => {
-            if (inFlight.current) return
+            if (disabled || inFlight.current) return
             setFileName("")
             if (innerRef.current?.value) {
                 innerRef.current.value = ""
@@ -172,24 +182,25 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                         type="file"
                         accept={accept}
                         multiple={multiple}
-                        disabled={busy}
+                        disabled={disabled || busy}
                         onChange={handleChange}
                         data-testid="drop-input-file"
-                        aria-label="Drop Input File"
+                        aria-label={inputLabel}
                     />
                     <StyledLabel
                         dragActive={dragActive}
                         onClick={onButtonClick}
                         type="button"
-                        disabled={busy}
-                        aria-disabled={busy}
+                        disabled={disabled || busy}
+                        aria-label={browseLabel}
+                        aria-disabled={disabled || busy}
                         aria-busy={busy}
                         data-testid="drop-label-file"
                         className="drop-label-file"
                     >
                         {children}
                     </StyledLabel>
-                    {dragActive && (
+                    {dragActive && !disabled && (
                         <DragFileElement
                             className="drag-file-element"
                             onDragEnter={handleDrag}
@@ -204,19 +215,21 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                         {errorMessage}
                     </Typography>
                 )}
-                <Typography
-                    className="file-name"
-                    component="p"
-                    variant="h6"
-                    sx={{
-                        fontSize: "16px",
-                        margin: "8px 0",
-                        height: "24px",
-                        color: theme.palette.text.primary,
-                    }}
-                >
-                    {fileName}
-                </Typography>
+                {showFileName && (
+                    <Typography
+                        className="file-name"
+                        component="p"
+                        variant="h6"
+                        sx={{
+                            fontSize: "16px",
+                            margin: "8px 0",
+                            height: "24px",
+                            color: theme.palette.text.primary,
+                        }}
+                    >
+                        {fileName}
+                    </Typography>
+                )}
             </>
         )
     }

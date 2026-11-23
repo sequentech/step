@@ -110,7 +110,7 @@ flowchart LR
 
 | Database | Holds | Owner |
 | --- | --- | --- |
-| An election event's database, `<base>_<event ID as 32 hexadecimal digits>` | The event's board, the sealed logs it continues, their records, leaves and subtrees, the size and root of each log, and the event's ballot box | The dedicated electoral-log role. The provisioning role creates it |
+| An election event's database, `<base>_<event ID as 32 hexadecimal digits>` | The event's board, the sealed logs it continues, an empty board per election and area (section 10.1), their records, leaves and subtrees, the size and root of each log, and the event's ballot box | The dedicated electoral-log role. The provisioning role creates it |
 | The base database, `ELECTORAL_LOG_PG_DATABASE` (`<client>_electoral_log` in the cloud, `electoral_log` in development) | `electoral_log_events`: the catalog of the event databases, with each event's tenant and the mark of events whose ballot boxes have work for background tasks ([ballot box](03-electoral-log-ballot-box.md), section 5) | The dedicated electoral-log role |
 | Hasura's database, schema `sequent_backend` | `electoral_log_checkpoint`: published checkpoints | Hasura's database role |
 
@@ -718,7 +718,9 @@ An audit reads one consistent snapshot of the board and checks:
    - Its signer must be the event's protocol-manager key, and its signature must be valid.
    - It must belong to this log, and the root recomputed from the leaves at its size must equal its root.
 6. **Write-once copies match the published checkpoints**, when copies are on (section 8.5). Every version of every copy also goes through the checks of item 5.
-7. **The logs an imported board continues** go through checks 1 to 5 too, each against the checkpoints published of it before the export, whose signatures must verify with the key they name: the source event's key, which this environment cannot vouch for. They must be sealed, and a published checkpoint that names a log the event's database does not hold is a finding.
+7. **The logs an imported board continues** are the sealed logs of the event's database. They go through checks 1 to 5 too, each against the checkpoints published of it before the export, whose signatures must verify with the key they name: the source event's key, which this environment cannot vouch for. A published checkpoint that names a log the event's database does not hold is a finding.
+8. **Election and area boards** are open logs that the platform creates in the event's database for each election and area, named `<slug>tenant<first 17 hexadecimal digits of the tenant ID>election<election or area ID as 32 hexadecimal digits>`, and never writes to. Such a board must be empty and goes through checks 1 to 4. A board whose election or area no longer exists is accepted too. The platform publishes no checkpoints of these boards, so a published checkpoint that names one is a finding.
+9. **No other open log**: an open log that is neither the event's board nor an empty election or area board is a finding, and goes through checks 1 to 5 like a continued log.
 
 An audit reports findings and never repairs anything. It does not verify message signatures (section 5.3). Without write-once copies it can only compare the published checkpoints that still exist, so a deleted checkpoint row goes unnoticed (section 12.2).
 

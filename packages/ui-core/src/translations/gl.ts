@@ -613,6 +613,10 @@ const galegoTranslation: TranslationType = {
                         lead: "Segredo de integración enmascarado",
                         text: "Segredo de integración enmascarado — a configuración de Scanovate «{{config}}» contén o marcador de Keycloak (**********) no canto do seu segredo de liveness, así que importala instalaría o marcador. Exporta de novo o evento incluíndo os segredos de integración; unha configuración que Scanovate comparte con outro autenticador precisa antes unha propia.",
                     },
+                    "masked-scanovate-settings": {
+                        lead: "Axustes de Scanovate omitidos",
+                        text: "Axustes de Scanovate omitidos — a configuración de Scanovate «{{config}}» contén o marcador de Keycloak (**********) no canto destes axustes: {{settings}}. O servidor que exportou o evento non os usa, así que os seus valores non viaxaron; omítense e aplícanse os valores por defecto deste servidor. Revisa a configuración despois da importación.",
+                    },
                     "not-a-bundle": {
                         lead: "Non é unha exportación de evento electoral",
                         text: "Non é unha exportación de evento electoral — o ficheiro leuse pero non ten a súa forma: {{reason}}",
@@ -748,6 +752,26 @@ const galegoTranslation: TranslationType = {
                     },
                 },
                 "package": {
+                    "ambiguous-signature-member": {
+                        lead: "Ficheiro de sinatura ambiguo",
+                        text: "Ficheiro de sinatura ambiguo — {{file}} debe ter o nome exacto do ficheiro de sinatura e estar na raíz do paquete.",
+                    },
+                    "webauthn-not-enabled": {
+                        lead: "Sinaturas con chave desactivadas",
+                        text: "Sinaturas con chave desactivadas — Este importador non está configurado para verificar as chaves de seguridade das persoas responsables. Non se importou nada.",
+                    },
+                    "webauthn-refused": {
+                        lead: "Sinaturas con chave rexeitadas",
+                        text: "Sinaturas con chave rexeitadas — Non se puideron verificar as sinaturas ou aprobacións: {{reason}}",
+                    },
+                    "content-mismatch": {
+                        lead: "O contido do paquete non coincide",
+                        text: "O contido do paquete non coincide — O resumo criptográfico do manifesto non coincide co contido do paquete. Non se importou nada.",
+                    },
+                    "webauthn-not-next": {
+                        lead: "O paquete non é a seguinte revisión",
+                        text: "O paquete non é a seguinte revisión — Este paquete non continúa desde a última revisión importada para esta configuración.",
+                    },
                     "already-imported": {
                         lead: "Xa importada",
                         text: "Xa importada — a revisión {{revision}} desta configuración xa se importou; importe unha revisión máis recente.",

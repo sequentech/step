@@ -22,6 +22,7 @@ use crate::services::reports::generation::ReportRequester;
 use crate::services::signing::actions::transmission::{
     LoadedPackage, PostSbeis, SbeiDirectory, SbeiIdentity, TransmissionPackages,
 };
+use crate::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
 use crate::services::signing::pdf::{RevisionStore, S3RevisionStore};
 use crate::services::time_zones::{event_time_zone, offset_at};
 use crate::types::miru_plugin::{
@@ -273,7 +274,7 @@ impl TransmissionPackages for StoredPackages {
         loaded: &LoadedPackage,
         members: Vec<ACMTrustee>,
         signatures: Vec<MiruSignature>,
-    ) -> Result<String> {
+    ) -> Result<crate::services::signing::actions::transmission::StoredSignedArchive> {
         let at = place(request)?;
         let now_utc = Utc::now();
         let zone = transmission_zone(
@@ -348,6 +349,49 @@ impl TransmissionPackages for StoredPackages {
             &ReportRequester::default(),
         )
         .await?;
+        let stored = crate::services::signing::actions::transmission::StoredSignedArchive {
+            document_id: all_servers.document.id.clone(),
+            archive_sha256: all_servers.sha256.to_ascii_lowercase(),
+            eml_document_id: latest.document_ids.eml.clone(),
+            xz_document_id: latest.document_ids.xz.clone(),
+        };
+        if signing_mode(hasura_transaction, request.tenant_id).await?
+            == OperationalSigningMode::HsmRequired
+        {
+            let tally = Uuid::parse_str(&loaded.tally_session_id)
+                .context("Invalid signed tally session")?;
+            let election = request.election_id.context("Missing signed Post")?;
+            let area = request.area_id.context("Missing signed country")?;
+            let revision =
+                Uuid::parse_str(&stored.document_id).context("Invalid signed archive identity")?;
+            use crate::services::signing::actions::transmission::sha256_hex;
+            for (kind, id, hash) in [
+                (
+                    "archive",
+                    stored.document_id.as_str(),
+                    stored.archive_sha256.clone(),
+                ),
+                (
+                    "eml",
+                    stored.eml_document_id.as_str(),
+                    sha256_hex(&loaded.eml),
+                ),
+                (
+                    "xz",
+                    stored.xz_document_id.as_str(),
+                    sha256_hex(&loaded.compressed),
+                ),
+            ] {
+                let id = Uuid::parse_str(id).context("Invalid signed artifact identity")?;
+                let registered: bool = hasura_transaction.query_one(
+                    "SELECT sequent_backend.operational_miru_register_artifact($1,$2,$3,$4,$5,$6,$7,$8,$9,NULL)",
+                    &[&request.tenant_id,&request.election_event_id,&tally,&election,&area,&revision,&id,&kind,&hash],
+                ).await?.try_get(0)?;
+                if !registered {
+                    return Err(anyhow!("Could not bind exact signed MIRU artifact"));
+                }
+            }
+        }
         package.documents.push(resealed_document(
             &latest,
             &all_servers,
@@ -368,7 +412,7 @@ impl TransmissionPackages for StoredPackages {
             tally_annotations,
         )
         .await?;
-        Ok(all_servers.document.id)
+        Ok(stored)
     }
 }
 

@@ -1865,3 +1865,64 @@ async fn staff_issuers_export_for_events_with_any_uuid() {
         .is_err());
     tx.rollback().await.unwrap();
 }
+
+/// A download was checked against what was stored when it started. It is
+/// checked again when it is published, under the event's signing lock: a
+/// list older than the one stored meanwhile is kept as unavailable, and a
+/// list whose issuer is no longer trusted is not stored at all.
+#[tokio::test]
+async fn a_download_is_checked_again_when_it_is_published() {
+    let mut client = connection().await;
+    let tx = client.transaction().await.unwrap();
+    let s = scope(&tx, line!()).await;
+    trust(&tx, s).await;
+    let pki = Pki::get();
+    let target = crl_target(&tx, s, "Test Staff Individual CA", CRL_URL).await;
+
+    // Accepted by a download that read the store before the current list
+    // was published.
+    let older = signing_pki::crl_with(
+        &pki.individual_ca,
+        &pki.individual_ca.key,
+        &[],
+        pki_now() - 3 * 86_400,
+        Some(pki_now() + 86_400),
+        &[],
+    );
+    let stale = CrlDownload::Ok {
+        der: older,
+        this_update: None,
+        next_update: None,
+    };
+    let row = store_download(&tx, &target, &stale).await.unwrap();
+    assert!(holds_signing_event_lock(&tx, s.tenant, s.event)
+        .await
+        .unwrap());
+    assert_eq!(row.status, CrlStatus::Unavailable);
+    assert_eq!(
+        row.last_error.as_deref(),
+        Some("the list is older than the stored one")
+    );
+    assert_eq!(row.der.as_deref(), Some(pki.individual_crl().as_slice()));
+
+    // The issuer is removed while a download of its list is on its way.
+    remove_staff_issuer(&tx, s.tenant, s.event, target.issuer.id, &actor("officer"))
+        .await
+        .unwrap()
+        .unwrap();
+    for download in [
+        stale,
+        CrlDownload::Unavailable {
+            error: "unreachable".into(),
+        },
+    ] {
+        assert_eq!(
+            store_download(&tx, &target, &download)
+                .await
+                .unwrap_err()
+                .to_string(),
+            "the revocation list issuer is no longer configured"
+        );
+    }
+    tx.rollback().await.unwrap();
+}

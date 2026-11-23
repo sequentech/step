@@ -9,9 +9,10 @@
 // server's own preview again before anything changes; this page never skips it
 // and never resubmits on its own.
 
-import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
+import React, {useContext, useEffect, useId, useMemo, useRef, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {useMutation, useQuery} from "@apollo/client"
+import {disabledButtonStyle} from "@sequentech/ui-essentials"
 import {
     Alert,
     Box,
@@ -36,14 +37,23 @@ import {
 } from "@mui/material"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
+import type {AuthContextValues} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {
     APPLY_CONFIGURATION_PACKAGE,
+    APPLY_MANAGED_CONFIGURATION_PACKAGE,
     GET_PACKAGE_TASK,
     LIST_PACKAGE_APPLICATIONS,
 } from "@/queries/ApplyConfigurationPackage"
 import ElectionHeader from "@/components/ElectionHeader"
 import {ImportScreen} from "@/components/election-event/import-data/ImportScreen"
+import {ArchitectApprovalPolicy} from "./ArchitectApprovalPolicy"
+import {
+    ArchitectSignerRoster,
+    RosterStatus,
+    rosterStateAllowsImport,
+    useArchitectSignerRoster,
+} from "./ArchitectSignerRoster"
 import {ConfigurationSigningSettings} from "./ConfigurationSigningSettings"
 import {
     ActiveSubmission,
@@ -61,6 +71,7 @@ import {
     mayApplyPackages,
     readApplication,
     recalledSubmission,
+    readManagedPreview,
     changeLines,
     rememberSubmission,
     safeText,
@@ -73,11 +84,32 @@ const POLL_INTERVAL_MS = 3000
 const SHA256 = /^[a-fA-F0-9]{64}$/
 
 export const SettingsConfigurationPackage: React.FC = () => {
-    const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
+    // Discard status, can_manage, file candidates, and in-flight results from
+    // the previous operator even when the tenant itself did not change.
+    return (
+        <SettingsConfigurationPackageForScope
+            key={JSON.stringify([tenantId, authContext.userId])}
+            tenantId={tenantId ?? null}
+            authContext={authContext}
+        />
+    )
+}
+
+const SettingsConfigurationPackageForScope: React.FC<{
+    tenantId: string | null
+    authContext: AuthContextValues
+}> = ({tenantId, authContext}) => {
+    const {t} = useTranslation()
     // Checked on every render, and again just before every submission.
-    const allowed = mayApplyPackages(tenantId, authContext.isAuthorized)
+    const allowed = !!authContext.userId && mayApplyPackages(tenantId, authContext.isAuthorized)
+    const roster = useArchitectSignerRoster(tenantId, authContext.userId, allowed)
+    const permitsImport = rosterStateAllowsImport(roster.status)
+    const showManualEntry = roster.status !== null && roster.status.mode !== "unavailable"
+    const rosterStatusId = useId()
+    const advancedHeadingId = useId()
+    const packageRequest = useRef(false)
 
     // A reload in the same tenant resumes the task it was following, with the
     // requirements and the digest that task was submitted with.
@@ -93,26 +125,50 @@ export const SettingsConfigurationPackage: React.FC = () => {
     )
     const [typedDocumentId, setTypedDocumentId] = useState("")
     const [openUpload, setOpenUpload] = useState(false)
+    useEffect(() => {
+        if (!permitsImport) setOpenUpload(false)
+    }, [permitsImport])
+    const [legacySetupTenant, setLegacySetupTenant] = useState<string | null>(null)
+    const legacySetupId = useId()
     const [confirming, setConfirming] = useState(false)
     const [previewed, setPreviewed] = useState<PreviewedPackage | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [submitting, setSubmitting] = useState(false)
 
-    // The tenant a reply belongs to: one that arrives after a switch is dropped.
-    const tenantRef = useRef(tenantId)
-    tenantRef.current = tenantId
+    // Check referential scope after awaits, including a switch away and back.
+    const scope = useRef({tenantId, actor: authContext.userId})
+    if (scope.current.tenantId !== tenantId || scope.current.actor !== authContext.userId) {
+        scope.current = {tenantId, actor: authContext.userId}
+    }
+    const mounted = useRef(true)
+    const operatorPreview = useRef<{scope: typeof scope.current; taskId: string} | null>(null)
+    useEffect(() => {
+        mounted.current = true
+        return () => {
+            mounted.current = false
+        }
+    }, [])
 
     // Another tenant is not what was previewed, nor the task it follows.
     useEffect(() => {
         setPreviewed(null)
+        setLegacySetupTenant(null)
+        setTypedDocumentId("")
+        setOpenUpload(false)
+        setConfirming(false)
+        setError(null)
         const recalled = recalledSubmission(tenantId)
         setSubmitted(recalled)
         setRequirements(recalled?.requirements ?? COMPLETE_DELIVERY)
         setDocumentId(recalled?.documentId ?? null)
         setExpectedSha(recalled?.expectedSha ?? null)
-    }, [tenantId])
+    }, [tenantId, authContext.userId])
 
     const [applyConfigurationPackage] = useMutation(APPLY_CONFIGURATION_PACKAGE, {
+        context: {headers: {"x-hasura-role": IPermissions.TENANT_WRITE}},
+    })
+
+    const [applyManagedConfigurationPackage] = useMutation(APPLY_MANAGED_CONFIGURATION_PACKAGE, {
         context: {headers: {"x-hasura-role": IPermissions.TENANT_WRITE}},
     })
 
@@ -167,10 +223,36 @@ export const SettingsConfigurationPackage: React.FC = () => {
                 documentId: submitted.documentId,
                 requirements: submitted.requirements,
                 view,
+                taskId:
+                    task?.id === submitted.taskId && task?.execution_status === "SUCCESS"
+                        ? submitted.taskId
+                        : undefined,
+                managedBinding: readManagedPreview(
+                    task?.annotations,
+                    tenantId,
+                    submitted.requirements
+                ),
             })
         }
         // refreshHistory is a fresh closure each render; the task finishing is the trigger.
-    }, [submitted, finished, view, stopPolling, tenantId])
+    }, [submitted, finished, view, stopPolling, tenantId, task?.id, task?.execution_status])
+
+    const matchesTrust = (current: RosterStatus | null, preview: PreviewedPackage | null) => {
+        if (!rosterStateAllowsImport(current)) return false
+        if (current?.mode !== "portal_managed") return !preview?.managedBinding
+        return (
+            !!preview?.taskId &&
+            !!scope.current.actor &&
+            operatorPreview.current?.scope === scope.current &&
+            operatorPreview.current.taskId === preview.taskId &&
+            !!preview.managedBinding &&
+            preview.managedBinding.sha256 === current.active_sha256 &&
+            preview.managedBinding.generation === current.generation &&
+            preview.managedBinding.requiredApprovals === current.required_approvals
+        )
+    }
+    const confirmedInputs = useRef({documentId, requirements, expectedSha, allowed})
+    confirmedInputs.current = {documentId, requirements, expectedSha, allowed}
 
     if (!allowed || !tenantId) {
         return (
@@ -184,25 +266,73 @@ export const SettingsConfigurationPackage: React.FC = () => {
     // left for the operator, never resubmitted here. Every submission, preview
     // or apply, needs a fresh preview before the next application.
     const submit = async (mode: ApplyMode, document: string, sha: string | null) => {
+        if (packageRequest.current) return
         setError(null)
-        setPreviewed(null)
-        if (!mayApplyPackages(tenantId, authContext.isAuthorized)) {
+        if (!authContext.userId || !mayApplyPackages(tenantId, authContext.isAuthorized)) {
             setError(t("configurationPackage.notPermitted"))
             return
         }
         const forTenant = tenantId
-        // Whatever this submission's outcome, the earlier one is no longer
-        // what the page follows: neither a reload, a tenant switch nor the
-        // polling effect may bring back its finished preview and its Apply.
+        if (!permitsImport) {
+            setError(t("configurationPackage.roster.importUnavailable"))
+            return
+        }
+        const forPreview = previewed
+        const requestScope = scope.current
+        if (
+            mode === "apply" &&
+            (!mayApply(forPreview, forTenant, document, requirements, sha) ||
+                !matchesTrust(roster.status, forPreview))
+        )
+            return
+        packageRequest.current = true
+        // Synchronously consume the selected preview before any await. A reload,
+        // tenant change or missing server reply may not make this Apply reusable.
         forgetSubmission(forTenant)
         stopPolling()
+        setPreviewed(null)
         setSubmitted(null)
         setSubmitting(true)
         try {
-            const {data, errors} = await applyConfigurationPackage({
-                variables: {tenantId: forTenant, documentId: document, mode, requirements},
-            })
-            if (tenantRef.current !== forTenant) {
+            let previewTaskId: string | undefined
+            if (mode === "apply" && roster.status?.mode === "portal_managed") {
+                // Recheck immediately on Confirm; the backend repeats the check
+                // atomically when admitting the selected task.
+                const read = await roster.read()
+                const latest = confirmedInputs.current
+                if (!mounted.current || scope.current !== requestScope) return
+                if (
+                    !latest.allowed ||
+                    !mayApply(
+                        forPreview,
+                        forTenant,
+                        latest.documentId,
+                        latest.requirements,
+                        latest.expectedSha
+                    ) ||
+                    read?.mode !== "portal_managed" ||
+                    !matchesTrust(read, forPreview)
+                ) {
+                    setError(t("configurationPackage.roster.previewAgain"))
+                    return
+                }
+                previewTaskId = forPreview?.taskId
+                if (!previewTaskId) return
+            }
+            operatorPreview.current = null
+            const {data, errors} = previewTaskId
+                ? await applyManagedConfigurationPackage({
+                      variables: {
+                          tenantId: forTenant,
+                          documentId: document,
+                          requirements,
+                          previewTaskId,
+                      },
+                  })
+                : await applyConfigurationPackage({
+                      variables: {tenantId: forTenant, documentId: document, mode, requirements},
+                  })
+            if (!mounted.current || scope.current !== requestScope) {
                 return
             }
             const taskId = data?.apply_configuration_package?.task_execution?.id
@@ -223,10 +353,11 @@ export const SettingsConfigurationPackage: React.FC = () => {
                 requirements,
                 expectedSha: sha,
             }
+            if (mode === "preview") operatorPreview.current = {scope: requestScope, taskId}
             rememberSubmission(forTenant, active)
             setSubmitted(active)
         } catch (e) {
-            if (tenantRef.current !== forTenant) {
+            if (!mounted.current || scope.current !== requestScope) {
                 return
             }
             // The request may have reached the platform before the reply was lost.
@@ -234,12 +365,16 @@ export const SettingsConfigurationPackage: React.FC = () => {
                 `${String(e instanceof Error ? e.message : e)} ${t("configurationPackage.mayHaveTask")}`
             )
         } finally {
-            setSubmitting(false)
-            refreshHistory()
+            packageRequest.current = false
+            if (mounted.current) {
+                setSubmitting(false)
+                if (scope.current === requestScope) refreshHistory()
+            }
         }
     }
 
     const stopFollowing = () => {
+        operatorPreview.current = null
         forgetSubmission(tenantId)
         stopPolling()
         setSubmitted(null)
@@ -264,7 +399,9 @@ export const SettingsConfigurationPackage: React.FC = () => {
 
     const running = submitting || (!!submitted && !finished && !unreadable)
     const canApply =
-        !running && mayApply(previewed, tenantId, documentId, requirements, expectedSha)
+        !running &&
+        mayApply(previewed, tenantId, documentId, requirements, expectedSha) &&
+        matchesTrust(roster.status, previewed)
     const shaMismatch = !!previewed && !shaMatches(previewed.view, expectedSha)
     const noRecord = !!submitted && finished && !view
 
@@ -281,68 +418,127 @@ export const SettingsConfigurationPackage: React.FC = () => {
             </Typography>
 
             <Divider sx={{my: 2}} />
-            {tenantId ? <ConfigurationSigningSettings key={tenantId} tenantId={tenantId} /> : null}
-
-            <Divider sx={{my: 2}} />
-            <Typography variant="h6" component="h3">
-                {t("configurationPackage.requirements")}
+            <Button
+                variant="contained"
+                disabled={running || !permitsImport}
+                aria-describedby={!permitsImport ? rosterStatusId : undefined}
+                sx={{"&&.Mui-disabled": disabledButtonStyle}}
+                onClick={() => {
+                    if (!running && permitsImport) setOpenUpload(true)
+                }}
+            >
+                {t("configurationPackage.upload")}
+            </Button>
+            <Typography variant="body2" sx={{mt: 1}}>
+                {t("configurationPackage.verificationNote")}
             </Typography>
-            {PACKAGE_SECTIONS.map((section) => (
-                <FormControlLabel
-                    key={section}
-                    control={
-                        <Checkbox
-                            checked={requirements.sections.includes(section)}
-                            onChange={() => toggleSection(section)}
-                            inputProps={{"aria-label": section}}
-                        />
-                    }
-                    label={String(t(`configurationPackage.sections.${section}`))}
-                />
-            ))}
-            <FormControlLabel
-                control={
-                    <Checkbox
-                        checked={requirements.census === "required"}
-                        onChange={(event) =>
-                            changeRequirements({
-                                ...requirements,
-                                census: event.target.checked ? "required" : "optional",
-                            })
-                        }
-                        inputProps={{"aria-label": "census"}}
-                    />
-                }
-                label={String(t("configurationPackage.censusRequired"))}
+
+            <ArchitectSignerRoster
+                tenantId={tenantId}
+                status={roster.status}
+                loading={roster.loading}
+                statusTextId={rosterStatusId}
+                refresh={roster.read}
             />
 
-            <Divider sx={{my: 2}} />
-            <Box sx={{display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap"}}>
-                <Button variant="contained" disabled={running} onClick={() => setOpenUpload(true)}>
-                    {t("configurationPackage.upload")}
-                </Button>
-                <TextField
-                    size="small"
-                    label={String(t("configurationPackage.documentId"))}
-                    value={typedDocumentId}
-                    onChange={(event) => {
-                        setPreviewed(null)
-                        setTypedDocumentId(event.target.value)
-                    }}
-                />
-                <Button
-                    variant="outlined"
-                    disabled={running || !typedDocumentId.trim()}
-                    onClick={() => {
-                        const document = typedDocumentId.trim()
-                        setDocumentId(document)
-                        // A typed document id carries no entered digest.
-                        setExpectedSha(null)
-                        submit("preview", document, null)
-                    }}
-                >
-                    {t("configurationPackage.preview")}
-                </Button>
+            <Box
+                component="section"
+                aria-labelledby={advancedHeadingId}
+                sx={{my: 2}}
+                data-testid="package-advanced"
+            >
+                <Typography id={advancedHeadingId} component="h3" variant="h6">
+                    {t("configurationPackage.advanced")}
+                </Typography>
+                <Box sx={{mt: 2}}>
+                    <Typography variant="subtitle1" component="h4">
+                        {t("configurationPackage.requirements")}
+                    </Typography>
+                    {PACKAGE_SECTIONS.map((section) => (
+                        <FormControlLabel
+                            key={section}
+                            control={
+                                <Checkbox
+                                    checked={requirements.sections.includes(section)}
+                                    onChange={() => toggleSection(section)}
+                                    inputProps={{"aria-label": section}}
+                                />
+                            }
+                            label={String(t(`configurationPackage.sections.${section}`))}
+                        />
+                    ))}
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={requirements.census === "required"}
+                                onChange={(event) =>
+                                    changeRequirements({
+                                        ...requirements,
+                                        census: event.target.checked ? "required" : "optional",
+                                    })
+                                }
+                                inputProps={{"aria-label": "census"}}
+                            />
+                        }
+                        label={String(t("configurationPackage.censusRequired"))}
+                    />
+                </Box>
+                {showManualEntry && (
+                    <Box sx={{display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap"}}>
+                        <TextField
+                            size="small"
+                            label={String(
+                                t(
+                                    roster.status?.mode === "portal_managed"
+                                        ? "configurationPackage.signedDocumentId"
+                                        : "configurationPackage.documentId"
+                                )
+                            )}
+                            disabled={running || !permitsImport}
+                            value={typedDocumentId}
+                            onChange={(event) => {
+                                setPreviewed(null)
+                                setTypedDocumentId(event.target.value)
+                            }}
+                        />
+                        <Button
+                            variant="outlined"
+                            disabled={running || !permitsImport || !typedDocumentId.trim()}
+                            onClick={() => {
+                                const document = typedDocumentId.trim()
+                                setDocumentId(document)
+                                // A typed document id carries no entered digest.
+                                setExpectedSha(null)
+                                submit("preview", document, null)
+                            }}
+                        >
+                            {t("configurationPackage.preview")}
+                        </Button>
+                    </Box>
+                )}
+                {roster.status?.mode === "not_enabled" && (
+                    <Box sx={{my: 2}}>
+                        <Button
+                            variant="text"
+                            aria-expanded={legacySetupTenant === tenantId}
+                            aria-controls={legacySetupId}
+                            onClick={() =>
+                                setLegacySetupTenant(
+                                    legacySetupTenant === tenantId ? null : tenantId
+                                )
+                            }
+                        >
+                            {t("configurationPackage.legacySetup")}
+                        </Button>
+                        <Box id={legacySetupId}>
+                            {legacySetupTenant === tenantId && (
+                                <ConfigurationSigningSettings key={tenantId} tenantId={tenantId} />
+                            )}
+                        </Box>
+                    </Box>
+                )}
+            </Box>
+            <Box>
                 <Button
                     variant="contained"
                     color="warning"
@@ -361,6 +557,13 @@ export const SettingsConfigurationPackage: React.FC = () => {
                     {t("configurationPackage.blocked")}
                 </Alert>
             ) : null}
+            {previewed &&
+                mayApply(previewed, tenantId, documentId, requirements, expectedSha) &&
+                !matchesTrust(roster.status, previewed) && (
+                    <Alert severity="warning" sx={{mt: 1}}>
+                        {t("configurationPackage.roster.previewAgain")}
+                    </Alert>
+                )}
             {shaMismatch && (
                 <Alert severity="error" sx={{mt: 1}} data-testid="package-sha-mismatch">
                     {t("configurationPackage.shaMismatch", {expected: expectedSha})}
@@ -434,10 +637,12 @@ export const SettingsConfigurationPackage: React.FC = () => {
                 })}
             </List>
 
+            <ArchitectApprovalPolicy key={tenantId} tenantId={tenantId} />
+
             {/* The page's own upload: no election-event dry run, no shared import state. */}
             <Drawer
                 anchor="right"
-                open={openUpload}
+                open={openUpload && permitsImport}
                 onClose={() => setOpenUpload(false)}
                 PaperProps={{"aria-label": String(t("configurationPackage.uploadTitle"))}}
                 sx={{"& .MuiDrawer-paper": {width: {xs: "100%", sm: "min(640px, 100%)"}}}}
@@ -472,7 +677,7 @@ export const SettingsConfigurationPackage: React.FC = () => {
                             // Always a preview first: nothing is applied from an upload.
                             await submit("preview", document, sha)
                         }}
-                        disableImport={running}
+                        disableImport={running || !permitsImport}
                         errors={null}
                     />
                 </Box>
@@ -494,6 +699,7 @@ export const SettingsConfigurationPackage: React.FC = () => {
                         color="warning"
                         variant="contained"
                         data-testid="package-apply-confirm"
+                        disabled={!canApply}
                         onClick={() => {
                             setConfirming(false)
                             if (documentId && canApply) {

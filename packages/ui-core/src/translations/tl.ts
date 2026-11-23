@@ -611,6 +611,10 @@ const tagalogTranslation: TranslationType = {
                         lead: "Naka-mask na integration secret",
                         text: "Naka-mask na integration secret — ang Scanovate configuration na '{{config}}' ay may placeholder ng Keycloak (**********) sa halip na ang liveness secret nito, kaya ang pag-import nito ay mag-i-install ng placeholder. I-export muli ang event nang kasama ang integration secrets; ang configuration na ibinabahagi ng Scanovate sa ibang authenticator ay kailangan munang magkaroon ng sarili.",
                     },
+                    "masked-scanovate-settings": {
+                        lead: "Mga setting ng Scanovate na hindi isinama",
+                        text: "Mga setting ng Scanovate na hindi isinama — ang Scanovate configuration na '{{config}}' ay may placeholder ng Keycloak (**********) sa halip na ang mga setting na ito: {{settings}}. Hindi ginagamit ang mga ito ng server na nag-export ng event, kaya hindi nakasama ang mga value nito; hindi isinama ang mga ito at ang mga default ng server na ito ang gagamitin. Suriin ang configuration pagkatapos ng pag-import.",
+                    },
                     "not-a-bundle": {
                         lead: "Hindi export ng election event",
                         text: "Hindi export ng election event — nabasa ang file pero wala itong hugis ng isang export: {{reason}}",
@@ -749,6 +753,26 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 "package": {
+                    "ambiguous-signature-member": {
+                        lead: "Hindi malinaw na file ng lagda",
+                        text: "Hindi malinaw na file ng lagda — Dapat eksakto ang pangalan ng file ng lagda na {{file}} at nasa pinakapangunahing folder ito ng pakete.",
+                    },
+                    "webauthn-not-enabled": {
+                        lead: "Hindi aktibo ang mga lagda gamit ang susi",
+                        text: "Hindi aktibo ang mga lagda gamit ang susi — Hindi naka-configure ang pang-import na ito para beripikahin ang mga security key ng mga opisyal. Walang na-import.",
+                    },
+                    "webauthn-refused": {
+                        lead: "Tinanggihan ang mga lagdang may security key",
+                        text: "Tinanggihan ang mga lagdang may security key — Hindi mabeberipika ang mga lagda o pag-apruba: {{reason}}",
+                    },
+                    "content-mismatch": {
+                        lead: "Hindi tugma ang nilalaman ng pakete",
+                        text: "Hindi tugma ang nilalaman ng pakete — Hindi tugma ang hash sa manifest sa nilalaman ng pakete. Walang na-import.",
+                    },
+                    "webauthn-not-next": {
+                        lead: "Hindi ito ang susunod na rebisyon",
+                        text: "Hindi ito ang susunod na rebisyon — Hindi sumusunod ang paketeng ito sa huling rebisyong na-import para sa configuration na ito.",
+                    },
                     "already-imported": {
                         lead: "Na-import na",
                         text: "Na-import na — na-import na dati ang revision {{revision}} ng configuration na ito; mag-import ng mas bagong revision.",

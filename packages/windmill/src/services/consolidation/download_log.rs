@@ -18,9 +18,15 @@ use crate::postgres::audit_log_outbox::{
 };
 use crate::postgres::document::get_document;
 use crate::postgres::election_event::get_election_event_by_election_area;
+use crate::postgres::signing::get_signing_post;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
-use crate::types::miru_plugin::{MiruDocument, MiruTransmissionPackageData};
+use crate::services::signing::actions::transmission::{
+    transmission_send_check_bound, TransmissionSendCheck,
+};
+use crate::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
+use crate::services::signing::SigningCaller;
+use crate::types::miru_plugin::{MiruDelivery, MiruDocument, MiruTransmissionPackageData};
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use chrono_tz::Tz;
@@ -28,10 +34,12 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use electoral_log::messages::newtypes::AuditStatementKind;
 use electoral_log::messages::statement::{StatementEventType, StatementLogType};
 use sequent_core::types::ceremonies::Log;
+use sequent_core::types::permissions::Permissions;
 use sequent_core::util::temp_path::read_temp_file;
 use serde_json::json;
-use std::fmt;
+use std::{fmt, io::Read};
 use strum_macros::Display;
+use tempfile::NamedTempFile;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -244,6 +252,11 @@ pub async fn record_transmission_download(
         .transaction()
         .await
         .context("Error acquiring hasura transaction")?;
+    let tenant = Uuid::parse_str(&download.tenant_id).context("Invalid tenant")?;
+    if signing_mode(&hasura_transaction, tenant).await? == OperationalSigningMode::HsmRequired {
+        // A log-only endpoint cannot authorize hard-mode issuance.
+        return Ok(Err(DownloadRefusal::NotAPackageFile));
+    }
     let election_event = get_election_event_by_election_area(
         &hasura_transaction,
         &download.tenant_id,
@@ -319,6 +332,186 @@ pub async fn record_transmission_download(
     Ok(Ok(recorded))
 }
 
+/// Only these exact, already-verified local bytes may leave the server.
+/// Do not reopen object storage or return a generic URL after this check.
+pub struct ReadyManualArchive {
+    pub file: NamedTempFile,
+    pub file_name: String,
+    pub sha256: String,
+}
+
+fn current_manual_archive<'a>(
+    package: &'a MiruTransmissionPackageData,
+    document_id: &str,
+) -> Option<&'a MiruDocument> {
+    // The all-servers archive includes every recipient. Mixed manual
+    // and network recipients need a separately attested per-recipient
+    // output, not this bulk route.
+    if package.servers.is_empty()
+        || package
+            .servers
+            .iter()
+            .any(|server| server.delivery() != MiruDelivery::ManualReceipt)
+    {
+        return None;
+    }
+    package
+        .documents
+        .last()
+        .filter(|doc| doc.document_ids.all_servers == document_id)
+}
+
+fn sha256_local_file(file: &NamedTempFile) -> Result<String> {
+    let mut input = file
+        .reopen()
+        .context("Cannot open private staged archive")?;
+    let mut hash = openssl::sha::Sha256::new();
+    let mut chunk = [0_u8; 64 * 1024];
+    loop {
+        let count = input.read(&mut chunk)?;
+        if count == 0 {
+            return Ok(hex::encode(hash.finish()));
+        }
+        hash.update(&chunk[..count]);
+    }
+}
+
+/// Stage and authorize a hard-mode manual archive under one policy and tally
+/// transaction. The Harvest caller must supply its verified tenant and
+/// SigningCaller from authentication, then commit before streaming this
+/// exact file handle. A rollback means there was no issuance.
+#[instrument(skip_all, err)]
+pub async fn prepare_hardware_manual_archive(
+    tx: &Transaction<'_>,
+    download: &TransmissionDownload,
+    caller: &SigningCaller,
+    downloader: &Downloader,
+) -> Result<std::result::Result<ReadyManualArchive, DownloadRefusal>> {
+    if !caller.has(Permissions::MIRU_DOWNLOAD) || caller.user_id != downloader.user_id {
+        return Ok(Err(DownloadRefusal::NoPackage));
+    }
+    let tenant = Uuid::parse_str(&download.tenant_id).context("Invalid tenant")?;
+    let event = Uuid::parse_str(&download.election_event_id).context("Invalid event")?;
+    let election = Uuid::parse_str(&download.election_id).context("Invalid Post")?;
+    let tally = Uuid::parse_str(&download.tally_session_id).context("Invalid tally session")?;
+    if signing_mode(tx, tenant).await? != OperationalSigningMode::HsmRequired {
+        return Ok(Err(DownloadRefusal::NoPackage));
+    }
+    let Some(post) = get_signing_post(tx, tenant, event, election).await? else {
+        return Ok(Err(DownloadRefusal::NoPackage));
+    };
+    if !caller.reaches(post.permission_label.as_deref()) {
+        return Ok(Err(DownloadRefusal::NoPackage));
+    }
+    let scoped_event = get_election_event_by_election_area(
+        tx,
+        &download.tenant_id,
+        &download.election_id,
+        &download.area_id,
+    )
+    .await?;
+    if scoped_event.id != download.election_event_id {
+        return Ok(Err(DownloadRefusal::NoPackage));
+    }
+    let locked = lock_transmission_data(
+        tx,
+        &download.tenant_id,
+        &download.election_event_id,
+        &download.tally_session_id,
+    )
+    .await?;
+    if !locked
+        .tally_session
+        .permission_label
+        .as_deref()
+        .unwrap_or_default()
+        .iter()
+        .all(|label| caller.reaches(Some(label)))
+    {
+        return Ok(Err(DownloadRefusal::NoPackage));
+    }
+    let Some(mut package) = locked
+        .packages
+        .iter()
+        .find(|package| {
+            package.election_id == download.election_id && package.area_id == download.area_id
+        })
+        .cloned()
+    else {
+        return Ok(Err(DownloadRefusal::NoPackage));
+    };
+    let Some(latest) = current_manual_archive(&package, &download.document_id) else {
+        return Ok(Err(DownloadRefusal::NotAPackageFile));
+    };
+    if !matches!(
+        transmission_send_check_bound(tx, tenant, event, Some(tally), &package, None).await?,
+        Ok(TransmissionSendCheck::Signed { .. })
+    ) {
+        return Ok(Err(DownloadRefusal::NotAPackageFile));
+    }
+
+    let Some(document) = get_document(
+        tx,
+        &download.tenant_id,
+        Some(download.election_event_id.clone()),
+        &download.document_id,
+    )
+    .await?
+    else {
+        return Ok(Err(DownloadRefusal::NotAPackageFile));
+    };
+    if document.is_public.unwrap_or(false) {
+        return Ok(Err(DownloadRefusal::NotAPackageFile));
+    }
+    let file = get_document_as_temp_file(&download.tenant_id, &document).await?;
+    let digest = sha256_local_file(&file)?;
+    if !matches!(
+        transmission_send_check_bound(tx, tenant, event, Some(tally), &package, Some(&digest))
+            .await?,
+        Ok(TransmissionSendCheck::Signed { .. })
+    ) {
+        return Ok(Err(DownloadRefusal::NotAPackageFile));
+    }
+
+    let name = ALL_SERVERS_NAME.to_owned();
+    let audit_file = PackageFile {
+        kind: TransmissionFile::Package,
+        file_name: name.clone(),
+        document: latest,
+        sha256: Some(digest.clone()),
+    };
+    let mut entry = download_entry(download, &audit_file, &digest, downloader)?;
+    entry.description = format!("Authorized manual archive download (SHA-256 {digest})");
+    entry.details["phase"] = json!("issuance-authorized");
+    let now = Utc::now();
+    let zone = transmission_zone(tx, &download.tenant_id, &download.election_event_id, now).await?;
+    package.logs.push(Log {
+        created_date: now.with_timezone(&zone.zone).to_rfc3339(),
+        log_text: format!(
+            "Authorized download of {name} (SHA-256 {digest}) by {}",
+            downloader.name
+        ),
+    });
+    update_transmission_package_annotations(
+        tx,
+        &download.tenant_id,
+        &download.election_event_id,
+        &download.tally_session_id,
+        &download.area_id,
+        &download.election_id,
+        locked.packages,
+        package,
+        locked.annotations,
+    )
+    .await?;
+    insert_audit_log_outbox(tx, &entry).await?;
+    Ok(Ok(ReadyManualArchive {
+        file,
+        file_name: name,
+        sha256: digest,
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -384,6 +577,45 @@ mod tests {
             tally_session_id: "session".to_string(),
             document_id: document_id.to_string(),
         }
+    }
+
+    fn destination(tag: &str, address: &str) -> crate::types::miru_plugin::MiruCcsServer {
+        crate::types::miru_plugin::MiruCcsServer {
+            name: tag.to_owned(),
+            tag: tag.to_owned(),
+            address: address.to_owned(),
+            public_key_pem: String::new(),
+            send_logs: None,
+        }
+    }
+
+    #[test]
+    fn current_manual_archive_rejects_raw_parts_and_prior_archive() {
+        let mut ready = package(vec![
+            document("prior", Some(hashes("prior"))),
+            document("latest", Some(hashes("latest"))),
+        ]);
+        ready.servers.push(destination("manual", ""));
+        for refused in ["prior", "eml", "xz", "csv", "unrelated"] {
+            assert!(current_manual_archive(&ready, refused).is_none());
+        }
+        assert_eq!(
+            current_manual_archive(&ready, "latest")
+                .map(|doc| doc.document_ids.all_servers.as_str()),
+            Some("latest")
+        );
+    }
+
+    #[test]
+    fn bulk_manual_archive_rejects_mixed_network_and_empty_destinations() {
+        let mut ready = package(vec![document("latest", Some(hashes("latest")))]);
+        assert!(current_manual_archive(&ready, "latest").is_none());
+        ready
+            .servers
+            .push(destination("network", "https://ccs.example"));
+        assert!(current_manual_archive(&ready, "latest").is_none());
+        ready.servers.push(destination("manual", ""));
+        assert!(current_manual_archive(&ready, "latest").is_none());
     }
 
     #[test]

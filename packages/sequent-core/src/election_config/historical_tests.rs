@@ -1230,6 +1230,166 @@ fn source_charsets_and_nullable_affiliations_preserve_text_without_invention() {
         Some("Résumé")
     );
 }
+/// mysqldump converts every value to its connection charset (`SET NAMES`), so
+/// a latin1 column arrives as UTF-8 in a default dump. Reading it by the
+/// column's declared charset turned `PEÑA` into `PEÃ‘A` without any warning.
+#[test]
+fn mysqldump_text_is_read_in_the_connection_charset_not_the_column_charset() {
+    let (source, xlsx) = fixture();
+    let source = String::from_utf8(source).unwrap();
+    let name = |sql: &[u8]| {
+        adapt(sql, &xlsx, &reviewed())
+            .unwrap()
+            .workbook
+            .rows("candidates")[0]
+            .text("presentation.i18n.en.name")
+            .map(str::to_owned)
+    };
+    // Default mysqldump: UTF-8 bytes, latin1 column.
+    let utf8_dump = format!(
+        "/*!50503 SET NAMES utf8mb4 */;\n{}",
+        source
+            .replace(
+                "`NAMEONBALLOT` text",
+                "`NAMEONBALLOT` varchar(50) CHARACTER SET latin1"
+            )
+            .replace("Example Candidate", "PEÑA, JOSÉ")
+    );
+    assert_eq!(name(utf8_dump.as_bytes()).as_deref(), Some("PEÑA, JOSÉ"));
+    // --default-character-set=latin1: latin1 bytes, utf8mb4 column.
+    let latin1_dump = format!(
+        "/*!40101 SET NAMES latin1 */;\n{}",
+        source
+            .replace(
+                "`NAMEONBALLOT` text",
+                "`NAMEONBALLOT` varchar(50) CHARACTER SET utf8mb4"
+            )
+            .replace("Example Candidate", "__NAME__")
+    );
+    let at = latin1_dump.find("__NAME__").unwrap();
+    let mut latin1_dump = latin1_dump.into_bytes();
+    latin1_dump.splice(at..at + 8, b"PE\xd1A".iter().copied());
+    assert_eq!(name(&latin1_dump).as_deref(), Some("PEÑA"));
+    // Bytes that are not valid in the connection charset are still refused.
+    let mut invalid = format!("SET NAMES utf8mb4;\n{source}").into_bytes();
+    let at = invalid
+        .windows(b"Example Candidate".len())
+        .position(|w| w == b"Example Candidate")
+        .unwrap();
+    invalid.splice(at..at + 7, [0xff]);
+    refused_code(&invalid, &xlsx, &reviewed(), Code::InvalidValue);
+}
+/// mysqldump writes `?` for every character its connection charset cannot
+/// hold, so a `?` in a column wider than that charset may be a lost letter.
+fn narrowed_dump(
+    source: &[u8],
+    names: &str,
+    column: &str,
+    name: &str,
+) -> Vec<u8> {
+    format!(
+        "/*!40101 SET NAMES {names} */;\n{}",
+        String::from_utf8(source.to_vec())
+            .unwrap()
+            .replace(
+                "`NAMEONBALLOT` text",
+                &format!("`NAMEONBALLOT` varchar(50) CHARACTER SET {column}")
+            )
+            .replace("Example Candidate", name)
+    )
+    .into_bytes()
+}
+#[test]
+fn characters_the_connection_charset_replaced_are_refused_until_reviewed() {
+    let (source, xlsx) = fixture();
+    let lossy = narrowed_dump(&source, "latin1", "utf8mb4", "PE?A");
+    let refused = refused_code(&lossy, &xlsx, &reviewed(), Code::NotApproved);
+    assert!(
+        refused.path.contains("table candidate row 1"),
+        "{}",
+        refused.path
+    );
+    assert!(refused.path.contains("NAMEONBALLOT"), "{}", refused.path);
+    assert!(refused.message.contains("latin1"), "{}", refused.message);
+    assert!(refused.message.contains("utf8mb4"), "{}", refused.message);
+
+    // Accepting the loss is a reviewed decision bound to these exact files.
+    let mut options = reviewed();
+    options.connection_charset =
+        ConnectionCharsetPolicy::AcceptReplacedCharacters;
+    let unbound = refused_code(&lossy, &xlsx, &options, Code::NotApproved);
+    assert!(unbound.path.contains("sourceDigests"), "{}", unbound.path);
+    let options = HistoricalOptions {
+        connection_charset: ConnectionCharsetPolicy::AcceptReplacedCharacters,
+        ..bound_options(&lossy, &xlsx)
+    };
+    let accepted = adapt(&lossy, &xlsx, &options).unwrap();
+    assert_eq!(
+        accepted.workbook.rows("candidates")[0]
+            .text("presentation.i18n.en.name"),
+        Some("PE?A")
+    );
+}
+#[test]
+fn a_question_mark_is_only_suspect_where_the_connection_charset_was_narrower() {
+    let (source, xlsx) = fixture();
+    let name = |sql: &[u8]| {
+        adapt(sql, &xlsx, &reviewed())
+            .unwrap()
+            .workbook
+            .rows("candidates")[0]
+            .text("presentation.i18n.en.name")
+            .map(str::to_owned)
+    };
+    // Narrower connection, but nothing was replaced.
+    let clean = narrowed_dump(&source, "latin1", "utf8mb4", "PENA");
+    assert_eq!(name(&clean).as_deref(), Some("PENA"));
+    // A connection at least as wide as the column loses nothing.
+    for (names, column) in [
+        ("utf8mb4", "latin1"),
+        ("utf8mb4", "utf8mb4"),
+        ("latin1", "latin1"),
+    ] {
+        let dump = narrowed_dump(&source, names, column, "WHO?");
+        assert_eq!(
+            name(&dump).as_deref(),
+            Some("WHO?"),
+            "{names} into {column}"
+        );
+    }
+    // utf8mb3 cannot hold what utf8mb4 can.
+    let narrower = narrowed_dump(&source, "utf8mb3", "utf8mb4", "WHO?");
+    refused_code(&narrower, &xlsx, &reviewed(), Code::NotApproved);
+    // Binary columns are never converted: a `?` byte in a picture is data.
+    let picture = String::from_utf8(clean)
+        .unwrap()
+        .replace(
+            "`NAMEONBALLOT` varchar",
+            "`PHOTO` longblob, `NAMEONBALLOT` varchar",
+        )
+        .replace("'PENA'", "_binary 'GIF?', 'PENA'");
+    assert_eq!(name(picture.as_bytes()).as_deref(), Some("PENA"));
+}
+#[test]
+fn the_connection_charset_decision_keeps_earlier_decisions_unchanged() {
+    let earlier = serde_json::to_value(reviewed()).unwrap();
+    assert!(earlier.get("connectionCharset").is_none(), "{earlier}");
+    let source = json!({"connectionCharset":"accept-replaced-characters"});
+    let options: HistoricalOptions =
+        serde_json::from_value(source.clone()).unwrap();
+    assert_eq!(
+        options.connection_charset,
+        ConnectionCharsetPolicy::AcceptReplacedCharacters
+    );
+    assert_eq!(
+        serde_json::to_value(options).unwrap()["connectionCharset"],
+        source["connectionCharset"]
+    );
+    assert!(serde_json::from_value::<HistoricalOptions>(
+        json!({"connectionCharset":"guess"})
+    )
+    .is_err());
+}
 #[test]
 fn missing_and_ambiguous_workbook_metadata_is_not_silently_filled_in() {
     let (sql, xlsx) = fixture();

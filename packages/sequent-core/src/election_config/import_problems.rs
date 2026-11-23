@@ -123,6 +123,29 @@ pub fn version_major_mismatch(found: &str, current: &str) -> Problem {
     .detail("current", current)
 }
 
+/// A Scanovate authenticator configuration whose settings, other than the
+/// secret, arrived as Keycloak's export placeholder: the exporting server's
+/// authenticator did not declare them, so Keycloak hid them. They are left
+/// out and the import goes on. Names the configuration and the settings,
+/// never a value.
+pub fn masked_scanovate_settings(config: &str, keys: &[String]) -> Problem {
+    let settings = keys.join(", ");
+    Problem::warning(
+        Code::InvalidValue,
+        FILE,
+        format!(
+            "the Scanovate authenticator configuration '{config}' holds Keycloak's \
+             masked placeholder instead of these settings: {settings}. The server \
+             that exported the event does not use them, so their values did not \
+             travel; they are left out and this server's defaults apply. Check \
+             the configuration after the import"
+        ),
+    )
+    .id("file.masked-scanovate-settings")
+    .detail("config", config)
+    .detail("settings", &settings)
+}
+
 /// The file's checksum is not the one the operator gave.
 pub fn checksum_mismatch(expected: &str, actual: &str) -> Problem {
     Problem::error(
@@ -270,5 +293,22 @@ mod tests {
         let version = incompatible_version("8.1.0", "9.2.0");
         assert_eq!(version.code, Code::IncompatibleVersion);
         assert_eq!(version.details["found"], "8.1.0");
+    }
+
+    /// Left-out Scanovate settings do not stop the import: the operator is
+    /// told which configuration and which settings, never a value.
+    #[test]
+    fn masked_scanovate_settings_are_a_warning_naming_them() {
+        let keys = ["ocr-url".to_string(), "page-languages".to_string()];
+        let problem =
+            masked_scanovate_settings("scanovate-registration", &keys);
+        assert_eq!(problem.severity, Severity::Warning);
+        assert_eq!(
+            problem.id.as_deref(),
+            Some("file.masked-scanovate-settings")
+        );
+        assert_eq!(problem.details["config"], "scanovate-registration");
+        assert_eq!(problem.details["settings"], "ocr-url, page-languages");
+        assert!(problem.to_string().contains("ocr-url, page-languages"));
     }
 }

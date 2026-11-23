@@ -5,7 +5,116 @@ import englishTranslation, {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
-        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        ballotPrivacy: {
+            title: "Journal de l'urne",
+            subtitle:
+                "Tous les bulletins déposés dans cette élection, listés sous un pseudonyme au lieu du nom de l'électeur.",
+            private: "Les électeurs n'apparaissent que sous un pseudonyme",
+            signed: "Signé par l'autorité électorale et l'urne",
+            device: "Vérifié sur votre appareil",
+            own: "Votre bulletin est dans l'urne",
+            listedAs: "Listé sous",
+            check: "Vérifier mon bulletin",
+            copy: "Copier l'identifiant du bulletin",
+            ballotIdHelp: "À propos de votre identifiant de bulletin",
+            castTime: "Déposé le {{time}}",
+            timesIn: "Fuseau horaire : {{zone}}",
+            signedEntries: "Entrées signées du journal ({{count}})",
+            noMatchHelp:
+                "Vérifiez qu'il n'y a pas de faute de frappe. Les codes utilisent les chiffres de 0 à 9 et des lettres majuscules, sans I, L, O ni U.",
+            helpSections: {
+                pseudonyms: {
+                    title: "Pseudonymes",
+                    text: "Chaque électeur est listé sous un pseudonyme, un code comme 7QKM-2HXD. Le journal ne dit jamais qui est l'électeur.",
+                },
+                signatures: {
+                    title: "Signatures",
+                    text: "L'autorité électorale signe la clé d'électeur qu'utilise chaque pseudonyme. L'urne signe chaque bulletin qu'elle reçoit et chaque dépôt.",
+                },
+                checks: {
+                    title: "Vérifications sur votre appareil",
+                    text: "Ouvrez un bulletin pour vérifier ses signatures dans ce navigateur. Tout le monde peut télécharger ses entrées signées et les vérifier à nouveau.",
+                },
+            },
+            copied: "Identifiant du bulletin copié",
+            copyFailed:
+                "Impossible de copier l'identifiant du bulletin. Sélectionnez le code pour le copier.",
+            search: "Rechercher un identifiant de bulletin ou un pseudonyme",
+            placeholder: "Identifiant de bulletin ou pseudonyme",
+            clear: "Effacer la recherche",
+            ballots_one: "{{count}} bulletin",
+            ballots_other: "{{count}} bulletins",
+            matches: "{{count}} bulletins sur {{total}} correspondent",
+            capped: "Plus de {{count}} bulletins sur {{total}} correspondent ; saisissez davantage de caractères du code",
+            ballotId: "Identifiant du bulletin",
+            pseudonym: "Pseudonyme",
+            castAt: "Dépôt",
+            channel: "Canal",
+            yours: "Le vôtre",
+            channels: {
+                online: "En ligne",
+                kiosk: "Borne",
+                telephone: "Téléphone",
+            },
+            previous: "Précédent",
+            next: "Suivant",
+            rows: "Lignes par page",
+            noMatch: "Aucun identifiant de bulletin ni pseudonyme ne commence par {{prefix}}",
+            noBallots: "Aucun bulletin n'a encore été déposé.",
+            invalidPrefix:
+                "Les codes utilisent les chiffres de 0 à 9 et des lettres majuscules, sans I, L, O ni U. Saisissez jusqu'à huit caractères.",
+            loadError: "Le journal de l'urne n'a pas pu être chargé. Veuillez réessayer.",
+            retry: "Réessayer",
+            help: "À propos du journal de l'urne",
+            helpText:
+                "Chaque électeur est listé sous un pseudonyme, un code comme 7QKM-2HXD. Le journal ne dit jamais qui est l'électeur. L'autorité électorale signe la clé d'électeur qu'utilise chaque pseudonyme. Ouvrez un bulletin pour vérifier ses signatures dans ce navigateur.",
+            detailTitle: "Bulletin {{ballotId}}",
+            checking: "Vérification des signatures…",
+            passed: "Les quatre vérifications ont réussi",
+            verified: "Vérifié sur cet appareil avec les clés publiées.",
+            failed: "Une vérification a échoué",
+            failedHelp: "Ne vous fiez pas à cette entrée.",
+            pending: "En cours d'ajout au journal",
+            pendingHelp:
+                "Les entrées signées peuvent apparaître après le dépôt d'un bulletin. Vérifiez à nouveau plus tard.",
+            proofError:
+                "Les entrées signées ou les clés publiées n'ont pas pu être chargées. Réessayez.",
+            checkLabels: {
+                binding: "Clé d'électeur enregistrée",
+                received: "Bulletin reçu",
+                ballotId: "Identifiant du bulletin",
+                cast: "Bulletin déposé",
+            },
+            checkDescriptions: {
+                binding:
+                    "L'autorité électorale a signé la clé d'électeur qu'utilise ce pseudonyme.",
+                received: "L'urne a reçu un bulletin signé avec cette clé d'électeur.",
+                ballotId: "L'identifiant du bulletin est calculé à partir de ce bulletin signé.",
+                cast: "La même clé a déposé le bulletin, et l'urne a confirmé le dépôt.",
+            },
+            states: {
+                passed: "Réussie",
+                failed: "Ne correspond pas.",
+                pending: "Pas encore dans le journal.",
+            },
+            neverPublished:
+                "Jamais publiés : le nom, l'identifiant de connexion, l'adresse IP, le pays ou l'appareil de l'électeur.",
+            download: "Télécharger les entrées signées du journal",
+            downloadAction: "Télécharger",
+            close: "Fermer",
+            systemKey: "Clé du journal de l'événement électoral",
+            boxKey: "Clé de l'urne",
+            userLogs:
+                "Les entrées propres à un électeur : connexions et messages. Ses bulletins figurent dans le journal sous un pseudonyme et n'apparaissent donc jamais ici ; seule une levée de pseudonyme journalisée relie les deux.",
+            ballotSection: "Bulletin et pseudonyme",
+            resolution: "Levée du pseudonyme",
+            resolutionHelp:
+                "La réponse n'a été transmise qu'à la personne qui l'a demandée. L'électeur n'est jamais nommé dans ce journal.",
+            reason: "Motif indiqué",
+            // Admin portal strings; the voting portal never renders them.
+            settings: englishTranslation.translations.ballotPrivacy.settings,
+            forensic: englishTranslation.translations.ballotPrivacy.forensic,
+        },
         startup: {
             error: "Le portail de vote n’a pas pu démarrer. Veuillez réessayer.",
             retry: "Réessayer",
@@ -576,7 +685,7 @@ const frenchTranslation: TranslationType = {
                 ok: "OK",
             },
             tabs: {
-                logs: "Logs",
+                logs: "Journaux",
                 ballotLocator: "Recherche de bulletin",
             },
             column: {

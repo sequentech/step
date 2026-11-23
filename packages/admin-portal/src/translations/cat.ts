@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        architectApprovalPolicy: englishTranslation.translations.architectApprovalPolicy,
         configurationSigning: {
             title: "Confiança en la signatura de paquets",
             description:

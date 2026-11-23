@@ -145,6 +145,7 @@ window.kcContext.enrollmentOutcome = {
     "scanovateHelpVideoFace", "scanovateHelpVideoStill", "scanovateHelpClose",
     "scanovateStopTitle", "scanovateStopText", "scanovateStopConfirm", "scanovateStopCancel",
     "scanovateDocumentStepTitle", "scanovateDocumentStepLead", "scanovateDocumentFrameTitle",
+    "scanovateUseFrontCamera", "scanovateUseRearCamera",
     "scanovateFaceStepTitle", "scanovateFaceStepLead", "scanovateFaceFrameTitle",
     "scanovateHoldingStepTitle", "scanovateHoldingStepLead", "scanovateHoldingCameraLabel",
     "scanovateHoldingPhotoLabel", "scanovateHoldingKeepStill", "scanovateHoldingCountdown",

@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const dutchTranslation: TranslationType = {
     translations: {
+        architectApprovalPolicy: englishTranslation.translations.architectApprovalPolicy,
         configurationSigning: {
             title: "Vertrouwen in pakketondertekening",
             description:

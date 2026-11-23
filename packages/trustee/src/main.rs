@@ -73,6 +73,15 @@ enum Command {
         #[arg(long)]
         trustee_config: Option<PathBuf>,
     },
+    /// Create distinct private initial password files for one installation.
+    BootstrapPasswords {
+        /// New private directory outside the release media.
+        #[arg(long)]
+        output: PathBuf,
+        /// At least six distinct, explicitly listed trustee identities.
+        #[arg(required = true)]
+        trustees: Vec<String>,
+    },
     /// Run the trustee.
     Start {
         /// The board service; B4_URL when absent.
@@ -118,6 +127,14 @@ fn main() -> Result<()> {
         }
         Command::Generate { trustee_config } => {
             identity::generate(trustee_config.as_deref())
+        }
+        Command::BootstrapPasswords { output, trustees } => {
+            identity::bootstrap_passwords(&output, &trustees)?;
+            println!(
+                "Prepared {} private trustee password files",
+                trustees.len()
+            );
+            Ok(())
         }
         Command::Start {
             b4_url,

@@ -615,6 +615,10 @@ const frenchTranslation: TranslationType = {
                         lead: "Secret d'intégration masqué",
                         text: "Secret d'intégration masqué — la configuration Scanovate « {{config}} » contient l'espace réservé de Keycloak (**********) au lieu de son secret de liveness ; l'importer installerait cet espace réservé. Exportez de nouveau l'événement en incluant les secrets d'intégration ; une configuration que Scanovate partage avec un autre authentificateur doit d'abord avoir la sienne.",
                     },
+                    "masked-scanovate-settings": {
+                        lead: "Paramètres Scanovate omis",
+                        text: "Paramètres Scanovate omis — la configuration Scanovate « {{config}} » contient le marqueur de Keycloak (**********) à la place de ces paramètres : {{settings}}. Le serveur qui a exporté l'événement ne les utilise pas, leurs valeurs n'ont donc pas été transmises ; ils sont omis et les valeurs par défaut de ce serveur s'appliquent. Vérifiez la configuration après l'import.",
+                    },
                     "not-a-bundle": {
                         lead: "Pas un export d'événement électoral",
                         text: "Pas un export d'événement électoral — le fichier a été lu mais n'en a pas la structure : {{reason}}",
@@ -750,6 +754,26 @@ const frenchTranslation: TranslationType = {
                     },
                 },
                 "package": {
+                    "ambiguous-signature-member": {
+                        lead: "Fichier de signature ambigu",
+                        text: "Fichier de signature ambigu — {{file}} doit porter le nom exact du fichier de signature et se trouver à la racine du paquet.",
+                    },
+                    "webauthn-not-enabled": {
+                        lead: "Signatures par clé désactivées",
+                        text: "Signatures par clé désactivées — Cet outil d'importation n'est pas configuré pour vérifier les clés de sécurité des responsables. Rien n'a été importé.",
+                    },
+                    "webauthn-refused": {
+                        lead: "Signatures par clé refusées",
+                        text: "Signatures par clé refusées — Les signatures ou les approbations n'ont pas pu être vérifiées : {{reason}}",
+                    },
+                    "content-mismatch": {
+                        lead: "Le contenu du paquet ne correspond pas",
+                        text: "Le contenu du paquet ne correspond pas — L'empreinte du contenu dans le manifeste ne correspond pas au contenu du paquet. Rien n'a été importé.",
+                    },
+                    "webauthn-not-next": {
+                        lead: "Le paquet n'est pas la révision suivante",
+                        text: "Le paquet n'est pas la révision suivante — Ce paquet ne fait pas suite à la dernière révision importée pour cette configuration.",
+                    },
                     "already-imported": {
                         lead: "Déjà importée",
                         text: "Déjà importée — la révision {{revision}} de cette configuration a déjà été importée ; importez une révision plus récente.",

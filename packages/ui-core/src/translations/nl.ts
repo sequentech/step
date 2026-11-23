@@ -610,6 +610,10 @@ const dutchTranslation: TranslationType = {
                         lead: "Gemaskeerd integratiegeheim",
                         text: "Gemaskeerd integratiegeheim — de Scanovate-configuratie '{{config}}' bevat de plaatshouder van Keycloak (**********) in plaats van het liveness-geheim, dus importeren zou de plaatshouder installeren. Exporteer het evenement opnieuw met integratiegeheimen; een configuratie die Scanovate met een andere authenticator deelt, heeft eerst een eigen configuratie nodig.",
                     },
+                    "masked-scanovate-settings": {
+                        lead: "Scanovate-instellingen weggelaten",
+                        text: "Scanovate-instellingen weggelaten — de Scanovate-configuratie '{{config}}' bevat de plaatshouder van Keycloak (**********) in plaats van deze instellingen: {{settings}}. De server die het evenement exporteerde gebruikt ze niet, dus hun waarden zijn niet meegekomen; ze worden weggelaten en de standaardwaarden van deze server gelden. Controleer de configuratie na het importeren.",
+                    },
                     "not-a-bundle": {
                         lead: "Geen export van een verkiezingsevenement",
                         text: "Geen export van een verkiezingsevenement — het bestand is gelezen maar heeft niet de vorm van een export: {{reason}}",
@@ -745,6 +749,26 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 "package": {
+                    "ambiguous-signature-member": {
+                        lead: "Onduidelijk ondertekeningsbestand",
+                        text: "Onduidelijk ondertekeningsbestand — {{file}} moet de exacte naam van het ondertekeningsbestand hebben en in de hoofdmap van het pakket staan.",
+                    },
+                    "webauthn-not-enabled": {
+                        lead: "Beveiligingssleutelhandtekeningen uitgeschakeld",
+                        text: "Beveiligingssleutelhandtekeningen uitgeschakeld — Deze importfunctie is niet ingesteld om de beveiligingssleutels van bevoegde personen te verifiëren. Er is niets geïmporteerd.",
+                    },
+                    "webauthn-refused": {
+                        lead: "Beveiligingssleutelhandtekeningen afgewezen",
+                        text: "Beveiligingssleutelhandtekeningen afgewezen — De handtekeningen of goedkeuringen konden niet worden geverifieerd: {{reason}}",
+                    },
+                    "content-mismatch": {
+                        lead: "Pakketinhoud komt niet overeen",
+                        text: "Pakketinhoud komt niet overeen — De inhoudshash in het manifest komt niet overeen met de pakketinhoud. Er is niets geïmporteerd.",
+                    },
+                    "webauthn-not-next": {
+                        lead: "Het pakket is niet de volgende revisie",
+                        text: "Het pakket is niet de volgende revisie — Dit pakket sluit niet aan op de laatst geïmporteerde revisie van deze configuratie.",
+                    },
                     "already-imported": {
                         lead: "Al geïmporteerd",
                         text: "Al geïmporteerd — revisie {{revision}} van deze configuratie is al eerder geïmporteerd; importeer een nieuwere revisie.",

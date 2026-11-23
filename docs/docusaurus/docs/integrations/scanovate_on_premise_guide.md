@@ -713,6 +713,45 @@ preview on desktop whatever
 preview as the camera sees it made it look flipped on laptops
 (v11.0.0-rc.15). `scripts/dev/test_scanovate_ocr_page.py` checks that the dev
 container doesn't replace it.
+
+#### Which camera scans the document
+
+On a phone or tablet Scanovate's document page opens the **rear** camera: it
+looks for a rear camera with autofocus and requires that side, and no setting
+of its configuration chooses another (`kiosk_mode` only turns the requirement
+into a preference). That suits a voter holding their own phone over a
+passport, and not a tablet on a stand that faces the voter.
+
+The capture step therefore offers the other camera itself. When the device
+lists more than one camera, the document step shows **Use the front camera**
+over a corner of Scanovate's page (*Use the rear camera* once the front one is
+chosen). The choice opens Scanovate's page again, since that page opens its
+camera once, and is kept in the browser's storage for the site
+(`sequent.scanovate.documentCamera`), so a tablet set to its front camera
+stays so for every voter after that. The face check and the photo holding the
+document use the front camera in any case.
+
+How it is done, and its limits:
+
+- Scanovate's page is embedded from the login page's own origin
+  (`liveness-url` under the same host as Keycloak), which lets the login page
+  reach its window. It changes what that page asks the browser for when it
+  opens the camera (`keycloak-ui`, `login/scanovate/camera.ts`): a request
+  that names a side gets the front one, as a preference, and no longer
+  requires the rear camera the page picked. Nothing of Scanovate's page is
+  copied or changed. **With Scanovate's pages on another origin the browser
+  allows none of it, and the choice isn't offered.**
+- It follows what `version_3.9.0_bec7df8_295` asks the browser for. A later
+  version of the page that opens its camera differently would leave the
+  choice without effect (the rear camera opens), not break the scan. Check it
+  on a tablet with each new OCR image.
+- Each change of camera starts a new Scanovate session with the same token,
+  of which a token allows a few.
+- The preview is not mirrored on a phone or tablet (`mobile` in
+  `sequent_video.json`), with either camera.
+- A front camera usually has a lower resolution and a fixed focus. Scanovate
+  advises a rear camera for documents: expect more failed scans, and don't
+  relax the document checks to make up for it.
 ### Document Liveness
 
 Environment variables, as in Scanovate's onboarding guide:

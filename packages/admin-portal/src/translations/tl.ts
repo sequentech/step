@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        architectApprovalPolicy: englishTranslation.translations.architectApprovalPolicy,
         configurationSigning: {
             title: "Tiwala sa paglagda ng package",
             description:

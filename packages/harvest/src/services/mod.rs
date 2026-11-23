@@ -11,6 +11,8 @@ pub mod monitoring_cache;
 pub mod monitoring_checks;
 pub mod monitoring_config_cache;
 pub mod monitoring_svg;
+#[cfg(feature = "operational-signing-candidate")]
+pub(crate) mod operational_portal_auth;
 pub mod otp_capacity;
 pub mod request_logging;
 pub mod role_permissions;

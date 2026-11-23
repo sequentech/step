@@ -5,6 +5,7 @@ import englishTranslation, {TranslationType} from "./en"
 
 const galegoTranslation: TranslationType = {
     translations: {
+        architectApprovalPolicy: englishTranslation.translations.architectApprovalPolicy,
         configurationSigning: {
             title: "Confianza na sinatura de paquetes",
             description:

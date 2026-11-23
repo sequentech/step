@@ -609,6 +609,10 @@ const basqueTranslation: TranslationType = {
                         lead: "Integrazio-sekretu ezkutatua",
                         text: "Integrazio-sekretu ezkutatua — Scanovate-ren '{{config}}' konfigurazioak Keycloak-en marka (**********) du liveness sekretuaren ordez, eta inportatuz gero marka hori instalatuko litzateke. Esportatu gertaera berriro integrazio-sekretuak barne; Scanovate-k beste autentifikatzaile batekin partekatzen duen konfigurazio batek berea behar du lehenik.",
                     },
+                    "masked-scanovate-settings": {
+                        lead: "Scanovate-ren ezarpenak kanpoan utzi dira",
+                        text: "Scanovate-ren ezarpenak kanpoan utzi dira — Scanovate-ren '{{config}}' konfigurazioak Keycloak-en marka (**********) du ezarpen hauen ordez: {{settings}}. Gertaera esportatu zuen zerbitzariak ez ditu erabiltzen, eta haien balioak ez dira iritsi; kanpoan uzten dira eta zerbitzari honen balio lehenetsiak aplikatzen dira. Berrikusi konfigurazioa inportazioaren ondoren.",
+                    },
                     "not-a-bundle": {
                         lead: "Ez da hauteskunde-gertaera baten esportazioa",
                         text: "Ez da hauteskunde-gertaera baten esportazioa — fitxategia irakurri da, baina ez du horren forma: {{reason}}",
@@ -744,6 +748,26 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 "package": {
+                    "ambiguous-signature-member": {
+                        lead: "Sinadura-fitxategi anbiguoa",
+                        text: "Sinadura-fitxategi anbiguoa — {{file}} fitxategiak sinadura-fitxategiaren izen zehatza izan behar du, eta paketearen erroan egon behar du.",
+                    },
+                    "webauthn-not-enabled": {
+                        lead: "Segurtasun-giltzen sinadurak desgaituta",
+                        text: "Segurtasun-giltzen sinadurak desgaituta — Inportatzaile hau ez dago arduradunen segurtasun-giltzak egiaztatzeko konfiguratuta. Ez da ezer inportatu.",
+                    },
+                    "webauthn-refused": {
+                        lead: "Segurtasun-giltzen sinadurak baztertuta",
+                        text: "Segurtasun-giltzen sinadurak baztertuta — Ezin izan dira sinadurak edo onespenak egiaztatu: {{reason}}",
+                    },
+                    "content-mismatch": {
+                        lead: "Paketearen edukia ez dator bat",
+                        text: "Paketearen edukia ez dator bat — Manifestuko edukiaren laburpen kriptografikoa ez dator bat paketearen edukiarekin. Ez da ezer inportatu.",
+                    },
+                    "webauthn-not-next": {
+                        lead: "Paketea ez da hurrengo berrikuspena",
+                        text: "Paketea ez da hurrengo berrikuspena — Pakete honek ez dio konfigurazio honetarako inportatutako azken berrikuspenari jarraitzen.",
+                    },
                     "already-imported": {
                         lead: "Dagoeneko inportatuta",
                         text: "Dagoeneko inportatuta — konfigurazio honen {{revision}} berrikuspena lehenago inportatu zen; inportatu berrikuspen berriago bat.",

@@ -138,6 +138,7 @@
 /messaging/recount-voters
 /messaging/voter-counts
 /miru/create-transmission-package
+/miru/operational-signing-mode
 /miru/record-download
 /miru/send-transmission-package
 /miru/upload-signature
@@ -222,3 +223,8 @@
 /preview-scheduled-outcome-change
 /save-lifecycle-policies
 /readiness-check
+/get-architect-approval-policy
+/set-architect-approval-policy
+/get-architect-signer-roster-status
+/preview-architect-signer-roster
+/activate-architect-signer-roster

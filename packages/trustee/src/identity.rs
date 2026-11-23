@@ -5,9 +5,11 @@
 //! The trustee's keys file: written by `trustee generate`, read by `trustee
 //! start`. Its content is never logged; its public keys are.
 
-use std::fs::{self, OpenOptions};
-use std::io::{self, Write};
-use std::os::unix::fs::OpenOptionsExt;
+use std::collections::BTreeSet;
+use std::fmt::Write as _;
+use std::fs::{self, DirBuilder, File, OpenOptions};
+use std::io::{self, Read, Write};
+use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
 use std::path::Path;
 
 use anyhow::{Context as _, Result};
@@ -73,6 +75,51 @@ pub(crate) fn write_new(path: &Path, contents: &str) -> Result<()> {
         .with_context(|| format!("writing the keys file {}", path.display()))
 }
 
+/// Issue one independent random password per named trustee, without
+/// enrolling or activating anyone. Never write to the medium or overwrite.
+pub(crate) fn bootstrap_passwords(
+    path: &Path,
+    trustees: &[String],
+) -> Result<()> {
+    let checked: BTreeSet<_> = trustees.iter().collect();
+    if checked.len() != trustees.len()
+        || checked.len() < 6
+        || checked.len() > 64
+    {
+        anyhow::bail!("provide between six and 64 distinct trustee names");
+    }
+    for name in &checked {
+        let bytes = name.as_bytes();
+        if !(1..=42).contains(&bytes.len())
+            || !bytes[0].is_ascii_alphanumeric()
+            || !bytes[bytes.len() - 1].is_ascii_alphanumeric()
+            || !bytes.iter().all(|b| {
+                b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'-'
+            })
+        {
+            anyhow::bail!("invalid trustee name");
+        }
+    }
+    let mut random = File::open("/dev/urandom")
+        .context("opening the system random source")?;
+    DirBuilder::new()
+        .mode(0o700)
+        .create(path)
+        .context("creating a new private trustee output directory")?;
+    for name in checked {
+        let mut bytes = [0_u8; 32];
+        random
+            .read_exact(&mut bytes)
+            .context("reading the system random source")?;
+        let mut password = String::with_capacity(64);
+        for byte in bytes {
+            write!(&mut password, "{byte:02x}")?;
+        }
+        write_new(&path.join(format!("{name}.password")), &password)?;
+    }
+    Ok(())
+}
+
 /// The public keys under the names of the `trustee` columns that store them.
 fn print_public_keys(
     out: &mut impl Write,
@@ -90,6 +137,46 @@ fn print_public_keys(
 mod tests {
     use super::*;
     use std::os::unix::fs::PermissionsExt;
+
+    #[test]
+    fn bootstrap_creates_six_distinct_private_files_without_reissuing() {
+        let tmp = tempfile::tempdir().unwrap();
+        let names: Vec<_> = (1..=6).map(|n| format!("trustee-{n}")).collect();
+        let path = tmp.path().join("issued");
+        bootstrap_passwords(&path, &names).unwrap();
+        assert_eq!(
+            fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o700
+        );
+        let mut unique = BTreeSet::new();
+        for name in &names {
+            let file = path.join(format!("{name}.password"));
+            assert_eq!(
+                fs::metadata(&file).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+            let value = fs::read_to_string(&file).unwrap();
+            assert_eq!(value.len(), 64);
+            assert!(value.bytes().all(|b| b.is_ascii_hexdigit()));
+            assert!(unique.insert(value));
+        }
+        assert!(bootstrap_passwords(&path, &names).is_err());
+        assert!(
+            bootstrap_passwords(&tmp.path().join("too-few"), &names[..5])
+                .is_err()
+        );
+        let mut duplicate = names.clone();
+        duplicate[0] = duplicate[1].clone();
+        assert!(
+            bootstrap_passwords(&tmp.path().join("duplicate"), &duplicate)
+                .is_err()
+        );
+        let mut invalid = names;
+        invalid[0] = "../escape".into();
+        assert!(
+            bootstrap_passwords(&tmp.path().join("invalid"), &invalid).is_err()
+        );
+    }
 
     /// What `generate` writes is readable by its owner only, and is what
     /// `start` loads.

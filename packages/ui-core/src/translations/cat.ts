@@ -610,6 +610,10 @@ const catalanTranslation: TranslationType = {
                         lead: "Secret d'integració emmascarat",
                         text: "Secret d'integració emmascarat — la configuració d'Scanovate «{{config}}» conté el marcador de Keycloak (**********) en lloc del seu secret de liveness, de manera que importar-la instal·laria el marcador. Exporta l'esdeveniment de nou incloent-hi els secrets d'integració; una configuració que Scanovate comparteix amb un altre autenticador primer en necessita una de pròpia.",
                     },
+                    "masked-scanovate-settings": {
+                        lead: "Paràmetres de Scanovate omesos",
+                        text: "Paràmetres de Scanovate omesos — la configuració de Scanovate «{{config}}» conté el marcador de Keycloak (**********) en lloc d'aquests paràmetres: {{settings}}. El servidor que va exportar l'esdeveniment no els fa servir, de manera que els seus valors no han viatjat; s'ometen i s'apliquen els valors per defecte d'aquest servidor. Revisa la configuració després de la importació.",
+                    },
                     "not-a-bundle": {
                         lead: "No és una exportació d'esdeveniment electoral",
                         text: "No és una exportació d'esdeveniment electoral — el fitxer s'ha llegit però no en té la forma: {{reason}}",
@@ -745,6 +749,26 @@ const catalanTranslation: TranslationType = {
                     },
                 },
                 "package": {
+                    "ambiguous-signature-member": {
+                        lead: "Fitxer de signatura ambigu",
+                        text: "Fitxer de signatura ambigu — {{file}} ha de tenir el nom exacte del fitxer de signatura i estar a l'arrel del paquet.",
+                    },
+                    "webauthn-not-enabled": {
+                        lead: "Signatures amb clau desactivades",
+                        text: "Signatures amb clau desactivades — Aquest importador no està configurat per verificar les claus de seguretat dels responsables. No s'ha importat res.",
+                    },
+                    "webauthn-refused": {
+                        lead: "Signatures amb clau rebutjades",
+                        text: "Signatures amb clau rebutjades — No s'han pogut verificar les signatures o les aprovacions: {{reason}}",
+                    },
+                    "content-mismatch": {
+                        lead: "El contingut del paquet no coincideix",
+                        text: "El contingut del paquet no coincideix — El resum criptogràfic del manifest no coincideix amb el contingut del paquet. No s'ha importat res.",
+                    },
+                    "webauthn-not-next": {
+                        lead: "El paquet no és la revisió següent",
+                        text: "El paquet no és la revisió següent — Aquest paquet no continua a partir de l'última revisió importada d'aquesta configuració.",
+                    },
                     "already-imported": {
                         lead: "Ja importada",
                         text: "Ja importada — la revisió {{revision}} d'aquesta configuració ja s'havia importat; importeu una revisió més recent.",
