@@ -35,6 +35,10 @@ import {
     TextField,
     Typography,
 } from "@mui/material"
+import {
+    publishCompletedPackageApply,
+    rememberApplyForElectionRefresh,
+} from "@/hooks/usePendingConfigurationPackageRefresh"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import type {AuthContextValues} from "@/providers/AuthContextProvider"
@@ -72,6 +76,7 @@ import {
     readApplication,
     recalledSubmission,
     readManagedPreview,
+    readPortablePreview,
     changeLines,
     rememberSubmission,
     safeText,
@@ -110,6 +115,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
     const rosterStatusId = useId()
     const advancedHeadingId = useId()
     const packageRequest = useRef(false)
+    const refreshedElectionTask = useRef<string | null>(null)
 
     // A reload in the same tenant resumes the task it was following, with the
     // requirements and the digest that task was submitted with.
@@ -141,7 +147,10 @@ const SettingsConfigurationPackageForScope: React.FC<{
         scope.current = {tenantId, actor: authContext.userId}
     }
     const mounted = useRef(true)
-    const operatorPreview = useRef<{scope: typeof scope.current; taskId: string} | null>(null)
+    const operatorPreview = useRef<{
+        scope: typeof scope.current
+        taskId: string
+    } | null>(null)
     useEffect(() => {
         mounted.current = true
         return () => {
@@ -216,18 +225,42 @@ const SettingsConfigurationPackageForScope: React.FC<{
         }
         stopPolling()
         refreshHistory()
-        if (submitted.mode === "preview" && view) {
+        if (
+            allowed &&
+            submitted.mode === "apply" &&
+            submitted.actor === authContext.userId &&
+            !submitted.electionsRefreshed &&
+            refreshedElectionTask.current !== submitted.taskId &&
+            publishCompletedPackageApply(
+                {tenantId, actor: authContext.userId},
+                submitted.taskId,
+                task
+            )
+        ) {
+            refreshedElectionTask.current = submitted.taskId
+            rememberSubmission(tenantId, {...submitted, electionsRefreshed: true})
+        }
+        if (
+            submitted.mode === "preview" &&
+            view?.mode === "preview" &&
+            task?.id === submitted.taskId &&
+            task.execution_status === "SUCCESS"
+        ) {
             setDocumentId(submitted.documentId)
+            setExpectedSha(submitted.expectedSha ?? null)
             setPreviewed({
                 tenantId,
                 documentId: submitted.documentId,
                 requirements: submitted.requirements,
                 view,
-                taskId:
-                    task?.id === submitted.taskId && task?.execution_status === "SUCCESS"
-                        ? submitted.taskId
-                        : undefined,
+                taskId: submitted.taskId,
+                encryptedPayloadSha256: submitted.encryptedPayloadSha256,
                 managedBinding: readManagedPreview(
+                    task?.annotations,
+                    tenantId,
+                    submitted.requirements
+                ),
+                portablePreview: readPortablePreview(
                     task?.annotations,
                     tenantId,
                     submitted.requirements
@@ -235,23 +268,45 @@ const SettingsConfigurationPackageForScope: React.FC<{
             })
         }
         // refreshHistory is a fresh closure each render; the task finishing is the trigger.
-    }, [submitted, finished, view, stopPolling, tenantId, task?.id, task?.execution_status])
+    }, [
+        submitted,
+        finished,
+        view,
+        stopPolling,
+        tenantId,
+        task?.id,
+        task?.execution_status,
+        allowed,
+        authContext.userId,
+    ])
 
     const matchesTrust = (current: RosterStatus | null, preview: PreviewedPackage | null) => {
-        if (!rosterStateAllowsImport(current)) return false
-        if (current?.mode !== "portal_managed") return !preview?.managedBinding
-        return (
+        if (!rosterStateAllowsImport(current) || preview?.portablePreview === "unavailable")
+            return false
+        const thisOperatorsPreview =
             !!preview?.taskId &&
             !!scope.current.actor &&
             operatorPreview.current?.scope === scope.current &&
-            operatorPreview.current.taskId === preview.taskId &&
-            !!preview.managedBinding &&
+            operatorPreview.current.taskId === preview.taskId
+        if (current?.mode !== "portal_managed")
+            return (
+                !preview?.managedBinding &&
+                (preview?.portablePreview !== "matched" || thisOperatorsPreview)
+            )
+        return (
+            thisOperatorsPreview &&
+            !!preview?.managedBinding &&
             preview.managedBinding.sha256 === current.active_sha256 &&
             preview.managedBinding.generation === current.generation &&
             preview.managedBinding.requiredApprovals === current.required_approvals
         )
     }
-    const confirmedInputs = useRef({documentId, requirements, expectedSha, allowed})
+    const confirmedInputs = useRef({
+        documentId,
+        requirements,
+        expectedSha,
+        allowed,
+    })
     confirmedInputs.current = {documentId, requirements, expectedSha, allowed}
 
     if (!allowed || !tenantId) {
@@ -265,7 +320,12 @@ const SettingsConfigurationPackageForScope: React.FC<{
     // One submission per click: a failure or an unknown result is reported and
     // left for the operator, never resubmitted here. Every submission, preview
     // or apply, needs a fresh preview before the next application.
-    const submit = async (mode: ApplyMode, document: string, sha: string | null) => {
+    const submit = async (
+        mode: ApplyMode,
+        document: string,
+        sha: string | null,
+        encryptedPayloadSha256?: string
+    ) => {
         if (packageRequest.current) return
         setError(null)
         if (!authContext.userId || !mayApplyPackages(tenantId, authContext.isAuthorized)) {
@@ -318,6 +378,11 @@ const SettingsConfigurationPackageForScope: React.FC<{
                 }
                 previewTaskId = forPreview?.taskId
                 if (!previewTaskId) return
+            } else if (mode === "apply" && forPreview?.portablePreview === "matched") {
+                // Portable account choices are pinned by the receiver even
+                // when verification uses certificate or site-pinned trust.
+                previewTaskId = forPreview.taskId
+                if (!previewTaskId) return
             }
             operatorPreview.current = null
             const {data, errors} = previewTaskId
@@ -327,15 +392,28 @@ const SettingsConfigurationPackageForScope: React.FC<{
                           documentId: document,
                           requirements,
                           previewTaskId,
+                          ...(encryptedPayloadSha256 ? {encryptedPayloadSha256} : {}),
                       },
                   })
                 : await applyConfigurationPackage({
-                      variables: {tenantId: forTenant, documentId: document, mode, requirements},
+                      variables: {
+                          tenantId: forTenant,
+                          documentId: document,
+                          mode,
+                          requirements,
+                          ...(encryptedPayloadSha256 ? {encryptedPayloadSha256} : {}),
+                      },
                   })
+            const taskId = data?.apply_configuration_package?.task_execution?.id
+            if (mode === "apply" && taskId && !errors?.length && requestScope.actor) {
+                rememberApplyForElectionRefresh(
+                    {tenantId: forTenant, actor: requestScope.actor},
+                    taskId
+                )
+            }
             if (!mounted.current || scope.current !== requestScope) {
                 return
             }
-            const taskId = data?.apply_configuration_package?.task_execution?.id
             if (errors?.length) {
                 setError(errors.map((e) => e.message).join(", "))
                 return
@@ -348,10 +426,12 @@ const SettingsConfigurationPackageForScope: React.FC<{
             }
             const active: ActiveSubmission = {
                 taskId,
+                actor: requestScope.actor,
                 mode,
                 documentId: document,
                 requirements,
                 expectedSha: sha,
+                ...(encryptedPayloadSha256 ? {encryptedPayloadSha256} : {}),
             }
             if (mode === "preview") operatorPreview.current = {scope: requestScope, taskId}
             rememberSubmission(forTenant, active)
@@ -484,7 +564,14 @@ const SettingsConfigurationPackageForScope: React.FC<{
                     />
                 </Box>
                 {showManualEntry && (
-                    <Box sx={{display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap"}}>
+                    <Box
+                        sx={{
+                            display: "flex",
+                            gap: 2,
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                        }}
+                    >
                         <TextField
                             size="small"
                             label={String(
@@ -494,6 +581,10 @@ const SettingsConfigurationPackageForScope: React.FC<{
                                         : "configurationPackage.documentId"
                                 )
                             )}
+                            helperText={String(t("configurationPackage.existingDocumentHelp"))}
+                            slotProps={{
+                                formHelperText: {sx: {"&.Mui-disabled": {color: "text.secondary"}}},
+                            }}
                             disabled={running || !permitsImport}
                             value={typedDocumentId}
                             onChange={(event) => {
@@ -605,7 +696,9 @@ const SettingsConfigurationPackageForScope: React.FC<{
                     )}
                     {view && finished && view.outcome === "previewed" && (
                         <Typography variant="body2">
-                            {t("configurationPackage.toChange", {count: sectionsToChange(view)})}
+                            {t("configurationPackage.toChange", {
+                                count: sectionsToChange(view),
+                            })}
                         </Typography>
                     )}
                     {view && <ApplicationTable view={view} />}
@@ -644,8 +737,14 @@ const SettingsConfigurationPackageForScope: React.FC<{
                 anchor="right"
                 open={openUpload && permitsImport}
                 onClose={() => setOpenUpload(false)}
-                PaperProps={{"aria-label": String(t("configurationPackage.uploadTitle"))}}
-                sx={{"& .MuiDrawer-paper": {width: {xs: "100%", sm: "min(640px, 100%)"}}}}
+                PaperProps={{
+                    "aria-label": String(t("configurationPackage.uploadTitle")),
+                }}
+                sx={{
+                    "& .MuiDrawer-paper": {
+                        width: {xs: "100%", sm: "min(640px, 100%)"},
+                    },
+                }}
             >
                 <Box sx={{padding: "16px"}} data-testid="package-upload-drawer">
                     <ElectionHeader
@@ -655,31 +754,43 @@ const SettingsConfigurationPackageForScope: React.FC<{
                     <Typography variant="body2" paragraph>
                         {t("configurationPackage.uploadParagraph")}
                     </Typography>
-                    <ImportScreen
-                        refresh="configurationPackage.upload"
-                        // The package is the delivery zip, whatever the drop area's default says.
-                        formatLabel="ZIP"
-                        doCancel={() => setOpenUpload(false)}
-                        doImport={async (document: string, sha256: string) => {
-                            setOpenUpload(false)
-                            // Blank is no check; anything else must be a digest,
-                            // never silently dropped.
-                            const entered = sha256.trim()
-                            if (entered && !SHA256.test(entered)) {
-                                setPreviewed(null)
-                                setError(t("configurationPackage.shaMalformed"))
-                                return
-                            }
-                            const sha = entered ? entered.toLowerCase() : null
-                            setDocumentId(document)
-                            setTypedDocumentId(document)
-                            setExpectedSha(sha)
-                            // Always a preview first: nothing is applied from an upload.
-                            await submit("preview", document, sha)
-                        }}
-                        disableImport={running || !permitsImport}
-                        errors={null}
-                    />
+                    {openUpload && permitsImport && (
+                        <ImportScreen
+                            key={JSON.stringify([tenantId, authContext.userId])}
+                            refresh="configurationPackage.upload"
+                            signedDeliveryUpload
+                            formatLabel="ZIP / EZIP"
+                            doCancel={() => setOpenUpload(false)}
+                            onSourceChange={() => {
+                                stopFollowing()
+                                setConfirming(false)
+                            }}
+                            doImport={async (
+                                document,
+                                sha256,
+                                _password,
+                                encryptedPayloadSha256
+                            ) => {
+                                setOpenUpload(false)
+                                // Blank is no check; anything else must be a digest,
+                                // never silently dropped.
+                                const entered = sha256.trim()
+                                if (entered && !SHA256.test(entered)) {
+                                    setPreviewed(null)
+                                    setError(t("configurationPackage.shaMalformed"))
+                                    return
+                                }
+                                const sha = entered ? entered.toLowerCase() : null
+                                setDocumentId(document)
+                                setTypedDocumentId(document)
+                                setExpectedSha(sha)
+                                // Always a preview first: nothing is applied from an upload.
+                                await submit("preview", document, sha, encryptedPayloadSha256)
+                            }}
+                            disableImport={running || !permitsImport}
+                            errors={null}
+                        />
+                    )}
                 </Box>
             </Drawer>
 
@@ -703,7 +814,12 @@ const SettingsConfigurationPackageForScope: React.FC<{
                         onClick={() => {
                             setConfirming(false)
                             if (documentId && canApply) {
-                                submit("apply", documentId, expectedSha)
+                                submit(
+                                    "apply",
+                                    documentId,
+                                    expectedSha,
+                                    previewed?.encryptedPayloadSha256
+                                )
                             }
                         }}
                     >
@@ -718,7 +834,11 @@ const SettingsConfigurationPackageForScope: React.FC<{
 /** What applying would change, section by section: names, actions and keys only. */
 const ProposedChanges: React.FC<{view: ApplicationView}> = ({view}) => {
     const {t} = useTranslation()
-    const changing = view.sections.filter((section) => section.preview?.needsApply)
+    const changing = view.sections.filter(
+        (section) =>
+            section.preview?.needsApply ||
+            (section.section === "messaging-accounts" && !!section.preview?.changes)
+    )
     return (
         <Box data-testid="package-proposed-changes">
             <Typography variant="subtitle2" component="h3">

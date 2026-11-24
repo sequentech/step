@@ -22,7 +22,7 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use sequent_core::election_config::archive::{Artifact, ADMIN_PORTAL_MEMBER, IMPORTABLE_MEMBER};
-use sequent_core::election_config::manifest::{file_entries, read_zip};
+use sequent_core::election_config::manifest::{file_entries, read_zip, FileEntry};
 use sequent_core::election_config::package_contract::{
     coverage, nested_disposition, Coverage, Disposition, Requirements, Section, SectionState,
 };
@@ -63,6 +63,7 @@ pub fn plan_members(
     requirements: &Requirements,
 ) -> Result<PackagePlan> {
     let entries = file_entries(members).map_err(|p| anyhow!("{p}"))?;
+    refuse_unproved_demo_credentials(&entries)?;
     let mut requirements = requirements.clone();
     requirements.sections.sort_unstable();
     requirements.sections.dedup();
@@ -109,6 +110,77 @@ pub fn plan_members(
         coverage,
         payloads,
     })
+}
+
+/// The verified receiver removes the one canonical verifier document before
+/// planning. Elsewhere, do not silently ignore a verifier document or allow
+/// its relocation into an ordinary nested settings/reports member.
+fn refuse_unproved_demo_credentials(entries: &[FileEntry]) -> Result<()> {
+    if entries.iter().any(|entry| {
+        entry
+            .path
+            .rsplit('/')
+            .next()
+            .is_some_and(|name| name.eq_ignore_ascii_case("demo_login_verifiers.json"))
+            || refuse_unproved_demo_credentials(&entry.members).is_err()
+    }) {
+        return Err(anyhow!(
+            "demo login verifiers require a receiver-authorized signed configuration intake"
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod demo_credential_intake_tests {
+    use super::*;
+
+    fn entry(path: &str, members: Vec<FileEntry>) -> FileEntry {
+        FileEntry {
+            path: path.to_owned(),
+            size: 0,
+            sha256: String::new(),
+            members,
+        }
+    }
+
+    #[test]
+    fn generic_planner_refuses_even_a_root_member_with_a_plausible_digest() {
+        let error = plan_members(
+            &[Artifact {
+                name: "demo_login_verifiers.json".into(),
+                bytes: b"not-secret-test-only".to_vec(),
+            }],
+            "0".repeat(64),
+            &Requirements::default(),
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("receiver-authorized signed"));
+        assert!(!error.to_string().contains("not-secret-test-only"));
+    }
+
+    #[test]
+    fn generic_planner_rejects_relocated_members_and_accepts_unrelated_files() {
+        assert!(refuse_unproved_demo_credentials(&[entry("normal.json", vec![])]).is_ok());
+        assert!(refuse_unproved_demo_credentials(&[entry(
+            "settings.zip",
+            vec![entry("extra/Demo_Login_Verifiers.json", vec![])],
+        )])
+        .is_err());
+    }
+}
+
+/// Pre-portability receipts do not have a key for the new optional section.
+pub(crate) fn same_coverage(previous: &Coverage, current: &Coverage) -> bool {
+    fn normalize(coverage: &Coverage) -> Coverage {
+        let mut normalized = coverage.clone();
+        if normalized.sections.get(&Section::MessagingAccounts) == Some(&SectionState::NotIncluded)
+        {
+            normalized.sections.remove(&Section::MessagingAccounts);
+        }
+        normalized
+    }
+    normalize(previous) == normalize(current)
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
@@ -160,6 +232,11 @@ pub trait PackageTarget: Send + Sync {
     }
 
     fn managed_preview_operator_binding(&self) -> Option<&str> {
+        None
+    }
+
+    /// Receiver-derived digest of the exact account mapping and current registry state.
+    fn messaging_plan_sha256(&self) -> Option<String> {
         None
     }
 
@@ -277,6 +354,8 @@ pub struct ApplicationRecord {
     pub managed_preview_operator_binding: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub managed_requirements: Option<Requirements>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub messaging_plan_sha256: Option<String>,
     pub mode: ApplyMode,
     pub coverage: Coverage,
     pub sections: Vec<SectionRecord>,
@@ -398,11 +477,12 @@ pub async fn run(
         }
     }
     require_same_roster(mode, prior, target.managed_roster_binding())?;
-    if target.managed_roster_binding().is_some()
+    if (target.managed_roster_binding().is_some()
+        || target.managed_preview_operator_binding().is_some())
         && prior.is_some_and(|record| {
             application_started(record)
                 && (record.managed_requirements.as_ref() != Some(&plan.requirements)
-                    || record.coverage != plan.coverage)
+                    || !same_coverage(&record.coverage, &plan.coverage))
         })
     {
         return Err(anyhow!(
@@ -417,9 +497,10 @@ pub async fn run(
         managed_preview_operator_binding: target
             .managed_preview_operator_binding()
             .map(str::to_owned),
-        managed_requirements: target
-            .managed_roster_binding()
-            .map(|_| plan.requirements.clone()),
+        managed_requirements: (target.managed_preview_operator_binding().is_some()
+            || target.managed_roster_binding().is_some())
+        .then(|| plan.requirements.clone()),
+        messaging_plan_sha256: None,
         mode,
         coverage: plan.coverage.clone(),
         sections: Section::APPLY_ORDER
@@ -478,6 +559,7 @@ pub async fn run(
             }
         }
     }
+    record.messaging_plan_sha256 = target.messaging_plan_sha256();
     if refused {
         record.outcome = Outcome::Refused;
         store.save(&record).await?;
@@ -778,6 +860,7 @@ mod managed_roster_binding_tests {
             managed_roster_binding: Some(binding(generation)),
             managed_preview_operator_binding: None,
             managed_requirements: Some(Requirements::default()),
+            messaging_plan_sha256: None,
             mode: ApplyMode::Preview,
             coverage: Coverage {
                 members: vec![],
@@ -787,6 +870,27 @@ mod managed_roster_binding_tests {
             sections: vec![],
             outcome: Outcome::Previewed,
         }
+    }
+
+    #[test]
+    fn old_uuid_coverage_is_compatible_only_with_absent_optional_messaging() {
+        let previous = preview(1).coverage;
+        let mut current = previous.clone();
+        current
+            .sections
+            .insert(Section::MessagingAccounts, SectionState::NotIncluded);
+        assert!(same_coverage(&previous, &current));
+        current
+            .sections
+            .insert(Section::MessagingAccounts, SectionState::Missing);
+        assert!(!same_coverage(&previous, &current));
+        current.sections.insert(
+            Section::MessagingAccounts,
+            SectionState::Present {
+                members: vec!["tenant_messaging_accounts.json".into()],
+            },
+        );
+        assert!(!same_coverage(&previous, &current));
     }
 
     #[test]

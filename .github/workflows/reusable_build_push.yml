@@ -91,7 +91,9 @@ jobs:
         ref: ${{ steps.beyond.outputs.sha }}
         token: ${{ secrets.PAT }}
         path: beyond
-        submodules: recursive
+        # Architect uses the outer Step's named Docker contexts, not the
+        # reciprocal Step gitlink inside Beyond.
+        submodules: ${{ matrix.service == 'election-architect' && 'false' || 'recursive' }}
         persist-credentials: false
 
     # The Architect image takes its sources and WASM from this step's
@@ -100,12 +102,15 @@ jobs:
     - name: Check this step's packages/ is the one beyond pins
       if: matrix.service == 'election-architect'
       run: |
-        pinned=$(git -C beyond rev-parse HEAD:step)
-        git fetch --no-tags --depth 1 origin "$pinned"
+        pinned=$(git -C beyond rev-parse --verify HEAD:step)
+        git fetch --no-tags --no-recurse-submodules --depth 1 origin "$pinned"
         ours=$(git rev-parse HEAD:packages)
         theirs=$(git rev-parse "$pinned:packages")
         echo "step $GITHUB_SHA packages $ours; beyond pins step $pinned packages $theirs"
-        test "$ours" = "$theirs"
+        if [ "$ours" != "$theirs" ]; then
+          echo "::error title=Architect source mismatch::Step packages tree $ours differs from $theirs pinned by Beyond at Step $pinned. Align the Step and Beyond gitlinks before publishing Architect."
+          exit 1
+        fi
 
     # The platform release the Architect's core contract holds its bundles to.
     # The image's context is beyond/packages only, so the recipe takes it as a

@@ -10,6 +10,7 @@ export const GET_UPLOAD_URL = gql`
         $size: Int!
         $is_public: Boolean! = true
         $election_event_id: String
+        $configuration_package: Boolean
     ) {
         get_upload_url(
             name: $name
@@ -17,6 +18,7 @@ export const GET_UPLOAD_URL = gql`
             size: $size
             is_public: $is_public
             election_event_id: $election_event_id
+            configuration_package: $configuration_package
         ) {
             url
             document_id

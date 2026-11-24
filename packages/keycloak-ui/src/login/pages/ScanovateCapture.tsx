@@ -20,6 +20,7 @@ import {
     cameraCount,
     canChooseCamera,
     otherFacing,
+    startingFacing,
     storeFacing,
     storedFacing,
     watchFrame,
@@ -66,8 +67,11 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
         initialCaptureState
     )
     const formRef = useRef<HTMLFormElement | null>(null)
-    // The camera of the document scan, as last chosen on this device.
-    const [facing, setFacing] = useState(() => storedFacing(deviceStorage()))
+    // The camera of the document scan: as last chosen on this device, and
+    // until then the one the realm starts with.
+    const [facing, setFacing] = useState(() =>
+        storedFacing(deviceStorage(), startingFacing(scanovate.documentCamera))
+    )
     const cameras = useCameraCount(state.stage === CaptureStage.Document)
 
     // Keycloak has the results from Scanovate already: the form only moves the flow on.

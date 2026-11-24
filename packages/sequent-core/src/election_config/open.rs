@@ -181,11 +181,17 @@ pub fn open_named(bytes: &[u8], name: Option<&str>) -> Result<Opened, Report> {
         // though it were current. It was not, and a version 2 plan opened here
         // kept its area *names* in the field the builder reads as identifiers.
         let read = super::architect::read_plan(text).map_err(|problem| {
-            refuse(format!(
-                "this is not a plan file. If you have the delivery .zip, open \
-                 that instead. ({})",
-                problem.message
-            ))
+            // Consumers rely on the typed credentials/version refusal to
+            // give safe, actionable diagnostics without reflecting details.
+            if matches!(problem.code, Code::NotApproved | Code::IncompatibleVersion) {
+                Report::from_problem(problem)
+            } else {
+                refuse(format!(
+                    "this is not a plan file. If you have the delivery .zip, open \
+                     that instead. ({})",
+                    problem.message
+                ))
+            }
         })?;
         return Ok(Opened {
             plan: read.plan,
@@ -329,8 +335,17 @@ fn open_delivery(bytes: &[u8], names: &[String]) -> Result<Opened, Report> {
         serde_json::from_slice(&raw).map_err(|error| {
             refuse(format!("the plan in this zip could not be read: {error}"))
         })?;
-    let read = super::architect::read_plan_value(document)
-        .map_err(|problem| refuse(problem.message))?;
+    let read =
+        super::architect::read_plan_value(document).map_err(|problem| {
+            if matches!(
+                problem.code,
+                Code::NotApproved | Code::IncompatibleVersion
+            ) {
+                Report::from_problem(problem)
+            } else {
+                refuse(problem.message)
+            }
+        })?;
     let plan = read.plan;
 
     let mut report = Report::default();

@@ -267,6 +267,39 @@ fn imported_messaging_config(
         .map_err(|_| format!("{NOT_IMPORTED}: it can't be read"))
 }
 
+/// The signed V2 package Preview gets exactly the native import's account
+/// validation, without taking write locks, touching credentials, or calling
+/// a provider. Apply validates again with the usual locks.
+pub(crate) async fn preview_import_event_messaging_config(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    elections: &[String],
+    config: &Value,
+    replacement_map: &std::collections::HashMap<String, String>,
+    permission: MessagingConfigPermission,
+) -> Result<Vec<MessagingConfigError>> {
+    let parsed = imported_messaging_config(config, replacement_map, permission)
+        .map_err(anyhow::Error::msg)?;
+    event_messaging_import_errors(tx, tenant_id, elections, &parsed).await
+}
+
+async fn event_messaging_import_errors(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    elections: &[String],
+    parsed: &EventMessagingConfig,
+) -> Result<Vec<MessagingConfigError>> {
+    let accounts: Vec<AccountSummary> = list_messaging_accounts(tx, tenant_id)
+        .await?
+        .iter()
+        .map(account_summary)
+        .collect();
+    Ok(parsed
+        .validate(&tenant_id.to_string(), &accounts, elections)
+        .err()
+        .unwrap_or_default())
+}
+
 /// Check the typed settings of a signed V2 event before provisioning its
 /// realm or creating boards. The same tenant-scoped rules are checked again
 /// when storing the settings; keep references locked through that save.
@@ -281,12 +314,8 @@ pub async fn preflight_import_event_messaging_config(
     let parsed = imported_messaging_config(config, replacement_map, permission)
         .map_err(anyhow::Error::msg)?;
     lock_referenced_accounts(tx, tenant_id, &parsed).await?;
-    let accounts: Vec<AccountSummary> = list_messaging_accounts(tx, tenant_id)
-        .await?
-        .iter()
-        .map(account_summary)
-        .collect();
-    if let Err(errors) = parsed.validate(&tenant_id.to_string(), &accounts, elections) {
+    let errors = event_messaging_import_errors(tx, tenant_id, elections, &parsed).await?;
+    if !errors.is_empty() {
         return Err(anyhow!(
             "{NOT_IMPORTED}: {}",
             serde_json::to_string(&errors)?

@@ -12,12 +12,14 @@ use crate::postgres::tasks_execution::{get_task_by_id_with_transaction, get_task
 use crate::services::audit_log::AuditActor;
 use crate::services::browser_package_policy::{admit_with_policy, BrowserPolicy};
 use crate::services::database::get_hasura_pool;
-use crate::services::documents::get_document_as_temp_file;
+use crate::services::documents::read_configuration_package;
 use crate::services::import::configuration_package::tenant_setting;
 use crate::services::import::configuration_package_apply::{
-    plan_members, run, ApplicationRecord, ApplyMode, Outcome, ProgressStore,
+    plan_members, run, same_coverage, ApplicationRecord, ApplyMode, Outcome, ProgressStore,
 };
-use crate::services::import::configuration_package_sections::read_group_roles;
+use crate::services::import::configuration_package_demo_credentials::VerifiedDemoLoginAdmission;
+use crate::services::import::configuration_package_messaging::PackageMessaging;
+use crate::services::import::configuration_package_sections::{read_admin_rows, read_group_roles};
 use crate::services::import::configuration_package_target::{ApplyContext, PlatformTarget};
 use crate::services::managed_webauthn_roster::Binding;
 use crate::services::tasks_execution::update_with_annotations;
@@ -28,9 +30,14 @@ use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
+use sequent_core::election_config::demo_credentials::DEMO_LOGIN_VERIFIERS_MEMBER;
+use sequent_core::election_config::encrypted_delivery::{
+    is_encrypted_signed_delivery, MAX_SIGNED_DELIVERY_BYTES,
+};
 use sequent_core::election_config::manifest::read_zip;
 use sequent_core::election_config::package_contract::{Requirements, Section};
 use sequent_core::election_config::package_verify::Admission;
+use sequent_core::election_config::portable_messaging;
 use sequent_core::election_config::tenant_package::TrusteePublic;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
@@ -56,9 +63,16 @@ pub struct ApplyConfigurationPackageBody {
     /// What the operator previewed. Required for portal-managed Apply.
     #[serde(default)]
     pub preview_task_id: Option<String>,
+    /// Present for password-encrypted delivery; only these exact authenticated,
+    /// signed inner bytes may be previewed or applied.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub encrypted_payload_sha256: Option<String>,
     /// Server-stamped preview-specific digest of the verified operator.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub managed_preview_operator_binding: Option<String>,
+    /// Stamped by Harvest from the tenant administrator's authenticated rights.
+    #[serde(default)]
+    pub portable_messaging_authorized: bool,
     /// What the delivery must contain; a required section that is absent
     /// refuses the application.
     #[serde(default)]
@@ -172,7 +186,7 @@ fn confirms_managed_preview(
     row: &TasksExecution,
     tenant_id: &str,
     package_sha256: &str,
-    binding: &Binding,
+    binding: Option<&Binding>,
     operator_binding: &str,
     plan: &crate::services::import::configuration_package_apply::PackagePlan,
 ) -> bool {
@@ -193,11 +207,29 @@ fn confirms_managed_preview(
                 && record.package_sha256 == package_sha256
                 && record.mode == ApplyMode::Preview
                 && record.outcome == Outcome::Previewed
-                && record.managed_roster_binding.as_ref() == Some(binding)
+                && record.managed_roster_binding.as_ref() == binding
                 && record.managed_preview_operator_binding.as_deref() == Some(operator_binding)
                 && record.managed_requirements.as_ref() == Some(&plan.requirements)
-                && record.coverage == plan.coverage
+                && same_coverage(&record.coverage, &plan.coverage)
         })
+}
+
+fn valid_plan_digest(digest: &str) -> bool {
+    digest.len() == 64
+        && digest
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+fn messaging_preview_digest(preview: &TasksExecution) -> Option<String> {
+    preview
+        .annotations
+        .as_ref()?
+        .get(APPLICATION_KEY)?
+        .get("messagingPlanSha256")?
+        .as_str()
+        .filter(|sha| valid_plan_digest(sha))
+        .map(str::to_owned)
 }
 
 /// A run that stopped before it held the claim: the row may be a live run's.
@@ -214,6 +246,17 @@ impl std::error::Error for Unclaimed {}
 
 fn unclaimed(error: impl Into<anyhow::Error>) -> anyhow::Error {
     anyhow::Error::new(Unclaimed(error.into()))
+}
+
+/// A staged document ID is not a password-handling channel. Detect the actual
+/// transfer bytes (not a caller filename) before ZIP parsing for both modes.
+fn require_unwrapped_package(bytes: &[u8]) -> anyhow::Result<()> {
+    if is_encrypted_signed_delivery(bytes) {
+        return Err(anyhow!(
+            "This document is an encrypted configuration package (.ezip), not a signed ZIP. Use Upload configuration package, select the original .ezip, and enter its password there before Preview or Apply. An existing document ID cannot unlock it."
+        ));
+    }
+    Ok(())
 }
 
 async fn execute(
@@ -262,18 +305,43 @@ async fn execute(
     let document = get_document(&transaction, &body.tenant_id, None, &body.document_id)
         .await?
         .ok_or_else(|| anyhow!("document {} not found", body.document_id))?;
-    let file = get_document_as_temp_file(&body.tenant_id, &document).await?;
+    if body.encrypted_payload_sha256.is_some()
+        && document
+            .size
+            .is_some_and(|size| size > MAX_SIGNED_DELIVERY_BYTES as i64)
+    {
+        return Err(anyhow!("decrypted signed package exceeds the size limit"));
+    }
+    let (file, protected_stage) =
+        read_configuration_package(&transaction, &body.tenant_id, &document).await?;
+    if body.encrypted_payload_sha256.is_some()
+        && file.as_file().metadata()?.len() > MAX_SIGNED_DELIVERY_BYTES as u64
+    {
+        return Err(anyhow!("decrypted signed package exceeds the size limit"));
+    }
     let bytes = std::fs::read(file.path()).context("could not read the package")?;
+    require_unwrapped_package(&bytes)?;
     // Verified against the tenant's signing trust. Its freshness against the
     // tenant's imports is the target's to check, before each section.
     configuration_packages::lock_imports(&transaction, &body.tenant_id).await?;
+    let package_sha256 = format!("{:x}", Sha256::digest(&bytes));
+    if let Some(expected) = body.encrypted_payload_sha256.as_deref() {
+        if !package_sha256.eq_ignore_ascii_case(expected) {
+            return Err(anyhow!(
+                "configuration package bytes do not match the authenticated encrypted delivery"
+            ));
+        }
+    }
     let policy = BrowserPolicy::load_with_db(&transaction, &body.tenant_id).await;
     let setting = tenant_setting(&transaction, &body.tenant_id).await?;
     let lists = configuration_packages::revocation_lists(&transaction, &body.tenant_id).await?;
-    let (members, signed_package, verified) =
+    let (mut members, signed_package, verified) =
         // Revalidated against the tenant's current policy immediately
         // before any section applies: a policy changed since preview refuses.
         match admit_with_policy(&bytes, setting.as_ref(), &body.tenant_id, lists, chrono::Utc::now(), &policy) {
+            Ok(Admission::Unsigned) if body.encrypted_payload_sha256.is_some() => {
+                return Err(anyhow!("an encrypted configuration package must be signed"));
+            }
             Ok(Admission::Unsigned) => (
                 read_zip(&bytes, "package").map_err(|p| anyhow!("{p}"))?,
                 None,
@@ -300,18 +368,59 @@ async fn execute(
         crate::services::browser_package_policy::freshness(package, last.as_ref())
             .map_err(|problem| anyhow!("{problem}"))?;
     }
-    let package_sha256 = format!("{:x}", Sha256::digest(&bytes));
-    let plan = plan_members(&members, package_sha256.clone(), &body.requirements)?;
-    let operator_binding = policy.managed_binding().map(|_| {
-        body.managed_preview_operator_binding.as_deref().filter(|stamp| {
-            stamp.len() == 64 && stamp.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-        }).ok_or_else(|| anyhow!("sign in to this tenant's Admin Portal to preview or apply under the managed roster"))
-    }).transpose()?;
-    if let (ApplyMode::Apply, Some(binding), Some(operator_binding)) =
-        (body.mode, policy.managed_binding(), operator_binding)
+    if !protected_stage
+        && members
+            .iter()
+            .any(|member| member.name == DEMO_LOGIN_VERIFIERS_MEMBER)
     {
+        return Err(anyhow!(
+            "upload this delivery using protected configuration package staging"
+        ));
+    }
+    let demo_login = VerifiedDemoLoginAdmission::take_member(
+        &mut members,
+        verified.as_deref(),
+        &body.tenant_id,
+        &policy,
+        body.event_import.privileges,
+    )?
+    .map(std::sync::Arc::new);
+    let plan = plan_members(&members, package_sha256.clone(), &body.requirements)?;
+    if let Some(admitted) = &demo_login {
+        let roster = plan
+            .payloads
+            .get(&Section::AdminAccounts)
+            .and_then(|files| files.first())
+            .ok_or_else(|| {
+                anyhow!("signed demo verifiers require the signed administrator roster")
+            })?;
+        admitted.verify_roster(&read_admin_rows(&roster.bytes)?)?;
+    }
+    let portable_accounts = plan.payloads.get(&Section::MessagingAccounts).map(|files| {
+        if verified.as_ref().is_none_or(|package| {
+            package.manifest.content.ballot_design_digest_algorithm
+                != sequent_core::election_config::design::DesignDigestAlgorithm::V2
+        }) || !plan.payloads.contains_key(&Section::ElectionEvent) {
+            return Err(anyhow!("portable messaging accounts require a verified V2 package with an election event"));
+        }
+        if !body.portable_messaging_authorized {
+            return Err(anyhow!("previewing or provisioning package messaging accounts needs tenant messaging-account-read, messaging-account-write and messaging-config-write"));
+        }
+        let [file] = files.as_slice() else {
+            return Err(anyhow!("the signed package must carry exactly one portable messaging accounts member"));
+        };
+        portable_messaging::parse(&file.bytes).map_err(|_| anyhow!("invalid portable messaging accounts in the signed package"))
+    }).transpose()?;
+    let needs_operator = policy.managed_binding().is_some() || portable_accounts.is_some();
+    let operator_binding = needs_operator.then(|| {
+        body.managed_preview_operator_binding.as_deref().filter(|stamp| {
+            valid_plan_digest(stamp)
+        }).ok_or_else(|| anyhow!("sign in to this tenant's Admin Portal to preview or apply the signed delivery"))
+    }).transpose()?;
+    let mut confirmed_messaging = None;
+    if let (ApplyMode::Apply, Some(operator_binding)) = (body.mode, operator_binding) {
         let refuse = || {
-            anyhow!("confirm your successful preview of this package under the current receiver roster before applying")
+            anyhow!("confirm your successful preview of this package under the current receiver policy before applying")
         };
         let preview_id = body.preview_task_id.as_deref().ok_or_else(refuse)?;
         let preview = get_task_by_id_with_transaction(&transaction, &body.tenant_id, preview_id)
@@ -323,13 +432,26 @@ async fn execute(
             &preview,
             &canonical_tenant,
             &package_sha256,
-            binding,
+            policy.managed_binding(),
             operator_binding,
             &plan,
         ) {
             return Err(refuse());
         }
+        if portable_accounts.is_some() {
+            confirmed_messaging = Some(messaging_preview_digest(&preview).ok_or_else(refuse)?);
+        }
     }
+    let package_messaging = portable_accounts
+        .map(|definitions| {
+            Ok::<_, anyhow::Error>(std::sync::Arc::new(PackageMessaging::new(
+                sequent_core::services::uuid_validation::parse_uuid_v4(&body.tenant_id)?,
+                package_sha256.clone(),
+                definitions,
+                confirmed_messaging,
+            )))
+        })
+        .transpose()?;
     transaction.commit().await?;
     // The event importer atomically persists the authoritative chain anchor.
     // Without that section this application could mutate tenant state without
@@ -372,11 +494,14 @@ async fn execute(
             event_import: body.event_import.clone(),
             package_sha256: package_sha256.clone(),
             signed_package,
+            protected_document_id: protected_stage.then(|| body.document_id.clone()),
             managed_roster_binding: policy.managed_binding().cloned(),
             managed_preview_operator_binding: operator_binding.map(str::to_owned),
             package_groups,
             package_trustees,
             verified,
+            demo_login,
+            package_messaging,
         },
     };
     let prior = prior_record(&body.tenant_id, &package_sha256, &task_execution.id).await?;
@@ -451,6 +576,31 @@ mod tests {
     use sequent_core::election_config::package_contract::Coverage;
     use std::collections::BTreeMap;
 
+    #[test]
+    fn existing_document_id_rejects_encrypted_transfer_before_zip_for_preview_and_apply() {
+        use sequent_core::election_config::archive::{zip, Artifact};
+        use sequent_core::election_config::encrypted_delivery::{
+            decrypt_signed_delivery, encrypt_signed_delivery,
+        };
+        let inner = zip(&[Artifact {
+            name: "sample.txt".into(),
+            bytes: b"demo".to_vec(),
+        }])
+        .unwrap();
+        let wire = encrypt_signed_delivery(&inner, "synthetic test passphrase").unwrap();
+        let error = require_unwrapped_package(&wire).unwrap_err().to_string();
+        assert!(
+            error.contains("Upload configuration package")
+                && error.contains("existing document ID")
+        );
+        assert!(
+            !error.contains("central directory") && !error.contains("synthetic test passphrase")
+        );
+        let unlocked = decrypt_signed_delivery(&wire, "synthetic test passphrase").unwrap();
+        assert_eq!(unlocked, inner);
+        require_unwrapped_package(&unlocked).unwrap(); // normal admission performs the signature check
+    }
+
     fn row(id: &str, record: Option<&ApplicationRecord>) -> TasksExecution {
         serde_json::from_value(json!({
             "id": id, "tenant_id": "t", "name": "Apply", "task_type": "APPLY_CONFIGURATION_PACKAGE",
@@ -469,6 +619,7 @@ mod tests {
             managed_roster_binding: None,
             managed_preview_operator_binding: None,
             managed_requirements: None,
+            messaging_plan_sha256: None,
             mode: ApplyMode::Apply,
             coverage: Coverage {
                 members: vec![],
@@ -504,7 +655,12 @@ mod tests {
         });
         let old_row = row("old", Some(&preview));
         assert!(!confirms_managed_preview(
-            &old_row, "t", "p", &active, &operator, &plan
+            &old_row,
+            "t",
+            "p",
+            Some(&active),
+            &operator,
+            &plan
         ));
         preview.managed_roster_binding = Some(active.clone());
         let current_row = row("confirmed", Some(&preview));
@@ -512,7 +668,7 @@ mod tests {
             &current_row,
             "t",
             "p",
-            &active,
+            Some(&active),
             &"c".repeat(64),
             &plan
         ));
@@ -522,7 +678,7 @@ mod tests {
             &row("old-unstamped", Some(&unstamped)),
             "t",
             "p",
-            &active,
+            Some(&active),
             &operator,
             &plan
         ));
@@ -530,7 +686,7 @@ mod tests {
             &current_row,
             "t",
             "p",
-            &active,
+            Some(&active),
             &operator,
             &plan
         ));
@@ -539,7 +695,7 @@ mod tests {
             &current_row,
             "t",
             "p",
-            &active,
+            Some(&active),
             &operator,
             &plan
         ));
@@ -548,7 +704,7 @@ mod tests {
             &current_row,
             "other",
             "p",
-            &active,
+            Some(&active),
             &operator,
             &plan
         ));
@@ -556,7 +712,7 @@ mod tests {
             &current_row,
             "t",
             "other",
-            &active,
+            Some(&active),
             &operator,
             &plan
         ));
@@ -565,9 +721,80 @@ mod tests {
             &row("not-preview", Some(&preview)),
             "t",
             "p",
-            &active,
+            Some(&active),
             &operator,
             &plan
+        ));
+    }
+
+    #[test]
+    fn the_recipient_plan_must_be_in_the_server_preview_receipt() {
+        let mut preview = record(Outcome::Previewed);
+        preview.mode = ApplyMode::Preview;
+        let digest = "0a".repeat(32);
+        preview.messaging_plan_sha256 = Some(digest.clone());
+        assert_eq!(
+            messaging_preview_digest(&row("preview", Some(&preview))),
+            Some(digest)
+        );
+        for value in ["short".to_owned(), "z".repeat(64)] {
+            preview.messaging_plan_sha256 = Some(value);
+            assert_eq!(
+                messaging_preview_digest(&row("preview", Some(&preview))),
+                None
+            );
+        }
+        preview.messaging_plan_sha256 = None;
+        assert_eq!(
+            messaging_preview_digest(&row("legacy-preview", Some(&preview))),
+            None
+        );
+    }
+
+    #[test]
+    fn portable_nonmanaged_preview_is_still_bound_to_exact_operator_tenant_and_package() {
+        let mut preview = record(Outcome::Previewed);
+        preview.mode = ApplyMode::Preview;
+        let operator = "bc".repeat(32);
+        preview.managed_preview_operator_binding = Some(operator.clone());
+        preview.managed_requirements = Some(Requirements::default());
+        preview.messaging_plan_sha256 = Some("ad".repeat(32));
+        let plan = crate::services::import::configuration_package_apply::PackagePlan {
+            package_sha256: "p".into(),
+            requirements: Requirements::default(),
+            coverage: preview.coverage.clone(),
+            payloads: BTreeMap::new(),
+        };
+        assert!(confirms_managed_preview(
+            &row("preview", Some(&preview)),
+            "t",
+            "p",
+            None,
+            &operator,
+            &plan,
+        ));
+        for (tenant, digest, actor) in [
+            ("different", "p", operator.as_str()),
+            ("t", "other-package", operator.as_str()),
+            ("t", "p", "other-authorized-operator"),
+        ] {
+            assert!(!confirms_managed_preview(
+                &row("preview", Some(&preview)),
+                tenant,
+                digest,
+                None,
+                actor,
+                &plan,
+            ));
+        }
+        preview.outcome = Outcome::Refused;
+        assert!(!confirms_managed_preview(
+            &row("failed-preview", Some(&preview)),
+            "t",
+            "p",
+            None,
+            &operator,
+            &plan,
         ));
     }
 

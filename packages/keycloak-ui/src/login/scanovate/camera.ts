@@ -24,14 +24,29 @@ const STORAGE_KEY = "sequent.scanovate.documentCamera"
 
 type ChoiceStorage = Pick<Storage, "getItem" | "setItem">
 
-/** The camera last chosen on this device; the rear one until one is. */
-export function storedFacing(storage: Pick<Storage, "getItem"> | undefined): CameraFacing {
+/**
+ * The camera a realm starts the document scan with: its authenticator's
+ * document-camera setting as the page receives it. The rear one, which
+ * Scanovate's page opens by itself, unless the realm names the front one.
+ */
+export function startingFacing(configured: unknown): CameraFacing {
+    return configured === CameraFacing.Front ? CameraFacing.Front : CameraFacing.Rear
+}
+
+/**
+ * The camera last chosen on this device; until one is, the one the realm
+ * starts with. A choice made on the device wins: whoever set the tablet up
+ * saw which camera reads documents there.
+ */
+export function storedFacing(
+    storage: Pick<Storage, "getItem"> | undefined,
+    starting: CameraFacing = CameraFacing.Rear
+): CameraFacing {
     try {
-        return storage?.getItem(STORAGE_KEY) === CameraFacing.Front
-            ? CameraFacing.Front
-            : CameraFacing.Rear
+        const chosen = storage?.getItem(STORAGE_KEY)
+        return chosen === CameraFacing.Front || chosen === CameraFacing.Rear ? chosen : starting
     } catch {
-        return CameraFacing.Rear
+        return starting
     }
 }
 

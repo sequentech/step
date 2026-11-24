@@ -162,6 +162,7 @@ google-calendar3 = { version = "6.0.0", features = ["yup-oauth2"] }
 rustls = { version = "0.23.32", features = ["ring"] }
 
 [dev-dependencies]
+sequent-core = { path = "../sequent-core", features = ["election_config_xlsx"] }
 dhat = "0.3"
 messaging = { path = "../messaging", features = ["test-support"] }
 

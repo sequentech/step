@@ -31,8 +31,11 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before || inputs.base_ref }}
+  BASE_REF: ${{ github.event.before || inputs.base_ref }}
   HEAD_REF: ${{ github.sha }}
+  PR_NUMBER: ${{ github.event.number }}
+  PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+  PR_MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
 
 jobs:
   reporter-tests:
@@ -44,8 +47,13 @@ jobs:
         with:
           ref: ${{ env.HEAD_REF }}
           path: head
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
           persist-credentials: false
+      - name: Check out the base of the tested PR merge
+        if: github.event_name == 'pull_request'
+        run: bash head/scripts/coverage/checkout-pr-base.sh
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         with:
           ref: ${{ env.BASE_REF }}
           path: base
@@ -112,8 +120,13 @@ jobs:
         with:
           ref: ${{ env.HEAD_REF }}
           path: head
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
           persist-credentials: false
+      - name: Check out the base of the tested PR merge
+        if: github.event_name == 'pull_request'
+        run: bash head/scripts/coverage/checkout-pr-base.sh
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         with:
           ref: ${{ env.BASE_REF }}
           path: base
