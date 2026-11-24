@@ -8,6 +8,7 @@ use anyhow::{anyhow, Context, Result};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::secret::SecretString;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 
@@ -15,7 +16,7 @@ use tracing::{event, instrument, Level};
 async fn export_trustees_service(
     tenant_id: String,
     document_id: String,
-    password: String,
+    password: SecretString,
     task_execution: TasksExecution,
 ) -> Result<()> {
     provide_hasura_transaction(|hasura_transaction| {
@@ -28,7 +29,7 @@ async fn export_trustees_service(
                 hasura_transaction,
                 &tenant_id,
                 &document_id,
-                &password,
+                password.expose_secret(),
                 &task_execution,
             )
             .await
@@ -43,7 +44,7 @@ async fn export_trustees_service(
 pub async fn export_trustees_task(
     tenant_id: String,
     document_id: String,
-    password: String,
+    password: SecretString,
     task_execution: TasksExecution,
 ) -> TaskResult<()> {
     export_trustees_service(tenant_id, document_id, password, task_execution).await?;

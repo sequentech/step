@@ -13,6 +13,7 @@ pub mod number_format;
 pub mod participation;
 pub mod permissions;
 pub mod results;
+pub mod secret;
 #[cfg(feature = "default_features")]
 pub mod scheduled_event;
 pub mod tally_sheet_import;

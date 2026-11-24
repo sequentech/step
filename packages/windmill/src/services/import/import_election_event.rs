@@ -1354,9 +1354,15 @@ pub async fn get_document(
         .media_type
         .unwrap_or("application/ezip".to_string());
 
-    temp_file = decrypt_document(object.password.clone(), temp_file)
-        .await
-        .map_err(|err| anyhow!("error decrypting document {:?}", document.id))?;
+    temp_file = decrypt_document(
+        object
+            .password
+            .as_ref()
+            .map(|password| password.expose_secret().to_string()),
+        temp_file,
+    )
+    .await
+    .map_err(|err| anyhow!("error decrypting document {:?}", document.id))?;
 
     Ok((temp_file, document, document_type))
 }
