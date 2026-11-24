@@ -305,12 +305,15 @@ export const ToggleConfiguredDashboards: Story = {
         const canvas = within(canvasElement)
         const control = await canvas.findByRole("switch", {name: "Configurable dashboards"})
         await expect(control).not.toBeChecked()
-        await userEvent.click(control)
+        control.focus()
+        await userEvent.keyboard("[Space]")
         await expect(await canvas.findByRole("combobox", {name: "Dashboard"})).toBeVisible()
         await expect(control).toBeChecked()
-        await userEvent.click(control)
+        await expect(control).toHaveFocus()
+        await userEvent.keyboard("[Space]")
         await expect(await canvas.findByText(LEGACY)).toBeVisible()
         await expect(control).not.toBeChecked()
+        await expect(control).toHaveFocus()
         await userEvent.click(control)
         await expect(await canvas.findByRole("combobox", {name: "Dashboard"})).toHaveTextContent(
             "Monitoring overview"

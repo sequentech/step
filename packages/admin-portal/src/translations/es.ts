@@ -1337,6 +1337,8 @@ const spanishTranslation: TranslationType = {
             voterLoginURL: "URL de inicio de sesión de votantes",
             voterEnrollURL: "URL de inscripción de votantes",
             voterEnrollKioskURL: "Kiosk URL de inscripción de votantes",
+            showQrCode: "Mostrar código QR: {{link}}",
+            closeQrCode: "Cerrar",
             ballotBoxes: {
                 show: "Mostrar urnas",
                 loadError:

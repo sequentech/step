@@ -1194,6 +1194,8 @@ const catalanTranslation: TranslationType = {
             voterLoginURL: "URL d'inici de sessió dels votants",
             voterEnrollURL: "URL d'inscripció de votants",
             voterEnrollKioskURL: "Kiosk URL d'inscripció de votants",
+            showQrCode: "Mostra el codi QR: {{link}}",
+            closeQrCode: "Tanca",
             ballotBoxes: {
                 show: "Mostra les urnes",
                 loadError:

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
-import {expect, within} from "storybook/test"
+import {expect, userEvent, waitFor, within} from "storybook/test"
 import {initCore} from "@sequentech/ui-core"
 import {
     AdminStoryProvider,
@@ -99,5 +99,27 @@ export const KioskOnTheVotingPortal: Story = {
             name: "Voter Enroll Kiosk URL",
         })
         await expect(link).toHaveAttribute("href", `${portal}${eventPath}/login?kiosk`)
+    },
+}
+
+export const KioskQrCode: Story = {
+    args: {kiosk: true},
+    parameters: {widgets: ["VoterPortalLinkQrCode"]},
+    play: async ({canvasElement}) => {
+        const button = await within(canvasElement).findByRole("button", {
+            name: "Show QR code: Voter Enroll Kiosk URL",
+        })
+        await userEvent.click(button)
+        // The dialog renders in a portal outside the story's canvas.
+        const page = within(canvasElement.ownerDocument.body)
+        const dialog = await page.findByRole("dialog", {name: "Voter Enroll Kiosk URL"})
+        const url = `${STORY_SETTINGS.KIOSK_VOTING_PORTAL_URL}${eventPath}/login?kiosk`
+        // The dialog fades in.
+        await waitFor(() => expect(within(dialog).getByText(url)).toBeVisible())
+        const qr = dialog.querySelector("svg.qr-code-svg")
+        await expect(qr).not.toBeNull()
+        await expect(qr?.getBoundingClientRect().width).toBeGreaterThanOrEqual(200)
+        await userEvent.click(within(dialog).getByRole("button", {name: "Close"}))
+        await waitFor(() => expect(page.queryByRole("dialog")).toBeNull())
     },
 }
