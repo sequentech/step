@@ -18,16 +18,19 @@ use crate::tasks::generate_report::generate_report;
 use crate::types::error::Result;
 use crate::types::tasks::ETasksExecution;
 use anyhow::{anyhow, Context};
-use celery::error::TaskError;
+use celery::{error::TaskError, task::Signature, Celery};
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use chrono_tz::Tz;
 use croner::Cron;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::keycloak::{get_tenant_realm, KeycloakAdminClient};
 use sequent_core::time_zones::primary_time_zone;
+use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use std::collections::HashMap;
+use std::future::Future;
 use std::str::FromStr;
+use std::sync::Arc;
 use strum_macros::Display;
 use tracing::{error, event, info, instrument, warn, Level};
 use uuid::Uuid;
@@ -294,7 +297,7 @@ pub async fn scheduled_reports(rate_seconds: u64) -> Result<()> {
         .await
         .map_err(|e| anyhow!("Error getting hasura client: {e}"))?;
 
-    let hasura_transaction = hasura_db_client.transaction().await?;
+    let mut hasura_transaction = hasura_db_client.transaction().await?;
 
     // Fetch all active reports from the database
     let active_reports = get_all_active_reports(&hasura_transaction)
@@ -320,9 +323,58 @@ pub async fn scheduled_reports(rate_seconds: u64) -> Result<()> {
     );
 
     // Schedule the task for each report that needs to run
-    for report in to_be_run_now {
-        let Some(datetime) = get_next_scheduled_time(report, zone_of(&zones, report)) else {
-            continue;
+    let scheduling = CeleryReportScheduling {
+        sender: &celery_app,
+        zones: &zones,
+    };
+    schedule_due_reports(&mut hasura_transaction, &to_be_run_now, &scheduling).await?;
+
+    let _commit = hasura_transaction
+        .commit()
+        .await
+        .map_err(|err| anyhow!("Error committing hasura transaction: {err:?}"))?;
+
+    Ok(())
+}
+
+/// Schedules one due report inside `hasura_transaction`, as each tick of
+/// `scheduled_reports` does for every due report.
+pub trait ReportScheduling: Sync {
+    fn schedule(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+        report: &Report,
+    ) -> impl Future<Output = Result<()>> + Send;
+}
+
+/// Sends a due report's `generate_report` task, reading its cron in the
+/// primary zone of its event.
+struct CeleryReportScheduling<'a, S: GenerateReportSender> {
+    sender: &'a S,
+    zones: &'a HashMap<(String, String), Tz>,
+}
+
+/// Where the `generate_report` tasks of the due reports are sent.
+pub trait GenerateReportSender: Sync {
+    fn send(
+        &self,
+        task: Signature<generate_report>,
+    ) -> impl Future<Output = anyhow::Result<()>> + Send;
+}
+
+impl GenerateReportSender for Arc<Celery> {
+    async fn send(&self, task: Signature<generate_report>) -> anyhow::Result<()> {
+        self.send_task(task)
+            .await
+            .map(|_task| ())
+            .map_err(|err| anyhow!("Error sending generate_report task: {err:?}"))
+    }
+}
+
+impl<S: GenerateReportSender> ReportScheduling for CeleryReportScheduling<'_, S> {
+    async fn schedule(&self, hasura_transaction: &Transaction<'_>, report: &Report) -> Result<()> {
+        let Some(datetime) = get_next_scheduled_time(report, zone_of(self.zones, report)) else {
+            return Ok(());
         };
 
         let cron_config = report
@@ -340,7 +392,7 @@ pub async fn scheduled_reports(rate_seconds: u64) -> Result<()> {
                         "Skipping scheduled report id={id}: its user could not be checked: {err:?}",
                         id = report.id
                     );
-                    continue;
+                    return Ok(());
                 }
             };
         let authorization = authorize_scheduled_report(&report.report_type, executor.as_ref());
@@ -361,14 +413,14 @@ pub async fn scheduled_reports(rate_seconds: u64) -> Result<()> {
                     id = report.id
                 );
             }
-            continue;
+            return Ok(());
         }
 
         // A report the tally holds while its rule needs signatures is never
         // generated (nor mailed) on a schedule.
         if let Ok(report_type) = ReportType::from_str(&report.report_type) {
             if held_by_the_tally(
-                &hasura_transaction,
+                hasura_transaction,
                 Uuid::parse_str(&report.tenant_id).map_err(|e| anyhow!("{e}"))?,
                 Uuid::parse_str(&report.election_event_id).map_err(|e| anyhow!("{e}"))?,
                 &report_type,
@@ -379,19 +431,15 @@ pub async fn scheduled_reports(rate_seconds: u64) -> Result<()> {
                     report_id = %report.id,
                     "skipping a scheduled report the tally holds for its signatures"
                 );
-                update_report_last_document_time(
-                    &hasura_transaction,
-                    &report.tenant_id,
-                    &report.id,
-                )
-                .await?;
-                continue;
+                update_report_last_document_time(hasura_transaction, &report.tenant_id, &report.id)
+                    .await?;
+                return Ok(());
             }
         }
         // A report whose signing request waits keeps that request: its
         // next run is skipped instead of replacing what is being signed.
         if report_awaits_signatures(
-            &hasura_transaction,
+            hasura_transaction,
             Uuid::parse_str(&report.tenant_id).map_err(|e| anyhow!("{e}"))?,
             Uuid::parse_str(&report.election_event_id).map_err(|e| anyhow!("{e}"))?,
             Uuid::parse_str(&report.id).map_err(|e| anyhow!("{e}"))?,
@@ -399,59 +447,183 @@ pub async fn scheduled_reports(rate_seconds: u64) -> Result<()> {
         .await?
         {
             info!(report_id = %report.id, "skipping a report whose signing request waits");
-            update_report_last_document_time(&hasura_transaction, &report.tenant_id, &report.id)
+            update_report_last_document_time(hasura_transaction, &report.tenant_id, &report.id)
                 .await?;
-            continue;
+            return Ok(());
         }
 
-        let document_id = Uuid::new_v4().to_string();
+        let dispatch = SenderDispatch {
+            sender: self.sender,
+            hasura_transaction,
+        };
+        dispatch_report(report, datetime, &dispatch).await
+    }
+}
 
-        // Create a task execution record for this report generation
-        let task_execution = tasks_execution::post(
+/// The steps of scheduling a due report that write or send something.
+pub trait ReportDispatch: Sync {
+    /// Records the report's run as its last document time, in the report's
+    /// savepoint.
+    fn record_run(&self, report: &Report) -> impl Future<Output = anyhow::Result<()>> + Send;
+
+    /// Creates the task execution record of the report's generation.
+    fn create_execution(
+        &self,
+        report: &Report,
+        username: &str,
+    ) -> impl Future<Output = anyhow::Result<TasksExecution>> + Send;
+
+    /// Sends the report's `generate_report` task.
+    fn send(
+        &self,
+        task: Signature<generate_report>,
+    ) -> impl Future<Output = anyhow::Result<()>> + Send;
+
+    /// Marks a task execution record failed.
+    fn fail_execution(
+        &self,
+        task_execution: &TasksExecution,
+        message: &str,
+    ) -> impl Future<Output = anyhow::Result<()>> + Send;
+}
+
+/// Dispatches through the report's savepoint and a `GenerateReportSender`.
+struct SenderDispatch<'a, 't, S: GenerateReportSender> {
+    sender: &'a S,
+    hasura_transaction: &'a Transaction<'t>,
+}
+
+impl<S: GenerateReportSender> ReportDispatch for SenderDispatch<'_, '_, S> {
+    async fn record_run(&self, report: &Report) -> anyhow::Result<()> {
+        update_report_last_document_time(self.hasura_transaction, &report.tenant_id, &report.id)
+            .await
+    }
+
+    async fn create_execution(
+        &self,
+        report: &Report,
+        username: &str,
+    ) -> anyhow::Result<TasksExecution> {
+        tasks_execution::post(
             &report.tenant_id,
             Some(report.election_event_id.as_str()),
             ETasksExecution::GENERATE_REPORT,
-            &cron_config.executer_username,
+            username,
         )
         .await
-        .map_err(|err| anyhow!("Error creating task execution record: {err:?}"))?;
-
-        let _task = celery_app
-            .send_task(
-                generate_report::new(
-                    report.clone(),
-                    document_id.clone(),
-                    GenerateReportMode::REAL,
-                    cron_config.is_active,
-                    Some(task_execution),
-                    Some(cron_config.executer_username),
-                    None,
-                    false,
-                    None,
-                )
-                .with_eta(datetime.with_timezone(&Utc))
-                .with_expires_in(120),
-            )
-            .await
-            .map_err(|err| anyhow!("Error sending generate_report task: {err:?}"))?;
-
-        update_report_last_document_time(&hasura_transaction, &report.tenant_id, &report.id)
-            .await
-            .map_err(|err| anyhow!("Error updating report last document time: {err:?}"))?;
-
-        event!(
-            Level::INFO,
-            "Scheduled report task with id: {id}",
-            id = report.id
-        );
     }
 
-    let _commit = hasura_transaction
-        .commit()
-        .await
-        .map_err(|err| anyhow!("Error committing hasura transaction: {err:?}"))?;
+    async fn send(&self, task: Signature<generate_report>) -> anyhow::Result<()> {
+        self.sender.send(task).await
+    }
 
+    async fn fail_execution(
+        &self,
+        task_execution: &TasksExecution,
+        message: &str,
+    ) -> anyhow::Result<()> {
+        tasks_execution::update_fail(task_execution, message).await
+    }
+}
+
+/// Schedules a due report: records its run, creates its task execution record
+/// and sends its task, in that order. The run is recorded first so that a
+/// failed send rolls it back with the report's savepoint, and a sent task
+/// always has its run recorded. The execution record is written outside the
+/// savepoint, so it is marked failed when its task cannot be sent.
+async fn dispatch_report(
+    report: &Report,
+    datetime: DateTime<Utc>,
+    dispatch: &impl ReportDispatch,
+) -> Result<()> {
+    let cron_config = report
+        .cron_config
+        .clone()
+        .ok_or_else(|| anyhow!("Cron config not found"))?;
+
+    dispatch
+        .record_run(report)
+        .await
+        .context("Error updating report last document time")?;
+
+    let task_execution = dispatch
+        .create_execution(report, &cron_config.executer_username)
+        .await
+        .context("Error creating task execution record")?;
+
+    let document_id = Uuid::new_v4().to_string();
+    let task = generate_report::new(
+        report.clone(),
+        document_id,
+        GenerateReportMode::REAL,
+        cron_config.is_active,
+        Some(task_execution.clone()),
+        Some(cron_config.executer_username),
+        None,
+        false,
+        None,
+    )
+    .with_eta(datetime)
+    .with_expires_in(120);
+
+    if let Err(err) = dispatch.send(task).await {
+        if let Err(fail_err) = dispatch
+            .fail_execution(
+                &task_execution,
+                "The scheduled report task could not be sent",
+            )
+            .await
+        {
+            error!(
+                "Error marking task execution id={id} failed: {fail_err:?}",
+                id = task_execution.id
+            );
+        }
+        return Err(err.context("Error sending generate_report task").into());
+    }
+
+    event!(
+        Level::INFO,
+        "Scheduled report task with id: {id}",
+        id = report.id
+    );
     Ok(())
+}
+
+/// Schedules every due report in a savepoint of its own. A report that cannot
+/// be scheduled is logged and rolled back to its savepoint, so that the other
+/// due reports are still scheduled and keep their last document time. Returns
+/// how many failed.
+pub async fn schedule_due_reports(
+    hasura_transaction: &mut Transaction<'_>,
+    reports: &[&Report],
+    scheduling: &impl ReportScheduling,
+) -> Result<usize> {
+    let mut failed = 0;
+    for report in reports {
+        let savepoint = hasura_transaction
+            .transaction()
+            .await
+            .context("Error creating savepoint")?;
+        match scheduling.schedule(&savepoint, report).await {
+            Ok(()) => savepoint
+                .commit()
+                .await
+                .context("Error releasing savepoint")?,
+            Err(err) => {
+                failed += 1;
+                error!("Error scheduling report id={id}: {err:?}", id = report.id);
+                savepoint
+                    .rollback()
+                    .await
+                    .context("Error rolling back savepoint")?;
+            }
+        }
+    }
+    if failed > 0 {
+        warn!("{failed} scheduled reports failed this tick");
+    }
+    Ok(failed)
 }
 
 #[cfg(test)]
@@ -484,6 +656,98 @@ mod tests {
     }
 
     #[test]
+    fn a_report_without_a_cron_config_has_no_next_run() {
+        let report = Report {
+            cron_config: None,
+            ..daily_at_eight("2028-04-07T23:00:00.000")
+        };
+        assert_eq!(get_next_scheduled_time(&report, Tz::UTC), None);
+    }
+
+    #[test]
+    fn a_report_with_an_invalid_cron_expression_has_no_next_run() {
+        let mut report = daily_at_eight("2028-04-07T23:00:00.000");
+        report
+            .cron_config
+            .as_mut()
+            .expect("a cron config")
+            .cron_expression = "not a cron".to_string();
+        assert_eq!(get_next_scheduled_time(&report, Tz::UTC), None);
+    }
+
+    #[test]
+    fn a_report_with_an_unreadable_last_document_time_has_no_next_run() {
+        let report = daily_at_eight("yesterday");
+        assert_eq!(get_next_scheduled_time(&report, Tz::UTC), None);
+    }
+
+    #[test]
+    fn a_report_never_produced_runs_after_its_creation() {
+        let mut report = daily_at_eight("2028-04-07T23:00:00.000");
+        report
+            .cron_config
+            .as_mut()
+            .expect("a cron config")
+            .last_document_produced = None;
+        report.created_at = Utc.with_ymd_and_hms(2028, 4, 7, 23, 0, 0).unwrap();
+        assert_eq!(
+            get_next_scheduled_time(&report, Tz::UTC),
+            Some(Utc.with_ymd_and_hms(2028, 4, 8, 8, 0, 0).unwrap())
+        );
+    }
+
+    #[test]
+    fn the_last_document_time_is_read_in_utc() {
+        let expected = Utc.with_ymd_and_hms(2028, 4, 7, 23, 30, 15).unwrap();
+        assert_eq!(
+            parse_last_document_produced("2028-04-07T23:30:15.000"),
+            Some(expected)
+        );
+        assert_eq!(parse_last_document_produced("2028-04-07 23:30"), None);
+    }
+
+    #[test]
+    fn an_event_without_a_known_zone_is_scheduled_in_utc() {
+        let report = daily_at_eight("2028-04-07T23:00:00.000");
+        let mut zones = HashMap::new();
+        assert_eq!(zone_of(&zones, &report), Tz::UTC);
+        let manila: Tz = "Asia/Manila".parse().expect("a zone");
+        zones.insert(
+            (report.tenant_id.clone(), report.election_event_id.clone()),
+            manila,
+        );
+        assert_eq!(zone_of(&zones, &report), manila);
+    }
+
+    #[tokio::test]
+    async fn a_schedule_without_a_username_has_no_executor() {
+        let executor = get_scheduled_report_executor("tenant", "")
+            .await
+            .expect("an empty username needs no lookup");
+        assert_eq!(executor, None);
+    }
+
+    #[test]
+    fn the_authorization_of_a_schedule_reads_as_a_reason() {
+        assert_eq!(
+            ScheduledReportAuthorization::Authorized.to_string(),
+            "authorized"
+        );
+        assert_eq!(
+            ScheduledReportAuthorization::ExecutorNotFound.to_string(),
+            "the schedule's user does not exist in the tenant"
+        );
+        assert_eq!(
+            ScheduledReportAuthorization::ExecutorDisabled.to_string(),
+            "the schedule's user is disabled"
+        );
+        assert_eq!(
+            ScheduledReportAuthorization::MissingPermission.to_string(),
+            "the schedule's user is not allowed to read reports"
+        );
+    }
+
+    #[test]
     fn the_cron_runs_at_the_wall_time_of_the_primary_zone() {
         // 23:00 UTC on 7 April: the next 08:00 depends on the zone.
         let report = daily_at_eight("2028-04-07T23:00:00.000");
@@ -508,6 +772,280 @@ mod tests {
             );
             assert_eq!(local.format("%H:%M").to_string(), "08:00", "{primary}");
         }
+    }
+
+    /// Records each report it schedules in the `scheduled` table. A report
+    /// whose id starts with "failing" then runs a statement that fails, which
+    /// aborts the transaction until its savepoint is rolled back.
+    struct RecordingScheduling;
+
+    impl ReportScheduling for RecordingScheduling {
+        async fn schedule(
+            &self,
+            hasura_transaction: &Transaction<'_>,
+            report: &Report,
+        ) -> Result<()> {
+            hasura_transaction
+                .execute(
+                    "INSERT INTO scheduled (report_id) VALUES ($1)",
+                    &[&report.id],
+                )
+                .await
+                .expect("the transaction is usable for every report");
+            if report.id.starts_with("failing") {
+                let error = hasura_transaction
+                    .batch_execute("SELECT 1 / 0")
+                    .await
+                    .expect_err("a division by zero");
+                return Err(anyhow::Error::from(error).into());
+            }
+            if report.id.starts_with("aborting") {
+                hasura_transaction
+                    .batch_execute("SELECT 1 / 0")
+                    .await
+                    .expect_err("a division by zero");
+            }
+            Ok(())
+        }
+    }
+
+    async fn test_client() -> deadpool_postgres::Object {
+        let pool = crate::services::database::PgConfig::from_env()
+            .expect("HASURA_DB__* names the test PostgreSQL server")
+            .hasura_db
+            .create_pool(
+                Some(deadpool_postgres::Runtime::Tokio1),
+                tokio_postgres::NoTls,
+            )
+            .expect("a test database pool");
+        pool.get().await.expect("a test database connection")
+    }
+
+    /// Never asked to send: the reports it is given are skipped before that.
+    struct UnusedSender;
+
+    impl GenerateReportSender for UnusedSender {
+        async fn send(&self, _task: Signature<generate_report>) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn a_report_without_a_cron_config_is_not_sent() {
+        let mut client = test_client().await;
+        let transaction = client.transaction().await.expect("a transaction");
+        let report = Report {
+            cron_config: None,
+            ..daily_at_eight("2028-04-07T23:00:00.000")
+        };
+        let zones = HashMap::new();
+        let scheduling = CeleryReportScheduling {
+            sender: &UnusedSender,
+            zones: &zones,
+        };
+
+        scheduling
+            .schedule(&transaction, &report)
+            .await
+            .expect("a report without a next run is skipped");
+        transaction.rollback().await.expect("a rollback");
+    }
+
+    #[tokio::test]
+    async fn a_transaction_that_cannot_open_a_savepoint_fails_the_tick() {
+        let mut client = test_client().await;
+        let mut transaction = client.transaction().await.expect("a transaction");
+        transaction
+            .batch_execute("SELECT 1 / 0")
+            .await
+            .expect_err("a division by zero aborts the transaction");
+        let report = daily_at_eight("2028-04-07T23:00:00.000");
+
+        let error = schedule_due_reports(&mut transaction, &[&report], &RecordingScheduling)
+            .await
+            .expect_err("no savepoint can be created");
+
+        assert!(format!("{error:?}").contains("Error creating savepoint"));
+        transaction.rollback().await.expect("a rollback");
+    }
+
+    #[tokio::test]
+    async fn a_report_that_aborts_the_transaction_fails_the_tick() {
+        let mut client = test_client().await;
+        let mut transaction = client.transaction().await.expect("a transaction");
+        transaction
+            .batch_execute(
+                "CREATE TEMPORARY TABLE scheduled (n serial, report_id text) ON COMMIT DROP",
+            )
+            .await
+            .expect("a table for the scheduled reports");
+        let report = Report {
+            id: "aborting".to_string(),
+            ..daily_at_eight("2028-04-07T23:00:00.000")
+        };
+
+        let error = schedule_due_reports(&mut transaction, &[&report], &RecordingScheduling)
+            .await
+            .expect_err("the savepoint cannot be released");
+
+        assert!(format!("{error:?}").contains("Error releasing savepoint"));
+        transaction.rollback().await.expect("a rollback");
+    }
+
+    #[tokio::test]
+    async fn a_report_that_cannot_be_scheduled_is_rolled_back_alone() {
+        let mut client = test_client().await;
+        let mut transaction = client.transaction().await.expect("a transaction");
+        transaction
+            .batch_execute(
+                "CREATE TEMPORARY TABLE scheduled (n serial, report_id text) ON COMMIT DROP",
+            )
+            .await
+            .expect("a table for the scheduled reports");
+        let reports = ["first", "failing", "third", "failing-too", "last"].map(|id| Report {
+            id: id.to_string(),
+            ..daily_at_eight("2028-04-07T23:00:00.000")
+        });
+        let due: Vec<&Report> = reports.iter().collect();
+
+        let failed = schedule_due_reports(&mut transaction, &due, &RecordingScheduling)
+            .await
+            .expect("the failures do not stop the tick");
+
+        assert_eq!(failed, 2);
+        let scheduled: Vec<String> = transaction
+            .query("SELECT report_id FROM scheduled ORDER BY n", &[])
+            .await
+            .expect("the scheduled reports")
+            .iter()
+            .map(|row| row.get(0))
+            .collect();
+        assert_eq!(scheduled, ["first", "third", "last"]);
+        transaction.rollback().await.expect("a rollback");
+    }
+
+    /// Records each step it is asked for, and fails the steps it is told to.
+    #[derive(Default)]
+    struct FakeDispatch {
+        fail_record: bool,
+        fail_send: bool,
+        steps: std::sync::Mutex<Vec<String>>,
+    }
+
+    impl FakeDispatch {
+        fn step(&self, step: String) {
+            self.steps.lock().unwrap().push(step);
+        }
+
+        fn steps(&self) -> Vec<String> {
+            self.steps.lock().unwrap().clone()
+        }
+    }
+
+    impl ReportDispatch for FakeDispatch {
+        async fn record_run(&self, report: &Report) -> anyhow::Result<()> {
+            self.step(format!("record {}", report.id));
+            if self.fail_record {
+                return Err(anyhow!("the report row is locked"));
+            }
+            Ok(())
+        }
+
+        async fn create_execution(
+            &self,
+            report: &Report,
+            username: &str,
+        ) -> anyhow::Result<TasksExecution> {
+            self.step(format!("create {username}"));
+            Ok(TasksExecution {
+                id: "execution".to_string(),
+                tenant_id: report.tenant_id.clone(),
+                election_event_id: Some(report.election_event_id.clone()),
+                name: "Generate Report".to_string(),
+                task_type: ETasksExecution::GENERATE_REPORT.to_string(),
+                execution_status: "IN_PROGRESS".to_string(),
+                created_at: chrono::Local::now(),
+                start_at: None,
+                end_at: None,
+                annotations: None,
+                labels: None,
+                logs: None,
+                executed_by_user: username.to_string(),
+            })
+        }
+
+        async fn send(&self, _task: Signature<generate_report>) -> anyhow::Result<()> {
+            self.step("send".to_string());
+            if self.fail_send {
+                return Err(anyhow!("the broker is down"));
+            }
+            Ok(())
+        }
+
+        async fn fail_execution(
+            &self,
+            task_execution: &TasksExecution,
+            _message: &str,
+        ) -> anyhow::Result<()> {
+            self.step(format!("fail {}", task_execution.id));
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn a_due_report_has_its_run_recorded_before_its_task_is_sent() {
+        let dispatch = FakeDispatch::default();
+
+        dispatch_report(
+            &daily_at_eight("2028-04-07T23:00:00.000"),
+            Utc::now(),
+            &dispatch,
+        )
+        .await
+        .expect("the report is scheduled");
+
+        assert_eq!(dispatch.steps(), ["record report", "create admin", "send"]);
+    }
+
+    #[tokio::test]
+    async fn a_report_whose_run_cannot_be_recorded_is_not_sent() {
+        let dispatch = FakeDispatch {
+            fail_record: true,
+            ..FakeDispatch::default()
+        };
+
+        let error = dispatch_report(
+            &daily_at_eight("2028-04-07T23:00:00.000"),
+            Utc::now(),
+            &dispatch,
+        )
+        .await
+        .expect_err("the run cannot be recorded");
+
+        assert!(format!("{error:?}").contains("Error updating report last document time"));
+        assert_eq!(dispatch.steps(), ["record report"]);
+    }
+
+    #[tokio::test]
+    async fn a_report_whose_task_cannot_be_sent_has_its_execution_marked_failed() {
+        let dispatch = FakeDispatch {
+            fail_send: true,
+            ..FakeDispatch::default()
+        };
+
+        let error = dispatch_report(
+            &daily_at_eight("2028-04-07T23:00:00.000"),
+            Utc::now(),
+            &dispatch,
+        )
+        .await
+        .expect_err("the task cannot be sent");
+
+        assert!(format!("{error:?}").contains("Error sending generate_report task"));
+        assert_eq!(
+            dispatch.steps(),
+            ["record report", "create admin", "send", "fail execution"]
+        );
     }
 
     fn executor(enabled: bool, realm_roles: &[Permissions]) -> ScheduledReportExecutor {
