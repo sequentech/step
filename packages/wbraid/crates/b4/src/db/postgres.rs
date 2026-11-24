@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{bail, Context, Result};
-use std::str::FromStr;
 
 use super::common::{row_to_message, validate_board_name, Board};
 use crate::api_types::MessageBlob;
@@ -17,7 +16,7 @@ impl PostgresBackend {
         tracing::info!("Connecting to postgres database");
 
         let connect_options = {
-            let mut options = sqlx::postgres::PgConnectOptions::from_str(url)?;
+            let mut options = super::postgres_connect_options(url)?;
             if let Ok(val) = std::env::var("WBRAID_B4_PG_HOST") {
                 options = options.host(val.trim());
             }
