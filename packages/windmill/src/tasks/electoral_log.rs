@@ -18,10 +18,10 @@ use crate::services::electoral_log_deferral::{
     bind_to_rows, in_wait_order, log_round, put_back, scope_of, stop_waiting, waiting_events,
     waiting_ids, Deferral, DeferralBackoff, WaitReason, Waiting, WaitingEvent, BOUNDED_WAIT_ENV,
 };
-use crate::services::privacy_signin::SigninLogIdentity;
 use crate::services::monitoring::login_counter::{
     count_login_attempts_apart, login_attempt, LoginAttempt,
 };
+use crate::services::privacy_signin::SigninLogIdentity;
 use crate::services::tenant_log::{
     names_no_election_event, tenant_activity_message, TenantActivity,
 };
@@ -3114,7 +3114,11 @@ mod batch_build_tests {
         for entry in &pseudonymous[..4] {
             let record = String::from_utf8_lossy(&entry.message.message);
             for account in ["voter-a", "voter-b", "ov-dhaka", "typed-name", "gone"] {
-                assert!(!record.contains(account), "{}: {account}", entry.delivery_id);
+                assert!(
+                    !record.contains(account),
+                    "{}: {account}",
+                    entry.delivery_id
+                );
             }
         }
         // A voter-ID event names the account, as before.
