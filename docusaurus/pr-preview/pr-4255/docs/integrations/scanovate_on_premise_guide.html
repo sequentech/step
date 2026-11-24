@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Scanovate On-Premise Services | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/integrations/scanovate_on_premise_guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Scanovate On-Premise Services | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4255/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/integrations/scanovate_on_premise_guide"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/integrations/scanovate_on_premise_guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/integrations/scanovate_on_premise_guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Scanovate On-Premise Services","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/integrations/scanovate_on_premise_guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4255/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4255/assets/js/runtime~main.83997868.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4255/assets/js/runtime~main.b74e0e3e.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4255/assets/js/main.bd140909.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -407,6 +407,42 @@ preview on desktop whatever
 preview as the camera sees it made it look flipped on laptops
 (v11.0.0-rc.15). <code>scripts/dev/test_scanovate_ocr_page.py</code> checks that the dev
 container doesn&#x27;t replace it.</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="which-camera-scans-the-document">Which camera scans the document<a href="#which-camera-scans-the-document" class="hash-link" aria-label="Direct link to Which camera scans the document" title="Direct link to Which camera scans the document" translate="no">​</a></h4>
+<p>On a phone or tablet Scanovate&#x27;s document page opens the <strong>rear</strong> camera: it
+looks for a rear camera with autofocus and requires that side, and no setting
+of its configuration chooses another (<code>kiosk_mode</code> only turns the requirement
+into a preference). That suits a voter holding their own phone over a
+passport, and not a tablet on a stand that faces the voter.</p>
+<p>The capture step therefore offers the other camera itself. When the device
+lists more than one camera, the document step shows <strong>Use the front camera</strong>
+over a corner of Scanovate&#x27;s page (<em>Use the rear camera</em> once the front one is
+chosen). The choice opens Scanovate&#x27;s page again, since that page opens its
+camera once, and is kept in the browser&#x27;s storage for the site
+(<code>sequent.scanovate.documentCamera</code>), so a tablet set to its front camera
+stays so for every voter after that. The face check and the photo holding the
+document use the front camera in any case.</p>
+<p>How it is done, and its limits:</p>
+<ul>
+<li class="">Scanovate&#x27;s page is embedded from the login page&#x27;s own origin
+(<code>liveness-url</code> under the same host as Keycloak), which lets the login page
+reach its window. It changes what that page asks the browser for when it
+opens the camera (<code>keycloak-ui</code>, <code>login/scanovate/camera.ts</code>): a request
+that names a side gets the front one, as a preference, and no longer
+requires the rear camera the page picked. Nothing of Scanovate&#x27;s page is
+copied or changed. <strong>With Scanovate&#x27;s pages on another origin the browser
+allows none of it, and the choice isn&#x27;t offered.</strong></li>
+<li class="">It follows what <code>version_3.9.0_bec7df8_295</code> asks the browser for. A later
+version of the page that opens its camera differently would leave the
+choice without effect (the rear camera opens), not break the scan. Check it
+on a tablet with each new OCR image.</li>
+<li class="">Each change of camera starts a new Scanovate session with the same token,
+of which a token allows a few.</li>
+<li class="">The preview is not mirrored on a phone or tablet (<code>mobile</code> in
+<code>sequent_video.json</code>), with either camera.</li>
+<li class="">A front camera usually has a lower resolution and a fixed focus. Scanovate
+advises a rear camera for documents: expect more failed scans, and don&#x27;t
+relax the document checks to make up for it.</li>
+</ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="document-liveness">Document Liveness<a href="#document-liveness" class="hash-link" aria-label="Direct link to Document Liveness" title="Direct link to Document Liveness" translate="no">​</a></h3>
 <p>Environment variables, as in Scanovate&#x27;s onboarding guide:</p>
 <table><thead><tr><th>Variable</th><th>Description</th></tr></thead><tbody><tr><td><code>IDLIVEDOC_SERVER_AVAILABLE_PIPELINES</code></td><td><code>default-sr,default-pc,default-ps,default-dm</code>. The pipelines it loads: each pipeline in the authenticator&#x27;s <code>document-liveness-pipelines</code> must be one of them, or the service answers <code>500</code> (<em>unsupported pipeline</em>). Each one loaded takes memory: 1.9 GB idle with <code>default-sr</code> alone, 6.6 GB with all four.</td></tr><tr><td><code>HASP_RTE_STARTUP_TIMEOUT</code></td><td><code>10</code>: seconds to wait for the licence manager the image starts.</td></tr><tr><td><code>SERVER_ALLOW_CORS</code></td><td><code>true</code>.</td></tr></tbody></table>
