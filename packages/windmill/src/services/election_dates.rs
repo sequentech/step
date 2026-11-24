@@ -482,22 +482,23 @@ pub async fn save_schedule(
 
     match election_id {
         None if event_processor.is_lockdown() => {
-            let rows = find_scheduled_event_by_election_event_id_and_event_processor(
-                hasura_transaction,
-                tenant_id,
-                election_event_id,
-                &event_processor.to_string(),
-            )
-            .await?;
-            let mut pending = rows.iter().filter(|row| row.stopped_at.is_none());
-            let current = pending.next();
-            if pending.next().is_some() || current.is_some_and(|row| row.lockdown_time().is_none())
-            {
-                return Err(invalid(
-                    "Cannot change an ambiguous or invalid lockdown schedule.",
-                ));
-            }
             if let Some(cron) = cron_config {
+                let rows = find_scheduled_event_by_election_event_id_and_event_processor(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    &event_processor.to_string(),
+                )
+                .await?;
+                let mut pending = rows.iter().filter(|row| row.stopped_at.is_none());
+                let current = pending.next();
+                if pending.next().is_some()
+                    || current.is_some_and(|row| row.lockdown_time().is_none())
+                {
+                    return Err(invalid(
+                        "Cannot change an ambiguous or invalid lockdown schedule.",
+                    ));
+                }
                 if (locked || (current.is_none() && !rows.is_empty()))
                     && !scheduled_date
                         .as_deref()
@@ -531,10 +532,19 @@ pub async fn save_schedule(
                     )
                     .await?;
                 }
-            } else if let Some(row) = current {
-                archive_scheduled_event(hasura_transaction, tenant_id, &row.id).await?;
-            } else if locked || !rows.is_empty() {
-                return Err(invalid("There is no pending lockdown schedule to cancel."));
+            } else {
+                // Cancellation cannot change lockdown state. Disarm all matching pending
+                // occurrences, even legacy rows we cannot safely run or deserialize.
+                let archived = archive_pending_lockdown_schedules(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    event_processor,
+                )
+                .await?;
+                if archived == 0 {
+                    return Err(invalid("There is no pending lockdown schedule to cancel."));
+                }
             }
         }
         Some(id) => {

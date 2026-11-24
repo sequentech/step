@@ -268,6 +268,31 @@ pub async fn archive_scheduled_event(
     Ok(())
 }
 
+/// Cancels pending lockdown rows without parsing their legacy payload or clock data.
+/// The caller has already authorized the event-wide action and locked the parent.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn archive_pending_lockdown_schedules(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    processor: &EventProcessors,
+) -> Result<u64> {
+    anyhow::ensure!(processor.is_lockdown(), "expected a lockdown processor");
+    Ok(hasura_transaction
+        .execute(
+            "UPDATE sequent_backend.scheduled_event
+         SET stopped_at = NOW(), archived_at = NOW()
+         WHERE tenant_id = $1 AND election_event_id = $2 AND event_processor = $3
+           AND stopped_at IS NULL AND archived_at IS NULL",
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &processor.to_string(),
+            ],
+        )
+        .await?)
+}
+
 /// Replaces the cron config (and the channels, when given) of an active
 /// scheduled event, or re-arms a stopped one for a future instant. Returns
 /// 0 when archived, missing, or stopped without a future instant.

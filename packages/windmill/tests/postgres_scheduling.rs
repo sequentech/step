@@ -271,22 +271,43 @@ async fn active_lockdown_end_can_be_replaced_cancelled_and_run_once_with_audit()
     )
     .await
     .unwrap();
-    let duplicate = schedule(&tx, e, None, END_LOCKDOWN_PERIOD, json!({}), due).await;
-    for input in [&replacement, &ScheduleInput::default()] {
-        assert!(save_end(&tx, e, input)
-            .await
-            .unwrap_err()
-            .is::<InvalidSchedule>());
-    }
+    let invalid_end = schedule(
+        &tx,
+        e,
+        Some(post),
+        END_LOCKDOWN_PERIOD,
+        json!({"election_id": post}),
+        json!({"scheduled_date": "not-an-instant"}),
+    )
+    .await;
+    assert!(save_end(&tx, e, &replacement)
+        .await
+        .unwrap_err()
+        .is::<InvalidSchedule>());
     assert_eq!(tx.query(pending_end, &[&e.event]).await.unwrap().len(), 2);
     assert!(fire(&tx, e.t(), e.e(), last.to_string()).await.is_err());
     assert_eq!(
         event_before["presentation"],
         row(&tx, "election_event", e.event).await["presentation"]
     );
+    // The same authorized cancellation disarms both invalid and valid pending ends
+    // without requiring the operator to modify the database.
+    save_end(&tx, e, &ScheduleInput::default()).await.unwrap();
+    assert!(tx.query(pending_end, &[&e.event]).await.unwrap().is_empty());
+    for id in [last, invalid_end] {
+        assert!(!row(&tx, "scheduled_event", id).await["archived_at"].is_null());
+        assert!(fire(&tx, e.t(), e.e(), id.to_string()).await.is_err());
+    }
+    assert_eq!(history, row(&tx, "scheduled_event", old_end).await);
+    assert_eq!(
+        event_before["presentation"],
+        row(&tx, "election_event", e.event).await["presentation"]
+    );
+    save_end(&tx, e, &replacement).await.unwrap();
+    let last: Uuid = tx.query_one(pending_end, &[&e.event]).await.unwrap().get(0);
     tx.execute(
-        "DELETE FROM sequent_backend.scheduled_event WHERE id=$1",
-        &[&duplicate],
+        "UPDATE sequent_backend.scheduled_event SET cron_config=$2 WHERE id=$1",
+        &[&last, &json!({"scheduled_date":"2000-01-01T00:00:00Z"})],
     )
     .await
     .unwrap();

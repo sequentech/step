@@ -109,15 +109,15 @@ export const LockdownBanner: React.FC<{event: Sequent_Backend_Election_Event}> =
     const ambiguous =
         (total ?? ends?.length ?? 0) > 1 || (!!row && (!end || Number.isNaN(end.getTime())))
     const prefix = "electionEventScreen.field.lockdownState"
-    const canScheduleEnd =
+    const canManageEnd =
         scheduleLoaded &&
-        !ambiguous &&
         !event.is_archived &&
         !event.elections?.some(
             (post) =>
                 post.permission_label && !auth.permissionLabels.includes(post.permission_label)
         ) &&
         auth.isAuthorized(true, event.tenant_id, IPermissions.SCHEDULED_EVENT_WRITE)
+    const canScheduleEnd = canManageEnd && !ambiguous
 
     const cancelEnd = async () => {
         try {
@@ -161,16 +161,14 @@ export const LockdownBanner: React.FC<{event: Sequent_Backend_Election_Event}> =
                 </>
             )}
             {canScheduleEnd && (
-                <>
-                    <Button size="small" disabled={cancelling} onClick={() => setEditingEnd(true)}>
-                        {t(end ? `${prefix}.replaceEnd` : `${prefix}.scheduleEnd`)}
-                    </Button>
-                    {end && (
-                        <Button size="small" disabled={cancelling} onClick={cancelEnd}>
-                            {t(`${prefix}.cancelEnd`)}
-                        </Button>
-                    )}
-                </>
+                <Button size="small" disabled={cancelling} onClick={() => setEditingEnd(true)}>
+                    {t(end ? `${prefix}.replaceEnd` : `${prefix}.scheduleEnd`)}
+                </Button>
+            )}
+            {canManageEnd && (ambiguous || end) && (
+                <Button size="small" disabled={cancelling} onClick={cancelEnd}>
+                    {t(ambiguous ? `${prefix}.cancelInvalidEnds` : `${prefix}.cancelEnd`)}
+                </Button>
             )}
             {canScheduleEnd && editingEnd && (
                 <Drawer

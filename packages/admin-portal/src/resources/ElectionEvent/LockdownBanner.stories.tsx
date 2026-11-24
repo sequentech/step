@@ -19,7 +19,7 @@ import {LockdownBanner} from "./LockdownBanner"
 import {readsOf, recordsOrPending} from "./__stories__/ElectionEventFixture"
 
 interface Scenario {
-    timing: "pending" | "scheduled" | "unscheduled"
+    timing: "pending" | "scheduled" | "invalid" | "unscheduled"
     roles: string[]
 }
 
@@ -73,7 +73,7 @@ const meta = {
                           }),
                       })),
                       sequent_backend_scheduled_event:
-                          args.timing === "scheduled"
+                          args.timing === "scheduled" || args.timing === "invalid"
                               ? [
                                     {
                                         id: "end-lockdown",
@@ -82,7 +82,12 @@ const meta = {
                                         event_processor: "END_LOCKDOWN_PERIOD",
                                         archived_at: null,
                                         stopped_at: null,
-                                        cron_config: {scheduled_date: "2028-05-08T00:00:00Z"},
+                                        cron_config: {
+                                            scheduled_date:
+                                                args.timing === "invalid"
+                                                    ? "not-an-instant"
+                                                    : "2028-05-08T00:00:00Z",
+                                        },
                                     },
                                 ]
                               : [],
@@ -113,6 +118,19 @@ export const ScheduledEnd: Story = {
         expect(banner).toHaveTextContent("May 08, 2028, 08:00")
         expect(banner).toHaveTextContent("PhST")
         expect(banner).toBeVisible()
+    },
+}
+
+export const InvalidPendingEnd: Story = {
+    args: {timing: "invalid"},
+    play: async ({canvasElement}) => {
+        const banner = within(canvasElement).getByRole("status", {name: "Lockdown Status"})
+        await waitFor(() => expect(banner).toHaveTextContent("invalid or ambiguous"))
+        expect(
+            within(banner).getByRole("button", {name: "Cancel all pending lockdown ends"})
+        ).toBeVisible()
+        expect(within(banner).queryByRole("button", {name: "Schedule end of lockdown"})).toBeNull()
+        expect(within(banner).queryByRole("button", {name: "Replace scheduled end"})).toBeNull()
     },
 }
 

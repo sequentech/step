@@ -1802,6 +1802,7 @@ const englishTranslation = {
                     replaceEnd: "Replace scheduled end",
                     cancelEnd: "Cancel scheduled end",
                     ambiguousEnd: "The pending end of lockdown is invalid or ambiguous.",
+                    cancelInvalidEnds: "Cancel all pending lockdown ends",
                     banner: "This election event is in lockdown.",
                     policyLabel: "Lockdown Status",
                     helperText:
