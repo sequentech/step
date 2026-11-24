@@ -10,6 +10,7 @@ use cryptography::cryptosystem::{elgamal, naoryung};
 use cryptography::groups::Ristretto255Group;
 use cryptography::utils::serialization::{Deserializable, Serializable};
 use cryptography::Canonical;
+use sha2::{Digest, Sha256};
 use wbraid::trustee::ballot_encryption_context;
 
 /// A single ciphertext carries the platform's 30-byte ballot codec payload.
@@ -44,6 +45,13 @@ impl<C: Context> BallotCiphertext<C> {
             .decode(encoded)
             .context("ballot ciphertext is not base64")?;
         Self::deser(&bytes).context("ballot ciphertext cannot be deserialized")
+    }
+
+    /// SHA-256 of the ciphertext's randomness commitment `u_b = g^r`. Each
+    /// encryption draws fresh randomness, so two entries share a fingerprint only
+    /// when one carries the other's ciphertext, whatever contests they name.
+    pub fn fingerprint(&self) -> [u8; 32] {
+        Sha256::digest(self.ciphertext.u_b.ser()).into()
     }
 
     /// Consume the entry for publication in a wbraid Ballots message.
@@ -111,4 +119,27 @@ pub fn verify_opening(
         "audit opening does not match the encrypted ballot"
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn entry(contest_ids: &[&str]) -> BallotCiphertext {
+        let joint_key = RistrettoCtx::random_element();
+        let (ciphertext, _) = encrypt_payload(7, &joint_key, &[1; 30]).expect("encrypts");
+        BallotCiphertext::new(
+            contest_ids.iter().map(|id| id.to_string()).collect(),
+            ciphertext,
+        )
+    }
+
+    #[test]
+    fn a_copied_ciphertext_keeps_its_fingerprint_under_any_contest() {
+        let original = entry(&["contest"]);
+        let copy = BallotCiphertext::new(vec!["other".to_string()], original.ciphertext.clone());
+
+        assert_eq!(copy.fingerprint(), original.fingerprint());
+        assert_ne!(entry(&["contest"]).fingerprint(), original.fingerprint());
+    }
 }

@@ -27,6 +27,8 @@ use electoral_log::ports::ElectoralLogStore;
 use electoral_log::{ElectoralLogMessage, LogEntry, StoredRecord};
 use std::time::Duration;
 use uuid::Uuid;
+use voting_crypto::ballot::{encrypt_payload, BallotCiphertext};
+use voting_crypto::{Context as _, RistrettoCtx};
 
 /// Applying the schema takes locks that deadlock with the appends of tests running
 /// at the same time, so each test binary applies it once.
@@ -1930,5 +1932,168 @@ async fn first_valid_votes_are_read_again_while_a_vote_may_be_in_progress() -> R
     let after = store.first_valid_votes(&event, settled.next_seq).await?;
     assert!(after.votes.is_empty());
     assert_eq!(after.next_seq, later);
+    drop_ballot_box(&store, &event).await
+}
+
+/// A freshly encrypted ciphertext answering `contest_id`.
+fn ciphertext(contest_id: &str) -> BallotCiphertext {
+    let joint_key = RistrettoCtx::random_element();
+    let (ciphertext, _) = encrypt_payload(7, &joint_key, &[1; 30]).expect("encrypts");
+    BallotCiphertext::new(vec![contest_id.to_string()], ciphertext)
+}
+
+/// `original`'s ciphertext answering another contest, as a voter copying it would.
+fn copy_of(original: &BallotCiphertext) -> BallotCiphertext {
+    BallotCiphertext::new(
+        vec!["other contest".to_string()],
+        original.ciphertext.clone(),
+    )
+}
+
+/// A ballot's content with these ciphertexts, one per contest.
+fn content(entries: &[&BallotCiphertext]) -> &'static str {
+    let contests: Vec<String> = entries.iter().map(|entry| entry.encode()).collect();
+    Box::leak(
+        serde_json::json!({ "contests": contests })
+            .to_string()
+            .into_boxed_str(),
+    )
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn a_ciphertext_belongs_to_the_voter_who_cast_it_first() -> Result<()> {
+    let store = store().await?;
+    let (event, election, area, _) = ids();
+    let (other_event, ..) = ids();
+    store.create_ballot_box(&event).await?;
+    store.create_ballot_box(&other_event).await?;
+    let original = ciphertext("contest");
+    let cast = content(&[&original]);
+
+    let first = Vote::new(&event, &election, &area, "voter-a", 0).with_content(cast);
+    first.accept(&store).await?;
+
+    // Another voter's ballot carrying it, under any contest, is refused and
+    // counts nothing for that voter.
+    let copied = content(&[&ciphertext("contest"), &copy_of(&original)]);
+    let copy = Vote::new(&event, &election, &area, "voter-b", 0).with_content(copied);
+    assert_eq!(
+        store.accept_ballot(&copy.request()).await?,
+        AcceptOutcome::CiphertextAlreadyCast
+    );
+    assert!(store
+        .voter_state(&event, &election, "voter-b")
+        .await?
+        .is_none());
+
+    // Its voter can cast it again, and the other voter a ballot of their own.
+    Vote::new(&event, &election, &area, "voter-a", 0)
+        .with_content(cast)
+        .accept(&store)
+        .await?;
+    Vote::new(&event, &election, &area, "voter-b", 0)
+        .with_content(content(&[&ciphertext("contest")]))
+        .accept(&store)
+        .await?;
+    // Another election event does not share ciphertexts.
+    Vote::new(&other_event, &election, &area, "voter-b", 0)
+        .with_content(cast)
+        .accept(&store)
+        .await?;
+
+    drop_ballot_box(&store, &other_event).await?;
+    drop_ballot_box(&store, &event).await
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn concurrent_casts_of_one_ciphertext_accept_one_voter() -> Result<()> {
+    let store = store().await?;
+    let (event, election, area, _) = ids();
+    store.create_ballot_box(&event).await?;
+    let cast = content(&[&ciphertext("contest")]);
+    let mut tasks = Vec::new();
+    for voter in 0..16 {
+        let store = store.clone();
+        let vote =
+            Vote::new(&event, &election, &area, &format!("voter-{voter}"), 0).with_content(cast);
+        tasks.push(tokio::spawn(async move {
+            store.accept_ballot(&vote.request()).await
+        }));
+    }
+    let mut outcomes = Vec::new();
+    for task in tasks {
+        outcomes.push(task.await??);
+    }
+    assert_eq!(
+        outcomes
+            .iter()
+            .filter(|outcome| matches!(outcome, AcceptOutcome::Accepted { .. }))
+            .count(),
+        1
+    );
+    assert!(outcomes.iter().all(|outcome| matches!(
+        outcome,
+        AcceptOutcome::Accepted { .. } | AcceptOutcome::CiphertextAlreadyCast
+    )));
+    assert_eq!(store.pending_count(&event).await?, 1);
+    drop_ballot_box(&store, &event).await
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn a_received_ciphertext_belongs_to_its_voter_before_it_is_cast() -> Result<()> {
+    let store = store().await?;
+    let (event, election, area, _) = ids();
+    store.create_ballot_box(&event).await?;
+    let original = ciphertext("contest");
+    let received_content = content(&[&original]);
+    let received = Received::new(&event, &election, &area, "voter-a");
+    let request = ReceiveBallot {
+        content: received_content,
+        ..received.request()
+    };
+    let ballot_id = short_ballot_id();
+    let ReceiveOutcome::Received(_) = store
+        .receive_ballot(&request, received_at(), |_| Ok(receipt(&ballot_id)))
+        .await?
+    else {
+        anyhow::bail!("not received");
+    };
+
+    // Another voter can neither receive nor cast it while it waits to be cast.
+    let copied = content(&[&copy_of(&original)]);
+    let other = Received::new(&event, &election, &area, "voter-b");
+    let other_request = ReceiveBallot {
+        content: copied,
+        ..other.request()
+    };
+    assert_eq!(
+        store
+            .receive_ballot(&other_request, received_at(), |_| {
+                Ok(receipt(&short_ballot_id()))
+            })
+            .await?,
+        ReceiveOutcome::CiphertextAlreadyCast
+    );
+    assert!(store
+        .received_ballot(&event, &election, "voter-b", &other.hash)
+        .await?
+        .is_none());
+    let copy = Vote::new(&event, &election, &area, "voter-b", 0).with_content(copied);
+    assert_eq!(
+        store.accept_ballot(&copy.request()).await?,
+        AcceptOutcome::CiphertextAlreadyCast
+    );
+
+    // Its own voter casts it.
+    let vote = received.vote(1).with_content(received_content);
+    assert!(matches!(
+        store
+            .accept_received_ballot(&vote.request(), &cast(&ballot_id))
+            .await?,
+        AcceptOutcome::Accepted { .. }
+    ));
     drop_ballot_box(&store, &event).await
 }

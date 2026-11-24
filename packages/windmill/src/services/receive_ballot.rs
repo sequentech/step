@@ -563,6 +563,7 @@ pub async fn try_receive_ballot_with_network(
         ReceiveOutcome::Received(stored) | ReceiveOutcome::AlreadyReceived(stored) => {
             Ok(stored_receipt(&tenant_uuid, stored))
         }
+        ReceiveOutcome::CiphertextAlreadyCast => Err(CastVoteError::CiphertextAlreadyCast),
         ReceiveOutcome::NoFreeBallotId => Err(CastVoteError::InsertFailed(
             "No free Ballot ID for the received ballot".to_string(),
         )),
