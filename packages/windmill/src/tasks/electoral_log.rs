@@ -1659,6 +1659,10 @@ async fn build_event<L: BatchLookups + Send>(
             // entries name whom `SigninLogIdentity` says, in the event's log
             // or, without a protocol-manager key, in the tenant's.
             let identity = signin_identity(lookups, cache, input).await?;
+            // A message's text could name the voter next to their pseudonym:
+            // a pseudonymous event records that a message was sent, not what.
+            let pseudonymous =
+                cache.ballot_identities.get(&key) == Some(&BallotIdentity::Pseudonym);
             if cache.signers.get(&key).is_some_and(Option::is_none) {
                 let reason = format!(
                     "Election event {} has no protocol-manager key",
@@ -1682,7 +1686,7 @@ async fn build_event<L: BatchLookups + Send>(
             if let LogEventBody::Communications(ref template_body) = input.body {
                 let send_template_msg = electoral_log::with_timestamp(at, || {
                     signer.build_send_template_message(
-                        Some(template_body.clone()),
+                        Some(template_body.clone()).filter(|_| !pseudonymous),
                         input.election_event_id.clone(),
                         logged_user_id.clone(),
                         logged_username.clone(),
@@ -3084,6 +3088,9 @@ mod batch_build_tests {
         let mut code_sent = sign_in("p2", PSEUDONYM_EVENT, Some("voter-a"), "ov-dhaka-05");
         code_sent.message_type = LogMessageType::KeycloakEvent("CODE_TO_TOKEN".into());
         code_sent.body = LogEventBody::Communications("Your code is 123456".into());
+        let mut voter_id_code_sent = sign_in("v2", EVENT, Some("voter-a"), "ov-dhaka-05");
+        voter_id_code_sent.message_type = LogMessageType::KeycloakEvent("CODE_TO_TOKEN".into());
+        voter_id_code_sent.body = LogEventBody::Communications("Your code is 654321".into());
         let mut mistyped = sign_in("p5", PSEUDONYM_EVENT, None, "typed-name");
         mistyped.message_type = LogMessageType::KeycloakEvent("LOGIN_ERROR".into());
         let events = vec![
@@ -3096,6 +3103,7 @@ mod batch_build_tests {
             // An account the event's realm does not have.
             sign_in("p6", PSEUDONYM_EVENT, Some("gone"), "gone-name"),
             sign_in("v1", EVENT, Some("voter-a"), "ov-dhaka-05"),
+            voter_id_code_sent,
         ];
 
         let built = build_batch(&mut lookups, &events).await.unwrap();
@@ -3127,7 +3135,25 @@ mod batch_build_tests {
         // A voter-ID event names the account, as before.
         assert_eq!(
             identities(&built.by_board[&format!("board-{EVENT}")]),
-            vec![("v1:event", Some("voter-a"), Some("ov-dhaka-05"))]
+            vec![
+                ("v1:event", Some("voter-a"), Some("ov-dhaka-05")),
+                ("v2:communication", Some("voter-a"), Some("ov-dhaka-05")),
+                ("v2:event", Some("voter-a"), Some("ov-dhaka-05")),
+            ]
+        );
+        // A message sent in a pseudonymous event is recorded without its
+        // text, which could name the voter; a voter-ID event keeps it.
+        let sent_text = |entry: &LogEntry| {
+            let message = Message::record_deserialize(&entry.message.message).unwrap();
+            let StatementBody::SendCommunications(text) = message.statement.body else {
+                panic!("not a sent message");
+            };
+            text
+        };
+        assert_eq!(sent_text(&pseudonymous[1]), None);
+        assert_eq!(
+            sent_text(&built.by_board[&format!("board-{EVENT}")][1]).as_deref(),
+            Some("Your code is 654321")
         );
         // The area lookup still uses the account.
         assert!(lookups.area_lookups.iter().any(|id| id == "voter-a"));

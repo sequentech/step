@@ -44,7 +44,8 @@ A sign-in code Keycloak sends to an account is recorded as a `KeycloakUserEvent`
 `MESSAGE_SENT`, without the code.
 
 In an election event whose ballots are cast under pseudonyms, a voter's `KeycloakUserEvent` entries
-name the voter's pseudonym in the **Username** column, as their ballot entries do, and no user ID. See
+name the voter's pseudonym in the **Username** column, as their ballot entries do, and no user ID.
+The event's `SendCommunications` entries leave out the message's text. See
 [Ballot privacy](../../21-ballot-privacy.md).
 
 Everything else about one election event (its elections, contests, candidates, areas, voters,
