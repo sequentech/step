@@ -1113,6 +1113,7 @@ const dutchTranslation: TranslationType = {
             },
             new: {
                 subtitle: "Nieuwe tenant aanmaken",
+                numTrustees: "Aantal trustees",
             },
             createSuccess: "Tenant aangemaakt",
             createError: "Fout bij aanmaken tenant",

@@ -587,7 +587,7 @@ type Mutation {
 }
 
 type Mutation {
-    insertTenant(slug: String!): InsertTenantOutput
+    insertTenant(slug: String!, num_trustees: Int): InsertTenantOutput
 }
 
 type Mutation {
@@ -1359,6 +1359,8 @@ type InsertTenantOutput {
     slug: String!
     task_execution: tasks_execution_type
     error_msg: String
+    document_id: String
+    password: String
 }
 
 type KeycloakUserArea {

@@ -1111,6 +1111,7 @@ const basqueTranslation: TranslationType = {
             },
             new: {
                 subtitle: "Sortu maizter berria",
+                numTrustees: "Fideikomisario kopurua",
             },
             createSuccess: "Maizterra sortua",
             createError: "Errorea maizterra sortzerakoan",

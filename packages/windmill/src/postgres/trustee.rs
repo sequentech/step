@@ -146,3 +146,45 @@ pub async fn get_all_trustees(
 
     Ok(elements)
 }
+
+/// Copies trustee rows to another tenant. Trustee rows are per tenant, while the
+/// trustee services and their keys belong to the environment.
+#[instrument(err, skip(hasura_transaction))]
+pub async fn copy_trustees_to_tenant(
+    hasura_transaction: &Transaction<'_>,
+    source_tenant_id: &str,
+    target_tenant_id: &str,
+    trustee_ids: &[String],
+) -> Result<u64> {
+    let trustee_uuids = trustee_ids
+        .iter()
+        .map(|id| parse_uuid_v4(id).map_err(|err| anyhow!("{:?}", err)))
+        .collect::<Result<Vec<Uuid>>>()?;
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO sequent_backend.trustee
+                    (public_key, name, labels, annotations, tenant_id)
+                SELECT
+                    public_key, name, labels, annotations, $2
+                FROM
+                    sequent_backend.trustee
+                WHERE
+                    tenant_id = $1 AND
+                    id = ANY($3);
+            "#,
+        )
+        .await?;
+
+    hasura_transaction
+        .execute(
+            &statement,
+            &[
+                &parse_uuid_v4(source_tenant_id)?,
+                &parse_uuid_v4(target_tenant_id)?,
+                &trustee_uuids,
+            ],
+        )
+        .await
+        .context("Error copying trustees to the new tenant")
+}
