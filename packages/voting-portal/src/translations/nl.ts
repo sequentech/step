@@ -565,6 +565,7 @@ const dutchTranslation: TranslationType = {
                 "Niet gevonden, controleer dat uw Stembiljet ID correct is en behoort tot deze gebruiker.",
             filterByBallotId: "Filteren op Stembiljet ID",
             totalBallots: "Aantal stembiljet: {{total}}",
+            totalBallotsMoreThan: "Aantal stembiljet: meer dan {{total}}",
             steps: {
                 lookup: "Lokaliseer uw Stembiljet",
                 result: "Resultaat",
@@ -589,7 +590,7 @@ const dutchTranslation: TranslationType = {
             pagination: {
                 rowsPerPage: "Rijen per pagina:",
                 displayedRows: "{{from}}–{{to}} van {{total}}",
-                displayedRowsMoreThan: "{{from}}–{{to}} van meer dan {{to}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} van meer dan {{total}}",
                 firstPage: "Ga naar de eerste pagina",
                 lastPage: "Ga naar de laatste pagina",
                 nextPage: "Ga naar de volgende pagina",

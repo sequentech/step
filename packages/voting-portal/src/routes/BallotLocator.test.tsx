@@ -9,6 +9,7 @@ import {createMemoryRouter, RouterProvider} from "react-router-dom"
 import type {DocumentNode} from "graphql"
 import theme from "../../../ui-essentials/src/services/theme"
 import BallotLocator from "./BallotLocator"
+import {TotalBound} from "../gql/graphql"
 
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({
@@ -51,7 +52,19 @@ jest.mock("../store/hooks", () => ({
 
 const mockEventPresentation: {current: Record<string, string>} = {current: {}}
 const MOCK_CAST_VOTES_TOTAL = 1234567
-const castVotes = (total: number) => ({data: {list_cast_vote_messages: {list: [], total}}})
+const castVotes = (
+    total: number,
+    totalBound: TotalBound = TotalBound.Exact,
+    list: object[] = []
+) => ({data: {list_cast_vote_messages: {list, total, total_bound: totalBound}}})
+const castVoteEntries = (count: number, ballotIdPrefix = "ab") =>
+    Array.from({length: count}, (_, index) => ({
+        statement_timestamp: index,
+        statement_kind: "CastVote",
+        ballot_id: `${ballotIdPrefix}${index}`,
+        username: null,
+        message: null,
+    }))
 // The cast-vote list request; a test can hold its answer back.
 const mockRefetch = jest.fn()
 // Like Apollo, the same data object until the query's result changes: a new one on
@@ -316,7 +329,7 @@ test("an empty message shows its dash centered, like an empty username", async (
         message: null,
     }
     mockRefetch.mockImplementation(async () => ({
-        data: {list_cast_vote_messages: {list: [entry], total: 1}},
+        data: {list_cast_vote_messages: {list: [entry], total: 1, total_bound: TotalBound.Exact}},
     }))
     const view = await renderCastVoteLogs()
 
@@ -328,5 +341,147 @@ test("an empty message shows its dash centered, like an empty username", async (
     expect(usernameCell).toHaveTextContent("-")
     expect(usernameCell).toHaveStyle({textAlign: "center"})
     expect(within(messageCell as HTMLElement).getByText("-")).toHaveStyle({textAlign: "center"})
+    view.unmount()
+})
+
+test("past the count limit the cast vote logs show more than the total", async () => {
+    mockEventPresentation.current = {show_cast_vote_logs: "show-logs-tab"}
+    mockRefetch.mockImplementation(async () =>
+        castVotes(50000, TotalBound.MoreThan, castVoteEntries(5))
+    )
+    const view = await renderCastVoteLogs()
+
+    expect(
+        await screen.findByRole("heading", {name: "ballotLocator.totalBallotsMoreThan: 50,000"})
+    ).toBeVisible()
+    expect(
+        screen.getByText("ballotLocator.pagination.displayedRowsMoreThan: 1|5|50,000")
+    ).toBeVisible()
+    expect(screen.getByRole("button", {name: "ballotLocator.pagination.nextPage"})).toBeEnabled()
+    view.unmount()
+})
+
+test("past the count limit a short page is the last one", async () => {
+    mockEventPresentation.current = {show_cast_vote_logs: "show-logs-tab"}
+    const clock = jest.spyOn(Date, "now").mockReturnValue(6_000_000)
+    mockRefetch.mockImplementation(async (variables: {offset: number}) =>
+        castVotes(50000, TotalBound.MoreThan, castVoteEntries(variables.offset === 0 ? 5 : 3))
+    )
+    const view = await renderCastVoteLogs()
+    expect(
+        await screen.findByText("ballotLocator.pagination.displayedRowsMoreThan: 1|5|50,000")
+    ).toBeVisible()
+
+    clock.mockReturnValue(6_001_000)
+    fireEvent.click(screen.getByRole("button", {name: "ballotLocator.pagination.nextPage"}))
+
+    expect(await screen.findByText("ballotLocator.pagination.displayedRows: 6|8|8")).toBeVisible()
+    expect(screen.getByRole("button", {name: "ballotLocator.pagination.nextPage"})).toBeDisabled()
+    view.unmount()
+})
+
+const castVoteRowsBusy = () =>
+    screen.getByRole("table", {name: "a11y.ballotsTable"}).closest("[aria-busy]")
+
+test("the cast vote rows show they are stale while the next page loads", async () => {
+    mockEventPresentation.current = {show_cast_vote_logs: "show-logs-tab"}
+    const clock = jest.spyOn(Date, "now").mockReturnValue(7_000_000)
+    mockRefetch.mockImplementationOnce(async () =>
+        castVotes(8, TotalBound.Exact, castVoteEntries(5))
+    )
+    const view = await renderCastVoteLogs()
+    expect(await screen.findByText("ballotLocator.pagination.displayedRows: 1|5|8")).toBeVisible()
+    expect(castVoteRowsBusy()).toHaveAttribute("aria-busy", "false")
+    expect(screen.queryAllByRole("progressbar")).toHaveLength(0)
+
+    let answerNext: (answer: ReturnType<typeof castVotes>) => void = () => {}
+    mockRefetch.mockImplementationOnce(
+        () =>
+            new Promise((resolve) => {
+                answerNext = resolve
+            })
+    )
+    clock.mockReturnValue(7_001_000)
+    fireEvent.click(screen.getByRole("button", {name: "ballotLocator.pagination.nextPage"}))
+
+    // The first page's rows are still shown, marked as stale.
+    await waitFor(() => expect(castVoteRowsBusy()).toHaveAttribute("aria-busy", "true"))
+    expect(screen.getAllByRole("progressbar")).toHaveLength(2)
+    expect(screen.getByText("ab4")).toBeVisible()
+
+    await act(async () => answerNext(castVotes(8, TotalBound.Exact, castVoteEntries(3, "cd"))))
+    expect(await screen.findByText("ballotLocator.pagination.displayedRows: 6|8|8")).toBeVisible()
+    expect(castVoteRowsBusy()).toHaveAttribute("aria-busy", "false")
+    expect(screen.queryAllByRole("progressbar")).toHaveLength(0)
+    expect(screen.getByText("cd2")).toBeVisible()
+    expect(screen.queryByText("ab4")).toBeNull()
+    view.unmount()
+})
+
+test("past the count limit the count is unknown while another page loads", async () => {
+    mockEventPresentation.current = {show_cast_vote_logs: "show-logs-tab"}
+    const clock = jest.spyOn(Date, "now").mockReturnValue(7_500_000)
+    mockRefetch.mockImplementation(async (variables: {offset: number}) =>
+        castVotes(50000, TotalBound.MoreThan, castVoteEntries(variables.offset === 0 ? 5 : 3))
+    )
+    const view = await renderCastVoteLogs()
+    clock.mockReturnValue(7_501_000)
+    fireEvent.click(await screen.findByRole("button", {name: "ballotLocator.pagination.nextPage"}))
+    expect(await screen.findByText("ballotLocator.pagination.displayedRows: 6|8|8")).toBeVisible()
+
+    // Back on the first page, the short page's rows say nothing about where the list ends.
+    mockRefetch.mockImplementationOnce(() => new Promise(() => {}))
+    clock.mockReturnValue(7_502_000)
+    fireEvent.click(screen.getByRole("button", {name: "ballotLocator.pagination.previousPage"}))
+    await waitFor(() => expect(castVoteRowsBusy()).toHaveAttribute("aria-busy", "true"))
+    expect(
+        screen.getByText("ballotLocator.pagination.displayedRowsMoreThan: 1|5|50,000")
+    ).toBeVisible()
+    expect(screen.getByRole("button", {name: "ballotLocator.pagination.nextPage"})).toBeEnabled()
+    view.unmount()
+})
+
+test("a failed cast vote request clears the rows it would have replaced", async () => {
+    mockEventPresentation.current = {show_cast_vote_logs: "show-logs-tab"}
+    const clock = jest.spyOn(Date, "now").mockReturnValue(8_000_000)
+    const consoleError = jest.spyOn(console, "error")
+    mockRefetch.mockImplementationOnce(async () =>
+        castVotes(8, TotalBound.Exact, castVoteEntries(5))
+    )
+    const view = await renderCastVoteLogs()
+    expect(await screen.findByText("ab4")).toBeVisible()
+
+    mockRefetch.mockImplementationOnce(async () => {
+        throw new Error("timeout")
+    })
+    clock.mockReturnValue(8_001_000)
+    fireEvent.click(screen.getByRole("button", {name: "ballotLocator.pagination.nextPage"}))
+
+    expect(await screen.findByText("errors.page.somethingWrong")).toBeVisible()
+    expect(screen.queryByText("ab4")).toBeNull()
+    expect(screen.getByRole("heading", {name: "ballotLocator.totalBallots: 0"})).toBeVisible()
+    expect(screen.getByText("ballotLocator.pagination.displayedRows: 0|0|0")).toBeVisible()
+    expect(castVoteRowsBusy()).toHaveAttribute("aria-busy", "false")
+    expect(consoleError).not.toHaveBeenCalledWith(expect.stringContaining("out of range"))
+    // Back on the first page, nothing is requested until the voter asks again.
+    expect(mockRefetch).toHaveBeenCalledTimes(2)
+    view.unmount()
+})
+
+test("a failed cast vote request no longer shows the rows as stale", async () => {
+    mockEventPresentation.current = {show_cast_vote_logs: "show-logs-tab"}
+    let failRequest: (error: Error) => void = () => {}
+    mockRefetch.mockImplementationOnce(
+        () =>
+            new Promise((_resolve, reject) => {
+                failRequest = reject
+            })
+    )
+    const view = await renderCastVoteLogs()
+    await waitFor(() => expect(castVoteRowsBusy()).toHaveAttribute("aria-busy", "true"))
+
+    await act(async () => failRequest(new Error("timeout")))
+    expect(castVoteRowsBusy()).toHaveAttribute("aria-busy", "false")
+    expect(screen.queryAllByRole("progressbar")).toHaveLength(0)
     view.unmount()
 })

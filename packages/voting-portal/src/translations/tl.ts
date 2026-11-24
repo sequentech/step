@@ -562,7 +562,8 @@ const tagalogTranslation: TranslationType = {
             wrongFormatBallotId: "Mali ang format para sa Ballot ID",
             ballotIdNotFoundAtFilter: "Hindi natagpuan ang iyong ballot ID sa filter",
             filterByBallotId: "Tumutugma sa Ballot ID",
-            totalBallots: "Kumulang mga balota: {{total}}",
+            totalBallots: "Kabuuang mga balota: {{total}}",
+            totalBallotsMoreThan: "Kabuuang mga balota: higit sa {{total}}",
             steps: {
                 lookup: "Hanapin ang Iyong Balota",
                 result: "Resulta",
@@ -587,7 +588,7 @@ const tagalogTranslation: TranslationType = {
             pagination: {
                 rowsPerPage: "Mga hilera bawat pahina:",
                 displayedRows: "{{from}}–{{to}} ng {{total}}",
-                displayedRowsMoreThan: "{{from}}–{{to}} ng higit sa {{to}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} ng higit sa {{total}}",
                 firstPage: "Pumunta sa unang pahina",
                 lastPage: "Pumunta sa huling pahina",
                 nextPage: "Pumunta sa susunod na pahina",

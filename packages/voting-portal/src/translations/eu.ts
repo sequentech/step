@@ -562,6 +562,7 @@ const basqueTranslation: TranslationType = {
                 "Ez da aurkitu. Egiaztatu zure bozketa IDa zuzena dela eta erabiltzaile honi dagokiola.",
             filterByBallotId: "Filtratu Bozketa IDa",
             totalBallots: "Bozketa kopurua: {{total}}",
+            totalBallotsMoreThan: "Bozketa kopurua: {{total}} baino gehiago",
             steps: {
                 lookup: "Lokalizatu zure Bozketa",
                 result: "Emaitza",
@@ -586,7 +587,7 @@ const basqueTranslation: TranslationType = {
             pagination: {
                 rowsPerPage: "Errenkadak orrialdeko:",
                 displayedRows: "{{from}}–{{to}} / {{total}}",
-                displayedRowsMoreThan: "{{from}}–{{to}} / {{to}} baino gehiago",
+                displayedRowsMoreThan: "{{from}}–{{to}} / {{total}} baino gehiago",
                 firstPage: "Joan lehen orrialdera",
                 lastPage: "Joan azken orrialdera",
                 nextPage: "Joan hurrengo orrialdera",

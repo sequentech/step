@@ -782,6 +782,7 @@ export type ListCastVoteMessagesOutput = {
   __typename?: 'ListCastVoteMessagesOutput';
   list: Array<Maybe<CastVoteEntry>>;
   total: Scalars['Int']['output'];
+  total_bound: TotalBound;
 };
 
 export type ListKeysCeremonyOutput = {
@@ -1127,6 +1128,11 @@ export type TotalAggregate = {
   __typename?: 'TotalAggregate';
   aggregate: Aggregate;
 };
+
+export enum TotalBound {
+  Exact = 'EXACT',
+  MoreThan = 'MORE_THAN'
+}
 
 export type UpdateElectionVotingStatusOutput = {
   __typename?: 'UpdateElectionVotingStatusOutput';
