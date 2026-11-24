@@ -508,3 +508,102 @@ impl std::fmt::Debug for VerifiedMessage {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::messages::protocol_manager::ProtocolManager;
+    use std::marker::PhantomData;
+    use strand::backend::ristretto::RistrettoCtx;
+
+    struct TestTrustee {
+        signing_key: StrandSignatureSk,
+    }
+
+    impl Signer for TestTrustee {
+        fn get_signing_key(&self) -> &StrandSignatureSk {
+            &self.signing_key
+        }
+        fn get_name(&self) -> String {
+            "Test trustee".to_string()
+        }
+    }
+
+    struct TestSetup {
+        cfg: Configuration<RistrettoCtx>,
+        cfg_bytes: Vec<u8>,
+        cfg_h: ConfigurationHash,
+        pm: ProtocolManager<RistrettoCtx>,
+        trustee: TestTrustee,
+    }
+
+    fn setup() -> TestSetup {
+        let pm = ProtocolManager::<RistrettoCtx>::new(StrandSignatureSk::gen().unwrap());
+        let trustees: Vec<TestTrustee> = (0..2)
+            .map(|_| TestTrustee {
+                signing_key: StrandSignatureSk::gen().unwrap(),
+            })
+            .collect();
+        let trustee_pks = trustees
+            .iter()
+            .map(|t| StrandSignaturePk::from_sk(&t.signing_key).unwrap())
+            .collect();
+        let cfg = Configuration::<RistrettoCtx>::new(
+            0,
+            StrandSignaturePk::from_sk(&pm.signing_key).unwrap(),
+            trustee_pks,
+            2,
+            PhantomData,
+        );
+        let cfg_bytes = cfg.strand_serialize().unwrap();
+        let cfg_h = ConfigurationHash(strand::hash::hash_to_array(&cfg_bytes).unwrap());
+        let trustee = trustees.into_iter().next().unwrap();
+
+        TestSetup {
+            cfg,
+            cfg_bytes,
+            cfg_h,
+            pm,
+            trustee,
+        }
+    }
+
+    #[test]
+    fn verify_accepts_configuration_signed_by_protocol_manager() {
+        let setup = setup();
+        let message = Message::bootstrap_msg(&setup.cfg, &setup.pm).unwrap();
+
+        let verified = message.verify(&setup.cfg).unwrap();
+
+        assert_eq!(verified.signer_position, PROTOCOL_MANAGER_INDEX);
+        assert_eq!(verified.artifact, Some(setup.cfg_bytes));
+    }
+
+    #[test]
+    fn verify_returns_for_non_configuration_statement_with_configuration_artifact() {
+        // This used to panic on an assert. The artifact is checked against the
+        // hash its own statement signs, so a channel statement whose hash is the
+        // configuration's carries a matching artifact.
+        let setup = setup();
+        let statement = Statement::channel_stmt(setup.cfg_h, ChannelHash(setup.cfg_h.0));
+        let message = setup
+            .trustee
+            .sign(statement, Some(setup.cfg_bytes.clone()))
+            .unwrap();
+
+        let verified = message.verify(&setup.cfg).unwrap();
+
+        assert_eq!(verified.signer_position, 0);
+    }
+
+    #[test]
+    fn verify_rejects_configuration_statement_with_other_artifact() {
+        let setup = setup();
+        let statement = Statement::configuration_stmt(setup.cfg_h);
+        let message = setup.pm.sign(statement, Some(vec![1, 2, 3])).unwrap();
+
+        let result = message.verify(&setup.cfg);
+
+        assert!(result.is_err());
+    }
+}
