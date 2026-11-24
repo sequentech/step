@@ -1673,6 +1673,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 paragraph="electionEventScreen.import.votersParagraph"
                 doImport={handleImportVoters}
                 errors={null}
+                voterSecretSource
             />
             <Dialog
                 variant="warning"
