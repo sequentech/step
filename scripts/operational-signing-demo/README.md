@@ -43,6 +43,14 @@ installations or providers. In HSM mode a missing required rule or an
 unavailable signer must refuse; do not make an unsupported workflow appear
 to work by switching back to P12.
 
+At each stage, keep the SQL exit result and both count lines. The second
+line counts all recorded device receipts for the exact request, including
+ones not attached to an approval, and any unresolved device use. Its
+receipt count must match approvals and its unresolved count must be zero.
+A count line without a successful exit is not evidence. At one approval,
+it must be the first designated official; the browser acknowledgement's
+existing five count fields do not change.
+
 ## Start with a real disposable Post
 
 Do not populate a publication ID or a successful key ceremony by hand.
