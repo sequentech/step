@@ -13,6 +13,16 @@ object_relationships:
               remote_table:
                   name: election
                   schema: sequent_backend
+    - name: election_event
+      using:
+          manual_configuration:
+              column_mapping:
+                  election_event_id: id
+                  tenant_id: tenant_id
+              insertion_order: null
+              remote_table:
+                  name: election_event
+                  schema: sequent_backend
 array_relationships:
     - name: candidates
       using:
@@ -38,6 +48,15 @@ insert_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           columns:
               - is_acclaimed
               - is_active
@@ -74,6 +93,15 @@ insert_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           columns:
               - is_acclaimed
               - is_active
@@ -110,6 +138,15 @@ insert_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           columns:
               - is_acclaimed
               - is_active
@@ -146,6 +183,15 @@ insert_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           columns:
               - is_acclaimed
               - is_active
@@ -233,6 +279,15 @@ select_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: admin-user
     - comment: ""
@@ -270,6 +325,15 @@ select_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: contest-create
     - comment: ""
@@ -307,6 +371,15 @@ select_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: contest-delete
     - comment: ""
@@ -344,6 +417,15 @@ select_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: contest-read
     - comment: ""
@@ -381,6 +463,15 @@ select_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: contest-write
     - comment: ""
@@ -418,6 +509,15 @@ select_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: election-event-read
     - comment: ""
@@ -455,6 +555,15 @@ select_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: election-event-write
     - comment: ""
@@ -492,6 +601,15 @@ select_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: publish-read
     - comment: ""
@@ -557,6 +675,15 @@ select_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: trustee-ceremony
     - comment: ""
@@ -624,6 +751,15 @@ update_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           check:
               _and:
                   - tenant_id:
@@ -634,6 +770,15 @@ update_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -670,6 +815,15 @@ update_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           check:
               _and:
                   - tenant_id:
@@ -680,6 +834,15 @@ update_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: contest-write
     - comment: ""
       permission:
@@ -716,6 +879,15 @@ update_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           check:
               _and:
                   - tenant_id:
@@ -726,6 +898,15 @@ update_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: election-event-write
     - comment: ""
       permission:
@@ -768,6 +949,15 @@ delete_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -781,6 +971,15 @@ delete_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: contest-delete
     - comment: ""
       permission:
@@ -794,6 +993,15 @@ delete_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: election-event-write
     - comment: ""
       permission:

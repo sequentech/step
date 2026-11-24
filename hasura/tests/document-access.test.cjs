@@ -5,6 +5,7 @@ const assert = require("node:assert/strict")
 const {readFileSync} = require("node:fs")
 const {resolve} = require("node:path")
 const yaml = require("js-yaml")
+const {viaEvent} = require("./event-permission-label.cjs")
 
 const metadata = yaml.load(
     readFileSync(
@@ -45,7 +46,9 @@ for (const operation of ["update", "delete"]) {
         for (const {role, permission} of permissions) {
             assert.deepEqual(
                 permission.filter,
-                role === "service-account" ? {} : protectedFilter
+                role === "service-account"
+                    ? {}
+                    : {_and: [...protectedFilter._and, viaEvent]}
             )
         }
     })
