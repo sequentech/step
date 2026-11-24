@@ -325,6 +325,10 @@ const frenchTranslation: TranslationType = {
                     },
                 },
                 "candidate": {
+                    "inline-photo": {
+                        lead: "Photo de candidature invalide",
+                        text: "Photo de candidature invalide — Utilisez un seul PNG statique par candidature, sauf pour les choix à inscrire. Vérifiez les limites du fichier et du classeur.",
+                    },
                     "contest-missing": {
                         lead: "Scrutin du candidat manquant",
                         text: "Scrutin du candidat manquant — le candidat appartient à un scrutin qui ne figure pas dans ce fichier.",

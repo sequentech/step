@@ -4119,6 +4119,58 @@ fn candidate_supplements_survive_historical_conversion_and_build() {
         json!("Pangalan")
     );
     assert_eq!(candidate["annotations"]["miru:candidate-id"], json!("0007"));
+
+    let duplicate = build(
+        &adapted.workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions {
+            images: vec![file.clone()],
+            ..BuildOptions::default()
+        },
+        &Sources::default(),
+    )
+    .err()
+    .expect("a separately attached photo cannot override the inline photo");
+    assert!(duplicate.errors().any(|problem| {
+        problem.id.as_deref() == Some("candidate.inline-photo")
+            && problem.message.contains("only one photo")
+    }));
+
+    let mut sheets = adapted.workbook.sheets().to_vec();
+    let row = &mut sheets
+        .iter_mut()
+        .find(|sheet| sheet.key == "candidates")
+        .unwrap()
+        .rows[0];
+    set(
+        row,
+        "image_data_url",
+        json!("https://invalid.example/photo.png"),
+    );
+    let invalid = Workbook::new(sheets).unwrap();
+    let direct = build(
+        &invalid,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .err()
+    .expect("direct build refuses an invalid photo without a partial archive");
+    let wizard = super::super::plan_from_workbook::plan_from_workbook(&invalid)
+        .err()
+        .expect("wizard refuses the same invalid photo");
+    for report in [direct, wizard] {
+        let photo = report
+            .errors()
+            .find(|problem| {
+                problem.id.as_deref() == Some("candidate.inline-photo")
+            })
+            .expect("the problem points to the candidate photo");
+        assert_eq!(
+            photo.at.as_ref().unwrap().column.as_deref(),
+            Some("image_data_url")
+        );
+    }
 }
 
 #[test]

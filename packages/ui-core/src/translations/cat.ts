@@ -320,6 +320,10 @@ const catalanTranslation: TranslationType = {
                     },
                 },
                 "candidate": {
+                    "inline-photo": {
+                        lead: "Foto de candidat no vàlida",
+                        text: "Foto de candidat no vàlida — Fes servir un sol PNG estàtic per candidatura, excepte a les opcions de vot per escrit. Comprova els límits del fitxer i del llibre.",
+                    },
                     "contest-missing": {
                         lead: "Falta la votació de la candidatura",
                         text: "Falta la votació de la candidatura — la candidatura pertany a una votació que no és en aquest fitxer.",

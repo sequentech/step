@@ -320,6 +320,10 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 "candidate": {
+                    "inline-photo": {
+                        lead: "Ongeldige kandidatenfoto",
+                        text: "Ongeldige kandidatenfoto — Gebruik één statische PNG per kandidaat, behalve bij een invulkeuze. Controleer de limieten van het bestand en de werkmap.",
+                    },
                     "contest-missing": {
                         lead: "Stemming van de kandidaat ontbreekt",
                         text: "Stemming van de kandidaat ontbreekt — de kandidaat hoort bij een stemming die niet in dit bestand staat.",

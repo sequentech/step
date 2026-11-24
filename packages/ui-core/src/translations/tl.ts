@@ -321,6 +321,10 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 "candidate": {
+                    "inline-photo": {
+                        lead: "Hindi wastong larawan ng kandidato",
+                        text: "Hindi wastong larawan ng kandidato — Gumamit ng isang static na PNG bawat kandidato, maliban sa opsiyong isusulat ng botante. Suriin ang mga limitasyon ng file at workbook.",
+                    },
                     "contest-missing": {
                         lead: "Nawawala ang contest ng kandidato",
                         text: "Nawawala ang contest ng kandidato — kabilang ang kandidato sa contest na wala sa file na ito.",

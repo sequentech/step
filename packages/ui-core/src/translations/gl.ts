@@ -323,6 +323,10 @@ const galegoTranslation: TranslationType = {
                     },
                 },
                 "candidate": {
+                    "inline-photo": {
+                        lead: "Foto de candidatura non válida",
+                        text: "Foto de candidatura non válida — Usa un único PNG estático por candidatura, agás nas opcións de voto por escrito. Comproba os límites do ficheiro e do libro.",
+                    },
                     "contest-missing": {
                         lead: "Falta a votación da candidatura",
                         text: "Falta a votación da candidatura — a candidatura pertence a unha votación que non está neste ficheiro.",

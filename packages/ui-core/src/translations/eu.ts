@@ -319,6 +319,10 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 "candidate": {
+                    "inline-photo": {
+                        lead: "Hautagaiaren argazki baliogabea",
+                        text: "Hautagaiaren argazki baliogabea — Erabili PNG estatiko bakarra hautagai bakoitzerako, eskuz idazteko aukeretarako izan ezik. Egiaztatu fitxategiaren eta lan-liburuaren mugak.",
+                    },
                     "contest-missing": {
                         lead: "Hautagaiaren bozketa falta da",
                         text: "Hautagaiaren bozketa falta da — hautagaia fitxategi honetan ez dagoen bozketa batena da.",

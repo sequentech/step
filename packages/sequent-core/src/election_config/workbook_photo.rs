@@ -184,6 +184,146 @@ pub(super) fn test_png_url(width: u32, height: u32) -> String {
 mod tests {
     use super::*;
 
+    fn candidate_row(
+        id: Option<&str>,
+        photo: Value,
+        other: &[(&str, Value)],
+    ) -> Row {
+        let mut cells = vec![(COLUMN.to_string(), photo)];
+        if let Some(id) = id {
+            cells.push(("external_id".to_string(), Value::String(id.into())));
+        }
+        cells.extend(
+            other
+                .iter()
+                .map(|(key, value)| (key.to_string(), value.clone())),
+        );
+        Row {
+            sheet: "Candidates".into(),
+            number: 7,
+            cells,
+        }
+    }
+
+    fn rejected(budget: &mut Budget, row: &Row) -> Problem {
+        let problem = budget.read(row).err().expect("photo must be rejected");
+        assert_eq!(problem.code, Code::InvalidValue);
+        assert_eq!(problem.id.as_deref(), Some("candidate.inline-photo"));
+        let at = problem.at.as_ref().expect("photo error names the cell");
+        assert_eq!(at.sheet, row.sheet);
+        assert_eq!(at.row, Some(row.number));
+        assert_eq!(at.column.as_deref(), Some(COLUMN));
+        problem
+    }
+
+    #[test]
+    fn optional_photo_is_blank_but_conflicting_inputs_are_refused() {
+        let mut budget = Budget::default();
+        for blank in [Value::Null, Value::String(" \t ".into())] {
+            assert!(budget
+                .read(&candidate_row(Some("007"), blank, &[]))
+                .unwrap()
+                .is_none());
+        }
+        let url = Value::String(test_png_url(3, 3));
+        let document = Value::String("already-named-image".into());
+        assert!(rejected(
+            &mut budget,
+            &candidate_row(
+                Some("007"),
+                url.clone(),
+                &[("image_document_id", document)],
+            )
+        )
+        .message
+        .contains("not both"));
+        assert!(rejected(
+            &mut budget,
+            &candidate_row(
+                Some("007"),
+                url.clone(),
+                &[("presentation.is_write_in", Value::Bool(true))],
+            )
+        )
+        .message
+        .contains("write-in"));
+        assert_eq!(
+            rejected(
+                &mut budget,
+                &candidate_row(Some("007"), Value::Bool(true), &[])
+            )
+            .message,
+            BAD_PNG
+        );
+        assert_eq!((budget.used_bytes, budget.used_pixels), (0, 0));
+        assert!(rejected(&mut budget, &candidate_row(None, url, &[]))
+            .message
+            .contains("external ID"));
+    }
+
+    #[test]
+    fn workbook_byte_and_pixel_budgets_fail_closed() {
+        let row =
+            candidate_row(Some("007"), Value::String(test_png_url(4, 3)), &[]);
+        let known = Budget::default().read(&row).unwrap().unwrap();
+        let mut full = Budget {
+            used_bytes: MAX_TOTAL_BYTES,
+            used_pixels: 0,
+        };
+        assert!(rejected(&mut full, &row).message.contains("4 MiB"));
+        assert_eq!((full.used_bytes, full.used_pixels), (MAX_TOTAL_BYTES, 0));
+
+        let mut one_byte_short = Budget {
+            used_bytes: MAX_TOTAL_BYTES - known.bytes.len() + 1,
+            used_pixels: 0,
+        };
+        assert!(rejected(&mut one_byte_short, &row)
+            .message
+            .contains("4 MiB"));
+        assert_eq!(one_byte_short.used_pixels, 0);
+
+        let mut one_pixel_short = Budget {
+            used_bytes: 0,
+            used_pixels: MAX_TOTAL_PIXELS - 11,
+        };
+        assert!(rejected(&mut one_pixel_short, &row)
+            .message
+            .contains("16 megapixel"));
+        assert_eq!(one_pixel_short.used_bytes, 0);
+
+        let mut fits = Budget {
+            used_bytes: MAX_TOTAL_BYTES - known.bytes.len(),
+            used_pixels: MAX_TOTAL_PIXELS - 12,
+        };
+        assert_eq!(fits.read(&row).unwrap().unwrap().bytes, known.bytes);
+        assert_eq!(
+            (fits.used_bytes, fits.used_pixels),
+            (MAX_TOTAL_BYTES, MAX_TOTAL_PIXELS)
+        );
+        assert!(rejected(&mut fits, &row).message.contains("4 MiB"));
+    }
+
+    #[test]
+    fn rejects_animated_png_and_corrupted_compressed_frame_data() {
+        let mut image = Vec::new();
+        let mut encoder = png::Encoder::new(&mut image, 2, 2);
+        encoder.set_animated(1, 0).unwrap();
+        let mut writer = encoder.write_header().unwrap();
+        writer.write_image_data(&[0, 1, 2, 3]).unwrap();
+        writer.finish().unwrap();
+        let animated = format!("{PREFIX}{}", STANDARD.encode(&image));
+        assert_eq!(canonical_png(&animated, MAX_TOTAL_PIXELS), Err(BAD_PNG));
+
+        let valid = test_png_url(3, 2);
+        let mut raw = STANDARD
+            .decode(valid.strip_prefix(PREFIX).unwrap())
+            .unwrap();
+        let idat = raw.windows(4).position(|chunk| chunk == b"IDAT").unwrap();
+        raw[idat + 4] = 0; // Illegal zlib header inside an otherwise valid PNG.
+        let damaged = format!("{PREFIX}{}", STANDARD.encode(raw));
+        assert_eq!(canonical_png(&damaged, MAX_TOTAL_PIXELS), Err(BAD_PNG));
+    }
+
     #[test]
     fn repeated_source_photo_has_different_stable_context_filenames() {
         let first = photo_name("post:one:contest:example:candidate:007");

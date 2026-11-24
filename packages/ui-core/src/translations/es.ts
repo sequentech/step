@@ -322,6 +322,10 @@ const spanishTranslation: TranslationType = {
                     },
                 },
                 "candidate": {
+                    "inline-photo": {
+                        lead: "Foto de candidato no válida",
+                        text: "Foto de candidato no válida — Usa un único PNG estático por candidatura, salvo en las opciones de voto por escrito. Comprueba los límites del archivo y del libro.",
+                    },
                     "contest-missing": {
                         lead: "Falta la pregunta de la candidatura",
                         text: "Falta la pregunta de la candidatura — la candidatura pertenece a una pregunta que no está en este archivo.",

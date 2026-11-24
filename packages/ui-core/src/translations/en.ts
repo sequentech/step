@@ -322,6 +322,10 @@ const englishTranslation = {
                     },
                 },
                 "candidate": {
+                    "inline-photo": {
+                        lead: "Invalid candidate photo",
+                        text: "Invalid candidate photo — Use one static PNG per candidate, except for write-ins. Check the file and workbook limits.",
+                    },
                     "contest-missing": {
                         lead: "Candidate's contest missing",
                         text: "Candidate's contest missing — the candidate belongs to a contest that is not in this file.",
