@@ -120,12 +120,11 @@ impl DoTally {
         for (contest_result, tally_sheet) in tally_sheet_results {
             let channel: VotingChannel = tally_sheet.channel.clone().into();
 
-            breakdown_map
-                .entry(channel)
-                .and_modify(|current_result| {
-                    *current_result = current_result.aggregate(contest_result, true);
-                })
-                .or_insert_with(|| contest_result.clone());
+            let aggregate = match breakdown_map.get(&channel) {
+                Some(current_result) => current_result.aggregate(contest_result, true)?,
+                None => contest_result.clone(),
+            };
+            breakdown_map.insert(channel, aggregate);
         }
 
         for (channel, contest_result) in breakdown_map {
@@ -480,12 +479,12 @@ impl Pipe for DoTally {
                                     )?);
                                 }
 
-                                aggregate_result = aggregate_tally_sheet_results.iter().fold(
+                                aggregate_result = aggregate_tally_sheet_results.iter().try_fold(
                                     aggregate_result,
                                     |result, (tally_sheet_result, _)| {
                                         result.aggregate(tally_sheet_result, false)
                                     },
-                                );
+                                )?;
                                 if !has_complete_electronic_channels {
                                     set_votes_by_channel(
                                         &mut aggregate_result,
@@ -568,12 +567,12 @@ impl Pipe for DoTally {
                             }
 
                             let mut area_result_with_tally_sheets =
-                                area_specific_tally_sheet_results.iter().fold(
+                                area_specific_tally_sheet_results.iter().try_fold(
                                     area_tally_results.clone(),
                                     |result, (tally_sheet_result, _)| {
                                         result.aggregate(tally_sheet_result, false)
                                     },
-                                );
+                                )?;
                             if !has_complete_electronic_channels {
                                 set_votes_by_channel(
                                     &mut area_result_with_tally_sheets,
@@ -692,6 +691,52 @@ impl Pipe for DoTally {
     }
 }
 
+/// The largest weighted total a tally produces: 2^53 - 1, the largest integer
+/// a JSON number holds exactly, as on release/10.1. The portals read results
+/// as JSON numbers (from Hasura) or JavaScript numbers (from SQLite), so a
+/// larger total would be shown rounded. Area weights have no upper limit, so
+/// a candidate's votes and the total weight can reach it.
+pub const MAX_COUNT: u64 = (1 << 53) - 1;
+
+/// A count above [`MAX_COUNT`]. Returned instead of wrapping or rounding,
+/// which would publish a wrong count as if it were right.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CountOverflow(pub &'static str);
+
+impl std::fmt::Display for CountOverflow {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Counting {} went past {MAX_COUNT}, the largest count published exactly",
+            self.0
+        )
+    }
+}
+
+impl std::error::Error for CountOverflow {}
+
+impl From<CountOverflow> for Error {
+    fn from(error: CountOverflow) -> Self {
+        Error::UnexpectedError(error.to_string())
+    }
+}
+
+fn bounded(count: Option<u64>, what: &'static str) -> Result<u64, CountOverflow> {
+    count
+        .filter(|count| *count <= MAX_COUNT)
+        .ok_or(CountOverflow(what))
+}
+
+/// `left + right`, failing past [`MAX_COUNT`]. `what` names the count.
+pub fn add_count(left: u64, right: u64, what: &'static str) -> Result<u64, CountOverflow> {
+    bounded(left.checked_add(right), what)
+}
+
+/// `count` itself, failing past [`MAX_COUNT`]. `what` names the count.
+pub fn exact_count(count: u64, what: &'static str) -> Result<u64, CountOverflow> {
+    bounded(Some(count), what)
+}
+
 /// A counter of ballots split by whether the voter expressed the condition
 /// explicitly (e.g. by selecting a marker candidate) or implicitly.
 ///
@@ -804,21 +849,26 @@ pub struct ExtendedMetricsContest {
 }
 
 impl ExtendedMetricsContest {
+    /// Fails if the total weight passes [`MAX_COUNT`]. The other counts are
+    /// ballot or mark counts, which no weight scales.
     #[instrument(skip_all)]
-    pub fn aggregate(&self, other: &ExtendedMetricsContest) -> ExtendedMetricsContest {
+    pub fn aggregate(
+        &self,
+        other: &ExtendedMetricsContest,
+    ) -> Result<ExtendedMetricsContest, CountOverflow> {
         let mut result = self.clone();
         result.over_votes += other.over_votes;
         result.under_votes += other.under_votes;
         result.votes_actually += other.votes_actually;
         result.expected_votes += other.expected_votes;
         result.total_ballots += other.total_ballots;
-        result.total_weight += other.total_weight;
+        result.total_weight = add_count(result.total_weight, other.total_weight, "total weight")?;
         result.total_declined_to_vote += other.total_declined_to_vote;
         result.total_blank_ballots += other.total_blank_ballots;
         for (channel, count) in &other.votes_by_channel {
             *result.votes_by_channel.entry(channel.clone()).or_default() += count;
         }
-        result
+        Ok(result)
     }
 }
 
@@ -936,15 +986,21 @@ impl ContestResult {
         contest_result
     }
 
+    /// Fails if a candidate total or the total weight passes [`MAX_COUNT`],
+    /// including a candidate only one side has.
     #[instrument(skip_all)]
-    pub fn aggregate(&self, other: &ContestResult, add_census: bool) -> ContestResult {
+    pub fn aggregate(
+        &self,
+        other: &ContestResult,
+        add_census: bool,
+    ) -> Result<ContestResult, CountOverflow> {
         let mut aggregate = self.clone();
         if add_census {
             aggregate.census += other.census;
         }
         let aggregate_metrics = aggregate.extended_metrics.take().unwrap_or_default();
         aggregate.extended_metrics =
-            Some(aggregate_metrics.aggregate(&other.extended_metrics.clone().unwrap_or_default()));
+            Some(aggregate_metrics.aggregate(&other.extended_metrics.clone().unwrap_or_default())?);
         aggregate.auditable_votes += other.auditable_votes;
         aggregate.total_votes += other.total_votes;
         aggregate.total_valid_votes += other.total_valid_votes;
@@ -956,6 +1012,7 @@ impl ContestResult {
         let mut candidate_map: HashMap<String, CandidateResult> = HashMap::new();
 
         for candidate_result in &self.candidate_result {
+            exact_count(candidate_result.total_count, "candidate votes")?;
             candidate_map.insert(
                 candidate_result.candidate.id.clone(),
                 candidate_result.clone(),
@@ -963,15 +1020,27 @@ impl ContestResult {
         }
 
         for candidate_result in &other.candidate_result {
-            candidate_map
-                .entry(candidate_result.candidate.id.clone())
-                .and_modify(|entry| entry.total_count += candidate_result.total_count)
-                .or_insert_with(|| candidate_result.clone());
+            match candidate_map.get_mut(&candidate_result.candidate.id) {
+                Some(entry) => {
+                    entry.total_count = add_count(
+                        entry.total_count,
+                        candidate_result.total_count,
+                        "candidate votes",
+                    )?;
+                }
+                None => {
+                    exact_count(candidate_result.total_count, "candidate votes")?;
+                    candidate_map.insert(
+                        candidate_result.candidate.id.clone(),
+                        candidate_result.clone(),
+                    );
+                }
+            }
         }
 
         aggregate.candidate_result = candidate_map.into_values().collect();
 
-        aggregate.calculate_percentages()
+        Ok(aggregate.calculate_percentages())
     }
 }
 
@@ -1059,7 +1128,7 @@ mod tests {
             ..Default::default()
         };
 
-        let aggregate = left.aggregate(&right);
+        let aggregate = left.aggregate(&right).expect("counts within the bound");
 
         assert_eq!(
             aggregate
@@ -1092,9 +1161,90 @@ mod tests {
             ..Default::default()
         };
 
-        let aggregate = left.aggregate(&right);
+        let aggregate = left.aggregate(&right).expect("counts within the bound");
 
         assert_eq!(aggregate.total_blank_ballots, 5);
+    }
+
+    fn result_with_candidate(total_count: u64, total_weight: u64) -> ContestResult {
+        ContestResult {
+            candidate_result: vec![CandidateResult {
+                candidate: Candidate {
+                    id: "candidate".to_string(),
+                    ..Candidate::default()
+                },
+                percentage_votes: 100.0,
+                total_count,
+            }],
+            extended_metrics: Some(ExtendedMetricsContest {
+                total_weight,
+                ..Default::default()
+            }),
+            ..ContestResult::default()
+        }
+    }
+
+    #[test]
+    fn aggregating_weighted_totals_up_to_the_largest_exact_count_is_accepted() {
+        let aggregate = result_with_candidate(MAX_COUNT - 1, MAX_COUNT - 1)
+            .aggregate(&result_with_candidate(1, 1), false)
+            .expect("totals at the bound");
+
+        assert_eq!(aggregate.candidate_result[0].total_count, MAX_COUNT);
+        assert_eq!(
+            aggregate
+                .extended_metrics
+                .expect("extended metrics")
+                .total_weight,
+            MAX_COUNT
+        );
+    }
+
+    #[test]
+    fn aggregating_a_candidate_total_that_would_wrap_is_an_error() {
+        let result = result_with_candidate(u64::MAX, 0);
+
+        assert_eq!(
+            result.aggregate(&result, false).err(),
+            Some(CountOverflow("candidate votes"))
+        );
+    }
+
+    #[test]
+    fn aggregating_a_candidate_seen_once_past_the_largest_exact_count_is_an_error() {
+        let past_the_bound = result_with_candidate(MAX_COUNT + 1, 0);
+        let empty = ContestResult::default();
+
+        assert_eq!(
+            empty.aggregate(&past_the_bound, false).err(),
+            Some(CountOverflow("candidate votes"))
+        );
+        assert_eq!(
+            past_the_bound.aggregate(&empty, false).err(),
+            Some(CountOverflow("candidate votes"))
+        );
+    }
+
+    #[test]
+    fn aggregating_a_total_weight_that_would_wrap_is_an_error() {
+        let result = result_with_candidate(0, u64::MAX);
+
+        assert_eq!(
+            result.aggregate(&result, false).err(),
+            Some(CountOverflow("total weight"))
+        );
+    }
+
+    #[test]
+    fn a_count_overflow_fails_the_pipe_naming_the_count() {
+        let error = Error::from(CountOverflow("total weight"));
+
+        assert!(
+            error
+                .to_string()
+                .contains("Counting total weight went past 9007199254740991"),
+            "{error}"
+        );
     }
 
     #[test]
@@ -1110,7 +1260,9 @@ mod tests {
             ..Default::default()
         };
 
-        let aggregate = ContestResult::default().aggregate(&area_result, true);
+        let aggregate = ContestResult::default()
+            .aggregate(&area_result, true)
+            .expect("counts within the bound");
 
         assert_eq!(aggregate.auditable_votes, 1);
         assert!(validate_votes_by_channel(&aggregate).is_ok());

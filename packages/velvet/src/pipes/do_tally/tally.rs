@@ -101,7 +101,7 @@ impl Tally {
         let aggregated = self
             .tally_results
             .iter()
-            .fold(contest_result, |acc, x| acc.aggregate(x, true));
+            .try_fold(contest_result, |acc, x| acc.aggregate(x, true))?;
         Ok(aggregated)
     }
 
@@ -732,7 +732,9 @@ mod tests {
             ..ContestResult::default()
         };
 
-        let result = electronic_result.aggregate(&tally_sheet_result, false);
+        let result = electronic_result
+            .aggregate(&tally_sheet_result, false)
+            .expect("counts within the bound");
 
         assert_percentage(candidate_percentage(&result, "candidate-a"), 60.0);
         assert_percentage(candidate_percentage(&result, "candidate-b"), 40.0);
