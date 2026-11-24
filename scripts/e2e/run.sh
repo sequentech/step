@@ -45,11 +45,13 @@ default_bin=$ROOT/.cache/backend-e2e/bin
 $coverage && default_bin+=-coverage
 export STEP_E2E_BIN_DIR=${STEP_E2E_BIN_DIR:-$default_bin}
 DEVCONTAINER=$ROOT/.devcontainer
-SERVICES=(
+BOOTSTRAP_SERVICES=(
     devcontainer postgres postgres-keycloak postgres-b4v6 minio configure-minio task-queues-setup
     data-connector-agent graphql-engine keycloak harvest messaging-webhooks windmill beat b4v6
-    trustee1 trustee2 localstack configure-localstack
+    localstack configure-localstack
 )
+TRUSTEE_SERVICES=(trustee1 trustee2)
+SERVICES=("${BOOTSTRAP_SERVICES[@]}" "${TRUSTEE_SERVICES[@]}")
 read -ra IMAGES <<< "${STEP_E2E_IMAGES:-postgres postgres-b4v6 minio configure-minio keycloak harvest}"
 # Registry references are lowercase; GitHub owner and repository names may not be.
 STEP_E2E_BUILD_CACHE=$(printf '%s' "${STEP_E2E_BUILD_CACHE:-}" | tr '[:upper:]' '[:lower:]')
@@ -246,7 +248,7 @@ if $coverage; then
 fi
 phase "Starting project $PROJECT; logs in $OUTPUT"
 printf '%s\n' "$PROJECT" > "$OUTPUT/$STARTED_MARKER"
-compose up --detach --wait --wait-timeout 900 "${SERVICES[@]}"
+compose up --detach --wait --wait-timeout 900 "${BOOTSTRAP_SERVICES[@]}"
 
 phase "Waiting for the super tenant"
 set +e
@@ -261,6 +263,12 @@ if ((bootstrapped == 3)); then
 elif ((bootstrapped != 0)); then
     exit "$bootstrapped"
 fi
+
+# The daemons authenticate on startup. Do not let them consume the synthetic
+# users' failed-login budget before bootstrap completes their real enrollment
+# and verifies the same password grant used by the daemons.
+phase "Starting enrolled trustee daemons"
+compose up --no-deps --detach --wait --wait-timeout 900 "${TRUSTEE_SERVICES[@]}"
 
 if $bootstrap_only; then
     phase "Bootstrap complete"

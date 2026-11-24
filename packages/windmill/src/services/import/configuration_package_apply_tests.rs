@@ -16,6 +16,8 @@ fn zip(members: &[(&str, &[u8])]) -> Vec<u8> {
         out.start_file(
             *name,
             zip::write::SimpleFileOptions::default()
+                // Package identity hashes the complete archive, not just its members.
+                .last_modified_time(zip::DateTime::default())
                 .compression_method(zip::CompressionMethod::Stored),
         )
         .unwrap();
