@@ -383,6 +383,13 @@ fn presets_for(
         })
 }
 
+/// Classify a picked workbook without opening, serialising or exposing values.
+#[cfg(feature = "election_config_xlsx")]
+#[wasm_bindgen(js_name = isOrdinaryWorkbook)]
+pub fn is_ordinary_workbook(bytes: &[u8]) -> bool {
+    crate::election_config::demo_credentials::is_ordinary_workbook(bytes)
+}
+
 /// Build an importable bundle from a workbook the user picked.
 ///
 /// `workbook` is the bytes of an `.xlsx` — what a file input hands over. The

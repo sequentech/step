@@ -81,6 +81,61 @@ pub fn reject_ordinary_credentials(sheets: &[Sheet]) -> Result<(), Report> {
     }
 }
 
+/// A local, value-free probe before choosing between ordinary conversion and
+/// protected intake. Unknown, oversized or unparseable inputs are not ordinary.
+#[cfg(feature = "election_config_xlsx")]
+pub fn is_ordinary_workbook(bytes: &[u8]) -> bool {
+    use std::io::Cursor;
+    if bytes.is_empty() || bytes.len() > 12 * 1024 * 1024 {
+        return false;
+    }
+    let Ok(mut zip) = zip::ZipArchive::new(Cursor::new(bytes)) else {
+        return false;
+    };
+    if zip.len() > 4096 {
+        return false;
+    }
+    let mut total = 0u64;
+    for index in 0..zip.len() {
+        let Ok(member) = zip.by_index(index) else {
+            return false;
+        };
+        let Some(next) = total
+            .checked_add(member.size())
+            .filter(|n| *n <= 64 * 1024 * 1024)
+        else {
+            return false;
+        };
+        total = next;
+    }
+    drop(zip);
+    super::xlsx::read_xlsx(bytes)
+        .is_ok_and(|w| reject_ordinary_credentials(w.sheets()).is_ok())
+}
+
+#[cfg(all(test, feature = "election_config_xlsx"))]
+#[test]
+fn workbook_probe_is_value_free_and_does_not_require_an_election_plan() {
+    use super::{paths::Cell, sheet::Workbook, xlsx_write::write_xlsx};
+    for name in ["AdminUsers", "Trustees"] {
+        let build = |value: &str| {
+            let sheet = Sheet::from_grid(
+                name,
+                &[
+                    vec![Cell::text("username"), Cell::text("Pass-word")],
+                    vec![Cell::text("fixture-user"), Cell::text(value)],
+                ],
+            )
+            .unwrap();
+            write_xlsx(&Workbook::new(vec![sheet]).unwrap()).unwrap()
+        };
+        assert!(is_ordinary_workbook(&build("")));
+        assert!(!is_ordinary_workbook(&build("synthetic-secret-canary")));
+    }
+    assert!(!is_ordinary_workbook(b"this is not an XLSX"));
+    assert!(!is_ordinary_workbook(&vec![0u8; 12 * 1024 * 1024 + 1]));
+}
+
 /// A verifier is sensitive account bootstrap data. It is never a review,
 /// Blueprint or workbook member. It may exist only in a protected service
 /// sidecar and the final signed, encrypted delivery.
