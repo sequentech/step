@@ -58,7 +58,7 @@ pub async fn create_protocol_manager_keys(
     Ok(())
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn gen_protocol_manager<C: Ctx>() -> Result<ProtocolManager<C>> {
     let pmkey: StrandSignatureSk = StrandSignatureSk::gen().map_err(|err| anyhow!("{:?}", err))?;
     let pm: ProtocolManager<C> = ProtocolManager {

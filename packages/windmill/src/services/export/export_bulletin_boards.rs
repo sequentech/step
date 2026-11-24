@@ -40,7 +40,7 @@ pub static VERSION_COL_NAME: &str = "version";
 pub static TRUSTEE_NAME_COL_NAME: &str = "trustee";
 pub static TRUSTEE_CONFIG_COL_NAME: &str = "config";
 
-#[instrument]
+#[instrument(skip_all)]
 fn get_board_record(election_id: &str, row: B3MessageRow) -> Vec<String> {
     let message_b64 = general_purpose::STANDARD_NO_PAD.encode(row.message.clone());
     vec![

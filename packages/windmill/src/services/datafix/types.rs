@@ -77,7 +77,7 @@ pub enum DatafixErrorCode {
 
 impl DatafixErrorCode {
     /// The HTTP status the Datafix API contract pairs with this error code.
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn status(self) -> Status {
         match self {
             Self::VoterAlreadyExists
@@ -111,7 +111,7 @@ pub type JsonErrorResponse = Custom<Json<DatafixResponse>>;
 
 impl DatafixResponse {
     /// Success body of a Datafix API reply.
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn ok() -> Json<DatafixResponse> {
         Json(DatafixResponse {
             code: Status::Ok.code,
@@ -123,7 +123,7 @@ impl DatafixResponse {
     /// Error reply carrying one of the stable machine-readable
     /// [`DatafixErrorCode`] values, answered with the HTTP status the
     /// contract pairs with it.
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn error(error_code: DatafixErrorCode) -> JsonErrorResponse {
         let status = error_code.status();
         Custom(
@@ -274,7 +274,7 @@ pub struct PasswordPolicy {
 }
 
 impl PasswordPolicy {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn generate_password(&self, voter_id: &str) -> String {
         let pin = match self.characters {
             CharactersPolicy::Numeric => {
