@@ -6,6 +6,7 @@ use crate::postgres::election_event::get_election_event_by_id_if_exist;
 use crate::postgres::maintenance::vacuum_analyze_direct;
 use crate::services::audit_log::{stage, AdminAction, AdminChange, AuditActor, AuditObject};
 use crate::services::delete_election_event::drop_uncommitted_event_database;
+use crate::services::documents::restrict_import_source;
 use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::import::import_users::ImportUsersPrivileges;
 use crate::services::import::rejection::problems_of;
@@ -137,6 +138,12 @@ pub async fn execute(
     tenant_id: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
+    if let Err(err) = restrict_import_source(&object.tenant_id, &object.document_id).await {
+        let err_str = format!("Error restricting access to the election event document: {err:#}");
+        let _ = update_fail(&task_execution, &err_str).await;
+        return Err(err_str.into());
+    }
+
     // What the import left out, with its reason, for the task's log.
     let notes = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
     let result = provide_hasura_transaction(|hasura_transaction| {

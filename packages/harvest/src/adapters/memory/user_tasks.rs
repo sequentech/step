@@ -20,6 +20,7 @@ pub enum UserTaskCall {
     CreateImport,
     CreateExport,
     Fail,
+    RestrictSource,
     Connect,
     SendImport,
     SendExport,
@@ -30,6 +31,8 @@ pub enum UserTaskCall {
 pub struct UserTasksState {
     pub tasks: Vec<TasksExecution>,
     pub failed_tasks: Vec<(String, String)>,
+    /// The (tenant, document) of each import file restricted.
+    pub restricted_sources: Vec<(String, String)>,
     pub import_attempts: Vec<(ImportUsersBody, TasksExecution)>,
     pub export_attempts: Vec<(ExportBody, String, Option<TasksExecution>)>,
     /// The admin each export attempt was sent for.
@@ -144,6 +147,18 @@ impl UserTaskLedger for InMemoryUserTasks {
             .ok_or_else(|| anyhow!("Task missing"))?;
         stored.execution_status = "FAILED".into();
         state.failed_tasks.push((task.id.clone(), message.into()));
+        Ok(())
+    }
+    async fn restrict_import_source(
+        &self,
+        tenant_id: &str,
+        document_id: &str,
+    ) -> anyhow::Result<()> {
+        let mut state = self.state();
+        state.check(UserTaskCall::RestrictSource)?;
+        state
+            .restricted_sources
+            .push((tenant_id.into(), document_id.into()));
         Ok(())
     }
 }

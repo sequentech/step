@@ -24,6 +24,7 @@ interface ImportVotersTabsProps {
     uploadCallback?: (documentId: string) => Promise<void> | null
     errors?: string | null
     problems?: Problem[] | null
+    voterSecretSource?: boolean
 }
 
 export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
@@ -38,6 +39,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
     uploadCallback = null,
     errors,
     problems,
+    voterSecretSource,
 }) => {
     const {t} = useTranslation()
 
@@ -80,6 +82,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
                                 uploadCallback={uploadCallback ? uploadCallback : doUploadCallback}
                                 errors={errors || importErrors}
                                 problems={errors ? problems : problems || importProblems}
+                                voterSecretSource={voterSecretSource}
                             />
                         </>
                     </DrawerStyles.Wrapper>

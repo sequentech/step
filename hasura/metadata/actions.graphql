@@ -669,6 +669,7 @@ type Mutation {
         is_public: Boolean!
         is_local: Boolean
         election_event_id: String
+        voter_secret_attributes: Boolean
     ): GetUploadUrlOutput
 }
 

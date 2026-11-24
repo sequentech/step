@@ -79,7 +79,8 @@ fn wait_for_task(task_execution_id: &str) -> Result<(), Box<dyn std::error::Erro
 pub fn import(file_path: &str, is_local: bool) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
-    let document_id = GetUploadUrl::upload(String::from(file_path), is_local)?;
+    let document_id =
+        GetUploadUrl::upload_for_election_event(String::from(file_path), is_local, None, true)?;
 
     let variables = import_election_event::Variables {
         tenant_id: config.tenant_id.clone(),

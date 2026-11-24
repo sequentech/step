@@ -269,6 +269,65 @@ pub async fn delete_documents(
         .await?)
 }
 
+/// Public documents are served from the anonymously readable bucket, where
+/// the access annotations are never checked, so they cannot be restricted.
+fn voter_secret_reader_annotations(
+    is_public: Option<bool>,
+    annotations: Option<serde_json::Value>,
+) -> Result<serde_json::Value> {
+    if is_public.unwrap_or(false) {
+        return Err(anyhow!(
+            "the document is public, so anyone can download it: upload it again as a private document"
+        ));
+    }
+    DocumentAnnotations::restrict_to_voter_secret_readers(annotations)
+}
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn restrict_document_to_voter_secret_readers(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    document_id: &str,
+) -> Result<()> {
+    let tenant_uuid =
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let document_uuid =
+        parse_uuid_v4(document_id).with_context(|| "Error parsing document_id as UUID")?;
+
+    let row = hasura_transaction
+        .query_opt(
+            r#"
+                SELECT annotations, is_public
+                FROM sequent_backend.document
+                WHERE tenant_id = $1
+                  AND id = $2
+                FOR UPDATE;
+            "#,
+            &[&tenant_uuid, &document_uuid],
+        )
+        .await
+        .with_context(|| "Error reading the document annotations")?
+        .ok_or_else(|| anyhow!("document not found"))?;
+
+    let annotations =
+        voter_secret_reader_annotations(row.try_get("is_public")?, row.try_get("annotations")?)?;
+
+    hasura_transaction
+        .execute(
+            r#"
+                UPDATE sequent_backend.document
+                SET annotations = $3
+                WHERE tenant_id = $1
+                  AND id = $2;
+            "#,
+            &[&tenant_uuid, &document_uuid, &annotations],
+        )
+        .await
+        .with_context(|| "Error updating the document annotations")?;
+
+    Ok(())
+}
+
 /// Returns a vector of tuples of the (SupportMaterial, Document)s
 /// associated with a given election event.
 #[instrument(err, skip(hasura_transaction))]
@@ -607,4 +666,25 @@ pub async fn insert_support_materials(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod voter_secret_reader_annotations_tests {
+    use super::voter_secret_reader_annotations;
+    use serde_json::json;
+
+    #[test]
+    fn refuses_public_documents() {
+        assert!(voter_secret_reader_annotations(Some(true), None).is_err());
+    }
+
+    #[test]
+    fn restricts_private_documents() {
+        for is_public in [Some(false), None] {
+            assert_eq!(
+                voter_secret_reader_annotations(is_public, None).unwrap(),
+                json!({"access": {"voter_secret_attributes": true}})
+            );
+        }
+    }
 }
