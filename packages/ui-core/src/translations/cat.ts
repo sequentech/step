@@ -1079,6 +1079,14 @@ const catalanTranslation: TranslationType = {
                         lead: "Confiança de certificats no conservada",
                         text: "Confiança de certificats no conservada — l'arxiu obert tenia '{{member}}', que l'Architect no conserva. Les signatures que en depenguin poden fallar fins que es restauri amb la configuració de certificats autoritzada de la plataforma.",
                     },
+                    "invalid-operational-mode": {
+                        lead: "Mode de signatura no vàlid",
+                        text: "Mode de signatura no vàlid — trieu hsm-required o legacy-p12.",
+                    },
+                    "mode-not-one-row": {
+                        lead: "Una fila per al mode de signatura",
+                        text: "Una fila per al mode de signatura — OperationalSigning ha de contenir exactament una fila.",
+                    },
                     "workbook-needs-current-architect": {
                         lead: "El llibre necessita un Architect actual",
                         text: "El llibre necessita un Architect actual — el llibre desa aquesta política de signatura en fulls que un Architect anterior ignora. Torneu-lo a obrir des de blueprint.json o el zip de lliurament per conservar-la.",

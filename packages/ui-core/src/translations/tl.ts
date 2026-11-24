@@ -1083,6 +1083,14 @@ const tagalogTranslation: TranslationType = {
                         lead: "Hindi dinala ang certificate trust",
                         text: "Hindi dinala ang certificate trust — may '{{member}}' ang binuksang archive, na hindi dinadala ng Architect. Maaaring pumalya ang mga pirmang umaasa rito hanggang maibalik ito sa awtorisadong certificate setup ng platform.",
                     },
+                    "invalid-operational-mode": {
+                        lead: "Hindi wastong paraan ng paglagda",
+                        text: "Hindi wastong paraan ng paglagda — piliin ang hsm-required o legacy-p12.",
+                    },
+                    "mode-not-one-row": {
+                        lead: "Isang hilera para sa paraan ng paglagda",
+                        text: "Isang hilera para sa paraan ng paglagda — dapat eksaktong isang hilera ang laman ng OperationalSigning.",
+                    },
                     "workbook-needs-current-architect": {
                         lead: "Kailangan ng bagong Architect ang workbook",
                         text: "Kailangan ng bagong Architect ang workbook — itinatago ng workbook ang signing policy na ito sa mga sheet na binabalewala ng mas lumang Architect. Buksan muli mula sa blueprint.json o sa delivery zip para mapanatili ito.",

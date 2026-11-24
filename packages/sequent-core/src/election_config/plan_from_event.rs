@@ -169,7 +169,10 @@ pub fn plan_from_event(document: &Value) -> Result<ReadPlan, Report> {
     // that does not read is refused here, as the importer would refuse it.
     match super::signing_sheet::PlannedSigning::from_export(document) {
         Ok(signing) => plan.signing = signing,
-        Err(problem) => report.push(problem),
+        Err(problem) => {
+            report.push(problem);
+            return Err(report);
+        }
     }
 
     // The event's identity mode, stated on the plan's own event row. The base
