@@ -8,6 +8,7 @@ use super::{
 };
 use crate::routes::operational_initialize_broker::PrivateInitializeBroker;
 use crate::services::operational_portal_auth::OperationalPortalAuth;
+use anyhow::{ensure, Context};
 use jsonwebtoken::jwk::JwkSet;
 use rocket::{Build, Request, Rocket};
 use serde::Deserialize;
@@ -121,7 +122,7 @@ impl LocalInitializePost {
     }
 }
 
-const ROOT: &str = "/run/sequent-felix3-local-initialize";
+pub(crate) const ROOT: &str = "/run/sequent-felix3-local-initialize";
 
 /// Only the Hasura connection's real TCP peer may use the local route. HTTP
 /// headers are additional constraints and never establish the peer identity.
@@ -147,12 +148,19 @@ impl LocalIngress {
 // The shared descriptor names one installed Post. Each component reads its
 // own pins from its private read-only mount after that installation exists.
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Descriptor {
+    #[serde(alias = "installation")]
     installation_id: Uuid,
+    #[serde(alias = "tenant")]
     tenant_id: Uuid,
+    #[serde(alias = "event")]
     election_event_id: Uuid,
+    #[serde(alias = "post")]
     election_id: Uuid,
+    #[serde(alias = "publication")]
     publication_id: Uuid,
+    #[serde(alias = "profile")]
     device_profile: String,
 }
 
@@ -175,7 +183,7 @@ struct HarvestPins {
     broker_peer: SocketAddrV4,
 }
 
-fn protected(path: &Path, private: bool) -> Option<Vec<u8>> {
+pub(crate) fn protected(path: &Path, private: bool) -> Option<Vec<u8>> {
     // All arguments are fixed component paths. Every ancestor up to / is
     // trusted before opening the leaf. Check the actual opened inode too.
     for parent in path.ancestors().skip(1) {
@@ -209,15 +217,16 @@ struct Installation {
 
 fn load(application: &Rocket<Build>, root: &Path) -> Option<Installation> {
     let file = |name: &str, private| protected(&root.join(name), private);
-    let descriptor: Descriptor = serde_json::from_slice(&file("installation.json", false)?).ok()?;
+    let bytes = file("installation.json", false)?;
+    if bytes.len() > 4096 || bytes.iter().copied().find(|b| !b.is_ascii_whitespace()) != Some(b'{') {
+        return None;
+    }
+    let descriptor: Descriptor = serde_json::from_slice(&bytes).ok()?;
     let pins: HarvestPins = serde_json::from_slice(&file("harvest/registration.json", false)?).ok()?;
-    let profile = match descriptor.device_profile.as_str() {
-        "yubihsm" => "yubihsm",
-        "softhsm-test" => "softhsm-test",
-        _ => return None,
-    };
+    let profile = "softhsm-test";
     if [descriptor.installation_id, descriptor.tenant_id, descriptor.election_event_id, descriptor.election_id, descriptor.publication_id]
         .contains(&Uuid::nil())
+        || descriptor.device_profile != profile
         || pins.registered_audience != pins.registered_portal_client
         || !pins.listen.ip().is_private() || pins.listen.port() == 0 || !pins.hasura_peer.is_private()
         || pins.hasura_peer == *pins.listen.ip()
@@ -263,33 +272,53 @@ fn load(application: &Rocket<Build>, root: &Path) -> Option<Installation> {
     Some(Installation { auth, broker, post, ingress })
 }
 
-pub(crate) async fn mount(application: Rocket<Build>) -> Rocket<Build> {
-    let Some(install) = load(&application, Path::new(ROOT)) else {
-        return application;
-    };
-    let Some(services) = application.state::<HarvestServices>() else {
-        return application;
-    };
-    let present = async {
-        let mut db = services.databases.hasura().await.get().await.ok()?;
-        let tx = db.transaction().await.ok()?;
-        install.post.present(&tx).await.ok()
-    }.await;
-    if present != Some(true) {
-        return application;
+fn installation_present(root: &Path) -> std::io::Result<bool> {
+    for name in ["installation.json", "harvest"] {
+        match fs::symlink_metadata(root.join(name)) {
+            Ok(_) => return Ok(true),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
+        }
     }
-    application
+    Ok(false)
+}
+
+pub(crate) async fn mount(application: Rocket<Build>) -> anyhow::Result<Rocket<Build>> {
+    let root = Path::new(ROOT);
+    if !installation_present(root)? {
+        return Ok(application);
+    }
+    let install = load(&application, root).context("invalid installed local Harvest role")?;
+    let services = application.state::<HarvestServices>().context("missing Harvest services")?;
+    let mut db = services.databases.hasura().await.get().await?;
+    let tx = db.transaction().await?;
+    ensure!(install.post.present(&tx).await?, "local Harvest installation marker mismatch");
+    drop(tx);
+    Ok(application
         .manage(install.auth)
         .manage(install.ingress)
         .manage(install.post)
         .manage(super::InitializeBroker(Box::new(install.broker)))
         .mount("/", rocket::routes![super::status, super::start, super::finish,
-            super::cancel_unused, super::reconcile])
+            super::cancel_unused, super::reconcile]))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn partial_and_dangling_installs_are_distinct_from_absence() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(!installation_present(dir.path()).unwrap());
+        let registration = dir.path().join("harvest");
+        std::os::unix::fs::symlink("missing", &registration).unwrap();
+        assert!(installation_present(dir.path()).unwrap());
+        fs::remove_file(registration).unwrap();
+        fs::write(dir.path().join("installation.json"), b"{}").unwrap();
+        assert!(installation_present(dir.path()).unwrap());
+        assert!(load(&rocket::build(), dir.path()).is_none());
+    }
 
     #[test]
     fn ingress_requires_the_actual_peer_and_exact_authority() {

@@ -8,7 +8,7 @@
 //! and the separate scope-limited assessment database role.
 
 use deadpool_postgres::Pool;
-use openssl::x509::X509;
+use openssl::x509::{X509Ref, X509};
 use rocket::config::{Config, MutualTls, TlsConfig};
 use rocket::data::{Limits, ToByteUnit};
 use rocket::http::Status;
@@ -27,6 +27,12 @@ struct Authority {
     tenant: Uuid,
     peer_pin: [u8; 32],
     profile: RequiredCaDevice,
+    #[cfg(all(feature = "felix3-local-initialize-ca", not(feature = "operational-signing-demo-fixture")))]
+    local: crate::local_initialize_ca::Scope,
+}
+
+pub(crate) fn spki(cert: &X509Ref) -> Result<[u8; 32], openssl::error::ErrorStack> {
+    Ok(Sha256::digest(cert.public_key()?.public_key_to_der()?).into())
 }
 
 #[tracing::instrument(skip_all)]
@@ -40,11 +46,9 @@ async fn assess(
     peer: Certificate<'_>,
     probe: Json<DeviceCaProbe>,
 ) -> Result<Json<PositiveCaAssessment>, Status> {
-    let public = X509::from_der(peer.as_bytes())
-        .and_then(|cert| cert.public_key())
-        .and_then(|key| key.public_key_to_der())
+    let pin = X509::from_der(peer.as_bytes())
+        .and_then(|cert| spki(&cert))
         .map_err(|_| Status::Forbidden)?;
-    let pin: [u8; 32] = Sha256::digest(public).into();
     if pin != state.peer_pin || probe.tenant != state.tenant {
         return Err(Status::Forbidden);
     }
@@ -53,13 +57,29 @@ async fn assess(
         .get()
         .await
         .map_err(|_| Status::ServiceUnavailable)?;
-    let tx = connection
-        .transaction()
+    let transaction = connection.build_transaction();
+    #[cfg(all(feature = "felix3-local-initialize-ca", not(feature = "operational-signing-demo-fixture")))]
+    let transaction = transaction
+        .isolation_level(tokio_postgres::IsolationLevel::ReadCommitted)
+        .read_only(true);
+    let tx = transaction
+        .start()
         .await
         .map_err(|_| Status::ServiceUnavailable)?;
+    #[cfg(all(feature = "felix3-local-initialize-ca", not(feature = "operational-signing-demo-fixture")))]
+    state.local.authorize(&tx, &probe).await?;
     let result = assess_reserved_ca(&tx, state.tenant, state.profile, &probe)
         .await
         .map_err(|_| Status::ServiceUnavailable)?;
+    #[cfg(all(feature = "felix3-local-initialize-ca", not(feature = "operational-signing-demo-fixture")))]
+    if let Some(assessment) = &result {
+        // Recheck after chain/CRL verification. Read committed also keeps
+        // the original verifier's final CA-version query fresh.
+        state.local.authorize(&tx, &probe).await?;
+        if chrono::Utc::now().timestamp() >= assessment.usable_until {
+            return Err(Status::Forbidden);
+        }
+    }
     tx.commit().await.map_err(|_| Status::ServiceUnavailable)?;
     result.map(Json).ok_or(Status::Forbidden)
 }
@@ -77,6 +97,8 @@ pub(crate) async fn unmounted_authority(
     server_chain: &[u8],
     server_key: &[u8],
     approved_device_client_ca: &[u8],
+    #[cfg(all(feature = "felix3-local-initialize-ca", not(feature = "operational-signing-demo-fixture")))]
+    local: crate::local_initialize_ca::Scope,
 ) -> Result<Rocket<Build>, Status> {
     if tenant.is_nil()
         || peer_pin == [0; 32]
@@ -133,6 +155,8 @@ pub(crate) async fn unmounted_authority(
             tenant,
             peer_pin,
             profile,
+            #[cfg(all(feature = "felix3-local-initialize-ca", not(feature = "operational-signing-demo-fixture")))]
+            local,
         })
         .mount("/", rocket::routes![assess]))
 }

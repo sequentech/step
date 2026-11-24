@@ -20,6 +20,9 @@ use windmill::services::{
 #[cfg(feature = "operational-signing-demo-fixture")]
 pub mod operational_demo_composition;
 
+#[cfg(all(feature = "felix3-local-initialize-ca", not(feature = "operational-signing-demo-fixture")))]
+pub mod local_initialize_ca;
+
 mod adapters;
 mod ports;
 mod routes;
@@ -93,7 +96,8 @@ pub async fn rocket() -> rocket::Rocket<rocket::Build> {
 
     let application = build_application_with(services);
     #[cfg(all(feature = "felix3-local-initialize", not(feature = "operational-signing-demo-fixture")))]
-    let application = routes::operational_initialize::local::mount(application).await;
+    let application = routes::operational_initialize::local::mount(application)
+        .await.expect("Verify the installed local Harvest registration before launch");
     application
 }
 
