@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Scanovate On-Premise Services | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4362/docs/integrations/scanovate_on_premise_guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Scanovate On-Premise Services | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4362/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4362/docs/integrations/scanovate_on_premise_guide"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4362/docs/integrations/scanovate_on_premise_guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4362/docs/integrations/scanovate_on_premise_guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Scanovate On-Premise Services","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4362/docs/integrations/scanovate_on_premise_guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4362/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4362/assets/js/runtime~main.82c0d898.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4362/assets/js/runtime~main.d931c7f2.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4362/assets/js/main.75aae931.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -422,6 +422,12 @@ camera once, and is kept in the browser&#x27;s storage for the site
 stays so for every voter after that. The face check opens the camera
 Scanovate&#x27;s page chooses, and the photo holding the document has its own
 switch (see <a href="#choosing-the-camera" class="">Choosing the camera</a>).</p>
+<p>A realm whose voters enroll at such a tablet starts with the front camera
+instead: the authenticator&#x27;s <code>document-camera</code> setting, <code>REAR</code> by default and
+<code>FRONT</code> for this. It decides only where a device starts: a choice made on the
+device, and kept in its storage, wins over it, so a tablet whose front camera
+turns out too soft for documents can still be set to its rear one. A laptop
+or desktop is not affected, as Scanovate&#x27;s page asks for no side there.</p>
 <p>How it is done, and its limits:</p>
 <ul>
 <li class="">Scanovate&#x27;s page is embedded from the login page&#x27;s own origin
@@ -482,7 +488,8 @@ results the services post to it.</p>
 <p>Each step&#x27;s camera is opened by whichever page owns the step:</p>
 <table><thead><tr><th>Step</th><th>Opened by</th><th>Camera</th><th>Switch</th></tr></thead><tbody><tr><td>Scan your ID</td><td>OCR&#x27;s own page (in the iframe)</td><td>The rear camera on phones and tablets, or the front one once chosen on the device</td><td><strong>Use the front camera</strong> / <strong>Use the rear camera</strong>: see <a href="#which-camera-scans-the-document" class="">Which camera scans the document</a></td></tr><tr><td>Check your face</td><td>Liveness Plus&#x27;s own page (in the iframe)</td><td>Scanovate&#x27;s choice</td><td>None: see below</td></tr><tr><td>Photo holding the ID</td><td>Our capture page (<code>scanovate/HoldingCamera.tsx</code>)</td><td>The front camera first (<code>HOLDING_CAMERA</code> in <code>scanovate/cameraSession.ts</code>)</td><td>Yes, whenever the browser gives more than one camera</td></tr></tbody></table>
 <p>On the holding photo, a switch button (top left, across from the close
-button) appears only when the browser lists more than one camera the page can
+button, and under the Sequent mark where that corner shows it, on windows
+wider than 720 px) appears only when the browser lists more than one camera the page can
 open, whatever the device or browser, without looking at the user agent: a
 phone or tablet in Chrome or Safari, or a computer with an external webcam.
 With a single camera, or before the voter allows the camera, there&#x27;s no
@@ -490,10 +497,19 @@ button. A camera that tells its side (all phones and tablets) turns to the
 other side, so the browser picks that side&#x27;s main camera; cameras that tell
 none (most webcams) are taken in turn. Only one camera is on at a time: each
 switch stops the camera it leaves before opening the next, which phones
-need. Switching keeps the step and everything done before it, and starts the
-holding time again with the new image. If the other camera won&#x27;t open, the
-page says so and opens the one the voter had; if none opens, it shows the
-camera problem, whose <strong>Try again</strong> opens the step again. The front camera,
+need. While it switches, the page says so instead of showing the stopped
+camera&#x27;s last frame. Switching keeps the step and everything done before it,
+and starts the holding time again with the new image. If the other camera
+won&#x27;t open, the page says so and opens the one the voter had; if none opens,
+it shows the camera problem, whose <strong>Try again</strong> opens the step again.</p>
+<p>An allowed camera has 10 seconds to open (<code>OPEN_TIMEOUT_MS</code>); one that answers
+later is turned off. While the browser asks the voter for the camera there is
+no limit: the time starts once it is allowed, where the browser tells (the
+Permissions API). If the side asked for doesn&#x27;t answer in time, its main
+camera isn&#x27;t asked again by id. If the step&#x27;s first camera doesn&#x27;t open
+(taken by another app, or not answering), the page opens another one, the
+other side first, rather than leaving the voter without a camera; the switch
+then lets them go back. The front camera,
 and a webcam, show as a mirror; the rear camera shows what it sees. The photo
 itself is never mirrored.</p>
 <p>The OCR and Liveness Plus pages are Scanovate&#x27;s, served from their images, and
