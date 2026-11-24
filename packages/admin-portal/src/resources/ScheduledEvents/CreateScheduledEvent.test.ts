@@ -101,6 +101,23 @@ it("schedules only the event-wide end from the lockdown banner and shows a serve
     })
 })
 
+it("keeps the ordinary schedule error message and leaves the editor open on a refusal", async () => {
+    const setIsOpenDrawer = jest.fn()
+    render(React.createElement(CreateEvent, {...props, setIsOpenDrawer}))
+    enterTime()
+    mockSave.mockResolvedValueOnce({
+        data: {manage_election_dates: {error_msg: "Synthetic schedule conflict"}},
+    })
+    fireEvent.click(screen.getByText("Save"))
+    await waitFor(() =>
+        expect(mockNotify).toHaveBeenCalledWith("eventsScreen.messages.createError", {
+            type: "error",
+        })
+    )
+    expect(setIsOpenDrawer).not.toHaveBeenCalled()
+    expect((screen.getByText("Save") as HTMLButtonElement).disabled).toBe(false)
+})
+
 it("offers all four channels and submits online + kiosk by default", async () => {
     render(React.createElement(CreateEvent, props))
     expect(screen.getAllByRole("checkbox")).toHaveLength(4)

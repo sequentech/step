@@ -337,14 +337,11 @@ const CreateEvent: FC<CreateEventProps> = ({
                 variables,
             })
             setIsLoading(false)
-            if (data?.manage_election_dates?.error_msg || errors) {
-                notify(
-                    data?.manage_election_dates?.error_msg ??
-                        t("eventsScreen.messages.createError"),
-                    {
-                        type: "error",
-                    }
-                )
+            const refusal = data?.manage_election_dates?.error_msg
+            if (refusal || errors) {
+                notify((fixedProcessor && refusal) || t("eventsScreen.messages.createError"), {
+                    type: "error",
+                })
             } else {
                 setIsOpenDrawer(false)
                 refresh()

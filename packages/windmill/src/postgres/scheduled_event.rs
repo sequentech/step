@@ -16,7 +16,8 @@ use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-pub(crate) fn is_lockdown_processor(processor: &EventProcessors) -> bool {
+/// Whether a scheduled processor changes event-wide lockdown state.
+pub fn is_lockdown_processor(processor: &EventProcessors) -> bool {
     matches!(
         processor,
         EventProcessors::START_LOCKDOWN_PERIOD | EventProcessors::END_LOCKDOWN_PERIOD

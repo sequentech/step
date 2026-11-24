@@ -20,6 +20,7 @@ use sequent_core::types::scheduled_event::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use windmill::postgres::scheduled_event::is_lockdown_processor;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::election_dates::{
     self, InvalidSchedule, ScheduleInput, ScheduleWarning,
@@ -110,7 +111,7 @@ pub async fn manage_election_dates(
 
     // START and END change the entire event. Hold its Post membership and
     // labels through authorization and save.
-    if input.event_processor.is_lockdown() {
+    if is_lockdown_processor(&input.event_processor) {
         if input.election_id.is_some() {
             return Err(ErrorResponse::new(
                 Status::BadRequest,

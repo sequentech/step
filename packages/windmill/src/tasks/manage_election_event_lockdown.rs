@@ -83,8 +83,7 @@ pub async fn manage_election_event_lockdown_wrapped(
             scheduled_event_id
         ));
     };
-    let at = scheduled_event
-        .lockdown_time()
+    let at = pending_lockdown_time(&scheduled_event)
         .ok_or_else(|| anyhow!("Expected an event-wide lockdown schedule with a valid instant"))?;
     if at > chrono::Utc::now() {
         info!("Scheduled event {scheduled_event_id} was moved to a later time; it runs then");
