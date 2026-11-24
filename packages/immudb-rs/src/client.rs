@@ -9,9 +9,10 @@ use tracing::{debug, info, instrument};
 
 use crate::schema::immu_service_client::ImmuServiceClient;
 use crate::schema::{
-    CommittedSqlTx, Database, DatabaseListRequestV2, DatabaseListResponseV2, DeleteDatabaseRequest,
-    LoginRequest, NamedParam, NewTxRequest, OpenSessionRequest, SqlExecRequest, SqlQueryRequest,
-    SqlQueryResult, TxMode, UnloadDatabaseRequest,
+    CommittedSqlTx, Database, DatabaseListRequestV2, DatabaseListResponseV2,
+    DatabaseSettingsRequest, DatabaseSettingsResponse, DeleteDatabaseRequest, LoginRequest,
+    NamedParam, NewTxRequest, OpenSessionRequest, SqlExecRequest, SqlQueryRequest, SqlQueryResult,
+    TxMode, UnloadDatabaseRequest,
 };
 
 #[derive(Debug)]
@@ -87,15 +88,20 @@ impl Client {
     pub async fn list_databases(&mut self) -> AsyncResponse<DatabaseListResponseV2> {
         let database_list_request = self.get_request(DatabaseListRequestV2 {})?;
         let database_list_response = self.client.database_list_v2(database_list_request).await?;
-        debug!("grpc-database-list-response={:?}", database_list_response);
         Ok(database_list_response)
+    }
+
+    /// The settings of the database the session or token is on.
+    #[instrument(skip(self))]
+    pub async fn database_settings(&mut self) -> AsyncResponse<DatabaseSettingsResponse> {
+        let request = self.get_request(DatabaseSettingsRequest {})?;
+        Ok(self.client.get_database_settings_v2(request).await?)
     }
 
     #[instrument(level = "trace")]
     pub async fn has_database(&mut self, database_name: &str) -> Result<bool> {
         let database_list_request = self.get_request(DatabaseListRequestV2 {})?;
         let database_list_response = self.client.database_list_v2(database_list_request).await?;
-        debug!("grpc-database-list-response={:?}", database_list_response);
         let has_database = database_list_response
             .get_ref()
             .databases
