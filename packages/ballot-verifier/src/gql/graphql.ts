@@ -3030,6 +3030,7 @@ export type Mutation_RootGet_Upload_UrlArgs = {
     media_type: Scalars["String"]["input"]
     name: Scalars["String"]["input"]
     size: Scalars["Int"]["input"]
+    voter_secret_attributes?: InputMaybe<Scalars["Boolean"]["input"]>
 }
 
 /** mutation root */
