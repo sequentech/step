@@ -1147,6 +1147,32 @@ class ScanovateAuthenticatorTest {
   }
 
   @Test
+  void theDocumentScanStartsWithTheRearCameraUnlessTheRealmSaysOtherwise() {
+    startCapture();
+
+    assertEquals("rear", capturePage().get(ScanovateAuthenticator.FTL_DOCUMENT_CAMERA));
+  }
+
+  @Test
+  void aRealmCanStartTheDocumentScanWithTheFrontCamera() {
+    config.put(ScanovateAuthenticatorFactory.DOCUMENT_CAMERA, DocumentCamera.FRONT.name());
+
+    startCapture();
+
+    assertEquals("front", capturePage().get(ScanovateAuthenticator.FTL_DOCUMENT_CAMERA));
+  }
+
+  @Test
+  void anUnknownDocumentCameraIsAConfigurationError() {
+    config.put(ScanovateAuthenticatorFactory.DOCUMENT_CAMERA, "SIDEWAYS");
+
+    authenticator.authenticate(context);
+
+    verifyError(ScanovateError.INTERNAL, false);
+    assertEquals("capture", lastFailure().get("scanovate_config_component"));
+  }
+
+  @Test
   void theDocumentTypeSelectsItsOcrType() {
     config.put(
         ScanovateAuthenticatorFactory.OCR_TYPES,

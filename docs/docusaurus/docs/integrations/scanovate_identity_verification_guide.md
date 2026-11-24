@@ -204,7 +204,7 @@ Starting the step over, a retry, a failed check, a service error or reaching
 `user-status` attribute) gets no `identity-method`.
 
 The capture page receives a `scanovate` attribute with `documentType`,
-`attemptsLeft`, `maxAttempts`, `ocr` and `liveness`, each with the `url` of
+`attemptsLeft`, `maxAttempts`, `documentCamera` (`rear` or `front`), `ocr` and `liveness`, each with the `url` of
 the page to embed, one-time token and case id included, and, with
 `holding-photo` `REQUIRED`, `holding` with the `url` and `token` of the
 upload and the holding time in `seconds`. The error page receives `attemptsLeft`, and the confirmation
@@ -230,6 +230,7 @@ steps that collect the document type, and configure it:
 | `face-match-min-similarity` | JSON keyed by document type, with a `default` key for any other type, of the minimum similarity (0 to 1) of the voter's live face with the portrait OCR read from the document. The service's own threshold (`0.67`) applies if higher. | `{"default": 0.67}` |
 | `page-languages` | Comma separated languages that both OCR and Liveness Plus have a locale file for (`locales/default/<language>.json`), e.g. `en,tl`. A voter whose language is listed gets Scanovate's pages in it (`translation_language`); any other voter gets the services' default language. Only list languages both services have: a page asked for a language without a locale file can't start. | none: the services' default language |
 | `holding-photo` | `REQUIRED`: after the face check, the voter takes a photo of themselves holding the document, which must match their live face with the same minimum similarity. `NONE`: no such photo. | `REQUIRED` |
+| `document-camera` | The camera the document scan starts with on a phone or tablet. `REAR`: the one facing away from the voter, which Scanovate's page opens by itself, for voters scanning with their own phone. `FRONT`: the one facing the voter, for a tablet on a stand. The voter can change it on the page, and the device then keeps that choice. On-premise pages served from the portal's own host only. | `REAR` |
 | `video-seconds` | Holding time: seconds the image must stay still before the holding photo is taken. A positive whole number. | `5` |
 | `doc-id-type` | Auth note with the document type, used to pick the settings and rules. | `sequent.read-only.id-card-type` |
 | `user-status` | Auth note set to `VERIFIED` on success. | `sequent.read-only.id-card-number-validated` |

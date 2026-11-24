@@ -731,6 +731,13 @@ camera once, and is kept in the browser's storage for the site
 stays so for every voter after that. The face check and the photo holding the
 document use the front camera in any case.
 
+A realm whose voters enroll at such a tablet starts with the front camera
+instead: the authenticator's `document-camera` setting, `REAR` by default and
+`FRONT` for this. It decides only where a device starts: a choice made on the
+device, and kept in its storage, wins over it, so a tablet whose front camera
+turns out too soft for documents can still be set to its rear one. A laptop
+or desktop is not affected, as Scanovate's page asks for no side there.
+
 How it is done, and its limits:
 
 - Scanovate's page is embedded from the login page's own origin
