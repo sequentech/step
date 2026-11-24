@@ -432,7 +432,7 @@ pub async fn save_schedule(
     voting_channels: Option<Vec<VotingStatusChannel>>,
     actor: &Actor,
 ) -> Result<SavedSchedule> {
-    if event_processor.is_lockdown() && election_id.is_some() {
+    if is_lockdown_processor(event_processor) && election_id.is_some() {
         return Err(invalid(
             "A lockdown schedule must apply to the whole election event.",
         ));
@@ -481,7 +481,7 @@ pub async fn save_schedule(
         .and_then(|cron| cron.scheduled_date.clone());
 
     match election_id {
-        None if event_processor.is_lockdown() => {
+        None if is_lockdown_processor(event_processor) => {
             if let Some(cron) = cron_config {
                 let rows = find_scheduled_event_by_election_event_id_and_event_processor(
                     hasura_transaction,
@@ -493,7 +493,7 @@ pub async fn save_schedule(
                 let mut pending = rows.iter().filter(|row| row.stopped_at.is_none());
                 let current = pending.next();
                 if pending.next().is_some()
-                    || current.is_some_and(|row| row.lockdown_time().is_none())
+                    || current.is_some_and(|row| pending_lockdown_time(row).is_none())
                 {
                     return Err(invalid(
                         "Cannot change an ambiguous or invalid lockdown schedule.",

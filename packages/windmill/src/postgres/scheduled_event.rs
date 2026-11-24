@@ -16,6 +16,39 @@ use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+pub(crate) fn is_lockdown_processor(processor: &EventProcessors) -> bool {
+    matches!(
+        processor,
+        EventProcessors::START_LOCKDOWN_PERIOD | EventProcessors::END_LOCKDOWN_PERIOD
+    )
+}
+
+/// The instant of a runnable, event-wide lockdown transition. Older rows
+/// may lack a task name or payload.
+pub(crate) fn pending_lockdown_time(row: &ScheduledEvent) -> Option<DateTime<Utc>> {
+    let processor = row.event_processor.as_ref()?;
+    if !is_lockdown_processor(processor) || row.stopped_at.is_some() || row.archived_at.is_some() {
+        return None;
+    }
+    let task = generate_manage_date_task_name(
+        row.tenant_id.as_deref()?,
+        row.election_event_id.as_deref()?,
+        None,
+        processor,
+    );
+    if row.task_id.as_ref().is_some_and(|id| id != &task) {
+        return None;
+    }
+    if let Some(payload) = row.event_payload.as_ref().filter(|p| !p.is_null()) {
+        if !payload.is_object() || payload.get("election_id").is_some_and(|id| !id.is_null()) {
+            return None;
+        }
+    }
+    DateTime::parse_from_rfc3339(row.cron_config.as_ref()?.scheduled_date.as_deref()?)
+        .ok()
+        .map(|date| date.with_timezone(&Utc))
+}
+
 pub struct ScheduledEventWrapper(pub ScheduledEvent);
 
 impl TryFrom<Row> for ScheduledEventWrapper {
@@ -277,7 +310,10 @@ pub async fn archive_pending_lockdown_schedules(
     election_event_id: &str,
     processor: &EventProcessors,
 ) -> Result<u64> {
-    anyhow::ensure!(processor.is_lockdown(), "expected a lockdown processor");
+    anyhow::ensure!(
+        is_lockdown_processor(processor),
+        "expected a lockdown processor"
+    );
     Ok(hasura_transaction
         .execute(
             "UPDATE sequent_backend.scheduled_event

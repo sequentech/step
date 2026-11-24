@@ -1340,7 +1340,11 @@ async fn queued_lifecycle_tasks_recheck_direct_schedule_edits_before_deciding_to
             let tx = editor.transaction().await.unwrap();
             let e = event(&tx, "UTC", &["UTC"]).await;
             let post = election(&tx, e, None).await;
-            let target = (!processor.is_lockdown()).then_some(post);
+            let target = (!matches!(
+                processor,
+                EventProcessors::START_LOCKDOWN_PERIOD | EventProcessors::END_LOCKDOWN_PERIOD
+            ))
+            .then_some(post);
             let id = schedule(
                 &tx,
                 e,

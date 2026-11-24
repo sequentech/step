@@ -12,7 +12,8 @@
 use crate::postgres::document::get_document;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::{
-    find_scheduled_event_by_election_event_id, insert_scheduled_event, update_scheduled_event,
+    find_scheduled_event_by_election_event_id, insert_scheduled_event, is_lockdown_processor,
+    pending_lockdown_time, update_scheduled_event,
 };
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::{get_document_as_temp_file, upload_and_return_document};
@@ -227,7 +228,10 @@ impl ScheduleEvent {
             .iter()
             .filter(|row| row.archived_at.is_none())
         {
-            let lockdown = row.event_processor.as_ref().filter(|p| p.is_lockdown());
+            let lockdown = row
+                .event_processor
+                .as_ref()
+                .filter(|p| is_lockdown_processor(p));
             let key = lockdown
                 .map(|p| self.task_id(None, p))
                 .or_else(|| row.task_id.clone());
@@ -327,7 +331,7 @@ pub fn is_schedulable(processor: &EventProcessors) -> bool {
 /// Types that apply to the whole event only (design §5: enrollment ends
 /// for the event at once).
 pub fn is_event_wide_only(processor: &EventProcessors) -> bool {
-    matches!(processor, EventProcessors::END_ENROLLMENT_PERIOD) || processor.is_lockdown()
+    matches!(processor, EventProcessors::END_ENROLLMENT_PERIOD) || is_lockdown_processor(processor)
 }
 
 /// Types that apply to one election only (the lifecycle windows).
@@ -513,10 +517,15 @@ pub fn parse_schedule(
     let mut pending_lockdowns = HashSet::new();
     let mut invalid_lockdowns = HashSet::new();
     for row in &event.scheduled_events {
-        if let Some(processor) = row.event_processor.as_ref().filter(|p| p.is_lockdown()) {
+        if let Some(processor) = row
+            .event_processor
+            .as_ref()
+            .filter(|p| is_lockdown_processor(p))
+        {
             if row.archived_at.is_none()
                 && row.stopped_at.is_none()
-                && (!pending_lockdowns.insert(processor.clone()) || row.lockdown_time().is_none())
+                && (!pending_lockdowns.insert(processor.clone())
+                    || pending_lockdown_time(row).is_none())
             {
                 invalid_lockdowns.insert(processor.clone());
             }
@@ -668,7 +677,7 @@ pub fn parse_schedule(
         // when the first has an error of its own: the file says it twice.
         if let (true, Some(processor)) = (election_known, processor.as_ref()) {
             if invalid_lockdowns.contains(processor)
-                || (processor.is_lockdown()
+                || (is_lockdown_processor(processor)
                     && existing
                         .get(&event.task_id(None, processor))
                         .is_some_and(|row| row.stopped_at.is_some())
@@ -776,7 +785,8 @@ pub fn plan_import(
             let task_id = entry.task_id(&event.tenant_id, &event.election_event_id);
             let action = match by_task.get(task_id.as_str()) {
                 Some(scheduled)
-                    if entry.event_processor.is_lockdown() && scheduled.stopped_at.is_some() =>
+                    if is_lockdown_processor(&entry.event_processor)
+                        && scheduled.stopped_at.is_some() =>
                 {
                     Upsert::Create
                 }
@@ -1026,7 +1036,7 @@ pub async fn import_schedule(
     if parsed
         .entries
         .iter()
-        .any(|entry| entry.event_processor.is_lockdown())
+        .any(|entry| is_lockdown_processor(&entry.event_processor))
     {
         crate::postgres::scheduled_event::lock_elections(
             hasura_transaction,
@@ -1176,7 +1186,7 @@ pub fn export_schedule_csv(
         .filter(|scheduled| scheduled.archived_at.is_none())
         .filter(|scheduled| {
             scheduled.event_processor.as_ref().is_some_and(|p| {
-                is_schedulable(p) && !(p.is_lockdown() && scheduled.stopped_at.is_some())
+                is_schedulable(p) && !(is_lockdown_processor(p) && scheduled.stopped_at.is_some())
             })
         })
         .filter_map(|scheduled| {
