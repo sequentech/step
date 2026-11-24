@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::counting_algorithm::{plurality_at_large::PluralityAtLarge, CountingAlgorithm};
+use super::do_tally::checked_count_sum;
 use super::error::{Error, Result};
 use super::{CandidateResult, ContestResult, InvalidVotes};
 use crate::pipes::error::Error as PipesError;
@@ -92,7 +93,10 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         explicit: invalid_votes.explicit_invalid.unwrap_or(0),
         implicit: invalid_votes.implicit_invalid.unwrap_or(0),
     };
-    let count_invalid: u64 = count_invalid_votes.explicit + count_invalid_votes.implicit;
+    let count_invalid = checked_count_sum(
+        [count_invalid_votes.explicit, count_invalid_votes.implicit],
+        "total_invalid",
+    )?;
     let count_blank: u64 = content.total_blank_votes.unwrap_or(0);
 
     let candidate_results = content
@@ -115,12 +119,14 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         })
         .collect::<Result<Vec<CandidateResult>>>()?;
 
-    let count_valid: u64 = candidate_results
-        .iter()
-        .map(|candidate_result| candidate_result.total_count)
-        .sum();
+    let count_valid = checked_count_sum(
+        candidate_results
+            .iter()
+            .map(|candidate_result| candidate_result.total_count),
+        "candidate votes",
+    )?;
 
-    let total_votes = count_valid + count_invalid;
+    let total_votes = checked_count_sum([count_valid, count_invalid], "total_votes")?;
 
     let contest_result = ContestResult {
         contest: contest.clone(),
@@ -182,4 +188,107 @@ pub fn create_tally(
     };
 
     Ok(Box::new(counting_algorithm))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sequent_core::ballot::Candidate;
+    use sequent_core::types::tally_sheets::{
+        AreaContestResults, CandidateResults, InvalidVotes as TallySheetInvalidVotes,
+    };
+
+    fn contest() -> Contest {
+        Contest {
+            id: "contest".to_string(),
+            candidates: ["candidate-a", "candidate-b"]
+                .into_iter()
+                .map(|id| Candidate {
+                    id: id.to_string(),
+                    ..Candidate::default()
+                })
+                .collect(),
+            ..Contest::default()
+        }
+    }
+
+    fn tally_sheet(candidate_votes: [u64; 2], explicit: u64, implicit: u64) -> TallySheet {
+        let candidate_results = ["candidate-a", "candidate-b"]
+            .into_iter()
+            .zip(candidate_votes)
+            .map(|(id, votes)| {
+                (
+                    id.to_string(),
+                    CandidateResults {
+                        candidate_id: id.to_string(),
+                        total_votes: Some(votes),
+                    },
+                )
+            })
+            .collect();
+        TallySheet {
+            id: "tally-sheet".to_string(),
+            tenant_id: "tenant".to_string(),
+            election_event_id: "event".to_string(),
+            election_id: "election".to_string(),
+            contest_id: "contest".to_string(),
+            area_id: "area".to_string(),
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations: None,
+            published_at: None,
+            published_by_user_id: None,
+            content: Some(AreaContestResults {
+                area_id: "area".to_string(),
+                contest_id: "contest".to_string(),
+                total_votes: None,
+                total_valid_votes: None,
+                invalid_votes: Some(TallySheetInvalidVotes {
+                    total_invalid: None,
+                    implicit_invalid: Some(implicit),
+                    explicit_invalid: Some(explicit),
+                }),
+                total_blank_votes: Some(1),
+                census: Some(20),
+                candidate_results,
+            }),
+            channel: None,
+            deleted_at: None,
+            created_by_user_id: "user".to_string(),
+        }
+    }
+
+    #[test]
+    fn process_tally_sheet_counts_a_consistent_sheet() {
+        let result = process_tally_sheet(&tally_sheet([4, 3], 1, 2), &contest())
+            .expect("the sheet should be processed");
+
+        assert_eq!(result.total_valid_votes, 7);
+        assert_eq!(result.total_invalid_votes, 3);
+        assert_eq!(result.total_votes, 10);
+        assert_eq!(result.total_blank_votes, 1);
+    }
+
+    #[test]
+    fn process_tally_sheet_rejects_candidate_votes_beyond_the_counter_range() {
+        // [2^64 - 100, 200] would wrap to 100.
+        let sheet = tally_sheet([u64::MAX - 99, 200], 0, 0);
+
+        assert!(process_tally_sheet(&sheet, &contest()).is_err());
+    }
+
+    #[test]
+    fn process_tally_sheet_rejects_invalid_votes_beyond_the_counter_range() {
+        let sheet = tally_sheet([4, 3], u64::MAX, 1);
+
+        assert!(process_tally_sheet(&sheet, &contest()).is_err());
+    }
+
+    #[test]
+    fn process_tally_sheet_rejects_vote_totals_beyond_the_counter_range() {
+        let sheet = tally_sheet([u64::MAX, 0], 0, 1);
+
+        assert!(process_tally_sheet(&sheet, &contest()).is_err());
+    }
 }
