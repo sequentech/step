@@ -9,6 +9,8 @@ use sequent_core::{
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use std::str::FromStr;
+use strum_macros::{Display, EnumString};
 use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -24,6 +26,34 @@ pub struct PipeConfigBallotImages {
 }
 
 pub const DEFAULT_MCBALLOT_TITLE: &str = "Ballot images";
+
+pub const BALLOT_IMAGE_SIGNATURE_POLICY_ANNOTATION: &str = "ballot-images:signature-policy";
+
+/// What the signature on each multi-contest ballot image page covers.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Display, EnumString)]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum BallotImageSignaturePolicy {
+    /// `event:precinct:serial:election:page`, the original format.
+    #[default]
+    IdentifiersOnly,
+    /// A versioned, length-prefixed payload with the page identifiers, the
+    /// contest id and a digest of the selected candidates.
+    IdentifiersAndChoices,
+}
+
+impl BallotImageSignaturePolicy {
+    /// Reads the policy from the election event annotations, defaulting to
+    /// `IdentifiersOnly` when the annotation is absent.
+    pub fn from_annotations(
+        annotations: &HashMap<String, String>,
+    ) -> Result<Self, strum::ParseError> {
+        annotations
+            .get(BALLOT_IMAGE_SIGNATURE_POLICY_ANNOTATION)
+            .map(|value| Self::from_str(value))
+            .transpose()
+            .map(Option::unwrap_or_default)
+    }
+}
 
 impl PipeConfigBallotImages {
     #[instrument(skip_all, name = "PipeConfigBallotImages::new")]
@@ -69,5 +99,40 @@ impl Default for PipeConfigBallotImages {
             execution_annotations: None,
             acm_key: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn signature_policy_defaults_to_identifiers_only() {
+        let policy = BallotImageSignaturePolicy::from_annotations(&HashMap::new());
+
+        assert_eq!(policy, Ok(BallotImageSignaturePolicy::IdentifiersOnly));
+    }
+
+    #[test]
+    fn signature_policy_reads_annotation() {
+        let annotations = HashMap::from([(
+            BALLOT_IMAGE_SIGNATURE_POLICY_ANNOTATION.to_string(),
+            "IDENTIFIERS_AND_CHOICES".to_string(),
+        )]);
+
+        assert_eq!(
+            BallotImageSignaturePolicy::from_annotations(&annotations),
+            Ok(BallotImageSignaturePolicy::IdentifiersAndChoices)
+        );
+    }
+
+    #[test]
+    fn signature_policy_rejects_unknown_value() {
+        let annotations = HashMap::from([(
+            BALLOT_IMAGE_SIGNATURE_POLICY_ANNOTATION.to_string(),
+            "identifiers-and-choices".to_string(),
+        )]);
+
+        assert!(BallotImageSignaturePolicy::from_annotations(&annotations).is_err());
     }
 }
