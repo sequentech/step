@@ -225,6 +225,7 @@ pub async fn get_publication_ballot_styles(
     tenant_id: &str,
     election_event_id: &str,
     ballot_publication_id: &str,
+    area_id: Option<&str>,
     limit: Option<usize>,
 ) -> Result<Vec<BallotStyle>> {
     let limit_clause = if let Some(limit) = limit {
@@ -243,11 +244,13 @@ pub async fn get_publication_ballot_styles(
             election_event_id = $1
             AND tenant_id = $2
             AND ballot_publication_id = $3
+            AND ($4::uuid IS NULL OR area_id = $4)
         ORDER BY election_id ASC, area_id ASC
         {limit_clause}"
     );
 
     let query = hasura_transaction.prepare(query_str.as_str()).await?;
+    let area_uuid = area_id.map(parse_uuid_v4).transpose()?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(
@@ -256,6 +259,7 @@ pub async fn get_publication_ballot_styles(
                 &parse_uuid_v4(election_event_id)?,
                 &parse_uuid_v4(tenant_id)?,
                 &parse_uuid_v4(ballot_publication_id)?,
+                &area_uuid,
             ],
         )
         .await?;

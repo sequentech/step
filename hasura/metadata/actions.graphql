@@ -672,6 +672,7 @@ type Mutation {
     prepare_ballot_publication_preview(
         election_event_id: String!
         ballot_publication_id: String!
+        area_id: String
     ): PrepareBallotPublicationPreviewOutput
 }
 

@@ -119,6 +119,51 @@ it("offers areas beyond the diff limit and opens only after task success", async
     )
     expect(mockQuery.mock.calls[0][0].variables.publicationId).toBe("publication")
 })
+it("prepares the preview for the chosen area only", async () => {
+    render(require("react").createElement(EditPreview, props))
+    await startPreview()
+    expect(mockPrepare).toHaveBeenCalledWith({
+        variables: {
+            electionEventId: "event",
+            ballotPublicationId: "publication",
+            areaId: "area-59",
+        },
+    })
+})
+it("prepares another preview when a different area is chosen", async () => {
+    const view = render(require("react").createElement(EditPreview, props))
+    await startPreview()
+    mockTask = {id: "task", execution_status: "SUCCESS"}
+    view.rerender(require("react").createElement(EditPreview, props))
+    await waitFor(() => expect(window.open).toHaveBeenCalledTimes(1))
+    mockTask = undefined
+    mockPrepare.mockResolvedValueOnce({
+        data: {
+            prepare_ballot_publication_preview: {
+                document_id: "other-document",
+                task_execution: {id: "other-task"},
+            },
+        },
+    })
+    fireEvent.change(screen.getByLabelText("area"), {target: {value: "area-3"}})
+    expect(window.open).toHaveBeenCalledTimes(1)
+    await act(async () => fireEvent.click(screen.getByText("publish.preview.action")))
+    expect(mockPrepare).toHaveBeenLastCalledWith({
+        variables: {
+            electionEventId: "event",
+            ballotPublicationId: "publication",
+            areaId: "area-3",
+        },
+    })
+    mockTask = {id: "other-task", execution_status: "SUCCESS"}
+    view.rerender(require("react").createElement(EditPreview, props))
+    await waitFor(() =>
+        expect(window.open).toHaveBeenLastCalledWith(
+            "https://voting.example/preview/tenant/other-document/area-3/publication",
+            "_blank"
+        )
+    )
+})
 it("recovers from enqueue errors even when the response contains a document id", async () => {
     mockPrepare.mockResolvedValueOnce({
         data: {

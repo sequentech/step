@@ -179,6 +179,7 @@ async fn validate_published_acclamation_status(
             ballot_publication.id.clone(),
             None,
             None,
+            None,
         )
         .await?,
     )?;
@@ -225,6 +226,7 @@ async fn validate_published_acclamation_status(
             election_event_id.to_owned(),
             previous_publication.id,
             Some(election_id.clone()),
+            None,
             None,
         )
         .await?;
@@ -448,6 +450,7 @@ pub async fn get_publication_json(
     election_event_id: String,
     ballot_publication_id: String,
     election_id: Option<String>,
+    area_id: Option<String>,
     limit: Option<usize>,
 ) -> Result<Value> {
     let ballot_style = get_publication_ballot_styles(
@@ -455,6 +458,7 @@ pub async fn get_publication_json(
         &tenant_id,
         &election_event_id,
         &ballot_publication_id,
+        area_id.as_deref(),
         limit,
     )
     .await?;
@@ -548,6 +552,7 @@ pub async fn get_ballot_publication_diff(
         election_event_id.clone(),
         ballot_publication.id.clone(),
         ballot_publication.election_id.clone(),
+        None,
         limit,
     )
     .await?;
@@ -564,6 +569,7 @@ pub async fn get_ballot_publication_diff(
             election_event_id.clone(),
             previous_publication_id.clone(),
             ballot_publication.election_id.clone(),
+            None,
             limit,
         )
         .await?;

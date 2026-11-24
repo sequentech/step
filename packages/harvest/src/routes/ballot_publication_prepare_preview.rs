@@ -20,6 +20,7 @@ use windmill::types::tasks::ETasksExecution;
 pub struct PreparePublPreviewInput {
     election_event_id: String,
     ballot_publication_id: String,
+    area_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -86,6 +87,7 @@ pub async fn prepare_ballot_publication_preview(
                 ballot_publication_id,
                 task_execution.clone(),
                 document_id.clone(),
+                body.area_id.clone(),
             ),
         )
         .await
