@@ -1055,8 +1055,13 @@ html[data-a11y-contrast="high"] .sequent-auth :is(a, button, select):focus-visib
     color: #ffffff;
     cursor: pointer;
 }
-/* Across from the close button, so the two are never mistaken. */
+/*
+ * Across from the close button, so the two are never mistaken, and under the
+ * mark in that corner, which is drawn over the camera window: a realm with a
+ * taller mark says how tall, with the variable.
+ */
 .sequent-auth .scanovate-holding-switch {
+    top: calc(16px + var(--auth-fullscreen-brand-height, 40px) + 4px);
     right: auto;
     left: 10px;
 }
@@ -1145,6 +1150,10 @@ html[data-a11y-contrast="high"] .sequent-auth :is(a, button, select):focus-visib
     }
     .sequent-auth .scanovate-holding-status p {
         font-size: 18px;
+    }
+    /* The mark is at the bottom here: the corner is free. */
+    .sequent-auth .scanovate-holding-switch {
+        top: 10px;
     }
 }
 @media (max-width: 520px) {

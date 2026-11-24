@@ -861,8 +861,9 @@ export const HoldingClosedStopsCamera: Story = {
 }
 
 /**
- * A camera slow to open: the last frame of the one left stays on screen,
- * perfectly still, and no photo is taken of it.
+ * A camera slow to open: the voter is told the camera is switching, the last
+ * frame of the one left isn't shown, as if the camera had frozen, and no
+ * photo is taken of it.
  */
 export const HoldingSlowSwitch: Story = {
     args: {kcContext: withHolding},
@@ -873,8 +874,104 @@ export const HoldingSlowSwitch: Story = {
         await throughScanovate(canvasElement)
         await userEvent.click(await canvas.findByRole("button", {name: "Switch camera"}))
         motion.moving = false
+        await expect(await canvas.findByText("Switching camera…")).toBeVisible()
+        await expect(canvasElement.querySelector(".scanovate-window video")).not.toBeVisible()
+        await expect(canvas.getByRole("button", {name: "Switch camera"})).toBeDisabled()
         await new Promise((resolve) => setTimeout(resolve, 2000))
         await expect(canvas.queryByRole("img", {name: "Your photo holding your ID"})).toBeNull()
+        await expect(await autoPhoto(canvasElement)).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Use this photo"}))
+        await waitFor(() => expect(submissions).toHaveLength(1))
+        await expect(near(await photoColor(uploads[0].init.body as Blob), BACK_CAMERA.color)).toBe(
+            true
+        )
+    },
+}
+
+/** The box of an element on the page. */
+function box(canvasElement: HTMLElement, selector: string) {
+    const element = canvasElement.ownerDocument.querySelector(selector)
+    if (element === null) throw new Error(`No ${selector}`)
+    return element.getBoundingClientRect()
+}
+
+function overlaps(a: DOMRect, b: DOMRect) {
+    return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+}
+
+/** The story in a window of that width, as a tablet or a computer would show it. */
+function atWidth(width: number) {
+    return {
+        globals: {viewport: {value: `width-${width}`, isRotated: false}},
+        parameters: {
+            viewport: {
+                options: {
+                    [`width-${width}`]: {
+                        name: `${width}px`,
+                        styles: {width: `${width}px`, height: "800px"},
+                    },
+                },
+            },
+        },
+    }
+}
+
+/**
+ * Windows wider than 720 px (tablets, computers, phones held sideways) show
+ * the mark in the top left corner, over the camera: the switch sits under it,
+ * where it can be seen. Narrow windows show the mark at the bottom.
+ */
+function holdingSwitchClearOfMark(width: number): Story {
+    return {
+        ...atWidth(width),
+        args: {kcContext: withHolding},
+        beforeEach: () => {
+            expect(window.innerWidth, "Actual browser viewport width").toBe(width)
+            return fakeCameraAndUploads(200, true, true, [FRONT_CAMERA, BACK_CAMERA])
+        },
+        play: async ({canvasElement}) => {
+            const canvas = within(canvasElement)
+            await throughScanovate(canvasElement)
+            const switchButton = await canvas.findByRole("button", {name: "Switch camera"})
+            const mark = box(canvasElement, ".auth-fullscreen-brand")
+            await expect(overlaps(switchButton.getBoundingClientRect(), mark)).toBe(false)
+            await expect(
+                overlaps(
+                    switchButton.getBoundingClientRect(),
+                    box(canvasElement, ".scanovate-window-heading")
+                )
+            ).toBe(false)
+            await userEvent.click(switchButton)
+            await waitFor(() =>
+                expect(canvasElement.querySelector(".scanovate-window video")).not.toHaveClass(
+                    "mirrored"
+                )
+            )
+        },
+    }
+}
+export const HoldingSwitchClearOfMarkTablet: Story = holdingSwitchClearOfMark(800)
+export const HoldingSwitchClearOfMarkComputer: Story = holdingSwitchClearOfMark(1280)
+export const HoldingSwitchClearOfMarkPhone: Story = holdingSwitchClearOfMark(390)
+
+/**
+ * The front camera is taken by another app, or doesn't answer: the page opens
+ * the rear one instead of leaving the voter without a camera, and the voter
+ * can switch back once the front one is free.
+ */
+export const HoldingFrontCameraBusy: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () =>
+        fakeCameraAndUploads(200, true, true, [{...FRONT_CAMERA, fails: true}, BACK_CAMERA]),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        await expect(await canvas.findByRole("button", {name: "Switch camera"})).toBeVisible()
+        await expect(canvasElement.querySelector(".scanovate-window video")).not.toHaveClass(
+            "mirrored"
+        )
+        await expect(liveCameras()).toBe(1)
+        motion.moving = false
         await expect(await autoPhoto(canvasElement)).toBeVisible()
         await userEvent.click(canvas.getByRole("button", {name: "Use this photo"}))
         await waitFor(() => expect(submissions).toHaveLength(1))

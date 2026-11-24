@@ -151,6 +151,7 @@ window.kcContext.enrollmentOutcome = {
     "scanovateHoldingPhotoLabel", "scanovateHoldingKeepStill", "scanovateHoldingCountdown",
     "scanovateHoldingProgress", "scanovateHoldingRetake", "scanovateHoldingUse",
     "scanovateHoldingClose", "scanovateHoldingSwitchCamera", "scanovateHoldingSwitchFailed",
+    "scanovateHoldingSwitching",
     "scanovateUploadProblemTitle", "scanovateUploadProblemText",
     "scanovateCameraProblemTitle", "scanovateCameraProblemText", "scanovateSessionExpiredTitle",
     "scanovateSessionExpiredText", "scanovateStartAgainTitle", "scanovateStartAgainText",

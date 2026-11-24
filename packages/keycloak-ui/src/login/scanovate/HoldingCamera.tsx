@@ -164,8 +164,9 @@ export function HoldingCamera(props: {
         if (session === null || switching) return
         setSwitching(true)
         setSwitchFailed(false)
-        // The camera being left stops at once, and its last frame stays on
-        // screen, perfectly still: no photo is taken until the next one shows.
+        // The camera being left stops at once. Its last frame is hidden, so the
+        // voter doesn't take it for a frozen camera, and no photo is taken
+        // until the next one shows.
         setReady(false)
         setProgress(0)
         const result = await session.switch(cameras)
@@ -256,10 +257,11 @@ export function HoldingCamera(props: {
     const cameraLabel = text("scanovateHoldingCameraLabel")
     const photoLabel = text("scanovateHoldingPhotoLabel")
     const progressLabel = text("scanovateHoldingProgress")
-    const status =
-        progress > 0
-            ? text("scanovateHoldingCountdown", String(secondsLeft(progress, holding.seconds)))
-            : text("scanovateHoldingKeepStill")
+    const status = switching
+        ? text("scanovateHoldingSwitching")
+        : progress > 0
+          ? text("scanovateHoldingCountdown", String(secondsLeft(progress, holding.seconds)))
+          : text("scanovateHoldingKeepStill")
     const retakeLabel = text("scanovateHoldingRetake")
     const useLabel = text("scanovateHoldingUse")
     const closeLabel = text("scanovateHoldingClose")
@@ -274,7 +276,7 @@ export function HoldingCamera(props: {
                     ref={videoRef}
                     aria-label={cameraLabel.text}
                     lang={cameraLabel.lang}
-                    hidden={photo !== null}
+                    hidden={photo !== null || switching}
                     className={mirrorsPreview(camera) ? "mirrored" : undefined}
                     autoPlay
                     muted

@@ -828,7 +828,8 @@ Each step's camera is opened by whichever page owns the step:
 | Photo holding the ID | Our capture page (`scanovate/HoldingCamera.tsx`) | The front camera first (`HOLDING_CAMERA` in `scanovate/cameraSession.ts`) | Yes, whenever the browser gives more than one camera |
 
 On the holding photo, a switch button (top left, across from the close
-button) appears only when the browser lists more than one camera the page can
+button, and under the Sequent mark where that corner shows it, on windows
+wider than 720 px) appears only when the browser lists more than one camera the page can
 open, whatever the device or browser, without looking at the user agent: a
 phone or tablet in Chrome or Safari, or a computer with an external webcam.
 With a single camera, or before the voter allows the camera, there's no
@@ -836,10 +837,20 @@ button. A camera that tells its side (all phones and tablets) turns to the
 other side, so the browser picks that side's main camera; cameras that tell
 none (most webcams) are taken in turn. Only one camera is on at a time: each
 switch stops the camera it leaves before opening the next, which phones
-need. Switching keeps the step and everything done before it, and starts the
-holding time again with the new image. If the other camera won't open, the
-page says so and opens the one the voter had; if none opens, it shows the
-camera problem, whose **Try again** opens the step again. The front camera,
+need. While it switches, the page says so instead of showing the stopped
+camera's last frame. Switching keeps the step and everything done before it,
+and starts the holding time again with the new image. If the other camera
+won't open, the page says so and opens the one the voter had; if none opens,
+it shows the camera problem, whose **Try again** opens the step again.
+
+An allowed camera has 10 seconds to open (`OPEN_TIMEOUT_MS`); one that answers
+later is turned off. While the browser asks the voter for the camera there is
+no limit: the time starts once it is allowed, where the browser tells (the
+Permissions API). If the side asked for doesn't answer in time, its main
+camera isn't asked again by id. If the step's first camera doesn't open
+(taken by another app, or not answering), the page opens another one, the
+other side first, rather than leaving the voter without a camera; the switch
+then lets them go back. The front camera,
 and a webcam, show as a mirror; the rear camera shows what it sees. The photo
 itself is never mirrored.
 

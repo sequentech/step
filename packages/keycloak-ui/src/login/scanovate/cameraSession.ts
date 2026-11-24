@@ -29,10 +29,11 @@ export const HOLDING_CAMERA: CameraPolicy = {
 }
 
 /**
- * How long a camera that is already allowed may take to open. Past it the
- * page tries the next one, and stops this one if it answers later. The first
- * camera of a step has no limit: the voter may still be reading the browser's
- * permission prompt.
+ * How long an allowed camera may take to open. Past it the page tries the
+ * next one, and stops this one if it answers later. While the browser asks
+ * the voter for the camera there is no limit: the time starts once it is
+ * allowed, where the browser tells (the Permissions API); a browser that
+ * doesn't tell leaves the step's first camera without a limit.
  */
 export const OPEN_TIMEOUT_MS = 10_000
 
@@ -55,9 +56,26 @@ export enum CameraRequestKind {
 export type CameraRequest =
     | {kind: CameraRequestKind.Preferred; facing: CameraFacing}
     | {kind: CameraRequestKind.Facing; facing: CameraFacing}
-    | {kind: CameraRequestKind.Device; deviceId: string}
+    // `facing`, when known, lets a side that didn't answer be skipped.
+    | {kind: CameraRequestKind.Device; deviceId: string; facing?: CameraFacing | null}
 
 export type MediaDevicesLike = Pick<MediaDevices, "getUserMedia" | "enumerateDevices">
+
+/** What the page needs of the Permissions API: whether the camera is allowed, and when it becomes so. */
+export type PermissionsLike = {
+    query(descriptor: {
+        name: "camera"
+    }): Promise<
+        Pick<PermissionStatus, "state"> &
+            Partial<Pick<EventTarget, "addEventListener" | "removeEventListener">>
+    >
+}
+
+/** The browser's Permissions API, where it has one. */
+export function browserPermissions(): PermissionsLike | null {
+    const permissions = typeof navigator === "undefined" ? undefined : navigator.permissions
+    return permissions === undefined ? null : (permissions as unknown as PermissionsLike)
+}
 
 const FACING_MODES: Record<CameraFacing, string> = {
     [CameraFacing.Front]: "user",
@@ -133,9 +151,33 @@ export function switchRequests(current: Camera, cameras: Camera[]): CameraReques
         ]
     }
     for (const camera of others) {
-        requests.push({kind: CameraRequestKind.Device, deviceId: camera.deviceId})
+        requests.push({
+            kind: CameraRequestKind.Device,
+            deviceId: camera.deviceId,
+            facing: camera.facing,
+        })
     }
     return requests
+}
+
+/**
+ * What to try when the step's camera didn't open (it hung, or is taken by
+ * another app): each camera by id, the other side first, since the side
+ * that was asked for is the one that failed.
+ */
+export function fallbackRequests(preferred: CameraFacing, cameras: Camera[]): CameraRequest[] {
+    return [
+        ...cameras.filter((camera) => camera.facing !== preferred),
+        ...cameras.filter((camera) => camera.facing === preferred),
+    ].map((camera) => ({
+        kind: CameraRequestKind.Device,
+        deviceId: camera.deviceId,
+        facing: camera.facing,
+    }))
+}
+
+function isTimeout(error: unknown): boolean {
+    return error instanceof DOMException && error.name === "TimeoutError"
 }
 
 export function videoConstraints(request: CameraRequest): MediaTrackConstraints {
@@ -202,19 +244,28 @@ export class CameraSession {
     constructor(
         private readonly devices: MediaDevicesLike,
         private readonly policy: CameraPolicy,
-        private readonly openTimeoutMs = OPEN_TIMEOUT_MS
+        private readonly openTimeoutMs = OPEN_TIMEOUT_MS,
+        private readonly permissions: PermissionsLike | null = browserPermissions()
     ) {}
 
     get camera(): Camera | null {
         return this.current
     }
 
-    /** Opens the step's camera; null when none opens (denied, missing or busy). */
-    start(): Promise<OpenedCamera | null> {
-        return this.open(
+    /**
+     * Opens the step's camera, or, if it doesn't open, any other camera the
+     * voter can switch from; null when none opens (denied, missing or busy).
+     */
+    async start(): Promise<OpenedCamera | null> {
+        const opened = await this.open(
             [{kind: CameraRequestKind.Preferred, facing: this.policy.preferred}],
             false
         )
+        if (opened !== null || this.closed) return opened
+        // Listed with ids only once the camera is allowed: nothing to try otherwise.
+        const others = fallbackRequests(this.policy.preferred, await this.cameras())
+        if (others.length === 0 || this.closed) return null
+        return this.open(others, true)
     }
 
     /**
@@ -272,16 +323,59 @@ export class CameraSession {
         this.current = null
     }
 
-    /** A camera, within the time limit when `timed`; one that answers late is stopped. */
+    /**
+     * Calls `allowed` once the camera is allowed: now, or when the voter
+     * answers the browser's prompt. Returns what stops watching. Nothing is
+     * called where the browser doesn't tell.
+     */
+    private whenAllowed(allowed: () => void): () => void {
+        let watching = true
+        let status: Awaited<ReturnType<PermissionsLike["query"]>> | null = null
+        const check = () => {
+            if (watching && status?.state === "granted") allowed()
+        }
+        let query: ReturnType<PermissionsLike["query"]> | undefined
+        try {
+            query = this.permissions?.query({name: "camera"})
+        } catch {
+            query = undefined
+        }
+        void query?.then(
+            (answer) => {
+                status = answer
+                if (!watching) return
+                answer.addEventListener?.("change", check)
+                check()
+            },
+            () => undefined
+        )
+        return () => {
+            watching = false
+            status?.removeEventListener?.("change", check)
+        }
+    }
+
+    /**
+     * A camera, within the time limit: from the start when `timed`, from when
+     * it is allowed otherwise. One that answers late is stopped.
+     */
     private async request(constraints: MediaStreamConstraints, timed: boolean) {
         const opening = this.devices.getUserMedia(constraints)
-        if (!timed) return opening
         let timer: ReturnType<typeof setTimeout> | undefined
+        let stopWatching = () => {}
         const late = new Promise<never>((_, reject) => {
-            timer = setTimeout(
-                () => reject(new DOMException("The camera took too long", "TimeoutError")),
-                this.openTimeoutMs
-            )
+            const limit = () => {
+                if (timer !== undefined) return
+                timer = setTimeout(
+                    () => reject(new DOMException("The camera took too long", "TimeoutError")),
+                    this.openTimeoutMs
+                )
+            }
+            if (timed) {
+                limit()
+            } else {
+                stopWatching = this.whenAllowed(limit)
+            }
         })
         try {
             return await Promise.race([opening, late])
@@ -290,18 +384,32 @@ export class CameraSession {
             throw error
         } finally {
             clearTimeout(timer)
+            stopWatching()
         }
     }
 
     private async open(requests: CameraRequest[], timed: boolean): Promise<OpenedCamera | null> {
         const generation = ++this.generation
+        // A side that didn't answer in time: the browser asked its first camera,
+        // so asking that camera again by id would only make the voter wait twice.
+        const hung = new Set<CameraFacing>()
         for (const request of requests) {
             if (this.closed || generation !== this.generation) return null
+            if (
+                request.kind === CameraRequestKind.Device &&
+                request.facing != null &&
+                hung.delete(request.facing)
+            ) {
+                continue
+            }
             this.release()
             let stream: MediaStream
             try {
                 stream = await this.request({video: videoConstraints(request), audio: false}, timed)
-            } catch {
+            } catch (error) {
+                if (isTimeout(error) && request.kind === CameraRequestKind.Facing) {
+                    hung.add(request.facing)
+                }
                 continue
             }
             if (this.closed || generation !== this.generation) {

@@ -10,6 +10,7 @@ import {
     SwitchOutcome,
     canSwitch,
     facingOf,
+    fallbackRequests,
     mirrorsPreview,
     switchRequests,
     usableCameras,
@@ -17,6 +18,7 @@ import {
     type Camera,
     type CameraPolicy,
     type MediaDevicesLike,
+    type PermissionsLike,
 } from "./cameraSession"
 
 const FRONT: Camera = {deviceId: "front", facing: CameraFacing.Front}
@@ -116,13 +118,13 @@ describe("switchRequests", () => {
     it("turns a phone or tablet to its other side, with its other cameras as fallbacks", () => {
         expect(switchRequests(FRONT, [FRONT, BACK, BACK_WIDE])).toEqual([
             {kind: CameraRequestKind.Facing, facing: CameraFacing.Rear},
-            {kind: CameraRequestKind.Device, deviceId: "back"},
-            {kind: CameraRequestKind.Device, deviceId: "back-wide"},
+            {kind: CameraRequestKind.Device, deviceId: "back", facing: CameraFacing.Rear},
+            {kind: CameraRequestKind.Device, deviceId: "back-wide", facing: CameraFacing.Rear},
         ])
         expect(switchRequests(BACK, [FRONT, BACK, BACK_WIDE])).toEqual([
             {kind: CameraRequestKind.Facing, facing: CameraFacing.Front},
-            {kind: CameraRequestKind.Device, deviceId: "front"},
-            {kind: CameraRequestKind.Device, deviceId: "back-wide"},
+            {kind: CameraRequestKind.Device, deviceId: "front", facing: CameraFacing.Front},
+            {kind: CameraRequestKind.Device, deviceId: "back-wide", facing: CameraFacing.Rear},
         ])
     })
 
@@ -131,34 +133,48 @@ describe("switchRequests", () => {
         const back = {deviceId: "back", facing: null}
         expect(switchRequests(FRONT, [{deviceId: "front", facing: null}, back])).toEqual([
             {kind: CameraRequestKind.Facing, facing: CameraFacing.Rear},
-            {kind: CameraRequestKind.Device, deviceId: "back"},
+            {kind: CameraRequestKind.Device, deviceId: "back", facing: null},
         ])
     })
 
     it("goes round the cameras of a computer, which tell no facing", () => {
         const third = {deviceId: "third", facing: null}
         expect(switchRequests(BUILT_IN, [BUILT_IN, EXTERNAL, third])).toEqual([
-            {kind: CameraRequestKind.Device, deviceId: "external"},
-            {kind: CameraRequestKind.Device, deviceId: "third"},
+            {kind: CameraRequestKind.Device, deviceId: "external", facing: null},
+            {kind: CameraRequestKind.Device, deviceId: "third", facing: null},
         ])
         expect(switchRequests(third, [BUILT_IN, EXTERNAL, third])).toEqual([
-            {kind: CameraRequestKind.Device, deviceId: "built-in"},
-            {kind: CameraRequestKind.Device, deviceId: "external"},
+            {kind: CameraRequestKind.Device, deviceId: "built-in", facing: null},
+            {kind: CameraRequestKind.Device, deviceId: "external", facing: null},
         ])
     })
 
     it("doesn't ask for a side no other camera has", () => {
         const otherFront = {deviceId: "front-2", facing: CameraFacing.Front}
         expect(switchRequests(FRONT, [FRONT, otherFront])).toEqual([
-            {kind: CameraRequestKind.Device, deviceId: "front-2"},
+            {kind: CameraRequestKind.Device, deviceId: "front-2", facing: CameraFacing.Front},
         ])
     })
 
     it("tries every listed camera when the open one has no id", () => {
         expect(switchRequests({deviceId: "", facing: null}, [BUILT_IN, EXTERNAL])).toEqual([
-            {kind: CameraRequestKind.Device, deviceId: "built-in"},
-            {kind: CameraRequestKind.Device, deviceId: "external"},
+            {kind: CameraRequestKind.Device, deviceId: "built-in", facing: null},
+            {kind: CameraRequestKind.Device, deviceId: "external", facing: null},
         ])
+    })
+})
+
+describe("fallbackRequests", () => {
+    it("tries the other side first when the preferred camera didn't open", () => {
+        expect(fallbackRequests(CameraFacing.Front, [FRONT, BACK, BUILT_IN])).toEqual([
+            {kind: CameraRequestKind.Device, deviceId: "back", facing: CameraFacing.Rear},
+            {kind: CameraRequestKind.Device, deviceId: "built-in", facing: null},
+            {kind: CameraRequestKind.Device, deviceId: "front", facing: CameraFacing.Front},
+        ])
+    })
+
+    it("has nothing to try before the camera is allowed", () => {
+        expect(fallbackRequests(CameraFacing.Front, [])).toEqual([])
     })
 })
 
@@ -261,6 +277,25 @@ class FakeDevices implements MediaDevicesLike {
         const match = this.cameras.find((c) => c.facing === want)
         if (facing?.exact !== undefined) return match
         return match ?? this.cameras[0]
+    }
+}
+
+/**
+ * The browser's answer about the camera, which the test changes as a voter
+ * answering the prompt would.
+ */
+class FakePermission extends EventTarget {
+    constructor(public state: PermissionState) {
+        super()
+    }
+
+    set(state: PermissionState) {
+        this.state = state
+        this.dispatchEvent(new Event("change"))
+    }
+
+    asPermissions(): PermissionsLike {
+        return {query: async () => this}
     }
 }
 
@@ -411,8 +446,65 @@ describe("CameraSession", () => {
 
     it("waits as long as the voter takes to allow the camera", async () => {
         const devices = new FakeDevices([{...FRONT, delayMs: 150}])
-        session = new CameraSession(devices, SWITCHABLE, 40)
+        const permission = new FakePermission("prompt")
+        session = new CameraSession(devices, SWITCHABLE, 40, permission.asPermissions())
         expect((await session.start())?.camera).toEqual(FRONT)
+
+        // A browser that doesn't tell whether the camera is allowed: no limit either.
+        session.close()
+        session = new CameraSession(
+            new FakeDevices([{...FRONT, delayMs: 150}]),
+            SWITCHABLE,
+            40,
+            null
+        )
+        expect((await session.start())?.camera).toEqual(FRONT)
+    })
+
+    it("opens another camera when the step's camera doesn't answer although allowed", async () => {
+        const devices = new FakeDevices([{...FRONT, delayMs: 300}, BACK], false)
+        const permission = new FakePermission("granted")
+        session = new CameraSession(devices, SWITCHABLE, 40, permission.asPermissions())
+        const opened = await session.start()
+        expect(opened?.camera).toEqual(BACK)
+        await wait(400)
+        // The front camera answered after all: it is off.
+        expect(devices.live()).toHaveLength(1)
+        expect(devices.live()[0].stream).toBe(opened?.stream)
+    })
+
+    it("starts the time once the voter allows the camera", async () => {
+        const devices = new FakeDevices([{...FRONT, delayMs: 400}, BACK], false)
+        const permission = new FakePermission("prompt")
+        session = new CameraSession(devices, SWITCHABLE, 40, permission.asPermissions())
+        const starting = session.start()
+        await wait(100)
+        // Still the prompt: nothing given up yet.
+        expect(devices.opened).toHaveLength(0)
+        permission.set("granted")
+        expect((await starting)?.camera).toEqual(BACK)
+    })
+
+    it("asks a side that didn't answer only once", async () => {
+        const devices = new FakeDevices([FRONT, {...BACK, delayMs: 150}, BACK_WIDE], false)
+        session = new CameraSession(devices, SWITCHABLE, 40, null)
+        await session.start()
+        const asked: MediaTrackConstraints[] = []
+        const getUserMedia = devices.getUserMedia.bind(devices)
+        devices.getUserMedia = (constraints) => {
+            asked.push(constraints?.video as MediaTrackConstraints)
+            return getUserMedia(constraints)
+        }
+        // Chrome's list, which tells each camera's side.
+        const switched = await session.switch([FRONT, BACK, BACK_WIDE])
+        // The rear side by facing hung; the main rear camera isn't asked again by id.
+        expect(switched.opened?.camera).toEqual(BACK_WIDE)
+        expect(asked.map((video) => video.facingMode ?? video.deviceId)).toEqual([
+            {exact: "environment"},
+            {exact: "back-wide"},
+        ])
+        await wait(300)
+        expect(devices.live()).toHaveLength(1)
     })
 
     it("opens another camera when the one in use goes away", async () => {

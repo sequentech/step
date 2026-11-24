@@ -43,6 +43,7 @@ export const scanovateEnglish = {
     scanovateHoldingSwitchCamera: "Switch camera",
     scanovateHoldingSwitchFailed:
         "The other camera couldn’t be opened. You can carry on with this one.",
+    scanovateHoldingSwitching: "Switching camera…",
     scanovateUploadProblemTitle: "We couldn’t send your photo",
     scanovateUploadProblemText: "Check your internet connection and try again.",
     scanovateCameraProblemTitle: "We couldn’t use your camera",
@@ -154,6 +155,7 @@ export const scanovateSpanish: Record<keyof typeof scanovateEnglish, string> = {
     scanovateHoldingClose: "Cerrar",
     scanovateHoldingSwitchCamera: "Cambiar de cámara",
     scanovateHoldingSwitchFailed: "No se pudo abrir la otra cámara. Puede seguir con esta.",
+    scanovateHoldingSwitching: "Cambiando de cámara…",
     scanovateUploadProblemTitle: "No pudimos enviar su foto",
     scanovateUploadProblemText: "Compruebe su conexión a internet e inténtelo de nuevo.",
     scanovateCameraProblemTitle: "No pudimos usar su cámara",
