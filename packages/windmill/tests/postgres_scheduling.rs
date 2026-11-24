@@ -400,9 +400,83 @@ async fn active_lockdown_end_can_be_replaced_cancelled_and_run_once_with_audit()
     .unwrap_err();
     assert!(refused.is::<windmill::services::schedule_csv::SchedulePermissionDenied>());
 
-    tx.execute("UPDATE sequent_backend.election_event SET presentation=jsonb_set(presentation, '{timezones,configured}', '42') WHERE id=$1", &[&e.event]).await.unwrap();
+    // PostgreSQL accepts this legacy JSON value; Rust requires logo_url to be a string.
+    // Keep the valid timezone configuration intact so the test reaches the service.
+    tx.execute(
+        "UPDATE sequent_backend.election_event
+         SET presentation=jsonb_set(presentation, '{logo_url}', '42'::jsonb) WHERE id=$1",
+        &[&e.event],
+    )
+    .await
+    .unwrap();
     let err = save_end(&tx, e, &future).await.unwrap_err();
     assert!(err.is::<InvalidSchedule>() && err.to_string().contains("presentation"));
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn recompute_refuses_a_real_pending_change_during_lockdown_without_touching_rows() {
+    use windmill::tasks::manage_election_event_lockdown::manage_election_event_lockdown_wrapped;
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let e = event(&tx, "UTC", &["UTC"]).await;
+    let due = json!({"scheduled_date": "2000-01-01T00:00:00Z"});
+    let start = schedule(
+        &tx,
+        e,
+        None,
+        EventProcessors::START_LOCKDOWN_PERIOD,
+        json!({}),
+        due.clone(),
+    )
+    .await;
+    let unrelated = schedule(&tx, e, None, EventProcessors::ALLOW_TALLY, json!({}), due).await;
+    let target = schedule(
+        &tx, e, None, EventProcessors::END_ENROLLMENT_PERIOD, json!({}),
+        json!({"scheduled_date":"2099-01-01T10:00:00Z","local":"2099-01-01T12:00","timezone":"UTC"}),
+    )
+    .await;
+    tx.execute(
+        "UPDATE sequent_backend.scheduled_event SET annotations=$2 WHERE id=$1",
+        &[
+            &target,
+            &json!({"schedule_recompute":{
+                "scheduled_date":"2099-01-01T12:00:00Z","previous":"2099-01-01T10:00:00Z",
+                "local":"2099-01-01T12:00","timezone":"UTC","checked_at":"2026-10-01T00:00:00Z"
+            }}),
+        ],
+    )
+    .await
+    .unwrap();
+    manage_election_event_lockdown_wrapped(&tx, e.t(), e.e(), start.to_string())
+        .await
+        .unwrap();
+    let before_event = row(&tx, "election_event", e.event).await;
+    assert_eq!(before_event["presentation"]["locked_down"], "locked-down");
+    let now = Utc::now();
+    assert!(
+        schedule_recompute::enrollment_changes_pending(&tx, &e.t(), &e.e(), now)
+            .await
+            .unwrap()
+    );
+    let ids = [target, start, unrelated];
+    let before = [
+        row(&tx, "scheduled_event", target).await,
+        row(&tx, "scheduled_event", start).await,
+        row(&tx, "scheduled_event", unrelated).await,
+    ];
+    assert!(
+        !before[1]["stopped_at"].is_null(),
+        "the start already fired"
+    );
+    let error = schedule_recompute::apply(&tx, &e.t(), &e.e(), &admin(), now)
+        .await
+        .unwrap_err();
+    assert!(error.is::<InvalidSchedule>() && error.to_string().contains("locked down"));
+    for (id, snapshot) in ids.into_iter().zip(before) {
+        assert_eq!(row(&tx, "scheduled_event", id).await, snapshot);
+    }
+    assert_eq!(row(&tx, "election_event", e.event).await, before_event);
     tx.rollback().await.unwrap();
 }
 
