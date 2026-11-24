@@ -13,6 +13,15 @@ The Admin Portal provides two voter export paths:
 - **Voters > Export** creates a CSV containing the voters in the current election event.
 - **Election Event > Export** creates an election-event archive and can optionally include a voters CSV.
 
+## Archives that are always encrypted
+
+An election-event archive is always encrypted with a generated password, even when **Encrypt with Password** is not checked, if it includes any of:
+
+- **Bulletin Board**, **Activity Logs** or **Publications**: these archives carry the protocol manager signing keys of the event's boards.
+- **Reports** or **Applications**.
+
+The generated password is shown once when the export starts. Archives exported before this rule existed with only **Activity Logs** or **Publications** selected hold the protocol manager keys unencrypted; delete them, and consider rotating the keys of the affected boards.
+
 ## Secret voter fields
 
 Secret voter fields are omitted from exports by default. This prevents encrypted storage values from appearing in a CSV when the user did not request access to their plaintext values.
@@ -25,7 +34,7 @@ An election-event archive includes decrypted secret voter fields only when all o
 2. **Encrypt with Password** is checked, so the resulting archive is password protected.
 3. The user starting the export has the `voter-secret-attribute-read` permission.
 
-The **Encrypt with Password** checkbox must be selected explicitly. Choosing another export option that requires archive encryption (such as reports, applications, or bulletin-board data) does not opt in to exporting voter secrets.
+The **Encrypt with Password** checkbox must be selected explicitly. Choosing another export option that requires archive encryption (such as reports, applications, bulletin-board data, activity logs or publications) does not opt in to exporting voter secrets.
 
 If the user does not have that permission, the election-event export still includes the ordinary voter fields but omits all secret fields. Archives that contain decrypted voter secrets are marked as sensitive, so downloading them also requires the secret-read permission.
 

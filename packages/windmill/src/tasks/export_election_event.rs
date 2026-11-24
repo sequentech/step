@@ -31,6 +31,19 @@ pub struct ExportOptions {
     pub include_certificates: bool,
 }
 
+impl ExportOptions {
+    /// The export holds the protocol manager signing keys of the event's boards.
+    pub fn includes_protocol_manager_keys(&self) -> bool {
+        self.bulletin_board || self.activity_logs || self.publications
+    }
+
+    /// The export holds data that must not leave the platform unencrypted,
+    /// whether or not the admin asked for a password.
+    pub fn requires_encryption(&self) -> bool {
+        self.includes_protocol_manager_keys() || self.reports || self.applications
+    }
+}
+
 fn validate_voter_secret_export(export_config: &ExportOptions) -> Result<()> {
     if !export_config.contains_voter_secrets {
         return Ok(());
@@ -312,5 +325,55 @@ mod tests {
     #[test]
     fn election_event_exports_ack_only_after_execution() {
         assert_eq!(export_election_event::DEFAULTS.acks_late, Some(true));
+    }
+
+    #[test]
+    fn every_export_with_protocol_manager_keys_requires_encryption() {
+        let options = [
+            ExportOptions {
+                bulletin_board: true,
+                ..ExportOptions::default()
+            },
+            ExportOptions {
+                activity_logs: true,
+                ..ExportOptions::default()
+            },
+            ExportOptions {
+                publications: true,
+                ..ExportOptions::default()
+            },
+        ];
+        for config in options {
+            assert!(config.includes_protocol_manager_keys(), "{config:?}");
+            assert!(config.requires_encryption(), "{config:?}");
+        }
+    }
+
+    #[test]
+    fn reports_and_applications_require_encryption_without_keys() {
+        for config in [
+            ExportOptions {
+                reports: true,
+                ..ExportOptions::default()
+            },
+            ExportOptions {
+                applications: true,
+                ..ExportOptions::default()
+            },
+        ] {
+            assert!(!config.includes_protocol_manager_keys(), "{config:?}");
+            assert!(config.requires_encryption(), "{config:?}");
+        }
+    }
+
+    #[test]
+    fn plain_exports_do_not_require_encryption() {
+        let config = ExportOptions {
+            scheduled_events: true,
+            tally: true,
+            ..ExportOptions::default()
+        };
+        assert!(!config.includes_protocol_manager_keys());
+        assert!(!config.requires_encryption());
     }
 }
