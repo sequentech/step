@@ -8,6 +8,7 @@ import subprocess
 import sys
 import time
 import unittest
+from itertools import pairwise
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -38,6 +39,60 @@ class UIRunSafety(backend_safety.RunSafety):
             check=False,
         )
 
+    def assert_ui_run(self, project):
+        output = self.root / ".cache/backend-e2e" / project
+        core_services = [
+            "devcontainer",
+            "postgres",
+            "postgres-keycloak",
+            "postgres-b4v6",
+            "minio",
+            "configure-minio",
+            "task-queues-setup",
+            "data-connector-agent",
+            "graphql-engine",
+            "keycloak",
+            "harvest",
+            "messaging-webhooks",
+            "windmill",
+            "beat",
+            "b4v6",
+            "localstack",
+            "configure-localstack",
+        ]
+        wait = ["--detach", "--wait", "--wait-timeout"]
+        run = ["run", "--rm", "--no-deps"]
+        expected = [
+            ["up", *wait, "900", *core_services],
+            [*run, "driver", "bootstrap"],
+            ["up", "--no-deps", *wait, "900", "trustee1", "trustee2"],
+            ["up", *wait, "120", "ui-browser"],
+            [*run, "--entrypoint", "python3", "driver", "-m", "scripts.e2e.ui.seed"],
+            ["exec", "-T", "ui-browser", "yarn", "--cwd", "packages/ui-e2e", "test"],
+        ]
+        self.assertEqual(self.startup_commands(project), expected)
+        core, trustees, browser = self.compose_calls("up")
+        (down,) = self.compose_calls("down")
+        self.assertEqual(self.calls()[-1], down)
+        self.assertEqual(
+            down[down.index("down") :],
+            ["down", "--volumes", "--remove-orphans", "--timeout", "20"],
+        )
+        overlay = str(self.root / ".devcontainer/docker-compose-ui-e2e.yml")
+        for call in (core, trustees, browser, down):
+            options = list(pairwise(call))
+            names = [value for flag, value in options if flag == "--project-name"]
+            self.assertEqual(names, [project])
+            files = [value for flag, value in options if flag == "-f"]
+            if call in (browser, down):
+                self.assertEqual(files[-1], overlay)
+                files.pop()
+            self.assertNotIn(overlay, files)
+            env_files = [value for flag, value in options if flag == "--env-file"]
+            self.assertEqual(env_files[-1], str(output / "compose.env"))
+        self.assertEqual((output / ".compose-started").read_text(), f"{project}\n")
+        self.assertFalse(list(output.glob(".owned-*")))
+
     def test_ui_retains_project_claim_through_browser_execution(self):
         project = "concurrent-ui-" + self.root.name.lower()
         started, release = self.root / "started", self.root / "release"
@@ -66,6 +121,8 @@ class UIRunSafety(backend_safety.RunSafety):
             self.assertTrue(
                 started.exists(), "First UI launcher never reached browser execution"
             )
+            (owner,) = (self.root / ".cache/backend-e2e" / project).glob(".owned-*")
+            self.assertEqual(owner.read_text(), f"{project}\n")
             for run, arguments in (
                 (self.run_ui, ("--skip-ui-build", "--skip-images", "--skip-build")),
                 (self.run_ui, ("--down",)),
@@ -82,12 +139,13 @@ class UIRunSafety(backend_safety.RunSafety):
             release.touch()
             stdout, stderr = process.communicate(timeout=10)
         self.assertEqual(process.returncode, 0, stdout + stderr)
-        self.assertEqual(len(self.compose_calls("up")), 2)
-        self.assertEqual(len(self.compose_calls("down")), 1)
+        self.assert_ui_run(project)
+        self.log.unlink()
         result = self.run_ui(
             "--skip-ui-build", "--skip-images", "--skip-build", STEP_E2E_PROJECT=project
         )
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assert_ui_run(project)
 
     def test_ui_bash_invocation_preserves_relative_artifact_paths(self):
         working = self.root / "scripts/e2e/ui"
@@ -200,14 +258,16 @@ class UIRunSafety(backend_safety.RunSafety):
         )
 
     def test_ui_default_runs_have_distinct_projects_and_logs(self):
+        projects = set()
         for _ in range(2):
+            self.log.unlink(missing_ok=True)
             result = self.run_ui("--skip-ui-build", "--skip-images", "--skip-build")
             self.assertEqual(result.returncode, 0, result.stderr)
-        starts, stops = self.compose_calls("up"), self.compose_calls("down")
-        self.assertEqual(len(starts), 4)
-        self.assertEqual(len(stops), 2)
-        projects = [args[args.index("--project-name") + 1] for args in stops]
-        self.assertEqual(len(set(projects)), 2)
+            core = self.compose_calls("up")[0]
+            project = core[core.index("--project-name") + 1]
+            self.assert_ui_run(project)
+            projects.add(project)
+        self.assertEqual(len(projects), 2)
         for project in projects:
             self.assertTrue(project.startswith("step-e2e-ui-"))
             self.assertTrue(
