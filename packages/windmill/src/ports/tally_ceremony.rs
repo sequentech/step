@@ -156,14 +156,16 @@ pub trait TallySessions: Sync {
         is_execution_completed: bool,
     ) -> impl Future<Output = anyhow::Result<()>> + Send;
 
-    /// Marks the execution completed and its post-tally task pending.
+    /// Marks a running execution completed and its post-tally task pending.
+    /// Returns `false`, changing nothing, once the session is no longer
+    /// `IN_PROGRESS` (for example cancelled while the tally ran).
     fn mark_completed(
         &self,
         tenant_id: &str,
         election_event_id: &str,
         tally_session_id: &str,
         execution_status: TallyExecutionStatus,
-    ) -> impl Future<Output = anyhow::Result<()>> + Send;
+    ) -> impl Future<Output = anyhow::Result<bool>> + Send;
 
     fn insert(
         &self,
