@@ -74,6 +74,7 @@ import {
     mayApply,
     mayApplyPackages,
     readApplication,
+    readPreviouslyApplied,
     recalledSubmission,
     readManagedPreview,
     readPortablePreview,
@@ -478,12 +479,25 @@ const SettingsConfigurationPackageForScope: React.FC<{
         })
 
     const running = submitting || (!!submitted && !finished && !unreadable)
+    const previouslyApplied =
+        finished && task?.id === submitted?.taskId ? readPreviouslyApplied(task?.annotations) : null
     const canApply =
         !running &&
+        !previouslyApplied &&
         mayApply(previewed, tenantId, documentId, requirements, expectedSha) &&
         matchesTrust(roster.status, previewed)
-    const shaMismatch = !!previewed && !shaMatches(previewed.view, expectedSha)
-    const noRecord = !!submitted && finished && !view
+    const checkedSha = previouslyApplied ? submitted?.expectedSha : expectedSha
+    const shaMismatch = previouslyApplied
+        ? !!checkedSha && previouslyApplied.packageSha256 !== checkedSha.toLowerCase()
+        : !!previewed && !shaMatches(previewed.view, checkedSha)
+    const earlierResult = (status: string, receipt: NonNullable<typeof previouslyApplied>) =>
+        t(
+            status === "FAILED"
+                ? "configurationPackage.previouslyAppliedReplay"
+                : "configurationPackage.previouslyApplied",
+            receipt
+        )
+    const noRecord = !!submitted && finished && !view && !previouslyApplied
 
     return (
         <Box sx={{p: 1}}>
@@ -657,7 +671,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
                 )}
             {shaMismatch && (
                 <Alert severity="error" sx={{mt: 1}} data-testid="package-sha-mismatch">
-                    {t("configurationPackage.shaMismatch", {expected: expectedSha})}
+                    {t("configurationPackage.shaMismatch", {expected: checkedSha})}
                 </Alert>
             )}
             {error && (
@@ -681,11 +695,15 @@ const SettingsConfigurationPackageForScope: React.FC<{
                                       ? safeText(taskError.message)
                                       : t("configurationPackage.notFound"),
                               })
-                            : noRecord
-                              ? t("configurationPackage.stoppedWithoutRecord")
-                              : finished
-                                ? t(`configurationPackage.outcome.${view?.outcome ?? "unknown"}`)
-                                : t("configurationPackage.running")}
+                            : previouslyApplied
+                              ? shaMismatch
+                                  ? t("configurationPackage.shaMismatch", {expected: checkedSha})
+                                  : earlierResult(task.execution_status, previouslyApplied)
+                              : noRecord
+                                ? t("configurationPackage.stoppedWithoutRecord")
+                                : finished
+                                  ? t(`configurationPackage.outcome.${view?.outcome ?? "unknown"}`)
+                                  : t("configurationPackage.running")}
                     </Typography>
                     {noRecord && lastLogLine(task?.logs) && (
                         <Typography variant="body2" data-testid="package-last-log">
@@ -720,11 +738,17 @@ const SettingsConfigurationPackageForScope: React.FC<{
             <List dense data-testid="package-history">
                 {(historyData?.sequent_backend_tasks_execution ?? []).map((row: any) => {
                     const record = readApplication(row.annotations)
+                    const earlier = readPreviouslyApplied(row.annotations)
+                    const mismatched = row.id === submitted?.taskId && shaMismatch
+                    const result = mismatched
+                        ? t("configurationPackage.shaMismatch", {expected: checkedSha})
+                        : earlier
+                          ? earlierResult(row.execution_status, earlier)
+                          : `${record?.mode ?? "?"} · ${record?.outcome ?? row.execution_status}`
+                    const digest = earlier?.packageSha256 ?? record?.packageSha256
                     return (
                         <ListItem key={row.id}>
-                            {`${row.created_at} · ${row.id} · ${record?.mode ?? "?"} · ${
-                                record?.outcome ?? row.execution_status
-                            }${record?.packageSha256 ? ` · ${record.packageSha256.slice(0, 12)}` : ""}`}
+                            {`${row.created_at} · ${row.id} · ${result}${digest ? ` · ${digest.slice(0, 12)}` : ""}`}
                         </ListItem>
                     )
                 })}

@@ -297,6 +297,45 @@ it("applies exactly what was previewed and shows each section's task and reconci
     expect(screen.getByTestId("section-election-event").textContent).toContain("task-ev")
 })
 
+it.each(["SUCCESS", "FAILED"])(
+    "explains the earlier completed application on a repeat upload (%s)",
+    async (status) => {
+        mockSha = "ab".repeat(32)
+        mockApply.mockResolvedValueOnce(accepted("task-repeat"))
+        const ui = render(<SettingsConfigurationPackage />)
+        await upload()
+        mockTask = task("task-repeat", status, {
+            packageSha256: "ab".repeat(32),
+            previouslyApplied: {
+                taskId: "00000000-0000-4000-8000-000000000001",
+                electionEventId: "00000000-0000-4000-8000-000000000002",
+            },
+        })
+        ui.rerender(<SettingsConfigurationPackage />)
+        expect(screen.getByTestId("package-outcome").textContent).toContain(
+            "configurationPackage.previouslyApplied"
+        )
+        expect(screen.getByTestId("package-run").textContent).toContain(
+            "00000000-0000-4000-8000-000000000001"
+        )
+        expect(applyButton().disabled).toBe(true)
+        expect(mockApply).toHaveBeenCalledTimes(1)
+        mockTask = task("task-repeat", status, {
+            ...mockTask.annotations,
+            packageSha256: "cd".repeat(32),
+        })
+        ui.rerender(<SettingsConfigurationPackage />)
+        expect(screen.getByTestId("package-sha-mismatch")).toBeTruthy()
+        expect(screen.getByTestId("package-run").textContent).not.toContain("previouslyApplied")
+        expect(applyButton().disabled).toBe(true)
+        mockTask = task("task-repeat", "FAILED", record("failed"))
+        ui.rerender(<SettingsConfigurationPackage />)
+        expect(screen.getByTestId("package-outcome").textContent).toBe(
+            "configurationPackage.outcome.failed"
+        )
+    }
+)
+
 it("shows a partial failure, and a refusal with what earlier runs applied", async () => {
     mockApply.mockResolvedValue(accepted("task-x"))
     const {rerender} = render(<SettingsConfigurationPackage />)

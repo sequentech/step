@@ -100,6 +100,28 @@ export interface ApplicationView {
 const asObject = (value: unknown): Record<string, any> =>
     value && typeof value === "object" ? (value as Record<string, any>) : {}
 
+export const readPreviouslyApplied = (annotations: unknown) => {
+    const fields = asObject(annotations)
+    const receipt = asObject(fields.previouslyApplied)
+    const uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i
+    if (
+        fields.application != null ||
+        typeof fields.packageSha256 !== "string" ||
+        !/^[0-9a-f]{64}$/.test(fields.packageSha256) ||
+        typeof receipt.taskId !== "string" ||
+        !uuid.test(receipt.taskId) ||
+        typeof receipt.electionEventId !== "string" ||
+        !uuid.test(receipt.electionEventId)
+    ) {
+        return null
+    }
+    return {
+        taskId: receipt.taskId,
+        electionEventId: receipt.electionEventId,
+        packageSha256: fields.packageSha256,
+    }
+}
+
 /** The record in a task row's annotations, or null while the task has none yet. */
 export const readApplication = (annotations: unknown): ApplicationView | null => {
     const record = asObject(asObject(annotations).application)

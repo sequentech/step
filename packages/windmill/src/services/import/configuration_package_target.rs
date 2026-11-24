@@ -148,13 +148,16 @@ impl PlatformTarget {
     }
 
     async fn require_portable_messaging(&self) -> Result<&PackageMessaging> {
-        const DENIED: &str =
-            "portable messaging requires a currently authorized tenant messaging administrator";
-        let plan = self
-            .context
+        self.require_portable_messaging_permissions().await?;
+        self.context
             .package_messaging
             .as_deref()
-            .ok_or_else(|| anyhow!("{DENIED}"))?;
+            .context("missing verified portable messaging accounts")
+    }
+
+    pub(crate) async fn require_portable_messaging_permissions(&self) -> Result<()> {
+        const DENIED: &str =
+            "portable messaging requires a currently authorized tenant messaging administrator";
         if self.context.verified.is_none()
             || self.context.event_import.messaging_config_permission
                 != crate::services::messaging::config::MessagingConfigPermission::PERMITTED
@@ -169,8 +172,7 @@ impl PlatformTarget {
             ],
             DENIED,
         )
-        .await?;
-        Ok(plan)
+        .await
     }
 
     async fn require_live_permissions(

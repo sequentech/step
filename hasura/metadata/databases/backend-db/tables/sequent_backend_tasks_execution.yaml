@@ -13,7 +13,10 @@ insert_permissions:
       role: admin-user
     - comment: ""
       permission:
-          check: {}
+          # Package application and preview receipts are issued by Harvest and Windmill.
+          check:
+              type:
+                  _neq: APPLY_CONFIGURATION_PACKAGE
           columns:
               - annotations
               - created_at
@@ -162,7 +165,10 @@ select_permissions:
 update_permissions:
     - comment: ""
       permission:
-          check: null
+          # Package application and preview receipts are issued by Harvest and Windmill.
+          check:
+              type:
+                  _neq: APPLY_CONFIGURATION_PACKAGE
           columns:
               - annotations
               - created_at
@@ -177,5 +183,7 @@ update_permissions:
               - execution_status
               - tenant_id
               - type
-          filter: {}
+          filter:
+              type:
+                  _neq: APPLY_CONFIGURATION_PACKAGE
       role: service-account
