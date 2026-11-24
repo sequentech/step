@@ -12,8 +12,8 @@ use super::configuration_package_apply::{
 };
 use super::configuration_package_sections::{
     absent_admin_rows, admin_changes, admin_column_problems, admin_detail_problems,
-    admin_email_updates, admin_permission_label_updates, email_write_stamped, event_changes,
-    merged_tenant, preview_admin_email, preview_admin_permission_labels, read_admin_rows,
+    admin_permission_label_updates, admin_profile_updates, event_changes, merged_tenant,
+    preview_admin_permission_labels, preview_admin_profile, profile_write_stamped, read_admin_rows,
     read_group_roles, role_changes, tenant_configuration_changes, tenant_settings_changes,
     trustee_changes, ExistingAdmin,
 };
@@ -128,14 +128,16 @@ fn one<'a>(files: &'a [Artifact], what: &str) -> Result<&'a Artifact> {
 }
 
 impl PlatformTarget {
-    /// Existing-user email is recovery-sensitive. Check the enqueue-time stamp
+    /// Existing-user profile updates require the enqueue-time stamp
     /// AND the unchanged initiating user's currently effective roles in this realm.
-    async fn require_live_admin_email_write(&self) -> Result<()> {
+    async fn require_live_admin_profile_write(&self) -> Result<()> {
         let deny = || {
-            anyhow!("administrator email changes require a currently authorized tenant user editor")
+            anyhow!(
+                "administrator profile changes require a currently authorized tenant user editor"
+            )
         };
         if self.context.verified.is_none()
-            || !email_write_stamped(&self.context.event_import.privileges)
+            || !profile_write_stamped(&self.context.event_import.privileges)
         {
             return Err(deny());
         }
@@ -559,11 +561,11 @@ impl PlatformTarget {
                 let current = self.existing_admin_details(&usernames).await?;
                 preview_admin_permission_labels(&mut preview, &rows, &current);
                 let verified = self.context.verified.is_some();
-                let email_updates = admin_email_updates(&rows, &current, verified);
-                if !email_updates.is_empty() {
-                    match self.require_live_admin_email_write().await {
-                        Ok(()) => preview_admin_email(&mut preview, &email_updates),
-                        Err(_) => preview.blockers.push("administrator email changes require a currently authorized tenant user editor".to_owned()),
+                let profile_updates = admin_profile_updates(&rows, &current, verified);
+                if !profile_updates.is_empty() {
+                    match self.require_live_admin_profile_write().await {
+                        Ok(()) => preview_admin_profile(&mut preview, &profile_updates),
+                        Err(_) => preview.blockers.push("administrator profile changes require a currently authorized tenant user editor".to_owned()),
                     }
                 }
                 let mut db: DbClient = get_hasura_pool().await.get().await?;
@@ -842,7 +844,7 @@ impl PackageTarget for PlatformTarget {
             }
             Section::AdminAccounts => {
                 // Recheck profiles, grants and trustee references immediately before
-                // staging; only explicit email and permission-label changes are mutable.
+                // staging; only explicit profile and permission-label changes are mutable.
                 let preview = self.preview_section(Section::AdminAccounts, files).await?;
                 if !preview.blockers.is_empty() {
                     return Err(anyhow!(
@@ -854,19 +856,19 @@ impl PackageTarget for PlatformTarget {
                 let usernames: Vec<String> = rows.iter().map(|r| r.username.clone()).collect();
                 let existing = self.existing_usernames(&usernames).await?;
                 let current = self.existing_admin_details(&usernames).await?;
-                let email_updates =
-                    admin_email_updates(&rows, &current, self.context.verified.is_some());
+                let profile_updates =
+                    admin_profile_updates(&rows, &current, self.context.verified.is_some());
                 let updates = admin_permission_label_updates(&rows, &current);
-                if !email_updates.is_empty() {
+                if !profile_updates.is_empty() {
                     let realm = get_tenant_realm(&self.context.tenant_id);
                     let keycloak = KeycloakAdminClient::new().await?;
-                    for (username, change) in &email_updates {
-                        self.require_live_admin_email_write().await?;
+                    for (username, change) in &profile_updates {
+                        self.require_live_admin_profile_write().await?;
                         let row = rows
                             .iter()
                             .find(|row| row.username.to_lowercase() == *username)
                             .ok_or_else(|| {
-                                anyhow!("administrator email update lacks a roster identity")
+                                anyhow!("administrator profile update lacks a roster identity")
                             })?;
                         if !existing
                             .get(username)
@@ -878,7 +880,7 @@ impl PackageTarget for PlatformTarget {
                         let account = db.query_one(
                             "SELECT u.id FROM user_entity u JOIN realm r ON r.id=u.realm_id WHERE r.name=$1 AND u.username=$2 AND u.service_account_client_link IS NULL",
                             &[&realm, username],
-                        ).await.context("Error resolving administrator for email update")?;
+                        ).await.context("Error resolving administrator for profile update")?;
                         let id: String = account.get("id");
                         drop(db);
                         let live = keycloak
@@ -886,7 +888,7 @@ impl PackageTarget for PlatformTarget {
                             .realm_users_with_user_id_get(&realm, &id, None)
                             .await
                             .map_err(|_| {
-                                anyhow!("Error reading current administrator for email update")
+                                anyhow!("Error reading current administrator for profile update")
                             })?;
                         if !live
                             .username
@@ -903,6 +905,8 @@ impl PackageTarget for PlatformTarget {
                         let update = keycloak::types::UserRepresentation {
                             email: change.email.clone(),
                             email_verified: change.email_verified,
+                            first_name: change.first_name.clone(),
+                            last_name: change.last_name.clone(),
                             ..Default::default()
                         };
                         keycloak
@@ -910,16 +914,18 @@ impl PackageTarget for PlatformTarget {
                             .realm_users_with_user_id_put(&realm, &id, update)
                             .await
                             .map_err(|_| {
-                                anyhow!("Error updating administrator email in Keycloak")
+                                anyhow!("Error updating administrator profile in Keycloak")
                             })?;
                         task_audit::record(task_audit::bulk(
                             self.context.audit_actor.clone(),
                             task_audit::target(&self.context.tenant_id, None)?,
                             "user",
                             AdminAction::Update,
-                            "Reconciled administrator email fields from verified configuration package",
+                            "Reconciled administrator profile fields from verified configuration package",
                             json!({"username": username, "email_changed": change.email.is_some(),
-                                   "email_verified": change.email_verified}),
+                                   "email_verified": change.email_verified,
+                                   "first_name_changed": change.first_name.is_some(),
+                                   "last_name_changed": change.last_name.is_some()}),
                         ))
                         .await?;
                     }
@@ -998,7 +1004,8 @@ impl PackageTarget for PlatformTarget {
                     update_complete(&task, None).await?;
                     return Ok(SectionSubmission {
                         task_id: Some(task.id),
-                        detail: json!({"permission_label_updates": updates.len(), "email_updates": email_updates.len()}),
+                        detail: json!({"permission_label_updates": updates.len(), "email_updates": profile_updates.values().filter(|update| update.email.is_some() || update.email_verified.is_some()).count(),
+                                       "name_updates": profile_updates.values().filter(|update| update.first_name.is_some() || update.last_name.is_some()).count()}),
                     });
                 }
                 let document_id = self.stage("admin_users.csv", "text/csv", &absent).await?;

@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2026 Sequent Tech <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 # Default tenant trustee runner
 
 The default development tenant has a dedicated `sequent-trustee-runner` client

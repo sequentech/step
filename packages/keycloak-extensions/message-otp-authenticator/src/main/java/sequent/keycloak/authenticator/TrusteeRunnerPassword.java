@@ -24,7 +24,8 @@ public final class TrusteeRunnerPassword extends ValidatePassword {
   static final String REALM = "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
   static final String FLOW = "Sequent Trustee Runner Password Grant";
   private static final String VERIFIED_NOTE = "sequent.trustee-runner.password-verified";
-  private static final Set<String> USERNAMES = Set.of("trustee1", "trustee2", "trustee3", "trustee4", "trustee5", "trustee6");
+  private static final Set<String> USERNAMES =
+      Set.of("trustee1", "trustee2", "trustee3", "trustee4", "trustee5", "trustee6");
 
   static boolean eligible(RealmModel realm, ClientModel client, UserModel user) {
     return realm != null
@@ -46,7 +47,8 @@ public final class TrusteeRunnerPassword extends ValidatePassword {
         && USERNAMES.contains(user.getUsername())
         && user.getServiceAccountClientLink() == null
         && user.getAttributeStream("trustee").toList().equals(java.util.List.of(user.getUsername()))
-        && user.getAttributeStream("tenant-id").toList()
+        && user.getAttributeStream("tenant-id")
+            .toList()
             .equals(java.util.List.of(REALM.substring("tenant-".length())))
         && user.getGroupsStream()
             .anyMatch(group -> group.getParentId() == null && "trustee".equals(group.getName()));
@@ -71,12 +73,14 @@ public final class TrusteeRunnerPassword extends ValidatePassword {
         || !eligible(context.getRealm(), session.getClient(), user)
         || context.getTopLevelFlow() == null
         || !FLOW.equals(context.getTopLevelFlow().getAlias())
-        || !"password".equals(
-            context.getHttpRequest().getDecodedFormParameters().getFirst("grant_type"))) {
+        || !"password"
+            .equals(context.getHttpRequest().getDecodedFormParameters().getFirst("grant_type"))) {
       context.failure(
           AuthenticationFlowError.INVALID_USER,
-          errorResponse(Response.Status.BAD_REQUEST.getStatusCode(),
-              "invalid_grant", "Invalid user credentials"));
+          errorResponse(
+              Response.Status.BAD_REQUEST.getStatusCode(),
+              "invalid_grant",
+              "Invalid user credentials"));
       return;
     }
     // Call Keycloak's stock validator, not a hand-rolled password comparison.

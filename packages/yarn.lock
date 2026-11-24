@@ -16084,19 +16084,19 @@ sentence-case@^3.0.4:
 
 "sequent-core@file:./admin-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#6046c96a7a64e810241c8f6f249eda22f857b685"
+  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#3eddaa31cbb952618966ec16c77c327101887a9f"
 
 "sequent-core@file:./ballot-verifier/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#6046c96a7a64e810241c8f6f249eda22f857b685"
+  resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#3eddaa31cbb952618966ec16c77c327101887a9f"
 
 "sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#6046c96a7a64e810241c8f6f249eda22f857b685"
+  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#3eddaa31cbb952618966ec16c77c327101887a9f"
 
 "sequent-core@file:voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:voting-portal/rust/sequent-core-0.1.0.tgz#6046c96a7a64e810241c8f6f249eda22f857b685"
+  resolved "file:voting-portal/rust/sequent-core-0.1.0.tgz#3eddaa31cbb952618966ec16c77c327101887a9f"
 
 "sequent-election-config@file:./admin-portal/rust/sequent-election-config-0.1.0.tgz":
   version "0.1.0"

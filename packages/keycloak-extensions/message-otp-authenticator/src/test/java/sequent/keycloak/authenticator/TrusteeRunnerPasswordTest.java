@@ -75,8 +75,7 @@ class TrusteeRunnerPasswordTest {
     assertFalse(TrusteeRunnerPassword.eligible(realm, client, user));
     when(client.isEnabled()).thenReturn(true);
     when(user.getUsername()).thenReturn("human-trustee");
-    when(user.getAttributeStream("trustee"))
-        .thenAnswer(invocation -> Stream.of("human-trustee"));
+    when(user.getAttributeStream("trustee")).thenAnswer(invocation -> Stream.of("human-trustee"));
     assertFalse(TrusteeRunnerPassword.eligible(realm, client, user));
   }
 

@@ -843,16 +843,18 @@ fn verified_existing_admin_email_is_advisory_and_other_conflicts_still_block() {
         },
     )]);
     let before = current["admin"].fields.clone();
-    let updates = admin_email_updates(&rows, &current, true);
+    let updates = admin_profile_updates(&rows, &current, true);
     assert_eq!(
         updates["admin"],
-        AdminEmailUpdate {
+        AdminProfileUpdate {
             email: Some("new@example.test".into()),
-            email_verified: Some(true)
+            email_verified: Some(true),
+            first_name: None,
+            last_name: None,
         }
     );
     let mut preview = admin_changes(&rows, &members, &set(&["admin"]));
-    preview_admin_email(&mut preview, &updates);
+    preview_admin_profile(&mut preview, &updates);
     assert!(preview.needs_apply);
     assert_eq!(preview.changes[0]["action"], "update-email");
     assert_eq!(preview.changes[0]["warnings"].as_array().unwrap().len(), 2);
@@ -862,7 +864,7 @@ fn verified_existing_admin_email_is_advisory_and_other_conflicts_still_block() {
         admin_detail_problems(&rows, &current, &BTreeSet::new(), &allowed, false).len(),
         2
     );
-    assert!(admin_email_updates(&rows, &current, false).is_empty());
+    assert!(admin_profile_updates(&rows, &current, false).is_empty());
 
     current
         .get_mut("admin")
@@ -873,7 +875,7 @@ fn verified_existing_admin_email_is_advisory_and_other_conflicts_still_block() {
     assert_eq!(blocked.len(), 1);
     assert!(blocked[0].contains("'enabled'"));
     current.get_mut("admin").unwrap().service_account = true;
-    assert!(admin_email_updates(&rows, &current, true).is_empty());
+    assert!(admin_profile_updates(&rows, &current, true).is_empty());
 }
 
 #[test]
@@ -891,10 +893,10 @@ fn changing_email_without_explicit_flag_never_carries_verification_forward() {
         },
     )]);
     assert_eq!(
-        admin_email_updates(&rows, &current, true)["admin"].email_verified,
+        admin_profile_updates(&rows, &current, true)["admin"].email_verified,
         Some(false)
     );
-    assert!(admin_email_updates(&rows, &BTreeMap::new(), true).is_empty());
+    assert!(admin_profile_updates(&rows, &BTreeMap::new(), true).is_empty());
 }
 
 #[test]
@@ -915,7 +917,7 @@ fn blank_or_equivalent_admin_email_preserves_verification_and_requires_a_real_ad
         "username,group_name,email\nalice,admin,  ALICE@EXAMPLE.TEST \n",
     ] {
         assert!(
-            admin_email_updates(&read_admin_rows(csv.as_bytes()).unwrap(), &current, true)
+            admin_profile_updates(&read_admin_rows(csv.as_bytes()).unwrap(), &current, true)
                 .is_empty()
         );
     }
@@ -924,10 +926,12 @@ fn blank_or_equivalent_admin_email_preserves_verification_and_requires_a_real_ad
     )
     .unwrap();
     assert_eq!(
-        admin_email_updates(&same_address_explicit_flag, &current, true)["alice"],
-        AdminEmailUpdate {
+        admin_profile_updates(&same_address_explicit_flag, &current, true)["alice"],
+        AdminProfileUpdate {
             email: None,
-            email_verified: Some(false)
+            email_verified: Some(false),
+            first_name: None,
+            last_name: None,
         }
     );
     assert!(read_admin_rows(b"username,group_name,email\nalice,admin,not-an-email\n").is_err());
@@ -956,7 +960,7 @@ fn signature_does_not_authorize_existing_user_email_by_itself_even_for_default_g
         group_assignment: GroupAssignmentPolicy::DefaultGroupOnly,
         permission_labels: PermissionLabelPolicy::Forbidden,
     };
-    assert!(!email_write_stamped(&denied));
+    assert!(!profile_write_stamped(&denied));
     assert_eq!(
         admin_detail_problems(&rows, &current, &BTreeSet::new(), &denied, true).len(),
         2
@@ -965,6 +969,104 @@ fn signature_does_not_authorize_existing_user_email_by_itself_even_for_default_g
         group_assignment: GroupAssignmentPolicy::AnyGroup,
         permission_labels: PermissionLabelPolicy::Forbidden,
     };
-    assert!(email_write_stamped(&allowed));
+    assert!(profile_write_stamped(&allowed));
     assert!(admin_detail_problems(&rows, &current, &BTreeSet::new(), &allowed, true).is_empty());
+}
+
+#[test]
+fn verified_admin_names_are_advisory_only_and_blank_or_equivalent_values_are_unchanged() {
+    use super::super::import_users::{
+        GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
+    };
+    let allowed = ImportUsersPrivileges {
+        group_assignment: GroupAssignmentPolicy::AnyGroup,
+        permission_labels: PermissionLabelPolicy::Allowed,
+    };
+    let restricted = ImportUsersPrivileges {
+        group_assignment: GroupAssignmentPolicy::DefaultGroupOnly,
+        permission_labels: PermissionLabelPolicy::Forbidden,
+    };
+    assert!(profile_write_stamped(&allowed));
+    assert!(!profile_write_stamped(&restricted));
+    let members = BTreeMap::from([("admin".into(), set(&["admin"]))]);
+    let groups = set(&["admin", "voter"]);
+    let mut current = BTreeMap::from([(
+        "admin".into(),
+        ExistingAdmin {
+            fields: BTreeMap::from([
+                ("first_name".into(), set(&["Old"])),
+                ("last_name".into(), set(&["Same"])),
+                ("enabled".into(), set(&["true"])),
+            ]),
+            ..Default::default()
+        },
+    )]);
+    let before = current["admin"].fields.clone();
+    let changed =
+        read_admin_rows(b"username,group_name,first_name,last_name\nAdmin,admin, New ,Person\n")
+            .unwrap();
+    let updates = admin_profile_updates(&changed, &current, true);
+    assert_eq!(
+        updates["admin"],
+        AdminProfileUpdate {
+            email: None,
+            email_verified: None,
+            first_name: Some("New".into()),
+            last_name: Some("Person".into()),
+        }
+    );
+    let mut preview = admin_changes(&changed, &members, &groups);
+    preview_admin_profile(&mut preview, &updates);
+    assert!(preview.needs_apply);
+    assert_eq!(preview.changes[0]["action"], "update-profile");
+    let warnings = preview.changes[0]["warnings"].as_array().unwrap();
+    assert_eq!(warnings.len(), 2);
+    assert!(warnings[0].as_str().unwrap().contains("first name"));
+    assert!(warnings[1].as_str().unwrap().contains("last name"));
+    assert!(!preview.changes.to_string().contains("Person"));
+    assert_eq!(current["admin"].fields, before);
+    assert!(admin_detail_problems(&changed, &current, &BTreeSet::new(), &allowed, true).is_empty());
+    assert_eq!(
+        admin_detail_problems(&changed, &current, &BTreeSet::new(), &allowed, false).len(),
+        2
+    );
+    assert!(admin_profile_updates(&changed, &current, false).is_empty());
+
+    let voter = read_admin_rows(b"username,group_name,last_name\nAdmin,voter,Person\n").unwrap();
+    let unauthorized = admin_detail_problems(&voter, &current, &BTreeSet::new(), &restricted, true);
+    assert_eq!(unauthorized.len(), 1, "voter-only stamp may not rename");
+    assert!(unauthorized[0].contains("'last_name'"));
+    let mut wrong_group_preview = admin_changes(&voter, &members, &groups);
+    preview_admin_profile(
+        &mut wrong_group_preview,
+        &admin_profile_updates(&voter, &current, true),
+    );
+    assert!(!wrong_group_preview.blockers.is_empty());
+    assert!(wrong_group_preview.changes[0].get("warnings").is_none());
+
+    for csv in [
+        "username,group_name,first_name,last_name\nAdmin,admin, ,  Same  \n",
+        "username,group_name\nAdmin,admin\n",
+    ] {
+        let noop = read_admin_rows(csv.as_bytes()).unwrap();
+        assert!(admin_profile_updates(&noop, &current, true).is_empty());
+        assert!(
+            admin_detail_problems(&noop, &current, &BTreeSet::new(), &allowed, true).is_empty()
+        );
+    }
+    let one_name =
+        read_admin_rows(b"username,group_name,first_name,last_name\nAdmin,admin,New, \n").unwrap();
+    assert_eq!(
+        admin_profile_updates(&one_name, &current, true)["admin"].last_name,
+        None
+    );
+    let sensitive =
+        read_admin_rows(b"username,group_name,first_name,enabled\nAdmin,admin,New,false\n")
+            .unwrap();
+    let blocked = admin_detail_problems(&sensitive, &current, &BTreeSet::new(), &allowed, true);
+    assert_eq!(blocked.len(), 1);
+    assert!(blocked[0].contains("'enabled'"));
+
+    current.get_mut("admin").unwrap().service_account = true;
+    assert!(admin_profile_updates(&changed, &current, true).is_empty());
 }
