@@ -4692,6 +4692,7 @@ dependencies = [
  "uuid",
  "voting-crypto",
  "windmill",
+ "zeroize",
 ]
 
 [[package]]
