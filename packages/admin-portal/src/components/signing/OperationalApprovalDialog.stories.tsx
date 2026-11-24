@@ -4,7 +4,7 @@
 
 import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
-import {expect, fn, within} from "storybook/test"
+import {expect, fn, waitFor, within} from "storybook/test"
 import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import type {ISigningApi, ISigningPanelData} from "@/lib/signing/api"
@@ -79,8 +79,11 @@ const meta = {
 export default meta
 type Story = StoryObj<Scenario>
 
-const dialog = async () =>
-    within(await within(document.body).findByRole("dialog", {name: "Review approval"}))
+const dialog = async () => {
+    const element = await within(document.body).findByRole("dialog", {name: "Review approval"})
+    await waitFor(() => expect(element).toBeVisible(), {timeout: 3000})
+    return within(element)
+}
 
 export const UnusedSoftHsmSetup: Story = {
     play: async () => {
@@ -91,7 +94,7 @@ export const UnusedSoftHsmSetup: Story = {
             view.getByText(/uses? a software test token|signatures use a software test token/i)
         ).toBeVisible()
         await expect(view.getByText("0 of 2 approvals recorded")).toBeVisible()
-        expect(view.queryByRole("button", {name: "Approve", exact: true})).toBeNull()
+        expect(view.queryByRole("button", {name: /^Approve$/})).toBeNull()
         expect(view.queryByRole("textbox", {name: /password/i})).toBeNull()
     },
 }
@@ -100,10 +103,20 @@ export const YubiHsmNeedsOperator: Story = {
     args: {provider: "yubihsm", setupPhase: "setup-recovery-required"},
     play: async () => {
         const view = await dialog()
-        await expect(await view.findByText(/needs help from the demo operator/)).toBeVisible()
+        // The live-region can already contain the result while the MUI dialog is entering.
+        await waitFor(
+            async () => {
+                const status = view.getByRole("status")
+                await expect(status).toHaveTextContent(
+                    "Signing setup needs help from the demo operator. This request is still pending and cannot be signed here."
+                )
+                await expect(status).toBeVisible()
+            },
+            {timeout: 3000}
+        )
         await expect(view.getByText("Isolated demo signing. Not for production use.")).toBeVisible()
         expect(view.queryByText(/software test token/i)).toBeNull()
         expect(view.queryByRole("button", {name: "Retry signing setup"})).toBeNull()
-        expect(view.queryByRole("button", {name: "Approve", exact: true})).toBeNull()
+        expect(view.queryByRole("button", {name: /^Approve$/})).toBeNull()
     },
 }
