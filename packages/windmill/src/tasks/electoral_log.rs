@@ -1655,18 +1655,21 @@ async fn build_event<L: BatchLookups + Send>(
                 .map_err(Transient)?;
             attempt = login_attempt(input, user_area_id.as_deref(), chrono::Utc::now());
             load_signer(lookups, cache, input, &board).await?;
+            // The area and the sign-in count above use the account; the
+            // entries name whom `SigninLogIdentity` says, in the event's log
+            // or, without a protocol-manager key, in the tenant's.
+            let identity = signin_identity(lookups, cache, input).await?;
             if cache.signers.get(&key).is_some_and(Option::is_none) {
                 let reason = format!(
                     "Election event {} has no protocol-manager key",
                     input.election_event_id
                 );
-                return build_tenant_event(lookups, cache, input, delivery_id, Some(reason)).await;
+                let logged = identity.applied_to(input);
+                return build_tenant_event(lookups, cache, &logged, delivery_id, Some(reason))
+                    .await;
             }
-            // The area and the sign-in count above use the account; the
-            // entries name whom `SigninLogIdentity` says.
-            let (logged_user_id, logged_username) = signin_identity(lookups, cache, input)
-                .await?
-                .logged(user_id, input.username.clone());
+            let (logged_user_id, logged_username) =
+                identity.logged(user_id, input.username.clone());
             let signer = cache
                 .signers
                 .get(&key)
@@ -3131,6 +3134,45 @@ mod batch_build_tests {
         // One identity lookup per event and batch.
         assert_eq!(lookups.ballot_identity_calls, 2);
         assert!(built.dead_letters.is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_pseudonymous_event_without_a_key_names_the_pseudonym_in_the_tenants_log() {
+        let mut lookups = FakeLookups::new();
+        lookups.pseudonym_events.insert(KEYLESS_EVENT);
+        lookups.pseudonyms.insert("voter-a", "3D34-23D1");
+        lookups
+            .accounts
+            .extend([("voter-a", true), ("officer", false)]);
+        let details = json!({"client_id": "voting-portal", "error": null,
+            "auth_method": "openid-connect",
+            "details": {"username": "ov-dhaka-05", "email": "ov-dhaka-05@example.org"}});
+        let mut voter = sign_in("k1", KEYLESS_EVENT, Some("voter-a"), "ov-dhaka-05");
+        voter.details = Some(details.clone());
+        let mut officer = sign_in("k2", KEYLESS_EVENT, Some("officer"), "officer-1");
+        officer.details = Some(json!({"client_id": "admin-portal",
+            "details": {"username": "officer-1"}}));
+
+        let built = build_batch(&mut lookups, &[voter, officer]).await.unwrap();
+
+        let stored = &built.by_board[&format!("tenant-board-{TENANT}")];
+        assert_eq!(
+            identities(stored),
+            vec![
+                ("k1:event", None, Some("3D34-23D1")),
+                ("k2:event", Some("officer"), Some("officer-1")),
+            ]
+        );
+        let (_, voter_details) = keycloak_statement(&stored[0]);
+        assert_eq!(voter_details["auth_method"], "openid-connect");
+        assert!(voter_details.get("details").is_none(), "{voter_details}");
+        let record = String::from_utf8_lossy(&stored[0].message.message);
+        for account in ["voter-a", "ov-dhaka"] {
+            assert!(!record.contains(account), "{account}");
+        }
+        // A staff account keeps its details.
+        let (_, officer_details) = keycloak_statement(&stored[1]);
+        assert_eq!(officer_details["details"]["username"], "officer-1");
     }
 
     fn unknown_tenant_activity(delivery_id: &str) -> LogEventInput {

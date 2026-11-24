@@ -136,6 +136,26 @@ impl SigninLogIdentity {
             Self::Unknown => (Some(UNKNOWN_USER.into()), None),
         }
     }
+
+    /// The event as a log may name it, for a log that writes the event's own
+    /// user ID, username and details (the tenant log's fallback). Beyond the
+    /// account, the details lose Keycloak's free-form `details` map, which can
+    /// hold the account's username and email; their allowlisted fields stay.
+    pub fn applied_to(
+        &self,
+        input: &crate::tasks::electoral_log::LogEventInput,
+    ) -> crate::tasks::electoral_log::LogEventInput {
+        let mut logged = input.clone();
+        if *self == Self::Account {
+            return logged;
+        }
+        let user_id = input.user_id.clone().unwrap_or_else(|| UNKNOWN_USER.into());
+        (logged.user_id, logged.username) = self.logged(user_id, input.username.clone());
+        if let Some(Value::Object(details)) = &mut logged.details {
+            details.remove("details");
+        }
+        logged
+    }
 }
 
 fn network_key(key: &str) -> bool {
