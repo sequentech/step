@@ -7,7 +7,7 @@ use anyhow::{anyhow, Result};
 use sequent_core::election_config::{
     archive::Artifact,
     demo_credentials::{
-        verify_demo_login_roster, verify_demo_login_verifiers, DemoLoginPrincipal,
+        default_demo_login_roster, verify_demo_login_roster, verify_demo_login_verifiers, DemoLoginPrincipal,
         DemoLoginVerifiers, DEMO_LOGIN_VERIFIERS_MEMBER,
     },
     manifest::ManifestFormat,
@@ -23,6 +23,25 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 struct InstalledPolicy {
     tenant_id: String,
     accounts: Vec<DemoLoginPrincipal>,
+}
+
+fn receiver_policy(tenant_id: &str) -> Result<InstalledPolicy> {
+    match std::env::var("SEQUENT_DEMO_LOGIN_RECEIVER_POLICY") {
+        Err(std::env::VarError::NotPresent) => Ok(InstalledPolicy {
+            tenant_id: tenant_id.to_owned(),
+            accounts: default_demo_login_roster(),
+        }),
+        Ok(value) if value.len() <= 64 * 1024 => {
+            serde_json::from_str::<InstalledPolicy>(&value)
+                .ok()
+                .filter(|policy| {
+                    policy.tenant_id == tenant_id
+                        && verify_demo_login_roster(&policy.accounts).is_ok()
+                })
+                .ok_or_else(|| anyhow!("no valid installed workbook login policy for this tenant"))
+        }
+        _ => Err(anyhow!("no valid installed workbook login policy for this tenant")),
+    }
 }
 
 pub struct VerifiedDemoLoginAdmission(DemoLoginVerifiers);
@@ -75,14 +94,11 @@ impl VerifiedDemoLoginAdmission {
         {
             return Err(anyhow!("demo account enrollment requires a verified tenant-bound signature and user/role write permission"));
         }
-        let policy = std::env::var("SEQUENT_DEMO_LOGIN_RECEIVER_POLICY")
-            .ok()
-            .filter(|s| s.len() <= 64 * 1024)
-            .and_then(|s| serde_json::from_str::<InstalledPolicy>(&s).ok())
-            .filter(|policy| {
-                policy.tenant_id == tenant_id && verify_demo_login_roster(&policy.accounts).is_ok()
-            })
-            .ok_or_else(|| anyhow!("no valid installed demo login policy for this tenant"))?;
+        let policy = match std::env::var("SEQUENT_WORKBOOK_PASSWORDS") {
+            Err(std::env::VarError::NotPresent) => receiver_policy(tenant_id)?,
+            Ok(value) if value == "on" => receiver_policy(tenant_id)?,
+            _ => return Err(anyhow!("workbook password enrollment is disabled by the operator")),
+        };
         let payload: DemoLoginVerifiers = serde_json::from_slice(&file.bytes)
             .map_err(|_| anyhow!("malformed signed demo login verifier document"))?;
         verify_demo_login_verifiers(&payload,tenant_id,&policy.accounts)

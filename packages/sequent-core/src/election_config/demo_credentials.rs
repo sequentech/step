@@ -153,6 +153,32 @@ fn synthetic(principal: &DemoLoginPrincipal) -> bool {
         }
 }
 
+/// Built-in, bounded eligible login roster. A configured installation
+/// policy takes precedence. These aliases are not derived from an upload.
+pub fn default_demo_login_roster() -> Vec<DemoLoginPrincipal> {
+    let mut roster = Vec::with_capacity(18);
+    for id in 1..=6 {
+        let username = format!("trustee{id}");
+        roster.push(DemoLoginPrincipal {
+            email: Some(format!("{username}@demo.example.invalid")),
+            group_name: "trustee".into(),
+            trustee: Some(username.clone()),
+            username,
+        });
+    }
+    for post in ["bangkok", "dhaka", "tokyo", "abudhabi"] {
+        for id in 1..=3 {
+            roster.push(DemoLoginPrincipal {
+                username: format!("sbei-{post}-{id}"),
+                email: None,
+                group_name: "sbei".into(),
+                trustee: None,
+            });
+        }
+    }
+    roster
+}
+
 fn checked_roster(approved: &[DemoLoginPrincipal]) -> bool {
     !approved.is_empty()
         && approved.len() <= MAX_ACCOUNTS
@@ -547,6 +573,15 @@ mod tests {
                 trustee: Some("trustee1".into()),
             }],
         )
+    }
+
+    #[test]
+    fn built_in_roster_is_exact_and_valid() {
+        let roster = default_demo_login_roster();
+        assert_eq!(roster.len(), 18);
+        assert_eq!(roster.iter().filter(|p| p.trustee.is_some()).count(), 6);
+        assert!(roster.iter().all(|p| p.username != "admin"));
+        verify_demo_login_roster(&roster).unwrap();
     }
 
     #[test]
