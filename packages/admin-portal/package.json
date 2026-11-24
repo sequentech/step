@@ -29,7 +29,7 @@
     "dompurify": "^3.4.13",
     "fs-extra": "^11.2.0",
     "graphql": "^16.8.1",
-    "i18next": "^25.5.2",
+    "i18next": "^27.2.7",
     "i18next-browser-languagedetector": "^8.2.0",
     "intl-tel-input": "^24.5.0",
     "jotai": "^2.6.0",
