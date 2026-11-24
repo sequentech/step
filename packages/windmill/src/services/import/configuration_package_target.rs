@@ -589,10 +589,18 @@ impl PlatformTarget {
                     .extend(admin_column_problems(&one(files, "administrators")?.bytes)?);
                 if let Some(demo) = &self.context.demo_login {
                     demo.verify_roster(&rows)?;
-                    if let Some(changes) = preview.changes.as_array_mut() {
-                        changes.extend(demo.new_usernames(&existing).into_iter().map(
-                            |username| json!({"username":username,"action":"seed-new-demo-login"}),
-                        ));
+                    match demo.authorized_new_usernames(
+                        &existing, || self.require_live_admin_profile_write(),
+                    ).await {
+                        Ok(new) => {
+                            if let Some(changes) = preview.changes.as_array_mut() {
+                                changes.extend(new.into_iter().map(|username|
+                                    json!({"username":username,"action":"seed-new-demo-login"})));
+                            }
+                        }
+                        Err(_) => preview.blockers.push(
+                            "new workbook logins require a currently authorized tenant user and role editor".into()
+                        ),
                     }
                 }
                 Ok(preview)
@@ -984,6 +992,9 @@ impl PackageTarget for PlatformTarget {
                 }
                 let mut existing = existing;
                 if let Some(demo) = &self.context.demo_login {
+                    demo.authorized_new_usernames(
+                        &existing, || self.require_live_admin_profile_write(),
+                    ).await.context("new workbook logins require a currently authorized tenant user and role editor")?;
                     let realm = get_tenant_realm(&self.context.tenant_id);
                     for username in demo
                         .seed_new(

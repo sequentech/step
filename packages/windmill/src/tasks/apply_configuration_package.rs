@@ -358,6 +358,7 @@ async fn execute(
         &mut members,
         verified.as_deref(),
         &body.tenant_id,
+        &policy,
         body.event_import.privileges,
     )?
     .map(std::sync::Arc::new);

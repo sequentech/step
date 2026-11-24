@@ -3,15 +3,17 @@
 
 use super::configuration_package_sections::AdminRow;
 use super::import_users::{GroupAssignmentPolicy, ImportUsersPrivileges};
+use crate::services::browser_package_policy::BrowserPolicy;
 use anyhow::{anyhow, Result};
 use sequent_core::election_config::{
     archive::Artifact,
     demo_credentials::{
-        default_demo_login_roster, verify_demo_login_roster, verify_demo_login_verifiers, DemoLoginPrincipal,
-        DemoLoginVerifiers, DEMO_LOGIN_VERIFIERS_MEMBER,
+        default_demo_login_roster, verify_demo_login_roster, verify_demo_login_verifiers,
+        DemoLoginPrincipal, DemoLoginVerifiers, DEMO_LOGIN_VERIFIERS_MEMBER,
     },
+    design::DesignDigestAlgorithm,
     manifest::ManifestFormat,
-    package_verify::VerifiedPackage,
+    package_verify::{VerificationScheme, VerifiedPackage},
 };
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::keycloak::{User, TENANT_ID_ATTR_NAME};
@@ -31,16 +33,15 @@ fn receiver_policy(tenant_id: &str) -> Result<InstalledPolicy> {
             tenant_id: tenant_id.to_owned(),
             accounts: default_demo_login_roster(),
         }),
-        Ok(value) if value.len() <= 64 * 1024 => {
-            serde_json::from_str::<InstalledPolicy>(&value)
-                .ok()
-                .filter(|policy| {
-                    policy.tenant_id == tenant_id
-                        && verify_demo_login_roster(&policy.accounts).is_ok()
-                })
-                .ok_or_else(|| anyhow!("no valid installed workbook login policy for this tenant"))
-        }
-        _ => Err(anyhow!("no valid installed workbook login policy for this tenant")),
+        Ok(value) if value.len() <= 64 * 1024 => serde_json::from_str::<InstalledPolicy>(&value)
+            .ok()
+            .filter(|policy| {
+                policy.tenant_id == tenant_id && verify_demo_login_roster(&policy.accounts).is_ok()
+            })
+            .ok_or_else(|| anyhow!("no valid installed workbook login policy for this tenant")),
+        _ => Err(anyhow!(
+            "no valid installed workbook login policy for this tenant"
+        )),
     }
 }
 
@@ -59,6 +60,35 @@ fn field<'a>(row: &'a AdminRow, key: &str) -> Option<&'a str> {
         .map(String::as_str)
 }
 
+/// A browser delivery carries no certificate tenant binding. Its independent
+/// proof must have verified against this deployment's active managed authority.
+fn verified_for_tenant(proof: &VerifiedPackage, policy: &BrowserPolicy, tenant_id: &str) -> bool {
+    match (&proof.scheme, policy) {
+        (VerificationScheme::Certificate, BrowserPolicy::Off | BrowserPolicy::OtherTenant) => {
+            proof.manifest.format == ManifestFormat::V2
+                && proof
+                    .manifest
+                    .signing
+                    .as_ref()
+                    .is_some_and(|s| s.tenant_id == tenant_id)
+        }
+        (
+            VerificationScheme::Browser { roster_sha256 },
+            BrowserPolicy::ManagedOnly(pinned, binding),
+        ) => {
+            proof.manifest.format == ManifestFormat::V1
+                && proof.manifest.signing.is_none()
+                && proof.manifest.content.ballot_design_digest_algorithm
+                    == DesignDigestAlgorithm::V2
+                && pinned.tenant() == tenant_id
+                && pinned.sha256() == roster_sha256
+                && binding.sha256.as_str() == roster_sha256
+                && binding.required_approvals == pinned.required()
+        }
+        _ => false,
+    }
+}
+
 impl VerifiedDemoLoginAdmission {
     /// Proof comes from server-side signature/target admission, not a digest
     /// or transport marker supplied by the client. Default is deny.
@@ -66,6 +96,7 @@ impl VerifiedDemoLoginAdmission {
         members: &mut Vec<Artifact>,
         verified: Option<&VerifiedPackage>,
         tenant_id: &str,
+        policy: &BrowserPolicy,
         privileges: ImportUsersPrivileges,
     ) -> Result<Option<Self>> {
         let entries = members
@@ -80,12 +111,7 @@ impl VerifiedDemoLoginAdmission {
             || file.bytes.len() > 128 * 1024
             || privileges.group_assignment != GroupAssignmentPolicy::AnyGroup
             || !verified.is_some_and(|proof| {
-                proof.manifest.format == ManifestFormat::V2
-                    && proof
-                        .manifest
-                        .signing
-                        .as_ref()
-                        .is_some_and(|s| s.tenant_id == tenant_id)
+                verified_for_tenant(proof, policy, tenant_id)
                     && proof
                         .members
                         .iter()
@@ -97,7 +123,11 @@ impl VerifiedDemoLoginAdmission {
         let policy = match std::env::var("SEQUENT_WORKBOOK_PASSWORDS") {
             Err(std::env::VarError::NotPresent) => receiver_policy(tenant_id)?,
             Ok(value) if value == "on" => receiver_policy(tenant_id)?,
-            _ => return Err(anyhow!("workbook password enrollment is disabled by the operator")),
+            _ => {
+                return Err(anyhow!(
+                    "workbook password enrollment is disabled by the operator"
+                ))
+            }
         };
         let payload: DemoLoginVerifiers = serde_json::from_slice(&file.bytes)
             .map_err(|_| anyhow!("malformed signed demo login verifier document"))?;
@@ -136,6 +166,24 @@ impl VerifiedDemoLoginAdmission {
             .collect()
     }
 
+    /// Only actual new-account transitions need the additional live role
+    /// recheck. Repeating a signed package never resets existing accounts.
+    pub(crate) async fn authorized_new_usernames<F, Fut>(
+        &self,
+        existing: &BTreeMap<String, BTreeSet<String>>,
+        require_live_editor: F,
+    ) -> Result<Vec<String>>
+    where
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = Result<()>>,
+    {
+        let names = self.new_usernames(existing);
+        if !names.is_empty() {
+            require_live_editor().await?;
+        }
+        Ok(names)
+    }
+
     pub(crate) async fn seed_new(
         &self,
         tenant: &str,
@@ -144,6 +192,32 @@ impl VerifiedDemoLoginAdmission {
         existing: &BTreeMap<String, BTreeSet<String>>,
         actor: Option<&crate::services::audit_log::AuditActor>,
     ) -> Result<Vec<String>> {
+        self.seed_new_with_audit(
+            tenant,
+            realm,
+            rows,
+            existing,
+            actor,
+            crate::services::task_audit::record,
+        )
+        .await
+    }
+
+    /// The application always writes through the production audit sink. The
+    /// isolated Keycloak contract test captures those same audit changes locally.
+    async fn seed_new_with_audit<F, Fut>(
+        &self,
+        tenant: &str,
+        realm: &str,
+        rows: &[AdminRow],
+        existing: &BTreeMap<String, BTreeSet<String>>,
+        actor: Option<&crate::services::audit_log::AuditActor>,
+        mut record: F,
+    ) -> Result<Vec<String>>
+    where
+        F: FnMut(crate::services::audit_log::AdminChange) -> Fut,
+        Fut: std::future::Future<Output = Result<()>>,
+    {
         self.verify_roster(rows)?;
         let names = self.new_usernames(existing);
         if names.is_empty() {
@@ -199,7 +273,7 @@ impl VerifiedDemoLoginAdmission {
             // Record each successful creation immediately, even if a later
             // account fails. Never include the email, password or verifier.
             use crate::services::{audit_log::AdminAction, task_audit};
-            task_audit::record(task_audit::bulk(
+            record(task_audit::bulk(
                 Some(actor.clone()),
                 task_audit::target(tenant, None)?,
                 "user",
@@ -227,11 +301,48 @@ mod tests {
             group_assignment: GroupAssignmentPolicy::AnyGroup,
             ..Default::default()
         };
-        let refused =
-            VerifiedDemoLoginAdmission::take_member(&mut files, None, "unused", permitted)
-                .unwrap_err();
+        let refused = VerifiedDemoLoginAdmission::take_member(
+            &mut files,
+            None,
+            "unused",
+            &BrowserPolicy::Off,
+            permitted,
+        )
+        .unwrap_err();
         assert!(!refused.to_string().contains("dummy-not-logged"));
         assert_eq!(files.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn credential_seeding_rechecks_a_revoked_editor_but_never_resets_existing_users() {
+        let payload: DemoLoginVerifiers = serde_json::from_value(serde_json::json!({
+            "format":"sequent.demo-login-verifiers/1","tenantId":"synthetic",
+            "accounts":[{"username":"trustee1","email":null,"groupName":"trustee","trustee":"trustee1",
+                "iterations":600000,"salt":"fixture-salt","verifier":"fixture-verifier"}]
+        })).unwrap();
+        let admission = VerifiedDemoLoginAdmission(payload);
+        let absent = BTreeMap::new();
+        assert!(admission
+            .authorized_new_usernames(&absent, || async {
+                Err(anyhow!("editor's privileges were revoked"))
+            })
+            .await
+            .is_err());
+        assert_eq!(
+            admission
+                .authorized_new_usernames(&absent, || async { Ok(()) })
+                .await
+                .unwrap(),
+            ["trustee1"]
+        );
+        let exists = BTreeMap::from([("trustee1".into(), BTreeSet::new())]);
+        assert!(admission
+            .authorized_new_usernames(&exists, || async {
+                panic!("existing identities never get credential writes")
+            })
+            .await
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
@@ -258,3 +369,7 @@ mod tests {
         assert!(!format!("{admission:?}").contains("fixture-verifier"));
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/support/managed_workbook_credentials_tests.rs"]
+mod browser_tests;
