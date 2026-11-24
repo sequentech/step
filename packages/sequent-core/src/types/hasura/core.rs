@@ -114,6 +114,10 @@ pub struct ElectionEvent {
     pub public_key: Option<String>,
     pub statistics: Option<Value>,
     pub external_id: Option<String>,
+    /// Limits the event to admin users whose permission labels hold it; an
+    /// event without one is open to every admin user of the tenant.
+    #[serde(default)]
+    pub permission_label: Option<String>,
 }
 
 impl ElectionEvent {

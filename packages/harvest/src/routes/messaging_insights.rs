@@ -22,7 +22,9 @@
 //! within a time limit. No address leaves harvest.
 
 use crate::routes::messaging::JsonRefusal;
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use crate::services::dependencies::HarvestServices;
 use chrono::Utc;
 use deadpool_postgres::Client as DbClient;
@@ -152,6 +154,13 @@ pub async fn messaging_event_stats(
     let mut hasura = hasura_client(services).await?;
     let hasura_tx =
         hasura.transaction().await.map_err(|e| internal(e.into()))?;
+    authorize_election_event_permission_label(
+        &hasura_tx,
+        &claims,
+        &tenant_id.to_string(),
+        &body.election_event_id,
+    )
+    .await?;
     let stats = event_stats(&hasura_tx, &tenant_id, &event_id, Utc::now())
         .await
         .map_err(internal)?;
@@ -225,6 +234,13 @@ pub async fn messaging_voter_counts(
     let mut hasura = hasura_client(services).await?;
     let hasura_tx =
         hasura.transaction().await.map_err(|e| internal(e.into()))?;
+    authorize_election_event_permission_label(
+        &hasura_tx,
+        &claims,
+        &tenant_id.to_string(),
+        &body.election_event_id,
+    )
+    .await?;
     let (tally, status) = cached_voters(
         &hasura_tx,
         &tenant_id,
@@ -315,6 +331,18 @@ pub async fn messaging_recount_voters(
     let tenant_id =
         authorize_tenant(&claims, &[Permissions::MESSAGING_CONFIG_READ])?;
     let event_id = parse_uuid(&body.election_event_id)?;
+    {
+        let mut hasura = hasura_client(services).await?;
+        let hasura_tx =
+            hasura.transaction().await.map_err(|e| internal(e.into()))?;
+        authorize_election_event_permission_label(
+            &hasura_tx,
+            &claims,
+            &tenant_id.to_string(),
+            &body.election_event_id,
+        )
+        .await?;
+    }
     let requested = ask_recount(services, &tenant_id, &event_id)
         .await
         .map_err(internal)?;
@@ -421,6 +449,13 @@ pub async fn messaging_audience_preview(
     let mut keycloak = keycloak_client(services).await?;
     let hasura_tx =
         hasura.transaction().await.map_err(|e| internal(e.into()))?;
+    authorize_election_event_permission_label(
+        &hasura_tx,
+        &claims,
+        &tenant_id.to_string(),
+        &input.election_event_id,
+    )
+    .await?;
     let keycloak_tx = read_only(&mut keycloak).await?;
     let config = get_event_messaging_config(&hasura_tx, &tenant_id, &event_id)
         .await
@@ -521,6 +556,15 @@ pub async fn messaging_monthly_volumes(
     let mut hasura = hasura_client(services).await?;
     let hasura_tx =
         hasura.transaction().await.map_err(|e| internal(e.into()))?;
+    if let Some(event_id) = event_id {
+        authorize_election_event_permission_label(
+            &hasura_tx,
+            &claims,
+            &tenant_id.to_string(),
+            &event_id.to_string(),
+        )
+        .await?;
+    }
     let mut rows =
         monthly_volumes(&hasura_tx, &tenant_id, from, to, event_id.as_ref())
             .await
@@ -579,6 +623,13 @@ pub async fn find_by_support_reference(
     let mut hasura = hasura_client(services).await?;
     let hasura_tx =
         hasura.transaction().await.map_err(|e| internal(e.into()))?;
+    authorize_election_event_permission_label(
+        &hasura_tx,
+        &claims,
+        &tenant_id.to_string(),
+        &input.election_event_id,
+    )
+    .await?;
     let ids = find_applications_by_support_reference(
         &hasura_tx,
         &tenant_id,

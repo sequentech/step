@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -62,6 +64,13 @@ pub async fn get_manual_verification_pdf(
                 format!("Error starting database transaction: {error}"),
             )
         })?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &input.tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
     let declared_secret_names = get_declared_report_secret_attribute_names(
         &hasura_transaction,
         &input.tenant_id,

@@ -823,6 +823,7 @@ fn event_data(scope: Scope) -> ElectionEvent {
         public_key: Some("public-key".to_string()),
         statistics: Some(json!({"num_emails_sent": 3})),
         external_id: Some("external".to_string()),
+        permission_label: None,
     }
 }
 

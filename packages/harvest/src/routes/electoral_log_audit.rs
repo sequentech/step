@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use rocket::{http::Status, serde::json::Json};
 use sequent_core::{
     services::{jwt::JwtClaims, uuid_validation::parse_uuid_v4},
@@ -57,6 +59,13 @@ pub async fn audit_electoral_log(
         .await
         .map_err(internal_error)?;
     let transaction = client.transaction().await.map_err(internal_error)?;
+    authorize_election_event_permission_label(
+        &transaction,
+        &claims,
+        &tenant_id,
+        &election_event_id,
+    )
+    .await?;
     let event = get_election_event_by_id_if_exist(
         &transaction,
         &tenant_id,

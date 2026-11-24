@@ -8,10 +8,12 @@
 
 use crate::ports::electoral_log::ApprovalMatrixLog;
 use crate::services::audit;
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
@@ -72,6 +74,29 @@ fn authorized(
     )
     .map_err(|(status, message)| {
         ErrorResponse::new(status, &message, ErrorCode::Unauthorized)
+    })
+}
+
+/// Refuses an election event outside the caller's permission labels.
+async fn event_permitted(
+    transaction: &Transaction<'_>,
+    claims: &JwtClaims,
+    election_event_id: &str,
+    context: &str,
+) -> Result<(), JsonError> {
+    authorize_election_event_permission_label(
+        transaction,
+        claims,
+        &claims.hasura_claims.tenant_id,
+        election_event_id,
+    )
+    .await
+    .map_err(|(status, message)| {
+        if status == Status::Forbidden {
+            ErrorResponse::new(status, &message, ErrorCode::Unauthorized)
+        } else {
+            internal(context, message)
+        }
     })
 }
 
@@ -151,6 +176,13 @@ pub async fn get_approval_matrix(
         .transaction()
         .await
         .map_err(|error| internal("Failed to start transaction", error))?;
+    event_permitted(
+        &transaction,
+        &claims,
+        &body.election_event_id,
+        "Failed to read the approval matrix",
+    )
+    .await?;
     let saved = get_latest_approval_matrix(
         &transaction,
         &claims.hasura_claims.tenant_id,
@@ -330,6 +362,13 @@ pub async fn save_approval_matrix(
         .transaction()
         .await
         .map_err(|error| internal("Failed to start transaction", error))?;
+    event_permitted(
+        &transaction,
+        &claims,
+        &body.election_event_id,
+        "Failed to read the election event",
+    )
+    .await?;
     get_election_event_by_id(&transaction, tenant_id, &body.election_event_id)
         .await
         .map_err(|error| {

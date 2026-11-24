@@ -7,9 +7,11 @@
 //! saving the lifecycle policies.
 
 use crate::services::audit;
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::ballot::LifecyclePolicies;
@@ -75,6 +77,30 @@ fn ids(
     ))
 }
 
+/// Refuses an election event outside the caller's permission labels.
+async fn event_permitted(
+    transaction: &Transaction<'_>,
+    claims: &JwtClaims,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+) -> Result<(), JsonError> {
+    authorize_election_event_permission_label(
+        transaction,
+        claims,
+        &tenant_id.to_string(),
+        &election_event_id.to_string(),
+    )
+    .await
+    .map_err(|(status, message)| {
+        let code = if status == Status::Forbidden {
+            ErrorCode::Unauthorized
+        } else {
+            ErrorCode::InternalServerError
+        };
+        ErrorResponse::new(status, &message, code)
+    })
+}
+
 async fn client() -> Result<DbClient, JsonError> {
     get_hasura_pool().await.get().await.map_err(internal)
 }
@@ -102,6 +128,8 @@ pub async fn get_scheduled_outcomes(
     let (tenant_id, election_event_id) = ids(&claims, &body.election_event_id)?;
     let mut client = client().await?;
     let transaction = client.transaction().await.map_err(internal)?;
+    event_permitted(&transaction, &claims, tenant_id, election_event_id)
+        .await?;
     let outcomes =
         scheduled_outcomes(&transaction, tenant_id, election_event_id)
             .await
@@ -146,6 +174,8 @@ pub async fn preview_scheduled_outcome_change(
     let (tenant_id, election_event_id) = ids(&claims, &body.election_event_id)?;
     let mut client = client().await?;
     let transaction = client.transaction().await.map_err(internal)?;
+    event_permitted(&transaction, &claims, tenant_id, election_event_id)
+        .await?;
     let preview = preview_change(
         &transaction,
         tenant_id,
@@ -196,6 +226,8 @@ pub async fn save_lifecycle_policies_route(
     };
     let mut client = client().await?;
     let transaction = client.transaction().await.map_err(internal)?;
+    event_permitted(&transaction, &claims, tenant_id, election_event_id)
+        .await?;
     audit::act_for(&transaction, &claims)
         .await
         .map_err(audit::json_error)?;
@@ -245,6 +277,8 @@ pub async fn get_lifecycle_snapshots(
     let (tenant_id, election_event_id) = ids(&claims, &body.election_event_id)?;
     let mut client = client().await?;
     let transaction = client.transaction().await.map_err(internal)?;
+    event_permitted(&transaction, &claims, tenant_id, election_event_id)
+        .await?;
     let snapshots =
         lifecycle_snapshots(&transaction, tenant_id, election_event_id)
             .await

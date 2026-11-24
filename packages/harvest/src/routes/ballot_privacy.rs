@@ -5,7 +5,8 @@
 //! Public responses never contain a voter identity or personalized cache data.
 use crate::routes::ballot_checks::ensure_checks_open_with_pool;
 use crate::services::authorization::{
-    authorize, authorize_voter_event, cast_vote_read_elections,
+    authorize, authorize_election_event_permission_label,
+    authorize_voter_event, cast_vote_read_elections,
 };
 use crate::services::dependencies::HarvestServices;
 use anyhow::Result;
@@ -116,6 +117,29 @@ async fn event(
     .await
     .map_err(unavailable)?
     .ok_or_else(|| (Status::NotFound, "Event not found".into()))
+}
+
+/// Refuses an event outside the administrator's permission labels.
+async fn event_permitted(
+    services: &HarvestServices,
+    claims: &JwtClaims,
+    event: &ElectionEvent,
+) -> Result<(), ApiError> {
+    let mut client = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(unavailable)?;
+    let tx = client.transaction().await.map_err(unavailable)?;
+    authorize_election_event_permission_label(
+        &tx,
+        claims,
+        &event.tenant_id,
+        &event.id,
+    )
+    .await
 }
 
 fn voter_token_scope(
@@ -822,6 +846,7 @@ pub async fn resolve_voter_pseudonym(
         vec![Permissions::VOTER_PSEUDONYM_RESOLVE],
     )?;
     let event = event(services, &claims, &body.election_event_id).await?;
+    event_permitted(services, &claims, &event).await?;
     let code = electoral_log::adapters::privacy::normalize_privacy_code(
         &body.pseudonym,
     )
@@ -1098,6 +1123,7 @@ pub async fn ballot_privacy_settings(
         vec![Permissions::ELECTION_EVENT_READ],
     )?;
     let event = event(services, &claims, &body.election_event_id).await?;
+    event_permitted(services, &claims, &event).await?;
     let realm =
         sequent_core::services::keycloak::get_tenant_realm(&event.tenant_id);
     let client = sequent_core::services::keycloak::KeycloakAdminClient::new()

@@ -30,6 +30,7 @@
 //! | `/signing-event-info` | a `signing-*-read` or `sign-<action>`; the titles `signing-certificates-read` |
 
 use crate::services::audit;
+use crate::services::authorization::authorize_election_event_permission_label;
 use crate::services::dependencies::HarvestServices;
 use crate::services::signing_http::{
     authorize_403, caller_display_name, SigningError as SigningFailure,
@@ -504,6 +505,13 @@ pub async fn export_signing_requests(
     let mut client = hasura(services).await?;
     let transaction = client.transaction().await.map_err(internal)?;
     audit::act_for(&transaction, &claims).await?;
+    authorize_election_event_permission_label(
+        &transaction,
+        &claims,
+        &tenant_id.to_string(),
+        &election_event_id.to_string(),
+    )
+    .await?;
     let export = export_requests(
         &transaction,
         &caller,
@@ -595,6 +603,13 @@ pub async fn save_signing_rule(
     let hasura_transaction =
         hasura_client.transaction().await.map_err(internal)?;
     audit::act_for(&hasura_transaction, &claims).await?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id.to_string(),
+        &election_event_id.to_string(),
+    )
+    .await?;
     let keycloak_transaction =
         keycloak_client.transaction().await.map_err(internal)?;
     let saved = save_rule(
@@ -655,6 +670,13 @@ pub async fn signing_rule_capacity(
     let mut keycloak_client = keycloak(services).await?;
     let hasura_transaction =
         hasura_client.transaction().await.map_err(internal)?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id.to_string(),
+        &election_event_id.to_string(),
+    )
+    .await?;
     let keycloak_transaction =
         keycloak_client.transaction().await.map_err(internal)?;
     let capacity = capacity(
@@ -709,6 +731,13 @@ pub async fn signing_event_info(
     let mut keycloak_client = keycloak(services).await?;
     let hasura_transaction =
         hasura_client.transaction().await.map_err(internal)?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id.to_string(),
+        &election_event_id.to_string(),
+    )
+    .await?;
     let keycloak_transaction =
         keycloak_client.transaction().await.map_err(internal)?;
     let operational_signing_mode =

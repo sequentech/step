@@ -5,7 +5,9 @@
 //! The schedule as a CSV file (VOTE-LIFECYCLE): preview an uploaded file,
 //! import it, and export the event's schedule.
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
@@ -63,6 +65,12 @@ pub async fn preview_schedule_import(
 ) -> Result<Json<SchedulePreview>, (Status, String)> {
     authorize_schedule(&claims)?;
     let input = input.into_inner();
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
     let preview = preview_schedule_document(
         &claims.hasura_claims.tenant_id,
         &input.election_event_id,
@@ -81,6 +89,12 @@ pub async fn import_schedule(
 ) -> Result<Json<ImportOutcome>, (Status, String)> {
     authorize_schedule(&claims)?;
     let input = input.into_inner();
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
     let author = ScheduleAuthor {
         user_id: claims.hasura_claims.user_id.clone(),
         username: claims.preferred_username.clone(),
@@ -104,6 +118,12 @@ pub async fn export_schedule(
 ) -> Result<Json<ExportScheduleOutput>, (Status, String)> {
     authorize_schedule(&claims)?;
     let input = input.into_inner();
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
     let document_id = export_schedule_document(
         &claims.hasura_claims.tenant_id,
         &input.election_event_id,

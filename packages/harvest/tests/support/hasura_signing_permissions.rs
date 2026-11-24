@@ -69,9 +69,39 @@ fn selectable(
         .filter_map(|(name, table)| {
             grants(table, "select_permissions")
                 .remove(role)
-                .map(|permission| (name.clone(), permission["filter"].clone()))
+                .map(|permission| (name.clone(), row_filter(&permission)))
         })
         .collect()
+}
+
+/// The row or its election event is unlabelled, or the event carries one of
+/// the user's labels: what every admin role's filter on a table of an
+/// election event ends with (`hasura/tests/permission-labels.test.cjs`
+/// requires it there).
+fn for_the_users_events() -> Value {
+    json!({"_or": [
+        {"election_event_id": {"_is_null": true}},
+        {"election_event": for_the_users_posts()},
+    ]})
+}
+
+/// A permission's row filter without the election event's permission label,
+/// which the tests below leave to the test that requires it on every table.
+fn row_filter(permission: &Value) -> Value {
+    let filter = &permission["filter"];
+    let Some(parts) = filter["_and"].as_array() else {
+        return filter.clone();
+    };
+    let mut own: Vec<Value> = parts
+        .iter()
+        .filter(|part| **part != for_the_users_events())
+        .cloned()
+        .collect();
+    match own.len() {
+        length if length == parts.len() => filter.clone(),
+        1 => own.remove(0),
+        _ => json!({"_and": own}),
+    }
 }
 
 const SIGNING_TABLES: [&str; 6] = [
@@ -283,7 +313,7 @@ fn each_signer_reads_their_own_certificate_registrations() {
                 .unwrap_or_else(|| {
                     panic!("{role} can't read its own registrations")
                 });
-        assert_eq!(permission["filter"], own, "{role}");
+        assert_eq!(row_filter(&permission), own, "{role}");
         let expected: BTreeSet<String> = OWN_CERTIFICATE_COLUMNS
             .iter()
             .map(|column| column.to_string())
@@ -390,14 +420,14 @@ fn voter_certificate_roles_keep_to_voter_sign_in_authorities() {
             }
             _ => purpose(CertificateAuthorityPurpose::VoterSignIn),
         };
-        assert_eq!(permission["filter"], expected, "select as {role}");
+        assert_eq!(row_filter(&permission), expected, "select as {role}");
     }
     for (role, permission) in grants(table, "delete_permissions") {
         let expected = match role.as_str() {
             "service-account" => json!({}),
             _ => purpose(CertificateAuthorityPurpose::VoterSignIn),
         };
-        assert_eq!(permission["filter"], expected, "delete as {role}");
+        assert_eq!(row_filter(&permission), expected, "delete as {role}");
     }
     for (role, permission) in grants(table, "insert_permissions") {
         let columns = permission["columns"].as_array().unwrap();

@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::audit;
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+};
 use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use anyhow::Result;
 use rocket::http::Status;
@@ -145,6 +147,22 @@ pub async fn delete_election_event_f(
             task_execution,
         }));
     }
+
+    // After the seal check, which reports an identifier that is not one.
+    if let Err(error) = authorize_election_event_access(
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await
+    {
+        let _ = update_fail(
+            &task_execution,
+            &format!("Failed to authorize executing the task: {error:?}"),
+        )
+        .await;
+        return Err(error);
+    };
 
     let permission_labels = decode_permission_labels(&claims);
     let refusal = match election_event_deletion_refusal(

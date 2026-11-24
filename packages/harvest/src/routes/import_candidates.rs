@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::audit;
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+};
 use crate::services::dependencies::HarvestServices;
 use anyhow::Result;
 use rocket::http::Status;
@@ -49,6 +51,12 @@ pub async fn import_candidates_route(
     )?;
 
     let body = input.into_inner();
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let election_event_id = body.election_event_id.clone();
     let executer_name = claims

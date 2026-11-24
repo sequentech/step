@@ -235,6 +235,9 @@ pub struct CreateElectionEventInput {
     pub public_key: Option<String>,
     pub alias: Option<String>,
     pub statistics: Option<Value>,
+    /// Limits the new event to admin users whose permission labels hold it.
+    #[serde(default)]
+    pub permission_label: Option<String>,
 }
 
 pub const ELECTION_EVENT: &str = "election_event";

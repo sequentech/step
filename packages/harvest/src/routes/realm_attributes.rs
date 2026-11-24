@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::audit;
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+    authorize_election_event_permission_label,
+};
 use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
@@ -72,6 +75,12 @@ pub async fn get_realm_attributes_route(
         Some(body.election_event_id.as_str()),
     )
     .map_err(|error| (Status::BadRequest, error.to_string()))?;
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
 
     let attributes = get_realm_attributes(
         &claims.hasura_claims.tenant_id,
@@ -154,6 +163,21 @@ pub async fn update_realm_attributes_route(
             "Failed to update realm attributes",
             ErrorCode::InternalServerError,
         )
+    })?;
+    authorize_election_event_permission_label(
+        &transaction,
+        &claims,
+        tenant_id,
+        &body.election_event_id,
+    )
+    .await
+    .map_err(|(status, message)| {
+        let code = if status == Status::Forbidden {
+            ErrorCode::Unauthorized
+        } else {
+            ErrorCode::InternalServerError
+        };
+        ErrorResponse::new(status, &message, code)
     })?;
     // Keycloak writes a full realm representation. Keep enrollment repair and
     // every other event writer out until this read/merge/write has completed.

@@ -7,7 +7,9 @@ use std::iter::Map;
 use std::str::FromStr;
 
 use crate::services::audit;
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use crate::services::dependencies::HarvestServices;
 use crate::services::signing_gate::{caller, waiting, Guarded};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
@@ -352,6 +354,21 @@ pub async fn change_application_status(
     audit::act_for(&hasura_transaction, &claims)
         .await
         .map_err(audit::json_error)?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &input.tenant_id,
+        &input.election_event_id,
+    )
+    .await
+    .map_err(|(status, message)| {
+        let code = if status == Status::Forbidden {
+            ErrorCode::Unauthorized
+        } else {
+            ErrorCode::InternalServerError
+        };
+        ErrorResponse::new(status, &message, code)
+    })?;
 
     let user_id = &claims.hasura_claims.user_id;
     let admin_name = claims

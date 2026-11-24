@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::audit;
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+    authorize_election_event_permission_label,
+};
 use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use rocket::http::Status;
@@ -85,6 +88,20 @@ pub async fn get_realm_password_policy_route(
         &claims.hasura_claims.tenant_id,
         &body.election_event_id,
     )?;
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await
+    .map_err(|(status, message)| {
+        let code = if status == Status::Forbidden {
+            ErrorCode::Unauthorized
+        } else {
+            ErrorCode::InternalServerError
+        };
+        ErrorResponse::new(status, &message, code)
+    })?;
 
     let password_policy = get_realm_password_policy(
         &claims.hasura_claims.tenant_id,
@@ -180,6 +197,21 @@ pub async fn update_realm_password_policy_route(
             "Failed to update realm password policy",
             ErrorCode::InternalServerError,
         )
+    })?;
+    authorize_election_event_permission_label(
+        &transaction,
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await
+    .map_err(|(status, message)| {
+        let code = if status == Status::Forbidden {
+            ErrorCode::Unauthorized
+        } else {
+            ErrorCode::InternalServerError
+        };
+        ErrorResponse::new(status, &message, code)
     })?;
     // The shared helper writes a full realm. Serialize with enrollment repair
     // for this event until the external write completes.

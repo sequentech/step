@@ -4,7 +4,8 @@
 
 use crate::services::audit;
 use crate::services::authorization::{
-    authorize, authorize_election_permission_labels,
+    authorize, authorize_election_event_access,
+    authorize_election_permission_labels,
 };
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -115,6 +116,12 @@ pub async fn configure_results_website_policy(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::PUBLISH_RESULTS_WRITE],
     )?;
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
 
     let output = configure_results_website_policy_request(
         &claims.hasura_claims.tenant_id,
@@ -217,6 +224,12 @@ pub async fn refresh_results_publication_index(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::PUBLISH_RESULTS_WRITE],
     )?;
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
 
     let output = refresh_results_publication_index_request(
         &claims.hasura_claims.tenant_id,

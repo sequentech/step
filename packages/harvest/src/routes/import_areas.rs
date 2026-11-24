@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::audit;
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+};
 use crate::services::dependencies::HarvestServices;
 use anyhow::Result;
 use rocket::http::Status;
@@ -47,6 +49,12 @@ pub async fn upsert_areas_route(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::AREA_WRITE],
     )?;
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
     upsert_areas_task(
         claims.hasura_claims.tenant_id.clone(),
         body.election_event_id.clone(),
@@ -89,6 +97,12 @@ pub async fn import_areas_route(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::AREA_WRITE],
     )?;
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
 
     provide_hasura_transaction(|hasura_transaction| {
         let tenant_id = claims.hasura_claims.tenant_id.clone();

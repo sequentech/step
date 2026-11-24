@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::audit;
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use crate::types::error_response::ErrorCode;
 use anyhow::anyhow;
 use anyhow::{Context, Result};
@@ -57,6 +59,13 @@ pub async fn create_election(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     audit::act_for(&hasura_transaction, &claims).await?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
 
     let election = election::create_election(
         &hasura_transaction,

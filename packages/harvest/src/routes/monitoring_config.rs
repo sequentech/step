@@ -13,7 +13,9 @@
 //! accepted it, and has the electoral log record it before it commits.
 
 use crate::ports::monitoring_renderer::{ColorScheme, RenderBoard};
-use crate::routes::monitoring::authorize_monitoring;
+use crate::routes::monitoring::{
+    authorize_monitoring, authorize_monitoring_event,
+};
 use crate::services::audit;
 use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring::{
@@ -170,6 +172,7 @@ pub async fn validate_config(
     configure(&claims)?;
     let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
+    authorize_monitoring_event(services, &claims, event).await?;
     let (set, _) = live_set(services, event).await?;
     let checked = match check_edit(
         &set,
@@ -339,6 +342,7 @@ pub async fn save_config(
     configure_and_write(&claims)?;
     let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
+    authorize_monitoring_event(services, &claims, event).await?;
     let edit = match (input.change, input.yaml.as_deref()) {
         (ChangeInput::Upsert, Some(yaml)) => Edit::Upsert(yaml),
         (ChangeInput::Upsert, None) => {
@@ -432,6 +436,7 @@ pub async fn reset_config_to_preset(
     configure_and_write(&claims)?;
     let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
+    authorize_monitoring_event(services, &claims, event).await?;
     let mut client = hasura_client(services).await?;
     check_not_locked_down(&mut client, event).await?;
     let outcome = reset_to_preset_as(
@@ -534,6 +539,7 @@ pub async fn set_dashboard_mode(
     configure_and_write(&claims)?;
     let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
+    authorize_monitoring_event(services, &claims, event).await?;
     let mut client = hasura_client(services).await?;
     // Which dashboard the event shows is part of its configuration.
     check_not_locked_down(&mut client, event).await?;
@@ -622,6 +628,7 @@ pub async fn list_config(
     configure(&claims)?;
     let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
+    authorize_monitoring_event(services, &claims, event).await?;
     let mut client = hasura_client(services).await?;
     let transaction = client
         .transaction()
@@ -706,6 +713,7 @@ pub async fn get_config(
     configure(&claims)?;
     let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
+    authorize_monitoring_event(services, &claims, event).await?;
     let mut client = hasura_client(services).await?;
     let transaction = client
         .transaction()
