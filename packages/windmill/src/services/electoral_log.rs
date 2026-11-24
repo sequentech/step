@@ -21,6 +21,7 @@ use base64::engine::general_purpose;
 use base64::Engine;
 use deadpool_postgres::Transaction;
 use electoral_log::assign_value;
+use electoral_log::client::board_client::{BoardClient, DeliveryReceipt};
 use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::{CertificateAuthEventAction, *};
 use electoral_log::messages::statement::{StatementBody, StatementType};
@@ -35,6 +36,7 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util::retry::retry_with_exponential_backoff;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -1472,46 +1474,112 @@ impl ElectoralLog {
         Ok(board_message)
     }
 
+    /// Imports an exported log in chunks, one immudb transaction each, since
+    /// immudb limits the entries of a transaction. Each chunk is stored with a
+    /// receipt keyed by its position and contents, so importing the same log again, as a
+    /// retried import task does, skips the chunks already stored.
     #[instrument(skip(self))]
     pub async fn import_from_csv(&self, logs_file: &NamedTempFile) -> Result<()> {
-        let batch_size: usize = PgConfig::from_env()?.default_sql_batch_size.try_into()?;
         let mut rdr = csv::Reader::from_reader(logs_file);
 
         let mut client = get_board_client().await?;
         client.open_session(self.elog_database.as_str()).await?;
-        let tx = client.new_tx(TxMode::ReadWrite).await?;
+        let result = async {
+            let rows_per_transaction =
+                csv_import_rows_per_transaction(client.max_tx_entries(&self.elog_database).await?)?;
+            client.ensure_electoral_log_delivery_receipts().await?;
+            let mut messages: Vec<ElectoralLogMessage> = Vec::with_capacity(rows_per_transaction);
+            let mut chunk_index = 0;
+            for result in rdr.deserialize() {
+                let row: ElectoralLogRow = result
+                    .map_err(|err| anyhow::Error::new(err).context("Failed to read CSV row"))?;
+                let message: &Message = &Message::strand_deserialize(
+                    &general_purpose::STANDARD_NO_PAD.decode(&row.data)?,
+                )
+                .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
+                messages.push(message.try_into()?);
 
-        // Allocate a vector with capacity equal to the batch size.
-        let mut messages: Vec<ElectoralLogMessage> = Vec::with_capacity(batch_size);
-
-        for result in rdr.deserialize() {
-            let row: ElectoralLogRow =
-                result.map_err(|err| anyhow::Error::new(err).context("Failed to read CSV row"))?;
-            let message: &Message =
-                &Message::strand_deserialize(&general_purpose::STANDARD_NO_PAD.decode(&row.data)?)
-                    .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
-            let electoral_log_message: ElectoralLogMessage = message.try_into()?;
-            messages.push(electoral_log_message);
-
-            // Once we reach the batch size, flush the batch.
-            if messages.len() >= batch_size {
-                client
-                    .insert_electoral_log_messages_batch(&tx, &messages)
-                    .await?;
-                messages.clear();
+                if messages.len() == rows_per_transaction {
+                    import_csv_chunk(&mut client, chunk_index, &messages).await?;
+                    messages.clear();
+                    chunk_index += 1;
+                }
             }
+            if !messages.is_empty() {
+                import_csv_chunk(&mut client, chunk_index, &messages).await?;
+            }
+            anyhow::Ok(())
         }
-
-        // Flush any remaining messages that didn't complete a full batch.
-        if !messages.is_empty() {
-            client
-                .insert_electoral_log_messages_batch(&tx, &messages)
-                .await?;
+        .await;
+        // A failed close must not hide a failed import.
+        if let Err(err) = client.close_session().await {
+            warn!(board = %self.elog_database, error = ?err, "Error closing immudb session");
         }
+        result
+    }
+}
 
-        client.commit(&tx).await?;
-        client.close_session().await?;
-        Ok(())
+/// Transaction entries of a chunk's receipt.
+const CSV_IMPORT_RECEIPT_ENTRIES: usize = 1;
+
+/// Rows of an imported log that fit in one transaction on a board allowing
+/// `max_tx_entries` entries. immudb counts each row inserted through SQL as
+/// one entry; its indexes add none.
+fn csv_import_rows_per_transaction(max_tx_entries: usize) -> Result<usize> {
+    max_tx_entries
+        .checked_sub(CSV_IMPORT_RECEIPT_ENTRIES)
+        .filter(|rows| *rows > 0)
+        .ok_or_else(|| {
+            anyhow!(
+                "immudb allows {max_tx_entries} entries per transaction, too few to import a log"
+            )
+        })
+}
+
+/// Namespace of the delivery IDs of imported log chunks.
+const CSV_IMPORT_DELIVERY_NAMESPACE: &str = "csv-import";
+
+/// The delivery ID and payload hash of a chunk of an imported log. The
+/// payload hash is derived from the signed messages the chunk holds, and the
+/// delivery ID also from the chunk's position, so identical chunks of one log
+/// are each stored.
+fn csv_import_chunk_identity(
+    chunk_index: usize,
+    messages: &[ElectoralLogMessage],
+) -> (String, String) {
+    let mut hasher = Sha256::new();
+    for message in messages {
+        hasher.update((message.message.len() as u64).to_be_bytes());
+        hasher.update(&message.message);
+    }
+    let payload_hash = hex::encode(hasher.finalize());
+    let delivery_id = hex::encode(Sha256::digest(
+        format!("{CSV_IMPORT_DELIVERY_NAMESPACE}:{chunk_index}:{payload_hash}").as_bytes(),
+    ));
+    (delivery_id, payload_hash)
+}
+
+/// Commits one chunk of an imported log with its receipt.
+async fn import_csv_chunk(
+    client: &mut BoardClient,
+    chunk_index: usize,
+    messages: &[ElectoralLogMessage],
+) -> Result<()> {
+    let (delivery_id, payload_hash) = csv_import_chunk_identity(chunk_index, messages);
+    let tx = client.new_tx(TxMode::ReadWrite).await?;
+    let receipt = client
+        .insert_electoral_log_delivery(&tx, &delivery_id, &payload_hash, messages)
+        .await
+        .with_context(|| "Error inserting imported electoral log rows")?;
+    client
+        .commit(&tx)
+        .await
+        .with_context(|| "Error committing imported electoral log rows")?;
+    match receipt {
+        DeliveryReceipt::Stored | DeliveryReceipt::AlreadyStored => Ok(()),
+        DeliveryReceipt::Conflicting => Err(anyhow!(
+            "Imported electoral log chunk {delivery_id} was already stored with other rows"
+        )),
     }
 }
 
@@ -2548,5 +2616,83 @@ mod cast_vote_entry_tests {
         assert_eq!(cast_vote_page(Some(10), Some(20)), (10, 20));
         assert_eq!(cast_vote_page(Some(1_000_000), Some(-5)), (max, 0));
         assert_eq!(cast_vote_page(Some(-1), None), (0, 0));
+    }
+}
+
+#[cfg(test)]
+mod csv_import_tests {
+    use super::*;
+
+    fn message(bytes: &[u8]) -> ElectoralLogMessage {
+        ElectoralLogMessage {
+            id: 0,
+            created: 0,
+            sender_pk: String::new(),
+            statement_timestamp: 0,
+            statement_kind: String::new(),
+            message: bytes.to_vec(),
+            version: String::new(),
+            user_id: None,
+            username: None,
+            election_id: None,
+            area_id: None,
+            ballot_id: None,
+        }
+    }
+
+    #[test]
+    fn a_chunk_has_the_same_identity_when_imported_again() {
+        let chunk = [message(b"first"), message(b"second")];
+        assert_eq!(
+            csv_import_chunk_identity(0, &chunk),
+            csv_import_chunk_identity(0, &chunk.clone())
+        );
+    }
+
+    #[test]
+    fn chunks_with_other_messages_have_other_identities() {
+        let chunk = [message(b"first"), message(b"second")];
+        let identity = csv_import_chunk_identity(0, &chunk);
+        for other in [
+            vec![message(b"first"), message(b"secone")],
+            vec![message(b"second"), message(b"first")],
+            vec![message(b"first")],
+            vec![message(b"firsts"), message(b"econd")],
+        ] {
+            let other_identity = csv_import_chunk_identity(0, &other);
+            assert_ne!(other_identity.0, identity.0);
+            assert_ne!(other_identity.1, identity.1);
+        }
+    }
+
+    #[test]
+    fn a_transaction_holds_as_many_rows_as_the_board_allows_besides_the_receipt() {
+        assert_eq!(csv_import_rows_per_transaction(1_024).unwrap(), 1_023);
+        assert_eq!(csv_import_rows_per_transaction(2).unwrap(), 1);
+    }
+
+    #[test]
+    fn a_board_without_room_for_a_row_and_its_receipt_cannot_import() {
+        assert!(csv_import_rows_per_transaction(1).is_err());
+        assert!(csv_import_rows_per_transaction(0).is_err());
+    }
+
+    #[test]
+    fn the_same_chunk_at_another_position_has_another_delivery_id() {
+        let chunk = [message(b"first"), message(b"second")];
+        let (delivery_id, payload_hash) = csv_import_chunk_identity(0, &chunk);
+        let (other_delivery_id, other_payload_hash) = csv_import_chunk_identity(1, &chunk);
+        assert_ne!(other_delivery_id, delivery_id);
+        assert_eq!(other_payload_hash, payload_hash);
+    }
+
+    #[test]
+    fn chunk_identities_are_distinct_sha256_digests() {
+        let (delivery_id, payload_hash) = csv_import_chunk_identity(0, &[message(b"entry")]);
+        for value in [&delivery_id, &payload_hash] {
+            assert_eq!(value.len(), 64);
+            assert!(value.bytes().all(|byte| byte.is_ascii_hexdigit()));
+        }
+        assert_ne!(delivery_id, payload_hash);
     }
 }
