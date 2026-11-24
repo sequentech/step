@@ -582,6 +582,9 @@ const SettingsConfigurationPackageForScope: React.FC<{
                                 )
                             )}
                             helperText={String(t("configurationPackage.existingDocumentHelp"))}
+                            slotProps={{
+                                formHelperText: {sx: {"&.Mui-disabled": {color: "text.secondary"}}},
+                            }}
                             disabled={running || !permitsImport}
                             value={typedDocumentId}
                             onChange={(event) => {

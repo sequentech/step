@@ -15,11 +15,13 @@ import {
 } from "graphql"
 
 /** The older introspection snapshot predates these actions. Extend only the
- * owning journey's schema, taking each exact action and type from Hasura's
- * checked-in definition instead of bypassing GraphQL validation. */
+ * fixture schema from Hasura's checked-in definition rather than bypassing
+ * validation. The upload argument is shared by all journeys; only package
+ * journeys require the additional settings actions and types. */
 export function withConfigurationPackageActions(
     baseline: GraphQLSchema,
-    actionPath: string
+    actionPath: string,
+    includePackageActions: boolean
 ): GraphQLSchema {
     const {definitions} = parse(readFileSync(actionPath, "utf8"))
     const fields = (kind: string) =>
@@ -59,30 +61,32 @@ export function withConfigurationPackageActions(
     )
     // ExtendSchema returns a separate type graph; the baseline is cached by
     // the normal fixture, so never mutate a field on the original schema.
-    const schema = extendSchema(baseline, {
-        kind: Kind.DOCUMENT,
-        definitions: [
-            ...types,
-            ...(queries.length
-                ? [
-                      {
-                          kind: Kind.OBJECT_TYPE_EXTENSION as const,
-                          name: {kind: Kind.NAME as const, value: query.name},
-                          fields: queries,
-                      },
-                  ]
-                : []),
-            ...(mutations.length
-                ? [
-                      {
-                          kind: Kind.OBJECT_TYPE_EXTENSION as const,
-                          name: {kind: Kind.NAME as const, value: mutation.name},
-                          fields: mutations,
-                      },
-                  ]
-                : []),
-        ],
-    })
+    const schema = includePackageActions
+        ? extendSchema(baseline, {
+              kind: Kind.DOCUMENT,
+              definitions: [
+                  ...types,
+                  ...(queries.length
+                      ? [
+                            {
+                                kind: Kind.OBJECT_TYPE_EXTENSION as const,
+                                name: {kind: Kind.NAME as const, value: query.name},
+                                fields: queries,
+                            },
+                        ]
+                      : []),
+                  ...(mutations.length
+                      ? [
+                            {
+                                kind: Kind.OBJECT_TYPE_EXTENSION as const,
+                                name: {kind: Kind.NAME as const, value: mutation.name},
+                                fields: mutations,
+                            },
+                        ]
+                      : []),
+              ],
+          })
+        : baseline
     const mutationRoot = schema.getMutationType()
     const existing = mutationRoot?.getFields().get_upload_url
     const argument = only("Mutation", ["get_upload_url"])[0].arguments?.find(

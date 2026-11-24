@@ -64,12 +64,11 @@ export const test = base.extend<
         const s3 = new S3Mock({origin, violations})
         const baseline = loadClientSchema(resolve(directory, "graphql.schema.json"))
         const graphql = new GraphQLMock({
-            schema: configurationPackageActions
-                ? withConfigurationPackageActions(
-                      baseline,
-                      resolve(directory, "../../hasura/metadata/actions.graphql")
-                  )
-                : baseline,
+            schema: withConfigurationPackageActions(
+                baseline,
+                resolve(directory, "../../hasura/metadata/actions.graphql"),
+                configurationPackageActions
+            ),
             violations,
         })
         const oidc = new OidcMock({
