@@ -161,7 +161,11 @@ describe("records as the platform serializes them", () => {
 
     it("takes the task_id inside a failed, unknown or submitting status", () => {
         expect(states("failed")[3]).toEqual(["admin-accounts", "failed", "task-AdminAccounts"])
-        expect(states("unknown")).toContainEqual(["election-event", "unknown", "task-ElectionEvent"])
+        expect(states("unknown")).toContainEqual([
+            "election-event",
+            "unknown",
+            "task-ElectionEvent",
+        ])
         expect(read("submitting").sections.find((s) => s.state === "submitting")?.taskId).toBe(
             "task-TenantConfiguration"
         )

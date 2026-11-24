@@ -6,7 +6,8 @@
 #[test]
 fn oversized_envelope_is_rejected_before_any_password_work() {
     use sequent_core::election_config::encrypted_delivery::{
-        decrypt_signed_delivery, EncryptedDeliveryError, MAX_ENCRYPTED_SIGNED_DELIVERY_BYTES,
+        decrypt_signed_delivery, EncryptedDeliveryError,
+        MAX_ENCRYPTED_SIGNED_DELIVERY_BYTES,
     };
 
     // A zero-initialized buffer is normally demand paged. The receiver must refuse the length

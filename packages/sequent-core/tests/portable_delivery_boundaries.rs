@@ -25,24 +25,31 @@ fn sender_metadata_is_bounded_and_optional_null_is_not_a_declaration() {
             "page_username":username,"api_version":"v23.0"
         }))
     };
-    assert!(
-        PortableMessagingAccounts::parse(messenger("demo.page_1").to_string().as_bytes()).is_ok()
-    );
+    assert!(PortableMessagingAccounts::parse(
+        messenger("demo.page_1").to_string().as_bytes()
+    )
+    .is_ok());
     for invalid in ["", "demo page", "https://example.invalid"] {
-        assert!(
-            PortableMessagingAccounts::parse(messenger(invalid).to_string().as_bytes()).is_err()
-        );
+        assert!(PortableMessagingAccounts::parse(
+            messenger(invalid).to_string().as_bytes()
+        )
+        .is_err());
     }
+    assert!(PortableMessagingAccounts::parse(
+        messenger(&"x".repeat(65)).to_string().as_bytes()
+    )
+    .is_err());
     assert!(
-        PortableMessagingAccounts::parse(messenger(&"x".repeat(65)).to_string().as_bytes())
-            .is_err()
+        PortableMessagingAccounts::parse(&vec![b' '; 64 * 1024 + 1]).is_err()
     );
-    assert!(PortableMessagingAccounts::parse(&vec![b' '; 64 * 1024 + 1]).is_err());
 
     let bad_email = messaging_accounts(json!({
         "provider":"AWS_SES","from_address":"missing-domain"
     }));
-    assert!(PortableMessagingAccounts::parse(bad_email.to_string().as_bytes()).is_err());
+    assert!(
+        PortableMessagingAccounts::parse(bad_email.to_string().as_bytes())
+            .is_err()
+    );
 
     let tenant = tenant_package::read(&json!({
         "format":"sequent.tenant-package/1","messagingAccounts":null
