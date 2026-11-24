@@ -5202,6 +5202,7 @@ export type Mutation_RootMonitoringSetModeArgs = {
 
 /** mutation root */
 export type Mutation_RootPrepare_Ballot_Publication_PreviewArgs = {
+  area_id?: InputMaybe<Scalars['String']['input']>;
   ballot_publication_id: Scalars['String']['input'];
   election_event_id: Scalars['uuid']['input'];
 };

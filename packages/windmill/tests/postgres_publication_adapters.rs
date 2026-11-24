@@ -2382,7 +2382,10 @@ async fn export_event_ballot_styles_returns_the_live_styles_of_the_event() {
         .await
         .unwrap();
 
-    assert_eq!(style_ids(&styles), strings(&[first_style, second_style]));
+    assert_eq!(
+        style_ids(&styles),
+        sorted(strings(&[first_style, second_style]))
+    );
     assert!(styles
         .iter()
         .all(|style| style.ballot_publication_id == publication.to_string()));
@@ -2500,6 +2503,7 @@ async fn get_publication_ballot_styles_orders_by_election_and_area_and_honours_t
                 &a.tenant_id(),
                 &a.event_id(),
                 &publication.to_string(),
+                None,
                 limit,
             )
             .await
@@ -2516,6 +2520,39 @@ async fn get_publication_ballot_styles_orders_by_election_and_area_and_honours_t
         strings(&[first_low, first_high, second_low])
     );
     assert_eq!(styles(Some(2)).await, strings(&[first_low, first_high]));
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn get_publication_ballot_styles_keeps_only_the_requested_area() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let (first, second) = (f.election(a).await, f.election(a).await);
+    let (area, other_area) = (f.area(a).await, f.area(a).await);
+    let publication = f.publication(a, published(1)).await;
+    let other_publication = f.publication(a, published(2)).await;
+    let second_style = f.style(a, publication, second, area).await;
+    let first_style = f.style(a, publication, first, area).await;
+    f.style(a, publication, first, other_area).await;
+    f.style(a, other_publication, first, area).await;
+
+    let styles = ballot_style::get_publication_ballot_styles(
+        &tx,
+        &a.tenant_id(),
+        &a.event_id(),
+        &publication.to_string(),
+        Some(&area.to_string()),
+        None,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(
+        style_ids(&styles),
+        sorted(strings(&[first_style, second_style]))
+    );
     tx.rollback().await.unwrap();
 }
 
