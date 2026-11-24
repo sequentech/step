@@ -5378,11 +5378,17 @@ const englishTranslation = {
                 checkStatus: "Check status",
                 quorum: "{{count}} of {{required}} approvals recorded",
                 error: "Could not confirm the operation. Check its status before trying again.",
+                isolatedDemo: "Isolated demo signing. Not for production use.",
+                retrySetup: "Retry signing setup",
                 softwareDemo:
                     "Demo only: signatures use a software test token, not a hardware device.",
                 phase: {
                     "loading": "Checking signing status…",
                     "setup-required": "Set up signing for this account before you approve.",
+                    "setup-retry-available":
+                        "An unused setup attempt can be resumed after identity verification. No approval will be submitted.",
+                    "setup-recovery-required":
+                        "Signing setup needs help from the demo operator. This request is still pending and cannot be signed here.",
                     "setup-pending":
                         "Signing setup is pending. Your approval has not been recorded.",
                     "challenge-available":

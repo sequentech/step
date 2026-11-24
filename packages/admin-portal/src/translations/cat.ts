@@ -5110,6 +5110,7 @@ const catalanTranslation: TranslationType = {
                 'Esteu segurs que voleu eliminar el certificat "{{name}}" (empremta: {{fingerprint}})?',
         },
         signing: {
+            operational: englishTranslation.translations.signing.operational,
             terms: {
                 post: "Lloc",
                 posts: "Llocs",

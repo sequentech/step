@@ -11,6 +11,6 @@ export const signingExperience = (
 }
 
 export const approvalControl = (phase: string, reviewed: boolean): "set-up" | "approve" | null => {
-    if (phase === "setup-required") return "set-up"
+    if (phase === "setup-required" || phase === "setup-retry-available") return "set-up"
     return phase === "challenge-available" && reviewed ? "approve" : null
 }

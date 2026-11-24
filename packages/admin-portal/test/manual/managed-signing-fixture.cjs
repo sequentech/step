@@ -25,9 +25,11 @@ const post = id(5)
 window.count={setup:0,starts:0,cancels:0,mutations:0,refresh:0,reauth:0}
 window.challenge=null
 window.consumed=false
+window.activeOfficial=scope.official
+window.setupPhase=sessionStorage.getItem("synthetic-retry")?"setup-retry-available":"setup-available"
 window.ready=false
-window.gold=true
-window.provider="softhsm-test"
+window.gold=!sessionStorage.getItem("synthetic-retry")
+window.provider=sessionStorage.getItem("synthetic-retry")?"yubihsm":"softhsm-test"
 window.tamper=false
 const panel={operational_signing_mode:"hsm-required", count:0, signers:[{user_id:scope.official,username:"test",display_name:"Test",signed_at:null}],
   rule:{requester_signing:"allowed"},document_url:null}
@@ -38,13 +40,18 @@ const bytes=canonicalJson({domain:"step-signing/v1",action:request.action,area_i
 const digest=hex(await sha256(new TextEncoder().encode(bytes)))
 panel.request={...request,canonical_payload:bytes,payload_sha256:digest}
 installClient({
-  query:async({query})=> query.startsWith("OperationalInitializeSetupStatus")?
-    {data:{operationalInitializeSetupStatus:{scope,phase:"setup-available"}}}:
-    {data:{operationalInitializeStatus:{scope,phase:window.consumed?"pending":window.challenge?"waiting-for-identity":window.ready?"challenge-available":"unavailable",device_profile:window.provider,cancellable_attempt:window.consumed?null:window.challenge}}},
+  query:async({query})=>{
+    if(window.failStatus) throw new Error("synthetic status unavailable")
+    const activeScope={...scope,official:window.activeOfficial}
+    return  query.startsWith("OperationalInitializeSetupStatus")?
+    {data:{operationalInitializeSetupStatus:{scope:activeScope,phase:window.ready?"certificate-on-file":window.setupPhase}}}:
+    {data:{operationalInitializeStatus:{scope:activeScope,phase:window.consumed?"pending":window.challenge?"waiting-for-identity":window.ready?"challenge-available":"unavailable",device_profile:window.provider,cancellable_attempt:window.consumed?null:window.challenge}}}
+  },
   mutate:async({mutation,variables})=>{
     window.count.mutations++
     if(mutation.startsWith("OperationalInitializeSetup")) {
       window.count.setup++
+      if(window.holdSetup) await new Promise(resolve=>{window.releaseSetup=resolve})
       window.ready=true
       return {data:{operationalInitializeSetup:{scope,phase:"certificate-on-file"}}}
     }
@@ -54,17 +61,28 @@ installClient({
       window.challenge=null
       return {data:{operationalInitializeCancel:{phase:"challenge-available"}}}
     }
+    if(mutation.startsWith("OperationalInitializeReconcile")) {
+      window.count.operatingCheck=(window.count.operatingCheck ?? 0)+1
+      if(window.holdCheck) await new Promise(resolve=>{window.releaseCheck=resolve})
+      return {}
+    }
     window.startVars=variables
     window.count.starts++
     window.challenge=id(6 + window.count.starts)
     throw new Error("synthetic HSM unavailable after attempt was reserved")
   }
 })
-createRoot(document.getElementById("root")).render(
- <AuthContext.Provider value={{isAuthenticated:true,tenantId:scope.tenant,userId:scope.official,isGoldUser:()=>window.gold,reauthWithGold:async(uri,fresh)=>{window.count.reauth++;window.goldArgs={uri,fresh}}}}>
- <OperationalApprovalDialog data={panel} api={{getRequest:async()=>window.tamper ? {...panel,request:{...panel.request,election_id:id(9)}} : panel}} eligible
- onClose={()=>{}} onRefresh={()=>window.count.refresh++}/>
- </AuthContext.Provider>)
+function Fixture(){
+ const [official,setOfficial]=React.useState(scope.official)
+ const [visible,setVisible]=React.useState(true)
+ window.reopen=()=>setVisible(true)
+ window.switchActor=()=>{window.activeOfficial=id(9);setOfficial(id(9))}
+ return <AuthContext.Provider value={{isAuthenticated:true,tenantId:scope.tenant,userId:official,isGoldUser:()=>window.gold,reauthWithGold:async(uri,fresh)=>{window.count.reauth++;window.goldArgs={uri,fresh}}}}>
+ {visible&&<OperationalApprovalDialog data={panel} api={{getRequest:async()=>window.tamper ? {...panel,request:{...panel.request,election_id:id(9)}} : panel}} eligible
+ onClose={()=>setVisible(false)} onRefresh={()=>window.count.refresh++}/>}
+ </AuthContext.Provider>
+}
+createRoot(document.getElementById("root")).render(<Fixture/>)
 `
 const stubs = {
     "@/providers/AuthContextProvider":
@@ -214,8 +232,98 @@ const stubs = {
             0
         )
 
+        await page.evaluate(() => sessionStorage.setItem("synthetic-retry", "1"))
+        await page.reload()
+        await page.getByText("signing.operational.isolatedDemo").waitFor()
+        const retry = page.getByRole("button", {
+            name: "signing.operational.retrySetup",
+            exact: true,
+        })
+        await retry.waitFor()
+        assert.equal(await page.getByText("Software token, not hardware").count(), 0)
+        assert.equal(await page.evaluate(() => window.count.setup), 0)
+        await retry.click()
+        await page.waitForFunction(() => window.count.reauth === 1)
+        assert.equal(await page.evaluate(() => window.count.setup), 0)
+        await page.evaluate(() => {
+            window.setupPhase = "setup-recovery-required"
+            window.gold = true
+        })
+        await retry.click()
+        await page.getByText("signing.operational.phase.setup-recovery-required").waitFor()
+        assert.equal(await page.evaluate(() => window.count.setup), 0)
+        assert.equal(await page.evaluate(() => window.count.starts), 0)
+        assert.equal(await retry.count(), 0)
+        assert.equal(await page.getByRole("button", {name: "Approve", exact: true}).count(), 0)
+        await page.evaluate(() => {
+            window.setupPhase = "setup-retry-available"
+        })
+        await page
+            .getByRole("button", {name: "signing.operational.checkStatus", exact: true})
+            .click()
+        await retry.click()
+        await page.getByRole("button", {name: "Approve", exact: true}).waitFor()
+        assert.equal(await page.evaluate(() => window.count.setup), 1)
+        assert.equal(await page.evaluate(() => window.count.starts), 0)
+        await page.evaluate(() => sessionStorage.removeItem("synthetic-retry"))
+        await page.reload()
+        await page.getByText("Software token, not hardware").waitFor()
+        await page.evaluate(() => {
+            window.holdSetup = true
+        })
+        await page.getByRole("button", {name: "Set up signing", exact: true}).click()
+        await page.waitForFunction(() => typeof window.releaseSetup === "function")
+        await page.evaluate(() => {
+            window.consumed = true
+            window.provider = "yubihsm"
+            window.holdCheck = true
+            window.switchActor()
+        })
+        await page.getByText("signing.operational.phase.pending").waitFor()
+        assert.equal(await page.getByText("Software token, not hardware").count(), 0)
+        const close = page.getByRole("button", {name: "signing.widget.close", exact: true})
+        const check = page.getByRole("button", {
+            name: "signing.operational.checkStatus",
+            exact: true,
+        })
+        assert.equal(await close.isEnabled(), true)
+        await check.click()
+        await page.waitForFunction(() => typeof window.releaseCheck === "function")
+        assert.equal(await close.isEnabled(), false)
+        await page.evaluate(() => window.releaseSetup())
+        await page.waitForFunction(() => window.ready)
+        assert.equal(await close.isEnabled(), false)
+        await page.evaluate(() => window.releaseCheck())
+        await page.waitForFunction(() => !document.querySelector("button:disabled"))
+        assert.equal(await close.isEnabled(), true)
+        assert.equal(await page.evaluate(() => window.count.starts), 0)
+        assert.equal(await page.evaluate(() => window.count.setup), 1)
+        await page.evaluate(() => {
+            window.holdCheck = false
+            window.provider = "softhsm-test"
+        })
+        await check.click()
+        await page.getByText("Software token, not hardware").waitFor()
+        await page.evaluate(() => {
+            window.failStatus = true
+        })
+        await check.click()
+        await page.getByText("signing.operational.phase.unavailable").waitFor()
+        assert.equal(await page.getByText("Software token, not hardware").count(), 0)
+        await page.getByText("signing.operational.isolatedDemo").waitFor()
+        await close.click()
+        await page.getByRole("dialog").waitFor({state: "detached"})
+        await page.evaluate(() => {
+            window.failStatus = false
+            window.provider = "yubihsm"
+            window.reopen()
+        })
+        await page.getByText("signing.operational.phase.pending").waitFor()
+        assert.equal(await page.getByText("Software token, not hardware").count(), 0)
+        assert.equal(await page.evaluate(() => window.count.starts), 0)
+        assert.equal(await page.evaluate(() => window.count.setup), 1)
         console.log(
-            "PASS synthetic adapter, real Chromium dialog: no upload; forced first-use Gold before setup; separate review/approval; wrong Post never starts; exact Post and digest sent; abandoned step-up can be explicitly discarded; consumed step-up cannot; no duplicate approval."
+            "PASS synthetic adapter, real Chromium dialog: no upload; forced first-use Gold before setup; separate review/approval; wrong Post never starts; exact Post and digest sent; abandoned step-up can be explicitly discarded; consumed step-up cannot; stale provider/operation state cannot affect reopen or a newer operation; no duplicate approval."
         )
     } finally {
         await browser?.close()

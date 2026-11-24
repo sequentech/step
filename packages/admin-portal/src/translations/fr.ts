@@ -5144,6 +5144,7 @@ const frenchTranslation: TranslationType = {
                 'Êtes-vous sûr de vouloir supprimer le certificat "{{name}}" (empreinte : {{fingerprint}}) ?',
         },
         signing: {
+            operational: englishTranslation.translations.signing.operational,
             terms: {
                 post: "Poste",
                 posts: "Postes",

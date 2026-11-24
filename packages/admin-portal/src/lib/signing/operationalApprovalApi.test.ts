@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {
+    createOperationalApprovalApi,
+    SetupGoldRequired,
     parseApprovalStatus,
     parseSetupStatus,
     trustedSigningRedirect,
@@ -45,6 +47,15 @@ describe("authoritative managed approval status", () => {
         ).toThrow("Invalid unused signing challenge")
     })
 
+    it("keeps retry and ambiguous operator recovery separate", () => {
+        expect(parseSetupStatus({scope, phase: "setup-retry-available"}, scope)).toBe(
+            "setup-retry-available"
+        )
+        expect(parseSetupStatus({scope, phase: "setup-recovery-required"}, scope)).toBe(
+            "setup-recovery-required"
+        )
+    })
+
     it("rejects an otherwise valid answer for another official or request", () => {
         expect(() => parseApprovalStatus(status, {...scope, official: scope.event})).toThrow(
             "Invalid operational signing scope"
@@ -73,5 +84,95 @@ describe("privileged verification redirect", () => {
                 "Invalid verification redirect"
             )
         }
+    })
+})
+
+describe("managed approval requests", () => {
+    const apiFixture = () => {
+        const query = jest.fn()
+        const mutate = jest.fn()
+        return {query, mutate, client: createOperationalApprovalApi({query, mutate})}
+    }
+
+    it("uses the ordinary signing role, network-only status and scoped responses", async () => {
+        const {query, client} = apiFixture()
+        query.mockResolvedValueOnce({data: {operationalInitializeStatus: status}})
+        expect((await client.status(scope)).phase).toBe("challenge-available")
+        expect(query).toHaveBeenCalledWith(
+            expect.objectContaining({
+                variables: {request: scope.request},
+                context: {headers: {"x-hasura-role": "sign-initialize-voting"}},
+                fetchPolicy: "no-cache",
+            })
+        )
+        query.mockResolvedValueOnce({
+            data: {operationalInitializeSetupStatus: {scope, phase: "setup-recovery-required"}},
+        })
+        expect(await client.setupStatus(scope)).toBe("setup-recovery-required")
+        query.mockResolvedValue({errors: [{message: "fixture failure"}]})
+        await expect(client.status(scope)).rejects.toThrow("Signing status unavailable")
+        await expect(client.setupStatus(scope)).rejects.toThrow("Setup status unavailable")
+    })
+
+    it("distinguishes Gold setup requirement from unrelated refusal and malformed answers", async () => {
+        const {mutate, client} = apiFixture()
+        mutate
+            .mockResolvedValueOnce({errors: [{extensions: {gold_required: true}}]})
+            .mockResolvedValueOnce({
+                errors: [
+                    {
+                        extensions: {
+                            internal: {response: {body: '{"extensions":{"gold_required":true}}'}},
+                        },
+                    },
+                ],
+            })
+            .mockResolvedValueOnce({errors: [{message: "unrelated"}]})
+            .mockResolvedValueOnce({
+                data: {operationalInitializeSetup: {scope, phase: "setup-pending"}},
+            })
+        await expect(client.setup(scope)).rejects.toBeInstanceOf(SetupGoldRequired)
+        await expect(client.setup(scope)).rejects.toBeInstanceOf(SetupGoldRequired)
+        await expect(client.setup(scope)).rejects.toThrow("Setup unavailable")
+        await expect(client.setup(scope)).resolves.toBe("setup-pending")
+        expect(mutate).toHaveBeenCalledTimes(4)
+    })
+
+    it("sends the reviewed digest and exact Post; rejects foreign shapes and malformed attempts", async () => {
+        const {mutate, client} = apiFixture()
+        const attempt = "00000000-0000-4000-8000-000000000007"
+        const page = {path: "election-show", panel: "publish", election_id: scope.event} as const
+        const digest = "a".repeat(64)
+        mutate
+            .mockResolvedValueOnce({
+                data: {operationalInitializeStart: {attempt, redirect: "synthetic-redirect"}},
+            })
+            .mockResolvedValueOnce({data: {operationalInitializeStart: {attempt, redirect: null}}})
+            .mockResolvedValueOnce({errors: [{message: "consumed"}]})
+            .mockResolvedValueOnce({
+                data: {operationalInitializeCancel: {phase: "challenge-available"}},
+            })
+            .mockResolvedValueOnce({errors: [{message: "fixture reconciliation failed"}]})
+            .mockResolvedValueOnce({})
+        await expect(client.start(scope, page, digest)).resolves.toEqual({
+            attempt,
+            redirect: "synthetic-redirect",
+        })
+        expect(mutate).toHaveBeenCalledWith(
+            expect.objectContaining({variables: {request: scope.request, page, digest}})
+        )
+        await expect(client.start(scope, page, digest)).rejects.toThrow("Signing start unconfirmed")
+        await expect(client.cancelUnused(scope, "invalid")).rejects.toThrow(
+            "Invalid unused signing challenge"
+        )
+        await expect(client.cancelUnused(scope, attempt)).rejects.toThrow(
+            "Challenge cancellation unconfirmed"
+        )
+        await expect(client.cancelUnused(scope, attempt)).resolves.toBeUndefined()
+        expect(mutate).toHaveBeenCalledWith(
+            expect.objectContaining({variables: {request: scope.request, attempt}})
+        )
+        await expect(client.reconcile(scope)).rejects.toThrow("Signing status unconfirmed")
+        await expect(client.reconcile(scope)).resolves.toBeUndefined()
     })
 })

@@ -94,7 +94,13 @@ export type ApprovalPhase =
     | "approval-recorded"
     | "reconcile"
     | "unavailable"
-type SetupPhase = "setup-available" | "setup-pending" | "certificate-on-file" | "unavailable"
+type SetupPhase =
+    | "setup-available"
+    | "setup-pending"
+    | "setup-retry-available"
+    | "setup-recovery-required"
+    | "certificate-on-file"
+    | "unavailable"
 
 const scoped = (raw: unknown, expected: IApprovalScope) => {
     const result = record(raw)
@@ -108,7 +114,14 @@ const scoped = (raw: unknown, expected: IApprovalScope) => {
     return result
 }
 
-export const parseApprovalStatus = (raw: unknown, expected: IApprovalScope) => {
+export const parseApprovalStatus = (
+    raw: unknown,
+    expected: IApprovalScope
+): {
+    phase: ApprovalPhase
+    softwareDemo: boolean
+    cancellableAttempt?: string
+} => {
     const result = scoped(raw, expected)
     const phase = result.phase
     if (
@@ -139,6 +152,8 @@ export const parseSetupStatus = (raw: unknown, expected: IApprovalScope): SetupP
     if (
         phase !== "setup-available" &&
         phase !== "setup-pending" &&
+        phase !== "setup-retry-available" &&
+        phase !== "setup-recovery-required" &&
         phase !== "certificate-on-file" &&
         phase !== "unavailable"
     )
@@ -176,7 +191,12 @@ export function trustedSigningRedirect(value: string, keycloakBase: string, tena
     return target.href
 }
 
-export class SetupGoldRequired extends Error {}
+export class SetupGoldRequired extends Error {
+    constructor() {
+        super("Fresh Gold authentication required")
+        Object.setPrototypeOf(this, SetupGoldRequired.prototype)
+    }
+}
 
 export function createOperationalApprovalApi(
     client: Pick<ApolloClient<unknown>, "query" | "mutate">

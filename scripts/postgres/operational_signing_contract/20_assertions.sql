@@ -816,12 +816,19 @@ SELECT os_test.ok(sequent_backend.operational_signing_mark_applied_from_evidence
 EXECUTE quorum(:'tenant_a', :'event_a', :'req1', :'official', 'initialize-voting', :'pay1', :'fingerprint', :'spki',
                '\x3006020101020101', NULL, NULL, NULL, NULL, 'yubihsm', :'cert1') \gset
 SELECT os_test.ok(:'matching'::boolean, 'exact applied approval is accepted by the installed provider query');
+RESET SESSION AUTHORIZATION;
+SET SESSION AUTHORIZATION os14990_windmill;
+EXECUTE quorum(:'tenant_a', :'event_a', :'req1', :'official', 'initialize-voting', :'pay1', :'fingerprint', :'spki',
+               '\x3006020101020101', NULL, NULL, NULL, NULL, 'yubihsm', :'cert1') \gset
+SELECT os_test.ok(:'matching'::boolean, 'restricted Windmill consumer counts the exact applied approval');
 EXECUTE quorum(:'tenant_a', :'event_a', :'req1', :'official', 'initialize-voting', :'pay1', :'fingerprint', :'spki',
                '\x3006020101020101', NULL, NULL, NULL, NULL, 'softhsm-test', :'cert1') \gset
 SELECT os_test.ok(NOT :'matching'::boolean, 'an applied receipt for another installed provider is refused');
 EXECUTE quorum(:'tenant_a', :'event_a', :'req1', :'official', 'initialize-voting', :'pay1', :'fingerprint', :'spki',
                '\x3006020101020102', NULL, NULL, NULL, NULL, 'yubihsm', :'cert1') \gset
 SELECT os_test.ok(NOT :'matching'::boolean, 'a changed approval signature is refused');
+RESET SESSION AUTHORIZATION;
+SET SESSION AUTHORIZATION os_t_harvest;
 -- Operator revocation must invalidate a previously applied row before the next
 -- official can count it or the execution can release. Nothing is re-signed.
 RESET SESSION AUTHORIZATION;

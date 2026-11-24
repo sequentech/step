@@ -5258,11 +5258,17 @@ const spanishTranslation: TranslationType = {
                 checkStatus: "Consultar el estado",
                 quorum: "{{count}} de {{required}} aprobaciones registradas",
                 error: "No se pudo confirmar la operación. Consulta su estado antes de volver a intentarlo.",
+                isolatedDemo: "Firma en una demostración aislada. No usar en producción.",
+                retrySetup: "Reintentar la configuración de firma",
                 softwareDemo:
                     "Solo para demostración: las firmas usan un token de software de prueba, no un dispositivo físico.",
                 phase: {
                     "loading": "Consultando el estado de la firma…",
                     "setup-required": "Configura la firma de esta cuenta antes de aprobar.",
+                    "setup-retry-available":
+                        "Puedes retomar un intento de configuración sin usar tras verificar tu identidad. No se enviará ninguna aprobación.",
+                    "setup-recovery-required":
+                        "La configuración de firma requiere ayuda del operador de la demostración. La solicitud sigue pendiente y no se puede firmar aquí.",
                     "setup-pending":
                         "La configuración de la firma está pendiente. Tu aprobación no se ha registrado.",
                     "challenge-available":

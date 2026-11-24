@@ -5118,6 +5118,7 @@ const dutchTranslation: TranslationType = {
                 'Weet u zeker dat u het certificaat "{{name}}" (vingerafdruk: {{fingerprint}}) wilt verwijderen?',
         },
         signing: {
+            operational: englishTranslation.translations.signing.operational,
             terms: {
                 post: "Post",
                 posts: "Posts",

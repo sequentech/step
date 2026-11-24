@@ -27,7 +27,7 @@ sql -c 'CREATE DATABASE operational_demo_14990'
 export PGDATABASE=operational_demo_14990
 { echo 'CREATE EXTENSION pgcrypto; CREATE EXTENSION unaccent;'
   for d in "$root"/hasura/migrations/backend-db/*; do
-    v=${d##*/}; [ "${v%%_*}" -le 1794700001700 ] || continue
+    v=${d##*/}; [ "${v%%_*}" -le 1794700002000 ] || continue
     echo 'BEGIN;'; cat "$d/up.sql"; echo; echo 'COMMIT;'
   done
 } >"$p/migrations.sql"

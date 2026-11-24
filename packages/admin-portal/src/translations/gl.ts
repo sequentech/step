@@ -5084,6 +5084,7 @@ const galegoTranslation: TranslationType = {
                 '¿Está seguro de que quere eliminar o certificado "{{name}}" (pegada: {{fingerprint}})?',
         },
         signing: {
+            operational: englishTranslation.translations.signing.operational,
             terms: {
                 post: "Posto",
                 posts: "Postos",

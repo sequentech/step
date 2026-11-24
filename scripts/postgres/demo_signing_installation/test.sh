@@ -6,7 +6,7 @@ set -euo pipefail
 umask 077
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../../.." && pwd)
-unset PGHOST PGPORT PGDATABASE PGUSER PGPASSWORD PGSERVICE PGSERVICEFILE PGOPTIONS
+unset PGHOST PGHOSTADDR PGPORT PGDATABASE PGUSER PGPASSWORD PGSERVICE PGSERVICEFILE PGOPTIONS
 export LC_ALL=C
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/demo-signing-pg.XXXXXXXX")
 export PGHOST="$tmp" PGPORT=35431 PGUSER=fixture_owner
@@ -20,10 +20,12 @@ export PGDATABASE=signing_test_template
 psql -c 'CREATE EXTENSION pgcrypto; CREATE EXTENSION unaccent;'
 # Apply the actual application schema, one transaction per migration; stop at this feature.
 for directory in "$root"/hasura/migrations/backend-db/*; do
-    [ "$(basename "$directory" | cut -d_ -f1)" -le 1794700001700 ] || continue
+    [ "$(basename "$directory" | cut -d_ -f1)" -le 1794700002000 ] || continue
     { echo 'BEGIN;'; cat "$directory/up.sql"; echo; echo 'COMMIT;'; } >>"$tmp/migrations.sql"
 done
 PGOPTIONS='-c client_min_messages=warning' psql -f "$tmp/migrations.sql" >"$tmp/migrations.log"
+# Actual fixture worker login: never test its definer access as the installer.
+psql -c 'CREATE ROLE os14990_windmill LOGIN; GRANT sequent_os_approve TO os14990_windmill;'
 psql -d postgres -c "CREATE DATABASE operational_demo_14990 TEMPLATE signing_test_template"
 psql -d postgres -c "CREATE DATABASE ordinary_hosted TEMPLATE signing_test_template"
 for db in ordinary_hosted operational_demo_14990; do
@@ -38,6 +40,7 @@ for db in ordinary_hosted operational_demo_14990; do
         for _ in 1 2; do psql -f "$here/enable.sql" -v tenant=10000000-0000-4000-8000-000000000001 -v event=10000000-0000-4000-8000-000000000002 -v run_id=10000000-0000-4000-8000-000000000003 -v backend=softhsm-test; done
     fi
     psql -f "$here/assertions.sql"
+    PGUSER=os14990_windmill psql -f "$here/worker-profile.sql"
     echo "PASS $db: installation, new-tenant default and profile admission"
 done
 # Changing the provider/run or even removing the scope of a previously installed device refuses.

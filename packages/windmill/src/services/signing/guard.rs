@@ -171,7 +171,9 @@ pub async fn effective_rule(
     if mode == OperationalSigningMode::HsmRequired {
         let rule = effective
             .filter(SigningRule::is_required)
-            .with_context(|| format!("Server-managed signing needs a required rule for {action}."))?;
+            .with_context(|| {
+                format!("Server-managed signing needs a required rule for {action}.")
+            })?;
         rule.validate()
             .context("Invalid required server-managed signing rule")?;
         return Ok(rule);

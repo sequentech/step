@@ -43,6 +43,51 @@ installations or providers. In HSM mode a missing required rule or an
 unavailable signer must refuse; do not make an unsupported workflow appear
 to work by switching back to P12.
 
+## Start with a real disposable Post
+
+Do not populate a publication ID or a successful key ceremony by hand.
+The normal [backend journey](../e2e/journeys/test_journeys.py) and its
+[browser-fixture seed](../e2e/ui/seed.py) show the smallest existing sequence:
+bootstrap a new isolated tenant, import the synthetic election and census,
+complete the two-trustee DKG and verify its bulletin-board transcript, then
+publish ballot styles. Stop there, before voting. These are genuine app
+operations, not a replacement SQL seed.
+
+Run those operations against the intended **fresh dedicated installation**
+*before* HSM promotion. Record the actual IDs returned by import and
+publication. Bind the installation manifest, scope, SBEI roster, Post label
+and pending Initialize request to those values. Do not copy a running test
+database, use another installation's IDs or assume the ordinary backend
+journey installs the signing worker. Completing the provisioning journey is
+not evidence that the subsequent two-signer HSM flow ran.
+
+## Lost setup delivery
+
+If the signing device did not claim the request, the same official can
+explicitly **Retry setup** after a fresh identity check. This redelivers the
+original attempt only; it does not extend its deadline or create another
+key. Once the device claims it, refresh the status instead of retrying. If
+the device, certificate or original request can no longer be reconciled,
+contact the fixture operator. Do not clear ledger rows, generate a
+replacement key, or use a P12 to complete the waiting request. For this
+disposable rehearsal the safe operator fallback is a new isolated fixture,
+not overriding the old one.
+
+Once an independent officer attaches a valid certificate, another eligible
+pending request on the same Post can use it without repeating enrollment.
+The protected action still needs its own reviewed request, fresh approval
+ceremony and configured quorum. A certificate restricted to one Post does
+not authorize a different Post. A missing or conflicting installed provider
+is a refusal, including for a pre-enrolled official.
+
+The socket-only PostgreSQL checks are
+`scripts/postgres/operational_signing_contract/run_initialize_self_setup.sh`
+(first use and reconciliation),
+`scripts/postgres/demo_signing_installation/test.sh` (provider and defaults),
+and `scripts/postgres/demo_signing_installation/test-canonical-reload.sh`
+(real request creation, commit and typed reload). None of those checks
+substitutes for observing the whole paired-service run above.
+
 ## Coverage boundary
 
 | Protected action or delivery path | What the isolated signing flow covers |

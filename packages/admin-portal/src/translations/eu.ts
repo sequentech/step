@@ -5084,6 +5084,7 @@ const basqueTranslation: TranslationType = {
                 'Ziur al zaude "{{name}}" ziurtagiria (hatz-marka: {{fingerprint}}) ezabatu nahi duzula?',
         },
         signing: {
+            operational: englishTranslation.translations.signing.operational,
             terms: {
                 post: "Postu",
                 posts: "Postuak",

@@ -21,6 +21,8 @@ describe("operational approval controls", () => {
 
     it("keeps setup separate from approval and never starts twice while pending", () => {
         expect(approvalControl("setup-required", true)).toBe("set-up")
+        expect(approvalControl("setup-retry-available", true)).toBe("set-up")
+        expect(approvalControl("setup-recovery-required", true)).toBeNull()
         expect(approvalControl("challenge-available", false)).toBeNull()
         expect(approvalControl("challenge-available", true)).toBe("approve")
         for (const phase of [

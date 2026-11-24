@@ -34,9 +34,7 @@ use uuid::Uuid;
 use windmill::services::signing::{
     certificates::OpensslCertificateVerifier,
     directory::KeycloakUserDirectory,
-    operational_device::{
-        installed_demo, DemoInstallation as InstalledDemo,
-    },
+    operational_device::{installed_demo, DemoInstallation as InstalledDemo},
     operational_policy,
 };
 
@@ -416,7 +414,8 @@ pub async fn serve_disposable() -> Result<(), Status> {
     // Before production service constructors can create a producer or open
     // a listener, require the exact closed queue/storage paths and live queue.
     windmill::app::check_isolated_signing_producer()
-        .await.map_err(|_| Status::ServiceUnavailable)?;
+        .await
+        .map_err(|_| Status::ServiceUnavailable)?;
     let runtime = Path::new(RUNTIME);
     let harvest = runtime.join("harvest");
     let sock = runtime.join("postgres");

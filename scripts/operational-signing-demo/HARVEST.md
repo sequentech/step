@@ -116,8 +116,16 @@ Set up two synthetic preexisting approvers with stored TOTP credentials,
 admin-owned Hasura claims and the matching distinct SBEI IDs. Never make
 `fixture-14990-hasura-claims` editable by users. Verify minted access tokens
 contain actual server-side `auth_time` after entering password and OTP, and
-verify the broker token includes the two exact recorded factors. The JSON
-profile has not yet been run through a minted-token Keycloak acceptance test.
+verify the broker token includes the two exact recorded factors. The
+`keycloak/test-minted.py` helper prepares a separate synthetic realm and
+per-run random users/credentials into an empty mode-0700 temporary directory
+(`prepare DIR`). In a runner sharing only the disposable Keycloak
+loopback namespace, mount the test directory at `/fixture` with its
+synthetic TLS certificate as `tls.crt` and run `test-minted.py run`.
+It exercises real password and OTP forms, PAR/PKCE, signature verification
+via Keycloak's JWKS and the same-subject Portal callback. Delete the
+fixture after the run. This checks identity only, not HSM or worker
+execution.
 
 `scripts/signing/disposable_initialize_authority.py` signs and seeds the
 fixture CA's current numbered CRL into the explicit scoped DB cache; the

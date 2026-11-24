@@ -37,7 +37,13 @@ import {signBlock, SignBlock} from "@/lib/signing/request"
 import {SigningSubject, SigningSubjectVariant} from "./SigningSubject"
 import {useSignedView} from "./useSignedView"
 
-type Phase = ApprovalPhase | "loading" | "setup-required" | "setup-pending"
+type Phase =
+    | ApprovalPhase
+    | "loading"
+    | "setup-required"
+    | "setup-pending"
+    | "setup-retry-available"
+    | "setup-recovery-required"
 const pending = (phase: Phase) =>
     phase === "pending" || phase === "waiting-for-identity" || phase === "setup-pending"
 
@@ -72,59 +78,71 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
         [request.tenant_id, request.election_event_id, request.id, userId]
     )
     const usable = isAuthenticated && tenantId === scope.tenant && Object.values(scope).every(isId)
+    const view = useMemo(() => ({}), [scope, usable, request.election_id, request.payload_sha256])
     const reviewed = useSignedView(data)
     const titleId = useId()
     const [phase, setPhase] = useState<Phase>("loading")
     const [cancellableAttempt, setCancellableAttempt] = useState<string>()
     const [confirmCancel, setConfirmCancel] = useState<string>()
-    const [softwareDemo, setSoftwareDemo] = useState(false)
-    const [busy, setBusy] = useState(false)
+    const [device, setDevice] = useState<{view: object; softwareDemo: boolean} | null>(null)
+    const [activeView, setActiveView] = useState<object | null>(null)
+    const busy = activeView === view
+    const softwareDemo = usable && device?.view === view && device.softwareDemo
     const [failed, setFailed] = useState(false)
     const epoch = useRef(0)
-    const operation = useRef(false)
-    const latest = useRef({scope, usable, eligible, data, onRefresh})
-    latest.current = {scope, usable, eligible, data, onRefresh}
+    const operation = useRef<{view: object} | null>(null)
+    const latest = useRef({view, usable, eligible, data, onRefresh})
+    latest.current = {view, usable, eligible, data, onRefresh}
     const reported = useRef(false)
 
     const read = useCallback(async () => {
         const ticket = ++epoch.current
         if (!usable) {
+            setDevice(null)
             setPhase("unavailable")
             return
         }
         try {
             const status = await client.status(scope)
             let current: Phase = status.phase
-            if (current === "unavailable" && latest.current.eligible) {
+            if (
+                (current === "unavailable" || current === "challenge-available") &&
+                latest.current.eligible
+            ) {
                 const setupStatus = await client.setupStatus(scope)
                 if (setupStatus === "setup-available") current = "setup-required"
-                if (setupStatus === "setup-pending") {
-                    current = "setup-pending"
-                }
+                if (
+                    setupStatus === "setup-pending" ||
+                    setupStatus === "setup-retry-available" ||
+                    setupStatus === "setup-recovery-required"
+                )
+                    current = setupStatus
             }
-            if (ticket !== epoch.current || latest.current.scope !== scope) return
+            if (ticket !== epoch.current || latest.current.view !== view) return
             setPhase(current)
             setCancellableAttempt(status.cancellableAttempt)
             setConfirmCancel((confirmed) =>
                 confirmed === status.cancellableAttempt ? confirmed : undefined
             )
-            setSoftwareDemo(status.softwareDemo)
+            setDevice(current === "unavailable" ? null : {view, softwareDemo: status.softwareDemo})
             if (current === "approval-recorded" && !reported.current) {
                 reported.current = true
                 latest.current.onRefresh()
             }
             return current
         } catch {
-            if (ticket === epoch.current) {
+            if (ticket === epoch.current && latest.current.view === view) {
+                setDevice(null)
                 setPhase("unavailable")
                 setCancellableAttempt(undefined)
                 setConfirmCancel(undefined)
             }
         }
-    }, [client, scope, usable])
+    }, [client, scope, usable, view])
 
     useEffect(() => {
         reported.current = false
+        setDevice(null)
         setFailed(false)
         setPhase("loading")
         setCancellableAttempt(undefined)
@@ -142,7 +160,7 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
         let timer: number
         const schedule = () => {
             timer = window.setTimeout(async () => {
-                if (!active || operation.current) return
+                if (!active || operation.current?.view === view) return
                 const next = await read()
                 if (active && next && pending(next) && ++checks < 12) schedule()
             }, 2500)
@@ -152,17 +170,19 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
             active = false
             window.clearTimeout(timer)
         }
-    }, [phase, busy, read])
+    }, [phase, busy, read, view])
 
     const run = async (action: "set-up" | "approve" | "check" | "cancel-unused") => {
-        if (operation.current || !usable) return
-        operation.current = true
+        if (operation.current?.view === view || !usable) return
+        const owner = {view}
+        operation.current = owner
         const ticket = ++epoch.current
         const path = window.location.pathname
         const search = window.location.search
         const current = () =>
+            operation.current === owner &&
             epoch.current === ticket &&
-            latest.current.scope === scope &&
+            latest.current.view === view &&
             latest.current.usable &&
             window.location.pathname === path &&
             window.location.search === search
@@ -181,7 +201,7 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
                 panel: "signatures-requests",
             }
 
-        setBusy(true)
+        setActiveView(view)
         setFailed(false)
         let leaving = false
         try {
@@ -221,9 +241,22 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
                     throw new Error("Request no longer open or does not match")
                 }
                 if (action === "set-up") {
+                    const setup = await client.setupStatus(scope)
+                    if (
+                        !stillReviewed() ||
+                        (phase === "setup-retry-available"
+                            ? setup !== "setup-retry-available"
+                            : setup !== "setup-available")
+                    ) {
+                        throw new Error("Signing setup state changed")
+                    }
                     if (!isGoldUser()) throw new SetupGoldRequired()
                     await client.setup(scope)
                 } else {
+                    const setup = await client.setupStatus(scope)
+                    if (!stillReviewed() || setup !== "certificate-on-file") {
+                        throw new Error("Signing setup is not complete")
+                    }
                     const page = originPage()
                     if (window.location.protocol !== "https:")
                         throw new Error("Secure context required")
@@ -264,24 +297,32 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
                     })
                     await reauthWithGold(window.location.origin + returnPath, true)
                 } catch {
-                    setFailed(true)
+                    if (current()) setFailed(true)
                 }
             } else if (current()) {
                 setFailed(true)
             }
         } finally {
-            operation.current = false
-            // Never retry a mutation automatically; ask only for fresh status.
-            if (!leaving && current()) {
-                setBusy(false)
-                await read()
+            const refresh = !leaving && current()
+            // An abandoned earlier context cannot clear the lock or refresh the newer one.
+            if (operation.current === owner && !leaving) {
+                operation.current = null
+                setActiveView((active) => (active === view ? null : active))
             }
+            // Never retry a mutation automatically; ask only for fresh status.
+            if (refresh) await read()
         }
     }
 
-    const control = eligible && usable ? approvalControl(phase, reviewed.verified) : null
+    const scopeHasStatus = device?.view === view
+    const control =
+        eligible && usable && scopeHasStatus ? approvalControl(phase, reviewed.verified) : null
     const canCancelUnused =
-        usable && eligible && phase === "waiting-for-identity" && Boolean(cancellableAttempt)
+        usable &&
+        eligible &&
+        scopeHasStatus &&
+        phase === "waiting-for-identity" &&
+        Boolean(cancellableAttempt)
     return (
         <Dialog
             open
@@ -294,6 +335,7 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
             <DialogContent>
                 <Stack spacing={2}>
                     <SigningSubject data={data} api={api} variant={SigningSubjectVariant.Dialog} />
+                    <Alert severity="info">{t("signing.operational.isolatedDemo")}</Alert>
                     {softwareDemo && (
                         <Alert severity="warning">{t("signing.operational.softwareDemo")}</Alert>
                     )}
@@ -352,7 +394,9 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
                     <Button variant="contained" disabled={busy} onClick={() => void run(control)}>
                         {t(
                             control === "set-up"
-                                ? "signing.operational.setup"
+                                ? phase === "setup-retry-available"
+                                    ? "signing.operational.retrySetup"
+                                    : "signing.operational.setup"
                                 : "signing.operational.approve"
                         )}
                     </Button>

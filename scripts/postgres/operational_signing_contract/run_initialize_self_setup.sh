@@ -19,6 +19,10 @@ cleanup() {
     if "$started"; then
         "$bindir/pg_ctl" -D "$scratch/pg" -m fast -w stop >/dev/null
     fi
+    if [ "${KEEP_SETUP_TEST_ARTIFACTS:-}" != 1 ]; then
+        # This directory is created by mktemp within this runner only.
+        find "$scratch" -depth -delete
+    fi
 }
 trap cleanup EXIT
 "$bindir/initdb" -D "$scratch/pg" -A reject --auth-local=trust --no-locale >"$scratch/init.log"
@@ -30,7 +34,7 @@ export PGOPTIONS='-c client_min_messages=warning'
 sql -c 'CREATE EXTENSION pgcrypto; CREATE EXTENSION unaccent'
 for migration in "$migrations"/*; do
     version=${migration##*/}; number=${version%%_*}
-    [ "$number" -le 1794700001700 ] || break
+    [ "$number" -le 1794700002000 ] || break
     sql --single-transaction --file="$migration/up.sql" >"$scratch/migration.log" 2>&1 || {
         echo "Migration failed: $version" >&2; cat "$scratch/migration.log" >&2; exit 1;
     }
@@ -41,5 +45,11 @@ sql -f "$here/10_fixture.sql" >"$scratch/fixture.log" 2>&1 || {
 PGOPTIONS='' sql -f "$here/25_initialize_self_setup.sql" >"$scratch/result.log" 2>&1 || {
     cat "$scratch/result.log" >&2; exit 1;
 }
+PGOPTIONS='' sql -f "$here/26_initialize_setup_recovery.sql" >>"$scratch/result.log" 2>&1 || {
+    cat "$scratch/result.log" >&2; exit 1;
+}
 grep 'NOTICE:  ok' "$scratch/result.log"
-echo "Synthetic first-use signing assertions passed; disposable logs: $scratch"
+echo "Synthetic first-use and recovery signing assertions passed"
+if [ "${KEEP_SETUP_TEST_ARTIFACTS:-}" = 1 ]; then
+    echo "Disposable logs: $scratch"
+fi

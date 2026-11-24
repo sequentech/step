@@ -363,3 +363,7 @@ mod canonical_tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "operational_device_postgres_tests.rs"]
+mod canonical_postgres_tests;
