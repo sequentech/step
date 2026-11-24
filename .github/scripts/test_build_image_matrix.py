@@ -62,7 +62,7 @@ class BuildImageMatrixTests(unittest.TestCase):
                 self.assertTrue((ROOT / dockerfile).is_file())
 
     def test_root_ecr_marks_only_images_with_a_root_account_repository(self):
-        # Repositories in gitops iac/live/prod-root/aws/ca-central-1/ecr. A push
+        # Repositories in the root account's eu-west-1 ECR. A push
         # to a repository that doesn't exist fails the image's build.
         result = self.select("all")
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -96,7 +96,7 @@ class BuildImageMatrixTests(unittest.TestCase):
         credentials = steps["Configure AWS credentials (root account)"]
         self.assertEqual(
             credentials["with"]["aws-region"],
-            "${{ github.ref_name == 'ovcs' && 'eu-west-1' || 'ca-central-1' }}",
+            "eu-west-1",
         )
         login = steps["Login to Amazon ECR (root account)"]
         self.assertEqual(login["id"], "root-ecr")
