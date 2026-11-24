@@ -45,6 +45,22 @@ Set up basic details and configure multilingual names for your Election Event.
 - **Name**: Enter the official name of your Election Event.
 - **Alias (optional)**: Internal alias used only in the system's side menu.
 - **Description (optional)**: Provide a description for your Election Event.
+- **Permission Label (optional)**: Restrict this Election Event to the admin users who carry the label. Shown only to users with the `permission-label-write` permission. See [Assigning a Permission Label to an Election Event](#assigning-a-permission-label-to-an-election-event).
+
+### Assigning a Permission Label to an Election Event
+
+A permission label on an Election Event controls which Admin Portal users can access it. To assign one, open the Election Event's **Data** tab, expand **General**, enter the label in **Permission Label** (below the language tabs) and select **Save**. Clearing the field removes the label. Editing the field requires the `permission-label-write` permission, and saving the event requires `election-event-write`.
+
+- **What it restricts**: the Election Event and everything that belongs to it: its Elections, Areas, documents, scheduled events, tasks and voters. Only admin users whose **Permission Label** attribute contains the label see or modify them.
+- **Elections inside the event**: an Election is reachable only when both its own label (if any) and the label of its Election Event allow it.
+- **No label**: an Election Event without a label is visible to every admin user of the tenant.
+- **Labels you can assign**: you can only set a label that your own user carries. If you save any other label, the Admin Portal shows an error (**check constraint of an insert/update permission has failed**) and the label is not saved. To use a new label, first add it to your own user, as described in [Assigning a Permission Label](../03-election/03-election_management_election_data.md#assigning-a-permission-label), then save the event.
+
+:::warning
+Once an Election Event carries a label, admin users without that label no longer see it or anything inside it, including admin users with no labels at all. Make sure at least one admin user carries every label in use.
+:::
+
+**Recovering an event whose label no admin carries**: add the label to the **Permission Label** attribute of an admin user in Keycloak (in the tenant realm, edit the user's attributes and add the label to `permission_labels`). That user sees the event again after signing in anew, and can then change or clear the label.
 
 ## Language
 

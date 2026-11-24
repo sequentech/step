@@ -377,6 +377,11 @@ export const EditElectionEventDataForm: React.FC<{
         authContext.tenantId,
         IPermissions.KEYCLOAK_REALM_ATTRIBUTES_WRITE
     )
+    const canEditPermissionLabel = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.PERMISSION_LABEL_WRITE
+    )
     const canSave = canEdit || (canReadRealmAttributes && canEditRealmAttributes)
 
     const canCreateGoogleMeeting = authContext.isAuthorized(
@@ -1435,8 +1440,11 @@ export const EditElectionEventDataForm: React.FC<{
         }
         setActivateSave(false)
 
+        // Only an editor of the label sends it back; an empty input is stored as null.
+        const {permission_label: permissionLabel, ...rest} = values
         return {
-            ...values,
+            ...rest,
+            ...(canEditPermissionLabel ? {permission_label: permissionLabel?.trim() || null} : {}),
             presentation: {
                 ...values.presentation,
                 lifecycle_policies: savedPolicies(),
@@ -1523,6 +1531,13 @@ export const EditElectionEventDataForm: React.FC<{
                             {renderTabs(parsedValue)}
                         </Tabs>
                         {renderTabContent(parsedValue)}
+                        {canEditPermissionLabel && (
+                            <TextInput
+                                disabled={!canEdit}
+                                source="permission_label"
+                                label={String(t("electionEventScreen.edit.permissionLabel"))}
+                            />
+                        )}
                     </AccordionDetails>
                 </Accordion>
 

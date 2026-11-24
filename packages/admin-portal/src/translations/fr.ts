@@ -1339,6 +1339,7 @@ const frenchTranslation: TranslationType = {
             },
             edit: {
                 general: "Général",
+                permissionLabel: "Étiquette de permission",
                 dates: "Dates",
                 customUrls: "Préfixer les URL personnalisées",
                 votingPeriod: "Période de vote",
