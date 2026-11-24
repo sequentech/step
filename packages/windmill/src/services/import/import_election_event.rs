@@ -4008,10 +4008,15 @@ mod tests {
         }
         drop((first, second));
         assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
-        // A real encrypted control with a wrong password must clean up partial plaintext too.
-        let error = decrypt_document(Some("wrong password".into()), encrypted(b"native manager"))
+        // CBC padding alone cannot reliably detect a wrong password. Truncate
+        // a genuine multi-block archive so decryption starts but must fail,
+        // leaving both the input and partial plaintext to be cleaned up.
+        let truncated = encrypted(&[b'x'; 16 * 1024]);
+        let ciphertext_len = truncated.as_file().metadata().unwrap().len();
+        truncated.as_file().set_len(ciphertext_len - 1).unwrap();
+        let error = decrypt_document(Some(password.into()), truncated)
             .await
-            .unwrap_err();
+            .expect_err("a truncated ciphertext block cannot decrypt");
         assert_eq!(problem_id(&error).as_deref(), Some("file.cannot-decrypt"));
         assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
     }
