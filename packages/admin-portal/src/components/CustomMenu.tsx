@@ -23,6 +23,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useNavigate, useLocation} from "react-router-dom"
 import {PluginMenu} from "@/plugins/PluginRoutes"
+import {usePendingConfigurationPackageRefresh} from "@/hooks/usePendingConfigurationPackageRefresh"
 
 const StyledHelpItem = styled(Button)`
     margin-top: -4px;
@@ -115,6 +116,7 @@ const MenuWrapper = styled(Box)`
 `
 
 export const CustomMenu = () => {
+    usePendingConfigurationPackageRefresh()
     const {tenant} = useContext(TenantContext)
     const authContext = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)

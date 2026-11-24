@@ -185,6 +185,49 @@ export const DocumentStep: Story = {
     },
 }
 
+/**
+ * A device with two cameras offers the other one for the document scan:
+ * Scanovate's page opens the rear camera by itself, which is the wrong side
+ * on a tablet standing in front of the voter. The choice opens Scanovate's
+ * page again, told which camera to open, and stays on the device.
+ */
+export const DocumentStepOtherCamera: Story = {
+    beforeEach: () => {
+        const CHOICE = "sequent.scanovate.documentCamera"
+        window.localStorage.removeItem(CHOICE)
+        const devices = navigator.mediaDevices
+        const listed = devices.enumerateDevices
+        devices.enumerateDevices = async () =>
+            [{kind: "videoinput"}, {kind: "audioinput"}, {kind: "videoinput"}] as MediaDeviceInfo[]
+        return () => {
+            devices.enumerateDevices = listed
+            window.localStorage.removeItem(CHOICE)
+        }
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const opensCamera = (frame: HTMLIFrameElement) =>
+            String(frame.contentWindow!.navigator.mediaDevices.getUserMedia)
+        const rear = await scanovateFrame(canvasElement, FAKE_OCR)
+        const toFront = await canvas.findByRole("button", {name: "Use the front camera"})
+        // The rear camera is the page's own choice: its camera access is untouched.
+        await expect(opensCamera(rear)).toContain("[native code]")
+
+        await userEvent.click(toFront)
+        await expect(await canvas.findByRole("button", {name: "Use the rear camera"})).toBeVisible()
+        const front = await scanovateFrame(canvasElement, FAKE_OCR)
+        await expect(front).not.toBe(rear)
+        await waitFor(() => expect(opensCamera(front)).not.toContain("[native code]"))
+        await expect(window.localStorage.getItem("sequent.scanovate.documentCamera")).toBe("front")
+
+        await userEvent.click(canvas.getByRole("button", {name: "Use the rear camera"}))
+        await canvas.findByRole("button", {name: "Use the front camera"})
+        const rearAgain = await scanovateFrame(canvasElement, FAKE_OCR)
+        await expect(opensCamera(rearAgain)).toContain("[native code]")
+        await expect(window.localStorage.getItem("sequent.scanovate.documentCamera")).toBe("rear")
+    },
+}
+
 export const DocumentStepAfterRetry: Story = {
     args: {
         kcContext: {

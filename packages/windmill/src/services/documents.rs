@@ -7,6 +7,9 @@ use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use deadpool_postgres::Transaction;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
+use sequent_core::election_config::encrypted_delivery::MAX_SIGNED_DELIVERY_BYTES;
+use std::io::Write;
+use tokio::io::{AsyncRead, AsyncReadExt};
 
 use sequent_core::services::connection;
 use sequent_core::types::hasura::core::{Document, DocumentAnnotations};
@@ -216,6 +219,157 @@ pub async fn get_upload_url(
     Ok((document, url))
 }
 
+// Protected bytes are never placed in the ordinary document namespace. Even a
+// generic consumer which reads by document ID without an egress policy cannot
+// construct this key from user-editable document metadata.
+fn configuration_package_key(tenant: uuid::Uuid, storage_id: uuid::Uuid) -> String {
+    format!("configuration-package-staging/tenant-{tenant}/{storage_id}/delivery.zip")
+}
+
+pub fn valid_configuration_package_size(size: usize) -> bool {
+    (1..=MAX_SIGNED_DELIVERY_BYTES).contains(&size)
+}
+
+pub async fn stage_configuration_package(
+    tx: &Transaction<'_>,
+    size: usize,
+    tenant_id: &str,
+) -> AnyhowResult<(Document, String)> {
+    if !valid_configuration_package_size(size) {
+        return Err(anyhow!("invalid configuration package size"));
+    }
+    let tenant = uuid::Uuid::parse_str(tenant_id)?;
+    let document = insert_document(
+        tx,
+        tenant_id,
+        None,
+        "delivery.zip",
+        "application/zip",
+        size.try_into()?,
+        false,
+        None,
+    )
+    .await?;
+    let document_id = uuid::Uuid::parse_str(&document.id)?;
+    let storage_id: uuid::Uuid = tx
+        .query_one(
+            "INSERT INTO sequent_backend.configuration_package_staging (tenant_id, document_id)
+         VALUES ($1, $2) RETURNING storage_id",
+            &[&tenant, &document_id],
+        )
+        .await?
+        .try_get(0)?;
+    let url =
+        s3::get_upload_url(configuration_package_key(tenant, storage_id), false, false).await?;
+    Ok((document, url))
+}
+
+async fn configuration_package_storage(
+    tx: &Transaction<'_>,
+    tenant: uuid::Uuid,
+    document_id: &str,
+) -> AnyhowResult<Option<uuid::Uuid>> {
+    let id = uuid::Uuid::parse_str(document_id)?;
+    tx.query_opt(
+        "SELECT storage_id FROM sequent_backend.configuration_package_staging
+         WHERE tenant_id = $1 AND document_id = $2",
+        &[&tenant, &id],
+    )
+    .await?
+    .map(|row| row.try_get::<_, uuid::Uuid>(0).map_err(anyhow::Error::from))
+    .transpose()
+}
+
+async fn write_bounded_package(
+    mut input: impl AsyncRead + Unpin,
+    mut output: impl Write,
+    limit: usize,
+) -> AnyhowResult<()> {
+    let mut buffer = [0u8; 16 * 1024];
+    let mut remaining = limit;
+    loop {
+        // At most one byte past the configured limit is consumed, never written.
+        let read_limit = buffer.len().min(remaining.saturating_add(1));
+        let read = input.read(&mut buffer[..read_limit]).await?;
+        if read == 0 {
+            if remaining == limit {
+                return Err(anyhow!("configuration package is empty"));
+            }
+            break;
+        }
+        if read > remaining {
+            return Err(anyhow!("configuration package exceeds the size limit"));
+        }
+        output.write_all(&buffer[..read])?;
+        remaining -= read;
+    }
+    Ok(())
+}
+
+async fn download_bounded_package(bucket: String, key: &str) -> AnyhowResult<NamedTempFile> {
+    let client = s3::get_shared_s3_client(s3::S3Endpoint::Server).await?;
+    let response = client
+        .get_object()
+        .bucket(bucket)
+        .key(key)
+        .send()
+        .await
+        .map_err(|_| anyhow!("configuration package is not available"))?;
+    if response.content_length().is_some_and(|len| {
+        usize::try_from(len).map_or(true, |size| !valid_configuration_package_size(size))
+    }) {
+        return Err(anyhow!("invalid configuration package size"));
+    }
+    let mut file = NamedTempFile::new()?;
+    write_bounded_package(
+        response.body.into_async_read(),
+        &mut file,
+        MAX_SIGNED_DELIVERY_BYTES,
+    )
+    .await?;
+    file.flush()?;
+    Ok(file)
+}
+
+/// Only the package admission worker uses the protected namespace.
+pub(crate) async fn read_configuration_package(
+    tx: &Transaction<'_>,
+    tenant_id: &str,
+    document: &Document,
+) -> AnyhowResult<(NamedTempFile, bool)> {
+    let tenant = uuid::Uuid::parse_str(tenant_id)?;
+    if let Some(storage_id) = configuration_package_storage(tx, tenant, &document.id).await? {
+        if document.tenant_id.as_deref() != Some(tenant.to_string().as_str())
+            || document.election_event_id.is_some()
+            || document.is_public != Some(false)
+        {
+            return Err(anyhow!(
+                "invalid protected configuration package staging document"
+            ));
+        }
+        let file = download_bounded_package(
+            s3::get_private_bucket()?,
+            &configuration_package_key(tenant, storage_id),
+        )
+        .await?;
+        return Ok((file, true));
+    }
+    // Previously uploaded ordinary deliveries remain compatible, but document
+    // metadata must never grant an exemption from the same streamed byte cap.
+    let bucket = if document.is_public == Some(true) {
+        s3::get_public_bucket()?
+    } else {
+        s3::get_private_bucket()?
+    };
+    let key = s3::get_document_key(
+        tenant_id,
+        document.election_event_id.as_deref(),
+        &document.id,
+        document.name.as_deref().unwrap_or_default(),
+    );
+    Ok((download_bounded_package(bucket, &key).await?, false))
+}
+
 /// Where a document's file is in S3. A private file is under the election
 /// event the document belongs to, whatever event the caller named: a tenant
 /// log export is asked for with an empty event and stored with none.
@@ -240,6 +394,12 @@ pub async fn ordinary_document_url_allowed(
 ) -> anyhow::Result<bool> {
     use crate::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
     let tenant = uuid::Uuid::parse_str(tenant_id)?;
+    if configuration_package_storage(tx, tenant, &document.id)
+        .await?
+        .is_some()
+    {
+        return Ok(false);
+    }
     if signing_mode(tx, tenant).await? != OperationalSigningMode::HsmRequired {
         return Ok(true);
     }
@@ -333,7 +493,10 @@ pub async fn get_document_as_temp_file(
 
 #[cfg(test)]
 mod tests {
-    use super::stored_document_key;
+    use super::{
+        configuration_package_key, stored_document_key, valid_configuration_package_size,
+        write_bounded_package, MAX_SIGNED_DELIVERY_BYTES,
+    };
     use sequent_core::types::hasura::core::Document;
 
     const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
@@ -353,6 +516,43 @@ mod tests {
             created_at: None,
             last_updated_at: None,
             is_public,
+        }
+    }
+
+    #[tokio::test]
+    async fn private_stage_size_is_enforced_on_actual_bytes_without_writing_past_limit() {
+        assert!(!valid_configuration_package_size(0));
+        assert!(valid_configuration_package_size(MAX_SIGNED_DELIVERY_BYTES));
+        assert!(!valid_configuration_package_size(
+            MAX_SIGNED_DELIVERY_BYTES + 1
+        ));
+        let mut output = Vec::new();
+        write_bounded_package(&b"PK12345"[..], &mut output, 7)
+            .await
+            .unwrap();
+        assert_eq!(output, b"PK12345");
+        output.clear();
+        assert!(write_bounded_package(&b"PK123456"[..], &mut output, 7)
+            .await
+            .is_err());
+        assert!(output.len() <= 7);
+        assert!(write_bounded_package(&b""[..], &mut output, 7)
+            .await
+            .is_err());
+    }
+
+    #[test]
+    fn private_staging_storage_is_not_derived_from_document_metadata() {
+        let tenant = uuid::Uuid::parse_str(TENANT).unwrap();
+        let storage_id = uuid::Uuid::new_v4();
+        let protected = configuration_package_key(tenant, storage_id);
+        assert!(protected.starts_with("configuration-package-staging/"));
+        assert!(protected.contains(&storage_id.to_string()));
+        assert!(!protected.contains(DOCUMENT));
+        for public in [true, false] {
+            let mut doc = document(None, Some(public));
+            doc.name = Some("delivery.zip".into());
+            assert_ne!(protected, stored_document_key(TENANT, &doc));
         }
     }
 

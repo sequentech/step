@@ -3443,6 +3443,12 @@
   ],
   "scopeMappings": [
     {
+      "client": "sequent-trustee-runner",
+      "roles": [
+        "trustee-ceremony"
+      ]
+    },
+    {
       "clientScope": "offline_access",
       "roles": [
         "offline_access"
@@ -3461,6 +3467,161 @@
     ]
   },
   "clients": [
+    {
+      "id": "c9c68b0a-47fb-4d1b-9fee-470aece210ea",
+      "clientId": "sequent-trustee-runner",
+      "name": "Sequent Trustee Runner (default dev tenant)",
+      "description": "Direct grants only. Enable only after provisioning a unique private secret and the intended runner passwords.",
+      "enabled": false,
+      "publicClient": false,
+      "bearerOnly": false,
+      "protocol": "openid-connect",
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": false,
+      "redirectUris": [],
+      "webOrigins": [],
+      "defaultClientScopes": [
+        "basic",
+        "acr",
+        "roles"
+      ],
+      "optionalClientScopes": [],
+      "authenticationFlowBindingOverrides": {
+        "direct_grant": "5f8c6124-2c11-46a0-aa15-e8458893edcd"
+      },
+      "protocolMappers": [
+        {
+          "name": "email verified",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "emailVerified",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "email_verified",
+            "jsonType.label": "boolean",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "x-hasura-tenant-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "tenant-id",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-tenant-id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "x-hasura-default-role",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "claim.value": "trustee-ceremony",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-default-role",
+            "jsonType.label": "String",
+            "access.tokenResponse.claim": "false"
+          }
+        },
+        {
+          "name": "auth_time",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usersessionmodel-note-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.session.note": "AUTH_TIME",
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/auth_time",
+            "jsonType.label": "long",
+            "access.tokenResponse.claim": "false"
+          }
+        },
+        {
+          "name": "x-hasura-allowed-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-allowed-roles",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "x-hasura-permission-labels",
+          "protocol": "openid-connect",
+          "protocolMapper": "hasura-multivalued-oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "permission_labels",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-permission-labels",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "x-hasura-user-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "id",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-user-id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "trustee",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "trustee",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "trustee",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    },
     {
       "id": "9b9a6253-b861-46f7-b9e3-ee43ad2ad216",
       "clientId": "account",
@@ -5448,6 +5609,30 @@
   ],
   "defaultLocale": "en",
   "authenticationFlows": [
+    {
+      "id": "5f8c6124-2c11-46a0-aa15-e8458893edcd",
+      "alias": "Sequent Trustee Runner Password Grant",
+      "description": "Dedicated username and password verification for the default tenant headless trustees only.",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "direct-grant-validate-username",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 0,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "sequent-trustee-runner-password",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false
+        }
+      ]
+    },
     {
       "id": "97f3a497-e031-4a98-8e78-114df12fce08",
       "alias": "Account verification options",

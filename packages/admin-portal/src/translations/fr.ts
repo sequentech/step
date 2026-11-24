@@ -1196,6 +1196,8 @@ const frenchTranslation: TranslationType = {
             voterLoginURL: "URL de connexion des électeurs",
             voterEnrollURL: "URL d'inscription des électeurs",
             voterEnrollKioskURL: "Kiosk URL d'inscription des électeurs",
+            showQrCode: "Afficher le code QR : {{link}}",
+            closeQrCode: "Fermer",
             ballotBoxes: {
                 show: "Afficher les urnes",
                 loadError:

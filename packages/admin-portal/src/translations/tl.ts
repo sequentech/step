@@ -1202,6 +1202,8 @@ const tagalogTranslation: TranslationType = {
             voterLoginURL: "URL para sa Pag-login ng Botante",
             voterEnrollURL: "URL para sa Pag-enroll ng Botante",
             voterEnrollKioskURL: "Kiosk URL para sa Pag-enroll ng Botante",
+            showQrCode: "Ipakita ang QR code: {{link}}",
+            closeQrCode: "Isara",
             ballotBoxes: {
                 show: "Ipakita ang mga ballot box",
                 loadError:

@@ -1197,6 +1197,8 @@ const dutchTranslation: TranslationType = {
             voterLoginURL: "Login URL kiezer",
             voterEnrollURL: "Inschrijvings-URL kiezer",
             voterEnrollKioskURL: "Inschrijvings-URL kiosk kiezer",
+            showQrCode: "QR-code tonen: {{link}}",
+            closeQrCode: "Sluiten",
             ballotBoxes: {
                 show: "Stembussen tonen",
                 loadError:

@@ -29,6 +29,7 @@ fn complete_delivery() -> Vec<FileEntry> {
                 leaf("tenant_platform-t1.json"),
                 leaf("templates/templates.json"),
                 leaf("trustees_public.json"),
+                leaf("tenant_messaging_accounts.json"),
             ],
         ),
         leaf("blueprint.json"),
@@ -88,6 +89,10 @@ fn every_member_of_a_complete_delivery_has_its_documented_disposition() {
         (
             "trustees_public.json",
             Disposition::Applied(Section::Trustees),
+        ),
+        (
+            "tenant_messaging_accounts.json",
+            Disposition::Applied(Section::MessagingAccounts),
         ),
         ("blueprint.json", Disposition::RecordOnly),
         ("historical_conversion.json", Disposition::RecordOnly),
@@ -188,6 +193,7 @@ fn the_apply_order_puts_tenant_configuration_before_the_event() {
             Section::RolePermissions,
             Section::AdminAccounts,
             Section::Trustees,
+            Section::MessagingAccounts,
             Section::ElectionEvent
         ]
     );

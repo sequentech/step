@@ -5,7 +5,116 @@ import englishTranslation, {TranslationType} from "./en"
 
 const basqueTranslation: TranslationType = {
     translations: {
-        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        ballotPrivacy: {
+            title: "Hautestontziaren erregistroa",
+            subtitle:
+                "Hauteskunde honetan emandako boto-txartel guztiak, hauteslearen izenaren ordez ezizen batekin zerrendatuta.",
+            private: "Hautesleak ezizen gisa baino ez dira agertzen",
+            signed: "Hauteskunde-agintaritzak eta hautestontziak sinatua",
+            device: "Zure gailuan egiaztatua",
+            own: "Zure boto-txartela hautestontzian dago",
+            listedAs: "Honela zerrendatua:",
+            check: "Egiaztatu nire boto-txartela",
+            copy: "Kopiatu Bozketa IDa",
+            ballotIdHelp: "Zure Bozketa IDari buruz",
+            castTime: "Noiz eman zen: {{time}}",
+            timesIn: "Ordu-eremua: {{zone}}",
+            signedEntries: "Erregistroko sarrera sinatuak ({{count}})",
+            noMatchHelp:
+                "Egiaztatu idazketa-akatsik ez dagoela. Kodeek 0tik 9ra bitarteko digituak eta letra larriak erabiltzen dituzte, I, L, O eta U gabe.",
+            helpSections: {
+                pseudonyms: {
+                    title: "Ezizenak",
+                    text: "Hautesle bakoitza ezizen batekin zerrendatzen da, 7QKM-2HXD bezalako kode batekin. Erregistroak ez du inoiz esaten nor den hauteslea.",
+                },
+                signatures: {
+                    title: "Sinadurak",
+                    text: "Hauteskunde-agintaritzak sinatzen du ezizen bakoitzak zein hautesle-gako erabiltzen duen. Hautestontziak jasotzen duen boto-txartel bakoitza eta emate bakoitza sinatzen ditu.",
+                },
+                checks: {
+                    title: "Zure gailuko egiaztapenak",
+                    text: "Ireki boto-txartel bat bere sinadurak nabigatzaile honetan egiaztatzeko. Edonork deskarga ditzake bere sarrera sinatuak eta berriro egiaztatu.",
+                },
+            },
+            copied: "Bozketa IDa kopiatu da",
+            copyFailed: "Ezin izan da Bozketa IDa kopiatu. Hautatu kodea kopiatzeko.",
+            search: "Bilatu Bozketa ID bat edo ezizen bat",
+            placeholder: "Bozketa IDa edo ezizena",
+            clear: "Garbitu bilaketa",
+            ballots_one: "{{count}} boto-txartel",
+            ballots_other: "{{count}} boto-txartel",
+            matches: "{{total}} boto-txarteletatik {{count}} bat datoz",
+            capped: "{{total}} boto-txarteletatik {{count}} baino gehiago bat datoz; idatzi kodearen zati gehiago",
+            ballotId: "Bozketa IDa",
+            pseudonym: "Ezizena",
+            castAt: "Noiz emana",
+            channel: "Kanala",
+            yours: "Zurea",
+            channels: {
+                online: "Linean",
+                kiosk: "Kioskoa",
+                telephone: "Telefonoa",
+            },
+            previous: "Aurrekoa",
+            next: "Hurrengoa",
+            rows: "Errenkadak orriko",
+            noMatch: "Ez dago honela hasten den Bozketa IDrik edo ezizenik: {{prefix}}",
+            noBallots: "Oraindik ez da boto-txartelik eman.",
+            invalidPrefix:
+                "Kodeek 0tik 9ra bitarteko digituak eta letra larriak erabiltzen dituzte, I, L, O eta U gabe. Idatzi gehienez zortzi karaktere.",
+            loadError: "Ezin izan da hautestontziaren erregistroa kargatu. Saiatu berriro.",
+            retry: "Saiatu berriro",
+            help: "Hautestontziaren erregistroari buruz",
+            helpText:
+                "Hautesle bakoitza ezizen batekin zerrendatzen da, 7QKM-2HXD bezalako kode batekin. Erregistroak ez du inoiz esaten nor den hauteslea. Hauteskunde-agintaritzak sinatzen du ezizen bakoitzak zein hautesle-gako erabiltzen duen. Ireki boto-txartel bat bere sinadurak nabigatzaile honetan egiaztatzeko.",
+            detailTitle: "{{ballotId}} boto-txartela",
+            checking: "Sinadurak egiaztatzen…",
+            passed: "Lau egiaztapenak gainditu dira",
+            verified: "Gailu honetan egiaztatua, argitaratutako gakoekin.",
+            failed: "Egiaztapen batek huts egin du",
+            failedHelp: "Ez fidatu sarrera honetaz.",
+            pending: "Erregistroan gehitzen ari da oraindik",
+            pendingHelp:
+                "Sarrera sinatuak boto-txartela eman ondoren ager daitezke. Egiaztatu berriro geroago.",
+            proofError:
+                "Ezin izan dira sarrera sinatuak edo argitaratutako gakoak kargatu. Saiatu berriro.",
+            checkLabels: {
+                binding: "Hautesle-gakoa erregistratua",
+                received: "Boto-txartela jasoa",
+                ballotId: "Bozketa IDa",
+                cast: "Boto-txartela emana",
+            },
+            checkDescriptions: {
+                binding:
+                    "Hauteskunde-agintaritzak sinatu zuen ezizen honek zein hautesle-gako erabiltzen duen.",
+                received:
+                    "Hautestontziak hautesle-gako horrekin sinatutako boto-txartel bat jaso zuen.",
+                ballotId: "Bozketa IDa sinatutako boto-txartel horretatik kalkulatzen da.",
+                cast: "Gako berak eman zuen boto-txartela, eta hautestontziak ematea berretsi zuen.",
+            },
+            states: {
+                passed: "Gainditua",
+                failed: "Ez dator bat.",
+                pending: "Oraindik ez dago erregistroan.",
+            },
+            neverPublished:
+                "Inoiz ez da argitaratzen: hauteslearen izena, erabiltzaile-izena, IP helbidea, herrialdea edo gailua.",
+            download: "Deskargatu erregistroko sarrera sinatuak",
+            downloadAction: "Deskargatu",
+            close: "Itxi",
+            systemKey: "Hauteskunde gertaeraren erregistro-gakoa",
+            boxKey: "Hautestontziaren gakoa",
+            userLogs:
+                "Hautesle baten sarrera propioak: saio-hasierak eta mezuak. Bere boto-txartelak ezizen batekin daude erregistroan, beraz ez dira inoiz hemen agertzen; erregistratutako ebazpen batek bakarrik lotzen ditu biak.",
+            ballotSection: "Boto-txartela eta ezizena",
+            resolution: "Ezizenaren ebazpena",
+            resolutionHelp:
+                "Erantzuna eskatu zuen pertsonari bakarrik bidali zitzaion. Hauteslea ez da inoiz erregistro honetan izendatzen.",
+            reason: "Emandako arrazoia",
+            // Admin portal strings; the voting portal never renders them.
+            settings: englishTranslation.translations.ballotPrivacy.settings,
+            forensic: englishTranslation.translations.ballotPrivacy.forensic,
+        },
         startup: {
             error: "Ezin izan da bozketa-ataria abiarazi. Saiatu berriro.",
             retry: "Saiatu berriro",
@@ -578,7 +687,7 @@ const basqueTranslation: TranslationType = {
                 ok: "Ados",
             },
             tabs: {
-                logs: "Logs",
+                logs: "Erregistroak",
                 ballotLocator: "Bozketa Bilatzaile",
             },
             column: {

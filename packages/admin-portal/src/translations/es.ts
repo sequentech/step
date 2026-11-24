@@ -160,6 +160,7 @@ const spanishTranslation: TranslationType = {
             sections: {
                 "tenant-configuration": "Configuración del cliente",
                 "tenant-settings": "Ajustes del cliente",
+                "messaging-accounts": "Cuentas de mensajería",
                 "role-permissions": "Permisos de roles",
                 "admin-accounts": "Cuentas de administración",
                 "trustees": "Autoridades",
@@ -167,8 +168,27 @@ const spanishTranslation: TranslationType = {
             },
             upload: "Subir paquete",
             uploadTitle: "Subir un paquete de configuración",
-            uploadSubtitle: "El zip de la entrega, desde un medio extraíble",
+            uploadSubtitle:
+                "Un ZIP de configuración firmado o un EZIP cifrado con contraseña, desde un medio extraíble",
+            encrypted: {
+                unlock: "Desbloquear paquete",
+                unreadable: "No se pudo leer el paquete de configuración. No se subió nada.",
+                passwordRequired:
+                    "Introduce la contraseña de este paquete de configuración cifrado.",
+                tooLarge:
+                    "Los paquetes de configuración cifrados no pueden superar los 256 MiB de datos ZIP firmados. No se subió nada.",
+                decryptFailed:
+                    "No se pudo desbloquear el paquete de configuración. Comprueba la contraseña y el archivo. No se subió nada.",
+                unavailable:
+                    "No se pudo cargar la herramienta local para desbloquear el paquete. Usa HTTPS o localhost y vuelve a abrir el panel. No se subió nada.",
+                innerHashMismatch:
+                    "El SHA-256 introducido no coincide con el del ZIP firmado descifrado. No se subió nada.",
+                innerHashHelp:
+                    "Para un paquete cifrado, puedes introducir el SHA-256 del ZIP firmado que contiene.",
+            },
             uploadParagraph: "Primero se previsualiza; la subida por sí sola no aplica nada.",
+            existingDocumentHelp:
+                "Usa un ID existente solo para un ZIP ya descifrado. Para un .ezip cifrado, selecciona Subir paquete de configuración e introduce allí su contraseña.",
             signedDocumentId: "ID de documento ZIP firmado existente",
             documentId: "O el id de un documento ya subido",
             preview: "Vista previa",
@@ -1337,6 +1357,8 @@ const spanishTranslation: TranslationType = {
             voterLoginURL: "URL de inicio de sesión de votantes",
             voterEnrollURL: "URL de inscripción de votantes",
             voterEnrollKioskURL: "Kiosk URL de inscripción de votantes",
+            showQrCode: "Mostrar código QR: {{link}}",
+            closeQrCode: "Cerrar",
             ballotBoxes: {
                 show: "Mostrar urnas",
                 loadError:

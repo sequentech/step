@@ -1423,6 +1423,21 @@ pub async fn get_document(
     String,
     Option<Box<VerifiedPackage>>,
 )> {
+    get_document_with_package_snapshot(hasura_transaction, object, election_event_id, None).await
+}
+
+#[instrument(err, skip_all)]
+async fn get_document_with_package_snapshot(
+    hasura_transaction: &Transaction<'_>,
+    object: ImportElectionEventBody,
+    _election_event_id: Option<String>,
+    package_snapshot: Option<&[u8]>,
+) -> Result<(
+    NamedTempFile,
+    Document,
+    String,
+    Option<Box<VerifiedPackage>>,
+)> {
     let document = postgres::document::get_document(
         hasura_transaction,
         &object.tenant_id,
@@ -1435,9 +1450,16 @@ pub async fn get_document(
         &object.document_id
     ))?;
 
-    let mut temp_file = documents::get_document_as_temp_file(&object.tenant_id, &document)
-        .await
-        .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))?;
+    let mut temp_file = if let Some(bytes) = package_snapshot {
+        let mut file = NamedTempFile::new()?;
+        file.write_all(bytes)?;
+        file.as_file_mut().rewind()?;
+        file
+    } else {
+        documents::get_document_as_temp_file(&object.tenant_id, &document)
+            .await
+            .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))?
+    };
 
     let document_type = document
         .clone()
@@ -1692,6 +1714,7 @@ pub async fn process_election_event_file(
     tenant_id: String,
     is_importing_keys: bool,
     design_algorithm: DesignDigestAlgorithm,
+    package_messaging: Option<&super::configuration_package_messaging::PackageMessaging>,
 ) -> Result<(
     ImportElectionEventSchema,
     HashMap<String, String>,
@@ -1803,6 +1826,35 @@ pub async fn process_election_event_file(
 
     ensure_new_election_event(hasura_transaction, &election_event_id).await?;
 
+    // This is a server-owned projection, not replacement bytes for the
+    // signed event. Apply receipt validation runs under the import's own
+    // transaction; old UUID accounts never enter the portable-only path.
+    let resolved_ids = HashMap::new();
+    let config_replacements = if let Some(portable) = package_messaging {
+        let config = data
+            .messaging_config
+            .as_ref()
+            .context("The signed event has no messaging references for its declared accounts")?;
+        let prepared = portable
+            .import_event(
+                hasura_transaction,
+                Uuid::parse_str(&tenant_id).context("Error parsing the tenant id")?,
+                config,
+                &replacement_map,
+                &election_ids,
+            )
+            .await?;
+        if !prepared.pending.is_empty() {
+            notes.push(super::configuration_package_messaging::pending_note(
+                &prepared.pending,
+            ));
+        }
+        data.messaging_config = Some(prepared.config);
+        &resolved_ids
+    } else {
+        &replacement_map
+    };
+
     if design_algorithm == DesignDigestAlgorithm::V2 {
         if let Some(config) = data.messaging_config.as_ref() {
             // Refuse bad or out-of-tenant bindings before external writes.
@@ -1812,7 +1864,7 @@ pub async fn process_election_event_file(
                 &Uuid::parse_str(&tenant_id).context("Error parsing the tenant id")?,
                 &election_ids,
                 config,
-                &replacement_map,
+                config_replacements,
                 object.messaging_config_permission,
             )
             .await?;
@@ -1971,7 +2023,7 @@ pub async fn process_election_event_file(
             &Uuid::parse_str(&election_event_id)
                 .with_context(|| "Error parsing the election event id")?,
             config,
-            &replacement_map,
+            config_replacements,
             object.messaging_config_permission,
         )
         .await
@@ -2606,18 +2658,22 @@ pub async fn process_document(
     object: ImportElectionEventBody,
     election_event_id: String,
     tenant_id: String,
+    package_snapshot: Option<&[u8]>,
+    package_messaging: Option<&super::configuration_package_messaging::PackageMessaging>,
 ) -> Result<ImportedElectionEvent> {
     let importer = object.importer.clone();
-    let (mut temp_file_path, document, document_type, package) = get_document(
-        hasura_transaction,
-        object.clone(),
-        Some(election_event_id.clone()),
-    )
-    .await
-    .map_err(|err| {
-        let message = format!("Failed to get document: {err}");
-        err.context(message)
-    })?;
+    let (mut temp_file_path, document, document_type, package) =
+        get_document_with_package_snapshot(
+            hasura_transaction,
+            object.clone(),
+            Some(election_event_id.clone()),
+            package_snapshot,
+        )
+        .await
+        .map_err(|err| {
+            let message = format!("Failed to get document: {err}");
+            err.context(message)
+        })?;
     let file_sha256 = crate::services::task_audit::file_sha256(temp_file_path.as_file_mut())?;
     let declared_sha256 =
         configuration_package::typed_checksum(object.sha256.clone(), package.as_ref());
@@ -2625,6 +2681,12 @@ pub async fn process_document(
         .as_ref()
         .map(|verified| verified.manifest.content.ballot_design_digest_algorithm)
         .unwrap_or_default();
+
+    ensure!(
+        package_messaging.is_none()
+            || (package.is_some() && design_algorithm == DesignDigestAlgorithm::V2),
+        "portable messaging requires the same verified V2 package at event import"
+    );
 
     let (zip_entries, spooled_entries, file_election_event_schema) =
         get_zip_entries(temp_file_path, &document_type).await?;
@@ -2665,6 +2727,7 @@ pub async fn process_document(
         tenant_id.clone(),
         is_importing_keys,
         design_algorithm,
+        package_messaging,
     )
     .await
     .map_err(|err| {

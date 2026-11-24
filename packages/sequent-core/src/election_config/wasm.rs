@@ -45,6 +45,43 @@ use crate::election_config::validate;
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
+// These exports also ship in the lightweight Admin Portal WASM build. They
+// unwrap bytes only; they do not decide whether a signed delivery is trusted.
+#[cfg(target_arch = "wasm32")]
+use crate::election_config::encrypted_delivery as delivery_encryption;
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(js_name = isEncryptedSignedDelivery)]
+pub fn is_encrypted_signed_delivery_js(bytes: &[u8]) -> bool {
+    delivery_encryption::is_encrypted_signed_delivery(bytes)
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(js_name = encryptedSignedDeliveryFileLimit)]
+pub fn encrypted_signed_delivery_file_limit_js() -> u32 {
+    delivery_encryption::MAX_ENCRYPTED_SIGNED_DELIVERY_BYTES as u32
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(js_name = encryptSignedDelivery)]
+pub fn encrypt_signed_delivery_js(
+    bytes: &[u8],
+    password: &str,
+) -> Result<Vec<u8>, JsError> {
+    delivery_encryption::encrypt_signed_delivery(bytes, password)
+        .map_err(|error| JsError::new(&error.to_string()))
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(js_name = decryptSignedDelivery)]
+pub fn decrypt_signed_delivery_js(
+    bytes: &[u8],
+    password: &str,
+) -> Result<Vec<u8>, JsError> {
+    delivery_encryption::decrypt_signed_delivery(bytes, password)
+        .map_err(|error| JsError::new(&error.to_string()))
+}
+
 #[cfg(feature = "election_config_archive")]
 use crate::election_config::render::TemplateSet;
 #[cfg(feature = "election_config_xlsx")]
@@ -344,6 +381,13 @@ fn presets_for(
                 "the shipped profile could not be read: {error}"
             ))
         })
+}
+
+/// Classify a picked workbook without opening, serialising or exposing values.
+#[cfg(feature = "election_config_xlsx")]
+#[wasm_bindgen(js_name = isOrdinaryWorkbook)]
+pub fn is_ordinary_workbook(bytes: &[u8]) -> bool {
+    crate::election_config::demo_credentials::is_ordinary_workbook(bytes)
 }
 
 /// Build an importable bundle from a workbook the user picked.
@@ -955,7 +999,7 @@ pub fn compile_plan_js(
     let mut delivered = compiled.layout.clone();
     if let Some(tenant) = &tenant {
         if let Err(problem) =
-            crate::election_config::tenant_package::add_to_layout(
+            crate::election_config::tenant_package::add_profile_to_layout(
                 &mut delivered,
                 tenant,
                 &compiled.bundle.tenant_id,
@@ -1270,6 +1314,8 @@ pub fn plan_in_delivery_js(bytes: &[u8]) -> Result<JsValue, JsError> {
             ))
         })?;
 
+    architect::read_plan_value(value.clone())
+        .map_err(|_| JsError::new("the plan is invalid or contains administrator or trustee credentials"))?;
     to_js_plan(&value)
 }
 
@@ -2429,7 +2475,7 @@ pub fn approval_request_js(
     };
     if let Some(tenant) = &tenant {
         if let Err(problem) =
-            crate::election_config::tenant_package::add_to_layout(
+            crate::election_config::tenant_package::add_profile_to_layout(
                 &mut compiled.layout,
                 tenant,
                 &compiled.bundle.tenant_id,

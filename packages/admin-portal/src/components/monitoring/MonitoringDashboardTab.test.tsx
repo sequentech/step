@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {fireEvent, render, screen, waitFor} from "@testing-library/react"
+import {act, fireEvent, render, screen, waitFor} from "@testing-library/react"
 import {MonitoringDashboardTab} from "./MonitoringDashboardTab"
 import {EMonitoringCapability, EMonitoringMode} from "./types"
 
@@ -141,11 +141,24 @@ describe("monitoring mode switch", () => {
         )
     })
 
-    it.each(["permission", "saving"])("disables the switch while blocked by %s", (reason) => {
-        if (reason === "permission") mockConfigure = EMonitoringCapability.DENIED
-        else mockSaving = true
+    it("disables the switch without configure permission", () => {
+        mockConfigure = EMonitoringCapability.DENIED
         renderTab()
-        expect((screen.getByRole("switch") as HTMLInputElement).disabled).toBe(true)
+        const control = screen.getByRole<HTMLInputElement>("switch")
+        expect(control.disabled).toBe(true)
+        fireEvent.click(control)
+        expect(mockSetMode).not.toHaveBeenCalled()
+    })
+
+    it("keeps the switch focusable during a save and ignores another change", async () => {
+        mockSaving = true
+        renderTab()
+        const control = screen.getByRole<HTMLInputElement>("switch")
+        expect(control.getAttribute("aria-disabled")).toBe("true")
+        await act(async () => control.focus())
+        expect(document.activeElement).toBe(control)
+        fireEvent.click(control)
+        expect(control.checked).toBe(true)
         expect(mockSetMode).not.toHaveBeenCalled()
     })
 
