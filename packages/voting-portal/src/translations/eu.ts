@@ -180,6 +180,7 @@ const basqueTranslation: TranslationType = {
         },
         breadcrumbSteps: {
             electionList: "Bozketak",
+            instructions: "Argibideak",
             ballot: "Bozketa",
             review: "Berrikusi",
             confirmation: "Berretsi",

@@ -1756,6 +1756,13 @@ const englishTranslation = {
                         enabled: "Offer text size, contrast, spacing and motion settings",
                     },
                 },
+                instructionsStepPolicy: {
+                    policyLabel: "Instructions in the breadcrumb",
+                    options: {
+                        "merged-with-ballot": "Part of the Ballot step",
+                        "own-step": "A step of their own",
+                    },
+                },
                 audioInstructionsPolicy: {
                     policyLabel: "Audio instructions",
                     options: {

@@ -70,6 +70,7 @@ import {
     isValidChecksAvailableUntil,
     EVoterAccessibilitySettingsPolicy,
     EAudioInstructionsPolicy,
+    EInstructionsStepPolicy,
     EElectionEventDecodedBallots,
     EElectionEventCeremoniesPolicy,
     EElectionEventAutomaticRecountPolicy,
@@ -893,6 +894,13 @@ export const EditElectionEventDataForm: React.FC<{
         return Object.values(EAudioInstructionsPolicy).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.audioInstructionsPolicy.options.${value}`),
+        }))
+    }
+
+    const instructionsStepPolicyChoices = (): Array<EnumChoice<EInstructionsStepPolicy>> => {
+        return Object.values(EInstructionsStepPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.instructionsStepPolicy.options.${value}`),
         }))
     }
 
@@ -1743,6 +1751,16 @@ export const EditElectionEventDataForm: React.FC<{
                             }
                             label={String(
                                 t("electionEventScreen.field.audioInstructionsPolicy.policyLabel")
+                            )}
+                        />
+                        <SelectInput
+                            disabled={!canEdit}
+                            source="presentation.instructions_step_policy"
+                            choices={instructionsStepPolicyChoices()}
+                            validate={required()}
+                            defaultValue={EInstructionsStepPolicy.MERGED_WITH_BALLOT}
+                            label={String(
+                                t("electionEventScreen.field.instructionsStepPolicy.policyLabel")
                             )}
                         />
                         <FormDataConsumer>

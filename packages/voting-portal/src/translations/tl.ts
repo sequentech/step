@@ -180,6 +180,7 @@ const tagalogTranslation: TranslationType = {
         },
         breadcrumbSteps: {
             electionList: "Mga Balota",
+            instructions: "Mga Tagubilin",
             ballot: "Balota",
             review: "Suriin",
             confirmation: "Kumpirmahin",

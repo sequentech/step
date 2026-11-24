@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {Dialog, StartLayout} from "@sequentech/ui-essentials"
+import {Dialog, EBallotStep, StartLayout} from "@sequentech/ui-essentials"
 import {
     stringToHtml,
     translateFromPresentation,
@@ -26,7 +26,12 @@ import {
     selectBallotSelectionByElectionId,
     setAllBallotSelectionsDeclineToVote,
 } from "../store/ballotSelections/ballotSelectionsSlice"
-import {clearIsVoted, setDeclinedToVote, setIsVoted} from "../store/extra/extraSlice"
+import {
+    clearIsVoted,
+    selectBypassChooser,
+    setDeclinedToVote,
+    setIsVoted,
+} from "../store/extra/extraSlice"
 import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
 import {store} from "../store/store"
 
@@ -38,6 +43,7 @@ const StartScreen: React.FC = () => {
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const backLink = useRootBackLink()
+    const bypassChooser = useAppSelector(selectBypassChooser())
     const isDemo = useAppSelector(showDemo(electionId))
     const [showDemoDialog, setShowDemoDialog] = useState(isDemo)
     const [openDeclineDialog, setOpenDeclineDialog] = useState(false)
@@ -126,12 +132,17 @@ const StartScreen: React.FC = () => {
                 }) ?? "-"
             }
             description={titleDescription ? stringToHtml(titleDescription) : undefined}
-            steps={<Stepper selected={1} />}
+            steps={<Stepper selected={EBallotStep.INSTRUCTIONS} />}
             below={
                 <StartActions
                     election={election}
                     isDeclineToVotePolicyEnabled={isDeclineToVotePolicyEnabled}
                     onDeclineToVoteClick={() => setOpenDeclineDialog(true)}
+                    backTo={
+                        bypassChooser
+                            ? undefined
+                            : `/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`
+                    }
                 />
             }
         >

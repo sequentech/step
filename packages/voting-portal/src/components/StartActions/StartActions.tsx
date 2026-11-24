@@ -6,8 +6,10 @@ import {Box} from "@mui/material"
 import Button from "@mui/material/Button"
 import {styled} from "@mui/material/styles"
 import {useTranslation} from "react-i18next"
-import {useLocation, useNavigate, useParams} from "react-router-dom"
+import {Link, useLocation, useNavigate, useParams} from "react-router-dom"
+import {faAngleLeft, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import {ESecurityConfirmationPolicy, IElection} from "@sequentech/ui-core"
+import {Icon} from "@sequentech/ui-essentials"
 import SecurityConfirmation from "../SecurityConfirmation/SecurityConfirmation"
 import type {TenantEventType} from "../.."
 
@@ -38,6 +40,8 @@ export interface StartActionsProps {
     election: IElection
     isDeclineToVotePolicyEnabled: boolean
     onDeclineToVoteClick: () => void
+    // The ballot list, when the voter has one to go back to.
+    backTo?: string
 }
 
 /**
@@ -48,6 +52,7 @@ export const StartActions: React.FC<StartActionsProps> = ({
     election,
     isDeclineToVotePolicyEnabled,
     onDeclineToVoteClick,
+    backTo,
 }) => {
     const {t} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
@@ -70,6 +75,18 @@ export const StartActions: React.FC<StartActionsProps> = ({
                 />
             ) : null}
             <ActionsContainer className="actions-container">
+                {backTo !== undefined ? (
+                    <StyledButton
+                        component={Link}
+                        to={backTo}
+                        className="back-button"
+                        variant="secondary"
+                        sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}, flex: "none"}}
+                    >
+                        <Icon className="back-button-icon" icon={faAngleLeft} size="sm" />
+                        <Box className="back-button-label">{t("votingScreen.backButton")}</Box>
+                    </StyledButton>
+                ) : null}
                 <StyledButton
                     className="start-voting-button"
                     onClick={() =>
@@ -81,6 +98,7 @@ export const StartActions: React.FC<StartActionsProps> = ({
                     disabled={disabledStart}
                 >
                     {t("startScreen.startButton")}
+                    <Icon className="start-voting-button-icon" icon={faAngleRight} size="sm" />
                 </StyledButton>
                 {isDeclineToVotePolicyEnabled ? (
                     <StyledButton
