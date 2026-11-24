@@ -14,21 +14,24 @@ use crate::services::vault;
 use crate::tasks::electoral_log::{
     enqueue_electoral_log_event, LogEventBody, LogEventInput, LogMessageType,
 };
-use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
+use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate, TotalBound};
 use anyhow::{anyhow, ensure, Context, Result};
 use b3::messages::message::Signer;
 use base64::engine::general_purpose;
 use base64::Engine;
 use deadpool_postgres::Transaction;
 use electoral_log::assign_value;
+use electoral_log::client::index_hint::{
+    choose_index, table_indexes, IndexScan, TableIndex, PRIMARY_KEY_COLUMN,
+};
 use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::{CertificateAuthEventAction, *};
 use electoral_log::messages::statement::{StatementBody, StatementType};
 use electoral_log::{
-    ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,
+    count_sql, ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators,
+    WhereClauseBTreeMap, ELECTORAL_LOG_TABLE,
 };
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, TxMode};
-use rust_decimal::prelude::ToPrimitive;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::jwt::JwtClaims;
@@ -43,10 +46,11 @@ use strand::hash::HashWrapper;
 use strand::hash::STRAND_HASH_LENGTH_BYTES;
 use strand::serialization::StrandDeserialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
-use strum_macros::{Display, EnumString};
+use strum_macros::{Display, EnumString, IntoStaticStr};
 use tempfile::NamedTempFile;
 use tokio_stream::StreamExt;
 use tracing::{event, info, instrument, warn, Level};
+use uuid::Uuid;
 
 pub const IMMUDB_ROWS_LIMIT: usize = 2500;
 pub const MAX_ROWS_PER_PAGE: usize = 50;
@@ -1516,7 +1520,7 @@ impl ElectoralLog {
 }
 
 // Enumeration for the valid fields in the immudb table
-#[derive(Debug, Deserialize, Hash, PartialEq, Eq, EnumString, Display, Clone)]
+#[derive(Debug, Deserialize, Hash, PartialEq, Eq, EnumString, Display, IntoStaticStr, Clone)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum OrderField {
@@ -1549,14 +1553,98 @@ pub struct GetElectoralLogBody {
     pub statement_kind: Option<StatementType>,
 }
 
+/// How an admin filter on a VARCHAR column matches the value typed in.
+#[derive(Debug, PartialEq, Eq)]
+enum TextFilterMatch {
+    /// A complete value, matched with `=` so the board's indexes can find it.
+    Exact,
+    /// Part of a value, found anywhere in the column. immudb's LIKE is an unanchored regular
+    /// expression, so the value is escaped to match its characters literally.
+    Contains,
+}
+
+impl TextFilterMatch {
+    fn of(field: &OrderField, value: &str) -> Self {
+        let complete = match field {
+            OrderField::UserId => {
+                Uuid::parse_str(value).is_ok_and(|uuid| uuid.hyphenated().to_string() == value)
+            }
+            OrderField::StatementKind => {
+                serde_json::from_value::<StatementType>(serde_json::Value::from(value)).is_ok()
+            }
+            OrderField::BallotId => {
+                value.len() == BALLOT_ID_LENGTH_CHARS
+                    && value
+                        .chars()
+                        .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
+            }
+            _ => false,
+        };
+        match complete {
+            true => TextFilterMatch::Exact,
+            false => TextFilterMatch::Contains,
+        }
+    }
+}
+
 impl GetElectoralLogBody {
     fn page_limit(&self, pg_config: &PgConfig) -> Result<usize> {
         pg_config.page_limit(self.limit.unwrap_or(pg_config.default_sql_limit.into()))
     }
 
-    // Returns the SQL clauses related to the request along with the parameters
-    #[instrument(ret)]
-    fn as_sql(&self, to_count: bool) -> Result<(String, Vec<NamedParam>)> {
+    /// The columns the request fixes with `=`.
+    fn equal_columns(&self) -> Vec<String> {
+        let filtered = self
+            .filter
+            .iter()
+            .flatten()
+            .filter(|(field, value)| TextFilterMatch::of(field, value) == TextFilterMatch::Exact)
+            .map(|(field, _)| field.to_string());
+        let requested_kind = self
+            .statement_kind
+            .as_ref()
+            .map(|_| OrderField::StatementKind.to_string());
+        let mut columns: Vec<String> = filtered.chain(requested_kind).collect();
+        columns.sort();
+        columns.dedup();
+        columns
+    }
+
+    /// How the request reads the rows of the index it scans.
+    fn index_scan(&self, to_count: bool) -> IndexScan<'static> {
+        if to_count {
+            return IndexScan::Count;
+        }
+        let order_columns: Vec<&'static str> = self
+            .order_by
+            .iter()
+            .flat_map(|order_by| order_by.keys().map(|field| field.into()))
+            .collect();
+        IndexScan::sorted_by(&order_columns)
+    }
+
+    /// The order of a page: an index scan returns rows in index order, so a request without
+    /// one is read in primary key order.
+    fn order_by_clause(&self) -> String {
+        let sort_keys: Vec<String> = self
+            .order_by
+            .iter()
+            .flatten()
+            .map(|(field, direction)| format!("{field} {direction}"))
+            .collect();
+        match sort_keys.is_empty() {
+            true => format!("ORDER BY {PRIMARY_KEY_COLUMN}"),
+            false => format!("ORDER BY {}", sort_keys.join(", ")),
+        }
+    }
+
+    /// Whether the request selects every entry of the board.
+    pub fn is_unfiltered(&self) -> Result<bool> {
+        Ok(self.where_clause()?.0.is_none())
+    }
+
+    /// The WHERE clause selecting the requested entries, if any, with its parameters.
+    fn where_clause(&self) -> Result<(Option<String>, Vec<NamedParam>)> {
         let mut clauses = Vec::new();
         let mut params = Vec::new();
 
@@ -1574,8 +1662,12 @@ impl GetElectoralLogBody {
                         params.push(create_named_param(param_name, Value::N(int_value)));
                     }
                     OrderField::SenderPk | OrderField::UserId | OrderField::Username | OrderField::BallotId | OrderField::StatementKind | OrderField::Version => { // sql VARCHAR type
-                        where_clauses.push(format!("{field} LIKE @{}", param_name));
-                        params.push(create_named_param(param_name, Value::S(value.to_string())));
+                        let (clause, value) = match TextFilterMatch::of(field, value) {
+                            TextFilterMatch::Exact => (format!("{field} = @{param_name}"), value.to_string()),
+                            TextFilterMatch::Contains => (format!("{field} LIKE @{param_name}"), regex::escape(value)),
+                        };
+                        where_clauses.push(clause);
+                        params.push(create_named_param(param_name, Value::S(value)));
                     }
                     OrderField::StatementTimestamp | OrderField::Created => { // sql TIMESTAMP type
                         // these have their own column and are inside of Message´s column as well
@@ -1677,24 +1769,34 @@ impl GetElectoralLogBody {
             }
         }
 
-        // Handle order_by
-        if !to_count && self.order_by.is_some() {
-            let order_by_clauses: Vec<String> = self
-                .order_by
-                .as_ref()
-                .ok_or(anyhow!("Empty order clause"))?
-                .iter()
-                .map(|(field, direction)| format!("{field} {direction}"))
-                .collect();
-            if order_by_clauses.len() > 0 {
-                clauses.push(format!("ORDER BY {}", order_by_clauses.join(", ")));
-            }
+        Ok((clauses.pop(), params))
+    }
+
+    // Returns the SQL clauses related to the request along with the parameters
+    #[instrument(ret, skip(indexes, pg_config))]
+    fn as_sql(
+        &self,
+        to_count: bool,
+        indexes: &[TableIndex],
+        pg_config: &PgConfig,
+    ) -> Result<(String, Vec<NamedParam>)> {
+        let (where_clause, mut params) = self.where_clause()?;
+        let mut clauses: Vec<String> = where_clause.into_iter().collect();
+
+        let equal_columns = self.equal_columns();
+        let equal_columns: Vec<&str> = equal_columns.iter().map(String::as_str).collect();
+        if let Some(index) = choose_index(indexes, &equal_columns, self.index_scan(to_count)) {
+            clauses.insert(0, index.use_index_clause());
+        }
+
+        if !to_count {
+            clauses.push(self.order_by_clause());
         }
 
         // Handle limit
         if !to_count {
             let limit_param_name = String::from("limit");
-            let limit = i64::try_from(self.page_limit(&PgConfig::from_env()?)?)?;
+            let limit = i64::try_from(self.page_limit(pg_config)?)?;
             clauses.push(format!("LIMIT @{limit_param_name}"));
             params.push(create_named_param(limit_param_name, Value::N(limit)));
         }
@@ -1891,6 +1993,7 @@ pub struct CastVoteEntry {
 pub struct CastVoteMessagesOutput {
     pub list: Vec<CastVoteEntry>,
     pub total: usize,
+    pub total_bound: TotalBound,
 }
 
 impl CastVoteEntry {
@@ -1944,8 +2047,16 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
 
     event!(Level::INFO, "database name = {board_name}");
     client.open_session(&board_name).await?;
-    let (clauses, params) = input.as_sql(false)?;
-    let (clauses_to_count, count_params) = input.as_sql(true)?;
+    // The index hint only speeds the query up.
+    let indexes = table_indexes(&mut client, ELECTORAL_LOG_TABLE)
+        .await
+        .unwrap_or_else(|err| {
+            warn!("Listing {board_name} without an index hint, its indexes can't be read: {err:?}");
+            vec![]
+        });
+    let pg_config = PgConfig::from_env()?;
+    let (clauses, params) = input.as_sql(false, &indexes, &pg_config)?;
+    let (clauses_to_count, count_params) = input.as_sql(true, &indexes, &pg_config)?;
     info!("clauses ?:= {clauses}");
     let sql = format!(
         r#"
@@ -1965,7 +2076,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     info!("query: {sql}");
     let sql_query_response = client.streaming_sql_query(&sql, params).await?;
 
-    let limit = input.page_limit(&PgConfig::from_env()?)?;
+    let limit = input.page_limit(&pg_config)?;
     info!("list_electoral_log: limit = {}", limit);
     let mut rows: Vec<ElectoralLogRow> = Vec::with_capacity(limit);
     let mut resp_stream = sql_query_response.into_inner();
@@ -1978,34 +2089,33 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         rows.extend(items);
     }
 
-    let sql = format!(
-        r#"
-        SELECT
-            COUNT(*)
-        FROM electoral_log_messages
-        {clauses_to_count}
-        "#,
-    );
+    let (sql, count_params) = if input.is_unfiltered()? {
+        (board_size_sql(), vec![])
+    } else {
+        (count_sql(&clauses_to_count, None), count_params)
+    };
     let sql_query_response = client.sql_query(&sql, count_params).await?;
-    let mut rows_iter = sql_query_response
+    let aggregate = sql_query_response
         .get_ref()
         .rows
-        .iter()
-        .map(Aggregate::try_from);
-
-    let aggregate = rows_iter
-        // get the first item
-        .next()
-        // unwrap the Result and Option
-        .ok_or(anyhow!("No aggregate found"))??;
+        .first()
+        .map(Aggregate::try_from)
+        .transpose()?
+        // An empty board has no newest entry.
+        .unwrap_or(Aggregate { count: 0 });
 
     client.close_session().await?;
     Ok(DataList {
         items: rows,
-        total: TotalAggregate {
-            aggregate: aggregate,
-        },
+        total: TotalAggregate { aggregate },
     })
+}
+
+/// The SQL reading the number of entries on a board without counting them. Entries are never
+/// deleted and immudb numbers them from 1 in insertion order, so the newest entry's id is their
+/// number.
+fn board_size_sql() -> String {
+    format!("SELECT id FROM {ELECTORAL_LOG_TABLE} ORDER BY id DESC LIMIT 1")
 }
 
 #[instrument]
@@ -2119,13 +2229,17 @@ pub async fn list_cast_vote_messages(
     let (cols_match_count, cols_match_select) =
         get_cols_match_count_and_select(&election_id, user_id, ballot_id_filter);
     let mut client = get_board_client().await?;
-    let total = client
-        .count_electoral_log_messages(&board_name, Some(cols_match_count))
-        .await?
-        .to_u64()
-        .unwrap_or(0) as usize;
+    let count_limit = PgConfig::from_env()?.count_limit()?;
+    let counted = client
+        .count_electoral_log_messages_up_to(&board_name, Some(cols_match_count), count_limit + 1)
+        .await?;
+    let (total, total_bound) = TotalBound::of_count(counted, count_limit);
+    let total = usize::try_from(total)?;
     let mut filter_matched = false; // Exit at the first match if the filter is not empty
-    while (list.len() as i64) < output_limit && (offset < total as i64) && !filter_matched {
+    while (list.len() as i64) < output_limit
+        && may_have_rows_at(offset, total, total_bound)
+        && !filter_matched
+    {
         let electoral_log_messages = client
             .get_electoral_log_messages_filtered(
                 &board_name,
@@ -2164,46 +2278,20 @@ pub async fn list_cast_vote_messages(
         offset += limit;
     }
 
-    Ok(CastVoteMessagesOutput { list, total })
+    Ok(CastVoteMessagesOutput {
+        list,
+        total,
+        total_bound,
+    })
 }
 
-#[instrument(err)]
-pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
-    let mut client = get_immudb_client().await?;
-    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-    let board_name = get_event_board(
-        input.tenant_id.as_str(),
-        input.election_event_id.as_str(),
-        &slug,
-    );
-
-    info!("board name: {board_name}");
-    client.open_session(&board_name).await?;
-
-    let (clauses_to_count, count_params) = input.as_sql(true)?;
-    let sql = format!(
-        r#"
-        SELECT COUNT(*)
-        FROM electoral_log_messages
-        {clauses_to_count}
-        "#,
-    );
-
-    info!("query: {sql}");
-
-    let sql_query_response = client.sql_query(&sql, count_params).await?;
-
-    let mut rows_iter = sql_query_response
-        .get_ref()
-        .rows
-        .iter()
-        .map(Aggregate::try_from);
-    let aggregate = rows_iter
-        .next()
-        .ok_or_else(|| anyhow!("No aggregate found"))??;
-
-    client.close_session().await?;
-    Ok(aggregate.count as i64)
+/// Whether a list with `total` matches may still have rows at `offset`: past a capped total,
+/// only reading tells.
+fn may_have_rows_at(offset: i64, total: usize, total_bound: TotalBound) -> bool {
+    match total_bound {
+        TotalBound::Exact => usize::try_from(offset).is_ok_and(|offset| offset < total),
+        TotalBound::MoreThan => true,
+    }
 }
 
 #[cfg(test)]
@@ -2262,6 +2350,305 @@ mod page_limit_tests {
                 .page_limit(&PgConfig::default())
                 .is_err());
         }
+    }
+}
+
+#[cfg(test)]
+mod text_filter_tests {
+    use super::*;
+
+    const USER_ID: &str = "27ac2b8a-73a1-4219-b12e-9672f42d7e90";
+
+    /// The WHERE clause and its only parameter's value for a count filtered on `field`.
+    fn count_filter(field: OrderField, value: &str) -> (String, String) {
+        let body = GetElectoralLogBody {
+            filter: Some(HashMap::from([(field, value.to_string())])),
+            ..Default::default()
+        };
+        let (clauses, params) = body.as_sql(true, &[], &PgConfig::default()).unwrap();
+        let [param] = params.as_slice() else {
+            panic!("expected one parameter: {params:?}");
+        };
+        let Some(Value::S(param_value)) = param.value.as_ref().and_then(|v| v.value.clone()) else {
+            panic!("expected a string parameter: {param:?}");
+        };
+        (clauses, param_value)
+    }
+
+    #[test]
+    fn a_complete_user_id_is_matched_exactly() {
+        assert_eq!(
+            count_filter(OrderField::UserId, USER_ID),
+            (
+                "WHERE user_id = @param_user_id".to_string(),
+                USER_ID.to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn part_of_a_user_id_is_found_anywhere_in_it() {
+        assert_eq!(
+            count_filter(OrderField::UserId, "27ac2b8a-73a1"),
+            (
+                "WHERE user_id LIKE @param_user_id".to_string(),
+                r"27ac2b8a\-73a1".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn a_user_id_in_another_spelling_is_not_taken_as_complete() {
+        for spelling in [
+            USER_ID.to_uppercase(),
+            USER_ID.replace('-', ""),
+            format!("urn:uuid:{USER_ID}"),
+        ] {
+            let (clause, _) = count_filter(OrderField::UserId, &spelling);
+            assert_eq!(clause, "WHERE user_id LIKE @param_user_id", "{spelling}");
+        }
+    }
+
+    #[test]
+    fn a_statement_kind_name_is_matched_exactly() {
+        assert_eq!(
+            count_filter(OrderField::StatementKind, "CastVote"),
+            (
+                "WHERE statement_kind = @param_statement_kind".to_string(),
+                "CastVote".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn part_of_a_statement_kind_is_found_anywhere_in_it() {
+        assert_eq!(
+            count_filter(OrderField::StatementKind, "Cast"),
+            (
+                "WHERE statement_kind LIKE @param_statement_kind".to_string(),
+                "Cast".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn a_complete_ballot_id_is_matched_exactly() {
+        let ballot_id = "8ec8cd744b4808fa31a91e2b4c4cc2dbfda0c9fc1f1281baea9fb1fb4fd63b9b";
+        assert_eq!(
+            count_filter(OrderField::BallotId, ballot_id),
+            (
+                "WHERE ballot_id = @param_ballot_id".to_string(),
+                ballot_id.to_string()
+            )
+        );
+        let (clause, _) = count_filter(OrderField::BallotId, &ballot_id.to_uppercase());
+        assert_eq!(clause, "WHERE ballot_id LIKE @param_ballot_id");
+        let (clause, _) = count_filter(OrderField::BallotId, &ballot_id[..8]);
+        assert_eq!(clause, "WHERE ballot_id LIKE @param_ballot_id");
+    }
+
+    #[test]
+    fn a_username_is_found_anywhere_with_its_characters_taken_literally() {
+        assert_eq!(
+            count_filter(OrderField::Username, "john.doe+1"),
+            (
+                "WHERE username LIKE @param_username".to_string(),
+                r"john\.doe\+1".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn sender_keys_and_versions_are_found_anywhere_in_them() {
+        let (clause, value) = count_filter(OrderField::SenderPk, "MCowBQYDK2VwAyEA+");
+        assert_eq!(clause, "WHERE sender_pk LIKE @param_sender_pk");
+        assert_eq!(value, r"MCowBQYDK2VwAyEA\+");
+        let (clause, value) = count_filter(OrderField::Version, "1.2");
+        assert_eq!(clause, "WHERE version LIKE @param_version");
+        assert_eq!(value, r"1\.2");
+    }
+}
+
+#[cfg(test)]
+mod admin_index_hint_tests {
+    use super::*;
+
+    const USER_ID: &str = "27ac2b8a-73a1-4219-b12e-9672f42d7e90";
+    const USER_INDEX: &str = "USE INDEX ON (user_id, election_id, area_id, id)";
+
+    fn board_indexes() -> Vec<TableIndex> {
+        vec![
+            TableIndex::new(&[
+                "statement_kind",
+                "user_id",
+                "ballot_id",
+                "election_id",
+                "id",
+            ]),
+            TableIndex::new(&["statement_kind", "election_id", "id"]),
+            TableIndex::new(&["user_id", "election_id", "area_id", "id"]),
+            TableIndex::new(&["election_id", "area_id", "id"]),
+            TableIndex::new(&["area_id", "id"]),
+        ]
+    }
+
+    fn body(filter: &[(OrderField, &str)]) -> GetElectoralLogBody {
+        GetElectoralLogBody {
+            filter: Some(
+                filter
+                    .iter()
+                    .map(|(field, value)| (field.clone(), value.to_string()))
+                    .collect(),
+            ),
+            ..Default::default()
+        }
+    }
+
+    fn count_clauses(body: &GetElectoralLogBody) -> String {
+        body.as_sql(true, &board_indexes(), &PgConfig::default())
+            .unwrap()
+            .0
+    }
+
+    #[test]
+    fn a_voters_entries_are_counted_on_the_voters_index() {
+        assert_eq!(
+            count_clauses(&body(&[(OrderField::UserId, USER_ID)])),
+            format!("{USER_INDEX} WHERE user_id = @param_user_id")
+        );
+    }
+
+    #[test]
+    fn other_filters_still_apply_on_the_voters_index() {
+        let clauses = count_clauses(&body(&[
+            (OrderField::UserId, USER_ID),
+            (OrderField::Username, "doe"),
+        ]));
+        assert!(
+            clauses.starts_with(&format!("{USER_INDEX} WHERE ")),
+            "{clauses}"
+        );
+        assert!(clauses.contains("user_id = @param_user_id"), "{clauses}");
+        assert!(
+            clauses.contains("username LIKE @param_username"),
+            "{clauses}"
+        );
+    }
+
+    #[test]
+    fn partial_values_and_no_filter_scan_the_primary_key() {
+        assert_eq!(
+            count_clauses(&body(&[(OrderField::UserId, "27ac2b8a")])),
+            "WHERE user_id LIKE @param_user_id"
+        );
+        assert_eq!(count_clauses(&GetElectoralLogBody::default()), "");
+    }
+
+    #[test]
+    fn only_a_request_without_conditions_is_unfiltered() {
+        assert!(GetElectoralLogBody::default().is_unfiltered().unwrap());
+        assert!(body(&[(OrderField::Message, "anything")])
+            .is_unfiltered()
+            .unwrap());
+        assert!(!body(&[(OrderField::UserId, USER_ID)])
+            .is_unfiltered()
+            .unwrap());
+        assert!(!GetElectoralLogBody {
+            statement_kind: Some(StatementType::CastVote),
+            ..Default::default()
+        }
+        .is_unfiltered()
+        .unwrap());
+        assert!(!GetElectoralLogBody {
+            only_with_user: Some(true),
+            ..Default::default()
+        }
+        .is_unfiltered()
+        .unwrap());
+        assert!(!GetElectoralLogBody {
+            election_id: Some(String::new()),
+            ..Default::default()
+        }
+        .is_unfiltered()
+        .unwrap());
+    }
+
+    #[test]
+    fn the_board_size_is_the_newest_entry_id() {
+        assert_eq!(
+            board_size_sql(),
+            "SELECT id FROM electoral_log_messages ORDER BY id DESC LIMIT 1"
+        );
+    }
+
+    #[test]
+    fn a_board_without_the_index_scans_the_primary_key() {
+        let body = body(&[(OrderField::UserId, USER_ID)]);
+        assert_eq!(
+            body.as_sql(true, &[], &PgConfig::default()).unwrap().0,
+            "WHERE user_id = @param_user_id"
+        );
+    }
+
+    #[test]
+    fn the_requested_statement_kind_is_an_equal_column() {
+        let body = GetElectoralLogBody {
+            statement_kind: Some(StatementType::CastVote),
+            ..body(&[(OrderField::UserId, USER_ID)])
+        };
+        let mut columns = body.equal_columns();
+        columns.sort();
+        assert_eq!(columns, vec!["statement_kind", "user_id"]);
+    }
+
+    #[test]
+    fn only_complete_values_are_equal_columns() {
+        let body = body(&[
+            (OrderField::UserId, "27ac2b8a"),
+            (OrderField::StatementKind, "CastVote"),
+            (OrderField::Id, "5"),
+        ]);
+        assert_eq!(body.equal_columns(), vec!["statement_kind"]);
+    }
+
+    #[test]
+    fn a_page_is_read_in_the_order_requested() {
+        let mut body = GetElectoralLogBody::default();
+        assert_eq!(body.index_scan(true), IndexScan::Count);
+        assert_eq!(body.index_scan(false), IndexScan::OrderedBy("id"));
+        body.order_by = Some(HashMap::from([(OrderField::Created, OrderDirection::Desc)]));
+        assert_eq!(body.index_scan(false), IndexScan::OrderedBy("created"));
+        body.order_by = Some(HashMap::from([
+            (OrderField::Created, OrderDirection::Desc),
+            (OrderField::Id, OrderDirection::Asc),
+        ]));
+        assert_eq!(body.index_scan(false), IndexScan::SortedByColumns);
+    }
+
+    #[test]
+    fn a_page_without_a_requested_order_is_read_in_primary_key_order() {
+        let mut body = body(&[(OrderField::UserId, USER_ID)]);
+        assert_eq!(body.order_by_clause(), "ORDER BY id");
+        body.order_by = Some(HashMap::new());
+        assert_eq!(body.order_by_clause(), "ORDER BY id");
+    }
+
+    #[test]
+    fn a_page_is_sorted_as_requested() {
+        let mut body = GetElectoralLogBody::default();
+        body.order_by = Some(HashMap::from([(OrderField::Created, OrderDirection::Desc)]));
+        assert_eq!(body.order_by_clause(), "ORDER BY created desc");
+    }
+
+    #[test]
+    fn a_voters_page_is_read_from_the_voters_index_in_primary_key_order() {
+        let (clauses, _) = body(&[(OrderField::UserId, USER_ID)])
+            .as_sql(false, &board_indexes(), &PgConfig::default())
+            .unwrap();
+        assert_eq!(
+            clauses,
+            format!("{USER_INDEX} WHERE user_id = @param_user_id ORDER BY id LIMIT @limit")
+        );
     }
 }
 
@@ -2532,5 +2919,23 @@ mod cast_vote_entry_tests {
         assert_eq!(cast_vote_page(Some(10), Some(20)), (10, 20));
         assert_eq!(cast_vote_page(Some(1_000_000), Some(-5)), (max, 0));
         assert_eq!(cast_vote_page(Some(-1), None), (0, 0));
+    }
+}
+
+#[cfg(test)]
+mod capped_total_tests {
+    use super::*;
+
+    #[test]
+    fn an_exact_total_ends_the_list() {
+        assert!(may_have_rows_at(9, 10, TotalBound::Exact));
+        assert!(!may_have_rows_at(10, 10, TotalBound::Exact));
+        assert!(!may_have_rows_at(-1, 10, TotalBound::Exact));
+    }
+
+    #[test]
+    fn a_capped_total_does_not_end_the_list() {
+        assert!(may_have_rows_at(10, 10, TotalBound::MoreThan));
+        assert!(may_have_rows_at(1_000_000, 10, TotalBound::MoreThan));
     }
 }

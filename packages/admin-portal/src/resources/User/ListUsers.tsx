@@ -96,6 +96,7 @@ import {EXPORT_TENANT_USERS} from "@/queries/ExportTenantUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
 import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogList"
+import {StaleRowsIndicator} from "@/components/StaleRowsIndicator"
 import {USER_PROFILE_CONFIGURATION} from "@/queries/GetUserProfileConfiguration"
 import {
     getAttributeLabel,
@@ -125,7 +126,6 @@ import {useUsersPermissions} from "./useUsersPermissions"
 import {Check, FilterAltOff} from "@mui/icons-material"
 import {useLocation} from "react-router-dom"
 import {getPreferenceKey} from "@/lib/helpers"
-import {isEqual} from "lodash"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {GENERATE_VOTER_INFORMATION_LETTER} from "@/queries/VoterInformationLetter"
 import {VoterInformationLetterPasswordAccess} from "@/resources/Tasks/VoterInformationLetterPasswordAccess"
@@ -1303,178 +1303,163 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     }
 
     const CustomListBody = () => {
-        // `isLoading` => initial load, `isFetching` => subsequent loads (e.g. paging, filtering)
-        const {isLoading, isFetching, perPage, filterValues, page, data} = useListContext()
-        // Keep track of the "previous" page/filters in a ref and whether they changed
-        const prevStateRef = useRef({perPage, page, filterValues})
-        const [filtersChanged, setFiltersChanged] = useState(false)
-
-        // 1. Compare current page and filters with previous
-        //    Detect when filters/page change, and set filtersChanged=true
-        useEffect(() => {
-            const prev = prevStateRef.current
-            const changed =
-                prev.perPage !== perPage ||
-                prev.page !== page ||
-                !isEqual(prev.filterValues, filterValues)
-
-            if (changed) {
-                setFiltersChanged(true)
-            }
-
-            prevStateRef.current = {perPage, page, filterValues}
-        }, [perPage, page, filterValues])
-
-        // 2. Detect when the fetch is complete so we can reset filtersChanged if it was set
-        useEffect(() => {
-            if (!isFetching && filtersChanged) {
-                setFiltersChanged(false)
-            }
-        }, [isFetching, filtersChanged])
+        const {isLoading, perPage} = useListContext()
 
         const hasAuthorizedElectionIdsAttributes = useMemo(
             () => visibleUserAttributes?.find((attr) => attr.name === AUTHORIZED_ELECTION_IDS),
             [visibleUserAttributes]
         )
 
-        if (isLoading || (isFetching && filtersChanged)) {
+        if (isLoading) {
             return <TableSkeleton rowCount={perPage} />
         }
 
         return (
             <>
                 {visibleUserAttributes && (
-                    <DataGridContainerStyle
-                        header={ThreeStateDatagridHeader}
-                        preferenceKey={getPreferenceKey(location.pathname, "voters")}
-                        omit={listFields.omitFields}
-                        isOpenSideBar={isOpenSidebar}
-                        bulkActionButtons={<BulkActions />}
-                        rowClick={false}
-                    >
-                        <TextField source="id" sx={{display: "block", width: "280px"}} />
-                        <BooleanField
-                            source="email_verified"
-                            label={String(t("usersAndRolesScreen.users.fields.emailVerified"))}
-                        />
-                        <BooleanField
-                            source="enabled"
-                            label={String(t("usersAndRolesScreen.users.fields.enabled"))}
-                        />
-                        {renderFields(listFields.basicInfoFields)}
-                        {electionEventId && (
-                            <FunctionField
-                                label={String(t("usersAndRolesScreen.users.fields.area"))}
-                                render={(record: IUser) =>
-                                    record?.area?.name ? (
-                                        <Chip label={record?.area?.name ?? ""} />
-                                    ) : (
-                                        "-"
-                                    )
-                                }
+                    <StaleRowsIndicator>
+                        <DataGridContainerStyle
+                            header={ThreeStateDatagridHeader}
+                            preferenceKey={getPreferenceKey(location.pathname, "voters")}
+                            omit={listFields.omitFields}
+                            isOpenSideBar={isOpenSidebar}
+                            bulkActionButtons={<BulkActions />}
+                            rowClick={false}
+                        >
+                            <TextField source="id" sx={{display: "block", width: "280px"}} />
+                            <BooleanField
+                                source="email_verified"
+                                label={String(t("usersAndRolesScreen.users.fields.emailVerified"))}
                             />
-                        )}
-                        {electionEventId && hasAuthorizedElectionIdsAttributes && (
-                            <ReferenceArrayField
-                                label={String(
-                                    t("usersAndRolesScreen.users.fields.authorized-election-ids")
-                                )}
-                                source="attributes.authorized-election-ids"
-                                reference="sequent_backend_election_by_external_id"
-                                queryOptions={{
-                                    meta: {filter: {election_event_id: electionEventId}},
-                                }}
-                            >
-                                <SingleFieldList linkType={false}>
-                                    <FunctionField
-                                        render={(e: any) => (
-                                            <Chip key={e.id} label={aliasRenderer(e)} />
-                                        )}
-                                    />
-                                </SingleFieldList>
-                            </ReferenceArrayField>
-                        )}
+                            <BooleanField
+                                source="enabled"
+                                label={String(t("usersAndRolesScreen.users.fields.enabled"))}
+                            />
+                            {renderFields(listFields.basicInfoFields)}
+                            {electionEventId && (
+                                <FunctionField
+                                    label={String(t("usersAndRolesScreen.users.fields.area"))}
+                                    render={(record: IUser) =>
+                                        record?.area?.name ? (
+                                            <Chip label={record?.area?.name ?? ""} />
+                                        ) : (
+                                            "-"
+                                        )
+                                    }
+                                />
+                            )}
+                            {electionEventId && hasAuthorizedElectionIdsAttributes && (
+                                <ReferenceArrayField
+                                    label={String(
+                                        t(
+                                            "usersAndRolesScreen.users.fields.authorized-election-ids"
+                                        )
+                                    )}
+                                    source="attributes.authorized-election-ids"
+                                    reference="sequent_backend_election_by_external_id"
+                                    queryOptions={{
+                                        meta: {filter: {election_event_id: electionEventId}},
+                                    }}
+                                >
+                                    <SingleFieldList linkType={false}>
+                                        <FunctionField
+                                            render={(e: any) => (
+                                                <Chip key={e.id} label={aliasRenderer(e)} />
+                                            )}
+                                        />
+                                    </SingleFieldList>
+                                </ReferenceArrayField>
+                            )}
 
-                        {renderFields(listFields.attributesFields)}
-                        {electionEventId && isDatafixEvent && (
-                            <FunctionField<IUser>
-                                source={`attributes['${VOTED_CHANNEL}']`}
-                                label={String(t("usersAndRolesScreen.users.fields.voted-channel"))}
-                                render={(record) => {
-                                    const values = record?.attributes?.[VOTED_CHANNEL]
-                                    const channel = Array.isArray(values)
-                                        ? values[values.length - 1]
-                                        : values
-                                    return channel && channel !== ATTR_RESET_VALUE ? channel : "-"
-                                }}
-                            />
-                        )}
-                        {electionEventId && showVoterListSync && isDatafixEvent && (
-                            <FunctionField<IUser>
-                                source={`attributes['${DISABLE_COMMENT}']`}
-                                label={String(
-                                    t("usersAndRolesScreen.users.fields.disable-comment")
-                                )}
-                                render={(record) => {
-                                    const values = record?.attributes?.[DISABLE_COMMENT]
-                                    const comment = Array.isArray(values)
-                                        ? values[values.length - 1]
-                                        : values
-                                    return comment && comment !== ATTR_RESET_VALUE ? comment : "-"
-                                }}
-                            />
-                        )}
-                        {electionEventId && (
-                            <FunctionField<IUser>
-                                source="has_voted"
-                                label={String(t("usersAndRolesScreen.users.fields.has_voted"))}
-                                render={(record, source) => {
-                                    let newRecord = {
-                                        has_voted: checkIsVoted(record),
-                                        ...record,
-                                    }
-                                    return source ? (
-                                        <BooleanField
-                                            record={newRecord}
-                                            source={source as keyof IUser}
-                                        />
-                                    ) : null
-                                }}
-                            />
-                        )}
-                        {electionEventId && isSupportMaterialsMandatory && (
-                            <FunctionField<IUser>
-                                source={`attributes['${SUPPORT_MATERIALS_ACKNOWLEDGED}']`}
-                                label={String(
-                                    t("usersAndRolesScreen.users.fields.support_materials_viewed")
-                                )}
-                                render={(record, source) => {
-                                    let newRecord = {
-                                        support_materials_viewed:
-                                            checkSupportMaterialsViewed(record),
-                                        ...record,
-                                    }
-                                    return source ? (
-                                        <BooleanField
-                                            record={newRecord}
-                                            source="support_materials_viewed"
-                                        />
-                                    ) : null
-                                }}
-                            />
-                        )}
-                        {!canEditVoters &&
-                        !canDeleteVoters &&
-                        !canSendTemplates &&
-                        !canManuallyVerify &&
-                        !canGenerateVoterInformationLetter &&
-                        !canChangePassword &&
-                        !showVotersLogs ? null : (
-                            <WrapperField source="actions" label="Actions">
-                                <ListActionsMenu actions={actions} />
-                            </WrapperField>
-                        )}
-                    </DataGridContainerStyle>
+                            {renderFields(listFields.attributesFields)}
+                            {electionEventId && isDatafixEvent && (
+                                <FunctionField<IUser>
+                                    source={`attributes['${VOTED_CHANNEL}']`}
+                                    label={String(
+                                        t("usersAndRolesScreen.users.fields.voted-channel")
+                                    )}
+                                    render={(record) => {
+                                        const values = record?.attributes?.[VOTED_CHANNEL]
+                                        const channel = Array.isArray(values)
+                                            ? values[values.length - 1]
+                                            : values
+                                        return channel && channel !== ATTR_RESET_VALUE
+                                            ? channel
+                                            : "-"
+                                    }}
+                                />
+                            )}
+                            {electionEventId && showVoterListSync && isDatafixEvent && (
+                                <FunctionField<IUser>
+                                    source={`attributes['${DISABLE_COMMENT}']`}
+                                    label={String(
+                                        t("usersAndRolesScreen.users.fields.disable-comment")
+                                    )}
+                                    render={(record) => {
+                                        const values = record?.attributes?.[DISABLE_COMMENT]
+                                        const comment = Array.isArray(values)
+                                            ? values[values.length - 1]
+                                            : values
+                                        return comment && comment !== ATTR_RESET_VALUE
+                                            ? comment
+                                            : "-"
+                                    }}
+                                />
+                            )}
+                            {electionEventId && (
+                                <FunctionField<IUser>
+                                    source="has_voted"
+                                    label={String(t("usersAndRolesScreen.users.fields.has_voted"))}
+                                    render={(record, source) => {
+                                        let newRecord = {
+                                            has_voted: checkIsVoted(record),
+                                            ...record,
+                                        }
+                                        return source ? (
+                                            <BooleanField
+                                                record={newRecord}
+                                                source={source as keyof IUser}
+                                            />
+                                        ) : null
+                                    }}
+                                />
+                            )}
+                            {electionEventId && isSupportMaterialsMandatory && (
+                                <FunctionField<IUser>
+                                    source={`attributes['${SUPPORT_MATERIALS_ACKNOWLEDGED}']`}
+                                    label={String(
+                                        t(
+                                            "usersAndRolesScreen.users.fields.support_materials_viewed"
+                                        )
+                                    )}
+                                    render={(record, source) => {
+                                        let newRecord = {
+                                            support_materials_viewed:
+                                                checkSupportMaterialsViewed(record),
+                                            ...record,
+                                        }
+                                        return source ? (
+                                            <BooleanField
+                                                record={newRecord}
+                                                source="support_materials_viewed"
+                                            />
+                                        ) : null
+                                    }}
+                                />
+                            )}
+                            {!canEditVoters &&
+                            !canDeleteVoters &&
+                            !canSendTemplates &&
+                            !canManuallyVerify &&
+                            !canGenerateVoterInformationLetter &&
+                            !canChangePassword &&
+                            !showVotersLogs ? null : (
+                                <WrapperField source="actions" label="Actions">
+                                    <ListActionsMenu actions={actions} />
+                                </WrapperField>
+                            )}
+                        </DataGridContainerStyle>
+                    </StaleRowsIndicator>
                 )}
                 {/* Custom filters menu */}
                 {showVotersFilters && (

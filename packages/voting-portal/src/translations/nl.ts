@@ -434,6 +434,7 @@ const dutchTranslation: TranslationType = {
                 "Niet gevonden, controleer dat uw Stembiljet ID correct is en behoort tot deze gebruiker.",
             filterByBallotId: "Filteren op Stembiljet ID",
             totalBallots: "Aantal stembiljet: {{total}}",
+            totalBallotsMoreThan: "Aantal stembiljet: meer dan {{total}}",
             steps: {
                 lookup: "Lokaliseer uw Stembiljet",
                 result: "Resultaat",

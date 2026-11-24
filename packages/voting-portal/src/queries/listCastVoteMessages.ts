@@ -31,6 +31,7 @@ export const LIST_CAST_VOTE_MESSAGES = gql`
                 message
             }
             total
+            total_bound
         }
     }
 `

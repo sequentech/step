@@ -19,6 +19,21 @@ These are application-level actions being recorded. Access the system log to mon
 
 The Logs tab is implemented using Immudb, a tamper-evident database. Each entry is inserted into a SQL table of actions. The immutability allows to verify that no change has been performed, for anyone with credentials to access to the immutable log.
 
+## Filters and totals
+
+- A complete **User ID** or a complete **Statement Kind** name (for example
+  `CastVote`) shows the entries with exactly that value. Part of a value shows
+  every entry that contains it, with the characters taken literally.
+- The total is the exact number of matching entries. Without a filter it is
+  shown at once. With a filter, the entries are counted, and counting them
+  means reading each one, which can take several seconds on events with many
+  entries.
+- The Ballot Locator's Logs tab in the Voting Portal stops counting ballots at
+  the deployment's `LOW_SQL_LIMIT` setting (50,000 in the provided
+  configurations): past it, it shows for example
+  `Total Ballots: more than 50,000` and keeps offering the next page while
+  there are ballots left.
+
 ## External system (Datafix) API entries
 
 Every call an external voter-registry system makes to the Datafix API

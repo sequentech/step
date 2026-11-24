@@ -433,6 +433,7 @@ const basqueTranslation: TranslationType = {
             ballotIdNotFoundAtFilter: "Zure bozketa IDa ez da {{ballotId}} bozketa zerrendan",
             filterByBallotId: "Filtratu Bozketa IDa",
             totalBallots: "Bozketa kopurua: {{total}}",
+            totalBallotsMoreThan: "Bozketa kopurua: {{total}} baino gehiago",
             steps: {
                 lookup: "Lokalizatu zure Bozketa",
                 result: "Emaitza",
