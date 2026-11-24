@@ -16,6 +16,10 @@ use windmill::services::{
     probe::{setup_probe, AppName},
 };
 
+// Opt-in typed installation, absent from all ordinary Harvest entrypoints.
+#[cfg(feature = "operational-signing-demo-fixture")]
+pub mod operational_demo_composition;
+
 mod adapters;
 mod ports;
 mod routes;

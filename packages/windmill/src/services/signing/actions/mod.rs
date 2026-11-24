@@ -599,7 +599,7 @@ pub async fn run_claimed(
                             task,
                             refuse(
                                 "hardware-signatures-missing",
-                                "The request lacks an applied hardware signing quorum.",
+                                "The request lacks an applied server-managed signing quorum.",
                             ),
                             &progress,
                         )

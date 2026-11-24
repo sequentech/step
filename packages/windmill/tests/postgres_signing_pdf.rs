@@ -2348,7 +2348,7 @@ async fn the_operational_artifact_is_derived_from_the_prepared_revision_and_the_
     match prepare(&w, &store, &official, request_id, at(2)).await {
         Err(SigningError::Forbidden(message)) => assert_eq!(
             message,
-            "This tenant requires hardware-backed official signing."
+            "This tenant requires a server-managed signing device."
         ),
         other => panic!("expected the prepare to be forbidden, got {other:?}"),
     }

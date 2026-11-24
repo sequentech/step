@@ -111,6 +111,7 @@ export const SIGN_ROLES = [
 ]
 
 export interface IPanelOptions {
+    signingMode?: string
     action?: SigningAction
     status?: SigningRequestStatus
     required?: number
@@ -128,6 +129,7 @@ const signedAt = (index: number) => `2028-05-12T10:${String(41 + 2 * index).padS
 
 /** A request as `GET /signing-requests/<id>` answers it, with a consistent canonical payload. */
 export async function makePanel({
+    signingMode = "legacy-p12",
     action = SigningAction.GenerateElectionReturns,
     status = SigningRequestStatus.Waiting,
     required = 3,
@@ -179,6 +181,7 @@ export async function makePanel({
     const done =
         status === SigningRequestStatus.Completed || status === SigningRequestStatus.Executed
     return {
+        operational_signing_mode: signingMode,
         request: {
             id: REQUEST_ID,
             tenant_id: TENANT_ID,

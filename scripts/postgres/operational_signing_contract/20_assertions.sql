@@ -791,49 +791,49 @@ SELECT os_test.ok(
        AND sequent_backend.operational_signing_recorded_device_profile(p.tenant_id, p.event_id, p.request_id, p.actor, p.reservation_id) = 'yubihsm'
        AND (p.binding).payload_hash = :'pay1' AND p.receipt = '\x3006020101020101'),
     'approval caller reads the evidence columns of the intent ledger');
--- Verbatim statement of windmill/src/services/signing/operational_quorum.rs.
-PREPARE quorum(uuid, uuid, uuid, text, text, text, text, text, bytea, text, text, bytea, bytea) AS
-SELECT EXISTS (
-    SELECT FROM sequent_backend.operational_signing_intent p
-    WHERE (p.tenant_id,p.event_id,p.request_id,p.actor) = ($1,$2,$3,$4)
-      AND p.phase='applied' AND p.purpose='approval-payload'
-      AND sequent_backend.operational_signing_recorded_device_profile(
-        p.tenant_id,p.event_id,p.request_id,p.actor,p.reservation_id
-      )='yubihsm'
-      AND (p.binding).action=$5 AND (p.binding).payload_hash=$6
-      AND (p.binding).cert_fingerprint=$7 AND (p.binding).cert_spki=$8
-      AND (p.binding).message_hash=$6 AND p.receipt=$9
-      AND p.applied_signature_sha256=encode(sha256($9::bytea),'hex')
-      AND ($10::text IS NULL OR EXISTS (
-        SELECT FROM sequent_backend.operational_signing_intent d
-        WHERE (d.tenant_id,d.event_id,d.request_id,d.actor) = ($1,$2,$3,$4)
-          AND d.phase='applied' AND d.purpose=$10
-          AND sequent_backend.operational_signing_recorded_device_profile(
-            d.tenant_id,d.event_id,d.request_id,d.actor,d.reservation_id
-          )='yubihsm'
-          AND (d.binding).action=$5 AND (d.binding).payload_hash=$6
-          AND (d.binding).cert_fingerprint=$7 AND (d.binding).cert_spki=$8
-          AND (d.binding).key_id=(p.binding).key_id
-          AND (d.binding).key_version=(p.binding).key_version
-          AND (
-            ($10='eml' AND (d.binding).message_hash=$11 AND d.receipt=$12
-                AND d.applied_signature_sha256=encode(sha256($12::bytea),'hex'))
-            OR ($10='pdf-cms' AND d.applied_signature_sha256=encode(sha256($13::bytea),'hex')
-                AND EXISTS (
-                    SELECT FROM sequent_backend.signing_document_revision AS signed
-                    WHERE (signed.tenant_id,signed.election_event_id,signed.request_id,signed.id)
-                        = (d.tenant_id,d.event_id,d.request_id,d.applied_pdf_revision_id)
-                      AND signed.state='signed' AND signed.document_id=d.applied_pdf_document_id
-                      AND signed.sha256=d.applied_pdf_sha256 AND signed.prepared_for_user=d.actor
-                      AND signed.parent_sha256=(d.binding).pdf_parent_hash
-                      AND signed.digest_sha256=(d.binding).pdf_digest
-                ))
-          )
-      ))
-) AS matching;
+-- Exact query compiled into Windmill. Exercise it as the real approval caller.
+PREPARE quorum(uuid, uuid, uuid, text, text, text, text, text, bytea, text, text, bytea, bytea, text, uuid) AS
+SELECT * FROM (
+:quorum_sql
+) checked(matching);
 EXECUTE quorum(:'tenant_a', :'event_a', :'req1', :'official', 'initialize-voting', :'pay1', :'fingerprint', :'spki',
-               '\x3006020101020101', NULL, NULL, NULL, NULL) \gset
-SELECT os_test.ok(NOT :'matching'::boolean, 'the Windmill quorum statement runs for the approval caller (nothing applied yet)');
+               '\x3006020101020101', NULL, NULL, NULL, NULL, 'yubihsm', :'cert1') \gset
+SELECT os_test.ok(NOT :'matching'::boolean, 'a completed receipt is not yet an applied quorum approval');
+-- Roll back our synthetic approval, leaving later expiry/revocation tests untouched.
+BEGIN;
+RESET SESSION AUTHORIZATION;
+INSERT INTO sequent_backend.signing_approval
+    (tenant_id, election_event_id, request_id, user_id, username, certificate_id, certificate_pem, chain_pem,
+     fingerprint_sha256, spki_sha256, holder_sha256, algorithm, payload_signature, revocation_status)
+SELECT tenant_id, election_event_id, :'req1', user_id, username, id, pem, 'TEST-CHAIN-PEM',
+       fingerprint_sha256, spki_sha256, holder_sha256, 'ecdsa-p256-sha256', '\x3006020101020101', 'checked'
+FROM sequent_backend.staff_certificate
+WHERE (tenant_id, election_event_id, id, user_id) = (:'tenant_a', :'event_a', :'cert1', :'official');
+SET SESSION AUTHORIZATION os_t_harvest;
+SELECT os_test.ok(sequent_backend.operational_signing_mark_applied_from_evidence(
+    :'tenant_a', :'event_a', :'req1', :'official', :'t2', :'fence', '\x3006020101020101', '\x3006020101020101'),
+    'real approval caller applies the matching receipt and approval together');
+EXECUTE quorum(:'tenant_a', :'event_a', :'req1', :'official', 'initialize-voting', :'pay1', :'fingerprint', :'spki',
+               '\x3006020101020101', NULL, NULL, NULL, NULL, 'yubihsm', :'cert1') \gset
+SELECT os_test.ok(:'matching'::boolean, 'exact applied approval is accepted by the installed provider query');
+EXECUTE quorum(:'tenant_a', :'event_a', :'req1', :'official', 'initialize-voting', :'pay1', :'fingerprint', :'spki',
+               '\x3006020101020101', NULL, NULL, NULL, NULL, 'softhsm-test', :'cert1') \gset
+SELECT os_test.ok(NOT :'matching'::boolean, 'an applied receipt for another installed provider is refused');
+EXECUTE quorum(:'tenant_a', :'event_a', :'req1', :'official', 'initialize-voting', :'pay1', :'fingerprint', :'spki',
+               '\x3006020101020102', NULL, NULL, NULL, NULL, 'yubihsm', :'cert1') \gset
+SELECT os_test.ok(NOT :'matching'::boolean, 'a changed approval signature is refused');
+-- Operator revocation must invalidate a previously applied row before the next
+-- official can count it or the execution can release. Nothing is re-signed.
+RESET SESSION AUTHORIZATION;
+SELECT os_test.ok(sequent_backend.operational_signing_revoke_official(:'tenant_a', :'official',
+    (SELECT id FROM sequent_backend.operational_signing_official_enrollment
+      WHERE tenant_id=:'tenant_a' AND actor=:'official' AND revoked_at IS NULL),
+    'official/' || :'tenant_a' || '/' || :'official', 1), 'operator revoked the previous key');
+SET SESSION AUTHORIZATION os_t_harvest;
+EXECUTE quorum(:'tenant_a', :'event_a', :'req1', :'official', 'initialize-voting', :'pay1', :'fingerprint', :'spki',
+               '\x3006020101020101', NULL, NULL, NULL, NULL, 'yubihsm', :'cert1') \gset
+SELECT os_test.ok(NOT :'matching'::boolean, 'a revoked enrollment cannot count its old applied approval');
+ROLLBACK;
 DEALLOCATE quorum;
 SELECT os_test.denied('SELECT * FROM sequent_backend.operational_signing_intent', 'approval caller cannot read the whole intent row');
 SELECT os_test.denied('SELECT invoked_at FROM sequent_backend.operational_signing_intent', 'approval caller cannot read other intent columns');

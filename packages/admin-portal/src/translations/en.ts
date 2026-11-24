@@ -5366,6 +5366,37 @@ const englishTranslation = {
                 'Are you sure you want to delete the certificate "{{name}}" (fingerprint: {{fingerprint}})?',
         },
         signing: {
+            operational: {
+                title: "Review approval",
+                setup: "Set up signing",
+                approve: "Approve",
+                cancelUnused: "Cancel unused challenge",
+                confirmCancelUnused:
+                    "Discard this unused challenge? No approval will be submitted.",
+                keepChallenge: "Keep challenge",
+                confirmDiscard: "Discard challenge",
+                checkStatus: "Check status",
+                quorum: "{{count}} of {{required}} approvals recorded",
+                error: "Could not confirm the operation. Check its status before trying again.",
+                softwareDemo:
+                    "Demo only: signatures use a software test token, not a hardware device.",
+                phase: {
+                    "loading": "Checking signing status…",
+                    "setup-required": "Set up signing for this account before you approve.",
+                    "setup-pending":
+                        "Signing setup is pending. Your approval has not been recorded.",
+                    "challenge-available":
+                        "Review the action, then approve and verify your identity.",
+                    "waiting-for-identity":
+                        "Waiting for identity verification. Your approval is not yet recorded.",
+                    "pending": "The approval is still pending.",
+                    "approval-recorded": "Your approval was recorded.",
+                    "reconcile":
+                        "The outcome has not been confirmed. Check the status rather than approving again.",
+                    "unavailable":
+                        "Signing is unavailable for this request. No approval was submitted here.",
+                },
+            },
             terms: {
                 post: "Post",
                 posts: "Posts",

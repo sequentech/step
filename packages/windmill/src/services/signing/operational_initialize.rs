@@ -7,6 +7,7 @@
 //! This does not authorize the step-up client or contact a device.
 
 use super::approve::sign_refusal;
+use super::operational_device::matches_canonical_request;
 use super::operational_policy::{signing_mode, OperationalSigningMode};
 use super::operational_quorum::check_operational_approvals;
 use super::requests::{is_overdue, lock_request, read_request};
@@ -14,7 +15,7 @@ use super::{SigningCaller, SigningError, SigningResult};
 use crate::postgres::signing::{list_signing_approvals, SigningRequestRow};
 use anyhow::Context;
 use deadpool_postgres::Transaction;
-use sequent_core::signing::{sha256_hex, SigningAction, SigningRequestStatus, SigningRule};
+use sequent_core::signing::{SigningAction, SigningRequestStatus, SigningRule};
 use uuid::Uuid;
 
 /// Only this service can construct a scope from the authorized request.
@@ -82,13 +83,14 @@ async fn scope(
     };
     let rule: SigningRule = serde_json::from_value(request.rule_snapshot.clone())
         .context("Read frozen signing rule")?;
-    if rule.action != request.action
+    if request.election_id.is_none_or(|post| post.is_nil())
+        || rule.action != request.action
         || rule.validate().is_err()
         || !rule.is_required()
         || i32::from(rule.required()) != request.required
         || request.document_id.is_some()
         || request.document_sha256.is_some()
-        || sha256_hex(request.canonical_payload.as_bytes()) != request.payload_sha256
+        || !matches_canonical_request(&request)
     {
         return Err(unavailable());
     }

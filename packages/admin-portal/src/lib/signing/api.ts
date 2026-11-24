@@ -90,6 +90,8 @@ export interface ISigningDetail {
  * display fields the drafts show. They are optional, so an older answer still renders.
  */
 export interface ISigningPanelData extends ISigningRequestPanel {
+    /** Server policy; missing or unknown never mounts the P12 dialog. */
+    operational_signing_mode?: unknown
     /** The Post's name (the request's election). */
     election_name?: string | null
     /** The country's name (the request's area). */
