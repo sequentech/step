@@ -47,7 +47,12 @@ impl ElectionFixture {
         .unwrap()
     }
 
-    async fn insert(&self, transaction: &Transaction<'_>, content: &str) -> Result<CastVote> {
+    async fn insert(
+        &self,
+        transaction: &Transaction<'_>,
+        content: &str,
+        ballot_id: &str,
+    ) -> Result<CastVote> {
         postgres::cast_vote::insert_cast_vote(
             transaction,
             &self.tenant,
@@ -56,7 +61,7 @@ impl ElectionFixture {
             &self.area,
             content,
             "voter",
-            "ballot",
+            ballot_id,
             &[0; 64],
             &None,
             &None,
@@ -172,13 +177,19 @@ async fn insert_preserves_response_and_maps_trigger_error_without_retrying() {
     let fixture = ElectionFixture::create(&transaction).await;
     let content = "encrypted-ballot".repeat(1000);
 
-    let inserted = fixture.insert(&transaction, &content).await.unwrap();
+    let inserted = fixture
+        .insert(&transaction, &content, "ballot")
+        .await
+        .unwrap();
     assert_eq!(inserted.content.as_deref(), Some(content.as_str()));
     assert_eq!(inserted.status, CastVoteStatus::Valid);
     assert_eq!(inserted.area_id, Some(fixture.area.to_string()));
     assert_eq!(inserted.ballot_id.as_deref(), Some("ballot"));
 
-    let error = fixture.insert(&transaction, &content).await.unwrap_err();
+    let error = fixture
+        .insert(&transaction, &content, "another-ballot")
+        .await
+        .unwrap_err();
     let mapped = map_insert_error(error);
     assert_eq!(
         serde_json::to_value(&mapped).unwrap(),
@@ -331,6 +342,17 @@ pub(in crate::services::insert_cast_vote) mod electoral_log_outbox {
         fixture: &ElectionFixture,
         signing_key: &StrandSignatureSk,
     ) -> Result<(CastVote, VotingStatusChannel, PendingLogEvent), CastVoteError> {
+        cast_ballot(client, fixture, signing_key, "synthetic-ballot").await
+    }
+
+    /// Casts the synthetic ballot `ballot_id` through the production insert
+    /// and commit.
+    pub(in crate::services::insert_cast_vote) async fn cast_ballot(
+        client: &mut DbClient,
+        fixture: &ElectionFixture,
+        signing_key: &StrandSignatureSk,
+        ballot_id: &str,
+    ) -> Result<(CastVote, VotingStatusChannel, PendingLogEvent), CastVoteError> {
         let tenant = fixture.tenant.to_string();
         let event = fixture.event.to_string();
         let election = fixture.election.to_string();
@@ -355,9 +377,9 @@ pub(in crate::services::insert_cast_vote) mod electoral_log_outbox {
         let transaction = client.transaction().await.unwrap();
         insert_cast_vote_and_commit(
             InsertCastVoteInput {
-                ballot_id: "synthetic-ballot".to_string(),
+                ballot_id: ballot_id.to_string(),
                 election_id: fixture.election,
-                content: "synthetic-encrypted-ballot".to_string(),
+                content: format!("encrypted-{ballot_id}"),
             },
             transaction,
             super::super::election_event(None),
@@ -409,9 +431,9 @@ pub(in crate::services::insert_cast_vote) mod electoral_log_outbox {
         assert_eq!(count(&client, "cast_vote", &fixture).await, 1);
         assert_eq!(count(&client, "electoral_log_outbox", &fixture).await, 1);
 
-        // One vote is allowed: the database refuses the second and rolls back
-        // the event stored before it.
-        let refused = cast(&mut client, &fixture, &signing_key).await;
+        // One vote is allowed: the database refuses a second ballot and rolls
+        // back the event stored before it.
+        let refused = cast_ballot(&mut client, &fixture, &signing_key, "second-ballot").await;
         println!(
             "refused: {:?}, votes {}, outbox events {}",
             refused.as_ref().err(),
@@ -424,6 +446,155 @@ pub(in crate::services::insert_cast_vote) mod electoral_log_outbox {
         ));
         assert_eq!(count(&client, "cast_vote", &fixture).await, 1);
         assert_eq!(count(&client, "electoral_log_outbox", &fixture).await, 1);
+        remove(&client, &fixture).await;
+    }
+
+    async fn set_allowed_revotes(client: &DbClient, fixture: &ElectionFixture, revotes: i32) {
+        client
+            .execute(
+                "UPDATE sequent_backend.election SET num_allowed_revotes = $1 WHERE id = $2",
+                &[&revotes, &fixture.election],
+            )
+            .await
+            .unwrap();
+    }
+
+    async fn stored_ballot(
+        client: &mut DbClient,
+        fixture: &ElectionFixture,
+        voter: &str,
+        election: &Uuid,
+        ballot_id: &str,
+    ) -> Option<CastVote> {
+        let transaction = client.transaction().await.unwrap();
+        let stored = postgres::cast_vote::get_voter_cast_vote_by_ballot_id(
+            &transaction,
+            &fixture.tenant.to_string(),
+            &fixture.event.to_string(),
+            &election.to_string(),
+            voter,
+            ballot_id,
+        )
+        .await
+        .unwrap();
+        transaction.rollback().await.unwrap();
+        stored
+    }
+
+    /// A resent ballot is refused as already cast, whatever the revote limit,
+    /// so it neither stores a second vote and event nor uses up a revote.
+    #[tokio::test]
+    #[ignore = "requires the disposable devenv database fixture"]
+    async fn resent_ballot_is_already_cast_and_uses_no_revote() {
+        for revotes in [1, 2, 0] {
+            let mut client = test_client().await;
+            let fixture = open_election(&mut client).await;
+            set_allowed_revotes(&client, &fixture, revotes).await;
+            let signing_key = StrandSignatureSk::gen().unwrap();
+
+            let (accepted, _, _) = cast_ballot(&mut client, &fixture, &signing_key, "first")
+                .await
+                .unwrap();
+            let resent = cast_ballot(&mut client, &fixture, &signing_key, "first").await;
+            assert!(
+                matches!(resent, Err(CastVoteError::BallotAlreadyCast)),
+                "revotes {revotes}: {:?}",
+                resent.err()
+            );
+            assert_eq!(count(&client, "cast_vote", &fixture).await, 1);
+            assert_eq!(count(&client, "electoral_log_outbox", &fixture).await, 1);
+            assert_eq!(
+                stored_ballot(&mut client, &fixture, VOTER, &fixture.election, "first").await,
+                Some(accepted)
+            );
+
+            let revote = cast_ballot(&mut client, &fixture, &signing_key, "second").await;
+            if revotes == 1 {
+                assert!(matches!(
+                    revote,
+                    Err(CastVoteError::InsertFailedExceedsAllowedRevotes)
+                ));
+                assert_eq!(count(&client, "cast_vote", &fixture).await, 1);
+            } else {
+                revote.unwrap();
+                assert_eq!(count(&client, "cast_vote", &fixture).await, 2);
+            }
+            remove(&client, &fixture).await;
+        }
+    }
+
+    /// The stored vote answers a resend whatever its status, including one
+    /// Datafix has not resolved yet and one it discarded.
+    #[tokio::test]
+    #[ignore = "requires the disposable devenv database fixture"]
+    async fn resent_ballot_is_already_cast_in_any_status() {
+        for status in [CastVoteStatus::InProgress, CastVoteStatus::Discarded] {
+            let mut client = test_client().await;
+            let fixture = open_election(&mut client).await;
+            let signing_key = StrandSignatureSk::gen().unwrap();
+            cast_ballot(&mut client, &fixture, &signing_key, "first")
+                .await
+                .unwrap();
+            client
+                .execute(
+                    "UPDATE sequent_backend.cast_vote SET status = $1 WHERE election_event_id = $2",
+                    &[&status.to_string(), &fixture.event],
+                )
+                .await
+                .unwrap();
+
+            let resent = cast_ballot(&mut client, &fixture, &signing_key, "first").await;
+            assert!(
+                matches!(resent, Err(CastVoteError::BallotAlreadyCast)),
+                "{status}: {:?}",
+                resent.err()
+            );
+            assert_eq!(count(&client, "cast_vote", &fixture).await, 1);
+            let stored = stored_ballot(&mut client, &fixture, VOTER, &fixture.election, "first")
+                .await
+                .unwrap();
+            assert_eq!(stored.status, status);
+            remove(&client, &fixture).await;
+        }
+    }
+
+    /// The stored ballot is found only for the voter and election it was cast
+    /// in, with the content it was stored with.
+    #[tokio::test]
+    #[ignore = "requires the disposable devenv database fixture"]
+    async fn stored_ballot_is_found_only_for_its_voter_and_election() {
+        let mut client = test_client().await;
+        let fixture = open_election(&mut client).await;
+        let signing_key = StrandSignatureSk::gen().unwrap();
+        cast_ballot(&mut client, &fixture, &signing_key, "first")
+            .await
+            .unwrap();
+
+        let stored = stored_ballot(&mut client, &fixture, VOTER, &fixture.election, "first")
+            .await
+            .unwrap();
+        assert_eq!(stored.ballot_id.as_deref(), Some("first"));
+        assert_eq!(stored.voter_id_string.as_deref(), Some(VOTER));
+        assert_eq!(stored.content.as_deref(), Some("encrypted-first"));
+        assert_eq!(
+            stored_ballot(
+                &mut client,
+                &fixture,
+                "another-voter",
+                &fixture.election,
+                "first"
+            )
+            .await,
+            None
+        );
+        assert_eq!(
+            stored_ballot(&mut client, &fixture, VOTER, &Uuid::new_v4(), "first").await,
+            None
+        );
+        assert_eq!(
+            stored_ballot(&mut client, &fixture, VOTER, &fixture.election, "second").await,
+            None
+        );
         remove(&client, &fixture).await;
     }
 }
