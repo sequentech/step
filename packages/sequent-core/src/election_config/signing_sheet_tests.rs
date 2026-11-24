@@ -17,6 +17,7 @@ fn rule(value: Value) -> SigningRule {
 /// one, an explicit "never expires" and a revision.
 fn restrictive() -> PlannedSigning {
     PlannedSigning {
+        operational_signing_mode: Some(OperationalSigningMode::LegacyP12),
         rules: Some(vec![
             rule(json!({"action": "open-voting", "requirement": "required",
                 "signatures": 3, "requester_signing": "not-allowed",
@@ -108,6 +109,28 @@ fn export_presence_is_field_by_field_and_null_is_absent() {
     );
     assert_eq!(read(json!({"signing_rules": []})).rules, Some(vec![]));
     assert!(read(json!({"signing_rules": []})).checks.is_none());
+}
+
+#[test]
+fn an_operational_signing_sheet_requires_one_valid_choice() {
+    let header = vec![Cell::text("operational_signing_mode")];
+    for rows in [
+        vec![],
+        vec![vec![Cell::Blank]],
+        vec![vec![Cell::text("null")]],
+        vec![vec![Cell::text("unknown")]],
+        vec![vec![Cell::Bool(true)]],
+        vec![
+            vec![Cell::text("hsm-required")],
+            vec![Cell::text("legacy-p12")],
+        ],
+    ] {
+        let mut grid = vec![header.clone()];
+        grid.extend(rows);
+        let sheet = Sheet::from_grid("OperationalSigning", &grid).unwrap();
+        let workbook = Workbook::new(vec![sheet]).unwrap();
+        assert!(PlannedSigning::from_workbook(&workbook).is_err());
+    }
 }
 
 #[test]

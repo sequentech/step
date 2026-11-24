@@ -40,6 +40,7 @@
 //! None of those are mistakes anybody made twice. They are what happens when a
 //! format is implemented a second time, which is why this implementation does not.
 
+use std::borrow::Cow;
 use std::cmp::Ordering;
 
 use crate::election_config::archive::{Artifact, Layout};
@@ -79,7 +80,8 @@ use serde::{Deserialize, Serialize};
 /// into the workbook and into `export_voters-<id>.csv`. The members travel as a
 /// census now, and [`migrate_v3`] lifts them out of an older document so it opens
 /// with everybody still in it.
-pub const BLUEPRINT_VERSION: u32 = 5;
+/// Version 6 carries the event's operational signing mode in `signing`.
+pub const BLUEPRINT_VERSION: u32 = 6;
 
 /// Bring a version 1 plan up to date, in place.
 ///
@@ -271,23 +273,15 @@ pub fn as_written(plan: &Blueprint) -> std::borrow::Cow<'_, Blueprint> {
     }
 }
 
-/// v4 → v5: the plan gained [`Blueprint::signing`].
-///
-/// Nothing to move: a v4 plan never stated a signing configuration, which v5
-/// reads as `None` for each field. The bump is for the other direction. A
-/// build that only knows v4 would read a v5 plan, drop `signing` as an
-/// unknown field and compile a bundle without the event's signing rules; with
-/// the bump it refuses the plan as saved by a newer version instead
-/// (`plan.saved-by-newer-version`), which is the gate that exists for exactly
-/// this.
-fn migrate_v4(document: &mut serde_json::Value) {
-    let Some(object) = document.as_object_mut() else {
-        return;
-    };
-    if object.get("version").and_then(serde_json::Value::as_u64) != Some(4) {
-        return;
+/// v5 added signing rules and checks, and v6 added the operational mode.
+/// Both additions are optional on read. Stamp the new version so an older
+/// plan reader refuses to compile settings it would silently discard.
+fn migrate_signing_versions(document: &mut serde_json::Value) {
+    if let Some(version) = document.get_mut("version") {
+        if matches!(version.as_u64(), Some(4 | 5)) {
+            *version = serde_json::json!(6);
+        }
     }
-    object.insert("version".to_string(), serde_json::json!(5));
 }
 
 /// A plan as it came off disk, and whatever came with it.
@@ -345,7 +339,7 @@ pub fn read_plan_value(
     migrate_v1(&mut value);
     migrate_v2(&mut value);
     let lifted = migrate_v3(&mut value);
-    migrate_v4(&mut value);
+    migrate_signing_versions(&mut value);
 
     let plan: Blueprint = serde_json::from_value(value).map_err(|error| {
         Problem::error(
@@ -364,6 +358,8 @@ pub fn read_plan_value(
         &plan.platform,
         plan.base_export.as_ref(),
     )?;
+    // Check an inherited mode as soon as the saved plan opens.
+    let _ = plan.signing.configured_mode(plan.base_export.as_ref())?;
 
     Ok(ReadPlan {
         sources: Sources {
@@ -823,13 +819,11 @@ pub struct Blueprint {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub base_export: Option<serde_json::Value>,
 
-    /// The event's signing rules and certificate checks, each `None` when the
-    /// source said nothing about it and `Some` (an empty rule list included)
-    /// when it did. Written to the workbook's `SigningRules`/`SigningChecks`
-    /// sheets, which `build` reads over any base export, field by field. See
-    /// [`super::signing_sheet`].
+    /// The event's signing configuration as stated by the source. Each
+    /// configured field travels through its own workbook sheet.
     #[serde(
         default,
+        deserialize_with = "super::signing_sheet::PlannedSigning::deserialize_object",
         skip_serializing_if = "super::signing_sheet::PlannedSigning::is_empty"
     )]
     pub signing: super::signing_sheet::PlannedSigning,
@@ -1897,16 +1891,24 @@ pub fn validate_plan(plan: &Blueprint, sources: &Sources) -> Report {
     }
     // The workbook is the one output an older Architect can still open: it
     // ignores sheets it does not know, so it would drop these without a word.
-    if !plan.signing.is_policy_empty() {
+    // Losing the serialized HSM default does not change the default choice.
+    // Warn only when that older reader can lose an explicit policy difference.
+    let non_default_mode = plan
+        .signing
+        .operational_signing_mode
+        .is_some_and(|mode| mode != Default::default());
+    if plan.signing.rules.is_some()
+        || plan.signing.checks.is_some()
+        || plan.signing.approval_matrix.is_some()
+        || non_default_mode
+    {
         report.push(
             Problem::warning(
                 Code::InvalidValue,
                 "signing",
-                "election_workbook.xlsx carries this signing configuration in \
-                 its SigningRules, SigningChecks and ApprovalMatrix sheets, which \
-                 an Architect older than this one ignores. Reopen the plan from \
-                 blueprint.json or the delivery zip, or with an up-to-date \
-                 Architect, to keep it.",
+                "An older Architect can omit signing settings when it reads \
+                 election_workbook.xlsx. Reopen blueprint.json or the delivery \
+                 zip with an up-to-date Architect to keep those settings.",
             )
             .id("signing.workbook-needs-current-architect"),
         );
@@ -3316,7 +3318,11 @@ fn to_workbook_with_base(
     }
 
     // The signing configuration, one sheet per field the plan states.
-    sheets.extend(plan.signing.sheets());
+    let mode = plan
+        .signing
+        .configured_mode(base_export)?
+        .unwrap_or_default();
+    sheets.extend(plan.signing.sheets_with_mode(Some(mode)));
 
     // What only a plan holds. `build` never reads these.
     for maybe in [
@@ -3451,6 +3457,23 @@ fn is_blank(value: &serde_json::Value) -> bool {
 }
 
 impl Blueprint {
+    /// Keep an explicit choice ahead of profile defaults. A caller's base
+    /// export can supply a mode the plan did not state. If it omits the
+    /// field, the plan's own base still supplies its original choice.
+    pub(super) fn with_base_mode(
+        &self,
+        supplied: Option<&serde_json::Value>,
+    ) -> Result<Cow<'_, Self>, Problem> {
+        let inherited =
+            self.signing.configured_mode(self.base_export.as_ref())?;
+        let selected = self.signing.configured_mode(supplied)?.or(inherited);
+        let mut plan = Cow::Borrowed(self);
+        if selected != self.signing.operational_signing_mode {
+            plan.to_mut().signing.operational_signing_mode = selected;
+        }
+        Ok(plan)
+    }
+
     /// The languages to write, never empty.
     ///
     /// A plan with no language still has to produce a ballot somebody can read.
@@ -5267,17 +5290,17 @@ pub fn compile_plan(request: Compile<'_>) -> Result<Compiled, Report> {
         profile,
         sources,
     } = request;
-    // The profile first, so a locked value is the one that gets validated and
-    // the one that gets built. Checking the plan as written and then forcing the
-    // value afterwards would report problems about text nobody will ship.
-    let applied;
-    let plan = match profile {
-        Some(profile) => {
-            applied = apply_profile(plan, profile)?;
-            &applied
-        }
-        None => plan,
-    };
+    // All generated members use this plan. Apply the profile to the actual
+    // source choices, then record the default only if no source chose a mode.
+    let mut generated = plan.with_base_mode(options.base_export.as_ref())?;
+    if let Some(profile) = profile {
+        generated = Cow::Owned(apply_profile(&generated, profile)?);
+    }
+    if generated.signing.operational_signing_mode.is_none() {
+        generated.to_mut().signing.operational_signing_mode =
+            Some(Default::default());
+    }
+    let plan = generated.as_ref();
 
     // The caller's, where there is one. Otherwise derived from the plan the
     // profile has already been applied to — the same plan that gets validated and

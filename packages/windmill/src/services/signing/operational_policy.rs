@@ -7,13 +7,8 @@
 //! only the mounted, operator-selected Initialize installation.
 
 use deadpool_postgres::{GenericClient, Transaction};
+pub use sequent_core::signing::OperationalSigningMode;
 use uuid::Uuid;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum OperationalSigningMode {
-    LegacyP12,
-    HsmRequired,
-}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LegacySigningBlocked {
@@ -32,14 +27,8 @@ impl std::fmt::Display for LegacySigningBlocked {
 
 impl std::error::Error for LegacySigningBlocked {}
 
-impl OperationalSigningMode {
-    fn parse(mode: &str) -> Result<Self, LegacySigningBlocked> {
-        match mode {
-            "legacy-p12" => Ok(Self::LegacyP12),
-            "hsm-required" => Ok(Self::HsmRequired),
-            _ => Err(LegacySigningBlocked::Unavailable),
-        }
-    }
+fn parse_mode(mode: &str) -> Result<OperationalSigningMode, LegacySigningBlocked> {
+    mode.parse().map_err(|_| LegacySigningBlocked::Unavailable)
 }
 
 // Only transaction callers can retain the policy read lock through their
@@ -71,12 +60,8 @@ pub async fn signing_mode(
     let tenant_required = row
         .try_get::<_, bool>("tenant_required")
         .map_err(|_| LegacySigningBlocked::Unavailable)?;
-    let mode = OperationalSigningMode::parse(mode)?;
-    Ok(if tenant_required {
-        OperationalSigningMode::HsmRequired
-    } else {
-        mode
-    })
+    let mode = parse_mode(mode)?;
+    Ok(mode.with_hsm_requirement(tenant_required))
 }
 
 pub async fn require_legacy_signing(
@@ -103,7 +88,7 @@ pub async fn assert_startup_policy(
         return Err(LegacySigningBlocked::Unavailable);
     }
     let expected = match std::env::var(PROFILE) {
-        Ok(value) => Some(OperationalSigningMode::parse(&value)?),
+        Ok(value) => Some(parse_mode(&value)?),
         Err(std::env::VarError::NotPresent) => None,
         Err(std::env::VarError::NotUnicode(_)) => return Err(LegacySigningBlocked::Unavailable),
     };
@@ -118,7 +103,7 @@ pub async fn assert_startup_policy(
     let mode = row
         .try_get::<_, &str>("mode")
         .map_err(|_| LegacySigningBlocked::Unavailable)?;
-    let actual = OperationalSigningMode::parse(mode)?;
+    let actual = parse_mode(mode)?;
     if expected.is_some_and(|profile| profile != actual) {
         return Err(LegacySigningBlocked::Unavailable);
     }

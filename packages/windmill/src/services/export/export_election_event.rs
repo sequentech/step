@@ -222,6 +222,8 @@ pub async fn read_export_data(
         support_materials: Some(export_support_materials),
         signing_rules: None,
         signing_checks: None,
+        // Installed event mode is not persisted by the server yet.
+        operational_signing_mode: None,
         approval_matrix,
         messaging_config,
         version,

@@ -25,6 +25,55 @@ macro_rules! signing_enum {
     };
 }
 
+/// Credential mode for protected operational approvals. An event that
+/// supplies no choice requires HSM signing.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Display, EnumString,
+)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+pub enum OperationalSigningMode {
+    #[default]
+    HsmRequired,
+    LegacyP12,
+}
+
+// Accept only a wire string. Serde's externally tagged enum representation
+// would also accept a one-key JSON object for a unit variant.
+impl<'de> Deserialize<'de> for OperationalSigningMode {
+    fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Self, D::Error> {
+        String::deserialize(deserializer)?
+            .parse()
+            .map_err(serde::de::Error::custom)
+    }
+}
+
+impl OperationalSigningMode {
+    /// Apply a stricter requirement, such as a tenant promotion.
+    pub fn with_hsm_requirement(self, required: bool) -> Self {
+        if required {
+            Self::HsmRequired
+        } else {
+            self
+        }
+    }
+
+    /// Combine an already verified deployment/tenant floor with the event's
+    /// configured choice. A failed policy lookup must propagate to the caller.
+    pub fn for_event(self, configured: Option<Self>) -> Self {
+        self.with_hsm_requirement(configured != Some(Self::LegacyP12))
+    }
+
+    /// Used with `serde(default)`: only an omitted member becomes `None`.
+    pub(crate) fn deserialize_present<'de, D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Option<Self>, D::Error> {
+        Self::deserialize(deserializer).map(Some)
+    }
+}
+
 signing_enum! {
     /// The catalog of protected actions. It is product code, because each
     /// action has its own integration point; whether an action needs

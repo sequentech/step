@@ -948,6 +948,83 @@ fn a_delivery_whose_plan_is_not_a_plan_is_refused() {
 }
 
 #[test]
+fn a_delivery_reopens_with_the_mode_in_its_importable_event() {
+    use crate::election_config::archive::{IMPORTABLE_MEMBER, PLAN_MEMBER};
+    use crate::signing::OperationalSigningMode::{HsmRequired, LegacyP12};
+    let open_with = |mode, event: &[u8]| {
+        let mut plan = sound();
+        plan.signing.operational_signing_mode = mode;
+        let blueprint = serde_json::to_vec(&plan).unwrap();
+        let inner = zip_of(&[("export_election_event-1.json", event)]);
+        open(&zip_of(&[
+            (PLAN_MEMBER, &blueprint),
+            (IMPORTABLE_MEMBER, &inner),
+        ]))
+    };
+    let legacy = br#"{"operational_signing_mode":"legacy-p12"}"#;
+    let hsm = br#"{"operational_signing_mode":"hsm-required"}"#;
+    for (event, expected) in [(&legacy[..], LegacyP12), (&hsm[..], HsmRequired)]
+    {
+        let opened = open_with(None, event).unwrap();
+        assert_eq!(
+            opened.plan.signing.operational_signing_mode,
+            Some(expected)
+        );
+    }
+    assert!(open_with(Some(LegacyP12), hsm).is_err());
+    assert!(open_with(Some(HsmRequired), legacy).is_err());
+    assert!(open_with(Some(LegacyP12), b"{}").is_err());
+    for invalid in [
+        &br#"{"operational_signing_mode":null}"#[..],
+        &br#"{"operational_signing_mode":{"legacy-p12":null}}"#[..],
+        &br#"{"operational_signing_mode":"hsm-required","operational_signing_mode":"legacy-p12"}"#[..],
+        &br#"["legacy-p12"]"#[..],
+    ] {
+        assert!(open_with(Some(LegacyP12), invalid).is_err());
+    }
+}
+
+#[test]
+fn zipped_apple_metadata_does_not_count_as_a_second_event() {
+    use crate::election_config::archive::{IMPORTABLE_MEMBER, PLAN_MEMBER};
+    use crate::signing::OperationalSigningMode::HsmRequired;
+    let inner = zip_of(&[
+        ("__MACOSX/._export_election_event-1.json", b"not JSON"),
+        ("._export_election_event-1.json", b"not JSON"),
+        (
+            "import/export_election_event-1.json",
+            br#"{"operational_signing_mode":"hsm-required"}"#,
+        ),
+    ]);
+    let blueprint = serde_json::to_vec(&sound()).unwrap();
+    let delivery =
+        zip_of(&[(PLAN_MEMBER, &blueprint), (IMPORTABLE_MEMBER, &inner)]);
+    let opened = open(&delivery).unwrap();
+    assert_eq!(
+        opened.plan.signing.operational_signing_mode,
+        Some(HsmRequired)
+    );
+}
+
+#[test]
+fn an_archive_with_two_event_documents_cannot_select_a_mode() {
+    use crate::election_config::archive::{IMPORTABLE_MEMBER, PLAN_MEMBER};
+    let inner = zip_of(&[
+        ("export_election_event-1.json", b"{}"),
+        (
+            "__MACOSX/export_election_event-2.json",
+            br#"{"operational_signing_mode":"legacy-p12"}"#,
+        ),
+    ]);
+    let blueprint = serde_json::to_vec(&sound()).unwrap();
+    let delivery =
+        zip_of(&[(PLAN_MEMBER, &blueprint), (IMPORTABLE_MEMBER, &inner)]);
+    for bytes in [inner, delivery] {
+        assert!(says(&open(&bytes).unwrap_err(), "multiple event documents"));
+    }
+}
+
+#[test]
 fn a_delivery_brings_back_its_files_and_warns_about_an_empty_census() {
     let plan = serde_json::to_vec(&sound()).unwrap();
     let inner = zip_of(&[

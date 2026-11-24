@@ -1169,10 +1169,68 @@ fn seeding_profile() -> Profile {
 
 #[test]
 fn a_new_plan_starts_from_the_profiles_seed() {
+    use crate::signing::OperationalSigningMode::HsmRequired;
     let seeded = seed_new_plan(&plan(), &seeding_profile()).unwrap();
-    let want: crate::election_config::signing_sheet::PlannedSigning =
+    let mut want: crate::election_config::signing_sheet::PlannedSigning =
         serde_json::from_value(signing_seed()).unwrap();
+    want.operational_signing_mode = Some(HsmRequired);
     assert_eq!(seeded.signing, want);
+}
+
+#[test]
+fn an_explicit_mode_survives_seeding_and_conflicting_fixed_modes_are_refused() {
+    use crate::signing::OperationalSigningMode::{HsmRequired, LegacyP12};
+    let key = "signing.operational_signing_mode";
+    let profile = profile_of(ClientProfile {
+        id: "legacy-seed".into(),
+        seeds: defaults(&[(key, serde_json::json!("legacy-p12"))]),
+        ..Default::default()
+    });
+    let mut chosen = plan();
+    let seeded = seed_new_plan(&chosen, &profile).unwrap();
+    assert_eq!(seeded.signing.operational_signing_mode, Some(LegacyP12));
+    chosen.signing.operational_signing_mode = Some(HsmRequired);
+    let seeded = seed_new_plan(&chosen, &profile).unwrap();
+    assert_eq!(seeded.signing.operational_signing_mode, Some(HsmRequired));
+
+    let fixed = profile_of(ClientProfile {
+        id: "fixed-mode".into(),
+        locked: vec![key.into()],
+        defaults: defaults(&[(key, serde_json::json!("legacy-p12"))]),
+        ..Default::default()
+    });
+    let from_defaults = seed_new_plan(&plan(), &fixed).unwrap();
+    assert_eq!(
+        from_defaults.signing.operational_signing_mode,
+        Some(LegacyP12)
+    );
+    assert!(apply_profile(&chosen, &fixed).is_err());
+}
+
+#[test]
+fn malformed_modes_in_a_profile_are_refused_on_read() {
+    use serde_json::json;
+    for invalid in [Value::Null, json!("auto"), json!({"legacy-p12": null})] {
+        let report = refused(ClientProfile {
+            id: "invalid-mode".into(),
+            defaults: defaults(&[(
+                "signing",
+                json!({"operational_signing_mode": invalid}),
+            )]),
+            seeds: defaults(&[("signing.operational_signing_mode", invalid)]),
+            ..Default::default()
+        });
+        assert_eq!(
+            report
+                .errors()
+                .filter(|problem| {
+                    problem.id.as_deref()
+                        == Some("signing.invalid-operational-mode")
+                })
+                .count(),
+            2
+        );
+    }
 }
 
 #[test]

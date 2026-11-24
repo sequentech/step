@@ -37,6 +37,26 @@ where
 }
 
 #[test]
+fn an_event_uses_legacy_only_with_an_explicit_choice_and_a_permitting_floor() {
+    use OperationalSigningMode::{HsmRequired, LegacyP12};
+    assert_wire(&[(HsmRequired, "hsm-required"), (LegacyP12, "legacy-p12")]);
+    assert_eq!(OperationalSigningMode::default(), HsmRequired);
+
+    for (deployment, tenant_required, floor) in [
+        (LegacyP12, false, LegacyP12),
+        (LegacyP12, true, HsmRequired),
+        (HsmRequired, false, HsmRequired),
+        (HsmRequired, true, HsmRequired),
+    ] {
+        let installed = deployment.with_hsm_requirement(tenant_required);
+        assert_eq!(installed, floor);
+        assert_eq!(installed.for_event(None), HsmRequired);
+        assert_eq!(installed.for_event(Some(HsmRequired)), HsmRequired);
+        assert_eq!(installed.for_event(Some(LegacyP12)), floor);
+    }
+}
+
+#[test]
 fn the_catalog_has_ten_actions_with_stable_ids() {
     let ids: Vec<String> = SigningAction::iter()
         .map(|action| action.to_string())

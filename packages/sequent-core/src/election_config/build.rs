@@ -31,6 +31,9 @@ use crate::election_config::sheet::{
     SHEET_ELECTION_EVENT, SHEET_MATERIALS, SHEET_PARAMETERS, SHEET_REPORTS,
     SHEET_SCHEDULED_EVENTS,
 };
+use crate::election_config::signing_sheet::{
+    PlannedSigning, OPERATIONAL_SIGNING_MODE,
+};
 use crate::election_config::sources::{CensusSource, Sources};
 use crate::types::ceremonies::CeremoniesPolicy;
 use serde_json::{json, Map, Value};
@@ -843,10 +846,15 @@ impl<'a> Builder<'a> {
         // export: a sheet is what the author (or the plan, or the historical
         // source) said, and a sheet with no rows says "no rules". An absent
         // sheet leaves the base export's value, or nothing.
-        match crate::election_config::signing_sheet::PlannedSigning::from_workbook(
-            self.workbook,
-        ) {
+        match PlannedSigning::from_workbook(self.workbook) {
             Ok(signing) => {
+                match signing.configured_mode(Some(&self.base_export)) {
+                    Ok(mode) => {
+                        export[OPERATIONAL_SIGNING_MODE] =
+                            json!(mode.unwrap_or_default());
+                    }
+                    Err(problem) => self.report.push(problem),
+                }
                 if let Some(rules) = signing.rules {
                     export[SIGNING_RULES_KEY] = serde_json::to_value(rules)
                         .expect("signing rules serialize");

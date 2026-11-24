@@ -1899,9 +1899,7 @@ pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
         /// preference about the wizard rather than about the election, which is
         /// why it travels here and not through `defaults`.
         preview_slim: bool,
-        /// What a new plan's signing configuration starts as under this
-        /// profile (its `seeds`, applied to a blank plan exactly as
-        /// `seedNewPlan` applies them). Empty when the profile seeds none.
+        /// The signing settings this profile supplies on a blank plan.
         /// The wizard offers it as an explicit "apply the profile's policy"
         /// on a plan that was opened rather than started, never silently.
         seeded_signing: crate::election_config::signing_sheet::PlannedSigning,
@@ -1925,7 +1923,7 @@ pub fn read_profile_js(profile: JsValue) -> Result<JsValue, JsError> {
             presets: read.presets.clone(),
             only_our_presets: read.only_our_presets,
             preview_slim: read.preview_slim,
-            seeded_signing: profile::seed_new_plan(
+            seeded_signing: profile::apply_profile_seeds(
                 &crate::election_config::architect::Blueprint::default(),
                 &read,
             )

@@ -89,6 +89,7 @@ pub const KNOWN_SHEETS: &[&str] = &[
     SHEET_MILESTONES,
     SHEET_MESSAGES,
     SHEET_NOTES,
+    super::signing_sheet::SHEET_OPERATIONAL_SIGNING,
     super::signing_sheet::SHEET_SIGNING_RULES,
     super::signing_sheet::SHEET_SIGNING_CHECKS,
     super::signing_sheet::SHEET_APPROVAL_MATRIX,
