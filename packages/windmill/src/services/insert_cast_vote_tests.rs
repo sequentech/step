@@ -230,6 +230,72 @@ mod ballot_style_contests {
         ));
     }
 
+    /// The fixture ballot with its contest ciphertext also cast under
+    /// `OTHER_CONTEST_ID`, as a voter copying it into another contest would.
+    fn content_repeating_ciphertext_of(original: &HashableBallot) -> String {
+        let contest = original
+            .deserialize_contests::<RistrettoCtx>()
+            .unwrap()
+            .remove(0);
+        let contests = vec![
+            contest.clone(),
+            HashableBallotContest {
+                contest_id: OTHER_CONTEST_ID.to_string(),
+                ..contest
+            },
+        ];
+        serde_json::to_string(&HashableBallot {
+            contests: HashableBallot::serialize_contests::<RistrettoCtx>(&contests).unwrap(),
+            ..original.clone()
+        })
+        .unwrap()
+    }
+
+    /// A ciphertext copied into another ballot has the fingerprint of the
+    /// original, and a ciphertext repeated within a ballot is fingerprinted once.
+    #[test]
+    fn copied_ciphertext_keeps_its_fingerprint() {
+        let original = single_ballot();
+        let (_, _, original_fingerprints) = deserialize_and_check_ballot(
+            &serde_json::to_string(&original).unwrap(),
+            VOTER_ID,
+            &published_styles(),
+        )
+        .unwrap();
+        let copy = content_repeating_ciphertext_of(&original);
+        let published = vec![contest_ids(&[&get_test_contest().id, OTHER_CONTEST_ID])];
+        let (_, _, copy_fingerprints) =
+            deserialize_and_check_ballot(&copy, "other-voter", &published).unwrap();
+
+        assert_eq!(original_fingerprints.len(), 1);
+        assert_eq!(copy_fingerprints, original_fingerprints);
+        assert_ne!(
+            deserialize_and_check_ballot(&single_content(), VOTER_ID, &published_styles())
+                .unwrap()
+                .2,
+            original_fingerprints
+        );
+    }
+
+    /// A multi ballot has one ciphertext, so one fingerprint.
+    #[test]
+    fn multi_ballot_has_one_fingerprint() {
+        let (_, _, fingerprints) =
+            deserialize_and_check_multi_ballot(&multi_content(), VOTER_ID, &published_styles())
+                .unwrap();
+
+        assert_eq!(fingerprints.len(), 1);
+    }
+
+    /// The insert error is mapped by the message the cast_vote trigger raises.
+    #[test]
+    fn ciphertext_already_cast_message_matches_the_trigger() {
+        assert_eq!(
+            CastVoteError::CiphertextAlreadyCast.to_string(),
+            "ciphertext_already_cast"
+        );
+    }
+
     /// A multi ballot with each contest of the published style is accepted.
     #[test]
     fn multi_ballot_with_every_style_contest_is_accepted() {

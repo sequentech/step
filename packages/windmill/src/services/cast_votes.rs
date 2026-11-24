@@ -18,7 +18,12 @@ use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use strand::backend::ristretto::RistrettoCtx;
+use strand::elgamal::Ciphertext;
+use strand::hash::{hash_to_array, Hash};
+use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use strand::util::StrandError;
 use tokio::fs::File;
 use tokio::io::{copy, AsyncWriteExt, BufWriter};
 use tokio_postgres::row::Row;
@@ -62,6 +67,13 @@ impl TryFrom<Row> for CastVote {
             ballot_id: item.try_get("ballot_id")?,
         })
     }
+}
+
+/// Identifies a contest ciphertext by its `gr` component. Each encryption draws
+/// fresh randomness, so two ballots only share a fingerprint when one carries
+/// the other's ciphertext.
+pub fn ciphertext_fingerprint(ciphertext: &Ciphertext<RistrettoCtx>) -> Result<Hash, StrandError> {
+    hash_to_array(&ciphertext.gr.strand_serialize()?)
 }
 
 #[instrument(err)]
