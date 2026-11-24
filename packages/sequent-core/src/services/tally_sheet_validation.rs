@@ -19,6 +19,11 @@ pub struct TallySheetValidationError {
     pub params: HashMap<String, String>,
 }
 
+/// The largest count a tally produces: 2^53 - 1, the largest integer a JSON
+/// number holds exactly. Tally processing rejects a larger count, so
+/// validation rejects it first.
+pub const MAX_TALLY_COUNT: u64 = (1 << 53) - 1;
+
 /// Computes the maximum number of candidate marks a single non-blank
 /// ballot can legitimately contribute, given a contest's `max_votes` and
 /// counting algorithm. Absent or non-positive `max_votes` defaults to `1`
@@ -110,13 +115,20 @@ pub fn validate_area_contest_results(
     let total_valid_votes = content.total_valid_votes.unwrap_or(0);
     let total_blank_votes = content.total_blank_votes.unwrap_or(0);
     let total_votes = content.total_votes.unwrap_or(0);
-    let candidate_votes_sum: u64 = content
+    // Individual counters fit u64; a sum of candidate marks need not, since
+    // one ballot may mark several candidates. Widen before doing arithmetic
+    // so validation neither panics nor accepts a wrapped total.
+    let candidate_votes_sum: u128 = content
         .candidate_results
         .values()
-        .map(|candidate_result| candidate_result.total_votes.unwrap_or(0))
+        .map(|candidate_result| {
+            u128::from(candidate_result.total_votes.unwrap_or(0))
+        })
         .sum();
 
-    if total_invalid != implicit_invalid + explicit_invalid {
+    if u128::from(total_invalid)
+        != u128::from(implicit_invalid) + u128::from(explicit_invalid)
+    {
         errors.push(error(
             "invalid_total_invalid",
             format!(
@@ -139,8 +151,11 @@ pub fn validate_area_contest_results(
     let non_blank_valid_votes =
         total_valid_votes.saturating_sub(total_blank_votes);
     let max_marks = max_marks_per_ballot.unwrap_or(1).max(1);
-    let lower_bound = non_blank_valid_votes;
-    let upper_bound = non_blank_valid_votes.saturating_mul(max_marks);
+    let lower_bound = u128::from(non_blank_valid_votes);
+    // Tally processing rejects a sum of marks past MAX_TALLY_COUNT, so
+    // validation rejects it first instead of failing the tally later.
+    let upper_bound =
+        (lower_bound * u128::from(max_marks)).min(u128::from(MAX_TALLY_COUNT));
 
     if candidate_votes_sum < lower_bound || candidate_votes_sum > upper_bound {
         errors.push(error(
@@ -159,11 +174,14 @@ pub fn validate_area_contest_results(
         ));
     }
 
-    if total_votes != total_valid_votes + total_invalid {
+    if u128::from(total_votes)
+        != u128::from(total_valid_votes) + u128::from(total_invalid)
+        || total_votes > MAX_TALLY_COUNT
+    {
         errors.push(error(
             "invalid_total_votes",
             format!(
-                "total_votes ({total_votes}) must equal total_valid_votes ({total_valid_votes}) + total_invalid ({total_invalid})"
+                "total_votes ({total_votes}) must equal total_valid_votes ({total_valid_votes}) + total_invalid ({total_invalid}) and not exceed {MAX_TALLY_COUNT}"
             ),
             "total_votes",
             HashMap::from([
@@ -277,12 +295,17 @@ pub fn validate_ballot_box_blank_ballots(
         .then(|| distinct_values.into_iter().next())
         .flatten();
 
-    let contest_count = contest_sheets.len() as u64;
+    let contest_count = contest_sheets.len() as u128;
     let blank_votes_per_contest: Vec<u64> = contest_sheets
         .iter()
         .map(|sheet| sheet.total_blank_votes.unwrap_or(0))
         .collect();
-    let sum_blank_votes: u64 = blank_votes_per_contest.iter().sum();
+    // Inclusion-exclusion uses sums and products across contests. Those can
+    // exceed u64 even when the final intersection is a valid ballot count.
+    let sum_blank_votes: u128 = blank_votes_per_contest
+        .iter()
+        .map(|&value| u128::from(value))
+        .sum();
     let min_blank_votes =
         blank_votes_per_contest.iter().copied().min().unwrap_or(0);
     let total_ballots = contest_sheets
@@ -291,12 +314,13 @@ pub fn validate_ballot_box_blank_ballots(
         .max()
         .unwrap_or(0);
 
-    let lower_bound = sum_blank_votes
-        .saturating_sub(contest_count.saturating_sub(1) * total_ballots);
-    let upper_bound = min_blank_votes;
+    let lower_bound = sum_blank_votes.saturating_sub(
+        contest_count.saturating_sub(1) * u128::from(total_ballots),
+    );
+    let upper_bound = u128::from(min_blank_votes);
 
     if let Some(value) = box_blank_ballots {
-        if value < lower_bound || value > upper_bound {
+        if u128::from(value) < lower_bound || u128::from(value) > upper_bound {
             errors.push(error(
                 "blank_ballots_out_of_bounds",
                 format!(
@@ -312,7 +336,9 @@ pub fn validate_ballot_box_blank_ballots(
         }
     }
 
-    let pre_filled_value = (lower_bound == upper_bound).then_some(lower_bound);
+    // Equality with the upper bound proves the result fits its public u64 type.
+    let pre_filled_value =
+        (lower_bound == upper_bound).then_some(min_blank_votes);
 
     BallotBoxBlankBallotsCheck {
         errors,
@@ -331,6 +357,7 @@ mod tests {
 
     use super::{
         effective_max_marks_per_ballot_typed, validate_area_contest_results,
+        MAX_TALLY_COUNT,
     };
 
     #[test]
@@ -650,6 +677,114 @@ mod tests {
         );
     }
 
+    fn sheet_with_candidate_votes(
+        total_votes: u64,
+        total_valid_votes: u64,
+        candidate_votes: &[u64],
+    ) -> AreaContestResults {
+        AreaContestResults {
+            area_id: "area-1".to_string(),
+            contest_id: "contest-1".to_string(),
+            total_votes: Some(total_votes),
+            total_valid_votes: Some(total_valid_votes),
+            census: Some(total_votes),
+            candidate_results: candidate_votes
+                .iter()
+                .enumerate()
+                .map(|(index, votes)| {
+                    let candidate_id = format!("candidate-{index}");
+                    (
+                        candidate_id.clone(),
+                        CandidateResults {
+                            candidate_id,
+                            total_votes: Some(*votes),
+                        },
+                    )
+                })
+                .collect(),
+            ..AreaContestResults::default()
+        }
+    }
+
+    fn error_codes(
+        content: &AreaContestResults,
+        max_marks: Option<u64>,
+    ) -> Vec<String> {
+        validate_area_contest_results(content, max_marks)
+            .into_iter()
+            .map(|error| error.code)
+            .collect()
+    }
+
+    #[test]
+    fn rejects_candidate_votes_whose_sum_exceeds_the_counter_range() {
+        let content =
+            sheet_with_candidate_votes(100, 100, &[u64::MAX - 99, 200]);
+
+        assert_eq!(
+            error_codes(&content, None),
+            vec!["invalid_total_valid_votes"]
+        );
+    }
+
+    #[test]
+    fn rejects_a_total_beyond_the_counter_range() {
+        let total = MAX_TALLY_COUNT + 1;
+        let content = sheet_with_candidate_votes(total, total, &[total]);
+
+        assert!(error_codes(&content, None)
+            .contains(&"invalid_total_votes".to_string()));
+    }
+
+    #[test]
+    fn rejects_invalid_vote_components_whose_sum_exceeds_the_counter_range() {
+        let content = AreaContestResults {
+            total_votes: Some(0),
+            total_valid_votes: Some(0),
+            invalid_votes: Some(InvalidVotes {
+                total_invalid: Some(0),
+                implicit_invalid: Some(u64::MAX),
+                explicit_invalid: Some(1),
+            }),
+            ..AreaContestResults::default()
+        };
+
+        assert_eq!(error_codes(&content, None), vec!["invalid_total_invalid"]);
+    }
+
+    #[test]
+    fn rejects_vote_buckets_whose_sum_exceeds_the_counter_range() {
+        let mut content = sheet_with_candidate_votes(0, u64::MAX, &[u64::MAX]);
+        content.census = None;
+        content.invalid_votes = Some(InvalidVotes {
+            total_invalid: Some(1),
+            implicit_invalid: Some(1),
+            explicit_invalid: Some(0),
+        });
+
+        assert!(error_codes(&content, None)
+            .contains(&"invalid_total_votes".to_string()));
+    }
+
+    #[test]
+    fn rejects_multi_mark_candidate_votes_summing_beyond_the_counter_range() {
+        let content = sheet_with_candidate_votes(
+            MAX_TALLY_COUNT,
+            MAX_TALLY_COUNT,
+            &[MAX_TALLY_COUNT, 1],
+        );
+
+        // Tally processing cannot represent this sum, whatever the mark bound.
+        assert_eq!(
+            error_codes(&content, Some(2)),
+            vec!["invalid_total_valid_votes"]
+        );
+        assert_eq!(
+            error_codes(&content, Some(1)),
+            vec!["invalid_total_valid_votes"]
+        );
+    }
+
     fn contest_sheet(
         contest_id: &str,
         total_votes: u64,
@@ -753,6 +888,38 @@ mod tests {
             let sheets = [
                 contest_sheet("contest-1", 10, 9, Some(5)),
                 contest_sheet("contest-2", 10, 9, Some(5)),
+            ];
+            let refs: Vec<&_> = sheets.iter().collect();
+
+            let check = validate_ballot_box_blank_ballots(&refs);
+
+            let codes: Vec<_> =
+                check.errors.iter().map(|e| e.code.as_str()).collect();
+            assert_eq!(codes, vec!["blank_ballots_out_of_bounds"]);
+        }
+
+        #[test]
+        fn keeps_the_lower_bound_for_counts_near_the_counter_range() {
+            // n=3, T=MAX, b=[MAX-1; 3]: lower bound is 3(MAX-1) - 2MAX = MAX-3.
+            let sheets = [
+                contest_sheet(
+                    "contest-1",
+                    u64::MAX,
+                    u64::MAX - 1,
+                    Some(u64::MAX - 4),
+                ),
+                contest_sheet(
+                    "contest-2",
+                    u64::MAX,
+                    u64::MAX - 1,
+                    Some(u64::MAX - 4),
+                ),
+                contest_sheet(
+                    "contest-3",
+                    u64::MAX,
+                    u64::MAX - 1,
+                    Some(u64::MAX - 4),
+                ),
             ];
             let refs: Vec<&_> = sheets.iter().collect();
 
