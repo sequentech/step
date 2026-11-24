@@ -954,4 +954,44 @@ mod return_page_tests {
         }))
         .is_err());
     }
+
+    #[test]
+    fn only_exact_authorization_endpoint_and_par_parameters_can_redirect_the_browser(
+    ) {
+        let root = "https://issuer.invalid/realms/tenant-example/protocol/openid-connect/auth";
+        let expected = reqwest::Url::parse(root).unwrap();
+        let client = "private-oidc-client";
+        let valid_pair = "client_id=private-oidc-client&request_uri=urn:ietf:params:oauth:request_uri:safe_opaque.id";
+        let admit = |url: String| {
+            permitted_redirect(
+                &reqwest::Url::parse(&url).unwrap(),
+                &expected,
+                client,
+            )
+        };
+        assert!(admit(format!("{root}?{valid_pair}")));
+        for target in [
+            root.replace("https", "http"),
+            root.replace("issuer.invalid", "other.invalid"),
+            root.replace("issuer.invalid", "name:pass@issuer.invalid"),
+            root.replace("/auth", "/token"),
+        ] {
+            assert!(!admit(format!("{target}?{valid_pair}")));
+        }
+        for params in [
+            String::new(),
+            "client_id=private-oidc-client".into(),
+            "request_uri=urn:ietf:params:oauth:request_uri:safe".into(),
+            "client_id=wrong&request_uri=urn:ietf:params:oauth:request_uri:safe".into(),
+            "client_id=private-oidc-client&request_uri=https://wrong.invalid".into(),
+            "client_id=private-oidc-client&request_uri=urn:ietf:params:oauth:request_uri:".into(),
+            "client_id=private-oidc-client&request_uri=urn:ietf:params:oauth:request_uri:not%2Fopaque".into(),
+            format!("{valid_pair}#fragment"),
+            format!("{valid_pair}&client_id={client}"),
+            format!("{valid_pair}&redirect_uri=https://wrong.invalid"),
+            format!("client_id={client}&request_uri=urn:ietf:params:oauth:request_uri:{}", "s".repeat(257)),
+        ] {
+            assert!(!admit(format!("{root}?{params}")));
+        }
+    }
 }

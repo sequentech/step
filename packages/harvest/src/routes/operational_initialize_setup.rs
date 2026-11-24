@@ -309,4 +309,415 @@ mod tests {
         assert!(fresh_gold("gold", None, now).is_none());
         assert!(fresh_gold("1", Some(t), now).is_none());
     }
+
+    use crate::route_services::{rows, service_tokens, Services};
+    use crate::services::operational_portal_auth::OperationalPortalAuth;
+    use crate::test_claims::Claims;
+    use chrono::Duration as ChronoDuration;
+    use openssl::{
+        asn1::Asn1Time,
+        hash::MessageDigest,
+        pkey::PKey,
+        rsa::Rsa,
+        x509::{X509NameBuilder, X509},
+    };
+    use rocket::{
+        http::{ContentType, Header, Status},
+        local::asynchronous::Client as LocalClient,
+    };
+    use sequent_core::signing::{
+        payload_sha256, RequesterSigning, SigningAction, SigningPayload,
+        SigningPayloadFields, SigningRequirement, SigningRule,
+    };
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    use tokio::net::TcpListener;
+
+    const LABEL: &str = "initialize-fixture-post";
+    const STATUS: &str = "/operational-signing/initialize/setup/status";
+    const START: &str = "/operational-signing/initialize/setup";
+
+    // A real TLS client configuration without persisted private material.
+    // The socket peer deliberately resets, including on redispatch.
+    fn local_identity() -> (Certificate, Identity) {
+        let key = PKey::from_rsa(Rsa::generate(2048).unwrap()).unwrap();
+        let mut name = X509NameBuilder::new().unwrap();
+        name.append_entry_by_text("CN", "synthetic setup client")
+            .unwrap();
+        let name = name.build();
+        let mut x = X509::builder().unwrap();
+        x.set_version(2).unwrap();
+        x.set_subject_name(&name).unwrap();
+        x.set_issuer_name(&name).unwrap();
+        x.set_pubkey(&key).unwrap();
+        let from = Asn1Time::days_from_now(0).unwrap();
+        let until = Asn1Time::days_from_now(1).unwrap();
+        x.set_not_before(&from).unwrap();
+        x.set_not_after(&until).unwrap();
+        x.sign(&key, MessageDigest::sha256()).unwrap();
+        let certificate = x.build().to_pem().unwrap();
+        let mut combined = certificate.clone();
+        combined.extend(key.private_key_to_pem_pkcs8().unwrap());
+        (
+            Certificate::from_pem(&certificate).unwrap(),
+            Identity::from_pem(&combined).unwrap(),
+        )
+    }
+
+    async fn pending_request(
+        pool: &deadpool_postgres::Pool,
+        tenant: Uuid,
+        event: Uuid,
+        post: Uuid,
+        requester: Uuid,
+    ) -> Uuid {
+        let request = Uuid::new_v4();
+        let now = Utc::now();
+        let expires = now + ChronoDuration::hours(1);
+        let subject = json!({"publication_id": Uuid::new_v4()});
+        let rule = SigningRule {
+            action: SigningAction::InitializeVoting,
+            requirement: SigningRequirement::Required,
+            signatures: 2,
+            requester_signing: RequesterSigning::NotAllowed,
+            expires_minutes: Some(60),
+            revision: 1,
+        };
+        // Seed only a pending request, not a real publication or tally effect.
+        let payload = SigningPayload::new(SigningPayloadFields {
+            tenant_id: tenant.to_string(),
+            election_event_id: event.to_string(),
+            request_id: request,
+            action: SigningAction::InitializeVoting,
+            election_id: Some(post.to_string()),
+            area_id: None,
+            subject: subject.clone(),
+            config_revision: None,
+            rule_revision: rule.revision,
+            requested_by: requester.to_string(),
+            created_at: now,
+            expires_at: Some(expires),
+        })
+        .unwrap();
+        let canonical = payload.canonical().unwrap();
+        rows::execute(pool, "INSERT INTO sequent_backend.signing_request
+            (id,tenant_id,election_event_id,action,election_id,scope_key,subject,
+             canonical_payload,payload_sha256,code,rule_revision,rule_snapshot,required,
+             requested_by,requested_by_username,expires_at,created_at,permission_label)
+            VALUES ($1,$2,$3,'initialize-voting',$4,$5,$6,$7,$8,$9,1,$10,2,$11,$11,$12,$13,$14)",
+            &[&request,&tenant,&event,&post,&format!("{post}|||"),&subject,&canonical,
+              &payload_sha256(&canonical),&payload.code(),&serde_json::to_value(&rule).unwrap(),
+              &requester.to_string(),&expires,&now,&LABEL]).await;
+        request
+    }
+
+    struct Portal<'a> {
+        client: &'a LocalClient,
+        tenant: Uuid,
+        issuer: String,
+    }
+
+    impl Portal<'_> {
+        fn claims(
+            &self,
+            official: Uuid,
+            gold: bool,
+            labels: &[&str],
+        ) -> serde_json::Value {
+            let tenant = self.tenant.to_string();
+            let claims = Claims::new(&tenant, &official.to_string())
+                .azp("admin-portal")
+                .roles([Permissions::SIGN_INITIALIZE_VOTING])
+                .permission_labels(labels)
+                .acr(if gold { "gold" } else { "1" })
+                .auth_time(Utc::now().timestamp());
+            let mut value = service_tokens::issued(&claims, &tenant);
+            value["iss"] = json!(self.issuer);
+            value["aud"] = json!("admin-portal");
+            value
+        }
+
+        async fn request(
+            &self,
+            route: &str,
+            body: serde_json::Value,
+            claim: &serde_json::Value,
+        ) -> (Status, serde_json::Value) {
+            let response = self
+                .client
+                .post(route)
+                .header(ContentType::JSON)
+                .header(Header::new(
+                    "Authorization",
+                    service_tokens::RealmSigner::shared().sign_payload(claim),
+                ))
+                .body(body.to_string())
+                .dispatch()
+                .await;
+            let status = response.status();
+            (
+                status,
+                response
+                    .into_json()
+                    .await
+                    .unwrap_or(serde_json::Value::Null),
+            )
+        }
+
+        async fn phase(
+            &self,
+            route: &str,
+            request: Uuid,
+            claim: &serde_json::Value,
+            event: Uuid,
+            official: Uuid,
+            expected: &str,
+        ) {
+            let (status, body) = self
+                .request(route, json!({"request_id": request}), claim)
+                .await;
+            assert_eq!(status, Status::Ok, "{body}");
+            assert_eq!(
+                body,
+                json!({
+                    "scope":{"tenant": self.tenant, "event": event,"request": request,"official": official},
+                    "phase": expected
+                })
+            );
+        }
+    }
+
+    #[rocket::async_test]
+    async fn setup_http_reconciles_only_the_same_unclaimed_attempt() {
+        let services = Services::on_test_database().await;
+        let pool = &services.hasura;
+        let event_row = rows::event(pool).await;
+        let tenant = event_row.tenant_id.parse::<Uuid>().unwrap();
+        let event = event_row.election_event_id.parse::<Uuid>().unwrap();
+        let post = event_row
+            .labelled_election(pool, LABEL)
+            .await
+            .parse::<Uuid>()
+            .unwrap();
+        let other_post = event_row
+            .labelled_election(pool, LABEL)
+            .await
+            .parse::<Uuid>()
+            .unwrap();
+        let official = Uuid::new_v4();
+        let officer = Uuid::new_v4();
+        let outsider = Uuid::new_v4();
+        rows::execute(pool, "INSERT INTO sequent_backend.operational_signing_required_tenant VALUES ($1)", &[&tenant]).await;
+        rows::execute(
+            pool,
+            "INSERT INTO sequent_backend.operational_setup_installation
+            (tenant_id,device_profile) VALUES ($1,'yubihsm')",
+            &[&tenant],
+        )
+        .await;
+        rows::execute(
+            pool,
+            "INSERT INTO sequent_backend.operational_initialize_setup_roster
+            (tenant_id,event_id,official,officer,eligible_until)
+            VALUES ($1,$2,$3,$4,now()+interval '1 hour')",
+            &[&tenant, &event, &official, &officer],
+        )
+        .await;
+        let request = pending_request(pool, tenant, event, post, officer).await;
+        let unrelated =
+            pending_request(pool, tenant, event, other_post, officer).await;
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let origin = format!("https://{}", listener.local_addr().unwrap());
+        let deliveries = Arc::new(AtomicUsize::new(0));
+        let observed = deliveries.clone();
+        let peer = tokio::spawn(async move {
+            while let Ok((socket, _)) = listener.accept().await {
+                observed.fetch_add(1, Ordering::SeqCst);
+                drop(socket);
+            }
+        });
+        let (root, identity) = local_identity();
+        let dispatcher =
+            SetupDispatcher::new(tenant, event, &origin, root, identity)
+                .unwrap();
+        let issuer =
+            format!("https://portal-test.invalid/realms/tenant-{tenant}");
+        let verifier = OperationalPortalAuth::new(
+            tenant,
+            issuer.clone(),
+            "admin-portal".into(),
+            "admin-portal".into(),
+            service_tokens::RealmSigner::shared().jwks(),
+        )
+        .unwrap();
+        let client = LocalClient::tracked(
+            rocket::build()
+                .manage(services.harvest_services())
+                .manage(dispatcher)
+                .manage(verifier)
+                .manage(
+                    crate::routes::operational_initialize::DemoSigningScope {
+                        tenant,
+                        event,
+                        run: Uuid::new_v4(),
+                        profile: "yubihsm",
+                    },
+                )
+                .mount(
+                    "/",
+                    rocket::routes![
+                        status,
+                        start,
+                        crate::routes::operational_initialize::status
+                    ],
+                ),
+        )
+        .await
+        .unwrap();
+        let api = Portal {
+            client: &client,
+            tenant,
+            issuer,
+        };
+        let normal = api.claims(official, false, &[LABEL]);
+        let gold = api.claims(official, true, &[LABEL]);
+        let other = api.claims(outsider, true, &[LABEL]);
+        let wrong_post = api.claims(official, true, &["some-other-post"]);
+        // The common profile cannot install the reserved demo database;
+        // ordinary databases must refuse this route even with a matching
+        // tenant/Post and a genuine independently signed token.
+        let (ordinary, _) = api
+            .request(
+                "/operational-signing/initialize/status",
+                json!({"request_id": request}),
+                &gold,
+            )
+            .await;
+        assert_eq!(ordinary, Status::Forbidden);
+        let mut wrong_audience = gold.clone();
+        wrong_audience["aud"] = json!("some-other-portal");
+        assert_eq!(
+            api.request(START, json!({"request_id":request}), &wrong_audience)
+                .await
+                .0,
+            Status::Unauthorized
+        );
+        assert_eq!(
+            api.request(
+                START,
+                json!({"request_id":request,"official":officer}),
+                &gold
+            )
+            .await
+            .0,
+            Status::UnprocessableEntity
+        );
+        assert_eq!(
+            api.request(START, json!({"request_id":request}), &wrong_post)
+                .await
+                .0,
+            Status::Forbidden
+        );
+        api.phase(STATUS, request, &normal, event, official, "setup-available")
+            .await;
+        let (status, body) = api
+            .request(START, json!({"request_id":request}), &normal)
+            .await;
+        assert_eq!(status, Status::Forbidden);
+        assert_eq!(body["extensions"]["gold_required"], true);
+        assert_eq!(deliveries.load(Ordering::SeqCst), 0);
+
+        api.phase(
+            START,
+            request,
+            &gold,
+            event,
+            official,
+            "setup-retry-available",
+        )
+        .await;
+        assert_eq!(deliveries.load(Ordering::SeqCst), 1);
+        let row = rows::query(
+            pool,
+            "SELECT g.attempt, g.claim_deadline
+            FROM sequent_backend.operational_setup_generation g
+            WHERE g.tenant_id=$1 AND g.official=$2",
+            &[&tenant, &official],
+        )
+        .await;
+        let attempt: Uuid = row[0].get(0);
+        let deadline: DateTime<Utc> = row[0].get(1);
+        api.phase(START, request, &other, event, outsider, "unavailable")
+            .await;
+        api.phase(START, unrelated, &gold, event, official, "unavailable")
+            .await;
+        let mut stale = gold.clone();
+        stale["auth_time"] = json!(Utc::now().timestamp() - 61);
+        assert_eq!(
+            api.request(START, json!({"request_id":request}), &stale)
+                .await
+                .0,
+            Status::Forbidden
+        );
+        assert_eq!(deliveries.load(Ordering::SeqCst), 1);
+        api.phase(
+            START,
+            request,
+            &gold,
+            event,
+            official,
+            "setup-retry-available",
+        )
+        .await;
+        assert_eq!(deliveries.load(Ordering::SeqCst), 2);
+        let row = rows::query(
+            pool,
+            "SELECT g.attempt, g.claim_deadline
+            FROM sequent_backend.operational_setup_generation g
+            WHERE g.tenant_id=$1 AND g.official=$2",
+            &[&tenant, &official],
+        )
+        .await;
+        assert_eq!(row.len(), 1);
+        assert_eq!(row[0].get::<_, Uuid>(0), attempt);
+        assert_eq!(row[0].get::<_, DateTime<Utc>>(1), deadline);
+
+        // Device CAS is granted to a dedicated login in the real runtime.
+        // Call the same DB function once to simulate a claimed invocation;
+        // HTTP work must not redeliver it or convert it into an approval.
+        let claimed = rows::query(pool,"SELECT fence FROM sequent_backend.operational_initialize_claim_self_setup($1,$2,$3,$4)",
+            &[&tenant,&event,&official,&attempt]).await;
+        assert_eq!(claimed.len(), 1);
+        api.phase(START, request, &gold, event, official, "setup-pending")
+            .await;
+        assert_eq!(deliveries.load(Ordering::SeqCst), 2);
+        let rows = rows::query(pool,"SELECT count(*) FROM sequent_backend.signing_approval WHERE request_id=$1", &[&request]).await;
+        assert_eq!(rows[0].get::<_, i64>(0), 0);
+        peer.abort();
+    }
+
+    #[test]
+    fn private_dispatcher_rejects_unsafe_origins_without_a_fallback() {
+        let tenant = Uuid::new_v4();
+        let event = Uuid::new_v4();
+        for (tenant, event, origin) in [
+            (Uuid::nil(), event, "https://127.0.0.1:20443"),
+            (tenant, Uuid::nil(), "https://127.0.0.1:20443"),
+            (tenant, event, "http://127.0.0.1:20443"),
+            (tenant, event, "https://user:password@127.0.0.1:20443"),
+            (tenant, event, "https://127.0.0.1:20443/?elsewhere=1"),
+            (tenant, event, "https://127.0.0.1:20443/#elsewhere"),
+            (tenant, event, "https://127.0.0.1:20443/a"),
+            (tenant, event, "not a URL"),
+        ] {
+            let (root, identity) = local_identity();
+            assert!(SetupDispatcher::new(
+                tenant, event, origin, root, identity
+            )
+            .is_none());
+        }
+    }
 }

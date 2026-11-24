@@ -135,3 +135,42 @@ authoritative assessment reads `last_ok_at` and expires at the authenticated
 when a public distribution point is needed. It serves only
 `http://127.0.0.1:18889/disposable-officials.crl` and cannot serve CA state,
 keys or paths. It does not write the cache or widen hosted CRL networking.
+
+## Keep ordinary and demo coverage separate
+
+The paired Harvest package ratchet keeps `operational-signing-private-ca-candidate`
+on the base and head: it exercises the shared route and trust decisions without
+selecting the installer-only executable. The older base has no demo feature.
+The two executable/composition files are unmeasured only in that paired cohort,
+not excluded from a feature run. From `packages` on the feature head, run:
+
+```sh
+cargo test --locked -p harvest --features operational-signing-demo-fixture \
+  --lib operational_demo_composition::tests
+cargo test --locked -p harvest --features operational-signing-demo-fixture \
+  --test operational_demo_binary
+```
+
+To collect source counters for this cohort, use the same selectors with
+`cargo llvm-cov` rather than `cargo test`. These checks exercise the dedicated
+mount and command refusal; they do not boot device, worker, or login state.
+
+Windmill's paired `operational-signing-candidate` report likewise cannot
+compile the separate demo executable on both revisions. The common receipt,
+quorum, and canonical request integration remain measured there. Exercise
+the separate feature unit tests and worker launcher guard as follows:
+
+```sh
+cargo test --locked -p windmill --features operational-signing-demo-fixture \
+  --lib operational_demo_worker::tests
+cargo build --locked -p windmill --features operational-signing-demo-fixture \
+  --bin windmill-operational-demo
+# Must refuse without the installer-owned launcher/environment.
+env -i ./rust-local-target/debug/windmill-operational-demo
+```
+
+Run `scripts/postgres/demo_signing_installation/test-canonical-reload.sh`
+from the repository root for the exact persisted request/profile test in
+its socket-only database. These fixtures test configured boundaries;
+they do not establish a hosted two-person quorum or eventual worker
+effect.

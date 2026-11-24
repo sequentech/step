@@ -281,3 +281,120 @@ async fn exact_body<T: DeserializeOwned>(
     }
     serde_json::from_slice(&data).map_err(|_| incomplete())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    async fn reply(
+        status: &str,
+        body: &[u8],
+        declared_length: Option<usize>,
+    ) -> Response {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let message = format!(
+            "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            declared_length.unwrap_or(body.len()),
+        );
+        let body = body.to_vec();
+        let peer = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut head = Vec::new();
+            while !head.ends_with(b"\r\n\r\n") && head.len() < 8192 {
+                let mut byte = [0];
+                if stream.read(&mut byte).await.unwrap() == 0 {
+                    break;
+                }
+                head.push(byte[0]);
+            }
+            assert!(head.starts_with(b"GET /reply HTTP/1.1\r\n"));
+            stream.write_all(message.as_bytes()).await.unwrap();
+            stream.write_all(&body).await.unwrap();
+            stream.shutdown().await.unwrap();
+        });
+        // Only the response decoder, not private transport/auth policy, is
+        // under test. No broker credentials are sent to this HTTP stand-in.
+        let response = Client::builder()
+            .no_proxy()
+            .timeout(Duration::from_secs(2))
+            .build()
+            .unwrap()
+            .get(format!("http://{address}/reply"))
+            .send()
+            .await
+            .unwrap();
+        peer.await.unwrap();
+        response
+    }
+
+    #[tokio::test]
+    async fn unknown_or_incomplete_post_device_reply_never_authorizes_a_retry()
+    {
+        let bytes = br#"{"eligible":true}"#;
+        let result = exact_body::<serde_json::Value>(
+            reply("200 OK", bytes, None).await,
+            false,
+        )
+        .await;
+        assert!(matches!(result, Ok(ref value) if value["eligible"] == true));
+
+        for status in ["401 Unauthorized", "403 Forbidden", "404 Not Found"] {
+            let response = reply(status, b"", None).await;
+            assert!(matches!(
+                exact_body::<serde_json::Value>(response, false).await,
+                Err(BrokerFailure::Refused)
+            ));
+        }
+        for (status, body, declared_length) in [
+            ("503 Service Unavailable", b"".as_slice(), None),
+            ("200 OK", b"{}".as_slice(), Some(16)),
+            ("200 OK", b"not-json".as_slice(), None),
+        ] {
+            for may_have_signed in [false, true] {
+                let response = reply(status, body, declared_length).await;
+                let result =
+                    exact_body::<serde_json::Value>(response, may_have_signed)
+                        .await;
+                assert!(match may_have_signed {
+                    true => matches!(result, Err(BrokerFailure::Reconcile)),
+                    false => matches!(result, Err(BrokerFailure::Unavailable)),
+                });
+            }
+        }
+        let oversized = vec![b' '; MAX_REPLY + 1];
+        assert!(matches!(
+            exact_body::<serde_json::Value>(
+                reply("200 OK", &oversized, None).await,
+                true
+            )
+            .await,
+            Err(BrokerFailure::Reconcile)
+        ));
+        let may_have_signed = reply("403 Forbidden", b"", None).await;
+        assert!(matches!(
+            exact_body::<serde_json::Value>(may_have_signed, true).await,
+            Err(BrokerFailure::Reconcile)
+        ));
+    }
+
+    #[test]
+    fn broker_return_is_parsed_only_with_bounded_authority() {
+        assert!(fixed_par(&"x".repeat(2049)).is_err());
+        assert!(fixed_par("bad input").is_err());
+        assert!(fixed_par("https://valid.invalid/realms/tenant").is_ok());
+        for url in [
+            "http://valid.invalid/",
+            "https://a:b@valid.invalid/",
+            "https://valid.invalid/?to=elsewhere",
+            "https://valid.invalid/#elsewhere",
+            "file:///tmp/not-an-endpoint",
+            "not a URL",
+        ] {
+            assert!(fixed_https(url).is_err(), "{url}");
+        }
+        assert!(fixed_https("https://valid.invalid/realms/tenant").is_ok());
+    }
+}
