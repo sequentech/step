@@ -68,16 +68,18 @@ pub enum Section {
     RolePermissions,
     AdminAccounts,
     Trustees,
+    MessagingAccounts,
     ElectionEvent,
 }
 
 impl Section {
-    pub const APPLY_ORDER: [Section; 6] = [
+    pub const APPLY_ORDER: [Section; 7] = [
         Section::TenantConfiguration,
         Section::TenantSettings,
         Section::RolePermissions,
         Section::AdminAccounts,
         Section::Trustees,
+        Section::MessagingAccounts,
         Section::ElectionEvent,
     ];
 }
@@ -236,6 +238,8 @@ fn portal_disposition(path: &str) -> Disposition {
         Disposition::Applied(Section::AdminAccounts)
     } else if path == TRUSTEES_MEMBER {
         Disposition::Applied(Section::Trustees)
+    } else if path == super::portable_messaging::MEMBER {
+        Disposition::Applied(Section::MessagingAccounts)
     } else if path.starts_with(PERMISSIONS_PREFIX) && path.ends_with(".csv") {
         Disposition::Applied(Section::RolePermissions)
     } else if path.starts_with(TENANT_CONFIGURATION_PREFIX)

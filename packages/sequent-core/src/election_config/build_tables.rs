@@ -873,13 +873,15 @@ impl Builder<'_> {
         let columns: Vec<String> = sheet
             .headers
             .iter()
-            .filter(|header| !header.is_empty())
+            .filter(|header| {
+                !header.is_empty()
+                    && !crate::election_config::demo_credentials::credential_column(header)
+            })
             .cloned()
             .collect();
         self.check_csv_headers(&columns, "Admin Users");
 
         let mut rows: Vec<Vec<String>> = Vec::new();
-        let mut warned_password = false;
 
         for row in &sheet.rows {
             if row.get("username").is_none() {
@@ -890,15 +892,6 @@ impl Builder<'_> {
                 );
                 continue;
             }
-            if row.get("password").is_some() && !warned_password {
-                warned_password = true;
-                self.warn(
-                    "admin_users",
-                    "Admin Users carries clear-text passwords; the emitted \
-                     admin_users CSV is a secret, not a deliverable",
-                );
-            }
-
             rows.push(
                 columns
                     .iter()

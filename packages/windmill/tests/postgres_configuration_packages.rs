@@ -625,6 +625,46 @@ async fn document(tx: &Transaction<'_>, tenant: &str, event: Option<&str>, name:
 }
 
 #[tokio::test]
+async fn private_configuration_staging_is_withheld_without_affecting_ordinary_documents() {
+    use windmill::postgres::document::get_document;
+    use windmill::services::documents::{get_document_url, ordinary_document_url_allowed};
+
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let tenant_id = tenant(&tx, "optional").await;
+    let other_tenant = tenant(&tx, "optional").await;
+    let staged = document(&tx, &tenant_id, None, "delivery.zip").await;
+    let ordinary = document(&tx, &tenant_id, None, "delivery.zip").await;
+    tx.execute(
+        "INSERT INTO sequent_backend.configuration_package_staging (tenant_id, document_id)
+         VALUES ($1, $2)",
+        &[
+            &Uuid::parse_str(&tenant_id).unwrap(),
+            &Uuid::parse_str(&staged).unwrap(),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let ordinary = get_document(&tx, &tenant_id, None, &ordinary)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(ordinary_document_url_allowed(&tx, &tenant_id, &ordinary)
+        .await
+        .unwrap());
+    // No S3 client is contacted for the protected row.
+    assert!(get_document_url(&tx, &tenant_id, None, &staged)
+        .await
+        .unwrap()
+        .is_none());
+    assert!(get_document_url(&tx, &other_tenant, None, &staged)
+        .await
+        .unwrap()
+        .is_none());
+}
+
+#[tokio::test]
 async fn an_imported_candidate_image_is_found_among_the_tenants_documents() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
@@ -969,10 +1009,13 @@ async fn managed_section_readmits_its_sealed_package_but_stops_after_replay_or_r
                 .unwrap(),
                 package_sha256,
                 signed_package: Some(bytes),
+                protected_document_id: None,
                 managed_roster_binding: Some(binding),
                 managed_preview_operator_binding: None,
                 package_groups: Default::default(),
                 package_trustees: Default::default(),
+                demo_login: None,
+                package_messaging: None,
                 verified: Some(Arc::new(*verified)),
             },
             event_imported_by_this_run: AtomicBool::new(false),

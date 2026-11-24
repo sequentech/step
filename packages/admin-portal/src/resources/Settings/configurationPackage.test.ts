@@ -5,6 +5,7 @@
 import {
     COMPLETE_DELIVERY,
     PACKAGE_PERMISSIONS,
+    PACKAGE_SECTIONS,
     changeLines,
     isFinished,
     lastLogLine,
@@ -134,7 +135,8 @@ describe("records as the platform serializes them", () => {
     it("reads every outcome", () => {
         for (const name of ["applied", "previewed", "refused", "failed", "unknown", "submitting"]) {
             expect(read(name).outcome).toBe(name === "submitting" ? "running" : name)
-            expect(read(name).sections).toHaveLength(6)
+            expect(read(name).sections).toHaveLength(7)
+            expect(states(name)).toContainEqual(["messaging-accounts", "not-included", undefined])
         }
     })
 
@@ -146,15 +148,24 @@ describe("records as the platform serializes them", () => {
                 "role-permissions",
                 "admin-accounts",
                 "trustees",
+                "messaging-accounts",
                 "election-event",
-            ].map((section) => [section, "applied", expect.stringMatching(/^task-/)])
+            ].map((section) =>
+                section === "messaging-accounts"
+                    ? [section, "not-included", undefined]
+                    : [section, "applied", expect.stringMatching(/^task-/)]
+            )
         )
         expect(read("applied").sections[0].submissions).toEqual(["task-TenantConfiguration"])
     })
 
     it("takes the task_id inside a failed, unknown or submitting status", () => {
         expect(states("failed")[3]).toEqual(["admin-accounts", "failed", "task-AdminAccounts"])
-        expect(states("unknown")[5]).toEqual(["election-event", "unknown", "task-ElectionEvent"])
+        expect(states("unknown")).toContainEqual([
+            "election-event",
+            "unknown",
+            "task-ElectionEvent",
+        ])
         expect(read("submitting").sections.find((s) => s.state === "submitting")?.taskId).toBe(
             "task-TenantConfiguration"
         )
@@ -163,7 +174,11 @@ describe("records as the platform serializes them", () => {
     it("reads a refusal's blocker and keeps a previewed run applicable", () => {
         expect(read("refused").blockers).toEqual(["role-permissions: unknown role"])
         expect(read("previewed").blockers).toEqual([])
-        expect(read("previewed").sections.every((s) => s.preview?.needsApply)).toBe(true)
+        expect(
+            read("previewed")
+                .sections.filter((s) => s.section !== "messaging-accounts")
+                .every((s) => s.preview?.needsApply)
+        ).toBe(true)
     })
 
     it("reads nested members with their container and disposition", () => {
@@ -295,5 +310,38 @@ describe("platform text", () => {
         expect(safeText(`bad secret ${"Ab9".repeat(20)} here`)).toBe("bad secret [redacted] here")
         expect(safeText("x ".repeat(400)).length).toBeLessThanOrEqual(301)
         expect(safeText("import failed")).toBe("import failed")
+    })
+})
+
+describe("portable messaging preview", () => {
+    it("recognizes the messaging section without requiring it for legacy deliveries", () => {
+        expect(PACKAGE_SECTIONS).toContain("messaging-accounts")
+        expect(COMPLETE_DELIVERY.sections).not.toContain("messaging-accounts")
+    })
+
+    it("shows portable account actions and omits unrelated payload fields", () => {
+        expect(
+            changeLines([
+                {
+                    reference: "package:ses",
+                    action: "create",
+                    channel: "EMAIL",
+                    provider: "AWS_SES",
+                    secret: "not-for-display",
+                },
+                {reference: "package:sns", action: "reuse", channel: "SMS", provider: "AWS_SNS"},
+            ])
+        ).toEqual(["package:ses · create · EMAIL · AWS_SES", "package:sns · reuse · SMS · AWS_SNS"])
+    })
+
+    it("distinguishes a linked account from an enabled OTP or notice", () => {
+        expect(
+            changeLines({
+                pendingMessaging: [
+                    {channel: "EMAIL", purposes: ["OTP", "NOTICE", "INTERNAL"]},
+                    {channel: "SMS", purposes: []},
+                ],
+            })
+        ).toEqual(["EMAIL: OTP, NOTICE disabled pending provider verification"])
     })
 })

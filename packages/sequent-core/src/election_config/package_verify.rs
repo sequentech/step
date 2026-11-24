@@ -158,9 +158,7 @@ impl PackageTrust {
     }
 }
 
-/// The tenant setting that holds an installation's trust in configuration
-/// packages, under [`CONFIGURATION_SIGNING_SETTING`].
-pub const CONFIGURATION_SIGNING_SETTING: &str = "configuration_signing";
+pub use super::tenant_package::CONFIGURATION_SIGNING_SETTING;
 
 /// Whether an installation imports configurations that aren't signed.
 #[derive(

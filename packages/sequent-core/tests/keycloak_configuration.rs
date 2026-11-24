@@ -1287,3 +1287,119 @@ async fn request_guard_diagnostics_never_log_authorization_headers_or_client_sec
         );
     }
 }
+
+#[cfg(feature = "election_config_signing")]
+#[rocket::async_test]
+async fn workbook_verifier_only_creates_the_named_role_without_a_password_reset(
+) {
+    use sequent_core::election_config::demo_credentials::{
+        DemoLoginVerifier, DEMO_LOGIN_ITERATIONS,
+    };
+    const RETURN_CANARY: &str = "sensitive-field-from-a-synthetic-error";
+    let users = "/admin/realms/tenant-north/users";
+    let peer = HttpServer::start(vec![
+        Exchange::json("POST", ADMIN_TOKEN_PATH, 200, http::token_json()),
+        Exchange::json("POST", users, 201, Value::Null),
+        Exchange::json("POST", ADMIN_TOKEN_PATH, 200, http::token_json()),
+        Exchange::json("POST", users, 409, json!({"error": RETURN_CANARY})),
+        Exchange::json(
+            "POST",
+            ADMIN_TOKEN_PATH,
+            401,
+            json!({"error": RETURN_CANARY}),
+        ),
+    ]);
+    let _environment = admin_environment(&peer.url);
+    let user = serde_json::from_value(json!({
+        "username": "sbei-north-1", "id": "incoming-id-must-not-travel"
+    }))
+    .unwrap();
+    let mut proof = DemoLoginVerifier {
+        username: "sbei-north-1".into(),
+        email: None,
+        group_name: "sbei".into(),
+        trustee: None,
+        iterations: DEMO_LOGIN_ITERATIONS,
+        salt: "c3ludGhldGljLXNhbHQ=".into(),
+        verifier: "c3ludGhldGljLXZlcmlmaWVy".into(),
+    };
+    let client = peer.client();
+    assert!(client
+        .create_user_with_demo_password_verifier(
+            "tenant-north",
+            &user,
+            "other-role",
+            &proof
+        )
+        .await
+        .is_err());
+    proof.username = "different-user".into();
+    assert!(client
+        .create_user_with_demo_password_verifier(
+            "tenant-north",
+            &user,
+            "sbei",
+            &proof
+        )
+        .await
+        .is_err());
+    proof.username = "sbei-north-1".into();
+    client
+        .create_user_with_demo_password_verifier(
+            "tenant-north",
+            &user,
+            "sbei",
+            &proof,
+        )
+        .await
+        .unwrap();
+    let exists = client
+        .create_user_with_demo_password_verifier(
+            "tenant-north",
+            &user,
+            "sbei",
+            &proof,
+        )
+        .await
+        .unwrap_err();
+    assert!(exists.to_string().contains("did not create"));
+    assert!(!format!("{exists:#}").contains(RETURN_CANARY));
+    let denied = client
+        .create_user_with_demo_password_verifier(
+            "tenant-north",
+            &user,
+            "sbei",
+            &proof,
+        )
+        .await
+        .unwrap_err();
+    assert!(denied
+        .to_string()
+        .contains("could not open target identity store"));
+    assert!(!format!("{denied:#}").contains(RETURN_CANARY));
+    let requests = peer.finish();
+    assert_eq!(requests.len(), 5);
+    assert!(requests.iter().all(|request| request.method == "POST"));
+    let wire = requests[1].json();
+    assert!(wire["id"].is_null());
+    assert_eq!(wire["groups"], json!(["/sbei"]));
+    assert_eq!(wire["username"], "sbei-north-1");
+    let credentials = wire["credentials"].as_array().unwrap();
+    assert_eq!(credentials.len(), 1);
+    let password = &credentials[0];
+    assert_eq!(password["type"], "password");
+    assert!(
+        password["value"].is_null(),
+        "never POST a plaintext password"
+    );
+    let data: Value =
+        serde_json::from_str(password["credentialData"].as_str().unwrap())
+            .unwrap();
+    assert_eq!(data["algorithm"], "pbkdf2-sha256");
+    assert_eq!(data["hashIterations"], DEMO_LOGIN_ITERATIONS);
+    let verifier: Value =
+        serde_json::from_str(password["secretData"].as_str().unwrap()).unwrap();
+    assert_eq!(verifier["salt"], proof.salt);
+    assert_eq!(verifier["value"], proof.verifier);
+    assert_eq!(requests[3].json(), wire);
+}

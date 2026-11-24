@@ -11,12 +11,14 @@ export const APPLY_CONFIGURATION_PACKAGE = gql`
         $documentId: String!
         $mode: String!
         $requirements: jsonb
+        $encryptedPayloadSha256: String
     ) {
         apply_configuration_package(
             tenant_id: $tenantId
             document_id: $documentId
             mode: $mode
             requirements: $requirements
+            encrypted_payload_sha256: $encryptedPayloadSha256
         ) {
             task_execution {
                 id
@@ -27,13 +29,14 @@ export const APPLY_CONFIGURATION_PACKAGE = gql`
     }
 `
 
-/** A managed receiver binds Apply to the exact successful Preview task. Legacy
- * and site-pinned receivers still use the original operation. */
+/** Apply with the exact successful Preview task: required by a managed
+ * roster or portable messaging. Ordinary legacy deliveries keep the original operation. */
 export const APPLY_MANAGED_CONFIGURATION_PACKAGE = gql`
     mutation ApplyManagedConfigurationPackage(
         $tenantId: String!
         $documentId: String!
         $requirements: jsonb
+        $encryptedPayloadSha256: String
         $previewTaskId: uuid!
     ) {
         apply_configuration_package(
@@ -41,6 +44,7 @@ export const APPLY_MANAGED_CONFIGURATION_PACKAGE = gql`
             document_id: $documentId
             mode: "apply"
             requirements: $requirements
+            encrypted_payload_sha256: $encryptedPayloadSha256
             preview_task_id: $previewTaskId
         ) {
             task_execution {

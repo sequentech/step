@@ -569,6 +569,61 @@ impl KeycloakAdminClient {
         self.get_user(realm, &user_id).await
     }
 
+    /// Only POST; do not change an account that already exists.
+    #[cfg(feature = "election_config_signing")]
+    pub async fn create_user_with_demo_password_verifier(
+        &self,
+        realm: &str,
+        user: &User,
+        group: &str,
+        proof: &crate::election_config::demo_credentials::DemoLoginVerifier,
+    ) -> Result<()> {
+        validate_keycloak_path_segment(realm)?;
+        if !matches!(group, "trustee" | "sbei")
+            || user.username.as_deref() != Some(proof.username.as_str())
+        {
+            return Err(anyhow!("invalid demo identity create request"));
+        }
+        let mut rep: UserRepresentation = user.clone().into();
+        rep.id = None;
+        rep.groups = Some(vec![format!("/{group}")]);
+        rep.credentials=Some(vec![CredentialRepresentation {
+            type_:Some("password".to_owned()),
+            credential_data:Some(serde_json::json!({"algorithm":"pbkdf2-sha256","hashIterations":proof.iterations,"additionalParameters":{}}).to_string()),
+            secret_data:Some(serde_json::json!({"value":proof.verifier,"salt":proof.salt,"additionalParameters":{}}).to_string()),
+            ..Default::default()
+        }]);
+        let admin = Self::pub_new()
+            .await
+            .map_err(|_| anyhow!("could not open target identity store"))?;
+        let mut endpoint =
+            reqwest::Url::parse(&format!("{}/admin/realms/", admin.url))
+                .map_err(|_| anyhow!("invalid identity store URL"))?;
+        endpoint
+            .path_segments_mut()
+            .map_err(|_| anyhow!("invalid identity store URL"))?
+            .pop_if_empty()
+            .extend([realm, "users"]);
+        let token =
+            admin.token_supplier.get(&admin.url).await.map_err(|_| {
+                anyhow!("could not authorize identity store request")
+            })?;
+        let result = admin
+            .client
+            .post(endpoint)
+            .bearer_auth(token)
+            .json(&rep)
+            .send()
+            .await
+            .map_err(|_| anyhow!("identity store create request failed"))?;
+        if result.status() != reqwest::StatusCode::CREATED {
+            return Err(anyhow!(
+                "target identity store did not create the demo account"
+            ));
+        }
+        Ok(())
+    }
+
     #[instrument(skip(self), err)]
     pub async fn get_user_profile_attributes(
         self: &KeycloakAdminClient,

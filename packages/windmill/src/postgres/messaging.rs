@@ -157,7 +157,7 @@ pub const IDENTITY_CHANGED_REASON: &str =
     "The account's sending identity changed: it is checked again";
 
 impl AccountSettings {
-    fn validate(&self) -> Result<()> {
+    pub(crate) fn validate(&self) -> Result<()> {
         let provider = self.sender.provider();
         if provider.support() == ProviderSupport::UNSUPPORTED {
             return Err(anyhow!(MessageReason::UNSUPPORTED_PROVIDER.as_str()));
@@ -206,8 +206,17 @@ pub async fn insert_messaging_account(
     settings: &AccountSettings,
     webhook_key: &str,
 ) -> Result<MessagingAccount> {
+    insert_messaging_account_with_id(tx, tenant_id, Uuid::new_v4(), settings, webhook_key).await
+}
+
+pub(crate) async fn insert_messaging_account_with_id(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    id: Uuid,
+    settings: &AccountSettings,
+    webhook_key: &str,
+) -> Result<MessagingAccount> {
     settings.validate()?;
-    let id = Uuid::new_v4();
     if settings.is_default {
         clear_other_defaults(tx, tenant_id, settings.channel, &id).await?;
     }
