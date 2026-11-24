@@ -258,7 +258,8 @@ pub async fn insert_cast_vote(
                     ErrorCode::InternalServerError,
                 )
             }
-            CastVoteError::PokValidationFailed(_) => {
+            CastVoteError::PokValidationFailed(_)
+            | CastVoteError::BallotStyleMismatch(_) => {
                 ErrorResponse::new(
                     Status::BadRequest,
                     ErrorCode::PokValidationFailed.to_string().as_str(),
