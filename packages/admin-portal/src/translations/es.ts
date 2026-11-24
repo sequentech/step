@@ -219,6 +219,10 @@ const spanishTranslation: TranslationType = {
             applyRechecks:
                 "Aplicar vuelve a previsualizar el paquete en la plataforma antes de cambiar nada, y se detiene ante cualquier bloqueo.",
             earlierApplied: "Aplicado por una ejecución anterior",
+            previouslyApplied:
+                "La tarea {{taskId}} ya aplicó este paquete al evento electoral {{electionEventId}}. Esta solicitud no hizo cambios.",
+            previouslyAppliedReplay:
+                "La tarea {{taskId}} ya aplicó este paquete al evento electoral {{electionEventId}}. Esta revisión firmada solo se puede importar una vez.",
             earlierTasks: "Tareas iniciadas para esta sección: {{tasks}}",
             inFlight: "Hay un envío sin resolver (tarea {{taskId}})",
             stoppedWithoutRecord:
