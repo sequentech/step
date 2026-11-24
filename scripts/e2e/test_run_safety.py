@@ -74,6 +74,14 @@ if "build" in args and mode == "image-failure":
     sys.exit(17)
 if "up" in args and mode == "partial-start":
     sys.exit(19)
+if args[-2:] == ["driver", "bootstrap"]:
+    if mode in ("bootstrap-retry", "bootstrap-retry-failure"):
+        first_bootstrap = Path(os.environ["FAKE_START_MARKER"])
+        if not first_bootstrap.exists():
+            first_bootstrap.touch()
+            sys.exit(3)
+    if mode in ("bootstrap-failure", "bootstrap-retry-failure"):
+        sys.exit(41)
 if args[-2:] == ["driver", "test"] and mode == "journeys-failure":
     sys.exit(7)
 """
@@ -145,6 +153,52 @@ class RunSafety(unittest.TestCase):
 
     def compose_calls(self, verb):
         return [args for args in self.calls() if args[0] == "compose" and verb in args]
+
+    def assert_staged_starts(self, project):
+        starts = self.compose_calls("up")
+        wait = ["--detach", "--wait", "--wait-timeout", "900"]
+        core = [
+            "devcontainer",
+            "postgres",
+            "postgres-keycloak",
+            "postgres-b4v6",
+            "minio",
+            "configure-minio",
+            "task-queues-setup",
+            "data-connector-agent",
+            "graphql-engine",
+            "keycloak",
+            "harvest",
+            "messaging-webhooks",
+            "windmill",
+            "beat",
+            "b4v6",
+            "localstack",
+            "configure-localstack",
+        ]
+        self.assertEqual(
+            [call[call.index("up") :] for call in starts],
+            [
+                ["up", *wait, *core],
+                ["up", "--no-deps", *wait, "trustee1", "trustee2"],
+            ],
+        )
+        for call in starts:
+            self.assertEqual(call[call.index("--project-name") + 1], project)
+        return starts
+
+    def startup_commands(self, project):
+        commands = []
+        for call in self.calls():
+            if call[0] != "compose":
+                continue
+            self.assertEqual(call[call.index("--project-name") + 1], project)
+            index = 1
+            while call[index] in ("--project-name", "--env-file", "--profile", "-f"):
+                index += 2
+            if call[index] not in ("ps", "logs", "down"):
+                commands.append(call[index:])
+        return commands
 
     def run_browser_script(self, **environment):
         script = self.root / "scripts/e2e/run-browser-trustees.sh"
@@ -254,6 +308,47 @@ class RunSafety(unittest.TestCase):
         self.assertIn("STEP_E2E_COMPOSE_OVERLAY", result.stderr)
         self.assertEqual(self.calls(), [])
 
+    def test_trustees_start_only_after_successful_driver_bootstrap(self):
+        wait = ["--detach", "--wait", "--wait-timeout"]
+        initial_up = ["up", *wait, "900"]
+        trustees = ["up", "--no-deps", *wait, "900", "trustee1", "trustee2"]
+        driver = ["run", "--rm", "--no-deps", "driver"]
+        bootstrap = [*driver, "bootstrap"]
+        journeys = [*driver, "test"]
+        retry = [
+            ["restart", "graphql-engine"],
+            ["up", *wait, "300", "graphql-engine"],
+            bootstrap,
+        ]
+        for mode, options, status, after_bootstrap in (
+            ("success", (), 0, [trustees, journeys]),
+            ("success", ("--bootstrap-only",), 0, [trustees]),
+            ("bootstrap-retry", (), 0, [*retry, trustees, journeys]),
+            ("bootstrap-failure", (), 41, []),
+            ("bootstrap-retry-failure", (), 41, retry),
+        ):
+            with self.subTest(mode=mode, options=options):
+                self.log.unlink(missing_ok=True)
+                output = self.root / mode
+                result = self.run_script(
+                    "--skip-images",
+                    "--skip-build",
+                    *options,
+                    FAKE_DOCKER_MODE=mode,
+                    FAKE_START_MARKER=str(output / "first-bootstrap"),
+                    STEP_E2E_OUTPUT_DIR=str(output),
+                )
+                self.assertEqual(result.returncode, status, result.stderr)
+                project = (output / ".compose-started").read_text().strip()
+                first, *later = self.startup_commands(project)
+                self.assertEqual(first[: len(initial_up)], initial_up)
+                services = first[len(initial_up) :]
+                self.assertIn("graphql-engine", services)
+                self.assertFalse(any(arg.startswith("-") for arg in services), services)
+                self.assertNotIn("trustee1", services)
+                self.assertNotIn("trustee2", services)
+                self.assertEqual(later, [bootstrap, *after_bootstrap])
+
     def test_build_cache_overlay_imports_scopes_and_exports_one(self):
         output = self.root / "out"
         result = self.run_script(
@@ -270,7 +365,9 @@ class RunSafety(unittest.TestCase):
         files = [build[i + 1] for i, arg in enumerate(build) if arg == "-f"]
         self.assertEqual(files[-1], str(output / "build-cache.yml"))
         overlay = (output / "build-cache.yml").read_text()
-        self.assertIn("type=registry,ref=ghcr.io/owner/cache:keycloak-feat-x\n", overlay)
+        self.assertIn(
+            "type=registry,ref=ghcr.io/owner/cache:keycloak-feat-x\n", overlay
+        )
         self.assertIn("type=registry,ref=ghcr.io/owner/cache:minio-ovcs\n", overlay)
         self.assertIn(
             "type=registry,ref=ghcr.io/owner/cache:minio-release-1.2,mode=max,ignore-error=true",
@@ -319,11 +416,10 @@ class RunSafety(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(len(self.compose_calls("up")), 1)
         self.assertEqual(self.compose_calls("down"), [])
-        driver = [call for call in self.compose_calls("run") if "test" in call]
-        self.assertEqual(len(driver), 1)
-        self.assertEqual(driver[0][-3:], ["test", "-k", "cast vote"])
+        (driver,) = [call for call in self.compose_calls("run") if "test" in call]
+        self.assert_staged_starts(driver[driver.index("--project-name") + 1])
+        self.assertEqual(driver[-3:], ["test", "-k", "cast vote"])
 
     def test_relative_run_directories_are_resolved_against_the_callers_directory(self):
         caller = self.root / "caller"
@@ -498,20 +594,19 @@ class RunSafety(unittest.TestCase):
     def test_default_runs_have_distinct_projects_logs_and_cleanup_only_after_start(
         self,
     ):
+        projects = set()
         for _ in range(2):
+            self.log.unlink(missing_ok=True)
             result = self.run_script("--skip-images", "--skip-build")
             self.assertEqual(result.returncode, 0, result.stderr)
-        starts, stops = self.compose_calls("up"), self.compose_calls("down")
-        self.assertEqual(len(starts), 2)
-        self.assertEqual(len(stops), 2)
-        projects = [args[args.index("--project-name") + 1] for args in starts]
-        self.assertEqual(len(set(projects)), 2)
-        self.assertEqual(
-            projects, [args[args.index("--project-name") + 1] for args in stops]
-        )
-        all_calls = self.calls()
-        for start, stop, project in zip(starts, stops, projects):
-            self.assertLess(all_calls.index(start), all_calls.index(stop))
+            (down,) = self.compose_calls("down")
+            project = down[down.index("--project-name") + 1]
+            _, trustees = self.assert_staged_starts(project)
+            calls = self.calls()
+            self.assertLess(calls.index(trustees), calls.index(down))
+            projects.add(project)
+        self.assertEqual(len(projects), 2)
+        for project in projects:
             self.assertTrue(
                 (self.root / ".cache/backend-e2e" / project / "compose.env").is_file()
             )
@@ -600,8 +695,15 @@ class RunSafety(unittest.TestCase):
             release.touch()
             stdout, stderr = process.communicate(timeout=10)
         self.assertEqual(process.returncode, 0, stdout + stderr)
-        self.assertEqual(len(self.compose_calls("up")), 1)
-        self.assertEqual(len(self.compose_calls("down")), 1)
+        starts = self.assert_staged_starts(project)
+        (down,) = self.compose_calls("down")
+        self.assertEqual(down[down.index("--project-name") + 1], project)
+        owner_env = str(self.root / ".cache/backend-e2e" / project / "compose.env")
+        for call in [*starts, down]:
+            env_files = [
+                call[i + 1] for i, arg in enumerate(call) if arg == "--env-file"
+            ]
+            self.assertEqual(env_files[-1], owner_env)
         # Completion releases the lock, including after ordinary owned cleanup.
         result = self.run_script(
             "--skip-images", "--skip-build", STEP_E2E_PROJECT=project
@@ -652,17 +754,18 @@ class RunSafety(unittest.TestCase):
                 stale = output / "coverage/profiles/windmill-old.profraw"
                 stale.parent.mkdir(parents=True, exist_ok=True)
                 stale.write_text("an earlier run")
+                project = "coverage-" + mode
                 result = self.run_script(
                     "--skip-images",
                     "--skip-build",
                     STEP_E2E_COVERAGE="1",
-                    STEP_E2E_PROJECT="coverage-" + mode,
+                    STEP_E2E_PROJECT=project,
                     STEP_E2E_OUTPUT_DIR=str(output),
                     FAKE_DOCKER_MODE=mode,
                 )
                 self.assertEqual(result.returncode, status, result.stderr)
                 calls = self.calls()
-                (up,) = self.compose_calls("up")
+                core, trustees = self.assert_staged_starts(project)
                 (stop,) = self.compose_calls("stop")
                 (down,) = self.compose_calls("down")
                 (report,) = [
@@ -670,7 +773,9 @@ class RunSafety(unittest.TestCase):
                     for args in calls
                     if args[0] == "run" and f"{output}/coverage:/coverage" in args
                 ]
-                self.assertIn(overlay, up)
+                for start in (core, trustees):
+                    up = start.index("up")
+                    self.assertEqual(start[up - 2 : up], ["-f", overlay])
                 # Only the instrumented services wait for a graceful exit.
                 services = re.findall(
                     r"^  ([a-z0-9-]+):\n(?:    .*\n)*?      LLVM_PROFILE_FILE:",
@@ -682,7 +787,7 @@ class RunSafety(unittest.TestCase):
                     sorted(set(services) - {"driver"}),
                 )
                 # Profiles are complete only once the services have stopped.
-                self.assertLess(calls.index(up), calls.index(stop))
+                self.assertLess(calls.index(trustees), calls.index(stop))
                 self.assertLess(calls.index(stop), calls.index(report))
                 self.assertLess(calls.index(report), calls.index(down))
                 binaries = self.root / ".cache/backend-e2e/bin-coverage"
@@ -697,7 +802,10 @@ class RunSafety(unittest.TestCase):
         # Ordinary runs neither load the overlay nor stop services for a report.
         result = self.run_script("--skip-images", "--skip-build")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertNotIn(overlay, self.compose_calls("up")[0])
+        (down,) = self.compose_calls("down")
+        project = down[down.index("--project-name") + 1]
+        for start in self.assert_staged_starts(project):
+            self.assertNotIn(overlay, start)
         self.assertEqual(self.compose_calls("stop"), [])
         self.assertEqual(self.build_calls(), [])
 
