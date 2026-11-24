@@ -146,8 +146,11 @@ pub const PARAMETER_PREFIXES: &[&str] = &[
     "election_event.",
 ];
 
+pub(super) const WORKBOOK_TENANT_PARAMETER: &str = "tenant_package";
+
 /// Parameters the builder acts on directly rather than carrying as metadata.
 pub const HANDLED_PARAMETERS: &[&str] = &[
+    WORKBOOK_TENANT_PARAMETER,
     "tenant_id",
     super::messaging_config::PARAMETER,
     realm::PARAM_LOGIN_CUSTOM_CSS,
@@ -435,6 +438,10 @@ pub struct Bundle {
     /// event import.
     pub admin_realm_patch: Map<String, Value>,
 
+    /// Noncredential tenant sections from the workbook, for deliveries only.
+    #[cfg(feature = "election_config_archive")]
+    pub(super) workbook_tenant_artifacts: Vec<super::archive::Artifact>,
+
     /// The preset that was applied, if any.
     pub auth_preset: Option<&'static str>,
 
@@ -453,6 +460,12 @@ pub fn build(
     options: &BuildOptions,
     sources: &Sources,
 ) -> Result<Bundle, Report> {
+    super::demo_credentials::reject_ordinary_credentials(workbook.sheets())?;
+    super::portable_messaging::validate_workbook_sheets(
+        workbook.sheets(),
+        options.base_export.as_ref(),
+    )
+    .map_err(Report::from_problem)?;
     Builder::new(workbook, templates, options, sources)?.build()
 }
 
@@ -861,6 +874,26 @@ impl<'a> Builder<'a> {
         let admin_users = self.build_admin_users();
         let role_permissions = self.build_role_permissions();
         let templates = self.build_templates();
+        #[cfg(feature = "election_config_archive")]
+        let workbook_tenant_artifacts =
+            match super::tenant_package::workbook_artifacts(
+                self.workbook.rows(SHEET_PARAMETERS),
+                &self.tenant_id,
+            ) {
+                Ok(artifacts) => artifacts,
+                Err(problem) => {
+                    self.report.push(problem);
+                    Vec::new()
+                }
+            };
+
+        #[cfg(not(feature = "election_config_archive"))]
+        if self.parameter(WORKBOOK_TENANT_PARAMETER).is_some() {
+            self.warn(
+                WORKBOOK_TENANT_PARAMETER,
+                "tenant settings are omitted because this build does not support delivery archives",
+            );
+        }
 
         if self.report.has_errors() {
             return Err(self.report);
@@ -883,6 +916,8 @@ impl<'a> Builder<'a> {
             materials: material_files,
             realm_patch: self.realm_patch,
             admin_realm_patch,
+            #[cfg(feature = "election_config_archive")]
+            workbook_tenant_artifacts,
             auth_preset: self.auth_preset.map(|preset| preset.name),
             warnings: self.report,
         })

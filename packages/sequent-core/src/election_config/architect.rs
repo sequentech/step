@@ -357,6 +357,14 @@ pub fn read_plan_value(
         .detail("error", error)
     })?;
 
+    super::demo_credentials::reject_ordinary_credentials(&plan.platform)
+        .map_err(|_| Problem::error(Code::NotApproved, "plan", "ordinary plans cannot carry administrator or trustee credentials"))?;
+
+    super::portable_messaging::validate_workbook_sheets(
+        &plan.platform,
+        plan.base_export.as_ref(),
+    )?;
+
     Ok(ReadPlan {
         sources: Sources {
             census: (!lifted.is_empty()).then(|| {
@@ -743,7 +751,8 @@ pub struct Blueprint {
     /// Parameters, Admin Users, Permissions, Templates and Reports describe the
     /// *platform* rather than the ballot: a tenant, an authentication type, realm
     /// patches, administrator accounts, the permission matrix, communication
-    /// templates, scheduled reports. The wizard asks about none of it, and a
+    /// templates, scheduled reports, and imported per-election schedules.
+    /// The wizard asks about none of it, and a
     /// delivery engineer who opens a real janitor workbook here would otherwise
     /// lose all of it the moment they rebuilt.
     ///
@@ -1815,6 +1824,17 @@ fn election_identifier_problem(plan: &Blueprint) -> Option<Problem> {
 /// different questions and an author needs both answers.
 pub fn validate_plan(plan: &Blueprint, sources: &Sources) -> Report {
     let mut report = Report::default();
+    if let Err(credentials) =
+        super::demo_credentials::reject_ordinary_credentials(&plan.platform)
+    {
+        report.problems.extend(credentials.problems);
+    }
+    if let Err(problem) = super::portable_messaging::validate_workbook_sheets(
+        &plan.platform,
+        plan.base_export.as_ref(),
+    ) {
+        report.push(problem);
+    }
     if let Some(problem) = election_identifier_problem(plan) {
         report.push(problem);
     }
@@ -2558,6 +2578,14 @@ fn check_trustees(plan: &Blueprint, report: &mut Report) {
 fn check_schedule(plan: &Blueprint, report: &mut Report) {
     let schedule = &plan.schedule;
 
+    for sheet in plan
+        .platform
+        .iter()
+        .filter(|sheet| sheet.key == "scheduledevents")
+    {
+        super::plan_from_workbook::check_imported_schedule(plan, sheet, report);
+    }
+
     // Each moment on its own first: an ordering complaint about a time that is
     // not a time would send somebody looking at the wrong field.
     let mut found = Vec::new();
@@ -3254,6 +3282,12 @@ fn to_workbook_with_base(
     sources: &Sources,
     base_export: Option<&serde_json::Value>,
 ) -> Result<Workbook, Problem> {
+    super::demo_credentials::reject_ordinary_credentials(&plan.platform)
+        .map_err(|_| Problem::error(Code::NotApproved, "workbook", "ordinary workbooks cannot carry administrator or trustee credentials"))?;
+    super::portable_messaging::validate_workbook_sheets(
+        &plan.platform,
+        plan.base_export.as_ref(),
+    )?;
     if let Some(problem) = election_identifier_problem(plan) {
         return Err(problem);
     }
@@ -4995,6 +5029,11 @@ fn scheduled_events_sheet(plan: &Blueprint) -> Result<Option<Sheet>, Problem> {
 /// without parsing its own output back, which is how the TypeScript version did it
 /// and why its round trip lost the trustee threshold and every ceremony date.
 pub fn side_files(plan: &Blueprint) -> Vec<(String, String)> {
+    if super::demo_credentials::reject_ordinary_credentials(&plan.platform)
+        .is_err()
+    {
+        return Vec::new();
+    }
     let mut files = Vec::new();
 
     let plan_json = serde_json::to_string_pretty(&as_written(plan))

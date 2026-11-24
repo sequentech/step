@@ -13,12 +13,12 @@
 //! Nothing here invents content. An absent section stays absent, and a profile
 //! that requires it reports it missing (see [`super::package_contract`]).
 
-use super::archive::Artifact;
 use super::package_contract::{
     ADMIN_USERS_MEMBER, TENANT_CONFIGURATION_PREFIX, TENANT_SETTINGS_PREFIX,
     TRUSTEES_MEMBER,
 };
 use super::problem::{Code, Problem, Report};
+use super::{archive::Artifact, build::WORKBOOK_TENANT_PARAMETER};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -123,6 +123,9 @@ pub struct TenantPackage {
     pub admin_accounts: Option<Vec<AdminAccount>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trustees: Option<Vec<TrusteePublic>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub messaging_accounts:
+        Option<super::portable_messaging::PortableMessagingAccounts>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub provenance: Provenance,
 }
@@ -130,6 +133,11 @@ pub struct TenantPackage {
 /// Read and check a tenant package document.
 pub fn read(json: &Value) -> Result<TenantPackage, Report> {
     let mut report = Report::default();
+    if let Some(value) = json.get("messagingAccounts") {
+        if let Err(problem) = super::portable_messaging::validate_value(value) {
+            return Err(Report::from_problem(problem));
+        }
+    }
     find_secret_fields(json, "tenant package", &mut report);
     if report.has_errors() {
         return Err(report);
@@ -185,6 +193,11 @@ fn blank(value: &str) -> bool {
 /// Every problem in the document's records, not only the first.
 pub fn check(package: &TenantPackage) -> Result<(), Report> {
     let mut report = Report::default();
+    if let Some(accounts) = &package.messaging_accounts {
+        if accounts.validate().is_err() {
+            report.push(super::portable_messaging::problem());
+        }
+    }
     let mut groups = BTreeSet::new();
     for (i, mapping) in package.role_mappings.iter().flatten().enumerate() {
         let at = format!("roleMappings[{i}]");
@@ -305,6 +318,15 @@ pub fn artifacts(
     tenant_id: &str,
 ) -> Result<Vec<Artifact>, Problem> {
     let mut written = Vec::new();
+    if let Some(accounts) = &package.messaging_accounts {
+        accounts
+            .validate()
+            .map_err(|_| super::portable_messaging::problem())?;
+        written.push(json_artifact(
+            super::portable_messaging::MEMBER.to_owned(),
+            &serde_json::to_value(accounts).map_err(encode)?,
+        ));
+    }
     if let Some(configuration) = &package.tenant_configuration {
         written.push(json_artifact(
             format!("{TENANT_CONFIGURATION_PREFIX}{tenant_id}.json"),
@@ -389,6 +411,170 @@ fn csv(header: &[&str], rows: &[Vec<String>]) -> Result<Vec<u8>, Problem> {
     })
 }
 
+/// Installation-owned trust; a tenant workbook never decides what can sign or import packages.
+pub const CONFIGURATION_SIGNING_SETTING: &str = "configuration_signing";
+
+fn has_workbook_credential_fields(value: &Value) -> bool {
+    match value {
+        Value::Object(map) => map.iter().any(|(field, value)| {
+            let normalized: String = field
+                .chars()
+                .filter(char::is_ascii_alphanumeric)
+                .map(|ch| ch.to_ascii_lowercase())
+                .collect();
+            matches!(
+                normalized.as_str(),
+                "password"
+                    | "passwordsalt"
+                    | "hashedpassword"
+                    | "privatekey"
+                    | "signingprivatekey"
+                    | "shareencryptionprivatekey"
+                    | "gapikey"
+                    | "apikey"
+                    | "apisecret"
+                    | "accesstoken"
+                    | "refreshtoken"
+                    | "clientsecret"
+                    | "authtoken"
+                    | "secretkey"
+                    | "secretaccesskey"
+                    | "sessiontoken"
+                    | "webhooksecret"
+                    | "smpppassword"
+                    | "smtppassword"
+                    | "providercredentials"
+            ) || has_workbook_credential_fields(value)
+        }),
+        Value::Array(values) => {
+            values.iter().any(has_workbook_credential_fields)
+        }
+        _ => false,
+    }
+}
+
+/// A workbook can carry public tenant sections and portable sender identities,
+/// but never administrator accounts, role grants, trustee keys or sender credentials.
+pub(super) fn workbook_artifacts(
+    rows: &[super::sheet::Row],
+    tenant_id: &str,
+) -> Result<Vec<Artifact>, Problem> {
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields, rename_all = "camelCase")]
+    struct WorkbookTenant {
+        format: TenantPackageFormat,
+        tenant_configuration: Option<TenantConfiguration>,
+        tenant_settings: Option<TenantSettings>,
+        messaging_accounts:
+            Option<super::portable_messaging::PortableMessagingAccounts>,
+    }
+
+    let mut matching = rows.iter().filter(|row| {
+        row.text("key").map(str::trim) == Some(WORKBOOK_TENANT_PARAMETER)
+            && row.get("value").is_some()
+    });
+    let Some(row) = matching.next() else {
+        return Ok(Vec::new());
+    };
+    let origin = row.origin(Some("value"));
+    if matching.next().is_some() {
+        return Err(Problem::error(
+            Code::DuplicateId,
+            WORKBOOK_TENANT_PARAMETER,
+            "keep one tenant_package Parameters row",
+        )
+        .at(&origin));
+    }
+    let value = row.get("value").expect("matching row has a value");
+    if let Some(accounts) = value.get("messagingAccounts") {
+        super::portable_messaging::validate_value(accounts)
+            .map_err(|p| p.at(&origin))?;
+    }
+    let config = &value["tenantConfiguration"];
+    if ["settings", "annotations", "votingChannels"]
+        .into_iter()
+        .any(|field| has_workbook_credential_fields(&config[field]))
+    {
+        return Err(Problem::error(
+            Code::NotApproved,
+            WORKBOOK_TENANT_PARAMETER,
+            "credentials and private keys do not belong in a tenant workbook",
+        )
+        .at(&origin));
+    }
+    let parsed: WorkbookTenant = serde_json::from_value(value.clone())
+        .map_err(|_| Problem::error(
+            Code::InvalidValue,
+            WORKBOOK_TENANT_PARAMETER,
+            "expected a sequent.tenant-package/1 object with tenantConfiguration, tenantSettings and/or messagingAccounts only",
+        ).at(&origin))?;
+    if parsed
+        .tenant_configuration
+        .as_ref()
+        .and_then(|config| config.settings.as_ref())
+        .is_some_and(|settings| {
+            settings.contains_key(CONFIGURATION_SIGNING_SETTING)
+        })
+    {
+        return Err(Problem::error(
+            Code::NotApproved,
+            WORKBOOK_TENANT_PARAMETER,
+            "configuration signing trust is set on the installed system and cannot be supplied in a workbook",
+        ).at(&origin));
+    }
+    artifacts(
+        &TenantPackage {
+            format: parsed.format,
+            tenant_configuration: parsed.tenant_configuration,
+            tenant_settings: parsed.tenant_settings,
+            role_mappings: None,
+            admin_accounts: None,
+            trustees: None,
+            messaging_accounts: parsed.messaging_accounts,
+            provenance: Provenance::default(),
+        },
+        tenant_id,
+    )
+}
+
+/// Add a validated delivery-profile package on top of the normal layout.
+/// The workbook's two public sections are deliberate overrides to profile
+/// defaults. Keep profile-only values and reject all other duplicate sections.
+pub(super) fn add_profile_to_layout(
+    layout: &mut super::archive::Layout,
+    package: &TenantPackage,
+    tenant_id: &str,
+) -> Result<(), Problem> {
+    let configuration =
+        format!("{TENANT_CONFIGURATION_PREFIX}{tenant_id}.json");
+    let settings = format!("{TENANT_SETTINGS_PREFIX}{tenant_id}.json");
+    let mut package_artifacts = artifacts(package, tenant_id)?;
+    for artifact in &mut package_artifacts {
+        if let Some(existing) =
+            layout.auxiliary.iter().find(|a| a.name == artifact.name)
+        {
+            if artifact.name != configuration && artifact.name != settings {
+                return Err(Problem::error(
+                    Code::DuplicateId,
+                    artifact.name.clone(),
+                    "the tenant package and the workbook both describe this file; keep one source",
+                ));
+            }
+            let profile =
+                serde_json::from_slice(&artifact.bytes).map_err(encode)?;
+            let workbook =
+                serde_json::from_slice(&existing.bytes).map_err(encode)?;
+            let merged = super::paths::deep_merge(profile, workbook);
+            *artifact = json_artifact(artifact.name.clone(), &merged);
+        }
+    }
+    layout.auxiliary.retain(|existing| {
+        !package_artifacts.iter().any(|a| a.name == existing.name)
+    });
+    layout.auxiliary.extend(package_artifacts);
+    Ok(())
+}
+
 /// Add the package's files to a layout's auxiliary members, refusing one a
 /// workbook sheet already produced: two sources for one file would make the
 /// delivery depend on which was written last.
@@ -429,7 +615,7 @@ pub fn complete_delivery(
         check_census_rows(&layout, expected)?;
     }
     if let Some(package) = package {
-        add_to_layout(&mut layout, package, tenant_id)?;
+        add_profile_to_layout(&mut layout, package, tenant_id)?;
     }
     if let Some(record) = record {
         layout.auxiliary.push(record);
