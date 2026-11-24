@@ -728,8 +728,9 @@ over a corner of Scanovate's page (*Use the rear camera* once the front one is
 chosen). The choice opens Scanovate's page again, since that page opens its
 camera once, and is kept in the browser's storage for the site
 (`sequent.scanovate.documentCamera`), so a tablet set to its front camera
-stays so for every voter after that. The face check and the photo holding the
-document use the front camera in any case.
+stays so for every voter after that. The face check opens the camera
+Scanovate's page chooses, and the photo holding the document has its own
+switch (see [Choosing the camera](#choosing-the-camera)).
 
 How it is done, and its limits:
 
@@ -815,6 +816,50 @@ opens a new session with the same token; after an invalid token, only **Start
 over** is offered, which posts `action=retry` for new tokens without using up
 an attempt. None of these messages carries a verdict: Keycloak only reads the
 results the services post to it.
+
+### Choosing the camera
+
+Each step's camera is opened by whichever page owns the step:
+
+| Step | Opened by | Camera | Switch |
+| --- | --- | --- | --- |
+| Scan your ID | OCR's own page (in the iframe) | The rear camera on phones and tablets, or the front one once chosen on the device | **Use the front camera** / **Use the rear camera**: see [Which camera scans the document](#which-camera-scans-the-document) |
+| Check your face | Liveness Plus's own page (in the iframe) | Scanovate's choice | None: see below |
+| Photo holding the ID | Our capture page (`scanovate/HoldingCamera.tsx`) | The front camera first (`HOLDING_CAMERA` in `scanovate/cameraSession.ts`) | Yes, whenever the browser gives more than one camera |
+
+On the holding photo, a switch button (top left, across from the close
+button) appears only when the browser lists more than one camera the page can
+open, whatever the device or browser, without looking at the user agent: a
+phone or tablet in Chrome or Safari, or a computer with an external webcam.
+With a single camera, or before the voter allows the camera, there's no
+button. A camera that tells its side (all phones and tablets) turns to the
+other side, so the browser picks that side's main camera; cameras that tell
+none (most webcams) are taken in turn. Only one camera is on at a time: each
+switch stops the camera it leaves before opening the next, which phones
+need. Switching keeps the step and everything done before it, and starts the
+holding time again with the new image. If the other camera won't open, the
+page says so and opens the one the voter had; if none opens, it shows the
+camera problem, whose **Try again** opens the step again. The front camera,
+and a webcam, show as a mirror; the rear camera shows what it sees. The photo
+itself is never mirrored.
+
+The OCR and Liveness Plus pages are Scanovate's, served from their images, and
+open the camera themselves inside the iframe. Their configuration
+(`video_config`, `ui_theme`, texts, URL parameters) has no setting to choose
+or switch the camera, and their pages show no switch; `allow="camera"` on the
+iframe only lets the page use a camera, it doesn't choose one. The document
+step's choice works by changing, from the same origin, what OCR's page asks
+the browser for (see the section linked above): it isn't a Scanovate setting.
+
+The face check has no choice, and gets none that way. Liveness Plus runs
+injection attack detection (IAD), which checks that its frames come from a
+real camera and not a tampered browser: changing that page's camera request
+from outside is the kind of tampering it exists to catch, and could make
+genuine voters fail or weaken the check. A camera choice for the face check
+has to come from Scanovate, as a supported setting (a `video_config` key or a
+page URL parameter for the side or the device) or a switch in their page,
+that keeps IAD's checks as they are. Until then, a tablet that opens its rear
+camera for the face check can't be corrected from our page.
 
 ### Token verification and callbacks
 
