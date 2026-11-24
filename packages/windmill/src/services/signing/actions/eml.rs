@@ -9,12 +9,12 @@
 use super::super::approve::DocumentSigner;
 use super::super::certificates::CertificateIdentity;
 use super::super::log::Actor;
-use super::super::pdf::{PanelDocument, PdfPrepared, RevisionStore};
+use super::super::pdf::{OperationalPdfArtifact, PanelDocument, PdfPrepared, RevisionStore};
 use super::super::{InvalidReason, SigningCaller, SigningError, SigningResult};
 use super::transmission::{sbei_refusal, sha256_hex, SbeiDirectory};
 use crate::postgres::signing::SigningRequestRow;
 use crate::postgres::signing_document_revision::signing_document_access_restricted;
-use crate::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
+use crate::services::signing::operational_policy::{approval_mode_for_event, OperationalSigningMode};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -85,7 +85,7 @@ impl DocumentSigner for EmlDocumentSigner {
         // A pending hard-mode request must not distribute its raw EML
         // via a second presign path. The immutable subject still names
         // the digest; the device reads and verifies its exact bytes.
-        if signing_mode(hasura_transaction, tenant_id)
+        if approval_mode_for_event(hasura_transaction, tenant_id, event_id)
             .await
             .map_err(anyhow::Error::from)?
             == OperationalSigningMode::HsmRequired
@@ -127,6 +127,17 @@ impl DocumentSigner for EmlDocumentSigner {
                 format!("Signing request {} signs no PDF.", request.code),
             ));
         }
+        self.check_operational_certificate(hasura_transaction, request, signer, certificate)
+            .await
+    }
+
+    async fn check_operational_certificate(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+        request: &SigningRequestRow,
+        signer: &Actor,
+        certificate: &CertificateIdentity,
+    ) -> SigningResult<()> {
         let sbeis = self.sbeis.post_sbeis(hasura_transaction, request).await?;
         match sbei_refusal(
             sbeis.as_ref(),
@@ -190,6 +201,44 @@ impl DocumentSigner for DocumentSigners {
     ) -> SigningResult<PdfPrepared> {
         self.of(DocumentKind::Pdf)
             .prepare_pdf(client, caller, tenant_id, request_id, chain_pem, now)
+            .await
+    }
+
+    async fn check_operational_certificate(
+        &self,
+        tx: &Transaction<'_>,
+        request: &SigningRequestRow,
+        signer: &Actor,
+        certificate: &CertificateIdentity,
+    ) -> SigningResult<()> {
+        self.of(request.action.document())
+            .check_operational_certificate(tx, request, signer, certificate)
+            .await
+    }
+
+    async fn prepare_operational_pdf(
+        &self,
+        tx: &Transaction<'_>,
+        caller: &SigningCaller,
+        request: &SigningRequestRow,
+        verified_chain: &[String],
+        now: DateTime<Utc>,
+    ) -> SigningResult<PdfPrepared> {
+        self.of(DocumentKind::Pdf)
+            .prepare_operational_pdf(tx, caller, request, verified_chain, now)
+            .await
+    }
+
+    async fn operational_pdf_artifact(
+        &self,
+        tx: &Transaction<'_>,
+        request: &SigningRequestRow,
+        actor: &str,
+        revision: i32,
+        certificate: &CertificateIdentity,
+    ) -> SigningResult<OperationalPdfArtifact> {
+        self.of(DocumentKind::Pdf)
+            .operational_pdf_artifact(tx, request, actor, revision, certificate)
             .await
     }
 

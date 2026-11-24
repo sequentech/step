@@ -37,6 +37,8 @@ import {requestStatusKey, shownRequestStatus} from "@/lib/signing/status"
 import {SigningRequestStatus} from "@/lib/signing/types"
 import {SigningDialog} from "./SigningDialog"
 import {OperationalApprovalDialog} from "./OperationalApprovalDialog"
+import {ProductApprovalDialog} from "./ProductApprovalDialog"
+import {productSigningSelected} from "@/lib/signing/productApproval"
 import {signingExperience} from "@/lib/signing/operationalApprovalPolicy"
 import {SigningHandoverLauncher} from "./SigningHandoverLauncher"
 import {SigningSubject} from "./SigningSubject"
@@ -292,14 +294,22 @@ export const SigningRequestPanel: React.FC<ISigningRequestPanelProps> = ({
         : SignBlock.Closed
 
     const signing = data
-        ? signingExperience(data.operational_signing_mode, data.request.action)
+        ? productSigningSelected(
+              data.operational_signing_mode,
+              data.request.action,
+              data.operational_signing_flow
+          )
+            ? "product-managed"
+            : data.operational_signing_flow !== undefined
+              ? "unavailable"
+              : signingExperience(data.operational_signing_mode, data.request.action)
         : "unavailable"
 
     useEffect(() => {
         if (!data || autoSignDone.current) return
         autoSignDone.current = true
         if (
-            (restoreManagedDialog && signing === "managed") ||
+            (restoreManagedDialog && (signing === "managed" || signing === "product-managed")) ||
             (autoSign && block === SignBlock.None && signing !== "unavailable")
         )
             setDialogOpen(true)
@@ -488,6 +498,15 @@ export const SigningRequestPanel: React.FC<ISigningRequestPanelProps> = ({
                             onRequestChanged={() => {
                                 refresh().catch(() => undefined)
                             }}
+                        />
+                    ) : dialogOpen && signing === "product-managed" ? (
+                        <ProductApprovalDialog
+                            data={data}
+                            api={api}
+                            eligible={block === SignBlock.None}
+                            returned={restoreManagedDialog}
+                            onClose={() => setDialogOpen(false)}
+                            onRefresh={() => void refresh()}
                         />
                     ) : dialogOpen && signing === "managed" ? (
                         <OperationalApprovalDialog

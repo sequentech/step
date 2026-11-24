@@ -59,7 +59,7 @@ impl OperationalPortalAuth {
         })
     }
 
-    fn validate(&self, token: &str) -> Option<JwtClaims> {
+    pub(crate) fn validate(&self, token: &str) -> Option<JwtClaims> {
         if token.len() > MAX_TOKEN_LEN || token.is_empty() {
             return None;
         }

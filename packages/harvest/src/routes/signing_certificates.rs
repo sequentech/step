@@ -41,7 +41,7 @@ use windmill::services::signing::issuers::{
     import_staff_issuers, remove_staff_issuer, update_signing_checks,
 };
 use windmill::services::signing::log::Actor;
-use windmill::services::signing::operational_policy::require_legacy_signing;
+use windmill::services::signing::operational_policy::require_legacy_signing_for_event;
 
 use windmill::services::signing::staff_certificates::{
     check_certificate, register_staff_certificate, revoke_registration,
@@ -339,7 +339,7 @@ pub async fn register_staff_certificate_route(
     let mut client = hasura(services).await?;
     let transaction =
         client.transaction().await.map_err(SigningError::internal)?;
-    require_legacy_signing(&transaction, tenant_id)
+    require_legacy_signing_for_event(&transaction, tenant_id, input.election_event_id)
         .await
         .map_err(|error| SigningError::forbidden(error.to_string()))?;
     let directory = directory(services).await;
@@ -556,9 +556,6 @@ pub async fn check_signing_certificate(
     let request = {
         let transaction =
             client.transaction().await.map_err(SigningError::internal)?;
-        require_legacy_signing(&transaction, tenant_id)
-            .await
-            .map_err(|error| SigningError::forbidden(error.to_string()))?;
         get_signing_request_in_tenant(&transaction, tenant_id, id)
             .await
             .map_err(SigningError::internal)?
@@ -588,6 +585,17 @@ pub async fn check_signing_certificate(
         return Err(SigningError::request_closed(
             SigningRequestStatus::Expired,
         ));
+    }
+    {
+        let transaction =
+            client.transaction().await.map_err(SigningError::internal)?;
+        require_legacy_signing_for_event(
+            &transaction,
+            tenant_id,
+            request.election_event_id,
+        )
+        .await
+        .map_err(|error| SigningError::forbidden(error.to_string()))?;
     }
     let verifier = OpensslCertificateVerifier::with_directory(Arc::new(
         directory(services).await,

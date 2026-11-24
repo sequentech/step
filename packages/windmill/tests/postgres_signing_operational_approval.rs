@@ -690,3 +690,286 @@ async fn a_hardware_tenant_starts_nothing_without_a_required_rule() {
         other => panic!("expected the missing rule to stop the action, got {other:?}"),
     }
 }
+
+/// Treat these software keys as a test double for the separately checked
+/// device, as in the Initialize tests above. The ordinary event policy and
+/// Gold ledger are not mocked. The test never invokes an IdP or hardware.
+#[cfg(not(feature = "operational-signing-demo-fixture"))]
+async fn settled_gold_payload(
+    w: &World,
+    official: &Official,
+    plan: &windmill::services::signing::operational_approval::OperationalApprovalPlan,
+) -> Uuid {
+    use serde_json::{json, Value};
+    let client = w.pool.get().await.unwrap();
+    let challenge = Uuid::new_v4();
+    let binding_hash = sha(&format!("product-test-binding:{challenge}"));
+    let nonce = sha(&format!("product-test-nonce:{challenge}"));
+    let server_input = json!({
+        "tenant_id": w.tenant,
+        "event_id": w.event,
+        "request_id": plan.request_id,
+        "actor": plan.actor,
+        "action": plan.action,
+        "purpose": plan.payload.purpose.as_str(),
+        "key_id": plan.key_id,
+        "key_version": plan.key_version,
+        "cert_fingerprint": plan.cert_fingerprint,
+        "cert_spki": plan.cert_spki,
+        "payload_hash": plan.payload.message_sha256,
+        "message_hash": plan.payload.message_sha256,
+        "artifact_hash": plan.payload.artifact_sha256,
+        "binding_sha256": binding_hash,
+        "issuer": ISSUER,
+        "nonce_hash": nonce,
+        "challenge_id": challenge,
+        "request_expires_at": plan.request_expires_at,
+    });
+    let prepared: bool = client
+        .query_one(
+            "SELECT sequent_backend.operational_gold_prepare(jsonb_populate_record(
+                 NULL::sequent_backend.operational_signing_binding,
+                 $1::jsonb || jsonb_build_object('challenge_issued_at',transaction_timestamp(),
+                               'intent_expires_at',transaction_timestamp()+interval '4 minutes')
+             ))",
+            &[&server_input],
+        )
+        .await
+        .unwrap()
+        .get(0);
+    assert!(prepared);
+    let scope = [
+        &w.tenant as &(dyn tokio_postgres::types::ToSql + Sync),
+        &w.event,
+        &plan.request_id,
+        &plan.actor,
+        &challenge,
+    ];
+    let binding: Value = client
+        .query_one(
+            "SELECT sequent_backend.operational_gold_load_attempt($1,$2,$3,$4,$5)",
+            &scope,
+        )
+        .await
+        .unwrap()
+        .get(0);
+    for expected in [true, false] {
+        let consumed: bool = client
+            .query_one(
+                "SELECT sequent_backend.operational_gold_take_callback(jsonb_populate_record(
+                 NULL::sequent_backend.operational_signing_binding, $1::jsonb))",
+                &[&binding],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        assert_eq!(consumed, expected);
+    }
+    tokio::time::sleep(Duration::from_millis(1100)).await;
+    let fence: Uuid = client
+        .query_one(
+            "SELECT sequent_backend.operational_gold_reserve(jsonb_populate_record(
+                 NULL::sequent_backend.operational_signing_binding, $1::jsonb),
+                 floor(extract(epoch FROM clock_timestamp()))::bigint,
+                 clock_timestamp()+interval '30 seconds')",
+            &[&binding],
+        )
+        .await
+        .unwrap()
+        .get::<_, Option<Uuid>>(0)
+        .expect("the exact independently authenticated callback reserves once");
+    let grant = [
+        &w.tenant as &(dyn tokio_postgres::types::ToSql + Sync),
+        &w.event,
+        &plan.request_id,
+        &plan.actor,
+        &challenge,
+        &fence,
+        &binding_hash,
+    ];
+    let ca_version: String = client
+        .query_one(
+            "SELECT ca_version FROM sequent_backend.operational_gold_get_ca($1,$2,$3,$4,$5,$6,$7)",
+            &grant,
+        )
+        .await
+        .unwrap()
+        .get(0);
+    for expected in [true, false] {
+        let claimed: bool = client
+            .query_one(
+                "SELECT sequent_backend.operational_gold_claim($1,$2,$3,$4,$5,$6,$7,$8)",
+                &[grant.as_slice(), &[&ca_version]].concat(),
+            )
+            .await
+            .unwrap()
+            .get(0);
+        assert_eq!(claimed, expected);
+    }
+    let signature = official.signer.sign(plan.payload.exact_message());
+    assert!(client
+        .query_one(
+            "SELECT sequent_backend.operational_signing_settle_device_from_reference(
+             $1,$2,$3,$4,$5,$6,$7,$8)",
+            &[grant.as_slice(), &[&signature]].concat(),
+        )
+        .await
+        .unwrap()
+        .get::<_, bool>(0));
+    challenge
+}
+
+/// Ordinary Close voting (not the sealed Initialize) goes through the
+/// real event-mode policy, exact Gold/device ledger, two native OpenSSL
+/// approvals, and production executor. A stale Post is not changed even
+/// though the approvals themselves recorded. No artifact or task runs early.
+#[cfg(not(feature = "operational-signing-demo-fixture"))]
+#[tokio::test]
+async fn event_hsm_close_counts_independent_receipts_and_refuses_a_changed_post() {
+    use sequent_core::ballot::{VotingStatus, VotingStatusChannel};
+    use serde_json::json;
+    use signing_actions::{post_status, set_post_status, starter, status_gate, waiting_id};
+    use windmill::services::signing::actions::ProductionEffects;
+    use windmill::services::signing::operational_approval::prepare_operational_approval;
+
+    const CLOSE: SigningAction = SigningAction::CloseVoting;
+    let w = world("product-hsm-close").await;
+    // Global product-default activation has not happened in this fixture.
+    // The exact event has the operator's explicit HSM choice.
+    w.execute(
+        "INSERT INTO sequent_backend.operational_signing_event_mode
+         (tenant_id,election_event_id,mode) VALUES ($1,$2,'hsm-required')",
+        &[&w.tenant, &w.event],
+    )
+    .await;
+    trust(&w).await;
+    set_post_status(&w, json!({"voting_status":"OPEN"})).await;
+    w.rule(CLOSE, 2, RequesterSigning::NotAllowed, Some(60))
+        .await;
+    let id = waiting_id(
+        status_gate(
+            &w,
+            &starter(&w),
+            VotingStatus::CLOSED,
+            Some(vec![VotingStatusChannel::ONLINE]),
+        )
+        .await,
+    );
+    let row = w.request(id).await;
+    let pki = Pki::get();
+    let dispatched = Dispatched::default();
+    let services = hardware_services(&dispatched);
+    let mut attempts = Vec::new();
+
+    for issued in [&pki.jose, &pki.juan_b] {
+        let mut official = enroll(&w, issued, "yubihsm").await;
+        official.caller = w.signer(&official.caller.user_id, CLOSE);
+        refresh_lists(&w, &official).await;
+        let mut client = w.pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        assert!(prepare_operational_approval(
+            &tx,
+            &services,
+            &official.caller,
+            w.tenant,
+            id,
+            &sha("wrong reviewed payload"),
+            at(1)
+        )
+        .await
+        .is_err());
+        let plan = prepare_operational_approval(
+            &tx,
+            &services,
+            &official.caller,
+            w.tenant,
+            id,
+            &row.payload_sha256,
+            at(1),
+        )
+        .await
+        .unwrap();
+        assert_eq!(plan.action, CLOSE);
+        assert!(plan.artifact.is_none());
+        assert_eq!(
+            plan.payload.exact_message(),
+            row.canonical_payload.as_bytes()
+        );
+        tx.commit().await.unwrap();
+        let challenge = settled_gold_payload(&w, &official, &plan).await;
+        attempts.push((official, challenge));
+    }
+
+    let first = approve_receipt(
+        &w,
+        &services,
+        &attempts[0].0.caller,
+        id,
+        attempts[0].1,
+        None,
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        (first.count, first.required, first.status),
+        (1, 2, SigningRequestStatus::Waiting)
+    );
+    assert!(dispatched.tasks().is_empty());
+    assert!(approve_receipt(
+        &w,
+        &services,
+        &attempts[1].0.caller,
+        id,
+        attempts[0].1,
+        None
+    )
+    .await
+    .is_err());
+    assert_eq!(w.approvals(id).await.len(), 1);
+    let second = approve_receipt(
+        &w,
+        &services,
+        &attempts[1].0.caller,
+        id,
+        attempts[1].1,
+        None,
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        (second.count, second.status),
+        (2, SigningRequestStatus::Completed)
+    );
+    assert_eq!(intents(&w, id, "applied").await, 2);
+    let tasks = dispatched.tasks();
+    assert_eq!(tasks.len(), 1);
+    set_post_status(&w, json!({"voting_status":"PAUSED"})).await;
+
+    let mut client = w.pool.get().await.unwrap();
+    assert_eq!(
+        run_dispatched(
+            &mut client,
+            &ProductionEffects::default(),
+            &NoSeal,
+            &tasks[0]
+        )
+        .await
+        .unwrap(),
+        RunOutcome::Failed("state-changed".into())
+    );
+    assert_eq!(
+        post_status(&w).await,
+        Some(json!({"voting_status":"PAUSED"}))
+    );
+    assert_eq!(
+        run_dispatched(
+            &mut client,
+            &ProductionEffects::default(),
+            &NoSeal,
+            &tasks[0]
+        )
+        .await
+        .unwrap(),
+        RunOutcome::NotClaimed
+    );
+}

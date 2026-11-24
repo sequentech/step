@@ -7,16 +7,23 @@
 //! signer must verify device provenance before settling its receipt; this
 //! layer checks signatures independently and applies them under the lock.
 
-use super::approve::{ApproveInput, SigningServices};
-use super::certificates::{parse_chain, verify_signature, CertificateIdentity};
-use super::operational_device::{installed_profile, InstalledDevice};
+use super::approve::{sign_refusal, ApproveInput, SigningServices};
+use super::certificates::{
+    parse_chain, verify_signature, CertificateIdentity, CertificateVerificationInput,
+    RegistrationState,
+};
+use super::operational_device::{installed_profile, matches_canonical_request, InstalledDevice};
+use super::operational_policy::{approval_mode_for_event, OperationalSigningMode};
 use super::operational_quorum::check_with_installed_device;
-use super::pdf::{operational_pdf_artifact, S3RevisionStore};
+use super::requests::{is_overdue, read_request, relock};
 use super::{SigningCaller, SigningError, SigningResult};
-use crate::postgres::signing::{SigningApprovalRow, SigningRequestRow};
+use crate::postgres::signing::{list_signing_approvals, SigningApprovalRow, SigningRequestRow};
 use anyhow::Context;
+use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
-use sequent_core::signing::{sha256_hex, DocumentKind, SignatureAlgorithm, SigningAction};
+use sequent_core::signing::{
+    sha256_hex, DocumentKind, SignatureAlgorithm, SigningAction, SigningRequestStatus,
+};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -143,6 +150,302 @@ async fn load(
     })
 }
 
+/// The typed purposes accepted by the durable device-intent ledger.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OperationalSigningPurpose {
+    ApprovalPayload,
+    Eml,
+    PdfCms,
+}
+
+impl OperationalSigningPurpose {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ApprovalPayload => "approval-payload",
+            Self::Eml => "eml",
+            Self::PdfCms => "pdf-cms",
+        }
+    }
+}
+
+fn purposes(
+    action: SigningAction,
+) -> (OperationalSigningPurpose, Option<OperationalSigningPurpose>) {
+    let artifact = match action.document() {
+        DocumentKind::NoDocument => None,
+        DocumentKind::Eml => Some(OperationalSigningPurpose::Eml),
+        DocumentKind::Pdf => Some(OperationalSigningPurpose::PdfCms),
+    };
+    (OperationalSigningPurpose::ApprovalPayload, artifact)
+}
+
+/// Internal broker input. Do not serialize or log the exact bytes, which
+/// may include a not-yet-released EML or PDF signing attributes.
+pub struct OperationalSigningMaterial {
+    pub purpose: OperationalSigningPurpose,
+    pub message_sha256: String,
+    pub artifact_sha256: String,
+    pub pdf_revision: Option<i32>,
+    pub pdf_parent_sha256: Option<String>,
+    pub pdf_byte_range_sha256: Option<String>,
+    exact_message: Vec<u8>,
+}
+
+impl OperationalSigningMaterial {
+    fn detached(purpose: OperationalSigningPurpose, exact_message: Vec<u8>) -> Self {
+        let sha256 = sha256_hex(&exact_message);
+        Self {
+            purpose,
+            message_sha256: sha256.clone(),
+            artifact_sha256: sha256,
+            pdf_revision: None,
+            pdf_parent_sha256: None,
+            pdf_byte_range_sha256: None,
+            exact_message,
+        }
+    }
+
+    pub fn exact_message(&self) -> &[u8] {
+        &self.exact_message
+    }
+}
+
+pub struct OperationalApprovalPlan {
+    pub tenant_id: Uuid,
+    pub event_id: Uuid,
+    pub request_id: Uuid,
+    pub actor: String,
+    pub action: SigningAction,
+    pub key_id: String,
+    pub key_version: i32,
+    pub cert_fingerprint: String,
+    pub cert_spki: String,
+    pub request_expires_at: Option<DateTime<Utc>>,
+    pub payload: OperationalSigningMaterial,
+    pub artifact: Option<OperationalSigningMaterial>,
+}
+
+/// Recheck the ordinary permission, requester rule, exact actor trustee ownership,
+/// bound event policy and live waiting rule before continuing a bound device
+/// attempt. No enrollment, Gold check or signature is implied.
+pub async fn reauthorize_operational_approval(
+    tx: &Transaction<'_>,
+    caller: &SigningCaller,
+    tenant_id: Uuid,
+    request_id: Uuid,
+) -> SigningResult<SigningRequestRow> {
+    // The sealed binary has a different exact Initialize-only broker.
+    if cfg!(feature = "operational-signing-demo-fixture") {
+        return Err(refusal());
+    }
+    let found = read_request(tx, tenant_id, request_id).await?;
+    if let Some((_, message)) = sign_refusal(tx, caller, &found).await? {
+        return Err(SigningError::Forbidden(message.into()));
+    }
+    if approval_mode_for_event(tx, tenant_id, found.election_event_id)
+        .await
+        .map_err(|error| SigningError::Forbidden(error.to_string()))?
+        != OperationalSigningMode::HsmRequired
+    {
+        return Err(refusal());
+    }
+    let row = relock(tx, &found).await?;
+    if row.status != SigningRequestStatus::Waiting
+        || is_overdue(tx, &row).await?
+        || !matches_canonical_request(&row)
+    {
+        return Err(refusal());
+    }
+    Ok(row)
+}
+
+/// Build the ordinary product's exact device work from a permitted request.
+/// A trusted ingress supplies the authenticated actor and the reviewed hash.
+/// This is not authentication, a grant, or approval. The broker must bind
+/// each returned purpose to its own fresh, one-use ceremony and validate
+/// Gold authentication and device/CA evidence before hardware invocation.
+pub async fn prepare_operational_approval(
+    tx: &Transaction<'_>,
+    services: &SigningServices,
+    caller: &SigningCaller,
+    tenant_id: Uuid,
+    request_id: Uuid,
+    reviewed_payload_sha256: &str,
+    now: DateTime<Utc>,
+) -> SigningResult<OperationalApprovalPlan> {
+    let row = reauthorize_operational_approval(tx, caller, tenant_id, request_id).await?;
+    if row.payload_sha256 != reviewed_payload_sha256
+        || !services.documents.supports(row.action.document())
+    {
+        return Err(refusal());
+    }
+    let installed = installed_profile(tx, row.tenant_id, row.election_event_id, row.action)
+        .await?
+        .ok_or_else(refusal)?;
+    let approvals =
+        list_signing_approvals(tx, row.tenant_id, row.election_event_id, row.id).await?;
+    if approvals.iter().any(|item| item.user_id == caller.user_id)
+        || !check_with_installed_device(tx, &row, &approvals, installed).await?
+    {
+        return Err(refusal());
+    }
+    // Same lock order as certificate attachment: request/event, then
+    // official. A key retirement cannot race selecting the material.
+    let official_lock = format!(
+        "operational-signing-official:{}:{}",
+        row.tenant_id, caller.user_id
+    );
+    tx.query_one(
+        "SELECT pg_advisory_xact_lock_shared(hashtextextended($1, 0))",
+        &[&official_lock],
+    )
+    .await
+    .context("Error locking the official's active key")?;
+    let key = tx
+        .query_opt(
+            "SELECT key_id, key_version, cert_fingerprint, cert_spki, certificate_id, chain_pem,
+                    device_profile
+             FROM sequent_backend.operational_signing_current_approval_key($1, $2, $3, $4)",
+            &[
+                &row.tenant_id,
+                &row.election_event_id,
+                &row.id,
+                &caller.user_id,
+            ],
+        )
+        .await
+        .context("Error reading the official's active approval key")?
+        .ok_or_else(refusal)?;
+    let key_id: String = key
+        .try_get("key_id")
+        .context("Missing operational key ID")?;
+    let key_version: i32 = key
+        .try_get("key_version")
+        .context("Missing operational key version")?;
+    let cert_fingerprint: String = key
+        .try_get("cert_fingerprint")
+        .context("Missing certificate fingerprint")?;
+    let cert_spki: String = key
+        .try_get("cert_spki")
+        .context("Missing certificate public key")?;
+    let certificate_id: Uuid = key
+        .try_get("certificate_id")
+        .context("Missing certificate ID")?;
+    let chain: Vec<String> = key
+        .try_get("chain_pem")
+        .context("Missing server certificate chain")?;
+    let profile: &str = key
+        .try_get("device_profile")
+        .context("Missing installed device profile")?;
+    if !installed.admits(Some(profile)) {
+        return Err(refusal());
+    }
+    let check = services
+        .verifier
+        .verify(
+            tx,
+            &CertificateVerificationInput {
+                request: &row,
+                signer: caller.actor(),
+                chain_pem: chain.clone(),
+                signatures: None,
+                now,
+            },
+        )
+        .await?;
+    let certificate = check
+        .certificate
+        .as_ref()
+        .filter(|cert| {
+            cert.fingerprint_sha256 == cert_fingerprint
+                && cert.spki_sha256 == cert_spki
+                && cert.key_algorithm == Some(SignatureAlgorithm::EcdsaP256Sha256)
+        })
+        .ok_or_else(refusal)?;
+    if !check.passed()
+        || !matches!(&check.registration, RegistrationState::Registered(registration) if registration.id == certificate_id)
+    {
+        return Err(refusal());
+    }
+
+    services
+        .documents
+        .check_operational_certificate(tx, &row, &caller.actor(), certificate)
+        .await?;
+
+    let (purpose, artifact_purpose) = purposes(row.action);
+    let payload =
+        OperationalSigningMaterial::detached(purpose, row.canonical_payload.as_bytes().to_vec());
+    let artifact = match artifact_purpose {
+        None => None,
+        Some(OperationalSigningPurpose::Eml) => {
+            let eml = exact_eml(tx, services, &row).await?;
+            Some(OperationalSigningMaterial::detached(
+                OperationalSigningPurpose::Eml,
+                eml,
+            ))
+        }
+        Some(OperationalSigningPurpose::PdfCms) => {
+            let prepared = services
+                .documents
+                .prepare_operational_pdf(tx, caller, &row, &chain, now)
+                .await?;
+            let artifact = services
+                .documents
+                .operational_pdf_artifact(tx, &row, &caller.user_id, prepared.revision, certificate)
+                .await?;
+            let exact_message = artifact.cms.exact_message().to_vec();
+            Some(OperationalSigningMaterial {
+                purpose: OperationalSigningPurpose::PdfCms,
+                message_sha256: sha256_hex(&exact_message),
+                artifact_sha256: hex::encode(artifact.prepared_pdf_sha256),
+                pdf_revision: Some(artifact.revision),
+                pdf_parent_sha256: Some(hex::encode(artifact.parent_sha256)),
+                pdf_byte_range_sha256: Some(hex::encode(artifact.byte_range_sha256)),
+                exact_message,
+            })
+        }
+        Some(OperationalSigningPurpose::ApprovalPayload) => return Err(refusal()),
+    };
+    Ok(OperationalApprovalPlan {
+        tenant_id: row.tenant_id,
+        event_id: row.election_event_id,
+        request_id: row.id,
+        actor: caller.user_id.clone(),
+        action: row.action,
+        key_id,
+        key_version,
+        cert_fingerprint,
+        cert_spki,
+        request_expires_at: row.expires_at,
+        payload,
+        artifact,
+    })
+}
+
+async fn exact_eml(
+    tx: &Transaction<'_>,
+    services: &SigningServices,
+    request: &SigningRequestRow,
+) -> SigningResult<Vec<u8>> {
+    let exact = services
+        .documents
+        .document_bytes(tx, request)
+        .await?
+        .ok_or_else(refusal)?;
+    let hash = sha256_hex(&exact);
+    if request.document_sha256.as_deref() != Some(hash.as_str())
+        || request
+            .subject
+            .get("eml_sha256")
+            .and_then(serde_json::Value::as_str)
+            != Some(hash.as_str())
+    {
+        return Err(refusal());
+    }
+    Ok(exact)
+}
+
 impl OperationalEvidence {
     pub(super) async fn load(
         tx: &Transaction<'_>,
@@ -154,11 +457,7 @@ impl OperationalEvidence {
     ) -> SigningResult<Self> {
         // A legacy signature from before a one-way promotion cannot be
         // counted in a still-waiting HSM quorum. Fail closed on mixed state.
-        let parts: &[&str] = match row.action.document() {
-            DocumentKind::NoDocument => &["approval-payload"],
-            DocumentKind::Eml => &["approval-payload", "eml"],
-            DocumentKind::Pdf => &["approval-payload", "pdf-cms"],
-        };
+        let (payload_purpose, artifact_purpose) = purposes(row.action);
         let installed = installed_profile(tx, row.tenant_id, row.election_event_id, row.action)
             .await?
             .ok_or_else(refusal)?;
@@ -173,7 +472,7 @@ impl OperationalEvidence {
             row,
             caller,
             requested.approval_challenge,
-            parts[0],
+            payload_purpose.as_str(),
             installed,
         )
         .await?;
@@ -241,9 +540,11 @@ impl OperationalEvidence {
             pdf_cms: None,
             revision: None,
         };
-        let artifact = match (requested.artifact_challenge, parts.get(1)) {
+        let artifact = match (requested.artifact_challenge, artifact_purpose) {
             (None, None) => None,
-            (Some(id), Some(purpose)) => Some(load(tx, row, caller, id, purpose, installed).await?),
+            (Some(id), Some(purpose)) => {
+                Some(load(tx, row, caller, id, purpose.as_str(), installed).await?)
+            }
             _ => return Err(refusal()),
         };
         if let Some(receipt) = &artifact {
@@ -257,19 +558,9 @@ impl OperationalEvidence {
             }
             match row.action.document() {
                 DocumentKind::Eml => {
-                    let exact = services
-                        .documents
-                        .document_bytes(tx, row)
-                        .await?
-                        .ok_or_else(refusal)?;
+                    let exact = exact_eml(tx, services, row).await?;
                     let hash = sha256_hex(&exact);
-                    if row.document_sha256.as_deref() != Some(hash.as_str())
-                        || row
-                            .subject
-                            .get("eml_sha256")
-                            .and_then(serde_json::Value::as_str)
-                            != Some(hash.as_str())
-                        || hash != receipt.binding.message_hash
+                    if hash != receipt.binding.message_hash
                         || hash != receipt.binding.artifact_hash
                         || !verify_signature(leaf, algorithm, &exact, &receipt.signature_der)?
                     {
@@ -279,15 +570,10 @@ impl OperationalEvidence {
                 }
                 DocumentKind::Pdf => {
                     let revision = receipt.binding.pdf_revision.ok_or_else(refusal)?;
-                    let artifact = operational_pdf_artifact(
-                        tx,
-                        row,
-                        &caller.user_id,
-                        revision,
-                        &certificate,
-                        &S3RevisionStore,
-                    )
-                    .await?;
+                    let artifact = services
+                        .documents
+                        .operational_pdf_artifact(tx, row, &caller.user_id, revision, &certificate)
+                        .await?;
                     let matches = receipt.binding.pdf_parent_hash.as_deref()
                         == Some(hex::encode(artifact.parent_sha256).as_str())
                         && receipt.binding.pdf_digest.as_deref()
@@ -349,5 +635,35 @@ impl OperationalEvidence {
             return Err(refusal());
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod purpose_tests {
+    use super::*;
+    use strum::IntoEnumIterator;
+
+    #[test]
+    fn operational_parts_cover_every_protected_action() {
+        use OperationalSigningPurpose::{ApprovalPayload, Eml, PdfCms};
+        let mut count = 0;
+        for action in SigningAction::iter() {
+            let expected = match action {
+                SigningAction::InitializeVoting
+                | SigningAction::OpenVoting
+                | SigningAction::CloseVoting
+                | SigningAction::ApproveConfiguration
+                | SigningAction::ApproveVoter
+                | SigningAction::ConfirmCustodyProof
+                | SigningAction::ContributeCustodyProof => None,
+                SigningAction::GenerateElectionReturns | SigningAction::GenerateReports => {
+                    Some(PdfCms)
+                }
+                SigningAction::TransmitResults => Some(Eml),
+            };
+            assert_eq!(purposes(action), (ApprovalPayload, expected));
+            count += 1;
+        }
+        assert_eq!(count, 10);
     }
 }

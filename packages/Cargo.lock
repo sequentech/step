@@ -4668,6 +4668,7 @@ dependencies = [
  "openssl",
  "pgmq-broker",
  "protocol-board",
+ "postgres-openssl",
  "quick-xml 0.32.0",
  "regex",
  "reqwest 0.12.24",

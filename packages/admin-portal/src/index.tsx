@@ -2,13 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {captureGoldReturn} from "./lib/signing/operationalGoldReturn"
+import {captureGoldReturn, type ReturnSecret} from "./lib/signing/operationalGoldReturn"
+import {captureProductGoldReturn, PRODUCT_RETURN_PATH} from "./lib/signing/productCallbackCapture"
 
-if (window.location.pathname === "/operational-signing/return") {
+const productReturn = window.location.pathname === PRODUCT_RETURN_PATH
+if (productReturn || window.location.pathname === "/operational-signing/return") {
     // Remove callback credentials before importing the portal, telemetry or an API client.
-    const captured = captureGoldReturn(window.location, (path) =>
-        window.history.replaceState(null, "", path)
-    )
+    const capture = productReturn ? captureProductGoldReturn : captureGoldReturn
+    const captured = capture(window.location, (path) => window.history.replaceState(null, "", path))
     const lang = window.navigator.language.split("-")[0]
     const messages =
         lang === "es"
@@ -41,9 +42,17 @@ if (window.location.pathname === "/operational-signing/return") {
         link.textContent = messages[2]
         root.append(link)
     }
-    void import("./lib/signing/finishOperationalApproval")
-        .then(async ({finishOperationalApproval}) => {
-            if (!(await finishOperationalApproval(window, captured))) cannotResume()
+    const finish: Promise<(browser: Window, secret: ReturnSecret | undefined) => Promise<boolean>> =
+        productReturn
+            ? import("./lib/signing/finishProductApproval").then(
+                  (entry) => entry.finishProductApproval
+              )
+            : import("./lib/signing/finishOperationalApproval").then(
+                  (entry) => entry.finishOperationalApproval
+              )
+    void finish
+        .then(async (run) => {
+            if (!(await run(window, captured))) cannotResume()
         })
         .catch(cannotResume)
 } else {

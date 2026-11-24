@@ -29,6 +29,13 @@ pub struct DeviceCaProbe {
     pub fence: Uuid,
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GoldDeviceCaProbe {
+    pub scope: DeviceCaProbe,
+    pub binding_sha256: String,
+}
+
 /// The CA uses the same installed-device domain as approval and release. An
 /// ordinary build cannot even select the disposable software provider.
 pub use super::operational_device::InstalledDevice as RequiredCaDevice;
@@ -87,6 +94,25 @@ pub async fn assess_reserved_ca(
     profile: RequiredCaDevice,
     probe: &DeviceCaProbe,
 ) -> Result<Option<PositiveCaAssessment>> {
+    assess_with_ca_scope(tx, pinned_tenant, profile, probe, None).await
+}
+
+pub async fn assess_gold_reserved_ca(
+    tx: &Transaction<'_>,
+    pinned_tenant: Uuid,
+    probe: &GoldDeviceCaProbe,
+) -> Result<Option<PositiveCaAssessment>> {
+    if !canonical_hash(&probe.binding_sha256) {
+        return Ok(None);
+    }
+    assess_with_ca_scope(tx, pinned_tenant, RequiredCaDevice::YubiHsm, &probe.scope,
+        Some(&probe.binding_sha256)).await
+}
+
+async fn assess_with_ca_scope(
+    tx: &Transaction<'_>, pinned_tenant: Uuid, profile: RequiredCaDevice,
+    probe: &DeviceCaProbe, gold_binding: Option<&str>,
+) -> Result<Option<PositiveCaAssessment>> {
     if probe.tenant != pinned_tenant
         || [
             probe.tenant,
@@ -104,10 +130,15 @@ pub async fn assess_reserved_ca(
 
     let actor = probe.official.to_string();
     let profile = profile.as_str();
+    let (query, argument) = if let Some(hash) = gold_binding {
+        ("SELECT binding,certificate_id,chain_pem,grant_until,ca_version,anchors_pem,revocation_lists,false
+          FROM sequent_backend.operational_gold_get_ca($1,$2,$3,$4,$5,$6,$7)", hash)
+    } else {
+        ("SELECT binding,certificate_id,chain_pem,grant_until,ca_version,anchors_pem,revocation_lists,locally_revoked
+          FROM sequent_backend.operational_initialize_get_ca_enrollment($1,$2,$3,$4,$5,$6,$7)", profile)
+    };
     let Some(row) = tx
-        .query_opt(
-            "SELECT binding,certificate_id,chain_pem,grant_until,ca_version,anchors_pem,revocation_lists,locally_revoked
-         FROM sequent_backend.operational_initialize_get_ca_enrollment($1,$2,$3,$4,$5,$6,$7)",
+        .query_opt(query,
             &[
                 &probe.tenant,
                 &probe.event,
@@ -115,7 +146,7 @@ pub async fn assess_reserved_ca(
                 &actor,
                 &probe.challenge,
                 &probe.fence,
-                &profile,
+                &argument,
             ],
         )
         .await?
@@ -136,8 +167,8 @@ pub async fn assess_reserved_ca(
         binding.request_id,
         binding.challenge_id,
     ) != (probe.tenant, probe.event, probe.request, probe.challenge)
-        || binding.action != "initialize-voting"
-        || binding.purpose != "approval-payload"
+        || (gold_binding.is_none()
+            && (binding.action != "initialize-voting" || binding.purpose != "approval-payload"))
         || binding.actor != actor
         || binding.key_id != format!("official/{}/{}", probe.tenant, actor)
         || binding.key_version <= 0
@@ -195,18 +226,18 @@ pub async fn assess_reserved_ca(
     for certificate in &path {
         until = until.min(CertificateIdentity::of(certificate, &[])?.not_after);
     }
-    let current: String = tx
-        .query_one(
+    let current: Option<String> = if gold_binding.is_some() {
+        tx.query_opt(
+            "SELECT ca_version FROM sequent_backend.operational_gold_get_ca($1,$2,$3,$4,$5,$6,$7)",
+            &[&probe.tenant, &probe.event, &probe.request, &actor, &probe.challenge, &probe.fence, &argument],
+        ).await?.map(|row| row.try_get(0)).transpose()?
+    } else {
+        Some(tx.query_one(
             "SELECT sequent_backend.operational_initialize_ca_version($1,$2,$3,$4)",
-            &[
-                &probe.tenant,
-                &probe.event,
-                &binding.cert_fingerprint,
-                &binding.cert_spki,
-            ],
-        )
-        .await?
-        .try_get(0)?;
+            &[&probe.tenant, &probe.event, &binding.cert_fingerprint, &binding.cert_spki],
+        ).await?.try_get(0)?)
+    };
+    let Some(current) = current else { return Ok(None); };
     if current != version || until.timestamp() <= Utc::now().timestamp() {
         return Ok(None);
     }

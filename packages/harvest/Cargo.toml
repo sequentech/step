@@ -15,6 +15,8 @@ operational-signing-demo-fixture = ["operational-signing-private-ca-candidate", 
 # Candidate code compiles for dedicated verification without mounting routes.
 operational-signing-candidate = ["windmill/operational-signing-candidate", "reqwest/rustls-tls"]
 operational-signing-private-ca-candidate = ["operational-signing-candidate", "rocket/mtls", "dep:openssl"]
+# Real product ingress requires a pinned TLS frontend and private device broker.
+operational-signing-product = ["operational-signing-private-ca-candidate", "dep:postgres-openssl"]
 
 [dependencies]
 sequent-plugin-api = { path = "../plugins/api" }
@@ -60,6 +62,7 @@ jsonwebtoken = { version = "10.3", features = ["aws_lc_rs"] }
 
 # To connect to the Database
 deadpool-postgres = { version = "0.14", features = ["rt_tokio_1", "serde"] }
+postgres-openssl = { version = "0.5", optional = true }
 tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4"] }
 
 # used for sanitizing input

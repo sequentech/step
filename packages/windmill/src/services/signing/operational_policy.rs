@@ -64,6 +64,115 @@ pub async fn signing_mode(
     Ok(mode.with_hsm_requirement(tenant_required))
 }
 
+fn resolve_event_mode(
+    deployment_mode: &str,
+    tenant_required: bool,
+    explicit_mode: Option<&str>,
+    product_active: bool,
+) -> Result<OperationalSigningMode, LegacySigningBlocked> {
+    // Validate both values even when the deployment floor requires HSM.
+    // A malformed explicit value is not an omitted selection.
+    let deployment = parse_mode(deployment_mode)?;
+    let explicit = explicit_mode.map(parse_mode).transpose()?;
+    let floor = deployment.with_hsm_requirement(tenant_required);
+    // Explicitly staged installations preserve ordinary old behavior until
+    // the migration preconditions are satisfied; active product defaults HSM.
+    let selected = if product_active {
+        explicit
+    } else {
+        explicit.or(Some(OperationalSigningMode::LegacyP12))
+    };
+    Ok(floor.for_event(selected))
+}
+
+/// Resolves an installed policy for precisely one existing tenant/event.
+/// Like `signing_mode`, retain the shared policy lock in this transaction
+/// through the protected operation. No event/row lock or device check is
+/// performed here; callers still apply their action rules and device checks.
+/// This function does not mount any ordinary approval ingress.
+pub async fn signing_mode_for_event(
+    tx: &Transaction<'_>,
+    tenant: Uuid,
+    election_event: Uuid,
+) -> Result<OperationalSigningMode, LegacySigningBlocked> {
+    // The facts query must take a fresh snapshot after waiting for a
+    // writer. Even the first statement of a REPEATABLE READ transaction
+    // could have taken its snapshot before obtaining this lock.
+    tx.query_opt(
+        "SELECT pg_advisory_xact_lock_shared(hashtextextended('operational-signing-policy:deployment', 0))
+         WHERE current_setting('transaction_isolation') = 'read committed'",
+        &[],
+    )
+    .await
+    .map_err(|_| LegacySigningBlocked::Unavailable)?
+    .ok_or(LegacySigningBlocked::Unavailable)?;
+    let row = tx
+        .query_opt(
+            "SELECT deployment_mode, tenant_required, explicit_mode, product_active
+             FROM sequent_backend.operational_signing_event_mode_facts($1, $2)",
+            &[&tenant, &election_event],
+        )
+        .await
+        .map_err(|_| LegacySigningBlocked::Unavailable)?
+        .ok_or(LegacySigningBlocked::Unavailable)?;
+    let deployment_mode = row
+        .try_get::<_, &str>("deployment_mode")
+        .map_err(|_| LegacySigningBlocked::Unavailable)?;
+    let tenant_required = row
+        .try_get::<_, bool>("tenant_required")
+        .map_err(|_| LegacySigningBlocked::Unavailable)?;
+    let explicit_mode = row
+        .try_get::<_, Option<&str>>("explicit_mode")
+        .map_err(|_| LegacySigningBlocked::Unavailable)?;
+    let product_active = row
+        .try_get::<_, bool>("product_active")
+        .map_err(|_| LegacySigningBlocked::Unavailable)?;
+    resolve_event_mode(
+        deployment_mode,
+        tenant_required,
+        explicit_mode,
+        product_active,
+    )
+}
+
+/// Policy of the protected-action paths. The sealed installation keeps
+/// its existing stricter admission: trust its exact manifest and DB
+/// marker, never a dev flag or a fallback legacy mode.
+pub async fn approval_mode_for_event(
+    tx: &Transaction<'_>,
+    tenant: Uuid,
+    election_event: Uuid,
+) -> Result<OperationalSigningMode, LegacySigningBlocked> {
+    #[cfg(feature = "operational-signing-demo-fixture")]
+    if super::operational_device::installed_profile(
+        tx,
+        tenant,
+        election_event,
+        sequent_core::signing::SigningAction::InitializeVoting,
+    )
+    .await
+    .map_err(|_| LegacySigningBlocked::Unavailable)?
+    .is_some()
+    {
+        return match signing_mode(tx, tenant).await? {
+            OperationalSigningMode::HsmRequired => Ok(OperationalSigningMode::HsmRequired),
+            OperationalSigningMode::LegacyP12 => Err(LegacySigningBlocked::Unavailable),
+        };
+    }
+    signing_mode_for_event(tx, tenant, election_event).await
+}
+
+pub async fn require_legacy_signing_for_event(
+    tx: &Transaction<'_>,
+    tenant: Uuid,
+    election_event: Uuid,
+) -> Result<(), LegacySigningBlocked> {
+    match approval_mode_for_event(tx, tenant, election_event).await? {
+        OperationalSigningMode::LegacyP12 => Ok(()),
+        OperationalSigningMode::HsmRequired => Err(LegacySigningBlocked::HsmRequired),
+    }
+}
+
 pub async fn require_legacy_signing(
     tx: &Transaction<'_>,
     tenant: Uuid,
@@ -117,4 +226,47 @@ pub async fn assert_startup_policy(
         return Err(LegacySigningBlocked::Unavailable);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn installed_event_modes_require_valid_floor_and_explicit_values() {
+        use OperationalSigningMode::{HsmRequired as Hsm, LegacyP12 as Legacy};
+        for active in [false, true] {
+            assert_eq!(
+                resolve_event_mode("legacy-p12", false, None, active),
+                Ok(if active { Hsm } else { Legacy })
+            );
+            assert_eq!(
+                resolve_event_mode("legacy-p12", false, Some("legacy-p12"), active),
+                Ok(Legacy)
+            );
+            assert_eq!(
+                resolve_event_mode("legacy-p12", false, Some("hsm-required"), active),
+                Ok(Hsm)
+            );
+            for (floor, promoted) in [("legacy-p12", true), ("hsm-required", false)] {
+                assert_eq!(resolve_event_mode(floor, promoted, None, active), Ok(Hsm));
+                assert_eq!(
+                    resolve_event_mode(floor, promoted, Some("legacy-p12"), active),
+                    Ok(Hsm)
+                );
+                assert_eq!(
+                    resolve_event_mode(floor, promoted, Some("invalid"), active),
+                    Err(LegacySigningBlocked::Unavailable)
+                );
+            }
+            assert_eq!(
+                resolve_event_mode("invalid", true, Some("hsm-required"), active),
+                Err(LegacySigningBlocked::Unavailable)
+            );
+            assert_eq!(
+                resolve_event_mode("legacy-p12", false, Some(""), active),
+                Err(LegacySigningBlocked::Unavailable)
+            );
+        }
+    }
 }

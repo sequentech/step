@@ -31,7 +31,7 @@
 
 use crate::postgres::election_initialization::list_scheduled_closes;
 use crate::postgres::signing::{
-    list_signing_posts, list_signing_rules, lock_signing_event, SigningPost,
+    list_signing_posts, list_signing_rules, lock_signing_event, SigningPost, SigningRequestRow,
 };
 use crate::services::election_event_status::TransitionRefusal;
 use crate::services::initialization_schedule::{effective_close, WaitReason};
@@ -42,6 +42,10 @@ use crate::services::signing::actions::configuration::{
     canonical_text, target_scope_key, ConfigurationSubject,
 };
 use crate::services::signing::log::{stage, Actor, LogStep, SystemOutcome};
+use crate::services::signing::operational_device::matches_canonical_request;
+use crate::services::signing::operational_policy::{
+    signing_mode_for_event, OperationalSigningMode,
+};
 use crate::services::signing::{action_title, log_scope};
 use anyhow::{Context, Result};
 use chrono::{DateTime, SecondsFormat, Utc};
@@ -1068,6 +1072,24 @@ pub struct Approval {
     pub initialization_report_policies: BTreeMap<String, EInitializeReportPolicy>,
 }
 
+/// Provenance of finalized approval, not of an active key today. A key
+/// rotation or revocation must not move an already approved close deadline.
+#[derive(Debug, Clone, Default)]
+struct ScheduleApprovalProvenance {
+    hardware: HashSet<Uuid>,
+    legacy_deadline: HashSet<Uuid>,
+}
+
+fn configuration_rule_matches(request: &SigningRequestRow) -> bool {
+    serde_json::from_value::<SigningRule>(request.rule_snapshot.clone()).is_ok_and(|rule| {
+        rule.action == SigningAction::ApproveConfiguration
+            && rule.revision == request.rule_revision
+            && rule.validate().is_ok()
+            && rule.is_required()
+            && i32::from(rule.required()) == request.required
+    })
+}
+
 impl Approval {
     pub fn authorized_by(&self) -> AuthorizedBy {
         AuthorizedBy {
@@ -1113,6 +1135,7 @@ pub struct EventState {
     pub publications: Vec<Publication>,
     /// Executed approvals, newest first.
     pub approvals: Vec<Approval>,
+    hsm_approval_provenance: Option<ScheduleApprovalProvenance>,
     pub posts: Vec<SigningPost>,
     /// Each Post's configured voting channels.
     pub post_channels: HashMap<Uuid, VotingChannels>,
@@ -1264,63 +1287,99 @@ impl EventState {
                 .push(row.try_get(1)?);
         }
         let event_key = target_scope_key(None);
-        let approvals = hasura_transaction
-            .query(
-                "SELECT id, code, scope_key, subject, executed_at
-                 FROM sequent_backend.signing_request
-                 WHERE tenant_id = $1 AND election_event_id = $2
-                     AND action = 'approve-configuration' AND status = 'executed'
-                 ORDER BY executed_at DESC, id",
-                &[&tenant_id, &election_event_id],
-            )
-            .await
-            .context("Error reading the executed configuration approvals")?
-            .into_iter()
-            .map(|row| -> Result<Approval> {
-                let id: Uuid = row.try_get("id")?;
-                let scope_key: String = row.try_get("scope_key")?;
-                let subject: Value = row.try_get("subject")?;
-                Ok(Approval {
-                    request_id: id,
-                    code: row.try_get("code")?,
-                    target: if scope_key == event_key {
-                        None
-                    } else {
-                        scope_key
-                            .rsplit('|')
-                            .next()
-                            .and_then(|key| Uuid::parse_str(key).ok())
-                    },
-                    executed_at: row.try_get("executed_at")?,
-                    schedule: subject
-                        .get("schedule")
-                        .cloned()
-                        .and_then(|schedule| serde_json::from_value(schedule).ok())
-                        .unwrap_or_default(),
-                    initialization_scope: subject
-                        .get("policies")
-                        .cloned()
-                        .map(serde_json::from_value::<LifecyclePolicies>)
-                        .transpose()
-                        .context("Executed configuration initialization policies don't read")?
-                        .unwrap_or_default()
-                        .initialization_scope,
-                    initialization_report_policies: subject
-                        .get("initialization_report_policies")
-                        .cloned()
-                        .map(serde_json::from_value)
-                        .transpose()
-                        .context("Executed report policies don't read")?
-                        .unwrap_or_default(),
-                    signers: signers.remove(&id).unwrap_or_default(),
-                    post_channels: subject
-                        .get("post_channels")
-                        .cloned()
-                        .and_then(|channels| serde_json::from_value(channels).ok())
-                        .unwrap_or_default(),
-                })
-            })
-            .collect::<Result<Vec<_>>>()?;
+        let mut hsm_approval_provenance =
+            (signing_mode_for_event(hasura_transaction, tenant_id, election_event_id).await?
+                == OperationalSigningMode::HsmRequired)
+                .then(ScheduleApprovalProvenance::default);
+        // Keep legacy reads independent from the operational ledger and its
+        // ACLs. A SQL CASE would still require privileges on both arms.
+        let approvals = if hsm_approval_provenance.is_some() {
+            hasura_transaction
+                .query(
+                    "SELECT r.*, p.hardware_receipts, p.legacy_only
+                     FROM sequent_backend.operational_signing_historical_schedule_proof($1, $2) p
+                     JOIN sequent_backend.signing_request r ON r.id = p.request_id
+                     WHERE r.tenant_id = $1 AND r.election_event_id = $2
+                     ORDER BY r.executed_at DESC, r.id",
+                    &[&tenant_id, &election_event_id],
+                )
+                .await
+        } else {
+            hasura_transaction
+                .query(
+                    "SELECT id, code, scope_key, subject, executed_at
+                     FROM sequent_backend.signing_request
+                     WHERE tenant_id = $1 AND election_event_id = $2
+                         AND action = 'approve-configuration' AND status = 'executed'
+                     ORDER BY executed_at DESC, id",
+                    &[&tenant_id, &election_event_id],
+                )
+                .await
+        }
+        .context("Error reading the executed configuration approvals")?
+        .into_iter()
+        .map(|row| -> Result<Approval> {
+            let id: Uuid = row.try_get("id")?;
+            let scope_key: String = row.try_get("scope_key")?;
+            let subject: Value = row.try_get("subject")?;
+            let approval = Approval {
+                request_id: id,
+                code: row.try_get("code")?,
+                target: if scope_key == event_key {
+                    None
+                } else {
+                    scope_key
+                        .rsplit('|')
+                        .next()
+                        .and_then(|key| Uuid::parse_str(key).ok())
+                },
+                executed_at: row.try_get("executed_at")?,
+                schedule: subject
+                    .get("schedule")
+                    .cloned()
+                    .and_then(|schedule| serde_json::from_value(schedule).ok())
+                    .unwrap_or_default(),
+                initialization_scope: subject
+                    .get("policies")
+                    .cloned()
+                    .map(serde_json::from_value::<LifecyclePolicies>)
+                    .transpose()
+                    .context("Executed configuration initialization policies don't read")?
+                    .unwrap_or_default()
+                    .initialization_scope,
+                initialization_report_policies: subject
+                    .get("initialization_report_policies")
+                    .cloned()
+                    .map(serde_json::from_value)
+                    .transpose()
+                    .context("Executed report policies don't read")?
+                    .unwrap_or_default(),
+                signers: signers.remove(&id).unwrap_or_default(),
+                post_channels: subject
+                    .get("post_channels")
+                    .cloned()
+                    .and_then(|channels| serde_json::from_value(channels).ok())
+                    .unwrap_or_default(),
+            };
+            if let Some(provenance) = &mut hsm_approval_provenance {
+                let hardware: bool = row.try_get("hardware_receipts")?;
+                let legacy: bool = row.try_get("legacy_only")?;
+                if hardware || legacy {
+                    let Ok(request) = SigningRequestRow::try_from(row) else {
+                        return Ok(approval);
+                    };
+                    if configuration_rule_matches(&request) && matches_canonical_request(&request) {
+                        if hardware {
+                            provenance.hardware.insert(id);
+                        } else {
+                            provenance.legacy_deadline.insert(id);
+                        }
+                    }
+                }
+            }
+            Ok(approval)
+        })
+        .collect::<Result<Vec<_>>>()?;
         let mut post_channels = HashMap::new();
         for row in hasura_transaction
             .query(
@@ -1439,6 +1498,7 @@ impl EventState {
             snapshots,
             publications,
             approvals,
+            hsm_approval_provenance,
             posts: list_signing_posts(hasura_transaction, tenant_id, election_event_id).await?,
             post_channels,
             own_rows,
@@ -1564,7 +1624,7 @@ impl EventState {
             .map(|date| date.with_timezone(&Utc));
         let channels = row.payload().channels();
         // An arbitrary live opening moved after a signed close cannot create a new period.
-        let signed_opening = self.approval(Some(post)).is_some_and(|approval| {
+        let signed_opening = self.scheduled_approval(Some(post)).is_some_and(|approval| {
             approval.schedule.iter().any(|entry| {
                 entry.event_processor == "START_VOTING_PERIOD"
                     && entry.scheduled_event_id == row.transition.scheduled_event_id
@@ -1686,12 +1746,36 @@ impl EventState {
         self.rules.of(action).required || self.published_copy(post, action).values().rule.required
     }
 
-    /// The newest executed approval at a Post (its own or the event's), or
-    /// of the event.
+    /// Kept, authorized deadline. A qualified hardware approval may replace
+    /// the prior cutoff; a declined new approval may not extend voting.
     pub fn approval(&self, post: Option<Uuid>) -> Option<&Approval> {
-        self.approvals
+        let applicable = || {
+            self.approvals
+                .iter()
+                .filter(|approval| applies_at(approval.target, post))
+        };
+        let Some(provenance) = &self.hsm_approval_provenance else {
+            return applicable().next();
+        };
+        applicable()
+            .find(|approval| provenance.hardware.contains(&approval.request_id))
+            .or_else(|| {
+                applicable()
+                    .find(|approval| provenance.legacy_deadline.contains(&approval.request_id))
+            })
+    }
+
+    /// A new scheduled effect may only use the latest applicable approval,
+    /// and in HSM mode it must carry applied hardware receipts.
+    fn scheduled_approval(&self, post: Option<Uuid>) -> Option<&Approval> {
+        let latest = self
+            .approvals
             .iter()
-            .find(|approval| applies_at(approval.target, post))
+            .find(|approval| applies_at(approval.target, post))?;
+        self.hsm_approval_provenance
+            .as_ref()
+            .is_none_or(|provenance| provenance.hardware.contains(&latest.request_id))
+            .then_some(latest)
     }
 
     pub fn post_name(&self, post: Option<Uuid>) -> String {
@@ -1732,7 +1816,7 @@ impl EventState {
     /// What decides a row at a Post.
     pub fn inputs(&self, row: &ScheduledRow, post: Option<Uuid>, moment: Moment) -> Inputs {
         let action = row.action();
-        let coverage = match self.approval(post) {
+        let coverage = match self.scheduled_approval(post) {
             None => Coverage::NoApproval,
             Some(approval) => {
                 let signed = approval

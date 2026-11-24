@@ -66,6 +66,10 @@ pub(crate) mod operational_initialize;
 pub(crate) mod operational_initialize_broker;
 #[cfg(feature = "operational-signing-candidate")]
 pub(crate) mod operational_initialize_setup;
+#[cfg(feature = "operational-signing-product")]
+pub(crate) mod operational_product_approval;
+#[cfg(feature = "operational-signing-product")]
+mod operational_product_broker_client;
 #[cfg(feature = "operational-signing-candidate")]
 pub(crate) mod operational_setup;
 pub mod permissions;
@@ -73,6 +77,8 @@ pub mod phone_blacklist;
 pub mod plugins;
 #[cfg(feature = "operational-signing-private-ca-candidate")]
 pub(crate) mod private_operational_ca;
+#[cfg(feature = "operational-signing-product")]
+pub(crate) mod private_product_setup_ca;
 pub mod readiness;
 pub mod realm_attributes;
 pub mod realm_password_policy;

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
+use crate::services::signing::operational_policy::approval_mode_for_event;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
@@ -25,22 +25,17 @@ pub async fn get_exportable_document_ids(
 ) -> Result<std::collections::HashSet<String>> {
     let tenant = parse_uuid_v4(tenant_id)?;
     let event = parse_uuid_v4(election_event_id)?;
-    let query = if signing_mode(transaction, tenant).await? == OperationalSigningMode::HsmRequired {
-        // One READ COMMITTED statement and one classification snapshot:
-        // neither a just-committed object nor its registry membership can
-        // appear in only half of the export decision.
-        "WITH gate AS MATERIALIZED (
+    // Keep the policy lock across the exact registry decision. A classified
+    // package never becomes an ordinary event-export candidate after a mode change.
+    approval_mode_for_event(transaction, tenant, event).await?;
+    let query = "WITH gate AS MATERIALIZED (
              SELECT sequent_backend.operational_miru_export_exclusions($1,$2) AS withheld
          )
          SELECT gate.withheld IS NOT NULL AS inventory_ready, doc.id, doc.annotations
          FROM gate LEFT JOIN LATERAL (
              SELECT id,annotations FROM sequent_backend.document
              WHERE tenant_id=$1 AND election_event_id=$2 AND NOT (id=ANY(gate.withheld))
-         ) doc ON true"
-    } else {
-        "SELECT true AS inventory_ready, id, annotations FROM sequent_backend.document
-         WHERE tenant_id=$1 AND election_event_id=$2"
-    };
+         ) doc ON true";
     let rows = transaction.query(query, &[&tenant, &event]).await?;
     let mut ids = std::collections::HashSet::new();
     for row in rows {

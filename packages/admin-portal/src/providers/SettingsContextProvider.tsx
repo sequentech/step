@@ -11,6 +11,8 @@ export interface GlobalSettings {
     DEFAULT_TENANT_ID: string
     ONLINE_VOTING_CLIENT_ID: string
     KEYCLOAK_URL: string
+    OPERATIONAL_PRODUCT_SIGNING_GOLD_CLIENT_ID?: string
+    OPERATIONAL_PRODUCT_NORMAL_AUDIENCE?: string
     WBRAID_BOARD_URL?: string
     HASURA_URL: string
     APP_VERSION: string

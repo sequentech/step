@@ -91,7 +91,12 @@ pub async fn rocket() -> rocket::Rocket<rocket::Build> {
         }
     });
 
-    build_application_with(services)
+    let app = build_application_with(services);
+    #[cfg(feature = "operational-signing-product")]
+    let app = routes::operational_product_approval::configure_product_approval(app)
+        .await
+        .expect("Invalid provisioned production signing ingress");
+    app
 }
 
 /// Register the same routes and managed state for production and local HTTP
@@ -417,3 +422,13 @@ mod application_tests {
         );
     }
 }
+
+
+/// Separate positive-only production CA process. Not an ordinary route,
+/// not certificate issuance, and not the sealed demo composition.
+#[cfg(all(unix, feature = "operational-signing-private-ca-candidate", not(feature = "operational-signing-demo-fixture")))]
+pub mod operational_gold_ca_runtime;
+
+/// Separate product staff enrollment CA process. Never part of the ordinary API.
+#[cfg(all(unix, feature = "operational-signing-product", not(feature = "operational-signing-demo-fixture")))]
+pub mod operational_setup_ca_runtime;

@@ -13,7 +13,7 @@
 //! the trustee's route consumes the completed request ([`consume_gate`]).
 
 use super::log::SystemOutcome;
-use super::operational_policy::{signing_mode, OperationalSigningMode};
+use super::operational_policy::{approval_mode_for_event, OperationalSigningMode};
 use super::operational_quorum::has_operational_quorum;
 use super::requests::{
     cancel_request, expire_request, is_overdue, is_the_trustee, read_request, relock,
@@ -164,7 +164,7 @@ pub async fn effective_rule(
     election_event_id: Uuid,
     action: SigningAction,
 ) -> anyhow::Result<SigningRule> {
-    let mode = signing_mode(hasura_transaction, tenant_id).await?;
+    let mode = approval_mode_for_event(hasura_transaction, tenant_id, election_event_id).await?;
     let effective = get_signing_rule(hasura_transaction, tenant_id, election_event_id, action)
         .await?
         .map(|row| row.rule);
@@ -462,7 +462,7 @@ pub async fn consume_gate(
     request_id: Uuid,
     expected_subject: &Value,
 ) -> SigningResult<SigningRequestRow> {
-    let mode = signing_mode(hasura_transaction, tenant_id)
+    let mode = approval_mode_for_event(hasura_transaction, tenant_id, election_event_id)
         .await
         .context("Operational signing policy unavailable")?;
     let found = read_request(hasura_transaction, tenant_id, request_id).await?;

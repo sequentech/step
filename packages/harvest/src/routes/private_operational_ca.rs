@@ -19,7 +19,8 @@ use sha2::{Digest, Sha256};
 use std::net::SocketAddr;
 use uuid::Uuid;
 use windmill::services::signing::operational_ca::{
-    assess_reserved_ca, DeviceCaProbe, PositiveCaAssessment, RequiredCaDevice,
+    assess_gold_reserved_ca, assess_reserved_ca, DeviceCaProbe, GoldDeviceCaProbe,
+    PositiveCaAssessment, RequiredCaDevice,
 };
 
 struct Authority {
@@ -60,6 +61,33 @@ async fn assess(
     let result = assess_reserved_ca(&tx, state.tenant, state.profile, &probe)
         .await
         .map_err(|_| Status::ServiceUnavailable)?;
+    tx.commit().await.map_err(|_| Status::ServiceUnavailable)?;
+    result.map(Json).ok_or(Status::Forbidden)
+}
+
+#[tracing::instrument(skip_all)]
+#[rocket::post(
+    "/private/v2/operational-signing/ca",
+    format = "json",
+    data = "<probe>"
+)]
+async fn assess_gold(
+    state: &State<Authority>,
+    peer: Certificate<'_>,
+    probe: Json<GoldDeviceCaProbe>,
+) -> Result<Json<PositiveCaAssessment>, Status> {
+    let public = X509::from_der(peer.as_bytes())
+        .and_then(|cert| cert.public_key())
+        .and_then(|key| key.public_key_to_der())
+        .map_err(|_| Status::Forbidden)?;
+    let pin: [u8; 32] = Sha256::digest(public).into();
+    if pin != state.peer_pin || probe.scope.tenant != state.tenant {
+        return Err(Status::Forbidden);
+    }
+    let mut connection = state.database.get().await.map_err(|_| Status::ServiceUnavailable)?;
+    let tx = connection.transaction().await.map_err(|_| Status::ServiceUnavailable)?;
+    let result = assess_gold_reserved_ca(&tx, state.tenant, &probe)
+        .await.map_err(|_| Status::ServiceUnavailable)?;
     tx.commit().await.map_err(|_| Status::ServiceUnavailable)?;
     result.map(Json).ok_or(Status::Forbidden)
 }
@@ -135,4 +163,78 @@ pub(crate) async fn unmounted_authority(
             profile,
         })
         .mount("/", rocket::routes![assess]))
+}
+
+/// New listener only. Keep its CA key and client pin distinct from Harvest→broker.
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn unmounted_gold_authority(
+    address: SocketAddr,
+    tenant: Uuid,
+    peer_pin: [u8; 32],
+    database: Pool,
+    server_chain: &[u8],
+    server_key: &[u8],
+    approved_device_client_ca: &[u8],
+) -> Result<Rocket<Build>, Status> {
+    if tenant.is_nil()
+        || peer_pin == [0; 32]
+        || server_chain.is_empty()
+        || server_key.is_empty()
+        || approved_device_client_ca.is_empty()
+    {
+        return Err(Status::ServiceUnavailable);
+    }
+    let connection = database
+        .get()
+        .await
+        .map_err(|_| Status::ServiceUnavailable)?;
+    let role_is_safe = connection.query_one(
+        "SELECT current_user=session_user
+        AND pg_has_role(current_user,'sequent_os_gold_ca','USAGE')
+        AND has_function_privilege(current_user,'sequent_backend.operational_gold_get_ca(uuid,uuid,uuid,text,uuid,uuid,text)','EXECUTE')
+        AND NOT pg_has_role(current_user,'sequent_os_gold_broker','MEMBER')
+        AND NOT pg_has_role(current_user,'sequent_os_initialize_ca','MEMBER')
+        AND NOT pg_has_role(current_user,'sequent_os_ledger_api_owner','MEMBER')
+        AND NOT EXISTS (SELECT FROM pg_roles WHERE rolname=current_user
+            AND (rolsuper OR rolbypassrls OR rolcreaterole))
+        AND NOT pg_has_role(current_user,'sequent_os_ledger_data_owner','MEMBER')
+        AND NOT pg_has_role(current_user,'sequent_os_initialize_orchestrator','MEMBER')
+        AND NOT pg_has_role(current_user,'sequent_os_initialize_device','MEMBER')
+        AND NOT pg_has_role(current_user,'sequent_os_device','MEMBER')
+        AND NOT has_table_privilege(current_user,'sequent_backend.operational_signing_intent','SELECT, INSERT, UPDATE, DELETE')
+        AND NOT has_any_column_privilege(current_user,'sequent_backend.operational_signing_intent','SELECT, INSERT, UPDATE, REFERENCES')
+        AND NOT has_table_privilege(current_user,'sequent_backend.certificate_authority','SELECT, INSERT, UPDATE, DELETE')
+        AND NOT has_any_column_privilege(current_user,'sequent_backend.certificate_authority','SELECT, INSERT, UPDATE, REFERENCES')
+        AND NOT has_table_privilege(current_user,'sequent_backend.staff_crl','SELECT, INSERT, UPDATE, DELETE')
+        AND NOT has_any_column_privilege(current_user,'sequent_backend.staff_crl','SELECT, INSERT, UPDATE, REFERENCES')
+        AND NOT has_table_privilege(current_user,'sequent_backend.staff_certificate','SELECT, INSERT, UPDATE, DELETE')
+        AND NOT has_any_column_privilege(current_user,'sequent_backend.staff_certificate','SELECT, INSERT, UPDATE, REFERENCES')",
+        &[],
+    ).await.map_err(|_| Status::ServiceUnavailable)?
+      .try_get::<_,bool>(0).map_err(|_|Status::ServiceUnavailable)?;
+    if !role_is_safe {
+        return Err(Status::ServiceUnavailable);
+    }
+    drop(connection);
+
+    let config = Config {
+        address: address.ip(),
+        port: address.port(),
+        tls: Some(TlsConfig::from_bytes(server_chain, server_key).with_mutual(
+            MutualTls::from_bytes(approved_device_client_ca).mandatory(true),
+        )),
+        limits: Limits::default().limit("json", 8.kibibytes()),
+        ..Config::default()
+    };
+    if !config.mtls_enabled() {
+        return Err(Status::ServiceUnavailable);
+    }
+    Ok(rocket::custom(config)
+        .manage(Authority {
+            database,
+            tenant,
+            peer_pin,
+            profile: RequiredCaDevice::YubiHsm,
+        })
+        .mount("/", rocket::routes![assess_gold]))
 }

@@ -34,7 +34,7 @@ use super::directory::KeycloakUserDirectory;
 use super::guard::effective_rule;
 use super::log::Actor;
 use super::operational_cms::OperationalCms;
-use super::operational_policy::require_legacy_signing;
+use super::operational_policy::require_legacy_signing_for_event;
 use super::pades::{
     append_signature_page, finalize, prepare_revision, rebuild_revision, signature_fields,
     CmsTrust, PadesError, SignatureAppearance, SignatureFieldSpec, SignaturePageTexts,
@@ -926,7 +926,8 @@ pub async fn prepare_pdf(
         .transaction()
         .await
         .context("Error starting the prepare")?;
-    require_legacy_signing(&transaction, tenant_id)
+    let request = read_request(&transaction, tenant_id, request_id).await?;
+    require_legacy_signing_for_event(&transaction, tenant_id, request.election_event_id)
         .await
         .map_err(|error| SigningError::Forbidden(error.to_string()))?;
     let step = prepare_in(
@@ -1228,6 +1229,45 @@ impl DocumentSigner for PdfDocumentSigner {
             now,
         )
         .await
+    }
+
+    async fn prepare_operational_pdf(
+        &self,
+        tx: &Transaction<'_>,
+        caller: &SigningCaller,
+        request: &SigningRequestRow,
+        verified_chain: &[String],
+        now: DateTime<Utc>,
+    ) -> SigningResult<PdfPrepared> {
+        match prepare_in(
+            tx,
+            PdfSources {
+                store: self.store.as_ref(),
+                titles: self.titles.as_ref(),
+            },
+            caller,
+            request.tenant_id,
+            request.id,
+            verified_chain,
+            now,
+        )
+        .await?
+        {
+            PrepareStep::Prepared(prepared) => Ok(prepared),
+            PrepareStep::Refused(error) => Err(error),
+        }
+    }
+
+    async fn operational_pdf_artifact(
+        &self,
+        tx: &Transaction<'_>,
+        request: &SigningRequestRow,
+        actor: &str,
+        revision: i32,
+        certificate: &CertificateIdentity,
+    ) -> SigningResult<OperationalPdfArtifact> {
+        operational_pdf_artifact(tx, request, actor, revision, certificate, self.store.as_ref())
+            .await
     }
 
     /// The request's document (the base of a PDF request) and, for a PDF,

@@ -18,7 +18,7 @@
 use super::super::guard::{
     effective_rule, GuardOutcome, GuardRequest, RequestScope, SigningDocument,
 };
-use super::super::operational_policy::{signing_mode, OperationalSigningMode};
+use super::super::operational_policy::{approval_mode_for_event, OperationalSigningMode};
 use super::super::operational_quorum::has_operational_quorum;
 use super::super::{SigningCaller, SigningError, SigningResult};
 use super::{gate, refuse, EffectProgress};
@@ -161,8 +161,9 @@ pub async fn guard_transmission_package(
             false => Ok(None),
         };
     };
-    let mode = signing_mode(hasura_transaction, package.tenant_id)
-        .await
+    let mode =
+        approval_mode_for_event(hasura_transaction, package.tenant_id, package.election_event_id)
+            .await
         .context("Operational signing policy unavailable")?;
     let outcome = gate(
         hasura_transaction,
@@ -430,7 +431,12 @@ pub async fn sign_package(
     }
     let destination_sha256 = destination_configuration_hash(&loaded.package.servers)?;
     if destination_names(&loaded.package.servers) != subject.destinations()
-        || (signing_mode(hasura_transaction, request.tenant_id).await?
+        || (approval_mode_for_event(
+            hasura_transaction,
+            request.tenant_id,
+            request.election_event_id,
+        )
+        .await?
             == OperationalSigningMode::HsmRequired
             && request
                 .subject
@@ -569,7 +575,7 @@ pub async fn transmission_send_check_bound(
     package: &MiruTransmissionPackageData,
     observed_archive_sha256: Option<&str>,
 ) -> Result<std::result::Result<TransmissionSendCheck, TransmissionRefusal>> {
-    let mode = signing_mode(hasura_transaction, tenant_id).await?;
+    let mode = approval_mode_for_event(hasura_transaction, tenant_id, election_event_id).await?;
     let request = match &package.signing_request {
         Some(signing) => {
             let id = Uuid::parse_str(&signing.id).context("Error reading the request id")?;

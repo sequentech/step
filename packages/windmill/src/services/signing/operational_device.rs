@@ -35,7 +35,7 @@ impl InstalledDevice {
 /// Verify the fields the action will actually execute, not merely the hash of
 /// a stored string. A changed Post/country/requester with the old canonical
 /// bytes/digest must not allow the same receipt to release a different intent.
-pub(super) fn matches_canonical_request(row: &crate::postgres::signing::SigningRequestRow) -> bool {
+pub(crate) fn matches_canonical_request(row: &crate::postgres::signing::SigningRequestRow) -> bool {
     use sequent_core::signing::{sha256_hex, SigningPayload, SigningPayloadFields};
     let fields = SigningPayloadFields {
         tenant_id: row.tenant_id.to_string(),

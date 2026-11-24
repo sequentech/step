@@ -40,6 +40,7 @@ use base64::Engine;
 use chrono::Utc;
 use deadpool_postgres::{Client, Transaction};
 use rocket::http::Status;
+use rocket::request::{FromRequest, Outcome, Request};
 use rocket::serde::json::Json;
 use rocket::State;
 use sequent_core::services::jwt::JwtClaims;
@@ -59,7 +60,8 @@ use windmill::services::signing::approve::{
 use windmill::services::signing::crl::{refresh_chain_crls, HttpCrlFetcher};
 use windmill::services::signing::directory::KeycloakUserDirectory;
 use windmill::services::signing::operational_policy::{
-    require_legacy_signing, signing_mode, OperationalSigningMode,
+    approval_mode_for_event, require_legacy_signing, require_legacy_signing_for_event,
+    signing_mode, OperationalSigningMode,
 };
 use windmill::services::signing::pdf::PdfPrepared;
 use windmill::services::signing::requests::{
@@ -241,22 +243,74 @@ struct SigningPanelWithMode {
     #[serde(flatten)]
     panel: SigningPanel,
     operational_signing_mode: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    operational_signing_flow: Option<&'static str>,
+    operational_signing_setup: bool,
 }
 
-#[instrument(skip(claims, services))]
+pub struct ProductSigningAvailability<'a> {
+    #[cfg(feature = "operational-signing-product")]
+    authority: Option<&'a super::operational_product_approval::ProductApprovalInstallation>,
+    #[cfg(feature = "operational-signing-product")]
+    setup: Option<&'a super::operational_setup::product::ProductSetupInstallations>,
+    #[cfg(not(feature = "operational-signing-product"))]
+    marker: std::marker::PhantomData<&'a ()>,
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for ProductSigningAvailability<'r> {
+    type Error = ();
+
+    async fn from_request(_request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        Outcome::Success(Self {
+            #[cfg(feature = "operational-signing-product")]
+            authority: _request.rocket().state(),
+            #[cfg(feature = "operational-signing-product")]
+            setup: _request.rocket().state(),
+            #[cfg(not(feature = "operational-signing-product"))]
+            marker: std::marker::PhantomData,
+        })
+    }
+}
+
+impl ProductSigningAvailability<'_> {
+
+    fn setup_for_tenant(&self, _tenant: Uuid) -> bool {
+        #[cfg(feature = "operational-signing-product")]
+        if self.setup.is_some_and(|setup| setup.serves(_tenant)) {
+            return true;
+        }
+        false
+    }
+    fn flow_for_tenant(&self, _tenant: Uuid) -> Option<&'static str> {
+        #[cfg(feature = "operational-signing-product")]
+        if !cfg!(feature = "operational-signing-demo-fixture") {
+            return Some(if self.authority.is_some_and(|authority| authority.serves_tenant(_tenant)) {
+                "product-v2"
+            } else {
+                "unavailable"
+            });
+        }
+        None
+    }
+}
+
+#[instrument(skip(claims, services, availability))]
 #[post("/signing-requests/get", format = "json", data = "<body>")]
 pub async fn get_signing_request(
     claims: JwtClaims,
     services: &State<HarvestServices>,
     body: Json<RequestIdInput>,
+    availability: ProductSigningAvailability<'_>,
 ) -> SigningReply<PanelOutput> {
-    get_signing_request_with_scope(claims, services, body).await
+    get_signing_request_with_scope(claims, services, body, availability).await
 }
 
 async fn get_signing_request_with_scope(
     claims: JwtClaims,
     services: &HarvestServices,
     body: Json<RequestIdInput>,
+    availability: ProductSigningAvailability<'_>,
 ) -> SigningReply<PanelOutput> {
     let tenant_id = tenant_of(&claims)?;
     let request_id = uuid_of(&body.request_id, "request_id")?;
@@ -267,14 +321,6 @@ async fn get_signing_request_with_scope(
         hasura_client.transaction().await.map_err(internal)?;
     let keycloak_transaction =
         keycloak_client.transaction().await.map_err(internal)?;
-    let operational_signing_mode =
-        match signing_mode(&hasura_transaction, tenant_id)
-            .await
-            .map_err(internal)?
-        {
-            OperationalSigningMode::LegacyP12 => "legacy-p12",
-            OperationalSigningMode::HsmRequired => "hsm-required",
-        };
     let panel = get_panel(
         &hasura_transaction,
         &keycloak_transaction,
@@ -285,10 +331,23 @@ async fn get_signing_request_with_scope(
     )
     .await
     .map_err(signing_failure)?;
+    let operational_signing_mode =
+        match approval_mode_for_event(&hasura_transaction, tenant_id, panel.request.election_event_id)
+            .await
+            .map_err(internal)?
+        {
+            OperationalSigningMode::LegacyP12 => "legacy-p12",
+            OperationalSigningMode::HsmRequired => "hsm-required",
+        };
     Ok(Json(PanelOutput {
         panel: SigningPanelWithMode {
             panel,
             operational_signing_mode,
+            operational_signing_flow: (operational_signing_mode == "hsm-required")
+                .then(|| availability.flow_for_tenant(tenant_id))
+                .flatten(),
+            operational_signing_setup: operational_signing_mode == "hsm-required"
+                && availability.setup_for_tenant(tenant_id),
         },
     }))
 }
@@ -354,9 +413,15 @@ pub async fn approve_signing_request(
     // is left to the checks, which refuse or accept per the event.
     let request = {
         let transaction = client.transaction().await.map_err(internal)?;
-        get_signing_request_in_tenant(&transaction, tenant_id, input.request_id)
+        let request = get_signing_request_in_tenant(&transaction, tenant_id, input.request_id)
             .await
-            .map_err(internal)?
+            .map_err(internal)?;
+        if let Some(request) = &request {
+            require_legacy_signing_for_event(&transaction, tenant_id, request.election_event_id)
+                .await
+                .map_err(|error| SigningFailure::forbidden(error.to_string()))?;
+        }
+        request
     };
     if let Some(request) = request {
         if let Err(error) = refresh_chain_crls(
@@ -405,7 +470,11 @@ pub async fn report_signing_open_failure(
     let caller = writer(&claims, tenant_id, services).await?;
     let mut client = hasura(services).await?;
     let transaction = client.transaction().await.map_err(internal)?;
-    require_legacy_signing(&transaction, tenant_id)
+    let request = get_signing_request_in_tenant(&transaction, tenant_id, request_id)
+        .await
+        .map_err(internal)?
+        .ok_or_else(|| signing_failure(SigningError::NotFound("There is no such signing request.".into())))?;
+    require_legacy_signing_for_event(&transaction, tenant_id, request.election_event_id)
         .await
         .map_err(|error| SigningFailure::forbidden(error.to_string()))?;
     let result = report_open_failure(
@@ -712,7 +781,7 @@ pub async fn signing_event_info(
     let keycloak_transaction =
         keycloak_client.transaction().await.map_err(internal)?;
     let operational_signing_mode =
-        match signing_mode(&hasura_transaction, tenant_id)
+        match approval_mode_for_event(&hasura_transaction, tenant_id, election_event_id)
             .await
             .map_err(internal)?
         {

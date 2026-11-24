@@ -662,6 +662,7 @@ fn initialization_state(post: Uuid) -> EventState {
         snapshots: vec![],
         publications: vec![],
         approvals: vec![],
+        hsm_approval_provenance: None,
         posts: vec![],
         post_channels: HashMap::new(),
         own_rows: HashSet::new(),
@@ -1279,4 +1280,63 @@ fn signed_country_evidence_is_preserved_without_changing_legacy_payloads() {
             countries
         );
     }
+}
+
+#[test]
+fn hsm_schedule_separates_fresh_effects_from_retained_deadlines() {
+    let post = Uuid::from_u128(3);
+    let mut state = initialization_state(post);
+    let row = opening_row(post);
+    state.now = Utc.with_ymd_and_hms(2028, 5, 8, 10, 1, 0).unwrap();
+    state.rules.open_voting = rule(true, 2);
+    let hardware = Approval {
+        request_id: Uuid::from_u128(4),
+        code: "HARDWARE".to_owned(),
+        target: None,
+        executed_at: state.now - chrono::Duration::minutes(10),
+        schedule: vec![row.transition.clone()],
+        signers: vec!["First".to_owned(), "Second".to_owned()],
+        post_channels: [(post.to_string(), state.enabled_channels(post))].into(),
+        initialization_scope: InitializationScope::POST,
+        initialization_report_policies: Default::default(),
+    };
+    let legacy = Approval {
+        request_id: Uuid::from_u128(5),
+        code: "LEGACY".to_owned(),
+        target: Some(post),
+        executed_at: state.now - chrono::Duration::minutes(5),
+        ..hardware.clone()
+    };
+    state.approvals = vec![legacy.clone(), hardware.clone()];
+
+    let input = |state: &EventState| state.inputs(&row, Some(post), Moment::FireTime);
+    assert_eq!(
+        evaluate(&input(&state)).authorized_by,
+        Some(legacy.authorized_by())
+    );
+
+    state.hsm_approval_provenance = Some(ScheduleApprovalProvenance {
+        hardware: [hardware.request_id].into(),
+        legacy_deadline: [legacy.request_id].into(),
+    });
+    // A newer unqualified configuration cannot open voting or reuse an
+    // older opening, and cannot displace an existing hardware deadline.
+    assert_eq!(
+        evaluate(&input(&state)).outcome,
+        ScheduledOutcomeKind::Refused
+    );
+    assert_eq!(state.approval(Some(post)), Some(&hardware));
+    state.approvals.remove(0);
+    assert_eq!(
+        evaluate(&input(&state)).authorized_by,
+        Some(hardware.authorized_by())
+    );
+
+    // Keep a legitimate preexisting legacy cutoff, never permission to open.
+    state.approvals = vec![legacy.clone()];
+    assert_eq!(state.approval(Some(post)), Some(&legacy));
+    assert_eq!(
+        evaluate(&input(&state)).outcome,
+        ScheduledOutcomeKind::Refused
+    );
 }

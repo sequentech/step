@@ -1704,6 +1704,37 @@ fn import_tenancy(document: &str, tenant_id: &str) -> Result<super::realm_channe
     })
 }
 
+/// Import is not an operator authorization to change the credential provider.
+/// A package signature authenticates the exported choice, not permission to
+/// apply it on the destination. The database resolves an absent installed
+/// override to HSM and applies any deployment/tenant floor independently.
+fn project_imported_operational_signing_mode(
+    mode: &mut Option<sequent_core::signing::OperationalSigningMode>,
+    notes: &mut Vec<String>,
+) {
+    use sequent_core::signing::OperationalSigningMode::LegacyP12;
+    if *mode == Some(LegacyP12) {
+        notes.push(
+            "The bundle requested legacy-p12. An import cannot authorize a legacy signing override; the destination event policy applies."
+                .to_owned(),
+        );
+    }
+    *mode = None;
+}
+
+#[cfg(test)]
+#[test]
+fn new_event_import_never_treats_a_bundle_mode_as_operator_authority() {
+    use sequent_core::signing::OperationalSigningMode::{HsmRequired, LegacyP12};
+    for (stated, warns) in [(None, false), (Some(HsmRequired), false), (Some(LegacyP12), true)] {
+        let mut mode = stated;
+        let mut notes = Vec::new();
+        project_imported_operational_signing_mode(&mut mode, &mut notes);
+        assert_eq!(mode, None);
+        assert_eq!(notes.len(), usize::from(warns));
+    }
+}
+
 #[instrument(err, skip_all)]
 pub async fn process_election_event_file(
     hasura_transaction: &Transaction<'_>,
@@ -1733,6 +1764,14 @@ pub async fn process_election_event_file(
     // In the task's log with the import's other notes, where the operator who
     // started it reads what it did not do.
     notes.extend(warnings.iter().map(ToString::to_string));
+
+    // The mode travels in the export envelope, not in the mutable event
+    // presentation or an installed provider override. Do not edit the
+    // already verified package bytes; this is the server-owned import copy.
+    project_imported_operational_signing_mode(
+        &mut data.operational_signing_mode,
+        &mut notes,
+    );
 
     let election_ids: Vec<String> = data
         .elections

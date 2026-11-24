@@ -23,8 +23,8 @@ use super::certificates::{
 use super::executors::{ExecutionOutcome, PostCommit, SigningExecutorRegistry};
 use super::log::{Actor, SystemOutcome};
 use super::operational_approval::{OperationalApprovalInput, OperationalEvidence};
-use super::operational_policy::{signing_mode, OperationalSigningMode};
-use super::pdf::{PanelDocument, PdfPrepared};
+use super::operational_policy::{approval_mode_for_event, OperationalSigningMode};
+use super::pdf::{OperationalPdfArtifact, PanelDocument, PdfPrepared};
 use super::requests::{
     cancel_request, execution_failure, expire_request, is_overdue, is_the_trustee, read_request,
     relock, stage_executed, stage_request_step, throttled, SigningExportStore,
@@ -84,6 +84,52 @@ pub trait DocumentSigner: Send + Sync {
         Err(SigningError::invalid(
             InvalidReason::Document,
             "PDF signatures are not available.",
+        ))
+    }
+
+    /// Action-specific certificate admission before the private device is
+    /// asked to sign, such as incumbent SBEI registration for transmissions.
+    /// This is read-only and never applies a document or an approval.
+    async fn check_operational_certificate(
+        &self,
+        _tx: &Transaction<'_>,
+        _request: &SigningRequestRow,
+        _signer: &Actor,
+        _certificate: &CertificateIdentity,
+    ) -> SigningResult<()> {
+        Ok(())
+    }
+
+    /// Prepares the actor's next PDF revision from an already verified
+    /// server-managed certificate. The caller owns the approval transaction;
+    /// the browser never chooses the certificate, PDF bytes, or digest.
+    async fn prepare_operational_pdf(
+        &self,
+        _tx: &Transaction<'_>,
+        _caller: &SigningCaller,
+        _request: &SigningRequestRow,
+        _verified_chain: &[String],
+        _now: DateTime<Utc>,
+    ) -> SigningResult<PdfPrepared> {
+        Err(SigningError::invalid(
+            InvalidReason::Document,
+            "Server-managed PDF signing is not available.",
+        ))
+    }
+
+    /// Reconstruct using the same trusted store as preparation and embedding.
+    /// A browser cannot supply or choose the parent bytes or revision storage.
+    async fn operational_pdf_artifact(
+        &self,
+        _tx: &Transaction<'_>,
+        _request: &SigningRequestRow,
+        _actor: &str,
+        _revision: i32,
+        _certificate: &CertificateIdentity,
+    ) -> SigningResult<OperationalPdfArtifact> {
+        Err(SigningError::invalid(
+            InvalidReason::Document,
+            "Server-managed PDF signing is not available.",
         ))
     }
 
@@ -550,19 +596,23 @@ async fn approve_in(
     ingress: Ingress<'_>,
     now: DateTime<Utc>,
 ) -> SigningResult<Step> {
-    let mode = signing_mode(transaction, tenant_id)
-        .await
-        .map_err(|error| SigningError::Forbidden(error.to_string()))?;
-    let request_id = match (ingress, mode) {
-        (Ingress::Legacy(input), OperationalSigningMode::LegacyP12) => input.request_id,
-        (Ingress::Operational(input), OperationalSigningMode::HsmRequired) => input.request_id,
-        _ => {
-            return Err(SigningError::Forbidden(
-                "This signing method is not allowed for the tenant.".into(),
-            ))
-        }
+    let request_id = match ingress {
+        Ingress::Legacy(input) => input.request_id,
+        Ingress::Operational(input) => input.request_id,
     };
     let found = read_request(transaction, tenant_id, request_id).await?;
+    let mode = approval_mode_for_event(transaction, tenant_id, found.election_event_id)
+        .await
+        .map_err(|error| SigningError::Forbidden(error.to_string()))?;
+    if !matches!(
+        (ingress, mode),
+        (Ingress::Legacy(_), OperationalSigningMode::LegacyP12)
+            | (Ingress::Operational(_), OperationalSigningMode::HsmRequired)
+    ) {
+        return Err(SigningError::Forbidden(
+            "This signing method is not allowed for the election event.".into(),
+        ));
+    }
 
     // 1. Who may sign: decided before any lock, and before anything of
     // the request's state is told. A refusal is logged.

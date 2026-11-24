@@ -21,6 +21,7 @@ pub mod operational_approval;
 pub mod operational_ca;
 pub mod operational_cms;
 pub mod operational_device;
+pub mod operational_enrollment;
 #[cfg(feature = "operational-signing-candidate")]
 pub mod operational_initialize;
 pub mod operational_policy;

@@ -392,7 +392,9 @@ pub async fn ordinary_document_url_allowed(
     tenant_id: &str,
     document: &Document,
 ) -> anyhow::Result<bool> {
-    use crate::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
+    use crate::services::signing::operational_policy::{
+        approval_mode_for_event, signing_mode,
+    };
     let tenant = uuid::Uuid::parse_str(tenant_id)?;
     if configuration_package_storage(tx, tenant, &document.id)
         .await?
@@ -400,15 +402,16 @@ pub async fn ordinary_document_url_allowed(
     {
         return Ok(false);
     }
-    if signing_mode(tx, tenant).await? != OperationalSigningMode::HsmRequired {
-        return Ok(true);
-    }
     let event = document
         .election_event_id
         .as_deref()
         .filter(|id| !id.is_empty())
         .map(uuid::Uuid::parse_str)
         .transpose()?;
+    match event {
+        Some(event_id) => approval_mode_for_event(tx, tenant, event_id).await?,
+        None => signing_mode(tx, tenant).await?,
+    };
     let document_id = uuid::Uuid::parse_str(&document.id)?;
     let withheld: Option<bool> = tx
         .query_one(

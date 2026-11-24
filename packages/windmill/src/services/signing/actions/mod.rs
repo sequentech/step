@@ -40,7 +40,7 @@ pub mod voting;
 
 use super::executors::{ExecutionOutcome, PostCommit, PostCommitTask, SigningExecutor};
 use super::guard::{effective_rule, guard, GuardOutcome, GuardRequest};
-use super::operational_policy::{signing_mode, OperationalSigningMode};
+use super::operational_policy::{approval_mode_for_event, OperationalSigningMode};
 use super::operational_quorum::has_operational_quorum;
 use super::requests::{claim_dispatched, finish_dispatched, DispatchedResult};
 use super::{SigningCaller, SigningError, SigningResult};
@@ -558,7 +558,7 @@ pub async fn run_claimed(
 
     // The effect: the request's row lock, not the event's signing lock.
     let transaction = client.transaction().await?;
-    let mode = signing_mode(&transaction, tenant_id).await?;
+    let mode = approval_mode_for_event(&transaction, tenant_id, election_event_id).await?;
     let Some(request) =
         lock_signing_request(&transaction, tenant_id, election_event_id, request_id).await?
     else {

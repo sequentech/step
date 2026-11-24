@@ -92,6 +92,9 @@ export interface ISigningDetail {
 export interface ISigningPanelData extends ISigningRequestPanel {
     /** Server policy; missing or unknown never mounts the P12 dialog. */
     operational_signing_mode?: unknown
+    /** Product capability reported by trusted server; not an event JSON/REST setting. */
+    operational_signing_flow?: unknown
+    operational_signing_setup?: unknown
     /** The Post's name (the request's election). */
     election_name?: string | null
     /** The country's name (the request's area). */
