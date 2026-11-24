@@ -364,6 +364,9 @@ mod canonical_tests {
     }
 }
 
-#[cfg(test)]
+// The independent socket-only witness runs via test-canonical-reload.sh.
+// The ordinary candidate CI runs the real guard/commit/reload assertions in
+// postgres_signing_operational_initialize using its own migrated fixture.
+#[cfg(all(test, feature = "operational-signing-demo-fixture"))]
 #[path = "operational_device_postgres_tests.rs"]
 mod canonical_postgres_tests;

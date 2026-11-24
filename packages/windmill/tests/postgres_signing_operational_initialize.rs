@@ -45,6 +45,7 @@ use windmill::services::signing::certificates::{CertificateIdentity, OpensslCert
 use windmill::services::signing::crl::{refresh_chain_crls, refresh_event_crls, CrlFetcher};
 use windmill::services::signing::directory::UserDirectory;
 use windmill::services::signing::executors::SigningExecutorRegistry;
+use windmill::services::signing::guard::{GuardOutcome, GuardRequest};
 use windmill::services::signing::issuers::import_staff_issuers;
 use windmill::services::signing::log::Actor;
 use windmill::services::signing::operational_approval::OperationalApprovalInput;
@@ -491,13 +492,86 @@ async fn a_scope_exists_only_for_a_waiting_hardware_initialize_request() {
     );
     assert!(!applied(&w, &official, request.id).await);
 
-    // An overdue request keeps its scope but takes no more approvals.
+    // Changing only the stored deadline makes the reviewed payload invalid,
+    // rather than manufacturing a genuinely expired signed intent.
     w.make_overdue(request.id).await;
-    assert!(scope(&w, &official, request.id).await.is_ok());
-    match prepare(&w, &official, request.id).await {
+    assert_eq!(refused(scope(&w, &official, request.id).await), UNAVAILABLE);
+
+    // A request with a genuine canonical deadline in the past keeps its
+    // scope but cannot take an approval. The normal writer creates it.
+    let expired = w
+        .start(
+            &operator(),
+            ACTION,
+            subject(7),
+            at(0) - chrono::Duration::hours(2),
+        )
+        .await;
+    assert!(scope(&w, &official, expired.id).await.is_ok());
+    match prepare(&w, &official, expired.id).await {
         Err(SigningError::Closed { .. }) => {}
         Err(other) => panic!("expected a closed request, got {other:?}"),
         Ok(_) => panic!("an overdue request took an approval"),
+    }
+}
+
+#[tokio::test]
+async fn committed_post_scope_does_not_outlive_a_changed_execution_revision() {
+    let w = world("initialize-canonical-reload").await;
+    w.rule(ACTION, 2, RequesterSigning::NotAllowed, Some(60))
+        .await;
+    promote(&w).await;
+    let official = w.signer(&Uuid::new_v4().to_string(), ACTION);
+    for (i, area, revision) in [
+        (1, None, None),
+        (2, Some(w.area), None),
+        (3, None, Some("r1")),
+        (4, Some(w.area), Some("r2")),
+    ] {
+        let mut post_scope = w.scope(ACTION);
+        post_scope.area_id = area;
+        post_scope.subject_key = Some(format!("canonical-post-{i}"));
+        let intent = GuardRequest {
+            action: ACTION,
+            scope: post_scope,
+            subject: serde_json::json!({"publication_id": Uuid::new_v4(), "name": "José"}),
+            document: None,
+            config_revision: revision.map(str::to_owned),
+        };
+        let GuardOutcome::SigningRequired(pending) = w
+            .guard_request(
+                &operator(),
+                &intent,
+                at(0) + chrono::Duration::nanoseconds(987_654_321),
+            )
+            .await
+            .unwrap()
+        else {
+            panic!("Initialize Voting must retain the rule");
+        };
+        let stored = w.request(pending.id).await;
+        assert_eq!(stored.area_id, area);
+        assert_eq!(stored.config_revision.as_deref(), revision);
+        let reviewed = prepare(&w, &official, stored.id).await.unwrap();
+        assert_eq!(reviewed.election(), Some(w.post));
+        assert_eq!(reviewed.payload_sha256(), stored.payload_sha256.as_str());
+
+        // Retain the exact canonical bytes and digest, changing only a real
+        // database field downstream execution could read.
+        w.execute(
+            "UPDATE sequent_backend.signing_request
+             SET config_revision='altered-after-commit' WHERE id=$1",
+            &[&stored.id],
+        )
+        .await;
+        let changed = w.request(stored.id).await;
+        assert_eq!(changed.canonical_payload, stored.canonical_payload);
+        assert_eq!(changed.payload_sha256, stored.payload_sha256);
+        assert_eq!(
+            refused(prepare(&w, &official, stored.id).await),
+            UNAVAILABLE
+        );
+        assert_eq!(refused(scope(&w, &official, stored.id).await), UNAVAILABLE);
     }
 }
 
@@ -597,6 +671,31 @@ async fn the_ca_assessment_answers_only_an_exact_live_reservation() {
     assert!(assess(&w, w.tenant, RequiredCaDevice::YubiHsm, &nil)
         .await
         .is_none());
+    // In the ordinary build the software provider cannot even be selected
+    // in Rust. Independently verify the persisted CA boundary refuses this
+    // exact reservation when the other provider is requested.
+    let has_soft_assessment: bool = w
+        .pool
+        .get()
+        .await
+        .unwrap()
+        .query_one(
+            "SELECT EXISTS (SELECT FROM sequent_backend.operational_initialize_get_ca_enrollment(
+                 $1, $2, $3, $4, $5, $6, 'softhsm-test'))",
+            &[
+                &exact.tenant,
+                &exact.event,
+                &exact.request,
+                &exact.official.to_string(),
+                &exact.challenge,
+                &exact.fence,
+            ],
+        )
+        .await
+        .unwrap()
+        .get(0);
+    assert!(!has_soft_assessment);
+    #[cfg(feature = "operational-signing-demo-fixture")]
     assert!(
         assess(&w, w.tenant, RequiredCaDevice::DisposableSoftHsm, &exact)
             .await
