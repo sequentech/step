@@ -44,7 +44,8 @@ use windmill::services::{
     ceremonies::tally_ceremony::begin_tally_session_recount,
     ess_xml_converter::{
         convert_ess_enhanced_xml_to_csv_for_reporting_group, ContestVoteConfig,
-        DEFAULT_IMPORT_REPORTING_GROUP_ID, ESS_AREA_GROUPING_ANNOTATION_KEY,
+        EssConversion, DEFAULT_IMPORT_REPORTING_GROUP_ID,
+        ESS_AREA_GROUPING_ANNOTATION_KEY,
     },
     tally_sheet_import::{
         application::{
@@ -953,15 +954,14 @@ async fn build_canonical_csv_conversion(
             )
             .await
             .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
-            let conversion =
-                convert_ess_enhanced_xml_to_csv_for_reporting_group(
-                    source_bytes,
-                    selected_channel.clone(),
-                    DEFAULT_IMPORT_REPORTING_GROUP_ID,
-                    &contest_vote_config,
-                    &configured_area_names,
-                )
-                .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
+            let conversion = convert_ess_xml_in_blocking_pool(
+                source_bytes.to_vec(),
+                selected_channel.clone(),
+                contest_vote_config,
+                configured_area_names,
+            )
+            .await?
+            .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
             Ok(CanonicalCsvConversion {
                 canonical_csv: conversion.canonical_csv,
                 validation_errors: conversion.validation_errors,
@@ -969,6 +969,34 @@ async fn build_canonical_csv_conversion(
             })
         }
     }
+}
+
+/// Converts an ES&S Enhanced XML file on the blocking thread pool: the
+/// conversion is CPU-bound and can run for seconds on a large file, which would
+/// otherwise hold up every request sharing this runtime worker. The outer error
+/// is the pool's, the inner one the conversion's.
+async fn convert_ess_xml_in_blocking_pool(
+    source_bytes: Vec<u8>,
+    selected_channel: VotingChannel,
+    contest_vote_config: HashMap<String, ContestVoteConfig>,
+    configured_area_names: HashSet<String>,
+) -> Result<Result<EssConversion>, (Status, String)> {
+    tokio::task::spawn_blocking(move || {
+        convert_ess_enhanced_xml_to_csv_for_reporting_group(
+            &source_bytes,
+            selected_channel,
+            DEFAULT_IMPORT_REPORTING_GROUP_ID,
+            &contest_vote_config,
+            &configured_area_names,
+        )
+    })
+    .await
+    .map_err(blocking_task_error)
+}
+
+/// The error for a blocking task that panicked or was cancelled.
+fn blocking_task_error(error: tokio::task::JoinError) -> (Status, String) {
+    (Status::InternalServerError, format!("{error:?}"))
 }
 
 /// A source file turned into canonical CSV. `area_grouping` records which
