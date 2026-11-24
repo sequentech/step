@@ -119,6 +119,8 @@ const tagalogTranslation: TranslationType = {
                     "Di-wastong boto! Ang pagkakasunod-sunod ng kagustuhan ay may isa o higit pang puwang.",
                 duplicatedPosition:
                     "Di-wastong boto! Ang parehong posisyon ay napili para sa dalawa o higit pang kandidato.",
+                selectedDisabledCandidate:
+                    "Di-wastong boto! May napiling kandidatong hindi pinagana.",
             },
             explicit: {
                 notAllowed:
