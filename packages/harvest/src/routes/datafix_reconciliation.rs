@@ -8,7 +8,10 @@
 //! operator through the wizard and authorized like every other admin action
 //! (`JwtClaims` + `authorize`).
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+    authorize_election_event_permission_label,
+};
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -81,6 +84,12 @@ pub async fn create_reconciliation_import(
         vec![Permissions::ELECTION_EVENT_VOTER_LIST_SYNC],
     )
     .map_err(|err| (Status::Forbidden, format!("{err:?}")))?;
+    authorize_election_event_access(
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
 
     let executer_name = claims
         .name
@@ -165,6 +174,13 @@ pub async fn apply_reconciliation_changes(
         .transaction()
         .await
         .map_err(|err| (Status::InternalServerError, format!("{err:?}")))?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
 
     let document = get_document(
         &hasura_transaction,

@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -29,6 +31,12 @@ pub async fn list_electoral_log(
         Some(input.tenant_id.clone()),
         vec![Permissions::LOGS_READ],
     )?;
+    authorize_election_event_access(
+        &claims,
+        &input.tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
     let ret_val = get_logs(input)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

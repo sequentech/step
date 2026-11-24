@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -67,6 +69,13 @@ pub async fn get_election_stats(
                 format!("Error creating a transaction: {err}"),
             )
         })?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
 
     let voters_by_channel = get_count_distinct_voters_by_channel(
         &hasura_transaction,

@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -63,6 +65,12 @@ pub async fn get_realm_attributes_route(
         Some(body.election_event_id.as_str()),
     )
     .map_err(|error| (Status::BadRequest, error.to_string()))?;
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
 
     let attributes = get_realm_attributes(
         &claims.hasura_claims.tenant_id,
@@ -108,6 +116,12 @@ pub async fn update_realm_attributes_route(
         Some(body.election_event_id.as_str()),
     )
     .map_err(|error| (Status::BadRequest, error.to_string()))?;
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
 
     validate_realm_attributes(&body.attributes)
         .map_err(|e| (Status::BadRequest, e.to_string()))?;

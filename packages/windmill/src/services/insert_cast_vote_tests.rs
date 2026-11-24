@@ -25,6 +25,7 @@ fn election_event(annotations: Option<serde_json::Value>) -> ElectionEvent {
         public_key: None,
         statistics: None,
         external_id: None,
+        permission_label: None,
     }
 }
 

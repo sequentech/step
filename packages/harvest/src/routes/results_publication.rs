@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
@@ -51,6 +53,12 @@ pub async fn configure_results_website_policy(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::PUBLISH_RESULTS_WRITE],
     )?;
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
 
     let output = configure_results_website_policy_request(
         &claims.hasura_claims.tenant_id,
@@ -72,6 +80,12 @@ pub async fn publish_results_website(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::PUBLISH_RESULTS_WRITE],
     )?;
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
 
     let executed_by_user = claims
         .name
@@ -123,6 +137,12 @@ pub async fn revoke_results_publication(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::PUBLISH_RESULTS_WRITE],
     )?;
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
 
     let output = revoke_results_publication_request(
         &claims.hasura_claims.tenant_id,
@@ -146,6 +166,12 @@ pub async fn refresh_results_publication_index(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::PUBLISH_RESULTS_WRITE],
     )?;
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
 
     let output = refresh_results_publication_index_request(
         &claims.hasura_claims.tenant_id,

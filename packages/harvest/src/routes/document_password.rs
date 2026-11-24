@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -82,6 +84,22 @@ pub async fn get_document_password(
             internal_error("Failed to read document")
         })?
         .ok_or_else(unavailable)?;
+    if let Some(election_event_id) = document.election_event_id.as_deref() {
+        authorize_election_event_permission_label(
+            &transaction,
+            &claims,
+            &tenant_id,
+            election_event_id,
+        )
+        .await
+        .map_err(|(status, message)| {
+            if status == Status::Forbidden {
+                ErrorResponse::new(status, &message, ErrorCode::Unauthorized)
+            } else {
+                internal_error("Failed to read the election event")
+            }
+        })?;
+    }
     let annotations = document
         .annotations
         .map(serde_json::from_value::<DocumentAnnotations>)

@@ -1192,6 +1192,7 @@ pub async fn insert_election_event_db(
             "num_sms_sent": 0
         })),
         external_id: None,
+        permission_label: object.permission_label.clone(),
     };
 
     insert_election_event(&hasura_transaction, &new_election_input).await?;

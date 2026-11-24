@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -97,6 +99,13 @@ pub async fn set_voter_authentication(
             error!("Failed to start transaction: {:?}", e);
             (Status::InternalServerError, format!("{:?}", e))
         })?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
 
     let election_event = get_election_event_by_id(
         &hasura_transaction,

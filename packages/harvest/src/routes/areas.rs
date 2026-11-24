@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -77,6 +79,13 @@ pub async fn upsert_area(
 
     let tenant_id = body.tenant_id.to_string();
     let election_event_id_str = body.election_event_id.to_string();
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &election_event_id_str,
+    )
+    .await?;
 
     get_election_event_by_id_if_exist(
         &hasura_transaction,

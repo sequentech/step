@@ -965,6 +965,7 @@ input CreateElectionEventInput {
     is_audit: Boolean
     audit_election_event_id: String
     public_key: String
+    permission_label: String
 }
 
 input GetUsersInput {

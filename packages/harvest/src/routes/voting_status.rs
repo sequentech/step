@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+};
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -44,6 +46,12 @@ pub async fn update_event_status(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::ELECTION_STATE_WRITE],
     )?;
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
 
     let input = body.into_inner();
     let tenant_id = &claims.hasura_claims.tenant_id;
@@ -104,6 +112,12 @@ pub async fn update_election_status(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::ELECTION_STATE_WRITE],
     )?;
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let user_id = claims.hasura_claims.user_id;

@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -58,6 +60,13 @@ pub async fn export_certificate_authority_route(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id_str,
+        &body.election_event_id.to_string(),
+    )
+    .await?;
 
     let election_event = get_election_event_by_id(
         &hasura_transaction,

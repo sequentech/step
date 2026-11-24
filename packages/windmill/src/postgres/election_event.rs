@@ -40,6 +40,7 @@ impl TryFrom<Row> for ElectionEventWrapper {
             public_key: item.get("public_key"),
             statistics: item.try_get("statistics")?,
             external_id: item.try_get("external_id")?,
+            permission_label: item.try_get("permission_label")?,
         }))
     }
 }
@@ -55,9 +56,9 @@ pub async fn insert_election_event(
         .prepare(
             r#"
                 INSERT INTO sequent_backend.election_event
-                (id, created_at, updated_at, labels, annotations, tenant_id, description, presentation, bulletin_board_reference, is_archived, voting_channels, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, statistics, external_id)
+                (id, created_at, updated_at, labels, annotations, tenant_id, description, presentation, bulletin_board_reference, is_archived, voting_channels, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, statistics, external_id, permission_label)
                 VALUES
-                ($1, NOW(), NOW(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);
+                ($1, NOW(), NOW(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18);
             "#,
         )
         .await?;
@@ -86,12 +87,49 @@ pub async fn insert_election_event(
                 &election_event.public_key,
                 &election_event.statistics,
                 &election_event.external_id,
+                // An empty label is no label: it would hide the event from
+                // every admin user, since none can hold it.
+                &election_event
+                    .permission_label
+                    .as_deref()
+                    .filter(|label| !label.is_empty()),
             ],
         )
         .await
         .map_err(|err| anyhow!("Error running the document query: {err}"))?;
 
     Ok(())
+}
+
+/// The permission label of an election event: `None` when the tenant has no
+/// such event, `Some(None)` when the event has no label.
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_election_event_permission_label(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Option<Option<String>>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT permission_label
+                FROM sequent_backend.election_event
+                WHERE tenant_id = $1 AND id = $2
+            "#,
+        )
+        .await?;
+    let row = hasura_transaction
+        .query_opt(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error reading the election event permission label: {err}"))?;
+    row.map(|row| row.try_get("permission_label").map_err(Into::into))
+        .transpose()
 }
 
 #[instrument(err, skip_all)]

@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -74,6 +76,8 @@ pub async fn create_transmission_package(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::MIRU_CREATE],
     )?;
+    authorize_election_event_access(&claims, &tenant_id, &election_event_id)
+        .await?;
     let celery_app = get_celery_app().await;
     let celery_task = match celery_app
         .send_task(create_transmission_package_task::new(

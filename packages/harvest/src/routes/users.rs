@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::{authorize, import_users_privileges};
+use crate::services::authorization::{
+    authorize, authorize_election_event_access, import_users_privileges,
+};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
@@ -74,6 +76,24 @@ pub struct DeleteUserBody {
     tenant_id: String,
     election_event_id: Option<String>,
     user_id: String,
+}
+
+async fn event_permitted(
+    claims: &jwt::JwtClaims,
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+) -> Result<(), (Status, String)> {
+    match election_event_id {
+        Some(election_event_id) => {
+            authorize_election_event_access(
+                claims,
+                tenant_id,
+                election_event_id,
+            )
+            .await
+        }
+        None => Ok(()),
+    }
 }
 
 async fn ensure_election_event_not_locked(
@@ -244,6 +264,12 @@ pub async fn delete_user(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .await?;
     if let Some(election_event_id) = input.election_event_id.as_deref() {
         ensure_election_event_not_locked(&input.tenant_id, election_event_id)
             .await?;
@@ -315,6 +341,12 @@ pub async fn delete_users(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .await?;
 
     let select_all = input.select_all.unwrap_or(false);
     if !select_all && input.users_id.as_ref().map_or(true, |ids| ids.is_empty())
@@ -502,6 +534,12 @@ pub async fn count_users(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .await?;
 
     let realm = match input.election_event_id {
         Some(ref election_event_id) => {
@@ -605,6 +643,12 @@ pub async fn get_users(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .await?;
 
     let realm = match input.election_event_id {
         Some(ref election_event_id) => {
@@ -900,6 +944,20 @@ pub async fn create_user(
             };
             ErrorResponse::new(status, &message, code)
         })?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .await
+    .map_err(|(status, message)| {
+        let code = if status == Status::Forbidden {
+            ErrorCode::Unauthorized
+        } else {
+            ErrorCode::InternalServerError
+        };
+        ErrorResponse::new(status, &message, code)
+    })?;
     reject_tenant_id_attribute(&input.user).map_err(|message| {
         ErrorResponse::new(
             Status::BadRequest,
@@ -1392,6 +1450,12 @@ pub async fn edit_user(
     };
 
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .await?;
     let realm = match input.election_event_id.clone() {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
@@ -1790,6 +1854,12 @@ pub async fn get_user(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .await?;
     let realm = match input.election_event_id.as_ref() {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, election_event_id)
@@ -1846,6 +1916,12 @@ pub async fn reveal_voter_secret_attribute(
             Permissions::VOTER_SECRET_ATTRIBUTE_READ,
         ],
     )?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        Some(input.election_event_id.as_str()),
+    )
+    .await?;
     let secret_names = get_event_validated_secret_names(
         &input.tenant_id,
         &input.election_event_id,
@@ -1957,6 +2033,12 @@ pub async fn import_users_f(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .await?;
     let celery_app = get_celery_app().await;
 
     let mut task_input = input.clone();
@@ -2023,6 +2105,12 @@ pub async fn export_users_f(
         Some(body.tenant_id.clone()),
         vec![required_perm],
     )?;
+    event_permitted(
+        &claims,
+        &body.tenant_id,
+        body.election_event_id.as_deref(),
+    )
+    .await?;
 
     let may_read_secret_attributes = if body.include_secret_attributes {
         if body.election_event_id.is_none() {
@@ -2219,6 +2307,12 @@ pub async fn get_user_profile_attributes(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .await?;
 
     let realm = match input.election_event_id {
         Some(election_event_id) => {
@@ -2258,6 +2352,12 @@ pub async fn get_user_profile_configuration(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .await?;
 
     let realm = match input.election_event_id {
         Some(election_event_id) => {

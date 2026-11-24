@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
@@ -74,6 +76,13 @@ pub async fn get_election_event_stats(
                 format!("Error creating a transaction: {err}"),
             )
         })?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
     let mut keycloak_db_client: DbClient =
         get_keycloak_pool().await.get().await.map_err(|err| {
             (
@@ -208,6 +217,13 @@ pub async fn get_election_event_top_votes_by_ip(
                 format!("Error creating a transaction: {err}"),
             )
         })?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
     let filter = ListCastVotesByIpFilter {
         election_id: input.election_id.clone(),
         limit: input.limit,
