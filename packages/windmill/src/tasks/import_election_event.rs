@@ -137,6 +137,18 @@ pub async fn execute(
     tenant_id: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
+    execute_with_package_snapshot(object, election_event_id, tenant_id, task_execution, None).await
+}
+
+/// Only full-package Apply may pass its already-admitted original snapshot.
+/// It is not present on either of the serialized import task bodies.
+pub(crate) async fn execute_with_package_snapshot(
+    object: ImportElectionEventBody,
+    election_event_id: String,
+    tenant_id: String,
+    task_execution: TasksExecution,
+    package_snapshot: Option<std::sync::Arc<[u8]>>,
+) -> Result<()> {
     // What the import left out, with its reason, for the task's log.
     let notes = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
     let result = provide_hasura_transaction(|hasura_transaction| {
@@ -144,6 +156,7 @@ pub async fn execute(
         let tenant_id = tenant_id.clone();
         let election_event_id = election_event_id.clone();
         let notes = notes.clone();
+        let package_snapshot = package_snapshot.clone();
 
         Box::pin(async move {
             let imported = import_election_event_service::process_document(
@@ -151,6 +164,7 @@ pub async fn execute(
                 object.clone(),
                 election_event_id.clone(),
                 tenant_id.clone(),
+                package_snapshot.as_deref(),
             )
             .await?;
             let name = imported_name(hasura_transaction, &tenant_id, &election_event_id).await?;

@@ -30,7 +30,8 @@ pub(super) fn credential_column(header: &str) -> bool {
 
 fn contains_credential_value(name: &str, value: &Value) -> bool {
     if credential_column(name) {
-        return !value.is_null() && !matches!(value, Value::String(text) if text.is_empty());
+        return !value.is_null()
+            && !matches!(value, Value::String(text) if text.is_empty());
     }
     match value {
         Value::Object(fields) => fields
@@ -133,15 +134,11 @@ fn synthetic(principal: &DemoLoginPrincipal) -> bool {
     !user.is_empty()
         && user.len() <= 64
         && user != "admin"
+        && !user.starts_with("service-account-")
         && user
             .bytes()
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
-        && !role.is_empty()
-        && role.len() <= 64
-        && role != "admin"
-        && role
-            .bytes()
-            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+        && matches!(role.as_str(), "sbei" | "trustee")
         && principal.email.as_ref().is_none_or(|email| {
             let Some((name, domain)) = email.split_once('@') else {
                 return false;
@@ -167,6 +164,18 @@ fn checked_roster(approved: &[DemoLoginPrincipal]) -> bool {
         })
 }
 
+/// Validate the installation-owned fixture roster on both authoring and
+/// receiving sides. No rejected identity or user-supplied value is reported.
+pub fn verify_demo_login_roster(
+    approved: &[DemoLoginPrincipal],
+) -> Result<(), Report> {
+    if checked_roster(approved) {
+        Ok(())
+    } else {
+        Err(refuse("the installed demo login roster is invalid"))
+    }
+}
+
 pub fn verify_demo_login_verifiers(
     value: &DemoLoginVerifiers,
     tenant_id: &str,
@@ -176,13 +185,14 @@ pub fn verify_demo_login_verifiers(
     use base64::Engine;
     let canonical = |text: &str, length: usize| {
         text.len() == length.div_ceil(3) * 4
-            && B64
-                .decode(text)
-                .is_ok_and(|bytes| bytes.len() == length && B64.encode(bytes) == text)
+            && B64.decode(text).is_ok_and(|bytes| {
+                bytes.len() == length && B64.encode(bytes) == text
+            })
     };
     if value.format != DEMO_LOGIN_VERIFIERS_FORMAT
         || value.tenant_id != tenant_id
-        || !uuid::Uuid::parse_str(tenant_id).is_ok_and(|id| id.to_string() == tenant_id)
+        || !uuid::Uuid::parse_str(tenant_id)
+            .is_ok_and(|id| id.to_string() == tenant_id)
         || !checked_roster(approved)
         || value.accounts.is_empty()
         || value.accounts.len() > approved.len()
@@ -201,7 +211,9 @@ pub fn verify_demo_login_verifiers(
                 || !canonical(&account.verifier, VERIFIER_BYTES)
         })
     {
-        return Err(refuse("invalid or unauthorized demo account verifier set"));
+        return Err(refuse(
+            "invalid or unauthorized demo account verifier set",
+        ));
     }
     Ok(())
 }
@@ -238,21 +250,26 @@ pub fn extract_demo_workbook(
     };
     use std::collections::BTreeMap;
 
-    let workbook =
-        super::xlsx::read_xlsx(bytes).map_err(|_| refuse("could not read the demo workbook"))?;
-    let is_demo_sheet =
-        |sheet: &Sheet| matches!(sheet.key.as_str(), SHEET_ADMIN_USERS | SHEET_TRUSTEES);
+    let workbook = super::xlsx::read_xlsx(bytes)
+        .map_err(|_| refuse("could not read the demo workbook"))?;
+    let is_demo_sheet = |sheet: &Sheet| {
+        matches!(sheet.key.as_str(), SHEET_ADMIN_USERS | SHEET_TRUSTEES)
+    };
     let password = |row: &Row| -> Result<Option<String>, Report> {
         let mut value = None;
         for (header, cell) in &row.cells {
             if !credential_column(header) {
                 continue;
             }
-            if matches!(cell, Value::Null) || matches!(cell, Value::String(v) if v.is_empty()) {
+            if matches!(cell, Value::Null)
+                || matches!(cell, Value::String(v) if v.is_empty())
+            {
                 continue;
             }
             if !header.eq_ignore_ascii_case("password") || value.is_some() {
-                return Err(refuse("ambiguous or unsupported demo password column"));
+                return Err(refuse(
+                    "ambiguous or unsupported demo password column",
+                ));
             }
             let candidate = cell
                 .as_str()
@@ -268,10 +285,12 @@ pub fn extract_demo_workbook(
     };
     let mut scheduled = BTreeMap::<String, String>::new();
     let mut admins = BTreeMap::new();
-    let mut relevant_admin = |row: &Row, secret: String| -> Result<(), Report> {
-        let username = row
-            .text("username")
-            .ok_or_else(|| refuse("demo password requires an approved login"))?;
+    let mut relevant_admin = |row: &Row,
+                              secret: String|
+     -> Result<(), Report> {
+        let username = row.text("username").ok_or_else(|| {
+            refuse("demo password requires an approved login")
+        })?;
         if ["username", "email", "group_name", "trustee"]
             .into_iter()
             .any(|field| {
@@ -294,10 +313,14 @@ pub fn extract_demo_workbook(
                 .map(str::to_owned),
         };
         if !checked_roster(approved) || !approved.contains(&candidate) {
-            return Err(refuse("demo password does not match an approved login"));
+            return Err(refuse(
+                "demo password does not match an approved login",
+            ));
         }
         match scheduled.entry(username.to_owned()) {
-            std::collections::btree_map::Entry::Occupied(entry) if entry.get() != &secret => {
+            std::collections::btree_map::Entry::Occupied(entry)
+                if entry.get() != &secret =>
+            {
                 return Err(refuse(
                     "demo password differs between the administrator and trustee sheets",
                 ));
@@ -312,7 +335,9 @@ pub fn extract_demo_workbook(
     for row in workbook.rows(SHEET_ADMIN_USERS) {
         if let Some(username) = row.text("username") {
             if admins.insert(username, row).is_some() {
-                return Err(refuse("duplicate administrator identity in demo workbook"));
+                return Err(refuse(
+                    "duplicate administrator identity in demo workbook",
+                ));
             }
         }
         if let Some(secret) = password(row)? {
@@ -324,13 +349,15 @@ pub fn extract_demo_workbook(
         let Some(secret) = password(row)? else {
             continue;
         };
-        let name = row
-            .text("name")
-            .ok_or_else(|| refuse("demo trustee password requires a linked login"))?;
+        let name = row.text("name").ok_or_else(|| {
+            refuse("demo trustee password requires a linked login")
+        })?;
         let account = admins
             .get(name)
             .filter(|account| account.text("trustee") == Some(name))
-            .ok_or_else(|| refuse("demo trustee password requires a linked login"))?;
+            .ok_or_else(|| {
+                refuse("demo trustee password requires a linked login")
+            })?;
         if !seen_trustees.insert(name)
             || row
                 .text("email")
@@ -351,14 +378,16 @@ pub fn extract_demo_workbook(
     }
     reject_ordinary_credentials(&sheets)?;
     let scrubbed = Workbook::new(sheets).map_err(Report::from_problem)?;
-    let workbook = super::xlsx_write::write_xlsx(&scrubbed).map_err(Report::from_problem)?;
+    let workbook = super::xlsx_write::write_xlsx(&scrubbed)
+        .map_err(Report::from_problem)?;
     if scheduled.is_empty() {
         return Ok(DemoWorkbookExtract {
             workbook,
             manifest: None,
         });
     }
-    let iterations = std::num::NonZeroU32::new(DEMO_LOGIN_ITERATIONS).expect("fixed work factor");
+    let iterations = std::num::NonZeroU32::new(DEMO_LOGIN_ITERATIONS)
+        .expect("fixed work factor");
     let random = SystemRandom::new();
     let accounts = scheduled
         .into_iter()
@@ -366,7 +395,9 @@ pub fn extract_demo_workbook(
             let principal = approved
                 .iter()
                 .find(|entry| entry.username == username)
-                .ok_or_else(|| refuse("demo password does not match an approved login"))?;
+                .ok_or_else(|| {
+                    refuse("demo password does not match an approved login")
+                })?;
             let mut salt = [0u8; SALT_BYTES];
             random
                 .fill(&mut salt)
@@ -420,16 +451,19 @@ pub fn validate_demo_draft(
     let sheet = sheets
         .next()
         .filter(|_| sheets.next().is_none())
-        .ok_or_else(|| refuse("expected one administrator roster in the managed draft"))?;
+        .ok_or_else(|| {
+            refuse("expected one administrator roster in the managed draft")
+        })?;
     for account in &manifest.accounts {
-        let mut matching = sheet
-            .rows
-            .iter()
-            .filter(|row| row.text("username") == Some(account.username.as_str()));
+        let mut matching = sheet.rows.iter().filter(|row| {
+            row.text("username") == Some(account.username.as_str())
+        });
         let matches = matching.next().map(|row| {
             row.text("group_name") == Some(account.group_name.as_str())
-                && row.text("email").filter(|text| !text.is_empty()) == account.email.as_deref()
-                && row.text("trustee").filter(|text| !text.is_empty()) == account.trustee.as_deref()
+                && row.text("email").filter(|text| !text.is_empty())
+                    == account.email.as_deref()
+                && row.text("trustee").filter(|text| !text.is_empty())
+                    == account.trustee.as_deref()
         }) == Some(true)
             && matching.next().is_none();
         if !matches {
@@ -438,9 +472,11 @@ pub fn validate_demo_draft(
             ));
         }
         if let Some(trustee) = account.trustee.as_deref() {
-            let mut matches = plan.trustees.iter().filter(|record| record.name == trustee);
+            let mut matches =
+                plan.trustees.iter().filter(|record| record.name == trustee);
             let found = matches.next().is_some_and(|record| {
-                record.email.is_empty() || Some(record.email.as_str()) == account.email.as_deref()
+                record.email.is_empty()
+                    || Some(record.email.as_str()) == account.email.as_deref()
             });
             if !found || matches.next().is_some() {
                 return Err(refuse(
@@ -476,7 +512,9 @@ mod tests {
     ) -> (Vec<u8>, Vec<DemoLoginPrincipal>) {
         let grid = |rows: &[&[&str]]| {
             rows.iter()
-                .map(|row| row.iter().map(|v| Cell::text(*v)).collect::<Vec<_>>())
+                .map(|row| {
+                    row.iter().map(|v| Cell::text(*v)).collect::<Vec<_>>()
+                })
                 .collect::<Vec<_>>()
         };
         let admins = if include_column {
@@ -512,6 +550,34 @@ mod tests {
     }
 
     #[test]
+    fn installed_demo_rosters_reject_reserved_users_groups_domains_and_aliases()
+    {
+        let (_, fixture) = fixture(SYNTHETIC, SYNTHETIC, true);
+        assert!(verify_demo_login_roster(&fixture).is_ok());
+        for (user, group, trustee, email) in [
+            ("admin", "sbei", None, None),
+            ("service-account-fixture", "sbei", None, None),
+            ("allowed-name", "security-officer", None, None),
+            ("allowed-name", "sbei", None, Some("tester@example.com")),
+            ("allowed-name", "trustee", Some("different-alias"), None),
+        ] {
+            assert!(verify_demo_login_roster(&[DemoLoginPrincipal {
+                username: user.into(),
+                email: email.map(str::to_owned),
+                group_name: group.into(),
+                trustee: trustee.map(str::to_owned),
+            }])
+            .is_err());
+        }
+        assert!(verify_demo_login_roster(&[]).is_err());
+        assert!(verify_demo_login_roster(&[
+            fixture[0].clone(),
+            fixture[0].clone()
+        ])
+        .is_err());
+    }
+
+    #[test]
     fn redacts_fresh_xlsx_and_carries_only_a_compatible_verifier() {
         let (raw, approved) = fixture(SYNTHETIC, SYNTHETIC, true);
         let extracted = extract_demo_workbook(&raw, TENANT, &approved).unwrap();
@@ -529,10 +595,14 @@ mod tests {
             &B64.decode(&account.verifier).unwrap(),
         )
         .unwrap();
-        let use_zip = super::super::xlsx::read_xlsx(&extracted.workbook).unwrap();
+        let use_zip =
+            super::super::xlsx::read_xlsx(&extracted.workbook).unwrap();
         reject_ordinary_credentials(use_zip.sheets()).unwrap();
         for sheet in use_zip.sheets() {
-            assert!(!sheet.headers.iter().any(|header| credential_column(header)));
+            assert!(!sheet
+                .headers
+                .iter()
+                .any(|header| credential_column(header)));
         }
         let plan = super::super::architect::Blueprint {
             platform: vec![use_zip.sheet(SHEET_ADMIN_USERS).unwrap().clone()],
@@ -545,12 +615,14 @@ mod tests {
         validate_demo_draft(&plan, TENANT, &manifest, &approved).unwrap();
         let mut changed = plan;
         changed.trustees[0].name = "another-trustee".into();
-        assert!(validate_demo_draft(&changed, TENANT, &manifest, &approved).is_err());
+        assert!(validate_demo_draft(&changed, TENANT, &manifest, &approved)
+            .is_err());
     }
 
     #[test]
     fn wrong_scope_ambiguous_aliases_and_empty_inputs_do_not_leak() {
-        let (raw, approved) = fixture(SYNTHETIC, "different-synthetic-demo-441", true);
+        let (raw, approved) =
+            fixture(SYNTHETIC, "different-synthetic-demo-441", true);
         let refused = extract_demo_workbook(&raw, TENANT, &approved)
             .err()
             .unwrap();

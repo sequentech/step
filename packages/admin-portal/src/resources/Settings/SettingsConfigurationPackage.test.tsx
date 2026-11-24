@@ -12,6 +12,7 @@ import {
     useConfigurationPackageElectionRefresh,
 } from "@/hooks/useConfigurationPackageElectionRefresh"
 import type {RosterStatus} from "./ArchitectSignerRoster"
+import {usePendingConfigurationPackageRefresh} from "@/hooks/usePendingConfigurationPackageRefresh"
 
 // LinkBehavior is not exercised by these controls.
 jest.mock("react-router-dom", () => ({Link: "a"}))
@@ -46,9 +47,17 @@ jest.mock("./ArchitectSignerRoster", () => ({
     ArchitectSignerRoster: () => null,
     rosterStateAllowsImport: (status: RosterStatus | null) =>
         status?.mode === "not_enabled" || !!status?.active_sha256,
-    useArchitectSignerRoster: () => ({status: mockRoster, loading: false, read: mockRosterRead}),
+    useArchitectSignerRoster: () => ({
+        status: mockRoster,
+        loading: false,
+        read: mockRosterRead,
+    }),
 }))
 const mockTaskQuery = jest.fn()
+const mockMenuPoll = jest.fn(async (_options: unknown) => ({
+    data: {sequent_backend_tasks_execution: mockTask ? [mockTask] : []},
+}))
+const mockApollo = {query: mockMenuPoll}
 let mockTask: any = null
 let mockAllowed = true
 let mockActor = "operator-a"
@@ -76,6 +85,7 @@ jest.mock("@/queries/ApplyConfigurationPackage", () => ({
     GET_PACKAGE_TASK: "TASK",
 }))
 jest.mock("@apollo/client", () => ({
+    useApolloClient: () => mockApollo,
     useMutation: (op: string) => [op === "MANAGED" ? mockManagedApply : mockApply],
     useQuery: (query: string, options: any) => {
         if (query === "TASK") {
@@ -84,7 +94,10 @@ jest.mock("@apollo/client", () => ({
                 data:
                     options.skip || !mockTask
                         ? undefined
-                        : {sequent_backend_tasks_execution: mockTask === "none" ? [] : [mockTask]},
+                        : {
+                              sequent_backend_tasks_execution:
+                                  mockTask === "none" ? [] : [mockTask],
+                          },
                 error: options.skip ? undefined : mockTaskError,
                 loading: false,
                 startPolling: jest.fn(),
@@ -92,7 +105,10 @@ jest.mock("@apollo/client", () => ({
             }
         }
         mockHistoryOptions(options)
-        return {data: {sequent_backend_tasks_execution: []}, refetch: mockRefetch}
+        return {
+            data: {sequent_backend_tasks_execution: []},
+            refetch: mockRefetch,
+        }
     },
 }))
 jest.mock("react-i18next", () => ({
@@ -101,7 +117,9 @@ jest.mock("react-i18next", () => ({
             options ? `${key} ${JSON.stringify(options)}` : key,
     }),
 }))
-jest.mock("@/providers/TenantContextProvider", () => ({useTenantStore: () => [mockTenant]}))
+jest.mock("@/providers/TenantContextProvider", () => ({
+    useTenantStore: () => [mockTenant],
+}))
 jest.mock("@/providers/AuthContextProvider", () => {
     const React = require("react")
     return {
@@ -130,7 +148,9 @@ const task = (id: string, status: string, annotations: unknown) => ({
     execution_status: status,
     annotations,
 })
-const accepted = (id: string) => ({data: {apply_configuration_package: {task_execution: {id}}}})
+const accepted = (id: string) => ({
+    data: {apply_configuration_package: {task_execution: {id}}},
+})
 const applyButton = () => screen.getByTestId("package-apply") as HTMLButtonElement
 
 beforeEach(() => {
@@ -182,13 +202,19 @@ it("is not offered without every permission", () => {
 
 it("shows Advanced controls without an accordion and keeps explicit generic legacy setup", () => {
     render(<SettingsConfigurationPackage />)
-    const upload = screen.getByRole("button", {name: "configurationPackage.upload"})
-    const advanced = screen.getByRole("region", {name: "configurationPackage.advanced"})
+    const upload = screen.getByRole("button", {
+        name: "configurationPackage.upload",
+    })
+    const advanced = screen.getByRole("region", {
+        name: "configurationPackage.advanced",
+    })
     expect(upload.compareDocumentPosition(advanced) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(advanced.querySelector("summary")).toBeNull()
     expect(screen.getByRole("checkbox", {name: "census"})).toBeTruthy()
     expect(screen.queryByTestId("configuration-signing")).toBeNull()
-    const setup = screen.getByRole("button", {name: "configurationPackage.legacySetup"})
+    const setup = screen.getByRole("button", {
+        name: "configurationPackage.legacySetup",
+    })
     expect(setup.getAttribute("aria-expanded")).toBe("false")
     fireEvent.click(setup)
     expect(setup.getAttribute("aria-expanded")).toBe("true")
@@ -251,7 +277,10 @@ it("applies exactly what was previewed and shows each section's task and reconci
     mockApply.mockResolvedValueOnce(accepted("task-a"))
     await apply()
     mockTask = task("task-a", "IN_PROGRESS", null)
-    expect(mockApply.mock.calls[1][0].variables).toMatchObject({documentId: "doc-1", mode: "apply"})
+    expect(mockApply.mock.calls[1][0].variables).toMatchObject({
+        documentId: "doc-1",
+        mode: "apply",
+    })
     expect(mockApply.mock.calls[1][0].variables.requirements).toEqual(
         mockApply.mock.calls[0][0].variables.requirements
     )
@@ -308,7 +337,10 @@ it("never resubmits on its own after a failed submission or an unknown outcome",
     rerender(<SettingsConfigurationPackage />)
     expect(mockApply).toHaveBeenCalledTimes(1)
 
-    mockApply.mockResolvedValueOnce({data: null, errors: [{message: "missing permission"}]})
+    mockApply.mockResolvedValueOnce({
+        data: null,
+        errors: [{message: "missing permission"}],
+    })
     await upload()
     expect(screen.getByTestId("package-error").textContent).toBe("missing permission")
     expect(mockApply).toHaveBeenCalledTimes(2)
@@ -332,7 +364,10 @@ it("resumes the task it was following after a reload in the same tenant", async 
     mockTaskQuery.mockClear()
     mockTask = task("task-p", "SUCCESS", record("previewed"))
     render(<SettingsConfigurationPackage />)
-    expect(mockTaskQuery.mock.calls[0][0].variables).toEqual({taskId: "task-p", tenantId: "t1"})
+    expect(mockTaskQuery.mock.calls[0][0].variables).toEqual({
+        taskId: "task-p",
+        tenantId: "t1",
+    })
     expect(screen.getByTestId("package-task").textContent).toContain("task-p")
     // The resumed preview may be applied, for the same document and requirements.
     expect(applyButton().disabled).toBe(false)
@@ -573,19 +608,32 @@ it("shows what applying would change before the confirmation, names and keys onl
     const section = (name: string, changes: unknown) => ({
         section: name,
         members: [],
-        status: {state: "previewed", preview: {needsApply: true, changes, blockers: []}},
+        status: {
+            state: "previewed",
+            preview: {needsApply: true, changes, blockers: []},
+        },
         history: {submissions: [], applied: false},
     })
     const preview = record("previewed") as any
     preview.application.sections = [
         section("tenant-settings", [
-            {field: "displayName", action: "update", from: "Old", to: "New Commission"},
+            {
+                field: "displayName",
+                action: "update",
+                from: "Old",
+                to: "New Commission",
+            },
         ]),
         section("role-permissions", [
             {group: "admin", action: "update", add: ["tenant-write"], remove: []},
         ]),
         section("admin-accounts", [
-            {username: "operator.one", group: "admin", action: "create", password: "hunter2"},
+            {
+                username: "operator.one",
+                group: "admin",
+                action: "create",
+                password: "hunter2",
+            },
         ]),
     ]
     mockTask = task("task-p", "SUCCESS", preview)
@@ -604,7 +652,11 @@ describe("a failed or uncertain submission never brings an old preview's Apply b
         ["rejected", () => mockApply.mockRejectedValueOnce(new Error("timeout"))],
         [
             "answered with errors",
-            () => mockApply.mockResolvedValueOnce({data: null, errors: [{message: "denied"}]}),
+            () =>
+                mockApply.mockResolvedValueOnce({
+                    data: null,
+                    errors: [{message: "denied"}],
+                }),
         ],
         ["answered without a task", () => mockApply.mockResolvedValueOnce({data: {}})],
     ])("after an apply %s, on a reload", async (_, fail) => {
@@ -650,7 +702,11 @@ describe("a failed or uncertain submission never brings an old preview's Apply b
 const finishManagedPreview = (overrides: Record<string, unknown> = {}) => {
     const annotated = record("previewed")
     Object.assign(annotated.application, {
-        managedRosterBinding: {sha256: rosterSha, generation: 1, requiredApprovals: 2},
+        managedRosterBinding: {
+            sha256: rosterSha,
+            generation: 1,
+            requiredApprovals: 2,
+        },
         managedRequirements: COMPLETE_DELIVERY,
         ...overrides,
     })
@@ -876,14 +932,108 @@ it("does not refresh another tenant or actor, or replay another operator's recal
     mockTask = task("task-a", "SUCCESS", record("applied"))
     mockTenant = "t2"
     ui.rerender(<ScreenWithElectionRefresh />)
-    notifyConfigurationPackageElectionImported({tenantId: "t1", actor: "operator-a"})
+    notifyConfigurationPackageElectionImported({
+        tenantId: "t1",
+        actor: "operator-a",
+    })
     expect(mockElectionRefresh).not.toHaveBeenCalled()
     mockTenant = "t1"
     mockActor = "operator-b"
     ui.rerender(<ScreenWithElectionRefresh />)
-    notifyConfigurationPackageElectionImported({tenantId: "t1", actor: "operator-a"})
+    notifyConfigurationPackageElectionImported({
+        tenantId: "t1",
+        actor: "operator-a",
+    })
     expect(mockElectionRefresh).not.toHaveBeenCalled()
     mockActor = "operator-a"
     ui.rerender(<ScreenWithElectionRefresh />)
+    expect(mockElectionRefresh).toHaveBeenCalledTimes(1)
+})
+
+function PersistentNavigation({settings}: {settings: boolean}) {
+    usePendingConfigurationPackageRefresh()
+    useConfigurationPackageElectionRefresh(mockElectionRefresh)
+    return settings ? <SettingsConfigurationPackage /> : <div>Another route</div>
+}
+
+it("watches the real accepted Apply in persistent navigation after Settings unmounts, only in the operator scope", async () => {
+    jest.useFakeTimers()
+    try {
+        mockApply.mockResolvedValueOnce(accepted("task-p"))
+        const ui = render(<PersistentNavigation settings />)
+        expect(mockMenuPoll).not.toHaveBeenCalled()
+        await upload()
+        mockTask = task("task-p", "SUCCESS", record("previewed"))
+        ui.rerender(<PersistentNavigation settings />)
+        expect(mockMenuPoll).not.toHaveBeenCalled()
+        mockApply.mockResolvedValueOnce(accepted("task-a"))
+        await apply()
+        expect(mockElectionRefresh).not.toHaveBeenCalled()
+        expect(mockMenuPoll).toHaveBeenCalledTimes(1)
+
+        ui.rerender(<PersistentNavigation settings={false} />)
+        expect(screen.getByText("Another route")).toBeTruthy()
+        mockTask = task("task-a", "SUCCESS", record("applied"))
+        mockTenant = "other-tenant"
+        ui.rerender(<PersistentNavigation settings={false} />)
+        await act(async () => jest.advanceTimersByTime(10000))
+        expect(mockMenuPoll).toHaveBeenCalledTimes(1)
+        expect(mockElectionRefresh).not.toHaveBeenCalled()
+
+        mockTenant = "t1"
+        mockActor = "different-operator"
+        ui.rerender(<PersistentNavigation settings={false} />)
+        await act(async () => jest.advanceTimersByTime(10000))
+        expect(mockMenuPoll).toHaveBeenCalledTimes(1)
+        expect(mockElectionRefresh).not.toHaveBeenCalled()
+
+        mockActor = "operator-a"
+        await act(async () => {
+            ui.rerender(<PersistentNavigation settings={false} />)
+        })
+        expect(mockMenuPoll).toHaveBeenCalledTimes(2)
+        expect(mockMenuPoll.mock.calls.at(-1)?.[0]).toMatchObject({
+            variables: {tenantId: "t1", taskId: "task-a"},
+        })
+        expect(mockElectionRefresh).toHaveBeenCalledTimes(1)
+        await act(async () => jest.advanceTimersByTime(15000))
+        ui.unmount()
+        render(<PersistentNavigation settings={false} />)
+        expect(mockMenuPoll).toHaveBeenCalledTimes(2)
+        expect(mockElectionRefresh).toHaveBeenCalledTimes(1)
+    } finally {
+        jest.useRealTimers()
+    }
+})
+
+it("drops an in-flight successful Apply reply after the operator changes routes and identity", async () => {
+    let respond!: (value: {data: {sequent_backend_tasks_execution: unknown[]}}) => void
+    mockMenuPoll.mockImplementationOnce(
+        () =>
+            new Promise((resolve) => {
+                respond = resolve
+            })
+    )
+    mockApply.mockResolvedValueOnce(accepted("task-p"))
+    const ui = render(<PersistentNavigation settings />)
+    await upload()
+    mockTask = task("task-p", "SUCCESS", record("previewed"))
+    ui.rerender(<PersistentNavigation settings />)
+    mockApply.mockResolvedValueOnce(accepted("task-a"))
+    await apply()
+    expect(mockMenuPoll).toHaveBeenCalledTimes(1)
+    mockActor = "operator-b"
+    ui.rerender(<PersistentNavigation settings={false} />)
+    const result = task("task-a", "SUCCESS", record("applied"))
+    await act(async () => {
+        respond({data: {sequent_backend_tasks_execution: [result]}})
+    })
+    expect(mockElectionRefresh).not.toHaveBeenCalled()
+    expect(mockMenuPoll).toHaveBeenCalledTimes(1)
+    mockActor = "operator-a"
+    mockTask = result
+    await act(async () => {
+        ui.rerender(<PersistentNavigation settings={false} />)
+    })
     expect(mockElectionRefresh).toHaveBeenCalledTimes(1)
 })

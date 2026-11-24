@@ -176,6 +176,8 @@ const englishTranslation = {
                     "For an encrypted package, enter the optional SHA-256 of the signed ZIP inside it.",
             },
             uploadParagraph: "It is previewed first; nothing is applied from the upload itself.",
+            existingDocumentHelp:
+                "Use an existing ID only for an unlocked ZIP. For an encrypted .ezip, select Upload configuration package and enter its password there.",
             signedDocumentId: "Existing signed ZIP document ID",
             documentId: "Or an uploaded document id",
             preview: "Preview",

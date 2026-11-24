@@ -12,7 +12,7 @@ use crate::postgres::tasks_execution::{get_task_by_id_with_transaction, get_task
 use crate::services::audit_log::AuditActor;
 use crate::services::browser_package_policy::{admit_with_policy, BrowserPolicy};
 use crate::services::database::get_hasura_pool;
-use crate::services::documents::get_document_as_temp_file;
+use crate::services::documents::read_configuration_package;
 use crate::services::import::configuration_package::tenant_setting;
 use crate::services::import::configuration_package_apply::{
     plan_members, run, ApplicationRecord, ApplyMode, Outcome, ProgressStore,
@@ -29,7 +29,10 @@ use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
-use sequent_core::election_config::encrypted_delivery::MAX_SIGNED_DELIVERY_BYTES;
+use sequent_core::election_config::demo_credentials::DEMO_LOGIN_VERIFIERS_MEMBER;
+use sequent_core::election_config::encrypted_delivery::{
+    is_encrypted_signed_delivery, MAX_SIGNED_DELIVERY_BYTES,
+};
 use sequent_core::election_config::manifest::read_zip;
 use sequent_core::election_config::package_contract::{Requirements, Section};
 use sequent_core::election_config::package_verify::Admission;
@@ -222,6 +225,17 @@ fn unclaimed(error: impl Into<anyhow::Error>) -> anyhow::Error {
     anyhow::Error::new(Unclaimed(error.into()))
 }
 
+/// A staged document ID is not a password-handling channel. Detect the actual
+/// transfer bytes (not a caller filename) before ZIP parsing for both modes.
+fn require_unwrapped_package(bytes: &[u8]) -> anyhow::Result<()> {
+    if is_encrypted_signed_delivery(bytes) {
+        return Err(anyhow!(
+            "This document is an encrypted configuration package (.ezip), not a signed ZIP. Use Upload configuration package, select the original .ezip, and enter its password there before Preview or Apply. An existing document ID cannot unlock it."
+        ));
+    }
+    Ok(())
+}
+
 async fn execute(
     body: &ApplyConfigurationPackageBody,
     task_execution: &TasksExecution,
@@ -275,13 +289,15 @@ async fn execute(
     {
         return Err(anyhow!("decrypted signed package exceeds the size limit"));
     }
-    let file = get_document_as_temp_file(&body.tenant_id, &document).await?;
+    let (file, protected_stage) =
+        read_configuration_package(&transaction, &body.tenant_id, &document).await?;
     if body.encrypted_payload_sha256.is_some()
         && file.as_file().metadata()?.len() > MAX_SIGNED_DELIVERY_BYTES as u64
     {
         return Err(anyhow!("decrypted signed package exceeds the size limit"));
     }
     let bytes = std::fs::read(file.path()).context("could not read the package")?;
+    require_unwrapped_package(&bytes)?;
     // Verified against the tenant's signing trust. Its freshness against the
     // tenant's imports is the target's to check, before each section.
     configuration_packages::lock_imports(&transaction, &body.tenant_id).await?;
@@ -328,6 +344,15 @@ async fn execute(
         .await?;
         crate::services::browser_package_policy::freshness(package, last.as_ref())
             .map_err(|problem| anyhow!("{problem}"))?;
+    }
+    if !protected_stage
+        && members
+            .iter()
+            .any(|member| member.name == DEMO_LOGIN_VERIFIERS_MEMBER)
+    {
+        return Err(anyhow!(
+            "upload this delivery using protected configuration package staging"
+        ));
     }
     let demo_login = VerifiedDemoLoginAdmission::take_member(
         &mut members,
@@ -417,6 +442,7 @@ async fn execute(
             event_import: body.event_import.clone(),
             package_sha256: package_sha256.clone(),
             signed_package,
+            protected_document_id: protected_stage.then(|| body.document_id.clone()),
             managed_roster_binding: policy.managed_binding().cloned(),
             managed_preview_operator_binding: operator_binding.map(str::to_owned),
             package_groups,
@@ -496,6 +522,31 @@ mod tests {
     use crate::services::import::configuration_package_apply::{ApplyMode, Outcome};
     use sequent_core::election_config::package_contract::Coverage;
     use std::collections::BTreeMap;
+
+    #[test]
+    fn existing_document_id_rejects_encrypted_transfer_before_zip_for_preview_and_apply() {
+        use sequent_core::election_config::archive::{zip, Artifact};
+        use sequent_core::election_config::encrypted_delivery::{
+            decrypt_signed_delivery, encrypt_signed_delivery,
+        };
+        let inner = zip(&[Artifact {
+            name: "sample.txt".into(),
+            bytes: b"demo".to_vec(),
+        }])
+        .unwrap();
+        let wire = encrypt_signed_delivery(&inner, "synthetic test passphrase").unwrap();
+        let error = require_unwrapped_package(&wire).unwrap_err().to_string();
+        assert!(
+            error.contains("Upload configuration package")
+                && error.contains("existing document ID")
+        );
+        assert!(
+            !error.contains("central directory") && !error.contains("synthetic test passphrase")
+        );
+        let unlocked = decrypt_signed_delivery(&wire, "synthetic test passphrase").unwrap();
+        assert_eq!(unlocked, inner);
+        require_unwrapped_package(&unlocked).unwrap(); // normal admission performs the signature check
+    }
 
     fn row(id: &str, record: Option<&ApplicationRecord>) -> TasksExecution {
         serde_json::from_value(json!({

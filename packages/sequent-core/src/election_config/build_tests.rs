@@ -1792,11 +1792,15 @@ fn an_admin_user_needs_a_username() {
 
 #[test]
 fn ordinary_build_refuses_admin_and_trustee_passwords_without_echoing_them() {
-    for (sheet, identity) in [("Admin Users", "username"), ("Trustees", "name")] {
-        let report = refused(&with_sheet(sheet, vec![
-            vec![text(identity), text("Password")],
-            vec![text("demo-identity"), text("synthetic-password-canary")],
-        ]));
+    for (sheet, identity) in [("Admin Users", "username"), ("Trustees", "name")]
+    {
+        let report = refused(&with_sheet(
+            sheet,
+            vec![
+                vec![text(identity), text("Password")],
+                vec![text("demo-identity"), text("synthetic-password-canary")],
+            ],
+        ));
         assert!(has_error_saying(&report, "explicitly enabled demo package"));
         assert!(!format!("{report:?}").contains("synthetic-password-canary"));
     }

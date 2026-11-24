@@ -35,7 +35,10 @@ import {
     TextField,
     Typography,
 } from "@mui/material"
-import {notifyConfigurationPackageElectionImported} from "@/hooks/useConfigurationPackageElectionRefresh"
+import {
+    publishCompletedPackageApply,
+    rememberApplyForElectionRefresh,
+} from "@/hooks/usePendingConfigurationPackageRefresh"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import type {AuthContextValues} from "@/providers/AuthContextProvider"
@@ -143,7 +146,10 @@ const SettingsConfigurationPackageForScope: React.FC<{
         scope.current = {tenantId, actor: authContext.userId}
     }
     const mounted = useRef(true)
-    const operatorPreview = useRef<{scope: typeof scope.current; taskId: string} | null>(null)
+    const operatorPreview = useRef<{
+        scope: typeof scope.current
+        taskId: string
+    } | null>(null)
     useEffect(() => {
         mounted.current = true
         return () => {
@@ -224,29 +230,30 @@ const SettingsConfigurationPackageForScope: React.FC<{
             submitted.actor === authContext.userId &&
             !submitted.electionsRefreshed &&
             refreshedElectionTask.current !== submitted.taskId &&
-            task?.id === submitted.taskId &&
-            task.execution_status === "SUCCESS" &&
-            view?.mode === "apply" &&
-            view.outcome === "applied" &&
-            view.sections.some(
-                (section) => section.section === "election-event" && section.state === "applied"
+            publishCompletedPackageApply(
+                {tenantId, actor: authContext.userId},
+                submitted.taskId,
+                task
             )
         ) {
             refreshedElectionTask.current = submitted.taskId
             rememberSubmission(tenantId, {...submitted, electionsRefreshed: true})
-            notifyConfigurationPackageElectionImported({tenantId, actor: authContext.userId})
         }
-        if (submitted.mode === "preview" && view) {
+        if (
+            submitted.mode === "preview" &&
+            view?.mode === "preview" &&
+            task?.id === submitted.taskId &&
+            task.execution_status === "SUCCESS"
+        ) {
             setDocumentId(submitted.documentId)
+            setExpectedSha(submitted.expectedSha ?? null)
             setPreviewed({
                 tenantId,
                 documentId: submitted.documentId,
                 requirements: submitted.requirements,
                 view,
-                taskId:
-                    task?.id === submitted.taskId && task?.execution_status === "SUCCESS"
-                        ? submitted.taskId
-                        : undefined,
+                taskId: submitted.taskId,
+                encryptedPayloadSha256: submitted.encryptedPayloadSha256,
                 managedBinding: readManagedPreview(
                     task?.annotations,
                     tenantId,
@@ -281,7 +288,12 @@ const SettingsConfigurationPackageForScope: React.FC<{
             preview.managedBinding.requiredApprovals === current.required_approvals
         )
     }
-    const confirmedInputs = useRef({documentId, requirements, expectedSha, allowed})
+    const confirmedInputs = useRef({
+        documentId,
+        requirements,
+        expectedSha,
+        allowed,
+    })
     confirmedInputs.current = {documentId, requirements, expectedSha, allowed}
 
     if (!allowed || !tenantId) {
@@ -374,10 +386,16 @@ const SettingsConfigurationPackageForScope: React.FC<{
                           ...(encryptedPayloadSha256 ? {encryptedPayloadSha256} : {}),
                       },
                   })
+            const taskId = data?.apply_configuration_package?.task_execution?.id
+            if (mode === "apply" && taskId && !errors?.length && requestScope.actor) {
+                rememberApplyForElectionRefresh(
+                    {tenantId: forTenant, actor: requestScope.actor},
+                    taskId
+                )
+            }
             if (!mounted.current || scope.current !== requestScope) {
                 return
             }
-            const taskId = data?.apply_configuration_package?.task_execution?.id
             if (errors?.length) {
                 setError(errors.map((e) => e.message).join(", "))
                 return
@@ -528,7 +546,14 @@ const SettingsConfigurationPackageForScope: React.FC<{
                     />
                 </Box>
                 {showManualEntry && (
-                    <Box sx={{display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap"}}>
+                    <Box
+                        sx={{
+                            display: "flex",
+                            gap: 2,
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                        }}
+                    >
                         <TextField
                             size="small"
                             label={String(
@@ -538,6 +563,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
                                         : "configurationPackage.documentId"
                                 )
                             )}
+                            helperText={String(t("configurationPackage.existingDocumentHelp"))}
                             disabled={running || !permitsImport}
                             value={typedDocumentId}
                             onChange={(event) => {
@@ -649,7 +675,9 @@ const SettingsConfigurationPackageForScope: React.FC<{
                     )}
                     {view && finished && view.outcome === "previewed" && (
                         <Typography variant="body2">
-                            {t("configurationPackage.toChange", {count: sectionsToChange(view)})}
+                            {t("configurationPackage.toChange", {
+                                count: sectionsToChange(view),
+                            })}
                         </Typography>
                     )}
                     {view && <ApplicationTable view={view} />}
@@ -688,8 +716,14 @@ const SettingsConfigurationPackageForScope: React.FC<{
                 anchor="right"
                 open={openUpload && permitsImport}
                 onClose={() => setOpenUpload(false)}
-                PaperProps={{"aria-label": String(t("configurationPackage.uploadTitle"))}}
-                sx={{"& .MuiDrawer-paper": {width: {xs: "100%", sm: "min(640px, 100%)"}}}}
+                PaperProps={{
+                    "aria-label": String(t("configurationPackage.uploadTitle")),
+                }}
+                sx={{
+                    "& .MuiDrawer-paper": {
+                        width: {xs: "100%", sm: "min(640px, 100%)"},
+                    },
+                }}
             >
                 <Box sx={{padding: "16px"}} data-testid="package-upload-drawer">
                     <ElectionHeader
@@ -763,7 +797,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
                                     "apply",
                                     documentId,
                                     expectedSha,
-                                    submitted?.encryptedPayloadSha256
+                                    previewed?.encryptedPayloadSha256
                                 )
                             }
                         }}

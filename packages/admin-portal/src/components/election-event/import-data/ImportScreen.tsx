@@ -138,7 +138,10 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         const [passwordDialogOpen, setPasswordDialogOpen] = useState<boolean>(false)
         const passwordInputRef = useRef<HTMLInputElement>(null)
         const [password, setPassword] = useState<string>("")
-        const [signedPayloadSha, setSignedPayloadSha] = useState<string>()
+        const [signedUpload, setSignedUpload] = useState<{documentId: string; sha256: string}>()
+        const signedPayloadSha =
+            signedUpload?.documentId === documentId ? signedUpload?.sha256 : undefined
+        const selectedSha = signedPayloadSha ?? shaField
         const [unlocking, setUnlocking] = useState(false)
         const [passwordError, setPasswordError] = useState("")
         const signedRequest = useRef<AbortController | null>(null)
@@ -156,9 +159,16 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         const [stage, setStage] = useState<keyof typeof stageLabels>("select")
 
         useEffect(() => {
+            if (signedDeliveryUpload) {
+                signedRequest.current?.abort()
+                signedRequest.current = null
+                setSignedUpload(undefined)
+                setUnlocking(false)
+                setIsUploading(false)
+            }
             setShaField("")
             setDocumentId(null)
-        }, [refresh])
+        }, [refresh, signedDeliveryUpload])
 
         useEffect(() => {
             const changed = previousConverterUrl.current !== converterUrl
@@ -242,6 +252,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                             : theFile.type,
                         size: theFile.size,
                         is_public: false,
+                        ...(signedDeliveryUpload && {configuration_package: true}),
                     },
                 })
                 if (signal?.aborted) return
@@ -261,6 +272,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     setStage("validating")
                     await uploadCallback(uploadedId, uploadPassword, packageHash)
                 }
+                if (signal?.aborted) return
                 setDocumentId(uploadedId)
                 setStage(allowHistoricalSource && uploadCallback ? "ready" : "uploaded")
                 notify("electionEventScreen.import.fileUploadSuccess", {
@@ -276,7 +288,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 )
                 notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
             } finally {
-                setIsUploading(false)
+                if (!signal?.aborted) setIsUploading(false)
             }
         }
 
@@ -291,8 +303,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 return
             signedRequest.current?.abort()
             signedRequest.current = null
-            if (signedPayloadSha && shaField === signedPayloadSha) setShaField("")
-            setSignedPayloadSha(undefined)
+            setSignedUpload(undefined)
             setPasswordError("")
             setDocumentId(null)
             if (generatedHash && shaField === generatedHash) setShaField("")
@@ -452,9 +463,13 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     })
                     setPasswordDialogOpen(false)
                     setTheFile(undefined)
-                    setShaField(outcome.sha256)
+                    // The entered digest, if any, was for these bytes only.
+                    setShaField("")
                     const id = await uploadFileToS3(zip, "", outcome.sha256, request.signal)
-                    if (!request.signal.aborted && id) setSignedPayloadSha(outcome.sha256)
+                    // Only a successful upload of these bytes can pin a document.
+                    if (!request.signal.aborted && id) {
+                        setSignedUpload({documentId: id, sha256: outcome.sha256})
+                    }
                 } catch {
                     if (!request.signal.aborted) {
                         setPasswordError(
@@ -478,15 +493,15 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             await uploadFileToS3(theFile, password)
         }
 
-        const validSha = /^[a-fA-F0-9]{64}$/.test(shaField)
+        const validSha = /^[a-fA-F0-9]{64}$/.test(selectedSha)
 
         const submitImport = async (id = documentId) => {
             if (!id || (requiresSha && !validSha)) return
             setLoading(true)
             setStage("creating")
             try {
-                if (signedDeliveryUpload && signedPayloadSha) {
-                    await doImport(id, signedPayloadSha, undefined, signedPayloadSha)
+                if (signedDeliveryUpload && signedUpload?.documentId === id) {
+                    await doImport(id, signedUpload.sha256, undefined, signedUpload.sha256)
                 } else {
                     await doImport(id, shaField, password)
                 }
@@ -509,7 +524,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 if (id) await submitImport(id)
                 return
             }
-            if (!shaField) {
+            if (!selectedSha) {
                 setShowShaDialog(true)
                 return
             }
@@ -568,7 +583,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     error={requiresSha && shaField.length > 0 && !validSha}
                     label={String(t("electionEventScreen.import.sha"))}
                     size="small"
-                    value={shaField}
+                    value={selectedSha}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                         setShaField(e.target.value)
                     }

@@ -12,10 +12,10 @@ use super::configuration_package_apply::{
 };
 use super::configuration_package_sections::{
     absent_admin_rows, admin_changes, admin_column_problems, admin_detail_problems,
-    admin_email_updates, admin_permission_label_updates, event_changes, merged_tenant,
-    preview_admin_email, preview_admin_permission_labels, read_admin_rows, read_group_roles,
-    role_changes, tenant_configuration_changes, tenant_settings_changes, trustee_changes,
-    ExistingAdmin,
+    admin_email_updates, admin_permission_label_updates, email_write_stamped, event_changes,
+    merged_tenant, preview_admin_email, preview_admin_permission_labels, read_admin_rows,
+    read_group_roles, role_changes, tenant_configuration_changes, tenant_settings_changes,
+    trustee_changes, ExistingAdmin,
 };
 use super::configuration_package_sections::{
     admission_problem, carries_messaging, census_usernames, event_document, messaging_problem,
@@ -59,7 +59,7 @@ use std::io::Write;
 
 /// Who is applying and with what rights: set by the server from the
 /// requesting administrator's token, never from the package.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ApplyContext {
     pub tenant_id: String,
     pub executed_by: String,
@@ -72,6 +72,9 @@ pub struct ApplyContext {
     /// importer admits it itself, so the tenant's signing policy applies to
     /// the event exactly as it does to a standalone import.
     pub signed_package: Option<Vec<u8>>,
+    /// Original private intake row; the accepted byte snapshot is passed
+    /// in-process rather than restaged in ordinary document storage.
+    pub protected_document_id: Option<String>,
     pub managed_roster_binding: Option<crate::services::managed_webauthn_roster::Binding>,
     pub managed_preview_operator_binding: Option<String>,
     /// Groups the package's roles section defines, so administrators may name
@@ -125,6 +128,55 @@ fn one<'a>(files: &'a [Artifact], what: &str) -> Result<&'a Artifact> {
 }
 
 impl PlatformTarget {
+    /// Existing-user email is recovery-sensitive. Check the enqueue-time stamp
+    /// AND the unchanged initiating user's currently effective roles in this realm.
+    async fn require_live_admin_email_write(&self) -> Result<()> {
+        let deny = || {
+            anyhow!("administrator email changes require a currently authorized tenant user editor")
+        };
+        if self.context.verified.is_none()
+            || !email_write_stamped(&self.context.event_import.privileges)
+        {
+            return Err(deny());
+        }
+        let actor = self
+            .context
+            .audit_actor
+            .as_ref()
+            .and_then(|a| a.user_id.as_deref())
+            .ok_or_else(deny)?;
+        let actor = uuid::Uuid::parse_str(actor)
+            .map_err(|_| deny())?
+            .to_string();
+        let realm = get_tenant_realm(&self.context.tenant_id);
+        let kc = KeycloakAdminClient::new().await.map_err(|_| deny())?;
+        let user = kc
+            .client
+            .realm_users_with_user_id_get(&realm, &actor, None)
+            .await
+            .map_err(|_| deny())?;
+        if user.enabled != Some(true)
+            || user.id.as_deref() != Some(actor.as_str())
+            || user.service_account_client_id.is_some()
+        {
+            return Err(deny());
+        }
+        let roles = kc
+            .client
+            .realm_users_with_user_id_role_mappings_realm_composite_get(&realm, &actor, Some(true))
+            .await
+            .map_err(|_| deny())?;
+        let roles: BTreeSet<_> = roles.into_iter().filter_map(|role| role.name).collect();
+        use sequent_core::types::permissions::Permissions;
+        if ![Permissions::USER_WRITE, Permissions::ROLE_WRITE]
+            .iter()
+            .all(|permission| roles.contains(&permission.to_string()))
+        {
+            return Err(deny());
+        }
+        Ok(())
+    }
+
     async fn realm(&self) -> Result<keycloak::types::RealmRepresentation> {
         let client = KeycloakAdminClient::new().await?;
         let pub_client = KeycloakAdminClient::pub_new().await?;
@@ -507,10 +559,13 @@ impl PlatformTarget {
                 let current = self.existing_admin_details(&usernames).await?;
                 preview_admin_permission_labels(&mut preview, &rows, &current);
                 let verified = self.context.verified.is_some();
-                preview_admin_email(
-                    &mut preview,
-                    &admin_email_updates(&rows, &current, verified),
-                );
+                let email_updates = admin_email_updates(&rows, &current, verified);
+                if !email_updates.is_empty() {
+                    match self.require_live_admin_email_write().await {
+                        Ok(()) => preview_admin_email(&mut preview, &email_updates),
+                        Err(_) => preview.blockers.push("administrator email changes require a currently authorized tenant user editor".to_owned()),
+                    }
+                }
                 let mut db: DbClient = get_hasura_pool().await.get().await?;
                 let transaction = db.transaction().await?;
                 let mut trustees: BTreeSet<String> =
@@ -806,6 +861,7 @@ impl PackageTarget for PlatformTarget {
                     let realm = get_tenant_realm(&self.context.tenant_id);
                     let keycloak = KeycloakAdminClient::new().await?;
                     for (username, change) in &email_updates {
+                        self.require_live_admin_email_write().await?;
                         let row = rows
                             .iter()
                             .find(|row| row.username.to_lowercase() == *username)
@@ -825,7 +881,7 @@ impl PackageTarget for PlatformTarget {
                         ).await.context("Error resolving administrator for email update")?;
                         let id: String = account.get("id");
                         drop(db);
-                        let mut live = keycloak
+                        let live = keycloak
                             .client
                             .realm_users_with_user_id_get(&realm, &id, None)
                             .await
@@ -839,17 +895,19 @@ impl PackageTarget for PlatformTarget {
                         {
                             return Err(anyhow!("administrator identity changed; preview again"));
                         }
-                        if let Some(email) = &change.email {
-                            live.email = Some(email.clone());
+                        if live.service_account_client_id.is_some() {
+                            return Err(anyhow!("administrator identity changed; preview again"));
                         }
-                        if let Some(verified) = change.email_verified {
-                            live.email_verified = Some(verified);
-                        }
-                        // Preserve profile and attributes; never submit credentials in this update.
-                        live.credentials = None;
+                        // Keycloak preserves omitted fields. Never resubmit a stale full
+                        // profile, group, attribute, required action, or credential.
+                        let update = keycloak::types::UserRepresentation {
+                            email: change.email.clone(),
+                            email_verified: change.email_verified,
+                            ..Default::default()
+                        };
                         keycloak
                             .client
-                            .realm_users_with_user_id_put(&realm, &id, live)
+                            .realm_users_with_user_id_put(&realm, &id, update)
                             .await
                             .map_err(|_| {
                                 anyhow!("Error updating administrator email in Keycloak")
@@ -922,7 +980,13 @@ impl PackageTarget for PlatformTarget {
                 if let Some(demo) = &self.context.demo_login {
                     let realm = get_tenant_realm(&self.context.tenant_id);
                     for username in demo
-                        .seed_new(&self.context.tenant_id, &realm, &rows, &existing)
+                        .seed_new(
+                            &self.context.tenant_id,
+                            &realm,
+                            &rows,
+                            &existing,
+                            self.context.audit_actor.as_ref(),
+                        )
                         .await?
                     {
                         existing.insert(username, BTreeSet::new());
@@ -997,14 +1061,26 @@ impl PackageTarget for PlatformTarget {
                 })
             }
             Section::ElectionEvent => {
-                let document = self.event_document(files)?;
-                let document_id = self
-                    .stage(
-                        "configuration-package-event.zip",
-                        "application/zip",
-                        &document,
-                    )
-                    .await?;
+                let (document_id, protected_snapshot) = match (
+                    &self.context.protected_document_id,
+                    &self.context.signed_package,
+                ) {
+                    (Some(id), Some(bytes)) => (
+                        id.clone(),
+                        Some(std::sync::Arc::<[u8]>::from(bytes.as_slice())),
+                    ),
+                    _ => {
+                        let document = self.event_document(files)?;
+                        let id = self
+                            .stage(
+                                "configuration-package-event.zip",
+                                "application/zip",
+                                &document,
+                            )
+                            .await?;
+                        (id, None)
+                    }
+                };
                 let task = self.task(task_id).await?;
                 let event_id =
                     derived_event_id(&self.context.tenant_id, &self.context.package_sha256);
@@ -1014,11 +1090,12 @@ impl PackageTarget for PlatformTarget {
                 body.check_only = Some(false);
                 body.password = None;
                 body.sha256 = None;
-                let ran = crate::tasks::import_election_event::execute(
+                let ran = crate::tasks::import_election_event::execute_with_package_snapshot(
                     body,
                     event_id.clone(),
                     self.context.tenant_id.clone(),
                     task.clone(),
+                    protected_snapshot,
                 )
                 .await;
                 let mut submission = self.terminal(&task, ran).await?;

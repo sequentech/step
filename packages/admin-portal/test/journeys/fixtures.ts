@@ -12,6 +12,8 @@ import {S3Mock} from "@sequentech/ui-test-kit/mocks/s3"
 import {ViolationLog} from "@sequentech/ui-test-kit/mocks/violations"
 import {FIXED_TIME, IDS} from "@sequentech/ui-test-kit/fixtures"
 
+import {withConfigurationPackageActions} from "./settings/configurationPackageSchema"
+
 const directory = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 export const TENANT_ID = IDS.tenant
 export const SECOND_TENANT_ID = "10000000-0000-4000-8000-000000000002"
@@ -22,7 +24,12 @@ export interface AdminPortal extends PortalServices {
     user: Omit<OidcUser, "attributes">
 }
 export const test = base.extend<
-    {portal: AdminPortal; roles: string[]; trustee: string | undefined},
+    {
+        portal: AdminPortal
+        roles: string[]
+        trustee: string | undefined
+        configurationPackageActions: boolean
+    },
     {dist: Awaited<ReturnType<typeof serveDist>>}
 >({
     roles: [
@@ -37,6 +44,7 @@ export const test = base.extend<
     ],
     /** The `trustee` claim Keycloak adds for a user with the trustee attribute. */
     trustee: [undefined, {option: true}],
+    configurationPackageActions: [false, {option: true}],
     dist: [
         // Playwright requires an object pattern for a fixture without dependencies.
         // eslint-disable-next-line no-empty-pattern
@@ -50,12 +58,18 @@ export const test = base.extend<
         },
         {scope: "worker"},
     ],
-    portal: async ({context, page, dist, roles, trustee}, use) => {
+    portal: async ({context, page, dist, roles, trustee, configurationPackageActions}, use) => {
         const {origin} = dist
         const violations = new ViolationLog()
         const s3 = new S3Mock({origin, violations})
+        const baseline = loadClientSchema(resolve(directory, "graphql.schema.json"))
         const graphql = new GraphQLMock({
-            schema: loadClientSchema(resolve(directory, "graphql.schema.json")),
+            schema: configurationPackageActions
+                ? withConfigurationPackageActions(
+                      baseline,
+                      resolve(directory, "../../hasura/metadata/actions.graphql")
+                  )
+                : baseline,
             violations,
         })
         const oidc = new OidcMock({

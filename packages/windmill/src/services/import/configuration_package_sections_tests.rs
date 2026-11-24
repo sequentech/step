@@ -896,3 +896,75 @@ fn changing_email_without_explicit_flag_never_carries_verification_forward() {
     );
     assert!(admin_email_updates(&rows, &BTreeMap::new(), true).is_empty());
 }
+
+#[test]
+fn blank_or_equivalent_admin_email_preserves_verification_and_requires_a_real_address() {
+    let current = BTreeMap::from([(
+        "alice".into(),
+        ExistingAdmin {
+            fields: BTreeMap::from([
+                ("email".into(), set(&["  ALICE@example.test "])),
+                ("email_verified".into(), set(&["true"])),
+            ]),
+            ..Default::default()
+        },
+    )]);
+    for csv in [
+        "username,group_name,email\nalice,admin,\n",
+        "username,group_name,email\nalice,admin,   \n",
+        "username,group_name,email\nalice,admin,  ALICE@EXAMPLE.TEST \n",
+    ] {
+        assert!(
+            admin_email_updates(&read_admin_rows(csv.as_bytes()).unwrap(), &current, true)
+                .is_empty()
+        );
+    }
+    let same_address_explicit_flag = read_admin_rows(
+        b"username,group_name,email,email_verified\nalice,admin,Alice@example.test,false\n",
+    )
+    .unwrap();
+    assert_eq!(
+        admin_email_updates(&same_address_explicit_flag, &current, true)["alice"],
+        AdminEmailUpdate {
+            email: None,
+            email_verified: Some(false)
+        }
+    );
+    assert!(read_admin_rows(b"username,group_name,email\nalice,admin,not-an-email\n").is_err());
+}
+
+#[test]
+fn signature_does_not_authorize_existing_user_email_by_itself_even_for_default_group() {
+    use super::super::import_users::{
+        GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
+    };
+    let rows = read_admin_rows(
+        b"username,group_name,email,email_verified\nalice,voter,new@example.test,true\n",
+    )
+    .unwrap();
+    let current = BTreeMap::from([(
+        "alice".into(),
+        ExistingAdmin {
+            fields: BTreeMap::from([
+                ("email".into(), set(&["old@example.test"])),
+                ("email_verified".into(), set(&["false"])),
+            ]),
+            ..Default::default()
+        },
+    )]);
+    let denied = ImportUsersPrivileges {
+        group_assignment: GroupAssignmentPolicy::DefaultGroupOnly,
+        permission_labels: PermissionLabelPolicy::Forbidden,
+    };
+    assert!(!email_write_stamped(&denied));
+    assert_eq!(
+        admin_detail_problems(&rows, &current, &BTreeSet::new(), &denied, true).len(),
+        2
+    );
+    let allowed = ImportUsersPrivileges {
+        group_assignment: GroupAssignmentPolicy::AnyGroup,
+        permission_labels: PermissionLabelPolicy::Forbidden,
+    };
+    assert!(email_write_stamped(&allowed));
+    assert!(admin_detail_problems(&rows, &current, &BTreeSet::new(), &allowed, true).is_empty());
+}

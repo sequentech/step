@@ -70,6 +70,11 @@ public class MFAMethodSelector implements RequiredActionFactory, RequiredActionP
     // configured credential types
     UserModel user = context.getUser();
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    if (TrusteeRunnerPassword.verifiedMachineSession(context.getRealm(), authSession, user)) {
+      // The dedicated password execution verified this service identity in this session.
+      // Do not remove existing actions, exempt browser login, or relax other clients.
+      return;
+    }
 
     // Only add the MFA method selector required action if:
     if (

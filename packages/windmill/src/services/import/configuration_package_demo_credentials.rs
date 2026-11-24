@@ -7,8 +7,8 @@ use anyhow::{anyhow, Result};
 use sequent_core::election_config::{
     archive::Artifact,
     demo_credentials::{
-        verify_demo_login_verifiers, DemoLoginPrincipal, DemoLoginVerifiers,
-        DEMO_LOGIN_VERIFIERS_MEMBER,
+        verify_demo_login_roster, verify_demo_login_verifiers, DemoLoginPrincipal,
+        DemoLoginVerifiers, DEMO_LOGIN_VERIFIERS_MEMBER,
     },
     manifest::ManifestFormat,
     package_verify::VerifiedPackage,
@@ -80,11 +80,7 @@ impl VerifiedDemoLoginAdmission {
             .filter(|s| s.len() <= 64 * 1024)
             .and_then(|s| serde_json::from_str::<InstalledPolicy>(&s).ok())
             .filter(|policy| {
-                policy.tenant_id == tenant_id
-                    && policy.accounts.iter().all(|a| {
-                        matches!(a.group_name.as_str(), "sbei" | "trustee")
-                            && !a.username.starts_with("service-account-")
-                    })
+                policy.tenant_id == tenant_id && verify_demo_login_roster(&policy.accounts).is_ok()
             })
             .ok_or_else(|| anyhow!("no valid installed demo login policy for this tenant"))?;
         let payload: DemoLoginVerifiers = serde_json::from_slice(&file.bytes)
@@ -130,12 +126,18 @@ impl VerifiedDemoLoginAdmission {
         realm: &str,
         rows: &[AdminRow],
         existing: &BTreeMap<String, BTreeSet<String>>,
+        actor: Option<&crate::services::audit_log::AuditActor>,
     ) -> Result<Vec<String>> {
         self.verify_roster(rows)?;
         let names = self.new_usernames(existing);
         if names.is_empty() {
             return Ok(names);
         }
+        let actor = actor
+            .filter(|a| a.user_id.as_deref().is_some_and(|id| !id.is_empty()))
+            .ok_or_else(|| {
+                anyhow!("new demo account enrollment requires an attributable operator")
+            })?;
         let client = KeycloakAdminClient::new()
             .await
             .map_err(|_| anyhow!("could not open target identity store"))?;
@@ -178,6 +180,18 @@ impl VerifiedDemoLoginAdmission {
                 .map_err(|_| {
                     anyhow!("target identity store refused a new demo account; preview again")
                 })?;
+            // Record each successful creation immediately, even if a later
+            // account fails. Never include the email, password or verifier.
+            use crate::services::{audit_log::AdminAction, task_audit};
+            task_audit::record(task_audit::bulk(
+                Some(actor.clone()),
+                task_audit::target(tenant, None)?,
+                "user",
+                AdminAction::Create,
+                "Created an allowlisted demo user from a verified configuration package",
+                serde_json::json!({"username": r.username, "group": r.group}),
+            ))
+            .await?;
         }
         Ok(names)
     }

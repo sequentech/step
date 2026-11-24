@@ -366,6 +366,10 @@ pub fn read_admin_rows(csv_bytes: &[u8]) -> Result<Vec<AdminRow>> {
             if ["username", "group_name"].contains(&header) {
                 continue;
             }
+            // A blank email cell is not an instruction to erase an existing address.
+            if header == "email" && value.trim().is_empty() {
+                continue;
+            }
             let value = if ["enabled", "email_verified"].contains(&header) {
                 match value.to_ascii_lowercase().as_str() {
                     "true" => "true".to_string(),
@@ -377,7 +381,11 @@ pub fn read_admin_rows(csv_bytes: &[u8]) -> Result<Vec<AdminRow>> {
                     }
                 }
             } else if header == "email" {
-                value.to_lowercase()
+                let email = value.trim().to_lowercase();
+                if email.len() > 254 || email.parse::<lettre::Address>().is_err() {
+                    return Err(anyhow!("administrator email is not an address"));
+                }
+                email
             } else {
                 value.to_string()
             };
@@ -523,6 +531,17 @@ pub struct AdminEmailUpdate {
 }
 
 fn admin_field_differs(existing: &ExistingAdmin, field: &str, value: &str) -> bool {
+    if field == "email" {
+        let email = value.trim().to_lowercase();
+        if email.is_empty() {
+            return false;
+        }
+        return !existing.fields.get(field).is_some_and(|addresses| {
+            addresses
+                .iter()
+                .any(|address| address.trim().to_lowercase() == email)
+        });
+    }
     let expected: BTreeSet<_> = value.split('|').filter(|v| !v.is_empty()).collect();
     let actual: BTreeSet<_> = existing
         .fields
@@ -533,6 +552,15 @@ fn admin_field_differs(existing: &ExistingAdmin, field: &str, value: &str) -> bo
         .filter(|v| !v.is_empty())
         .collect();
     expected != actual
+}
+
+/// The route stamps AnyGroup only from USER_WRITE + ROLE_WRITE on this tenant.
+/// A package signature never supplies the operator's permissions.
+pub(super) fn email_write_stamped(privileges: &super::import_users::ImportUsersPrivileges) -> bool {
+    matches!(
+        privileges.group_assignment,
+        super::import_users::GroupAssignmentPolicy::AnyGroup
+    )
 }
 
 pub fn admin_email_updates(
@@ -618,6 +646,7 @@ pub fn admin_detail_problems(
     verified: bool,
 ) -> Vec<String> {
     use super::import_users::{GroupAssignmentPolicy, PermissionLabelPolicy};
+    let may_update_email = verified && email_write_stamped(privileges);
     let mut blockers = Vec::new();
     for row in wanted {
         if row.group != "voter"
@@ -655,7 +684,7 @@ pub fn admin_detail_problems(
             }
             for (field, value) in &row.fields {
                 if field == "permission_labels"
-                    || (verified && matches!(field.as_str(), "email" | "email_verified"))
+                    || (may_update_email && matches!(field.as_str(), "email" | "email_verified"))
                 {
                     continue;
                 }

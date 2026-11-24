@@ -1423,6 +1423,21 @@ pub async fn get_document(
     String,
     Option<Box<VerifiedPackage>>,
 )> {
+    get_document_with_package_snapshot(hasura_transaction, object, election_event_id, None).await
+}
+
+#[instrument(err, skip_all)]
+async fn get_document_with_package_snapshot(
+    hasura_transaction: &Transaction<'_>,
+    object: ImportElectionEventBody,
+    _election_event_id: Option<String>,
+    package_snapshot: Option<&[u8]>,
+) -> Result<(
+    NamedTempFile,
+    Document,
+    String,
+    Option<Box<VerifiedPackage>>,
+)> {
     let document = postgres::document::get_document(
         hasura_transaction,
         &object.tenant_id,
@@ -1435,9 +1450,16 @@ pub async fn get_document(
         &object.document_id
     ))?;
 
-    let mut temp_file = documents::get_document_as_temp_file(&object.tenant_id, &document)
-        .await
-        .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))?;
+    let mut temp_file = if let Some(bytes) = package_snapshot {
+        let mut file = NamedTempFile::new()?;
+        file.write_all(bytes)?;
+        file.as_file_mut().rewind()?;
+        file
+    } else {
+        documents::get_document_as_temp_file(&object.tenant_id, &document)
+            .await
+            .map_err(|err| anyhow!("Error trying to get document as temporary file {err}"))?
+    };
 
     let document_type = document
         .clone()
@@ -2606,18 +2628,21 @@ pub async fn process_document(
     object: ImportElectionEventBody,
     election_event_id: String,
     tenant_id: String,
+    package_snapshot: Option<&[u8]>,
 ) -> Result<ImportedElectionEvent> {
     let importer = object.importer.clone();
-    let (mut temp_file_path, document, document_type, package) = get_document(
-        hasura_transaction,
-        object.clone(),
-        Some(election_event_id.clone()),
-    )
-    .await
-    .map_err(|err| {
-        let message = format!("Failed to get document: {err}");
-        err.context(message)
-    })?;
+    let (mut temp_file_path, document, document_type, package) =
+        get_document_with_package_snapshot(
+            hasura_transaction,
+            object.clone(),
+            Some(election_event_id.clone()),
+            package_snapshot,
+        )
+        .await
+        .map_err(|err| {
+            let message = format!("Failed to get document: {err}");
+            err.context(message)
+        })?;
     let file_sha256 = crate::services::task_audit::file_sha256(temp_file_path.as_file_mut())?;
     let declared_sha256 =
         configuration_package::typed_checksum(object.sha256.clone(), package.as_ref());

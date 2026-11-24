@@ -6,7 +6,7 @@ import type {SignedDeliveryReply} from "./SignedDeliveryWorkerClient"
 
 const scope = globalThis as unknown as {
     onmessage: (event: MessageEvent<{file: File; password: string}>) => void
-    postMessage: (message: SignedDeliveryReply, transfer?: Transferable[]) => void
+    postMessage: (message: SignedDeliveryReply, transfer?: ArrayBuffer[]) => void
 }
 
 scope.onmessage = async ({data: {file, password}}) => {

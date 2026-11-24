@@ -126,10 +126,17 @@ pub async fn apply_configuration_package_route(
         }),
     );
     authorize_apply(&claims, &input.tenant_id)?;
-    if input.encrypted_payload_sha256.as_deref().is_some_and(|sha| {
-        sha.len() != 64 || !sha.bytes().all(|byte| byte.is_ascii_hexdigit())
-    }) {
-        return Err((Status::BadRequest, "Invalid encrypted package digest".into()));
+    if input
+        .encrypted_payload_sha256
+        .as_deref()
+        .is_some_and(|sha| {
+            sha.len() != 64 || !sha.bytes().all(|byte| byte.is_ascii_hexdigit())
+        })
+    {
+        return Err((
+            Status::BadRequest,
+            "Invalid encrypted package digest".into(),
+        ));
     }
     let mut event_import = ImportElectionEventBody {
         tenant_id: input.tenant_id.clone(),

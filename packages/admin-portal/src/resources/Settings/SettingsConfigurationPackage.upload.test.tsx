@@ -120,7 +120,18 @@ jest.mock(
                         handleFiles(event.target.files),
                 })
             ),
-        Dialog: () => null,
+        Dialog: ({
+            open,
+            ok,
+            handleClose,
+        }: {
+            open: boolean
+            ok: string
+            handleClose: (result: boolean) => void
+        }) =>
+            open
+                ? require("react").createElement("button", {onClick: () => handleClose(true)}, ok)
+                : null,
     }),
     {virtual: true}
 )
@@ -318,6 +329,7 @@ describe("password-encrypted signed delivery in the real upload drawer", () => {
                 media_type: "application/zip",
                 size: bytes.length,
                 is_public: false,
+                configuration_package: true,
             },
         })
         const upload = mockFetch.mock.calls[0][1].body as File
@@ -326,7 +338,7 @@ describe("password-encrypted signed delivery in the real upload drawer", () => {
             reader.onload = () => resolve(reader.result as ArrayBuffer)
             reader.readAsArrayBuffer(upload)
         })
-        expect([...new Uint8Array(contents)]).toEqual([...bytes])
+        expect(Array.from(new Uint8Array(contents))).toEqual(Array.from(bytes))
         const preview = await screen.findByRole("button", {
             name: "electionEventScreen.import.import",
         })
@@ -369,5 +381,141 @@ describe("password-encrypted signed delivery in the real upload drawer", () => {
         })
         expect(mockUnlock).toHaveBeenCalledTimes(1)
         expect(mockFetch).toHaveBeenCalledTimes(1)
+    })
+    it.each(["", SHA])(
+        "discards a pending inner SHA before previewing or applying a replacement (%p)",
+        async (enteredSha) => {
+            const oldSha = "cd".repeat(32)
+            const replacementSha = "ef".repeat(32)
+            const oldDocument = "22222222-2222-4222-8222-222222222222"
+            const oldPreview = record("previewed")
+            if (!oldPreview) throw new Error("Missing successful preview fixture")
+            oldPreview.application.packageSha256 = oldSha
+            sessionStorage.setItem(
+                "configurationPackage.active.t1",
+                JSON.stringify({
+                    taskId: "task-old",
+                    mode: "preview",
+                    documentId: oldDocument,
+                    actor: "operator",
+                    requirements: {sections: ["election-event"], census: "required"},
+                    expectedSha: oldSha,
+                    encryptedPayloadSha256: oldSha,
+                })
+            )
+            mockStatus.mockReturnValue({
+                sequent_backend_tasks_execution: [
+                    {id: "task-old", execution_status: "SUCCESS", annotations: oldPreview},
+                ],
+            })
+            const view = render(<SettingsConfigurationPackage />)
+            const apply = screen.getByTestId("package-apply") as HTMLButtonElement
+            await waitFor(() => expect(apply.disabled).toBe(false))
+            fireEvent.click(screen.getByText("configurationPackage.upload"))
+            fireEvent.change(screen.getByLabelText("electionEventScreen.import.sha"), {
+                target: {value: enteredSha},
+            })
+            const file = new File(["SEQUENT-EZIP encrypted-only"], "next.ezip")
+            fireEvent.change(screen.getByLabelText("Import file"), {target: {files: [file]}})
+            await screen.findByRole("dialog", {
+                name: "electionEventScreen.import.passwordDialog.title",
+            })
+            expect(apply.disabled).toBe(true)
+            mockUnlock.mockResolvedValue({ok: true, bytes: new Uint8Array([80, 75]), sha256: SHA})
+            let finishPut!: (response: {ok: boolean}) => void
+            mockFetch.mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        finishPut = resolve
+                    })
+            )
+            await clickUnlock("fixture password")
+            const shaInput = screen.getByLabelText(
+                "electionEventScreen.import.sha"
+            ) as HTMLInputElement
+            expect(shaInput.value).toBe("")
+            expect(mockApply).not.toHaveBeenCalled()
+            await act(async () => finishPut({ok: false}))
+            expect(shaInput.value).toBe("")
+            expect(mockApply).not.toHaveBeenCalled()
+
+            const plain = new File(["PK replacement"], "replacement.zip", {type: "application/zip"})
+            await act(async () => {
+                fireEvent.change(screen.getByLabelText("Import file"), {target: {files: [plain]}})
+            })
+            expect(shaInput.value).toBe("")
+            const preview = await screen.findByRole("button", {
+                name: "electionEventScreen.import.import",
+            })
+            await waitFor(() => expect((preview as HTMLButtonElement).disabled).toBe(false))
+            fireEvent.click(preview)
+            await act(async () => {
+                fireEvent.click(
+                    screen.getByRole("button", {name: "electionEventScreen.import.shaDialog.ok"})
+                )
+            })
+            expect(mockApply).toHaveBeenCalledTimes(1)
+            expect(mockApply.mock.calls[0][0].variables).toMatchObject({
+                documentId: DOCUMENT_ID,
+                mode: "preview",
+            })
+            expect(mockApply.mock.calls[0][0].variables).not.toHaveProperty(
+                "encryptedPayloadSha256"
+            )
+            expect(
+                JSON.parse(sessionStorage.getItem("configurationPackage.active.t1")!).expectedSha
+            ).toBeNull()
+            // A stale response from the recalled task is not this upload's preview.
+            expect(apply.disabled).toBe(true)
+            const replacementPreview = record("previewed")
+            if (!replacementPreview) throw new Error("Missing successful preview fixture")
+            replacementPreview.application.packageSha256 = replacementSha
+            mockStatus.mockReturnValue({
+                sequent_backend_tasks_execution: [
+                    {id: "task-p", execution_status: "SUCCESS", annotations: replacementPreview},
+                ],
+            })
+            view.rerender(<SettingsConfigurationPackage />)
+            await waitFor(() => expect(apply.disabled).toBe(false))
+            fireEvent.click(apply)
+            await act(async () => {
+                fireEvent.click(screen.getByTestId("package-apply-confirm"))
+            })
+            expect(mockApply).toHaveBeenCalledTimes(2)
+            expect(mockApply.mock.calls[1][0].variables).toMatchObject({
+                documentId: DOCUMENT_ID,
+                mode: "apply",
+            })
+            expect(mockApply.mock.calls[1][0].variables).not.toHaveProperty(
+                "encryptedPayloadSha256"
+            )
+        }
+    )
+
+    it("does not restore a recalled encrypted preview from a different task's result", async () => {
+        const other = record("previewed")
+        if (!other) throw new Error("Missing successful preview fixture")
+        other.application.packageSha256 = SHA
+        sessionStorage.setItem(
+            "configurationPackage.active.t1",
+            JSON.stringify({
+                taskId: "recalled-task",
+                mode: "preview",
+                documentId: DOCUMENT_ID,
+                actor: "operator",
+                requirements: {sections: ["election-event"], census: "required"},
+                expectedSha: SHA,
+                encryptedPayloadSha256: SHA,
+            })
+        )
+        mockStatus.mockReturnValue({
+            sequent_backend_tasks_execution: [
+                {id: "different-task", execution_status: "SUCCESS", annotations: other},
+            ],
+        })
+        render(<SettingsConfigurationPackage />)
+        const apply = screen.getByTestId("package-apply") as HTMLButtonElement
+        expect(apply.disabled).toBe(true)
+        expect(mockApply).not.toHaveBeenCalled()
     })
 })

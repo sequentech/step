@@ -511,11 +511,13 @@ fn the_platform_sheets_are_carried_through() {
             &[
                 vec![
                     crate::election_config::paths::Cell::text("username"),
-                    crate::election_config::paths::Cell::text("password"),
+                    crate::election_config::paths::Cell::text("email"),
                 ],
                 vec![
                     crate::election_config::paths::Cell::text("officer"),
-                    crate::election_config::paths::Cell::text("secret"),
+                    crate::election_config::paths::Cell::text(
+                        "officer@example.test",
+                    ),
                 ],
             ],
         )
@@ -531,7 +533,13 @@ fn the_platform_sheets_are_carried_through() {
     // And it is still there after writing the plan out again, which is what makes
     // the rebuilt delivery carry `admin_users.csv`.
     let again = workbook_of(&back).unwrap();
-    assert!(again.has("adminusers"));
+    let admins = again.sheet("adminusers").expect("admin roster retained");
+    assert_eq!(
+        admins.rows[0]
+            .get("email")
+            .and_then(serde_json::Value::as_str),
+        Some("officer@example.test"),
+    );
 }
 
 // -- what a cell cannot carry --------------------------------------------------

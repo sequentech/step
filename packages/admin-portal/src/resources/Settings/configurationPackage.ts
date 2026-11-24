@@ -210,6 +210,8 @@ export interface PreviewedPackage {
     requirements: PackageRequirements
     view: ApplicationView
     taskId?: string
+    /** Authenticated digest of the uploaded document this finished task previewed. */
+    encryptedPayloadSha256?: string
     managedBinding?: ManagedPreviewBinding | null
 }
 
