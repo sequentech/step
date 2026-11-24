@@ -2,6 +2,26 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {isId} from "./operationalGoldReturn"
+import type {ISignedView} from "./request"
+import {SigningAction, type ISigningRequest} from "./types"
+
+/** Check the subject displayed by the real canonical-payload reviewer. */
+export function reviewedInitializePost(
+    request: Pick<ISigningRequest, "action" | "election_id" | "subject">,
+    review: ISignedView | null
+) {
+    return (
+        review !== null &&
+        request.action === SigningAction.InitializeVoting &&
+        isId(request.election_id) &&
+        review.payload.election_id === request.election_id &&
+        review.payload.action === request.action &&
+        isId(review.subject.publication_id) &&
+        review.subject.publication_id === request.subject.publication_id
+    )
+}
+
 export const signingExperience = (
     mode: unknown,
     action: string

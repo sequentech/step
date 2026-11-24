@@ -2,13 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {INITIALIZE_RETURN_PATH, localInitializeBuild} from "./localInitializeAuthority"
+
 /**
  * Only unprivileged opaque IDs sit in tab-local resume storage. The
  * normal Admin JWT and the single-use Gold authorization response never
  * persist here, travel in a URL created by the app, or authorize status.
  */
 const MARKER = "sequent.operational-signing.tab.v1"
-const RETURN_PATH = "/operational-signing/return"
 const UUID = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/
 export const isId = (s: unknown): s is string =>
     typeof s === "string" && UUID.test(s) && s !== "00000000-0000-0000-0000-000000000000"
@@ -29,7 +30,7 @@ export interface ITabMarker {
     attempt: string
     page: IReturnPage
 }
-export type ReturnSecret = {state: string; code: string}
+export type ReturnSecret = {state: string; code: string; issuer?: string}
 
 export function parsePage(value: unknown): IReturnPage | undefined {
     const p = object(value)
@@ -142,23 +143,24 @@ export function clearTabMarker(storage: Storage): void {
 
 /** Run as the first operation of the dedicated return entry point. */
 export function captureGoldReturn(
-    location: Pick<Location, "pathname" | "search" | "hash" | "protocol">,
+    location: Pick<Location, "pathname" | "search" | "hash" | "protocol"> &
+        Partial<Pick<Location, "origin" | "href">>,
     clean: (path: string) => void
 ): ReturnSecret | undefined {
-    if (location.pathname !== RETURN_PATH) return undefined
+    if (location.pathname !== INITIALIZE_RETURN_PATH) return undefined
     const fragment = location.hash
     const query = location.search
+    const local = localInitializeBuild(location.origin)
+    const accepted =
+        location.protocol === "https:" ||
+        (local && location.protocol === "http:" &&
+            location.href === location.origin + INITIALIZE_RETURN_PATH + fragment)
     try {
-        clean(RETURN_PATH)
+        clean(INITIALIZE_RETURN_PATH)
     } catch {
         return undefined
     }
-    if (
-        location.protocol !== "https:" ||
-        query ||
-        !fragment.startsWith("#") ||
-        fragment.length > 8192
-    )
+    if (!accepted || query || !fragment.startsWith("#") || fragment.length > 8192)
         return undefined
     const parts = new URLSearchParams(fragment.slice(1))
     const keys = Array.from(parts.keys())
@@ -171,6 +173,12 @@ export function captureGoldReturn(
         code = parts.get("code")
     if (!s || !/^[A-Za-z0-9_-]{43}$/.test(s) || !code || !/^[!-~]{1,4096}$/.test(code))
         return undefined
+    if (local) {
+        const issuer = parts.get("iss")
+        const prefix = "http://localhost:18090/realms/tenant-"
+        if (!issuer?.startsWith(prefix) || !isId(issuer.slice(prefix.length))) return undefined
+        return {state: s, code, issuer}
+    }
     return {state: s, code}
 }
 

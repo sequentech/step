@@ -12667,6 +12667,7 @@ dependencies = [
  "rust_decimal",
  "rust_decimal_macros",
  "rust_xlsxwriter",
+ "rustix 1.1.2",
  "rustls 0.23.35",
  "sequent-core",
  "serde",

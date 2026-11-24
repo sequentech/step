@@ -1,0 +1,64 @@
+type Query {
+    operationalInitializeStatus(request_id: uuid!): OperationalInitializeStatus!
+}
+
+type Mutation {
+    operationalInitializeStart(
+        request_id: uuid!
+        payload_sha256: String!
+        page: OperationalInitializeReturnPageInput!
+    ): OperationalInitializeStart!
+    operationalInitializeFinish(
+        request_id: uuid!
+        attempt: uuid!
+        state: String!
+        code: String!
+    ): OperationalInitializeReturn!
+    operationalInitializeCancel(request_id: uuid!, attempt: uuid!): OperationalInitializeOutcome!
+    operationalInitializeReconcile(request_id: uuid!): OperationalInitializeOutcome!
+}
+
+input OperationalInitializeReturnPageInput {
+    path: String!
+    panel: String!
+    election_id: uuid
+}
+
+type OperationalInitializePage {
+    path: String!
+    panel: String!
+    election_id: uuid
+}
+
+type OperationalInitializeScope {
+    tenant: uuid!
+    event: uuid!
+    request: uuid!
+    official: uuid!
+}
+
+type OperationalInitializeStatus {
+    scope: OperationalInitializeScope!
+    phase: String!
+    device_profile: String!
+    cancellable_attempt: uuid
+}
+
+type OperationalInitializeStart {
+    attempt: uuid!
+    redirect: String!
+}
+
+type OperationalInitializeReturn {
+    tenant: uuid!
+    event: uuid!
+    request: uuid!
+    official: uuid!
+    attempt: uuid!
+    phase: String!
+    page: OperationalInitializePage!
+}
+
+type OperationalInitializeOutcome {
+    phase: String!
+}

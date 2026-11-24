@@ -10,6 +10,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
+# Only the ordinary Felix3 install can mount its protected Initialize approval actions.
+felix3-local-initialize = ["operational-signing-candidate", "windmill/felix3-local-initialize"]
 # Isolated synthetic demo, not a deployment feature.
 operational-signing-demo-fixture = ["operational-signing-private-ca-candidate", "windmill/operational-signing-demo-fixture"]
 # Candidate code compiles for dedicated verification without mounting routes.

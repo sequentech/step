@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Authoritative deployment policy shared by Harvest and Windmill.
-//! HSM-required denies legacy ingress. The isolated replacement path admits
-//! only the mounted, operator-selected Initialize installation.
+//! HSM-required denies legacy ingress. Receipt admission separately checks
+//! the device installed for the request.
 
 use deadpool_postgres::{GenericClient, Transaction};
 use uuid::Uuid;
@@ -19,6 +19,8 @@ pub enum OperationalSigningMode {
 pub enum LegacySigningBlocked {
     HsmRequired,
     Unavailable,
+    #[cfg(feature = "felix3-local-initialize")]
+    LocalInstallationUnavailable,
 }
 
 impl std::fmt::Display for LegacySigningBlocked {
@@ -26,6 +28,11 @@ impl std::fmt::Display for LegacySigningBlocked {
         f.write_str(match self {
             Self::HsmRequired => "This tenant requires a server-managed signing device.",
             Self::Unavailable => "The official signing mode is unavailable.",
+            #[cfg(feature = "felix3-local-initialize")]
+            Self::LocalInstallationUnavailable => concat!(
+                "Cannot verify /run/sequent-felix3-local-initialize/installation.json ",
+                "against the application's signing policy and installation approval."
+            ),
         })
     }
 }
@@ -55,7 +62,16 @@ pub async fn signing_mode(
     )
     .await
     .map_err(|_| LegacySigningBlocked::Unavailable)?;
-    let row = tx
+    read_tenant_mode(tx, tenant).await
+}
+
+// Startup also uses this read with its existing application login. Operations
+// use signing_mode so the policy lock is retained through commit.
+pub(super) async fn read_tenant_mode(
+    client: &impl GenericClient,
+    tenant: Uuid,
+) -> Result<OperationalSigningMode, LegacySigningBlocked> {
+    let row = client
         .query_one(
             "SELECT mode, EXISTS (
                  SELECT FROM sequent_backend.operational_signing_required_tenant WHERE tenant_id = $1
@@ -107,6 +123,11 @@ pub async fn assert_startup_policy(
         Err(std::env::VarError::NotPresent) => None,
         Err(std::env::VarError::NotUnicode(_)) => return Err(LegacySigningBlocked::Unavailable),
     };
+    #[cfg(feature = "felix3-local-initialize")]
+    if let Err(error) = super::operational_device::local_initialize::assert_startup(client).await {
+        tracing::error!("Local Initialize installation verification failed: {error:#}");
+        return Err(LegacySigningBlocked::LocalInstallationUnavailable);
+    }
     let row = client
         .query_one(
             "SELECT mode, (SELECT count(*) FROM sequent_backend.operational_signing_required_tenant)

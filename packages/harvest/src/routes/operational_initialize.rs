@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Activation-free representative Harvest path. Install only with an
+//! Initialize approval routes. Install only with an
 //! authenticated private broker that implements the exact owned ceremony,
 //! reservation, verified device, and durable reconciliation protocol.
 //! No credential, bytes, actor, certificate, or HSM mode is accepted from
@@ -37,6 +37,13 @@ use windmill::services::signing::operational_initialize::{
 };
 use windmill::services::signing::SigningCaller;
 use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
+
+#[cfg(all(
+    feature = "felix3-local-initialize",
+    not(feature = "operational-signing-demo-fixture")
+))]
+#[path = "local_initialize_authority.rs"]
+pub(crate) mod local;
 
 /// The ledger's attempt table has no `audit_change` trigger: a route that
 /// changes an attempt stages the entry itself, in the event's log.
@@ -348,6 +355,79 @@ impl DemoSigningScope {
     }
 }
 
+pub(crate) enum ApprovalInstallation<'r> {
+    Demo(&'r DemoSigningScope),
+    #[cfg(all(feature = "felix3-local-initialize", not(feature = "operational-signing-demo-fixture")))]
+    Local(&'r local::LocalInitializePost),
+}
+
+// Keep the mounted route's managed-state check at Rocket ignition, including
+// the sealed installation's original DemoSigningScope requirement.
+impl rocket::Sentinel for ApprovalInstallation<'_> {
+    fn abort(rocket: &rocket::Rocket<rocket::Ignite>) -> bool {
+        #[cfg(all(feature = "felix3-local-initialize", not(feature = "operational-signing-demo-fixture")))]
+        {
+            use crate::services::operational_portal_auth::OperationalPortalAuth;
+            if rocket.state::<OperationalPortalAuth>().is_some_and(|a| a.requires_local_ingress()) {
+                return rocket.state::<local::LocalInitializePost>().is_none()
+                    || rocket.state::<local::LocalIngress>().is_none();
+            }
+        }
+        rocket.state::<DemoSigningScope>().is_none()
+    }
+}
+
+#[rocket::async_trait]
+impl<'r> rocket::request::FromRequest<'r> for ApprovalInstallation<'r> {
+    type Error = ();
+    async fn from_request(req: &'r rocket::Request<'_>) -> rocket::request::Outcome<Self, ()> {
+        use rocket::request::Outcome;
+        let unavailable = || Outcome::Error((Status::ServiceUnavailable, ()));
+        #[cfg(all(feature = "felix3-local-initialize", not(feature = "operational-signing-demo-fixture")))]
+        {
+            use crate::services::operational_portal_auth::OperationalPortalAuth;
+            if req.rocket().state::<OperationalPortalAuth>().is_some_and(|a| a.requires_local_ingress()) {
+                return req.rocket().state::<local::LocalInitializePost>()
+                    .map(|s| Outcome::Success(Self::Local(s))).unwrap_or_else(unavailable);
+            }
+        }
+        req.rocket().state::<DemoSigningScope>()
+            .map(|s| Outcome::Success(Self::Demo(s))).unwrap_or_else(unavailable)
+    }
+}
+
+impl ApprovalInstallation<'_> {
+    async fn verify(
+        &self, tx: &deadpool_postgres::Transaction<'_>, services: &HarvestServices,
+        actor: &SigningCaller, scope: &InitializeSigningScope,
+    ) -> Result<(), SigningError> {
+        match self {
+            Self::Demo(pin) => {
+                let _ = (services, actor);
+                pin.verify(tx, scope).await
+            }
+            #[cfg(all(feature = "felix3-local-initialize", not(feature = "operational-signing-demo-fixture")))]
+            Self::Local(pin) => pin.verify(tx, services, actor, scope).await,
+        }
+    }
+
+    fn permits_broker(&self, broker: &dyn OperationalInitializeBroker) -> bool {
+        match self {
+            Self::Demo(_) => broker.authorization_endpoint().scheme() == "https",
+            #[cfg(all(feature = "felix3-local-initialize", not(feature = "operational-signing-demo-fixture")))]
+            Self::Local(pin) => pin.permits_broker(broker),
+        }
+    }
+
+    fn profile(&self) -> &'static str {
+        match self {
+            Self::Demo(pin) => pin.profile,
+            #[cfg(all(feature = "felix3-local-initialize", not(feature = "operational-signing-demo-fixture")))]
+            Self::Local(pin) => pin.profile,
+        }
+    }
+}
+
 fn caller(claims: &JwtClaims) -> Result<(Uuid, SigningCaller), SigningError> {
     authorize_403(
         claims,
@@ -377,14 +457,22 @@ fn broker_error(failure: BrokerFailure) -> SigningError {
     }
 }
 
+#[cfg(test)]
 fn permitted_redirect(
     location: &reqwest::Url,
     configured: &reqwest::Url,
     oidc_client: &str,
 ) -> bool {
+    location.scheme() == "https" && matches_pushed_redirect(location, configured, oidc_client)
+}
+
+pub(super) fn matches_pushed_redirect(
+    location: &reqwest::Url,
+    configured: &reqwest::Url,
+    oidc_client: &str,
+) -> bool {
     const PREFIX: &str = "urn:ietf:params:oauth:request_uri:";
-    if location.scheme() != "https"
-        || location.origin() != configured.origin()
+    if location.origin() != configured.origin()
         || location.path() != configured.path()
         || !location.username().is_empty()
         || location.password().is_some()
@@ -393,11 +481,11 @@ fn permitted_redirect(
         return false;
     }
     let mut client = false;
-    let mut request = false;
+    let mut request_uri = None;
     for (name, value) in location.query_pairs() {
         match name.as_ref() {
             "client_id" if !client && value == oidc_client => client = true,
-            "request_uri" if !request => {
+            "request_uri" if request_uri.is_none() => {
                 let Some(suffix) = value.strip_prefix(PREFIX) else {
                     return false;
                 };
@@ -409,12 +497,20 @@ fn permitted_redirect(
                 {
                     return false;
                 }
-                request = true;
+                request_uri = Some(value);
             }
             _ => return false,
         }
     }
-    client && request
+    let Some(request_uri) = request_uri else { return false };
+    if !client { return false; }
+    if configured.scheme() == "http" {
+        let mut canonical = configured.clone();
+        canonical.query_pairs_mut().append_pair("client_id", oidc_client)
+            .append_pair("request_uri", &request_uri);
+        return location == &canonical;
+    }
+    true
 }
 
 #[tracing::instrument(skip_all)]
@@ -426,7 +522,7 @@ fn permitted_redirect(
 pub(crate) async fn status(
     claims: OperationalPortalClaims,
     services: &State<HarvestServices>,
-    installed: &State<DemoSigningScope>,
+    installed: ApprovalInstallation<'_>,
     broker: Option<&State<InitializeBroker>>,
     input: Json<Start>,
 ) -> SigningReply<PendingState> {
@@ -443,7 +539,7 @@ pub(crate) async fn status(
         initialize_signing_scope(&tx, &caller, tenant, input.request_id)
             .await
             .map_err(signing_failure)?;
-    installed.verify(&tx, &scoped).await?;
+    installed.verify(&tx, services, &caller, &scoped).await?;
     let scope = PortalScope {
         tenant,
         event: scoped.event(),
@@ -455,7 +551,7 @@ pub(crate) async fn status(
             scope,
             phase,
             cancellable_attempt,
-            device_profile: installed.profile,
+            device_profile: installed.profile(),
         }))
     };
     if initialize_signing_applied(&tx, &caller, tenant, input.request_id)
@@ -522,7 +618,7 @@ async fn current_attempt(
 pub(crate) async fn cancel_unused(
     claims: OperationalPortalClaims,
     services: &State<HarvestServices>,
-    installed: &State<DemoSigningScope>,
+    installed: ApprovalInstallation<'_>,
     input: Json<CancelAttempt>,
 ) -> SigningReply<Outcome> {
     let (tenant, caller) = caller(&claims.0)?;
@@ -538,7 +634,7 @@ pub(crate) async fn cancel_unused(
         initialize_signing_scope(&tx, &caller, tenant, input.request_id)
             .await
             .map_err(signing_failure)?;
-    installed.verify(&tx, &scoped).await?;
+    installed.verify(&tx, services, &caller, &scoped).await?;
     let discarded: bool = tx
         .query_one(
             "SELECT sequent_backend.operational_initialize_discard_unredeemed($1,$2,$3,$4,$5,$6)",
@@ -583,7 +679,7 @@ pub(crate) async fn cancel_unused(
 pub(crate) async fn reconcile(
     claims: OperationalPortalClaims,
     services: &State<HarvestServices>,
-    installed: &State<DemoSigningScope>,
+    installed: ApprovalInstallation<'_>,
     input: Json<Start>,
 ) -> SigningReply<Outcome> {
     let (tenant, caller) = caller(&claims.0)?;
@@ -599,7 +695,7 @@ pub(crate) async fn reconcile(
         initialize_signing_scope(&tx, &caller, tenant, input.request_id)
             .await
             .map_err(signing_failure)?;
-    installed.verify(&tx, &scoped).await?;
+    installed.verify(&tx, services, &caller, &scoped).await?;
     if initialize_signing_applied(&tx, &caller, tenant, input.request_id)
         .await
         .map_err(signing_failure)?
@@ -663,7 +759,7 @@ pub(crate) async fn reconcile(
 pub(crate) async fn start(
     claims: OperationalPortalClaims,
     services: &State<HarvestServices>,
-    installed: &State<DemoSigningScope>,
+    installed: ApprovalInstallation<'_>,
     broker: &State<InitializeBroker>,
     input: Json<StartGold>,
 ) -> SigningReply<Begin> {
@@ -680,7 +776,7 @@ pub(crate) async fn start(
         prepare_initialize_signing(&tx, &caller, tenant, input.request_id)
             .await
             .map_err(signing_failure)?;
-    installed.verify(&tx, &prepared).await?;
+    installed.verify(&tx, services, &caller, &prepared).await?;
     if input.payload_sha256 != prepared.payload_sha256() {
         return Err(SigningError::conflict(
             "The reviewed signing request no longer matches. Review it again before approving.",
@@ -700,6 +796,9 @@ pub(crate) async fn start(
             "Your approval is already recorded.",
         ));
     }
+    if !installed.permits_broker(broker.0.as_ref()) {
+        return Err(broker_error(BrokerFailure::Unavailable));
+    }
     tx.commit().await.map_err(SigningError::internal)?;
     let redirect = broker
         .0
@@ -707,7 +806,7 @@ pub(crate) async fn start(
         .await
         .map_err(broker_error)?;
     if redirect.attempt.is_nil()
-        || !permitted_redirect(
+        || !matches_pushed_redirect(
             &redirect.location,
             broker.0.authorization_endpoint(),
             broker.0.oidc_client_id(),
@@ -717,6 +816,15 @@ pub(crate) async fn start(
     }
     // The return page and its audit entry commit together.
     let tx = client.transaction().await.map_err(SigningError::internal)?;
+    #[cfg(all(feature = "felix3-local-initialize", not(feature = "operational-signing-demo-fixture")))]
+    if let ApprovalInstallation::Local(pin) = &installed {
+        let current = prepare_initialize_signing(&tx, &caller, tenant, input.request_id)
+            .await.map_err(signing_failure)?;
+        if current.payload_sha256() != prepared.payload_sha256() {
+            return Err(broker_error(BrokerFailure::Refused));
+        }
+        pin.verify(&tx, services, &caller, &current).await?;
+    }
     let saved: bool=tx.query_one(
        "SELECT sequent_backend.operational_initialize_record_browser_return($1,$2,$3,$4,$5,$6,$7,$8)",
        &[&tenant,&prepared.event(),&prepared.request(),&caller.user_id,&redirect.attempt,
@@ -752,7 +860,7 @@ pub(crate) async fn start(
 pub(crate) async fn finish(
     claims: OperationalPortalClaims,
     services: &State<HarvestServices>,
-    installed: &State<DemoSigningScope>,
+    installed: ApprovalInstallation<'_>,
     broker: &State<InitializeBroker>,
     input: Json<Return>,
 ) -> SigningReply<GoldReturnView> {
@@ -769,7 +877,7 @@ pub(crate) async fn finish(
         initialize_signing_scope(&tx, &caller, tenant, input.request_id)
             .await
             .map_err(signing_failure)?;
-    installed.verify(&tx, &authorized).await?;
+    installed.verify(&tx, services, &caller, &authorized).await?;
     let page =
         read_browser_return(&tx, &authorized, &caller, input.attempt).await?;
     let response = |phase| {
@@ -806,6 +914,9 @@ pub(crate) async fn finish(
     {
         return Err(SigningError::invalid("Invalid signing callback."));
     }
+    if !installed.permits_broker(broker.0.as_ref()) {
+        return Err(broker_error(BrokerFailure::Unavailable));
+    }
     let scope = BrokerScope::from(&prepared);
     let receipt = match broker
         .0
@@ -816,8 +927,19 @@ pub(crate) async fn finish(
         Err(BrokerFailure::Reconcile) => return response(Phase::Reconcile),
         Err(other) => return Err(broker_error(other)),
     };
-    if receipt.scope != scope || receipt.approval_challenge.is_nil() {
+    if receipt.scope != scope || receipt.approval_challenge != input.attempt {
         return Err(broker_error(BrokerFailure::Refused));
+    }
+    #[cfg(all(feature = "felix3-local-initialize", not(feature = "operational-signing-demo-fixture")))]
+    if let ApprovalInstallation::Local(pin) = &installed {
+        let tx = client.transaction().await.map_err(SigningError::internal)?;
+        let current = prepare_initialize_signing(&tx, &caller, tenant, input.request_id)
+            .await.map_err(signing_failure)?;
+        if current.payload_sha256() != prepared.payload_sha256() {
+            return Err(broker_error(BrokerFailure::Refused));
+        }
+        pin.verify(&tx, services, &caller, &current).await?;
+        tx.commit().await.map_err(SigningError::internal)?;
     }
     let result = approve_operational(
         &mut client,

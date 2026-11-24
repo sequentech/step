@@ -24,7 +24,12 @@ import {
     trustedSigningRedirect,
     type ApprovalPhase,
 } from "@/lib/signing/operationalApprovalApi"
-import {approvalControl, signingExperience} from "@/lib/signing/operationalApprovalPolicy"
+import {
+    approvalControl,
+    reviewedInitializePost,
+    signingExperience,
+} from "@/lib/signing/operationalApprovalPolicy"
+import {matchLocalInitializeSettings} from "@/lib/signing/localInitializeAuthority"
 import {
     isId,
     markBeforeFullRedirect,
@@ -66,8 +71,19 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
     const {isAuthenticated, tenantId, userId, isGoldUser, reauthWithGold} = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
     const apollo = useApolloClient()
-    const client = useMemo(() => createOperationalApprovalApi(apollo), [apollo])
     const request = data.request
+    const location = window.location
+    const registration = (globalSettings as {FELIX3_LOCAL_INITIALIZE?: unknown}).FELIX3_LOCAL_INITIALIZE
+    const localOrigin =
+        location.protocol === "http:" &&
+        location.href.startsWith(location.origin + "/") &&
+        matchLocalInitializeSettings(location.origin, request.tenant_id, globalSettings)
+            ? location.origin
+            : undefined
+    const client = useMemo(
+        () => createOperationalApprovalApi(apollo, localOrigin, registration),
+        [apollo, localOrigin, registration]
+    )
     const scope = useMemo(
         () => ({
             tenant: request.tenant_id,
@@ -77,9 +93,18 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
         }),
         [request.tenant_id, request.election_event_id, request.id, userId]
     )
-    const usable = isAuthenticated && tenantId === scope.tenant && Object.values(scope).every(isId)
-    const view = useMemo(() => ({}), [scope, usable, request.election_id, request.payload_sha256])
+    const usable =
+        (location.protocol === "https:" || localOrigin !== undefined) &&
+        isAuthenticated &&
+        tenantId === scope.tenant &&
+        Object.values(scope).every(isId)
+    const view = useMemo(
+        () => ({}),
+        [scope, usable, localOrigin, registration, request.election_id, request.payload_sha256]
+    )
     const reviewed = useSignedView(data)
+    const canApproveReviewed =
+        reviewed.verified && (!localOrigin || reviewedInitializePost(request, reviewed.view))
     const titleId = useId()
     const [phase, setPhase] = useState<Phase>("loading")
     const [cancellableAttempt, setCancellableAttempt] = useState<string>()
@@ -107,6 +132,7 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
             let current: Phase = status.phase
             if (
                 (current === "unavailable" || current === "challenge-available") &&
+                !localOrigin &&
                 latest.current.eligible
             ) {
                 const setupStatus = await client.setupStatus(scope)
@@ -138,7 +164,7 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
                 setConfirmCancel(undefined)
             }
         }
-    }, [client, scope, usable, view])
+    }, [client, scope, usable, view, localOrigin])
 
     useEffect(() => {
         reported.current = false
@@ -174,6 +200,7 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
 
     const run = async (action: "set-up" | "approve" | "check" | "cancel-unused") => {
         if (operation.current?.view === view || !usable) return
+        if (action === "approve" && !canApproveReviewed) return
         const owner = {view}
         operation.current = owner
         const ticket = ++epoch.current
@@ -234,6 +261,7 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
                     next.tenant_id !== scope.tenant ||
                     next.election_event_id !== scope.event ||
                     next.election_id !== request.election_id ||
+                    (localOrigin && !reviewedInitializePost(next, reviewed.view)) ||
                     next.payload_sha256 !== request.payload_sha256 ||
                     next.canonical_payload !== request.canonical_payload ||
                     signBlock(fresh, scope.official, true) !== SignBlock.None
@@ -241,6 +269,7 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
                     throw new Error("Request no longer open or does not match")
                 }
                 if (action === "set-up") {
+                    if (localOrigin) return
                     const setup = await client.setupStatus(scope)
                     if (
                         !stillReviewed() ||
@@ -253,19 +282,19 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
                     if (!isGoldUser()) throw new SetupGoldRequired()
                     await client.setup(scope)
                 } else {
-                    const setup = await client.setupStatus(scope)
-                    if (!stillReviewed() || setup !== "certificate-on-file") {
-                        throw new Error("Signing setup is not complete")
-                    }
+                    const ready = localOrigin
+                        ? (await client.status(scope)).phase === "challenge-available"
+                        : (await client.setupStatus(scope)) === "certificate-on-file"
+                    if (!stillReviewed() || !ready) throw new Error("Signing unavailable")
                     const page = originPage()
-                    if (window.location.protocol !== "https:")
-                        throw new Error("Secure context required")
                     const begin = await client.start(scope, page, request.payload_sha256)
                     if (!stillReviewed()) return
                     const redirect = trustedSigningRedirect(
                         begin.redirect,
                         globalSettings.KEYCLOAK_URL,
-                        scope.tenant
+                        scope.tenant,
+                        window.location.origin,
+                        registration
                     )
                     if (
                         !markBeforeFullRedirect(window.sessionStorage, {
@@ -316,7 +345,7 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
 
     const scopeHasStatus = device?.view === view
     const control =
-        eligible && usable && scopeHasStatus ? approvalControl(phase, reviewed.verified) : null
+        eligible && usable && scopeHasStatus ? approvalControl(phase, canApproveReviewed) : null
     const canCancelUnused =
         usable &&
         eligible &&
@@ -335,7 +364,9 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
             <DialogContent>
                 <Stack spacing={2}>
                     <SigningSubject data={data} api={api} variant={SigningSubjectVariant.Dialog} />
-                    <Alert severity="info">{t("signing.operational.isolatedDemo")}</Alert>
+                    {!localOrigin && (
+                        <Alert severity="info">{t("signing.operational.isolatedDemo")}</Alert>
+                    )}
                     {softwareDemo && (
                         <Alert severity="warning">{t("signing.operational.softwareDemo")}</Alert>
                     )}

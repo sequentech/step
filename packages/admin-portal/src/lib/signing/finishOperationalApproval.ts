@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import Keycloak from "keycloak-js"
+import {INITIALIZE_RETURN_PATH, localInitializeBuild, matchLocalInitializeSettings} from "./localInitializeAuthority"
 import {
     bindReturnedPage,
     clearTabMarker,
@@ -103,7 +104,12 @@ export async function finishOperationalApproval(
     captured: ReturnSecret | undefined
 ) {
     const location = browser.location
-    if (location.protocol !== "https:") return false
+    const local = localInitializeBuild(location.origin)
+    if (
+        location.protocol !== "https:" &&
+        !(local && location.protocol === "http:" && location.href === location.origin + INITIALIZE_RETURN_PATH)
+    )
+        return false
     const storage = browser.sessionStorage
     const tab = readTabMarker(storage)
     if (!tab) return false
@@ -120,11 +126,13 @@ export async function finishOperationalApproval(
         const settings = await fetch(settingsUrl, {
             cache: "no-store",
             redirect: "error",
-            credentials: "same-origin",
+            credentials: local ? "omit" : "same-origin",
+            referrerPolicy: "no-referrer",
             signal: AbortSignal.timeout(4000),
         })
         if (!settings.ok || settings.url !== settingsUrl.href) return resume("reconcile")
-        const {KEYCLOAK_URL, HASURA_URL, ONLINE_VOTING_CLIENT_ID} = record(await settings.json())
+        const config = record(await settings.json())
+        const {KEYCLOAK_URL, HASURA_URL, ONLINE_VOTING_CLIENT_ID} = config
         if (
             typeof KEYCLOAK_URL !== "string" ||
             typeof HASURA_URL !== "string" ||
@@ -135,7 +143,10 @@ export async function finishOperationalApproval(
             return resume("reconcile")
         const issuer = new URL(KEYCLOAK_URL)
         const graph = new URL(HASURA_URL, location.origin)
-        if (
+        if (local) {
+            const registration = matchLocalInitializeSettings(location.origin, tab.tenant, config)
+            if (!registration || captured.issuer !== registration.issuer) return resume("reconcile")
+        } else if (
             !secureUrl(issuer) ||
             !secureUrl(graph) ||
             graph.origin !== location.origin ||
@@ -153,7 +164,7 @@ export async function finishOperationalApproval(
             method: "POST",
             cache: "no-store",
             redirect: "error",
-            credentials: "same-origin",
+            credentials: local ? "omit" : "same-origin",
             referrerPolicy: "no-referrer",
             signal: AbortSignal.timeout(12000),
             headers: {
@@ -176,7 +187,7 @@ export async function finishOperationalApproval(
                 },
             }),
         })
-        if (!response.ok) return resume("reconcile")
+        if (!response.ok || (local && response.url !== graph.href)) return resume("reconcile")
         const body = record(await response.json())
         const returned = record(record(body.data).operationalInitializeFinish)
         return resume(

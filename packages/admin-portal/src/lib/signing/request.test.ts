@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {createHash, webcrypto} from "node:crypto"
+import {createHash, randomUUID, webcrypto} from "node:crypto"
+import {reviewedInitializePost} from "./operationalApprovalPolicy"
 import {
     PayloadMismatchError,
     PayloadProblem,
@@ -213,6 +214,24 @@ describe("signers", () => {
 })
 
 describe("payloadToSign", () => {
+    it("local Initialize reviews the same Post and publication as the canonical request", async () => {
+        const post = randomUUID()
+        const subject = {publication_id: randomUUID()}
+        const payload = {...JSON.parse(CANONICAL), action: SigningAction.InitializeVoting,
+            tenant_id: randomUUID(), election_event_id: randomUUID(), request_id: randomUUID(),
+            election_id: post, subject}
+        const canonical = canonicalJson(payload)
+        const data = panel({action: SigningAction.InitializeVoting, id: payload.request_id,
+            tenant_id: payload.tenant_id, election_event_id: payload.election_event_id,
+            election_id: post, subject, canonical_payload: canonical, payload_sha256: sha256Hex(canonical)})
+        const {view} = await payloadToSign(data)
+        expect(reviewedInitializePost(data.request, view)).toBe(true)
+        for (const patch of [
+            {action: SigningAction.OpenVoting}, {action: SigningAction.GenerateReports},
+            {election_id: null}, {election_id: randomUUID()},
+            {subject: {publication_id: null}}, {subject: {publication_id: randomUUID()}},
+        ]) expect(reviewedInitializePost({...data.request, ...patch}, view)).toBe(false)
+    })
     it("returns the canonical payload's UTF-8 bytes", async () => {
         const {bytes} = await payloadToSign(panel())
         expect(Buffer.from(bytes).equals(Buffer.from(CANONICAL, "utf8"))).toBe(true)

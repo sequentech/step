@@ -91,7 +91,10 @@ pub async fn rocket() -> rocket::Rocket<rocket::Build> {
         }
     });
 
-    build_application_with(services)
+    let application = build_application_with(services);
+    #[cfg(all(feature = "felix3-local-initialize", not(feature = "operational-signing-demo-fixture")))]
+    let application = routes::operational_initialize::local::mount(application).await;
+    application
 }
 
 /// Register the same routes and managed state for production and local HTTP

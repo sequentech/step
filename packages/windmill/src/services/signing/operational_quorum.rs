@@ -5,7 +5,9 @@
 //! Consumption-side check for an already persisted operational quorum.
 //! The original approval transaction verified the receipts cryptographically.
 
-use super::operational_device::{installed_profile, matches_canonical_request, InstalledDevice};
+use super::operational_device::{
+    matches_canonical_request, profile_for_canonical_request, InstalledDevice,
+};
 use crate::postgres::signing::{SigningApprovalRow, SigningRequestRow};
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
@@ -27,42 +29,25 @@ pub(super) async fn has_operational_quorum(
     {
         return Ok(false);
     }
-    check_operational_approvals(tx, request, approvals).await
+    Ok(checked_approval_device(tx, request, approvals)
+        .await?
+        .is_some())
 }
 
-/// Validate prior approvals with the very same evidence contract as the
-/// consuming action. This deliberately accepts an empty slice: quorum
-/// eligibility/threshold is checked separately by the authoritative caller.
-pub(super) async fn check_operational_approvals(
+/// Return the installed device only when every prior approval matches it.
+/// An empty slice is valid when applying the first receipt. Consumption also
+/// requires the frozen and current quorum in has_operational_quorum.
+pub(super) async fn checked_approval_device(
     tx: &Transaction<'_>,
     request: &SigningRequestRow,
     approvals: &[SigningApprovalRow],
-) -> Result<bool> {
-    let Some(device) = installed_profile(
-        tx,
-        request.tenant_id,
-        request.election_event_id,
-        request.action,
-    )
-    .await?
-    else {
-        return Ok(false);
-    };
-    check_with_installed_device(tx, request, approvals, device).await
-}
-
-pub(super) async fn check_with_installed_device(
-    tx: &Transaction<'_>,
-    request: &SigningRequestRow,
-    approvals: &[SigningApprovalRow],
-    device: InstalledDevice,
-) -> Result<bool> {
+) -> Result<Option<InstalledDevice>> {
     let distinct: std::collections::HashSet<&str> = approvals
         .iter()
         .map(|approval| approval.user_id.as_str())
         .collect();
     if distinct.len() != approvals.len() || !matches_canonical_request(request) {
-        return Ok(false);
+        return Ok(None);
     }
     if !approvals.is_empty() {
         // The consuming worker may already own the request row (rather than the
@@ -91,6 +76,9 @@ pub(super) async fn check_with_installed_device(
             "Operational signing key or event is changing; retry the check"
         );
     }
+    let Some(device) = profile_for_canonical_request(tx, request).await? else {
+        return Ok(None);
+    };
     let document_part = match request.action.document() {
         DocumentKind::NoDocument => None,
         DocumentKind::Pdf => Some("pdf-cms"),
@@ -125,8 +113,8 @@ pub(super) async fn check_with_installed_device(
             .try_get(0)
             .context("Invalid operational signing receipt check")?;
         if !matching {
-            return Ok(false);
+            return Ok(None);
         }
     }
-    Ok(true)
+    Ok(Some(device))
 }

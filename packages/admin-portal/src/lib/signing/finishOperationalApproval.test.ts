@@ -8,6 +8,9 @@ import {
     readTabMarker,
     type ITabMarker,
 } from "./operationalGoldReturn"
+import localProfile from "./localInitializeProfile.json"
+
+jest.mock("./localInitializeProfile.json", () => ({profile: "disabled"}))
 
 jest.mock("keycloak-js", () => ({
     __esModule: true,
@@ -58,14 +61,15 @@ const settings = {
 const fetchStub = jest.fn()
 const response = (json: unknown, url = "", ok = true) => ({ok, url, json: async () => json})
 
-function browser() {
+function browser(portalOrigin = origin) {
     const store = new Map<string, string>()
     const storage = {
         getItem: (key: string) => store.get(key) ?? null,
         setItem: (key: string, value: string) => void store.set(key, value),
         removeItem: (key: string) => void store.delete(key),
     } as Storage
-    const location = {protocol: "https:", origin, replace: jest.fn()}
+    const location = {protocol: new URL(portalOrigin).protocol, origin: portalOrigin,
+        href: portalOrigin + "/operational-signing/return", replace: jest.fn()}
     const candidate = {
         location,
         sessionStorage: storage,
@@ -134,6 +138,57 @@ describe("authenticated Gold return", () => {
         expect(await finishOperationalApproval(b.candidate, undefined)).toBe(true)
         expect(readDisplayReturn(b.storage, path)?.result).toBe("reconcile")
         expect(fetchStub).not.toHaveBeenCalled()
+    })
+
+    it("redeems once from the same normal local actor at the pinned cross-origin Hasura", async () => {
+        const portal = "http://localhost:3002"
+        const base = "http://localhost:18090/"
+        const graph = "http://localhost:18080/v1/graphql"
+        const realm = base + "realms/tenant-" + tab.tenant
+        const b = browser(portal)
+        markBeforeFullRedirect(b.storage, tab)
+        expect(await finishOperationalApproval(b.candidate, proof)).toBe(false)
+        expect(fetchStub).not.toHaveBeenCalled()
+        const localProof = {...proof, issuer: realm}
+        try {
+            localProfile.profile = "felix3-local-initialize"
+            const registration = {profile: "felix3-local-initialize", deviceProfile: "yubihsm", issuer: realm,
+                portalClient: client, approvalClient: "synthetic-gold",
+                callback: b.location.href, graphql: graph}
+            const localSettings = {...settings, KEYCLOAK_URL: base, HASURA_URL: graph,
+                FELIX3_LOCAL_INITIALIZE: registration}
+            const provideSettings = () =>
+                fetchStub.mockResolvedValueOnce(response(localSettings, portal + "/global-settings.json"))
+
+            provideSettings()
+            expect(await finishOperationalApproval(b.candidate, {...proof, issuer: base + "realms/tenant-" + id(9)})).toBe(true)
+            expect(mockAdapter.init).not.toHaveBeenCalled()
+            expect(readDisplayReturn(b.storage, path)?.result).toBe("reconcile")
+            markBeforeFullRedirect(b.storage, tab)
+            mockAdapter.tokenParsed = {...claims, iss: realm, sub: id(7)}
+            provideSettings()
+            expect(await finishOperationalApproval(b.candidate, localProof)).toBe(true)
+            expect(fetchStub).toHaveBeenCalledTimes(2)
+            expect(readDisplayReturn(b.storage, path)?.result).toBe("reconcile")
+
+            markBeforeFullRedirect(b.storage, tab)
+            mockAdapter.tokenParsed = {...claims, iss: realm}
+            provideSettings()
+            fetchStub.mockResolvedValueOnce(response({data: {
+                operationalInitializeFinish: {...tab, phase: "approval-recorded"},
+            }}, graph))
+            expect(await finishOperationalApproval(b.candidate, localProof)).toBe(true)
+            expect(readDisplayReturn(b.storage, path)?.result).toBe("approval-recorded")
+            expect(await finishOperationalApproval(b.candidate, localProof)).toBe(false)
+            expect(fetchStub).toHaveBeenCalledTimes(4)
+            expect(String(fetchStub.mock.calls[3][0])).toBe(graph)
+            expect(fetchStub.mock.calls[3][1]).toMatchObject({
+                credentials: "omit", redirect: "error", referrerPolicy: "no-referrer",
+                headers: {Authorization: "Bearer synthetic-admin-token", "x-hasura-role": "sign-initialize-voting"},
+            })
+        } finally {
+            localProfile.profile = "disabled"
+        }
     })
 
     it("never sends the proof to another GraphQL origin even when settings say to", async () => {

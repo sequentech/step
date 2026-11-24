@@ -263,6 +263,18 @@ enum Ingress<'a> {
     Operational(&'a OperationalApprovalInput),
 }
 
+impl Ingress<'_> {
+    fn request_id(self, mode: OperationalSigningMode) -> SigningResult<Uuid> {
+        match (self, mode) {
+            (Self::Legacy(input), OperationalSigningMode::LegacyP12) => Ok(input.request_id),
+            (Self::Operational(input), OperationalSigningMode::HsmRequired) => Ok(input.request_id),
+            _ => Err(SigningError::Forbidden(
+                "This signing method is not allowed for the tenant.".into(),
+            )),
+        }
+    }
+}
+
 async fn approve_ingress(
     client: &mut Client,
     services: &SigningServices,
@@ -553,15 +565,7 @@ async fn approve_in(
     let mode = signing_mode(transaction, tenant_id)
         .await
         .map_err(|error| SigningError::Forbidden(error.to_string()))?;
-    let request_id = match (ingress, mode) {
-        (Ingress::Legacy(input), OperationalSigningMode::LegacyP12) => input.request_id,
-        (Ingress::Operational(input), OperationalSigningMode::HsmRequired) => input.request_id,
-        _ => {
-            return Err(SigningError::Forbidden(
-                "This signing method is not allowed for the tenant.".into(),
-            ))
-        }
-    };
+    let request_id = ingress.request_id(mode)?;
     let found = read_request(transaction, tenant_id, request_id).await?;
 
     // 1. Who may sign: decided before any lock, and before anything of
@@ -1127,4 +1131,42 @@ async fn execute(
     .ok_or_else(|| SigningError::Conflict("The request is not completed.".into()))?;
     stage_executed(transaction, &failed, SystemOutcome::Error).await?;
     Ok((failed.status, vec![]))
+}
+
+#[cfg(test)]
+mod ingress_tests {
+    use super::*;
+
+    #[test]
+    fn operational_signing_has_no_p12_fallback() {
+        let request_id = Uuid::from_u128(1);
+        let receipt = OperationalApprovalInput {
+            request_id,
+            approval_challenge: Uuid::from_u128(2),
+            artifact_challenge: None,
+        };
+        let legacy = ApproveInput {
+            request_id,
+            chain_pem: vec![],
+            algorithm: SignatureAlgorithm::EcdsaP256Sha256,
+            payload_signature: vec![],
+            document_signature: None,
+            pdf_cms: None,
+            revision: None,
+        };
+        let device = Ingress::Operational(&receipt);
+        let p12 = Ingress::Legacy(&legacy);
+        let required = OperationalSigningMode::HsmRequired;
+        let ordinary = OperationalSigningMode::LegacyP12;
+        assert_eq!(device.request_id(required).unwrap(), request_id);
+        assert!(matches!(
+            p12.request_id(required),
+            Err(SigningError::Forbidden(_))
+        ));
+        assert!(matches!(
+            device.request_id(ordinary),
+            Err(SigningError::Forbidden(_))
+        ));
+        assert_eq!(p12.request_id(ordinary).unwrap(), request_id);
+    }
 }

@@ -7,9 +7,11 @@
 //! This does not authorize the step-up client or contact a device.
 
 use super::approve::sign_refusal;
+#[cfg(feature = "felix3-local-initialize")]
+pub use super::operational_device::local_initialize::LocalInitializeInstallation;
 use super::operational_device::matches_canonical_request;
 use super::operational_policy::{signing_mode, OperationalSigningMode};
-use super::operational_quorum::check_operational_approvals;
+use super::operational_quorum::checked_approval_device;
 use super::requests::{is_overdue, lock_request, read_request};
 use super::{SigningCaller, SigningError, SigningResult};
 use crate::postgres::signing::{list_signing_approvals, SigningRequestRow};
@@ -22,6 +24,8 @@ use uuid::Uuid;
 pub struct InitializeSigningScope {
     request: SigningRequestRow,
     actor: Uuid,
+    #[cfg(feature = "felix3-local-initialize")]
+    local_installation: Option<&'static LocalInitializeInstallation>,
 }
 
 impl InitializeSigningScope {
@@ -48,6 +52,13 @@ impl InitializeSigningScope {
 
     pub fn payload_sha256(&self) -> &str {
         &self.request.payload_sha256
+    }
+
+    /// Present only for the exact operator installation verified in the scope's
+    /// transaction. Preparing a callback and applying its receipt recheck it.
+    #[cfg(feature = "felix3-local-initialize")]
+    pub fn local_installation(&self) -> Option<&LocalInitializeInstallation> {
+        self.local_installation
     }
 }
 
@@ -98,7 +109,15 @@ async fn scope(
         .ok()
         .filter(|id| !id.is_nil() && id.to_string() == caller.user_id)
         .ok_or_else(unavailable)?;
-    Ok(InitializeSigningScope { request, actor })
+    Ok(InitializeSigningScope {
+        #[cfg(feature = "felix3-local-initialize")]
+        local_installation: super::operational_device::local_initialize::for_canonical_request(
+            tx, &request,
+        )
+        .await?,
+        request,
+        actor,
+    })
 }
 
 /// Same authorization and immutable scope without requiring a live attempt.
@@ -145,5 +164,7 @@ pub async fn initialize_signing_applied(
     let Some(approval) = rows.iter().find(|row| row.user_id == caller.user_id) else {
         return Ok(false);
     };
-    Ok(check_operational_approvals(tx, request, std::slice::from_ref(approval)).await?)
+    Ok(checked_approval_device(tx, request, std::slice::from_ref(approval))
+        .await?
+        .is_some())
 }
