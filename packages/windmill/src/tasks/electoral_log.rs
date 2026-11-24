@@ -3152,8 +3152,15 @@ mod batch_build_tests {
         let mut officer = sign_in("k2", KEYLESS_EVENT, Some("officer"), "officer-1");
         officer.details = Some(json!({"client_id": "admin-portal",
             "details": {"username": "officer-1"}}));
+        // A step of the voter's sign-in (a code sent): an authenticator, no consent.
+        let mut step = sign_in("k3", KEYLESS_EVENT, Some("voter-a"), "ov-dhaka-05");
+        step.details = Some(json!({"client_id": "voting-portal",
+            "details": {"username": "ov-dhaka-05",
+                "authenticator_class_name": "sequent.MessageOTPAuthenticator"}}));
 
-        let built = build_batch(&mut lookups, &[voter, officer]).await.unwrap();
+        let built = build_batch(&mut lookups, &[voter, officer, step])
+            .await
+            .unwrap();
 
         let stored = &built.by_board[&format!("tenant-board-{TENANT}")];
         assert_eq!(
@@ -3161,15 +3168,32 @@ mod batch_build_tests {
             vec![
                 ("k1:event", None, Some("3D34-23D1")),
                 ("k2:event", Some("officer"), Some("officer-1")),
+                ("k3:event", None, Some("3D34-23D1")),
             ]
         );
         let (_, voter_details) = keycloak_statement(&stored[0]);
         assert_eq!(voter_details["auth_method"], "openid-connect");
-        assert!(voter_details.get("details").is_none(), "{voter_details}");
-        let record = String::from_utf8_lossy(&stored[0].message.message);
-        for account in ["voter-a", "ov-dhaka"] {
-            assert!(!record.contains(account), "{account}");
+        assert_eq!(voter_details["details"], json!({}), "{voter_details}");
+        for entry in [&stored[0], &stored[2]] {
+            let record = String::from_utf8_lossy(&entry.message.message);
+            for account in ["voter-a", "ov-dhaka"] {
+                assert!(
+                    !record.contains(account),
+                    "{}: {account}",
+                    entry.delivery_id
+                );
+            }
         }
+        // A step keeps what tells it from a completed sign-in.
+        let event_type = |entry: &LogEntry| {
+            let (statement, _) = keycloak_statement(entry);
+            let StatementBody::KeycloakUserEvent(_, event_type) = statement.body else {
+                unreachable!()
+            };
+            event_type.0
+        };
+        assert_eq!(event_type(&stored[0]), "LOGIN");
+        assert_eq!(event_type(&stored[2]), "LOGIN_STEP");
         // A staff account keeps its details.
         let (_, officer_details) = keycloak_statement(&stored[1]);
         assert_eq!(officer_details["details"]["username"], "officer-1");

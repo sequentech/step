@@ -101,6 +101,10 @@ mod tests {
     }
 }
 
+/// The Keycloak event details that tell a step of a sign-in (an
+/// authenticator, no consent yet) from the completed sign-in. They name no one.
+pub const SIGN_IN_STEP_DETAILS: [&str; 2] = ["authenticator_class_name", "consent"];
+
 /// The user ID of a Keycloak event entry whose account is not known.
 pub const UNKNOWN_USER: &str = "unknown_user";
 
@@ -139,8 +143,10 @@ impl SigninLogIdentity {
 
     /// The event as a log may name it, for a log that writes the event's own
     /// user ID, username and details (the tenant log's fallback). Beyond the
-    /// account, the details lose Keycloak's free-form `details` map, which can
-    /// hold the account's username and email; their allowlisted fields stay.
+    /// account, Keycloak's free-form `details` map, which can hold the
+    /// account's username and email, keeps only what tells a sign-in step from
+    /// a completed sign-in ([`SIGN_IN_STEP_DETAILS`]); the allowlisted fields
+    /// around it stay.
     pub fn applied_to(
         &self,
         input: &crate::tasks::electoral_log::LogEventInput,
@@ -152,7 +158,18 @@ impl SigninLogIdentity {
         let user_id = input.user_id.clone().unwrap_or_else(|| UNKNOWN_USER.into());
         (logged.user_id, logged.username) = self.logged(user_id, input.username.clone());
         if let Some(Value::Object(details)) = &mut logged.details {
-            details.remove("details");
+            if let Some(reported) = details.get_mut("details") {
+                *reported = match reported {
+                    Value::Object(reported) => Value::Object(
+                        reported
+                            .iter()
+                            .filter(|(name, _)| SIGN_IN_STEP_DETAILS.contains(&name.as_str()))
+                            .map(|(name, value)| (name.clone(), value.clone()))
+                            .collect(),
+                    ),
+                    _ => Value::Object(Default::default()),
+                };
+            }
         }
         logged
     }
