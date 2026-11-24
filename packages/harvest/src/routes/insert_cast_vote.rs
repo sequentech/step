@@ -102,6 +102,10 @@ pub async fn insert_cast_vote(
                 let cast_vote_id = inserted_cast_vote.id.clone();
                 Ok((inserted_cast_vote, Some(cast_vote_id)))
             }
+            // The request that stored the vote already queued any follow-up.
+            InsertCastVoteResult::AlreadyCast(stored_cast_vote) => {
+                Ok((stored_cast_vote, None))
+            }
             InsertCastVoteResult::SkipRetryFailure(cast_vote_error) => {
                 Err(cast_vote_error)
             }
@@ -188,6 +192,11 @@ pub async fn insert_cast_vote(
                 Status::BadRequest,
                 ErrorCode::InsertFailedExceedsAllowedRevotes.to_string().as_str(),
                 ErrorCode::InsertFailedExceedsAllowedRevotes,
+            ),
+            CastVoteError::BallotAlreadyCast => ErrorResponse::new(
+                Status::InternalServerError,
+                ErrorCode::InternalServerError.to_string().as_str(),
+                ErrorCode::InternalServerError,
             ),
             CastVoteError::InsertFailed(_) => ErrorResponse::new(
                 Status::InternalServerError,

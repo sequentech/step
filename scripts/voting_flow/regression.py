@@ -15,6 +15,7 @@ from psycopg.types.json import Jsonb
 from database import (
     AREA_MIGRATION,
     CONFIGURATION_QUERY,
+    RESENT_BALLOT_MIGRATION,
     STORAGE_MIGRATION,
     SCHEDULE_MIGRATION,
 )
@@ -160,6 +161,33 @@ class VotingFlowTests(unittest.TestCase):
         )
         self.assertEqual(results.count(None), 3)
         self.assertEqual(results.count("insert_failed_exceeds_allowed_revotes"), 9)
+
+    def test_concurrent_resends_store_one_vote(self):
+        """Store a ballot resent by twelve racing requests once, even with unlimited revotes."""
+        self.connection.execute(
+            "UPDATE sequent_backend.election SET num_allowed_revotes = 0 WHERE id = %s",
+            (self.election.election,),
+        )
+        results = self.concurrent(
+            [
+                lambda connection: self.election.vote(
+                    connection, "resent", ballot_id="resent-ballot"
+                )
+                for _ in range(12)
+            ]
+        )
+        self.assertEqual(results.count(None), 1)
+        self.assertEqual(results.count("ballot_already_cast"), 11)
+
+    def test_resent_ballot_is_refused_in_any_status(self):
+        """Refuse a resent ballot even after Datafix discarded the stored one."""
+        self.election.vote(
+            self.connection, "discarded-resend", status="discarded", ballot_id="kept"
+        )
+        with self.assertRaises(psycopg.errors.RaiseException) as refused:
+            self.election.vote(self.connection, "discarded-resend", ballot_id="kept")
+        self.assertEqual(refused.exception.diag.message_primary, "ballot_already_cast")
+        self.election.vote(self.connection, "discarded-resend", ballot_id="new")
 
     def test_schedule_writes_do_not_block_other_tenants(self):
         """An open schedule transaction must not delay another tenant's stop task."""
@@ -455,6 +483,17 @@ class VotingFlowTests(unittest.TestCase):
         self.db.apply(STORAGE_MIGRATION, "down")
         self.assertEqual(self.db.scalar(query), "x")
         self.db.apply(STORAGE_MIGRATION)
+
+    def test_resent_ballot_migration_is_reversible(self):
+        """Store a resent ballot again after rollback and refuse it once reapplied."""
+        self.election.vote(self.connection, "rollback", ballot_id="kept")
+        self.db.apply(RESENT_BALLOT_MIGRATION, "down")
+        try:
+            self.election.vote(self.connection, "rollback", ballot_id="kept")
+        finally:
+            self.db.apply(RESENT_BALLOT_MIGRATION)
+        with self.assertRaises(psycopg.errors.RaiseException):
+            self.election.vote(self.connection, "rollback", ballot_id="kept")
 
     def test_truncate_removes_deadlines(self):
         """Truncating schedules immediately removes deadlines without maintaining derived data."""
