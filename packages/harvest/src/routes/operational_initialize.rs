@@ -45,6 +45,10 @@ use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 #[path = "local_initialize_authority.rs"]
 pub(crate) mod local;
 
+#[cfg(all(feature = "felix3-local-initialize", not(feature = "operational-signing-demo-fixture")))]
+#[path = "local_initialize_self_setup.rs"]
+pub(crate) mod local_setup;
+
 /// The ledger's attempt table has no `audit_change` trigger: a route that
 /// changes an attempt stages the entry itself, in the event's log.
 const ATTEMPT: &str = "operational_initialize_attempt";
