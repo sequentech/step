@@ -47,6 +47,7 @@ credentials are disposable and must never be copied from a real account.
   "eventId": "<event-uuid>",
   "electionId": "<post-uuid>",
   "requestId": "<initialize-request-uuid>",
+  "payloadSha256": "<operator-pinned lowercase SHA-256 of the canonical Initialize request>",
   "requestRow": "<unique request code displayed in the Requests table>",
   "officers": [
     {"id": "<first-subject-uuid>", "username": "hsm-fixture-first", "password": "<test password>", "totpSeed": "<test base32 seed>", "needsSetup": true},
@@ -70,10 +71,37 @@ STEP_SYNTHETIC_SIGNING_FIXTURE=/absolute/private/synthetic-fixture.json \
 node test/manual/managed-signing-live.cjs
 ```
 
-Pass requires setup not to submit an approval, first officer's receipt to leave
-the exact request waiting at 1 of 2, second distinct officer's receipt to reach
-2 of 2 and the request to settle in the existing executed state. If the service
-was not run with the supplied fixture, retain synthetic browser coverage only.
-Check the fixture's signer/database audit separately for device-level
-provenance and an independently counted execution effect. Never run the live
-harness against a receiver or YubiHSM.
+Browser-only success requires setup not to submit an approval, the first
+officer's receipt to leave the exact request waiting at 1 of 2, and the second
+distinct officer's receipt to settle the same request at 2 of 2. Two reloads
+must leave the completed request with no Sign button and no new signing start.
+Each Gold prompt uses a fresh TOTP period for that officer, and every observed
+quorum response must match the operator-pinned request digest.
+
+For joined acceptance, set `STEP_SIGNING_WITNESS_DIR` to an empty, absolute,
+owner-only 0700 directory with no symlink. This lets a separate read-only
+observer verify each stage **before** the browser advances. Browser-only
+success does not claim an actual device or worker effect.
+
+1. In that directory, the browser writes `<stage>.json` atomically, containing
+   only `name`, `expected` and a fresh challenge `nonce`.
+2. Run the pinned
+   [database observer](../../../../scripts/operational-signing-demo/observe-initialize.sql)
+   against the same disposable Unix-socket database using the separately
+   recorded IDs, run, software profile and request digest. Use the event's
+   `expected` receipt count. Require exit 0 and retain the nonsecret count
+   line; never acknowledge an observer failure.
+3. Only then atomically write `<stage>.verified`, mode 0600, as an object
+   with the same `name` and `nonce` and five integers from the SQL output:
+   `approvals`, `distinct_officials`, `applied_device_receipts`, `post_effects`
+   and `linked_effects`. A nonce echo alone is not accepted. The stages are `before` (0), `first-setup` (0, if needed),
+   `first-approved` (1), `second-setup` (1, if needed), `second-approved` (2)
+   and `after-refresh` (2).
+
+Use the independently provisioned fixture operator for this gate, not any
+browser credentials. Poll for each event and do not substitute the browser's
+acknowledgement for the retained SQL output. The observer defaults to 60
+seconds per stage; `STEP_SIGNING_WITNESS_TIMEOUT_SECONDS` accepts 5 to 180.
+If a fresh rehearsal reuses a disposable officer's seed after an abort, wait
+at least one TOTP period and require the separate `before` zero check again.
+Never run the live harness against a receiver or YubiHSM.
