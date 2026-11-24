@@ -955,7 +955,7 @@ pub fn compile_plan_js(
     let mut delivered = compiled.layout.clone();
     if let Some(tenant) = &tenant {
         if let Err(problem) =
-            crate::election_config::tenant_package::add_to_layout(
+            crate::election_config::tenant_package::add_profile_to_layout(
                 &mut delivered,
                 tenant,
                 &compiled.bundle.tenant_id,
@@ -2429,7 +2429,7 @@ pub fn approval_request_js(
     };
     if let Some(tenant) = &tenant {
         if let Err(problem) =
-            crate::election_config::tenant_package::add_to_layout(
+            crate::election_config::tenant_package::add_profile_to_layout(
                 &mut compiled.layout,
                 tenant,
                 &compiled.bundle.tenant_id,

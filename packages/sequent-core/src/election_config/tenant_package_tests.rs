@@ -408,3 +408,52 @@ fn an_ambiguous_or_unreadable_census_is_refused_before_counting() {
     assert_eq!(problem.code, Code::Unreadable);
     assert_eq!(problem.path, "export_voters-e1.csv");
 }
+
+#[test]
+fn workbook_tenant_values_override_profile_defaults_without_losing_other_fields(
+) {
+    use super::super::archive::{Artifact, Layout};
+    let mut layout = Layout {
+        importable: vec![],
+        archive_name: "fixture.zip".into(),
+        auxiliary: vec![Artifact {
+            name: "tenant_platform-t1.json".into(),
+            bytes: br#"{"settings":{"fixture":"workbook","new":"included"}}"#
+                .to_vec(),
+        }],
+    };
+    let profile = read(&json!({
+        "format": "sequent.tenant-package/1",
+        "tenantConfiguration": {
+            "settings": {"fixture": "profile", "only": true},
+            "votingChannels": {"online": true}
+        },
+        "roleMappings": [{"group": "role", "roles": ["read"]}]
+    }))
+    .unwrap();
+
+    add_profile_to_layout(&mut layout, &profile, "t1").unwrap();
+    assert_eq!(layout.auxiliary.len(), 2);
+    let merged = layout
+        .auxiliary
+        .iter()
+        .find(|a| a.name == "tenant_platform-t1.json")
+        .unwrap();
+    assert_eq!(
+        serde_json::from_slice::<Value>(&merged.bytes).unwrap(),
+        json!({
+            "settings": {"fixture": "workbook", "new": "included", "only": true},
+            "votingChannels": {"online": true}
+        })
+    );
+    assert!(layout
+        .auxiliary
+        .iter()
+        .any(|a| a.name == "export_permissions-t1.csv"));
+    assert_eq!(
+        add_profile_to_layout(&mut layout, &profile, "t1")
+            .unwrap_err()
+            .code,
+        Code::DuplicateId
+    );
+}

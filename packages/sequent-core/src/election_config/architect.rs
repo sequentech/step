@@ -743,7 +743,8 @@ pub struct Blueprint {
     /// Parameters, Admin Users, Permissions, Templates and Reports describe the
     /// *platform* rather than the ballot: a tenant, an authentication type, realm
     /// patches, administrator accounts, the permission matrix, communication
-    /// templates, scheduled reports. The wizard asks about none of it, and a
+    /// templates, scheduled reports, and imported per-election schedules.
+    /// The wizard asks about none of it, and a
     /// delivery engineer who opens a real janitor workbook here would otherwise
     /// lose all of it the moment they rebuilt.
     ///
@@ -2557,6 +2558,14 @@ fn check_trustees(plan: &Blueprint, report: &mut Report) {
 
 fn check_schedule(plan: &Blueprint, report: &mut Report) {
     let schedule = &plan.schedule;
+
+    for sheet in plan
+        .platform
+        .iter()
+        .filter(|sheet| sheet.key == "scheduledevents")
+    {
+        super::plan_from_workbook::check_imported_schedule(plan, sheet, report);
+    }
 
     // Each moment on its own first: an ordering complaint about a time that is
     // not a time would send somebody looking at the wrong field.

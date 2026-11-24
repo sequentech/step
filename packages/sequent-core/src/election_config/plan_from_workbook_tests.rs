@@ -1471,118 +1471,95 @@ fn a_schedule_typed_by_hand_is_read_and_an_unknown_event_kept_with_a_warning() {
     assert!(warnings[0].message.contains("SEND_REMINDER"));
 }
 
-/// The plan has one voting window for the whole event. A workbook that gives
-/// each election its own row (as the COMELEC conversion does, one row per
-/// election) reads as that window when every row names the same instant, and
-/// is refused when they differ: a later row never silently replaces an
-/// earlier one.
+/// Editing an imported workbook must not turn a Bangkok-only transition
+/// into a transition for every election.
 #[test]
-fn per_election_voting_windows_read_as_one_only_when_they_agree() {
+fn a_scoped_schedule_round_trips_without_opening_other_elections() {
     use serde_json::json;
-    let elections = |ids: &[&str]| {
-        sheet_of(
-            "Elections",
-            ids.iter()
-                .map(|id| vec![("external_id", json!(id))])
-                .collect(),
-        )
-    };
-    let rows = |closes: [&str; 2]| {
+    let scheduled = |kind, election, at| {
         vec![
-            elections(&["e1", "e2"]),
-            sheet_of(
-                "ScheduledEvents",
-                vec![
-                    vec![
-                        ("election.external_id", json!("e1")),
-                        ("event_type", json!("START_VOTING_PERIOD")),
-                        (
-                            "scheduled_datetime",
-                            json!("2026-11-10T23:46:00+08:00"),
-                        ),
-                    ],
-                    vec![
-                        ("election.external_id", json!("e2")),
-                        ("event_type", json!("START_VOTING_PERIOD")),
-                        // The same instant, written with another offset.
-                        ("scheduled_datetime", json!("2026-11-10T15:46:00Z")),
-                    ],
-                    vec![
-                        ("election.external_id", json!("e1")),
-                        ("event_type", json!("END_VOTING_PERIOD")),
-                        ("scheduled_datetime", json!(closes[0])),
-                    ],
-                    vec![
-                        ("election.external_id", json!("e2")),
-                        ("event_type", json!("END_VOTING_PERIOD")),
-                        ("scheduled_datetime", json!(closes[1])),
-                    ],
-                ],
-            ),
+            ("election.external_id", json!(election)),
+            ("event_type", json!(kind)),
+            ("scheduled_datetime", json!(at)),
         ]
     };
-
-    let agreed = plan_from_workbook(&minimal(rows([
-        "2026-11-30T23:46:00+08:00",
-        "2026-11-30T23:46:00+08:00",
-    ])))
-    .expect("one window for every election");
-    let schedule = &agreed.plan.schedule;
-    assert_eq!(
-        schedule.voting_opens.as_ref().unwrap().local,
-        "2026-11-10T23:46"
-    );
-    assert_eq!(
-        schedule.voting_closes.as_ref().unwrap().local,
-        "2026-11-30T23:46"
-    );
-    assert!(warnings_of(&agreed).is_empty());
-
-    let refused = errors_of(&minimal(rows([
-        "2026-11-30T23:46:00+08:00",
-        "2026-12-01T23:46:00+08:00",
-    ])));
-    assert_eq!(refused.len(), 1, "{refused:?}");
-    assert!(
-        refused[0].message.contains("END_VOTING_PERIOD"),
-        "{}",
-        refused[0].message
-    );
-    assert_eq!(
-        refused[0].at.as_ref().unwrap().column.as_deref(),
-        Some("scheduled_datetime")
-    );
-
-    // Rows for some elections only: the event-wide window would also open
-    // and close the elections the workbook gave no date for. Refused.
-    let mut partial =
-        rows(["2026-11-30T23:46:00+08:00", "2026-11-30T23:46:00+08:00"]);
-    partial[0] = elections(&["e1", "e2", "e3"]);
-    let refused = errors_of(&minimal(partial));
-    assert_eq!(refused.len(), 2, "{refused:?}");
-    assert!(
-        refused.iter().all(|p| p.message.contains("e3")),
-        "{refused:?}"
-    );
-    assert!(refused
+    let open =
+        scheduled("START_VOTING_PERIOD", "bangkok", "2026-12-24T18:28:00Z");
+    let workbook = |rows| {
+        minimal(vec![
+            sheet_of(
+                "Elections",
+                vec![
+                    vec![("external_id", json!("bangkok"))],
+                    vec![("external_id", json!("tokyo"))],
+                ],
+            ),
+            sheet_of("ScheduledEvents", rows),
+        ])
+    };
+    let read = plan_from_workbook(&workbook(vec![open.clone()])).unwrap();
+    assert!(read.plan.schedule.voting_opens.is_none());
+    assert!(read.plan.schedule.voting_closes.is_none());
+    let with_unsupported = plan_from_workbook(&workbook(vec![
+        open.clone(),
+        scheduled("SEND_TEMPLATE", "", "2026-12-24T18:28:00Z"),
+    ]))
+    .unwrap();
+    assert_eq!(with_unsupported.plan.platform[0].rows.len(), 1);
+    assert!(warnings_of(&with_unsupported)
         .iter()
-        .any(|p| p.message.contains("START_VOTING_PERIOD")));
-    assert!(refused
-        .iter()
-        .any(|p| p.message.contains("END_VOTING_PERIOD")));
+        .any(|p| p.message.contains("SEND_TEMPLATE")));
+    let saved = serde_json::to_string(&read.plan).unwrap();
+    let mut plan: Blueprint = serde_json::from_str(&saved).unwrap();
+    let expected = &read.plan.platform[0].rows;
+    let rebuilt = to_workbook(&plan, &Sources::from_plan(&plan)).unwrap();
+    assert_eq!(rebuilt.rows("scheduledevents"), expected);
 
-    // A row for an election the workbook does not have: refused.
-    let mut unknown =
-        rows(["2026-11-30T23:46:00+08:00", "2026-11-30T23:46:00+08:00"]);
-    unknown[0] = elections(&["e1"]);
-    let refused = errors_of(&minimal(unknown));
-    assert!(
-        refused
-            .iter()
-            .any(|p| p.message.contains("e2")
-                && p.message.contains("no election")),
-        "{refused:?}"
+    plan.schedule.voting_opens = Some(Timestamp::utc("2026-12-24T18:28"));
+    let report = super::super::architect::validate_plan(
+        &plan,
+        &Sources::from_plan(&plan),
     );
+    assert!(report
+        .problems
+        .iter()
+        .any(|p| p.message.contains("overlapping")));
+    plan.schedule.voting_opens = None;
+    plan.elections.retain(|e| e.external_id != "bangkok");
+    let report = super::super::architect::validate_plan(
+        &plan,
+        &Sources::from_plan(&plan),
+    );
+    assert!(report
+        .problems
+        .iter()
+        .any(|p| p.message.contains("names no election")));
+
+    for (extra, needle) in [
+        (open.clone(), "already scheduled"),
+        (
+            scheduled("START_VOTING_PERIOD", "unknown", "2026-12-24T18:28:00Z"),
+            "names no election",
+        ),
+        (
+            scheduled("END_VOTING_PERIOD", "bangkok", "2026-12-24T18:27:00Z"),
+            "must close after",
+        ),
+        (
+            scheduled("END_VOTING_PERIOD", "bangkok", "2026-12-24T18:29:00"),
+            "RFC3339",
+        ),
+        (
+            scheduled("END_VOTING_PERIOD", "", "2026-12-24T18:29:00Z"),
+            "cannot be mixed",
+        ),
+    ] {
+        let refused = errors_of(&workbook(vec![open.clone(), extra]));
+        assert!(
+            refused.iter().any(|p| p.message.contains(needle)),
+            "{refused:?}"
+        );
+    }
 }
 
 #[test]

@@ -152,6 +152,8 @@ pub fn layout(bundle: &Bundle) -> Layout {
 /// Files the source describes that are not part of the event import.
 fn auxiliary(bundle: &Bundle) -> Vec<Artifact> {
     let mut written = Vec::new();
+    #[cfg(feature = "election_config_archive")]
+    written.extend(bundle.workbook_tenant_artifacts.iter().cloned());
 
     if let Some(admin_users) = &bundle.admin_users {
         written.push(Artifact::csv("admin_users.csv", admin_users));
