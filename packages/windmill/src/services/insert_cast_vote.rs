@@ -743,6 +743,21 @@ async fn get_electoral_log(
     Ok((electoral_log?, sk.clone()))
 }
 
+/// Whether voting was open at the scheduled close: it is still OPEN, or it
+/// was CLOSED at or after that time (by the scheduled end). Voting closed by
+/// hand before the scheduled close, or never opened, gets no grace period.
+fn was_open_at_scheduled_close(
+    current_voting_status: &VotingStatus,
+    last_stopped_at: Option<DateTime<Local>>,
+    close_date: DateTime<Local>,
+) -> bool {
+    match current_voting_status {
+        VotingStatus::OPEN => true,
+        VotingStatus::CLOSED => last_stopped_at.is_some_and(|stopped| stopped >= close_date),
+        VotingStatus::NOT_STARTED | VotingStatus::PAUSED => false,
+    }
+}
+
 #[instrument(skip_all, err)]
 async fn check_status(
     tenant_id: &str,
@@ -895,6 +910,24 @@ async fn check_status(
                 return Err(CastVoteError::CheckStatusFailed(
                     format!("Election voting status is not open (={current_voting_status:?}) while voting before the closing date of the election"),
                 ));
+            }
+
+            // The grace period extends voting that was open at the scheduled
+            // close. Voting that was closed by hand before it, or never
+            // opened, gets no grace.
+            let last_stopped_at = dates_by_channel
+                .last_stopped_at
+                .map(|val| val.with_timezone(&Local));
+            if now > close_date_esq_event
+                && !was_open_at_scheduled_close(
+                    &current_voting_status,
+                    last_stopped_at,
+                    close_date_esq_event,
+                )
+            {
+                return Err(CastVoteError::CheckStatusFailed(format!(
+                    "Voting for voting_channel={voting_channel:?} was not open at the scheduled close (status {current_voting_status:?}), so the grace period does not apply"
+                )));
             }
         } else {
             // if grace period does not apply and there's a closing date, to

@@ -3,6 +3,49 @@
 
 use super::*;
 
+#[test]
+fn grace_applies_only_to_voting_open_at_the_scheduled_close() {
+    let close = ISO8601::to_date("2026-01-01T12:00:00Z").unwrap();
+    // Still open, or closed by the scheduled end at or after the close.
+    assert!(was_open_at_scheduled_close(
+        &VotingStatus::OPEN,
+        None,
+        close
+    ));
+    assert!(was_open_at_scheduled_close(
+        &VotingStatus::CLOSED,
+        Some(close),
+        close
+    ));
+    assert!(was_open_at_scheduled_close(
+        &VotingStatus::CLOSED,
+        Some(close + Duration::seconds(5)),
+        close
+    ));
+    // Closed by hand before the scheduled close.
+    assert!(!was_open_at_scheduled_close(
+        &VotingStatus::CLOSED,
+        Some(close - Duration::hours(1)),
+        close
+    ));
+    // Never opened, or closed with no stop time.
+    assert!(!was_open_at_scheduled_close(
+        &VotingStatus::NOT_STARTED,
+        None,
+        close
+    ));
+    assert!(!was_open_at_scheduled_close(
+        &VotingStatus::CLOSED,
+        None,
+        close
+    ));
+    assert!(!was_open_at_scheduled_close(
+        &VotingStatus::PAUSED,
+        Some(close),
+        close
+    ));
+}
+
 /// The contests of a cast ballot have to be exactly those of a ballot style
 /// published for the voter's area and election.
 mod ballot_style_contests {
