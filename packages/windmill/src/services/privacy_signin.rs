@@ -51,6 +51,35 @@ mod tests {
     }
 
     #[test]
+    fn a_sign_in_entry_names_the_account_the_pseudonym_or_nobody() {
+        let logged = |identity: SigninLogIdentity, user_id: &str, username: Option<&str>| {
+            identity.logged(user_id.into(), username.map(str::to_string))
+        };
+        assert_eq!(
+            logged(SigninLogIdentity::Account, "officer", Some("officer-1")),
+            (Some("officer".into()), Some("officer-1".into()))
+        );
+        // As the voter's ballot entries name them: no user ID, the pseudonym
+        // where the username would be.
+        assert_eq!(
+            logged(
+                SigninLogIdentity::Pseudonym("3D34-23D1".into()),
+                "voter",
+                Some("ov-dhaka-05")
+            ),
+            (None, Some("3D34-23D1".into()))
+        );
+        assert_eq!(
+            logged(SigninLogIdentity::Withheld, "voter", Some("ov-dhaka-05")),
+            (None, None)
+        );
+        assert_eq!(
+            logged(SigninLogIdentity::Unknown, "voter", Some("typed-name")),
+            (Some(UNKNOWN_USER.into()), None)
+        );
+    }
+
+    #[test]
     fn raw_error_messages_cannot_smuggle_network_attribution() {
         assert_eq!(
             safe_error_text("invalid_user_credentials"),
@@ -69,6 +98,80 @@ mod tests {
             safe_error_text(r#"{"error":"bad","ip_address":"198.51.100.7"}"#),
             r#"{"error":"bad"}"#
         );
+    }
+}
+
+/// The Keycloak event details that tell a step of a sign-in (an
+/// authenticator, no consent yet) from the completed sign-in. They name no one.
+pub const SIGN_IN_STEP_DETAILS: [&str; 2] = ["authenticator_class_name", "consent"];
+
+/// The user ID of a Keycloak event entry whose account is not known.
+pub const UNKNOWN_USER: &str = "unknown_user";
+
+/// Who the electoral-log entry of an election event's Keycloak event names.
+/// In a pseudonymous event a voter's entries carry the pseudonym their ballot
+/// entries carry, so reading the log cannot pair a ballot with an account.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SigninLogIdentity {
+    /// The account as Keycloak sent it: every account of a voter-ID event,
+    /// and the staff accounts of a pseudonymous one.
+    Account,
+    /// A voter of a pseudonymous event, under their pseudonym.
+    Pseudonym(String),
+    /// A voter of a pseudonymous event who has no pseudonym yet: no identity.
+    /// The consumer never allocates one.
+    Withheld,
+    /// An account the pseudonymous event does not have, such as the target of
+    /// a sign-in with a mistyped username: unknown, without the typed name.
+    Unknown,
+}
+
+impl SigninLogIdentity {
+    /// The user ID and username of the entry, from the account's.
+    pub fn logged(
+        &self,
+        user_id: String,
+        username: Option<String>,
+    ) -> (Option<String>, Option<String>) {
+        match self {
+            Self::Account => (Some(user_id), username),
+            Self::Pseudonym(pseudonym) => (None, Some(pseudonym.clone())),
+            Self::Withheld => (None, None),
+            Self::Unknown => (Some(UNKNOWN_USER.into()), None),
+        }
+    }
+
+    /// The event as a log may name it, for a log that writes the event's own
+    /// user ID, username and details (the tenant log's fallback). Beyond the
+    /// account, Keycloak's free-form `details` map, which can hold the
+    /// account's username and email, keeps only what tells a sign-in step from
+    /// a completed sign-in ([`SIGN_IN_STEP_DETAILS`]); the allowlisted fields
+    /// around it stay.
+    pub fn applied_to(
+        &self,
+        input: &crate::tasks::electoral_log::LogEventInput,
+    ) -> crate::tasks::electoral_log::LogEventInput {
+        let mut logged = input.clone();
+        if *self == Self::Account {
+            return logged;
+        }
+        let user_id = input.user_id.clone().unwrap_or_else(|| UNKNOWN_USER.into());
+        (logged.user_id, logged.username) = self.logged(user_id, input.username.clone());
+        if let Some(Value::Object(details)) = &mut logged.details {
+            if let Some(reported) = details.get_mut("details") {
+                *reported = match reported {
+                    Value::Object(reported) => Value::Object(
+                        reported
+                            .iter()
+                            .filter(|(name, _)| SIGN_IN_STEP_DETAILS.contains(&name.as_str()))
+                            .map(|(name, value)| (name.clone(), value.clone()))
+                            .collect(),
+                    ),
+                    _ => Value::Object(Default::default()),
+                };
+            }
+        }
+        logged
     }
 }
 
