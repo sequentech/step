@@ -18,6 +18,7 @@ use crate::services::electoral_log_deferral::{
     bind_to_rows, in_wait_order, log_round, put_back, scope_of, stop_waiting, waiting_events,
     waiting_ids, Deferral, DeferralBackoff, WaitReason, Waiting, WaitingEvent, BOUNDED_WAIT_ENV,
 };
+use crate::services::privacy_signin::SigninLogIdentity;
 use crate::services::monitoring::login_counter::{
     count_login_attempts_apart, login_attempt, LoginAttempt,
 };
@@ -40,6 +41,7 @@ use electoral_log::signer::{is_signer_unavailable, SignerUnavailable};
 use electoral_log::{ElectoralLogMessage, LogEntry};
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::types::vote_privacy::BallotIdentity;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -951,6 +953,29 @@ trait BatchLookups {
         user_id: &str,
     ) -> anyhow::Result<Option<String>>;
 
+    /// Whether an election event's ballots are cast under voter IDs or pseudonyms.
+    async fn ballot_identity(
+        &mut self,
+        tenant_id: &str,
+        election_event_id: &str,
+    ) -> anyhow::Result<BallotIdentity>;
+
+    /// A voter's pseudonym in an election event, if they have one. Never allocates.
+    async fn voter_pseudonym(
+        &mut self,
+        election_event_id: &str,
+        user_id: &str,
+    ) -> anyhow::Result<Option<String>>;
+
+    /// Whether an account of the election event's realm is a voter, or `None`
+    /// if the realm has no such account.
+    async fn event_account(
+        &mut self,
+        tenant_id: &str,
+        election_event_id: &str,
+        user_id: &str,
+    ) -> anyhow::Result<Option<bool>>;
+
     /// The system signer of a board, or `None` if the event has no protocol-manager key.
     async fn signer(
         &mut self,
@@ -1031,6 +1056,47 @@ impl BatchLookups for DbLookups<'_, '_> {
         get_user_area_id(self.keycloak, &realm, user_id)
             .await
             .context("Error getting user area id")
+    }
+
+    async fn ballot_identity(
+        &mut self,
+        tenant_id: &str,
+        election_event_id: &str,
+    ) -> anyhow::Result<BallotIdentity> {
+        match get_election_event_by_id_if_exist(self.hasura, tenant_id, election_event_id)
+            .await
+            .context("Error getting election event")?
+        {
+            Some(event) => crate::services::vote_privacy::identity_mode(&event),
+            None => Ok(BallotIdentity::VoterId),
+        }
+    }
+
+    async fn voter_pseudonym(
+        &mut self,
+        election_event_id: &str,
+        user_id: &str,
+    ) -> anyhow::Result<Option<String>> {
+        crate::services::electoral_log_board::get_event_store(election_event_id)
+            .await?
+            .voter_pseudonym(election_event_id, user_id)
+            .await
+            .context("Error getting the voter's pseudonym")
+    }
+
+    async fn event_account(
+        &mut self,
+        tenant_id: &str,
+        election_event_id: &str,
+        user_id: &str,
+    ) -> anyhow::Result<Option<bool>> {
+        crate::services::privacy_signin::registered_voter(
+            self.keycloak,
+            tenant_id,
+            election_event_id,
+            user_id,
+        )
+        .await
     }
 
     async fn signer(
@@ -1172,6 +1238,7 @@ struct BatchCache {
     /// only unavailable.
     failed_signers: HashMap<(String, String), (String, bool)>,
     tenant_logs: HashMap<String, Option<(String, ElectoralLog)>>,
+    ballot_identities: HashMap<(String, String), BallotIdentity>,
 }
 
 #[cfg(test)]
@@ -1366,6 +1433,54 @@ fn bounded_head(
     });
 }
 
+/// Whom the entry of an election event's Keycloak event names. The event's
+/// ballot identity is looked up once per batch; in a pseudonymous event the
+/// voter's pseudonym is read, never allocated.
+async fn signin_identity<L: BatchLookups + Send>(
+    lookups: &mut L,
+    cache: &mut BatchCache,
+    input: &LogEventInput,
+) -> std::result::Result<SigninLogIdentity, EventFailure> {
+    let key = (input.tenant_id.clone(), input.election_event_id.clone());
+    let identity = match cache.ballot_identities.get(&key) {
+        Some(identity) => *identity,
+        None => {
+            let identity = lookups
+                .ballot_identity(&input.tenant_id, &input.election_event_id)
+                .await
+                .map_err(EventFailure::Transient)?;
+            cache.ballot_identities.insert(key, identity);
+            identity
+        }
+    };
+    if identity != BallotIdentity::Pseudonym {
+        return Ok(SigninLogIdentity::Account);
+    }
+    let Some(user_id) = input
+        .user_id
+        .as_deref()
+        .filter(|id| !id.is_empty() && *id != "null")
+    else {
+        return Ok(SigninLogIdentity::Unknown);
+    };
+    if let Some(pseudonym) = lookups
+        .voter_pseudonym(&input.election_event_id, user_id)
+        .await
+        .map_err(EventFailure::Transient)?
+    {
+        return Ok(SigninLogIdentity::Pseudonym(pseudonym));
+    }
+    let account = lookups
+        .event_account(&input.tenant_id, &input.election_event_id, user_id)
+        .await
+        .map_err(EventFailure::Transient)?;
+    Ok(match account {
+        None => SigninLogIdentity::Unknown,
+        Some(true) => SigninLogIdentity::Withheld,
+        Some(false) => SigninLogIdentity::Account,
+    })
+}
+
 async fn build_event<L: BatchLookups + Send>(
     lookups: &mut L,
     cache: &mut BatchCache,
@@ -1533,7 +1648,7 @@ async fn build_event<L: BatchLookups + Send>(
             let user_id = input
                 .user_id
                 .clone()
-                .unwrap_or_else(|| "unknown_user".into());
+                .unwrap_or_else(|| crate::services::privacy_signin::UNKNOWN_USER.into());
             let user_area_id = lookups
                 .user_area(&input.tenant_id, &input.election_event_id, &user_id)
                 .await
@@ -1547,6 +1662,11 @@ async fn build_event<L: BatchLookups + Send>(
                 );
                 return build_tenant_event(lookups, cache, input, delivery_id, Some(reason)).await;
             }
+            // The area and the sign-in count above use the account; the
+            // entries name whom `SigninLogIdentity` says.
+            let (logged_user_id, logged_username) = signin_identity(lookups, cache, input)
+                .await?
+                .logged(user_id, input.username.clone());
             let signer = cache
                 .signers
                 .get(&key)
@@ -1561,8 +1681,8 @@ async fn build_event<L: BatchLookups + Send>(
                     signer.build_send_template_message(
                         Some(template_body.clone()),
                         input.election_event_id.clone(),
-                        Some(user_id.clone()),
-                        input.username.clone(),
+                        logged_user_id.clone(),
+                        logged_username.clone(),
                         None,
                         user_area_id.clone(),
                     )
@@ -1583,8 +1703,8 @@ async fn build_event<L: BatchLookups + Send>(
                     input.election_event_id.clone(),
                     event_type.clone(),
                     input.body.as_raw(),
-                    Some(user_id),
-                    input.username.clone(),
+                    logged_user_id,
+                    logged_username,
                     user_area_id,
                 )
             })
@@ -2424,9 +2544,18 @@ mod batch_build_tests {
         announced: HashSet<(String, String)>,
         /// Delivery IDs the boards already hold.
         stored_deliveries: HashSet<String>,
+        /// Election events whose ballots are cast under pseudonyms.
+        pseudonym_events: HashSet<&'static str>,
+        /// Voters' pseudonyms, by user ID.
+        pseudonyms: HashMap<&'static str, &'static str>,
+        /// The events' accounts, by user ID: whether each is a voter.
+        accounts: HashMap<&'static str, bool>,
+        /// The user IDs whose area was looked up.
+        area_lookups: Vec<String>,
         board_calls: usize,
         signer_calls: usize,
         tenant_log_calls: usize,
+        ballot_identity_calls: usize,
     }
 
     impl FakeLookups {
@@ -2442,9 +2571,14 @@ mod batch_build_tests {
                 pending: HashMap::new(),
                 announced: HashSet::new(),
                 stored_deliveries: HashSet::new(),
+                pseudonym_events: HashSet::new(),
+                pseudonyms: HashMap::new(),
+                accounts: HashMap::new(),
+                area_lookups: Vec::new(),
                 board_calls: 0,
                 signer_calls: 0,
                 tenant_log_calls: 0,
+                ballot_identity_calls: 0,
             }
         }
 
@@ -2478,9 +2612,40 @@ mod batch_build_tests {
             &mut self,
             _tenant_id: &str,
             _election_event_id: &str,
-            _user_id: &str,
+            user_id: &str,
         ) -> anyhow::Result<Option<String>> {
+            self.area_lookups.push(user_id.to_string());
             Ok(None)
+        }
+
+        async fn ballot_identity(
+            &mut self,
+            _tenant_id: &str,
+            election_event_id: &str,
+        ) -> anyhow::Result<BallotIdentity> {
+            self.ballot_identity_calls += 1;
+            Ok(if self.pseudonym_events.contains(election_event_id) {
+                BallotIdentity::Pseudonym
+            } else {
+                BallotIdentity::VoterId
+            })
+        }
+
+        async fn voter_pseudonym(
+            &mut self,
+            _election_event_id: &str,
+            user_id: &str,
+        ) -> anyhow::Result<Option<String>> {
+            Ok(self.pseudonyms.get(user_id).map(|p| p.to_string()))
+        }
+
+        async fn event_account(
+            &mut self,
+            _tenant_id: &str,
+            _election_event_id: &str,
+            user_id: &str,
+        ) -> anyhow::Result<Option<bool>> {
+            Ok(self.accounts.get(user_id).copied())
         }
 
         async fn signer(
@@ -2874,6 +3039,94 @@ mod batch_build_tests {
             "{}",
             built.waiting[0].error
         );
+    }
+
+    const PSEUDONYM_EVENT: &str = "3f6b2d8e-1a4c-4e7f-9b2d-6c8e0a1f3b5d";
+
+    fn sign_in(
+        delivery_id: &str,
+        election_event_id: &str,
+        user_id: Option<&str>,
+        username: &str,
+    ) -> LogEventInput {
+        LogEventInput {
+            user_id: user_id.map(str::to_string),
+            username: Some(username.into()),
+            ..keycloak_event(Some(delivery_id), election_event_id)
+        }
+    }
+
+    /// Each entry's delivery ID, user ID and username.
+    fn identities(entries: &[LogEntry]) -> Vec<(&str, Option<&str>, Option<&str>)> {
+        entries
+            .iter()
+            .map(|entry| {
+                (
+                    entry.delivery_id.as_str(),
+                    entry.message.user_id.as_deref(),
+                    entry.message.username.as_deref(),
+                )
+            })
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn a_pseudonymous_events_sign_ins_name_the_voters_pseudonym_not_their_account() {
+        let mut lookups = FakeLookups::new();
+        lookups.pseudonym_events.insert(PSEUDONYM_EVENT);
+        lookups.pseudonyms.insert("voter-a", "3D34-23D1");
+        lookups
+            .accounts
+            .extend([("voter-a", true), ("voter-b", true), ("officer", false)]);
+        let mut code_sent = sign_in("p2", PSEUDONYM_EVENT, Some("voter-a"), "ov-dhaka-05");
+        code_sent.message_type = LogMessageType::KeycloakEvent("CODE_TO_TOKEN".into());
+        code_sent.body = LogEventBody::Communications("Your code is 123456".into());
+        let mut mistyped = sign_in("p5", PSEUDONYM_EVENT, None, "typed-name");
+        mistyped.message_type = LogMessageType::KeycloakEvent("LOGIN_ERROR".into());
+        let events = vec![
+            sign_in("p1", PSEUDONYM_EVENT, Some("voter-a"), "ov-dhaka-05"),
+            code_sent,
+            // A voter without a pseudonym yet.
+            sign_in("p3", PSEUDONYM_EVENT, Some("voter-b"), "ov-dhaka-06"),
+            sign_in("p4", PSEUDONYM_EVENT, Some("officer"), "officer-1"),
+            mistyped,
+            // An account the event's realm does not have.
+            sign_in("p6", PSEUDONYM_EVENT, Some("gone"), "gone-name"),
+            sign_in("v1", EVENT, Some("voter-a"), "ov-dhaka-05"),
+        ];
+
+        let built = build_batch(&mut lookups, &events).await.unwrap();
+
+        let pseudonymous = &built.by_board[&format!("board-{PSEUDONYM_EVENT}")];
+        assert_eq!(
+            identities(pseudonymous),
+            vec![
+                ("p1:event", None, Some("3D34-23D1")),
+                ("p2:communication", None, Some("3D34-23D1")),
+                ("p2:event", None, Some("3D34-23D1")),
+                ("p3:event", None, None),
+                ("p4:event", Some("officer"), Some("officer-1")),
+                ("p5:event", Some("unknown_user"), None),
+                ("p6:event", Some("unknown_user"), None),
+            ]
+        );
+        // Neither the record nor the signed message names a voter's account.
+        for entry in &pseudonymous[..4] {
+            let record = String::from_utf8_lossy(&entry.message.message);
+            for account in ["voter-a", "voter-b", "ov-dhaka", "typed-name", "gone"] {
+                assert!(!record.contains(account), "{}: {account}", entry.delivery_id);
+            }
+        }
+        // A voter-ID event names the account, as before.
+        assert_eq!(
+            identities(&built.by_board[&format!("board-{EVENT}")]),
+            vec![("v1:event", Some("voter-a"), Some("ov-dhaka-05"))]
+        );
+        // The area lookup still uses the account.
+        assert!(lookups.area_lookups.iter().any(|id| id == "voter-a"));
+        // One identity lookup per event and batch.
+        assert_eq!(lookups.ballot_identity_calls, 2);
+        assert!(built.dead_letters.is_empty());
     }
 
     fn unknown_tenant_activity(delivery_id: &str) -> LogEventInput {
