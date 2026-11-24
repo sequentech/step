@@ -491,6 +491,49 @@ mod tests {
 
     #[rocket::async_test]
     async fn setup_http_reconciles_only_the_same_unclaimed_attempt() {
+        use crate::routes::operational_initialize::{
+            BrokerFuture, BrokerRedirect, BrokerScope, InitializeBroker,
+            OperationalInitializeBroker, Settled,
+        };
+
+        // Rocket needs broker state at ignition. The ordinary database must
+        // refuse Initialize status before it consults that broker.
+        struct UnusedBroker;
+
+        impl OperationalInitializeBroker for UnusedBroker {
+            fn can_offer<'a>(
+                &'a self,
+                _: &'a BrokerScope,
+            ) -> BrokerFuture<'a, bool> {
+                unreachable!("ordinary database reached broker eligibility")
+            }
+
+            fn start<'a>(
+                &'a self,
+                _: &'a BrokerScope,
+            ) -> BrokerFuture<'a, BrokerRedirect> {
+                unreachable!("setup reached broker start")
+            }
+
+            fn finish<'a>(
+                &'a self,
+                _: &'a BrokerScope,
+                _: Uuid,
+                _: &'a str,
+                _: &'a str,
+            ) -> BrokerFuture<'a, Settled> {
+                unreachable!("setup reached broker finish")
+            }
+
+            fn authorization_endpoint(&self) -> &Url {
+                unreachable!("setup requested the broker endpoint")
+            }
+
+            fn oidc_client_id(&self) -> &str {
+                unreachable!("setup requested the broker client ID")
+            }
+        }
+
         let services = Services::on_test_database().await;
         let pool = &services.hasura;
         let event_row = rows::event(pool).await;
@@ -558,6 +601,7 @@ mod tests {
                 .manage(services.harvest_services())
                 .manage(dispatcher)
                 .manage(verifier)
+                .manage(InitializeBroker(Box::new(UnusedBroker)))
                 .manage(
                     crate::routes::operational_initialize::DemoSigningScope {
                         tenant,
