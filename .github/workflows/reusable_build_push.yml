@@ -210,8 +210,8 @@ jobs:
         username: oauth2accesstoken
         password: ${{ steps.gcp-auth.outputs.access_token }}
 
-    # Root account 581718213778: OVCS pushes to eu-west-1 (Ireland).
-    # Other releases retain ca-central-1 (Canada) for ECR replication.
+    # Root account 581718213778: push to eu-west-1 (Ireland). The ca-central-1
+    # repositories were removed with prod4-cac1.
     # Only publish images marked root_ecr. These credentials go after
     # everything using Globaldot's credentials.
     - name: Configure AWS credentials (root account)
@@ -220,7 +220,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ github.ref_name == 'ovcs' && 'eu-west-1' || 'ca-central-1' }}
+        aws-region: eu-west-1
 
     - name: Login to Amazon ECR (root account)
       if: inputs.push && inputs.push_root && matrix.root_ecr
