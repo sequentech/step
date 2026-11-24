@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 import {useLocation, useNavigate} from "react-router-dom"
@@ -53,6 +53,7 @@ import {
 } from "@/queries/GetElectionEventsTree"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
+import {useConfigurationPackageElectionRefresh} from "@/hooks/useConfigurationPackageElectionRefresh"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {configuredLanguage} from "@/hooks/usePresentationName"
 
@@ -308,14 +309,15 @@ export default function ElectionEvents() {
 
     // Wrapper refetch functions: only call the internal refetch if variables
     // are set
-    const electionEventTreeRefetch = () => {
+    const electionEventTreeRefetch = useCallback(() => {
         if (tenantId) {
-            originalRefetch({
+            return originalRefetch({
                 tenantId,
                 isArchived: isArchivedElectionEvents,
             })
         }
-    }
+    }, [tenantId, isArchivedElectionEvents, originalRefetch])
+    useConfigurationPackageElectionRefresh(electionEventTreeRefetch)
 
     const electionTreeRefetch = () => {
         if (tenantId && electionEventId) {

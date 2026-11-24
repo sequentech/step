@@ -357,6 +357,9 @@ pub fn read_plan_value(
         .detail("error", error)
     })?;
 
+    super::demo_credentials::reject_ordinary_credentials(&plan.platform)
+        .map_err(|_| Problem::error(Code::NotApproved, "plan", "ordinary plans cannot carry administrator or trustee credentials"))?;
+
     Ok(ReadPlan {
         sources: Sources {
             census: (!lifted.is_empty()).then(|| {
@@ -1816,6 +1819,9 @@ fn election_identifier_problem(plan: &Blueprint) -> Option<Problem> {
 /// different questions and an author needs both answers.
 pub fn validate_plan(plan: &Blueprint, sources: &Sources) -> Report {
     let mut report = Report::default();
+    if let Err(credentials) = super::demo_credentials::reject_ordinary_credentials(&plan.platform) {
+        report.problems.extend(credentials.problems);
+    }
     if let Some(problem) = election_identifier_problem(plan) {
         report.push(problem);
     }
@@ -3263,6 +3269,8 @@ fn to_workbook_with_base(
     sources: &Sources,
     base_export: Option<&serde_json::Value>,
 ) -> Result<Workbook, Problem> {
+    super::demo_credentials::reject_ordinary_credentials(&plan.platform)
+        .map_err(|_| Problem::error(Code::NotApproved, "workbook", "ordinary workbooks cannot carry administrator or trustee credentials"))?;
     if let Some(problem) = election_identifier_problem(plan) {
         return Err(problem);
     }
@@ -5004,6 +5012,9 @@ fn scheduled_events_sheet(plan: &Blueprint) -> Result<Option<Sheet>, Problem> {
 /// without parsing its own output back, which is how the TypeScript version did it
 /// and why its round trip lost the trustee threshold and every ceremony date.
 pub fn side_files(plan: &Blueprint) -> Vec<(String, String)> {
+    if super::demo_credentials::reject_ordinary_credentials(&plan.platform).is_err() {
+        return Vec::new();
+    }
     let mut files = Vec::new();
 
     let plan_json = serde_json::to_string_pretty(&as_written(plan))

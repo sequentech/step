@@ -7,6 +7,10 @@ import {ThemeProvider} from "@mui/material/styles"
 import {adminTheme} from "../../../../ui-essentials/src/services/theme"
 import {record} from "./configurationPackage.fixture"
 import {COMPLETE_DELIVERY} from "./configurationPackage"
+import {
+    notifyConfigurationPackageElectionImported,
+    useConfigurationPackageElectionRefresh,
+} from "@/hooks/useConfigurationPackageElectionRefresh"
 import type {RosterStatus} from "./ArchitectSignerRoster"
 
 // LinkBehavior is not exercised by these controls.
@@ -822,4 +826,64 @@ it("never flashes a legacy trust or document choice while receiver status is unk
     mockRoster = {...legacyRoster, mode: "unavailable"}
     view.rerender(<SettingsConfigurationPackage />)
     expect(screen.queryByText("configurationPackage.legacySetup")).toBeNull()
+})
+
+const mockElectionRefresh = jest.fn()
+function ScreenWithElectionRefresh() {
+    useConfigurationPackageElectionRefresh(mockElectionRefresh)
+    return <SettingsConfigurationPackage />
+}
+
+it("refreshes elections only once for the successful matching Apply, not upload, preview, queued or failed tasks", async () => {
+    mockApply.mockResolvedValueOnce(accepted("task-p"))
+    const ui = render(<ScreenWithElectionRefresh />)
+    await upload()
+    expect(mockElectionRefresh).not.toHaveBeenCalled()
+    mockTask = task("task-p", "SUCCESS", record("previewed"))
+    ui.rerender(<ScreenWithElectionRefresh />)
+    expect(mockElectionRefresh).not.toHaveBeenCalled()
+    mockApply.mockResolvedValueOnce(accepted("task-a"))
+    await apply()
+    for (const row of [
+        task("old-unrelated", "SUCCESS", record("applied")),
+        task("task-a", "IN_PROGRESS", null),
+        task("task-a", "FAILED", record("failed")),
+        task("task-a", "SUCCESS", record("refused")),
+    ]) {
+        mockTask = row
+        ui.rerender(<ScreenWithElectionRefresh />)
+        expect(mockElectionRefresh).not.toHaveBeenCalled()
+    }
+    mockTask = task("task-a", "SUCCESS", record("applied"))
+    ui.rerender(<ScreenWithElectionRefresh />)
+    expect(mockElectionRefresh).toHaveBeenCalledTimes(1)
+    mockTask = task("task-a", "SUCCESS", record("applied"))
+    ui.rerender(<ScreenWithElectionRefresh />)
+    expect(mockElectionRefresh).toHaveBeenCalledTimes(1)
+    ui.unmount()
+    render(<ScreenWithElectionRefresh />)
+    expect(mockElectionRefresh).toHaveBeenCalledTimes(1)
+})
+
+it("does not refresh another tenant or actor, or replay another operator's recalled Apply", async () => {
+    mockApply.mockResolvedValueOnce(accepted("task-p"))
+    const ui = render(<ScreenWithElectionRefresh />)
+    await upload()
+    mockTask = task("task-p", "SUCCESS", record("previewed"))
+    ui.rerender(<ScreenWithElectionRefresh />)
+    mockApply.mockResolvedValueOnce(accepted("task-a"))
+    await apply()
+    mockTask = task("task-a", "SUCCESS", record("applied"))
+    mockTenant = "t2"
+    ui.rerender(<ScreenWithElectionRefresh />)
+    notifyConfigurationPackageElectionImported({tenantId: "t1", actor: "operator-a"})
+    expect(mockElectionRefresh).not.toHaveBeenCalled()
+    mockTenant = "t1"
+    mockActor = "operator-b"
+    ui.rerender(<ScreenWithElectionRefresh />)
+    notifyConfigurationPackageElectionImported({tenantId: "t1", actor: "operator-a"})
+    expect(mockElectionRefresh).not.toHaveBeenCalled()
+    mockActor = "operator-a"
+    ui.rerender(<ScreenWithElectionRefresh />)
+    expect(mockElectionRefresh).toHaveBeenCalledTimes(1)
 })

@@ -1,0 +1,230 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-License-Identifier: AGPL-3.0-only
+
+use super::configuration_package_sections::AdminRow;
+use super::import_users::{GroupAssignmentPolicy, ImportUsersPrivileges};
+use anyhow::{anyhow, Result};
+use sequent_core::election_config::{
+    archive::Artifact,
+    demo_credentials::{
+        verify_demo_login_verifiers, DemoLoginPrincipal, DemoLoginVerifiers,
+        DEMO_LOGIN_VERIFIERS_MEMBER,
+    },
+    manifest::ManifestFormat,
+    package_verify::VerifiedPackage,
+};
+use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::types::keycloak::{User, TENANT_ID_ATTR_NAME};
+use serde::Deserialize;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct InstalledPolicy {
+    tenant_id: String,
+    accounts: Vec<DemoLoginPrincipal>,
+}
+
+pub struct VerifiedDemoLoginAdmission(DemoLoginVerifiers);
+
+impl std::fmt::Debug for VerifiedDemoLoginAdmission {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("VerifiedDemoLoginAdmission(<private>)")
+    }
+}
+
+fn field<'a>(row: &'a AdminRow, key: &str) -> Option<&'a str> {
+    row.fields
+        .get(key)
+        .filter(|value| !value.is_empty())
+        .map(String::as_str)
+}
+
+impl VerifiedDemoLoginAdmission {
+    /// Proof comes from server-side signature/target admission, not a digest
+    /// or transport marker supplied by the client. Default is deny.
+    pub(crate) fn take_member(
+        members: &mut Vec<Artifact>,
+        verified: Option<&VerifiedPackage>,
+        tenant_id: &str,
+        privileges: ImportUsersPrivileges,
+    ) -> Result<Option<Self>> {
+        let entries = members
+            .iter()
+            .enumerate()
+            .filter(|(_, f)| f.name == DEMO_LOGIN_VERIFIERS_MEMBER);
+        let mut entries = entries.peekable();
+        let Some((index, file)) = entries.next() else {
+            return Ok(None);
+        };
+        if entries.peek().is_some()
+            || file.bytes.len() > 128 * 1024
+            || privileges.group_assignment != GroupAssignmentPolicy::AnyGroup
+            || !verified.is_some_and(|proof| {
+                proof.manifest.format == ManifestFormat::V2
+                    && proof
+                        .manifest
+                        .signing
+                        .as_ref()
+                        .is_some_and(|s| s.tenant_id == tenant_id)
+                    && proof
+                        .members
+                        .iter()
+                        .any(|m| m.name == DEMO_LOGIN_VERIFIERS_MEMBER && m.bytes == file.bytes)
+            })
+        {
+            return Err(anyhow!("demo account enrollment requires a verified tenant-bound signature and user/role write permission"));
+        }
+        let policy = std::env::var("SEQUENT_DEMO_LOGIN_RECEIVER_POLICY")
+            .ok()
+            .filter(|s| s.len() <= 64 * 1024)
+            .and_then(|s| serde_json::from_str::<InstalledPolicy>(&s).ok())
+            .filter(|policy| {
+                policy.tenant_id == tenant_id
+                    && policy.accounts.iter().all(|a| {
+                        matches!(a.group_name.as_str(), "sbei" | "trustee")
+                            && !a.username.starts_with("service-account-")
+                    })
+            })
+            .ok_or_else(|| anyhow!("no valid installed demo login policy for this tenant"))?;
+        let payload: DemoLoginVerifiers = serde_json::from_slice(&file.bytes)
+            .map_err(|_| anyhow!("malformed signed demo login verifier document"))?;
+        verify_demo_login_verifiers(&payload,tenant_id,&policy.accounts)
+            .map_err(|_|anyhow!("signed demo login verifier does not match approved roster or supported hashing scheme"))?;
+        members.remove(index);
+        Ok(Some(Self(payload)))
+    }
+
+    pub(crate) fn verify_roster(&self, rows: &[AdminRow]) -> Result<()> {
+        for a in &self.0.accounts {
+            let matched = rows.iter().any(|r| {
+                r.username == a.username
+                    && r.group == a.group_name
+                    && field(r, "email") == a.email.as_deref()
+                    && field(r, "trustee") == a.trustee.as_deref()
+            });
+            if !matched {
+                return Err(anyhow!(
+                    "signed demo verifier does not match signed administrator roster identity"
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn new_usernames(
+        &self,
+        existing: &BTreeMap<String, BTreeSet<String>>,
+    ) -> Vec<String> {
+        self.0
+            .accounts
+            .iter()
+            .filter(|a| !existing.contains_key(&a.username))
+            .map(|a| a.username.clone())
+            .collect()
+    }
+
+    pub(crate) async fn seed_new(
+        &self,
+        tenant: &str,
+        realm: &str,
+        rows: &[AdminRow],
+        existing: &BTreeMap<String, BTreeSet<String>>,
+    ) -> Result<Vec<String>> {
+        self.verify_roster(rows)?;
+        let names = self.new_usernames(existing);
+        if names.is_empty() {
+            return Ok(names);
+        }
+        let client = KeycloakAdminClient::new()
+            .await
+            .map_err(|_| anyhow!("could not open target identity store"))?;
+        for a in self
+            .0
+            .accounts
+            .iter()
+            .filter(|a| !existing.contains_key(&a.username))
+        {
+            let r = rows
+                .iter()
+                .find(|r| r.username == a.username)
+                .ok_or_else(|| anyhow!("signed demo user is absent from roster"))?;
+            let mut attrs =
+                HashMap::from([(TENANT_ID_ATTR_NAME.to_owned(), vec![tenant.to_owned()])]);
+            for key in [
+                "permission_labels",
+                "trustee",
+                "title",
+                "sequent.read-only.mobile-number",
+            ] {
+                if let Some(v) = field(r, key) {
+                    attrs.insert(key.to_owned(), v.split('|').map(str::to_owned).collect());
+                }
+            }
+            let user = User {
+                username: Some(r.username.clone()),
+                email: field(r, "email").map(str::to_owned),
+                first_name: field(r, "first_name").map(str::to_owned),
+                last_name: field(r, "last_name").map(str::to_owned),
+                email_verified: Some(field(r, "email_verified") != Some("false")),
+                enabled: Some(field(r, "enabled") != Some("false")),
+                attributes: Some(attrs),
+                ..Default::default()
+            };
+            // Only POST new identity. A conflict is never retried as an update.
+            client
+                .create_user_with_demo_password_verifier(realm, &user, &r.group, a)
+                .await
+                .map_err(|_| {
+                    anyhow!("target identity store refused a new demo account; preview again")
+                })?;
+        }
+        Ok(names)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unsigned_even_with_named_member_has_no_credential_admission() {
+        let mut files = vec![Artifact {
+            name: DEMO_LOGIN_VERIFIERS_MEMBER.into(),
+            bytes: b"dummy-not-logged".to_vec(),
+        }];
+        let permitted = ImportUsersPrivileges {
+            group_assignment: GroupAssignmentPolicy::AnyGroup,
+            ..Default::default()
+        };
+        let refused =
+            VerifiedDemoLoginAdmission::take_member(&mut files, None, "unused", permitted)
+                .unwrap_err();
+        assert!(!refused.to_string().contains("dummy-not-logged"));
+        assert_eq!(files.len(), 1);
+    }
+
+    #[test]
+    fn qualified_roster_can_only_seed_new_accounts_and_exact_identity() {
+        let payload: DemoLoginVerifiers = serde_json::from_value(serde_json::json!({
+            "format":"sequent.demo-login-verifiers/1","tenantId":"synthetic",
+            "accounts":[{"username":"trustee1","email":null,"groupName":"trustee","trustee":"trustee1",
+                "iterations":600000,"salt":"fixture-salt","verifier":"fixture-verifier"}]
+        })).unwrap();
+        let admission = VerifiedDemoLoginAdmission(payload);
+        let mut row = AdminRow {
+            username: "trustee1".into(),
+            group: "trustee".into(),
+            fields: BTreeMap::from([("trustee".into(), "trustee1".into())]),
+        };
+        assert!(admission.verify_roster(std::slice::from_ref(&row)).is_ok());
+        assert_eq!(admission.new_usernames(&BTreeMap::new()), vec!["trustee1"]);
+        assert!(admission
+            .new_usernames(&BTreeMap::from([("trustee1".into(), BTreeSet::new())]))
+            .is_empty());
+        row.fields
+            .insert("email".into(), "other@example.invalid".into());
+        assert!(admission.verify_roster(&[row]).is_err());
+        assert!(!format!("{admission:?}").contains("fixture-verifier"));
+    }
+}

@@ -29,6 +29,9 @@
 pub mod build;
 
 #[cfg(feature = "election_config_templates")]
+pub mod demo_credentials;
+
+#[cfg(feature = "election_config_templates")]
 mod messaging_config;
 
 /// What a bundle becomes as files. Needs the builder, so it shares its feature;
@@ -66,6 +69,15 @@ pub mod policy;
 pub mod profile;
 
 pub mod emit;
+
+/// Password transport for existing signed packages. Available in every
+/// portal WASM build and in native binaries with signed package support.
+#[cfg(any(
+    feature = "election_config_signing",
+    all(target_arch = "wasm32", feature = "wasm")
+))]
+pub mod encrypted_delivery;
+
 pub mod ids;
 
 /// A signed configuration package: its manifest, how one is assembled and

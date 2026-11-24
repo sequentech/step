@@ -12,9 +12,10 @@ use super::configuration_package_apply::{
 };
 use super::configuration_package_sections::{
     absent_admin_rows, admin_changes, admin_column_problems, admin_detail_problems,
-    admin_permission_label_updates, event_changes, merged_tenant, preview_admin_permission_labels,
-    read_admin_rows, read_group_roles, role_changes, tenant_configuration_changes,
-    tenant_settings_changes, trustee_changes, ExistingAdmin,
+    admin_email_updates, admin_permission_label_updates, event_changes, merged_tenant,
+    preview_admin_email, preview_admin_permission_labels, read_admin_rows, read_group_roles,
+    role_changes, tenant_configuration_changes, tenant_settings_changes, trustee_changes,
+    ExistingAdmin,
 };
 use super::configuration_package_sections::{
     admission_problem, carries_messaging, census_usernames, event_document, messaging_problem,
@@ -82,6 +83,9 @@ pub struct ApplyContext {
     /// The verified package when the delivery was signed. Its freshness
     /// against the tenant's imports is checked in every section's preview,
     /// so it is checked again right before each section is applied.
+    pub demo_login: Option<
+        std::sync::Arc<super::configuration_package_demo_credentials::VerifiedDemoLoginAdmission>,
+    >,
     pub verified:
         Option<std::sync::Arc<sequent_core::election_config::package_verify::VerifiedPackage>>,
 }
@@ -502,6 +506,11 @@ impl PlatformTarget {
                 let mut preview = admin_changes(&rows, &existing, &known);
                 let current = self.existing_admin_details(&usernames).await?;
                 preview_admin_permission_labels(&mut preview, &rows, &current);
+                let verified = self.context.verified.is_some();
+                preview_admin_email(
+                    &mut preview,
+                    &admin_email_updates(&rows, &current, verified),
+                );
                 let mut db: DbClient = get_hasura_pool().await.get().await?;
                 let transaction = db.transaction().await?;
                 let mut trustees: BTreeSet<String> =
@@ -516,10 +525,19 @@ impl PlatformTarget {
                     &current,
                     &trustees,
                     &self.context.event_import.privileges,
+                    verified,
                 ));
                 preview
                     .blockers
                     .extend(admin_column_problems(&one(files, "administrators")?.bytes)?);
+                if let Some(demo) = &self.context.demo_login {
+                    demo.verify_roster(&rows)?;
+                    if let Some(changes) = preview.changes.as_array_mut() {
+                        changes.extend(demo.new_usernames(&existing).into_iter().map(
+                            |username| json!({"username":username,"action":"seed-new-demo-login"}),
+                        ));
+                    }
+                }
                 Ok(preview)
             }
             Section::Trustees => {
@@ -769,7 +787,7 @@ impl PackageTarget for PlatformTarget {
             }
             Section::AdminAccounts => {
                 // Recheck profiles, grants and trustee references immediately before
-                // staging; only the explicit permission-label replacement is mutable.
+                // staging; only explicit email and permission-label changes are mutable.
                 let preview = self.preview_section(Section::AdminAccounts, files).await?;
                 if !preview.blockers.is_empty() {
                     return Err(anyhow!(
@@ -781,7 +799,73 @@ impl PackageTarget for PlatformTarget {
                 let usernames: Vec<String> = rows.iter().map(|r| r.username.clone()).collect();
                 let existing = self.existing_usernames(&usernames).await?;
                 let current = self.existing_admin_details(&usernames).await?;
+                let email_updates =
+                    admin_email_updates(&rows, &current, self.context.verified.is_some());
                 let updates = admin_permission_label_updates(&rows, &current);
+                if !email_updates.is_empty() {
+                    let realm = get_tenant_realm(&self.context.tenant_id);
+                    let keycloak = KeycloakAdminClient::new().await?;
+                    for (username, change) in &email_updates {
+                        let row = rows
+                            .iter()
+                            .find(|row| row.username.to_lowercase() == *username)
+                            .ok_or_else(|| {
+                                anyhow!("administrator email update lacks a roster identity")
+                            })?;
+                        if !existing
+                            .get(username)
+                            .is_some_and(|groups| groups.contains(&row.group))
+                        {
+                            return Err(anyhow!("administrator group changed; preview again"));
+                        }
+                        let db: DbClient = get_keycloak_pool().await.get().await?;
+                        let account = db.query_one(
+                            "SELECT u.id FROM user_entity u JOIN realm r ON r.id=u.realm_id WHERE r.name=$1 AND u.username=$2 AND u.service_account_client_link IS NULL",
+                            &[&realm, username],
+                        ).await.context("Error resolving administrator for email update")?;
+                        let id: String = account.get("id");
+                        drop(db);
+                        let mut live = keycloak
+                            .client
+                            .realm_users_with_user_id_get(&realm, &id, None)
+                            .await
+                            .map_err(|_| {
+                                anyhow!("Error reading current administrator for email update")
+                            })?;
+                        if !live
+                            .username
+                            .as_deref()
+                            .is_some_and(|value| value == username)
+                        {
+                            return Err(anyhow!("administrator identity changed; preview again"));
+                        }
+                        if let Some(email) = &change.email {
+                            live.email = Some(email.clone());
+                        }
+                        if let Some(verified) = change.email_verified {
+                            live.email_verified = Some(verified);
+                        }
+                        // Preserve profile and attributes; never submit credentials in this update.
+                        live.credentials = None;
+                        keycloak
+                            .client
+                            .realm_users_with_user_id_put(&realm, &id, live)
+                            .await
+                            .map_err(|_| {
+                                anyhow!("Error updating administrator email in Keycloak")
+                            })?;
+                        task_audit::record(task_audit::bulk(
+                            self.context.audit_actor.clone(),
+                            task_audit::target(&self.context.tenant_id, None)?,
+                            "user",
+                            AdminAction::Update,
+                            "Reconciled administrator email fields from verified configuration package",
+                            json!({"username": username, "email_changed": change.email.is_some(),
+                                   "email_verified": change.email_verified}),
+                        ))
+                        .await?;
+                    }
+                }
                 if !updates.is_empty() {
                     use super::import_users::PermissionLabelPolicy;
                     if !matches!(
@@ -834,13 +918,23 @@ impl PackageTarget for PlatformTarget {
                         .await?;
                     }
                 }
+                let mut existing = existing;
+                if let Some(demo) = &self.context.demo_login {
+                    let realm = get_tenant_realm(&self.context.tenant_id);
+                    for username in demo
+                        .seed_new(&self.context.tenant_id, &realm, &rows, &existing)
+                        .await?
+                    {
+                        existing.insert(username, BTreeSet::new());
+                    }
+                }
                 let absent = absent_admin_rows(&file.bytes, &existing)?;
                 if read_admin_rows(&absent)?.is_empty() {
                     let task = self.task(task_id).await?;
                     update_complete(&task, None).await?;
                     return Ok(SectionSubmission {
                         task_id: Some(task.id),
-                        detail: json!({"permission_label_updates": updates.len()}),
+                        detail: json!({"permission_label_updates": updates.len(), "email_updates": email_updates.len()}),
                     });
                 }
                 let document_id = self.stage("admin_users.csv", "text/csv", &absent).await?;

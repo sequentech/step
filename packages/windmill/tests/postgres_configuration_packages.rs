@@ -973,6 +973,7 @@ async fn managed_section_readmits_its_sealed_package_but_stops_after_replay_or_r
                 managed_preview_operator_binding: None,
                 package_groups: Default::default(),
                 package_trustees: Default::default(),
+                demo_login: None,
                 verified: Some(Arc::new(*verified)),
             },
             event_imported_by_this_run: AtomicBool::new(false),

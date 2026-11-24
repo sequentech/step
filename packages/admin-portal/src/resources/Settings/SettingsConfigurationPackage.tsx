@@ -35,6 +35,7 @@ import {
     TextField,
     Typography,
 } from "@mui/material"
+import {notifyConfigurationPackageElectionImported} from "@/hooks/useConfigurationPackageElectionRefresh"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import type {AuthContextValues} from "@/providers/AuthContextProvider"
@@ -110,6 +111,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
     const rosterStatusId = useId()
     const advancedHeadingId = useId()
     const packageRequest = useRef(false)
+    const refreshedElectionTask = useRef<string | null>(null)
 
     // A reload in the same tenant resumes the task it was following, with the
     // requirements and the digest that task was submitted with.
@@ -216,6 +218,24 @@ const SettingsConfigurationPackageForScope: React.FC<{
         }
         stopPolling()
         refreshHistory()
+        if (
+            allowed &&
+            submitted.mode === "apply" &&
+            submitted.actor === authContext.userId &&
+            !submitted.electionsRefreshed &&
+            refreshedElectionTask.current !== submitted.taskId &&
+            task?.id === submitted.taskId &&
+            task.execution_status === "SUCCESS" &&
+            view?.mode === "apply" &&
+            view.outcome === "applied" &&
+            view.sections.some(
+                (section) => section.section === "election-event" && section.state === "applied"
+            )
+        ) {
+            refreshedElectionTask.current = submitted.taskId
+            rememberSubmission(tenantId, {...submitted, electionsRefreshed: true})
+            notifyConfigurationPackageElectionImported({tenantId, actor: authContext.userId})
+        }
         if (submitted.mode === "preview" && view) {
             setDocumentId(submitted.documentId)
             setPreviewed({
@@ -235,7 +255,17 @@ const SettingsConfigurationPackageForScope: React.FC<{
             })
         }
         // refreshHistory is a fresh closure each render; the task finishing is the trigger.
-    }, [submitted, finished, view, stopPolling, tenantId, task?.id, task?.execution_status])
+    }, [
+        submitted,
+        finished,
+        view,
+        stopPolling,
+        tenantId,
+        task?.id,
+        task?.execution_status,
+        allowed,
+        authContext.userId,
+    ])
 
     const matchesTrust = (current: RosterStatus | null, preview: PreviewedPackage | null) => {
         if (!rosterStateAllowsImport(current)) return false
@@ -265,7 +295,12 @@ const SettingsConfigurationPackageForScope: React.FC<{
     // One submission per click: a failure or an unknown result is reported and
     // left for the operator, never resubmitted here. Every submission, preview
     // or apply, needs a fresh preview before the next application.
-    const submit = async (mode: ApplyMode, document: string, sha: string | null) => {
+    const submit = async (
+        mode: ApplyMode,
+        document: string,
+        sha: string | null,
+        encryptedPayloadSha256?: string
+    ) => {
         if (packageRequest.current) return
         setError(null)
         if (!authContext.userId || !mayApplyPackages(tenantId, authContext.isAuthorized)) {
@@ -327,10 +362,17 @@ const SettingsConfigurationPackageForScope: React.FC<{
                           documentId: document,
                           requirements,
                           previewTaskId,
+                          ...(encryptedPayloadSha256 ? {encryptedPayloadSha256} : {}),
                       },
                   })
                 : await applyConfigurationPackage({
-                      variables: {tenantId: forTenant, documentId: document, mode, requirements},
+                      variables: {
+                          tenantId: forTenant,
+                          documentId: document,
+                          mode,
+                          requirements,
+                          ...(encryptedPayloadSha256 ? {encryptedPayloadSha256} : {}),
+                      },
                   })
             if (!mounted.current || scope.current !== requestScope) {
                 return
@@ -348,10 +390,12 @@ const SettingsConfigurationPackageForScope: React.FC<{
             }
             const active: ActiveSubmission = {
                 taskId,
+                actor: requestScope.actor,
                 mode,
                 documentId: document,
                 requirements,
                 expectedSha: sha,
+                ...(encryptedPayloadSha256 ? {encryptedPayloadSha256} : {}),
             }
             if (mode === "preview") operatorPreview.current = {scope: requestScope, taskId}
             rememberSubmission(forTenant, active)
@@ -655,31 +699,43 @@ const SettingsConfigurationPackageForScope: React.FC<{
                     <Typography variant="body2" paragraph>
                         {t("configurationPackage.uploadParagraph")}
                     </Typography>
-                    <ImportScreen
-                        refresh="configurationPackage.upload"
-                        // The package is the delivery zip, whatever the drop area's default says.
-                        formatLabel="ZIP"
-                        doCancel={() => setOpenUpload(false)}
-                        doImport={async (document: string, sha256: string) => {
-                            setOpenUpload(false)
-                            // Blank is no check; anything else must be a digest,
-                            // never silently dropped.
-                            const entered = sha256.trim()
-                            if (entered && !SHA256.test(entered)) {
-                                setPreviewed(null)
-                                setError(t("configurationPackage.shaMalformed"))
-                                return
-                            }
-                            const sha = entered ? entered.toLowerCase() : null
-                            setDocumentId(document)
-                            setTypedDocumentId(document)
-                            setExpectedSha(sha)
-                            // Always a preview first: nothing is applied from an upload.
-                            await submit("preview", document, sha)
-                        }}
-                        disableImport={running || !permitsImport}
-                        errors={null}
-                    />
+                    {openUpload && permitsImport && (
+                        <ImportScreen
+                            key={JSON.stringify([tenantId, authContext.userId])}
+                            refresh="configurationPackage.upload"
+                            signedDeliveryUpload
+                            formatLabel="ZIP / EZIP"
+                            doCancel={() => setOpenUpload(false)}
+                            onSourceChange={() => {
+                                stopFollowing()
+                                setConfirming(false)
+                            }}
+                            doImport={async (
+                                document,
+                                sha256,
+                                _password,
+                                encryptedPayloadSha256
+                            ) => {
+                                setOpenUpload(false)
+                                // Blank is no check; anything else must be a digest,
+                                // never silently dropped.
+                                const entered = sha256.trim()
+                                if (entered && !SHA256.test(entered)) {
+                                    setPreviewed(null)
+                                    setError(t("configurationPackage.shaMalformed"))
+                                    return
+                                }
+                                const sha = entered ? entered.toLowerCase() : null
+                                setDocumentId(document)
+                                setTypedDocumentId(document)
+                                setExpectedSha(sha)
+                                // Always a preview first: nothing is applied from an upload.
+                                await submit("preview", document, sha, encryptedPayloadSha256)
+                            }}
+                            disableImport={running || !permitsImport}
+                            errors={null}
+                        />
+                    )}
                 </Box>
             </Drawer>
 
@@ -703,7 +759,12 @@ const SettingsConfigurationPackageForScope: React.FC<{
                         onClick={() => {
                             setConfirming(false)
                             if (documentId && canApply) {
-                                submit("apply", documentId, expectedSha)
+                                submit(
+                                    "apply",
+                                    documentId,
+                                    expectedSha,
+                                    submitted?.encryptedPayloadSha256
+                                )
                             }
                         }}
                     >

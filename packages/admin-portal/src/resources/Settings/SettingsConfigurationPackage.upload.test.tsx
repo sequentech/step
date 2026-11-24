@@ -13,6 +13,14 @@ const mockApply = jest.fn()
 const mockGetUploadUrl = jest.fn()
 const mockOtherMutation = jest.fn()
 const mockFetch = jest.fn()
+const mockUnlock = jest.fn()
+const mockStatus = jest.fn()
+const mockStartPolling = jest.fn()
+const mockStopPolling = jest.fn()
+jest.mock("@/services/SignedDeliveryWorkerClient", () => ({
+    ...jest.requireActual("@/services/SignedDeliveryWorkerClient"),
+    unlockSignedDelivery: (...args: unknown[]) => mockUnlock(...args),
+}))
 
 // The trust section has its own tests (ConfigurationSigningSettings.test.tsx);
 // here it only has to be on the page.
@@ -50,7 +58,12 @@ jest.mock("@apollo/client", () => ({
               : [(...args: unknown[]) => mockOtherMutation(document, ...args)],
     useQuery: (query: string) =>
         query === "TASK"
-            ? {data: undefined, loading: false, startPolling: jest.fn(), stopPolling: jest.fn()}
+            ? {
+                  data: mockStatus(),
+                  loading: false,
+                  startPolling: mockStartPolling,
+                  stopPolling: mockStopPolling,
+              }
             : {
                   data: {sequent_backend_tasks_execution: []},
                   refetch: jest.fn(() => Promise.resolve()),
@@ -113,6 +126,7 @@ jest.mock(
 )
 
 import {SettingsConfigurationPackage} from "./SettingsConfigurationPackage"
+import {record} from "./configurationPackage.fixture"
 
 const DOCUMENT_ID = "11111111-1111-4111-8111-111111111111"
 const SHA = "ab".repeat(32)
@@ -120,6 +134,8 @@ const originalFetch = globalThis.fetch
 
 beforeEach(() => {
     jest.clearAllMocks()
+    mockStatus.mockReset()
+    mockUnlock.mockReset()
     sessionStorage.clear()
     mockGetUploadUrl.mockResolvedValue({
         data: {
@@ -141,7 +157,7 @@ it("uploads the delivery through its own drawer and previews it, never the event
     fireEvent.click(screen.getByText("configurationPackage.upload"))
     expect(screen.getByTestId("package-upload-drawer")).toBeTruthy()
     // The drop area names the delivery zip, not the import screen's default.
-    expect(screen.getByLabelText("Import file").closest("label")?.dataset.format).toBe("ZIP")
+    expect(screen.getByLabelText("Import file").closest("label")?.dataset.format).toBe("ZIP / EZIP")
     fireEvent.change(screen.getByLabelText("electionEventScreen.import.sha"), {
         target: {value: SHA},
     })
@@ -218,5 +234,140 @@ describe("the SHA-256 typed for the upload", () => {
         expect(
             JSON.parse(sessionStorage.getItem("configurationPackage.active.t1")!).expectedSha
         ).toBe(SHA)
+    })
+})
+
+describe("password-encrypted signed delivery in the real upload drawer", () => {
+    const uploadEncrypted = async (name = "do-not-upload-this-name.ezip", sha = "") => {
+        const view = render(<SettingsConfigurationPackage />)
+        fireEvent.click(screen.getByText("configurationPackage.upload"))
+        if (sha) {
+            fireEvent.change(screen.getByLabelText("electionEventScreen.import.sha"), {
+                target: {value: sha},
+            })
+        }
+        const file = new File(["SEQUENT-EZIP encrypted-only"], name)
+        fireEvent.change(screen.getByLabelText("Import file"), {target: {files: [file]}})
+        await screen.findByRole("dialog", {name: "electionEventScreen.import.passwordDialog.title"})
+        expect(mockGetUploadUrl).not.toHaveBeenCalled()
+        expect(mockFetch).not.toHaveBeenCalled()
+        expect(mockApply).not.toHaveBeenCalled()
+        return {file, view}
+    }
+
+    const clickUnlock = async (password = "") => {
+        if (password) {
+            fireEvent.change(
+                screen.getByLabelText("electionEventScreen.import.passwordDialog.label"),
+                {
+                    target: {value: password},
+                }
+            )
+        }
+        await act(async () => {
+            fireEvent.click(
+                screen.getByRole("button", {name: "configurationPackage.encrypted.unlock"})
+            )
+        })
+    }
+
+    it("requires the password with no uploads or preview on blank", async () => {
+        await uploadEncrypted()
+        await clickUnlock()
+        expect(screen.getByText("configurationPackage.encrypted.passwordRequired")).toBeTruthy()
+        expect(mockUnlock).not.toHaveBeenCalled()
+        expect(mockGetUploadUrl).not.toHaveBeenCalled()
+        expect(mockApply).not.toHaveBeenCalled()
+    })
+
+    it.each([
+        ["decrypt", "configurationPackage.encrypted.decryptFailed"],
+        ["size", "configurationPackage.encrypted.tooLarge"],
+        ["unavailable", "configurationPackage.encrypted.unavailable"],
+    ])("refuses worker outcome %s with no upload, preview, or apply", async (reason, key) => {
+        mockUnlock.mockResolvedValue({ok: false, reason})
+        await uploadEncrypted("maybe-corrupt.ezip")
+        await clickUnlock("incorrect or unusable password")
+        expect(screen.getByText(key)).toBeTruthy()
+        expect(mockGetUploadUrl).not.toHaveBeenCalled()
+        expect(mockFetch).not.toHaveBeenCalled()
+        expect(mockApply).not.toHaveBeenCalled()
+        expect((screen.getByTestId("package-apply") as HTMLButtonElement).disabled).toBe(true)
+    })
+
+    it("recognizes encrypted magic under a ZIP name and refuses a mismatched inner SHA", async () => {
+        mockUnlock.mockResolvedValue({ok: true, bytes: new Uint8Array([80, 75]), sha256: SHA})
+        await uploadEncrypted("renamed.zip", "ff".repeat(32))
+        await clickUnlock("some-test-password")
+        expect(screen.getByText("configurationPackage.encrypted.innerHashMismatch")).toBeTruthy()
+        expect(mockGetUploadUrl).not.toHaveBeenCalled()
+        expect(mockApply).not.toHaveBeenCalled()
+    })
+
+    it("uploads the exact decrypted bytes privately and sends only the pinned inner SHA to Preview", async () => {
+        const bytes = new Uint8Array([80, 75, 3, 4, 255, 12])
+        mockUnlock.mockResolvedValue({ok: true, bytes, sha256: SHA})
+        const {file, view} = await uploadEncrypted()
+        await clickUnlock("no-secret-transport")
+        expect(mockUnlock).toHaveBeenCalledTimes(1)
+        expect(mockUnlock.mock.calls[0][0]).toBe(file)
+        await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
+        expect(mockGetUploadUrl).toHaveBeenCalledWith({
+            variables: {
+                name: "configuration-package.zip",
+                media_type: "application/zip",
+                size: bytes.length,
+                is_public: false,
+            },
+        })
+        const upload = mockFetch.mock.calls[0][1].body as File
+        const contents = await new Promise<ArrayBuffer>((resolve) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result as ArrayBuffer)
+            reader.readAsArrayBuffer(upload)
+        })
+        expect([...new Uint8Array(contents)]).toEqual([...bytes])
+        const preview = await screen.findByRole("button", {
+            name: "electionEventScreen.import.import",
+        })
+        await waitFor(() => expect((preview as HTMLButtonElement).disabled).toBe(false))
+        await act(async () => {
+            fireEvent.click(preview)
+        })
+        expect(mockApply.mock.calls[0][0].variables).toMatchObject({
+            documentId: DOCUMENT_ID,
+            mode: "preview",
+            encryptedPayloadSha256: SHA,
+        })
+        expect(JSON.stringify(mockGetUploadUrl.mock.calls)).not.toContain("no-secret-transport")
+        expect(JSON.stringify(mockFetch.mock.calls)).not.toContain("no-secret-transport")
+        expect(JSON.stringify(mockApply.mock.calls)).not.toContain("no-secret-transport")
+        expect(sessionStorage.getItem("configurationPackage.active.t1")).not.toContain(
+            "no-secret-transport"
+        )
+        expect(mockOtherMutation).not.toHaveBeenCalled()
+
+        const annotations = record("previewed")
+        if (!annotations) throw new Error("Missing successful preview fixture")
+        annotations.application.packageSha256 = SHA
+        mockStatus.mockReturnValue({
+            sequent_backend_tasks_execution: [
+                {id: "task-p", execution_status: "SUCCESS", annotations},
+            ],
+        })
+        view.rerender(<SettingsConfigurationPackage />)
+        const apply = screen.getByTestId("package-apply") as HTMLButtonElement
+        await waitFor(() => expect(apply.disabled).toBe(false))
+        fireEvent.click(apply)
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("package-apply-confirm"))
+        })
+        expect(mockApply.mock.calls[1][0].variables).toMatchObject({
+            documentId: DOCUMENT_ID,
+            mode: "apply",
+            encryptedPayloadSha256: SHA,
+        })
+        expect(mockUnlock).toHaveBeenCalledTimes(1)
+        expect(mockFetch).toHaveBeenCalledTimes(1)
     })
 })

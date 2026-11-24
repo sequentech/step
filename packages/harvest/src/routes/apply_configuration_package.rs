@@ -41,6 +41,9 @@ pub struct ApplyConfigurationPackageInput {
     /// Exact successful preview for portal-managed package application.
     #[serde(default)]
     preview_task_id: Option<String>,
+    /// Digest of the authenticated inner ZIP; also requests signed-only admission.
+    #[serde(default)]
+    encrypted_payload_sha256: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -123,6 +126,11 @@ pub async fn apply_configuration_package_route(
         }),
     );
     authorize_apply(&claims, &input.tenant_id)?;
+    if input.encrypted_payload_sha256.as_deref().is_some_and(|sha| {
+        sha.len() != 64 || !sha.bytes().all(|byte| byte.is_ascii_hexdigit())
+    }) {
+        return Err((Status::BadRequest, "Invalid encrypted package digest".into()));
+    }
     let mut event_import = ImportElectionEventBody {
         tenant_id: input.tenant_id.clone(),
         document_id: input.document_id.clone(),
@@ -166,6 +174,7 @@ pub async fn apply_configuration_package_route(
         mode: input.mode,
         requirements: input.requirements.unwrap_or_default(),
         preview_task_id: input.preview_task_id,
+        encrypted_payload_sha256: input.encrypted_payload_sha256,
         managed_preview_operator_binding: operator_binding,
         event_import,
         audit_actor: Some(audit::actor(&claims)),

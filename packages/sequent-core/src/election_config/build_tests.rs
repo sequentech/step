@@ -1791,23 +1791,15 @@ fn an_admin_user_needs_a_username() {
 }
 
 #[test]
-fn admin_passwords_are_flagged_once_however_many_rows_carry_them() {
-    let bundle = built(&with_sheet(
-        "Admin Users",
-        vec![
-            vec![text("username"), text("password")],
-            vec![text("admin1"), text("s3cret")],
-            vec![text("admin2"), text("s3cret2")],
-        ],
-    ));
-    assert_eq!(
-        bundle
-            .warnings
-            .warnings()
-            .filter(|problem| problem.message.contains("clear-text passwords"))
-            .count(),
-        1
-    );
+fn ordinary_build_refuses_admin_and_trustee_passwords_without_echoing_them() {
+    for (sheet, identity) in [("Admin Users", "username"), ("Trustees", "name")] {
+        let report = refused(&with_sheet(sheet, vec![
+            vec![text(identity), text("Password")],
+            vec![text("demo-identity"), text("synthetic-password-canary")],
+        ]));
+        assert!(has_error_saying(&report, "explicitly enabled demo package"));
+        assert!(!format!("{report:?}").contains("synthetic-password-canary"));
+    }
 }
 
 #[test]

@@ -22,7 +22,7 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use sequent_core::election_config::archive::{Artifact, ADMIN_PORTAL_MEMBER, IMPORTABLE_MEMBER};
-use sequent_core::election_config::manifest::{file_entries, read_zip};
+use sequent_core::election_config::manifest::{file_entries, read_zip, FileEntry};
 use sequent_core::election_config::package_contract::{
     coverage, nested_disposition, Coverage, Disposition, Requirements, Section, SectionState,
 };
@@ -63,6 +63,7 @@ pub fn plan_members(
     requirements: &Requirements,
 ) -> Result<PackagePlan> {
     let entries = file_entries(members).map_err(|p| anyhow!("{p}"))?;
+    refuse_unproved_demo_credentials(&entries)?;
     let mut requirements = requirements.clone();
     requirements.sections.sort_unstable();
     requirements.sections.dedup();
@@ -109,6 +110,64 @@ pub fn plan_members(
         coverage,
         payloads,
     })
+}
+
+/// The verified receiver removes the one canonical verifier document before
+/// planning. Elsewhere, do not silently ignore a verifier document or allow
+/// its relocation into an ordinary nested settings/reports member.
+fn refuse_unproved_demo_credentials(entries: &[FileEntry]) -> Result<()> {
+    if entries.iter().any(|entry| {
+        entry
+            .path
+            .rsplit('/')
+            .next()
+            .is_some_and(|name| name.eq_ignore_ascii_case("demo_login_verifiers.json"))
+            || refuse_unproved_demo_credentials(&entry.members).is_err()
+    }) {
+        return Err(anyhow!(
+            "demo login verifiers require a receiver-authorized signed configuration intake"
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod demo_credential_intake_tests {
+    use super::*;
+
+    fn entry(path: &str, members: Vec<FileEntry>) -> FileEntry {
+        FileEntry {
+            path: path.to_owned(),
+            size: 0,
+            sha256: String::new(),
+            members,
+        }
+    }
+
+    #[test]
+    fn generic_planner_refuses_even_a_root_member_with_a_plausible_digest() {
+        let error = plan_members(
+            &[Artifact {
+                name: "demo_login_verifiers.json".into(),
+                bytes: b"not-secret-test-only".to_vec(),
+            }],
+            "0".repeat(64),
+            &Requirements::default(),
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("receiver-authorized signed"));
+        assert!(!error.to_string().contains("not-secret-test-only"));
+    }
+
+    #[test]
+    fn generic_planner_rejects_relocated_members_and_accepts_unrelated_files() {
+        assert!(refuse_unproved_demo_credentials(&[entry("normal.json", vec![])]).is_ok());
+        assert!(refuse_unproved_demo_credentials(&[entry(
+            "settings.zip",
+            vec![entry("extra/Demo_Login_Verifiers.json", vec![])],
+        )])
+        .is_err());
+    }
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {

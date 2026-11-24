@@ -515,13 +515,107 @@ pub fn preview_admin_permission_labels(
     }
 }
 
-/// Existing accounts may reconcile permission labels only. All other supplied
-/// fields, group membership and service-account safeguards remain strict.
+/// Explicit email changes for an existing administrator; never include credentials.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AdminEmailUpdate {
+    pub email: Option<String>,
+    pub email_verified: Option<bool>,
+}
+
+fn admin_field_differs(existing: &ExistingAdmin, field: &str, value: &str) -> bool {
+    let expected: BTreeSet<_> = value.split('|').filter(|v| !v.is_empty()).collect();
+    let actual: BTreeSet<_> = existing
+        .fields
+        .get(field)
+        .into_iter()
+        .flatten()
+        .map(String::as_str)
+        .filter(|v| !v.is_empty())
+        .collect();
+    expected != actual
+}
+
+pub fn admin_email_updates(
+    wanted: &[AdminRow],
+    current: &BTreeMap<String, ExistingAdmin>,
+    verified: bool,
+) -> BTreeMap<String, AdminEmailUpdate> {
+    if !verified {
+        return BTreeMap::new();
+    }
+    wanted
+        .iter()
+        .filter_map(|row| {
+            let username = row.username.to_lowercase();
+            let existing = current.get(&username)?;
+            if existing.service_account {
+                return None;
+            }
+            let email = row
+                .fields
+                .get("email")
+                .filter(|value| admin_field_differs(existing, "email", value))
+                .cloned();
+            let flag = row.fields.get("email_verified");
+            let email_verified = if email.is_some() {
+                // Verification of the former address must not carry over implicitly.
+                Some(flag.is_some_and(|value| value == "true"))
+            } else {
+                flag.filter(|value| admin_field_differs(existing, "email_verified", value))
+                    .map(|value| value == "true")
+            };
+            (email.is_some() || email_verified.is_some()).then_some((
+                username,
+                AdminEmailUpdate {
+                    email,
+                    email_verified,
+                },
+            ))
+        })
+        .collect()
+}
+
+pub fn preview_admin_email(
+    preview: &mut SectionPreview,
+    updates: &BTreeMap<String, AdminEmailUpdate>,
+) {
+    if let Some(changes) = preview.changes.as_array_mut() {
+        for change in changes {
+            let username = change["username"].as_str().unwrap_or_default();
+            let Some(update) = updates.get(&username.to_lowercase()) else {
+                continue;
+            };
+            if change["action"] != "exists" && change["action"] != "update-permission-labels" {
+                continue;
+            }
+            let mut warnings = Vec::new();
+            if update.email.is_some() {
+                warnings.push(format!(
+                    "Administrator '{username}': Apply will overwrite the existing email."
+                ));
+            }
+            if let Some(verified) = update.email_verified {
+                warnings.push(format!(
+                    "Administrator '{username}': Apply will set email verification to {verified}."
+                ));
+            }
+            if change["action"] == "exists" {
+                change["action"] = json!("update-email");
+            }
+            change["warnings"] = json!(warnings);
+            preview.needs_apply = true;
+        }
+    }
+}
+
+/// Verified packages may reconcile the explicitly supplied email fields and
+/// existing permission-label behavior is unchanged. All other constraints remain strict.
 pub fn admin_detail_problems(
     wanted: &[AdminRow],
     current: &BTreeMap<String, ExistingAdmin>,
     trustees: &BTreeSet<String>,
     privileges: &super::import_users::ImportUsersPrivileges,
+    verified: bool,
 ) -> Vec<String> {
     use super::import_users::{GroupAssignmentPolicy, PermissionLabelPolicy};
     let mut blockers = Vec::new();
@@ -560,23 +654,12 @@ pub fn admin_detail_problems(
                 ));
             }
             for (field, value) in &row.fields {
-                if field == "permission_labels" {
+                if field == "permission_labels"
+                    || (verified && matches!(field.as_str(), "email" | "email_verified"))
+                {
                     continue;
                 }
-                let expected: BTreeSet<String> = value
-                    .split('|')
-                    .filter(|v| !v.is_empty())
-                    .map(str::to_string)
-                    .collect();
-                let actual: BTreeSet<String> = existing
-                    .fields
-                    .get(field)
-                    .into_iter()
-                    .flatten()
-                    .filter(|v| !v.is_empty())
-                    .cloned()
-                    .collect();
-                if expected != actual {
+                if admin_field_differs(existing, field, value) {
                     blockers.push(format!("administrator '{}' existing field '{}' differs; reconcile explicitly before applying", row.username, field));
                 }
             }

@@ -90,6 +90,7 @@ const PLATFORM_SHEETS: &[&str] = &[
 /// the same split [`super::build::build`] makes, so the wizard and the janitor
 /// treat a bad document the same way.
 pub fn plan_from_workbook(workbook: &Workbook) -> Result<ReadPlan, Report> {
+    super::demo_credentials::reject_ordinary_credentials(workbook.sheets())?;
     let mut report = Report::default();
     let mut plan = Blueprint {
         version: BLUEPRINT_VERSION,

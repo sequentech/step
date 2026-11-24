@@ -266,11 +266,16 @@ export const lastLogLine = (logs: unknown): string | undefined => {
 /** The submission a page is following, kept so a reload resumes it. */
 export interface ActiveSubmission {
     taskId: string
+    /** Operator who submitted the task; older recalled entries do not trigger election refresh. */
+    actor?: string
+    electionsRefreshed?: boolean
     mode: ApplyMode
     documentId: string
     requirements: PackageRequirements
     /** The SHA-256 the operator entered for the upload, if any. */
     expectedSha?: string | null
+    /** Whether the exact SHA is from authenticated encrypted delivery. */
+    encryptedPayloadSha256?: string
 }
 
 const storageKey = (tenantId: string) => `configurationPackage.active.${tenantId}`

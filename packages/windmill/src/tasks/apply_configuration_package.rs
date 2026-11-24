@@ -17,7 +17,8 @@ use crate::services::import::configuration_package::tenant_setting;
 use crate::services::import::configuration_package_apply::{
     plan_members, run, ApplicationRecord, ApplyMode, Outcome, ProgressStore,
 };
-use crate::services::import::configuration_package_sections::read_group_roles;
+use crate::services::import::configuration_package_demo_credentials::VerifiedDemoLoginAdmission;
+use crate::services::import::configuration_package_sections::{read_admin_rows, read_group_roles};
 use crate::services::import::configuration_package_target::{ApplyContext, PlatformTarget};
 use crate::services::managed_webauthn_roster::Binding;
 use crate::services::tasks_execution::update_with_annotations;
@@ -28,6 +29,7 @@ use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
+use sequent_core::election_config::encrypted_delivery::MAX_SIGNED_DELIVERY_BYTES;
 use sequent_core::election_config::manifest::read_zip;
 use sequent_core::election_config::package_contract::{Requirements, Section};
 use sequent_core::election_config::package_verify::Admission;
@@ -56,6 +58,10 @@ pub struct ApplyConfigurationPackageBody {
     /// What the operator previewed. Required for portal-managed Apply.
     #[serde(default)]
     pub preview_task_id: Option<String>,
+    /// Present for password-encrypted delivery; only these exact authenticated,
+    /// signed inner bytes may be previewed or applied.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub encrypted_payload_sha256: Option<String>,
     /// Server-stamped preview-specific digest of the verified operator.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub managed_preview_operator_binding: Option<String>,
@@ -262,18 +268,41 @@ async fn execute(
     let document = get_document(&transaction, &body.tenant_id, None, &body.document_id)
         .await?
         .ok_or_else(|| anyhow!("document {} not found", body.document_id))?;
+    if body.encrypted_payload_sha256.is_some()
+        && document
+            .size
+            .is_some_and(|size| size > MAX_SIGNED_DELIVERY_BYTES as i64)
+    {
+        return Err(anyhow!("decrypted signed package exceeds the size limit"));
+    }
     let file = get_document_as_temp_file(&body.tenant_id, &document).await?;
+    if body.encrypted_payload_sha256.is_some()
+        && file.as_file().metadata()?.len() > MAX_SIGNED_DELIVERY_BYTES as u64
+    {
+        return Err(anyhow!("decrypted signed package exceeds the size limit"));
+    }
     let bytes = std::fs::read(file.path()).context("could not read the package")?;
     // Verified against the tenant's signing trust. Its freshness against the
     // tenant's imports is the target's to check, before each section.
     configuration_packages::lock_imports(&transaction, &body.tenant_id).await?;
+    let package_sha256 = format!("{:x}", Sha256::digest(&bytes));
+    if let Some(expected) = body.encrypted_payload_sha256.as_deref() {
+        if !package_sha256.eq_ignore_ascii_case(expected) {
+            return Err(anyhow!(
+                "configuration package bytes do not match the authenticated encrypted delivery"
+            ));
+        }
+    }
     let policy = BrowserPolicy::load_with_db(&transaction, &body.tenant_id).await;
     let setting = tenant_setting(&transaction, &body.tenant_id).await?;
     let lists = configuration_packages::revocation_lists(&transaction, &body.tenant_id).await?;
-    let (members, signed_package, verified) =
+    let (mut members, signed_package, verified) =
         // Revalidated against the tenant's current policy immediately
         // before any section applies: a policy changed since preview refuses.
         match admit_with_policy(&bytes, setting.as_ref(), &body.tenant_id, lists, chrono::Utc::now(), &policy) {
+            Ok(Admission::Unsigned) if body.encrypted_payload_sha256.is_some() => {
+                return Err(anyhow!("an encrypted configuration package must be signed"));
+            }
             Ok(Admission::Unsigned) => (
                 read_zip(&bytes, "package").map_err(|p| anyhow!("{p}"))?,
                 None,
@@ -300,8 +329,24 @@ async fn execute(
         crate::services::browser_package_policy::freshness(package, last.as_ref())
             .map_err(|problem| anyhow!("{problem}"))?;
     }
-    let package_sha256 = format!("{:x}", Sha256::digest(&bytes));
+    let demo_login = VerifiedDemoLoginAdmission::take_member(
+        &mut members,
+        verified.as_deref(),
+        &body.tenant_id,
+        body.event_import.privileges,
+    )?
+    .map(std::sync::Arc::new);
     let plan = plan_members(&members, package_sha256.clone(), &body.requirements)?;
+    if let Some(admitted) = &demo_login {
+        let roster = plan
+            .payloads
+            .get(&Section::AdminAccounts)
+            .and_then(|files| files.first())
+            .ok_or_else(|| {
+                anyhow!("signed demo verifiers require the signed administrator roster")
+            })?;
+        admitted.verify_roster(&read_admin_rows(&roster.bytes)?)?;
+    }
     let operator_binding = policy.managed_binding().map(|_| {
         body.managed_preview_operator_binding.as_deref().filter(|stamp| {
             stamp.len() == 64 && stamp.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
@@ -377,6 +422,7 @@ async fn execute(
             package_groups,
             package_trustees,
             verified,
+            demo_login,
         },
     };
     let prior = prior_record(&body.tenant_id, &package_sha256, &task_execution.id).await?;

@@ -4,6 +4,10 @@
 
 import {
     Box,
+    Dialog as MuiDialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
     styled,
     Button,
     TextField,
@@ -25,12 +29,23 @@ import {SimpleForm, useNotify} from "react-admin"
 import {EFileIntegrityPolicy} from "@sequentech/ui-core"
 import {selectImportFiles} from "@/services/ImportFileSelection"
 import {ImportRequestError} from "@/services/ImportRequestError"
+import {
+    isEncryptedSignedDeliveryFile,
+    unlockSignedDelivery,
+} from "@/services/SignedDeliveryWorkerClient"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 const DOWNLOAD_URL_LIFETIME_MS = 1000
 
 interface ImportScreenProps {
-    doImport: (documentId: string, sha256: string, password?: string) => Promise<void>
+    doImport: (
+        documentId: string,
+        sha256: string,
+        password?: string,
+        encryptedPayloadSha256?: string
+    ) => Promise<void>
+    /** Only the complete configuration package drawer supports the new signed envelope. */
+    signedDeliveryUpload?: boolean
     uploadCallback?: (documentId: string, password?: string, shaField?: string) => Promise<void>
     doCancel: () => void
     onSourceChange?: () => void
@@ -105,6 +120,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             problems,
             allowHistoricalSource,
             formatLabel,
+            signedDeliveryUpload,
         } = props
         const requiresSha = props.fileIntegrityPolicy === EFileIntegrityPolicy.REQUIRED_SHA256
         const {globalSettings} = React.useContext(SettingsContext)
@@ -122,6 +138,11 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         const [passwordDialogOpen, setPasswordDialogOpen] = useState<boolean>(false)
         const passwordInputRef = useRef<HTMLInputElement>(null)
         const [password, setPassword] = useState<string>("")
+        const [signedPayloadSha, setSignedPayloadSha] = useState<string>()
+        const [unlocking, setUnlocking] = useState(false)
+        const [passwordError, setPasswordError] = useState("")
+        const signedRequest = useRef<AbortController | null>(null)
+        useEffect(() => () => signedRequest.current?.abort(), [])
         const [theFile, setTheFile] = useState<File | undefined>()
         const [generatedHash, setGeneratedHash] = useState<string | null>(null)
         const [selectionError, setSelectionError] = useState("")
@@ -188,13 +209,14 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             }
         }, [passwordDialogOpen, passwordInputRef.current])
 
-        const uploadFile = async (url: string, file: File) => {
+        const uploadFile = async (url: string, file: File, signal?: AbortSignal) => {
             const response = await fetch(url, {
                 method: "PUT",
                 headers: {
                     "Content-Type": file.type,
                 },
                 body: file,
+                ...(signal ? {signal} : {}),
             })
             if (!response.ok) {
                 throw new Error("File upload failed")
@@ -204,7 +226,8 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         const uploadFileToS3 = async (
             theFile: File,
             uploadPassword: string,
-            packageHash = shaField
+            packageHash = shaField,
+            signal?: AbortSignal
         ) => {
             setIsUploading(true)
             setStage("uploading")
@@ -221,10 +244,13 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                         is_public: false,
                     },
                 })
+                if (signal?.aborted) return
                 if (!data?.get_upload_url?.url) throw new Error("missing upload URL")
-                await uploadFile(data.get_upload_url.url, theFile)
+                await uploadFile(data.get_upload_url.url, theFile, signal)
+                if (signal?.aborted) return
                 uploadedId = data.get_upload_url.document_id
             } catch {
+                if (signal?.aborted) return
                 setStage("transport-error")
                 setIsUploading(false)
                 notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
@@ -255,7 +281,19 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         }
 
         const handleFiles = async (files: FileList | null) => {
-            if (loading || isUploading || passwordDialogOpen) return
+            if (
+                loading ||
+                isUploading ||
+                unlocking ||
+                passwordDialogOpen ||
+                (signedDeliveryUpload && disableImport)
+            )
+                return
+            signedRequest.current?.abort()
+            signedRequest.current = null
+            if (signedPayloadSha && shaField === signedPayloadSha) setShaField("")
+            setSignedPayloadSha(undefined)
+            setPasswordError("")
             setDocumentId(null)
             if (generatedHash && shaField === generatedHash) setShaField("")
             setGeneratedHash(null)
@@ -291,14 +329,37 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             setHistoricalFiles([])
             const theFile = selected[0]
             setTheFile(theFile)
-            const isEncrypted = theFile?.name.endsWith(".ezip") || false
+            let isEncrypted = theFile?.name.endsWith(".ezip") || false
+            if (signedDeliveryUpload && theFile) {
+                const request = new AbortController()
+                signedRequest.current = request
+                setUnlocking(true)
+                try {
+                    isEncrypted = await isEncryptedSignedDeliveryFile(theFile)
+                    if (request.signal.aborted) return
+                } catch {
+                    if (!request.signal.aborted) {
+                        setSelectionError(
+                            String(
+                                t("configurationPackage.encrypted.unreadable", {
+                                    defaultValue:
+                                        "Could not read the configuration package. Nothing was uploaded.",
+                                })
+                            )
+                        )
+                    }
+                    return
+                } finally {
+                    if (!request.signal.aborted) setUnlocking(false)
+                }
+            }
             if (isEncrypted) {
                 setPasswordDialogOpen(true)
                 return
             }
 
             if (theFile) {
-                await uploadFileToS3(theFile, "")
+                await uploadFileToS3(theFile, "", shaField, signedRequest.current?.signal)
             } else {
                 setIsUploading(false)
                 notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
@@ -306,6 +367,110 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         }
 
         const handlePasswordSubmit = async (value: boolean) => {
+            if (signedDeliveryUpload) {
+                if (!theFile || !value) {
+                    setPassword("")
+                    setPasswordError("")
+                    setPasswordDialogOpen(false)
+                    setTheFile(undefined)
+                    return
+                }
+                if (unlocking || signedRequest.current?.signal.aborted) return
+                if (!password) {
+                    setPasswordError(
+                        String(
+                            t("configurationPackage.encrypted.passwordRequired", {
+                                defaultValue:
+                                    "Enter the password for this encrypted configuration package.",
+                            })
+                        )
+                    )
+                    return
+                }
+                const entered = shaField.trim().toLowerCase()
+                if (entered && !/^[a-f0-9]{64}$/.test(entered)) {
+                    setPasswordError(String(t("configurationPackage.shaMalformed")))
+                    return
+                }
+                signedRequest.current?.abort()
+                const request = new AbortController()
+                signedRequest.current = request
+                setUnlocking(true)
+                setPasswordError("")
+                try {
+                    // Start the worker first, then discard the password from the form.
+                    const unlocking = unlockSignedDelivery(theFile, password, request.signal)
+                    setPassword("")
+                    const outcome = await unlocking
+                    if (request.signal.aborted) return
+                    if (!outcome.ok) {
+                        if (outcome.reason === "size") {
+                            setPasswordDialogOpen(false)
+                            setTheFile(undefined)
+                            setSelectionError(
+                                String(
+                                    t("configurationPackage.encrypted.tooLarge", {
+                                        defaultValue:
+                                            "Encrypted configuration packages must not exceed 256 MiB of signed ZIP data. Nothing was uploaded.",
+                                    })
+                                )
+                            )
+                        } else {
+                            setPasswordError(
+                                String(
+                                    t(
+                                        outcome.reason === "decrypt"
+                                            ? "configurationPackage.encrypted.decryptFailed"
+                                            : "configurationPackage.encrypted.unavailable",
+                                        {
+                                            defaultValue:
+                                                outcome.reason === "decrypt"
+                                                    ? "Could not unlock this configuration package. Check the password and file. Nothing was uploaded."
+                                                    : "Could not load the local package unlocker. Use HTTPS or localhost and reopen the drawer. Nothing was uploaded.",
+                                        }
+                                    )
+                                )
+                            )
+                        }
+                        return
+                    }
+                    if (entered && entered !== outcome.sha256) {
+                        setPasswordError(
+                            String(
+                                t("configurationPackage.encrypted.innerHashMismatch", {
+                                    defaultValue:
+                                        "The entered SHA-256 does not match the decrypted signed ZIP. Nothing was uploaded.",
+                                })
+                            )
+                        )
+                        return
+                    }
+                    // File copies the bytes into an immutable Blob; its generic
+                    // filename also keeps a password-bearing source name private.
+                    const zip = new File([outcome.bytes], "configuration-package.zip", {
+                        type: "application/zip",
+                    })
+                    setPasswordDialogOpen(false)
+                    setTheFile(undefined)
+                    setShaField(outcome.sha256)
+                    const id = await uploadFileToS3(zip, "", outcome.sha256, request.signal)
+                    if (!request.signal.aborted && id) setSignedPayloadSha(outcome.sha256)
+                } catch {
+                    if (!request.signal.aborted) {
+                        setPasswordError(
+                            String(
+                                t("configurationPackage.encrypted.unavailable", {
+                                    defaultValue:
+                                        "Could not load the local package unlocker. Nothing was uploaded.",
+                                })
+                            )
+                        )
+                    }
+                } finally {
+                    if (!request.signal.aborted) setUnlocking(false)
+                }
+                return
+            }
             setPasswordDialogOpen(false)
             if (!theFile || !value) {
                 return
@@ -320,7 +485,11 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             setLoading(true)
             setStage("creating")
             try {
-                await doImport(id, shaField, password)
+                if (signedDeliveryUpload && signedPayloadSha) {
+                    await doImport(id, signedPayloadSha, undefined, signedPayloadSha)
+                } else {
+                    await doImport(id, shaField, password)
+                }
                 setStage("submitted")
             } catch (error) {
                 setStage(
@@ -347,7 +516,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             await submitImport()
         }
 
-        const isWorking = () => loading || isUploading
+        const isWorking = () => loading || isUploading || unlocking
         const downloadConvertedZip = () => {
             setDownloadAnchor(null)
             setDownloadError("")
@@ -384,10 +553,17 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         return (
             <Box sx={{padding: "0"}}>
                 <TextField
-                    disabled={isWorking() || !!generatedHash}
+                    disabled={isWorking() || !!generatedHash || !!signedPayloadSha}
                     required={requiresSha}
                     helperText={
-                        requiresSha ? t("electionEventScreen.import.shaRequiredHelp") : undefined
+                        requiresSha
+                            ? t("electionEventScreen.import.shaRequiredHelp")
+                            : signedDeliveryUpload
+                              ? t("configurationPackage.encrypted.innerHashHelp", {
+                                    defaultValue:
+                                        "For an encrypted package, enter the optional SHA-256 of the signed ZIP inside it.",
+                                })
+                              : undefined
                     }
                     error={requiresSha && shaField.length > 0 && !validSha}
                     label={String(t("electionEventScreen.import.sha"))}
@@ -571,35 +747,89 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     {t("electionEventScreen.import.shaDialog.description")}
                 </Dialog>
 
-                <Dialog
-                    open={passwordDialogOpen}
-                    handleClose={handlePasswordSubmit}
-                    title={String(t("electionEventScreen.import.passwordDialog.title"))}
-                    ok={"Ok"}
-                    variant="info"
-                >
-                    <>
-                        <SimpleForm toolbar={false} component={Box}>
-                            <Box>
-                                <InputLabel>
-                                    {t("electionEventScreen.import.passwordDialog.description")}:
-                                </InputLabel>
-                                <PasswordInputStyle
-                                    label={false}
-                                    source="password"
-                                    helperText={false}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    inputProps={{
-                                        "ref": passwordInputRef,
-                                        "aria-label": t(
-                                            "electionEventScreen.import.passwordDialog.label"
-                                        ),
+                {signedDeliveryUpload ? (
+                    <MuiDialog
+                        open={passwordDialogOpen}
+                        onClose={() => !unlocking && void handlePasswordSubmit(false)}
+                        aria-labelledby="signed-delivery-password-title"
+                    >
+                        <Box
+                            component="form"
+                            onSubmit={(event) => {
+                                event.preventDefault()
+                                void handlePasswordSubmit(true)
+                            }}
+                        >
+                            <DialogTitle id="signed-delivery-password-title">
+                                {t("electionEventScreen.import.passwordDialog.title")}
+                            </DialogTitle>
+                            <DialogContent>
+                                <TextField
+                                    autoFocus
+                                    fullWidth
+                                    disabled={unlocking}
+                                    type="password"
+                                    autoComplete="off"
+                                    label={t("electionEventScreen.import.passwordDialog.label")}
+                                    value={password}
+                                    onChange={(event) => {
+                                        setPassword(event.target.value)
+                                        setPasswordError("")
                                     }}
                                 />
-                            </Box>
-                        </SimpleForm>
-                    </>
-                </Dialog>
+                                {passwordError && (
+                                    <Typography role="alert" color="error">
+                                        {passwordError}
+                                    </Typography>
+                                )}
+                            </DialogContent>
+                            <DialogActions>
+                                <Button
+                                    disabled={unlocking}
+                                    onClick={() => void handlePasswordSubmit(false)}
+                                >
+                                    {t("electionEventScreen.import.cancel")}
+                                </Button>
+                                <Button disabled={unlocking} type="submit">
+                                    {t("configurationPackage.encrypted.unlock", {
+                                        defaultValue: "Unlock package",
+                                    })}
+                                </Button>
+                            </DialogActions>
+                        </Box>
+                    </MuiDialog>
+                ) : (
+                    <Dialog
+                        open={passwordDialogOpen}
+                        handleClose={handlePasswordSubmit}
+                        title={String(t("electionEventScreen.import.passwordDialog.title"))}
+                        ok={"Ok"}
+                        variant="info"
+                    >
+                        <>
+                            <SimpleForm toolbar={false} component={Box}>
+                                <Box>
+                                    <InputLabel>
+                                        {t("electionEventScreen.import.passwordDialog.description")}
+                                        :
+                                    </InputLabel>
+                                    <PasswordInputStyle
+                                        label={false}
+                                        source="password"
+                                        helperText={false}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        inputProps={{
+                                            "ref": passwordInputRef,
+                                            "aria-label": t(
+                                                "electionEventScreen.import.passwordDialog.label"
+                                            ),
+                                        }}
+                                    />
+                                </Box>
+                            </SimpleForm>
+                        </>
+                    </Dialog>
+                )}
             </Box>
         )
     }

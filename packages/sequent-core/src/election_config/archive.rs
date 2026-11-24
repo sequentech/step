@@ -1279,6 +1279,11 @@ pub fn save_file(
     use crate::election_config::problem::Code;
     use crate::election_config::sources::BATCH;
 
+    super::demo_credentials::reject_ordinary_credentials(&plan.platform)
+        .map_err(|_| crate::election_config::Problem::error(
+            Code::NotApproved, "save", "ordinary plans cannot carry administrator or trustee credentials"
+        ))?;
+
     let refused = |message: String| {
         crate::election_config::Problem::error(
             Code::InvalidValue,

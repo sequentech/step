@@ -11,12 +11,14 @@ export const APPLY_CONFIGURATION_PACKAGE = gql`
         $documentId: String!
         $mode: String!
         $requirements: jsonb
+        $encryptedPayloadSha256: String
     ) {
         apply_configuration_package(
             tenant_id: $tenantId
             document_id: $documentId
             mode: $mode
             requirements: $requirements
+            encrypted_payload_sha256: $encryptedPayloadSha256
         ) {
             task_execution {
                 id
@@ -34,6 +36,7 @@ export const APPLY_MANAGED_CONFIGURATION_PACKAGE = gql`
         $tenantId: String!
         $documentId: String!
         $requirements: jsonb
+        $encryptedPayloadSha256: String
         $previewTaskId: uuid!
     ) {
         apply_configuration_package(
@@ -41,6 +44,7 @@ export const APPLY_MANAGED_CONFIGURATION_PACKAGE = gql`
             document_id: $documentId
             mode: "apply"
             requirements: $requirements
+            encrypted_payload_sha256: $encryptedPayloadSha256
             preview_task_id: $previewTaskId
         ) {
             task_execution {

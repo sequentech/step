@@ -460,6 +460,7 @@ pub fn build(
     options: &BuildOptions,
     sources: &Sources,
 ) -> Result<Bundle, Report> {
+    super::demo_credentials::reject_ordinary_credentials(workbook.sheets())?;
     Builder::new(workbook, templates, options, sources)?.build()
 }
 
