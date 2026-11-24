@@ -174,7 +174,7 @@ pub async fn find_keys_ceremony(
     Ok(keys_ceremony)
 }
 
-#[instrument]
+#[instrument(skip_all)]
 fn generate_initial_tally_status(
     election_ids: &Vec<String>,
     keys_ceremony_status: &KeysCeremonyStatus,

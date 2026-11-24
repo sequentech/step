@@ -410,7 +410,7 @@ async fn process_plaintexts(
     Ok(almost_vec)
 }
 
-#[instrument]
+#[instrument(skip_all)]
 fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecutionStatus> {
     let Some(execution_status_str) = execution_status.clone() else {
         event!(Level::INFO, "Missing execution status");

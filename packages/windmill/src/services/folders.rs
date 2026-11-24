@@ -37,7 +37,7 @@ pub fn copy_to_temp_dir(base_tally_path: &PathBuf) -> Result<TempDir> {
     Ok(temp_dir)
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn list_files(dir: &Path) -> Result<()> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
