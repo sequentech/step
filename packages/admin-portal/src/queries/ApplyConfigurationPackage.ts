@@ -29,8 +29,8 @@ export const APPLY_CONFIGURATION_PACKAGE = gql`
     }
 `
 
-/** A managed receiver binds Apply to the exact successful Preview task. Legacy
- * and site-pinned receivers still use the original operation. */
+/** Apply with the exact successful Preview task: required by a managed
+ * roster or portable messaging. Ordinary legacy deliveries keep the original operation. */
 export const APPLY_MANAGED_CONFIGURATION_PACKAGE = gql`
     mutation ApplyManagedConfigurationPackage(
         $tenantId: String!

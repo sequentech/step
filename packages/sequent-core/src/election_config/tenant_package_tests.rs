@@ -214,7 +214,10 @@ fn a_complete_delivery_nests_tenant_sections_and_reports_missing_ones() {
         "t1",
         Some(record),
         &Requirements {
-            sections: Section::APPLY_ORDER.to_vec(),
+            sections: Section::APPLY_ORDER
+                .into_iter()
+                .filter(|s| *s != Section::MessagingAccounts)
+                .collect(),
             census: CensusRequirement::Optional,
         },
         None,
@@ -455,5 +458,91 @@ fn workbook_tenant_values_override_profile_defaults_without_losing_other_fields(
             .unwrap_err()
             .code,
         Code::DuplicateId
+    );
+}
+
+#[test]
+fn portable_accounts_are_bound_to_nested_delivery_and_cannot_save_credentials()
+{
+    use super::super::{
+        architect::Blueprint,
+        archive::{delivery, save_file, Artifact, Layout, ADMIN_PORTAL_MEMBER},
+        manifest::{file_entries, read_zip},
+        package_contract::{coverage, Requirements, Section, SectionState},
+        paths::Cell,
+        portable_messaging::{FORMAT, MEMBER},
+        sheet::Sheet,
+        sources::Sources,
+    };
+
+    let document = json!({
+        "format":"sequent.tenant-package/1",
+        "messagingAccounts":{"format":FORMAT,"accounts":[
+            {"reference":"sample-sms","name":"Sample SMS","sender":{"provider":"AWS_SNS","region":"us-east-1"}}
+        ]}
+    });
+    let parameter = |value: &Value| {
+        Sheet::from_grid(
+            "Parameters",
+            &[
+                vec![Cell::text("key"), Cell::text("value")],
+                vec![
+                    Cell::text("tenant_package"),
+                    Cell::text(value.to_string()),
+                ],
+            ],
+        )
+        .unwrap()
+    };
+    let workbook = parameter(&document);
+    let writer = workbook_artifacts(&workbook.rows, "t1").unwrap();
+    let profile = artifacts(&read(&document).unwrap(), "t1").unwrap();
+    assert_eq!(writer, profile);
+    let layout = Layout {
+        importable: vec![Artifact {
+            name: "export_election_event-synthetic.json".into(),
+            bytes: br#"{"messaging_config":{"version":1,"channels":[{"channel":"SMS","account_id":"package:sample-sms"}]}}"#.to_vec(),
+        }],
+        archive_name: "test.zip".into(),
+        auxiliary: writer,
+    };
+    let outer = delivery(&layout).unwrap();
+    let members = read_zip(&outer.bytes, "delivery").unwrap();
+    let portal = members
+        .iter()
+        .find(|f| f.name == ADMIN_PORTAL_MEMBER)
+        .unwrap();
+    let nested = read_zip(&portal.bytes, "portal").unwrap();
+    assert_eq!(nested, profile);
+    let filed = file_entries(&members).unwrap();
+    assert_eq!(
+        coverage(&filed, &Requirements::default()).sections
+            [&Section::MessagingAccounts],
+        SectionState::Present {
+            members: vec![MEMBER.into()]
+        },
+    );
+
+    let mut contaminated = document;
+    contaminated["messagingAccounts"]["accounts"][0]["sender"]
+        ["access_token"] = "CANARY-DO-NOT-RETAIN".into();
+    let mut plan = Blueprint {
+        platform: vec![parameter(&contaminated)],
+        ..Default::default()
+    };
+    for encoded in [false, true] {
+        if encoded {
+            let row = &mut plan.platform[0].rows[0];
+            row.cells.retain(|(key, _)| key != "value");
+            row.cells.push((
+                "value".into(),
+                Value::String(contaminated.to_string()),
+            ));
+        }
+        let err = save_file(&plan, &Sources::from_plan(&plan)).unwrap_err();
+        assert!(!format!("{err:?}").contains("CANARY"));
+    }
+    assert!(
+        !format!("{:?}", read(&contaminated).unwrap_err()).contains("CANARY")
     );
 }

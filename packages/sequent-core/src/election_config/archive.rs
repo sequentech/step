@@ -281,6 +281,7 @@ pub const TRUSTEES_MEMBER: &str = "trustees_public.json";
 fn admin_portal_member(name: &str) -> bool {
     name == "admin_users.csv"
         || name == TRUSTEES_MEMBER
+        || name == super::portable_messaging::MEMBER
         || name.starts_with(TENANT_SETTINGS_PREFIX)
         || name.starts_with(TENANT_CONFIGURATION_PREFIX)
         || name.starts_with("export_permissions-")
@@ -958,7 +959,10 @@ mod tests {
             coverage, CensusRequirement, Disposition, Requirements, Section,
         };
         use crate::election_config::tenant_package;
-        let source = portal_bundle();
+        let mut source = portal_bundle();
+        source.export["messaging_config"] = serde_json::json!({
+            "version":1, "channels":[{"channel":"SMS","account_id":"package:sms"}]
+        });
         let mut layout = layout(&source);
         // The bundle already writes administrators and roles from its sheets;
         // the package adds the three sections no sheet carries.
@@ -966,6 +970,7 @@ mod tests {
             "format": "sequent.tenant-package/1",
             "tenantConfiguration": {"votingChannels": {"online": true}},
             "tenantSettings": {"displayName": "Example"},
+             "messagingAccounts": {"format":"sequent.tenant-messaging-accounts/1","accounts":[{"reference":"sms","name":"Example SMS","sender":{"provider":"AWS_SNS"}}]},
             "trustees": [{"name": "t", "signingPublicKey": "AAAA", "shareEncryptionPublicKey": "AAAA"}]
         }))
         .unwrap();
@@ -1201,6 +1206,7 @@ pub const WORKBOOK_MEMBER: &str = "election_workbook.xlsx";
 pub fn delivery(
     layout: &Layout,
 ) -> Result<Artifact, crate::election_config::Problem> {
+    super::portable_messaging::validate_delivery(layout)?;
     let importable = zip_stored(&layout.importable)?;
 
     let mut members = Vec::with_capacity(layout.auxiliary.len() + 2);
@@ -1283,6 +1289,11 @@ pub fn save_file(
         .map_err(|_| crate::election_config::Problem::error(
             Code::NotApproved, "save", "ordinary plans cannot carry administrator or trustee credentials"
         ))?;
+
+    super::portable_messaging::validate_workbook_sheets(
+        &plan.platform,
+        plan.base_export.as_ref(),
+    )?;
 
     let refused = |message: String| {
         crate::election_config::Problem::error(

@@ -360,6 +360,11 @@ pub fn read_plan_value(
     super::demo_credentials::reject_ordinary_credentials(&plan.platform)
         .map_err(|_| Problem::error(Code::NotApproved, "plan", "ordinary plans cannot carry administrator or trustee credentials"))?;
 
+    super::portable_messaging::validate_workbook_sheets(
+        &plan.platform,
+        plan.base_export.as_ref(),
+    )?;
+
     Ok(ReadPlan {
         sources: Sources {
             census: (!lifted.is_empty()).then(|| {
@@ -1824,6 +1829,12 @@ pub fn validate_plan(plan: &Blueprint, sources: &Sources) -> Report {
     {
         report.problems.extend(credentials.problems);
     }
+    if let Err(problem) = super::portable_messaging::validate_workbook_sheets(
+        &plan.platform,
+        plan.base_export.as_ref(),
+    ) {
+        report.push(problem);
+    }
     if let Some(problem) = election_identifier_problem(plan) {
         report.push(problem);
     }
@@ -3273,6 +3284,10 @@ fn to_workbook_with_base(
 ) -> Result<Workbook, Problem> {
     super::demo_credentials::reject_ordinary_credentials(&plan.platform)
         .map_err(|_| Problem::error(Code::NotApproved, "workbook", "ordinary workbooks cannot carry administrator or trustee credentials"))?;
+    super::portable_messaging::validate_workbook_sheets(
+        &plan.platform,
+        plan.base_export.as_ref(),
+    )?;
     if let Some(problem) = election_identifier_problem(plan) {
         return Err(problem);
     }

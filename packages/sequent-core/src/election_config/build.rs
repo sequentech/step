@@ -461,6 +461,11 @@ pub fn build(
     sources: &Sources,
 ) -> Result<Bundle, Report> {
     super::demo_credentials::reject_ordinary_credentials(workbook.sheets())?;
+    super::portable_messaging::validate_workbook_sheets(
+        workbook.sheets(),
+        options.base_export.as_ref(),
+    )
+    .map_err(Report::from_problem)?;
     Builder::new(workbook, templates, options, sources)?.build()
 }
 

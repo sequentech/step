@@ -16,6 +16,7 @@ export const PACKAGE_SECTIONS = [
     "role-permissions",
     "admin-accounts",
     "trustees",
+    "messaging-accounts",
     "election-event",
 ] as const
 
@@ -28,9 +29,9 @@ export interface PackageRequirements {
     census: CensusRequirement
 }
 
-/** What a complete delivery carries: every section and its census. */
+/** Default required sections and census; portable messaging is opt-in. */
 export const COMPLETE_DELIVERY: PackageRequirements = {
-    sections: [...PACKAGE_SECTIONS],
+    sections: PACKAGE_SECTIONS.filter((section) => section !== "messaging-accounts"),
     census: "required",
 }
 
@@ -204,6 +205,34 @@ export const readManagedPreview = (
 export const sectionsToChange = (view: ApplicationView): number =>
     view.sections.filter((s) => s.preview?.needsApply).length
 
+export type PortablePreviewState = "not-needed" | "matched" | "unavailable"
+
+/** The receiving task must bind portable declarations to the operator's exact
+ * successful Preview even where the signing roster itself is not managed. */
+export const readPortablePreview = (
+    annotations: unknown,
+    tenantId: string,
+    requirements: PackageRequirements
+): PortablePreviewState => {
+    const record = asObject(asObject(annotations).application)
+    const sections = asObject(asObject(record.coverage).sections)
+    if (asObject(sections["messaging-accounts"]).state !== "present") return "not-needed"
+    const plan = asObject(record.managedRequirements)
+    if (
+        record.format !== "sequent.package-application/1" ||
+        record.tenantId !== tenantId ||
+        record.mode !== "preview" ||
+        record.outcome !== "previewed" ||
+        typeof record.messagingPlanSha256 !== "string" ||
+        !/^[0-9a-f]{64}$/.test(record.messagingPlanSha256) ||
+        !Array.isArray(plan.sections) ||
+        new Set(plan.sections).size !== plan.sections.length ||
+        !sameRequirements({sections: plan.sections, census: plan.census}, requirements)
+    )
+        return "unavailable"
+    return "matched"
+}
+
 export interface PreviewedPackage {
     tenantId: string
     documentId: string
@@ -213,6 +242,7 @@ export interface PreviewedPackage {
     /** Authenticated digest of the uploaded document this finished task previewed. */
     encryptedPayloadSha256?: string
     managedBinding?: ManagedPreviewBinding | null
+    portablePreview?: PortablePreviewState
 }
 
 const sameRequirements = (a: PackageRequirements, b: PackageRequirements): boolean =>
@@ -332,6 +362,31 @@ export const changeLines = (changes: unknown): string[] => {
     const entries = Array.isArray(changes) ? changes : changes ? [changes] : []
     return entries.map((raw) => {
         const change = asObject(raw)
+        const reference = change.reference
+        if (
+            typeof reference === "string" &&
+            /^package:[a-z0-9-]+$/.test(reference) &&
+            (change.action === "create" || change.action === "reuse")
+        ) {
+            const provider =
+                typeof change.provider === "string" &&
+                [
+                    "AWS_SES",
+                    "AWS_SNS",
+                    "VIBER_INFOBIP",
+                    "WHATSAPP_CLOUD_API",
+                    "MESSENGER_SEND_API",
+                ].includes(change.provider)
+                    ? change.provider
+                    : null
+            const channel =
+                typeof change.channel === "string" && /^[A-Z_]{2,24}$/.test(change.channel)
+                    ? change.channel
+                    : null
+            return [safeText(reference), change.action, channel, provider]
+                .filter(Boolean)
+                .join(" · ")
+        }
         const subject = ["field", "username", "group", "name", "electionEventId"]
             .map((key) => change[key])
             .filter((v): v is string => typeof v === "string")
@@ -352,7 +407,24 @@ export const changeLines = (changes: unknown): string[] => {
         // What the importer warns about without blocking, such as a file from a
         // different major version (meta#14760): said on the line, not dropped.
         const warnings = names(change.warnings)
-        if (warnings.length) parts.push(`warning: ${warnings.join("; ")}`)
+        if (warnings.length) parts.push(`warning: ${warnings.map(safeText).join("; ")}`)
+        if (Array.isArray(change.pendingMessaging)) {
+            for (const rawMessaging of change.pendingMessaging) {
+                const {channel, purposes} = asObject(rawMessaging)
+                const pending = names(purposes).filter(
+                    (purpose) => purpose === "OTP" || purpose === "NOTICE"
+                )
+                if (
+                    typeof channel === "string" &&
+                    /^[A-Z_]{2,24}$/.test(channel) &&
+                    pending.length
+                ) {
+                    parts.push(
+                        `${channel}: ${pending.join(", ")} disabled pending provider verification`
+                    )
+                }
+            }
+        }
         if (
             change.field === "displayName" &&
             (typeof change.to === "string" || change.to === null)

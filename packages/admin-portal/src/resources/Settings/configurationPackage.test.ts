@@ -5,6 +5,7 @@
 import {
     COMPLETE_DELIVERY,
     PACKAGE_PERMISSIONS,
+    PACKAGE_SECTIONS,
     changeLines,
     isFinished,
     lastLogLine,
@@ -295,5 +296,38 @@ describe("platform text", () => {
         expect(safeText(`bad secret ${"Ab9".repeat(20)} here`)).toBe("bad secret [redacted] here")
         expect(safeText("x ".repeat(400)).length).toBeLessThanOrEqual(301)
         expect(safeText("import failed")).toBe("import failed")
+    })
+})
+
+describe("portable messaging preview", () => {
+    it("recognizes the messaging section without requiring it for legacy deliveries", () => {
+        expect(PACKAGE_SECTIONS).toContain("messaging-accounts")
+        expect(COMPLETE_DELIVERY.sections).not.toContain("messaging-accounts")
+    })
+
+    it("shows portable account actions and omits unrelated payload fields", () => {
+        expect(
+            changeLines([
+                {
+                    reference: "package:ses",
+                    action: "create",
+                    channel: "EMAIL",
+                    provider: "AWS_SES",
+                    secret: "not-for-display",
+                },
+                {reference: "package:sns", action: "reuse", channel: "SMS", provider: "AWS_SNS"},
+            ])
+        ).toEqual(["package:ses · create · EMAIL · AWS_SES", "package:sns · reuse · SMS · AWS_SNS"])
+    })
+
+    it("distinguishes a linked account from an enabled OTP or notice", () => {
+        expect(
+            changeLines({
+                pendingMessaging: [
+                    {channel: "EMAIL", purposes: ["OTP", "NOTICE", "INTERNAL"]},
+                    {channel: "SMS", purposes: []},
+                ],
+            })
+        ).toEqual(["EMAIL: OTP, NOTICE disabled pending provider verification"])
     })
 })

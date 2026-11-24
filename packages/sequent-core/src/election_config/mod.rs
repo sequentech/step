@@ -34,6 +34,9 @@ pub mod demo_credentials;
 #[cfg(feature = "election_config_templates")]
 mod messaging_config;
 
+#[cfg(feature = "election_config_templates")]
+pub mod portable_messaging;
+
 /// What a bundle becomes as files. Needs the builder, so it shares its feature;
 /// the zip writer itself is behind `election_config_archive`.
 #[cfg(feature = "election_config_templates")]

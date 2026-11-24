@@ -151,6 +151,7 @@ const englishTranslation = {
             sections: {
                 "tenant-configuration": "Tenant configuration",
                 "tenant-settings": "Tenant settings",
+                "messaging-accounts": "Messaging accounts",
                 "role-permissions": "Role permissions",
                 "admin-accounts": "Administrator accounts",
                 "trustees": "Trustees",

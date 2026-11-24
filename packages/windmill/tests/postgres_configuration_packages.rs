@@ -1015,6 +1015,7 @@ async fn managed_section_readmits_its_sealed_package_but_stops_after_replay_or_r
                 package_groups: Default::default(),
                 package_trustees: Default::default(),
                 demo_login: None,
+                package_messaging: None,
                 verified: Some(Arc::new(*verified)),
             },
             event_imported_by_this_run: AtomicBool::new(false),

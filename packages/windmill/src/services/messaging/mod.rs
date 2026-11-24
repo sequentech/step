@@ -15,5 +15,6 @@ pub mod dispatch;
 pub mod insights;
 pub mod keys;
 pub mod links;
+pub mod portable_registry;
 pub mod reconcile;
 pub mod webhooks;

@@ -160,6 +160,7 @@ const spanishTranslation: TranslationType = {
             sections: {
                 "tenant-configuration": "Configuración del cliente",
                 "tenant-settings": "Ajustes del cliente",
+                "messaging-accounts": "Cuentas de mensajería",
                 "role-permissions": "Permisos de roles",
                 "admin-accounts": "Cuentas de administración",
                 "trustees": "Autoridades",

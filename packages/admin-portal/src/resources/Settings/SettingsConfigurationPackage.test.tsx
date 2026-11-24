@@ -740,6 +740,75 @@ it("uses the exact successful server-bound Preview only after managed Apply conf
     expect(mockApply).toHaveBeenCalledTimes(1)
 })
 
+const finishPortablePreview = (sha: string | null = "a5".repeat(32)) => {
+    const annotated = record("previewed")
+    annotated.application.coverage = {
+        ...annotated.application.coverage,
+        sections: {
+            ...annotated.application.coverage.sections,
+            ...({
+                "messaging-accounts": {
+                    state: "present",
+                    members: ["tenant_messaging_accounts.json"],
+                },
+            } as Record<string, {state: string; members: string[]}>),
+        },
+    }
+    Object.assign(annotated.application, {
+        managedRequirements: COMPLETE_DELIVERY,
+        ...(sha === null ? {} : {messagingPlanSha256: sha}),
+    })
+    mockTask = task("task-p", "SUCCESS", annotated)
+}
+
+it.each(["not_enabled", "site_pinned"] as const)(
+    "uses the exact successful Preview for portable messaging in %s mode",
+    async (mode) => {
+        mockRoster = {
+            ...legacyRoster,
+            mode,
+            active_sha256: mode === "site_pinned" ? rosterSha : null,
+        }
+        const view = await previewed()
+        finishPortablePreview()
+        view.rerender(<SettingsConfigurationPackage />)
+        expect(applyButton().disabled).toBe(false)
+        mockManagedApply.mockResolvedValueOnce(accepted("task-a"))
+        await apply()
+        expect(mockManagedApply).toHaveBeenCalledWith({
+            variables: {
+                tenantId: "t1",
+                documentId: "doc-1",
+                requirements: COMPLETE_DELIVERY,
+                previewTaskId: "task-p",
+            },
+        })
+        expect(mockManagedApply).toHaveBeenCalledTimes(1)
+        expect(mockApply).toHaveBeenCalledTimes(1)
+        expect(mockRosterRead).not.toHaveBeenCalled()
+    }
+)
+
+it("fails before Apply when a portable Preview has no server recipient-plan receipt", async () => {
+    const view = await previewed()
+    finishPortablePreview(null)
+    view.rerender(<SettingsConfigurationPackage />)
+    expect(applyButton().disabled).toBe(true)
+    expect(mockManagedApply).not.toHaveBeenCalled()
+    expect(mockApply).toHaveBeenCalledTimes(1)
+})
+
+it("does not reuse another actor's portable Preview", async () => {
+    const view = await previewed()
+    finishPortablePreview()
+    view.rerender(<SettingsConfigurationPackage />)
+    expect(applyButton().disabled).toBe(false)
+    mockActor = "operator-b"
+    view.rerender(<SettingsConfigurationPackage />)
+    expect(applyButton().disabled).toBe(true)
+    expect(mockManagedApply).not.toHaveBeenCalled()
+})
+
 it("drops a managed Preview when confirmation refetch observes a rotated roster", async () => {
     mockRoster = managedRoster
     const view = await previewed()

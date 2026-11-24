@@ -175,6 +175,17 @@ pub async fn apply_configuration_package_route(
         &task_execution.id,
         input.preview_task_id.as_deref(),
     );
+    let portable_messaging_authorized = authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![
+            Permissions::MESSAGING_ACCOUNT_READ,
+            Permissions::MESSAGING_ACCOUNT_WRITE,
+            Permissions::MESSAGING_CONFIG_WRITE,
+        ],
+    )
+    .is_ok();
     let body = ApplyConfigurationPackageBody {
         tenant_id: input.tenant_id.clone(),
         document_id: input.document_id.clone(),
@@ -183,6 +194,7 @@ pub async fn apply_configuration_package_route(
         preview_task_id: input.preview_task_id,
         encrypted_payload_sha256: input.encrypted_payload_sha256,
         managed_preview_operator_binding: operator_binding,
+        portable_messaging_authorized,
         event_import,
         audit_actor: Some(audit::actor(&claims)),
         executed_by,

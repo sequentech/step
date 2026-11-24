@@ -137,7 +137,15 @@ pub async fn execute(
     tenant_id: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
-    execute_with_package_snapshot(object, election_event_id, tenant_id, task_execution, None).await
+    execute_with_package_snapshot(
+        object,
+        election_event_id,
+        tenant_id,
+        task_execution,
+        None,
+        None,
+    )
+    .await
 }
 
 /// Only full-package Apply may pass its already-admitted original snapshot.
@@ -148,6 +156,9 @@ pub(crate) async fn execute_with_package_snapshot(
     tenant_id: String,
     task_execution: TasksExecution,
     package_snapshot: Option<std::sync::Arc<[u8]>>,
+    package_messaging: Option<
+        std::sync::Arc<crate::services::import::configuration_package_messaging::PackageMessaging>,
+    >,
 ) -> Result<()> {
     // What the import left out, with its reason, for the task's log.
     let notes = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
@@ -157,6 +168,7 @@ pub(crate) async fn execute_with_package_snapshot(
         let election_event_id = election_event_id.clone();
         let notes = notes.clone();
         let package_snapshot = package_snapshot.clone();
+        let package_messaging = package_messaging.clone();
 
         Box::pin(async move {
             let imported = import_election_event_service::process_document(
@@ -165,6 +177,7 @@ pub(crate) async fn execute_with_package_snapshot(
                 election_event_id.clone(),
                 tenant_id.clone(),
                 package_snapshot.as_deref(),
+                package_messaging.as_deref(),
             )
             .await?;
             let name = imported_name(hasura_transaction, &tenant_id, &election_event_id).await?;

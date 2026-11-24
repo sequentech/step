@@ -76,6 +76,7 @@ import {
     readApplication,
     recalledSubmission,
     readManagedPreview,
+    readPortablePreview,
     changeLines,
     rememberSubmission,
     safeText,
@@ -259,6 +260,11 @@ const SettingsConfigurationPackageForScope: React.FC<{
                     tenantId,
                     submitted.requirements
                 ),
+                portablePreview: readPortablePreview(
+                    task?.annotations,
+                    tenantId,
+                    submitted.requirements
+                ),
             })
         }
         // refreshHistory is a fresh closure each render; the task finishing is the trigger.
@@ -275,14 +281,21 @@ const SettingsConfigurationPackageForScope: React.FC<{
     ])
 
     const matchesTrust = (current: RosterStatus | null, preview: PreviewedPackage | null) => {
-        if (!rosterStateAllowsImport(current)) return false
-        if (current?.mode !== "portal_managed") return !preview?.managedBinding
-        return (
+        if (!rosterStateAllowsImport(current) || preview?.portablePreview === "unavailable")
+            return false
+        const thisOperatorsPreview =
             !!preview?.taskId &&
             !!scope.current.actor &&
             operatorPreview.current?.scope === scope.current &&
-            operatorPreview.current.taskId === preview.taskId &&
-            !!preview.managedBinding &&
+            operatorPreview.current.taskId === preview.taskId
+        if (current?.mode !== "portal_managed")
+            return (
+                !preview?.managedBinding &&
+                (preview?.portablePreview !== "matched" || thisOperatorsPreview)
+            )
+        return (
+            thisOperatorsPreview &&
+            !!preview?.managedBinding &&
             preview.managedBinding.sha256 === current.active_sha256 &&
             preview.managedBinding.generation === current.generation &&
             preview.managedBinding.requiredApprovals === current.required_approvals
@@ -364,6 +377,11 @@ const SettingsConfigurationPackageForScope: React.FC<{
                     return
                 }
                 previewTaskId = forPreview?.taskId
+                if (!previewTaskId) return
+            } else if (mode === "apply" && forPreview?.portablePreview === "matched") {
+                // Portable account choices are pinned by the receiver even
+                // when verification uses certificate or site-pinned trust.
+                previewTaskId = forPreview.taskId
                 if (!previewTaskId) return
             }
             operatorPreview.current = null
@@ -813,7 +831,11 @@ const SettingsConfigurationPackageForScope: React.FC<{
 /** What applying would change, section by section: names, actions and keys only. */
 const ProposedChanges: React.FC<{view: ApplicationView}> = ({view}) => {
     const {t} = useTranslation()
-    const changing = view.sections.filter((section) => section.preview?.needsApply)
+    const changing = view.sections.filter(
+        (section) =>
+            section.preview?.needsApply ||
+            (section.section === "messaging-accounts" && !!section.preview?.changes)
+    )
     return (
         <Box data-testid="package-proposed-changes">
             <Typography variant="subtitle2" component="h3">

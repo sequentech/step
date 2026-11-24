@@ -91,6 +91,11 @@ const PLATFORM_SHEETS: &[&str] = &[
 /// treat a bad document the same way.
 pub fn plan_from_workbook(workbook: &Workbook) -> Result<ReadPlan, Report> {
     super::demo_credentials::reject_ordinary_credentials(workbook.sheets())?;
+    super::portable_messaging::validate_workbook_sheets(
+        workbook.sheets(),
+        None,
+    )
+    .map_err(Report::from_problem)?;
     let mut report = Report::default();
     let mut plan = Blueprint {
         version: BLUEPRINT_VERSION,

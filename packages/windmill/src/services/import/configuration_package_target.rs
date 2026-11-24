@@ -10,6 +10,7 @@
 use super::configuration_package_apply::{
     PackageTarget, SectionPreview, SectionSubmission, TaskState,
 };
+use super::configuration_package_messaging::{explain, pending_note, PackageMessaging};
 use super::configuration_package_sections::{
     absent_admin_rows, admin_changes, admin_column_problems, admin_detail_problems,
     admin_permission_label_updates, admin_profile_updates, event_changes, merged_tenant,
@@ -44,6 +45,7 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::election_config::archive::Artifact;
+use sequent_core::election_config::design::DesignDigestAlgorithm;
 use sequent_core::election_config::manifest::read_zip;
 use sequent_core::election_config::package_contract::Section;
 use sequent_core::election_config::tenant_package::secret_field_paths;
@@ -52,6 +54,7 @@ use sequent_core::election_config::tenant_package::TrusteePublic;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
+use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
@@ -91,6 +94,8 @@ pub struct ApplyContext {
     >,
     pub verified:
         Option<std::sync::Arc<sequent_core::election_config::package_verify::VerifiedPackage>>,
+    /// In-process only and constructed from the verified signed account member.
+    pub package_messaging: Option<std::sync::Arc<PackageMessaging>>,
 }
 
 /// The event's id on this tenant: derived from the tenant and the package, so
@@ -131,16 +136,49 @@ impl PlatformTarget {
     /// Existing-user profile updates require the enqueue-time stamp
     /// AND the unchanged initiating user's currently effective roles in this realm.
     async fn require_live_admin_profile_write(&self) -> Result<()> {
-        let deny = || {
-            anyhow!(
-                "administrator profile changes require a currently authorized tenant user editor"
-            )
-        };
+        const DENIED: &str =
+            "administrator profile changes require a currently authorized tenant user editor";
         if self.context.verified.is_none()
             || !profile_write_stamped(&self.context.event_import.privileges)
         {
-            return Err(deny());
+            return Err(anyhow!("{DENIED}"));
         }
+        self.require_live_permissions(&[Permissions::USER_WRITE, Permissions::ROLE_WRITE], DENIED)
+            .await
+    }
+
+    async fn require_portable_messaging(&self) -> Result<&PackageMessaging> {
+        const DENIED: &str =
+            "portable messaging requires a currently authorized tenant messaging administrator";
+        let plan = self
+            .context
+            .package_messaging
+            .as_deref()
+            .ok_or_else(|| anyhow!("{DENIED}"))?;
+        if self.context.verified.is_none()
+            || self.context.event_import.messaging_config_permission
+                != crate::services::messaging::config::MessagingConfigPermission::PERMITTED
+        {
+            return Err(anyhow!("{DENIED}"));
+        }
+        self.require_live_permissions(
+            &[
+                Permissions::MESSAGING_ACCOUNT_READ,
+                Permissions::MESSAGING_ACCOUNT_WRITE,
+                Permissions::MESSAGING_CONFIG_WRITE,
+            ],
+            DENIED,
+        )
+        .await?;
+        Ok(plan)
+    }
+
+    async fn require_live_permissions(
+        &self,
+        required: &[Permissions],
+        denial: &'static str,
+    ) -> Result<()> {
+        let deny = || anyhow!("{denial}");
         let actor = self
             .context
             .audit_actor
@@ -169,8 +207,7 @@ impl PlatformTarget {
             .await
             .map_err(|_| deny())?;
         let roles: BTreeSet<_> = roles.into_iter().filter_map(|role| role.name).collect();
-        use sequent_core::types::permissions::Permissions;
-        if ![Permissions::USER_WRITE, Permissions::ROLE_WRITE]
+        if !required
             .iter()
             .all(|permission| roles.contains(&permission.to_string()))
         {
@@ -614,6 +651,30 @@ impl PlatformTarget {
                 let existing = get_all_trustees(&transaction, &self.context.tenant_id).await?;
                 Ok(trustee_changes(&wanted, &existing))
             }
+            Section::MessagingAccounts => {
+                let result = async {
+                    let plan = self.require_portable_messaging().await?;
+                    let mut db: DbClient = get_hasura_pool().await.get().await?;
+                    let tx = db.transaction().await?;
+                    let registry = plan.plan(&tx).await?;
+                    let changes = plan.changes(&registry)?;
+                    let needs_apply = registry
+                        .bindings
+                        .values()
+                        .any(|row| row.existing_fingerprint.is_none());
+                    Ok::<_, anyhow::Error>(SectionPreview {
+                        needs_apply,
+                        changes,
+                        blockers: vec![],
+                    })
+                }
+                .await;
+                Ok(result.unwrap_or_else(|error| SectionPreview {
+                    needs_apply: false,
+                    changes: json!([]),
+                    blockers: vec![portable_blocker(&error)],
+                }))
+            }
             Section::ElectionEvent => {
                 let event_zip = &one(files, "election event")?.bytes;
                 let event_id =
@@ -622,6 +683,7 @@ impl PlatformTarget {
                 // Said in the preview, never a blocker: a different major
                 // version imports with a warning (meta#14760).
                 let mut warnings: Vec<String> = Vec::new();
+                let mut pending_messaging = vec![];
                 let mut db: DbClient = get_hasura_pool().await.get().await?;
                 let transaction = db.transaction().await?;
                 // The importer's own validation of the event, before anything
@@ -635,7 +697,7 @@ impl PlatformTarget {
                 )
                 .await
                 {
-                    Ok((schema, _, read_warnings)) => {
+                    Ok((schema, replacement_map, read_warnings)) => {
                         warnings.extend(read_warnings.iter().map(ToString::to_string));
                         // The importer skips a messaging configuration its caller
                         // may not write and still reports the event imported.
@@ -651,6 +713,39 @@ impl PlatformTarget {
                             ),
                             &self.context.event_import.messaging_config_permission,
                         ));
+                        let is_v2 = self.context.verified.as_ref().is_some_and(|package| {
+                            package.manifest.content.ballot_design_digest_algorithm
+                                == DesignDigestAlgorithm::V2
+                        });
+                        if is_v2 && problems.is_empty() {
+                            let election_ids: Vec<String> =
+                                schema.elections.iter().map(|e| e.id.clone()).collect();
+                            if let Some(portable) = self.context.package_messaging.as_deref() {
+                                match schema.messaging_config.as_ref() {
+                                    None => problems.push("The signed event has no messaging references for its declared accounts.".into()),
+                                    Some(config) => {
+                                        match portable.preview_event(&transaction, config, &replacement_map, &election_ids).await {
+                                            Ok(preview) if !preview.pending.is_empty() => {
+                                                warnings.push(pending_note(&preview.pending));
+                                                pending_messaging = preview.pending;
+                                            }
+                                            Ok(_) => {}
+                                            Err(error) => problems.push(portable_blocker(&error)),
+                                        }
+                                    }
+                                }
+                            } else if let Some(config) = schema.messaging_config.as_ref() {
+                                use crate::services::messaging::config::preview_import_event_messaging_config;
+                                let tenant = uuid::Uuid::parse_str(&self.context.tenant_id)?;
+                                match preview_import_event_messaging_config(
+                                    &transaction, &tenant, &election_ids, config, &replacement_map,
+                                    self.context.event_import.messaging_config_permission,
+                                ).await {
+                                    Ok(errors) => problems.extend(errors.iter().map(explain)),
+                                    Err(_) => problems.push("The signed event messaging configuration cannot be validated in this tenant.".into()),
+                                }
+                            }
+                        }
                         let referenced: Vec<String> = schema
                             .keys_ceremonies
                             .iter()
@@ -700,9 +795,12 @@ impl PlatformTarget {
                     (false, None) => EventState::Absent,
                 };
                 let mut preview = event_changes(&event_id, &state, &census, problems);
-                if !warnings.is_empty() {
-                    if let Some(change) = preview.changes.get_mut(0) {
-                        change["warnings"] = serde_json::json!(warnings);
+                if let Some(change) = preview.changes.get_mut(0) {
+                    if !warnings.is_empty() {
+                        change["warnings"] = json!(warnings);
+                    }
+                    if !pending_messaging.is_empty() {
+                        change["pendingMessaging"] = json!(pending_messaging);
                     }
                 }
                 Ok(preview)
@@ -719,6 +817,13 @@ impl PackageTarget for PlatformTarget {
 
     fn managed_preview_operator_binding(&self) -> Option<&str> {
         self.context.managed_preview_operator_binding.as_deref()
+    }
+
+    fn messaging_plan_sha256(&self) -> Option<String> {
+        self.context
+            .package_messaging
+            .as_deref()
+            .and_then(PackageMessaging::fingerprint)
     }
 
     async fn hold_imports(&self) -> Result<Box<dyn std::any::Any + Send>> {
@@ -746,7 +851,7 @@ impl PackageTarget for PlatformTarget {
             Section::AdminAccounts => ETasksExecution::IMPORT_USERS,
             Section::ElectionEvent => ETasksExecution::IMPORT_ELECTION_EVENT,
             // One transaction in this process: nothing outlives the run.
-            Section::Trustees => return Ok(None),
+            Section::Trustees | Section::MessagingAccounts => return Ok(None),
         };
         let task = post(
             &self.context.tenant_id,
@@ -1078,7 +1183,36 @@ impl PackageTarget for PlatformTarget {
                     detail: json!({"registered": registered}),
                 })
             }
+            Section::MessagingAccounts => {
+                let plan = self.require_portable_messaging().await?;
+                let mut db: DbClient = get_hasura_pool().await.get().await?;
+                let tx = db.transaction().await?;
+                let changes = plan
+                    .install(&tx)
+                    .await
+                    .map_err(|error| anyhow!("{}", portable_blocker(&error)))?;
+                let audit = task_audit::tenant_config(
+                    self.context.audit_actor.clone(),
+                    &self.context.tenant_id,
+                    AdminAction::Import,
+                    json!({
+                        "section": "messaging-accounts", "changes": changes,
+                        "recipientAccountIds": plan.audit_bindings()?,
+                    }),
+                )?;
+                crate::services::audit_log::stage(&tx, &audit).await?;
+                tx.commit().await?;
+                plan.installed();
+                crate::tasks::audit_log_outbox::kick_audit_log_outbox();
+                Ok(SectionSubmission {
+                    task_id: None,
+                    detail: json!({ "changes": changes }),
+                })
+            }
             Section::ElectionEvent => {
+                if self.context.package_messaging.is_some() {
+                    self.require_portable_messaging().await?;
+                }
                 let (document_id, protected_snapshot) = match (
                     &self.context.protected_document_id,
                     &self.context.signed_package,
@@ -1114,6 +1248,7 @@ impl PackageTarget for PlatformTarget {
                     self.context.tenant_id.clone(),
                     task.clone(),
                     protected_snapshot,
+                    self.context.package_messaging.clone(),
                 )
                 .await;
                 let mut submission = self.terminal(&task, ran).await?;
@@ -1123,6 +1258,25 @@ impl PackageTarget for PlatformTarget {
                 Ok(submission)
             }
         }
+    }
+}
+
+/// Only explicitly public validation errors are passed to the task UI.
+fn portable_blocker(error: &anyhow::Error) -> String {
+    let msg = error.to_string();
+    if msg == super::configuration_package_messaging::STALE
+        || msg.starts_with("The signed event ")
+        || msg.starts_with("portable messaging requires ")
+        || msg.starts_with("The destination messaging ")
+        || msg.starts_with("Unbound package messaging ")
+        || msg.starts_with("portable messaging reference package:")
+        || msg == "portable messaging accounts changed; preview the configuration package again"
+        || msg == "portable messaging registry is busy; preview the configuration package again"
+    {
+        msg
+    } else {
+        "The portable messaging plan cannot be resolved or is no longer available in this tenant."
+            .into()
     }
 }
 

@@ -123,6 +123,9 @@ pub struct TenantPackage {
     pub admin_accounts: Option<Vec<AdminAccount>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trustees: Option<Vec<TrusteePublic>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub messaging_accounts:
+        Option<super::portable_messaging::PortableMessagingAccounts>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub provenance: Provenance,
 }
@@ -130,6 +133,11 @@ pub struct TenantPackage {
 /// Read and check a tenant package document.
 pub fn read(json: &Value) -> Result<TenantPackage, Report> {
     let mut report = Report::default();
+    if let Some(value) = json.get("messagingAccounts") {
+        if let Err(problem) = super::portable_messaging::validate_value(value) {
+            return Err(Report::from_problem(problem));
+        }
+    }
     find_secret_fields(json, "tenant package", &mut report);
     if report.has_errors() {
         return Err(report);
@@ -185,6 +193,11 @@ fn blank(value: &str) -> bool {
 /// Every problem in the document's records, not only the first.
 pub fn check(package: &TenantPackage) -> Result<(), Report> {
     let mut report = Report::default();
+    if let Some(accounts) = &package.messaging_accounts {
+        if accounts.validate().is_err() {
+            report.push(super::portable_messaging::problem());
+        }
+    }
     let mut groups = BTreeSet::new();
     for (i, mapping) in package.role_mappings.iter().flatten().enumerate() {
         let at = format!("roleMappings[{i}]");
@@ -305,6 +318,15 @@ pub fn artifacts(
     tenant_id: &str,
 ) -> Result<Vec<Artifact>, Problem> {
     let mut written = Vec::new();
+    if let Some(accounts) = &package.messaging_accounts {
+        accounts
+            .validate()
+            .map_err(|_| super::portable_messaging::problem())?;
+        written.push(json_artifact(
+            super::portable_messaging::MEMBER.to_owned(),
+            &serde_json::to_value(accounts).map_err(encode)?,
+        ));
+    }
     if let Some(configuration) = &package.tenant_configuration {
         written.push(json_artifact(
             format!("{TENANT_CONFIGURATION_PREFIX}{tenant_id}.json"),
@@ -431,8 +453,8 @@ fn has_workbook_credential_fields(value: &Value) -> bool {
     }
 }
 
-/// A workbook can opt in to the two public tenant sections, but never
-/// administrator accounts, role grants, trustee keys or provider accounts.
+/// A workbook can carry public tenant sections and portable sender identities,
+/// but never administrator accounts, role grants, trustee keys or sender credentials.
 pub(super) fn workbook_artifacts(
     rows: &[super::sheet::Row],
     tenant_id: &str,
@@ -443,6 +465,8 @@ pub(super) fn workbook_artifacts(
         format: TenantPackageFormat,
         tenant_configuration: Option<TenantConfiguration>,
         tenant_settings: Option<TenantSettings>,
+        messaging_accounts:
+            Option<super::portable_messaging::PortableMessagingAccounts>,
     }
 
     let mut matching = rows.iter().filter(|row| {
@@ -462,6 +486,10 @@ pub(super) fn workbook_artifacts(
         .at(&origin));
     }
     let value = row.get("value").expect("matching row has a value");
+    if let Some(accounts) = value.get("messagingAccounts") {
+        super::portable_messaging::validate_value(accounts)
+            .map_err(|p| p.at(&origin))?;
+    }
     let config = &value["tenantConfiguration"];
     if ["settings", "annotations", "votingChannels"]
         .into_iter()
@@ -478,7 +506,7 @@ pub(super) fn workbook_artifacts(
         .map_err(|_| Problem::error(
             Code::InvalidValue,
             WORKBOOK_TENANT_PARAMETER,
-            "expected a sequent.tenant-package/1 object with tenantConfiguration and/or tenantSettings only",
+            "expected a sequent.tenant-package/1 object with tenantConfiguration, tenantSettings and/or messagingAccounts only",
         ).at(&origin))?;
     if parsed
         .tenant_configuration
@@ -502,6 +530,7 @@ pub(super) fn workbook_artifacts(
             role_mappings: None,
             admin_accounts: None,
             trustees: None,
+            messaging_accounts: parsed.messaging_accounts,
             provenance: Provenance::default(),
         },
         tenant_id,
