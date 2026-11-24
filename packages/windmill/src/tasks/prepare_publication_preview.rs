@@ -63,6 +63,7 @@ pub async fn prepare_publication_preview(
     ballot_publication_id: String,
     task_execution: TasksExecution,
     document_id: String,
+    area_id: Option<String>,
 ) -> Result<()> {
     let output_document_id = document_id.clone();
     let result = provide_hasura_transaction(move |tx| {
@@ -73,6 +74,7 @@ pub async fn prepare_publication_preview(
                 election_event_id,
                 ballot_publication_id,
                 document_id,
+                area_id,
             )
             .await?;
             Ok(())
@@ -95,6 +97,9 @@ pub async fn prepare_publication_preview(
     }
 }
 
+/// Writes the preview document of a publication. With an area, the document
+/// holds only that area's ballot styles; without one it holds every ballot
+/// style of the publication, which grows with the number of areas.
 #[instrument(err)]
 pub async fn prepare_publication_preview_task(
     hasura_transaction: &Transaction<'_>,
@@ -102,6 +107,7 @@ pub async fn prepare_publication_preview_task(
     election_event_id: String,
     ballot_publication_id: String,
     document_id: String,
+    area_id: Option<String>,
 ) -> AnyhowResult<String> {
     let publication = get_ballot_publication_by_id(
         hasura_transaction,
@@ -139,6 +145,7 @@ pub async fn prepare_publication_preview_task(
         election_event_id.clone(),
         ballot_publication_id.clone(),
         None,
+        area_id,
         None,
     )
     .await?;
