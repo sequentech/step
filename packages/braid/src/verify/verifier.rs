@@ -4,11 +4,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use colored::*;
 use serde::Serialize;
 use strum::Display;
-use tracing::info;
+use tracing::{info, warn};
 
 use b3::messages::artifact::Configuration;
 use b3::messages::message::Message;
@@ -17,7 +17,6 @@ use b3::messages::newtypes::*;
 use b3::messages::statement::StatementType;
 
 use crate::protocol::board::grpc_m::GrpcB3;
-use crate::protocol::board::Board;
 use crate::protocol::predicate::Predicate;
 use crate::protocol::trustee2::Trustee;
 
@@ -113,21 +112,39 @@ enum Check {
     PLAINTEXTS_VALID,
 }
 
+/// Whether every check on the board passed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VerificationOutcome {
+    Passed,
+    Failed,
+}
+
 pub struct Verifier<C: Ctx> {
     trustee: Trustee<C>,
     board: GrpcB3,
     board_name: String,
+    expected_cfg_h: Option<ConfigurationHash>,
 }
 impl<C: Ctx> Verifier<C> {
-    pub fn new(trustee: Trustee<C>, board: GrpcB3, board_name: &str) -> Verifier<C> {
+    /// Constructs a Verifier for the given board.
+    ///
+    /// When expected_cfg_h is given, the board's configuration must
+    /// have that hash.
+    pub fn new(
+        trustee: Trustee<C>,
+        board: GrpcB3,
+        board_name: &str,
+        expected_cfg_h: Option<ConfigurationHash>,
+    ) -> Verifier<C> {
         Verifier {
             trustee,
             board,
             board_name: board_name.to_string(),
+            expected_cfg_h,
         }
     }
 
-    pub async fn run(&mut self) -> Result<()> {
+    pub async fn run(&mut self) -> Result<VerificationOutcome> {
         let mut vr = VerificationResult::new(&self.board_name);
         vr.add_target(Check::CONFIGURATION_VALID);
         vr.add_target(Check::MESSAGE_SIGNATURES_VALID);
@@ -139,7 +156,7 @@ impl<C: Ctx> Verifier<C> {
             format!("Verifying board '{}'", self.board_name).bold()
         );
 
-        let messages = self.board.get_messages(&self.board_name, -1).await?;
+        let messages = self.board.get_all_messages(&self.board_name, -1).await?;
         let messages: Vec<(Message, i64)> = messages
             .iter()
             .map(|m| (Message::strand_deserialize(&m.message).unwrap(), m.id))
@@ -164,6 +181,21 @@ impl<C: Ctx> Verifier<C> {
             .unwrap();
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
         let cfg = Configuration::<C>::strand_deserialize(&cfg_bytes)?;
+        let cfg_hex = hex::encode(cfg_h);
+        match &self.expected_cfg_h {
+            Some(expected) if expected.0 != cfg_h => {
+                return Err(anyhow!(
+                    "Board configuration hash {} does not match the expected hash {}",
+                    cfg_hex,
+                    hex::encode(expected.0)
+                ));
+            }
+            Some(_) => info!("Configuration matches the expected hash [{}]", cfg_hex),
+            None => warn!(
+                "No expected configuration hash given, compare the board configuration hash [{}] with its published value",
+                cfg_hex
+            ),
+        }
         info!("Verifying configuration [{}]", dbg_hash(&cfg_h));
 
         vr.add_result(
@@ -197,7 +229,10 @@ impl<C: Ctx> Verifier<C> {
 
         let mut predicates = vec![];
         // Skip the configuration message
-        for message in &vmessages[1..] {
+        for message in vmessages
+            .iter()
+            .filter(|m| m.statement.get_kind() != StatementType::Configuration)
+        {
             let predicate =
                 Predicate::from_statement::<C>(&message.statement, message.signer_position, &cfg)?;
             predicates.push(predicate);
@@ -250,7 +285,7 @@ impl<C: Ctx> Verifier<C> {
 
         info!("{}", vr);
 
-        Ok(())
+        Ok(vr.outcome())
     }
 }
 
@@ -415,6 +450,15 @@ impl VerificationResult {
         }
 
         (ok, not_ok, self.children.len())
+    }
+
+    fn outcome(&self) -> VerificationOutcome {
+        let (_, not_ok, _) = self.totals();
+        if not_ok == 0 {
+            VerificationOutcome::Passed
+        } else {
+            VerificationOutcome::Failed
+        }
     }
 }
 
