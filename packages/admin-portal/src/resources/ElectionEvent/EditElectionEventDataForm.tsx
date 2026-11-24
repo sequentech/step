@@ -158,6 +158,7 @@ import {ballotBoxSealPolicyLock, ESealPolicyLock} from "@/services/ElectionStatu
 import {effectiveSealRecordPolicy} from "@/services/ballotBoxSealPolicy"
 import {sealErrorText} from "@/services/ballotBoxSealErrors"
 import {policyOptions} from "@/services/policyOptions"
+import {withSubmittedPermissionLabel} from "./permissionLabel"
 import {timeZoneContextOf} from "@/components/timezones/useTimeZoneContext"
 import {
     CONFIGURE_RESULTS_WEBSITE_POLICY,
@@ -1440,11 +1441,8 @@ export const EditElectionEventDataForm: React.FC<{
         }
         setActivateSave(false)
 
-        // Only an editor of the label sends it back; an empty input is stored as null.
-        const {permission_label: permissionLabel, ...rest} = values
         return {
-            ...rest,
-            ...(canEditPermissionLabel ? {permission_label: permissionLabel?.trim() || null} : {}),
+            ...withSubmittedPermissionLabel(values, canEditPermissionLabel),
             presentation: {
                 ...values.presentation,
                 lifecycle_policies: savedPolicies(),

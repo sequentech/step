@@ -108,9 +108,26 @@ fn no_role_reads_a_webhook_key_and_admin_user_reads_nothing() {
         for (role, permission) in &selects {
             let columns = columns(permission);
             assert!(!columns.contains("webhook_key"), "{name} as {role}");
-            assert_eq!(
-                permission["filter"],
-                serde_json::json!({"tenant_id": {"_eq": "X-Hasura-Tenant-Id"}}),
+            let tenant =
+                serde_json::json!({"tenant_id": {"_eq": "X-Hasura-Tenant-Id"}});
+            // A table of an election event also carries the event's
+            // permission label, which
+            // `hasura/tests/permission-labels.test.cjs` requires there.
+            let of_the_event = serde_json::json!({"_and": [
+                tenant,
+                {"_or": [
+                    {"election_event_id": {"_is_null": true}},
+                    {"election_event": {"_or": [
+                        {"permission_label": {"_is_null": true}},
+                        {"permission_label": {
+                            "_in": "X-Hasura-Permission-Labels"
+                        }},
+                    ]}},
+                ]},
+            ]});
+            assert!(
+                permission["filter"] == tenant
+                    || permission["filter"] == of_the_event,
                 "{name} as {role}: every read is the caller's tenant"
             );
         }
