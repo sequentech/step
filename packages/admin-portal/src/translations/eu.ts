@@ -1483,6 +1483,11 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    scheduleEnd: "Programatu blokeoaren amaiera",
+                    replaceEnd: "Ordeztu programatutako amaiera",
+                    cancelEnd: "Utzi bertan behera programatutako amaiera",
+                    ambiguousEnd: "Zain dagoen blokeo-amaiera baliogabea edo anbiguoa da.",
+                    cancelInvalidEnds: "Utzi bertan behera zain dauden blokeo-amaiera guztiak",
                     since: "Blokeatuta {{date}} unetik.",
                     scheduledEnd: "Blokeoaren amaiera {{date}} unerako programatuta dago.",
                     endScheduled: "Blokeoaren amaiera programatuta dago.",

@@ -1496,6 +1496,11 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    scheduleEnd: "Einde van de lockdown plannen",
+                    replaceEnd: "Gepland einde wijzigen",
+                    cancelEnd: "Gepland einde annuleren",
+                    ambiguousEnd: "Het geplande einde van de lockdown is ongeldig of onduidelijk.",
+                    cancelInvalidEnds: "Alle geplande einden van de lockdown annuleren",
                     since: "Vergrendeld sinds {{date}}.",
                     scheduledEnd: "Einde van de vergrendeling gepland voor {{date}}.",
                     endScheduled: "Er is een einde van de vergrendeling gepland.",
