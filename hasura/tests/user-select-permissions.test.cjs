@@ -5,6 +5,7 @@ const assert = require("node:assert/strict")
 const {existsSync, readFileSync, readdirSync} = require("node:fs")
 const {resolve, join} = require("node:path")
 const yaml = require("js-yaml")
+const {viaEvent} = require("./event-permission-label.cjs")
 
 const databases = resolve(__dirname, "../metadata/databases")
 const tables = []
@@ -112,6 +113,7 @@ test("administrative document access remains tenant scoped and excludes receipts
             _and: [
                 {tenant_id: {_eq: "X-Hasura-Tenant-Id"}},
                 excludeBallotReceipts,
+                viaEvent,
             ],
         })
     }

@@ -5,10 +5,29 @@ object_relationships:
     - name: tenant
       using:
           foreign_key_constraint_on: tenant_id
+    - name: election_event
+      using:
+          manual_configuration:
+              column_mapping:
+                  election_event_id: id
+                  tenant_id: tenant_id
+              insertion_order: null
+              remote_table:
+                  name: election_event
+                  schema: sequent_backend
 insert_permissions:
     - comment: ""
       permission:
-          check: {}
+          check:
+              _or:
+                  - election_event_id:
+                        _is_null: true
+                  - election_event:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
           columns: []
       role: admin-user
     - comment: ""
@@ -48,10 +67,20 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-              type:
-                  _neq: CREATE_BALLOT_RECEIPT
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                    type:
+                        _neq: CREATE_BALLOT_RECEIPT
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -74,6 +103,15 @@ select_permissions:
                         _in:
                             - EXPORT_BALLOT_PUBLICATION
                             - GENERATE_BALLOT_PUBLICATION
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: publish-read
     - comment: ""
       permission:
@@ -94,6 +132,15 @@ select_permissions:
                         _eq: X-Hasura-Tenant-Id
                   - type:
                         _eq: PUBLISH_RESULTS_WEBSITE
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: publish-results-read
     - comment: ""
       permission:
@@ -131,10 +178,20 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-              type:
-                  _neq: CREATE_BALLOT_RECEIPT
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                    type:
+                        _neq: CREATE_BALLOT_RECEIPT
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: tasks-export
     - comment: ""
       permission:
@@ -154,10 +211,20 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-              type:
-                  _neq: CREATE_BALLOT_RECEIPT
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                    type:
+                        _neq: CREATE_BALLOT_RECEIPT
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: tasks-read
 update_permissions:
     - comment: ""

@@ -16,6 +16,16 @@ object_relationships:
     - name: source_import
       using:
           foreign_key_constraint_on: import_id
+    - name: election_event
+      using:
+          manual_configuration:
+              column_mapping:
+                  election_event_id: id
+                  tenant_id: tenant_id
+              insertion_order: null
+              remote_table:
+                  name: election_event
+                  schema: sequent_backend
 insert_permissions:
     - comment: ""
       permission:
@@ -29,6 +39,15 @@ insert_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           columns:
               - annotations
               - content
@@ -83,6 +102,15 @@ insert_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           columns:
               - annotations
               - content
@@ -135,6 +163,15 @@ select_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -194,6 +231,15 @@ select_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: tally-sheet-create
     - comment: ""
       permission:
@@ -228,6 +274,15 @@ select_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: tally-sheet-view
 update_permissions:
     - comment: ""
@@ -269,6 +324,15 @@ delete_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -284,4 +348,13 @@ delete_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: tally-sheet-create

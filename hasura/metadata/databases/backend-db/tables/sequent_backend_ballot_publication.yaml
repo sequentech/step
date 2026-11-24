@@ -49,6 +49,15 @@ insert_permissions:
                                         _is_null: true
                                   - permission_label:
                                         _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           columns:
               - annotations
               - created_at
@@ -82,6 +91,15 @@ insert_permissions:
                                                     - permission_label:
                                                           _in: X-Hasura-Permission-Labels
                         - election:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
                               _or:
                                   - permission_label:
                                         _is_null: true
@@ -147,6 +165,15 @@ select_permissions:
                                         _is_null: true
                                   - permission_label:
                                         _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -164,6 +191,15 @@ select_permissions:
                         - election_id:
                               _is_null: true
                         - election:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
                               _or:
                                   - permission_label:
                                         _is_null: true
@@ -199,6 +235,15 @@ select_permissions:
                                         _is_null: true
                                   - permission_label:
                                         _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: publish-read
     - comment: ""
       permission:
@@ -224,6 +269,15 @@ select_permissions:
                         - election_id:
                               _is_null: true
                         - election:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
                               _or:
                                   - permission_label:
                                         _is_null: true
@@ -296,6 +350,15 @@ update_permissions:
                                         _is_null: true
                                   - permission_label:
                                         _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           columns:
               - is_generated
               - annotations
@@ -326,6 +389,15 @@ update_permissions:
                                                     - permission_label:
                                                           _in: X-Hasura-Permission-Labels
                         - election:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
                               _or:
                                   - permission_label:
                                         _is_null: true
@@ -357,6 +429,15 @@ update_permissions:
                                         _is_null: true
                                   - permission_label:
                                         _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           columns:
               - is_generated
               - annotations
@@ -387,6 +468,15 @@ update_permissions:
                                                     - permission_label:
                                                           _in: X-Hasura-Permission-Labels
                         - election:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
                               _or:
                                   - permission_label:
                                         _is_null: true
@@ -432,6 +522,15 @@ delete_permissions:
                                                     - permission_label:
                                                           _in: X-Hasura-Permission-Labels
                         - election:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
                               _or:
                                   - permission_label:
                                         _is_null: true

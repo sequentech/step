@@ -13,6 +13,16 @@ object_relationships:
               remote_table:
                   name: election
                   schema: sequent_backend
+    - name: election_event
+      using:
+          manual_configuration:
+              column_mapping:
+                  election_event_id: id
+                  tenant_id: tenant_id
+              insertion_order: null
+              remote_table:
+                  name: election_event
+                  schema: sequent_backend
 insert_permissions:
     - comment: ""
       permission:
@@ -24,6 +34,15 @@ insert_permissions:
                         - election_id:
                               _is_null: true
                         - election:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
                               _or:
                                   - permission_label:
                                         _is_null: true
@@ -72,6 +91,15 @@ select_permissions:
                                         _is_null: true
                                   - permission_label:
                                         _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -96,6 +124,15 @@ select_permissions:
                         - election_id:
                               _is_null: true
                         - election:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
                               _or:
                                   - permission_label:
                                         _is_null: true
@@ -118,6 +155,15 @@ update_permissions:
                                         _is_null: true
                                   - permission_label:
                                         _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           columns:
               - alias
               - name
@@ -144,6 +190,15 @@ update_permissions:
                                         _is_null: true
                                   - permission_label:
                                         _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: admin-user
 delete_permissions:
     - comment: ""
@@ -156,6 +211,15 @@ delete_permissions:
                         - election_id:
                               _is_null: true
                         - election:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
                               _or:
                                   - permission_label:
                                         _is_null: true

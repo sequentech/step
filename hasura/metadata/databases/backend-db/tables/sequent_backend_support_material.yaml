@@ -1,12 +1,33 @@
 table:
     name: support_material
     schema: sequent_backend
+object_relationships:
+    - name: election_event
+      using:
+          manual_configuration:
+              column_mapping:
+                  election_event_id: id
+                  tenant_id: tenant_id
+              insertion_order: null
+              remote_table:
+                  name: election_event
+                  schema: sequent_backend
 insert_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           columns:
               - is_hidden
               - annotations
@@ -39,8 +60,18 @@ insert_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           columns:
               - is_hidden
               - annotations
@@ -71,8 +102,18 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -107,8 +148,18 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: support-material-read
     - comment: ""
       permission:
@@ -126,8 +177,18 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: support-material-write
     - comment: ""
       permission:
@@ -153,8 +214,18 @@ update_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           columns:
               - is_hidden
               - annotations
@@ -168,8 +239,18 @@ update_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -191,8 +272,18 @@ update_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           columns:
               - is_hidden
               - annotations
@@ -206,15 +297,35 @@ update_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: support-material-write
 delete_permissions:
     - comment: ""
       permission:
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -223,6 +334,16 @@ delete_permissions:
     - comment: ""
       permission:
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: support-material-write

@@ -5,6 +5,7 @@ const assert = require("node:assert/strict")
 const {readFileSync} = require("node:fs")
 const {resolve} = require("node:path")
 const yaml = require("js-yaml")
+const {viaEvent} = require("./event-permission-label.cjs")
 
 const metadata = yaml.load(
     readFileSync(
@@ -93,6 +94,7 @@ for (const operation of ["update", "delete"]) {
                                   protectedFilter,
                                   excludeBallotReceipts,
                                   ...immutableExportFilters,
+                                  viaEvent,
                               ],
                 },
                 `${role} ${operation} must preserve document privacy restrictions`
