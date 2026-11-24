@@ -110,6 +110,10 @@ export type ScanovateCaptureSettings = {
     maxAttempts: number
     ocr: ScanovateService
     liveness: ScanovateService
+    // The camera the document scan starts with on a phone or tablet: the
+    // authenticator's document-camera setting. Absent from an authenticator
+    // that predates it, which is the rear camera.
+    documentCamera?: "rear" | "front"
     // Present when the authenticator's holding-photo policy asks for the photo.
     holding?: ScanovateHolding
 }

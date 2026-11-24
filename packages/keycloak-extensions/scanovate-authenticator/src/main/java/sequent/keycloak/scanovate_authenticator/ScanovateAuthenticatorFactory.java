@@ -36,6 +36,10 @@ public class ScanovateAuthenticatorFactory implements AuthenticatorFactory {
   public static final String DOCUMENT_LIVENESS_MIN_PROBABILITY =
       "document-liveness-min-probability";
   public static final String HOLDING_PHOTO = "holding-photo";
+
+  /** Which camera the document scan starts with on a phone or tablet. */
+  public static final String DOCUMENT_CAMERA = "document-camera";
+
   public static final String PAGE_LANGUAGES = "page-languages";
 
   /** Holding time of the holding photo; the key of the earlier capture page's setting. */
@@ -257,6 +261,18 @@ public class ScanovateAuthenticatorFactory implements AuthenticatorFactory {
                 + " for the document to be physical.")
         .type(ProviderConfigProperty.STRING_TYPE)
         .defaultValue(String.valueOf(DocumentLivenessSettings.DEFAULT_MIN_PROBABILITY))
+        .add()
+        .property()
+        .name(DOCUMENT_CAMERA)
+        .label("Document camera")
+        .helpText(
+            "The camera the document scan starts with on a phone or tablet. REAR: the one facing"
+                + " away from the voter, for voters scanning with their own phone. FRONT: the one"
+                + " facing the voter, for a tablet on a stand. The voter can change it on the"
+                + " page, and the device then keeps that choice.")
+        .type(ProviderConfigProperty.LIST_TYPE)
+        .options(Arrays.stream(DocumentCamera.values()).map(Enum::name).toList())
+        .defaultValue(DocumentCamera.REAR.name())
         .add()
         .property()
         .name(HOLDING_PHOTO)

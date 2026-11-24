@@ -108,6 +108,12 @@ isn't used.
       tested end to end without the Scanovate images.
 - [ ] Measure the memory of the IAD server, and the session sizing of OCR's
       own capture page.
+- [ ] Switch the holding photo's camera front to rear and back on real
+      devices (meta#15282): Android Chrome (the COMELEC tablet and a phone),
+      iPhone and iPad Safari, and a computer with an external webcam. Check
+      that the preview and the photo come from the camera chosen, only one
+      camera is on, a device with one camera shows no switch, and a denied
+      camera shows the camera problem.
 
 ## Scanovate
 
@@ -130,6 +136,14 @@ isn't used.
       instead of the 1920×1080 of #4211.
 - [x] Report that desktop browsers mirrored OCR's preview whatever
       `mirror_view` said: fixed in `version_3.9.0_bec7df8_295`.
+- [ ] Ask for a supported way to choose or switch the camera in Liveness
+      Plus's page (the side or the device, as a `video_config` key or a URL
+      parameter, or a switch in the page) that keeps IAD's checks, front
+      first for the face check: the COMELEC tablet opened its rear camera
+      there (meta#15282). Its configuration has no such setting, and we don't
+      change its camera request from outside as the document step does. Ask
+      the same for OCR's page, so the document step's choice needn't depend
+      on what `version_3.9.0_bec7df8_295` asks the browser for.
 - [ ] Send Scanovate examples of passport scans refused on phones (log lines,
       or a specimen passport, never a voter's), as they offered.
 
