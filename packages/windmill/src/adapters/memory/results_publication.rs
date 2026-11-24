@@ -16,6 +16,7 @@ use crate::types::tasks::ETasksExecution;
 use anyhow::{anyhow, Result};
 use electoral_log::messages::newtypes::ResultsPublicationAction;
 use sequent_core::ballot::ElectionEventPresentation;
+use sequent_core::types::ceremonies::{TallyExecutionStatus, TallyType};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde_json::json;
@@ -41,12 +42,15 @@ pub enum PublicationCall {
     MarkPublished,
     MarkSuperseded,
     ClearFinalizationError,
+    LockSourceFacts,
+    LockPublication,
 }
 
 #[derive(Debug, Default)]
 struct PublicationsState {
     publications: Vec<TallyResultsPublication>,
     source_facts: Option<PublicationSourceFacts>,
+    locked_source_facts: Option<PublicationSourceFacts>,
     failure: Option<String>,
     call_failures: HashMap<PublicationCall, String>,
 }
@@ -96,6 +100,12 @@ impl InMemoryResultsPublications {
     /// Replaces the facts a consistent source would have.
     pub fn set_source_facts(&self, facts: PublicationSourceFacts) {
         self.state().source_facts = Some(facts);
+    }
+
+    /// Replaces the facts read under the lock, as if the source changed after
+    /// the unlocked read.
+    pub fn set_locked_source_facts(&self, facts: PublicationSourceFacts) {
+        self.state().locked_source_facts = Some(facts);
     }
 
     pub fn stored(&self) -> Vec<TallyResultsPublication> {
@@ -156,21 +166,34 @@ fn distinct_count<T: Eq + std::hash::Hash>(values: &[T]) -> i64 {
     values.iter().collect::<HashSet<_>>().len() as i64
 }
 
+/// The facts of a source whose execution is the latest of a finished
+/// electoral results tally and whose elections and contests all exist and
+/// were tallied.
+fn consistent_facts<E: Eq + std::hash::Hash, C: Eq + std::hash::Hash>(
+    elections: &[E],
+    contests: &[C],
+) -> PublicationSourceFacts {
+    PublicationSourceFacts {
+        valid_execution: true,
+        execution_status: Some(TallyExecutionStatus::SUCCESS),
+        is_execution_completed: true,
+        tally_type: TallyType::ELECTORAL_RESULTS,
+        is_latest_execution: true,
+        election_count: distinct_count(elections),
+        contest_count: distinct_count(contests),
+        tallied_contest_count: distinct_count(contests),
+    }
+}
+
 impl ResultsPublicationWriter for InMemoryResultsPublications {
-    /// Unless replaced, every source election and contest exists and every
-    /// contest has results.
+    /// Unless replaced, the source is consistent (see `consistent_facts`).
     async fn source_facts(&self, source: &PublicationSource) -> Result<PublicationSourceFacts> {
         let state = self.state();
         state.check(PublicationCall::SourceFacts)?;
         Ok(state
             .source_facts
             .clone()
-            .unwrap_or_else(|| PublicationSourceFacts {
-                valid_execution: true,
-                election_count: distinct_count(&source.election_ids),
-                contest_count: distinct_count(&source.contest_ids),
-                tallied_contest_count: distinct_count(&source.contest_ids),
-            }))
+            .unwrap_or_else(|| consistent_facts(&source.election_ids, &source.contest_ids)))
     }
 
     async fn insert_publishing(
@@ -663,6 +686,47 @@ impl crate::ports::results_publication_lifecycle::ResultsPublicationLifecycle
             })?;
         stored.error_message = None;
         Ok(())
+    }
+    /// The facts `source_facts` gives for the publication's source.
+    async fn source_facts(
+        &self,
+        publication: &TallyResultsPublication,
+    ) -> Result<PublicationSourceFacts> {
+        let state = self.state();
+        state.check(PublicationCall::SourceFacts)?;
+        Ok(state.source_facts.clone().unwrap_or_else(|| {
+            consistent_facts(
+                &publication.election_ids,
+                &publication.published_contest_ids,
+            )
+        }))
+    }
+    async fn lock_publication_for_publishing(
+        &self,
+        _tenant_id: &str,
+        _event_id: &str,
+        _publication_id: &str,
+    ) -> Result<()> {
+        self.state().check(PublicationCall::LockPublication)
+    }
+    /// The facts read under the lock: `set_locked_source_facts`, else those
+    /// of `source_facts`.
+    async fn lock_source_facts(
+        &self,
+        publication: &TallyResultsPublication,
+    ) -> Result<PublicationSourceFacts> {
+        let state = self.state();
+        state.check(PublicationCall::LockSourceFacts)?;
+        let facts = state
+            .locked_source_facts
+            .clone()
+            .or_else(|| state.source_facts.clone());
+        Ok(facts.unwrap_or_else(|| {
+            consistent_facts(
+                &publication.election_ids,
+                &publication.published_contest_ids,
+            )
+        }))
     }
 }
 

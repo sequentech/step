@@ -9,8 +9,8 @@ use crate::adapters::results_publication::{
 use crate::adapters::results_publication_lifecycle::StoredResultsArtifacts;
 use crate::domain::results_publication::{
     artifact_document_ids_for_reader, authorize_results_reader, check_publication_source,
-    manifest_for_reader, manifest_public_path, publication_matches_requested_route,
-    publication_source,
+    check_published_source, manifest_for_reader, manifest_public_path,
+    publication_matches_requested_route, publication_source,
 };
 pub use crate::domain::results_publication::{
     is_results_website_enabled, publication_matches_results_website_policy, results_website_policy,
@@ -1354,11 +1354,17 @@ pub(crate) async fn prepare_publication_source(
 
 pub async fn publish_results_website_artifacts_with(
     publications: &impl ResultsPublicationLifecycle,
-    renderer: &impl ResultsPublicationRenderer,
+    renderer: &(impl ResultsPublicationRenderer + ResultsPublicationArtifactStore),
     tenant_id: &str,
     election_event_id: &str,
     publication_id: &str,
 ) -> Result<()> {
+    // One attempt per publication at a time: a second worker waits here and
+    // then sees the stored status, so it never uploads to the same public
+    // paths or deletes artifacts another attempt published.
+    publications
+        .lock_publication_for_publishing(tenant_id, election_event_id, publication_id)
+        .await?;
     let publication = publications
         .get(tenant_id, election_event_id, publication_id)
         .await?;
@@ -1375,6 +1381,10 @@ pub async fn publish_results_website_artifacts_with(
         }
     }
     let selected_contests = selected_contest_ids(&publication)?;
+    // Refuse early without the tally-session lock. The source is checked again
+    // under the lock right before activation.
+    let facts = publications.source_facts(&publication).await?;
+    check_published_source(&publication, &facts)?;
     let source = renderer.prepare(&publication, &selected_contests).await?;
     let (documents, manifest) = if publication.access == ResultsWebsiteAccess::Public {
         renderer
@@ -1385,6 +1395,30 @@ pub async fn publish_results_website_artifacts_with(
             .publish_private(&publication, &source, &selected_contests)
             .await?
     };
+    // The artifacts are uploaded without the tally-session row lock, which
+    // recount creation and post-tally finalization also take. Lock only now,
+    // check the source is still final and current, and activate.
+    let activation = async {
+        let facts = publications.lock_source_facts(&publication).await?;
+        check_published_source(&publication, &facts)
+    }
+    .await;
+    if let Err(err) = activation {
+        let uploaded = TallyResultsPublication {
+            documents: documents.clone(),
+            ..publication.clone()
+        };
+        if let Err(cleanup_err) =
+            delete_publication_artifacts_with(renderer, &uploaded, false).await
+        {
+            tracing::error!(
+                error = ?cleanup_err,
+                publication_id = publication.id,
+                "Failed to delete the artifacts of a publication whose source changed"
+            );
+        }
+        return Err(err);
+    }
     publications
         .mark_published(&publication, documents, serde_json::to_value(&manifest)?)
         .await?;
@@ -2135,6 +2169,7 @@ mod tests {
     use crate::domain::results_publication::fixtures::*;
     use crate::postgres::tally_results_publication::PublicationSourceFacts;
     use sequent_core::ballot::{ResultsWebsitePolicy, ResultsWebsiteStatus};
+    use sequent_core::types::ceremonies::TallyType;
 
     fn row_count(conn: &Connection, table: &str) -> Result<i64> {
         Ok(
@@ -3117,6 +3152,10 @@ mod tests {
             .publications
             .set_source_facts(PublicationSourceFacts {
                 valid_execution: false,
+                execution_status: None,
+                is_execution_completed: false,
+                tally_type: TallyType::ELECTORAL_RESULTS,
+                is_latest_execution: false,
                 election_count: 2,
                 contest_count: 1,
                 tallied_contest_count: 1,

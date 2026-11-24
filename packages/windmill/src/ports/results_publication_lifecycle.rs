@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ports::results_publication::ResultsPublicationReader;
-use crate::postgres::tally_results_publication::TallyResultsPublication;
+use crate::postgres::tally_results_publication::{PublicationSourceFacts, TallyResultsPublication};
 use crate::types::results_publication::ResultsPublicationManifest;
 use anyhow::Result;
 use sequent_core::types::hasura::core::Document;
@@ -37,6 +37,27 @@ pub trait ResultsPublicationLifecycle: ResultsPublicationReader {
         event_id: &str,
         publication_id: &str,
     ) -> impl Future<Output = Result<()>> + Send;
+    /// Serializes the attempts to publish one publication until the
+    /// transaction ends; the status is read after it.
+    fn lock_publication_for_publishing(
+        &self,
+        tenant_id: &str,
+        event_id: &str,
+        publication_id: &str,
+    ) -> impl Future<Output = Result<()>> + Send;
+    /// What the database holds for the publication's source, without locking
+    /// anything: enough to refuse early, not to activate.
+    fn source_facts(
+        &self,
+        publication: &TallyResultsPublication,
+    ) -> impl Future<Output = Result<PublicationSourceFacts>> + Send;
+    /// What the database holds for the publication's source, with its tally
+    /// session locked until the publication is stored, so the execution is
+    /// still the latest one then.
+    fn lock_source_facts(
+        &self,
+        publication: &TallyResultsPublication,
+    ) -> impl Future<Output = Result<PublicationSourceFacts>> + Send;
 }
 
 /// SQLite source preparation and artifact uploads retain their temporary
