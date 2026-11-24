@@ -33,9 +33,8 @@
 //!   materialises the fallback as text. A plan with an English-only candidate comes
 //!   back with that name in every language. Every screen and every ballot shows
 //!   exactly what it showed before; only the plan's shape differs.
-//! - Bytes never travel in a cell. A logo, a candidate's photograph and a support
-//!   material keep their *file names* and lose their contents, which is why the
-//!   wizard says so when a workbook is opened.
+//! - A small PNG can be supplied inline in a candidate's image_data_url column.
+//!   Other attachments use the plan's file workflow rather than workbook cells.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -215,7 +214,7 @@ fn text(row: &Row, column: &str) -> String {
     }
 }
 
-fn flag(row: &Row, column: &str) -> Option<bool> {
+pub(super) fn flag(row: &Row, column: &str) -> Option<bool> {
     match row.get(column) {
         Some(Value::Bool(value)) => Some(*value),
         Some(Value::String(value)) => {
@@ -1019,6 +1018,7 @@ fn read_candidates(
     by_contest: &BTreeMap<String, (usize, usize)>,
     report: &mut Report,
 ) {
+    let mut photos = super::workbook_photo::Budget::default();
     for row in in_sheet_order(workbook.rows("candidates")) {
         let contest_id = text(row, "contest.external_id");
         let Some(&(election, contest)) = by_contest.get(&contest_id) else {
@@ -1030,6 +1030,14 @@ fn read_candidates(
                 format!("no contest is called '{contest_id}'"),
             );
             continue;
+        };
+
+        let image = match photos.read(row) {
+            Ok(image) => image,
+            Err(problem) => {
+                report.push(problem);
+                None
+            }
         };
 
         // A write-in row is a *slot*, not a candidate. Reading them as candidates
@@ -1066,10 +1074,7 @@ fn read_candidates(
                     .unwrap_or(false),
                 disabled: flag(row, "presentation.is_disabled")
                     .unwrap_or(false),
-                // Bytes never travel in a cell. The identifier the writer put
-                // here is the platform's, derived from the candidate, so there is
-                // nothing to keep: a photograph has to be chosen again.
-                image: None,
+                image,
                 annotations: annotations_of(row),
                 columns: Default::default(),
             },

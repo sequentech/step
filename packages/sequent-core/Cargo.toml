@@ -130,6 +130,8 @@ csv = "1.3.0"
 # reading authoring spreadsheets; optional so front ends with no workbook to read
 # do not carry it into their WASM bundle
 calamine = { version = "0.36", features = ["dates"], optional = true }
+# An inline workbook portrait is a small, validated PNG; normal clients need no decoder.
+png = { version = "0.18", optional = true }
 
 # uuid5 for the deterministic ids a generated bundle uses. The `uuid` crate is not
 # used for this: its v4 feature pulls getrandom, whose WASM support is version
@@ -208,7 +210,7 @@ default_features = ["dep:electoral-log", "dep:num-bigint", "dep:tempfile", "dep:
 election_config_xlsx = ["default_features", "dep:calamine", "dep:zip"]
 # Rendering the base entity templates. Separate from `reports`, which also brings
 # a headless browser and three AWS SDKs; this needs only the template engine.
-election_config_templates = ["default_features", "areas", "dep:handlebars"]
+election_config_templates = ["default_features", "areas", "dep:handlebars", "dep:png"]
 # Writing the importable zip. Separate again: a front end that only validates an
 # existing bundle has nothing to write.
 election_config_archive = ["election_config_templates", "dep:zip"]

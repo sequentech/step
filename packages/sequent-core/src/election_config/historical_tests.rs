@@ -4072,6 +4072,10 @@ fn candidate_supplements_survive_historical_conversion_and_build() {
                 ("source_candidate_id", json!("0007")),
                 ("presentation.sort_order", json!(0)),
                 ("presentation.i18n.tl.name", json!("Pangalan")),
+                (
+                    "image_data_url",
+                    json!(super::super::workbook_photo::test_png_url(4, 3)),
+                ),
             ],
         )],
     ));
@@ -4085,6 +4089,30 @@ fn candidate_supplements_survive_historical_conversion_and_build() {
     )
     .unwrap();
     let candidate = &bundle.export["candidates"][0];
+    let read =
+        super::super::plan_from_workbook::plan_from_workbook(&adapted.workbook)
+            .expect("the same workbook can open in the wizard");
+    let photo = read.plan.elections[0].contests[0].candidates[0]
+        .image
+        .as_ref()
+        .expect("the wizard retained the pixels");
+    assert_eq!(bundle.images.len(), 1);
+    let file = &bundle.images[0];
+    assert_eq!(file.bytes, photo.bytes);
+    assert_eq!(file.file_name, photo.file_name);
+    assert!(file.file_name.starts_with("candidate-photo-"));
+    assert!(file.file_name.ends_with(".png"));
+    assert_eq!(
+        candidate["image_document_id"].as_str(),
+        Some(file.document_id.as_str())
+    );
+    assert_eq!(
+        candidate["presentation"]["urls"],
+        json!([
+            {"is_image": true, "url": file.public_path(&bundle.tenant_id)}
+        ])
+    );
+    assert!(candidate.get("image_data_url").is_none());
     assert_eq!(candidate["presentation"]["sort_order"], json!(0));
     assert_eq!(
         candidate["presentation"]["i18n"]["tl"]["name"],

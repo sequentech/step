@@ -1020,12 +1020,13 @@ fn apply_candidate_rows(
             if column != "source_candidate_id"
                 && !["presentation", "description", "labels"]
                     .contains(&column.as_str())
+                && column != "image_data_url"
                 && !column.starts_with("presentation.")
                 && !column.starts_with("description.")
             {
                 return Err(Problem::error(Code::ConflictingColumns,
                     given.origin(Some(column)).to_string(),
-                    "candidate supplements may only set presentation, description or labels"));
+                    "candidate supplements may only set presentation, description, labels or image_data_url"));
             }
         }
         let mut matched = false;
