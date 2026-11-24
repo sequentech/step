@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::services::celery_app::get_celery_app;
 use crate::services::celery_app::get_celery_connection;
 use crate::services::celery_app::Queue;
 use crate::services::database::get_hasura_pool;
@@ -9,22 +10,25 @@ use crate::services::database::get_keycloak_pool;
 use crate::services::database::PgConfig;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::protocol_manager::get_board_client;
+use crate::services::protocol_manager::{get_board_client, get_protocol_manager};
 use crate::services::users::get_user_area_id;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
+use b3::messages::message::Signer;
 use celery::error::TaskError;
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use electoral_log::client::board_client::ElectoralLogMessage;
 use immudb_rs::TxMode;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{event, info, instrument};
+use strand::backend::ristretto::RistrettoCtx;
+use strand::signature::StrandSignaturePk;
+use tracing::{error, event, info, instrument};
 
 use lapin::{
-    options::{BasicAckOptions, BasicGetOptions, QueueDeclareOptions},
+    options::{BasicAckOptions, BasicGetOptions, BasicNackOptions, QueueDeclareOptions},
     types::FieldTable,
 };
 
@@ -118,6 +122,76 @@ pub struct LogEventInput {
     pub username: Option<String>,
     pub tenant_id: String,
     pub body: LogEventBody,
+    /// How many times the event went back to the queue.
+    #[serde(default)]
+    pub attempts: u32,
+    /// Unix time in seconds before which the dispatcher leaves the event in
+    /// the queue.
+    #[serde(default)]
+    pub retry_at: Option<i64>,
+}
+
+/// Times an event whose board key can't be read goes back to the queue.
+const MAX_REQUEUES: u32 = 10;
+/// Seconds an event waits in the queue before the next attempt.
+const REQUEUE_DELAY_SECONDS: i64 = 60;
+
+/// The event to put back in the queue after a failed attempt, or `None` once
+/// it was requeued `MAX_REQUEUES` times.
+fn requeued_input(input: &LogEventInput, now: i64) -> Option<LogEventInput> {
+    (input.attempts < MAX_REQUEUES).then(|| LogEventInput {
+        attempts: input.attempts + 1,
+        retry_at: Some(now + REQUEUE_DELAY_SECONDS),
+        ..input.clone()
+    })
+}
+
+/// Whether the dispatcher should leave the event in the queue for now.
+fn is_waiting(input: &LogEventInput, now: i64) -> bool {
+    input.retry_at.is_some_and(|retry_at| retry_at > now)
+}
+
+/// Parses the row an internal producer queued and returns it rebuilt from its
+/// signed message, checked with the election event's system key.
+fn verified_internal_message(
+    input: &LogEventInput,
+    system_pk: &StrandSignaturePk,
+) -> anyhow::Result<ElectoralLogMessage> {
+    let row: ElectoralLogMessage = deserialize_str(&input.body.as_raw())
+        .with_context(|| "Error parsing input.body into a ElectoralLogMessage")?;
+    row.rebuild_verified(system_pk, &input.election_event_id)
+}
+
+/// The public key of the system signature on a board's internal rows.
+async fn read_system_pk(
+    hasura_tx: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    board_name: &str,
+) -> anyhow::Result<StrandSignaturePk> {
+    let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+        hasura_tx,
+        tenant_id,
+        Some(election_event_id),
+        board_name,
+    )
+    .await
+    .with_context(|| "Error getting protocol manager")?;
+    StrandSignaturePk::from_sk(protocol_manager.get_signing_key())
+        .with_context(|| "Error getting protocol manager public key")
+}
+
+/// Puts the event in `requeued_events`, or logs it as dropped once it was
+/// requeued `MAX_REQUEUES` times.
+fn requeue_or_drop(input: &LogEventInput, requeued_events: &mut Vec<LogEventInput>) {
+    match requeued_input(input, chrono::Utc::now().timestamp()) {
+        Some(requeued) => requeued_events.push(requeued),
+        None => error!(
+            tenant_id = %input.tenant_id,
+            election_event_id = %input.election_event_id,
+            "Dropping electoral log event after {MAX_REQUEUES} attempts"
+        ),
+    }
 }
 
 /// Enqueue the electoral log event.
@@ -159,6 +233,13 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
         .await
         .with_context(|| "Error starting keycloak transaction")?;
 
+    let mut system_pks: HashMap<(String, String, String), StrandSignaturePk> = HashMap::new();
+    // The dispatcher already acknowledged these events and this task doesn't
+    // retry, so an event whose board key can't be read goes back to the queue
+    // (a bounded number of times) instead of failing the batch and losing
+    // every event in it.
+    let mut requeued_events: Vec<LogEventInput> = Vec::new();
+
     for input in events.iter() {
         let election_event =
             get_election_event_by_id(&hasura_tx, &input.tenant_id, &input.election_event_id)
@@ -170,9 +251,48 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
 
         let event_message = match &input.message_type {
             LogMessageType::Internal => {
-                let message: ElectoralLogMessage = deserialize_str(&input.body.as_raw())
-                    .with_context(|| "Error parsing input.body into a ElectoralLogMessage")?;
-                message
+                let cache_key = (
+                    input.tenant_id.clone(),
+                    election_event.id.clone(),
+                    board_name.clone(),
+                );
+                let system_pk = match system_pks.get(&cache_key) {
+                    Some(system_pk) => system_pk.clone(),
+                    None => {
+                        let system_pk = match read_system_pk(
+                            &hasura_tx,
+                            &input.tenant_id,
+                            &election_event.id,
+                            &board_name,
+                        )
+                        .await
+                        {
+                            Ok(system_pk) => system_pk,
+                            Err(err) => {
+                                error!(
+                                    tenant_id = %input.tenant_id,
+                                    election_event_id = %input.election_event_id,
+                                    "Requeueing electoral log event: {err:?}"
+                                );
+                                requeue_or_drop(input, &mut requeued_events);
+                                continue;
+                            }
+                        };
+                        system_pks.insert(cache_key, system_pk.clone());
+                        system_pk
+                    }
+                };
+                match verified_internal_message(input, &system_pk) {
+                    Ok(message) => message,
+                    Err(err) => {
+                        error!(
+                            tenant_id = %input.tenant_id,
+                            election_event_id = %input.election_event_id,
+                            "Dropping internal electoral log message: {err:?}"
+                        );
+                        continue;
+                    }
+                }
             }
             LogMessageType::KeycloakEvent(event_type) => {
                 let user_id = input
@@ -184,14 +304,25 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
                 let user_area_id = get_user_area_id(&keycloak_transaction, &realm, &user_id)
                     .await
                     .with_context(|| "Error getting user area id")?;
-                let electoral_log = ElectoralLog::new(
+                let electoral_log = match ElectoralLog::new(
                     &hasura_tx,
                     &input.tenant_id,
                     Some(&election_event.id),
                     &board_name,
                 )
                 .await
-                .with_context(|| "Error initializing electoral log")?;
+                {
+                    Ok(electoral_log) => electoral_log,
+                    Err(err) => {
+                        error!(
+                            tenant_id = %input.tenant_id,
+                            election_event_id = %input.election_event_id,
+                            "Requeueing electoral log event: {err:?}"
+                        );
+                        requeue_or_drop(input, &mut requeued_events);
+                        continue;
+                    }
+                };
 
                 if let LogEventBody::Communications(ref template_body) = input.body {
                     let send_template_msg = electoral_log
@@ -254,6 +385,24 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
         board_client.close_session().await?;
     }
 
+    // After the verified rows are written, so a failed send can't drop them.
+    let mut requeue_error = None;
+    if !requeued_events.is_empty() {
+        let celery_app = get_celery_app().await;
+        for input in requeued_events {
+            if let Err(err) = celery_app
+                .send_task(enqueue_electoral_log_event::new(input))
+                .await
+            {
+                error!("Error requeueing electoral log event: {err:?}");
+                requeue_error = Some(err);
+            }
+        }
+    }
+    if let Some(err) = requeue_error {
+        return Err(anyhow!("Error requeueing electoral log event: {err:?}").into());
+    }
+
     Ok(())
 }
 
@@ -289,15 +438,49 @@ pub async fn electoral_log_batch_dispatcher() -> Result<()> {
     // Get the batch size from PgConfig.
     let batch_size: usize = PgConfig::from_env()?.default_sql_batch_size.try_into()?;
 
+    // Events that wait for their next attempt stay unacknowledged until the
+    // loop is over, so this run doesn't read them again, and then go back to
+    // the queue for the next run.
+    let mut waiting_deliveries = Vec::new();
+    let result = dispatch_batches(&channel, &queue_name, batch_size, &mut waiting_deliveries).await;
+    for delivery in waiting_deliveries {
+        channel
+            .basic_nack(
+                delivery.delivery_tag,
+                BasicNackOptions {
+                    requeue: true,
+                    ..Default::default()
+                },
+            )
+            .await
+            .with_context(|| "Error returning a waiting event to the queue")?;
+    }
+    result?;
+    info!("finishing electoral_log_batch_dispatcher");
+    Ok(())
+}
+
+/// Reads the queue in batches until it is empty and dispatches each batch to
+/// the processing task. Events that wait for a retry are left in
+/// `waiting_deliveries`, unacknowledged.
+async fn dispatch_batches(
+    channel: &lapin::Channel,
+    queue_name: &str,
+    batch_size: usize,
+    waiting_deliveries: &mut Vec<lapin::message::BasicGetMessage>,
+) -> Result<()> {
     loop {
         info!("starting a new batch for queue {queue_name}, max batch_size={batch_size}");
+        let now = chrono::Utc::now().timestamp();
         let mut batch_deliveries = Vec::with_capacity(batch_size);
+        let mut fetched = 0;
         for _ in 0..batch_size {
             if let Some(delivery) = channel
-                .basic_get(&queue_name, BasicGetOptions { no_ack: false })
+                .basic_get(queue_name, BasicGetOptions { no_ack: false })
                 .await?
             {
                 info!("adding delivery element to batch_deliveries");
+                fetched += 1;
                 batch_deliveries.push(delivery);
             } else {
                 info!("not adding to batch_deliveries, break");
@@ -305,7 +488,7 @@ pub async fn electoral_log_batch_dispatcher() -> Result<()> {
             }
         }
 
-        if batch_deliveries.is_empty() {
+        if fetched == 0 {
             info!("no more elements to process in queue");
             break;
         }
@@ -316,7 +499,7 @@ pub async fn electoral_log_batch_dispatcher() -> Result<()> {
 
         // Deserialize messages sequentially.
         let mut events = Vec::with_capacity(batch_deliveries.len());
-        for delivery in &batch_deliveries {
+        for delivery in std::mem::take(&mut batch_deliveries) {
             // Parse the raw message into a JSON value.
             let v: serde_json::Value = serde_json::from_slice(&delivery.data)
                 .with_context(|| "Error parsing Celery message as JSON")?;
@@ -333,10 +516,19 @@ pub async fn electoral_log_batch_dispatcher() -> Result<()> {
                     .ok_or_else(|| anyhow!("Missing 'input' field in message payload"))?;
                 let event: LogEventInput = serde_json::from_value(input_value.clone())
                     .with_context(|| "Error deserializing LogEventInput from input field")?;
-                events.push(event);
+                if is_waiting(&event, now) {
+                    waiting_deliveries.push(delivery);
+                } else {
+                    events.push(event);
+                    batch_deliveries.push(delivery);
+                }
             } else {
                 return Err("Invalid message format: expected JSON array".into());
             }
+        }
+
+        if events.is_empty() {
+            continue;
         }
 
         // Dispatch the processing task via the Celery app.
@@ -356,6 +548,146 @@ pub async fn electoral_log_batch_dispatcher() -> Result<()> {
                 .with_context(|| "Error acknowledging message")?;
         }
     }
-    info!("finishing electoral_log_batch_dispatcher");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::insert_cast_vote::hash_voter_id;
+    use electoral_log::messages::message::{Message, SigningData};
+    use electoral_log::messages::newtypes::{
+        CastVoteHash, ElectionIdString, EventIdString, PseudonymHash, VoterCountryString,
+        VoterIpString,
+    };
+    use strand::hash::HashWrapper;
+    use strand::serialization::{StrandDeserialize, StrandSerialize};
+    use strand::signature::StrandSignatureSk;
+
+    const EVENT_ID: &str = "event-id";
+
+    fn queued_cast_vote(system_sk: &StrandSignatureSk) -> anyhow::Result<LogEventInput> {
+        let signing_data = SigningData::new(system_sk.clone(), "voter-id", system_sk.clone());
+        let message = Message::cast_vote_message(
+            EventIdString(EVENT_ID.to_string()),
+            ElectionIdString(Some("election-id".to_string())),
+            PseudonymHash(HashWrapper::new(hash_voter_id("voter-id")?)),
+            CastVoteHash::new([2; 64]),
+            &signing_data,
+            VoterIpString("ip".to_string()),
+            VoterCountryString("country".to_string()),
+            Some("voter-id".to_string()),
+            Some("voter".to_string()),
+            "area-id".to_string(),
+        )?;
+        let board_message: ElectoralLogMessage = (&message).try_into()?;
+        Ok(LogEventInput {
+            election_event_id: EVENT_ID.to_string(),
+            message_type: LogMessageType::Internal,
+            attempts: 0,
+            retry_at: None,
+            user_id: Some("voter-id".to_string()),
+            username: Some("voter".to_string()),
+            tenant_id: "tenant-id".to_string(),
+            body: LogEventBody::Plain(serde_json::to_string(&board_message)?),
+        })
+    }
+
+    #[test]
+    fn internal_message_signed_with_the_event_key_is_accepted() -> anyhow::Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let input = queued_cast_vote(&system_sk)?;
+
+        let message = verified_internal_message(&input, &system_pk)?;
+
+        assert_eq!(message.statement_kind, "CastVote");
+        assert_eq!(message.user_id.as_deref(), Some("voter-id"));
+        Ok(())
+    }
+
+    #[test]
+    fn internal_message_signed_with_another_key_is_rejected() -> anyhow::Result<()> {
+        let input = queued_cast_vote(&StrandSignatureSk::r#gen()?)?;
+        let event_pk = StrandSignaturePk::from_sk(&StrandSignatureSk::r#gen()?)?;
+
+        assert!(verified_internal_message(&input, &event_pk).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn internal_message_for_another_election_event_is_rejected() -> anyhow::Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let input = LogEventInput {
+            election_event_id: "other-event-id".to_string(),
+            ..queued_cast_vote(&system_sk)?
+        };
+
+        assert!(verified_internal_message(&input, &system_pk).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn internal_message_with_a_forged_voter_is_rejected() -> anyhow::Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let mut input = queued_cast_vote(&system_sk)?;
+        let mut row: ElectoralLogMessage = deserialize_str(&input.body.as_raw())?;
+        let mut message = Message::strand_deserialize(&row.message)?;
+        message.user_id = Some("other-voter-id".to_string());
+        row.message = message.strand_serialize()?;
+        input.body = LogEventBody::Plain(serde_json::to_string(&row)?);
+
+        assert!(verified_internal_message(&input, &system_pk).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn hash_voter_id_is_the_pseudonym_of_the_electoral_log() -> anyhow::Result<()> {
+        assert_eq!(
+            hash_voter_id("voter-id")?,
+            electoral_log::messages::message::hash_voter_id("voter-id")?
+        );
+        Ok(())
+    }
+
+    fn queued_event(attempts: u32) -> LogEventInput {
+        LogEventInput {
+            election_event_id: EVENT_ID.to_string(),
+            message_type: LogMessageType::Internal,
+            attempts,
+            retry_at: None,
+            user_id: None,
+            username: None,
+            tenant_id: "tenant-id".to_string(),
+            body: LogEventBody::Plain("body".to_string()),
+        }
+    }
+
+    #[test]
+    fn a_requeued_event_counts_its_attempts_and_waits() {
+        let requeued = requeued_input(&queued_event(0), 1_000).unwrap();
+
+        assert_eq!(requeued.attempts, 1);
+        assert_eq!(requeued.retry_at, Some(1_000 + REQUEUE_DELAY_SECONDS));
+        assert!(is_waiting(&requeued, 1_000));
+        assert!(!is_waiting(&requeued, 1_000 + REQUEUE_DELAY_SECONDS));
+    }
+
+    #[test]
+    fn an_event_is_requeued_a_bounded_number_of_times() {
+        assert!(requeued_input(&queued_event(MAX_REQUEUES - 1), 0).is_some());
+        assert!(requeued_input(&queued_event(MAX_REQUEUES), 0).is_none());
+    }
+
+    #[test]
+    fn an_event_without_attempts_in_the_queue_is_ready() -> anyhow::Result<()> {
+        let json = r#"{"election_event_id":"e","message_type":"internal","user_id":null,"username":null,"tenant_id":"t","body":"b"}"#;
+        let event: LogEventInput = serde_json::from_str(json)?;
+
+        assert_eq!(event.attempts, 0);
+        assert!(!is_waiting(&event, 0));
+        Ok(())
+    }
 }
