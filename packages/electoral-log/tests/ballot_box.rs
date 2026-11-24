@@ -203,6 +203,90 @@ async fn votes_follow_the_revote_and_area_rules() -> Result<()> {
     drop_ballot_box(&store, &event).await
 }
 
+/// A resent ballot is refused without counting as a vote, and the voter's
+/// ballot with its ID, which answers the resend, is found whatever its status.
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn resent_ballots_count_once_and_are_found_by_their_id() -> Result<()> {
+    let store = store().await?;
+    let (event, election, area, _) = ids();
+    store.create_ballot_box(&event).await?;
+
+    for (allowed, refusal) in [
+        (1, AcceptOutcome::TooManyVotes),
+        (2, AcceptOutcome::DuplicateBallotId),
+        (0, AcceptOutcome::DuplicateBallotId),
+    ] {
+        let voter = format!("voter-{allowed}");
+        let vote = Vote::new(&event, &election, &area, &voter, allowed).with_content("first");
+        let (_, id) = vote.accept_with_id(&store).await?;
+        assert_eq!(store.accept_ballot(&vote.request()).await?, refusal);
+        assert_eq!(
+            store
+                .voter_state(&event, &election, &voter)
+                .await?
+                .unwrap()
+                .votes,
+            1
+        );
+        let found = store
+            .voter_ballot_contents(
+                &event,
+                &voter,
+                &election,
+                BallotIdMatch::Exact(&vote.ballot),
+            )
+            .await?;
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].ballot.id, id);
+        assert_eq!(found[0].content, "first");
+        assert_eq!(found[0].ballot.status, BallotStatus::Valid);
+    }
+
+    // A rejected ballot gives its vote back, yet its ID still answers a resend.
+    let rejected =
+        Vote::new(&event, &election, &area, "voter-r", 1).with_status(BallotStatus::Pending);
+    let (_, id) = rejected.accept_with_id(&store).await?;
+    assert!(
+        store
+            .set_ballot_status(
+                &event,
+                "voter-r",
+                &id,
+                BallotStatus::Pending,
+                BallotStatus::Rejected
+            )
+            .await?
+    );
+    assert_eq!(
+        store.accept_ballot(&rejected.request()).await?,
+        AcceptOutcome::DuplicateBallotId
+    );
+    let found = store
+        .voter_ballot_contents(
+            &event,
+            "voter-r",
+            &election,
+            BallotIdMatch::Exact(&rejected.ballot),
+        )
+        .await?;
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].ballot.status, BallotStatus::Rejected);
+
+    // Another voter's ballot ID is not theirs to be answered with.
+    assert!(store
+        .voter_ballot_contents(
+            &event,
+            "voter-1",
+            &election,
+            BallotIdMatch::Exact(&rejected.ballot),
+        )
+        .await?
+        .is_empty());
+
+    drop_ballot_box(&store, &event).await
+}
+
 #[tokio::test]
 #[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
 async fn concurrent_votes_of_one_voter_respect_the_limit() -> Result<()> {

@@ -149,6 +149,78 @@ fn refusals_by_the_ballot_box_are_final_and_other_errors_are_retried() {
 }
 
 #[test]
+fn refusals_a_resent_ballot_gets_are_answered_with_the_stored_vote() {
+    for refusal in [
+        CastVoteError::BallotAlreadyCast,
+        CastVoteError::InsertFailedExceedsAllowedRevotes,
+        CastVoteError::CheckVotesInOtherAreasFailed("area".into()),
+        CastVoteError::CheckStatusFailed("closed".into()),
+        CastVoteError::VotingChannelNotEnabled("online".into()),
+    ] {
+        assert!(may_be_resent_ballot(&refusal), "{refusal}");
+    }
+    for error in [
+        CastVoteError::InsertFailed("database".into()),
+        CastVoteError::GetDbClientFailed("pool".into()),
+        CastVoteError::BallotIdMismatch("hash".into()),
+    ] {
+        assert!(!may_be_resent_ballot(&error), "{error}");
+    }
+    // A ballot ID that is not the voter's is retried, as before.
+    assert!(matches!(
+        skip_or_propagate(CastVoteError::BallotAlreadyCast),
+        Err(CastVoteError::BallotAlreadyCast)
+    ));
+}
+
+#[test]
+fn resent_ballots_are_answered_with_the_stored_vote_in_any_status() {
+    let ids = CastVoteIds {
+        election_event_id: "event",
+        tenant_id: "tenant",
+        voter_id: "voter",
+        area_id: "area",
+    };
+    for (status, expected) in [
+        (BallotStatus::Valid, CastVoteStatus::Valid),
+        (BallotStatus::Pending, CastVoteStatus::InProgress),
+        (BallotStatus::Rejected, CastVoteStatus::Discarded),
+    ] {
+        let stored = BallotContent {
+            ballot: StoredBallot {
+                id: "stored-id".into(),
+                ballot_id: "ballot".into(),
+                election_id: "election".into(),
+                area_id: "stored-area".into(),
+                voter_id: "voter".into(),
+                status,
+                voting_channel: "ONLINE".into(),
+                accepted_at: 1_791_230_400_123_456,
+            },
+            content: "stored-content".into(),
+        };
+        let vote = resent_cast_vote(&ids, stored, Some(vec![3; 64])).unwrap();
+        assert_eq!(
+            vote,
+            CastVote {
+                id: "stored-id".into(),
+                tenant_id: "tenant".into(),
+                election_id: Some("election".into()),
+                area_id: Some("stored-area".into()),
+                created_at: Some(ballot_box_time(1_791_230_400_123_456).unwrap()),
+                last_updated_at: Some(ballot_box_time(1_791_230_400_123_456).unwrap()),
+                content: Some("stored-content".into()),
+                voter_id_string: Some("voter".into()),
+                election_event_id: "event".into(),
+                ballot_id: Some("ballot".into()),
+                cast_ballot_signature: Some(vec![3; 64]),
+                status: expected,
+            }
+        );
+    }
+}
+
+#[test]
 fn accepted_ballots_report_their_status_as_cast_vote_statuses() {
     let vote = |status| CastVote {
         id: "id".into(),
