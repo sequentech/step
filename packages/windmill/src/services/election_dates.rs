@@ -394,6 +394,30 @@ fn checks_voting_rules(processor: &EventProcessors) -> bool {
     )
 }
 
+fn schedule_presentation(value: Option<Value>) -> Result<Option<ElectionEventPresentation>> {
+    value.map(deserialize_value).transpose().map_err(|err| {
+        warn!("Unreadable election event presentation: {err}");
+        invalid("Cannot verify lockdown because the election event presentation is unreadable.")
+    })
+}
+
+/// Bulk schedule mutations have no exception during lockdown.
+pub(crate) async fn require_unlocked_schedule(
+    tx: &Transaction<'_>,
+    tenant_id: &str,
+    event_id: &str,
+) -> Result<()> {
+    let event = get_election_event_by_id(tx, tenant_id, event_id).await?;
+    if schedule_presentation(event.presentation)?.and_then(|p| p.locked_down)
+        == Some(sequent_core::ballot::LockedDown::LOCKED_DOWN)
+    {
+        return Err(invalid(
+            "The election event is locked down. Its schedule is read-only.",
+        ));
+    }
+    Ok(())
+}
+
 /// Saves (or, with an empty date, archives) the scheduled date of
 /// `event_processor` for the election (or the whole event), and answers with
 /// the stored instant and the warnings. Refusals are [`InvalidSchedule`].
@@ -408,6 +432,11 @@ pub async fn save_schedule(
     voting_channels: Option<Vec<VotingStatusChannel>>,
     actor: &Actor,
 ) -> Result<SavedSchedule> {
+    if event_processor.is_lockdown() && election_id.is_some() {
+        return Err(invalid(
+            "A lockdown schedule must apply to the whole election event.",
+        ));
+    }
     if election_id.is_none() && is_election_scoped_only(event_processor) {
         return Err(invalid(format!("{event_processor} needs an election")));
     }
@@ -418,16 +447,16 @@ pub async fn save_schedule(
     )
     .await?;
     let event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
-    let event_presentation: Option<ElectionEventPresentation> = event
-        .presentation
-        .clone()
-        .and_then(|value| match deserialize_value(value) {
-            Ok(presentation) => Some(presentation),
-            Err(err) => {
-                warn!("Unreadable presentation of election event {election_event_id}: {err}");
-                None
-            }
-        });
+    let event_presentation = schedule_presentation(event.presentation)?;
+    let locked = event_presentation
+        .as_ref()
+        .and_then(|p| p.locked_down.as_ref())
+        == Some(&sequent_core::ballot::LockedDown::LOCKED_DOWN);
+    if locked && (event_processor != &EventProcessors::END_LOCKDOWN_PERIOD || event.is_archived) {
+        return Err(invalid(
+            "The election event is locked down. Its schedule is read-only.",
+        ));
+    }
     let elections = get_elections(hasura_transaction, tenant_id, election_event_id).await?;
     let election = match election_id {
         Some(id) => Some(
@@ -452,6 +481,62 @@ pub async fn save_schedule(
         .and_then(|cron| cron.scheduled_date.clone());
 
     match election_id {
+        None if event_processor.is_lockdown() => {
+            let rows = find_scheduled_event_by_election_event_id_and_event_processor(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                &event_processor.to_string(),
+            )
+            .await?;
+            let mut pending = rows.iter().filter(|row| row.stopped_at.is_none());
+            let current = pending.next();
+            if pending.next().is_some() || current.is_some_and(|row| row.lockdown_time().is_none())
+            {
+                return Err(invalid(
+                    "Cannot change an ambiguous or invalid lockdown schedule.",
+                ));
+            }
+            if let Some(cron) = cron_config {
+                if (locked || (current.is_none() && !rows.is_empty()))
+                    && !scheduled_date
+                        .as_deref()
+                        .map(parse_instant)
+                        .transpose()?
+                        .is_some_and(|at| at > Utc::now())
+                {
+                    return Err(invalid("Choose a future date for the lockdown schedule."));
+                }
+                if let Some(row) = current.filter(|_| !locked) {
+                    update_scheduled_event(hasura_transaction, tenant_id, &row.id, cron, None)
+                        .await?;
+                } else {
+                    if let Some(row) = current {
+                        archive_scheduled_event(hasura_transaction, tenant_id, &row.id).await?;
+                    }
+                    let task = generate_manage_date_task_name(
+                        tenant_id,
+                        election_event_id,
+                        None,
+                        event_processor,
+                    );
+                    insert_scheduled_event(
+                        hasura_transaction,
+                        tenant_id,
+                        election_event_id,
+                        event_processor.clone(),
+                        &task,
+                        cron,
+                        json!({"election_id": null}),
+                    )
+                    .await?;
+                }
+            } else if let Some(row) = current {
+                archive_scheduled_event(hasura_transaction, tenant_id, &row.id).await?;
+            } else if locked || !rows.is_empty() {
+                return Err(invalid("There is no pending lockdown schedule to cancel."));
+            }
+        }
         Some(id) => {
             manage_dates(
                 hasura_transaction,
@@ -491,13 +576,15 @@ pub async fn save_schedule(
         warnings.extend(rule_warnings(tenant_id, election_event_id, &events, &posts));
     }
 
-    scheduled_outcome::recompute_predictions(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        actor,
-    )
-    .await?;
+    if !locked {
+        scheduled_outcome::recompute_predictions(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            actor,
+        )
+        .await?;
+    }
 
     Ok(SavedSchedule {
         scheduled_date,

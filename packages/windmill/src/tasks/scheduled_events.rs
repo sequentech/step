@@ -283,7 +283,7 @@ pub async fn handle_election_lockdown(
     celery_app: Arc<Celery>,
     scheduled_event: &ScheduledEvent,
 ) -> Result<()> {
-    let Some(datetime) = get_datetime(scheduled_event) else {
+    let Some(datetime) = scheduled_event.lockdown_time() else {
         return Ok(());
     };
     let Some(tenant_id) = scheduled_event.tenant_id.clone() else {

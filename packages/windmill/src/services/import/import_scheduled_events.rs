@@ -131,6 +131,19 @@ pub async fn process_record(
         .map(|val| deserialize_str::<EventProcessors>(val))
         .transpose()
         .context("Error deserializing event_processor")?;
+    if event_processor
+        .as_ref()
+        .is_some_and(EventProcessors::is_lockdown)
+        && !event_payload.is_null()
+        && (!event_payload.is_object()
+            || event_payload
+                .get("election_id")
+                .is_some_and(|id| !id.is_null()))
+    {
+        return Err(anyhow!(
+            "A lockdown schedule must apply to the whole election event."
+        ));
+    }
     let cron_config: Option<CronConfig> = record
         .get(9)
         .map(|val| deserialize_str(val))

@@ -510,9 +510,15 @@ async fn the_replay_csv_previews_and_imports_cleanly() {
             );
         }
 
-        let (outcome, _) = import_schedule(&tx, &scope.tenant(), &scope.event(), csv.as_bytes())
-            .await
-            .unwrap();
+        let (outcome, _) = import_schedule(
+            &tx,
+            &scope.tenant(),
+            &scope.event(),
+            &Default::default(),
+            csv.as_bytes(),
+        )
+        .await
+        .unwrap();
         assert_eq!(
             outcome,
             ImportOutcome {
@@ -531,10 +537,15 @@ async fn the_replay_csv_previews_and_imports_cleanly() {
                 .unwrap();
         assert_eq!(round_trip.preview.errors, 0);
         assert_eq!(round_trip.preview.rows.len(), rows);
-        let (outcome, _) =
-            import_schedule(&tx, &scope.tenant(), &scope.event(), exported.as_bytes())
-                .await
-                .unwrap();
+        let (outcome, _) = import_schedule(
+            &tx,
+            &scope.tenant(),
+            &scope.event(),
+            &Default::default(),
+            exported.as_bytes(),
+        )
+        .await
+        .unwrap();
         assert_eq!(
             outcome,
             ImportOutcome {

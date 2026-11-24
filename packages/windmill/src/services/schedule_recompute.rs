@@ -194,6 +194,12 @@ pub async fn apply(
         election_event_id,
     )
     .await?;
+    crate::services::election_dates::require_unlocked_schedule(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
     let events =
         find_scheduled_event_by_election_event_id(hasura_transaction, tenant_id, election_event_id)
             .await?;

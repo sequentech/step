@@ -29,6 +29,7 @@ use electoral_log::messages::newtypes::SigningStatementKind;
 use sequent_core::ballot::{
     ElectionEventPresentation, ElectionEventTimeZones, ElectionPresentation, VotingStatusChannel,
 };
+use sequent_core::services::authorization::PermissionLabels;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::time_zones::{effective_time_zone, primary_time_zone};
 use sequent_core::types::scheduled_event::{
@@ -102,7 +103,7 @@ pub enum ScheduleRowError {
     /// An earlier row already schedules this type for this election.
     Duplicate,
     /// The import found the event but couldn't change it: it has already
-    /// run. Only the import reports it.
+    /// run and its replacement is not in the future.
     NotUpdated,
 }
 
@@ -217,17 +218,24 @@ impl ScheduleEvent {
         )
     }
 
-    /// The active scheduled events by task id; the first of a task id wins,
-    /// as when an admin saves one.
-    fn active_by_task(&self) -> HashMap<&str, &ScheduledEvent> {
-        let mut by_task = HashMap::new();
-        for scheduled in self
+    /// An ordinary task uses its existing id. Event-wide lockdowns can also
+    /// have an older completed occurrence or a legacy row without a task id.
+    fn active_by_task(&self) -> HashMap<String, &ScheduledEvent> {
+        let mut by_task: HashMap<String, &ScheduledEvent> = HashMap::new();
+        for row in self
             .scheduled_events
             .iter()
-            .filter(|scheduled| scheduled.archived_at.is_none())
+            .filter(|row| row.archived_at.is_none())
         {
-            if let Some(task_id) = scheduled.task_id.as_deref() {
-                by_task.entry(task_id).or_insert(scheduled);
+            let lockdown = row.event_processor.as_ref().filter(|p| p.is_lockdown());
+            let key = lockdown
+                .map(|p| self.task_id(None, p))
+                .or_else(|| row.task_id.clone());
+            if let Some(key) = key {
+                let chosen = by_task.entry(key).or_insert(row);
+                if lockdown.is_some() && chosen.stopped_at.is_some() && row.stopped_at.is_none() {
+                    *chosen = row;
+                }
             }
         }
         by_task
@@ -319,7 +327,7 @@ pub fn is_schedulable(processor: &EventProcessors) -> bool {
 /// Types that apply to the whole event only (design §5: enrollment ends
 /// for the event at once).
 pub fn is_event_wide_only(processor: &EventProcessors) -> bool {
-    matches!(processor, EventProcessors::END_ENROLLMENT_PERIOD)
+    matches!(processor, EventProcessors::END_ENROLLMENT_PERIOD) || processor.is_lockdown()
 }
 
 /// Types that apply to one election only (the lifecycle windows).
@@ -414,6 +422,10 @@ impl std::fmt::Display for ScheduleFileError {
 
 impl std::error::Error for ScheduleFileError {}
 
+#[derive(Debug, thiserror::Error)]
+#[error("A lockdown schedule requires permission for every election in the event.")]
+pub struct SchedulePermissionDenied;
+
 fn file_error(message: String) -> anyhow::Error {
     ScheduleFileError(message).into()
 }
@@ -498,6 +510,18 @@ pub fn parse_schedule(
     let primary = canonical_time_zone(&primary_name)
         .ok_or_else(|| anyhow!("The event's primary timezone {primary_name:?} is unknown"))?;
     let existing = event.active_by_task();
+    let mut pending_lockdowns = HashSet::new();
+    let mut invalid_lockdowns = HashSet::new();
+    for row in &event.scheduled_events {
+        if let Some(processor) = row.event_processor.as_ref().filter(|p| p.is_lockdown()) {
+            if row.archived_at.is_none()
+                && row.stopped_at.is_none()
+                && (!pending_lockdowns.insert(processor.clone()) || row.lockdown_time().is_none())
+            {
+                invalid_lockdowns.insert(processor.clone());
+            }
+        }
+    }
 
     let mut by_alias: HashMap<&str, Vec<&ScheduleElection>> = HashMap::new();
     for election in elections {
@@ -643,6 +667,15 @@ pub fn parse_schedule(
         // A second row for the same election and type is a duplicate, even
         // when the first has an error of its own: the file says it twice.
         if let (true, Some(processor)) = (election_known, processor.as_ref()) {
+            if invalid_lockdowns.contains(processor)
+                || (processor.is_lockdown()
+                    && existing
+                        .get(&event.task_id(None, processor))
+                        .is_some_and(|row| row.stopped_at.is_some())
+                    && instant.is_some_and(|at| at <= Utc::now()))
+            {
+                fail(ScheduleRowError::NotUpdated, &mut error);
+            }
             let key = (
                 election.map(|election| election.id.clone()),
                 processor.to_string(),
@@ -742,6 +775,11 @@ pub fn plan_import(
         .map(|entry| {
             let task_id = entry.task_id(&event.tenant_id, &event.election_event_id);
             let action = match by_task.get(task_id.as_str()) {
+                Some(scheduled)
+                    if entry.event_processor.is_lockdown() && scheduled.stopped_at.is_some() =>
+                {
+                    Upsert::Create
+                }
                 Some(scheduled) => Upsert::Update(scheduled.id.clone()),
                 None => Upsert::Create,
             };
@@ -964,9 +1002,16 @@ pub async fn import_schedule(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    labels: &PermissionLabels,
     csv_bytes: &[u8],
 ) -> Result<(ImportOutcome, Vec<ScheduleEntry>)> {
     crate::postgres::scheduled_event::lock_scheduling_event(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
+    crate::services::election_dates::require_unlocked_schedule(
         hasura_transaction,
         tenant_id,
         election_event_id,
@@ -977,6 +1022,32 @@ pub async fn import_schedule(
     let mut parsed = parse_schedule(csv_bytes, &event, &elections)?;
     if !parsed.preview.is_clean() {
         return Err(RowsWithErrors(parsed.preview).into());
+    }
+    if parsed
+        .entries
+        .iter()
+        .any(|entry| entry.event_processor.is_lockdown())
+    {
+        crate::postgres::scheduled_event::lock_elections(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            None,
+        )
+        .await?;
+        let elections = crate::postgres::election::get_elections_permission_labels(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            None,
+        )
+        .await?;
+        if elections
+            .iter()
+            .any(|e| !labels.allows(e.permission_label.as_deref()))
+        {
+            return Err(SchedulePermissionDenied.into());
+        }
     }
     let mut outcome = ImportOutcome::default();
     let mut not_updated = HashSet::new();
@@ -1104,10 +1175,9 @@ pub fn export_schedule_csv(
         .iter()
         .filter(|scheduled| scheduled.archived_at.is_none())
         .filter(|scheduled| {
-            scheduled
-                .event_processor
-                .as_ref()
-                .is_some_and(is_schedulable)
+            scheduled.event_processor.as_ref().is_some_and(|p| {
+                is_schedulable(p) && !(p.is_lockdown() && scheduled.stopped_at.is_some())
+            })
         })
         .filter_map(|scheduled| {
             let row = export_row(scheduled, event, &by_id);
@@ -1316,6 +1386,7 @@ pub async fn import_schedule_document(
     election_event_id: &str,
     document_id: &str,
     author: &ScheduleAuthor,
+    labels: &PermissionLabels,
 ) -> Result<ImportOutcome> {
     let mut client = get_hasura_pool().await.get().await?;
     let hasura_transaction = client.transaction().await?;
@@ -1326,8 +1397,14 @@ pub async fn import_schedule_document(
         document_id,
     )
     .await?;
-    let (outcome, entries) =
-        import_schedule(&hasura_transaction, tenant_id, election_event_id, &bytes).await?;
+    let (outcome, entries) = import_schedule(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        labels,
+        &bytes,
+    )
+    .await?;
 
     let refresh_enrollment = entries.iter().any(|entry| {
         matches!(

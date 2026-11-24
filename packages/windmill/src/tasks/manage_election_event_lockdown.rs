@@ -83,14 +83,29 @@ pub async fn manage_election_event_lockdown_wrapped(
             scheduled_event_id
         ));
     };
-    // Queued before the row moved to a later time: it runs then.
-    if crate::tasks::scheduled_events::fires_later(&scheduled_event, chrono::Utc::now()) {
+    let at = scheduled_event
+        .lockdown_time()
+        .ok_or_else(|| anyhow!("Expected an event-wide lockdown schedule with a valid instant"))?;
+    if at > chrono::Utc::now() {
         info!("Scheduled event {scheduled_event_id} was moved to a later time; it runs then");
         return Ok(());
     }
 
     let locked_down =
         scheduled_event.event_processor == Some(EventProcessors::START_LOCKDOWN_PERIOD);
+    if !locked_down {
+        let ends = find_scheduled_event_by_election_event_id_and_event_processor(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &EventProcessors::END_LOCKDOWN_PERIOD.to_string(),
+        )
+        .await?;
+        anyhow::ensure!(
+            ends.iter().filter(|row| row.stopped_at.is_none()).count() == 1,
+            "Cannot run an ambiguous end of lockdown."
+        );
+    }
 
     let election_event =
         get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await?;

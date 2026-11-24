@@ -107,6 +107,8 @@ export const ScheduledEnd: Story = {
     play: async ({canvasElement}) => {
         const banner = within(canvasElement).getByRole("status", {name: "Lockdown Status"})
         await waitFor(() => expect(banner).toHaveTextContent("End of lockdown scheduled for"))
+        expect(within(banner).getByRole("button", {name: "Replace scheduled end"})).toBeVisible()
+        expect(within(banner).getByRole("button", {name: "Cancel scheduled end"})).toBeVisible()
         expect(banner).toHaveTextContent("Locked down since Apr 22, 2028, 08:00")
         expect(banner).toHaveTextContent("May 08, 2028, 08:00")
         expect(banner).toHaveTextContent("PhST")
@@ -119,6 +121,7 @@ export const NoScheduledEnd: Story = {
     play: async ({canvasElement}) => {
         const banner = within(canvasElement).getByRole("status", {name: "Lockdown Status"})
         await waitFor(() => expect(banner).toHaveTextContent("No end of lockdown is scheduled."))
+        expect(within(banner).getByRole("button", {name: "Schedule end of lockdown"})).toBeVisible()
         expect(banner).toHaveTextContent("Locked down since Apr 22, 2028, 08:00")
     },
 }
@@ -143,5 +146,6 @@ export const WithoutTimingPermissions: Story = {
         expect(banner).toHaveTextContent("This election event is in lockdown.")
         expect(banner).not.toHaveTextContent("No end of lockdown is scheduled.")
         expect(readsOf(data)).toEqual([])
+        expect(within(banner).queryByRole("button", {name: "Schedule end of lockdown"})).toBeNull()
     },
 }

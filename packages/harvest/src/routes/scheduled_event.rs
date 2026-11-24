@@ -138,6 +138,12 @@ pub async fn create_scheduled_event(
     claims: JwtClaims,
 ) -> Result<Json<CreateEventOutput>, (Status, String)> {
     let mut input = body.into_inner();
+    if input.event_processor.is_lockdown() {
+        return Err((
+            Status::BadRequest,
+            "Use manage-election-dates to schedule an event-wide start or end of lockdown.".into(),
+        ));
+    }
     match input.event_processor.clone() {
         EventProcessors::SEND_TEMPLATE => {
             authorize(

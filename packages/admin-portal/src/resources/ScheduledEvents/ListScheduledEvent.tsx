@@ -21,7 +21,6 @@ import {
     useListContext,
     useNotify,
     useRefresh,
-    WrapperField,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -30,10 +29,12 @@ import {
     ManageElectionDatesMutation,
     ManageElectionDatesMutationVariables,
     Sequent_Backend_Election,
+    Sequent_Backend_Election_Event,
     Sequent_Backend_Scheduled_Event,
 } from "@/gql/graphql"
 import CreateEvent, {EventProcessors} from "./CreateScheduledEvent"
 import {Dialog} from "@sequentech/ui-essentials"
+import {EElectionEventLockedDown} from "@sequentech/ui-core"
 import AddIcon from "@mui/icons-material/Add"
 import UploadIcon from "@mui/icons-material/Upload"
 import {IPermissions} from "@/types/keycloak"
@@ -126,12 +127,16 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const [selectedEventId, setSelectedEventId] = useState<string | undefined>()
     const aliasRenderer = useAliasRenderer()
 
-    const {
-        canWriteScheduledEvent,
-        canCreateScheduledEvent,
-        canDeleteScheduledEvent,
-        showScheduledEventColumns,
-    } = useScheduledEventPermissions()
+    const {data: event} = useGetOne<Sequent_Backend_Election_Event>(
+        "sequent_backend_election_event",
+        {id: electionEventId},
+        {enabled: !!electionEventId, refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS}
+    )
+    const locked = event?.presentation?.locked_down === EElectionEventLockedDown.LOCKED_DOWN
+    const permissions = useScheduledEventPermissions()
+    const canWriteScheduledEvent = !locked && permissions.canWriteScheduledEvent
+    const canCreateScheduledEvent = !locked && permissions.canCreateScheduledEvent
+    const canDeleteScheduledEvent = !locked && permissions.canDeleteScheduledEvent
 
     const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES, {
         context: {
@@ -305,12 +310,17 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         scheduledDate: undefined, // to archive, set date to undefined
                         eventProcessor: scheduledEventToDelete.event_processor,
                     }
-                    const {errors} = await manageElectionDates({
+                    const {data, errors} = await manageElectionDates({
                         variables,
                     })
-                    if (errors) {
-                        console.error(errors)
-                        notify(t("eventsScreen.messages.editError"), {type: "error"})
+                    if (errors || data?.manage_election_dates?.error_msg) {
+                        notify(
+                            data?.manage_election_dates?.error_msg ??
+                                t("eventsScreen.messages.editError"),
+                            {
+                                type: "error",
+                            }
+                        )
                     }
                 } catch (error) {
                     console.error(error)
@@ -466,13 +476,13 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                 empty={<Empty />}
                 actions={
                     <ListActions
-                        withColumns={showScheduledEventColumns}
+                        withColumns={permissions.showScheduledEventColumns}
                         withImport={canWriteScheduledEvent}
                         doImport={() => setOpenImport(true)}
-                        withExport={canWriteScheduledEvent}
+                        withExport={permissions.canWriteScheduledEvent}
                         doExport={doExport}
                         isExportDisabled={exporting}
-                        open={openCreateEvent}
+                        open={!locked && openCreateEvent}
                         setOpen={onOpenDrawer}
                         withAction={canCreateScheduledEvent}
                         doAction={onOpenDrawer}
@@ -560,14 +570,23 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                             )
                         }}
                     />
-                    <WrapperField label={String(t("common.label.actions"))}>
-                        <ActionsColumn actions={actions} />
-                    </WrapperField>
+                    <FunctionField
+                        label={String(t("common.label.actions"))}
+                        render={(row: Sequent_Backend_Scheduled_Event) =>
+                            locked ||
+                            (row.stopped_at &&
+                                (row.event_processor === EventProcessors.START_LOCKDOWN_PERIOD ||
+                                    row.event_processor ===
+                                        EventProcessors.END_LOCKDOWN_PERIOD)) ? null : (
+                                <ActionsColumn actions={actions} />
+                            )
+                        }
+                    />
                 </DatagridConfigurable>
             </List>
             <ResourceListStyles.Drawer
                 anchor="right"
-                open={openCreateEvent}
+                open={!locked && openCreateEvent}
                 onClose={handleClose}
                 sx={{"& .MuiDrawer-paper": {width: {xs: "100%", md: "50%"}}}}
             >
@@ -579,7 +598,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     getElectionName={getElectionName}
                 />
             </ResourceListStyles.Drawer>
-            {openImport ? (
+            {!locked && openImport ? (
                 <ImportScheduleDrawer
                     electionEventId={electionEventId}
                     primary={zones.primary}
@@ -600,7 +619,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
             ) : null}
             <Dialog
                 variant="warning"
-                open={isDeleteModalOpen}
+                open={!locked && isDeleteModalOpen}
                 ok={String(t("common.label.delete"))}
                 cancel={String(t("common.label.cancel"))}
                 title={String(t("common.label.warning"))}

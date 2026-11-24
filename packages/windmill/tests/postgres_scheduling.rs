@@ -140,6 +140,339 @@ fn some(text: &str) -> Option<String> {
 }
 
 #[tokio::test]
+async fn active_lockdown_end_can_be_replaced_cancelled_and_run_once_with_audit() {
+    use windmill::tasks::manage_election_event_lockdown::manage_election_event_lockdown_wrapped as fire;
+    use EventProcessors::{ALLOW_TALLY, END_LOCKDOWN_PERIOD, START_LOCKDOWN_PERIOD};
+
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let e = event(&tx, "UTC", &["UTC"]).await;
+    let post = election(&tx, e, None).await;
+    async fn save_end(tx: &Transaction<'_>, e: Event, input: &ScheduleInput) -> anyhow::Result<()> {
+        save_schedule(
+            tx,
+            &e.t(),
+            &e.e(),
+            None,
+            &END_LOCKDOWN_PERIOD,
+            input,
+            None,
+            &admin(),
+        )
+        .await
+        .map(|_| ())
+    }
+
+    let due = json!({"scheduled_date": "2000-01-01T00:00:00Z"});
+    let old_end = schedule(&tx, e, None, END_LOCKDOWN_PERIOD, json!({}), due.clone()).await;
+    fire(&tx, e.t(), e.e(), old_end.to_string()).await.unwrap();
+    let history = row(&tx, "scheduled_event", old_end).await;
+    let start = schedule(&tx, e, None, START_LOCKDOWN_PERIOD, json!({}), due.clone()).await;
+    let unrelated = schedule(
+        &tx,
+        e,
+        Some(post),
+        ALLOW_TALLY,
+        json!({"election_id": post}),
+        due,
+    )
+    .await;
+    fire(&tx, e.t(), e.e(), start.to_string()).await.unwrap();
+    let event_before = row(&tx, "election_event", e.event).await;
+    assert_eq!(event_before["presentation"]["locked_down"], "locked-down");
+    assert!(fire(&tx, e.t(), e.e(), unrelated.to_string())
+        .await
+        .is_err());
+
+    let future = ScheduleInput {
+        scheduled_date: some("2099-01-01T00:00:00Z"),
+        ..Default::default()
+    };
+    for (processor, post_id, input) in [
+        (ALLOW_TALLY, Some(post.to_string()), future.clone()),
+        (START_LOCKDOWN_PERIOD, None, future.clone()),
+        (END_LOCKDOWN_PERIOD, Some(post.to_string()), future.clone()),
+        (END_LOCKDOWN_PERIOD, None, ScheduleInput::default()),
+    ] {
+        let err = save_schedule(
+            &tx,
+            &e.t(),
+            &e.e(),
+            post_id.as_deref(),
+            &processor,
+            &input,
+            None,
+            &admin(),
+        )
+        .await
+        .unwrap_err();
+        assert!(err.is::<InvalidSchedule>(), "{err:#}");
+    }
+    save_end(&tx, e, &future).await.unwrap();
+    let pending_end = "SELECT id FROM sequent_backend.scheduled_event
+        WHERE election_event_id=$1 AND event_processor='END_LOCKDOWN_PERIOD'
+          AND stopped_at IS NULL AND archived_at IS NULL";
+    let first: Uuid = tx.query_one(pending_end, &[&e.event]).await.unwrap().get(0);
+    // A legacy, overdue END can still be corrected before the worker obtains the lock.
+    tx.execute(
+        "UPDATE sequent_backend.scheduled_event SET task_id=NULL, event_payload=NULL,
+                cron_config=$2 WHERE id=$1",
+        &[&first, &json!({"scheduled_date":"2000-01-01T00:00:00Z"})],
+    )
+    .await
+    .unwrap();
+    let replacement = ScheduleInput {
+        scheduled_date: some("2099-02-01T00:00:00Z"),
+        ..Default::default()
+    };
+    let past = ScheduleInput {
+        scheduled_date: some("2000-02-01T00:00:00Z"),
+        ..Default::default()
+    };
+    assert!(save_end(&tx, e, &past)
+        .await
+        .unwrap_err()
+        .is::<InvalidSchedule>());
+    save_end(&tx, e, &replacement).await.unwrap();
+    assert!(fire(&tx, e.t(), e.e(), first.to_string()).await.is_err());
+    let second: Uuid = tx.query_one(pending_end, &[&e.event]).await.unwrap().get(0);
+    assert_ne!(first, second);
+    assert!(!row(&tx, "scheduled_event", first).await["archived_at"].is_null());
+    save_end(&tx, e, &ScheduleInput::default()).await.unwrap();
+    assert!(tx
+        .query_opt(pending_end, &[&e.event])
+        .await
+        .unwrap()
+        .is_none());
+    assert!(!row(&tx, "scheduled_event", second).await["archived_at"].is_null());
+    assert_eq!(
+        event_before["presentation"],
+        row(&tx, "election_event", e.event).await["presentation"]
+    );
+    assert!(windmill::services::schedule_csv::import_schedule(
+        &tx,
+        &e.t(),
+        &e.e(),
+        &Default::default(),
+        b""
+    )
+    .await
+    .unwrap_err()
+    .to_string()
+    .contains("locked down"));
+
+    save_end(&tx, e, &future).await.unwrap();
+    let last: Uuid = tx.query_one(pending_end, &[&e.event]).await.unwrap().get(0);
+    // Advance the fixture to the worker's due-time condition without a wall-clock wait.
+    let due = json!({"scheduled_date":"2000-01-01T00:00:00Z"});
+    tx.execute(
+        "UPDATE sequent_backend.scheduled_event SET cron_config=$2 WHERE id=$1",
+        &[&last, &due],
+    )
+    .await
+    .unwrap();
+    let duplicate = schedule(&tx, e, None, END_LOCKDOWN_PERIOD, json!({}), due).await;
+    for input in [&replacement, &ScheduleInput::default()] {
+        assert!(save_end(&tx, e, input)
+            .await
+            .unwrap_err()
+            .is::<InvalidSchedule>());
+    }
+    assert_eq!(tx.query(pending_end, &[&e.event]).await.unwrap().len(), 2);
+    assert!(fire(&tx, e.t(), e.e(), last.to_string()).await.is_err());
+    assert_eq!(
+        event_before["presentation"],
+        row(&tx, "election_event", e.event).await["presentation"]
+    );
+    tx.execute(
+        "DELETE FROM sequent_backend.scheduled_event WHERE id=$1",
+        &[&duplicate],
+    )
+    .await
+    .unwrap();
+    fire(&tx, e.t(), e.e(), last.to_string()).await.unwrap();
+    assert_eq!(
+        row(&tx, "election_event", e.event).await["presentation"]["locked_down"],
+        "not-locked-down"
+    );
+    assert_eq!(history, row(&tx, "scheduled_event", old_end).await);
+    assert!(!row(&tx, "scheduled_event", last).await["stopped_at"].is_null());
+    assert!(fire(&tx, e.t(), e.e(), last.to_string()).await.is_err());
+    let entries = tx
+        .query(
+            "SELECT event_type, body->'details' FROM sequent_backend.signing_log_outbox
+        WHERE election_event_id=$1 AND statement_kind='LockdownChanged'
+          AND body->'details'->>'scheduled_event_id'=$2 ORDER BY id",
+            &[&e.event, &last.to_string()],
+        )
+        .await
+        .unwrap();
+    assert_eq!(entries.len(), 2);
+    for (entry, kind) in entries.iter().zip(["USER", "SYSTEM"]) {
+        assert_eq!(entry.get::<_, String>(0), kind);
+        assert_eq!(
+            entry.get::<_, Value>(1),
+            json!({"locked_down":false,"previous":true,"source":"scheduled","scheduled_event_id":last})
+        );
+    }
+
+    // Both election- and event-wide ordinary stopped schedules retain their original save/remove paths.
+    for (id, processor) in [
+        (Some(post), ALLOW_TALLY),
+        (None, EventProcessors::END_ENROLLMENT_PERIOD),
+    ] {
+        let target = id.map(|id| id.to_string());
+        let saved = if id.is_some() {
+            unrelated
+        } else {
+            schedule(&tx, e, id, processor.clone(), json!({}), json!({})).await
+        };
+        tx.execute(
+            "UPDATE sequent_backend.scheduled_event SET stopped_at=now() WHERE id=$1",
+            &[&saved],
+        )
+        .await
+        .unwrap();
+        let before = row(&tx, "scheduled_event", saved).await;
+        save_schedule(
+            &tx,
+            &e.t(),
+            &e.e(),
+            target.as_deref(),
+            &processor,
+            &past,
+            None,
+            &admin(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(before, row(&tx, "scheduled_event", saved).await);
+        save_schedule(
+            &tx,
+            &e.t(),
+            &e.e(),
+            target.as_deref(),
+            &processor,
+            &ScheduleInput::default(),
+            None,
+            &admin(),
+        )
+        .await
+        .unwrap();
+        assert!(!row(&tx, "scheduled_event", saved).await["archived_at"].is_null());
+    }
+    tx.execute(
+        "UPDATE sequent_backend.election SET permission_label='restricted' WHERE id=$1",
+        &[&post],
+    )
+    .await
+    .unwrap();
+    let csv = b"election_alias,event_type,local_date_time,timezone\nALL,END_LOCKDOWN_PERIOD,2099-02-01T00:00,UTC\n";
+    let refused = windmill::services::schedule_csv::import_schedule(
+        &tx,
+        &e.t(),
+        &e.e(),
+        &Default::default(),
+        csv,
+    )
+    .await
+    .unwrap_err();
+    assert!(refused.is::<windmill::services::schedule_csv::SchedulePermissionDenied>());
+
+    tx.execute("UPDATE sequent_backend.election_event SET presentation=jsonb_set(presentation, '{timezones,configured}', '42') WHERE id=$1", &[&e.event]).await.unwrap();
+    let err = save_end(&tx, e, &future).await.unwrap_err();
+    assert!(err.is::<InvalidSchedule>() && err.to_string().contains("presentation"));
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn direct_schedule_writes_check_both_events_and_allow_ordinary_unlocked_rows() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let locked = event(&tx, "UTC", &["UTC"]).await;
+    let open = event(&tx, "UTC", &["UTC"]).await;
+    let seed = |e| {
+        schedule(
+            &tx,
+            e,
+            None,
+            EventProcessors::ALLOW_TALLY,
+            json!({}),
+            json!({}),
+        )
+    };
+    let pending = seed(locked).await;
+    let other = seed(open).await;
+    let stopped = seed(open).await;
+    tx.execute(
+        "UPDATE sequent_backend.scheduled_event SET stopped_at=now() WHERE id=$1",
+        &[&stopped],
+    )
+    .await
+    .unwrap();
+    let start = schedule(
+        &tx,
+        locked,
+        None,
+        EventProcessors::START_LOCKDOWN_PERIOD,
+        json!({}),
+        json!({"scheduled_date": "2000-01-01T00:00:00Z"}),
+    )
+    .await;
+    windmill::tasks::manage_election_event_lockdown::manage_election_event_lockdown_wrapped(
+        &tx,
+        locked.t(),
+        locked.e(),
+        start.to_string(),
+    )
+    .await
+    .unwrap();
+    let session = json!({
+        "x-hasura-role": "scheduled-event-write",
+        "x-hasura-tenant-id": open.tenant,
+        "x-hasura-user-id": Uuid::new_v4(),
+    });
+    tx.query_one(
+        "SELECT set_config('hasura.user', $1, true)",
+        &[&session.to_string()],
+    )
+    .await
+    .unwrap();
+    for statement in [
+        format!("UPDATE sequent_backend.scheduled_event SET archived_at=now() WHERE id='{pending}'"),
+        format!("DELETE FROM sequent_backend.scheduled_event WHERE id='{pending}'"),
+        format!("UPDATE sequent_backend.scheduled_event SET election_event_id='{}' WHERE id='{pending}'", open.event),
+        format!("UPDATE sequent_backend.scheduled_event SET election_event_id='{}' WHERE id='{other}'", locked.event),
+        format!("INSERT INTO sequent_backend.scheduled_event (tenant_id,election_event_id,event_processor) VALUES ('{}','{}','END_LOCKDOWN_PERIOD')", locked.tenant, locked.event),
+        format!("UPDATE sequent_backend.scheduled_event SET event_processor='END_LOCKDOWN_PERIOD' WHERE id='{other}'"),
+    ] {
+        tx.batch_execute("SAVEPOINT denied").await.unwrap();
+        let error = tx.batch_execute(&statement).await.unwrap_err();
+        assert_eq!(error.code(), Some(&tokio_postgres::error::SqlState::INSUFFICIENT_PRIVILEGE));
+        tx.batch_execute("ROLLBACK TO denied").await.unwrap();
+    }
+    assert_eq!(
+        tx.execute(
+            "UPDATE sequent_backend.scheduled_event SET archived_at=now() WHERE id=$1",
+            &[&stopped]
+        )
+        .await
+        .unwrap(),
+        1
+    );
+    assert_eq!(
+        tx.execute(
+            "UPDATE sequent_backend.scheduled_event SET labels='{}' WHERE id=$1",
+            &[&other]
+        )
+        .await
+        .unwrap(),
+        1
+    );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
 async fn the_event_wide_close_closes_every_post_without_its_own_in_the_voting_window() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
@@ -986,12 +1319,13 @@ async fn queued_lifecycle_tasks_recheck_direct_schedule_edits_before_deciding_to
             let tx = editor.transaction().await.unwrap();
             let e = event(&tx, "UTC", &["UTC"]).await;
             let post = election(&tx, e, None).await;
+            let target = (!processor.is_lockdown()).then_some(post);
             let id = schedule(
                 &tx,
                 e,
-                Some(post),
+                target,
                 processor.clone(),
-                json!({"election_id": post}),
+                json!({"election_id": target}),
                 json!({"scheduled_date": "2000-01-01T00:00:00Z"}),
             )
             .await;

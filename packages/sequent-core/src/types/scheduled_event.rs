@@ -71,6 +71,15 @@ pub enum EventProcessors {
     END_TEST_VOTING,
 }
 
+impl EventProcessors {
+    pub fn is_lockdown(&self) -> bool {
+        matches!(
+            self,
+            Self::START_LOCKDOWN_PERIOD | Self::END_LOCKDOWN_PERIOD
+        )
+    }
+}
+
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone, Default)]
 pub struct CronConfig {
     pub cron: Option<String>,
@@ -183,6 +192,43 @@ pub struct ScheduledEvent {
     pub cron_config: Option<CronConfig>,
     pub event_payload: Option<Value>,
     pub task_id: Option<String>,
+}
+
+impl ScheduledEvent {
+    /// The instant of a runnable, event-wide lockdown transition. Older rows
+    /// may lack a task name or payload.
+    pub fn lockdown_time(&self) -> Option<DateTime<Utc>> {
+        let processor = self.event_processor.as_ref()?;
+        if !processor.is_lockdown()
+            || self.stopped_at.is_some()
+            || self.archived_at.is_some()
+        {
+            return None;
+        }
+        let task = generate_manage_date_task_name(
+            self.tenant_id.as_deref()?,
+            self.election_event_id.as_deref()?,
+            None,
+            processor,
+        );
+        if self.task_id.as_ref().is_some_and(|id| id != &task) {
+            return None;
+        }
+        if let Some(payload) =
+            self.event_payload.as_ref().filter(|p| !p.is_null())
+        {
+            if !payload.is_object()
+                || payload.get("election_id").is_some_and(|id| !id.is_null())
+            {
+                return None;
+            }
+        }
+        DateTime::parse_from_rfc3339(
+            self.cron_config.as_ref()?.scheduled_date.as_deref()?,
+        )
+        .ok()
+        .map(|date| date.with_timezone(&Utc))
+    }
 }
 
 pub fn generate_manage_date_task_name(
