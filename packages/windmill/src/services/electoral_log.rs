@@ -1555,7 +1555,7 @@ impl GetElectoralLogBody {
     }
 
     // Returns the SQL clauses related to the request along with the parameters
-    #[instrument(ret)]
+    #[instrument(skip_all)]
     fn as_sql(&self, to_count: bool) -> Result<(String, Vec<NamedParam>)> {
         let mut clauses = Vec::new();
         let mut params = Vec::new();
@@ -1565,7 +1565,7 @@ impl GetElectoralLogBody {
             let mut where_clauses = Vec::new();
 
             for (field, value) in filters_map {
-                info!("field = ?: {field}, value = ?: {value}");
+                info!("Filtering by {field}");
                 let param_name = format!("param_{field}");
                 match field {
                     OrderField::Id => { // sql INTEGER type
@@ -2008,7 +2008,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     })
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn get_cols_match_count_and_select(
     election_id: &str,
     user_id: &str,
@@ -2089,7 +2089,7 @@ fn public_cast_vote_order(
 /// Returns the entries for statement_kind = "CastVote" which ballot_id starts with the input
 /// ballot_id_filter, which is restricted to an even number of hex characters, so that can be
 /// converted to a byte array
-#[instrument(err)]
+#[instrument(skip_all, err)]
 pub async fn list_cast_vote_messages(
     input: GetElectoralLogBody,
     ballot_id_filter: &str,

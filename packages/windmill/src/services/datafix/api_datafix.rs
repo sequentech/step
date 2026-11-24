@@ -904,7 +904,7 @@ pub async fn audit_inbound_operation_standalone(
 /// Whether an inbound `MarkVoted` channel is a real external channel — rejects a
 /// blank value, the reset sentinel, and the Internet channel (owned by the
 /// online voting path, not by an inbound mark).
-#[instrument]
+#[instrument(skip_all)]
 pub fn valid_inbound_voting_channel(channel: &str) -> bool {
     let channel = channel.trim();
     !channel.is_empty()

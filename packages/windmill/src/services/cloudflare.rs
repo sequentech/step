@@ -88,7 +88,7 @@ impl fmt::Display for CloudflareError {
 
 impl Error for CloudflareError {}
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn get_cloudflare_vars() -> Result<(String, String), Box<dyn Error>> {
     let cloudflare_zone = std::env::var("CLOUDFLARE_ZONE")
         .map_err(|_e| "Missing cloudflare env variable".to_string())?;
@@ -98,7 +98,7 @@ pub fn get_cloudflare_vars() -> Result<(String, String), Box<dyn Error>> {
     Ok((cloudflare_zone, cloudflare_api_key))
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn list_rulesets(
     api_key: &str,
     zone_id: &str,
@@ -133,7 +133,7 @@ pub async fn list_rulesets(
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn get_ruleset_by_id(
     api_key: &str,
     zone_id: &str,
@@ -169,7 +169,7 @@ pub async fn get_ruleset_by_id(
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn get_ruleset_by_phase(
     api_key: &str,
     zone_id: &str,
@@ -195,7 +195,7 @@ pub async fn get_ruleset_by_phase(
     Ok(ruleset)
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn create_ruleset(
     api_key: &str,
     zone_id: &str,
@@ -241,7 +241,7 @@ pub async fn create_ruleset(
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn create_ruleset_rule(
     api_key: &str,
     zone_id: &str,
@@ -276,7 +276,7 @@ pub async fn create_ruleset_rule(
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn update_ruleset_rule(
     api_key: &str,
     zone_id: &str,
@@ -312,7 +312,7 @@ pub async fn update_ruleset_rule(
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn delete_ruleset_rule(
     api_key: &str,
     zone_id: &str,

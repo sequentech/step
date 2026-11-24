@@ -33,7 +33,7 @@ impl Vault for EnvVarMasterSecret {
         }
     }
 
-    #[instrument]
+    #[instrument(skip_all)]
     fn vault_type(&self) -> VaultManagerType {
         VaultManagerType::EnvVarMasterSecret
     }
