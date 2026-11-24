@@ -109,6 +109,11 @@ export enum EVoterCertificatePolicy {
     DISABLED = "disabled",
 }
 
+export enum EKioskChannelAuthenticationPolicy {
+    CLIENT_IDENTITY = "client-identity",
+    ATTESTED = "attested",
+}
+
 export enum EResultsWebsiteStatus {
     ENABLED = "enabled",
     DISABLED = "disabled",
@@ -230,4 +235,5 @@ export interface IElectionEventPresentation {
     results_website?: string
     delegated_voting_policy: EElectionEventDelegatedVotingPolicy
     voting_portal_datetime_format?: VotingPortalDateTimeFormat
+    kiosk_channel_authentication_policy?: EKioskChannelAuthenticationPolicy
 }
