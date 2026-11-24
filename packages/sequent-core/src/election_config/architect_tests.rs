@@ -6753,6 +6753,7 @@ fn compiled_export(plan: &Blueprint) -> serde_json::Value {
 /// such values are the event's own and are preserved like any other).
 fn native_export_with_signing() -> serde_json::Value {
     let mut export = compiled_export(&sound());
+    export["operational_signing_mode"] = serde_json::json!("legacy-p12");
     export["signing_rules"] = serde_json::json!([
         {"action": "open-voting", "requirement": "required", "signatures": 3,
          "requester_signing": "not-allowed", "expires_minutes": 15, "revision": 2},
@@ -6770,21 +6771,14 @@ fn native_export_with_signing() -> serde_json::Value {
     export
 }
 
-fn signing_of(export: &serde_json::Value) -> [serde_json::Value; 3] {
+fn signing_of(export: &serde_json::Value) -> [serde_json::Value; 4] {
     [
-        export
-            .get("signing_rules")
-            .cloned()
-            .unwrap_or(serde_json::Value::Null),
-        export
-            .get("signing_checks")
-            .cloned()
-            .unwrap_or(serde_json::Value::Null),
-        export
-            .get("approval_matrix")
-            .cloned()
-            .unwrap_or(serde_json::Value::Null),
+        "operational_signing_mode",
+        "signing_rules",
+        "signing_checks",
+        "approval_matrix",
     ]
+    .map(|key| export[key].clone())
 }
 
 /// An export opened in the wizard. A bundle never names trustees (the
@@ -6807,6 +6801,138 @@ fn an_opened_export_keeps_its_signing_configuration_through_compile() {
     let plan = opened(&native);
     assert!(plan.signing.rules.is_some() && plan.signing.checks.is_some());
     assert_eq!(signing_of(&compiled_export(&plan)), signing_of(&native));
+}
+
+#[cfg(feature = "election_config_archive")]
+#[test]
+fn a_generated_delivery_records_one_mode_across_its_members() {
+    use crate::election_config::{archive, import_gate};
+    use crate::signing::OperationalSigningMode::{HsmRequired, LegacyP12};
+    let templates = TemplateSet::builtin().unwrap();
+    for (chosen, base, expected) in [
+        (None, None, HsmRequired),
+        (None, Some(LegacyP12), LegacyP12),
+        (Some(HsmRequired), Some(LegacyP12), HsmRequired),
+        (Some(LegacyP12), None, LegacyP12),
+    ] {
+        let mut plan = sound();
+        plan.signing.operational_signing_mode = chosen;
+        let compiled = compile_plan(Compile {
+            plan: &plan,
+            templates: &templates,
+            options: &BuildOptions {
+                base_export: base.map(|mode| {
+                    serde_json::json!({"operational_signing_mode": mode})
+                }),
+                ..Default::default()
+            },
+            profile: None,
+            sources: None,
+        })
+        .unwrap();
+        let member = import_gate::event_member(&compiled.layout.importable);
+        let admitted =
+            import_gate::admit(&member, import_gate::DEPLOYED_OVCS).unwrap();
+        assert_eq!(admitted.schema.operational_signing_mode, Some(expected));
+        assert_eq!(
+            compiled.report.problems.iter().any(|p| {
+                p.id.as_deref() == Some("signing.workbook-needs-current-architect")
+            }),
+            expected == LegacyP12,
+            "warn about a meaningful mode difference, not the effective default"
+        );
+
+        let auxiliary = |name: &str| {
+            compiled
+                .layout
+                .auxiliary
+                .iter()
+                .find(|file| file.name == name)
+                .unwrap()
+                .bytes
+                .as_slice()
+        };
+        let saved =
+            std::str::from_utf8(auxiliary(archive::PLAN_MEMBER)).unwrap();
+        let saved = read_plan(saved).unwrap().plan;
+        assert_eq!(saved.signing.operational_signing_mode, Some(expected));
+        assert_eq!(saved.version, BLUEPRINT_VERSION);
+        #[cfg(feature = "election_config_xlsx")]
+        {
+            use crate::election_config::{
+                plan_from_workbook::plan_from_workbook, xlsx,
+            };
+            let workbook =
+                xlsx::read_xlsx(auxiliary(archive::WORKBOOK_MEMBER)).unwrap();
+            let reopened = plan_from_workbook(&workbook).unwrap();
+            assert_eq!(
+                reopened.plan.signing.operational_signing_mode,
+                Some(expected)
+            );
+        }
+    }
+}
+
+#[test]
+fn a_mode_in_either_base_survives_an_unlocked_profile_default() {
+    use crate::election_config::profile::ClientProfile;
+    use serde_json::json;
+    let profile = Profile::read(&ClientProfile {
+        id: "hsm-default".into(),
+        defaults: [(
+            "signing.operational_signing_mode".into(),
+            json!("hsm-required"),
+        )]
+        .into_iter()
+        .collect(),
+        ..Default::default()
+    })
+    .unwrap();
+    let legacy = json!({"operational_signing_mode": "legacy-p12"});
+    let templates = TemplateSet::builtin().unwrap();
+    for (embedded, supplied) in
+        [(Some(legacy.clone()), json!({})), (None, legacy)]
+    {
+        let mut plan = sound();
+        plan.base_export = embedded;
+        let compiled = compile_plan(Compile {
+            plan: &plan,
+            templates: &templates,
+            options: &BuildOptions {
+                base_export: Some(supplied),
+                ..Default::default()
+            },
+            profile: Some(&profile),
+            sources: None,
+        })
+        .unwrap();
+        assert_eq!(
+            compiled.bundle.export["operational_signing_mode"],
+            "legacy-p12"
+        );
+    }
+}
+
+#[test]
+fn malformed_modes_refuse_an_export_a_saved_plan_and_its_base() {
+    use serde_json::json;
+    let mut positional = serde_json::to_value(sound()).unwrap();
+    positional["signing"] = json!(["legacy-p12"]);
+    assert!(read_plan_value(positional).is_err());
+    let mut export = native_export_with_signing();
+    for invalid in [json!(null), json!("auto"), json!({"legacy-p12": null})] {
+        export["operational_signing_mode"] = invalid.clone();
+        assert!(crate::election_config::plan_from_event::plan_from_event(
+            &export
+        )
+        .is_err());
+        let mut plan = serde_json::to_value(sound()).unwrap();
+        plan["signing"] = json!({"operational_signing_mode": invalid});
+        assert!(read_plan_value(plan.clone()).is_err());
+        plan["signing"]["operational_signing_mode"] = json!("legacy-p12");
+        plan["base_export"] = json!({"operational_signing_mode": invalid});
+        assert!(read_plan_value(plan).is_err());
+    }
 }
 
 #[cfg(feature = "election_config_xlsx")]
@@ -6837,7 +6963,12 @@ fn explicitly_empty_rules_stay_empty_and_absent_stays_absent() {
     assert_eq!(export["approval_matrix"], serde_json::json!({}));
 
     let mut bare = native_export_with_signing();
-    for key in ["signing_rules", "signing_checks", "approval_matrix"] {
+    for key in [
+        "operational_signing_mode",
+        "signing_rules",
+        "signing_checks",
+        "approval_matrix",
+    ] {
         bare.as_object_mut().unwrap().remove(key);
     }
     let plan = opened(&bare);
@@ -6846,6 +6977,7 @@ fn explicitly_empty_rules_stay_empty_and_absent_stays_absent() {
         "nothing is invented for an export without any"
     );
     let export = compiled_export(&plan);
+    assert_eq!(export["operational_signing_mode"], "hsm-required");
     assert!(export.get("signing_rules").is_none_or(|v| v.is_null()));
     assert!(export.get("signing_checks").is_none_or(|v| v.is_null()));
 }
@@ -6890,22 +7022,22 @@ fn a_duplicate_rule_is_refused_by_the_importers_validation() {
 }
 
 #[test]
-fn a_version_four_plan_opens_as_version_five_without_a_signing_configuration() {
+fn older_plans_open_without_inventing_an_explicit_mode() {
     let mut document = serde_json::to_value(sound()).unwrap();
-    document["version"] = serde_json::json!(4);
-    let read = read_plan_value(document).expect("a v4 plan still opens");
-    assert_eq!(read.plan.version, 5);
-    assert!(read.plan.signing.is_empty());
+    for version in [4, 5] {
+        document["version"] = serde_json::json!(version);
+        let read = read_plan_value(document.clone()).unwrap();
+        assert_eq!(read.plan.version, BLUEPRINT_VERSION);
+        assert!(read.plan.signing.is_empty());
+    }
 }
 
 #[test]
-fn a_plan_with_a_signing_configuration_is_one_a_v4_build_refuses() {
-    // The bump's purpose: a build that only knows v4 refuses this plan as
-    // newer instead of dropping `signing` as an unknown field.
+fn a_plan_with_an_operational_mode_is_one_a_v5_build_refuses() {
     let plan = opened(&native_export_with_signing());
     let saved = serde_json::to_value(&plan).unwrap();
-    assert!(saved["version"].as_u64().unwrap() > 4);
-    assert!(saved.get("signing").is_some());
+    assert!(saved["version"].as_u64().unwrap() > 5);
+    assert_eq!(saved["signing"]["operational_signing_mode"], "legacy-p12");
 }
 
 #[test]
@@ -7003,6 +7135,13 @@ fn a_signing_bearing_plan_warns_that_its_workbook_needs_a_current_architect() {
     }));
     let report = validate_plan(&sound(), &Sources::default());
     assert!(!report.problems.iter().any(|p| {
+        p.id.as_deref() == Some("signing.workbook-needs-current-architect")
+    }));
+
+    let mut matrix_only = sound();
+    matrix_only.signing.approval_matrix = Some(serde_json::json!({}));
+    let report = validate_plan(&matrix_only, &Sources::default());
+    assert!(report.problems.iter().any(|p| {
         p.id.as_deref() == Some("signing.workbook-needs-current-architect")
     }));
 }

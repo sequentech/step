@@ -1084,6 +1084,14 @@ const frenchTranslation: TranslationType = {
                         lead: "Confiance de certificats non conservée",
                         text: "Confiance de certificats non conservée — l'archive ouverte contenait '{{member}}', que l'Architect ne conserve pas. Les signatures qui en dépendent peuvent échouer jusqu'à sa restauration par la configuration de certificats autorisée de la plateforme.",
                     },
+                    "invalid-operational-mode": {
+                        lead: "Mode de signature non valide",
+                        text: "Mode de signature non valide — choisissez hsm-required ou legacy-p12.",
+                    },
+                    "mode-not-one-row": {
+                        lead: "Une ligne pour le mode de signature",
+                        text: "Une ligne pour le mode de signature — OperationalSigning doit contenir exactement une ligne.",
+                    },
                     "workbook-needs-current-architect": {
                         lead: "Classeur pour un Architect récent",
                         text: "Classeur pour un Architect récent — le classeur garde cette politique de signature dans des feuilles qu'un Architect plus ancien ignore. Rouvrez-le depuis blueprint.json ou le zip de livraison pour la conserver.",

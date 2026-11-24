@@ -16,6 +16,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::signing::OperationalSigningMode;
 use crate::types::hasura::core::{
     Application, Area, AreaContest, Candidate, Contest, Election,
     ElectionEvent, KeysCeremony, SupportMaterial,
@@ -98,6 +99,16 @@ pub struct ImportElectionEventSchema {
     /// whose uuid the JSON never mentions. See
     /// `engineering/how-a-support-material-travels-in-a-bundle`.
     pub support_materials: Option<Vec<SupportMaterial>>,
+
+    /// The event's requested credential mode for protected approvals.
+    /// Older exports omit it. Resolve the choice with the installed floor
+    /// using [`OperationalSigningMode::for_event`].
+    #[serde(
+        default,
+        deserialize_with = "OperationalSigningMode::deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub operational_signing_mode: Option<OperationalSigningMode>,
 
     /// How the event signs its protected actions, one rule per action.
     ///
@@ -271,6 +282,56 @@ mod tests {
         let written = serde_json::to_value(&parsed).unwrap();
         assert!(written.get("signing_rules").is_none());
         assert!(written.get("signing_checks").is_none());
+    }
+
+    #[test]
+    fn operational_signing_mode_preserves_presence_and_requires_a_wire_string()
+    {
+        use serde_json::json;
+        use OperationalSigningMode::{HsmRequired, LegacyP12};
+        let mut document: Value = serde_json::from_str(MINIMAL).unwrap();
+        let old: ImportElectionEventSchema =
+            serde_json::from_value(document.clone()).unwrap();
+        assert_eq!(old.operational_signing_mode, None);
+        assert_eq!(
+            LegacyP12.for_event(old.operational_signing_mode),
+            HsmRequired
+        );
+        let written = serde_json::to_value(old).unwrap();
+        assert!(written.get("operational_signing_mode").is_none());
+
+        for (wire, mode) in
+            [("hsm-required", HsmRequired), ("legacy-p12", LegacyP12)]
+        {
+            document["operational_signing_mode"] = json!(wire);
+            let parsed: ImportElectionEventSchema =
+                serde_json::from_value(document.clone()).unwrap();
+            assert_eq!(parsed.operational_signing_mode, Some(mode));
+            let written = serde_json::to_value(parsed).unwrap();
+            assert_eq!(written["operational_signing_mode"], wire);
+        }
+
+        for invalid in [
+            Value::Null,
+            json!(""),
+            json!("auto"),
+            json!("LegacyP12"),
+            json!(" legacy-p12"),
+            json!(false),
+            json!(1),
+            json!(["legacy-p12"]),
+            json!({"legacy-p12": null}),
+        ] {
+            document["operational_signing_mode"] = invalid;
+            let parsed = serde_json::from_value::<ImportElectionEventSchema>(
+                document.clone(),
+            );
+            assert!(
+                parsed.is_err(),
+                "{}",
+                document["operational_signing_mode"]
+            );
+        }
     }
 
     #[test]

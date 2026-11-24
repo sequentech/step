@@ -1010,10 +1010,44 @@ fn a_base_exports_approval_matrix_is_carried_over() {
 }
 
 #[test]
-fn without_a_base_export_a_bundle_has_no_signing_configuration() {
+fn a_new_workbook_defaults_its_mode_without_adding_rules_or_checks() {
     let export = built(&sound()).export;
+    assert_eq!(export["operational_signing_mode"], "hsm-required");
     assert!(export.get("signing_rules").is_none());
     assert!(export.get("signing_checks").is_none());
+}
+
+#[test]
+fn a_workbook_reads_the_base_mode_before_applying_its_own_choice() {
+    let templates = TemplateSet::builtin().unwrap();
+    let generate = |workbook: &Workbook, base: Value| {
+        build(
+            workbook,
+            &templates,
+            &BuildOptions {
+                base_export: Some(json!({"operational_signing_mode": base})),
+                ..Default::default()
+            },
+            &Sources::default(),
+        )
+    };
+    let inherited = generate(&sound(), json!("legacy-p12")).unwrap();
+    assert_eq!(inherited.export["operational_signing_mode"], "legacy-p12");
+    let workbook = with_sheet(
+        "OperationalSigning",
+        vec![
+            vec![text("operational_signing_mode")],
+            vec![text("hsm-required")],
+        ],
+    );
+    let overridden = generate(&workbook, json!("legacy-p12")).unwrap();
+    assert_eq!(
+        overridden.export["operational_signing_mode"],
+        "hsm-required"
+    );
+    for invalid in [Value::Null, json!("unknown")] {
+        assert!(generate(&workbook, invalid).is_err());
+    }
 }
 
 #[test]

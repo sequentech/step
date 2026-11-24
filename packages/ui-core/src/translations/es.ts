@@ -1081,6 +1081,14 @@ const spanishTranslation: TranslationType = {
                         lead: "Confianza de certificados no conservada",
                         text: "Confianza de certificados no conservada — el archivo abierto tenía '{{member}}', que el Architect no conserva. Las firmas que dependan de ello pueden fallar hasta que se restaure con la configuración de certificados autorizada de la plataforma.",
                     },
+                    "invalid-operational-mode": {
+                        lead: "Modo de firma no válido",
+                        text: "Modo de firma no válido — elige hsm-required o legacy-p12.",
+                    },
+                    "mode-not-one-row": {
+                        lead: "Una fila para el modo de firma",
+                        text: "Una fila para el modo de firma — OperationalSigning debe contener exactamente una fila.",
+                    },
                     "workbook-needs-current-architect": {
                         lead: "El libro necesita un Architect actual",
                         text: "El libro necesita un Architect actual — el libro guarda esta política de firmas en hojas que un Architect anterior ignora. Reábrelo desde blueprint.json o el zip de entrega para conservarla.",

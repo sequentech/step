@@ -3617,6 +3617,34 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn the_event_reader_keeps_the_declared_mode_across_id_replacement() {
+        use sequent_core::signing::OperationalSigningMode::{HsmRequired, LegacyP12};
+        let source: Value = serde_json::from_str(&a_sound_bundle(Some("v11.0.0"))).unwrap();
+        for configured in [None, Some(HsmRequired), Some(LegacyP12)] {
+            let mut input = source.clone();
+            if let Some(mode) = configured {
+                input["operational_signing_mode"] = json!(mode);
+            }
+            let (event, _, _) =
+                read_election_event_schema(&input.to_string(), None, TENANT.to_string(), "v11.0.0")
+                    .await
+                    .unwrap();
+            assert_ne!(event.election_event.id, EVENT);
+            assert_eq!(event.operational_signing_mode, configured);
+        }
+        for invalid in [Value::Null, json!("auto"), json!({"legacy-p12": null})] {
+            let mut input = source.clone();
+            input["operational_signing_mode"] = invalid;
+            let error =
+                read_election_event_schema(&input.to_string(), None, TENANT.to_string(), "v11.0.0")
+                    .await
+                    .unwrap_err();
+            let problems = crate::services::import::rejection::problems_of(&error).unwrap();
+            assert_eq!(problems[0].id.as_deref(), Some("file.not-a-bundle"));
+        }
+    }
+
+    #[tokio::test]
     async fn a_different_major_imports_with_a_warning() {
         for (found, platform) in [("v10.0.0", "v11.0.0-rc.10"), ("v12.0.0", "v11.0.0")] {
             let (_schema, _ids, warnings) = read_election_event_schema(

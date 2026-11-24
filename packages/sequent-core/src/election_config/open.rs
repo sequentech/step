@@ -20,6 +20,7 @@ use crate::election_config::plan_from_workbook::plan_from_workbook;
 use crate::election_config::problem::{Code, Problem, Report};
 use crate::election_config::sources::Sources;
 use crate::election_config::xlsx::read_xlsx;
+use crate::signing::OperationalSigningMode;
 
 /// What the bytes turned out to be.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -218,19 +219,13 @@ pub fn open_named(bytes: &[u8], name: Option<&str>) -> Result<Opened, Report> {
         });
     }
 
-    // An election event export, zipped. Third rather than first: a delivery
-    // carries one of these *inside* `official_election_setup.zip`, which `open`
-    // never unpacks, so the two cannot collide at the root — but keeping
-    // `blueprint.json` ahead of it means a delivery is still a delivery even if
-    // somebody adds an export beside the plan one day.
+    // An election event export, zipped. A delivery has its importable event
+    // inside `official_election_setup.zip` and was handled above.
     //
     // `contains` rather than an exact name, because the document is named for the
     // event's identifier and the Admin Portal's own importer matches it the same
     // way — including in a subdirectory.
-    if let Some(member) = names
-        .iter()
-        .find(|name| name.contains(EVENT_MEMBER) && name.ends_with(".json"))
-    {
+    if let Some(member) = event_member(&names)? {
         let raw = entry(bytes, member)?;
         let document: serde_json::Value = serde_json::from_slice(&raw)
             .map_err(|error| {
@@ -346,7 +341,8 @@ fn open_delivery(bytes: &[u8], names: &[String]) -> Result<Opened, Report> {
                 refuse(problem.message)
             }
         })?;
-    let plan = read.plan;
+    let mut plan = read.plan;
+    let mut delivered_mode = None;
 
     let mut report = Report::default();
 
@@ -396,6 +392,9 @@ fn open_delivery(bytes: &[u8], names: &[String]) -> Result<Opened, Report> {
         match inner {
             Some(inner) => {
                 let within = members(&inner).unwrap_or_default();
+                if let Some(name) = event_member(&within)? {
+                    delivered_mode = delivery_event_mode(&inner, name)?;
+                }
                 let census = within
                     .iter()
                     .find(|name| {
@@ -437,6 +436,19 @@ fn open_delivery(bytes: &[u8], names: &[String]) -> Result<Opened, Report> {
             }
         }
     };
+
+    if !saved {
+        let requested =
+            plan.signing.configured_mode(plan.base_export.as_ref())?;
+        if requested
+            .is_some_and(|mode| mode != delivered_mode.unwrap_or_default())
+        {
+            return Err(refuse(
+                "The blueprint and the importable event disagree on the operational signing mode.",
+            ));
+        }
+        plan.signing.operational_signing_mode = delivered_mode.or(requested);
+    }
 
     // A password this plan's own recipe generated is regenerated on the next
     // build, so reading it back would leave the reopened plan carrying two answers
@@ -506,6 +518,89 @@ fn open_delivery(bytes: &[u8], names: &[String]) -> Result<Opened, Report> {
         source,
         sources,
     })
+}
+
+/// Step selects event documents by this filename fragment. An archive with
+/// two matches has no unambiguous source for its event policy.
+fn event_member(names: &[String]) -> Result<Option<&str>, Report> {
+    let mut events = names.iter().filter(|name| {
+        let basename = name.rsplit('/').next().unwrap_or(name);
+        !basename.starts_with("._")
+            && basename.contains(EVENT_MEMBER)
+            && basename.ends_with(".json")
+    });
+    let first = events.next();
+    if events.next().is_some() {
+        return Err(refuse("The archive has multiple event documents."));
+    }
+    Ok(first.map(String::as_str))
+}
+
+/// Reopening a delivery only needs the mode from the nested event. Skip its
+/// candidate lists and realm while reading within the package member limit.
+fn delivery_event_mode(
+    bytes: &[u8],
+    name: &str,
+) -> Result<Option<OperationalSigningMode>, Report> {
+    use super::manifest::MAX_MEMBER_BYTES;
+    use super::signing_sheet::OPERATIONAL_SIGNING_MODE;
+    use serde::de::{self, Deserializer, IgnoredAny, MapAccess, Visitor};
+    use std::io::{BufReader, Cursor, Read};
+
+    struct Event;
+    impl<'de> Visitor<'de> for Event {
+        type Value = Option<OperationalSigningMode>;
+
+        fn expecting(
+            &self,
+            f: &mut std::fmt::Formatter<'_>,
+        ) -> std::fmt::Result {
+            f.write_str("an event export object")
+        }
+
+        fn visit_map<A: MapAccess<'de>>(
+            self,
+            mut fields: A,
+        ) -> Result<Self::Value, A::Error> {
+            let mut mode = None;
+            while let Some(key) = fields.next_key::<String>()? {
+                if key == OPERATIONAL_SIGNING_MODE {
+                    if mode.is_some() {
+                        return Err(de::Error::duplicate_field(
+                            OPERATIONAL_SIGNING_MODE,
+                        ));
+                    }
+                    mode = Some(fields.next_value::<OperationalSigningMode>()?);
+                } else {
+                    fields.next_value::<IgnoredAny>()?;
+                }
+            }
+            Ok(mode)
+        }
+    }
+
+    let unreadable = || {
+        refuse(
+        "The operational signing mode in the delivery's event document could not be read.",
+    )
+    };
+    let mut archive =
+        zip::ZipArchive::new(Cursor::new(bytes)).map_err(|_| unreadable())?;
+    let event = archive.by_name(name).map_err(|_| unreadable())?;
+    let mut limited = event.take(MAX_MEMBER_BYTES + 1);
+    let mode = {
+        let mut json =
+            serde_json::Deserializer::from_reader(BufReader::new(&mut limited));
+        let mode = (&mut json)
+            .deserialize_map(Event)
+            .map_err(|_| unreadable())?;
+        json.end().map_err(|_| unreadable())?;
+        mode
+    };
+    if limited.limit() == 0 {
+        return Err(unreadable());
+    }
+    Ok(mode)
 }
 
 /// The name a plan would use for an archive entry.

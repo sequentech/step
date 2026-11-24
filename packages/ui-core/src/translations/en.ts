@@ -1081,6 +1081,14 @@ const englishTranslation = {
                         lead: "Certificate trust not carried",
                         text: "Certificate trust not carried — the opened archive had '{{member}}', which the Architect does not carry. Signatures relying on it may fail until it is restored through the platform's authorized certificate setup.",
                     },
+                    "invalid-operational-mode": {
+                        lead: "Invalid signing mode",
+                        text: "Invalid signing mode — choose hsm-required or legacy-p12.",
+                    },
+                    "mode-not-one-row": {
+                        lead: "One signing mode row",
+                        text: "One signing mode row — OperationalSigning must contain exactly one row.",
+                    },
                     "workbook-needs-current-architect": {
                         lead: "Workbook needs current Architect",
                         text: "Workbook needs current Architect — the workbook keeps this signing policy in sheets an older Architect ignores. Reopen it from blueprint.json or the delivery zip to keep it.",

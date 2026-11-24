@@ -3502,6 +3502,7 @@ fn a_supplemental_workbooks_signing_sheets_reach_the_bundle() {
     use crate::election_config::xlsx::read_xlsx;
     let (sql, xlsx) = fixture();
     let signing = PlannedSigning {
+        operational_signing_mode: Some(crate::signing::OperationalSigningMode::LegacyP12),
         rules: Some(vec![serde_json::from_value(json!({
             "action": "open-voting", "requirement": "required", "signatures": 2,
             "requester_signing": "not-allowed", "expires_minutes": 30
@@ -3561,7 +3562,15 @@ fn a_supplemental_workbooks_signing_sheets_reach_the_bundle() {
     assert!(export.get("signing_checks").is_none_or(|v| v.is_null()));
 
     let export = convert(&xlsx);
-    assert!(PlannedSigning::from_export(&export).unwrap().is_empty());
+    assert_eq!(
+        PlannedSigning::from_export(&export).unwrap(),
+        PlannedSigning {
+            operational_signing_mode: Some(
+                crate::signing::OperationalSigningMode::HsmRequired
+            ),
+            ..Default::default()
+        }
+    );
 }
 
 #[test]

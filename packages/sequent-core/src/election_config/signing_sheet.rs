@@ -10,8 +10,9 @@
 //! supply them, so a configuration opened in the wizard, written to its
 //! workbook or converted from a historical source lost them without a word.
 //!
-//! Two sheets, each **optional and independent**:
+//! Each policy sheet is optional and independent.
 //!
+//! - `OperationalSigning` holds one `operational_signing_mode` cell.
 //! - `SigningRules`: one row per action: `action`, `requirement`,
 //!   `signatures`, `requester_signing`, `expires_minutes`, `revision`.
 //! - `SigningChecks`: one row: `revocation_check`, `crl_unavailable`,
@@ -40,12 +41,14 @@
 use super::paths::Cell;
 use super::problem::{Code, Problem};
 use super::sheet::{Row, Sheet, Workbook};
-use crate::signing::{SigningChecks, SigningRule};
+use crate::signing::{OperationalSigningMode, SigningChecks, SigningRule};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 pub const SHEET_SIGNING_RULES: &str = "signingrules";
 pub const SHEET_SIGNING_CHECKS: &str = "signingchecks";
+pub const SHEET_OPERATIONAL_SIGNING: &str = "operationalsigning";
+pub(super) const OPERATIONAL_SIGNING_MODE: &str = "operational_signing_mode";
 pub const SHEET_APPROVAL_MATRIX: &str = "approvalmatrix";
 /// The trust-loss record ([`PlannedSigning::trust_not_carried`]): archive
 /// member names only, one per row. A diagnostic, not policy: never built into
@@ -81,6 +84,12 @@ pub const NO_EXPIRY: &str = "none";
 /// read.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlannedSigning {
+    #[serde(
+        default,
+        deserialize_with = "OperationalSigningMode::deserialize_present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub operational_signing_mode: Option<OperationalSigningMode>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rules: Option<Vec<SigningRule>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -100,15 +109,36 @@ pub struct PlannedSigning {
 }
 
 impl PlannedSigning {
+    // A positional array in a JSON plan cannot select the credential mode.
+    pub(super) fn deserialize_object<'de, D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Self, D::Error> {
+        let value = Value::deserialize(deserializer)?;
+        if !value.is_object() {
+            return Err(serde::de::Error::custom("signing must be an object"));
+        }
+        serde_json::from_value(value).map_err(serde::de::Error::custom)
+    }
+
     pub fn is_empty(&self) -> bool {
         self.is_policy_empty() && self.trust_not_carried.is_empty()
     }
 
-    /// Whether this states no signing policy (rules, checks or matrix).
+    /// Whether every event signing policy field is absent.
     pub fn is_policy_empty(&self) -> bool {
-        self.rules.is_none()
+        self.operational_signing_mode.is_none()
+            && self.rules.is_none()
             && self.checks.is_none()
             && self.approval_matrix.is_none()
+    }
+
+    /// A stated choice overrides a base export after its value has parsed.
+    pub(super) fn configured_mode(
+        &self,
+        base_export: Option<&Value>,
+    ) -> Result<Option<OperationalSigningMode>, Problem> {
+        let base = mode_from_export(base_export)?;
+        Ok(self.operational_signing_mode.or(base))
     }
 
     /// The configuration a bundle carries, field by field.
@@ -148,6 +178,7 @@ impl PlannedSigning {
             .filter(|matrix| !matrix.is_null())
             .cloned();
         Ok(PlannedSigning {
+            operational_signing_mode: mode_from_export(Some(document))?,
             rules,
             checks,
             approval_matrix,
@@ -157,7 +188,21 @@ impl PlannedSigning {
 
     /// The sheets that hold this configuration, one per field that is set.
     pub fn sheets(&self) -> Vec<Sheet> {
+        self.sheets_with_mode(self.operational_signing_mode)
+    }
+
+    pub(super) fn sheets_with_mode(
+        &self,
+        mode: Option<OperationalSigningMode>,
+    ) -> Vec<Sheet> {
         let mut sheets = Vec::new();
+        if let Some(mode) = mode {
+            sheets.push(grid_sheet(
+                "OperationalSigning",
+                &[OPERATIONAL_SIGNING_MODE],
+                vec![vec![Cell::text(mode.to_string())]],
+            ));
+        }
         if let Some(rules) = &self.rules {
             sheets.push(rules_sheet(rules));
         }
@@ -189,6 +234,7 @@ impl PlannedSigning {
     pub fn from_workbook(workbook: &Workbook) -> Result<Self, Vec<Problem>> {
         let mut problems = Vec::new();
         for (key, columns) in [
+            (SHEET_OPERATIONAL_SIGNING, &[OPERATIONAL_SIGNING_MODE][..]),
             (SHEET_SIGNING_RULES, &RULE_COLUMNS[..]),
             (SHEET_SIGNING_CHECKS, &CHECK_COLUMNS[..]),
             (SHEET_APPROVAL_MATRIX, &MATRIX_COLUMNS[..]),
@@ -214,6 +260,12 @@ impl PlannedSigning {
                 }
             }
         }
+        let operational_signing_mode =
+            workbook.sheet(SHEET_OPERATIONAL_SIGNING).and_then(|sheet| {
+                read_mode_sheet(sheet)
+                    .map_err(|problem| problems.push(problem))
+                    .ok()
+            });
         let rules = workbook.sheet(SHEET_SIGNING_RULES).map(|sheet| {
             sheet
                 .rows
@@ -296,6 +348,7 @@ impl PlannedSigning {
             .collect();
         if problems.is_empty() {
             Ok(PlannedSigning {
+                operational_signing_mode,
                 rules,
                 checks,
                 approval_matrix,
@@ -305,6 +358,43 @@ impl PlannedSigning {
             Err(problems)
         }
     }
+}
+
+pub(super) fn read_mode(
+    value: &Value,
+    path: &str,
+) -> Result<OperationalSigningMode, Problem> {
+    OperationalSigningMode::deserialize(value).map_err(|_| {
+        Problem::error(
+            Code::InvalidValue,
+            path,
+            "Choose hsm-required or legacy-p12 for the operational signing mode.",
+        )
+        .id("signing.invalid-operational-mode")
+    })
+}
+
+fn mode_from_export(
+    base: Option<&Value>,
+) -> Result<Option<OperationalSigningMode>, Problem> {
+    base.and_then(|document| document.get(OPERATIONAL_SIGNING_MODE))
+        .map(|value| read_mode(value, OPERATIONAL_SIGNING_MODE))
+        .transpose()
+}
+
+fn read_mode_sheet(sheet: &Sheet) -> Result<OperationalSigningMode, Problem> {
+    let [row] = sheet.rows.as_slice() else {
+        return Err(Problem::error(
+            Code::InvalidValue,
+            &sheet.name,
+            "OperationalSigning requires one row with the event's credential mode.",
+        )
+        .id("signing.mode-not-one-row"));
+    };
+    read_mode(
+        row.require(OPERATIONAL_SIGNING_MODE)?,
+        &row.origin(Some(OPERATIONAL_SIGNING_MODE)).to_string(),
+    )
 }
 
 fn enum_text<T: Serialize>(value: &T) -> Cell {

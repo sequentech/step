@@ -1079,6 +1079,14 @@ const dutchTranslation: TranslationType = {
                         lead: "Certificaatvertrouwen niet meegenomen",
                         text: "Certificaatvertrouwen niet meegenomen — het geopende archief bevatte '{{member}}', dat de Architect niet meeneemt. Handtekeningen die ervan afhangen kunnen mislukken tot het via de geautoriseerde certificaatconfiguratie van het platform is hersteld.",
                     },
+                    "invalid-operational-mode": {
+                        lead: "Ongeldige ondertekeningsmodus",
+                        text: "Ongeldige ondertekeningsmodus — kies hsm-required of legacy-p12.",
+                    },
+                    "mode-not-one-row": {
+                        lead: "Eén rij voor de ondertekeningsmodus",
+                        text: "Eén rij voor de ondertekeningsmodus — OperationalSigning moet precies één rij bevatten.",
+                    },
                     "workbook-needs-current-architect": {
                         lead: "Werkmap vraagt een recente Architect",
                         text: "Werkmap vraagt een recente Architect — de werkmap bewaart dit ondertekeningsbeleid in bladen die een oudere Architect negeert. Open haar opnieuw vanuit blueprint.json of de leveringszip om het te behouden.",

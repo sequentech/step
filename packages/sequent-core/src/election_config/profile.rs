@@ -51,6 +51,9 @@ use serde_json::{Map, Value};
 
 use super::architect::Blueprint;
 use super::problem::{Code, Problem, Report};
+use super::signing_sheet::{read_mode, OPERATIONAL_SIGNING_MODE};
+
+const MODE_PATH: &str = "signing.operational_signing_mode";
 
 /// One step along a path into a plan.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -442,6 +445,26 @@ impl Profile {
         let mut report = Report::default();
         let shape = shape_of_a_plan();
 
+        for (group, settings) in
+            [("defaults", &document.defaults), ("seeds", &document.seeds)]
+        {
+            for value in [
+                settings.get(MODE_PATH),
+                settings
+                    .get("signing")
+                    .and_then(|signing| signing.get(OPERATIONAL_SIGNING_MODE)),
+            ]
+            .into_iter()
+            .flatten()
+            {
+                if let Err(problem) =
+                    read_mode(value, &format!("{group}.{MODE_PATH}"))
+                {
+                    report.push(problem);
+                }
+            }
+        }
+
         let mut parse_all = |paths: &[String], field: &str| -> Vec<PlanPath> {
             let mut parsed = Vec::new();
             for (index, text) in paths.iter().enumerate() {
@@ -714,17 +737,22 @@ pub fn apply_profile(
     plan: &Blueprint,
     profile: &Profile,
 ) -> Result<Blueprint, Report> {
-    let mut document = serde_json::to_value(plan).map_err(|error| {
-        one(Problem::error(
-            Code::InvalidValue,
-            "plan",
-            format!(
-                "this plan cannot be read as JSON, which is a bug: {error}"
-            ),
-        ))
-    })?;
+    let plan = plan.with_base_mode(None)?;
+    let mut document =
+        serde_json::to_value(plan.as_ref()).map_err(|error| {
+            one(Problem::error(
+                Code::InvalidValue,
+                "plan",
+                format!(
+                    "this plan cannot be read as JSON, which is a bug: {error}"
+                ),
+            ))
+        })?;
 
     for (path, value) in &profile.defaults {
+        if path.as_str() == MODE_PATH && document.get("signing").is_none() {
+            document["signing"] = serde_json::json!({});
+        }
         let fixed = profile.is_fixed(path);
         for target in path.resolve(&mut document) {
             if fixed || is_unset(target) {
@@ -733,17 +761,34 @@ pub fn apply_profile(
         }
     }
 
-    serde_json::from_value(document).map_err(|error| {
-        one(Problem::error(
-            Code::InvalidValue,
-            "profile.defaults",
-            format!(
-                "applying this profile produced something that is not a plan, so \
-                 one of its defaults is the wrong shape for where it was put: \
-                 {error}"
-            ),
-        ))
-    })
+    let mut applied: Blueprint =
+        serde_json::from_value(document).map_err(|error| {
+            one(Problem::error(
+                Code::InvalidValue,
+                "profile.defaults",
+                format!(
+                    "applying this profile produced something that is not a plan, so \
+                     one of its defaults is the wrong shape for where it was put: \
+                     {error}"
+                ),
+            ))
+        })?;
+    if let Some(selected) = plan.signing.operational_signing_mode {
+        // A profile may replace the whole signing object to supply its rules.
+        if applied
+            .signing
+            .operational_signing_mode
+            .is_some_and(|mode| mode != selected)
+        {
+            return Err(one(Problem::error(
+                Code::InvalidValue,
+                MODE_PATH,
+                "The profile conflicts with the event's explicit operational signing mode.",
+            )));
+        }
+        applied.signing.operational_signing_mode = Some(selected);
+    }
+    Ok(applied)
 }
 
 /// Start a new plan: the profile's seeds where the plan says nothing, then
@@ -756,15 +801,30 @@ pub fn seed_new_plan(
     plan: &Blueprint,
     profile: &Profile,
 ) -> Result<Blueprint, Report> {
-    let mut document = serde_json::to_value(plan).map_err(|error| {
-        one(Problem::error(
-            Code::InvalidValue,
-            "plan",
-            format!(
-                "this plan cannot be read as JSON, which is a bug: {error}"
-            ),
-        ))
-    })?;
+    let mut seeded = apply_profile_seeds(plan, profile)?;
+    seeded
+        .signing
+        .operational_signing_mode
+        .get_or_insert_with(Default::default);
+    Ok(seeded)
+}
+
+/// The profile's own choices, also shown when offering its policy on reopen.
+pub(super) fn apply_profile_seeds(
+    plan: &Blueprint,
+    profile: &Profile,
+) -> Result<Blueprint, Report> {
+    let plan = plan.with_base_mode(None)?;
+    let mut document =
+        serde_json::to_value(plan.as_ref()).map_err(|error| {
+            one(Problem::error(
+                Code::InvalidValue,
+                "plan",
+                format!(
+                    "this plan cannot be read as JSON, which is a bug: {error}"
+                ),
+            ))
+        })?;
     for (path, value) in &profile.seeds {
         // A plan skips a field that says nothing, so the object a seed lands
         // in may not be there yet: make the plain fields on the way.
@@ -906,9 +966,9 @@ fn shape_of_a_plan() -> Value {
     // trap every `Option` field on the plan falls into, and the reason this
     // function is hand-written rather than derived.
     plan.passwords = Some(Default::default());
-    // `signing` is skipped while it says nothing, and both of its fields are
-    // `Option`s: filled, so `seeds.signing` and its parts can be named.
+    // Fill the optional signing fields so a profile can name their paths.
     plan.signing = super::signing_sheet::PlannedSigning {
+        operational_signing_mode: Some(Default::default()),
         rules: Some(Vec::new()),
         checks: Some(Default::default()),
         approval_matrix: Some(serde_json::json!({})),
