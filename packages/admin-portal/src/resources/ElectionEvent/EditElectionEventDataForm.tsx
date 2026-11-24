@@ -119,6 +119,7 @@ import {
 } from "@/components/election-event/PasswordPolicyAccordion"
 import {SettingsLanguageSelector} from "../../components/SettingsLanguageSelector"
 import {getNumberFormatPolicyChoices} from "@/services/numberFormatPolicy"
+import {withSubmittedPermissionLabel} from "./permissionLabel"
 import {
     CONFIGURE_RESULTS_WEBSITE_POLICY,
     ConfigureResultsWebsitePolicyData,
@@ -1142,11 +1143,8 @@ export const EditElectionEventDataForm: React.FC<{
         }
         setActivateSave(false)
 
-        // Only an editor of the label sends it back; an empty input is stored as null.
-        const {permission_label: permissionLabel, ...rest} = values
         return {
-            ...rest,
-            ...(canEditPermissionLabel ? {permission_label: permissionLabel?.trim() || null} : {}),
+            ...withSubmittedPermissionLabel(values, canEditPermissionLabel),
             presentation: {
                 ...values.presentation,
                 // A disabled input isn't submitted, and the number format's is

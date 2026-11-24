@@ -167,6 +167,7 @@ export type CreateElectionEventInput = {
     is_audit?: InputMaybe<Scalars["Boolean"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     name: Scalars["String"]["input"]
+    permission_label?: InputMaybe<Scalars["String"]["input"]>
     presentation?: InputMaybe<Scalars["jsonb"]["input"]>
     public_key?: InputMaybe<Scalars["String"]["input"]>
     status?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -6447,6 +6448,8 @@ export type Sequent_Backend_Applications = {
     applicant_id: Scalars["String"]["output"]
     area_id?: Maybe<Scalars["uuid"]["output"]>
     created_at: Scalars["timestamptz"]["output"]
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     id: Scalars["uuid"]["output"]
     labels?: Maybe<Scalars["jsonb"]["output"]>
@@ -6510,6 +6513,7 @@ export type Sequent_Backend_Applications_Bool_Exp = {
     applicant_id?: InputMaybe<String_Comparison_Exp>
     area_id?: InputMaybe<Uuid_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
     labels?: InputMaybe<Jsonb_Comparison_Exp>
@@ -6554,6 +6558,7 @@ export type Sequent_Backend_Applications_Insert_Input = {
     applicant_id?: InputMaybe<Scalars["String"]["input"]>
     area_id?: InputMaybe<Scalars["uuid"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -6617,6 +6622,7 @@ export type Sequent_Backend_Applications_Order_By = {
     applicant_id?: InputMaybe<Order_By>
     area_id?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
     labels?: InputMaybe<Order_By>
@@ -6766,6 +6772,8 @@ export type Sequent_Backend_Area = {
     annotations?: Maybe<Scalars["jsonb"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     description?: Maybe<Scalars["String"]["output"]>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     id: Scalars["uuid"]["output"]
     labels?: Maybe<Scalars["jsonb"]["output"]>
@@ -6828,6 +6836,7 @@ export type Sequent_Backend_Area_Bool_Exp = {
     annotations?: InputMaybe<Jsonb_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     description?: InputMaybe<String_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
     labels?: InputMaybe<Jsonb_Comparison_Exp>
@@ -6856,6 +6865,8 @@ export type Sequent_Backend_Area_Contest = {
     contest?: Maybe<Sequent_Backend_Contest>
     contest_id?: Maybe<Scalars["uuid"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     id: Scalars["uuid"]["output"]
     labels?: Maybe<Scalars["jsonb"]["output"]>
@@ -6911,6 +6922,7 @@ export type Sequent_Backend_Area_Contest_Bool_Exp = {
     contest?: InputMaybe<Sequent_Backend_Contest_Bool_Exp>
     contest_id?: InputMaybe<Uuid_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
     labels?: InputMaybe<Jsonb_Comparison_Exp>
@@ -6950,6 +6962,7 @@ export type Sequent_Backend_Area_Contest_Insert_Input = {
     contest?: InputMaybe<Sequent_Backend_Contest_Obj_Rel_Insert_Input>
     contest_id?: InputMaybe<Scalars["uuid"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -7005,6 +7018,7 @@ export type Sequent_Backend_Area_Contest_Order_By = {
     contest?: InputMaybe<Sequent_Backend_Contest_Order_By>
     contest_id?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
     labels?: InputMaybe<Order_By>
@@ -7144,6 +7158,7 @@ export type Sequent_Backend_Area_Insert_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     description?: InputMaybe<Scalars["String"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -7211,6 +7226,7 @@ export type Sequent_Backend_Area_Order_By = {
     annotations?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
     description?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
     labels?: InputMaybe<Order_By>
@@ -7670,6 +7686,8 @@ export type Sequent_Backend_Ballot_Style = {
     deleted_at?: Maybe<Scalars["timestamptz"]["output"]>
     /** An object relationship */
     election?: Maybe<Sequent_Backend_Election>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     election_id: Scalars["uuid"]["output"]
     id: Scalars["uuid"]["output"]
@@ -7729,6 +7747,7 @@ export type Sequent_Backend_Ballot_Style_Bool_Exp = {
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     deleted_at?: InputMaybe<Timestamptz_Comparison_Exp>
     election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
@@ -7772,6 +7791,7 @@ export type Sequent_Backend_Ballot_Style_Insert_Input = {
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     deleted_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -7839,6 +7859,7 @@ export type Sequent_Backend_Ballot_Style_Order_By = {
     created_at?: InputMaybe<Order_By>
     deleted_at?: InputMaybe<Order_By>
     election?: InputMaybe<Sequent_Backend_Election_Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     election_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
@@ -7995,6 +8016,8 @@ export type Sequent_Backend_Candidate = {
     contest_id?: Maybe<Scalars["uuid"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     description?: Maybe<Scalars["String"]["output"]>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     external_id?: Maybe<Scalars["String"]["output"]>
     id: Scalars["uuid"]["output"]
@@ -8101,6 +8124,7 @@ export type Sequent_Backend_Candidate_Bool_Exp = {
     contest_id?: InputMaybe<Uuid_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     description?: InputMaybe<String_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     external_id?: InputMaybe<String_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
@@ -8147,6 +8171,7 @@ export type Sequent_Backend_Candidate_Insert_Input = {
     contest_id?: InputMaybe<Scalars["uuid"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     description?: InputMaybe<Scalars["String"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     external_id?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -8240,6 +8265,7 @@ export type Sequent_Backend_Candidate_Order_By = {
     contest_id?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
     description?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     external_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
@@ -8414,6 +8440,8 @@ export type Sequent_Backend_Cast_Vote = {
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     /** An object relationship */
     election?: Maybe<Sequent_Backend_Election>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     election_id?: Maybe<Scalars["uuid"]["output"]>
     id: Scalars["uuid"]["output"]
@@ -8473,6 +8501,7 @@ export type Sequent_Backend_Cast_Vote_Bool_Exp = {
     content?: InputMaybe<String_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
@@ -8516,6 +8545,7 @@ export type Sequent_Backend_Cast_Vote_Insert_Input = {
     content?: InputMaybe<Scalars["String"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -8583,6 +8613,7 @@ export type Sequent_Backend_Cast_Vote_Order_By = {
     content?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
     election?: InputMaybe<Sequent_Backend_Election_Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     election_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
@@ -8736,6 +8767,8 @@ export type Sequent_Backend_Certificate_Authority = {
     __typename?: "sequent_backend_certificate_authority"
     common_name: Scalars["String"]["output"]
     created_at: Scalars["timestamptz"]["output"]
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     fingerprint_sha256: Scalars["String"]["output"]
     id: Scalars["uuid"]["output"]
@@ -8777,6 +8810,7 @@ export type Sequent_Backend_Certificate_Authority_Bool_Exp = {
     _or?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Bool_Exp>>
     common_name?: InputMaybe<String_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     fingerprint_sha256?: InputMaybe<String_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
@@ -8802,6 +8836,7 @@ export enum Sequent_Backend_Certificate_Authority_Constraint {
 export type Sequent_Backend_Certificate_Authority_Insert_Input = {
     common_name?: InputMaybe<Scalars["String"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     fingerprint_sha256?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -8871,6 +8906,7 @@ export type Sequent_Backend_Certificate_Authority_On_Conflict = {
 export type Sequent_Backend_Certificate_Authority_Order_By = {
     common_name?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     fingerprint_sha256?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
@@ -9012,6 +9048,8 @@ export type Sequent_Backend_Contest = {
     description?: Maybe<Scalars["String"]["output"]>
     /** An object relationship */
     election?: Maybe<Sequent_Backend_Election>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     election_id: Scalars["uuid"]["output"]
     external_id?: Maybe<Scalars["String"]["output"]>
@@ -9189,6 +9227,7 @@ export type Sequent_Backend_Contest_Bool_Exp = {
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     description?: InputMaybe<String_Comparison_Exp>
     election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     external_id?: InputMaybe<String_Comparison_Exp>
@@ -9257,6 +9296,7 @@ export type Sequent_Backend_Contest_Insert_Input = {
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     description?: InputMaybe<Scalars["String"]["input"]>
     election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     external_id?: InputMaybe<Scalars["String"]["input"]>
@@ -9382,6 +9422,7 @@ export type Sequent_Backend_Contest_Order_By = {
     created_at?: InputMaybe<Order_By>
     description?: InputMaybe<Order_By>
     election?: InputMaybe<Sequent_Backend_Election_Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     election_id?: InputMaybe<Order_By>
     external_id?: InputMaybe<Order_By>
@@ -9722,6 +9763,8 @@ export type Sequent_Backend_Document = {
     __typename?: "sequent_backend_document"
     annotations?: Maybe<Scalars["jsonb"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     id: Scalars["uuid"]["output"]
     is_public?: Maybe<Scalars["Boolean"]["output"]>
@@ -9791,6 +9834,7 @@ export type Sequent_Backend_Document_Bool_Exp = {
     _or?: InputMaybe<Array<Sequent_Backend_Document_Bool_Exp>>
     annotations?: InputMaybe<Jsonb_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
     is_public?: InputMaybe<Boolean_Comparison_Exp>
@@ -9835,6 +9879,7 @@ export type Sequent_Backend_Document_Inc_Input = {
 export type Sequent_Backend_Document_Insert_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     is_public?: InputMaybe<Scalars["Boolean"]["input"]>
@@ -9899,6 +9944,7 @@ export type Sequent_Backend_Document_On_Conflict = {
 export type Sequent_Backend_Document_Order_By = {
     annotations?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
     is_public?: InputMaybe<Order_By>
@@ -10082,6 +10128,8 @@ export type Sequent_Backend_Election = {
     contests_aggregate: Sequent_Backend_Contest_Aggregate
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     description?: Maybe<Scalars["String"]["output"]>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     eml?: Maybe<Scalars["String"]["output"]>
     external_id?: Maybe<Scalars["String"]["output"]>
@@ -10267,6 +10315,7 @@ export type Sequent_Backend_Election_Bool_Exp = {
     contests_aggregate?: InputMaybe<Sequent_Backend_Contest_Aggregate_Bool_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     description?: InputMaybe<String_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     eml?: InputMaybe<String_Comparison_Exp>
     external_id?: InputMaybe<String_Comparison_Exp>
@@ -10346,6 +10395,7 @@ export type Sequent_Backend_Election_Event = {
     is_archived: Scalars["Boolean"]["output"]
     is_audit?: Maybe<Scalars["Boolean"]["output"]>
     labels?: Maybe<Scalars["jsonb"]["output"]>
+    permission_label?: Maybe<Scalars["String"]["output"]>
     presentation?: Maybe<Scalars["jsonb"]["output"]>
     public_key?: Maybe<Scalars["String"]["output"]>
     statistics?: Maybe<Scalars["jsonb"]["output"]>
@@ -10459,6 +10509,7 @@ export type Sequent_Backend_Election_Event_Bool_Exp = {
     is_archived?: InputMaybe<Boolean_Comparison_Exp>
     is_audit?: InputMaybe<Boolean_Comparison_Exp>
     labels?: InputMaybe<Jsonb_Comparison_Exp>
+    permission_label?: InputMaybe<String_Comparison_Exp>
     presentation?: InputMaybe<Jsonb_Comparison_Exp>
     public_key?: InputMaybe<String_Comparison_Exp>
     statistics?: InputMaybe<Jsonb_Comparison_Exp>
@@ -10524,6 +10575,7 @@ export type Sequent_Backend_Election_Event_Insert_Input = {
     is_archived?: InputMaybe<Scalars["Boolean"]["input"]>
     is_audit?: InputMaybe<Scalars["Boolean"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    permission_label?: InputMaybe<Scalars["String"]["input"]>
     presentation?: InputMaybe<Scalars["jsonb"]["input"]>
     public_key?: InputMaybe<Scalars["String"]["input"]>
     statistics?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -10543,6 +10595,7 @@ export type Sequent_Backend_Election_Event_Max_Fields = {
     encryption_protocol?: Maybe<Scalars["String"]["output"]>
     external_id?: Maybe<Scalars["String"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
+    permission_label?: Maybe<Scalars["String"]["output"]>
     public_key?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
     updated_at?: Maybe<Scalars["timestamptz"]["output"]>
@@ -10558,6 +10611,7 @@ export type Sequent_Backend_Election_Event_Min_Fields = {
     encryption_protocol?: Maybe<Scalars["String"]["output"]>
     external_id?: Maybe<Scalars["String"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
+    permission_label?: Maybe<Scalars["String"]["output"]>
     public_key?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
     updated_at?: Maybe<Scalars["timestamptz"]["output"]>
@@ -10601,6 +10655,7 @@ export type Sequent_Backend_Election_Event_Order_By = {
     is_archived?: InputMaybe<Order_By>
     is_audit?: InputMaybe<Order_By>
     labels?: InputMaybe<Order_By>
+    permission_label?: InputMaybe<Order_By>
     presentation?: InputMaybe<Order_By>
     public_key?: InputMaybe<Order_By>
     statistics?: InputMaybe<Order_By>
@@ -10652,6 +10707,8 @@ export enum Sequent_Backend_Election_Event_Select_Column {
     /** column name */
     Labels = "labels",
     /** column name */
+    PermissionLabel = "permission_label",
+    /** column name */
     Presentation = "presentation",
     /** column name */
     PublicKey = "public_key",
@@ -10682,6 +10739,7 @@ export type Sequent_Backend_Election_Event_Set_Input = {
     is_archived?: InputMaybe<Scalars["Boolean"]["input"]>
     is_audit?: InputMaybe<Scalars["Boolean"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    permission_label?: InputMaybe<Scalars["String"]["input"]>
     presentation?: InputMaybe<Scalars["jsonb"]["input"]>
     public_key?: InputMaybe<Scalars["String"]["input"]>
     statistics?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -10713,6 +10771,7 @@ export type Sequent_Backend_Election_Event_Stream_Cursor_Value_Input = {
     is_archived?: InputMaybe<Scalars["Boolean"]["input"]>
     is_audit?: InputMaybe<Scalars["Boolean"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    permission_label?: InputMaybe<Scalars["String"]["input"]>
     presentation?: InputMaybe<Scalars["jsonb"]["input"]>
     public_key?: InputMaybe<Scalars["String"]["input"]>
     statistics?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -10747,6 +10806,8 @@ export enum Sequent_Backend_Election_Event_Update_Column {
     IsAudit = "is_audit",
     /** column name */
     Labels = "labels",
+    /** column name */
+    PermissionLabel = "permission_label",
     /** column name */
     Presentation = "presentation",
     /** column name */
@@ -10793,6 +10854,7 @@ export type Sequent_Backend_Election_Insert_Input = {
     contests?: InputMaybe<Sequent_Backend_Contest_Arr_Rel_Insert_Input>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     description?: InputMaybe<Scalars["String"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     eml?: InputMaybe<Scalars["String"]["input"]>
     external_id?: InputMaybe<Scalars["String"]["input"]>
@@ -10910,6 +10972,7 @@ export type Sequent_Backend_Election_Order_By = {
     contests_aggregate?: InputMaybe<Sequent_Backend_Contest_Aggregate_Order_By>
     created_at?: InputMaybe<Order_By>
     description?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     eml?: InputMaybe<Order_By>
     external_id?: InputMaybe<Order_By>
@@ -10956,6 +11019,8 @@ export type Sequent_Backend_Election_Result = {
     annotations?: Maybe<Scalars["jsonb"]["output"]>
     area_id?: Maybe<Scalars["uuid"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     election_id?: Maybe<Scalars["uuid"]["output"]>
     id: Scalars["uuid"]["output"]
@@ -11018,6 +11083,7 @@ export type Sequent_Backend_Election_Result_Bool_Exp = {
     annotations?: InputMaybe<Jsonb_Comparison_Exp>
     area_id?: InputMaybe<Uuid_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
@@ -11061,6 +11127,7 @@ export type Sequent_Backend_Election_Result_Insert_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     area_id?: InputMaybe<Scalars["uuid"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -11119,6 +11186,7 @@ export type Sequent_Backend_Election_Result_Order_By = {
     annotations?: InputMaybe<Order_By>
     area_id?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     election_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
@@ -11988,6 +12056,8 @@ export type Sequent_Backend_Electoral_Log_Outbox_Updates = {
 export type Sequent_Backend_Event_Execution = {
     __typename?: "sequent_backend_event_execution"
     annotations?: Maybe<Scalars["jsonb"]["output"]>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     ended_at?: Maybe<Scalars["timestamptz"]["output"]>
     execution_payload?: Maybe<Scalars["jsonb"]["output"]>
@@ -12055,6 +12125,7 @@ export type Sequent_Backend_Event_Execution_Bool_Exp = {
     _not?: InputMaybe<Sequent_Backend_Event_Execution_Bool_Exp>
     _or?: InputMaybe<Array<Sequent_Backend_Event_Execution_Bool_Exp>>
     annotations?: InputMaybe<Jsonb_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     ended_at?: InputMaybe<Timestamptz_Comparison_Exp>
     execution_payload?: InputMaybe<Jsonb_Comparison_Exp>
@@ -12100,6 +12171,7 @@ export type Sequent_Backend_Event_Execution_Delete_Key_Input = {
 /** input type for inserting data into table "sequent_backend.event_execution" */
 export type Sequent_Backend_Event_Execution_Insert_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     ended_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     execution_payload?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -12155,6 +12227,7 @@ export type Sequent_Backend_Event_Execution_On_Conflict = {
 /** Ordering options when selecting data from "sequent_backend.event_execution". */
 export type Sequent_Backend_Event_Execution_Order_By = {
     annotations?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     ended_at?: InputMaybe<Order_By>
     execution_payload?: InputMaybe<Order_By>
@@ -12292,6 +12365,8 @@ export type Sequent_Backend_Keys_Ceremony = {
     __typename?: "sequent_backend_keys_ceremony"
     annotations?: Maybe<Scalars["jsonb"]["output"]>
     created_at: Scalars["timestamptz"]["output"]
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     execution_status?: Maybe<Scalars["String"]["output"]>
     id: Scalars["uuid"]["output"]
@@ -12399,6 +12474,7 @@ export type Sequent_Backend_Keys_Ceremony_Bool_Exp = {
     _or?: InputMaybe<Array<Sequent_Backend_Keys_Ceremony_Bool_Exp>>
     annotations?: InputMaybe<Jsonb_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     execution_status?: InputMaybe<String_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
@@ -12455,6 +12531,7 @@ export type Sequent_Backend_Keys_Ceremony_Inc_Input = {
 export type Sequent_Backend_Keys_Ceremony_Insert_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     execution_status?: InputMaybe<Scalars["String"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -12521,6 +12598,7 @@ export type Sequent_Backend_Keys_Ceremony_On_Conflict = {
 export type Sequent_Backend_Keys_Ceremony_Order_By = {
     annotations?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     execution_status?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
@@ -12904,6 +12982,8 @@ export type Sequent_Backend_Notification = {
     created_at: Scalars["timestamptz"]["output"]
     /** An object relationship */
     election?: Maybe<Sequent_Backend_Election>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     election_id?: Maybe<Scalars["uuid"]["output"]>
     id: Scalars["uuid"]["output"]
@@ -12961,6 +13041,7 @@ export type Sequent_Backend_Notification_Bool_Exp = {
     annotations?: InputMaybe<Jsonb_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
@@ -13002,6 +13083,7 @@ export type Sequent_Backend_Notification_Insert_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -13065,6 +13147,7 @@ export type Sequent_Backend_Notification_Order_By = {
     annotations?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
     election?: InputMaybe<Sequent_Backend_Election_Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     election_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
@@ -13205,6 +13288,8 @@ export type Sequent_Backend_Phone_Blacklist = {
     __typename?: "sequent_backend_phone_blacklist"
     created_at: Scalars["timestamptz"]["output"]
     created_by: Scalars["uuid"]["output"]
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     id: Scalars["uuid"]["output"]
     phone_e164: Scalars["String"]["output"]
@@ -13241,6 +13326,7 @@ export type Sequent_Backend_Phone_Blacklist_Bool_Exp = {
     _or?: InputMaybe<Array<Sequent_Backend_Phone_Blacklist_Bool_Exp>>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     created_by?: InputMaybe<Uuid_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
     phone_e164?: InputMaybe<String_Comparison_Exp>
@@ -13261,6 +13347,7 @@ export enum Sequent_Backend_Phone_Blacklist_Constraint {
 export type Sequent_Backend_Phone_Blacklist_Insert_Input = {
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     created_by?: InputMaybe<Scalars["uuid"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     phone_e164?: InputMaybe<Scalars["String"]["input"]>
@@ -13315,6 +13402,7 @@ export type Sequent_Backend_Phone_Blacklist_On_Conflict = {
 export type Sequent_Backend_Phone_Blacklist_Order_By = {
     created_at?: InputMaybe<Order_By>
     created_by?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
     phone_e164?: InputMaybe<Order_By>
@@ -13655,6 +13743,8 @@ export type Sequent_Backend_Report = {
     __typename?: "sequent_backend_report"
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     cron_config?: Maybe<Scalars["jsonb"]["output"]>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     election_id?: Maybe<Scalars["uuid"]["output"]>
     encryption_policy: Scalars["String"]["output"]
@@ -13703,6 +13793,7 @@ export type Sequent_Backend_Report_Bool_Exp = {
     _or?: InputMaybe<Array<Sequent_Backend_Report_Bool_Exp>>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     cron_config?: InputMaybe<Jsonb_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     encryption_policy?: InputMaybe<String_Comparison_Exp>
@@ -13738,6 +13829,7 @@ export type Sequent_Backend_Report_Delete_Key_Input = {
 export type Sequent_Backend_Report_Insert_Input = {
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     cron_config?: InputMaybe<Scalars["jsonb"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     encryption_policy?: InputMaybe<Scalars["String"]["input"]>
@@ -13796,6 +13888,7 @@ export type Sequent_Backend_Report_On_Conflict = {
 export type Sequent_Backend_Report_Order_By = {
     created_at?: InputMaybe<Order_By>
     cron_config?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     election_id?: InputMaybe<Order_By>
     encryption_policy?: InputMaybe<Order_By>
@@ -13927,6 +14020,8 @@ export type Sequent_Backend_Results_Area_Contest = {
     documents?: Maybe<Scalars["jsonb"]["output"]>
     /** An object relationship */
     election?: Maybe<Sequent_Backend_Election>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     election_id: Scalars["uuid"]["output"]
     elegible_census?: Maybe<Scalars["Int"]["output"]>
@@ -14041,6 +14136,7 @@ export type Sequent_Backend_Results_Area_Contest_Bool_Exp = {
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     documents?: InputMaybe<Jsonb_Comparison_Exp>
     election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     elegible_census?: InputMaybe<Int_Comparison_Exp>
@@ -14082,6 +14178,8 @@ export type Sequent_Backend_Results_Area_Contest_Candidate = {
     documents?: Maybe<Scalars["jsonb"]["output"]>
     /** An object relationship */
     election?: Maybe<Sequent_Backend_Election>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     election_id: Scalars["uuid"]["output"]
     id: Scalars["uuid"]["output"]
@@ -14167,6 +14265,7 @@ export type Sequent_Backend_Results_Area_Contest_Candidate_Bool_Exp = {
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     documents?: InputMaybe<Jsonb_Comparison_Exp>
     election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
@@ -14224,6 +14323,7 @@ export type Sequent_Backend_Results_Area_Contest_Candidate_Insert_Input = {
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
     election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -14300,6 +14400,7 @@ export type Sequent_Backend_Results_Area_Contest_Candidate_Order_By = {
     created_at?: InputMaybe<Order_By>
     documents?: InputMaybe<Order_By>
     election?: InputMaybe<Sequent_Backend_Election_Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     election_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
@@ -14592,6 +14693,7 @@ export type Sequent_Backend_Results_Area_Contest_Insert_Input = {
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
     election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     elegible_census?: InputMaybe<Scalars["Int"]["input"]>
@@ -14710,6 +14812,7 @@ export type Sequent_Backend_Results_Area_Contest_Order_By = {
     created_at?: InputMaybe<Order_By>
     documents?: InputMaybe<Order_By>
     election?: InputMaybe<Sequent_Backend_Election_Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     election_id?: InputMaybe<Order_By>
     elegible_census?: InputMaybe<Order_By>
@@ -15160,6 +15263,8 @@ export type Sequent_Backend_Results_Contest = {
     documents?: Maybe<Scalars["jsonb"]["output"]>
     /** An object relationship */
     election?: Maybe<Sequent_Backend_Election>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     election_id: Scalars["uuid"]["output"]
     elegible_census?: Maybe<Scalars["Int"]["output"]>
@@ -15276,6 +15381,7 @@ export type Sequent_Backend_Results_Contest_Bool_Exp = {
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     documents?: InputMaybe<Jsonb_Comparison_Exp>
     election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     elegible_census?: InputMaybe<Int_Comparison_Exp>
@@ -15318,6 +15424,8 @@ export type Sequent_Backend_Results_Contest_Candidate = {
     documents?: Maybe<Scalars["jsonb"]["output"]>
     /** An object relationship */
     election?: Maybe<Sequent_Backend_Election>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     election_id: Scalars["uuid"]["output"]
     id: Scalars["uuid"]["output"]
@@ -15402,6 +15510,7 @@ export type Sequent_Backend_Results_Contest_Candidate_Bool_Exp = {
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     documents?: InputMaybe<Jsonb_Comparison_Exp>
     election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
@@ -15458,6 +15567,7 @@ export type Sequent_Backend_Results_Contest_Candidate_Insert_Input = {
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
     election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -15531,6 +15641,7 @@ export type Sequent_Backend_Results_Contest_Candidate_Order_By = {
     created_at?: InputMaybe<Order_By>
     documents?: InputMaybe<Order_By>
     election?: InputMaybe<Sequent_Backend_Election_Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     election_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
@@ -15817,6 +15928,7 @@ export type Sequent_Backend_Results_Contest_Insert_Input = {
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
     election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     elegible_census?: InputMaybe<Scalars["Int"]["input"]>
@@ -15941,6 +16053,7 @@ export type Sequent_Backend_Results_Contest_Order_By = {
     created_at?: InputMaybe<Order_By>
     documents?: InputMaybe<Order_By>
     election?: InputMaybe<Sequent_Backend_Election_Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     election_id?: InputMaybe<Order_By>
     elegible_census?: InputMaybe<Order_By>
@@ -16405,6 +16518,8 @@ export type Sequent_Backend_Results_Election = {
     documents?: Maybe<Scalars["jsonb"]["output"]>
     /** An object relationship */
     election?: Maybe<Sequent_Backend_Election>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     election_id: Scalars["uuid"]["output"]
     elegible_census?: Maybe<Scalars["Int"]["output"]>
@@ -16479,6 +16594,8 @@ export type Sequent_Backend_Results_Election_Area = {
     documents?: Maybe<Scalars["jsonb"]["output"]>
     /** An object relationship */
     election?: Maybe<Sequent_Backend_Election>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     election_id: Scalars["uuid"]["output"]
     id: Scalars["uuid"]["output"]
@@ -16545,6 +16662,7 @@ export type Sequent_Backend_Results_Election_Area_Bool_Exp = {
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     documents?: InputMaybe<Jsonb_Comparison_Exp>
     election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
@@ -16591,6 +16709,7 @@ export type Sequent_Backend_Results_Election_Area_Insert_Input = {
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
     election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -16656,6 +16775,7 @@ export type Sequent_Backend_Results_Election_Area_Order_By = {
     created_at?: InputMaybe<Order_By>
     documents?: InputMaybe<Order_By>
     election?: InputMaybe<Sequent_Backend_Election_Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     election_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
@@ -16863,6 +16983,7 @@ export type Sequent_Backend_Results_Election_Bool_Exp = {
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     documents?: InputMaybe<Jsonb_Comparison_Exp>
     election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     elegible_census?: InputMaybe<Int_Comparison_Exp>
@@ -16920,6 +17041,7 @@ export type Sequent_Backend_Results_Election_Insert_Input = {
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
     election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     elegible_census?: InputMaybe<Scalars["Int"]["input"]>
@@ -16993,6 +17115,7 @@ export type Sequent_Backend_Results_Election_Order_By = {
     created_at?: InputMaybe<Order_By>
     documents?: InputMaybe<Order_By>
     election?: InputMaybe<Sequent_Backend_Election_Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     election_id?: InputMaybe<Order_By>
     elegible_census?: InputMaybe<Order_By>
@@ -17236,6 +17359,8 @@ export type Sequent_Backend_Results_Event = {
     annotations?: Maybe<Scalars["jsonb"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     documents?: Maybe<Scalars["jsonb"]["output"]>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     id: Scalars["uuid"]["output"]
     labels?: Maybe<Scalars["jsonb"]["output"]>
@@ -17295,6 +17420,7 @@ export type Sequent_Backend_Results_Event_Bool_Exp = {
     annotations?: InputMaybe<Jsonb_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     documents?: InputMaybe<Jsonb_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
     labels?: InputMaybe<Jsonb_Comparison_Exp>
@@ -17335,6 +17461,7 @@ export type Sequent_Backend_Results_Event_Insert_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -17386,6 +17513,7 @@ export type Sequent_Backend_Results_Event_Order_By = {
     annotations?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
     documents?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
     labels?: InputMaybe<Order_By>
@@ -17511,6 +17639,8 @@ export type Sequent_Backend_Scheduled_Event = {
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     created_by?: Maybe<Scalars["String"]["output"]>
     cron_config?: Maybe<Scalars["jsonb"]["output"]>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     event_payload?: Maybe<Scalars["jsonb"]["output"]>
     event_processor?: Maybe<Scalars["String"]["output"]>
@@ -17580,6 +17710,7 @@ export type Sequent_Backend_Scheduled_Event_Bool_Exp = {
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     created_by?: InputMaybe<String_Comparison_Exp>
     cron_config?: InputMaybe<Jsonb_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     event_payload?: InputMaybe<Jsonb_Comparison_Exp>
     event_processor?: InputMaybe<String_Comparison_Exp>
@@ -17629,6 +17760,7 @@ export type Sequent_Backend_Scheduled_Event_Insert_Input = {
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     created_by?: InputMaybe<Scalars["String"]["input"]>
     cron_config?: InputMaybe<Scalars["jsonb"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     event_payload?: InputMaybe<Scalars["jsonb"]["input"]>
     event_processor?: InputMaybe<Scalars["String"]["input"]>
@@ -17690,6 +17822,7 @@ export type Sequent_Backend_Scheduled_Event_Order_By = {
     created_at?: InputMaybe<Order_By>
     created_by?: InputMaybe<Order_By>
     cron_config?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     event_payload?: InputMaybe<Order_By>
     event_processor?: InputMaybe<Order_By>
@@ -18092,6 +18225,8 @@ export type Sequent_Backend_Support_Material = {
     created_at: Scalars["timestamptz"]["output"]
     data: Scalars["jsonb"]["output"]
     document_id?: Maybe<Scalars["String"]["output"]>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     id: Scalars["uuid"]["output"]
     is_hidden?: Maybe<Scalars["Boolean"]["output"]>
@@ -18153,6 +18288,7 @@ export type Sequent_Backend_Support_Material_Bool_Exp = {
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     data?: InputMaybe<Jsonb_Comparison_Exp>
     document_id?: InputMaybe<String_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
     is_hidden?: InputMaybe<Boolean_Comparison_Exp>
@@ -18195,6 +18331,7 @@ export type Sequent_Backend_Support_Material_Insert_Input = {
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     data?: InputMaybe<Scalars["jsonb"]["input"]>
     document_id?: InputMaybe<Scalars["String"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     is_hidden?: InputMaybe<Scalars["Boolean"]["input"]>
@@ -18250,6 +18387,7 @@ export type Sequent_Backend_Support_Material_Order_By = {
     created_at?: InputMaybe<Order_By>
     data?: InputMaybe<Order_By>
     document_id?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
     is_hidden?: InputMaybe<Order_By>
@@ -18387,6 +18525,8 @@ export type Sequent_Backend_Tally_Results_Publication = {
     contest_publication_state: Scalars["jsonb"]["output"]
     created_at: Scalars["timestamptz"]["output"]
     documents: Scalars["jsonb"]["output"]
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     election_ids: Array<Scalars["uuid"]["output"]>
     error_message?: Maybe<Scalars["String"]["output"]>
@@ -18481,6 +18621,7 @@ export type Sequent_Backend_Tally_Results_Publication_Bool_Exp = {
     contest_publication_state?: InputMaybe<Jsonb_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     documents?: InputMaybe<Jsonb_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_ids?: InputMaybe<Uuid_Array_Comparison_Exp>
     error_message?: InputMaybe<String_Comparison_Exp>
@@ -18550,6 +18691,7 @@ export type Sequent_Backend_Tally_Results_Publication_Insert_Input = {
     contest_publication_state?: InputMaybe<Scalars["jsonb"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_ids?: InputMaybe<Array<Scalars["uuid"]["input"]>>
     error_message?: InputMaybe<Scalars["String"]["input"]>
@@ -18644,6 +18786,7 @@ export type Sequent_Backend_Tally_Results_Publication_Order_By = {
     contest_publication_state?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
     documents?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     election_ids?: InputMaybe<Order_By>
     error_message?: InputMaybe<Order_By>
@@ -18917,6 +19060,8 @@ export type Sequent_Backend_Tally_Session = {
     area_ids?: Maybe<Array<Scalars["uuid"]["output"]>>
     configuration?: Maybe<Scalars["jsonb"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     election_ids?: Maybe<Array<Scalars["uuid"]["output"]>>
     execution_status?: Maybe<Scalars["String"]["output"]>
@@ -19019,6 +19164,7 @@ export type Sequent_Backend_Tally_Session_Bool_Exp = {
     area_ids?: InputMaybe<Uuid_Array_Comparison_Exp>
     configuration?: InputMaybe<Jsonb_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_ids?: InputMaybe<Uuid_Array_Comparison_Exp>
     execution_status?: InputMaybe<String_Comparison_Exp>
@@ -19050,6 +19196,8 @@ export type Sequent_Backend_Tally_Session_Contest = {
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     /** An object relationship */
     election?: Maybe<Sequent_Backend_Election>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     election_id: Scalars["uuid"]["output"]
     id: Scalars["uuid"]["output"]
@@ -19121,6 +19269,7 @@ export type Sequent_Backend_Tally_Session_Contest_Bool_Exp = {
     contest_id?: InputMaybe<Uuid_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
@@ -19167,6 +19316,7 @@ export type Sequent_Backend_Tally_Session_Contest_Insert_Input = {
     contest_id?: InputMaybe<Scalars["uuid"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -19230,6 +19380,7 @@ export type Sequent_Backend_Tally_Session_Contest_Order_By = {
     contest_id?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
     election?: InputMaybe<Sequent_Backend_Election_Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     election_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
@@ -19438,6 +19589,8 @@ export type Sequent_Backend_Tally_Session_Execution = {
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     current_message_id: Scalars["Int"]["output"]
     documents?: Maybe<Scalars["jsonb"]["output"]>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     id: Scalars["uuid"]["output"]
     labels?: Maybe<Scalars["jsonb"]["output"]>
@@ -19525,6 +19678,7 @@ export type Sequent_Backend_Tally_Session_Execution_Bool_Exp = {
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     current_message_id?: InputMaybe<Int_Comparison_Exp>
     documents?: InputMaybe<Jsonb_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
     labels?: InputMaybe<Jsonb_Comparison_Exp>
@@ -19579,6 +19733,7 @@ export type Sequent_Backend_Tally_Session_Execution_Insert_Input = {
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     current_message_id?: InputMaybe<Scalars["Int"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -19647,6 +19802,7 @@ export type Sequent_Backend_Tally_Session_Execution_Order_By = {
     created_at?: InputMaybe<Order_By>
     current_message_id?: InputMaybe<Order_By>
     documents?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
     labels?: InputMaybe<Order_By>
@@ -19857,6 +20013,7 @@ export type Sequent_Backend_Tally_Session_Insert_Input = {
     area_ids?: InputMaybe<Array<Scalars["uuid"]["input"]>>
     configuration?: InputMaybe<Scalars["jsonb"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_ids?: InputMaybe<Array<Scalars["uuid"]["input"]>>
     execution_status?: InputMaybe<Scalars["String"]["input"]>
@@ -19935,6 +20092,7 @@ export type Sequent_Backend_Tally_Session_Order_By = {
     area_ids?: InputMaybe<Order_By>
     configuration?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     election_ids?: InputMaybe<Order_By>
     execution_status?: InputMaybe<Order_By>
@@ -19972,6 +20130,8 @@ export type Sequent_Backend_Tally_Session_Resolution = {
     contest?: Maybe<Sequent_Backend_Contest>
     contest_id?: Maybe<Scalars["uuid"]["output"]>
     created_at: Scalars["timestamptz"]["output"]
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     id: Scalars["uuid"]["output"]
     labels?: Maybe<Scalars["jsonb"]["output"]>
@@ -20064,6 +20224,7 @@ export type Sequent_Backend_Tally_Session_Resolution_Bool_Exp = {
     contest?: InputMaybe<Sequent_Backend_Contest_Bool_Exp>
     contest_id?: InputMaybe<Uuid_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
     labels?: InputMaybe<Jsonb_Comparison_Exp>
@@ -20111,6 +20272,7 @@ export type Sequent_Backend_Tally_Session_Resolution_Insert_Input = {
     contest?: InputMaybe<Sequent_Backend_Contest_Obj_Rel_Insert_Input>
     contest_id?: InputMaybe<Scalars["uuid"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -20209,6 +20371,7 @@ export type Sequent_Backend_Tally_Session_Resolution_Order_By = {
     contest?: InputMaybe<Sequent_Backend_Contest_Order_By>
     contest_id?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
     labels?: InputMaybe<Order_By>
@@ -20554,6 +20717,8 @@ export type Sequent_Backend_Tally_Sheet = {
     deleted_at?: Maybe<Scalars["timestamptz"]["output"]>
     /** An object relationship */
     election?: Maybe<Sequent_Backend_Election>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     election_id: Scalars["uuid"]["output"]
     id: Scalars["uuid"]["output"]
@@ -20640,6 +20805,7 @@ export type Sequent_Backend_Tally_Sheet_Bool_Exp = {
     created_by_user_id?: InputMaybe<String_Comparison_Exp>
     deleted_at?: InputMaybe<Timestamptz_Comparison_Exp>
     election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
@@ -20690,6 +20856,8 @@ export type Sequent_Backend_Tally_Sheet_Import = {
     canonical_csv_sha256?: Maybe<Scalars["String"]["output"]>
     created_at: Scalars["timestamptz"]["output"]
     created_by_user_id: Scalars["String"]["output"]
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     id: Scalars["uuid"]["output"]
     /** An array relationship */
@@ -20787,6 +20955,7 @@ export type Sequent_Backend_Tally_Sheet_Import_Bool_Exp = {
     canonical_csv_sha256?: InputMaybe<String_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     created_by_user_id?: InputMaybe<String_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
     items?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Bool_Exp>
@@ -20841,6 +21010,7 @@ export type Sequent_Backend_Tally_Sheet_Import_Insert_Input = {
     canonical_csv_sha256?: InputMaybe<Scalars["String"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     created_by_user_id?: InputMaybe<Scalars["String"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
     items?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Arr_Rel_Insert_Input>
@@ -20872,6 +21042,8 @@ export type Sequent_Backend_Tally_Sheet_Import_Item = {
     created_at: Scalars["timestamptz"]["output"]
     /** An object relationship */
     election?: Maybe<Sequent_Backend_Election>
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id: Scalars["uuid"]["output"]
     election_id: Scalars["uuid"]["output"]
     /** An object relationship */
@@ -21008,6 +21180,7 @@ export type Sequent_Backend_Tally_Sheet_Import_Item_Bool_Exp = {
     contest_id?: InputMaybe<Uuid_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     generated_tally_sheet?: InputMaybe<Sequent_Backend_Tally_Sheet_Bool_Exp>
@@ -21075,6 +21248,7 @@ export type Sequent_Backend_Tally_Sheet_Import_Item_Insert_Input = {
     contest_id?: InputMaybe<Scalars["uuid"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     generated_tally_sheet?: InputMaybe<Sequent_Backend_Tally_Sheet_Obj_Rel_Insert_Input>
@@ -21215,6 +21389,7 @@ export type Sequent_Backend_Tally_Sheet_Import_Item_Order_By = {
     contest_id?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
     election?: InputMaybe<Sequent_Backend_Election_Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     election_id?: InputMaybe<Order_By>
     generated_tally_sheet?: InputMaybe<Sequent_Backend_Tally_Sheet_Order_By>
@@ -21569,6 +21744,7 @@ export type Sequent_Backend_Tally_Sheet_Import_Order_By = {
     canonical_csv_sha256?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
     created_by_user_id?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
     items_aggregate?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Aggregate_Order_By>
@@ -21758,6 +21934,7 @@ export type Sequent_Backend_Tally_Sheet_Insert_Input = {
     created_by_user_id?: InputMaybe<Scalars["String"]["input"]>
     deleted_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -21848,6 +22025,7 @@ export type Sequent_Backend_Tally_Sheet_Order_By = {
     created_by_user_id?: InputMaybe<Order_By>
     deleted_at?: InputMaybe<Order_By>
     election?: InputMaybe<Sequent_Backend_Election_Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     election_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
@@ -22080,6 +22258,8 @@ export type Sequent_Backend_Tasks_Execution = {
     __typename?: "sequent_backend_tasks_execution"
     annotations?: Maybe<Scalars["jsonb"]["output"]>
     created_at: Scalars["timestamptz"]["output"]
+    /** An object relationship */
+    election_event?: Maybe<Sequent_Backend_Election_Event>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     end_at?: Maybe<Scalars["timestamptz"]["output"]>
     executed_by_user: Scalars["String"]["output"]
@@ -22144,6 +22324,7 @@ export type Sequent_Backend_Tasks_Execution_Bool_Exp = {
     _or?: InputMaybe<Array<Sequent_Backend_Tasks_Execution_Bool_Exp>>
     annotations?: InputMaybe<Jsonb_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     end_at?: InputMaybe<Timestamptz_Comparison_Exp>
     executed_by_user?: InputMaybe<String_Comparison_Exp>
@@ -22186,6 +22367,7 @@ export type Sequent_Backend_Tasks_Execution_Delete_Key_Input = {
 export type Sequent_Backend_Tasks_Execution_Insert_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     end_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     executed_by_user?: InputMaybe<Scalars["String"]["input"]>
@@ -22250,6 +22432,7 @@ export type Sequent_Backend_Tasks_Execution_On_Conflict = {
 export type Sequent_Backend_Tasks_Execution_Order_By = {
     annotations?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
+    election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>
     election_event_id?: InputMaybe<Order_By>
     end_at?: InputMaybe<Order_By>
     executed_by_user?: InputMaybe<Order_By>
