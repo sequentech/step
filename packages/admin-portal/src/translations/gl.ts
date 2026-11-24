@@ -464,6 +464,7 @@ const galegoTranslation: TranslationType = {
             },
             edit: {
                 general: "Xeral",
+                permissionLabel: "Etiqueta de Permiso",
                 dates: "Datas",
                 customUrls: "Prefixo de URLs Personalizados",
                 votingPeriod: "Período de Votación",

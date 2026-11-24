@@ -467,6 +467,7 @@ const tagalogTranslation: TranslationType = {
             },
             edit: {
                 general: "Pangkalahatan",
+                permissionLabel: "Label ng pahintulot",
                 dates: "Petsa",
                 customUrls: "Pasadyang Unang Bahagi ng URL",
                 votingPeriod: "Panahon ng Pagboto",
