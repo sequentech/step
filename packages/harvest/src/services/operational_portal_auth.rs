@@ -177,8 +177,9 @@ mod tests {
         .await
         .unwrap();
 
-        let sign =
-            |value| Header::new("Authorization", signer.sign_payload(value));
+        let sign = |value: &serde_json::Value| -> Header<'static> {
+            Header::new("Authorization", signer.sign_payload(value))
+        };
         let success =
             client.get("/actor").header(sign(&payload)).dispatch().await;
         assert_eq!(success.status(), Status::Ok);
