@@ -327,7 +327,7 @@ const tagalogTranslation: TranslationType = {
                     },
                     "sql-photo": {
                         lead: "Hindi wastong larawan sa SQL",
-                        text: "Hindi wastong larawan sa SQL — Ang PICTURE ay dapat na BLOB na may wastong PNG o JPEG na naka-save nang walang EXIF rotation at pasok sa mga limitasyon ng import.",
+                        text: "Hindi wastong larawan sa SQL — Ang PICTURE ay dapat na BLOB na may static na PNG, JPEG, WebP o AVIF na pasok sa mga limitasyon ng import. I-export ito nang walang EXIF rotation o AVIF display transform.",
                     },
                     "photo-source-conflict": {
                         lead: "Dalawang pinagmulan ng larawan",

@@ -328,7 +328,7 @@ const spanishTranslation: TranslationType = {
                     },
                     "sql-photo": {
                         lead: "Foto SQL no válida",
-                        text: "Foto SQL no válida — PICTURE debe ser un BLOB con una imagen PNG o JPEG válida, guardada sin rotación EXIF y dentro de los límites de importación.",
+                        text: "Foto SQL no válida — PICTURE debe ser un BLOB con una imagen estática PNG, JPEG, WebP o AVIF dentro de los límites de importación. Expórtala sin rotación EXIF ni transformaciones de visualización AVIF.",
                     },
                     "photo-source-conflict": {
                         lead: "Dos fuentes para la foto",

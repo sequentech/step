@@ -77,7 +77,7 @@ Supply **one** optional portrait per source candidate, not both:
 
 - In the source dump, use the existing `candidate.PICTURE` (legacy) or
   `candidates.PICTURE` (post-qualification) BLOB. Store the raw bytes of a
-  static PNG or JPEG, not a base64 string, URL, filesystem path, serialized
+  static PNG, JPEG, WebP or AVIF, not a base64 string, URL, filesystem path, serialized
   object or image filename. The data-only reader accepts MySQL dump byte
   literals, including `0x…` (complete hex pairs), `X'…'` and escaped
   `_binary '…'`. Do not execute the SQL. An absent column, SQL NULL or a
@@ -92,11 +92,20 @@ Supply **one** optional portrait per source candidate, not both:
   malformed, oversized or conflicting images for selected candidates stop
   the import. Nothing is fetched, and no fallback picture is invented.
 
-Both paths decode pixels and output a new metadata-free static PNG. SQL
-accepts up to 512 KiB and 1,024 × 1,024 pixels per original and produces
-aspect-preserving ballot thumbnails up to 160 pixels on the long edge;
+Both paths decode pixels and output a new metadata-free static PNG. SQL accepts
+up to 512 KiB and 1,048,576 pixels per original. PNG/JPEG are limited to
+1,024 pixels per side; WebP/AVIF can be up to 1,280 pixels per side without
+exceeding the same total pixel limit. SQL produces aspect-preserving ballot
+thumbnails up to 160 pixels on the long edge;
 smaller images are never enlarged. Supply upright pixels: rotated EXIF input
 is refused with a clear diagnostic rather than being displayed sideways.
+WebP accepts lossy and lossless stills, including alpha. Lossless streams with
+more than 128 entropy groups are refused before allocating their tables.
+AVIF accepts an ordinary SDR AV1 still image with optional alpha; HDR or
+wide-gamut input, embedded ICC profiles, sequences, grids and other derived images, and
+display transformations (rotation, mirroring, cropping or nonsquare pixels)
+must first be exported as an upright still. The native and WASM importers use
+the same bounded Rust decoders; no browser codec or external converter is needed.
 Excel retains its 512 × 512 limit; a photographic Excel input must also fit
 the normalized PNG limit below (use a smaller image or the SQL source).
 Each output is capped at 128 KiB. Unique SQL sources have a 64 MiB / 64-megapixel

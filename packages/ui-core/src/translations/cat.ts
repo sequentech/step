@@ -326,7 +326,7 @@ const catalanTranslation: TranslationType = {
                     },
                     "sql-photo": {
                         lead: "Foto SQL no vàlida",
-                        text: "Foto SQL no vàlida — PICTURE ha de ser un BLOB amb una imatge PNG o JPEG vàlida, desada sense rotació EXIF i dins dels límits d'importació.",
+                        text: "Foto SQL no vàlida — PICTURE ha de ser un BLOB amb una imatge estàtica PNG, JPEG, WebP o AVIF dins dels límits d'importació. Exporta-la sense rotació EXIF ni transformacions de visualització AVIF.",
                     },
                     "photo-source-conflict": {
                         lead: "Dues fonts per a la foto",

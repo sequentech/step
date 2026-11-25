@@ -69,8 +69,16 @@ const TOTAL_BYTES_ERROR: &str =
     "candidate photos exceed the workbook's 32 MiB total limit";
 const TOTAL_PIXELS_ERROR: &str =
     "candidate photos exceed the workbook's 16 megapixel total limit";
+const SQL_TOTAL_PIXELS_ERROR: &str =
+    "SQL candidate photos exceed 64 megapixels of original image data";
 const BAD_PHOTO: &str = "supply a valid static PNG or JPEG";
 const JPEG_PREFIX: &str = "data:image/jpeg;base64,";
+
+#[cfg(all(
+    feature = "election_config_xlsx",
+    feature = "election_config_archive"
+))]
+mod sql_formats;
 
 #[cfg(all(
     feature = "election_config_xlsx",
@@ -100,14 +108,7 @@ impl SqlBudget {
             );
         }
         let remaining = 64 * 1024 * 1024 - self.used_pixels;
-        let (bytes, pixels, decoded) = if raw.starts_with(b"\x89PNG\r\n\x1a\n")
-        {
-            decode_png(raw, remaining, Source::Sql)?
-        } else if raw.starts_with(&[0xff, 0xd8, 0xff]) {
-            decode_jpeg(raw, remaining, Source::Sql)?
-        } else {
-            return Err(BAD_PHOTO);
-        };
+        let (bytes, pixels, decoded) = sql_formats::decode(raw, remaining)?;
         self.used_bytes += raw.len();
         self.used_pixels += decoded;
         Ok(PreparedPhoto {
@@ -276,7 +277,10 @@ fn pixel_count(
     }
     let count = width * height;
     if count > remaining {
-        return Err(match source { Source::Sql => "SQL candidate photos exceed 64 megapixels of original image data", Source::Excel => TOTAL_PIXELS_ERROR });
+        return Err(match source {
+            Source::Sql => SQL_TOTAL_PIXELS_ERROR,
+            Source::Excel => TOTAL_PIXELS_ERROR,
+        });
     }
     Ok(count)
 }

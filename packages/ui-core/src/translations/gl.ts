@@ -329,7 +329,7 @@ const galegoTranslation: TranslationType = {
                     },
                     "sql-photo": {
                         lead: "Foto SQL non válida",
-                        text: "Foto SQL non válida — PICTURE debe ser un BLOB cunha imaxe PNG ou JPEG válida, gardada sen rotación EXIF e dentro dos límites de importación.",
+                        text: "Foto SQL non válida — PICTURE debe ser un BLOB cunha imaxe estática PNG, JPEG, WebP ou AVIF dentro dos límites de importación. Expórtaa sen rotación EXIF nin transformacións de visualización AVIF.",
                     },
                     "photo-source-conflict": {
                         lead: "Dúas fontes para a foto",

@@ -325,7 +325,7 @@ const basqueTranslation: TranslationType = {
                     },
                     "sql-photo": {
                         lead: "SQL argazki baliogabea",
-                        text: "SQL argazki baliogabea — PICTURE eremuak BLOB motakoa izan behar du eta PNG edo JPEG irudi baliozko bat eduki behar du, EXIF biraketarik gabe eta inportazio-mugen barruan.",
+                        text: "SQL argazki baliogabea — PICTURE eremuak BLOB motakoa izan behar du, eta PNG, JPEG, WebP edo AVIF irudi estatiko bat eduki behar du, inportazio-mugen barruan. Esportatu irudia EXIF biraketarik eta AVIF bistaratze-transformaziorik gabe.",
                     },
                     "photo-source-conflict": {
                         lead: "Argazkiaren bi iturri",

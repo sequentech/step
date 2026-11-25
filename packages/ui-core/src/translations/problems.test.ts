@@ -180,6 +180,10 @@ describe("problem catalog", () => {
             expect(sqlPhoto).toContain("PICTURE")
             expect(sqlPhoto).toContain("BLOB")
             expect(sqlPhoto).toContain("EXIF")
+            for (const newSqlFormat of ["WebP", "AVIF"]) {
+                expect(sqlPhoto).toContain(newSqlFormat)
+                expect(inlinePhoto).not.toContain(newSqlFormat)
+            }
             expect(conflict).toContain("PICTURE")
             expect(conflict).toContain("image_data_url")
         }

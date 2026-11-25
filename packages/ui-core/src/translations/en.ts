@@ -328,7 +328,7 @@ const englishTranslation = {
                     },
                     "sql-photo": {
                         lead: "Invalid SQL photo",
-                        text: "Invalid SQL photo — PICTURE must be a BLOB with a valid PNG or JPEG, saved without EXIF rotation and within the import limits.",
+                        text: "Invalid SQL photo — PICTURE must be a BLOB with a static PNG, JPEG, WebP or AVIF within the import limits. Export it without EXIF rotation or AVIF display transforms.",
                     },
                     "photo-source-conflict": {
                         lead: "Two candidate photo sources",

@@ -326,7 +326,7 @@ const dutchTranslation: TranslationType = {
                     },
                     "sql-photo": {
                         lead: "Ongeldige SQL-foto",
-                        text: "Ongeldige SQL-foto — PICTURE moet een BLOB zijn met een geldige PNG of JPEG die zonder EXIF-rotatie is opgeslagen en aan de importlimieten voldoet.",
+                        text: "Ongeldige SQL-foto — PICTURE moet een BLOB zijn met een statische PNG, JPEG, WebP of AVIF die aan de importlimieten voldoet. Exporteer de afbeelding zonder EXIF-rotatie of AVIF-weergavetransformaties.",
                     },
                     "photo-source-conflict": {
                         lead: "Twee bronnen voor de kandidatenfoto",

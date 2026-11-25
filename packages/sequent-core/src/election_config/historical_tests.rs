@@ -4528,6 +4528,109 @@ fn with_sql_picture(sql: &[u8], literal: &str) -> String {
 }
 
 #[test]
+fn mixed_mysql_hex_picture_formats_survive_xlsx_and_the_ballot_preview() {
+    use crate::election_config::{
+        plan_from_workbook::plan_from_workbook,
+        preview::{preview_publication, PreviewOptions},
+    };
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let (sql, xlsx) = fixture();
+    let jpeg = include_bytes!("workbook_photo/fixtures/blocks.jpeg");
+    let avif = include_bytes!("workbook_photo/fixtures/blocks.avif");
+    let webp = include_bytes!("workbook_photo/fixtures/blocks.webp");
+    let mut sql = with_sql_picture(&sql, &format!("0x{}", hex::encode(jpeg)));
+    for (code, title, photo) in [
+        ("0008", "Synthetic AVIF", Some(avif.as_slice())),
+        ("0009", "Synthetic WebP", Some(webp.as_slice())),
+        ("0010", "Synthetic no photo", None),
+    ] {
+        let literal = photo.map_or_else(|| "NULL".to_string(), |p| format!("0x{}", hex::encode(p)));
+        sql.push_str(&format!(
+            "INSERT INTO `candidate` VALUES ('{code}','{title}','C01','S01','PR01',{literal});\n"
+        ));
+    }
+    let sql = post_qualification(sql.as_bytes());
+    let adapted = adapt(sql.as_bytes(), &xlsx, &reviewed()).unwrap();
+    let original = plan_from_workbook(&adapted.workbook).unwrap().plan;
+    let reopened = read_xlsx(&write_xlsx(&adapted.workbook).unwrap()).unwrap();
+    let roundtrip = plan_from_workbook(&reopened).unwrap().plan;
+    let candidates = &roundtrip.elections[0].contests[0].candidates;
+    assert_eq!(candidates.len(), 4);
+    let normalized: Vec<_> = candidates.iter().filter_map(|c| c.image.as_ref()).collect();
+    assert_eq!(normalized.len(), 3);
+    assert!(candidates[3].image.is_none());
+    for (before, after) in original.elections[0].contests[0]
+        .candidates
+        .iter()
+        .zip(candidates)
+    {
+        assert_eq!(before.image, after.image);
+    }
+    let bundle = build(
+        &reopened,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap();
+    let preview = preview_publication(&bundle, &PreviewOptions::default()).unwrap();
+    let ballot = serde_json::to_string(&preview.ballot_styles).unwrap();
+    for image in normalized {
+        assert!(image.file_name.ends_with(".png"));
+        assert!(image.bytes.starts_with(b"\x89PNG\r\n\x1a\n"));
+        assert!(bundle.images.iter().any(|doc| doc.bytes == image.bytes));
+        assert!(ballot.contains(&format!(
+            "data:image/png;base64,{}",
+            STANDARD.encode(&image.bytes)
+        )));
+    }
+    assert_eq!(bundle.images.len(), 3);
+}
+
+#[test]
+fn excel_photo_remains_the_fallback_for_empty_sql_with_unchanged_formats() {
+    use crate::election_config::plan_from_workbook::plan_from_workbook;
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let (sql, xlsx) = fixture();
+    let sql = with_sql_picture(&sql, "NULL");
+    let jpeg = include_bytes!("workbook_photo/fixtures/blocks.jpeg");
+    let webp = include_bytes!("workbook_photo/fixtures/blocks.webp");
+    let workbook_with_photo = |mime, raw: &[u8]| {
+        changed_workbook(&xlsx, |sheets| {
+            sheets.push(rows_sheet(
+                "Candidates",
+                vec![row(
+                    "Candidates",
+                    0,
+                    vec![
+                        ("source_candidate_id", json!("0007")),
+                        (
+                            "image_data_url",
+                            json!(format!("data:{mime};base64,{}", STANDARD.encode(raw))),
+                        ),
+                    ],
+                )],
+            ));
+        })
+    };
+    let workbook = workbook_with_photo("image/jpeg", jpeg);
+    let adapted = adapt(sql.as_bytes(), &workbook, &reviewed()).unwrap();
+    let plan = plan_from_workbook(&adapted.workbook).unwrap().plan;
+    assert!(plan.elections[0].contests[0].candidates[0]
+        .image
+        .as_ref()
+        .unwrap()
+        .bytes
+        .starts_with(b"\x89PNG\r\n\x1a\n"));
+    let workbook = workbook_with_photo("image/webp", webp);
+    let refused = adapt(sql.as_bytes(), &workbook, &reviewed()).unwrap_err();
+    assert!(refused
+        .report
+        .errors()
+        .any(|p| p.id.as_deref() == Some("candidate.inline-photo")));
+}
+
+#[test]
 fn sql_photo_absence_invalid_bytes_and_competing_excel_source_are_explicit() {
     use crate::election_config::{
         plan_from_workbook::plan_from_workbook, workbook_photo::test_png_url,

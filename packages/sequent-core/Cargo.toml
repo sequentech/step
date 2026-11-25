@@ -135,6 +135,10 @@ png = { version = "0.18", optional = true }
 # Pure Rust decoders already present in the workspace lock; bounded scalar JPEG in WASM too.
 zune-jpeg = { version = "0.4.21", default-features = false, optional = true }
 zune-core = { version = "0.4.12", default-features = false, optional = true }
+# SQL source portraits only. AVIF uses the bounded pure-Rust still decoder;
+# neither this nor WebP requires a browser or native codec library.
+avif-rust = { version = "=0.3.0", default-features = false, optional = true }
+oxideav-webp = { version = "=0.3.2", default-features = false, optional = true }
 
 # uuid5 for the deterministic ids a generated bundle uses. The `uuid` crate is not
 # used for this: its v4 feature pulls getrandom, whose WASM support is version
@@ -210,7 +214,7 @@ default_features = ["dep:electoral-log", "dep:num-bigint", "dep:tempfile", "dep:
 # Reading .xlsx into an election_config::sheet::Workbook. Separate from
 # default_features because admin-portal and voting-portal have no workbook to
 # read and should not pay for a spreadsheet parser in their bundle.
-election_config_xlsx = ["default_features", "dep:calamine", "dep:zip"]
+election_config_xlsx = ["default_features", "dep:calamine", "dep:zip", "dep:avif-rust", "dep:oxideav-webp"]
 # Rendering the base entity templates. Separate from `reports`, which also brings
 # a headless browser and three AWS SDKs; this needs only the template engine.
 election_config_templates = ["default_features", "areas", "dep:handlebars", "dep:png", "dep:zune-jpeg", "dep:zune-core"]
