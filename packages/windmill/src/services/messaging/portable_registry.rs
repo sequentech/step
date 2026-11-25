@@ -96,6 +96,9 @@ impl PortableRegistryPlan {
     }
 }
 
+/// Public: shown to the operator through the portable-messaging blocker allowlist.
+pub const CREDENTIALS_NOT_ACCEPTED: &str = "portable messaging requires AWS credentials this receiver cannot accept yet; deliver the accounts without credentials and set keys on this installation";
+
 fn package_digest(digest: &str) -> Result<&str> {
     ensure!(
         digest.len() == 64
@@ -195,6 +198,16 @@ fn plan_from_accounts(
 ) -> Result<PortableRegistryPlan> {
     package_digest(package_sha)?;
     definitions.validate()?;
+    // A committed AWS key pair must reach the vault before any account is
+    // planned. Until this receiver takes the protected sidecar, refuse at
+    // Preview and Apply rather than create the account on the workload role.
+    ensure!(
+        definitions
+            .accounts
+            .iter()
+            .all(|definition| definition.credential_commitment.is_none()),
+        CREDENTIALS_NOT_ACCEPTED
+    );
     let mut desired: Vec<AccountSettings> = vec![];
     let mut bindings = BTreeMap::new();
     let mut bound_ids = BTreeSet::new();
@@ -634,6 +647,20 @@ mod tests {
         checked.status.production_access = true;
         assert!(installed_plan(tenant, SHA, &defs, &expected, &[checked]).is_err());
         assert!(installed_plan(tenant, SHA, &defs, &expected, &[ready]).is_ok());
+    }
+
+    #[test]
+    fn committed_aws_credentials_are_refused_until_the_receiver_accepts_them() {
+        let tenant = Uuid::from_u128(42);
+        let mut defs = definitions();
+        defs.accounts[0].credential_commitment = Some("ab".repeat(32));
+        let refused = plan_from_accounts(tenant, SHA, &defs, &[]).unwrap_err();
+        assert_eq!(refused.to_string(), CREDENTIALS_NOT_ACCEPTED);
+        // Also when an existing account would otherwise be reused.
+        let existing = with_account(Uuid::from_u128(19), &definitions());
+        assert!(plan_from_accounts(tenant, SHA, &defs, &[existing]).is_err());
+        // Omitted keeps today's behaviour: workload role or existing keys.
+        assert!(plan_from_accounts(tenant, SHA, &definitions(), &[]).is_ok());
     }
 
     #[test]

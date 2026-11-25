@@ -37,6 +37,11 @@ mod messaging_config;
 #[cfg(feature = "election_config_templates")]
 pub mod portable_messaging;
 
+/// AWS key pairs beside, never inside, a signed delivery: the sidecar, its
+/// signed commitment and the installation record seal.
+#[cfg(feature = "election_config_signing")]
+pub mod messaging_credentials;
+
 /// What a bundle becomes as files. Needs the builder, so it shares its feature;
 /// the zip writer itself is behind `election_config_archive`.
 #[cfg(feature = "election_config_templates")]
