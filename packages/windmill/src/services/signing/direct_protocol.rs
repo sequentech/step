@@ -23,6 +23,16 @@ pub struct DirectAnchor {
     pub publication: Uuid,
 }
 
+/// The trusted transaction chooses how the header publication was bound.
+/// The discriminator is not supplied by the browser and is not a wire field.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PublicationBinding {
+    /// The original installation anchors its first publication, which stays V1-only.
+    InstalledAnchor,
+    /// A fresh request froze the exact publication that it asks to initialize.
+    FrozenRequest,
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
 pub struct DirectRequestScope {
     pub election: Option<Uuid>,
@@ -72,6 +82,7 @@ impl DirectOperation {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         anchor: DirectAnchor,
+        publication_binding: PublicationBinding,
         request: Uuid,
         actor: Uuid,
         action: SigningAction,
@@ -94,7 +105,7 @@ impl DirectOperation {
                 .into_iter()
                 .flatten()
                 .any(|id| id.is_nil())
-            || !scope_matches(anchor, action, scope)
+            || !scope_matches(anchor, publication_binding, action, scope)
         {
             return None;
         }
@@ -220,7 +231,12 @@ fn digest(text: &str) -> Option<Digest> {
     (hex::encode(bytes) == text).then_some(bytes)
 }
 
-fn scope_matches(anchor: DirectAnchor, action: SigningAction, scope: DirectRequestScope) -> bool {
+fn scope_matches(
+    anchor: DirectAnchor,
+    publication_binding: PublicationBinding,
+    action: SigningAction,
+    scope: DirectRequestScope,
+) -> bool {
     use SigningAction::*;
     let post = scope.election == Some(anchor.post);
     let no_area = scope.area.is_none();
@@ -234,7 +250,10 @@ fn scope_matches(anchor: DirectAnchor, action: SigningAction, scope: DirectReque
                 && no_trustee
                 && scope
                     .publication
-                    .is_some_and(|published| published != anchor.publication)
+                    .is_some_and(|published| match publication_binding {
+                        PublicationBinding::InstalledAnchor => published != anchor.publication,
+                        PublicationBinding::FrozenRequest => published == anchor.publication,
+                    })
         }
         OpenVoting | CloseVoting | GenerateReports | ApproveVoter => {
             post && no_area && no_trustee && anchor_publication
@@ -277,6 +296,7 @@ mod tests {
         let document = "ab".repeat(32);
         DirectOperation::new(
             anchor(),
+            PublicationBinding::InstalledAnchor,
             ids(6),
             ids(7),
             action,
@@ -362,6 +382,39 @@ mod tests {
             }
         )
         .is_none());
+    }
+
+    #[test]
+    fn initialization_publication_shape_depends_on_trusted_request_origin() {
+        let anchor = anchor();
+        let input = |binding, publication| {
+            DirectOperation::new(
+                anchor,
+                binding,
+                ids(6),
+                ids(7),
+                InitializeVoting,
+                DirectRequestScope {
+                    election: Some(anchor.post),
+                    publication,
+                    ..Default::default()
+                },
+                &"cd".repeat(32),
+                None,
+            )
+        };
+        assert!(input(PublicationBinding::InstalledAnchor, Some(ids(50))).is_some());
+        assert!(input(
+            PublicationBinding::InstalledAnchor,
+            Some(anchor.publication)
+        )
+        .is_none());
+        assert!(input(PublicationBinding::FrozenRequest, Some(ids(50))).is_none());
+        assert!(input(PublicationBinding::FrozenRequest, None).is_none());
+        let exact = input(PublicationBinding::FrozenRequest, Some(anchor.publication)).unwrap();
+        assert!(exact
+            .evidence(ids(8), DirectPurpose::ApprovalPayload)
+            .is_some());
     }
 
     #[test]

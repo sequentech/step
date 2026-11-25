@@ -24,8 +24,16 @@ pub(in crate::services::signing) enum DirectProtocol {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(in crate::services::signing) enum LatchOrigin {
+    InstallationAnchor,
+    #[cfg(feature = "comelec-demo-direct-hsm")]
+    FrozenRequest,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(in crate::services::signing) struct Latch {
     pub protocol: DirectProtocol,
+    pub origin: LatchOrigin,
     pub post: Uuid,
     pub publication: Uuid,
     pub installation: Uuid,
@@ -89,6 +97,7 @@ pub(in crate::services::signing) async fn read_latch(
     row.map(|r| {
         let s = Latch {
             protocol: DirectProtocol::InitializeV1,
+            origin: LatchOrigin::InstallationAnchor,
             post: r.try_get(0).map_err(|_| Blocked::ScopeUnavailable)?,
             publication: r.try_get(1).map_err(|_| Blocked::ScopeUnavailable)?,
             installation: r.try_get(2).map_err(|_| Blocked::ScopeUnavailable)?,
@@ -142,6 +151,7 @@ pub(in crate::services::signing) async fn action_latch(
     row.map(|r| {
         let latch = Latch {
             protocol: DirectProtocol::ActionV2,
+            origin: LatchOrigin::InstallationAnchor,
             post: r.try_get(0).map_err(|_| Blocked::ScopeUnavailable)?,
             publication: r.try_get(1).map_err(|_| Blocked::ScopeUnavailable)?,
             installation: r.try_get(2).map_err(|_| Blocked::ScopeUnavailable)?,
@@ -478,6 +488,7 @@ mod tests {
     fn only_one_exact_post_and_publication_match_and_ambiguous_scopes_never_become_legacy() {
         let latch = Latch {
             protocol: DirectProtocol::InitializeV1,
+            origin: LatchOrigin::InstallationAnchor,
             post: Uuid::from_u128(1),
             publication: Uuid::from_u128(2),
             installation: Uuid::from_u128(3),

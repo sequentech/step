@@ -9,8 +9,10 @@
 use super::actions::transmission::SbeiDirectory;
 use super::approve::{approve_direct_action, sign_refusal, ApproveOutcome, SigningServices};
 use super::direct_initialize::{self, DEVICE_PROFILE};
-use super::direct_protocol::{DirectAnchor, DirectOperation, DirectPurpose, DirectRequestScope};
-use super::operational_policy::local_scope::{request_latch, DirectProtocol, Latch};
+use super::direct_protocol::{
+    DirectAnchor, DirectOperation, DirectPurpose, DirectRequestScope, PublicationBinding,
+};
+use super::operational_policy::local_scope::{request_latch, DirectProtocol, Latch, LatchOrigin};
 use super::operational_policy::{lock_signing_policy, OperationalSigningMode};
 use super::pdf::{RevisionStore, S3RevisionStore};
 use super::requests::{is_overdue, read_request, relock};
@@ -141,6 +143,10 @@ async fn known_operation(
             post: latch.post,
             publication: latch.publication,
         },
+        match latch.origin {
+            LatchOrigin::InstallationAnchor => PublicationBinding::InstalledAnchor,
+            LatchOrigin::FrozenRequest => PublicationBinding::FrozenRequest,
+        },
         request.id,
         actor,
         request.action,
@@ -168,8 +174,11 @@ async fn authorize_row(
         .ok_or_else(unavailable)?;
     let operation = known_operation(tx, request, latch, actor_uuid(&caller.user_id)?).await?;
     let mut post = operation.scope().election;
-    if post.is_none() && super::direct_multi_event::root(tx, request.tenant_id, request.election_event_id)
-        .await?.is_some() {
+    if post.is_none()
+        && super::direct_multi_event::root(tx, request.tenant_id, request.election_event_id)
+            .await?
+            .is_some()
+    {
         // An event-scoped action in this deployment still concerns the one
         // exact eligible Post. Do not bypass its labels via an empty scope.
         post = Some(operation.anchor().post);

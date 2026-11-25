@@ -6,7 +6,7 @@
 //! The event's ordinary request transaction freezes its exact V2 context.
 //! The original installation and its historical V1 protocol remain unchanged.
 
-use super::operational_policy::local_scope::{DirectProtocol, Latch, Target};
+use super::operational_policy::local_scope::{DirectProtocol, Latch, LatchOrigin, Target};
 use crate::postgres::signing::{get_signing_post, lock_signing_event, SigningRequestRow};
 use crate::postgres::signing_actions::published_publication_of_post;
 use anyhow::{ensure, Context, Result};
@@ -151,6 +151,7 @@ async fn approved_active_publication(
         .context("Publish and approve this Post's configuration before requesting HSM signing")?;
     let latch = Latch {
         protocol: DirectProtocol::ActionV2,
+        origin: LatchOrigin::FrozenRequest,
         installation,
         post,
         publication,
@@ -210,6 +211,7 @@ pub(super) async fn for_target(
         );
         return Ok(Some(Latch {
             protocol: DirectProtocol::ActionV2,
+            origin: LatchOrigin::FrozenRequest,
             installation,
             post,
             publication,
@@ -266,7 +268,9 @@ pub(super) async fn bind(
     let latch = latch.context("Missing direct HSM request scope")?;
     let digest = hex::decode(&row.payload_sha256)?;
     ensure!(
-        latch.protocol == DirectProtocol::ActionV2 && latch.installation == installation,
+        latch.protocol == DirectProtocol::ActionV2
+            && latch.origin == LatchOrigin::FrozenRequest
+            && latch.installation == installation,
         "Wrong direct HSM request scope"
     );
     let bound: bool = tx
@@ -313,6 +317,7 @@ pub(super) async fn persisted(
     );
     let latch = Latch {
         protocol: DirectProtocol::ActionV2,
+        origin: LatchOrigin::FrozenRequest,
         installation,
         post,
         publication,
