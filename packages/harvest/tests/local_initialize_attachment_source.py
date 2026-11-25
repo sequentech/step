@@ -3,6 +3,7 @@
 """Source-only. Exercise the shipped predicates with inert scalar rows."""
 import base64
 import hashlib
+import json
 import re
 import sqlite3
 import unittest
@@ -123,6 +124,25 @@ class Predicates(unittest.TestCase):
             "UPDATE decision SET until_at=100000",
         ])
 
+    def test_pending_inspection_ignores_stale_public_pins_but_never_a_sealed_decision(self):
+        self.db.executescript("""
+            CREATE TABLE b(tenant,event); CREATE TABLE g(certificate,spki);
+            CREATE TABLE decision(attempt,certificate,pins,trust);
+            CREATE TABLE staff_certificate(tenant_id,election_event_id,spki_sha256,fingerprint_sha256);
+            INSERT INTO b VALUES (1,2); INSERT INTO g VALUES (NULL,'key');
+            INSERT INTO decision VALUES ('attempt',NULL,'old leaf and CRL','old observation');
+        """)
+        pending = body("inspect").split("AND ((g.certificate IS NULL", 1)[1].split(
+            "OR EXISTS (SELECT FROM felix3_initialize_attachment.decision d", 1)[0]
+        query = scalar("SELECT 1 FROM b CROSS JOIN g WHERE (g.certificate IS NULL" + pending)
+        query = (query.replace("felix3_initialize_attachment.decision", "decision")
+                 .replace("= ticket", "= :ticket").replace("expected->>'leaf_sha256'", ":leaf"))
+        self.prove(query, {"ticket":"attempt","leaf":"new leaf"}, [
+            "UPDATE decision SET certificate='sealed'", "UPDATE g SET certificate='sealed'",
+            "INSERT INTO staff_certificate VALUES (1,2,'key','other leaf')",
+            "INSERT INTO staff_certificate VALUES (1,2,'other key','new leaf')",
+        ])
+
     def test_original_released_completed_generation(self):
         self.db.executescript("""
             CREATE TABLE b(tenant,event,official,request);
@@ -199,6 +219,115 @@ class Predicates(unittest.TestCase):
         ])
 
 
+class AdmissionRecovery(unittest.TestCase):
+    """Run the shipped UPSERT predicate with explicit transaction outcomes and public pins."""
+
+    def setUp(self):
+        self.db = sqlite3.connect(":memory:")
+        self.addCleanup(self.db.close)
+        self.status = {81: "aborted", 82: "in progress"}
+        self.db.create_function("pg_xact_status", 1, self.status.get)
+        self.db.execute("""CREATE TABLE decision(attempt PRIMARY KEY,bound,scope,officer,pins,fixed_pins,trust,
+            officer_labels,nominee_labels,writer,backend,xid,until_at,certificate,attached_at)""")
+        self.bound = dict(installation="i",tenant="t",event="e",post="p",publication="pub",request="r1",
+                          official="nominee",payload_sha256="payload1")
+        self.pins = dict(enrollment="enrollment",spki_sha256="key",csr_sha256="csr",leaf_sha256="leaf",
+                         issuer="issuer",root_sha256="root",crl_sha256="crl1")
+        self.old = self.candidate(backend=101,xid=81,until_at=900)
+        self.new = self.candidate(backend=102,xid=82,until_at=1100)
+        # Strip comments before finding the end of the actual SQL statement.
+        admit = re.sub(r"--[^\n]*", "", body("admit"))
+        branch = admit.split("ON CONFLICT (attempt)", 1)[1].split(";", 1)[0]
+        self.assertIn("pg_xact_status(d.xid)", branch)
+        names = list(self.old)
+        self.insert = ("INSERT INTO decision AS d (" + ",".join(names) + ") VALUES ("
+                       + ",".join(":" + col for col in names) + ") ON CONFLICT (attempt)" + scalar(branch))
+        self.assertEqual(self.apply(self.old), 1)
+
+    def candidate(self, bound=None, pins=None, **overrides):
+        b = {**self.bound, **(bound or {})}
+        p = {**self.pins, **(pins or {})}
+        dump = lambda obj: json.dumps(obj, sort_keys=True)
+        return dict(attempt="attempt", bound=dump(b), scope=dump({k:v for k,v in b.items()
+                    if k not in ("request","payload_sha256")}), officer="officer", pins=dump(p),
+                    fixed_pins=dump({k:v for k,v in p.items() if k not in ("leaf_sha256","crl_sha256")}),
+                    trust="stamp",officer_labels="ol",nominee_labels="nl",writer="registry",backend=102,
+                    xid=82,until_at=1100) | overrides
+
+    def apply(self, row):
+        return self.db.execute(self.insert, {**row, "now":1000}).rowcount
+
+    def snapshot(self):
+        return self.db.execute("SELECT * FROM decision").fetchone()
+
+    def test_aborted_writer_can_refresh_current_crl_or_genuine_reissue(self):
+        for changed in ({"crl_sha256":"crl2"}, {"leaf_sha256":"leaf2","crl_sha256":"crl2"}):
+            with self.subTest(changed=changed):
+                self.db.execute("SAVEPOINT before_retry")
+                next_row = self.candidate(pins=changed,trust="current observation")
+                self.assertEqual(self.apply(next_row), 1)
+                self.assertEqual(self.db.execute("SELECT pins,trust,xid,bound FROM decision").fetchone(),
+                                 (next_row["pins"],next_row["trust"],next_row["xid"],self.old["bound"]))
+                self.db.execute("ROLLBACK TO before_retry")
+                self.db.execute("RELEASE before_retry")
+
+    def test_expiry_never_steals_live_or_indeterminate_writer(self):
+        for state in ("in progress", None):
+            self.status[81] = state
+            for candidate in (self.new,self.candidate(pins={"crl_sha256":"crl2"})):
+                before = self.snapshot()
+                with self.subTest(state=state,pins=candidate["pins"]):
+                    self.assertEqual(self.apply(candidate), 0)
+                    self.assertEqual(self.snapshot(), before)
+
+    def test_terminal_unsealed_request_rebind_does_not_cross_scope_or_key(self):
+        b = dict(request="authorized-current-request",payload_sha256="authorized-current-payload")
+        for fields in ({"pins":{k:"different"}} for k in
+                       ("enrollment","spki_sha256","csr_sha256","issuer","root_sha256")):
+            with self.subTest(fields=fields):
+                self.assertEqual(self.apply(self.candidate(bound=b,**fields)), 0)
+        for key in ("installation","tenant","event","post","publication","official"):
+            with self.subTest(key=key):
+                self.assertEqual(self.apply(self.candidate(bound={**b,key:"different"})), 0)
+        for fields in ({"officer":"nominee"},{"writer":"other registry"},{"xid":81}):
+            with self.subTest(fields=fields):
+                self.assertEqual(self.apply(self.candidate(bound=b,**fields)), 0)
+        self.status[81] = "committed"
+        current = self.candidate(bound=b,trust="new observation")
+        self.assertEqual(self.apply(current), 1)
+        self.assertEqual(self.db.execute("SELECT bound,pins,xid FROM decision").fetchone(),
+                         (current["bound"],self.old["pins"],82))
+
+    def test_sealed_decision_is_never_rebound(self):
+        self.db.execute("UPDATE decision SET certificate=17,attached_at=800")
+        before = self.snapshot()
+        for candidate in (self.new,self.candidate(pins={"leaf_sha256":"leaf2"}),
+                          self.candidate(bound={"request":"r2","payload_sha256":"payload2"})):
+            self.assertEqual(self.apply(candidate), 0)
+            self.assertEqual(self.snapshot(), before)
+
+    def test_exact_live_writer_repeats_read_only_without_extending_its_deadline(self):
+        self.status[81] = "in progress"
+        self.db.execute("UPDATE decision SET until_at=1050")
+        # Execute the read-only answer after a conflicting UPSERT affected zero rows.
+        tail = body("admit").split("RETURN EXISTS (SELECT FROM felix3_initialize_attachment.decision d",1)[1]
+        q = scalar("SELECT EXISTS (SELECT 1 FROM decision d" + tail.split(";",1)[0])
+        for name in ("ticket","b","who","expected","checked_stamp","ol","nl","writer_login","writer_pid","tx","cutoff"):
+            q = re.sub(r"(?<![.:])\b" + name + r"\b", ":" + name, q)
+        proof = dict(ticket="attempt",b=self.old["bound"],who="officer",expected=self.old["pins"],
+                     checked_stamp="stamp",ol="ol",nl="nl",writer_login="registry",writer_pid=101,tx=81,cutoff=1090,now=1000)
+        before = self.snapshot()
+        self.assertEqual(self.apply(self.old), 0)
+        self.assertEqual(self.db.execute(q,proof).fetchone(), (1,))
+        for change in ({"ticket":"other"},{"b":self.candidate(bound={"request":"r2"})["bound"]},{"who":"nominee"},
+                       {"expected":self.candidate(pins={"crl_sha256":"crl2"})["pins"]},{"checked_stamp":"other"},
+                       {"ol":"other"},{"nl":"other"},{"writer_login":"other"},{"writer_pid":102},{"tx":82},
+                       {"cutoff":1049},{"now":1050}):
+            with self.subTest(change=change):
+                self.assertEqual(self.db.execute(q,{**proof,**change}).fetchone(), (0,))
+        self.assertEqual(self.snapshot(), before)
+
+
 class Contracts(unittest.TestCase):
     def test_exact_pem_envelope(self):
         expression = body("certificate_hash").split("substring(pem FROM E'", 1)[1].split("')", 1)[0]
@@ -244,6 +373,22 @@ class Contracts(unittest.TestCase):
         self.assertIn("d.certificate IS NULL", body("admit"))
         self.assertIn("pg_xact_status(d.xid) IN ('aborted','committed')", body("admit"))
         self.assertNotRegex(SQL, r"(?i)(INSERT INTO|UPDATE|DELETE FROM) sequent_backend\.staff_certificate")
+
+    def test_recovery_cannot_rewrite_fixed_coordinates_or_skip_current_verification(self):
+        grant = SQL.split("GRANT SELECT, INSERT, UPDATE (", 1)[1].split(")", 1)[0].split(",")
+        self.assertFalse(set(grant) & {"attempt","scope","fixed_pins","officer","writer"})
+        self.assertIn("ON felix3_initialize_attachment.decision TO sequent_os_ledger_api_owner;", SQL)
+        for projection in ("scope = (to_jsonb(bound) - ARRAY['request','payload_sha256'])",
+                           "fixed_pins = (pins - ARRAY['leaf_sha256','crl_sha256'])"):
+            self.assertIn(projection, SQL)
+        fn = body("admit")
+        for check in ("officer_service() IS NOT TRUE", "registry_writer(writer_login)",
+                      "pg_xact_status(tx) IS DISTINCT FROM 'in progress'", "attachment.inspect(",
+                      "m.certificate IS NOT NULL OR m.stamp <> checked_stamp", "cutoff <= clock_timestamp()"):
+            self.assertLess(fn.index(check), fn.index("INSERT INTO felix3_initialize_attachment.decision"))
+        self.assertIn("registry_writer(session_user)", body("finish"))
+        self.assertIn("FOR UPDATE OF s FOR SHARE OF a NOWAIT", body("generation"))
+        self.assertIn("FOR UPDATE;", body("finish"))
 
     def test_compilation_authority_and_crypto_boundaries(self):
         for p in ('feature = "felix3-local-initialize"', 'not(feature = "operational-signing-demo-fixture")',
