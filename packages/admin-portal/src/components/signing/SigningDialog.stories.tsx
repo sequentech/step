@@ -123,7 +123,7 @@ const checkLine = (view: ReturnType<typeof within>, id: CertificateCheckId) =>
     view.getByRole("list", {name: "Certificate checks"}).querySelector(`[data-check="${id}"]`)
 
 export const CheckWithDocument: Story = {
-    parameters: {widgets: ["CheckStep", "LocalSigningNote"]},
+    parameters: {widgets: ["LegacySigningDialog", "CheckStep", "LocalSigningNote"]},
     play: async ({args}) => {
         const view = await dialog()
         await expect(view.getByRole("heading", {name: "Sign the election returns"})).toBeVisible()

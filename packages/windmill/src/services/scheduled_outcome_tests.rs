@@ -768,7 +768,7 @@ fn both_direct_schedules_require_the_exact_committed_configuration() {
         executed_at: state.now,
         schedule: vec![opens.transition.clone(), closes.transition.clone()],
         signers: vec!["Authorized signer".into()],
-        post_channels: BTreeMap::from([(post.to_string(), Vec::new())]),
+        post_channels: BTreeMap::from([(post.to_string(), state.enabled_channels(post))]),
         initialization_scope: InitializationScope::POST,
         initialization_report_policies: BTreeMap::new(),
     };

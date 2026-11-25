@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {test, expect} from "@playwright/test"
-import {mkdtemp, rm, writeFile} from "node:fs/promises"
+import {mkdtemp, realpath, rm, writeFile} from "node:fs/promises"
+import {request} from "node:http"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import {createPortAllocator, serveDist} from "../server/static"
+import {createPortAllocator, servedRoots, serveDist} from "../server/static"
 
 test("configured static ports keep parallel workers and their second servers separate", () => {
     const first = createPortAllocator(44000, 44003)
@@ -66,5 +67,81 @@ test("static servers retain distinct simultaneous listeners within one worker", 
     } finally {
         await Promise.all(servers.map((server) => server.close()))
         await rm(directory, {recursive: true, force: true})
+    }
+})
+
+test("a scoped Chromium proxy serves only its known fixture after an HTTP redirect", async ({
+    browser,
+}, testInfo) => {
+    const proxyRoot = await mkdtemp(join(tmpdir(), "ui-kit-proxy-"))
+    const sentinelRoot = await mkdtemp(join(tmpdir(), "ui-kit-proxy-sentinel-"))
+    const servers: Awaited<ReturnType<typeof serveDist>>[] = []
+    try {
+        await writeFile(join(proxyRoot, "index.html"), "<h1>Expected isolated fixture</h1>")
+        await writeFile(join(sentinelRoot, "index.html"), "<h1>Unexpected non-proxied request</h1>")
+        const sentinel = await serveDist(sentinelRoot, undefined, testInfo)
+        servers.push(sentinel)
+        const alias = "http://localhost:" + new URL(sentinel.origin).port
+        const proxy = await serveDist(proxyRoot, undefined, testInfo, alias)
+        servers.push(proxy)
+        expect(servedRoots.get(alias)).toBe(await realpath(proxyRoot))
+
+        const proxyUrl = new URL(proxy.origin)
+        const denied = await new Promise((resolve, reject) => {
+            const outgoing = request(
+                {
+                    hostname: proxyUrl.hostname,
+                    port: proxyUrl.port,
+                    path: "http://outside-fixture.invalid/",
+                },
+                (response) => {
+                    response.resume()
+                    resolve(response.statusCode)
+                }
+            )
+            outgoing.on("error", reject)
+            outgoing.end()
+        })
+        expect(denied).toBe(403)
+
+        const proxySettings = {server: proxy.origin, bypass: "<-loopback>"}
+        const context = await browser.newContext({
+            proxy: proxySettings,
+            serviceWorkers: "block",
+        })
+        try {
+            let intercepts = 0
+            await context.route("**/*", async (route) => {
+                intercepts++
+                expect(route.request().url()).toBe(alias + "/auth")
+                await route.fulfill({status: 302, headers: {location: alias + "/callback"}})
+            })
+            const page = await context.newPage()
+            await page.goto(alias + "/auth")
+            await expect(page).toHaveURL(alias + "/callback")
+            await expect(page.getByRole("heading")).toHaveText("Expected isolated fixture")
+            // Chromium follows this mocked HTTP redirect without re-running the route.
+            expect(intercepts).toBe(1)
+        } finally {
+            await context.close()
+        }
+        servers.pop()
+        await proxy.close()
+        expect(servedRoots.has(alias)).toBe(false)
+
+        // An unavailable proxy must not fall back to the separate localhost listener.
+        const unavailable = await browser.newContext({proxy: proxySettings})
+        try {
+            const page = await unavailable.newPage()
+            await expect(page.goto(alias + "/direct-fallback")).rejects.toThrow(
+                "ERR_PROXY_CONNECTION_FAILED"
+            )
+        } finally {
+            await unavailable.close()
+        }
+    } finally {
+        await Promise.all(servers.map((server) => server.close()))
+        await rm(proxyRoot, {recursive: true, force: true})
+        await rm(sentinelRoot, {recursive: true, force: true})
     }
 })

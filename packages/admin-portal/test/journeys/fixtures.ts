@@ -17,6 +17,7 @@ import {FIXED_TIME, IDS} from "@sequentech/ui-test-kit/fixtures"
 import {withConfigurationPackageActions} from "./settings/configurationPackageSchema"
 
 const directory = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
+const DIRECT_HSM_ORIGIN = "http://localhost:3002"
 export const TENANT_ID = IDS.tenant
 export const SECOND_TENANT_ID = "10000000-0000-4000-8000-000000000002"
 export interface AdminPortal extends PortalServices {
@@ -53,7 +54,12 @@ export const test = base.extend<
         // Playwright requires an object pattern for a fixture without dependencies.
         // eslint-disable-next-line no-empty-pattern
         async ({}, use, workerInfo) => {
-            const dist = await serveDist(resolve(directory, "dist"), undefined, workerInfo)
+            const dist = await serveDist(
+                resolve(directory, "dist"),
+                undefined,
+                workerInfo,
+                DIRECT_HSM_ORIGIN
+            )
             try {
                 await use(dist)
             } finally {
@@ -62,11 +68,17 @@ export const test = base.extend<
         },
         {scope: "worker"},
     ],
+    // Keep the real registered origin, but never connect to whatever happens to
+    // occupy port 3002. A per-context proxy serves only this worker's fixture,
+    // including OIDC callbacks Chromium does not pass back through its route.
+    proxy: async ({dist, directHsm}, use) => {
+        await use(directHsm ? {server: dist.origin, bypass: "<-loopback>"} : undefined)
+    },
     portal: async (
         {context, page, dist, roles, trustee, configurationPackageActions, directHsm},
         use
     ) => {
-        const origin = directHsm ? "http://localhost:3002" : dist.origin
+        const origin = directHsm ? DIRECT_HSM_ORIGIN : dist.origin
         const violations = new ViolationLog()
         const s3 = new S3Mock({origin, violations})
         const baseline = loadClientSchema(resolve(directory, "graphql.schema.json"))
@@ -254,7 +266,7 @@ export const test = base.extend<
         const errors: string[] = []
         page.on("pageerror", (error) => errors.push(error.message))
         await page.clock.install({time: Date.parse(FIXED_TIME)})
-        const unroute = await routePortal(context, portal, dist.origin)
+        const unroute = await routePortal(context, portal)
         // React-admin's known telemetry image is answered locally; it never leaves the browser.
         await context.route(
             `https://react-admin-telemetry.marmelab.com/react-admin-telemetry?domain=${new URL(origin).hostname}`,

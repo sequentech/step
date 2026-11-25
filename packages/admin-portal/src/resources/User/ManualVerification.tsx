@@ -73,7 +73,7 @@ function useVerificationDocument() {
     return {busy, request, documentId, failedAttempts, clear: () => setDocumentId(undefined)}
 }
 
-const VerificationDownload = ({
+export const VerificationDownload = ({
     documentId,
     electionEventId,
     onDone,
@@ -151,7 +151,7 @@ export const ManualVerificationDialog = ({
     )
 }
 
-const RetrieveVerificationDocument = ({
+export const RetrieveVerificationDocument = ({
     variables,
 }: {
     variables: ManualVerificationMutationVariables

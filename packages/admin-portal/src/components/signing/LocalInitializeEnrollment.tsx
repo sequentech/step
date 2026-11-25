@@ -201,7 +201,7 @@ export function LocalOfficerCertificates({
     )
 }
 
-function OfficerForm({
+export function OfficerForm({
     api,
     event,
     officer,
@@ -222,6 +222,7 @@ function OfficerForm({
     const [error, setError] = useState("")
     const inFlight = useRef(false)
     const alive = useRef(false)
+    const leafInput = useRef<HTMLInputElement>(null)
     useEffect(() => {
         alive.current = true
         return () => {
@@ -357,19 +358,21 @@ function OfficerForm({
                     <Button onClick={download} disabled={busy}>
                         Download public certificate request
                     </Button>
-                    <Button component="label" disabled={busy}>
+                    <Button onClick={() => leafInput.current?.click()} disabled={busy}>
                         Select issued public certificate
-                        <input
-                            hidden
-                            type="file"
-                            accept=".pem,.crt,.cer,.der"
-                            onChange={(e) => {
-                                const file = e.currentTarget.files?.[0]
-                                e.currentTarget.value = ""
-                                selectFile(file)
-                            }}
-                        />
                     </Button>
+                    <input
+                        ref={leafInput}
+                        hidden
+                        disabled={busy}
+                        type="file"
+                        accept=".pem,.crt,.cer,.der"
+                        onChange={(e) => {
+                            const file = e.currentTarget.files?.[0]
+                            e.currentTarget.value = ""
+                            selectFile(file)
+                        }}
+                    />
                     {leaf && (
                         <Typography variant="body2" sx={{overflowWrap: "anywhere"}}>
                             Issued certificate SHA-256: {leaf.leaf_sha256}
