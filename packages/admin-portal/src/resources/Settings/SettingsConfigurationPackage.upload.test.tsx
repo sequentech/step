@@ -550,9 +550,7 @@ describe("an encrypted package carrying messaging credentials (V2)", () => {
         Object.defineProperty(window, "isSecureContext", {value: true, configurable: true})
         mockToken.mockReturnValue("synthetic-bearer")
         mockFetch.mockImplementation(async (url: string) =>
-            url === UNWRAP
-                ? {ok: true, status: 200, json: async () => ({sha256: SHA})}
-                : {ok: true}
+            url === UNWRAP ? {ok: true, status: 200, json: async () => ({sha256: SHA})} : {ok: true}
         )
     })
     afterEach(() => {
@@ -572,7 +570,9 @@ describe("an encrypted package carrying messaging credentials (V2)", () => {
             target: {value: PASSWORD},
         })
         await act(async () => {
-            fireEvent.click(screen.getByRole("button", {name: "configurationPackage.encrypted.unlock"}))
+            fireEvent.click(
+                screen.getByRole("button", {name: "configurationPackage.encrypted.unlock"})
+            )
         })
         return {file, view}
     }

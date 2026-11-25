@@ -18,7 +18,10 @@ const SHA = "ab".repeat(32)
 const DOCUMENT = "00000000-0000-4000-8000-000000000007"
 
 const envelope = (version: number) =>
-    new File([new Uint8Array([...Array.from("SEQUENT-EZIP", (c) => c.charCodeAt(0)), version, 1, 2])], "x.ezip")
+    new File(
+        [new Uint8Array([...Array.from("SEQUENT-EZIP", (c) => c.charCodeAt(0)), version, 1, 2])],
+        "x.ezip"
+    )
 
 const answer = (status: number, body: unknown) =>
     ({ok: status >= 200 && status < 300, status, json: async () => body}) as unknown as Response
@@ -27,9 +30,9 @@ describe("server unwrap of packages with messaging credentials", () => {
     it("reads the envelope version without reading the payload", async () => {
         expect(await signedDeliveryVersion(envelope(CREDENTIALS_DELIVERY_VERSION))).toBe(2)
         expect(await signedDeliveryVersion(envelope(1))).toBe(1)
-        expect(await signedDeliveryVersion(new File([new Uint8Array([80, 75, 3, 4])], "a.zip"))).toBe(
-            undefined
-        )
+        expect(
+            await signedDeliveryVersion(new File([new Uint8Array([80, 75, 3, 4])], "a.zip"))
+        ).toBe(undefined)
     })
 
     it("allows HTTPS, or plain HTTP to this machine only", () => {
@@ -162,7 +165,15 @@ describe("server unwrap of packages with messaging credentials", () => {
                 if (result instanceof Error) throw result
                 return result
             })
-            const reply = await unwrapOnServer(DOCUMENT, PASSWORD, "t", signal, fetchImpl, true, origin)
+            const reply = await unwrapOnServer(
+                DOCUMENT,
+                PASSWORD,
+                "t",
+                signal,
+                fetchImpl,
+                true,
+                origin
+            )
             expect(reply).toEqual({ok: false, reason})
             expect(JSON.stringify(reply)).not.toContain(PASSWORD)
         }

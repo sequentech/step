@@ -102,7 +102,8 @@ export const unwrapOnServer = async (
     }
     if (response.status === 409) return {ok: false, reason: "mismatch"}
     if (response.status === 400) return {ok: false, reason: "decrypt"}
-    if (!response.ok) return {ok: false, reason: response.status === 403 ? "refused" : "unavailable"}
+    if (!response.ok)
+        return {ok: false, reason: response.status === 403 ? "refused" : "unavailable"}
     try {
         const body: {sha256?: unknown} = await response.json()
         return typeof body.sha256 === "string" && /^[a-f0-9]{64}$/.test(body.sha256)
