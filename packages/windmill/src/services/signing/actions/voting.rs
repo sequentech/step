@@ -1711,6 +1711,11 @@ pub async fn enforce_signed_closes(
     let state = EventState::read_for_closes(hasura_transaction, tenant, event).await?;
     let mut closed = vec![];
     for post in state.posts.iter().map(|post| post.id) {
+        // Retained closes do not use the editable-row evaluator, but still
+        // require the same installed scope and saved direct approval rules.
+        if state.direct_approval_unavailable_for(SigningAction::CloseVoting, Some(post)) {
+            continue;
+        }
         let Some(approval) = state.approval(Some(post)) else {
             continue;
         };

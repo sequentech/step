@@ -35,7 +35,7 @@ use crate::postgres::signing::{
 };
 use crate::services::election_event_status::TransitionRefusal;
 use crate::services::signing::operational_policy::{
-    direct_schedule_post, verified_direct_scheduled_configuration,
+    direct_schedule_scope, verified_direct_scheduled_configuration, DirectScheduleScope,
 };
 use crate::services::initialization_schedule::{effective_close, WaitReason};
 use crate::services::initialization_scope::{
@@ -1109,6 +1109,9 @@ pub struct EventState {
     /// The optional demo's separately admitted Post and exact historical
     /// V2 approval IDs. Keep unproved history to prevent older fallback.
     pub direct_schedule_proofs: Option<(Uuid, HashSet<Uuid>)>,
+    /// Dedicated HSM scope is not yet ready; reads/authoring stay available,
+    /// but neither a predicted nor a fired schedule may be authorized.
+    pub direct_schedule_unavailable: bool,
     /// The current policies.
     pub policies: LifecyclePolicies,
     /// The current rules.
@@ -1182,10 +1185,11 @@ impl EventState {
         let presentation =
             read_presentation(hasura_transaction, tenant_id, election_event_id).await?;
         let rules = Rules::read(hasura_transaction, tenant_id, election_event_id).await?;
-        let direct_post = direct_schedule_post(hasura_transaction, tenant_id, election_event_id).await?;
-        if direct_post.is_some() && (!rules.of(action).required || !rules.approve_configuration) {
-            anyhow::bail!("A direct HSM schedule requires the configured transition and configuration rules");
-        }
+        let direct_scope = direct_schedule_scope(hasura_transaction, tenant_id, election_event_id).await?;
+        let direct_schedule_unavailable = matches!(
+            direct_scope,
+            DirectScheduleScope::Unavailable | DirectScheduleScope::ExactPost { approved: false, .. }
+        );
         let mut snapshots = hasura_transaction
             .query(
                 "SELECT s.ballot_publication_id, s.election_id, s.approval_request_id, s.created_at,
@@ -1331,13 +1335,15 @@ impl EventState {
                 })
             })
             .collect::<Result<Vec<_>>>()?;
-        let direct_schedule_proofs = if let Some(post) = direct_post {
+        let direct_schedule_proofs = if let DirectScheduleScope::ExactPost { post, approved } = direct_scope {
             let mut verified = HashSet::new();
-            for approval in &approvals {
-                if verified_direct_scheduled_configuration(
-                    hasura_transaction, tenant_id, election_event_id, approval.request_id,
-                ).await? {
-                    verified.insert(approval.request_id);
+            if approved {
+                for approval in &approvals {
+                    if verified_direct_scheduled_configuration(
+                        hasura_transaction, tenant_id, election_event_id, approval.request_id,
+                    ).await? {
+                        verified.insert(approval.request_id);
+                    }
                 }
             }
             Some((post, verified))
@@ -1451,6 +1457,7 @@ impl EventState {
                 .await?;
         Ok(EventState {
             direct_schedule_proofs,
+            direct_schedule_unavailable,
             initialization,
             live_closes,
             live_rows,
@@ -1720,8 +1727,21 @@ impl EventState {
     }
 
     fn direct_post_unavailable(&self, post: Option<Uuid>) -> bool {
-        self.direct_schedule_proofs.as_ref().is_some_and(|(installed, _)|
-            post.is_some_and(|requested| requested != *installed))
+        self.direct_schedule_unavailable
+            || self.direct_schedule_proofs.as_ref().is_some_and(|(installed, _)|
+                post.is_some_and(|requested| requested != *installed))
+    }
+
+    /// Shared by ordinary occurrences and retained signed closes, which
+    /// have separate execution paths.
+    pub(crate) fn direct_approval_unavailable_for(
+        &self,
+        action: SigningAction,
+        post: Option<Uuid>,
+    ) -> bool {
+        self.direct_post_unavailable(post)
+            || (self.direct_schedule_proofs.is_some()
+                && (!self.rules.approve_configuration || !self.rules.of(action).required))
     }
 
     fn proof_accepted(&self, approval: &Approval) -> bool {
@@ -1807,6 +1827,7 @@ impl EventState {
         };
         Inputs {
             action,
+            direct_approval_unavailable: self.direct_approval_unavailable_for(action, post),
             current: CopyValues {
                 rule: self.rules.of(action).clone(),
                 close_policy: if self.direct_post_unavailable(post) {
@@ -2057,6 +2078,9 @@ pub enum Coverage {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Inputs {
     pub action: SigningAction,
+    /// This dedicated deployment cannot authorize the exact occurrence until
+    /// its installed scope, current proof and ordinary saved rules are ready.
+    pub direct_approval_unavailable: bool,
     pub current: CopyValues,
     pub published: PublishedCopy,
     pub coverage: Coverage,
@@ -2136,6 +2160,30 @@ fn outcome_of(
 /// is published) when the current settings alone would allow more,
 /// otherwise `covered` (openings) or `unsigned_close` (closes).
 pub fn evaluate(inputs: &Inputs) -> Explanation {
+    if inputs.direct_approval_unavailable {
+        // This decision drives both the editable prediction and the actual
+        // fire-time gate. In particular it cannot run unsigned while setup,
+        // configuration proof, the current rule, or the scope is missing.
+        return Explanation {
+            authorized_by: None,
+            outcome: ScheduledOutcomeKind::Refused,
+            checks: vec![Check {
+                id: CheckId::Covered,
+                current: value(keys::COVERED_NO_APPROVAL, json!({})),
+                published: None,
+                allows: false,
+            }],
+            deciding: CheckId::Covered,
+            next_step: value(
+                if inputs.approval_required {
+                    keys::NEXT_PUBLISH_AND_APPROVE
+                } else {
+                    keys::NEXT_REQUIRE_CONFIGURATION_APPROVAL
+                },
+                json!({}),
+            ),
+        };
+    }
     let current = &inputs.current;
     let published = inputs.published.values();
     let close = inputs.action == SigningAction::CloseVoting;

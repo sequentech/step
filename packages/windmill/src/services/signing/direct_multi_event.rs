@@ -11,7 +11,8 @@ use crate::postgres::signing::{get_signing_post, lock_signing_event, SigningRequ
 use crate::postgres::signing_actions::published_publication_of_post;
 use anyhow::{ensure, Context, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::signing::SigningAction;
+use sequent_core::signing::{SigningAction, SigningRequestStatus};
+use serde_json::Value;
 use uuid::Uuid;
 
 pub(super) async fn root(tx: &Transaction<'_>, tenant: Uuid, event: Uuid) -> Result<Option<Uuid>> {
@@ -37,7 +38,7 @@ pub(super) async fn root(tx: &Transaction<'_>, tenant: Uuid, event: Uuid) -> Res
     Ok(Some(installation))
 }
 
-async fn single_post(tx: &Transaction<'_>, tenant: Uuid, event: Uuid) -> Result<Uuid> {
+async fn unique_post(tx: &Transaction<'_>, tenant: Uuid, event: Uuid) -> Result<Option<Uuid>> {
     let rows = tx
         .query(
             "SELECT id FROM sequent_backend.election
@@ -45,13 +46,18 @@ async fn single_post(tx: &Transaction<'_>, tenant: Uuid, event: Uuid) -> Result<
             &[&tenant, &event],
         )
         .await?;
-    ensure!(
-        rows.len() == 1,
-        "Direct approval requires exactly one active Post"
-    );
+    if rows.len() != 1 {
+        return Ok(None);
+    }
     let post: Uuid = rows[0].try_get(0)?;
     ensure!(!post.is_nil(), "Invalid direct HSM Post");
-    Ok(post)
+    Ok(Some(post))
+}
+
+async fn single_post(tx: &Transaction<'_>, tenant: Uuid, event: Uuid) -> Result<Uuid> {
+    unique_post(tx, tenant, event)
+        .await?
+        .context("Direct approval requires exactly one active Post")
 }
 
 fn subject_uuid(subject: &serde_json::Value, field: &str) -> Result<Uuid> {
@@ -139,16 +145,16 @@ pub(crate) async fn record_generation(
     Ok(())
 }
 
-async fn approved_active_publication(
+async fn current_approved_publication(
     tx: &Transaction<'_>,
     tenant: Uuid,
     event: Uuid,
     installation: Uuid,
     post: Uuid,
-) -> Result<Latch> {
-    let publication = published_publication_of_post(tx, tenant, event, post)
-        .await?
-        .context("Publish and approve this Post's configuration before requesting HSM signing")?;
+) -> Result<Option<Latch>> {
+    let Some(publication) = published_publication_of_post(tx, tenant, event, post).await? else {
+        return Ok(None);
+    };
     let latch = Latch {
         protocol: DirectProtocol::ActionV2,
         origin: LatchOrigin::FrozenRequest,
@@ -156,34 +162,46 @@ async fn approved_active_publication(
         post,
         publication,
     };
-    ensure!(
-        super::direct_actions::verified_configuration_publication(
-            tx,
-            tenant,
-            event,
-            latch,
-            publication
-        )
-        .await?,
-        "Publish and approve this Post's configuration before requesting HSM signing"
-    );
-    Ok(latch)
+    let verified = super::direct_actions::verified_configuration_publication(
+        tx,
+        tenant,
+        event,
+        latch,
+        publication,
+    )
+    .await?;
+    Ok(verified.then_some(latch))
 }
 
-pub(super) async fn scheduled_post(
+async fn approved_active_publication(
     tx: &Transaction<'_>,
     tenant: Uuid,
     event: Uuid,
-) -> Result<Option<Uuid>> {
+    installation: Uuid,
+    post: Uuid,
+) -> Result<Latch> {
+    current_approved_publication(tx, tenant, event, installation, post)
+        .await?
+        .context("Publish and approve this Post's configuration before requesting HSM signing")
+}
+
+/// Missing proof is a readable pending configuration, not a legacy or
+/// unsigned scheduler path. Operational execution still needs exact proof.
+pub(super) async fn scheduled_scope(
+    tx: &Transaction<'_>,
+    tenant: Uuid,
+    event: Uuid,
+) -> Result<Option<(Uuid, bool)>> {
     let Some(installation) = root(tx, tenant, event).await? else {
         return Ok(None);
     };
-    let post = single_post(tx, tenant, event).await?;
-    Ok(Some(
-        approved_active_publication(tx, tenant, event, installation, post)
-            .await?
-            .post,
-    ))
+    let Some(post) = unique_post(tx, tenant, event).await? else {
+        return Ok(None);
+    };
+    let approved = current_approved_publication(tx, tenant, event, installation, post)
+        .await?
+        .is_some();
+    Ok(Some((post, approved)))
 }
 
 pub(super) async fn for_target(
@@ -293,6 +311,27 @@ pub(super) async fn bind(
     Ok(())
 }
 
+/// Compare the committed stock effect to the exact immutable reviewed subject.
+fn matches_executed_configuration(
+    publication: Uuid,
+    subject: &Value,
+    execution: Option<&Value>,
+) -> bool {
+    let Some(execution) = execution else {
+        return false;
+    };
+    let Some(digest) = subject.get("digest").and_then(Value::as_str) else {
+        return false;
+    };
+    digest.len() == 64
+        && digest
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        && subject_uuid(subject, "ballot_publication_id").ok() == Some(publication)
+        && subject_uuid(execution, "ballot_publication_id").ok() == Some(publication)
+        && execution.get("digest").and_then(Value::as_str) == Some(digest)
+}
+
 pub(super) async fn persisted(
     tx: &Transaction<'_>,
     row: &SigningRequestRow,
@@ -323,18 +362,43 @@ pub(super) async fn persisted(
         publication,
     };
     if row.action == SigningAction::ApproveConfiguration {
-        let (candidate_post, files_root) =
-            candidate(tx, row.tenant_id, row.election_event_id, publication).await?;
-        ensure!(
-            candidate_post == post
-                && subject_uuid(&row.subject, "ballot_publication_id")? == publication
-                && row
-                    .subject
-                    .get("ballot_files_root")
-                    .and_then(serde_json::Value::as_str)
-                    == Some(files_root.as_str()),
-            "The frozen configuration is no longer the same generation"
-        );
+        let files_root = row
+            .subject
+            .get("ballot_files_root")
+            .and_then(Value::as_str)
+            .context("Missing the frozen configuration's ballot files")?;
+        if row.status == SigningRequestStatus::Executed {
+            // A settled effect is no longer an unpublished candidate. This
+            // reconstructs only its frozen envelope; has_quorum still checks
+            // each signature with proof_action_key's exact historical
+            // generation, consumed reservation, and actor-key checks.
+            ensure!(
+                row.executed_at.is_some()
+                    && matches_executed_configuration(
+                        publication,
+                        &row.subject,
+                        row.execution_result.as_ref()
+                    ),
+                "The executed configuration result does not match its frozen request"
+            );
+            crate::domain::publication_files::validate_publication_root(
+                files_root,
+                row.tenant_id,
+                row.election_event_id,
+                publication,
+            )?;
+        } else {
+            // All paths that could still sign or commit an effect require
+            // the genuine current unpublished candidate, as before.
+            let (candidate_post, candidate_root) =
+                candidate(tx, row.tenant_id, row.election_event_id, publication).await?;
+            ensure!(
+                candidate_post == post
+                    && subject_uuid(&row.subject, "ballot_publication_id")? == publication
+                    && files_root == candidate_root.as_str(),
+                "The frozen configuration is no longer the same generation"
+            );
+        }
     } else {
         ensure!(
             approved_active_publication(
@@ -350,4 +414,49 @@ pub(super) async fn persisted(
         );
     }
     Ok(Some(latch))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn settled_configuration_result_must_match_the_frozen_publication_and_digest() {
+        let pub_id = Uuid::from_u128(1);
+        let other = Uuid::from_u128(2);
+        let digest = "aa".repeat(32);
+        let signed = json!({"ballot_publication_id": pub_id, "digest": digest});
+        let result = signed.clone();
+
+        assert!(matches_executed_configuration(
+            pub_id,
+            &signed,
+            Some(&result)
+        ));
+        assert!(!matches_executed_configuration(
+            other,
+            &signed,
+            Some(&result)
+        ));
+        assert!(!matches_executed_configuration(pub_id, &signed, None));
+        for invalid in [
+            json!({"ballot_publication_id": other, "digest": digest}),
+            json!({"ballot_publication_id": pub_id, "digest": "bb".repeat(32)}),
+            json!({"ballot_publication_id": pub_id, "digest": 42}),
+            json!({"ballot_publication_id": pub_id}),
+        ] {
+            assert!(!matches_executed_configuration(
+                pub_id,
+                &signed,
+                Some(&invalid)
+            ));
+        }
+        let upper = json!({"ballot_publication_id": pub_id, "digest": "AA".repeat(32)});
+        assert!(!matches_executed_configuration(
+            pub_id,
+            &upper,
+            Some(&upper)
+        ));
+    }
 }

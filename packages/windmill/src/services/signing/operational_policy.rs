@@ -218,11 +218,18 @@ pub async fn require_legacy_event(
 }
 
 /// The schedule service uses this only as a restrictive proof requirement.
-pub(crate) async fn direct_schedule_post(
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum DirectScheduleScope {
+    Standard,
+    Unavailable,
+    ExactPost { post: Uuid, approved: bool },
+}
+
+pub(crate) async fn direct_schedule_scope(
     tx: &Transaction<'_>,
     tenant: Uuid,
     event: Uuid,
-) -> anyhow::Result<Option<Uuid>> {
+) -> anyhow::Result<DirectScheduleScope> {
     // The scheduler may already hold the event lock. Never wait for a
     // policy writer that might wait on that event.
     let held: bool = tx.query_one(
@@ -235,14 +242,16 @@ pub(crate) async fn direct_schedule_post(
     );
     let Some(latch) = local_scope::action_latch(tx, tenant, event).await? else {
         #[cfg(feature = "comelec-demo-direct-hsm")]
-        if let Some(post) = super::direct_multi_event::scheduled_post(tx, tenant, event).await? {
-            return Ok(Some(post));
+        if let Some((post, approved)) =
+            super::direct_multi_event::scheduled_scope(tx, tenant, event).await?
+        {
+            return Ok(DirectScheduleScope::ExactPost { post, approved });
         }
-        anyhow::ensure!(
-            !direct_hsm_approval_build(),
-            "Scheduled approvals need a verified direct HSM installation"
-        );
-        return Ok(None);
+        return Ok(if direct_hsm_approval_build() {
+            DirectScheduleScope::Unavailable
+        } else {
+            DirectScheduleScope::Standard
+        });
     };
     // Never let a synthetic installation answer the production hardware
     // policy, even if a mounted descriptor is still present.
@@ -250,7 +259,12 @@ pub(crate) async fn direct_schedule_post(
         return Err(LegacySigningBlocked::ScopeUnavailable.into());
     }
     local_scope::verify_action_scope(tx, tenant, event, latch).await?;
-    Ok(Some(latch.post))
+    // The original anchored scope is unchanged; individual V2 configuration
+    // proofs and the signed occurrence are still checked by the scheduler.
+    Ok(DirectScheduleScope::ExactPost {
+        post: latch.post,
+        approved: true,
+    })
 }
 
 /// An already executed configuration is not automatically authorizing the
