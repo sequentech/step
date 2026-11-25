@@ -49,6 +49,8 @@ jest.mock("../store/hooks", () => ({
 }))
 
 const mockEventPresentation: {current: Record<string, string>} = {current: {}}
+// The ballot lookup's answer; none until a test sets one.
+const mockLocatedBallot: {current: object | undefined} = {current: undefined}
 const MOCK_CAST_VOTES_TOTAL = 3
 const castVotes = (total: number) => ({data: {list_cast_vote_messages: {list: [], total}}})
 // The cast-vote list request; a test can hold its answer back.
@@ -76,7 +78,9 @@ jest.mock("@apollo/client/react", () => ({
             data:
                 name === "GetElectionEvent"
                     ? mockElectionEventData(mockEventPresentation.current)
-                    : undefined,
+                    : name === "LocateBallot"
+                      ? mockLocatedBallot.current
+                      : undefined,
             loading: false,
             refetch: (variables: unknown) => mockRefetch(variables),
         }
@@ -86,6 +90,8 @@ jest.mock("@apollo/client/react", () => ({
 const LOOKUP_PATH = "/tenant/tenant/event/event/election/election/ballot-locator"
 
 beforeEach(() => {
+    mockLocatedBallot.current = undefined
+    mockEventPresentation.current = {}
     mockRefetch.mockReset()
     mockRefetch.mockImplementation(async () => castVotes(MOCK_CAST_VOTES_TOTAL))
 })
@@ -94,7 +100,7 @@ afterEach(() => {
     jest.restoreAllMocks()
 })
 
-const renderBallotLocator = () => {
+const renderBallotLocator = (ballotId = "") => {
     const router = createMemoryRouter(
         [
             {
@@ -102,7 +108,7 @@ const renderBallotLocator = () => {
                 element: <BallotLocator />,
             },
         ],
-        {initialEntries: [LOOKUP_PATH]}
+        {initialEntries: [ballotId ? `${LOOKUP_PATH}/${ballotId}` : LOOKUP_PATH]}
     )
     const view = render(
         <ThemeProvider theme={theme}>
@@ -264,5 +270,46 @@ test("the ballot id filter drops surrounding spaces, as the server does", async 
     await waitFor(() =>
         expect(mockRefetch).toHaveBeenLastCalledWith(expect.objectContaining({ballotId: "AB12"}))
     )
+    view.unmount()
+})
+
+const LOCATED_BALLOT_ID = "a".repeat(64)
+const locatedBallot = (status: string, content: string | null) => ({
+    locate_ballot: {
+        status,
+        ballot_id: status === "found" ? LOCATED_BALLOT_ID : null,
+        content,
+        cast_at: null,
+        checks_available_until: null,
+    },
+})
+
+test("a found ballot shows its content", async () => {
+    mockLocatedBallot.current = locatedBallot("found", "encrypted ballot")
+    const {view} = renderBallotLocator(LOCATED_BALLOT_ID)
+
+    expect(await screen.findByText(`ballotLocator.found: ${LOCATED_BALLOT_ID}`)).toBeVisible()
+    expect(screen.getByText("encrypted ballot")).toBeVisible()
+    expect(screen.queryByText("ballotLocator.contentSealed")).toBeNull()
+    view.unmount()
+})
+
+test("a sealed ballot is found, with a note in place of its content", async () => {
+    mockLocatedBallot.current = locatedBallot("found", null)
+    const {view} = renderBallotLocator(LOCATED_BALLOT_ID)
+
+    expect(await screen.findByText(`ballotLocator.found: ${LOCATED_BALLOT_ID}`)).toBeVisible()
+    expect(screen.getByText("ballotLocator.contentSealed")).toBeVisible()
+    expect(screen.queryByText("ballotLocator.contentDesc")).toBeNull()
+    expect(screen.queryByText(`ballotLocator.notFound: ${LOCATED_BALLOT_ID}`)).toBeNull()
+    view.unmount()
+})
+
+test("a ballot that isn't found shows neither content nor the sealed note", async () => {
+    mockLocatedBallot.current = locatedBallot("not-found", null)
+    const {view} = renderBallotLocator(LOCATED_BALLOT_ID)
+
+    expect(await screen.findByText(`ballotLocator.notFound: ${LOCATED_BALLOT_ID}`)).toBeVisible()
+    expect(screen.queryByText("ballotLocator.contentSealed")).toBeNull()
     view.unmount()
 })
