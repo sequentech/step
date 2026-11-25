@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 # Felix3 Initialize certificate assessment
 
 `harvest-felix3-initialize-ca` serves the existing private assessment route for one normally imported and published Post. Its Cargo feature is `felix3-local-initialize-ca`. The primary Harvest process uses `felix3-local-initialize` for its normal HTTP actions. The portal remains at `http://localhost:3002` and Keycloak uses its normal HTTP profile.

@@ -532,7 +532,8 @@ export const studentCouncil = (): ISigningOrganization => {
             "adminPortal:signing.actions.generate-election-returns.label":
                 "Certify faculty results",
             "adminPortal:signing.actions.generate-election-returns.short": "Faculty results",
-            "adminPortal:signing.actions.approve-voter.label": "Approve a student enrollment application",
+            "adminPortal:signing.actions.approve-voter.label":
+                "Approve a student enrollment application",
             "adminPortal:signing.actions.approve-voter.appliesTo": "The student's faculty",
             "adminPortal:signing.validation.shortPosts_one":
                 "{{posts}} can only give {{n}} of the {{required}} signatures.",

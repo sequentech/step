@@ -408,8 +408,12 @@ pub async fn gate_publication(
                 let mut subject_json = subject_json;
                 if let Some(files_root) =
                     crate::services::signing::direct_multi_event::configuration_files_root(
-                        hasura_transaction, tenant_id, election_event_id, publication_uuid,
-                    ).await?
+                        hasura_transaction,
+                        tenant_id,
+                        election_event_id,
+                        publication_uuid,
+                    )
+                    .await?
                 {
                     subject_json["ballot_files_root"] = Value::String(files_root);
                 }
@@ -557,12 +561,25 @@ pub async fn publish(
         ));
     }
     #[cfg(feature = "comelec-demo-direct-hsm")]
-    if let Some(files_root) = crate::services::signing::direct_multi_event::configuration_files_root(
-        hasura_transaction, request.tenant_id, request.election_event_id,
-        Uuid::parse_str(&publication.id)?,
-    ).await? {
-        if request.subject.get("ballot_files_root").and_then(Value::as_str) != Some(files_root.as_str()) {
-            return Err(refuse("payload-changed", "The generated ballot files no longer match the signed request."));
+    if let Some(files_root) =
+        crate::services::signing::direct_multi_event::configuration_files_root(
+            hasura_transaction,
+            request.tenant_id,
+            request.election_event_id,
+            Uuid::parse_str(&publication.id)?,
+        )
+        .await?
+    {
+        if request
+            .subject
+            .get("ballot_files_root")
+            .and_then(Value::as_str)
+            != Some(files_root.as_str())
+        {
+            return Err(refuse(
+                "payload-changed",
+                "The generated ballot files no longer match the signed request.",
+            ));
         }
     }
     // Publishing writes the voter files and posts to the bulletin board.

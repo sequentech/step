@@ -4,22 +4,23 @@
 //! Private eligibility for one normally imported and published synthetic Post.
 
 use super::{
-    signing_failure, HarvestServices, OperationalInitializeBroker, SigningCaller, SigningError,
+    signing_failure, HarvestServices, OperationalInitializeBroker,
+    SigningCaller, SigningError,
 };
 use crate::routes::operational_initialize_broker::PrivateInitializeBroker;
 use crate::services::operational_portal_auth::OperationalPortalAuth;
 use anyhow::{ensure, Context};
+use deadpool_postgres::Transaction;
 use jsonwebtoken::jwk::JwkSet;
 use rocket::{Build, Request, Rocket};
+use sequent_core::services::keycloak::get_tenant_realm;
+use sequent_core::signing::{InitializeVotingSubject, SigningAction};
 use serde::Deserialize;
 use std::fs;
 use std::io::Read;
 use std::net::{IpAddr, Ipv4Addr, SocketAddrV4};
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
-use deadpool_postgres::Transaction;
-use sequent_core::services::keycloak::get_tenant_realm;
-use sequent_core::signing::{InitializeVotingSubject, SigningAction};
 use uuid::Uuid;
 use windmill::postgres::signing::get_signing_post;
 use windmill::postgres::signing_actions::published_publication_of_post;
@@ -53,7 +54,10 @@ pub(crate) struct LocalInitializePost {
 }
 
 impl LocalInitializePost {
-    async fn present(&self, tx: &Transaction<'_>) -> Result<bool, tokio_postgres::Error> {
+    async fn present(
+        &self,
+        tx: &Transaction<'_>,
+    ) -> Result<bool, tokio_postgres::Error> {
         let marker: Option<Uuid> = tx.query_one(
             "SELECT sequent_backend.operational_signing_local_initialize_installation_id($1,$2,$3,$4,$5)",
             &[&self.tenant, &self.event, &self.post, &self.publication, &self.profile],
@@ -61,11 +65,19 @@ impl LocalInitializePost {
         Ok(!self.installation.is_nil() && marker == Some(self.installation))
     }
 
-    fn current_publication(&self, current: Option<&str>, signed: Option<&str>) -> bool {
-        current == signed && current == Some(self.publication.to_string().as_str())
+    fn current_publication(
+        &self,
+        current: Option<&str>,
+        signed: Option<&str>,
+    ) -> bool {
+        current == signed
+            && current == Some(self.publication.to_string().as_str())
     }
 
-    pub(super) fn permits_broker(&self, broker: &dyn OperationalInitializeBroker) -> bool {
+    pub(super) fn permits_broker(
+        &self,
+        broker: &dyn OperationalInitializeBroker,
+    ) -> bool {
         broker.authorization_endpoint() == &self.authorization
             && broker.oidc_client_id() == self.approval_client
     }
@@ -77,23 +89,36 @@ impl LocalInitializePost {
         actor: &SigningCaller,
         scope: &InitializeSigningScope,
     ) -> Result<(), SigningError> {
-        let refused = || SigningError::forbidden(
-            "Initialize approval is unavailable for this request.",
-        );
+        let refused = || {
+            SigningError::forbidden(
+                "Initialize approval is unavailable for this request.",
+            )
+        };
         let tenant = scope.tenant();
-        if tenant != self.tenant || scope.event() != self.event
-            || scope.election() != Some(self.post) || scope.actor().to_string() != actor.user_id {
+        if tenant != self.tenant
+            || scope.event() != self.event
+            || scope.election() != Some(self.post)
+            || scope.actor().to_string() != actor.user_id
+        {
             return Err(refused());
         }
         if !self.present(app).await.map_err(SigningError::internal)? {
             return Err(refused());
         }
-        let published = published_publication_of_post(app, tenant, self.event, self.post)
-            .await.map_err(SigningError::internal)?.map(|id| id.to_string());
-        let row = read_request(app, tenant, scope.request()).await.map_err(signing_failure)?;
+        let published =
+            published_publication_of_post(app, tenant, self.event, self.post)
+                .await
+                .map_err(SigningError::internal)?
+                .map(|id| id.to_string());
+        let row = read_request(app, tenant, scope.request())
+            .await
+            .map_err(signing_failure)?;
         let subject: InitializeVotingSubject =
             serde_json::from_value(row.subject).map_err(|_| refused())?;
-        if !self.current_publication(published.as_deref(), subject.publication_id.as_deref()) {
+        if !self.current_publication(
+            published.as_deref(),
+            subject.publication_id.as_deref(),
+        ) {
             return Err(refused());
         }
         let post = get_signing_post(app, tenant, self.event, self.post)
@@ -102,8 +127,15 @@ impl LocalInitializePost {
             .ok_or_else(refused)?;
         let label = post.permission_label.as_deref();
         let realm = get_tenant_realm(&tenant.to_string());
-        let mut db = services.databases.keycloak().await.get().await.map_err(SigningError::internal)?;
-        let directory = db.transaction().await.map_err(SigningError::internal)?;
+        let mut db = services
+            .databases
+            .keycloak()
+            .await
+            .get()
+            .await
+            .map_err(SigningError::internal)?;
+        let directory =
+            db.transaction().await.map_err(SigningError::internal)?;
         let signers = list_signers(
             &directory,
             &realm,
@@ -113,7 +145,12 @@ impl LocalInitializePost {
         .await
         .map_err(SigningError::internal)?;
         if !actor.signs_for(label)
-            || !current_signer(&signers, &actor.user_id, label, row.permission_label.as_deref())
+            || !current_signer(
+                &signers,
+                &actor.user_id,
+                label,
+                row.permission_label.as_deref(),
+            )
         {
             return Err(refused());
         }
@@ -133,14 +170,25 @@ pub(crate) struct LocalIngress {
 
 impl LocalIngress {
     pub(crate) fn accepts(&self, request: &Request<'_>) -> bool {
-        self.accepts_headers(request.remote().map(|peer| peer.ip()), request.headers())
+        self.accepts_headers(
+            request.remote().map(|peer| peer.ip()),
+            request.headers(),
+        )
     }
 
-    fn accepts_headers(&self, peer: Option<IpAddr>, headers: &rocket::http::HeaderMap<'_>) -> bool {
+    fn accepts_headers(
+        &self,
+        peer: Option<IpAddr>,
+        headers: &rocket::http::HeaderMap<'_>,
+    ) -> bool {
         peer == Some(IpAddr::V4(self.peer))
-            && headers.get("Host").eq(std::iter::once(self.authority.as_str()))
+            && headers
+                .get("Host")
+                .eq(std::iter::once(self.authority.as_str()))
             && (headers.get("Origin").next().is_none()
-                || headers.get("Origin").eq(std::iter::once("http://localhost:3002")))
+                || headers
+                    .get("Origin")
+                    .eq(std::iter::once("http://localhost:3002")))
             && headers.get("Cookie").next().is_none()
     }
 }
@@ -193,14 +241,18 @@ pub(crate) fn protected(path: &Path, private: bool) -> Option<Vec<u8>> {
         }
     }
     let meta = fs::symlink_metadata(path).ok()?;
-    if !meta.is_file() || meta.uid() != 0 || meta.mode() & 0o222 != 0
+    if !meta.is_file()
+        || meta.uid() != 0
+        || meta.mode() & 0o222 != 0
         || (private && meta.mode() & 0o007 != 0)
     {
         return None;
     }
     let file = fs::File::open(path).ok()?;
     let actual = file.metadata().ok()?;
-    if (actual.dev(), actual.ino()) != (meta.dev(), meta.ino()) || actual.len() > 65536 {
+    if (actual.dev(), actual.ino()) != (meta.dev(), meta.ino())
+        || actual.len() > 65536
+    {
         return None;
     }
     let mut bytes = Vec::new();
@@ -218,45 +270,82 @@ struct Installation {
 fn load(application: &Rocket<Build>, root: &Path) -> Option<Installation> {
     let file = |name: &str, private| protected(&root.join(name), private);
     let bytes = file("installation.json", false)?;
-    if bytes.len() > 4096 || bytes.iter().copied().find(|b| !b.is_ascii_whitespace()) != Some(b'{') {
+    if bytes.len() > 4096
+        || bytes.iter().copied().find(|b| !b.is_ascii_whitespace())
+            != Some(b'{')
+    {
         return None;
     }
     let descriptor: Descriptor = serde_json::from_slice(&bytes).ok()?;
-    let pins: HarvestPins = serde_json::from_slice(&file("harvest/registration.json", false)?).ok()?;
+    let pins: HarvestPins =
+        serde_json::from_slice(&file("harvest/registration.json", false)?)
+            .ok()?;
     let profile = "softhsm-test";
-    if [descriptor.installation_id, descriptor.tenant_id, descriptor.election_event_id, descriptor.election_id, descriptor.publication_id]
-        .contains(&Uuid::nil())
+    if [
+        descriptor.installation_id,
+        descriptor.tenant_id,
+        descriptor.election_event_id,
+        descriptor.election_id,
+        descriptor.publication_id,
+    ]
+    .contains(&Uuid::nil())
         || descriptor.device_profile != profile
         || pins.portal_client == super::local_setup::SETUP_CLIENT
         || pins.approval_client == super::local_setup::SETUP_CLIENT
         || pins.registered_audience != pins.registered_portal_client
-        || !pins.listen.ip().is_private() || pins.listen.port() == 0 || !pins.hasura_peer.is_private()
+        || !pins.listen.ip().is_private()
+        || pins.listen.port() == 0
+        || !pins.hasura_peer.is_private()
         || pins.hasura_peer == *pins.listen.ip()
-        || pins.handler_host.is_empty() || pins.handler_host.len() > 63
-        || pins.handler_host.starts_with('-') || pins.handler_host.ends_with('-')
-        || !pins.handler_host.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+        || pins.handler_host.is_empty()
+        || pins.handler_host.len() > 63
+        || pins.handler_host.starts_with('-')
+        || pins.handler_host.ends_with('-')
+        || !pins
+            .handler_host
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
     {
         return None;
     }
-    let address = application.figment().extract_inner::<Ipv4Addr>("address").ok()?;
+    let address = application
+        .figment()
+        .extract_inner::<Ipv4Addr>("address")
+        .ok()?;
     let port = application.figment().extract_inner::<u16>("port").ok()?;
     if (address, port) != (*pins.listen.ip(), pins.listen.port()) {
         return None;
     }
-    let keys: JwkSet = serde_json::from_slice(&file("harvest/realm-jwks.json", false)?).ok()?;
+    let keys: JwkSet =
+        serde_json::from_slice(&file("harvest/realm-jwks.json", false)?)
+            .ok()?;
     let auth = OperationalPortalAuth::for_local_initialize(
-        descriptor.tenant_id, &pins.portal_origin, &pins.portal_keycloak_base, &pins.portal_client,
-        pins.registered_issuer, pins.registered_portal_client, keys,
+        descriptor.tenant_id,
+        &pins.portal_origin,
+        &pins.portal_keycloak_base,
+        &pins.portal_client,
+        pins.registered_issuer,
+        pins.registered_portal_client,
+        keys,
     )?;
-    let root_cert = reqwest::Certificate::from_pem(&file("harvest/broker-ca.pem", false)?).ok()?;
+    let root_cert =
+        reqwest::Certificate::from_pem(&file("harvest/broker-ca.pem", false)?)
+            .ok()?;
     let client_cert = file("harvest/broker-client.pem", false)?;
     let mut client_key = file("harvest/broker-client-key.pem", true)?;
     let identity = reqwest::Identity::from_pkcs8_pem(&client_cert, &client_key);
     client_key.fill(0);
     let broker = PrivateInitializeBroker::for_local_initialize(
-        &auth, &pins.authorization_endpoint, &pins.registered_callback, &pins.approval_client,
-        &pins.broker_origin, pins.broker_peer, &[root_cert], identity.ok()?,
-    ).ok()?;
+        &auth,
+        &pins.authorization_endpoint,
+        &pins.registered_callback,
+        &pins.approval_client,
+        &pins.broker_origin,
+        pins.broker_peer,
+        &[root_cert],
+        identity.ok()?,
+    )
+    .ok()?;
     let post = LocalInitializePost {
         installation: descriptor.installation_id,
         tenant: descriptor.tenant_id,
@@ -271,7 +360,12 @@ fn load(application: &Rocket<Build>, root: &Path) -> Option<Installation> {
         peer: pins.hasura_peer,
         authority: format!("{}:{port}", pins.handler_host),
     };
-    Some(Installation { auth, broker, post, ingress })
+    Some(Installation {
+        auth,
+        broker,
+        post,
+        ingress,
+    })
 }
 
 fn installation_present(root: &Path) -> std::io::Result<bool> {
@@ -285,21 +379,32 @@ fn installation_present(root: &Path) -> std::io::Result<bool> {
     Ok(false)
 }
 
-pub(crate) async fn mount(application: Rocket<Build>) -> anyhow::Result<Rocket<Build>> {
+pub(crate) async fn mount(
+    application: Rocket<Build>,
+) -> anyhow::Result<Rocket<Build>> {
     use super::local_setup::{ingress, transport::SetupServices};
 
     let root = Path::new(ROOT);
     if !installation_present(root)? {
         return Ok(application);
     }
-    let install = load(&application, root).context("invalid installed local Harvest role")?;
-    let services = application.state::<HarvestServices>().context("missing Harvest services")?;
+    let install = load(&application, root)
+        .context("invalid installed local Harvest role")?;
+    let services = application
+        .state::<HarvestServices>()
+        .context("missing Harvest services")?;
     let mut db = services.databases.hasura().await.get().await?;
     let tx = db.transaction().await?;
-    ensure!(install.post.present(&tx).await?, "local Harvest installation marker mismatch");
+    ensure!(
+        install.post.present(&tx).await?,
+        "local Harvest installation marker mismatch"
+    );
     drop(tx);
     let setup = if root.join("harvest/setup/registration.json").try_exists()? {
-        let database: String = db.query_one("SELECT current_database()::text", &[]).await?.try_get(0)?;
+        let database: String = db
+            .query_one("SELECT current_database()::text", &[])
+            .await?
+            .try_get(0)?;
         SetupServices::load(root, &install.auth, &install.post, &database).await
     } else {
         None
@@ -309,28 +414,41 @@ pub(crate) async fn mount(application: Rocket<Build>) -> anyhow::Result<Rocket<B
     // the persisted HSM requirement and all other authority checks stay in force.
     use super::local_setup::attachment;
     let attachment: anyhow::Result<Option<attachment::Bridge>> = async {
-        match fs::symlink_metadata(root.join("harvest/attachment/registration.json")) {
+        match fs::symlink_metadata(
+            root.join("harvest/attachment/registration.json"),
+        ) {
             Ok(_) => {
-                let setup = setup
-                    .as_ref()
-                    .context("local officer enrollment requires installed setup")?;
+                let setup = setup.as_ref().context(
+                    "local officer enrollment requires installed setup",
+                )?;
                 let database: String = db
                     .query_one("SELECT current_database()::text", &[])
                     .await?
                     .try_get(0)?;
                 Ok(Some(
-                    attachment::Bridge::load(root, &install.post, &database, setup)
-                        .await
-                        .context("invalid installed local officer enrollment role")?,
+                    attachment::Bridge::load(
+                        root,
+                        &install.post,
+                        &database,
+                        setup,
+                    )
+                    .await
+                    .context(
+                        "invalid installed local officer enrollment role",
+                    )?,
                 ))
             }
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                Ok(None)
+            }
             Err(error) => Err(error.into()),
         }
     }
     .await;
     let attachment = attachment.unwrap_or_else(|_| {
-        tracing::error!("Local officer enrollment disabled: installation did not validate");
+        tracing::error!(
+            "Local officer enrollment disabled: installation did not validate"
+        );
         None
     });
     drop(db);
@@ -339,17 +457,40 @@ pub(crate) async fn mount(application: Rocket<Build>) -> anyhow::Result<Rocket<B
         .manage(install.ingress)
         .manage(install.post)
         .manage(super::InitializeBroker(Box::new(install.broker)))
-        .mount("/", rocket::routes![super::status, super::start, super::finish,
-            super::cancel_unused, super::reconcile]);
+        .mount(
+            "/",
+            rocket::routes![
+                super::status,
+                super::start,
+                super::finish,
+                super::cancel_unused,
+                super::reconcile
+            ],
+        );
     let application = match setup {
-        Some(setup) => application.manage(setup).mount("/", rocket::routes![
-            ingress::status, ingress::start, ingress::confirm, ingress::register]),
+        Some(setup) => application.manage(setup).mount(
+            "/",
+            rocket::routes![
+                ingress::status,
+                ingress::start,
+                ingress::confirm,
+                ingress::register
+            ],
+        ),
         None => application,
     };
     Ok(match attachment {
-        Some(bridge) => application.manage(bridge).mount("/", rocket::routes![
-            attachment::presence, attachment::nominee_status, attachment::nominee_resume,
-            attachment::pending, attachment::review, attachment::attach]),
+        Some(bridge) => application.manage(bridge).mount(
+            "/",
+            rocket::routes![
+                attachment::presence,
+                attachment::nominee_status,
+                attachment::nominee_resume,
+                attachment::pending,
+                attachment::review,
+                attachment::attach
+            ],
+        ),
         None => application,
     })
 }
@@ -374,7 +515,10 @@ mod tests {
     #[test]
     fn ingress_requires_the_actual_peer_and_exact_authority() {
         use rocket::http::HeaderMap;
-        let ingress = LocalIngress { peer: Ipv4Addr::new(10, 0, 0, 17), authority: "harvest:8899".into() };
+        let ingress = LocalIngress {
+            peer: Ipv4Addr::new(10, 0, 0, 17),
+            authority: "harvest:8899".into(),
+        };
         let peer = Some(IpAddr::V4(ingress.peer));
         let mut valid = HeaderMap::new();
         valid.add_raw("Host", "harvest:8899");
@@ -382,9 +526,12 @@ mod tests {
         assert!(ingress.accepts_headers(peer, &valid));
         valid.add_raw("X-Forwarded-For", "10.0.0.17");
         assert!(!ingress.accepts_headers(None, &valid));
-        assert!(!ingress.accepts_headers(Some(IpAddr::V4(Ipv4Addr::LOCALHOST)), &valid));
+        assert!(!ingress
+            .accepts_headers(Some(IpAddr::V4(Ipv4Addr::LOCALHOST)), &valid));
         for (name, value) in [
-            ("Host", "harvest:8898"), ("Origin", "http://127.0.0.1:3002"), ("Cookie", "opaque"),
+            ("Host", "harvest:8898"),
+            ("Origin", "http://127.0.0.1:3002"),
+            ("Cookie", "opaque"),
         ] {
             let mut wrong = valid.clone();
             wrong.replace_raw(name, value);
@@ -397,16 +544,27 @@ mod tests {
     #[test]
     fn local_post_requires_the_same_current_and_signed_publication() {
         let pin = LocalInitializePost {
-            installation: Uuid::new_v4(), tenant: Uuid::new_v4(), event: Uuid::new_v4(),
-            post: Uuid::new_v4(), publication: Uuid::new_v4(), profile: "yubihsm",
-            authorization: reqwest::Url::parse("http://localhost:18090/").unwrap(),
+            installation: Uuid::new_v4(),
+            tenant: Uuid::new_v4(),
+            event: Uuid::new_v4(),
+            post: Uuid::new_v4(),
+            publication: Uuid::new_v4(),
+            profile: "yubihsm",
+            authorization: reqwest::Url::parse("http://localhost:18090/")
+                .unwrap(),
             approval_client: "test-gold".into(),
         };
         let signed = pin.publication.to_string();
         assert!(pin.current_publication(Some(&signed), Some(&signed)));
-        assert!(!pin.current_publication(Some(&Uuid::new_v4().to_string()), Some(&signed)));
+        assert!(!pin.current_publication(
+            Some(&Uuid::new_v4().to_string()),
+            Some(&signed)
+        ));
         assert!(!pin.current_publication(None, Some(&signed)));
-        assert!(!pin.current_publication(Some(&signed), Some(&Uuid::new_v4().to_string())));
+        assert!(!pin.current_publication(
+            Some(&signed),
+            Some(&Uuid::new_v4().to_string())
+        ));
         assert!(!pin.current_publication(Some(&signed), None));
     }
 
@@ -427,7 +585,12 @@ mod tests {
         assert!(current_signer(&roster, &actor, label, label));
         assert!(!current_signer(&roster, &actor, Some("post-b"), label));
         assert!(!current_signer(&roster, &actor, label, Some("post-b")));
-        assert!(!current_signer(&roster, &Uuid::new_v4().to_string(), label, label));
+        assert!(!current_signer(
+            &roster,
+            &Uuid::new_v4().to_string(),
+            label,
+            label
+        ));
         assert!(!current_signer(&[], &actor, label, label));
     }
 }

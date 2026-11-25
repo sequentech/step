@@ -46,7 +46,11 @@ fn official_publication_is_not_a_readiness_predicate() {
         let result = evaluate(serde_json::from_value(evidence).unwrap(), "now".into());
         assert!(result.passed, "{:#?}", result.checks);
         assert_eq!(
-            result.checks.iter().map(|check| check.kind).collect::<Vec<_>>(),
+            result
+                .checks
+                .iter()
+                .map(|check| check.kind)
+                .collect::<Vec<_>>(),
             [
                 CheckKind::Configuration,
                 CheckKind::CertifiedVoters,

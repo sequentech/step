@@ -825,40 +825,44 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
                     {t("signing.results.transmission.ended")}
                 </WizardStyles.AccordionSubTitle>
             ) : null}
-            {!directHsmApprovalBuild() && !signingRequest && !recreateToSign && isTrustee && canSignMiru && (
-                <Accordion
-                    sx={{width: "100%"}}
-                    expanded={expandedExports["tally-miru-upload"]}
-                    onChange={() =>
-                        setExpandedDataExports((prev: IExpanded) => ({
-                            ...prev,
-                            "tally-miru-upload": !prev["tally-miru-upload"],
-                        }))
-                    }
-                >
-                    <AccordionSummary>
-                        <Box className="flex flex-col items-start">
-                            <WizardStyles.AccordionTitle>
-                                {t("tally.uploadTransmissionPackage")}
-                            </WizardStyles.AccordionTitle>
-                            <WizardStyles.AccordionSubTitle>
-                                {t("tally.uploadTransmissionPackageDesc")}
-                            </WizardStyles.AccordionSubTitle>
-                        </Box>
-                    </AccordionSummary>
-                    <WizardStyles.AccordionDetails style={{zIndex: 100}}>
-                        <DropFile handleFiles={handleFiles} />
-                        <WizardStyles.StatusBox>
-                            {uploading ? <WizardStyles.DownloadProgress /> : null}
-                            {errors ? (
-                                <WizardStyles.ErrorMessage variant="body2">
-                                    {errors}
-                                </WizardStyles.ErrorMessage>
-                            ) : null}
-                        </WizardStyles.StatusBox>
-                    </WizardStyles.AccordionDetails>
-                </Accordion>
-            )}
+            {!directHsmApprovalBuild() &&
+                !signingRequest &&
+                !recreateToSign &&
+                isTrustee &&
+                canSignMiru && (
+                    <Accordion
+                        sx={{width: "100%"}}
+                        expanded={expandedExports["tally-miru-upload"]}
+                        onChange={() =>
+                            setExpandedDataExports((prev: IExpanded) => ({
+                                ...prev,
+                                "tally-miru-upload": !prev["tally-miru-upload"],
+                            }))
+                        }
+                    >
+                        <AccordionSummary>
+                            <Box className="flex flex-col items-start">
+                                <WizardStyles.AccordionTitle>
+                                    {t("tally.uploadTransmissionPackage")}
+                                </WizardStyles.AccordionTitle>
+                                <WizardStyles.AccordionSubTitle>
+                                    {t("tally.uploadTransmissionPackageDesc")}
+                                </WizardStyles.AccordionSubTitle>
+                            </Box>
+                        </AccordionSummary>
+                        <WizardStyles.AccordionDetails style={{zIndex: 100}}>
+                            <DropFile handleFiles={handleFiles} />
+                            <WizardStyles.StatusBox>
+                                {uploading ? <WizardStyles.DownloadProgress /> : null}
+                                {errors ? (
+                                    <WizardStyles.ErrorMessage variant="body2">
+                                        {errors}
+                                    </WizardStyles.ErrorMessage>
+                                ) : null}
+                            </WizardStyles.StatusBox>
+                        </WizardStyles.AccordionDetails>
+                    </Accordion>
+                )}
             <Accordion
                 sx={{width: "100%"}}
                 expanded={expandedExports["tally-miru-signatures"]}

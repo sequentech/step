@@ -748,7 +748,8 @@ export interface ISigningDialogProps {
 
 /** Only the ordinary, explicitly legacy approval experience may mount P12. */
 export const SigningDialog: React.FC<ISigningDialogProps> = (props) =>
-    signingExperience(props.data.operational_signing_mode, props.data.request.action) === "legacy" ? (
+    signingExperience(props.data.operational_signing_mode, props.data.request.action) ===
+    "legacy" ? (
         <LegacySigningDialog {...props} />
     ) : null
 

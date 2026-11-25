@@ -24,7 +24,9 @@ use crate::services::documents::get_document_as_temp_file;
 use crate::services::signing::actions::transmission::{
     transmission_send_check_bound, TransmissionSendCheck,
 };
-use crate::services::signing::operational_policy::{signing_mode_for_event, OperationalSigningMode};
+use crate::services::signing::operational_policy::{
+    signing_mode_for_event, OperationalSigningMode,
+};
 use crate::services::signing::SigningCaller;
 use crate::types::miru_plugin::{MiruDelivery, MiruDocument, MiruTransmissionPackageData};
 use anyhow::{anyhow, Context, Result};
@@ -254,7 +256,9 @@ pub async fn record_transmission_download(
         .context("Error acquiring hasura transaction")?;
     let tenant = Uuid::parse_str(&download.tenant_id).context("Invalid tenant")?;
     let event = Uuid::parse_str(&download.election_event_id).context("Invalid event")?;
-    if signing_mode_for_event(&hasura_transaction, tenant, event).await? == OperationalSigningMode::HsmRequired {
+    if signing_mode_for_event(&hasura_transaction, tenant, event).await?
+        == OperationalSigningMode::HsmRequired
+    {
         // A log-only endpoint cannot authorize hard-mode issuance.
         return Ok(Err(DownloadRefusal::NotAPackageFile));
     }

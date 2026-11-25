@@ -574,10 +574,13 @@ pub async fn check_signing_certificate(
         require_legacy_signing(&transaction, tenant_id)
             .await
             .map_err(|error| SigningError::forbidden(error.to_string()))?;
-        let request = get_signing_request_in_tenant(&transaction, tenant_id, id)
-            .await
-            .map_err(SigningError::internal)?
-            .ok_or_else(|| SigningError::not_found("No such signing request"))?;
+        let request =
+            get_signing_request_in_tenant(&transaction, tenant_id, id)
+                .await
+                .map_err(SigningError::internal)?
+                .ok_or_else(|| {
+                    SigningError::not_found("No such signing request")
+                })?;
         authorize_403(
             &claims,
             own_tenant(&claims),
@@ -587,7 +590,9 @@ pub async fn check_signing_certificate(
             &decode_permission_labels(&claims),
             request.permission_label.as_deref(),
         ) {
-            return Err(SigningError::forbidden("The request is outside your Posts"));
+            return Err(SigningError::forbidden(
+                "The request is outside your Posts",
+            ));
         }
         // Refuse the legacy dry run before parsing certificates or fetching a CRL.
         // This preflight does not authorize approval; the signing transaction

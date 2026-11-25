@@ -295,8 +295,8 @@ pub(crate) async fn verified_automated_zero_report(
         // Revisited by the ordinary worker on the next pass.
         return Ok(false);
     }
-    let tally_key = get_signing_rule(tx, tenant, event, SigningAction::ContributeCustodyProof)
-        .await?;
+    let tally_key =
+        get_signing_rule(tx, tenant, event, SigningAction::ContributeCustodyProof).await?;
     check_automated_zero_report_rule(tally_key.as_ref().map(|row| &row.rule))?;
 
     let rows = tx
@@ -311,7 +311,10 @@ pub(crate) async fn verified_automated_zero_report(
         )
         .await?;
     let [row] = rows.as_slice() else {
-        anyhow::ensure!(rows.is_empty(), "Ambiguous Initialization approval for this report");
+        anyhow::ensure!(
+            rows.is_empty(),
+            "Ambiguous Initialization approval for this report"
+        );
         return Ok(false);
     };
     let request_id: Uuid = row.try_get(0)?;
@@ -330,17 +333,26 @@ pub(crate) async fn verified_automated_zero_report(
         return Ok(false);
     }
     let current = super::guard::effective_rule_in_mode(
-        tx, tenant, event, SigningAction::InitializeVoting, mode,
+        tx,
+        tenant,
+        event,
+        SigningAction::InitializeVoting,
+        mode,
     )
     .await?;
     let approvals = list_signing_approvals(tx, tenant, event, request_id).await?;
     super::operational_quorum::has_operational_quorum(
-        tx, &request, &approvals, i64::from(current.required()),
+        tx,
+        &request,
+        &approvals,
+        i64::from(current.required()),
     )
     .await
 }
 
-fn check_automated_zero_report_rule(rule: Option<&sequent_core::signing::SigningRule>) -> anyhow::Result<()> {
+fn check_automated_zero_report_rule(
+    rule: Option<&sequent_core::signing::SigningRule>,
+) -> anyhow::Result<()> {
     use sequent_core::signing::SigningAction;
     if let Some(rule) = rule {
         anyhow::ensure!(
@@ -368,10 +380,12 @@ mod automated_zero_report_rule_tests {
         rule.requirement = SigningRequirement::NotRequired;
         rule.signatures = 0;
         assert!(check_automated_zero_report_rule(Some(&rule)).is_err());
-        assert!(check_automated_zero_report_rule(Some(&SigningRule::default_for(
-            SigningAction::InitializeVoting
-        )))
-        .is_err());
+        assert!(
+            check_automated_zero_report_rule(Some(&SigningRule::default_for(
+                SigningAction::InitializeVoting
+            )))
+            .is_err()
+        );
     }
 }
 

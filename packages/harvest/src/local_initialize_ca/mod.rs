@@ -46,8 +46,13 @@ impl Installation {
             "invalid installation descriptor size"
         );
         let install: Self = object(bytes)?;
-        let ids = [install.tenant, install.event, install.post,
-                   install.publication, install.installation];
+        let ids = [
+            install.tenant,
+            install.event,
+            install.post,
+            install.publication,
+            install.installation,
+        ];
         ensure!(
             install.profile == DEVICE.as_str() && !ids.contains(&Uuid::nil()),
             "invalid local CA installation"
@@ -74,9 +79,13 @@ struct Registration {
 
 impl Registration {
     fn validate(&self, assigned: Ipv4Addr) -> Result<()> {
-        ensure!(self.role == "felix3-local-initialize-ca", "incorrect CA role");
         ensure!(
-            assigned.is_private() && self.listen == SocketAddrV4::new(assigned, CA_PORT),
+            self.role == "felix3-local-initialize-ca",
+            "incorrect CA role"
+        );
+        ensure!(
+            assigned.is_private()
+                && self.listen == SocketAddrV4::new(assigned, CA_PORT),
             "expected the installed device-facing IPv4 address on port 21443"
         );
         Ok(())
@@ -128,12 +137,18 @@ fn verify_mounts(root: &Path) -> Result<()> {
     for entry in fs::read_dir(root)? {
         let name = entry?.file_name();
         ensure!(
-            matches!(name.to_str(), Some("ca" | "installation.json" | "postgres")),
+            matches!(
+                name.to_str(),
+                Some("ca" | "installation.json" | "postgres")
+            ),
             "unexpected sibling in CA installation"
         );
     }
     let socket = fs::symlink_metadata(root.join("postgres/.s.PGSQL.5432"))?;
-    ensure!(socket.file_type().is_socket(), "missing app database socket");
+    ensure!(
+        socket.file_type().is_socket(),
+        "missing app database socket"
+    );
     Ok(())
 }
 
@@ -150,9 +165,9 @@ pub(crate) struct Scope {
 
 impl Scope {
     async fn principal(&self, tx: &Transaction<'_>) -> Result<()> {
-        let row = tx.query_one(
-            include_str!("principal.sql"), &[&LOGIN, &self.database],
-        ).await?;
+        let row = tx
+            .query_one(include_str!("principal.sql"), &[&LOGIN, &self.database])
+            .await?;
         let valid: bool = row.try_get(0)?;
         ensure!(valid, "unexpected CA database privileges");
         Ok(())
@@ -163,20 +178,25 @@ impl Scope {
             !self.database.is_empty() && self.database.len() <= 63,
             "invalid CA database name"
         );
-        let password = Zeroizing::new(file(&root.join("ca/database-password"), true)?);
+        let password =
+            Zeroizing::new(file(&root.join("ca/database-password"), true)?);
         let password = password.strip_suffix(b"\n").unwrap_or(&password);
         ensure!(
-            !password.is_empty() && !password.iter().any(|b| matches!(*b, 0 | b'\r' | b'\n')),
+            !password.is_empty()
+                && !password.iter().any(|b| matches!(*b, 0 | b'\r' | b'\n')),
             "invalid CA database password file"
         );
         let mut config = tokio_postgres::Config::new();
-        config.host_path(&root.join("postgres"))
+        config
+            .host_path(&root.join("postgres"))
             .port(5432)
             .user(LOGIN)
             .dbname(&self.database)
             .password(password)
             .connect_timeout(Duration::from_secs(3))
-            .options("-c search_path=pg_catalog -c default_transaction_read_only=on");
+            .options(
+                "-c search_path=pg_catalog -c default_transaction_read_only=on",
+            );
         let pool = Pool::builder(Manager::new(config, NoTls))
             .runtime(Runtime::Tokio1)
             .max_size(4)
@@ -190,7 +210,10 @@ impl Scope {
                  $1::uuid,$2::uuid,$3::uuid,$4::uuid,$5::text)",
             &[&i.tenant, &i.event, &i.post, &i.publication, &DEVICE.as_str()],
         ).await?.try_get(0)?;
-        ensure!(marker == Some(i.installation), "local CA installation marker mismatch");
+        ensure!(
+            marker == Some(i.installation),
+            "local CA installation marker mismatch"
+        );
         tx.commit().await?;
         Ok(pool)
     }
@@ -204,7 +227,9 @@ impl Scope {
         if !i.accepts_reference(probe) {
             return Err(Status::Forbidden);
         }
-        self.principal(tx).await.map_err(|_| Status::ServiceUnavailable)?;
+        self.principal(tx)
+            .await
+            .map_err(|_| Status::ServiceUnavailable)?;
         // The helper reads the marker and the reserved canonical request in
         // one statement. SQL NULL (withdrawn marker) and false both refuse.
         let allowed: Option<bool> = tx.query_one(
@@ -225,7 +250,8 @@ pub async fn serve() -> Result<()> {
     let root = Path::new(ROOT);
     verify_mounts(root).context("CA role mounts refused")?;
     let dir = root.join("ca");
-    let install = Installation::parse(&file(&root.join("installation.json"), false)?)?;
+    let install =
+        Installation::parse(&file(&root.join("installation.json"), false)?)?;
     let registration: Registration = json(&dir.join("registration.json"))?;
     let assigned = std::env::var("FELIX3_CA_LISTEN_IP")?
         .parse()
@@ -235,7 +261,10 @@ pub async fn serve() -> Result<()> {
         .context("CA transport registration refused")?;
     let Database { database } = json(&dir.join("database.json"))?;
     let scope = Scope { install, database };
-    let db = scope.pool(root).await.context("CA principal or installation refused")?;
+    let db = scope
+        .pool(root)
+        .await
+        .context("CA principal or installation refused")?;
     let app = unmounted_authority(
         registration.listen.into(),
         scope.install.tenant,
@@ -246,7 +275,9 @@ pub async fn serve() -> Result<()> {
         &tls.key,
         &tls.client_ca,
         scope,
-    ).await.map_err(|_| anyhow::anyhow!("private assessment listener refused"))?;
+    )
+    .await
+    .map_err(|_| anyhow::anyhow!("private assessment listener refused"))?;
     app.launch().await.map_err(|error| {
         let _ = error.kind();
         anyhow::anyhow!("private assessment listener failed")

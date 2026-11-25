@@ -353,15 +353,12 @@ const meta = {
             "approval-activity": signingActivity,
             "historical-requester": [historicalRequester],
             "long-descriptions": descriptionLogs,
-            privacy: privacyLogs,
+            "privacy": privacyLogs,
             "configuration-import": [CONFIGURATION_IMPORT],
-            listed: logs,
-            none: [],
+            "listed": logs,
+            "none": [],
         } satisfies Record<Scenario["logs"], unknown[]>
-        data = resourceBoundary(
-            {electoral_log: rowsForScenario[args.logs]},
-            {reads: args.reads}
-        )
+        data = resourceBoundary({electoral_log: rowsForScenario[args.logs]}, {reads: args.reads})
         graphql = graphqlBoundary(
             {
                 ExportElectionEventLogs: ({variables}) => ({

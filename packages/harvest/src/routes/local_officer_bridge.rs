@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 //! The actual normal Portal guard authenticates each person separately. No
 //! bearer, authorization header, private key, Gold callback or role hint is
@@ -31,7 +32,8 @@ mod window;
 use window::Window;
 
 const OFFICER: &str = "felix3_local_attachment_officer";
-const B: &str = "jsonb_populate_record(NULL::felix3_initialize_setup.binding,$1)";
+const B: &str =
+    "jsonb_populate_record(NULL::felix3_initialize_setup.binding,$1)";
 fn refused() -> SigningError {
     SigningError::forbidden(
         "Certificate review is unavailable. Recheck both signed-in sessions and the original request.",
@@ -92,9 +94,16 @@ pub(crate) struct Bridge {
     presentations: Mutex<Window<(Key, String), (Uuid, PublicPins)>>,
 }
 
-async fn qualified(pool: &Pool, database: &str, login: &str, peer: &str, functions: &[&str]) -> Option<()> {
+async fn qualified(
+    pool: &Pool,
+    database: &str,
+    login: &str,
+    peer: &str,
+    functions: &[&str],
+) -> Option<()> {
     let db = pool.get().await.ok()?;
-    let expected: Vec<String> = functions.iter().map(|v| v.to_string()).collect();
+    let expected: Vec<String> =
+        functions.iter().map(|v| v.to_string()).collect();
     let valid: bool = db
         .query_one(
             "SELECT current_user=session_user AND session_user::text=$1 AND current_database()::text=$2
@@ -133,10 +142,9 @@ impl Bridge {
             || cfg.registry_login == OFFICER
             || !cfg.registry_login.starts_with("felix3_local_")
             || cfg.registry_login.len() > 63
-            || !cfg
-                .registry_login
-                .bytes()
-                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
+            || !cfg.registry_login.bytes().all(|b| {
+                b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_'
+            })
         {
             return None;
         }
@@ -152,7 +160,10 @@ impl Bridge {
                 .user(name)
                 .options("-c search_path=pg_catalog -c lock_timeout=2000 -c statement_timeout=6000")
                 .connect_timeout(Duration::from_secs(3));
-            Pool::builder(Manager::new(pg, NoTls)).max_size(4).build().ok()
+            Pool::builder(Manager::new(pg, NoTls))
+                .max_size(4)
+                .build()
+                .ok()
         };
         let authority = connect(OFFICER)?;
         let registry = connect(&cfg.registry_login)?;
@@ -172,28 +183,39 @@ impl Bridge {
             &["issuer_pins", "officer_scope"],
         )
         .await?;
-        qualified(&registry, database, &cfg.registry_login, "peer", &[]).await?;
+        qualified(&registry, database, &cfg.registry_login, "peer", &[])
+            .await?;
         Some(Self {
             authority,
             registry,
             registry_login: cfg.registry_login,
             people: Mutex::new(Window::new(24, Duration::from_secs(20))),
             reviews: Mutex::new(Window::new(64, Duration::from_secs(600))),
-            presentations: Mutex::new(Window::new(32, Duration::from_secs(300))),
+            presentations: Mutex::new(Window::new(
+                32,
+                Duration::from_secs(300),
+            )),
         })
     }
 }
 
-fn officer(claims: &JwtClaims, pin: &LocalInitializePost) -> Result<(Uuid, DateTime<Utc>), SigningError> {
+fn officer(
+    claims: &JwtClaims,
+    pin: &LocalInitializePost,
+) -> Result<(Uuid, DateTime<Utc>), SigningError> {
     let id = Uuid::parse_str(&claims.sub).map_err(failed)?;
     let now = Utc::now();
-    let auth =
-        DateTime::<Utc>::from_timestamp(claims.auth_time.ok_or_else(refused)?, 0).ok_or_else(refused)?;
+    let auth = DateTime::<Utc>::from_timestamp(
+        claims.auth_time.ok_or_else(refused)?,
+        0,
+    )
+    .ok_or_else(refused)?;
     if id.is_nil()
         || claims.typ != "Bearer"
         || claims.hasura_claims.user_id != id.to_string()
         || claims.hasura_claims.tenant_id != pin.tenant.to_string()
-        || claims.iss != format!("http://localhost:18090/realms/tenant-{}", pin.tenant)
+        || claims.iss
+            != format!("http://localhost:18090/realms/tenant-{}", pin.tenant)
         || !claims
             .hasura_claims
             .allowed_roles
@@ -205,8 +227,13 @@ fn officer(claims: &JwtClaims, pin: &LocalInitializePost) -> Result<(Uuid, DateT
     {
         return Err(refused());
     }
-    sequent_core::services::authorization::authorize(claims, true, Some(pin.tenant.to_string()), vec![])
-        .map_err(failed)?;
+    sequent_core::services::authorization::authorize(
+        claims,
+        true,
+        Some(pin.tenant.to_string()),
+        vec![],
+    )
+    .map_err(failed)?;
     Ok((id, auth))
 }
 
@@ -253,7 +280,11 @@ pub(crate) struct ReviewInput {
     official_id: Uuid,
     payload_sha256: String,
 }
-fn key(request: Uuid, official: Uuid, sha256: &str) -> Result<Key, SigningError> {
+fn key(
+    request: Uuid,
+    official: Uuid,
+    sha256: &str,
+) -> Result<Key, SigningError> {
     if request.is_nil() || official.is_nil() || !sha(sha256) {
         return Err(refused());
     }
@@ -338,10 +369,17 @@ async fn nominee_generation(
     let sql = format!("SELECT attempt,officer,enrollment,csr_sha256,spki_sha256,needs_gold,
         authenticated_after,certificate FROM felix3_initialize_bridge.nominee_recovery({B},$2)");
     let db = setup.pool.get().await.map_err(failed)?;
-    let row = db.query_opt(sql.as_str(), &[&wire, &sid]).await.map_err(failed)?;
-    let Some(row) = row else { return Ok(None); };
+    let row = db
+        .query_opt(sql.as_str(), &[&wire, &sid])
+        .await
+        .map_err(failed)?;
+    let Some(row) = row else {
+        return Ok(None);
+    };
     let officer: Uuid = row.try_get("officer").map_err(failed)?;
-    if officer.is_nil() || officer == bound.official { return Err(refused()); }
+    if officer.is_nil() || officer == bound.official {
+        return Err(refused());
+    }
     Ok(Some(NomineeGeneration {
         officer,
         pins: PublicPins {
@@ -351,17 +389,25 @@ async fn nominee_generation(
             spki: row.try_get("spki_sha256").map_err(failed)?,
         },
         needs_gold: row.try_get("needs_gold").map_err(failed)?,
-        authenticated_after: row.try_get("authenticated_after").map_err(failed)?,
+        authenticated_after: row
+            .try_get("authenticated_after")
+            .map_err(failed)?,
         certificate: row.try_get("certificate").map_err(failed)?,
     }))
 }
 
 fn presentation_is_current(
-    bridge: &Bridge, k: &Key, sid: &str, origin: &NomineeGeneration,
+    bridge: &Bridge,
+    k: &Key,
+    sid: &str,
+    origin: &NomineeGeneration,
 ) -> Result<bool, SigningError> {
-    if !origin.needs_gold { return Ok(true); }
+    if !origin.needs_gold {
+        return Ok(true);
+    }
     Ok(bridge.presentations.lock().map_err(failed)?.matches(
-        &(k.clone(), sid.to_owned()), Instant::now(),
+        &(k.clone(), sid.to_owned()),
+        Instant::now(),
         |(officer, pins)| *officer == origin.officer && pins == &origin.pins,
     ))
 }
@@ -370,12 +416,19 @@ fn presentation_is_current(
 // event in the same second as generation or request creation cannot establish
 // that it followed them. The already verified Portal JWT remains the only
 // source of auth_time, issued time and actor; browser JSON cannot assert Gold.
-fn recovery_gold(claims: &JwtClaims, after: DateTime<Utc>, now: DateTime<Utc>) -> bool {
+fn recovery_gold(
+    claims: &JwtClaims,
+    after: DateTime<Utc>,
+    now: DateTime<Utc>,
+) -> bool {
     let now = now.timestamp();
     claims.acr == Permissions::GOLD.to_string()
         && claims.auth_time.is_some_and(|auth| {
-            after.timestamp() < auth && now.saturating_sub(60) < auth
-                && auth <= claims.iat && claims.iat <= now && now < claims.exp
+            after.timestamp() < auth
+                && now.saturating_sub(60) < auth
+                && auth <= claims.iat
+                && claims.iat <= now
+                && now < claims.exp
         })
 }
 
@@ -399,7 +452,11 @@ pub(crate) async fn nominee_status(
         Some(origin) if origin.certificate.is_none() => {
             if presentation_is_current(bridge, &k, sid, &origin)? {
                 NomineeReviewPhase::Ready
-            } else if recovery_gold(&verified.0, origin.authenticated_after, Utc::now()) {
+            } else if recovery_gold(
+                &verified.0,
+                origin.authenticated_after,
+                Utc::now(),
+            ) {
                 NomineeReviewPhase::ResumeReady
             } else {
                 NomineeReviewPhase::GoldRequired
@@ -427,8 +484,11 @@ pub(crate) async fn nominee_resume(
     let (verified, sid) = session.bridge_identity();
     let (k, bound) = nomination_binding(&verified.0, pin, &input)?;
     super::checked_scope(app, pin, verified, k.request, &k.digest).await?;
-    let origin = nominee_generation(setup, &bound, sid).await?.ok_or_else(refused)?;
-    if origin.certificate.is_some() || !origin.needs_gold
+    let origin = nominee_generation(setup, &bound, sid)
+        .await?
+        .ok_or_else(refused)?;
+    if origin.certificate.is_some()
+        || !origin.needs_gold
         || !recovery_gold(&verified.0, origin.authenticated_after, Utc::now())
     {
         return Err(refused());
@@ -438,7 +498,10 @@ pub(crate) async fn nominee_resume(
     // realm signer, Post, permit and original enrollment and creates a
     // distinct short-lived, move-only continuation.
     if !bridge.presentations.lock().map_err(failed)?.put(
-        (k, sid.to_owned()), (origin.officer, origin.pins), at, Instant::now(),
+        (k, sid.to_owned()),
+        (origin.officer, origin.pins),
+        at,
+        Instant::now(),
     ) {
         return Err(refused());
     }
@@ -466,8 +529,12 @@ pub(crate) async fn presence(
     let claims = &verified.0;
     let (_, actor) = caller(claims)?;
     let (k, bound) = nomination_binding(claims, pin, &input)?;
-    let origin = nominee_generation(setup, &bound, sid).await?.ok_or_else(refused)?;
-    if !presentation_is_current(bridge, &k, sid, &origin)? { return Err(refused()); }
+    let origin = nominee_generation(setup, &bound, sid)
+        .await?
+        .ok_or_else(refused)?;
+    if !presentation_is_current(bridge, &k, sid, &origin)? {
+        return Err(refused());
+    }
     let responsible = origin.officer;
     let pins = &origin.pins;
     // The shared verified guard already pinned this azp to its immutable
@@ -486,20 +553,23 @@ pub(crate) async fn presence(
         bridge.registry.clone(),
     )
     .map_err(failed)?;
-    let mut backend = app.databases.hasura().await.get().await.map_err(failed)?;
+    let mut backend =
+        app.databases.hasura().await.get().await.map_err(failed)?;
     let tx = backend.transaction().await.map_err(failed)?;
     let txref = &tx;
     let actorref = &actor;
     let proof = gate
         .current_nominee(&tx, claims, |scope| async move {
-            pin.verify(txref, app, actorref, &scope)
-                .await
-                .map_err(|_| anyhow::anyhow!("current Post eligibility unavailable"))
+            pin.verify(txref, app, actorref, &scope).await.map_err(|_| {
+                anyhow::anyhow!("current Post eligibility unavailable")
+            })
         })
         .await
         .map_err(failed)?;
     tx.commit().await.map_err(failed)?;
-    if !presentation_is_current(bridge, &k, sid, &origin)? { return Err(refused()); }
+    if !presentation_is_current(bridge, &k, sid, &origin)? {
+        return Err(refused());
+    }
     let ctx = Arc::new(Facts {
         key: k.clone(),
         bound,
@@ -508,12 +578,12 @@ pub(crate) async fn presence(
         pins: origin.pins,
         gate,
     });
-    if !bridge
-        .people
-        .lock()
-        .map_err(failed)?
-        .put(k, Seen { ctx, proof }, at, Instant::now())
-    {
+    if !bridge.people.lock().map_err(failed)?.put(
+        k,
+        Seen { ctx, proof },
+        at,
+        Instant::now(),
+    ) {
         return Err(refused());
     }
     Ok(Json(PresenceAck { active: true }))
@@ -532,8 +602,14 @@ async fn scoped_row(
     }
     let wire = serde_json::to_value(&ctx.bound).map_err(failed)?;
     let role_labels = decode_permission_labels(claims);
-    let call = if trust { "issuer_pins" } else { "officer_scope" }; // closed, never supplied by the client
-    let sql = format!("SELECT * FROM felix3_initialize_bridge.{call}({B},$2,$3,$4,$5,$6)");
+    let call = if trust {
+        "issuer_pins"
+    } else {
+        "officer_scope"
+    }; // closed, never supplied by the client
+    let sql = format!(
+        "SELECT * FROM felix3_initialize_bridge.{call}({B},$2,$3,$4,$5,$6)"
+    );
     let db = bridge.authority.get().await.map_err(failed)?;
     db.query_opt(
         sql.as_str(),
@@ -567,24 +643,32 @@ pub(crate) async fn pending(
     if input.election_event_id != pin.event {
         return Err(refused());
     }
-    let candidates = bridge
-        .people
-        .lock()
-        .map_err(failed)?
-        .visible(Instant::now(), |s| {
-            (s.ctx.officer == who && s.ctx.bound.event == pin.event).then(|| s.ctx.clone())
-        });
+    let candidates =
+        bridge
+            .people
+            .lock()
+            .map_err(failed)?
+            .visible(Instant::now(), |s| {
+                (s.ctx.officer == who && s.ctx.bound.event == pin.event)
+                    .then(|| s.ctx.clone())
+            });
     let mut items = Vec::new();
     for ctx in candidates {
-        if let Some(row) = scoped_row(bridge, &ctx, claims, who, authenticated, false).await? {
+        if let Some(row) =
+            scoped_row(bridge, &ctx, claims, who, authenticated, false).await?
+        {
             if row
                 .try_get::<_, Option<Uuid>>("certificate")
                 .map_err(failed)?
                 .is_none()
-                && row.try_get::<_, Uuid>("request_id").map_err(failed)? == ctx.key.request
-                && row.try_get::<_, Uuid>("official_id").map_err(failed)? == ctx.key.official
-                && row.try_get::<_, Uuid>("election_id").map_err(failed)? == pin.post
-                && row.try_get::<_, String>("payload_sha256").map_err(failed)? == ctx.key.digest
+                && row.try_get::<_, Uuid>("request_id").map_err(failed)?
+                    == ctx.key.request
+                && row.try_get::<_, Uuid>("official_id").map_err(failed)?
+                    == ctx.key.official
+                && row.try_get::<_, Uuid>("election_id").map_err(failed)?
+                    == pin.post
+                && row.try_get::<_, String>("payload_sha256").map_err(failed)?
+                    == ctx.key.digest
             {
                 items.push(Reference::new(&ctx));
             }
@@ -609,7 +693,12 @@ pub(crate) async fn pending(
     Ok(Json(Queue { items }))
 }
 
-fn consume(bridge: &Bridge, pin: &LocalInitializePost, k: &Key, who: Uuid) -> Result<Seen, SigningError> {
+fn consume(
+    bridge: &Bridge,
+    pin: &LocalInitializePost,
+    k: &Key,
+    who: Uuid,
+) -> Result<Seen, SigningError> {
     bridge
         .people
         .lock()
@@ -648,12 +737,12 @@ pub(crate) async fn review(
     }
     officer(claims, pin)?;
     let at = Instant::now();
-    if !bridge
-        .reviews
-        .lock()
-        .map_err(failed)?
-        .put((k, who, sid.to_owned()), ctx.pins.clone(), at, at)
-    {
+    if !bridge.reviews.lock().map_err(failed)?.put(
+        (k, who, sid.to_owned()),
+        ctx.pins.clone(),
+        at,
+        at,
+    ) {
         return Err(refused());
     }
     Ok(Json(PublicReview {
@@ -665,12 +754,18 @@ pub(crate) async fn review(
     }))
 }
 
-fn single_public_leaf(text: &str, reviewed: &str) -> Result<Vec<u8>, SigningError> {
+fn single_public_leaf(
+    text: &str,
+    reviewed: &str,
+) -> Result<Vec<u8>, SigningError> {
     if !sha(reviewed) || text.len() > 43692 || text.is_empty() {
         return Err(refused());
     }
     let der = STANDARD.decode(text).map_err(failed)?;
-    if !(1..=32768).contains(&der.len()) || STANDARD.encode(&der) != text || digest(&der) != reviewed {
+    if !(1..=32768).contains(&der.len())
+        || STANDARD.encode(&der) != text
+        || digest(&der) != reviewed
+    {
         return Err(refused());
     }
     let cert = X509::from_der(&der).map_err(failed)?;
@@ -702,11 +797,11 @@ pub(crate) async fn attach(
     let Seen { ctx, proof } = consume(bridge, pin, &k, who)?;
     let rk = (k, who, sid.to_owned());
     if input.csr_sha256 != ctx.pins.csr
-        || !bridge
-            .reviews
-            .lock()
-            .map_err(failed)?
-            .matches(&rk, Instant::now(), |p| p == &ctx.pins)
+        || !bridge.reviews.lock().map_err(failed)?.matches(
+            &rk,
+            Instant::now(),
+            |p| p == &ctx.pins,
+        )
     {
         return Err(refused());
     }
@@ -722,7 +817,13 @@ pub(crate) async fn attach(
     };
     let receipt = ctx
         .gate
-        .register_and_attach(claims, proof, &issued, &input.csr_sha256, &input.leaf_sha256)
+        .register_and_attach(
+            claims,
+            proof,
+            &issued,
+            &input.csr_sha256,
+            &input.leaf_sha256,
+        )
         .await
         .map_err(failed)?;
     Ok(Json(receipt))

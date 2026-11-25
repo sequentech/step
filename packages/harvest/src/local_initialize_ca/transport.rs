@@ -48,10 +48,16 @@ struct ClientPins {
 impl ClientPins {
     fn distinct(&self, server: Pin, server_ca: Pin, client_ca: Pin) -> bool {
         let keys = [
-            server, server_ca, client_ca,
-            self.harvest_to_broker, self.broker_to_device, self.device_to_ca,
+            server,
+            server_ca,
+            client_ca,
+            self.harvest_to_broker,
+            self.broker_to_device,
+            self.device_to_ca,
         ];
-        keys.iter().enumerate().all(|(i, key)| !keys[..i].contains(key))
+        keys.iter()
+            .enumerate()
+            .all(|(i, key)| !keys[..i].contains(key))
     }
 }
 
@@ -77,7 +83,10 @@ fn anchor(pem: &[u8], expected: Pin) -> Result<X509> {
 }
 
 impl Transport {
-    pub(super) fn read(dir: &Path, registration: &Registration) -> Result<Self> {
+    pub(super) fn read(
+        dir: &Path,
+        registration: &Registration,
+    ) -> Result<Self> {
         let pins: ClientPins = json(&dir.join("client-pins.json"))?;
         let server_ca = anchor(
             &file(&dir.join("server-ca.pem"), false)?,
@@ -90,8 +99,9 @@ impl Transport {
         let chain = file(&dir.join("server.pem"), false)?;
         let key = Zeroizing::new(file(&dir.join("server-key.pem"), true)?);
         let certs = X509::stack_from_pem(&chain)?;
-        let (leaf, intermediates) =
-            certs.split_first().context("missing CA server certificate")?;
+        let (leaf, intermediates) = certs
+            .split_first()
+            .context("missing CA server certificate")?;
         let server_spki = Pin(spki(leaf)?);
         ensure!(
             server_spki == registration.server_spki_sha256,
@@ -99,11 +109,18 @@ impl Transport {
         );
         ensure!(!is_ca(leaf)?, "expected a transport server leaf");
         ensure!(
-            pins.distinct(server_spki, Pin(spki(&server_ca)?), Pin(spki(&client_ca)?)),
+            pins.distinct(
+                server_spki,
+                Pin(spki(&server_ca)?),
+                Pin(spki(&client_ca)?)
+            ),
             "transport roles share a key"
         );
         let private_key = PKey::private_key_from_pem_passphrase(&key, b"")?;
-        ensure!(leaf.public_key()?.public_eq(&private_key), "CA server key mismatch");
+        ensure!(
+            leaf.public_key()?.public_eq(&private_key),
+            "CA server key mismatch"
+        );
 
         // The device trusts only its installed server CA and connects to the
         // IP literal. Verify that same path, purpose, time and IP SAN here.
@@ -118,29 +135,40 @@ impl Transport {
         for cert in intermediates {
             untrusted.push(cert.clone())?;
         }
-        let verified = X509StoreContext::new()?.init(&store.build(), leaf, &untrusted, |ctx| {
-            if !ctx.verify_cert()? {
-                return Ok(false);
-            }
-            let Some(path) = ctx.chain() else { return Ok(false) };
-            // The wire chain may omit its trust anchor. Refuse extra,
-            // duplicate or out-of-order certificates OpenSSL did not use.
-            if path.len() != certs.len() && path.len() != certs.len() + 1 {
-                return Ok(false);
-            }
-            for (sent, verified) in certs.iter().zip(path.iter()) {
-                if sent.to_der()? != verified.to_der()? {
+        let verified = X509StoreContext::new()?.init(
+            &store.build(),
+            leaf,
+            &untrusted,
+            |ctx| {
+                if !ctx.verify_cert()? {
                     return Ok(false);
                 }
-            }
-            Ok(true)
-        })?;
-        ensure!(verified, "CA server chain does not verify at the installed address");
+                let Some(path) = ctx.chain() else {
+                    return Ok(false);
+                };
+                // The wire chain may omit its trust anchor. Refuse extra,
+                // duplicate or out-of-order certificates OpenSSL did not use.
+                if path.len() != certs.len() && path.len() != certs.len() + 1 {
+                    return Ok(false);
+                }
+                for (sent, verified) in certs.iter().zip(path.iter()) {
+                    if sent.to_der()? != verified.to_der()? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            },
+        )?;
+        ensure!(
+            verified,
+            "CA server chain does not verify at the installed address"
+        );
         // Supply Rocket with precisely the client trust anchor checked above.
         // Its mandatory handshake proves the client chain. The original
         // assessment handler pins the live client leaf's SPKI on every POST.
         Ok(Self {
-            chain, key,
+            chain,
+            key,
             client_ca: client_ca.to_pem()?,
             device_spki: pins.device_to_ca.0,
         })
@@ -154,14 +182,23 @@ mod tests {
     #[test]
     fn malformed_and_overlapping_role_pins_are_refused() {
         assert!(Pin::try_from("ab".repeat(32)).is_ok());
-        for text in ["00".repeat(32), "AB".repeat(32), "1".repeat(63), "xx".repeat(32)] {
+        for text in [
+            "00".repeat(32),
+            "AB".repeat(32),
+            "1".repeat(63),
+            "xx".repeat(32),
+        ] {
             assert!(Pin::try_from(text).is_err());
         }
         let separate = |keys: [u8; 6]| {
             let [server, server_ca, client_ca, harvest_to_broker, broker_to_device, device_to_ca] =
                 keys.map(|byte| Pin([byte; 32]));
-            ClientPins { harvest_to_broker, broker_to_device, device_to_ca }
-                .distinct(server, server_ca, client_ca)
+            ClientPins {
+                harvest_to_broker,
+                broker_to_device,
+                device_to_ca,
+            }
+            .distinct(server, server_ca, client_ca)
         };
         let keys = [1, 2, 3, 4, 5, 6];
         assert!(separate(keys));

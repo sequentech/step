@@ -21,9 +21,9 @@ use tokio_postgres::NoTls;
 use uuid::Uuid;
 use windmill::services::database::PgConfig;
 use windmill::services::signing::operational_policy::{
-    approval_signing_mode, assert_startup_policy, direct_hsm_approval_build,
-    require_legacy_event, require_legacy_signing, signing_mode, signing_mode_for_event,
-    LegacySigningBlocked, OperationalSigningMode,
+    approval_signing_mode, assert_startup_policy, direct_hsm_approval_build, require_legacy_event,
+    require_legacy_signing, signing_mode, signing_mode_for_event, LegacySigningBlocked,
+    OperationalSigningMode,
 };
 
 const PROFILE: &str = "OPERATIONAL_SIGNING_INSTALLATION_PROFILE";
@@ -70,7 +70,10 @@ async fn approval_does_not_need_a_tenant_or_event_switch() {
         OperationalSigningMode::LegacyP12
     };
     assert_eq!(approval_signing_mode(&tx, tenant).await, Ok(expected));
-    assert_eq!(signing_mode_for_event(&tx, tenant, event).await, Ok(expected));
+    assert_eq!(
+        signing_mode_for_event(&tx, tenant, event).await,
+        Ok(expected)
+    );
     assert_eq!(
         require_legacy_event(&tx, tenant, event).await,
         if direct_hsm_approval_build() {
@@ -278,7 +281,11 @@ async fn the_startup_assertion_follows_the_environment_and_the_database() {
     child(
         &settings,
         &[(PROFILE, text("legacy-p12"))],
-        if direct_hsm_approval_build() { "unavailable" } else { "ok" },
+        if direct_hsm_approval_build() {
+            "unavailable"
+        } else {
+            "ok"
+        },
     )
     .await;
     // A profile the database doesn't have, or that is no profile.

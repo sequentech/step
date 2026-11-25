@@ -794,7 +794,10 @@ export const CertificatesTab: React.FC<ISignaturesSubTabProps> = ({electionEvent
             <ChecksCard {...props} checks={data.checks[0] ?? DEFAULT_CHECKS} crls={data.crls} />
             <RegisteredCertificatesCard {...props} certificates={data.certificates} />
             {access.certificatesRegister && (
-                <LocalOfficerCertificates event={electionEventId} onAttached={() => void reload()} />
+                <LocalOfficerCertificates
+                    event={electionEventId}
+                    onAttached={() => void reload()}
+                />
             )}
         </Box>
     )

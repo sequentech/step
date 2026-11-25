@@ -17,7 +17,14 @@ describe("certificate-free approval build", () => {
         buildProfile.profile = "comelec-demo-direct-hsm"
         for (const action of Object.values(SigningAction)) {
             expect(signingExperience("hsm-demo-direct-action", action)).toBe("direct")
-            for (const mode of [undefined, null, false, "unavailable", "hsm-required", "legacy-p12"]) {
+            for (const mode of [
+                undefined,
+                null,
+                false,
+                "unavailable",
+                "hsm-required",
+                "legacy-p12",
+            ]) {
                 expect(signingExperience(mode, action)).toBe("unavailable")
             }
         }

@@ -605,7 +605,9 @@ async fn approve_in(
     if super::operational_policy::direct_hsm_approval_build() {
         return Err(Ingress::method_denied());
     }
-    let baseline = signing_mode(transaction, tenant_id).await.map_err(blocked)?;
+    let baseline = signing_mode(transaction, tenant_id)
+        .await
+        .map_err(blocked)?;
     if baseline == OperationalSigningMode::HsmRequired {
         // Preserve tenant-wide refusal without revealing request existence.
         ingress.request_id(OperationalSigningMode::HsmRequired)?;

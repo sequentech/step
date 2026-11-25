@@ -14,7 +14,9 @@ use super::super::{InvalidReason, SigningCaller, SigningError, SigningResult};
 use super::transmission::{sbei_refusal, sha256_hex, SbeiDirectory};
 use crate::postgres::signing::SigningRequestRow;
 use crate::postgres::signing_document_revision::signing_document_access_restricted;
-use crate::services::signing::operational_policy::{signing_mode_for_event, OperationalSigningMode};
+use crate::services::signing::operational_policy::{
+    signing_mode_for_event, OperationalSigningMode,
+};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};

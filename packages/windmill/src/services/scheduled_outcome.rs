@@ -34,9 +34,6 @@ use crate::postgres::signing::{
     list_signing_posts, list_signing_rules, lock_signing_event, SigningPost,
 };
 use crate::services::election_event_status::TransitionRefusal;
-use crate::services::signing::operational_policy::{
-    direct_schedule_scope, verified_direct_scheduled_configuration, DirectScheduleScope,
-};
 use crate::services::initialization_schedule::{effective_close, WaitReason};
 use crate::services::initialization_scope::{
     initialization_refusal, load_event_initialization, EventInitialization, ScopeCopies,
@@ -45,6 +42,9 @@ use crate::services::signing::actions::configuration::{
     canonical_text, target_scope_key, ConfigurationSubject,
 };
 use crate::services::signing::log::{stage, Actor, LogStep, SystemOutcome};
+use crate::services::signing::operational_policy::{
+    direct_schedule_scope, verified_direct_scheduled_configuration, DirectScheduleScope,
+};
 use crate::services::signing::{action_title, log_scope};
 use anyhow::{Context, Result};
 use chrono::{DateTime, SecondsFormat, Utc};
@@ -1185,10 +1185,15 @@ impl EventState {
         let presentation =
             read_presentation(hasura_transaction, tenant_id, election_event_id).await?;
         let rules = Rules::read(hasura_transaction, tenant_id, election_event_id).await?;
-        let direct_scope = direct_schedule_scope(hasura_transaction, tenant_id, election_event_id).await?;
+        let direct_scope =
+            direct_schedule_scope(hasura_transaction, tenant_id, election_event_id).await?;
         let direct_schedule_unavailable = matches!(
             direct_scope,
-            DirectScheduleScope::Unavailable | DirectScheduleScope::ExactPost { approved: false, .. }
+            DirectScheduleScope::Unavailable
+                | DirectScheduleScope::ExactPost {
+                    approved: false,
+                    ..
+                }
         );
         let mut snapshots = hasura_transaction
             .query(
@@ -1335,21 +1340,27 @@ impl EventState {
                 })
             })
             .collect::<Result<Vec<_>>>()?;
-        let direct_schedule_proofs = if let DirectScheduleScope::ExactPost { post, approved } = direct_scope {
-            let mut verified = HashSet::new();
-            if approved {
-                for approval in &approvals {
-                    if verified_direct_scheduled_configuration(
-                        hasura_transaction, tenant_id, election_event_id, approval.request_id,
-                    ).await? {
-                        verified.insert(approval.request_id);
+        let direct_schedule_proofs =
+            if let DirectScheduleScope::ExactPost { post, approved } = direct_scope {
+                let mut verified = HashSet::new();
+                if approved {
+                    for approval in &approvals {
+                        if verified_direct_scheduled_configuration(
+                            hasura_transaction,
+                            tenant_id,
+                            election_event_id,
+                            approval.request_id,
+                        )
+                        .await?
+                        {
+                            verified.insert(approval.request_id);
+                        }
                     }
                 }
-            }
-            Some((post, verified))
-        } else {
-            None
-        };
+                Some((post, verified))
+            } else {
+                None
+            };
         let mut post_channels = HashMap::new();
         for row in hasura_transaction
             .query(
@@ -1498,9 +1509,13 @@ impl EventState {
                         kept.snapshot.open_voting.clone()
                     },
                     close_policy: if self.direct_post_unavailable(post)
-                        || self.direct_schedule_proofs.as_ref().is_some_and(|(_, verified)|
-                            kept.approval_request_id.is_none_or(|id| !verified.contains(&id)))
-                    {
+                        || self
+                            .direct_schedule_proofs
+                            .as_ref()
+                            .is_some_and(|(_, verified)| {
+                                kept.approval_request_id
+                                    .is_none_or(|id| !verified.contains(&id))
+                            }) {
                         // Unproved history can keep stricter settings but
                         // cannot grant a scheduled unsigned operation.
                         UnsignedScheduledClosePolicy::REFUSE
@@ -1548,9 +1563,9 @@ impl EventState {
             .map(|kept| {
                 kept.approval_request_id
                     .and_then(|id| {
-                        self.approvals
-                            .iter()
-                            .find(|approval| approval.request_id == id && self.proof_accepted(approval))
+                        self.approvals.iter().find(|approval| {
+                            approval.request_id == id && self.proof_accepted(approval)
+                        })
                     })
                     .map(|approval| approval.initialization_scope.clone())
                     .unwrap_or_else(|| kept.snapshot.policies.initialization_scope.clone())
@@ -1728,8 +1743,10 @@ impl EventState {
 
     fn direct_post_unavailable(&self, post: Option<Uuid>) -> bool {
         self.direct_schedule_unavailable
-            || self.direct_schedule_proofs.as_ref().is_some_and(|(installed, _)|
-                post.is_some_and(|requested| requested != *installed))
+            || self
+                .direct_schedule_proofs
+                .as_ref()
+                .is_some_and(|(installed, _)| post.is_some_and(|requested| requested != *installed))
     }
 
     /// Shared by ordinary occurrences and retained signed closes, which
@@ -1745,7 +1762,8 @@ impl EventState {
     }
 
     fn proof_accepted(&self, approval: &Approval) -> bool {
-        self.direct_schedule_proofs.as_ref()
+        self.direct_schedule_proofs
+            .as_ref()
             .is_none_or(|(_, verified)| verified.contains(&approval.request_id))
     }
 

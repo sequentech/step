@@ -89,7 +89,9 @@ async fn scope(
     } else {
         initial
     };
-    let (mode, direct) = request_mode_and_latch(tx, &request).await.map_err(|_| unavailable())?;
+    let (mode, direct) = request_mode_and_latch(tx, &request)
+        .await
+        .map_err(|_| unavailable())?;
     if direct.is_some() || mode != OperationalSigningMode::HsmRequired {
         return Err(unavailable());
     }
@@ -165,7 +167,9 @@ pub async fn initialize_signing_applied(
     let Some(approval) = rows.iter().find(|row| row.user_id == caller.user_id) else {
         return Ok(false);
     };
-    Ok(checked_approval_device(tx, request, std::slice::from_ref(approval))
-        .await?
-        .is_some())
+    Ok(
+        checked_approval_device(tx, request, std::slice::from_ref(approval))
+            .await?
+            .is_some(),
+    )
 }

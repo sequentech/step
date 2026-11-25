@@ -22,7 +22,9 @@ use crate::services::reports::generation::ReportRequester;
 use crate::services::signing::actions::transmission::{
     LoadedPackage, PostSbeis, SbeiDirectory, SbeiIdentity, TransmissionPackages,
 };
-use crate::services::signing::operational_policy::{signing_mode_for_event, OperationalSigningMode};
+use crate::services::signing::operational_policy::{
+    signing_mode_for_event, OperationalSigningMode,
+};
 use crate::services::signing::pdf::{RevisionStore, S3RevisionStore};
 use crate::services::time_zones::{event_time_zone, offset_at};
 use crate::types::miru_plugin::{
@@ -355,7 +357,12 @@ impl TransmissionPackages for StoredPackages {
             eml_document_id: latest.document_ids.eml.clone(),
             xz_document_id: latest.document_ids.xz.clone(),
         };
-        if signing_mode_for_event(hasura_transaction, request.tenant_id, request.election_event_id).await?
+        if signing_mode_for_event(
+            hasura_transaction,
+            request.tenant_id,
+            request.election_event_id,
+        )
+        .await?
             == OperationalSigningMode::HsmRequired
         {
             let tally = Uuid::parse_str(&loaded.tally_session_id)

@@ -185,7 +185,9 @@ pub async fn generate_report(
         }
         Ok(ReportType::MANUAL_VERIFICATION) => {
             if report_mode != GenerateReportMode::PREVIEW {
-                return Err(anyhow!("Manual verification documents must be requested from the voter action"));
+                return Err(anyhow!(
+                    "Manual verification documents must be requested from the voter action"
+                ));
             }
             let report = ManualVerificationTemplate::new(ids);
             execute_report!(report)

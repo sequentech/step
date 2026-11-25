@@ -453,7 +453,12 @@ mod canonical_tests {
         let device = InstalledDevice::YubiHsm;
         let InstalledDevice::YubiHsm = device;
         assert!(device.admits(Some("yubihsm")));
-        for other in [None, Some("softhsm-test"), Some("legacy-p12"), Some("software")] {
+        for other in [
+            None,
+            Some("softhsm-test"),
+            Some("legacy-p12"),
+            Some("software"),
+        ] {
             assert!(!device.admits(other));
         }
     }

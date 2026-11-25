@@ -722,10 +722,12 @@ fn direct_demo_schedule_cannot_use_old_proof_or_another_post() {
     assert!(state.approval(Some(other)).is_none());
     let row = ScheduledRow {
         transition: transition_of(
-            "closing", "END_VOTING_PERIOD",
+            "closing",
+            "END_VOTING_PERIOD",
             Some(&json!({"scheduled_date": "2028-05-08T10:00:00Z"})),
             Some(&json!({"election_id": other})),
-        ).unwrap(),
+        )
+        .unwrap(),
         annotations: json!({}),
         written_now: false,
     };
@@ -781,7 +783,10 @@ fn both_direct_schedules_require_the_exact_committed_configuration() {
         state.direct_schedule_proofs = Some((post, HashSet::from([latest, superseded])));
         let covered = explain(&state, scheduled, post);
         assert_eq!(covered.outcome, ScheduledOutcomeKind::Runs);
-        assert_eq!(covered.authorized_by.unwrap().request_id, latest.to_string());
+        assert_eq!(
+            covered.authorized_by.unwrap().request_id,
+            latest.to_string()
+        );
         assert_eq!(
             explain(&state, scheduled, other).outcome,
             ScheduledOutcomeKind::Refused

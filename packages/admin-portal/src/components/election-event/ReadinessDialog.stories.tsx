@@ -32,29 +32,26 @@ const report = (passed: boolean) => ({
     passed,
     checked_at: "2026-10-16T09:00:00Z",
     log_entry_id: passed ? "signed-readiness-entry" : null,
-    checks: [
-        "configuration",
-        "certified_voters",
-        "official_zero",
-        "tested_finished",
-    ].map((kind) => ({
-        kind,
-        passed: passed || kind !== "certified_voters",
-        message: "Authoritative server check",
-        ...(passed || kind !== "certified_voters"
-            ? {}
-            : {
-                  findings: [
-                      {
-                          code: "registry_count_changed",
-                          event: "official",
-                          area: "Area A",
-                          values: {imported: "3", current: "4"},
-                          message: "The official event's registry has 4 voters in area Area A",
-                      },
-                  ],
-              }),
-    })),
+    checks: ["configuration", "certified_voters", "official_zero", "tested_finished"].map(
+        (kind) => ({
+            kind,
+            passed: passed || kind !== "certified_voters",
+            message: "Authoritative server check",
+            ...(passed || kind !== "certified_voters"
+                ? {}
+                : {
+                      findings: [
+                          {
+                              code: "registry_count_changed",
+                              event: "official",
+                              area: "Area A",
+                              values: {imported: "3", current: "4"},
+                              message: "The official event's registry has 4 voters in area Area A",
+                          },
+                      ],
+                  }),
+        })
+    ),
     evidence: {official: {event_id: EVENT_ID}, tested: {event_id: TESTED_ID}},
 })
 let boundary: ReturnType<typeof graphqlBoundary>

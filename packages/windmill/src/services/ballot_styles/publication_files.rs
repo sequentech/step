@@ -271,7 +271,8 @@ async fn complete_generation(
     #[cfg(feature = "comelec-demo-direct-hsm")]
     let dynamic = crate::services::signing::direct_multi_event::lock_generation_if_dynamic(
         &tx, tenant_id, event_id,
-    ).await?;
+    )
+    .await?;
     lock_publication_event(&tx, tenant, event).await?;
     lock_generation(&tx, lease).await?;
     if !complete_ballot_publication_files(
@@ -289,8 +290,13 @@ async fn complete_generation(
     #[cfg(feature = "comelec-demo-direct-hsm")]
     if dynamic {
         crate::services::signing::direct_multi_event::record_generation(
-            &tx, tenant_id, event_id, publication, root,
-        ).await?;
+            &tx,
+            tenant_id,
+            event_id,
+            publication,
+            root,
+        )
+        .await?;
     }
     // This one mutable login configuration is event-wide. Serialize its write
     // with event edits/deletion and read live metadata: an older draft finishing

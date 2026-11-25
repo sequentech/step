@@ -16,8 +16,7 @@ use super::executors::SigningExecutorRegistry;
 use super::log::{stage, Actor, LogStep, SystemOutcome};
 use super::operational_policy::local_scope::{request_mode_and_latch, DirectProtocol};
 use super::operational_policy::{
-    lock_signing_policy, require_legacy_request, LegacySigningBlocked,
-    OperationalSigningMode,
+    lock_signing_policy, require_legacy_request, LegacySigningBlocked, OperationalSigningMode,
 };
 use super::pdf::DocumentRevisionView;
 use super::signers::{list_signers, signer_titles, GroupChange};
@@ -649,13 +648,17 @@ pub async fn get_panel(
             "You can't see this signing request.".into(),
         ));
     }
-    let operational_signing_mode = match request_mode_and_latch(hasura_transaction, &request).await {
+    let operational_signing_mode = match request_mode_and_latch(hasura_transaction, &request).await
+    {
         Ok((_, Some(latch))) => match latch.protocol {
             DirectProtocol::InitializeV1 => "hsm-demo-raw",
             DirectProtocol::ActionV2 => "hsm-demo-direct-action",
         },
         Ok((OperationalSigningMode::LegacyP12, None))
-            if !super::operational_policy::direct_hsm_approval_build() => "legacy-p12",
+            if !super::operational_policy::direct_hsm_approval_build() =>
+        {
+            "legacy-p12"
+        }
         Ok((OperationalSigningMode::LegacyP12, None)) => "unavailable",
         Ok((OperationalSigningMode::HsmRequired, None)) => "hsm-required",
         Err(LegacySigningBlocked::ScopeUnavailable) => "unavailable",
@@ -708,8 +711,11 @@ pub async fn get_panel(
         })
         .collect();
     for approval in &approvals {
-        let (subject, common_name) = approval.certificate_pem.as_deref()
-            .map(certificate_names).unwrap_or_default();
+        let (subject, common_name) = approval
+            .certificate_pem
+            .as_deref()
+            .map(certificate_names)
+            .unwrap_or_default();
         let index = match views
             .iter()
             .position(|view| view.user_id == approval.user_id)
@@ -1308,10 +1314,19 @@ pub async fn finish_dispatched(
                 )
                 .await?;
                 let approvals = list_signing_approvals(
-                    hasura_transaction, tenant_id, election_event_id, request.id,
-                ).await?;
-                anyhow::ensure!(latch.is_some() || !approvals.iter().any(|a| a.initialize_direct_proof.is_some()),
-                    "Cannot report a raw approval without its current exact policy");
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    request.id,
+                )
+                .await?;
+                anyhow::ensure!(
+                    latch.is_some()
+                        || !approvals
+                            .iter()
+                            .any(|a| a.initialize_direct_proof.is_some()),
+                    "Cannot report a raw approval without its current exact policy"
+                );
                 if latch.is_some() {
                     let current = effective_rule_in_mode(
                         hasura_transaction,

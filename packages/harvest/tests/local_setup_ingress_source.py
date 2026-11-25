@@ -1,3 +1,4 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
 """Offline contracts for the normal local Initialize ingress. No application services."""
 import json

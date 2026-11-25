@@ -9,7 +9,14 @@ const PORTAL = "http://localhost:3002"
 const KEYCLOAK = "http://localhost:18090/"
 const GRAPHQL = "http://localhost:18080/v1/graphql"
 const registrationFields = new Set([
-    "profile", "deviceProfile", "issuer", "callback", "graphql", "portalClient", "approvalClient", "setupClient",
+    "profile",
+    "deviceProfile",
+    "issuer",
+    "callback",
+    "graphql",
+    "portalClient",
+    "approvalClient",
+    "setupClient",
 ])
 const clientId = (s: unknown): s is string =>
     typeof s === "string" && /^[A-Za-z0-9_.-]{1,150}$/.test(s) && !/\s/.test(s)
@@ -40,7 +47,8 @@ export function localInitializeRegistration(origin: string | undefined, registra
         p.portalClient === p.approvalClient ||
         p.portalClient === LOCAL_SETUP_CLIENT ||
         p.approvalClient === LOCAL_SETUP_CLIENT ||
-        (p.setupClient !== undefined && (p.setupClient !== LOCAL_SETUP_CLIENT || deviceProfile !== "softhsm-test")) ||
+        (p.setupClient !== undefined &&
+            (p.setupClient !== LOCAL_SETUP_CLIENT || deviceProfile !== "softhsm-test")) ||
         p.approvalClient === "sequent-operational-demo-14990" ||
         typeof p.issuer !== "string" ||
         p.issuer.length > 1024 ||
@@ -72,8 +80,12 @@ export function localInitializeRegistration(origin: string | undefined, registra
 export function matchLocalInitializeSettings(
     origin: string,
     tenant: string,
-    settings: {KEYCLOAK_URL?: unknown; HASURA_URL?: unknown; ONLINE_VOTING_CLIENT_ID?: unknown;
-        FELIX3_LOCAL_INITIALIZE?: unknown}
+    settings: {
+        KEYCLOAK_URL?: unknown
+        HASURA_URL?: unknown
+        ONLINE_VOTING_CLIENT_ID?: unknown
+        FELIX3_LOCAL_INITIALIZE?: unknown
+    }
 ) {
     const local = localInitializeRegistration(origin, settings.FELIX3_LOCAL_INITIALIZE)
     if (

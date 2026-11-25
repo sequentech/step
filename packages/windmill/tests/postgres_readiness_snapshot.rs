@@ -701,15 +701,25 @@ fn real_snapshot_requires_delivered_valid_receipt_and_current_full_census_withou
         // Real readiness entrypoint: the official event can be ready before
         // publishing anything, and the separately tested event still must
         // prove its own active publication and seals.
-        tx.batch_execute("SAVEPOINT official_unpublished").await.unwrap();
+        tx.batch_execute("SAVEPOINT official_unpublished")
+            .await
+            .unwrap();
         tx.execute(
             "UPDATE sequent_backend.ballot_publication SET deleted_at=clock_timestamp() WHERE tenant_id=$1 AND election_event_id=$2 AND published_at IS NOT NULL",
             &[&tenant, &event],
         ).await.unwrap();
-        let unpublished = verify(&tx, &tenant_id, &event_id, &tested_event.to_string(), &actor)
+        let unpublished = verify(
+            &tx,
+            &tenant_id,
+            &event_id,
+            &tested_event.to_string(),
+            &actor,
+        )
+        .await
+        .unwrap();
+        tx.batch_execute("ROLLBACK TO SAVEPOINT official_unpublished")
             .await
             .unwrap();
-        tx.batch_execute("ROLLBACK TO SAVEPOINT official_unpublished").await.unwrap();
         assert!(unpublished.passed, "{:#?}", unpublished.checks);
         assert_eq!(unpublished.checks.len(), 4);
         assert!(unpublished.evidence.official.publication.is_none());

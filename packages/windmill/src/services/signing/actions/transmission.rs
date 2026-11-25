@@ -161,9 +161,13 @@ pub async fn guard_transmission_package(
             false => Ok(None),
         };
     };
-    let mode = signing_mode_for_event(hasura_transaction, package.tenant_id, package.election_event_id)
-        .await
-        .context("Operational signing policy unavailable")?;
+    let mode = signing_mode_for_event(
+        hasura_transaction,
+        package.tenant_id,
+        package.election_event_id,
+    )
+    .await
+    .context("Operational signing policy unavailable")?;
     let outcome = gate(
         hasura_transaction,
         requester,
@@ -296,7 +300,12 @@ pub fn package_members(
             )
         })?;
         let signature = BASE64.encode(document_signature);
-        let publickey = public_key_pem(approval.certificate_pem.as_deref().context("EML approval has no certificate")?)?;
+        let publickey = public_key_pem(
+            approval
+                .certificate_pem
+                .as_deref()
+                .context("EML approval has no certificate")?,
+        )?;
         let (id, name) = match sbeis {
             Some(sbeis) => {
                 let identity = sbeis.get(&approval.username).ok_or_else(|| {
@@ -328,7 +337,10 @@ pub fn package_members(
             sbei_miru_id: id,
             pub_key: publickey,
             signature,
-            certificate_fingerprint: approval.fingerprint_sha256.clone().context("EML approval has no certificate fingerprint")?,
+            certificate_fingerprint: approval
+                .fingerprint_sha256
+                .clone()
+                .context("EML approval has no certificate fingerprint")?,
         });
     }
     Ok((members, signatures))
@@ -430,7 +442,12 @@ pub async fn sign_package(
     }
     let destination_sha256 = destination_configuration_hash(&loaded.package.servers)?;
     if destination_names(&loaded.package.servers) != subject.destinations()
-        || (signing_mode_for_event(hasura_transaction, request.tenant_id, request.election_event_id).await?
+        || (signing_mode_for_event(
+            hasura_transaction,
+            request.tenant_id,
+            request.election_event_id,
+        )
+        .await?
             == OperationalSigningMode::HsmRequired
             && request
                 .subject
@@ -720,7 +737,12 @@ pub async fn transmission_send_check_bound(
             };
             expected.push((
                 BASE64.encode(signature),
-                public_key_pem(approval.certificate_pem.as_deref().context("EML approval has no certificate")?)?,
+                public_key_pem(
+                    approval
+                        .certificate_pem
+                        .as_deref()
+                        .context("EML approval has no certificate")?,
+                )?,
             ));
         }
         expected.sort();

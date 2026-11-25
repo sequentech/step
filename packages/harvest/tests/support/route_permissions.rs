@@ -364,7 +364,7 @@ fn cases() -> Vec<Case> {
         case!(SuperAdmin, "/generate-report", {"report_id": "test-report", "tenant_id": TENANT_ID, "report_mode": "PREVIEW"}, [REPORT_READ, REPORT_PREVIEW], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-transmission-report", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "election_id": ELECTION_ID, "tally_session_id": ELECTION_ID}, [TRANSMISSION_REPORT_GENERATE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-template", {"type": "BallotImages", "election_event_id": EVENT_ID, "election_id": "test-election", "tally_session_id": "test-session"}, [REPORT_READ], BACKEND, UNAUTHORIZED),
-        case!(UuidTenant, "/get-manual-verification-pdf", {"tenant_id": UUID_TENANT_ID, "election_event_id": UUID_EVENT_ID, "voter_id": "test-voter"}, [VOTER_MANUALLY_VERIFY], BACKEND, UNAUTHORIZED),
+        case!(UuidTenant, "/get-manual-verification-pdf", {"tenant_id": UUID_TENANT_ID, "election_event_id": UUID_EVENT_ID, "voter_id": "test-voter"}, [VOTER_MANUALLY_VERIFY], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/manual-verification-authority", {"tenant_id": UUID_TENANT_ID, "election_event_id": UUID_EVENT_ID, "voter_id":"test-voter","phase":"issue"}, [SERVICE_ACCOUNT], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-voter-information-letter", {"election_event_id": EVENT_ID, "voter_id": "test-voter"}, [VOTER_INFORMATION_LETTER, DOCUMENT_PASSWORD_READ], BACKEND, FORBIDDEN_JSON),
         case!(Voter, "/get-ballot-files-urls", {"election_event_id": EVENT_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),

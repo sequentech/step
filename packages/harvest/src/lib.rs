@@ -20,7 +20,10 @@ use windmill::services::{
 #[cfg(feature = "operational-signing-demo-fixture")]
 pub mod operational_demo_composition;
 
-#[cfg(all(feature = "felix3-local-initialize-ca", not(feature = "operational-signing-demo-fixture")))]
+#[cfg(all(
+    feature = "felix3-local-initialize-ca",
+    not(feature = "operational-signing-demo-fixture")
+))]
 pub mod local_initialize_ca;
 
 mod adapters;
@@ -95,9 +98,15 @@ pub async fn rocket() -> rocket::Rocket<rocket::Build> {
     });
 
     let application = build_application_with(services);
-    #[cfg(all(feature = "felix3-local-initialize", not(feature = "operational-signing-demo-fixture")))]
+    #[cfg(all(
+        feature = "felix3-local-initialize",
+        not(feature = "operational-signing-demo-fixture")
+    ))]
     let application = routes::operational_initialize::local::mount(application)
-        .await.expect("Verify the installed local Harvest registration before launch");
+        .await
+        .expect(
+            "Verify the installed local Harvest registration before launch",
+        );
     #[cfg(feature = "comelec-demo-direct-hsm")]
     let application = routes::signing::mount_direct_initialize(application)
         .expect("Verify the registered private direct HSM peer before starting this demo build");

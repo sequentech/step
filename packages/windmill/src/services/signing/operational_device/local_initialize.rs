@@ -89,7 +89,10 @@ impl LocalInitializeInstallation {
         if post != self.post {
             return Ok(false);
         }
-        ensure!(row.subject.is_object(), "invalid Initialize request subject");
+        ensure!(
+            row.subject.is_object(),
+            "invalid Initialize request subject"
+        );
         let subject: InitializeVotingSubject = subject_of(row)?;
         let signed_id = subject
             .publication_id
@@ -169,7 +172,9 @@ mod descriptor {
         let directory = match openat(run, DIRECTORY, DIRECTORY_FLAGS, Mode::empty()) {
             Ok(fd) => File::from(fd),
             Err(Errno::NOENT) => return Ok(None),
-            Err(error) => return Err(error).context("open local Initialize installation directory"),
+            Err(error) => {
+                return Err(error).context("open local Initialize installation directory")
+            }
         };
         let root = run.metadata()?;
         ensure!(

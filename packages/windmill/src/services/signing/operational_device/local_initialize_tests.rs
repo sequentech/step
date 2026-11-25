@@ -58,8 +58,12 @@ fn descriptor_accepts_only_the_six_typed_fields_and_the_software_profile() {
     extra["path"] = json!("/tmp/other-installation");
     assert!(parse(&extra).is_err());
     let positional = json!([
-        valid["tenant"], valid["event"], valid["post"],
-        valid["publication"], valid["installation"], valid["profile"]
+        valid["tenant"],
+        valid["event"],
+        valid["post"],
+        valid["publication"],
+        valid["installation"],
+        valid["profile"]
     ]);
     assert!(parse(&positional).is_err());
     let duplicate = valid
@@ -208,7 +212,8 @@ async fn executed_local_initialize_has_applied_receipts_and_refuses_replay() -> 
     let request = SigningRequestRow::try_from(row)?;
     ensure!(request.status == SigningRequestStatus::Executed && request.executed_at.is_some());
     ensure!(
-        checked_approval_device(&tx, &request, &[]).await? == Some(InstalledDevice::DisposableSoftHsm)
+        checked_approval_device(&tx, &request, &[]).await?
+            == Some(InstalledDevice::DisposableSoftHsm)
     );
     let current = effective_rule(&tx, local.tenant, local.event, request.action).await?;
     let task = request

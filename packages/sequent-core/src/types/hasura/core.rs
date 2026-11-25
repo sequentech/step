@@ -337,9 +337,11 @@ pub struct Document {
 impl Document {
     /// The private bearer document issued to one initiating operator.
     pub fn is_signed_manual_verification(&self) -> bool {
-        self.annotations.as_ref()
+        self.annotations
+            .as_ref()
             .and_then(|a| a.get("purpose"))
-            .and_then(Value::as_str) == Some("signed-manual-verification")
+            .and_then(Value::as_str)
+            == Some("signed-manual-verification")
     }
 
     /// Legacy names remain protected; new documents carry an immutable purpose.

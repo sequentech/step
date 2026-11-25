@@ -414,7 +414,7 @@ async fn a_person_fills_one_slot_of_a_request() {
         .await
         .unwrap();
     assert_eq!(signed.algorithm, SignatureAlgorithm::RsaPkcs1Sha256);
-    assert_eq!(signed.revocation_status, RevocationStatus::Checked);
+    assert_eq!(signed.revocation_status, Some(RevocationStatus::Checked));
     assert_eq!(signed.display_name.as_deref(), Some("alice Display"));
 
     // Each attempt starts from Bob's valid approval and shares one identity

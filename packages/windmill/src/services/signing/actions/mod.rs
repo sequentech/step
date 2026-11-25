@@ -413,7 +413,9 @@ impl SignedActionEffects for ProductionEffects {
             SigningAction::ApproveConfiguration => {
                 configuration::publish(hasura_transaction, request, progress).await
             }
-            SigningAction::AuthorizeManualVerification => manual_verification::settle(hasura_transaction, request).await,
+            SigningAction::AuthorizeManualVerification => {
+                manual_verification::settle(hasura_transaction, request).await
+            }
             SigningAction::ApproveVoter => {
                 voter::approve(
                     hasura_transaction,

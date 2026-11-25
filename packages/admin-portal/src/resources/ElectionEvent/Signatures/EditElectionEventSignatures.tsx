@@ -27,7 +27,8 @@ export const EditElectionEventSignatures: React.FC = () => {
     const access = useSignaturesAccess()
     const auth = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
-    const localOfficerReturn = access.certificatesRegister &&
+    const localOfficerReturn =
+        access.certificatesRegister &&
         Boolean(localOfficerSettings(window.location.origin, auth.tenantId, globalSettings))
     if (!record?.id) {
         return null
@@ -48,8 +49,12 @@ export const EditElectionEventSignatures: React.FC = () => {
         })
     }
     if (access.certificatesRead) {
-        tabs.push({id: localOfficerReturn ? "local-initialize-officer" : undefined,
-            label: t("signing.tab.certificates"), component: CertificatesTab, props})
+        tabs.push({
+            id: localOfficerReturn ? "local-initialize-officer" : undefined,
+            label: t("signing.tab.certificates"),
+            component: CertificatesTab,
+            props,
+        })
     }
     if (access.requestsRead) {
         tabs.push({label: t("signing.tab.requests"), component: RequestsTab, props})

@@ -1,45 +1,45 @@
 # Merge into the already running normal Felix3 project only for the explicit
 # local Initialize profile. This is not a separate application/DB project.
 services:
-  postgres:
-    volumes:
-      - type: bind
-        source: ${FELIX3_LOCAL_POSTGRES_SOCKET_DIR:?install one private socket directory}
-        target: /var/run/postgresql
-        bind:
-          create_host_path: false
-      - type: bind
-        source: ${FELIX3_LOCAL_POSTGRES_PASSWD:?prepare from the exact installed image}
-        target: /etc/passwd
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: bind
-        source: ${FELIX3_LOCAL_POSTGRES_HBA:?preserve baseline and add private peer prefix}
-        target: ${FELIX3_LOCAL_POSTGRES_HBA_PATH:?read server hba_file first}
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: bind
-        source: ${FELIX3_LOCAL_POSTGRES_IDENT:?preserve baseline and add exact registry map}
-        target: ${FELIX3_LOCAL_POSTGRES_IDENT_PATH:?read server ident_file first}
-        read_only: true
-        bind:
-          create_host_path: false
-  harvest:
-    user: "${FELIX3_LOCAL_OFFICER_UID:?check collision on both images}:${FELIX3_LOCAL_OFFICER_GID:?assign matching private group}"
-    group_add:
-      - "${FELIX3_LOCAL_HARVEST_PRIVATE_GID:?dedicated read-only group for root-owned Harvest files}"
-    volumes:
-      - type: bind
-        source: ${FELIX3_LOCAL_HARVEST_PASSWD:?prepare from the exact installed image}
-        target: /etc/passwd
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: bind
-        source: ${FELIX3_LOCAL_POSTGRES_SOCKET_DIR:?share exactly the installed database socket}
-        target: /run/sequent-felix3-local-initialize/postgres
-        read_only: true
-        bind:
-          create_host_path: false
+    postgres:
+        volumes:
+            - type: bind
+              source: ${FELIX3_LOCAL_POSTGRES_SOCKET_DIR:?install one private socket directory}
+              target: /var/run/postgresql
+              bind:
+                  create_host_path: false
+            - type: bind
+              source: ${FELIX3_LOCAL_POSTGRES_PASSWD:?prepare from the exact installed image}
+              target: /etc/passwd
+              read_only: true
+              bind:
+                  create_host_path: false
+            - type: bind
+              source: ${FELIX3_LOCAL_POSTGRES_HBA:?preserve baseline and add private peer prefix}
+              target: ${FELIX3_LOCAL_POSTGRES_HBA_PATH:?read server hba_file first}
+              read_only: true
+              bind:
+                  create_host_path: false
+            - type: bind
+              source: ${FELIX3_LOCAL_POSTGRES_IDENT:?preserve baseline and add exact registry map}
+              target: ${FELIX3_LOCAL_POSTGRES_IDENT_PATH:?read server ident_file first}
+              read_only: true
+              bind:
+                  create_host_path: false
+    harvest:
+        user: "${FELIX3_LOCAL_OFFICER_UID:?check collision on both images}:${FELIX3_LOCAL_OFFICER_GID:?assign matching private group}"
+        group_add:
+            - "${FELIX3_LOCAL_HARVEST_PRIVATE_GID:?dedicated read-only group for root-owned Harvest files}"
+        volumes:
+            - type: bind
+              source: ${FELIX3_LOCAL_HARVEST_PASSWD:?prepare from the exact installed image}
+              target: /etc/passwd
+              read_only: true
+              bind:
+                  create_host_path: false
+            - type: bind
+              source: ${FELIX3_LOCAL_POSTGRES_SOCKET_DIR:?share exactly the installed database socket}
+              target: /run/sequent-felix3-local-initialize/postgres
+              read_only: true
+              bind:
+                  create_host_path: false

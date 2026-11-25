@@ -271,7 +271,9 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
                                 />
                             }
                             label={t(
-                                trustee ? "signing.rule.trusteesSign" : "signing.rule.needsSignatures"
+                                trustee
+                                    ? "signing.rule.trusteesSign"
+                                    : "signing.rule.needsSignatures"
                             )}
                         />
                     )}

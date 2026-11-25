@@ -43,7 +43,9 @@ use crate::services::reports::report_variables::configuration_stamp_without_temp
 use crate::services::signing::actions::transmission::{
     guard_transmission_package, sha256_hex, PackageToSign,
 };
-use crate::services::signing::operational_policy::{signing_mode_for_event, OperationalSigningMode};
+use crate::services::signing::operational_policy::{
+    signing_mode_for_event, OperationalSigningMode,
+};
 use crate::services::signing::SigningCaller;
 use crate::types::miru_plugin::{
     MiruCcsServer, MiruDocument, MiruDocumentHashes, MiruDocumentIds, MiruSignature,

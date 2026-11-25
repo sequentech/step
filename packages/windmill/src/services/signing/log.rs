@@ -26,8 +26,8 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::signing::{
     fetch_unposted_signing_log_outbox_rows, insert_signing_log_outbox,
     list_signing_log_outbox_events, lock_signing_event, mark_signing_log_outbox_failed,
-    mark_signing_log_outbox_posted, try_lock_signing_log_worker, unposted_signing_log_outbox_span,
-    unposted_signing_log_outbox_batch, NewSigningLogOutboxEntry, SigningLogOutboxRow,
+    mark_signing_log_outbox_posted, try_lock_signing_log_worker, unposted_signing_log_outbox_batch,
+    unposted_signing_log_outbox_span, NewSigningLogOutboxEntry, SigningLogOutboxRow,
     SigningLogOutboxUser,
 };
 use crate::services::election_event_board::get_election_event_board;
@@ -814,16 +814,12 @@ impl SigningLogKeys for ElectoralLogKeys {
     ) -> Result<String> {
         let (tenant, event) = (tenant_id.to_string(), election_event_id.to_string());
         let transaction = client.transaction().await?;
-        let election_event =
-            get_election_event_by_id(&transaction, &tenant, &event).await?;
+        let election_event = get_election_event_by_id(&transaction, &tenant, &event).await?;
         let board = get_election_event_board(election_event.bulletin_board_reference)
-            .ok_or_else(|| {
-            anyhow!("The election event has no electoral-log board")
-        })?;
+            .ok_or_else(|| anyhow!("The election event has no electoral-log board"))?;
         if self.system.is_none() {
-            self.system = Some(
-                ElectoralLog::new(&transaction, &tenant, Some(&event), &board).await?,
-            );
+            self.system =
+                Some(ElectoralLog::new(&transaction, &tenant, Some(&event), &board).await?);
         }
         transaction.commit().await?;
         for user in users {
@@ -882,9 +878,7 @@ impl SigningLogKeys for ElectoralLogKeys {
         };
         electoral_log
             .map(|electoral_log| &electoral_log.sd)
-            .ok_or_else(|| {
-                anyhow!("No signing key loaded for signing log row {}", row.id)
-            })
+            .ok_or_else(|| anyhow!("No signing key loaded for signing log row {}", row.id))
     }
 }
 

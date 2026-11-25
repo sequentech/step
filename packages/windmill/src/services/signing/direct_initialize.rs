@@ -7,7 +7,9 @@
 //! caller and talks to the installed private PKCS#11 signer.
 
 use super::approve::{approve_direct, sign_refusal, ApproveOutcome, SigningServices};
-use super::operational_policy::local_scope::{action_latch, read_latch, request_latch, DirectProtocol, Latch};
+use super::operational_policy::local_scope::{
+    action_latch, read_latch, request_latch, DirectProtocol, Latch,
+};
 use super::operational_policy::lock_signing_policy;
 use super::requests::{is_overdue, read_request, relock};
 use super::{SigningCaller, SigningError, SigningResult};
@@ -173,9 +175,14 @@ pub(super) async fn verify_installation(
 
 /// V2 may describe another event, but never another mounted device, tenant
 /// or a rewritten historical V1 anchor. SQL separately verifies the root.
-pub(super) fn verify_multi_event_device(tenant: Uuid, event: Uuid, installation: Uuid) -> Result<()> {
+pub(super) fn verify_multi_event_device(
+    tenant: Uuid,
+    event: Uuid,
+    installation: Uuid,
+) -> Result<()> {
     ensure!(
-        installed()?.is_some_and(|i| i.tenant == tenant && i.event != event
+        installed()?.is_some_and(|i| i.tenant == tenant
+            && i.event != event
             && i.installation == installation),
         "No matching direct HSM device for this event"
     );

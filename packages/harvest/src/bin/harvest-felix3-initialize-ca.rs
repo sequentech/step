@@ -9,7 +9,9 @@ async fn main() -> ExitCode {
     if std::env::args_os().count() == 1 {
         match harvest::local_initialize_ca::serve().await {
             Ok(()) => return ExitCode::SUCCESS,
-            Err(error) => eprintln!("The Felix3 CA assessment failed ({error})."),
+            Err(error) => {
+                eprintln!("The Felix3 CA assessment failed ({error}).")
+            }
         }
     } else {
         eprintln!("The private CA assessment executable takes no arguments.");

@@ -3,7 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {createHash, randomUUID, webcrypto} from "node:crypto"
-import {reviewedDirectAction, reviewedInitializePost, signingExperience} from "./operationalApprovalPolicy"
+import {
+    reviewedDirectAction,
+    reviewedInitializePost,
+    signingExperience,
+} from "./operationalApprovalPolicy"
 import {
     PayloadMismatchError,
     PayloadProblem,
@@ -217,20 +221,37 @@ describe("payloadToSign", () => {
     it("local Initialize reviews the same Post and publication as the canonical request", async () => {
         const post = randomUUID()
         const subject = {publication_id: randomUUID()}
-        const payload = {...JSON.parse(CANONICAL), action: SigningAction.InitializeVoting,
-            tenant_id: randomUUID(), election_event_id: randomUUID(), request_id: randomUUID(),
-            election_id: post, subject}
+        const payload = {
+            ...JSON.parse(CANONICAL),
+            action: SigningAction.InitializeVoting,
+            tenant_id: randomUUID(),
+            election_event_id: randomUUID(),
+            request_id: randomUUID(),
+            election_id: post,
+            subject,
+        }
         const canonical = canonicalJson(payload)
-        const data = panel({action: SigningAction.InitializeVoting, id: payload.request_id,
-            tenant_id: payload.tenant_id, election_event_id: payload.election_event_id,
-            election_id: post, subject, canonical_payload: canonical, payload_sha256: sha256Hex(canonical)})
+        const data = panel({
+            action: SigningAction.InitializeVoting,
+            id: payload.request_id,
+            tenant_id: payload.tenant_id,
+            election_event_id: payload.election_event_id,
+            election_id: post,
+            subject,
+            canonical_payload: canonical,
+            payload_sha256: sha256Hex(canonical),
+        })
         const {view} = await payloadToSign(data)
         expect(reviewedInitializePost(data.request, view)).toBe(true)
         for (const patch of [
-            {action: SigningAction.OpenVoting}, {action: SigningAction.GenerateReports},
-            {election_id: null}, {election_id: randomUUID()},
-            {subject: {publication_id: null}}, {subject: {publication_id: randomUUID()}},
-        ]) expect(reviewedInitializePost({...data.request, ...patch}, view)).toBe(false)
+            {action: SigningAction.OpenVoting},
+            {action: SigningAction.GenerateReports},
+            {election_id: null},
+            {election_id: randomUUID()},
+            {subject: {publication_id: null}},
+            {subject: {publication_id: randomUUID()}},
+        ])
+            expect(reviewedInitializePost({...data.request, ...patch}, view)).toBe(false)
     })
     it.each(Object.values(SigningAction))("uses one direct reviewer for %s", async (action) => {
         const post = randomUUID()
@@ -238,9 +259,11 @@ describe("payloadToSign", () => {
         const trustee = randomUUID()
         const hash = "ab".repeat(32)
         const isTrustee =
-            action === SigningAction.ConfirmCustodyProof || action === SigningAction.ContributeCustodyProof
+            action === SigningAction.ConfirmCustodyProof ||
+            action === SigningAction.ContributeCustodyProof
         const isPdf =
-            action === SigningAction.GenerateElectionReturns || action === SigningAction.GenerateReports
+            action === SigningAction.GenerateElectionReturns ||
+            action === SigningAction.GenerateReports
         const isEml = action === SigningAction.TransmitResults
         const electionId = isTrustee || action === SigningAction.ApproveConfiguration ? null : post
         const subject =
@@ -255,30 +278,54 @@ describe("payloadToSign", () => {
                       : isEml
                         ? {eml_sha256: hash}
                         : action === SigningAction.AuthorizeManualVerification
-                          ? {voter_id: randomUUID(), initiation_id: randomUUID(), area_id: randomUUID(), post_id: post, requester_id: "u-maria"}
+                          ? {
+                                voter_id: randomUUID(),
+                                initiation_id: randomUUID(),
+                                area_id: randomUUID(),
+                                post_id: post,
+                                requester_id: "u-maria",
+                            }
                           : {reason: "Frozen review"}
-        const payload = {...JSON.parse(CANONICAL), action, requested_by: "u-maria", election_id: electionId, subject}
-        const canonical = canonicalJson(payload)
-        const data = {...panel({
+        const payload = {
+            ...JSON.parse(CANONICAL),
             action,
+            requested_by: "u-maria",
             election_id: electionId,
-            trustee_id: isTrustee ? trustee : null,
-            document_sha256: isPdf || isEml ? hash : null,
             subject,
-            canonical_payload: canonical,
-            payload_sha256: sha256Hex(canonical),
-        }), details: []}
+        }
+        const canonical = canonicalJson(payload)
+        const data = {
+            ...panel({
+                action,
+                election_id: electionId,
+                trustee_id: isTrustee ? trustee : null,
+                document_sha256: isPdf || isEml ? hash : null,
+                subject,
+                canonical_payload: canonical,
+                payload_sha256: sha256Hex(canonical),
+            }),
+            details: [],
+        }
         const {view} = await payloadToSign(data)
         expect(signingExperience("hsm-demo-direct-action", action)).toBe("direct")
         expect(signingExperience("hsm-demo-raw", action)).toBe(
             action === SigningAction.InitializeVoting ? "direct" : "unavailable"
         )
         expect(reviewedDirectAction(data.request, view)).toBe(true)
-        expect(reviewedDirectAction(data.request, {...view, payload: {...view.payload, action: "other"}})).toBe(false)
+        expect(
+            reviewedDirectAction(data.request, {
+                ...view,
+                payload: {...view.payload, action: "other"},
+            })
+        ).toBe(false)
         if (isTrustee)
-            expect(reviewedDirectAction({...data.request, trustee_id: randomUUID()}, view)).toBe(false)
+            expect(reviewedDirectAction({...data.request, trustee_id: randomUUID()}, view)).toBe(
+                false
+            )
         if (isPdf || isEml)
-            expect(reviewedDirectAction({...data.request, document_sha256: "00".repeat(32)}, view)).toBe(false)
+            expect(
+                reviewedDirectAction({...data.request, document_sha256: "00".repeat(32)}, view)
+            ).toBe(false)
     })
 
     it("cannot turn an unknown or unavailable action mode into P12 or direct signing", () => {

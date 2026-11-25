@@ -30,16 +30,13 @@ const mockEvents = [
 const report = (passed = true) => ({
     passed,
     checked_at: "2026-10-16T09:00:00Z",
-    checks: [
-        "configuration",
-        "certified_voters",
-        "official_zero",
-        "tested_finished",
-    ].map((kind) => ({
-        kind,
-        passed: passed || kind !== "certified_voters",
-        message: "Server explanation",
-    })),
+    checks: ["configuration", "certified_voters", "official_zero", "tested_finished"].map(
+        (kind) => ({
+            kind,
+            passed: passed || kind !== "certified_voters",
+            message: "Server explanation",
+        })
+    ),
     evidence: {official: {event_id: official}, tested: {event_id: tested}},
     log_entry_id: passed ? "signed-entry-1" : null,
 })
@@ -139,7 +136,9 @@ it("runs as readiness-check and displays and downloads the signed report", async
 it("does not render an old passing official-publication check as a live row", async () => {
     const oldCheck = {kind: "publication", passed: true, message: "Legacy official publication"}
     const old = report()
-    mockRun.mockResolvedValue({data: {readiness_check: {...old, checks: [...old.checks, oldCheck]}}})
+    mockRun.mockResolvedValue({
+        data: {readiness_check: {...old, checks: [...old.checks, oldCheck]}},
+    })
     open()
     select()
     await run()
@@ -184,8 +183,7 @@ it("explains each failed check beside the server's own condition", async () => {
     select()
     fireEvent.click(screen.getByRole("button", {name: "readiness.run"}))
     expect(await screen.findByText("readiness.failed")).toBeVisible()
-    for (let index = 0; index < 5; index++)
-        expect(screen.getByText(`Server condition ${index}`)).toBeVisible()
+    for (const check of failed.checks) expect(screen.getByText(check.message)).toBeVisible()
     expect(screen.getByText("readiness.findings.registry_count_changed")).toBeVisible()
     expect(screen.getByText("A newer server detail")).toBeVisible()
     // An older server's failure has no findings: say so rather than invent one.

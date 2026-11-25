@@ -7,8 +7,8 @@
 //! checked database approval are both required, in the caller's transaction.
 
 use super::{
-    direct_hsm_approval_build, lock_signing_policy, signing_mode,
-    LegacySigningBlocked as Blocked, OperationalSigningMode as Mode,
+    direct_hsm_approval_build, lock_signing_policy, signing_mode, LegacySigningBlocked as Blocked,
+    OperationalSigningMode as Mode,
 };
 use crate::postgres::signing::SigningRequestRow;
 use crate::postgres::signing_actions::published_publication_of_post;
@@ -401,7 +401,10 @@ async fn pending_direct_proofs_match(
 ) -> Result<bool> {
     // Preserve historical evidence. Never combine an unfinished legacy or
     // different-protocol approval with a new HSM approval on the same request.
-    if !matches!(row.status, SigningRequestStatus::Waiting | SigningRequestStatus::Completed) {
+    if !matches!(
+        row.status,
+        SigningRequestStatus::Waiting | SigningRequestStatus::Completed
+    ) {
         return Ok(true);
     }
     let (required, different) = match protocol {
@@ -410,7 +413,13 @@ async fn pending_direct_proofs_match(
     };
     tx.query_one(
         PENDING_DIRECT_PROOFS_MATCH,
-        &[&row.tenant_id, &row.election_event_id, &row.id, &required, &different],
+        &[
+            &row.tenant_id,
+            &row.election_event_id,
+            &row.id,
+            &required,
+            &different,
+        ],
     )
     .await
     .map_err(|_| Blocked::ScopeUnavailable)?
@@ -438,11 +447,11 @@ pub(in crate::services::signing) async fn request_mode_and_latch(
         (Mode::HsmRequired, Some(latch))
     } else {
         for_target(
-        tx,
-        row.tenant_id,
-        row.election_event_id,
-        row.action,
-        Target::Intent(row.election_id, row.area_id, &row.subject),
+            tx,
+            row.tenant_id,
+            row.election_event_id,
+            row.action,
+            Target::Intent(row.election_id, row.area_id, &row.subject),
         )
         .await?
     };

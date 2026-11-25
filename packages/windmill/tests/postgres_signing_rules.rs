@@ -372,10 +372,20 @@ async fn capacity_of(
 async fn hsm_capacity_can_read_all_actions_before_their_first_rule() {
     let (post, other) = LABELS[0];
     let w = world(post).await;
-    w.rule(SigningAction::ApproveConfiguration, 1, RequesterSigning::Allowed, None)
-        .await;
-    w.rule(SigningAction::InitializeVoting, 2, RequesterSigning::NotAllowed, None)
-        .await;
+    w.rule(
+        SigningAction::ApproveConfiguration,
+        1,
+        RequesterSigning::Allowed,
+        None,
+    )
+    .await;
+    w.rule(
+        SigningAction::InitializeVoting,
+        2,
+        RequesterSigning::NotAllowed,
+        None,
+    )
+    .await;
 
     let mut hasura = w.pool.get().await.unwrap();
     let htx = hasura.transaction().await.unwrap();
@@ -420,34 +430,64 @@ async fn hsm_capacity_can_read_all_actions_before_their_first_rule() {
             SigningAction::ApproveConfiguration => {
                 assert_eq!(strict.unwrap().required(), 1);
                 assert_eq!(found.max, 2);
-                assert_eq!(found.roles.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(), ["g-sbei"]);
+                assert_eq!(
+                    found
+                        .roles
+                        .iter()
+                        .map(|r| r.id.as_str())
+                        .collect::<Vec<_>>(),
+                    ["g-sbei"]
+                );
                 assert!(found.posts_short_without_requester.is_empty());
             }
             SigningAction::InitializeVoting => {
                 assert_eq!(strict.unwrap().required(), 2);
                 assert_eq!(found.max, 2);
-                assert_eq!(found.posts_short.iter().map(|p| p.election_id).collect::<Vec<_>>(), [other_post]);
+                assert_eq!(
+                    found
+                        .posts_short
+                        .iter()
+                        .map(|p| p.election_id)
+                        .collect::<Vec<_>>(),
+                    [other_post]
+                );
                 assert_eq!(found.posts_short_without_requester.len(), 2);
             }
             SigningAction::CloseVoting => {
-                assert!(strict.is_err(), "A capacity default must not authorize editing or executing an action");
+                assert!(
+                    strict.is_err(),
+                    "A capacity default must not authorize editing or executing an action"
+                );
                 assert_eq!(found.max, 2);
                 assert!(found.posts_short.is_empty());
-                assert_eq!(found.posts_short_without_requester.iter().map(|p| p.election_id).collect::<Vec<_>>(), [other_post]);
+                assert_eq!(
+                    found
+                        .posts_short_without_requester
+                        .iter()
+                        .map(|p| p.election_id)
+                        .collect::<Vec<_>>(),
+                    [other_post]
+                );
             }
             _ => {
-                assert!(strict.is_err(), "Capacity is readable; execution still needs a required rule");
+                assert!(
+                    strict.is_err(),
+                    "Capacity is readable; execution still needs a required rule"
+                );
                 assert!(found.roles.is_empty());
             }
         }
     }
-    assert_eq!(read_count, 10);
+    assert_eq!(read_count, SigningAction::iter().count());
 
     // Actual manual custody still uses the strict shared tally gate, not
     // the zero-report worker's separately authenticated automated case.
     assert!(
         windmill::services::signing::custody_proofs::tally_trustee_signatures(
-            &htx, &w.tenant.to_string(), &w.event.to_string(), &Uuid::new_v4().to_string(),
+            &htx,
+            &w.tenant.to_string(),
+            &w.event.to_string(),
+            &Uuid::new_v4().to_string(),
         )
         .await
         .is_err()
@@ -464,9 +504,20 @@ async fn hsm_capacity_can_read_all_actions_before_their_first_rule() {
         Some(RequesterSigning::Allowed),
     )
     .await;
-    assert_eq!(proposed.posts_short.iter().map(|p| p.election_id).collect::<Vec<_>>(), [other_post]);
+    assert_eq!(
+        proposed
+            .posts_short
+            .iter()
+            .map(|p| p.election_id)
+            .collect::<Vec<_>>(),
+        [other_post]
+    );
     assert!(proposed.posts_short_without_requester.is_empty());
-    assert!(effective_rule(&htx, w.tenant, w.event, SigningAction::CloseVoting).await.is_err());
+    assert!(
+        effective_rule(&htx, w.tenant, w.event, SigningAction::CloseVoting)
+            .await
+            .is_err()
+    );
 }
 
 #[tokio::test]

@@ -30,10 +30,11 @@ interface TabScope {
     attempt: string
     page: IReturnPage
 }
-export type ITabMarker = TabScope & (
-    | {purpose?: undefined; payloadSha256?: undefined}
-    | {purpose: "initialize-setup"; payloadSha256: string}
-)
+export type ITabMarker = TabScope &
+    (
+        | {purpose?: undefined; payloadSha256?: undefined}
+        | {purpose: "initialize-setup"; payloadSha256: string}
+    )
 export const isReviewedDigest = (v: unknown): v is string =>
     typeof v === "string" && v.length === 64 && !/[^0-9a-f]/.test(v)
 export type ReturnSecret = {state: string; code: string; issuer?: string}
@@ -164,15 +165,15 @@ export function captureGoldReturn(
     const local = localInitializeBuild(location.origin)
     const accepted =
         location.protocol === "https:" ||
-        (local && location.protocol === "http:" &&
+        (local &&
+            location.protocol === "http:" &&
             location.href === location.origin + INITIALIZE_RETURN_PATH + fragment)
     try {
         clean(INITIALIZE_RETURN_PATH)
     } catch {
         return undefined
     }
-    if (!accepted || query || !fragment.startsWith("#") || fragment.length > 8192)
-        return undefined
+    if (!accepted || query || !fragment.startsWith("#") || fragment.length > 8192) return undefined
     const parts = new URLSearchParams(fragment.slice(1))
     const keys = Array.from(parts.keys())
     if (

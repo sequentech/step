@@ -636,31 +636,49 @@ mod automatic_hsm_report_tests {
     #[test]
     fn dedicated_automatic_zero_report_does_not_replace_any_other_custody_path() {
         let automatic = CeremoniesPolicy::AUTOMATED_CEREMONIES;
-        assert!(is_automated_hsm_report(true, Some("INITIALIZATION_REPORT"), automatic.clone()));
-        assert!(!is_automated_hsm_report(
-            true, Some("INITIALIZATION_REPORT"), CeremoniesPolicy::MANUAL_CEREMONIES,
+        assert!(is_automated_hsm_report(
+            true,
+            Some("INITIALIZATION_REPORT"),
+            automatic.clone()
         ));
-        assert!(!is_automated_hsm_report(true, Some("ELECTORAL_RESULTS"), automatic.clone()));
-        assert!(!is_automated_hsm_report(true, Some("unrecognized"), automatic.clone()));
-        assert!(!is_automated_hsm_report(false, Some("INITIALIZATION_REPORT"), automatic));
+        assert!(!is_automated_hsm_report(
+            true,
+            Some("INITIALIZATION_REPORT"),
+            CeremoniesPolicy::MANUAL_CEREMONIES,
+        ));
+        assert!(!is_automated_hsm_report(
+            true,
+            Some("ELECTORAL_RESULTS"),
+            automatic.clone()
+        ));
+        assert!(!is_automated_hsm_report(
+            true,
+            Some("unrecognized"),
+            automatic.clone()
+        ));
+        assert!(!is_automated_hsm_report(
+            false,
+            Some("INITIALIZATION_REPORT"),
+            automatic
+        ));
         let empty_batch: &[(i64, Vec<u8>)] = &[(1, vec![])];
         let another_empty_batch: &[(i64, Vec<u8>)] = &[(2, vec![])];
         let one_ciphertext: &[(i64, Vec<u8>)] = &[(3, vec![1])];
-        assert!(
-            check_automated_report_has_no_ballots(
-                true,
-                [empty_batch, another_empty_batch].into_iter(),
-            )
-            .is_ok()
-        );
-        assert!(
-            check_automated_report_has_no_ballots(true, [empty_batch, one_ciphertext].into_iter())
-                .is_err()
-        );
-        assert!(
-            check_automated_report_has_no_ballots(false, [empty_batch, one_ciphertext].into_iter())
-                .is_ok()
-        );
+        assert!(check_automated_report_has_no_ballots(
+            true,
+            [empty_batch, another_empty_batch].into_iter(),
+        )
+        .is_ok());
+        assert!(check_automated_report_has_no_ballots(
+            true,
+            [empty_batch, one_ciphertext].into_iter()
+        )
+        .is_err());
+        assert!(check_automated_report_has_no_ballots(
+            false,
+            [empty_batch, one_ciphertext].into_iter()
+        )
+        .is_ok());
     }
 
     #[test]
@@ -682,14 +700,14 @@ mod automatic_hsm_report_tests {
             select_trustees(available, 2),
             TrusteeSelection::Ready(vec!["alice".to_owned(), "bob".to_owned()])
         );
-        let only_one = eligible_trustees(
-            trustees[..1].to_vec(),
-            auto,
-            &TrusteeSignatures::NotNeeded,
-        );
+        let only_one =
+            eligible_trustees(trustees[..1].to_vec(), auto, &TrusteeSignatures::NotNeeded);
         assert_eq!(
             select_trustees(only_one, 2),
-            TrusteeSelection::Insufficient { available: 1, threshold: 2 }
+            TrusteeSelection::Insufficient {
+                available: 1,
+                threshold: 2
+            }
         );
         let only_one = eligible_trustees(
             trustees.to_vec(),
@@ -701,10 +719,12 @@ mod automatic_hsm_report_tests {
         );
         assert_eq!(
             select_trustees(only_one, 2),
-            TrusteeSelection::Insufficient { available: 1, threshold: 2 }
+            TrusteeSelection::Insufficient {
+                available: 1,
+                threshold: 2
+            }
         );
     }
-
 }
 
 /// Choose the session's quorum, extract its ballots into one signed `Ballots`

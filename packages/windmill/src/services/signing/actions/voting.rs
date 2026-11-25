@@ -602,8 +602,11 @@ impl SealRecord {
         let mut signatures: Vec<ClosingSignature> = approvals
             .iter()
             .filter_map(|approval| {
-                let (subject, common_name) =
-                    approval.certificate_pem.as_deref().map(certificate_names).unwrap_or_default();
+                let (subject, common_name) = approval
+                    .certificate_pem
+                    .as_deref()
+                    .map(certificate_names)
+                    .unwrap_or_default();
                 Some(ClosingSignature {
                     user_id: approval.user_id.clone(),
                     username: approval.username.clone(),

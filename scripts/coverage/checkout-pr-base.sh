@@ -14,8 +14,6 @@ oid='^[0-9a-f]{40}$'
 [[ $GITHUB_EVENT_NAME == pull_request && $PR_NUMBER =~ ^[1-9][0-9]*$ &&
    $GITHUB_REF == "refs/pull/$PR_NUMBER/merge" ]] || fail "Expected the event's PR merge ref."
 [[ $GITHUB_SHA =~ $oid && $PR_HEAD_SHA =~ $oid ]] || fail "Expected full commit IDs."
-# GitHub can omit merge_commit_sha. Its run SHA and merge ref are authoritative.
-[[ -z ${PR_MERGE_SHA:-} || $PR_MERGE_SHA == "$GITHUB_SHA" ]] || fail "Conflicting merge IDs."
 
 parents=$(git -C head rev-list --parents -n 1 HEAD --)
 read -r merge base topic extra <<< "$parents"

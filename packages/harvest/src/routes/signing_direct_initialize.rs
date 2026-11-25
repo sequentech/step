@@ -1,9 +1,10 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 //! Authenticated ordinary Admin Portal ingress. Only the matched private
 //! PKCS#11 device accepts a reservation, not a browser-supplied sign message.
 use super::{
-    hasura, internal, require, signing_failure, tenant_of, uuid_of, writer, HarvestServices,
-    RequestIdOutput, SigningFailure, SigningReply,
+    hasura, internal, require, signing_failure, tenant_of, uuid_of, writer,
+    HarvestServices, RequestIdOutput, SigningFailure, SigningReply,
 };
 use anyhow::{ensure, Context, Result};
 use chrono::{DateTime, Utc};
@@ -17,7 +18,10 @@ use rocket::serde::json::Json;
 use rocket::{routes, Build, Rocket, State};
 use sequent_core::{services::jwt::JwtClaims, types::permissions::Permissions};
 use serde::{Deserialize, Serialize};
-use std::{fs, io::Read, net::SocketAddrV4, os::unix::fs::MetadataExt, path::Path, time::Duration};
+use std::{
+    fs, io::Read, net::SocketAddrV4, os::unix::fs::MetadataExt, path::Path,
+    time::Duration,
+};
 use uuid::Uuid;
 use windmill::services::signing::direct_actions::{self, DirectReservation};
 use windmill::services::signing::direct_initialize::{
@@ -69,7 +73,9 @@ fn protected(name: &str, private: bool) -> Option<Vec<u8>> {
     }
     let file = fs::File::open(path).ok()?;
     let opened = file.metadata().ok()?;
-    if (opened.dev(), opened.ino()) != (meta.dev(), meta.ino()) || opened.len() > 65536 {
+    if (opened.dev(), opened.ino()) != (meta.dev(), meta.ino())
+        || opened.len() > 65536
+    {
         return None;
     }
     let mut buf = Vec::new();
@@ -117,9 +123,10 @@ impl DirectDevice {
                     == registration.device_ca_sha256,
             "Unexpected private direct-device transport authority"
         );
-        let cert =
-            protected("client.pem", false).context("Missing direct-device client identity")?;
-        let client_spki = X509::from_pem(&cert)?.public_key()?.public_key_to_der()?;
+        let cert = protected("client.pem", false)
+            .context("Missing direct-device client identity")?;
+        let client_spki =
+            X509::from_pem(&cert)?.public_key()?.public_key_to_der()?;
         ensure!(
             hex::encode(openssl::sha::sha256(&client_spki))
                 == registration.harvest_client_spki_sha256,
@@ -143,7 +150,8 @@ impl DirectDevice {
             .pool_max_idle_per_host(0)
             .min_tls_version(reqwest::tls::Version::TLS_1_2)
             .build()?;
-        let url = Url::parse(&format!("https://{addr}/"))?.join(DEVICE_ROUTE)?;
+        let url =
+            Url::parse(&format!("https://{addr}/"))?.join(DEVICE_ROUTE)?;
         let mut key = protected("authorization-key.pem", true)
             .context("Missing private direct HSM authorization key")?;
         let authorization_key = PKey::private_key_from_pem(&key);
@@ -189,7 +197,9 @@ impl DirectDevice {
             return Err(unavailable());
         }
         let proof_message = scope.message(nonce).map_err(signing_failure)?;
-        let mut envelope = Vec::with_capacity(AUTHORITY_DOMAIN.len() + 24 + proof_message.len());
+        let mut envelope = Vec::with_capacity(
+            AUTHORITY_DOMAIN.len() + 24 + proof_message.len(),
+        );
         envelope.extend_from_slice(AUTHORITY_DOMAIN);
         envelope.extend_from_slice(reservation_id.as_bytes());
         envelope.extend_from_slice(&expires_at_unix.to_be_bytes());
@@ -311,22 +321,31 @@ impl DirectDevice {
             .send()
             .await
             .map_err(|_| unavailable())?;
-        if reply.status() != StatusCode::OK || reply.content_length().is_some_and(|n| n > 1024) {
+        if reply.status() != StatusCode::OK
+            || reply.content_length().is_some_and(|n| n > 1024)
+        {
             return Err(unavailable());
         }
         let mut raw = Vec::new();
-        while let Some(bytes) = reply.chunk().await.map_err(|_| unavailable())? {
+        while let Some(bytes) =
+            reply.chunk().await.map_err(|_| unavailable())?
+        {
             if raw.len() + bytes.len() > 1024 {
                 return Err(unavailable());
             }
             raw.extend_from_slice(&bytes);
         }
-        let proof: Proof = serde_json::from_slice(&raw).map_err(|_| unavailable())?;
-        if proof.reservation_id != reservation_id || proof.profile != "softhsm-test" {
+        let proof: Proof =
+            serde_json::from_slice(&raw).map_err(|_| unavailable())?;
+        if proof.reservation_id != reservation_id
+            || proof.profile != "softhsm-test"
+        {
             return Err(unavailable());
         }
-        let spki = decode_lower(&proof.spki_der_hex, 91, 91).ok_or_else(unavailable)?;
-        let sig = decode_lower(&proof.signature_der_hex, 8, 72).ok_or_else(unavailable)?;
+        let spki = decode_lower(&proof.spki_der_hex, 91, 91)
+            .ok_or_else(unavailable)?;
+        let sig = decode_lower(&proof.signature_der_hex, 8, 72)
+            .ok_or_else(unavailable)?;
         Ok((spki, sig))
     }
 }
@@ -361,9 +380,12 @@ pub(crate) async fn direct_initialize_approval(
         ));
     }
     let request = uuid_of(&body.request_id, "request_id")?;
-    let digest = decode_lower(&body.payload_sha256, 32, 32).ok_or_else(|| {
-        SigningFailure::invalid("payload_sha256 must name the reviewed request digest")
-    })?;
+    let digest =
+        decode_lower(&body.payload_sha256, 32, 32).ok_or_else(|| {
+            SigningFailure::invalid(
+                "payload_sha256 must name the reviewed request digest",
+            )
+        })?;
     let caller = writer(&claims, tenant, services).await?;
     let mut client = hasura(services).await?;
 
@@ -387,13 +409,15 @@ pub(crate) async fn direct_initialize_approval(
     ).await.map_err(internal)?.ok_or_else(unavailable)?;
     let reservation: Uuid = held.try_get("id").map_err(internal)?;
     let nonce: Uuid = held.try_get("nonce").map_err(internal)?;
-    let deadline: DateTime<Utc> = held.try_get("expires_at").map_err(internal)?;
+    let deadline: DateTime<Utc> =
+        held.try_get("expires_at").map_err(internal)?;
     tx.commit().await.map_err(internal)?;
 
     let (spki, signature) = device
         .sign(reservation, nonce, deadline, &scope, &body.payload_sha256)
         .await?;
-    verify_signature(&scope, nonce, &spki, &signature).map_err(signing_failure)?;
+    verify_signature(&scope, nonce, &spki, &signature)
+        .map_err(signing_failure)?;
     let tx = client.transaction().await.map_err(internal)?;
     let recorded: bool = tx
         .query_one(
@@ -421,7 +445,11 @@ pub(crate) async fn direct_initialize_approval(
 
 // The request, JWT, and database policy determine the action and scope.
 // Hasura's roles are an additional gate, not authority to choose an action.
-#[rocket::post("/signing-requests/direct-action", format = "json", data = "<body>")]
+#[rocket::post(
+    "/signing-requests/direct-action",
+    format = "json",
+    data = "<body>"
+)]
 pub(crate) async fn direct_action_approval(
     claims: JwtClaims,
     services: &State<HarvestServices>,
@@ -443,9 +471,15 @@ pub(crate) async fn direct_action_approval(
     let caller = writer(&claims, tenant, services).await?;
     let mut client = hasura(services).await?;
     let tx = client.transaction().await.map_err(internal)?;
-    let operation = direct_actions::authorize(&tx, &caller, tenant, request, &body.payload_sha256)
-        .await
-        .map_err(signing_failure)?;
+    let operation = direct_actions::authorize(
+        &tx,
+        &caller,
+        tenant,
+        request,
+        &body.payload_sha256,
+    )
+    .await
+    .map_err(signing_failure)?;
     if direct_actions::already_approved(&tx, &operation)
         .await
         .map_err(signing_failure)?
@@ -464,19 +498,29 @@ pub(crate) async fn direct_action_approval(
 
     let (spki, signature) = device.sign_action(&held, &operation).await?;
     let tx = client.transaction().await.map_err(internal)?;
-    let proof = direct_actions::verify_and_pin(&tx, &operation, held, &spki, &signature)
-        .await
-        .map_err(signing_failure)?;
+    let proof = direct_actions::verify_and_pin(
+        &tx, &operation, held, &spki, &signature,
+    )
+    .await
+    .map_err(signing_failure)?;
     tx.commit().await.map_err(internal)?;
-    direct_actions::commit(&mut client, &services.signing, &caller, proof, Utc::now())
-        .await
-        .map_err(signing_failure)?;
+    direct_actions::commit(
+        &mut client,
+        &services.signing,
+        &caller,
+        proof,
+        Utc::now(),
+    )
+    .await
+    .map_err(signing_failure)?;
     Ok(Json(RequestIdOutput {
         request_id: request,
     }))
 }
 
-pub(crate) fn mount_direct_initialize(rocket: Rocket<Build>) -> Result<Rocket<Build>> {
+pub(crate) fn mount_direct_initialize(
+    rocket: Rocket<Build>,
+) -> Result<Rocket<Build>> {
     Ok(rocket.manage(DirectDevice::load()?).mount(
         "/",
         routes![direct_initialize_approval, direct_action_approval],
