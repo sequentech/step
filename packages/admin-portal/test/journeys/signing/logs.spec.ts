@@ -141,3 +141,63 @@ test("Election Event > Logs lists each signing step as a USER and a SYSTEM entry
         order_by: {id: "desc"},
     })
 })
+
+test("event log details show the complete HSM approver fingerprint, separate from the log signature", async ({
+    page,
+    portal,
+}) => {
+    mockSigningEvent(portal)
+    // Synthetic rows with the actual two HSM proof shapes, using the entry numbers under review.
+    const [system, user] = entries().filter(
+        (entry) => entry.statement_kind === "SigningRequestSigned"
+    )
+    const systemSignature = "f0".repeat(32)
+    const fixtures = [
+        {
+            id: 106,
+            entry: system,
+            proof: "direct-action-demo-pkcs11-v2",
+            fingerprint: "1e".repeat(32),
+        },
+        {id: 59, entry: user, proof: "initialize-voting-demo-pkcs11", fingerprint: "2f".repeat(32)},
+        {id: 58, entry: system, proof: "direct-action-demo-pkcs11-v2", fingerprint: "invalid"},
+        {id: 57, entry: user, proof: undefined, fingerprint: undefined},
+    ]
+    const items = fixtures.map(({id, entry, proof, fingerprint}) => {
+        const message = JSON.parse(entry.message)
+        message.system_signature = systemSignature
+        message.statement.body.Signing.details_json = JSON.stringify(
+            proof
+                ? {proof_kind: proof, spki_sha256: fingerprint}
+                : {certificate: {spki_sha256: "00".repeat(32)}}
+        )
+        return {...entry, id, message: JSON.stringify(message)}
+    })
+    portal.graphql.on("listElectoralLog", () => ({
+        data: {listElectoralLog: {items, total: {aggregate: {count: items.length}}}},
+    }))
+    await page.goto(`${portal.origin}${EVENT_URL}?lang=en`)
+    await page.getByRole("tab", {name: "Logs", exact: true}).click()
+    await expect(page.getByText("Approver key fingerprint", {exact: true})).toHaveCount(0)
+
+    for (const {id, fingerprint} of fixtures) {
+        await page.getByRole("cell", {name: String(id), exact: true}).click()
+        const dialog = page.getByRole("dialog", {name: `Log entry ${id}`, exact: true})
+        await expect(dialog.getByText("System signature", {exact: true})).toBeVisible()
+        await expect(dialog.getByTitle(systemSignature, {exact: true})).toBeVisible()
+        const field = dialog.getByText("Approver key fingerprint", {exact: true})
+        if (fingerprint?.length === 64) {
+            await expect(field).toBeVisible()
+            const value = dialog.getByText(fingerprint, {exact: true})
+            await expect(value).toBeVisible()
+            await value.dblclick()
+            await expect
+                .poll(() => page.evaluate(() => window.getSelection()?.toString()))
+                .toBe(fingerprint)
+        } else {
+            await expect(field).toHaveCount(0)
+        }
+        await dialog.getByRole("button", {name: "Close", exact: true}).click()
+        await expect(dialog).toBeHidden()
+    }
+})

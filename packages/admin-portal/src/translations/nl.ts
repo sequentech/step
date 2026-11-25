@@ -853,6 +853,7 @@ const dutchTranslation: TranslationType = {
                     adminKey: "Beheersleutel van {{name}}",
                     systemOnly: "Alleen de systeemsleutel van het log",
                     systemSignature: "Systeemhandtekening",
+                    approverKeyFingerprint: "Vingerafdruk van de sleutel van de goedkeurder",
                     publicKey: "Gepubliceerde beheersleutel",
                 },
             },

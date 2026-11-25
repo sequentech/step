@@ -1161,6 +1161,7 @@ const englishTranslation = {
                     adminKey: "{{name}}'s admin key",
                     systemOnly: "The log's system key only",
                     systemSignature: "System signature",
+                    approverKeyFingerprint: "Approver key fingerprint",
                     publicKey: "Published admin key",
                 },
             },

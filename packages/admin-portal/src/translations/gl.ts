@@ -844,6 +844,7 @@ const galegoTranslation: TranslationType = {
                     adminKey: "Clave de administración de {{name}}",
                     systemOnly: "Só a clave de sistema do rexistro",
                     systemSignature: "Sinatura do sistema",
+                    approverKeyFingerprint: "Pegada dixital da chave de quen aprobou",
                     publicKey: "Clave de administración publicada",
                 },
             },

@@ -1012,6 +1012,7 @@ const spanishTranslation: TranslationType = {
                     adminKey: "Clave de administración de {{name}}",
                     systemOnly: "Solo la clave de sistema de la bitácora",
                     systemSignature: "Firma del sistema",
+                    approverKeyFingerprint: "Huella de la clave de quien aprobó",
                     publicKey: "Clave de administración publicada",
                 },
             },

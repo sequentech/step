@@ -852,6 +852,7 @@ const tagalogTranslation: TranslationType = {
                     adminKey: "Admin key ni {{name}}",
                     systemOnly: "Ang system key lamang ng log",
                     systemSignature: "Lagda ng system",
+                    approverKeyFingerprint: "Fingerprint ng key ng nag-apruba",
                     publicKey: "Nai-publish na admin key",
                 },
             },

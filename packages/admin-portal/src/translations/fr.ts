@@ -851,6 +851,7 @@ const frenchTranslation: TranslationType = {
                     adminKey: "Clé d'administration de {{name}}",
                     systemOnly: "Uniquement la clé système du journal",
                     systemSignature: "Signature du système",
+                    approverKeyFingerprint: "Empreinte de la clé d’approbation",
                     publicKey: "Clé d'administration publiée",
                 },
             },

@@ -846,6 +846,7 @@ const basqueTranslation: TranslationType = {
                     adminKey: "{{name}} erabiltzailearen administrazio gakoa",
                     systemOnly: "Egunkariaren sistema gakoa soilik",
                     systemSignature: "Sistemaren sinadura",
+                    approverKeyFingerprint: "Onarpena eman duenaren gakoaren hatz-marka",
                     publicKey: "Argitaratutako administrazio gakoa",
                 },
             },

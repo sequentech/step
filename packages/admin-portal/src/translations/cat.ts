@@ -926,6 +926,7 @@ const catalanTranslation: TranslationType = {
                     adminKey: "Clau d'administració de {{name}}",
                     systemOnly: "Només la clau de sistema de la bitàcola",
                     systemSignature: "Signatura del sistema",
+                    approverKeyFingerprint: "Empremta de la clau de qui ha aprovat",
                     publicKey: "Clau d'administració publicada",
                 },
             },
