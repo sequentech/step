@@ -366,6 +366,10 @@ pub fn read_admin_rows(csv_bytes: &[u8]) -> Result<Vec<AdminRow>> {
             if ["username", "group_name"].contains(&header) {
                 continue;
             }
+            // A blank email cell is not an instruction to erase an existing address.
+            if header == "email" && value.trim().is_empty() {
+                continue;
+            }
             let value = if ["enabled", "email_verified"].contains(&header) {
                 match value.to_ascii_lowercase().as_str() {
                     "true" => "true".to_string(),
@@ -377,7 +381,11 @@ pub fn read_admin_rows(csv_bytes: &[u8]) -> Result<Vec<AdminRow>> {
                     }
                 }
             } else if header == "email" {
-                value.to_lowercase()
+                let email = value.trim().to_lowercase();
+                if email.len() > 254 || email.parse::<lettre::Address>().is_err() {
+                    return Err(anyhow!("administrator email is not an address"));
+                }
+                email
             } else {
                 value.to_string()
             };
@@ -515,15 +523,170 @@ pub fn preview_admin_permission_labels(
     }
 }
 
-/// Existing accounts may reconcile permission labels only. All other supplied
-/// fields, group membership and service-account safeguards remain strict.
+/// Explicit profile changes for an existing administrator; never include credentials.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AdminProfileUpdate {
+    pub email: Option<String>,
+    pub email_verified: Option<bool>,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+}
+
+fn admin_field_differs(existing: &ExistingAdmin, field: &str, value: &str) -> bool {
+    if matches!(field, "first_name" | "last_name") {
+        let name = value.trim();
+        return !name.is_empty()
+            && !existing.fields.get(field).is_some_and(|names| {
+                names.len() == 1 && names.iter().any(|current| current.trim() == name)
+            });
+    }
+    if field == "email" {
+        let email = value.trim().to_lowercase();
+        if email.is_empty() {
+            return false;
+        }
+        return !existing.fields.get(field).is_some_and(|addresses| {
+            addresses
+                .iter()
+                .any(|address| address.trim().to_lowercase() == email)
+        });
+    }
+    let expected: BTreeSet<_> = value.split('|').filter(|v| !v.is_empty()).collect();
+    let actual: BTreeSet<_> = existing
+        .fields
+        .get(field)
+        .into_iter()
+        .flatten()
+        .map(String::as_str)
+        .filter(|v| !v.is_empty())
+        .collect();
+    expected != actual
+}
+
+/// The route stamps AnyGroup only from USER_WRITE + ROLE_WRITE on this tenant.
+/// A package signature never supplies the operator's permissions.
+pub(super) fn profile_write_stamped(
+    privileges: &super::import_users::ImportUsersPrivileges,
+) -> bool {
+    matches!(
+        privileges.group_assignment,
+        super::import_users::GroupAssignmentPolicy::AnyGroup
+    )
+}
+
+pub fn admin_profile_updates(
+    wanted: &[AdminRow],
+    current: &BTreeMap<String, ExistingAdmin>,
+    verified: bool,
+) -> BTreeMap<String, AdminProfileUpdate> {
+    if !verified {
+        return BTreeMap::new();
+    }
+    wanted
+        .iter()
+        .filter_map(|row| {
+            let username = row.username.to_lowercase();
+            let existing = current.get(&username)?;
+            if existing.service_account {
+                return None;
+            }
+            let email = row
+                .fields
+                .get("email")
+                .filter(|value| admin_field_differs(existing, "email", value))
+                .cloned();
+            let flag = row.fields.get("email_verified");
+            let email_verified = if email.is_some() {
+                // Verification of the former address must not carry over implicitly.
+                Some(flag.is_some_and(|value| value == "true"))
+            } else {
+                flag.filter(|value| admin_field_differs(existing, "email_verified", value))
+                    .map(|value| value == "true")
+            };
+            let changed_name = |field| {
+                row.fields
+                    .get(field)
+                    .filter(|value| admin_field_differs(existing, field, value))
+                    .map(|value| value.trim().to_owned())
+            };
+            let first_name = changed_name("first_name");
+            let last_name = changed_name("last_name");
+            (email.is_some()
+                || email_verified.is_some()
+                || first_name.is_some()
+                || last_name.is_some())
+            .then_some((
+                username,
+                AdminProfileUpdate {
+                    email,
+                    email_verified,
+                    first_name,
+                    last_name,
+                },
+            ))
+        })
+        .collect()
+}
+
+pub fn preview_admin_profile(
+    preview: &mut SectionPreview,
+    updates: &BTreeMap<String, AdminProfileUpdate>,
+) {
+    if let Some(changes) = preview.changes.as_array_mut() {
+        for change in changes {
+            let username = change["username"].as_str().unwrap_or_default();
+            let Some(update) = updates.get(&username.to_lowercase()) else {
+                continue;
+            };
+            if change["action"] != "exists" && change["action"] != "update-permission-labels" {
+                continue;
+            }
+            let mut warnings = Vec::new();
+            if update.email.is_some() {
+                warnings.push(format!(
+                    "Administrator '{username}': Apply will overwrite the existing email."
+                ));
+            }
+            if let Some(verified) = update.email_verified {
+                warnings.push(format!(
+                    "Administrator '{username}': Apply will set email verification to {verified}."
+                ));
+            }
+            let updates_name = update.first_name.is_some() || update.last_name.is_some();
+            for (changed, field) in [
+                (update.first_name.is_some(), "first name"),
+                (update.last_name.is_some(), "last name"),
+            ] {
+                if changed {
+                    warnings.push(format!(
+                        "Administrator '{username}': Apply will overwrite the existing {field}."
+                    ));
+                }
+            }
+            if change["action"] == "exists" {
+                change["action"] = json!(if updates_name {
+                    "update-profile"
+                } else {
+                    "update-email"
+                });
+            }
+            change["warnings"] = json!(warnings);
+            preview.needs_apply = true;
+        }
+    }
+}
+
+/// Verified packages may reconcile the explicitly supplied email and nonblank name fields and
+/// existing permission-label behavior is unchanged. All other constraints remain strict.
 pub fn admin_detail_problems(
     wanted: &[AdminRow],
     current: &BTreeMap<String, ExistingAdmin>,
     trustees: &BTreeSet<String>,
     privileges: &super::import_users::ImportUsersPrivileges,
+    verified: bool,
 ) -> Vec<String> {
     use super::import_users::{GroupAssignmentPolicy, PermissionLabelPolicy};
+    let may_update_profile = verified && profile_write_stamped(privileges);
     let mut blockers = Vec::new();
     for row in wanted {
         if row.group != "voter"
@@ -560,23 +723,16 @@ pub fn admin_detail_problems(
                 ));
             }
             for (field, value) in &row.fields {
-                if field == "permission_labels" {
+                if field == "permission_labels"
+                    || (may_update_profile
+                        && matches!(
+                            field.as_str(),
+                            "email" | "email_verified" | "first_name" | "last_name"
+                        ))
+                {
                     continue;
                 }
-                let expected: BTreeSet<String> = value
-                    .split('|')
-                    .filter(|v| !v.is_empty())
-                    .map(str::to_string)
-                    .collect();
-                let actual: BTreeSet<String> = existing
-                    .fields
-                    .get(field)
-                    .into_iter()
-                    .flatten()
-                    .filter(|v| !v.is_empty())
-                    .cloned()
-                    .collect();
-                if expected != actual {
+                if admin_field_differs(existing, field, value) {
                     blockers.push(format!("administrator '{}' existing field '{}' differs; reconcile explicitly before applying", row.username, field));
                 }
             }

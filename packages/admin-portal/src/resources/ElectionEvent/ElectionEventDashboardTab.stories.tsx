@@ -130,6 +130,28 @@ export const StandardDashboard: Story = {
     },
 }
 
+export const StandardDashboardOnAWideScreen: Story = {
+    args: {monitoring: EMonitoringListScenario.LEGACY},
+    // Wider than the standard dashboard, which then centers.
+    decorators: [(Story) => <div style={{width: 1600}}>{Story()}</div>],
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByText("Eligible Voters")
+        const modeSwitch = canvas.getByRole("switch").closest("label") as HTMLElement
+        const content = canvas
+            .getByRole("link", {name: "Voter Login URL"})
+            .closest("div") as HTMLElement
+        // The mode switch starts where the dashboard does, not at the page's edge.
+        await waitFor(() =>
+            expect(
+                Math.abs(
+                    modeSwitch.getBoundingClientRect().left - content.getBoundingClientRect().left
+                )
+            ).toBeLessThan(1)
+        )
+    },
+}
+
 export const KioskEvent: Story = {
     args: {kiosk: true},
     play: async ({canvasElement}) => {

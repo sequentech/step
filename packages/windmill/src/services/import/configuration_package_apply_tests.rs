@@ -24,13 +24,22 @@ fn zip(members: &[(&str, &[u8])]) -> Vec<u8> {
     out.finish().unwrap().into_inner()
 }
 
-/// A synthetic delivery with every section.
+/// A synthetic delivery containing the six legacy sections.
 fn delivery() -> Vec<u8> {
+    delivery_with_messaging(false)
+}
+
+fn delivery_with_messaging(portable: bool) -> Vec<u8> {
+    let event_json: &[u8] = if portable {
+        br#"{"messaging_config":{"version":1,"channels":[{"channel":"EMAIL","account_id":"package:email","purposes":["OTP"]}]}}"#
+    } else {
+        b"{}"
+    };
     let event = zip(&[
-        ("export_election_event-e1.json", b"{}"),
+        ("export_election_event-e1.json", event_json),
         ("export_voters-e1.csv", b"username\nv1\n"),
     ]);
-    let portal = zip(&[
+    let mut portal_members: Vec<(&str, &[u8])> = vec![
         (
             "tenant_platform-t1.json",
             br#"{"votingChannels":{"online":true}}"#,
@@ -40,7 +49,14 @@ fn delivery() -> Vec<u8> {
         ("admin_users.csv", b"username,group_name\nop,admin\n"),
         ("trustees_public.json", b"[]"),
         ("export_templates-t1.csv", b"alias\n"),
-    ]);
+    ];
+    if portable {
+        portal_members.push((
+            "tenant_messaging_accounts.json",
+            br#"{"format":"sequent.tenant-messaging-accounts/1","accounts":[{"reference":"email","name":"Synthetic email","sender":{"provider":"AWS_SES","from_address":"demo@example.invalid"}}]}"#,
+        ));
+    }
+    let portal = zip(&portal_members);
     zip(&[
         ("official_election_setup.zip", &event),
         ("admin_portal_settings.zip", &portal),
@@ -48,9 +64,18 @@ fn delivery() -> Vec<u8> {
     ])
 }
 
-fn all_required() -> Requirements {
+const LEGACY_SECTIONS: [Section; 6] = [
+    Section::TenantConfiguration,
+    Section::TenantSettings,
+    Section::RolePermissions,
+    Section::AdminAccounts,
+    Section::Trustees,
+    Section::ElectionEvent,
+];
+
+fn legacy_requirements() -> Requirements {
     Requirements {
-        sections: Section::APPLY_ORDER.to_vec(),
+        sections: LEGACY_SECTIONS.to_vec(),
         census: CensusRequirement::Required,
     }
 }
@@ -212,7 +237,7 @@ fn status(record: &ApplicationRecord, section: Section) -> &SectionStatus {
 }
 
 fn plan() -> PackagePlan {
-    plan_package(&delivery(), &all_required()).unwrap()
+    plan_package(&delivery(), &legacy_requirements()).unwrap()
 }
 
 #[test]
@@ -245,6 +270,43 @@ fn a_delivery_is_read_into_each_sections_files() {
 }
 
 #[tokio::test]
+async fn portable_messaging_is_optional_for_legacy_but_can_be_required_and_applied() {
+    let legacy = plan();
+    assert_eq!(
+        legacy.coverage.sections[&Section::MessagingAccounts],
+        SectionState::NotIncluded
+    );
+    let mut requirements = legacy_requirements();
+    requirements.sections.push(Section::MessagingAccounts);
+    let missing = plan_package(&delivery(), &requirements).unwrap();
+    assert_eq!(missing.coverage.missing(), [Section::MessagingAccounts]);
+
+    let plan = plan_package(&delivery_with_messaging(true), &requirements).unwrap();
+    assert!(plan.coverage.is_complete());
+    let [account_file] = plan.payloads[&Section::MessagingAccounts].as_slice() else {
+        panic!("the portable section needs exactly one member");
+    };
+    assert_eq!(account_file.name, "tenant_messaging_accounts.json");
+    assert!(sequent_core::election_config::portable_messaging::parse(&account_file.bytes).is_ok());
+    let target = Fake::default();
+    let record = run(
+        &plan,
+        "t1",
+        ApplyMode::Apply,
+        None,
+        &target,
+        &Saved::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(record.outcome, Outcome::Applied);
+    assert_eq!(
+        *target.submissions.lock().unwrap(),
+        Section::APPLY_ORDER.to_vec()
+    );
+}
+
+#[tokio::test]
 async fn applying_runs_every_section_in_order_and_confirms_each_from_the_target() {
     let target = Fake::default();
     let store = Saved::default();
@@ -254,9 +316,13 @@ async fn applying_runs_every_section_in_order_and_confirms_each_from_the_target(
     assert_eq!(record.outcome, Outcome::Applied);
     assert_eq!(
         *target.submissions.lock().unwrap(),
-        Section::APPLY_ORDER.to_vec()
+        LEGACY_SECTIONS.to_vec()
     );
-    for section in Section::APPLY_ORDER {
+    assert_eq!(
+        status(&record, Section::MessagingAccounts),
+        &SectionStatus::NotIncluded
+    );
+    for section in LEGACY_SECTIONS {
         assert_eq!(
             *status(&record, section),
             SectionStatus::Applied {
@@ -336,7 +402,7 @@ async fn a_missing_required_section_refuses_and_is_named() {
             ("admin_portal_settings.zip", &portal),
         ])
     };
-    let plan = plan_package(&without_trustees, &all_required()).unwrap();
+    let plan = plan_package(&without_trustees, &legacy_requirements()).unwrap();
     let target = Fake::default();
     let record = run(
         &plan,

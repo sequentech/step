@@ -126,6 +126,9 @@
             "trustees_public.json"
           ]
         },
+        "messaging-accounts": {
+          "state": "not-included"
+        },
         "election-event": {
           "state": "present",
           "members": [
@@ -260,6 +263,18 @@
           ],
           "inFlight": null,
           "applied": true
+        }
+      },
+      {
+        "section": "messaging-accounts",
+        "members": [],
+        "status": {
+          "state": "not-included"
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
         }
       },
       {
@@ -416,6 +431,9 @@
             "trustees_public.json"
           ]
         },
+        "messaging-accounts": {
+          "state": "not-included"
+        },
         "election-event": {
           "state": "present",
           "members": [
@@ -540,6 +558,18 @@
             },
             "blockers": []
           }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "messaging-accounts",
+        "members": [],
+        "status": {
+          "state": "not-included"
         },
         "history": {
           "submissions": [],
@@ -700,6 +730,9 @@
             "trustees_public.json"
           ]
         },
+        "messaging-accounts": {
+          "state": "not-included"
+        },
         "election-event": {
           "state": "present",
           "members": [
@@ -826,6 +859,18 @@
             },
             "blockers": []
           }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "messaging-accounts",
+        "members": [],
+        "status": {
+          "state": "not-included"
         },
         "history": {
           "submissions": [],
@@ -986,6 +1031,9 @@
             "trustees_public.json"
           ]
         },
+        "messaging-accounts": {
+          "state": "not-included"
+        },
         "election-event": {
           "state": "present",
           "members": [
@@ -1111,6 +1159,18 @@
             },
             "blockers": []
           }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "messaging-accounts",
+        "members": [],
+        "status": {
+          "state": "not-included"
         },
         "history": {
           "submissions": [],
@@ -1271,6 +1331,9 @@
             "trustees_public.json"
           ]
         },
+        "messaging-accounts": {
+          "state": "not-included"
+        },
         "election-event": {
           "state": "present",
           "members": [
@@ -1405,6 +1468,18 @@
           ],
           "inFlight": null,
           "applied": true
+        }
+      },
+      {
+        "section": "messaging-accounts",
+        "members": [],
+        "status": {
+          "state": "not-included"
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
         }
       },
       {
@@ -1558,6 +1633,9 @@
             "trustees_public.json"
           ]
         },
+        "messaging-accounts": {
+          "state": "not-included"
+        },
         "election-event": {
           "state": "present",
           "members": [
@@ -1679,6 +1757,18 @@
             },
             "blockers": []
           }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "messaging-accounts",
+        "members": [],
+        "status": {
+          "state": "not-included"
         },
         "history": {
           "submissions": [],

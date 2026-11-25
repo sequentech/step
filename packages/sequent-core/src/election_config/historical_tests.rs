@@ -4189,3 +4189,141 @@ fn a_historical_conversion_keeps_the_prior_voter_id_mode() {
     assert_eq!(presentation["ballot_identity"], json!("voter-id"));
     assert_eq!(presentation["receipts"]["policy"], Value::Null);
 }
+
+#[test]
+fn workbook_tenant_settings_reach_the_revision_without_entering_the_event() {
+    use crate::election_config::{
+        architect, manifest, open, plan_from_workbook,
+    };
+    let (sql, xlsx) = fixture();
+    let document = json!({
+        "format": "sequent.tenant-package/1",
+        "tenantConfiguration": {"settings": {"fixture": true}},
+        "tenantSettings": {"displayName": "Example Commission", "localizationTexts": {"en": {"password":"Password"}}}
+    });
+    let xlsx = workbook_tenant_parameter(&xlsx, document);
+    let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    let templates = TemplateSet::builtin().unwrap();
+    let options = BuildOptions::default();
+    let sources = Sources::default();
+    let direct =
+        build(&adapted.workbook, &templates, &options, &sources).unwrap();
+    assert!(!direct.export.to_string().contains("tenant_package"));
+    let direct_layout = archive::layout(&direct);
+    assert!(direct_layout
+        .importable
+        .iter()
+        .all(|part| !part.name.starts_with("tenant_platform-")));
+    let mut read =
+        plan_from_workbook::plan_from_workbook(&adapted.workbook).unwrap();
+    // A signed revision normally requires two named trustees. These are
+    // synthetic plan labels, without any private/public key material.
+    read.plan.trustees = ["A", "B"]
+        .into_iter()
+        .map(|name| architect::Trustee {
+            name: name.to_string(),
+            email: format!("{name}@example.invalid"),
+        })
+        .collect();
+    let draft = archive::save_file(&read.plan, &read.sources).unwrap();
+    let opened = open::open_named(&draft.bytes, Some("draft.zip")).unwrap();
+    let compiled = architect::compile_plan(architect::Compile {
+        plan: &opened.plan,
+        templates: &templates,
+        options: &options,
+        profile: None,
+        sources: Some(&opened.sources),
+    })
+    .unwrap();
+    let revision = manifest::revision_content_with_algorithm(
+        &compiled,
+        &[],
+        crate::election_config::design::DesignDigestAlgorithm::V2,
+    )
+    .unwrap();
+    let enclosed = revision
+        .members
+        .iter()
+        .find(|part| part.name == archive::ADMIN_PORTAL_MEMBER)
+        .unwrap();
+    let members =
+        manifest::read_zip(&enclosed.bytes, "signed tenant settings").unwrap();
+    for (prefix, expected) in [
+        ("tenant_platform-", json!({"settings": {"fixture": true}})),
+        (
+            "keycloak_admin-",
+            json!({"displayName": "Example Commission", "localizationTexts": {"en": {"password":"Password"}}}),
+        ),
+    ] {
+        let direct = direct_layout
+            .auxiliary
+            .iter()
+            .find(|part| part.name.starts_with(prefix))
+            .unwrap();
+        let signed_input = members
+            .iter()
+            .find(|part| part.name.starts_with(prefix))
+            .unwrap();
+        assert_eq!(signed_input.bytes, direct.bytes);
+        assert_eq!(
+            serde_json::from_slice::<Value>(&signed_input.bytes).unwrap(),
+            expected
+        );
+    }
+}
+
+#[test]
+fn workbook_tenant_settings_cannot_provision_accounts_roles_or_secrets() {
+    let (sql, xlsx) = fixture();
+    for (field, value) in [
+        ("roleMappings", json!([])),
+        ("adminAccounts", json!([])),
+        ("trustees", json!([])),
+        ("messagingAccounts", json!([])),
+        (
+            "tenantConfiguration",
+            json!({"settings":{"gapi_key":"never-log-fixture-value"}}),
+        ),
+        (
+            "tenantConfiguration",
+            json!({"settings":{"configuration_signing":{"policy":"fixture"}}}),
+        ),
+        (
+            "tenantConfiguration",
+            json!({"settings":{"provider":{"api-key":"never-log-fixture-value"}}}),
+        ),
+    ] {
+        let mut doc = json!({"format": "sequent.tenant-package/1"});
+        doc[field] = value;
+        let xlsx = workbook_tenant_parameter(&xlsx, doc);
+        let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+        let report = build(
+            &adapted.workbook,
+            &TemplateSet::builtin().unwrap(),
+            &BuildOptions::default(),
+            &Sources::default(),
+        )
+        .unwrap_err();
+        assert!(
+            report.problems.iter().any(|p| p
+                .at
+                .as_ref()
+                .is_some_and(|at| at.sheet == "Parameters")),
+            "{field}"
+        );
+        assert!(!format!("{report:?}").contains("never-log-fixture-value"));
+    }
+}
+
+fn workbook_tenant_parameter(xlsx: &[u8], document: Value) -> Vec<u8> {
+    changed_workbook(xlsx, |sheets| {
+        sheets.push(rows_sheet(
+            "Parameters",
+            vec![row(
+                "Parameters",
+                0,
+                vec![("key", json!("tenant_package")), ("value", document)],
+            )],
+        ));
+    })
+}

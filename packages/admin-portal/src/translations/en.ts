@@ -151,6 +151,7 @@ const englishTranslation = {
             sections: {
                 "tenant-configuration": "Tenant configuration",
                 "tenant-settings": "Tenant settings",
+                "messaging-accounts": "Messaging accounts",
                 "role-permissions": "Role permissions",
                 "admin-accounts": "Administrator accounts",
                 "trustees": "Trustees",
@@ -158,8 +159,26 @@ const englishTranslation = {
             },
             upload: "Upload package",
             uploadTitle: "Upload a configuration package",
-            uploadSubtitle: "The delivery zip from removable media",
+            uploadSubtitle:
+                "A signed configuration ZIP or password-encrypted EZIP from removable media",
+            encrypted: {
+                unlock: "Unlock package",
+                unreadable: "Could not read the configuration package. Nothing was uploaded.",
+                passwordRequired: "Enter the password for this encrypted configuration package.",
+                tooLarge:
+                    "Encrypted configuration packages must not exceed 256 MiB of signed ZIP data. Nothing was uploaded.",
+                decryptFailed:
+                    "Could not unlock this configuration package. Check the password and file. Nothing was uploaded.",
+                unavailable:
+                    "Could not load the local package unlocker. Use HTTPS or localhost and reopen the drawer. Nothing was uploaded.",
+                innerHashMismatch:
+                    "The entered SHA-256 does not match the decrypted signed ZIP. Nothing was uploaded.",
+                innerHashHelp:
+                    "For an encrypted package, enter the optional SHA-256 of the signed ZIP inside it.",
+            },
             uploadParagraph: "It is previewed first; nothing is applied from the upload itself.",
+            existingDocumentHelp:
+                "Use an existing ID only for an unlocked ZIP. For an encrypted .ezip, select Upload configuration package and enter its password there.",
             signedDocumentId: "Existing signed ZIP document ID",
             documentId: "Or an uploaded document id",
             preview: "Preview",
@@ -1485,6 +1504,8 @@ const englishTranslation = {
             voterLoginURL: "Voter Login URL",
             voterEnrollURL: "Voter Enroll URL",
             voterEnrollKioskURL: "Voter Enroll Kiosk URL",
+            showQrCode: "Show QR code: {{link}}",
+            closeQrCode: "Close",
             ballotBoxes: {
                 show: "Show ballot boxes",
                 loadError:

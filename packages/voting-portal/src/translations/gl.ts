@@ -6,7 +6,114 @@ import englishTranslation, {TranslationType} from "./en"
 // SPDX-License-Identifier: AGPL-3.0-only
 const galegoTranslation: TranslationType = {
     translations: {
-        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        ballotPrivacy: {
+            title: "Rexistro da urna",
+            subtitle:
+                "Todas as papeletas emitidas nesta elección, listadas cun pseudónimo en lugar do nome do votante.",
+            private: "Os votantes só aparecen como pseudónimos",
+            signed: "Asinado pola autoridade electoral e pola urna",
+            device: "Comprobado no teu dispositivo",
+            own: "A túa papeleta está na urna",
+            listedAs: "Listada como",
+            check: "Comprobar a miña papeleta",
+            copy: "Copiar o ID da papeleta",
+            ballotIdHelp: "Sobre o teu ID da papeleta",
+            castTime: "Emitida o {{time}}",
+            timesIn: "Fuso horario: {{zone}}",
+            signedEntries: "Entradas asinadas do rexistro ({{count}})",
+            noMatchHelp:
+                "Comproba que non haxa erros de escritura. Os códigos usan os díxitos do 0 ao 9 e letras maiúsculas, sen I, L, O nin U.",
+            helpSections: {
+                pseudonyms: {
+                    title: "Pseudónimos",
+                    text: "Cada votante aparece cun pseudónimo, un código como 7QKM-2HXD. O rexistro nunca di quen é o votante.",
+                },
+                signatures: {
+                    title: "Sinaturas",
+                    text: "A autoridade electoral asina que clave de votante usa cada pseudónimo. A urna asina cada papeleta que recibe e cada emisión.",
+                },
+                checks: {
+                    title: "Comprobacións no teu dispositivo",
+                    text: "Abre unha papeleta para comprobar as súas sinaturas neste navegador. Calquera pode descargar as súas entradas asinadas e comprobalas de novo.",
+                },
+            },
+            copied: "ID da papeleta copiado",
+            copyFailed: "Non se puido copiar o ID da papeleta. Selecciona o código para copialo.",
+            search: "Buscar un ID de papeleta ou un pseudónimo",
+            placeholder: "ID de papeleta ou pseudónimo",
+            clear: "Borrar a busca",
+            ballots_one: "{{count}} papeleta",
+            ballots_other: "{{count}} papeletas",
+            matches: "{{count}} de {{total}} papeletas coinciden",
+            capped: "Máis de {{count}} de {{total}} papeletas coinciden; escribe máis caracteres do código",
+            ballotId: "ID da papeleta",
+            pseudonym: "Pseudónimo",
+            castAt: "Emitida",
+            channel: "Canle",
+            yours: "A túa",
+            channels: {
+                online: "En liña",
+                kiosk: "Quiosco",
+                telephone: "Teléfono",
+            },
+            previous: "Anterior",
+            next: "Seguinte",
+            rows: "Filas por páxina",
+            noMatch: "Ningún ID de papeleta nin pseudónimo comeza por {{prefix}}",
+            noBallots: "Aínda non se emitiu ningunha papeleta.",
+            invalidPrefix:
+                "Os códigos usan os díxitos do 0 ao 9 e letras maiúsculas, sen I, L, O nin U. Introduce ata oito caracteres.",
+            loadError: "Non se puido cargar o rexistro da urna. Téntao de novo.",
+            retry: "Tentar de novo",
+            help: "Sobre o rexistro da urna",
+            helpText:
+                "Cada votante aparece cun pseudónimo, un código como 7QKM-2HXD. O rexistro nunca di quen é o votante. A autoridade electoral asina que clave de votante usa cada pseudónimo. Abre unha papeleta para comprobar as súas sinaturas neste navegador.",
+            detailTitle: "Papeleta {{ballotId}}",
+            checking: "Comprobando as sinaturas…",
+            passed: "Superáronse as catro comprobacións",
+            verified: "Comprobado neste dispositivo coas claves publicadas.",
+            failed: "Fallou unha comprobación",
+            failedHelp: "Non confíes nesta entrada.",
+            pending: "Aínda se está a engadir ao rexistro",
+            pendingHelp:
+                "As entradas asinadas poden aparecer despois de emitir unha papeleta. Comproba de novo máis tarde.",
+            proofError:
+                "Non se puideron cargar as entradas asinadas nin as claves publicadas. Téntao de novo.",
+            checkLabels: {
+                binding: "Clave de votante rexistrada",
+                received: "Papeleta recibida",
+                ballotId: "ID da papeleta",
+                cast: "Papeleta emitida",
+            },
+            checkDescriptions: {
+                binding: "A autoridade electoral asinou que clave de votante usa este pseudónimo.",
+                received: "A urna recibiu unha papeleta asinada con esa clave de votante.",
+                ballotId: "O ID da papeleta calcúlase a partir desa papeleta asinada.",
+                cast: "A mesma clave emitiu a papeleta e a urna confirmou a emisión.",
+            },
+            states: {
+                passed: "Superada",
+                failed: "Non coincide.",
+                pending: "Aínda non está no rexistro.",
+            },
+            neverPublished:
+                "Nunca se publica: o nome, o usuario, o enderezo IP, o país nin o dispositivo do votante.",
+            download: "Descargar as entradas asinadas do rexistro",
+            downloadAction: "Descargar",
+            close: "Pechar",
+            systemKey: "Clave do rexistro do evento electoral",
+            boxKey: "Clave da urna",
+            userLogs:
+                "As entradas propias dun votante: inicios de sesión e mensaxes. As súas papeletas están no rexistro cun pseudónimo, polo que nunca aparecen aquí; só unha resolución rexistrada vincula ambos.",
+            ballotSection: "Papeleta e pseudónimo",
+            resolution: "Resolución do pseudónimo",
+            resolutionHelp:
+                "A resposta só lle chegou a quen a pediu. O votante nunca se nomea neste rexistro.",
+            reason: "Motivo indicado",
+            // Admin portal strings; the voting portal never renders them.
+            settings: englishTranslation.translations.ballotPrivacy.settings,
+            forensic: englishTranslation.translations.ballotPrivacy.forensic,
+        },
         startup: {
             error: "Non se puido iniciar o portal de votación. Téntao de novo.",
             retry: "Tentar de novo",
@@ -578,7 +685,7 @@ const galegoTranslation: TranslationType = {
                 ok: "Aceptar",
             },
             tabs: {
-                logs: "Logs",
+                logs: "Rexistros",
                 ballotLocator: "Busca de Papeleta",
             },
             column: {

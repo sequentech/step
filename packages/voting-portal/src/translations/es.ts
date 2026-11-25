@@ -5,7 +5,114 @@ import englishTranslation, {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
-        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        ballotPrivacy: {
+            title: "Registro de la urna",
+            subtitle:
+                "Todas las papeletas emitidas en esta elección, listadas con un seudónimo en lugar del nombre del votante.",
+            private: "Los votantes solo aparecen como seudónimos",
+            signed: "Firmado por la autoridad electoral y la urna",
+            device: "Comprobado en su dispositivo",
+            own: "Su papeleta está en la urna",
+            listedAs: "Listada como",
+            check: "Comprobar mi papeleta",
+            copy: "Copiar el ID de Papeleta",
+            ballotIdHelp: "Acerca de su ID de Papeleta",
+            castTime: "Emitida el {{time}}",
+            timesIn: "Zona horaria: {{zone}}",
+            signedEntries: "Entradas firmadas del registro ({{count}})",
+            noMatchHelp:
+                "Compruebe que no haya errores de escritura. Los códigos usan los dígitos del 0 al 9 y letras mayúsculas, sin I, L, O ni U.",
+            helpSections: {
+                pseudonyms: {
+                    title: "Seudónimos",
+                    text: "Cada votante aparece con un seudónimo, un código como 7QKM-2HXD. El registro nunca dice quién es el votante.",
+                },
+                signatures: {
+                    title: "Firmas",
+                    text: "La autoridad electoral firma qué clave de votante usa cada seudónimo. La urna firma cada papeleta que recibe y cada emisión.",
+                },
+                checks: {
+                    title: "Comprobaciones en su dispositivo",
+                    text: "Abra una papeleta para comprobar sus firmas en este navegador. Cualquiera puede descargar sus entradas firmadas y volver a comprobarlas.",
+                },
+            },
+            copied: "ID de Papeleta copiado",
+            copyFailed: "No se pudo copiar el ID de Papeleta. Seleccione el código para copiarlo.",
+            search: "Buscar un ID de Papeleta o un seudónimo",
+            placeholder: "ID de Papeleta o seudónimo",
+            clear: "Borrar la búsqueda",
+            ballots_one: "{{count}} papeleta",
+            ballots_other: "{{count}} papeletas",
+            matches: "{{count}} de {{total}} papeletas coinciden",
+            capped: "Más de {{count}} de {{total}} papeletas coinciden; escriba más caracteres del código",
+            ballotId: "ID de Papeleta",
+            pseudonym: "Seudónimo",
+            castAt: "Emitida",
+            channel: "Canal",
+            yours: "La suya",
+            channels: {
+                online: "En línea",
+                kiosk: "Quiosco",
+                telephone: "Teléfono",
+            },
+            previous: "Anterior",
+            next: "Siguiente",
+            rows: "Filas por página",
+            noMatch: "Ningún ID de Papeleta ni seudónimo empieza por {{prefix}}",
+            noBallots: "Todavía no se ha emitido ninguna papeleta.",
+            invalidPrefix:
+                "Los códigos usan los dígitos del 0 al 9 y letras mayúsculas, sin I, L, O ni U. Introduzca hasta ocho caracteres.",
+            loadError: "No se pudo cargar el registro de la urna. Inténtelo de nuevo.",
+            retry: "Reintentar",
+            help: "Acerca del registro de la urna",
+            helpText:
+                "Cada votante aparece con un seudónimo, un código como 7QKM-2HXD. El registro nunca dice quién es el votante. La autoridad electoral firma qué clave de votante usa cada seudónimo. Abra una papeleta para comprobar sus firmas en este navegador.",
+            detailTitle: "Papeleta {{ballotId}}",
+            checking: "Comprobando las firmas…",
+            passed: "Se han superado las cuatro comprobaciones",
+            verified: "Comprobado en este dispositivo con las claves publicadas.",
+            failed: "Una comprobación ha fallado",
+            failedHelp: "No confíe en esta entrada.",
+            pending: "Todavía se está añadiendo al registro",
+            pendingHelp:
+                "Las entradas firmadas pueden aparecer después de emitir una papeleta. Vuelva a comprobarlo más tarde.",
+            proofError:
+                "No se pudieron cargar las entradas firmadas o las claves publicadas. Inténtelo de nuevo.",
+            checkLabels: {
+                binding: "Clave de votante registrada",
+                received: "Papeleta recibida",
+                ballotId: "ID de Papeleta",
+                cast: "Papeleta emitida",
+            },
+            checkDescriptions: {
+                binding: "La autoridad electoral firmó qué clave de votante usa este seudónimo.",
+                received: "La urna recibió una papeleta firmada con esa clave de votante.",
+                ballotId: "El ID de Papeleta se calcula a partir de esa papeleta firmada.",
+                cast: "La misma clave emitió la papeleta y la urna confirmó la emisión.",
+            },
+            states: {
+                passed: "Superada",
+                failed: "No coincide.",
+                pending: "Aún no está en el registro.",
+            },
+            neverPublished:
+                "Nunca se publica: el nombre, el usuario, la dirección IP, el país ni el dispositivo del votante.",
+            download: "Descargar las entradas firmadas del registro",
+            downloadAction: "Descargar",
+            close: "Cerrar",
+            systemKey: "Clave del registro del evento electoral",
+            boxKey: "Clave de la urna",
+            userLogs:
+                "Las entradas propias de un votante: inicios de sesión y mensajes. Sus papeletas están en el registro con un seudónimo, así que nunca aparecen aquí; solo una resolución registrada vincula ambos.",
+            ballotSection: "Papeleta y seudónimo",
+            resolution: "Resolución del seudónimo",
+            resolutionHelp:
+                "La respuesta solo llegó a quien la pidió. El votante nunca se nombra en este registro.",
+            reason: "Motivo indicado",
+            // Admin portal strings; the voting portal never renders them.
+            settings: englishTranslation.translations.ballotPrivacy.settings,
+            forensic: englishTranslation.translations.ballotPrivacy.forensic,
+        },
         startup: {
             error: "No se pudo iniciar el portal de votación. Inténtelo de nuevo.",
             retry: "Intentar de nuevo",
@@ -579,7 +686,7 @@ const spanishTranslation: TranslationType = {
                 ok: "OK",
             },
             tabs: {
-                logs: "Logs",
+                logs: "Registros",
                 ballotLocator: "Localizador de Papeletas",
             },
             column: {

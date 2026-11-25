@@ -5,7 +5,117 @@ import englishTranslation, {TranslationType} from "./en"
 
 const dutchTranslation: TranslationType = {
     translations: {
-        ballotPrivacy: englishTranslation.translations.ballotPrivacy,
+        ballotPrivacy: {
+            title: "Stembuslogboek",
+            subtitle:
+                "Alle stembiljetten die in deze verkiezing zijn uitgebracht, vermeld onder een pseudoniem in plaats van de naam van de kiezer.",
+            private: "Kiezers verschijnen alleen als pseudoniem",
+            signed: "Ondertekend door de verkiezingsautoriteit en de stembus",
+            device: "Gecontroleerd op uw apparaat",
+            own: "Uw stembiljet zit in de stembus",
+            listedAs: "Vermeld als",
+            check: "Mijn stembiljet controleren",
+            copy: "Stembiljet ID kopiëren",
+            ballotIdHelp: "Over uw Stembiljet ID",
+            castTime: "Uitgebracht op {{time}}",
+            timesIn: "Tijdzone: {{zone}}",
+            signedEntries: "Ondertekende logboekregels ({{count}})",
+            noMatchHelp:
+                "Controleer op typefouten. De codes gebruiken de cijfers 0 tot en met 9 en hoofdletters, zonder I, L, O en U.",
+            helpSections: {
+                pseudonyms: {
+                    title: "Pseudoniemen",
+                    text: "Elke kiezer staat vermeld onder een pseudoniem, een code zoals 7QKM-2HXD. Het logboek zegt nooit wie de kiezer is.",
+                },
+                signatures: {
+                    title: "Handtekeningen",
+                    text: "De verkiezingsautoriteit ondertekent welke kiezerssleutel elk pseudoniem gebruikt. De stembus ondertekent elk ontvangen stembiljet en elke uitgebrachte stem.",
+                },
+                checks: {
+                    title: "Controles op uw apparaat",
+                    text: "Open een stembiljet om de handtekeningen ervan in deze browser te controleren. Iedereen kan de ondertekende regels downloaden en opnieuw controleren.",
+                },
+            },
+            copied: "Stembiljet ID gekopieerd",
+            copyFailed:
+                "Het Stembiljet ID kon niet worden gekopieerd. Selecteer de code om deze te kopiëren.",
+            search: "Zoek een Stembiljet ID of pseudoniem",
+            placeholder: "Stembiljet ID of pseudoniem",
+            clear: "Zoekopdracht wissen",
+            ballots_one: "{{count}} stembiljet",
+            ballots_other: "{{count}} stembiljetten",
+            matches: "{{count}} van {{total}} stembiljetten komen overeen",
+            capped: "Meer dan {{count}} van {{total}} stembiljetten komen overeen; typ meer van de code",
+            ballotId: "Stembiljet ID",
+            pseudonym: "Pseudoniem",
+            castAt: "Uitgebracht",
+            channel: "Kanaal",
+            yours: "Van u",
+            channels: {
+                online: "Online",
+                kiosk: "Kiosk",
+                telephone: "Telefoon",
+            },
+            previous: "Vorige",
+            next: "Volgende",
+            rows: "Rijen per pagina",
+            noMatch: "Geen Stembiljet ID of pseudoniem begint met {{prefix}}",
+            noBallots: "Er zijn nog geen stembiljetten uitgebracht.",
+            invalidPrefix:
+                "De codes gebruiken de cijfers 0 tot en met 9 en hoofdletters, zonder I, L, O en U. Voer maximaal acht tekens in.",
+            loadError: "Het stembuslogboek kon niet worden geladen. Probeer het opnieuw.",
+            retry: "Opnieuw proberen",
+            help: "Over het stembuslogboek",
+            helpText:
+                "Elke kiezer staat vermeld onder een pseudoniem, een code zoals 7QKM-2HXD. Het logboek zegt nooit wie de kiezer is. De verkiezingsautoriteit ondertekent welke kiezerssleutel elk pseudoniem gebruikt. Open een stembiljet om de handtekeningen ervan in deze browser te controleren.",
+            detailTitle: "Stembiljet {{ballotId}}",
+            checking: "Handtekeningen controleren…",
+            passed: "Alle vier de controles zijn geslaagd",
+            verified: "Op dit apparaat gecontroleerd met de gepubliceerde sleutels.",
+            failed: "Een controle is mislukt",
+            failedHelp: "Vertrouw niet op deze regel.",
+            pending: "Wordt nog aan het logboek toegevoegd",
+            pendingHelp:
+                "De ondertekende regels kunnen verschijnen nadat een stembiljet is uitgebracht. Controleer het later opnieuw.",
+            proofError:
+                "De ondertekende regels of gepubliceerde sleutels konden niet worden geladen. Probeer het opnieuw.",
+            checkLabels: {
+                binding: "Kiezerssleutel geregistreerd",
+                received: "Stembiljet ontvangen",
+                ballotId: "Stembiljet ID",
+                cast: "Stembiljet uitgebracht",
+            },
+            checkDescriptions: {
+                binding:
+                    "De verkiezingsautoriteit heeft ondertekend welke kiezerssleutel dit pseudoniem gebruikt.",
+                received:
+                    "De stembus heeft een stembiljet ontvangen dat met die kiezerssleutel is ondertekend.",
+                ballotId: "Het Stembiljet ID wordt berekend uit dat ondertekende stembiljet.",
+                cast: "Dezelfde sleutel heeft het stembiljet uitgebracht en de stembus heeft dat bevestigd.",
+            },
+            states: {
+                passed: "Geslaagd",
+                failed: "Komt niet overeen.",
+                pending: "Nog niet in het logboek.",
+            },
+            neverPublished:
+                "Nooit gepubliceerd: de naam, gebruikersnaam, het IP-adres, het land of het apparaat van de kiezer.",
+            download: "Ondertekende logboekregels downloaden",
+            downloadAction: "Downloaden",
+            close: "Sluiten",
+            systemKey: "Logboeksleutel van het verkiezingsevenement",
+            boxKey: "Stembussleutel",
+            userLogs:
+                "De eigen regels van een kiezer: aanmeldingen en berichten. De stembiljetten van de kiezer staan onder een pseudoniem in het logboek en verschijnen hier dus nooit; alleen een vastgelegde herleiding koppelt de twee.",
+            ballotSection: "Stembiljet en pseudoniem",
+            resolution: "Herleiding van het pseudoniem",
+            resolutionHelp:
+                "Het antwoord ging alleen naar degene die erom vroeg. De kiezer wordt in dit logboek nooit genoemd.",
+            reason: "Opgegeven reden",
+            // Admin portal strings; the voting portal never renders them.
+            settings: englishTranslation.translations.ballotPrivacy.settings,
+            forensic: englishTranslation.translations.ballotPrivacy.forensic,
+        },
         startup: {
             error: "Het stemportaal kon niet worden gestart. Probeer het opnieuw.",
             retry: "Opnieuw proberen",
@@ -578,7 +688,7 @@ const dutchTranslation: TranslationType = {
                 ok: "OK",
             },
             tabs: {
-                logs: "Logs",
+                logs: "Logboeken",
                 ballotLocator: "Stembiljet zoeken",
             },
             column: {

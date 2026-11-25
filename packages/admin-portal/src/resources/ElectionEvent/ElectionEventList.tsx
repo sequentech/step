@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {useConfigurationPackageElectionRefresh} from "@/hooks/useConfigurationPackageElectionRefresh"
 import {Button, CreateButton, useGetList} from "react-admin"
 import React, {ReactElement, useContext, useEffect} from "react"
 
@@ -72,6 +73,8 @@ export const ElectionEventListContent: React.FC<ElectionEventListProps> = ({asid
             enabled: false,
         }
     )
+
+    useConfigurationPackageElectionRefresh(refetch)
 
     // Reload data when the path changes
     useEffect(() => {

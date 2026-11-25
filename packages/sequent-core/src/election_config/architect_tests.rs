@@ -4524,7 +4524,7 @@ fn a_parameters_sheet_patches_the_event_it_came_with() {
 /// Admin users, permissions and templates come out in the delivery.
 ///
 /// Auxiliary, which is where they already were for a janitor build — outside the
-/// importable zip, because `admin_users.csv` carries clear-text passwords and
+/// importable zip, because `admin_users.csv` carries administrator identities and
 /// importing an election must never be able to create an account.
 #[test]
 fn the_admin_portal_imports_survive_a_round_trip_through_the_wizard() {
@@ -4533,8 +4533,8 @@ fn the_admin_portal_imports_survive_a_round_trip_through_the_wizard() {
         platform_sheet(
             "Admin Users",
             &[
-                &["username", "password", "permission_labels"],
-                &["returning-officer", "secret", "union-2027-admin"],
+                &["username", "permission_labels"],
+                &["returning-officer", "union-2027-admin"],
             ],
         ),
         platform_sheet(
@@ -4570,7 +4570,7 @@ fn the_admin_portal_imports_survive_a_round_trip_through_the_wizard() {
             .importable
             .iter()
             .any(|file| file.name == "admin_users.csv"),
-        "clear-text passwords stay out of the importable zip"
+        "administrator accounts stay out of the election-event importable zip"
     );
 }
 

@@ -50,6 +50,10 @@ module.exports = function (env, argv) {
                 __dirname,
                 "src/services/HistoricalImportWorker.ts"
             ),
+            "signed-delivery-worker": path.resolve(
+                __dirname,
+                "src/services/SignedDeliveryWorker.ts"
+            ),
         },
         output: {
             filename: "[name].js",

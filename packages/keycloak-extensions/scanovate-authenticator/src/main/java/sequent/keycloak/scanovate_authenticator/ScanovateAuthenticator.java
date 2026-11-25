@@ -97,6 +97,7 @@ public class ScanovateAuthenticator implements Authenticator {
   static final String FTL_OCR = "ocr";
   static final String FTL_LIVENESS = "liveness";
   static final String FTL_HOLDING = "holding";
+  static final String FTL_DOCUMENT_CAMERA = "documentCamera";
   static final String FTL_PAGE_URL = "url";
   static final String FTL_UPLOAD_TOKEN = "token";
   static final String FTL_HOLDING_SECONDS = "seconds";
@@ -164,6 +165,7 @@ public class ScanovateAuthenticator implements Authenticator {
       DocumentLivenessSettings documentLiveness,
       HoldingPhotoPolicy holding,
       int holdingSeconds,
+      DocumentCamera documentCamera,
       PageLanguages pageLanguages) {}
 
   @Override
@@ -268,6 +270,7 @@ public class ScanovateAuthenticator implements Authenticator {
               documentLiveness,
               holding,
               holdingSeconds,
+              DocumentCamera.fromConfig(config),
               PageLanguages.fromConfig(config)));
     } catch (ScanovateException e) {
       configurationFailure(context, component);
@@ -299,6 +302,7 @@ public class ScanovateAuthenticator implements Authenticator {
     capture.put(FTL_DOCUMENT_TYPE, documentTypeName(documentType(config, authSession)));
     capture.put(FTL_ATTEMPTS_LEFT, attemptsLeft(context, maxAttempts));
     capture.put(FTL_MAX_ATTEMPTS, maxAttempts);
+    capture.put(FTL_DOCUMENT_CAMERA, services.documentCamera().pageValue());
     capture.put(
         FTL_OCR,
         page(context, services.onPrem(), OnPremService.OCR, OCR_TOKEN_NOTE, caseId, ocrParameters));

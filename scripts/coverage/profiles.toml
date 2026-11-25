@@ -330,6 +330,9 @@ test_arguments = [
     "--skip", "channel_enablement_and_pause_are_rechecked_from_the_writer",
     # Requires the dedicated paired Architect fixture and independent receiver policy.
     "--skip", "browser_producer_package_uses_real_admission_and_persisted_chain",
+    # Requires a fresh loopback Keycloak realm. Offline signed admission and
+    # identity mutation contracts remain in the default measured tests.
+    "--skip", "admitted_browser_workbook_authenticates_without_resetting_existing_user",
 ]
 limitations = [
     "Native default FIPS profile with local synthetic PostgreSQL 16 on port 3322, which also hosts the electoral log, matching the Rust CI service fixtures.",
@@ -337,6 +340,7 @@ limitations = [
     "Cloud transports, complete election workflows, other optional features and branch coverage require separate evidence.",
     "Builds the default-off operational-signing-candidate feature, so its Initialize scope and CA assessment services are measured against the ledger contract with software keys enrolled as the database superuser; no device is involved.",
     "The browser-package producer/receiver contract needs the paired Architect fixture and independent receiver policy; run its dedicated ignored test separately.",
+    "The end-to-end workbook login test needs a fresh isolated Keycloak fixture. Run this existing ignored test separately; package coverage retains signed admission, auth rechecks and create-only contracts.",
     "Existing inline tests contribute to LLVM source counters; this aggregate is not production-only coverage.",
 ]
 issue = "https://github.com/sequentech/meta/issues/13302"

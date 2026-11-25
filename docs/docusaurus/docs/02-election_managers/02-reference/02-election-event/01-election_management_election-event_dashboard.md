@@ -85,6 +85,22 @@ At the top of the **Data Display** section on the dashboard of an Election Event
 
 ---
 
+## Voter Portal Links
+
+Below the dashboard, both with and without monitoring, are the event's voter
+portal addresses:
+
+- **Voter Login URL**: where voters sign in to vote.
+- **Voter Enroll URL**: where voters enroll.
+- **Voter Enroll Kiosk URL**: the kiosk's sign-in page, shown only when the
+  event offers kiosk voting.
+
+Each link opens in a new tab. The QR code icon next to a link shows the same
+address as a QR code, with the address written below it. Scan it with a
+kiosk, tablet or phone to open the page there without typing the address.
+
+---
+
 This dashboard provides administrators with a **clear overview** of the election event’s progress and key statistics, ensuring **efficient management and oversight** throughout the election lifecycle.
 
 
