@@ -3197,10 +3197,12 @@ const catalanTranslation: TranslationType = {
                 progress: "Verificant el lot {{current}} de {{total}}…",
                 empty: "Aquest recompte no té lots al tauler d'anuncis per verificar.",
                 failed: "No s'ha pogut fer la verificació: {{message}}",
+                verifierUnavailable:
+                    "Aquest navegador no ha pogut iniciar el verificador: {{message}}",
                 summary: {
                     verified: "Tots els lots verificats: {{count}} de {{total}}.",
                     invalid: "Lots que no han superat la verificació: {{count}} de {{total}}.",
-                    error: "Lots que no s'han pogut verificar: {{count}} de {{total}}. La plataforma no ha pogut llegir els seus taulers del servei de taulers.",
+                    error: "Lots que no s'han pogut verificar: {{count}} de {{total}}. Cada fila n'indica el motiu.",
                     incomplete:
                         "Lots incomplets: {{count}} de {{total}}. Hi falten publicacions necessàries, per tant no estan verificats.",
                 },
@@ -3223,6 +3225,10 @@ const catalanTranslation: TranslationType = {
                     incomplete: "Incomplet",
                     invalid: "No vàlid",
                     error: "Sense verificar",
+                },
+                detail: {
+                    verified: "S'han comprovat totes les proves i publicacions del lot.",
+                    incomplete: "Falten publicacions necessàries al tauler.",
                 },
                 download: "Descarregar les evidències",
             },

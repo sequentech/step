@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {PublicVerificationReport} from "./BrowserTrustee"
+import type {Verifier} from "./VerifierWorker"
 import {
-    anchorsOf,
     batchStatus,
     evidenceOf,
     overallStatus,
@@ -11,7 +11,6 @@ import {
     type BatchVerification,
     type BoardMessages,
     type TallyVerificationBoard,
-    type TallyVerifier,
 } from "./TallyPublicVerification"
 
 const board = (batch: number): TallyVerificationBoard => ({
@@ -47,19 +46,29 @@ const verified = (
 })
 const failed = (batch: number): BatchVerification => ({board: board(batch), error: "unreachable"})
 
-function fakeVerifier(): jest.Mocked<TallyVerifier> {
+/** The worker's answers, derived from what it is asked. */
+function fakeVerifier(): jest.Mocked<Verifier> {
     return {
-        configurationHash: jest.fn((message: string) => `hash(${message})`),
-        ballotsHash: jest.fn((message: string) => `ballots(${message})`),
-        tallyIdentifier: jest.fn(
-            (configuration: string, ballots: string) => `id(${configuration},${ballots})`
-        ),
-        fetchTranscript: jest.fn(),
-        verifyTranscript: jest.fn((_evidence: string, _anchors: string) =>
-            JSON.stringify(report("verified"))
-        ),
+        ready: jest.fn(async () => undefined),
+        anchors: jest.fn(async (board: TallyVerificationBoard) => ({
+            configuration_hash: `hash(${board.configuration_message})`,
+            tally_id: `id(${board.ballots_message})`,
+            ballots_hash: `ballots(${board.ballots_message})`,
+            ballot_ciphertexts: [],
+        })),
+        verify: jest.fn(async () => report("verified")),
+        close: jest.fn(),
     }
 }
+
+/** The platform's messages of a board: its DKG board's, then its own. */
+const loader = () =>
+    jest.fn(
+        async (board: TallyVerificationBoard): Promise<BoardMessages> => ({
+            dkg_messages: [board.dkg_board],
+            tally_messages: [board.tally_board],
+        })
+    )
 
 describe("statuses", () => {
     it("reads a batch's status from its report, and a batch without one as an error", () => {
@@ -79,31 +88,11 @@ describe("statuses", () => {
     })
 })
 
-/** The platform's messages of a board: its DKG board's, then its own. */
-const loader = () =>
-    jest.fn(
-        async (board: TallyVerificationBoard): Promise<BoardMessages> => ({
-            dkg_messages: [board.dkg_board],
-            tally_messages: [board.tally_board],
-        })
-    )
-
 describe("transcriptOf", () => {
     it("is the public transcript version 1 that verifyTranscript and trustee verify read", () => {
         expect(
             JSON.parse(transcriptOf({dkg_messages: ["ZGtn"], tally_messages: ["dGFsbHk="]}))
         ).toEqual({version: 1, dkg_messages: ["ZGtn"], tally_messages: ["dGFsbHk="]})
-    })
-})
-
-describe("anchorsOf", () => {
-    it("derives every anchor from the platform's messages and checks no ballot inclusion", () => {
-        expect(anchorsOf(fakeVerifier(), board(2))).toEqual({
-            configuration_hash: "hash(Y29uZmlndXJhdGlvbg==)",
-            tally_id: "id(Y29uZmlndXJhdGlvbg==,YmFsbG90cw2=)",
-            ballots_hash: "ballots(YmFsbG90cw2=)",
-            ballot_ciphertexts: [],
-        })
     })
 })
 
@@ -117,11 +106,13 @@ describe("verifyTallyBoards", () => {
         )
         expect(progress).toEqual([1, 2])
         expect(load.mock.calls).toEqual([[board(0)], [board(1)]])
-        // The browser never reads a board itself.
-        expect(verifier.fetchTranscript).not.toHaveBeenCalled()
-        const [transcript, anchors] = verifier.verifyTranscript.mock.calls[1]
-        expect(JSON.parse(transcript).tally_messages).toEqual([board(1).tally_board])
-        expect(JSON.parse(anchors).tally_id).toBe("id(Y29uZmlndXJhdGlvbg==,YmFsbG90cw1=)")
+        const [transcript, anchors] = verifier.verify.mock.calls[1]
+        expect(JSON.parse(transcript)).toEqual({
+            version: 1,
+            dkg_messages: [board(1).dkg_board],
+            tally_messages: [board(1).tally_board],
+        })
+        expect(anchors.tally_id).toBe("id(YmFsbG90cw1=)")
         expect(batches.map(batchStatus)).toEqual(["verified", "verified"])
         expect(batches[0]).toMatchObject({board: board(0), report: report("verified")})
     })
@@ -130,39 +121,32 @@ describe("verifyTallyBoards", () => {
         const verifier = fakeVerifier()
         const load = loader()
         load.mockRejectedValueOnce(new Error("board unreachable"))
-        // The WASM verifier throws strings.
-        verifier.configurationHash.mockImplementation((message: string) => {
-            if (message === "bad") throw "invalid configuration"
-            return "hash"
-        })
+        // The WASM verifier rejects with strings.
+        verifier.anchors.mockRejectedValueOnce("invalid configuration")
         const batches = await verifyTallyBoards(
             verifier,
             load,
-            [board(0), {...board(1), configuration_message: "bad"}, board(2)],
+            [board(0), board(1), board(2)],
             () => undefined
         )
+        // Board 0's anchors are refused, then board 1's messages cannot be read.
         expect(
             batches.map((batch) => ("error" in batch ? batch.error : batchStatus(batch)))
-        ).toEqual(["board unreachable", "invalid configuration", "verified"])
+        ).toEqual(["invalid configuration", "board unreachable", "verified"])
     })
 
     it("reports only the first line of an error, without the WASM wrapper", async () => {
         const verifier = fakeVerifier()
-        verifier.verifyTranscript
+        verifier.verify
             // An error the WASM verifier rethrows with its stack.
-            .mockImplementationOnce(() => {
-                throw "JsValue(RuntimeError: unreachable\nRuntimeError: unreachable\n    at protocol_board.wasm (index_bg.wasm:1:2))"
-            })
-            .mockImplementationOnce(() => {
-                throw "JsValue(transcript refused)"
-            })
-        const load = loader()
-        load.mockResolvedValueOnce({dkg_messages: [], tally_messages: []})
-            .mockResolvedValueOnce({dkg_messages: [], tally_messages: []})
+            .mockRejectedValueOnce(
+                "JsValue(RuntimeError: unreachable\nRuntimeError: unreachable\n    at protocol_board.wasm (index_bg.wasm:1:2))"
+            )
+            .mockRejectedValueOnce("JsValue(transcript refused)")
             .mockRejectedValueOnce(new Error("first line\nsecond line"))
         const batches = await verifyTallyBoards(
             verifier,
-            load,
+            loader(),
             [board(0), board(1), board(2)],
             () => undefined
         )
@@ -171,6 +155,20 @@ describe("verifyTallyBoards", () => {
             "transcript refused",
             "first line",
         ])
+    })
+
+    it("stops before the next board once the run is cancelled", async () => {
+        const verifier = fakeVerifier()
+        let cancelled = false
+        const batches = await verifyTallyBoards(
+            verifier,
+            loader(),
+            [board(0), board(1), board(2)],
+            () => (cancelled = true),
+            () => cancelled
+        )
+        expect(batches.map((batch) => batch.board.batch)).toEqual([0])
+        expect(verifier.verify).toHaveBeenCalledTimes(1)
     })
 })
 

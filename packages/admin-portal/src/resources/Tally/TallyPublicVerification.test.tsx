@@ -4,8 +4,9 @@
 import React from "react"
 import {fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {TallyPublicVerification} from "./TallyPublicVerification"
-import {loadBrowserTrustee, type PublicVerificationReport} from "@/services/BrowserTrustee"
-import type {TallyVerificationBoard, TallyVerifier} from "@/services/TallyPublicVerification"
+import type {PublicVerificationReport} from "@/services/BrowserTrustee"
+import type {TallyVerificationBoard} from "@/services/TallyPublicVerification"
+import {workerVerifier, type Verifier} from "@/services/VerifierWorker"
 import {GET_TALLY_PUBLIC_VERIFICATION_BOARDS} from "@/queries/GetTallyPublicVerificationBoards"
 import {GET_TALLY_PUBLIC_VERIFICATION_TRANSCRIPT} from "@/queries/GetTallyPublicVerificationTranscript"
 
@@ -25,9 +26,9 @@ jest.mock("@/hooks/usePresentationName", () => ({
         () => (record?: {presentation?: {i18n?: Record<string, {name?: string}>} | null}) =>
             record?.presentation?.i18n?.en?.name ?? "",
 }))
-jest.mock("@/services/BrowserTrustee", () => ({
-    ...jest.requireActual("@/services/BrowserTrustee"),
-    loadBrowserTrustee: jest.fn(),
+jest.mock("@/services/VerifierWorker", () => ({
+    ...jest.requireActual("@/services/VerifierWorker"),
+    workerVerifier: jest.fn(),
 }))
 
 const EVENT = "e7d6c5b4-a392-4180-9f6e-5d4c3b2a1908"
@@ -65,7 +66,7 @@ const report = (status: PublicVerificationReport["status"]): PublicVerificationR
     ballot_inclusions: [],
 })
 
-let verifier: jest.Mocked<TallyVerifier>
+let verifier: jest.Mocked<Verifier>
 
 const boards = (list: TallyVerificationBoard[]) => ({
     data: {get_tally_public_verification_boards: {boards: list}},
@@ -88,7 +89,7 @@ let answerTranscript: (tallyBoard: string) => Promise<unknown>
 const verifyButton = () => screen.getByRole("button", {name: `${KEY}.verify`})
 
 function renderWidget(finished = true) {
-    render(
+    return render(
         <TallyPublicVerification
             electionEventId={EVENT}
             tallySessionId={SESSION}
@@ -97,20 +98,30 @@ function renderWidget(finished = true) {
     )
 }
 
+const cells = () =>
+    screen
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) =>
+            within(row)
+                .getAllByRole("cell")
+                .map((cell) => cell.textContent)
+        )
+
 beforeEach(() => {
     jest.clearAllMocks()
     verifier = {
-        configurationHash: jest.fn((_configuration: string) => "configuration-hash"),
-        ballotsHash: jest.fn((_ballots: string) => "ballots-hash"),
-        tallyIdentifier: jest.fn((_configuration: string, _ballots: string) => "42"),
-        fetchTranscript: jest.fn(),
-        verifyTranscript: jest.fn((_evidence: string, _anchors: string) =>
-            JSON.stringify(report("verified"))
-        ),
+        ready: jest.fn(async () => undefined),
+        anchors: jest.fn(async () => ({
+            configuration_hash: "configuration-hash",
+            tally_id: "42",
+            ballots_hash: "ballots-hash",
+            ballot_ciphertexts: [],
+        })),
+        verify: jest.fn(async () => report("verified")),
+        close: jest.fn(),
     }
-    jest.mocked(loadBrowserTrustee).mockResolvedValue({
-        WasmVerifier: verifier,
-    } as unknown as Awaited<ReturnType<typeof loadBrowserTrustee>>)
+    jest.mocked(workerVerifier).mockReturnValue(verifier)
     answerBoards = async () => boards([named])
     answerTranscript = async (tallyBoard) => transcript(tallyBoard)
     mockQuery.mockImplementation((options: {query: unknown; variables: {tallyBoard: string}}) =>
@@ -121,12 +132,14 @@ beforeEach(() => {
 })
 
 it("cannot verify a tally that has not finished", () => {
-    renderWidget(false)
+    const {unmount} = renderWidget(false)
     expect((verifyButton() as HTMLButtonElement).disabled).toBe(true)
     expect(screen.getByText(`${KEY}.unavailable`)).toBeTruthy()
+    unmount()
+    expect(workerVerifier).not.toHaveBeenCalled()
 })
 
-it("verifies every batch with the tally-results role and lists the checks when all pass", async () => {
+it("verifies every batch in a worker, from messages the platform reads, and lists the checks", async () => {
     let answer: (value: unknown) => void = () => undefined
     answerBoards = () => new Promise((resolve) => (answer = resolve))
     let release: () => void = () => undefined
@@ -152,6 +165,12 @@ it("verifies every batch with the tally-results role and lists the checks when a
             `${KEY}.progress {"current":1,"total":2}`
         )
     )
+    // The worker loads the browser trustees' bundle from this origin.
+    expect(workerVerifier).toHaveBeenCalledWith(
+        `${window.location.origin}/wbraid-trustee/`,
+        expect.any(Number)
+    )
+    expect(verifier.ready).toHaveBeenCalled()
     // The platform reads the board, uncached; the browser reads no board itself.
     expect(mockQuery).toHaveBeenCalledWith({
         query: GET_TALLY_PUBLIC_VERIFICATION_TRANSCRIPT,
@@ -164,48 +183,60 @@ it("verifies every batch with the tally-results role and lists the checks when a
     expect(await screen.findByText(`${KEY}.summary.verified {"count":2,"total":2}`)).toBeTruthy()
     for (const check of ["ballots", "mixing", "decryption"])
         expect(screen.getByText(`${KEY}.checks.${check}`)).toBeTruthy()
-    const rows = screen.getAllByRole("row").slice(1)
-    expect(rows.map((row) => within(row).getAllByRole("cell")[0].textContent)).toEqual([
-        `General · Mayor · North${named.tally_board}`,
-        `${KEY}.batch {"batch":32}${unnamed.tally_board}`,
+    // An owned batch is named by its owner and numbered; an ownerless one by its number.
+    expect(cells()).toEqual([
+        [
+            `General · Mayor · North${KEY}.batch {"batch":0} · ${named.tally_board}`,
+            "7",
+            `${KEY}.status.verified`,
+            `${KEY}.detail.verified`,
+        ],
+        [
+            `${KEY}.batch {"batch":32}${unnamed.tally_board}`,
+            "7",
+            `${KEY}.status.verified`,
+            `${KEY}.detail.verified`,
+        ],
     ])
-    expect(within(rows[0]).getByText("7")).toBeTruthy()
-    expect(within(rows[1]).getByText(`${KEY}.status.verified`)).toBeTruthy()
     expect(screen.getByRole("button", {name: `${KEY}.verifyAgain`})).toBeTruthy()
     expect(screen.queryByRole("status")).toBeNull()
-    expect(JSON.parse(verifier.verifyTranscript.mock.calls[0][0])).toEqual({
+    expect(JSON.parse(verifier.verify.mock.calls[0][0])).toEqual({
         version: 1,
         dkg_messages: ["ZGtn"],
         tally_messages: [named.tally_board],
     })
-    expect(verifier.fetchTranscript).not.toHaveBeenCalled()
+    // The run's worker is stopped when it ends.
+    expect(verifier.close).toHaveBeenCalledTimes(1)
 })
 
-it("reports each failed proof or unreadable batch, and the batches still verified", async () => {
-    answerBoards = async () => boards([named, unnamed, {...named, tally_board: "third"}])
+it("reports each failed proof, missing publication or unreadable batch", async () => {
+    answerBoards = async () =>
+        boards([
+            named,
+            unnamed,
+            {...named, tally_board: "third"},
+            {...named, tally_board: "fourth"},
+        ])
     answerTranscript = async (tallyBoard) => {
         if (tallyBoard === unnamed.tally_board)
             throw new Error("the board service could not be read")
         return transcript(tallyBoard)
     }
-    verifier.verifyTranscript.mockReturnValueOnce(JSON.stringify(report("invalid")))
+    verifier.verify
+        .mockResolvedValueOnce(report("invalid"))
+        .mockResolvedValueOnce(report("incomplete"))
     renderWidget()
 
     fireEvent.click(verifyButton())
 
-    expect(await screen.findByText(`${KEY}.summary.invalid {"count":1,"total":3}`)).toBeTruthy()
+    expect(await screen.findByText(`${KEY}.summary.invalid {"count":1,"total":4}`)).toBeTruthy()
     expect(screen.queryByText(`${KEY}.checks.title`)).toBeNull()
-    const rows = screen.getAllByRole("row").slice(1)
-    const cells = rows.map((row) =>
-        within(row)
-            .getAllByRole("cell")
-            .slice(1)
-            .map((cell) => cell.textContent)
-    )
-    expect(cells).toEqual([
+    expect(cells().map((row) => row.slice(1))).toEqual([
+        // The verifier's own reason for a failed proof.
         ["7", `${KEY}.status.invalid`, "invalid detail"],
         ["", `${KEY}.status.error`, "the board service could not be read"],
-        ["7", `${KEY}.status.verified`, "verified detail"],
+        ["7", `${KEY}.status.incomplete`, `${KEY}.detail.incomplete`],
+        ["7", `${KEY}.status.verified`, `${KEY}.detail.verified`],
     ])
 })
 
@@ -214,10 +245,10 @@ it("says when a tally has no boards to verify", async () => {
     renderWidget()
     fireEvent.click(verifyButton())
     expect(await screen.findByText(`${KEY}.empty`)).toBeTruthy()
-    expect(loadBrowserTrustee).not.toHaveBeenCalled()
+    expect(workerVerifier).not.toHaveBeenCalled()
 })
 
-it("says why the verification could not run", async () => {
+it("says why the verification could not run, or that the browser cannot verify", async () => {
     answerBoards = async () => {
         throw new Error("network down")
     }
@@ -225,11 +256,40 @@ it("says why the verification could not run", async () => {
     fireEvent.click(verifyButton())
     expect(await screen.findByText(`${KEY}.failed {"message":"network down"}`)).toBeTruthy()
 
-    // The browser cannot load the verifier, e.g. without cross-origin isolation.
+    // The worker cannot load the verifier, e.g. without cross-origin isolation.
     answerBoards = async () => boards([named])
-    jest.mocked(loadBrowserTrustee).mockRejectedValueOnce("not isolated")
+    verifier.ready.mockRejectedValueOnce(new Error("SharedArrayBuffer is not defined"))
     fireEvent.click(verifyButton())
-    expect(await screen.findByText(`${KEY}.failed {"message":"not isolated"}`)).toBeTruthy()
+    expect(
+        await screen.findByText(
+            `${KEY}.verifierUnavailable {"message":"SharedArrayBuffer is not defined"}`
+        )
+    ).toBeTruthy()
+    expect(verifier.anchors).not.toHaveBeenCalled()
+    expect(verifier.close).toHaveBeenCalledTimes(1)
+
+    // The WASM bundle rejects with strings.
+    verifier.ready.mockRejectedValueOnce("no wasm")
+    fireEvent.click(verifyButton())
+    expect(await screen.findByText(`${KEY}.verifierUnavailable {"message":"no wasm"}`)).toBeTruthy()
+})
+
+it("stops the run and its worker when the section goes away", async () => {
+    let release: () => void = () => undefined
+    answerBoards = async () => boards([named, unnamed])
+    answerTranscript = (tallyBoard) =>
+        new Promise((resolve) => (release = () => resolve(transcript(tallyBoard))))
+    const {unmount} = renderWidget()
+    fireEvent.click(verifyButton())
+    await waitFor(() => expect(verifier.anchors).toHaveBeenCalledTimes(1))
+
+    unmount()
+    expect(verifier.close).toHaveBeenCalled()
+    release()
+    // The board in progress finishes; the next one is never started.
+    await waitFor(() => expect(verifier.verify).toHaveBeenCalledTimes(1))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(verifier.anchors).toHaveBeenCalledTimes(1)
 })
 
 it("downloads the run's evidence", async () => {

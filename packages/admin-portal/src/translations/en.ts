@@ -3494,10 +3494,11 @@ const englishTranslation = {
                 progress: "Verifying batch {{current}} of {{total}}…",
                 empty: "This tally has no bulletin board batches to verify.",
                 failed: "The verification could not run: {{message}}",
+                verifierUnavailable: "This browser could not start the verifier: {{message}}",
                 summary: {
                     verified: "All batches verified: {{count}} of {{total}}.",
                     invalid: "Batches that failed verification: {{count}} of {{total}}.",
-                    error: "Batches that could not be verified: {{count}} of {{total}}. The platform could not read their boards from the board service.",
+                    error: "Batches that could not be verified: {{count}} of {{total}}. Each row gives the reason.",
                     incomplete:
                         "Incomplete batches: {{count}} of {{total}}. Their required publications are missing, so they are not verified.",
                 },
@@ -3520,6 +3521,10 @@ const englishTranslation = {
                     incomplete: "Incomplete",
                     invalid: "Invalid",
                     error: "Not verified",
+                },
+                detail: {
+                    verified: "Every proof and publication of the batch was checked.",
+                    incomplete: "Required publications are missing from the board.",
                 },
                 download: "Download evidence",
             },

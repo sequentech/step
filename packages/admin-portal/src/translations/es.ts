@@ -3351,10 +3351,11 @@ const spanishTranslation: TranslationType = {
                 progress: "Verificando el lote {{current}} de {{total}}…",
                 empty: "Este recuento no tiene lotes en el tablón de anuncios que verificar.",
                 failed: "No se pudo realizar la verificación: {{message}}",
+                verifierUnavailable: "Este navegador no pudo iniciar el verificador: {{message}}",
                 summary: {
                     verified: "Todos los lotes verificados: {{count}} de {{total}}.",
                     invalid: "Lotes que no superaron la verificación: {{count}} de {{total}}.",
-                    error: "Lotes que no se pudieron verificar: {{count}} de {{total}}. La plataforma no pudo leer sus tablones del servicio de tablones.",
+                    error: "Lotes que no se pudieron verificar: {{count}} de {{total}}. Cada fila indica el motivo.",
                     incomplete:
                         "Lotes incompletos: {{count}} de {{total}}. Faltan publicaciones necesarias, por lo que no están verificados.",
                 },
@@ -3377,6 +3378,10 @@ const spanishTranslation: TranslationType = {
                     incomplete: "Incompleto",
                     invalid: "No válido",
                     error: "Sin verificar",
+                },
+                detail: {
+                    verified: "Se comprobaron todas las pruebas y publicaciones del lote.",
+                    incomplete: "Faltan publicaciones necesarias en el tablón.",
                 },
                 download: "Descargar las evidencias",
             },

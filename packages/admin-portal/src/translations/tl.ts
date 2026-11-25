@@ -3202,10 +3202,11 @@ const tagalogTranslation: TranslationType = {
                 progress: "Bine-verify ang batch {{current}} ng {{total}}…",
                 empty: "Walang batch sa bulletin board ang tally na ito na mabe-verify.",
                 failed: "Hindi naisagawa ang beripikasyon: {{message}}",
+                verifierUnavailable: "Hindi masimulan ng browser na ito ang verifier: {{message}}",
                 summary: {
                     verified: "Na-verify ang lahat ng batch: {{count}} ng {{total}}.",
                     invalid: "Mga batch na hindi pumasa sa beripikasyon: {{count}} ng {{total}}.",
-                    error: "Mga batch na hindi na-verify: {{count}} ng {{total}}. Hindi nabasa ng plataporma ang kanilang mga board mula sa serbisyo ng board.",
+                    error: "Mga batch na hindi na-verify: {{count}} ng {{total}}. Sinasabi ng bawat hilera ang dahilan.",
                     incomplete:
                         "Mga hindi kumpletong batch: {{count}} ng {{total}}. Kulang ang mga kinakailangang publikasyon, kaya hindi sila na-verify.",
                 },
@@ -3228,6 +3229,10 @@ const tagalogTranslation: TranslationType = {
                     incomplete: "Hindi kumpleto",
                     invalid: "Hindi wasto",
                     error: "Hindi na-verify",
+                },
+                detail: {
+                    verified: "Nasuri ang lahat ng proof at publikasyon ng batch.",
+                    incomplete: "Kulang sa board ang mga kinakailangang publikasyon.",
                 },
                 download: "I-download ang ebidensya",
             },

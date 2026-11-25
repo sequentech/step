@@ -3178,10 +3178,11 @@ const galegoTranslation: TranslationType = {
                 progress: "Verificando o lote {{current}} de {{total}}…",
                 empty: "Este reconto non ten lotes no taboleiro de anuncios que verificar.",
                 failed: "Non se puido realizar a verificación: {{message}}",
+                verifierUnavailable: "Este navegador non puido iniciar o verificador: {{message}}",
                 summary: {
                     verified: "Todos os lotes verificados: {{count}} de {{total}}.",
                     invalid: "Lotes que non superaron a verificación: {{count}} de {{total}}.",
-                    error: "Lotes que non se puideron verificar: {{count}} de {{total}}. A plataforma non puido ler os seus taboleiros do servizo de taboleiros.",
+                    error: "Lotes que non se puideron verificar: {{count}} de {{total}}. Cada fila indica o motivo.",
                     incomplete:
                         "Lotes incompletos: {{count}} de {{total}}. Faltan publicacións necesarias, polo que non están verificados.",
                 },
@@ -3204,6 +3205,10 @@ const galegoTranslation: TranslationType = {
                     incomplete: "Incompleto",
                     invalid: "Non válido",
                     error: "Sen verificar",
+                },
+                detail: {
+                    verified: "Comprobáronse todas as probas e publicacións do lote.",
+                    incomplete: "Faltan publicacións necesarias no taboleiro.",
                 },
                 download: "Descargar as evidencias",
             },

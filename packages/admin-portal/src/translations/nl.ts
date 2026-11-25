@@ -3189,11 +3189,12 @@ const dutchTranslation: TranslationType = {
                 progress: "Batch {{current}} van {{total}} wordt geverifieerd…",
                 empty: "Deze telling heeft geen prikbordbatches om te verifiëren.",
                 failed: "De verificatie kon niet worden uitgevoerd: {{message}}",
+                verifierUnavailable: "Deze browser kon de verificatie niet starten: {{message}}",
                 summary: {
                     verified: "Alle batches geverifieerd: {{count}} van {{total}}.",
                     invalid:
                         "Batches die de verificatie niet doorstonden: {{count}} van {{total}}.",
-                    error: "Batches die niet konden worden geverifieerd: {{count}} van {{total}}. Het platform kon hun prikborden niet lezen bij de prikborddienst.",
+                    error: "Batches die niet konden worden geverifieerd: {{count}} van {{total}}. Elke rij geeft de reden.",
                     incomplete:
                         "Onvolledige batches: {{count}} van {{total}}. Vereiste publicaties ontbreken, dus ze zijn niet geverifieerd.",
                 },
@@ -3216,6 +3217,10 @@ const dutchTranslation: TranslationType = {
                     incomplete: "Onvolledig",
                     invalid: "Ongeldig",
                     error: "Niet geverifieerd",
+                },
+                detail: {
+                    verified: "Alle bewijzen en publicaties van de batch zijn gecontroleerd.",
+                    incomplete: "Vereiste publicaties ontbreken op het prikbord.",
                 },
                 download: "Bewijs downloaden",
             },

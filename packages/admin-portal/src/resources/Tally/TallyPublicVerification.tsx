@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState} from "react"
+import React, {useEffect, useRef, useState} from "react"
 import {useApolloClient} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {
@@ -24,7 +24,7 @@ import {
 } from "@mui/material"
 import CheckCircleIcon from "@mui/icons-material/CheckCircle"
 import {IPermissions} from "@/types/keycloak"
-import {loadBrowserTrustee} from "@/services/BrowserTrustee"
+import {verifierThreads, workerVerifier, type Verifier} from "@/services/VerifierWorker"
 import {usePresentationName} from "@/hooks/usePresentationName"
 import {
     GET_TALLY_PUBLIC_VERIFICATION_BOARDS,
@@ -42,21 +42,34 @@ import {
     type BatchStatus,
     type BatchVerification,
     type TallyVerificationBoard,
-    type TallyVerifier,
     type TranscriptLoader,
 } from "@/services/TallyPublicVerification"
 
-/** The production verifier, from the browser trustees' WASM bundle. */
-async function loadVerifier(): Promise<TallyVerifier> {
-    return (await loadBrowserTrustee()).WasmVerifier
-}
+/**
+ * The production verifier: the browser trustees' WASM bundle in a worker of
+ * its own, so verifying never blocks the page.
+ */
+const startVerifier = (): Verifier =>
+    workerVerifier(
+        new URL("/wbraid-trustee/", window.location.origin).href,
+        verifierThreads(navigator.hardwareConcurrency)
+    )
+
+const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
 type State =
     | {kind: "idle"}
     | {kind: "running"; done: number; total: number | null}
     | {kind: "empty"}
     | {kind: "failed"; message: string}
+    | {kind: "unavailable"; message: string}
     | {kind: "done"; batches: BatchVerification[]}
+
+/** One click's run: stopped when the section goes away. */
+interface Run {
+    cancelled: boolean
+    verifier?: Verifier
+}
 
 const SEVERITY: Record<BatchStatus, "success" | "warning" | "error"> = {
     verified: "success",
@@ -81,8 +94,8 @@ export interface TallyPublicVerificationProps {
     tallySessionId: string
     /** A tally's boards are complete once it has finished. */
     finished: boolean
-    /** Loads the verifier; the browser trustees' bundle unless a story supplies one. */
-    verifier?: () => Promise<TallyVerifier>
+    /** Starts a verifier for a run; the worker unless a story or test supplies one. */
+    verifier?: () => Verifier
 }
 
 /**
@@ -95,11 +108,23 @@ export const TallyPublicVerification: React.FC<TallyPublicVerificationProps> = (
     electionEventId,
     tallySessionId,
     finished,
-    verifier = loadVerifier,
+    verifier = startVerifier,
 }) => {
     const {t} = useTranslation()
     const client = useApolloClient()
     const [state, setState] = useState<State>({kind: "idle"})
+    const active = useRef<Run | null>(null)
+
+    // Leaving the section stops the run and its worker.
+    useEffect(
+        () => () => {
+            const run = active.current
+            if (!run) return
+            run.cancelled = true
+            run.verifier?.close()
+        },
+        []
+    )
     const role = {headers: {"x-hasura-role": IPermissions.TALLY_RESULTS_READ}}
 
     // A transcript can be large and is read once: kept out of Apollo's cache.
@@ -114,6 +139,8 @@ export const TallyPublicVerification: React.FC<TallyPublicVerificationProps> = (
     }
 
     const verify = async () => {
+        const run: Run = {cancelled: false}
+        active.current = run
         setState({kind: "running", done: 0, total: null})
         try {
             const {data} = await client.query<GetTallyPublicVerificationBoardsQuery>({
@@ -127,18 +154,27 @@ export const TallyPublicVerification: React.FC<TallyPublicVerificationProps> = (
                 setState({kind: "empty"})
                 return
             }
-            const wasm = await verifier()
+            run.verifier = verifier()
+            try {
+                await run.verifier.ready()
+            } catch (error) {
+                setState({kind: "unavailable", message: errorText(error)})
+                return
+            }
             const total = boards.length
             setState({kind: "running", done: 0, total})
-            const batches = await verifyTallyBoards(wasm, load, boards, (done) =>
-                setState({kind: "running", done, total})
+            const batches = await verifyTallyBoards(
+                run.verifier,
+                load,
+                boards,
+                (done) => setState({kind: "running", done, total}),
+                () => run.cancelled
             )
             setState({kind: "done", batches})
         } catch (error) {
-            setState({
-                kind: "failed",
-                message: error instanceof Error ? error.message : String(error),
-            })
+            setState({kind: "failed", message: errorText(error)})
+        } finally {
+            run.verifier?.close()
         }
     }
 
@@ -199,6 +235,11 @@ export const TallyPublicVerification: React.FC<TallyPublicVerificationProps> = (
                     {t("tally.publicVerification.failed", {message: state.message})}
                 </Alert>
             ) : null}
+            {state.kind === "unavailable" ? (
+                <Alert severity="error">
+                    {t("tally.publicVerification.verifierUnavailable", {message: state.message})}
+                </Alert>
+            ) : null}
             {state.kind === "done" ? (
                 <VerificationResults
                     batches={state.batches}
@@ -223,6 +264,12 @@ const VerificationResults: React.FC<{batches: BatchVerification[]; onDownload: (
         ]
             .filter(Boolean)
             .join(" · ")
+    // The verifier explains failures in English; a pass reads in the interface's language.
+    const detailOf = (batch: BatchVerification) => {
+        if (!("report" in batch)) return batch.error
+        const {status, detail} = batch.report
+        return status === "invalid" ? detail : t(`tally.publicVerification.detail.${status}`)
+    }
     const status = overallStatus(batches)
     const count = batches.filter((batch) => batchStatus(batch) === status).length
     return (
@@ -263,17 +310,20 @@ const VerificationResults: React.FC<{batches: BatchVerification[]; onDownload: (
                 <TableBody>
                     {batches.map((batch) => {
                         const batchState = batchStatus(batch)
+                        // A contest area owns several batches under weighted
+                        // voting: its batch number tells them apart.
+                        const owner = ownerOf(batch.board)
+                        const number = t("tally.publicVerification.batch", {
+                            batch: batch.board.batch,
+                        })
                         return (
                             <TableRow key={batch.board.tally_board}>
                                 <TableCell>
-                                    <Typography variant="body2">
-                                        {ownerOf(batch.board) ||
-                                            t("tally.publicVerification.batch", {
-                                                batch: batch.board.batch,
-                                            })}
-                                    </Typography>
+                                    <Typography variant="body2">{owner || number}</Typography>
                                     <Typography variant="caption" color="text.secondary">
-                                        {batch.board.tally_board}
+                                        {owner
+                                            ? `${number} · ${batch.board.tally_board}`
+                                            : batch.board.tally_board}
                                     </Typography>
                                 </TableCell>
                                 <TableCell align="right">
@@ -286,9 +336,7 @@ const VerificationResults: React.FC<{batches: BatchVerification[]; onDownload: (
                                         label={t(`tally.publicVerification.status.${batchState}`)}
                                     />
                                 </TableCell>
-                                <TableCell>
-                                    {"report" in batch ? batch.report.detail : batch.error}
-                                </TableCell>
+                                <TableCell>{detailOf(batch)}</TableCell>
                             </TableRow>
                         )
                     })}

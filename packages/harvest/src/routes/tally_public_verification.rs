@@ -7,7 +7,9 @@
 //! trust anchors, and each board's public transcript, which Harvest reads
 //! from b4 and its storage so that the browser needs to reach neither.
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_tally_session_permission_labels,
+};
 use crate::services::dependencies::HarvestServices;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use protocol_board::{BoardHandle, BoardName};
@@ -64,7 +66,7 @@ fn unreadable(error: anyhow::Error) -> (Status, String) {
 }
 
 /// The boards of a tally session of the caller's tenant, for a caller who
-/// may read tally results.
+/// may read tally results of every election of the session.
 async fn boards_of(
     claims: &JwtClaims,
     services: &HarvestServices,
@@ -86,6 +88,13 @@ async fn boards_of(
         .map_err(internal)?;
     let hasura_transaction =
         hasura_db_client.transaction().await.map_err(internal)?;
+    authorize_tally_session_permission_labels(
+        &hasura_transaction,
+        claims,
+        &election_event_id.to_string(),
+        &tally_session_id.to_string(),
+    )
+    .await?;
     tally_public_verification::list_boards(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,

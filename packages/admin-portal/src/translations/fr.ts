@@ -3212,10 +3212,12 @@ const frenchTranslation: TranslationType = {
                 progress: "Vérification du lot {{current}} sur {{total}}…",
                 empty: "Ce dépouillement n'a aucun lot du tableau d'affichage à vérifier.",
                 failed: "La vérification n'a pas pu être effectuée : {{message}}",
+                verifierUnavailable:
+                    "Ce navigateur n'a pas pu démarrer le vérificateur : {{message}}",
                 summary: {
                     verified: "Tous les lots vérifiés : {{count}} sur {{total}}.",
                     invalid: "Lots dont la vérification a échoué : {{count}} sur {{total}}.",
-                    error: "Lots qui n'ont pas pu être vérifiés : {{count}} sur {{total}}. La plateforme n'a pas pu lire leurs tableaux auprès du service des tableaux.",
+                    error: "Lots qui n'ont pas pu être vérifiés : {{count}} sur {{total}}. Chaque ligne en donne la raison.",
                     incomplete:
                         "Lots incomplets : {{count}} sur {{total}}. Des publications requises manquent, ils ne sont donc pas vérifiés.",
                 },
@@ -3239,6 +3241,10 @@ const frenchTranslation: TranslationType = {
                     incomplete: "Incomplet",
                     invalid: "Non valide",
                     error: "Non vérifié",
+                },
+                detail: {
+                    verified: "Toutes les preuves et publications du lot ont été vérifiées.",
+                    incomplete: "Des publications requises manquent sur le tableau.",
                 },
                 download: "Télécharger les preuves",
             },

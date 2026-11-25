@@ -166,8 +166,10 @@ class BackendJourneys(unittest.TestCase):
             result = result.json()
             self.assertEqual(result["report"]["status"], "verified", result["report"])
             # The admin portal verifies the messages Harvest reads for it: the
-            # same ones the observer read from the board itself.
-            served = api.query(
+            # same ones the observer read from the board itself. A token per
+            # board: each browser verification above can take a while.
+            reader = Hasura(token=self.admin_token(), role="tally-results-read")
+            served = reader.query(
                 """query ($event: String!, $session: String!, $board: String!) {
                   get_tally_public_verification_transcript(
                     election_event_id: $event, tally_session_id: $session,

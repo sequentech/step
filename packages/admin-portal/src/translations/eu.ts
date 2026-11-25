@@ -3171,10 +3171,12 @@ const basqueTranslation: TranslationType = {
                 progress: "{{total}} sortetatik {{current}}. egiaztatzen…",
                 empty: "Zenbaketa honek ez du egiaztatzeko sortarik iragarki-taulan.",
                 failed: "Ezin izan da egiaztapena egin: {{message}}",
+                verifierUnavailable:
+                    "Nabigatzaile honek ezin izan du egiaztatzailea abiarazi: {{message}}",
                 summary: {
                     verified: "Sorta guztiak egiaztatuta: {{count}} / {{total}}.",
                     invalid: "Egiaztapena gainditu ez duten sortak: {{count}} / {{total}}.",
-                    error: "Egiaztatu ezin izan diren sortak: {{count}} / {{total}}. Plataformak ezin izan ditu haien taulak taulen zerbitzutik irakurri.",
+                    error: "Egiaztatu ezin izan diren sortak: {{count}} / {{total}}. Errenkada bakoitzak arrazoia ematen du.",
                     incomplete:
                         "Sorta osatugabeak: {{count}} / {{total}}. Beharrezko argitalpenak falta dira, beraz ez daude egiaztatuta.",
                 },
@@ -3197,6 +3199,10 @@ const basqueTranslation: TranslationType = {
                     incomplete: "Osatugabea",
                     invalid: "Baliogabea",
                     error: "Egiaztatu gabe",
+                },
+                detail: {
+                    verified: "Sortaren froga eta argitalpen guztiak egiaztatu dira.",
+                    incomplete: "Beharrezko argitalpenak falta dira iragarki-taulan.",
                 },
                 download: "Deskargatu frogak",
             },

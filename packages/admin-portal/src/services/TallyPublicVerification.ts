@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-import type {PublicVerificationReport, TrusteeModule, VerificationAnchors} from "./BrowserTrustee"
+import type {PublicVerificationReport, VerificationAnchors} from "./BrowserTrustee"
+import type {Verifier} from "./VerifierWorker"
 
 /** Where elections and contests keep their names: `i18n.<language>.name`. */
 export interface Presentation {
@@ -22,8 +23,6 @@ export interface TallyVerificationBoard {
     /** The tally board's `Ballots` message, in padded base64. */
     ballots_message: string
 }
-
-export type TallyVerifier = TrusteeModule["WasmVerifier"]
 
 /** A board's public transcript, as `get_tally_public_verification_transcript` reads it. */
 export interface BoardMessages {
@@ -69,17 +68,6 @@ export function overallStatus(batches: BatchVerification[]): BatchStatus {
     )
 }
 
-/** Anchors derived from the platform's records of a board, never from the board itself. */
-export const anchorsOf = (
-    verifier: TallyVerifier,
-    board: TallyVerificationBoard
-): VerificationAnchors => ({
-    configuration_hash: verifier.configurationHash(board.configuration_message),
-    tally_id: verifier.tallyIdentifier(board.configuration_message, board.ballots_message),
-    ballots_hash: verifier.ballotsHash(board.ballots_message),
-    ballot_ciphertexts: [],
-})
-
 /**
  * An error's first line. The WASM verifier reports an error as
  * `JsValue(<error>\n<its stack>)`, which keeps just `<error>`.
@@ -91,31 +79,35 @@ function message(error: unknown): string {
 }
 
 async function verifyBoard(
-    verifier: TallyVerifier,
+    verifier: Verifier,
     load: TranscriptLoader,
     board: TallyVerificationBoard
 ): Promise<BatchVerification> {
     try {
-        const anchors = anchorsOf(verifier, board)
+        const anchors = await verifier.anchors(board)
         const transcript = transcriptOf(await load(board))
-        const report: PublicVerificationReport = JSON.parse(
-            verifier.verifyTranscript(transcript, JSON.stringify(anchors))
-        )
+        const report = await verifier.verify(transcript, anchors)
         return {board, anchors, transcript, report}
     } catch (error) {
         return {board, error: message(error)}
     }
 }
 
-/** Verify the boards one after another; a board that fails does not stop the rest. */
+/**
+ * Verify the boards one after another; a board that fails does not stop the
+ * rest. `cancelled` is asked before each board: once it answers true, the run
+ * stops with the batches it has.
+ */
 export async function verifyTallyBoards(
-    verifier: TallyVerifier,
+    verifier: Verifier,
     load: TranscriptLoader,
     boards: TallyVerificationBoard[],
-    onProgress: (done: number) => void
+    onProgress: (done: number) => void,
+    cancelled: () => boolean = () => false
 ): Promise<BatchVerification[]> {
     const batches: BatchVerification[] = []
     for (const board of boards) {
+        if (cancelled()) break
         batches.push(await verifyBoard(verifier, load, board))
         onProgress(batches.length)
     }

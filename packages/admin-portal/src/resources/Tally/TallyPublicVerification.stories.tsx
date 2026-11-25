@@ -10,7 +10,8 @@ import {AdminStoryProvider, EVENT_ID, graphqlBoundary} from "@/__stories__/Admin
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {recordDownloads, type RecordedDownload} from "@/__stories__/downloads"
 import type {PublicVerificationReport} from "@/services/BrowserTrustee"
-import type {TallyVerificationBoard, TallyVerifier} from "@/services/TallyPublicVerification"
+import type {TallyVerificationBoard} from "@/services/TallyPublicVerification"
+import type {Verifier} from "@/services/VerifierWorker"
 import {TallyPublicVerification} from "./TallyPublicVerification"
 
 const SESSION = "5a4b3c2d-1e0f-4a9b-8c7d-6e5f4a3b2c1d"
@@ -59,6 +60,8 @@ interface Scenario {
     outcomes: Record<string, Outcome>
     /** The boards cannot be read from the platform. */
     unreadable: boolean
+    /** Why the verifier cannot start in this browser; empty when it can. */
+    unavailable: string
 }
 
 const DETAIL: Record<PublicVerificationReport["status"], string> = {
@@ -89,43 +92,51 @@ function transcriptAnswer(outcomes: Record<string, Outcome>, tally: string) {
     }
 }
 
-/** The WASM verifier's contract, answering each board's outcome. */
-function storyVerifier(outcomes: Record<string, Outcome>): TallyVerifier {
+/**
+ * The worker's contract, answering each board's outcome; `unavailable` is why
+ * it cannot start in this browser.
+ */
+function storyVerifier(outcomes: Record<string, Outcome>, unavailable: string): Verifier {
     const outcome = (tally: string) => outcomeOf(outcomes, tally)
     return {
-        configurationHash: (message) => `configuration(${message})`,
-        ballotsHash: (message) => `ballots(${message})`,
-        tallyIdentifier: () => "42",
-        // The platform reads the boards: the browser never fetches one.
-        fetchTranscript: () => Promise.reject(new Error("the browser read a board")),
-        verifyTranscript: (transcript, anchors) => {
+        ready: async () => {
+            if (unavailable) throw new Error(unavailable)
+        },
+        anchors: async (board) => ({
+            configuration_hash: `configuration(${board.configuration_message})`,
+            tally_id: "42",
+            ballots_hash: `ballots(${board.ballots_message})`,
+            ballot_ciphertexts: [],
+        }),
+        verify: async (transcript, anchors) => {
             const tally: string = JSON.parse(transcript).tally_messages[0]
             const {status} = outcome(tally) as {status: PublicVerificationReport["status"]}
-            return JSON.stringify({
+            return {
                 status,
                 detail: DETAIL[status],
-                configuration_hash: JSON.parse(anchors).configuration_hash,
+                configuration_hash: anchors.configuration_hash,
                 tally_id: "42",
                 public_key_hash: null,
                 ballot_count: status === "verified" ? 120 : null,
                 plaintexts: [],
                 ballot_inclusions: [],
-            } satisfies PublicVerificationReport)
+            }
         },
+        close: () => undefined,
     }
 }
 
 let boundary: ReturnType<typeof graphqlBoundary>
 let downloads: RecordedDownload[]
 
-function Fixture({finished, outcomes}: Scenario) {
+function Fixture({finished, outcomes, unavailable}: Scenario) {
     return (
         <AdminStoryProvider boundary={boundary}>
             <TallyPublicVerification
                 electionEventId={EVENT_ID}
                 tallySessionId={SESSION}
                 finished={finished}
-                verifier={async () => storyVerifier(outcomes)}
+                verifier={() => storyVerifier(outcomes, unavailable)}
             />
         </AdminStoryProvider>
     )
@@ -134,7 +145,13 @@ function Fixture({finished, outcomes}: Scenario) {
 const meta = {
     title: "Admin/Tally/TallyPublicVerification",
     component: TallyPublicVerification,
-    args: {finished: true, boards: [NORTH, SOUTH], outcomes: {}, unreadable: false},
+    args: {
+        finished: true,
+        boards: [NORTH, SOUTH],
+        outcomes: {},
+        unreadable: false,
+        unavailable: "",
+    },
     beforeEach: async ({args}) => {
         boundary = graphqlBoundary(
             {
@@ -165,6 +182,10 @@ const meta = {
 export default meta
 type Story = StoryObj<Scenario>
 
+/** The caption under an owned batch: its number and board. */
+const numbered = (board: TallyVerificationBoard) =>
+    `${i18n.t(`${KEY}.batch`, {batch: board.batch})} · ${board.tally_board}`
+
 const verify = async (canvasElement: HTMLElement) =>
     userEvent.click(within(canvasElement).getByRole("button", {name: i18n.t(`${KEY}.verify`)}))
 
@@ -190,16 +211,16 @@ export const AllBatchesVerified: Story = {
             await expect(canvas.getByText(i18n.t(`${KEY}.checks.${check}`))).toBeVisible()
         expect(rows(canvasElement)).toEqual([
             [
-                `Council · Members · North${NORTH.tally_board}`,
+                `Council · Members · North${numbered(NORTH)}`,
                 "120",
                 i18n.t(`${KEY}.status.verified`),
-                DETAIL.verified,
+                i18n.t(`${KEY}.detail.verified`),
             ],
             [
-                `Council · Members · South${SOUTH.tally_board}`,
+                `Council · Members · South${numbered(SOUTH)}`,
                 "120",
                 i18n.t(`${KEY}.status.verified`),
-                DETAIL.verified,
+                i18n.t(`${KEY}.detail.verified`),
             ],
         ])
         // The anchors' records and each board's messages are read through the
@@ -243,13 +264,13 @@ export const FailedProofAndUnreadableBatch: Story = {
         expect(canvas.queryByText(i18n.t(`${KEY}.checks.title`))).toBeNull()
         expect(rows(canvasElement)).toEqual([
             [
-                `Council · Members · North${NORTH.tally_board}`,
+                `Council · Members · North${numbered(NORTH)}`,
                 "",
                 i18n.t(`${KEY}.status.invalid`),
                 DETAIL.invalid,
             ],
             [
-                `Council · Members · South${SOUTH.tally_board}`,
+                `Council · Members · South${numbered(SOUTH)}`,
                 "",
                 i18n.t(`${KEY}.status.error`),
                 "The board service did not answer",
@@ -258,7 +279,7 @@ export const FailedProofAndUnreadableBatch: Story = {
                 `${i18n.t(`${KEY}.batch`, {batch: 64})}${UNNAMED.tally_board}`,
                 "120",
                 i18n.t(`${KEY}.status.verified`),
-                DETAIL.verified,
+                i18n.t(`${KEY}.detail.verified`),
             ],
         ])
     },
@@ -320,6 +341,20 @@ export const BoardsCannotBeRead: Story = {
             await within(canvasElement).findByText(
                 i18n.t(`${KEY}.failed`, {
                     message: "the tally session's boards could not be read",
+                })
+            )
+        ).toBeVisible()
+    },
+}
+
+export const VerifierUnavailable: Story = {
+    args: {unavailable: "SharedArrayBuffer is not defined"},
+    play: async ({canvasElement}) => {
+        await verify(canvasElement)
+        await expect(
+            await within(canvasElement).findByText(
+                i18n.t(`${KEY}.verifierUnavailable`, {
+                    message: "SharedArrayBuffer is not defined",
                 })
             )
         ).toBeVisible()

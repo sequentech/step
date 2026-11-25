@@ -127,6 +127,12 @@ service or its storage, so neither `WBRAID_BOARD_URL`, cross-origin access to th
 board and its storage, nor a forwarded storage port in the devcontainer affects
 the verification.
 
+The verifier runs in a dedicated module worker that loads `/wbraid-trustee/`
+and its thread pool, so the page stays responsive while a batch is checked;
+leaving the section stops the run and the worker. Both actions also require the
+caller's permission labels to allow every election of the tally session, as the
+other tally routes do.
+
 The anchors are the platform's records, so the page is a self-check of the
 platform against its boards, not an independent audit. **Download evidence**
 saves the run as JSON: each batch's `anchors`, `report` and the `transcript`

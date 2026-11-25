@@ -1333,6 +1333,7 @@ actions:
           type: query
           handler: http://{{HARVEST_DOMAIN}}/tally-public-verification-boards
           forward_client_headers: true
+          timeout: 120
           request_transform:
               body:
                   action: transform

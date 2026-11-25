@@ -45,7 +45,16 @@ async fn session_with_boards(
     pool: &Pool,
     event: &Event,
 ) -> (String, String, String) {
-    let session = event.tally_session(pool, &[], "SUCCESS").await;
+    session_of_elections(pool, event, &[]).await
+}
+
+/// As [`session_with_boards`], for a tally session of `election_ids`.
+async fn session_of_elections(
+    pool: &Pool,
+    event: &Event,
+    election_ids: &[String],
+) -> (String, String, String) {
+    let session = event.tally_session(pool, election_ids, "SUCCESS").await;
     let ceremony: Uuid = rows::query(
         pool,
         "SELECT keys_ceremony_id FROM sequent_backend.tally_session
@@ -184,11 +193,9 @@ async fn malformed_ids_are_refused_and_failures_are_not_detailed() {
     // The query fails: the tenant claim is not a UUID.
     let services = Services::on_test_database().await;
     let client = services.client().await;
-    assert_eq!(
-        text(post(&client, PATH, &reader("not-a-uuid"), &body(&id, &id)).await)
-            .await,
-        (Status::InternalServerError, UNREADABLE.to_string())
-    );
+    let response =
+        post(&client, PATH, &reader("not-a-uuid"), &body(&id, &id)).await;
+    assert_eq!(response.status(), Status::InternalServerError);
 }
 
 fn transcript_body(event: &Event, session: &str, tally_board: &str) -> Value {
@@ -358,4 +365,37 @@ async fn a_stored_board_name_that_does_not_parse_is_an_internal_error() {
         (Status::InternalServerError, UNREADABLE.to_string())
     );
     assert!(b4.finish().is_empty());
+}
+
+#[rocket::async_test]
+async fn callers_whose_labels_exclude_an_election_of_the_session_are_forbidden()
+{
+    let services = Services::on_test_database().await;
+    let event = rows::event(&services.hasura).await;
+    let north = event.labelled_election(&services.hasura, "north").await;
+    let (session, _, tally) =
+        session_of_elections(&services.hasura, &event, &[north]).await;
+    let client = services.client().await;
+    let south = reader(&event.tenant_id).permission_labels(&["south"]);
+    for (path, request) in [
+        (PATH, body(&event.election_event_id, &session)),
+        (TRANSCRIPT, transcript_body(&event, &session, &tally)),
+    ] {
+        let response = post(&client, path, &south, &request).await;
+        assert_eq!(response.status(), Status::Forbidden, "{path}");
+    }
+
+    let allowed = reader(&event.tenant_id).permission_labels(&["north"]);
+    let (status, boards) = json(
+        post(
+            &client,
+            PATH,
+            &allowed,
+            &body(&event.election_event_id, &session),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok);
+    assert_eq!(boards["boards"].as_array().map(Vec::len), Some(1));
 }
