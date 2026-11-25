@@ -175,7 +175,9 @@ pub async fn initiate(
                 SigningRequestStatus::Waiting | SigningRequestStatus::Completed => {
                     return Ok(Delivery::Waiting((&req).into()))
                 }
-                SigningRequestStatus::Executed => verify_subject(tx, &req, initiation).await?,
+                SigningRequestStatus::Executed => {
+                    check_settled_authority(tx, &req, initiation).await?
+                }
                 other => {
                     return Err(SigningError::Closed {
                         status: other,
@@ -368,6 +370,73 @@ pub async fn claim_render(
     }))
 }
 
+/// The approval may have settled long before the requester returns or the voter
+/// opens the document. A once-valid legacy approval cannot authorize a new
+/// credential under a later hardware floor. Read under the current policy
+/// lock; use the same frozen/current quorum checks as the signed executor.
+async fn check_settled_authority(
+    tx: &Transaction<'_>,
+    req: &SigningRequestRow,
+    init: Uuid,
+) -> Result<()> {
+    use crate::postgres::signing::{list_signing_approvals, SigningApprovalRow};
+    use crate::services::signing::guard::effective_rule_in_mode;
+    use crate::services::signing::operational_policy::local_scope::request_mode_and_latch;
+    use crate::services::signing::operational_policy::OperationalSigningMode;
+    use crate::services::signing::operational_quorum::has_operational_quorum;
+    use sequent_core::signing::SigningRule;
+
+    ensure!(
+        req.status == SigningRequestStatus::Executed,
+        "Authorization not settled"
+    );
+    verify_subject(tx, req, init).await?;
+    let (mode, latch) = request_mode_and_latch(tx, req).await?;
+    let current =
+        effective_rule_in_mode(tx, req.tenant_id, req.election_event_id, ACTION, mode).await?;
+    // A revised, still-required policy must authorize its own initiation.
+    ensure!(
+        !current.is_required() || current.revision == req.rule_revision,
+        "Manual verification policy changed; start a new authorization"
+    );
+    let frozen: SigningRule = serde_json::from_value(req.rule_snapshot.clone())?;
+    ensure!(
+        frozen.action == ACTION
+            && frozen.is_required()
+            && frozen.validate().is_ok()
+            && i32::from(frozen.required()) == req.required,
+        "Invalid frozen verification rule"
+    );
+    let current_minimum = if current.is_required() {
+        i64::from(current.required())
+    } else {
+        0
+    };
+    let approvals =
+        list_signing_approvals(tx, req.tenant_id, req.election_event_id, req.id).await?;
+    let distinct = approvals
+        .iter()
+        .map(|row| &row.user_id)
+        .collect::<std::collections::HashSet<_>>();
+    ensure!(
+        distinct.len() == approvals.len()
+            && i64::try_from(distinct.len())?
+                >= i64::from(req.required).max(current_minimum).max(1),
+        "Verification approval quorum is unavailable"
+    );
+    ensure!(
+        latch.is_some() || !approvals.iter().any(SigningApprovalRow::is_direct_demo),
+        "Verification approval scope is unavailable"
+    );
+    if mode == OperationalSigningMode::HsmRequired {
+        ensure!(
+            has_operational_quorum(tx, req, &approvals, current_minimum).await?,
+            "Current hardware approvals are required for manual verification"
+        );
+    }
+    Ok(())
+}
+
 async fn check_requirement(
     tx: &Transaction<'_>,
     tenant: Uuid,
@@ -379,11 +448,7 @@ async fn check_requirement(
         let r = get_signing_request(tx, tenant, event, req)
             .await?
             .context("Signing request unavailable")?;
-        ensure!(
-            r.status == SigningRequestStatus::Executed,
-            "Authorization not settled"
-        );
-        verify_subject(tx, &r, init).await?;
+        check_settled_authority(tx, &r, init).await?;
     } else {
         ensure!(
             !is_required(tx, tenant, event, ACTION).await?,
@@ -484,6 +549,7 @@ pub async fn may_download(tx: &Transaction<'_>, doc: Uuid, caller: &SigningCalle
                  ready_at IS NOT NULL AS ready, initiation_id, request_id
           FROM sequent_backend.manual_verification_issuance WHERE document_id=$1 AND request_id IS NOT NULL",&[&doc]).await?;
     let Some(row) = row else { return Ok(false) };
+    lock(tx, row.get("tenant_id"), row.get("election_event_id")).await?;
     let post = get_signing_post(
         tx,
         row.get("tenant_id"),
@@ -506,7 +572,7 @@ pub async fn may_download(tx: &Transaction<'_>, doc: Uuid, caller: &SigningCalle
     if req.status != SigningRequestStatus::Executed {
         return Ok(false);
     }
-    verify_subject(tx, &req, row.get("initiation_id")).await?;
+    check_settled_authority(tx, &req, row.get("initiation_id")).await?;
     Ok(row.get::<_, String>("requester_id") == caller.user_id
         && row.get::<_, bool>("ready")
         && caller.roles.contains(

@@ -189,6 +189,34 @@ async fn enrollment_and_manual_issuance_are_independent_and_only_the_exact_inten
     )
     .await
     .is_err());
+    // This transaction is confined to the fixture. Neither a newly required
+    // HSM nor a raised signing threshold accepts this already-executed legacy
+    // request while a credential still does not exist.
+    tx.batch_execute("SAVEPOINT hardware_upgrade")
+        .await
+        .unwrap();
+    tx.execute(
+        "INSERT INTO sequent_backend.operational_signing_required_tenant(tenant_id) VALUES($1)",
+        &[&w.tenant],
+    )
+    .await
+    .unwrap();
+    assert!(
+        initiate(&tx, &owner, w.tenant, w.event, voter, i, &[], Some(q.id))
+            .await
+            .is_err()
+    );
+    assert!(tx.query_one("SELECT document_id IS NULL AND minted_at IS NULL FROM sequent_backend.manual_verification_issuance WHERE initiation_id=$1",&[&i]).await.unwrap().get::<_,bool>(0));
+    tx.batch_execute("ROLLBACK TO hardware_upgrade; SAVEPOINT stronger_rule")
+        .await
+        .unwrap();
+    tx.execute("UPDATE sequent_backend.signing_rule SET signatures=2,revision=revision+1 WHERE tenant_id=$1 AND election_event_id=$2 AND action=$3",&[&w.tenant,&w.event,&action.to_string()]).await.unwrap();
+    assert!(
+        initiate(&tx, &owner, w.tenant, w.event, voter, i, &[], Some(q.id))
+            .await
+            .is_err()
+    );
+    tx.batch_execute("ROLLBACK TO stronger_rule").await.unwrap();
     let Delivery::Document { id: doc, .. } =
         initiate(&tx, &owner, w.tenant, w.event, voter, i, &[], Some(q.id))
             .await
