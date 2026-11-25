@@ -63,6 +63,8 @@ use voting_crypto::{
 };
 
 const PSEUDONYM: &str = "7QKM-2HXD";
+const TENANT: &str = "6f1c2c0e-55d3-4e6b-9f0e-0c8b3a8f6d21";
+const EVENT: &str = "0e4a8a3b-2f37-4b4f-a6d3-5d2c9f1e7b40";
 const PSEUDONYM_HASH: &str = "1573bf00e3ac06ad5d81019102939444c4883b181e8acd25399461cb4fa33c5ebe67c517439f61a22029d9e0c968aa75af3e8dca872b6bc844ddb3eebfb66e0e";
 fn key(seed: u8) -> SigningKey {
     let mut bytes = vec![
@@ -149,8 +151,8 @@ fn fixture_for_format(multi: bool) -> (BallotPrivacyTrust, BallotPrivacyProof) {
     let received = sign_received_ballot(
         &ballot_box,
         ReceivedStatement {
-            tenant_id: "tenant".into(),
-            election_event_id: "event".into(),
+            tenant_id: TENANT.into(),
+            election_event_id: EVENT.into(),
             election_id: "election".into(),
             ballot_hash: hash,
             voter_signing_pk: signed.public_key.clone(),
@@ -165,7 +167,7 @@ fn fixture_for_format(multi: bool) -> (BallotPrivacyTrust, BallotPrivacyProof) {
     let cast = sign_cast_receipt(
         &ballot_box,
         CastReceiptStatement {
-            election_event_id: "event".into(),
+            election_event_id: EVENT.into(),
             election_id: "election".into(),
             ballot_id: received.ballot_id.clone(),
             received_at: received.statement.received_at.clone(),
@@ -178,8 +180,8 @@ fn fixture_for_format(multi: bool) -> (BallotPrivacyTrust, BallotPrivacyProof) {
     let received_message = Message::ballot_received_message(
         PSEUDONYM,
         BallotReceivedEvidence {
-            tenant_id: "tenant".into(),
-            election_event_id: "event".into(),
+            tenant_id: TENANT.into(),
+            election_event_id: EVENT.into(),
             election_id: "election".into(),
             pseudonym_hash: PSEUDONYM_HASH.into(),
             voter_signing_pk: signed.public_key,
@@ -192,8 +194,8 @@ fn fixture_for_format(multi: bool) -> (BallotPrivacyTrust, BallotPrivacyProof) {
     let cast_message = Message::privacy_cast_vote_message(
         PSEUDONYM,
         BallotCastEvidence {
-            tenant_id: "tenant".into(),
-            election_event_id: "event".into(),
+            tenant_id: TENANT.into(),
+            election_event_id: EVENT.into(),
             election_id: "election".into(),
             pseudonym_hash: PSEUDONYM_HASH.into(),
             ballot_id: received.ballot_id.clone(),
@@ -205,8 +207,8 @@ fn fixture_for_format(multi: bool) -> (BallotPrivacyTrust, BallotPrivacyProof) {
     .unwrap();
     (
         BallotPrivacyTrust {
-            tenant_id: "tenant".into(),
-            election_event_id: "event".into(),
+            tenant_id: TENANT.into(),
+            election_event_id: EVENT.into(),
             election_id: "election".into(),
             system_public_key: VerificationKey::from_sk(&system)
                 .unwrap()
@@ -428,56 +430,154 @@ fn authority_signature_does_not_replace_the_voter_ballot_check() {
     assert_eq!(checks.received, CheckStatus::Failed);
 }
 
+/// A sealed ballot as the evidence of an event that seals its cast votes
+/// carries it, with its Ballot ID's cast-vote hash.
+fn sealed_ballot(
+    ballot_id: &str,
+) -> electoral_log::cast_vote_seal::SealedBallot {
+    use electoral_log::cast_vote_seal::{
+        key_id, MIN_SEALED_LEN, SEALED_VERSION,
+    };
+    let mut sealed = vec![SEALED_VERSION, 0x04];
+    sealed.resize(MIN_SEALED_LEN, 1);
+    electoral_log::cast_vote_seal::SealedBallot {
+        v: 1,
+        key_id: key_id(TENANT, EVENT).unwrap(),
+        key_version: 1,
+        inner_format: "hashable-ballot".into(),
+        ballot_id: ballot_id.into(),
+        cast_vote_hash: format!("{ballot_id}{}", "0".repeat(64)),
+        sealed: STANDARD.encode(sealed),
+    }
+}
+
+/// The checks of the proof with its received entry's evidence changed.
+fn with_evidence(
+    trusted: &BallotPrivacyTrust,
+    proof: &BallotPrivacyProof,
+    change: impl FnOnce(&mut BallotReceivedEvidence),
+) -> sequent_core::ballot_privacy::BallotPrivacyChecks {
+    let message = decode(proof.received_entry.as_deref().unwrap());
+    let StatementBody::BallotReceived(mut evidence) = message.statement.body
+    else {
+        panic!("fixture");
+    };
+    change(&mut evidence);
+    let mut proof = proof.clone();
+    proof.received_entry = Some(encode(
+        &Message::ballot_received_message(PSEUDONYM, evidence, &key(3))
+            .unwrap(),
+    ));
+    verify_ballot_log_proof(trusted, &proof).checks
+}
+
+fn received_receipt(
+    proof: &BallotPrivacyProof,
+) -> sequent_core::ballot_receipt::ReceivedBallot {
+    let message = decode(proof.received_entry.as_deref().unwrap());
+    let StatementBody::BallotReceived(evidence) = message.statement.body else {
+        panic!("fixture");
+    };
+    serde_json::from_str(&evidence.received_ballot_json).unwrap()
+}
+
 /// The evidence of an event that seals its cast votes carries the sealed
 /// ballot: it is accepted with the inner Ballot ID, never another one.
 #[test]
 fn a_sealed_ballot_is_accepted_with_its_inner_ballot_id_only() {
     let (trusted, proof) = fixture();
-    let message = decode(proof.received_entry.as_deref().unwrap());
-    let StatementBody::BallotReceived(evidence) = message.statement.body else {
-        panic!("fixture");
+    let receipt = received_receipt(&proof);
+    let content = |sealed: electoral_log::cast_vote_seal::SealedBallot| {
+        sealed.to_content().unwrap()
     };
-    let receipt: sequent_core::ballot_receipt::ReceivedBallot =
-        serde_json::from_str(&evidence.received_ballot_json).unwrap();
-    let sealed = |ballot_id: &str| {
-        let hash = format!("{ballot_id}{}", "0".repeat(64));
-        electoral_log::cast_vote_seal::SealedBallot {
-            v: 1,
-            key_id: "cast-vote-seal/tenant/event".into(),
-            key_version: 1,
-            inner_format: "hashable-ballot".into(),
-            ballot_id: ballot_id.into(),
-            cast_vote_hash: hash,
-            sealed: STANDARD.encode([1u8; 94]),
-        }
-        .to_content()
-        .unwrap()
-    };
-    let with_ballot = |encrypted_ballot: String| {
-        let mut proof = proof.clone();
-        let mut evidence = evidence.clone();
-        evidence.encrypted_ballot = encrypted_ballot;
-        proof.received_entry = Some(encode(
-            &Message::ballot_received_message(PSEUDONYM, evidence, &key(3))
-                .unwrap(),
-        ));
-        verify_ballot_log_proof(&trusted, &proof).checks
-    };
-    let checks = with_ballot(sealed(&receipt.statement.ballot_hash));
+    let checks = with_evidence(&trusted, &proof, |evidence| {
+        evidence.encrypted_ballot =
+            content(sealed_ballot(&receipt.statement.ballot_hash))
+    });
     assert_eq!(checks.binding, CheckStatus::Passed);
     assert_eq!(checks.received, CheckStatus::Passed);
     assert_eq!(checks.ballot_id, CheckStatus::Passed);
     let other = "ab".repeat(32);
     assert_ne!(other, receipt.statement.ballot_hash);
-    assert_eq!(with_ballot(sealed(&other)).received, CheckStatus::Failed);
+    let checks = with_evidence(&trusted, &proof, |evidence| {
+        evidence.encrypted_ballot = content(sealed_ballot(&other))
+    });
+    assert_eq!(checks.received, CheckStatus::Failed);
     // A malformed sealed ballot is neither a ballot nor a sealed one.
-    let mut malformed: serde_json::Value =
-        serde_json::from_str(&sealed(&receipt.statement.ballot_hash)).unwrap();
+    let mut malformed: serde_json::Value = serde_json::from_str(&content(
+        sealed_ballot(&receipt.statement.ballot_hash),
+    ))
+    .unwrap();
     malformed["sealed"] = "not base64!".into();
-    assert_eq!(
-        with_ballot(malformed.to_string()).received,
-        CheckStatus::Failed
-    );
+    let checks = with_evidence(&trusted, &proof, |evidence| {
+        evidence.encrypted_ballot = malformed.to_string()
+    });
+    assert_eq!(checks.received, CheckStatus::Failed);
+}
+
+/// Everything a sealed ballot shows without its key is checked: it can't
+/// pass where the envelope is another event's, another format or version,
+/// or not an `hsm-seal-v1` value.
+#[test]
+fn a_sealed_ballot_is_refused_when_what_it_shows_does_not_fit() {
+    let (trusted, proof) = fixture();
+    let receipt = received_receipt(&proof);
+    let hash = receipt.statement.ballot_hash.clone();
+    let refused = |change: Box<
+        dyn Fn(&mut electoral_log::cast_vote_seal::SealedBallot),
+    >| {
+        let mut sealed = sealed_ballot(&hash);
+        change(&mut sealed);
+        // Built as JSON: `to_content` would refuse nothing, but the
+        // verifier must refuse it itself.
+        let content = serde_json::to_string(&sealed).unwrap();
+        with_evidence(&trusted, &proof, |evidence| {
+            evidence.encrypted_ballot = content
+        })
+        .received
+    };
+    let cases: Vec<(
+        &str,
+        Box<dyn Fn(&mut electoral_log::cast_vote_seal::SealedBallot)>,
+    )> = vec![
+        (
+            "another event's key",
+            Box::new(|sealed| {
+                sealed.key_id = electoral_log::cast_vote_seal::key_id(
+                    TENANT,
+                    "a3d9b7f2-1c64-4e0a-8b5e-9f7c2d1a6e83",
+                )
+                .unwrap()
+            }),
+        ),
+        (
+            "another tenant's key",
+            Box::new(|sealed| {
+                sealed.key_id = electoral_log::cast_vote_seal::key_id(
+                    "a3d9b7f2-1c64-4e0a-8b5e-9f7c2d1a6e83",
+                    EVENT,
+                )
+                .unwrap()
+            }),
+        ),
+        (
+            "an unknown inner format",
+            Box::new(|sealed| sealed.inner_format = "plaintext".into()),
+        ),
+        (
+            "a cast-vote hash of another Ballot ID",
+            Box::new(|sealed| sealed.cast_vote_hash = "cd".repeat(64)),
+        ),
+        (
+            "bytes that are not an hsm-seal-v1 value",
+            Box::new(|sealed| sealed.sealed = STANDARD.encode([1u8; 8])),
+        ),
+        ("another version", Box::new(|sealed| sealed.v = 2)),
+    ];
+    assert_eq!(refused(Box::new(|_| {})), CheckStatus::Passed);
+    for (what, change) in cases {
+        assert_eq!(refused(change), CheckStatus::Failed, "{what}");
+    }
 }
 
 #[test]

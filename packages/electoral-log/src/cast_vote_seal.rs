@@ -34,6 +34,18 @@ pub const ENVELOPE_VERSION: u32 = 1;
 const BALLOT_ID_HEX: usize = 64;
 /// Hex digits of a cast-vote hash (SHA-512).
 const CAST_VOTE_HASH_HEX: usize = 128;
+/// The inner formats a sealed ballot may carry: the ballot box's formats.
+pub const INNER_FORMATS: [&str; 2] = ["hashable-ballot", "hashable-multi-ballot"];
+/// The first byte of every `hsm-seal-v1` value.
+pub const SEALED_VERSION: u8 = 1;
+/// An uncompressed P-256 point.
+pub const POINT_LEN: usize = 65;
+/// The first byte of an uncompressed point.
+const UNCOMPRESSED_POINT: u8 = 0x04;
+pub const NONCE_LEN: usize = 12;
+pub const TAG_LEN: usize = 16;
+/// The shortest `hsm-seal-v1` value: version, ephemeral point, nonce and tag.
+pub const MIN_SEALED_LEN: usize = 1 + POINT_LEN + NONCE_LEN + TAG_LEN;
 
 /// The `format` of a row sealed over a ballot of `inner` format.
 pub fn sealed_format(inner: &str) -> String {
@@ -117,9 +129,9 @@ pub struct SealedBallot {
 }
 
 impl SealedBallot {
-    /// The checks that need no key: the version, the hashes' form, the
-    /// Ballot ID being the cast-vote hash's first half, and the sealed bytes'
-    /// encoding.
+    /// The checks that need no key: the version, a known inner format, the
+    /// hashes' form, the Ballot ID being the cast-vote hash's first half, and
+    /// the sealed bytes' encoding and layout.
     pub fn check(&self) -> Result<()> {
         ensure!(
             self.v == ENVELOPE_VERSION,
@@ -131,8 +143,8 @@ impl SealedBallot {
             "A sealed ballot names no key"
         );
         ensure!(
-            !self.inner_format.is_empty() && !is_sealed_format(&self.inner_format),
-            "A sealed ballot has no inner format"
+            INNER_FORMATS.contains(&self.inner_format.as_str()),
+            "A sealed ballot has an unknown inner format"
         );
         let lower_hex = |text: &str, length: usize| {
             text.len() == length
@@ -149,8 +161,20 @@ impl SealedBallot {
                 && self.cast_vote_hash.starts_with(&self.ballot_id),
             "A sealed ballot's cast-vote hash does not match its Ballot ID"
         );
-        self.sealed_bytes()?;
+        let sealed = self.sealed_bytes()?;
+        ensure!(
+            sealed.len() >= MIN_SEALED_LEN
+                && sealed[0] == SEALED_VERSION
+                && sealed[1] == UNCOMPRESSED_POINT,
+            "A sealed ballot's bytes are not an hsm-seal-v1 value"
+        );
         Ok(())
+    }
+
+    /// Whether this envelope is sealed to the key of the election event
+    /// `election_event_id` of `tenant_id`.
+    pub fn is_sealed_to_event(&self, tenant_id: &str, election_event_id: &str) -> bool {
+        key_id(tenant_id, election_event_id).is_ok_and(|expected| expected == self.key_id)
     }
 
     /// The `hsm-seal-v1` bytes.
@@ -252,8 +276,14 @@ mod tests {
             inner_format: "hashable-ballot".into(),
             ballot_id: hash[..64].to_string(),
             cast_vote_hash: hash,
-            sealed: STANDARD.encode([1u8; 94]),
+            sealed: STANDARD.encode(sealed_value()),
         }
+    }
+
+    fn sealed_value() -> Vec<u8> {
+        let mut value = vec![SEALED_VERSION, UNCOMPRESSED_POINT];
+        value.resize(MIN_SEALED_LEN, 1);
+        value
     }
 
     #[test]
@@ -332,7 +362,7 @@ mod tests {
         .is_err());
         assert!(SealedBallot::from_row(&content, "hsm-seal-v1+hashable-ballot", "00").is_err());
         assert_eq!(envelope.cast_vote_hash_bytes().unwrap(), vec![0xab; 64]);
-        assert_eq!(envelope.sealed_bytes().unwrap(), vec![1u8; 94]);
+        assert_eq!(envelope.sealed_bytes().unwrap(), sealed_value());
     }
 
     #[test]
@@ -343,10 +373,22 @@ mod tests {
             Box::new(|e| e.key_version = 0),
             Box::new(|e| e.inner_format = "hsm-seal-v1+hashable-ballot".into()),
             Box::new(|e| e.inner_format.clear()),
+            Box::new(|e| e.inner_format = "plaintext".into()),
             Box::new(|e| e.ballot_id = "AB".repeat(32)),
             Box::new(|e| e.cast_vote_hash = "cd".repeat(64)),
             Box::new(|e| e.cast_vote_hash.truncate(100)),
             Box::new(|e| e.sealed = "not base64!".into()),
+            Box::new(|e| e.sealed = STANDARD.encode(&sealed_value()[..MIN_SEALED_LEN - 1])),
+            Box::new(|e| {
+                let mut value = sealed_value();
+                value[0] = 2;
+                e.sealed = STANDARD.encode(value);
+            }),
+            Box::new(|e| {
+                let mut value = sealed_value();
+                value[1] = 0x02;
+                e.sealed = STANDARD.encode(value);
+            }),
         ];
         for (index, case) in cases.iter().enumerate() {
             let mut bad = envelope();
@@ -431,6 +473,15 @@ mod tests {
         let stored: crate::ElectoralLogMessage = (&message).try_into().unwrap();
         assert_eq!(stored.statement_kind, "CastVoteSealKeyPublished");
         assert_eq!(stored.user_id, None);
+    }
+
+    #[test]
+    fn an_envelope_names_its_events_key() {
+        let envelope = envelope();
+        assert!(envelope.is_sealed_to_event(TENANT, EVENT));
+        assert!(envelope.is_sealed_to_event(&TENANT.to_uppercase(), EVENT));
+        assert!(!envelope.is_sealed_to_event(EVENT, TENANT));
+        assert!(!envelope.is_sealed_to_event("tenant", EVENT));
     }
 
     #[test]

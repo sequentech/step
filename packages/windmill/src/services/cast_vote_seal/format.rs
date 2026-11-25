@@ -21,12 +21,7 @@ use ring::agreement::{agree_ephemeral, EphemeralPrivateKey, UnparsedPublicKey, E
 use ring::hkdf::{Salt, HKDF_SHA256};
 use ring::rand::{SecureRandom, SystemRandom};
 
-/// The first byte of every `hsm-seal-v1` value.
-pub const VERSION: u8 = 1;
-/// An uncompressed P-256 point.
-pub const POINT_LEN: usize = 65;
-pub const NONCE_LEN: usize = 12;
-pub const TAG_LEN: usize = 16;
+pub use electoral_log::cast_vote_seal::{NONCE_LEN, POINT_LEN, SEALED_VERSION as VERSION, TAG_LEN};
 const HEADER: usize = 1 + POINT_LEN + NONCE_LEN;
 const INFO_PREFIX: &[u8] = b"sequent-hsm-seal-v1";
 

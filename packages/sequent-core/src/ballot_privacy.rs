@@ -128,10 +128,8 @@ fn received_context(
 ///
 /// An election event whose cast votes are sealed to its HSM key logs the
 /// sealed ballot (`hsm-seal-v1`) instead: nobody outside the tally can open
-/// it, so its voter signature can't be checked here. It must be a
-/// well-formed sealed ballot whose inner Ballot ID is the receipt's ballot
-/// hash; the receipt's signature, checked separately, binds that hash to the
-/// voter's key and ballot signature.
+/// it, so neither its content hash nor its voter signature can be checked
+/// here. See [`sealed_voter_ballot`] for what is.
 fn voter_ballot(
     evidence: &BallotReceivedEvidence,
     received: &ReceivedBallot,
@@ -142,7 +140,7 @@ fn voter_ballot(
             &evidence.encrypted_ballot,
         )
     {
-        return sealed.ballot_id == statement.ballot_hash;
+        return sealed_voter_ballot(evidence, statement, &sealed);
     }
     if let Ok(ballot) =
         serde_json::from_str::<SignedHashableBallot>(&evidence.encrypted_ballot)
@@ -187,6 +185,21 @@ fn voter_ballot(
             );
     }
     false
+}
+
+/// What a sealed ballot shows without its key: a well-formed `hsm-seal-v1`
+/// envelope (known inner format, cast-vote hash starting with the Ballot ID)
+/// sealed to this event's key, whose Ballot ID is the receipt's ballot hash.
+/// The receipt's signature, checked separately, binds that hash to the
+/// voter's key and ballot signature, which it can only carry well-formed;
+/// the tally checks the opened ballot against the envelope's hashes.
+fn sealed_voter_ballot(
+    evidence: &BallotReceivedEvidence,
+    statement: &crate::ballot_receipt::ReceivedStatement,
+    sealed: &electoral_log::cast_vote_seal::SealedBallot,
+) -> bool {
+    sealed.is_sealed_to_event(&evidence.tenant_id, &evidence.election_event_id)
+        && sealed.ballot_id == statement.ballot_hash
 }
 
 fn cast_context(
