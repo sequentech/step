@@ -12,14 +12,22 @@ from pathlib import Path
 STEP = Path(__file__).resolve().parents[3]
 MIGRATIONS = STEP / "hasura/migrations/backend-db"
 MIG = MIGRATIONS / "1794700002250_local_initialize_attachment"
+RECOVERY = MIGRATIONS / "1794700002255_local_attachment_admission_recovery"
 SQL = (MIG / "up.sql").read_text()
+RECOVERY_SQL = (RECOVERY / "up.sql").read_text()
+RECOVERY_DOWN = (RECOVERY / "down.sql").read_text()
 RUST = (STEP / "packages/windmill/src/services/signing/local_initialize_attachment.rs").read_text()
 OLD = (MIGRATIONS / "1794700001200_operational_setup_generation/up.sql").read_text()
 LOCAL = (MIGRATIONS / "1794700002200_local_initialize_self_setup/up.sql").read_text()
 
 
 def body(name):
-    return SQL.split("CREATE FUNCTION felix3_initialize_attachment." + name + "(", 1)[1].split("$$;", 1)[0]
+    def fn(source, verb):
+        return source.split(verb + " felix3_initialize_attachment." + name + "(", 1)[1].split("$$;", 1)[0]
+
+    if "CREATE OR REPLACE FUNCTION felix3_initialize_attachment." + name + "(" in RECOVERY_SQL:
+        return fn(RECOVERY_SQL, "CREATE OR REPLACE FUNCTION")
+    return fn(SQL, "CREATE FUNCTION")
 
 
 def scalar(query):
@@ -375,20 +383,47 @@ class Contracts(unittest.TestCase):
         self.assertNotRegex(SQL, r"(?i)(INSERT INTO|UPDATE|DELETE FROM) sequent_backend\.staff_certificate")
 
     def test_recovery_cannot_rewrite_fixed_coordinates_or_skip_current_verification(self):
-        grant = SQL.split("GRANT SELECT, INSERT, UPDATE (", 1)[1].split(")", 1)[0].split(",")
-        self.assertFalse(set(grant) & {"attempt","scope","fixed_pins","officer","writer"})
-        self.assertIn("ON felix3_initialize_attachment.decision TO sequent_os_ledger_api_owner;", SQL)
+        self.assertIn("REVOKE UPDATE (writer) ON felix3_initialize_attachment.decision", RECOVERY_SQL)
+        grant = RECOVERY_SQL.split("GRANT UPDATE (", 1)[1].split(")", 1)[0].split(",")
+        self.assertEqual(grant, ["bound", "pins"])
+        self.assertIn("ON felix3_initialize_attachment.decision TO sequent_os_ledger_api_owner;", RECOVERY_SQL)
         for projection in ("scope = (to_jsonb(bound) - ARRAY['request','payload_sha256'])",
                            "fixed_pins = (pins - ARRAY['leaf_sha256','crl_sha256'])"):
-            self.assertIn(projection, SQL)
+            self.assertIn(projection, RECOVERY_SQL)
         fn = body("admit")
         for check in ("officer_service() IS NOT TRUE", "registry_writer(writer_login)",
-                      "pg_xact_status(tx) IS DISTINCT FROM 'in progress'", "attachment.inspect(",
+                      "pg_xact_status(tx) IS DISTINCT FROM 'in progress'", "a.pid = writer_pid",
+                      "a.usename = writer_login", "JOIN pg_locks l ON l.pid = a.pid",
+                      "l.locktype = 'transactionid'", "l.mode = 'ExclusiveLock' AND l.granted",
+                      "l.transactionid = tx::xid", "attachment.inspect(",
                       "m.certificate IS NOT NULL OR m.stamp <> checked_stamp", "cutoff <= clock_timestamp()"):
             self.assertLess(fn.index(check), fn.index("INSERT INTO felix3_initialize_attachment.decision"))
         self.assertIn("registry_writer(session_user)", body("finish"))
         self.assertIn("FOR UPDATE OF s FOR SHARE OF a NOWAIT", body("generation"))
         self.assertIn("FOR UPDATE;", body("finish"))
+
+    def test_versioned_upgrade_retains_original_functions_and_installed_roles(self):
+        transition = "LOCK TABLE felix3_initialize_attachment.decision IN ACCESS EXCLUSIVE MODE NOWAIT;"
+        before_write = "UPDATE felix3_initialize_attachment.decision"
+        self.assertIn("requires the original 2250 decision layout", RECOVERY_SQL)
+        self.assertNotIn("ADD COLUMN scope", SQL)
+        self.assertLess(RECOVERY_SQL.index(transition), RECOVERY_SQL.index(before_write))
+        self.assertLess(RECOVERY_SQL.index("requires the original 2250 decision layout"), RECOVERY_SQL.index(before_write))
+        self.assertRegex(RECOVERY_SQL, r"ADD COLUMN scope jsonb, ADD COLUMN fixed_pins jsonb;")
+        self.assertLess(RECOVERY_SQL.index(before_write), RECOVERY_SQL.index("ALTER COLUMN scope SET NOT NULL"))
+        self.assertLess(RECOVERY_DOWN.index(transition), RECOVERY_DOWN.index("IF EXISTS (SELECT FROM"))
+        self.assertLess(RECOVERY_DOWN.index("RAISE EXCEPTION"), RECOVERY_DOWN.index("DROP COLUMN scope"))
+        self.assertIn("REVOKE UPDATE (bound,pins) ON felix3_initialize_attachment.decision", RECOVERY_DOWN)
+        self.assertIn("GRANT UPDATE (writer) ON felix3_initialize_attachment.decision", RECOVERY_DOWN)
+        for direction in (RECOVERY_SQL, RECOVERY_DOWN):
+            self.assertEqual(re.findall(r"CREATE OR REPLACE FUNCTION felix3_initialize_attachment\.(\w+)", direction),
+                             ["inspect", "admit"])
+            self.assertIn("SET LOCAL ROLE sequent_os_ledger_api_owner;", direction)
+            self.assertNotRegex(direction, r"(?im)^\s*(?:GRANT EXECUTE|DELETE FROM|TRUNCATE|DROP TABLE|DROP FUNCTION)")
+        for name in ("inspect", "admit"):
+            marker = f"FUNCTION felix3_initialize_attachment.{name}("
+            self.assertEqual(SQL.split(marker, 1)[1].split("$$;", 1)[0],
+                             RECOVERY_DOWN.split(marker, 1)[1].split("$$;", 1)[0])
 
     def test_compilation_authority_and_crypto_boundaries(self):
         for p in ('feature = "felix3-local-initialize"', 'not(feature = "operational-signing-demo-fixture")',

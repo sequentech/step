@@ -9,22 +9,17 @@ GRANT USAGE, CREATE ON SCHEMA felix3_initialize_attachment TO sequent_os_ledger_
 CREATE TABLE felix3_initialize_attachment.decision (
     attempt uuid PRIMARY KEY REFERENCES felix3_initialize_setup.attempt(id),
     bound felix3_initialize_setup.binding NOT NULL CHECK (bound IS NOT NULL),
-    -- These projections are written once. Even a future erroneous UPDATE of
-    -- bound or pins cannot switch the installation, either actor, key or CA.
-    scope jsonb NOT NULL, fixed_pins jsonb NOT NULL,
     officer uuid NOT NULL, pins jsonb NOT NULL, trust text NOT NULL,
     officer_labels text[] NOT NULL, nominee_labels text[] NOT NULL,
     writer name NOT NULL, backend integer NOT NULL, xid xid8 NOT NULL,
     until_at timestamptz NOT NULL CHECK (isfinite(until_at)),
     certificate uuid, attached_at timestamptz,
-    CHECK ((certificate IS NULL) = (attached_at IS NULL)),
-    CHECK (scope = (to_jsonb(bound) - ARRAY['request','payload_sha256'])),
-    CHECK (fixed_pins = (pins - ARRAY['leaf_sha256','crl_sha256']))
+    CHECK ((certificate IS NULL) = (attached_at IS NULL))
 );
 ALTER TABLE felix3_initialize_attachment.decision OWNER TO sequent_os_ledger_data_owner;
 REVOKE CREATE ON SCHEMA felix3_initialize_attachment FROM sequent_os_ledger_data_owner;
 REVOKE ALL ON felix3_initialize_attachment.decision FROM PUBLIC;
-GRANT SELECT, INSERT, UPDATE (bound,pins,trust,officer_labels,nominee_labels,backend,xid,until_at,certificate,attached_at)
+GRANT SELECT, INSERT, UPDATE (trust,officer_labels,nominee_labels,writer,backend,xid,until_at,certificate,attached_at)
     ON felix3_initialize_attachment.decision TO sequent_os_ledger_api_owner;
 
 -- Exclude trust changes, phantom CRLs, registrations and approvals through the
@@ -240,9 +235,7 @@ BEGIN
         AND NOT EXISTS (SELECT FROM sequent_backend.signing_approval v
             WHERE (v.tenant_id,v.election_event_id,v.request_id,v.user_id)
               = (b.tenant,b.event,b.request,b.official::text))
-        AND ((g.certificate IS NULL AND NOT EXISTS (SELECT FROM felix3_initialize_attachment.decision v
-              WHERE v.attempt = ticket AND v.certificate IS NOT NULL)
-            AND NOT EXISTS (SELECT FROM sequent_backend.staff_certificate c
+        AND ((g.certificate IS NULL AND NOT EXISTS (SELECT FROM sequent_backend.staff_certificate c
               WHERE (c.tenant_id,c.election_event_id) = (b.tenant,b.event)
                 AND (c.spki_sha256 = g.spki OR c.fingerprint_sha256 = expected->>'leaf_sha256')))
           OR EXISTS (SELECT FROM felix3_initialize_attachment.decision d
@@ -288,26 +281,13 @@ BEGIN
     cutoff := least(checked_until,m.deadline,clock_timestamp() + interval '30 seconds');
     IF cutoff <= clock_timestamp() THEN RETURN false; END IF;
     INSERT INTO felix3_initialize_attachment.decision AS d
-        (attempt,bound,scope,officer,pins,fixed_pins,trust,officer_labels,nominee_labels,writer,backend,xid,until_at)
-      VALUES (ticket,b,to_jsonb(b) - ARRAY['request','payload_sha256'],who,expected,
-              expected - ARRAY['leaf_sha256','crl_sha256'],checked_stamp,ol,nl,writer_login,writer_pid,tx,cutoff)
-      ON CONFLICT (attempt) DO UPDATE SET bound = excluded.bound,pins = excluded.pins,trust = excluded.trust,
-          officer_labels = excluded.officer_labels,nominee_labels = excluded.nominee_labels,
-          backend = excluded.backend,xid = excluded.xid,until_at = excluded.until_at
-        -- inspect held the current generation, Post and trust locks. Only a
-        -- known terminal old writer can be replaced; lease expiry, PID reuse
-        -- and unavailable xid history are not evidence of that outcome.
-        WHERE (d.scope,d.officer,d.fixed_pins,d.writer) = (excluded.scope,excluded.officer,excluded.fixed_pins,excluded.writer)
-          AND d.certificate IS NULL AND d.xid <> excluded.xid
-          AND pg_xact_status(d.xid) IN ('aborted','committed');
-    IF FOUND THEN RETURN true; END IF;
-    -- ON CONFLICT also locked a non-updated row. A repeat by the very same
-    -- writer is read-only: no rebind, different proof, or deadline extension.
-    RETURN EXISTS (SELECT FROM felix3_initialize_attachment.decision d
-        WHERE (d.attempt,d.bound,d.officer,d.pins,d.trust,d.officer_labels,d.nominee_labels)
-            = (ticket,b,who,expected,checked_stamp,ol,nl)
-          AND (d.writer,d.backend,d.xid) = (writer_login,writer_pid,tx)
-          AND d.certificate IS NULL AND d.until_at > clock_timestamp() AND d.until_at <= cutoff);
+        (attempt,bound,officer,pins,trust,officer_labels,nominee_labels,writer,backend,xid,until_at)
+      VALUES (ticket,b,who,expected,checked_stamp,ol,nl,writer_login,writer_pid,tx,cutoff)
+      ON CONFLICT (attempt) DO UPDATE SET trust = excluded.trust,officer_labels = excluded.officer_labels,nominee_labels = excluded.nominee_labels,
+          writer = excluded.writer,backend = excluded.backend,xid = excluded.xid,until_at = excluded.until_at
+        WHERE (d.bound,d.officer,d.pins) = (excluded.bound,excluded.officer,excluded.pins) AND d.certificate IS NULL
+          AND (d.until_at <= clock_timestamp() OR pg_xact_status(d.xid) IN ('aborted','committed'));
+    RETURN FOUND;
 END;
 $$;
 
@@ -384,13 +364,7 @@ REVOKE ALL ON FUNCTION
 RESET ROLE;
 DO $$
 BEGIN
-    IF EXISTS (SELECT FROM unnest(ARRAY['attempt','scope','fixed_pins','officer','writer']) AS k(col)
-        WHERE has_column_privilege('sequent_os_ledger_api_owner'::regrole,
-            'felix3_initialize_attachment.decision'::regclass,k.col,'UPDATE'))
-    OR EXISTS (SELECT FROM pg_attribute c CROSS JOIN LATERAL aclexplode(c.attacl) a
-        WHERE c.attrelid = 'felix3_initialize_attachment.decision'::regclass
-          AND a.grantee NOT IN ('sequent_os_ledger_data_owner'::regrole,'sequent_os_ledger_api_owner'::regrole))
-    OR EXISTS (SELECT FROM pg_proc p CROSS JOIN LATERAL aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
+    IF EXISTS (SELECT FROM pg_proc p CROSS JOIN LATERAL aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
         WHERE p.pronamespace = 'felix3_initialize_attachment'::regnamespace AND a.grantee <> p.proowner
           AND NOT (p.oid IN ('felix3_initialize_attachment.lock_registry()'::regprocedure,
                    'felix3_initialize_attachment.post_access(felix3_initialize_setup.binding,text[],text[])'::regprocedure)

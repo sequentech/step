@@ -6,6 +6,17 @@ import {fromBase64, hex, sha256, toArrayBuffer, toBase64} from "./der"
 import {localInitializeRegistration, matchLocalInitializeSettings} from "./localInitializeAuthority"
 import {isId, isReviewedDigest} from "./operationalGoldReturn"
 
+const NOMINEE_REVIEW = gql`
+    query LocalNomineeReviewStatus($request_id: uuid!, $payload_sha256: String!) {
+        operationalInitializeNomineeReviewStatus(request_id: $request_id, payload_sha256: $payload_sha256) {phase}
+    }
+`
+const NOMINEE_RESUME = gql`
+    mutation LocalNomineeResume($request_id: uuid!, $payload_sha256: String!) {
+        operationalInitializeNomineeResume(request_id: $request_id, payload_sha256: $payload_sha256) {active}
+    }
+`
+export type NomineeReviewPhase = "unavailable" | "gold-required" | "resume-ready" | "ready"
 const PRESENCE = gql`
     mutation LocalNomineePresence($request_id: uuid!, $payload_sha256: String!) {
         operationalInitializeNomineePresence(request_id: $request_id, payload_sha256: $payload_sha256) {active}
@@ -121,6 +132,24 @@ export function createLocalInitializeOfficerApi(
     })
     const officer = context("signing-certificates-register")
     return {
+        nomineeStatus: async (request_id: string, payload_sha256: string): Promise<NomineeReviewPhase> => {
+            if (!isId(request_id) || !isReviewedDigest(payload_sha256)) throw new Error("Invalid request")
+            const {data, errors} = await client.query({query: NOMINEE_REVIEW,
+                context: context("sign-initialize-voting"), fetchPolicy: "no-cache",
+                variables: {request_id, payload_sha256}})
+            const phase: unknown = data?.operationalInitializeNomineeReviewStatus?.phase
+            if (errors?.length || (phase !== "unavailable" && phase !== "gold-required" && phase !== "resume-ready" && phase !== "ready"))
+                throw new Error("Certificate review status unavailable")
+            return phase
+        },
+        nomineeResume: async (request_id: string, payload_sha256: string) => {
+            if (!isId(request_id) || !isReviewedDigest(payload_sha256)) throw new Error("Invalid request")
+            const {data, errors} = await client.mutate({mutation: NOMINEE_RESUME,
+                context: context("sign-initialize-voting"), fetchPolicy: "no-cache",
+                variables: {request_id, payload_sha256}})
+            if (errors?.length || data?.operationalInitializeNomineeResume?.active !== true)
+                throw new Error("Original key resume unavailable")
+        },
         presence: async (request_id: string, payload_sha256: string) => {
             if (!isId(request_id) || !isReviewedDigest(payload_sha256)) throw new Error("Invalid request")
             const {data, errors} = await client.mutate({mutation: PRESENCE,

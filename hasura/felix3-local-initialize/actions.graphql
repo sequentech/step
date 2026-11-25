@@ -1,9 +1,15 @@
 type Query {
+    operationalInitializeNomineeReviewStatus(request_id: uuid!, payload_sha256: String!): LocalNomineeReviewStatus!
+    operationalInitializeOfficerPending(election_event_id: uuid!): LocalOfficerPending!
     operationalInitializeStatus(request_id: uuid!): OperationalInitializeStatus!
     operationalInitializeSelfSetupStatus(request_id: uuid!, payload_sha256: String!): OperationalInitializeSelfSetupStatus!
 }
 
 type Mutation {
+    operationalInitializeNomineeResume(request_id: uuid!, payload_sha256: String!): OperationalNomineePresence!
+    operationalInitializeNomineePresence(request_id: uuid!, payload_sha256: String!): OperationalNomineePresence!
+    operationalInitializeOfficerReview(request_id: uuid!, payload_sha256: String!, official_id: uuid!): LocalOfficerReview!
+    operationalInitializeOfficerAttach(request_id: uuid!, payload_sha256: String!, official_id: uuid!, csr_sha256: String!, leaf_sha256: String!, leaf_der: String!): LocalOfficerReceipt!
     operationalInitializeSelfSetupStart(
         request_id: uuid!, payload_sha256: String!, page: OperationalInitializeReturnPageInput!, attempt: uuid
     ): OperationalInitializeSelfSetupStart!
@@ -86,3 +92,31 @@ type OperationalInitializeSelfSetupStart {
     redirect: String!
     page: OperationalInitializePage!
 }
+
+type OperationalNomineePresence { active: Boolean! }
+type LocalOfficerPending { items: [LocalOfficerRef!]! }
+type LocalOfficerRef {
+    request_id: uuid!
+    payload_sha256: String!
+    official_id: uuid!
+    election_id: uuid!
+}
+type LocalOfficerReview {
+    request_id: uuid!
+    payload_sha256: String!
+    official_id: uuid!
+    election_id: uuid!
+    enrollment: uuid!
+    csr_pem: String!
+    csr_sha256: String!
+    spki_sha256: String!
+}
+type LocalOfficerReceipt {
+    enrollment: uuid!
+    certificate: uuid!
+    leaf_sha256: String!
+    spki_sha256: String!
+    attached_at: String!
+}
+
+type LocalNomineeReviewStatus { phase: String! }

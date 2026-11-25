@@ -418,6 +418,20 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
     const control = eligible && usable && scopeHasStatus
         ? localSetup ? localSetupControl(phase, canApproveReviewed, setupState?.attempt) : approvalControl(phase, canApproveReviewed)
         : null
+    const resumeNomineeGold = async () => {
+        if (!localOrigin || !usable || !eligible || !canApproveReviewed || latest.current.view !== view ||
+            !latest.current.eligible) throw new Error("Certificate review unavailable")
+        const path = window.location.pathname
+        const page = (request.election_id && observedPage(path, scope.event, "publish", request.election_id))
+            || observedPage(path, scope.event, "publish") || {path: "event-show", panel: "signatures-requests"} as const
+        const returnPath = signingReturnPath(scope.event, page)
+        saveDisplayReturn(window.sessionStorage, {
+            marker: {...scope, page, attempt: scope.request},
+            result: "setup-returned",
+            path: returnPath,
+        })
+        await reauthWithGold(localOrigin + returnPath, true)
+    }
     const setupText = localSetup && localSetupText[phase]
     const canCancelUnused =
         usable &&
@@ -458,11 +472,12 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
                             {t("signing.operational.confirmCancelUnused")}
                         </Alert>
                     )}
-                    {localOfficer && eligible && usable && scopeHasStatus &&
-                        canApproveReviewed && phase === "setup-pending" && (
+                    {localOfficer && eligible && usable && canApproveReviewed &&
+                        (phase === "setup-pending" || phase === "unavailable") && (
                             <LocalNomineePresence
                                 key={scope.request + "/" + scope.official + "/" + request.payload_sha256}
                                 api={localOfficer} request={scope.request} digest={request.payload_sha256}
+                                onGold={resumeNomineeGold}
                             />
                         )}
                     {failed && <Alert severity="error">{t("signing.operational.error")}</Alert>}

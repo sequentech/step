@@ -12,6 +12,8 @@ use deadpool_postgres::Pool;
 use tokio_postgres::types::ToSql;
 use uuid::Uuid;
 
+#[path = "local_officer_bridge.rs"]
+pub(super) mod attachment;
 #[path = "local_setup_ingress.rs"]
 pub(super) mod ingress;
 #[path = "local_setup_transport.rs"]

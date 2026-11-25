@@ -1,27 +1,68 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
+import {useTranslation} from "react-i18next"
 import {useApolloClient} from "@apollo/client"
 import {Alert, Button, Checkbox, FormControlLabel, Stack, Typography} from "@mui/material"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {
     createLocalInitializeOfficerApi, localOfficerSettings, readPublicLeaf,
-    type LocalOfficerApi, type LocalOfficerRef,
+    type LocalOfficerApi, type LocalOfficerRef, type NomineeReviewPhase,
 } from "@/lib/signing/localInitializeOfficerApi"
 import {isId, observedPage, signingReturnPath} from "@/lib/signing/operationalGoldReturn"
 
-export function LocalNomineePresence({api, request, digest}: {
+export function LocalNomineePresence({api, request, digest, onGold}: {
     api: LocalOfficerApi
     request: string
     digest: string
+    onGold: () => Promise<void>
 }) {
+    const {t} = useTranslation()
+    const [phase, setPhase] = useState<NomineeReviewPhase>("unavailable")
+    const [resuming, setResuming] = useState(false)
+    const mounted = useRef(false)
+    const resumeInFlight = useRef(false)
     const [consented, setConsented] = useState(false)
     const [active, setActive] = useState(false)
     const [failed, setFailed] = useState(false)
+    const refresh = useCallback(async () => {
+        const current = await api.nomineeStatus(request, digest).catch(() => "unavailable" as const)
+        if (mounted.current) setPhase(current)
+        return current
+    }, [api, request, digest])
     useEffect(() => {
-        if (!consented) return
+        mounted.current = true
+        void refresh()
+        return () => { mounted.current = false }
+    }, [refresh])
+    const resume = async () => {
+        if (resumeInFlight.current || !mounted.current || document.visibilityState !== "visible") return
+        resumeInFlight.current = true
+        setResuming(true)
+        setFailed(false)
+        try {
+            const current = await refresh()
+            if (!mounted.current) return
+            if (current === "gold-required") {
+                await onGold()
+                return
+            }
+            if (current !== "resume-ready") return
+            // This is the only resume mutation. Return/login and status never
+            // call it; sharing presence remains a separate explicit click.
+            await api.nomineeResume(request, digest)
+            if (mounted.current) await refresh()
+        } catch {
+            if (mounted.current) setFailed(true)
+        } finally {
+            resumeInFlight.current = false
+            if (mounted.current) setResuming(false)
+        }
+    }
+    useEffect(() => {
+        if (!consented || phase !== "ready") return
         let cancelled = false
         let timer: number | undefined
         const stop = () => {
@@ -45,6 +86,7 @@ export function LocalNomineePresence({api, request, digest}: {
                     setActive(false)
                     setFailed(true)
                     setConsented(false)
+                    void refresh()
                 }
             }
         }
@@ -56,7 +98,25 @@ export function LocalNomineePresence({api, request, digest}: {
             window.clearTimeout(timer)
             document.removeEventListener("visibilitychange", stop)
         }
-    }, [api, request, digest, consented])
+    }, [api, request, digest, consented, phase, refresh])
+    if (phase === "unavailable") return null
+    if (phase === "gold-required" || phase === "resume-ready") {
+        return (
+            <Stack spacing={1}>
+                <Typography variant="body2">
+                    {t("signing.localSetup.resumeExplanation", {defaultValue: "Your existing signing key is on file. Verify your identity to resume certificate review. This does not create a new key."})}
+                </Typography>
+                {failed && <Alert severity="warning">
+                    {t("signing.localSetup.resumeFailed", {defaultValue: "Could not resume. Verify with Gold and try again."})}
+                </Alert>}
+                <Button disabled={resuming} onClick={() => void resume()}>
+                    {phase === "resume-ready"
+                        ? t("signing.localSetup.resumeCertificateReview", {defaultValue: "Resume certificate review"})
+                        : t("signing.localSetup.verifyCertificateReview", {defaultValue: "Verify with Gold to resume"})}
+                </Button>
+            </Stack>
+        )
+    }
     return (
         <Stack spacing={1}>
             <Typography variant="body2">

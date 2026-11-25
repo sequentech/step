@@ -304,6 +304,36 @@ pub(crate) async fn mount(application: Rocket<Build>) -> anyhow::Result<Rocket<B
     } else {
         None
     };
+    // An optional officer installation must not take the ordinary service
+    // down. No officer route is mounted unless the entire install validates;
+    // the persisted HSM requirement and all other authority checks stay in force.
+    use super::local_setup::attachment;
+    let attachment: anyhow::Result<Option<attachment::Bridge>> = async {
+        match fs::symlink_metadata(root.join("harvest/attachment/registration.json")) {
+            Ok(_) => {
+                let setup = setup
+                    .as_ref()
+                    .context("local officer enrollment requires installed setup")?;
+                let database: String = db
+                    .query_one("SELECT current_database()::text", &[])
+                    .await?
+                    .try_get(0)?;
+                Ok(Some(
+                    attachment::Bridge::load(root, &install.post, &database, setup)
+                        .await
+                        .context("invalid installed local officer enrollment role")?,
+                ))
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(error.into()),
+        }
+    }
+    .await;
+    let attachment = attachment.unwrap_or_else(|_| {
+        tracing::error!("Local officer enrollment disabled: installation did not validate");
+        None
+    });
+    drop(db);
     let application = application
         .manage(install.auth)
         .manage(install.ingress)
@@ -311,9 +341,15 @@ pub(crate) async fn mount(application: Rocket<Build>) -> anyhow::Result<Rocket<B
         .manage(super::InitializeBroker(Box::new(install.broker)))
         .mount("/", rocket::routes![super::status, super::start, super::finish,
             super::cancel_unused, super::reconcile]);
-    Ok(match setup {
+    let application = match setup {
         Some(setup) => application.manage(setup).mount("/", rocket::routes![
             ingress::status, ingress::start, ingress::confirm, ingress::register]),
+        None => application,
+    };
+    Ok(match attachment {
+        Some(bridge) => application.manage(bridge).mount("/", rocket::routes![
+            attachment::presence, attachment::nominee_status, attachment::nominee_resume,
+            attachment::pending, attachment::review, attachment::attach]),
         None => application,
     })
 }

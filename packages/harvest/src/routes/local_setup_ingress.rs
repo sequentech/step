@@ -25,6 +25,13 @@ pub(crate) struct SetupSession {
     digest: String,
 }
 
+impl SetupSession {
+    // Only a sibling in this exact local feature can see this identity; never export a bearer.
+    pub(super) fn bridge_identity(&self) -> (&OperationalPortalClaims, &str) {
+        (&self.claims, self.digest.as_str())
+    }
+}
+
 #[derive(Deserialize)]
 struct SessionId {
     sid: Option<Uuid>,

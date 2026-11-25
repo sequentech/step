@@ -116,6 +116,84 @@ actions:
               version: 2
       permissions:
           - role: sign-initialize-voting
+    - name: operationalInitializeNomineeReviewStatus
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/attachment/nominee-review-status
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
+    - name: operationalInitializeNomineeResume
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/attachment/nominee-resume
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
+    - name: operationalInitializeNomineePresence
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/attachment/presence
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
+    - name: operationalInitializeOfficerPending
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/attachment/pending
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: signing-certificates-register
+    - name: operationalInitializeOfficerReview
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/attachment/review
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: signing-certificates-register
+    - name: operationalInitializeOfficerAttach
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/attachment/attach
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: signing-certificates-register
 custom_types:
     input_objects:
         - name: OperationalInitializeReturnPageInput
@@ -128,3 +206,9 @@ custom_types:
         - name: OperationalInitializeOutcome
         - name: OperationalInitializeSelfSetupStatus
         - name: OperationalInitializeSelfSetupStart
+        - name: OperationalNomineePresence
+        - name: LocalOfficerPending
+        - name: LocalOfficerRef
+        - name: LocalOfficerReview
+        - name: LocalOfficerReceipt
+        - name: LocalNomineeReviewStatus
