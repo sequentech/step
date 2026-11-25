@@ -53,7 +53,7 @@ use crate::postgres::signing_document_revision::{
     DocumentRevisionRow, NewDocumentRevision, RevisionLock,
 };
 use crate::services::documents::{
-    get_document_as_temp_file, get_document_url, upload_and_return_document,
+    get_document_url, get_operational_miru_document_as_temp_file, upload_and_return_document,
 };
 use crate::services::time_zones::event_time_zone;
 use crate::tasks::signing_log_outbox::kick_signing_log_outbox;
@@ -445,7 +445,7 @@ impl RevisionStore for S3RevisionStore {
         )
         .await?
         .ok_or_else(|| anyhow!("There is no document {document_id}"))?;
-        let file = get_document_as_temp_file(&tenant_id, &document).await?;
+        let file = get_operational_miru_document_as_temp_file(&tenant_id, &document).await?;
         std::fs::read(file.path()).context("Error reading the document")
     }
 

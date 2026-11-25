@@ -20,7 +20,7 @@ use crate::postgres::document::get_document;
 use crate::postgres::election_event::get_election_event_by_election_area;
 use crate::postgres::signing::get_signing_post;
 use crate::services::database::get_hasura_pool;
-use crate::services::documents::get_document_as_temp_file;
+use crate::services::documents::get_operational_miru_document_as_temp_file;
 use crate::services::signing::actions::transmission::{
     transmission_send_check_bound, TransmissionSendCheck,
 };
@@ -234,7 +234,8 @@ async fn stored_sha256(
     )
     .await?
     .ok_or_else(|| anyhow!("Can't find document {}", download.document_id))?;
-    let mut file = get_document_as_temp_file(&download.tenant_id, &document).await?;
+    let mut file =
+        get_operational_miru_document_as_temp_file(&download.tenant_id, &document).await?;
     Ok(file_sha256(&read_temp_file(&mut file)?))
 }
 
@@ -468,7 +469,7 @@ pub async fn prepare_hardware_manual_archive(
     if document.is_public.unwrap_or(false) {
         return Ok(Err(DownloadRefusal::NotAPackageFile));
     }
-    let file = get_document_as_temp_file(&download.tenant_id, &document).await?;
+    let file = get_operational_miru_document_as_temp_file(&download.tenant_id, &document).await?;
     let digest = sha256_local_file(&file)?;
     if !matches!(
         transmission_send_check_bound(tx, tenant, event, Some(tally), &package, Some(&digest))

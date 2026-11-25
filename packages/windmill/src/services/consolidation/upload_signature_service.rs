@@ -37,7 +37,10 @@ use crate::{
     },
     services::{
         database::get_hasura_pool,
-        documents::{get_document_as_temp_file, upload_and_return_document},
+        documents::{
+            get_document_as_temp_file, get_operational_miru_document_as_temp_file,
+            upload_and_return_document,
+        },
     },
     types::miru_plugin::{
         MiruCcsServer, MiruServerDocument, MiruTallySessionData, MiruTransmissionPackageData,
@@ -397,7 +400,7 @@ pub async fn upload_transmission_package_signature_service(
         )
     })?;
 
-    let mut eml_data = get_document_as_temp_file(tenant_id, &document).await?;
+    let mut eml_data = get_operational_miru_document_as_temp_file(tenant_id, &document).await?;
     let eml_bytes = read_temp_file(&mut eml_data)?;
     let eml = String::from_utf8(eml_bytes)?;
 

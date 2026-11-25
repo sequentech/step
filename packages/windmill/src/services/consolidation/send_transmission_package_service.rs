@@ -23,7 +23,7 @@ use crate::{
     },
     services::{
         database::get_hasura_pool,
-        documents::{get_document_as_temp_file, upload_and_return_document},
+        documents::{get_operational_miru_document_as_temp_file, upload_and_return_document},
         signing::{
             actions::transmission::{transmission_send_check_bound, TransmissionRefusal},
             operational_policy::{signing_mode_for_event, OperationalSigningMode},
@@ -580,7 +580,8 @@ pub async fn send_transmission_package_service(
         )
     })?;
 
-    let mut compressed_zip = get_document_as_temp_file(tenant_id, &document).await?;
+    let mut compressed_zip =
+        get_operational_miru_document_as_temp_file(tenant_id, &document).await?;
 
     let verified_archive_sha = if hardware {
         let archive_sha = sha256_archive(compressed_zip.path())?;
