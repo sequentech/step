@@ -115,7 +115,11 @@ export const ProtectedActionsTab: React.FC<ISignaturesSubTabProps> = ({
         <Box>
             <Box sx={{display: "flex", alignItems: "center", gap: 2, mb: 2}}>
                 <Typography variant="body2" sx={{flex: 1}}>
-                    {t("signing.protectedActions.intro")}
+                    {t(
+                        directHsmApprovalBuild()
+                            ? "signing.protectedActions.hsmIntro"
+                            : "signing.protectedActions.intro"
+                    )}
                 </Typography>
                 {!access.rulesWrite && (
                     <Chip size="small" variant="outlined" label={t("signing.readOnly.chip")} />

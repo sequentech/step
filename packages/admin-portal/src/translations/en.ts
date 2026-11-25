@@ -5469,6 +5469,7 @@ const englishTranslation = {
             tab: {
                 title: "Signatures",
                 intro: "Protected actions run only after enough authorized people sign them with their digital certificates. Each signature is checked against the trusted issuers and recorded in the log.",
+                hsmIntro: "Authorized people approve protected actions. Each approval is recorded in the electoral log.",
                 protectedActions: "Protected actions",
                 certificates: "Certificates",
                 requests: "Requests",
@@ -5591,6 +5592,7 @@ const englishTranslation = {
             },
             protectedActions: {
                 intro: "Each signature is made with the digital certificate on the signer's security token.",
+                hsmIntro: "See who can approve each action and how many approvals are required.",
                 columns: {
                     action: "Action",
                     appliesTo: "Applies to",

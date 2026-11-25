@@ -5350,6 +5350,7 @@ const spanishTranslation: TranslationType = {
             tab: {
                 title: "Firmas",
                 intro: "Las acciones protegidas solo se ejecutan cuando suficientes personas autorizadas las firman con sus certificados digitales. Cada firma se comprueba con los emisores de confianza y queda registrada en el registro.",
+                hsmIntro: "Las personas autorizadas aprueban las acciones protegidas. Cada aprobación queda registrada en el registro electoral.",
                 protectedActions: "Acciones protegidas",
                 certificates: "Certificados",
                 requests: "Solicitudes",
@@ -5474,6 +5475,7 @@ const spanishTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Cada firma se realiza con el certificado digital del token de seguridad del firmante.",
+                hsmIntro: "Consulta quién puede aprobar cada acción y cuántas aprobaciones se requieren.",
                 columns: {
                     action: "Acción",
                     appliesTo: "Se aplica a",

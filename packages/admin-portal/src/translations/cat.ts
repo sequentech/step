@@ -5158,6 +5158,7 @@ const catalanTranslation: TranslationType = {
             tab: {
                 title: "Signatures",
                 intro: "Les accions protegides només s'executen quan prou persones autoritzades les signen amb els seus certificats digitals. Cada signatura es comprova amb els emissors de confiança i queda anotada al registre.",
+                hsmIntro: "Les persones autoritzades aproven les accions protegides. Cada aprovació es registra al registre electoral.",
                 protectedActions: "Accions protegides",
                 certificates: "Certificats",
                 requests: "Sol·licituds",
@@ -5283,6 +5284,7 @@ const catalanTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Cada signatura es fa amb el certificat digital del testimoni de seguretat del signant.",
+                hsmIntro: "Consulta qui pot aprovar cada acció i quantes aprovacions calen.",
                 columns: {
                     action: "Acció",
                     appliesTo: "S'aplica a",

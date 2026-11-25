@@ -5192,6 +5192,7 @@ const frenchTranslation: TranslationType = {
             tab: {
                 title: "Signatures",
                 intro: "Les actions protégées ne s'exécutent qu'une fois signées par suffisamment de personnes autorisées avec leurs certificats numériques. Chaque signature est vérifiée auprès des émetteurs de confiance et consignée dans le journal.",
+                hsmIntro: "Les personnes autorisées approuvent les actions protégées. Chaque approbation est consignée dans le journal électoral.",
                 protectedActions: "Actions protégées",
                 certificates: "Certificats",
                 requests: "Demandes",
@@ -5316,6 +5317,7 @@ const frenchTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Chaque signature est réalisée avec le certificat numérique du jeton de sécurité du signataire.",
+                hsmIntro: "Consultez qui peut approuver chaque action et combien d’approbations sont nécessaires.",
                 columns: {
                     action: "Action",
                     appliesTo: "S'applique à",

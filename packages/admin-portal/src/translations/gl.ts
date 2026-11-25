@@ -5132,6 +5132,7 @@ const galegoTranslation: TranslationType = {
             tab: {
                 title: "Sinaturas",
                 intro: "As accións protexidas só se executan cando abondas persoas autorizadas as asinan cos seus certificados dixitais. Cada sinatura compróbase cos emisores de confianza e queda anotada no rexistro.",
+                hsmIntro: "As persoas autorizadas aproban as accións protexidas. Cada aprobación queda rexistrada no rexistro electoral.",
                 protectedActions: "Accións protexidas",
                 certificates: "Certificados",
                 requests: "Solicitudes",
@@ -5256,6 +5257,7 @@ const galegoTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Cada sinatura faise co certificado dixital do token de seguranza do asinante.",
+                hsmIntro: "Consulta quen pode aprobar cada acción e cantas aprobacións son necesarias.",
                 columns: {
                     action: "Acción",
                     appliesTo: "Aplícase a",

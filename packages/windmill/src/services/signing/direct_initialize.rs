@@ -171,6 +171,17 @@ pub(super) async fn verify_installation(
     Ok(())
 }
 
+/// V2 may describe another event, but never another mounted device, tenant
+/// or a rewritten historical V1 anchor. SQL separately verifies the root.
+pub(super) fn verify_multi_event_device(tenant: Uuid, event: Uuid, installation: Uuid) -> Result<()> {
+    ensure!(
+        installed()?.is_some_and(|i| i.tenant == tenant && i.event != event
+            && i.installation == installation),
+        "No matching direct HSM device for this event"
+    );
+    Ok(())
+}
+
 /// Match the same immutable runtime anchor, without treating today's
 /// latest publication as the V2 trust root. Configuration may safely
 /// approve a new publication while V1 Initialize remains unchanged.

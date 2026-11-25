@@ -402,6 +402,19 @@ pub async fn gate_publication(
                 None => published + 1,
                 Some(_) => published,
             };
+            let subject_json = serde_json::to_value(subject).map_err(anyhow::Error::from)?;
+            #[cfg(feature = "comelec-demo-direct-hsm")]
+            let subject_json = {
+                let mut subject_json = subject_json;
+                if let Some(files_root) =
+                    crate::services::signing::direct_multi_event::configuration_files_root(
+                        hasura_transaction, tenant_id, election_event_id, publication_uuid,
+                    ).await?
+                {
+                    subject_json["ballot_files_root"] = Value::String(files_root);
+                }
+                subject_json
+            };
             Ok(GuardRequest {
                 action: SigningAction::ApproveConfiguration,
                 scope: scope(
@@ -409,7 +422,7 @@ pub async fn gate_publication(
                     election_event_id,
                     publication.election_id.as_deref(),
                 ),
-                subject: serde_json::to_value(subject).map_err(anyhow::Error::from)?,
+                subject: subject_json,
                 document: None,
                 config_revision: Some(version.to_string()),
             })
@@ -542,6 +555,15 @@ pub async fn publish(
                 request.code
             ),
         ));
+    }
+    #[cfg(feature = "comelec-demo-direct-hsm")]
+    if let Some(files_root) = crate::services::signing::direct_multi_event::configuration_files_root(
+        hasura_transaction, request.tenant_id, request.election_event_id,
+        Uuid::parse_str(&publication.id)?,
+    ).await? {
+        if request.subject.get("ballot_files_root").and_then(Value::as_str) != Some(files_root.as_str()) {
+            return Err(refuse("payload-changed", "The generated ballot files no longer match the signed request."));
+        }
     }
     // Publishing writes the voter files and posts to the bulletin board.
     progress.reach_outside();

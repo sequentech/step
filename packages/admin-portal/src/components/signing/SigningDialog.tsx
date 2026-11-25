@@ -746,13 +746,19 @@ export interface ISigningDialogProps {
     onRequestChanged?: () => void
 }
 
+/** Only the ordinary, explicitly legacy approval experience may mount P12. */
+export const SigningDialog: React.FC<ISigningDialogProps> = (props) =>
+    signingExperience(props.data.operational_signing_mode, props.data.request.action) === "legacy" ? (
+        <LegacySigningDialog {...props} />
+    ) : null
+
 /**
  * Signs a request in three steps: check what is signed, open the certificate
  * file in the browser (the server dry-runs its checks), sign. The file, the
  * key and the password never leave the browser; the dialog forgets them
  * when it closes.
  */
-export const SigningDialog: React.FC<ISigningDialogProps> = ({
+const LegacySigningDialog: React.FC<ISigningDialogProps> = ({
     open,
     data,
     api,

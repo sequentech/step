@@ -5,6 +5,7 @@ import React, {useContext} from "react"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {localOfficerSettings} from "@/lib/signing/localInitializeOfficerApi"
+import {directHsmApprovalBuild} from "@/lib/signing/operationalApprovalPolicy"
 import {useTranslation} from "react-i18next"
 import {useRecordContext} from "react-admin"
 import {Box, Typography} from "@mui/material"
@@ -56,7 +57,7 @@ export const EditElectionEventSignatures: React.FC = () => {
     return (
         <Box>
             <Typography variant="body2" color="text.secondary" sx={{maxWidth: "70rem", mb: 2}}>
-                {t("signing.tab.intro")}
+                {t(directHsmApprovalBuild() ? "signing.tab.hsmIntro" : "signing.tab.intro")}
             </Typography>
             <Tabs elements={tabs} />
         </Box>

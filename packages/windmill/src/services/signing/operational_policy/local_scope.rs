@@ -13,7 +13,7 @@ use super::{
 use crate::postgres::signing::SigningRequestRow;
 use crate::postgres::signing_actions::published_publication_of_post;
 use deadpool_postgres::{GenericClient, Transaction};
-use sequent_core::signing::SigningAction;
+use sequent_core::signing::{SigningAction, SigningRequestStatus};
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -357,11 +357,55 @@ pub(in crate::services::signing) async fn for_target(
         }
     }
     if direct_hsm_approval_build() {
+        #[cfg(feature = "comelec-demo-direct-hsm")]
+        if baseline == Mode::LegacyP12 {
+            if let Some(latch) = crate::services::signing::direct_multi_event::for_target(
+                tx, tenant, event, action, target,
+            )
+            .await
+            .map_err(|_| Blocked::ScopeUnavailable)?
+            {
+                return Ok((Mode::HsmRequired, Some(latch)));
+            }
+        }
         // No matching identity is a setup/scope failure, not permission to
         // use a certificate, a different HSM provider, or no approval.
         return Err(Blocked::ScopeUnavailable);
     }
     Ok((baseline, None))
+}
+
+// Older V1-only installations have no V2 column. The exact proof keys
+// are selected by the verified latch protocol, never by a browser input.
+const PENDING_DIRECT_PROOFS_MATCH: &str = "SELECT NOT EXISTS (
+    SELECT FROM sequent_backend.signing_approval a
+     WHERE (a.tenant_id,a.election_event_id,a.request_id)=($1,$2,$3)
+       AND (jsonb_typeof(to_jsonb(a)->$4::text) IS DISTINCT FROM 'object'
+            OR to_jsonb(a)->>$5::text IS NOT NULL OR a.certificate_pem IS NOT NULL)
+)";
+
+async fn pending_direct_proofs_match(
+    tx: &Transaction<'_>,
+    row: &SigningRequestRow,
+    protocol: DirectProtocol,
+) -> Result<bool> {
+    // Preserve historical evidence. Never combine an unfinished legacy or
+    // different-protocol approval with a new HSM approval on the same request.
+    if !matches!(row.status, SigningRequestStatus::Waiting | SigningRequestStatus::Completed) {
+        return Ok(true);
+    }
+    let (required, different) = match protocol {
+        DirectProtocol::InitializeV1 => ("initialize_direct_proof", "action_direct_proof"),
+        DirectProtocol::ActionV2 => ("action_direct_proof", "initialize_direct_proof"),
+    };
+    tx.query_one(
+        PENDING_DIRECT_PROOFS_MATCH,
+        &[&row.tenant_id, &row.election_event_id, &row.id, &required, &different],
+    )
+    .await
+    .map_err(|_| Blocked::ScopeUnavailable)?
+    .try_get(0)
+    .map_err(|_| Blocked::ScopeUnavailable)
 }
 
 /// Read using the database row, not URL/body hints. Every decision about
@@ -370,18 +414,34 @@ pub(in crate::services::signing) async fn request_mode_and_latch(
     tx: &Transaction<'_>,
     row: &SigningRequestRow,
 ) -> Result<(Mode, Option<Latch>)> {
-    let (mode, latch) = for_target(
+    #[cfg(feature = "comelec-demo-direct-hsm")]
+    let dynamic = if signing_mode(tx, row.tenant_id).await? == Mode::LegacyP12 {
+        crate::services::signing::direct_multi_event::persisted(tx, row)
+            .await
+            .map_err(|_| Blocked::ScopeUnavailable)?
+    } else {
+        None
+    };
+    #[cfg(not(feature = "comelec-demo-direct-hsm"))]
+    let dynamic: Option<Latch> = None;
+    let (mode, latch) = if let Some(latch) = dynamic {
+        (Mode::HsmRequired, Some(latch))
+    } else {
+        for_target(
         tx,
         row.tenant_id,
         row.election_event_id,
         row.action,
         Target::Intent(row.election_id, row.area_id, &row.subject),
-    )
-    .await?;
-    if latch.is_some()
-        && !crate::services::signing::operational_device::matches_canonical_request(row)
-    {
-        return Err(Blocked::ScopeUnavailable);
+        )
+        .await?
+    };
+    if let Some(latch) = latch {
+        if !crate::services::signing::operational_device::matches_canonical_request(row)
+            || !pending_direct_proofs_match(tx, row, latch.protocol).await?
+        {
+            return Err(Blocked::ScopeUnavailable);
+        }
     }
     Ok((mode, latch))
 }
@@ -399,6 +459,10 @@ pub async fn request_signing_mode(tx: &Transaction<'_>, row: &SigningRequestRow)
 }
 
 pub async fn require_legacy_request(tx: &Transaction<'_>, row: &SigningRequestRow) -> Result<()> {
+    if direct_hsm_approval_build() {
+        // An older persisted request never opts the HSM-only build into P12.
+        return Err(Blocked::HsmRequired);
+    }
     match request_signing_mode(tx, row).await? {
         Mode::LegacyP12 => Ok(()),
         Mode::HsmRequired => Err(Blocked::HsmRequired),

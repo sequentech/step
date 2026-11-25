@@ -5166,6 +5166,7 @@ const dutchTranslation: TranslationType = {
             tab: {
                 title: "Handtekeningen",
                 intro: "Beschermde acties worden pas uitgevoerd nadat genoeg bevoegde personen ze met hun digitale certificaat hebben ondertekend. Elke handtekening wordt gecontroleerd tegen de vertrouwde uitgevers en vastgelegd in het logboek.",
+                hsmIntro: "Bevoegde personen keuren beschermde acties goed. Elke goedkeuring wordt vastgelegd in het verkiezingslogboek.",
                 protectedActions: "Beschermde acties",
                 certificates: "Certificaten",
                 requests: "Verzoeken",
@@ -5291,6 +5292,7 @@ const dutchTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Elke handtekening wordt gezet met het digitale certificaat op het beveiligingstoken van de ondertekenaar.",
+                hsmIntro: "Bekijk wie elke actie kan goedkeuren en hoeveel goedkeuringen nodig zijn.",
                 columns: {
                     action: "Actie",
                     appliesTo: "Geldt voor",

@@ -5218,6 +5218,7 @@ const tagalogTranslation: TranslationType = {
             tab: {
                 title: "Mga Pirma",
                 intro: "Tumatakbo lamang ang mga protektadong aksyon kapag sapat na awtorisadong tao ang pumirma sa mga ito gamit ang kanilang digital na sertipiko. Sinusuri ang bawat pirma laban sa mga pinagkakatiwalaang issuer at itinatala sa log.",
+                hsmIntro: "Ang mga awtorisadong tao ang nag-aapruba ng mga protektadong aksyon. Itinatala ang bawat pag-apruba sa talaan ng halalan.",
                 protectedActions: "Mga protektadong aksyon",
                 certificates: "Mga Sertipiko",
                 requests: "Mga Kahilingan",
@@ -5344,6 +5345,7 @@ const tagalogTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Ginagawa ang bawat pirma gamit ang digital na sertipiko sa security token ng pumipirma.",
+                hsmIntro: "Tingnan kung sino ang maaaring mag-apruba ng bawat aksyon at kung ilang pag-apruba ang kailangan.",
                 columns: {
                     action: "Aksyon",
                     appliesTo: "Para sa",

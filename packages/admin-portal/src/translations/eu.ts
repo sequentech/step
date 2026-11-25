@@ -5132,6 +5132,7 @@ const basqueTranslation: TranslationType = {
             tab: {
                 title: "Sinadurak",
                 intro: "Ekintza babestuak behar adina pertsona baimendunek beren ziurtagiri digitalekin sinatu ondoren bakarrik exekutatzen dira. Sinadura bakoitza jaulkitzaile fidagarrien aurka egiaztatzen da eta erregistroan jasotzen da.",
+                hsmIntro: "Baimendutako pertsonek ekintza babestuak onartzen dituzte. Onarpen bakoitza hauteskunde-erregistroan jasotzen da.",
                 protectedActions: "Ekintza babestuak",
                 certificates: "Ziurtagiriak",
                 requests: "Eskaerak",
@@ -5257,6 +5258,7 @@ const basqueTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Sinadura bakoitza sinatzailearen segurtasun-tokeneko ziurtagiri digitalarekin egiten da.",
+                hsmIntro: "Ikusi nork onar dezakeen ekintza bakoitza eta zenbat onarpen behar diren.",
                 columns: {
                     action: "Ekintza",
                     appliesTo: "Honi aplikatzen zaio",

@@ -268,6 +268,10 @@ async fn complete_generation(
     let event_id = Uuid::parse_str(event)?;
     let mut db = pool.get().await?;
     let tx = db.transaction().await?;
+    #[cfg(feature = "comelec-demo-direct-hsm")]
+    let dynamic = crate::services::signing::direct_multi_event::lock_generation_if_dynamic(
+        &tx, tenant_id, event_id,
+    ).await?;
     lock_publication_event(&tx, tenant, event).await?;
     lock_generation(&tx, lease).await?;
     if !complete_ballot_publication_files(
@@ -281,6 +285,12 @@ async fn complete_generation(
     .await?
     {
         bail!("Publication was removed, completed or replaced during upload");
+    }
+    #[cfg(feature = "comelec-demo-direct-hsm")]
+    if dynamic {
+        crate::services::signing::direct_multi_event::record_generation(
+            &tx, tenant_id, event_id, publication, root,
+        ).await?;
     }
     // This one mutable login configuration is event-wide. Serialize its write
     // with event edits/deletion and read live metadata: an older draft finishing

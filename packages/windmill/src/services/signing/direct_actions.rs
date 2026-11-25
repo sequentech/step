@@ -167,7 +167,14 @@ async fn authorize_row(
         .map_err(|_| unavailable())?
         .ok_or_else(unavailable)?;
     let operation = known_operation(tx, request, latch, actor_uuid(&caller.user_id)?).await?;
-    if let Some(post) = operation.scope().election {
+    let mut post = operation.scope().election;
+    if post.is_none() && super::direct_multi_event::root(tx, request.tenant_id, request.election_event_id)
+        .await?.is_some() {
+        // An event-scoped action in this deployment still concerns the one
+        // exact eligible Post. Do not bypass its labels via an empty scope.
+        post = Some(operation.anchor().post);
+    }
+    if let Some(post) = post {
         let post = get_signing_post(tx, request.tenant_id, request.election_event_id, post)
             .await?
             .ok_or_else(unavailable)?;

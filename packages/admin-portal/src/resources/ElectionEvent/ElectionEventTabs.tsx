@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {directHsmApprovalBuild} from "@/lib/signing/operationalApprovalPolicy"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {localOfficerSettings} from "@/lib/signing/localInitializeOfficerApi"
 import React, {
@@ -380,7 +381,7 @@ export const ElectionEventTabs: React.FC = () => {
         ) &&
         authContext.isAuthorized(true, authContext.tenantId, [
             IPermissions.SIGNING_RULES_READ,
-            IPermissions.SIGNING_CERTIFICATES_READ,
+            ...(directHsmApprovalBuild() ? [] : [IPermissions.SIGNING_CERTIFICATES_READ]),
             IPermissions.SIGNING_REQUESTS_READ,
         ])
     const showCAs =

@@ -231,7 +231,7 @@ pub async fn guard_at(
     let scope = &request.scope;
     scope.check(request.action)?;
     // Hold policy through this guard AND the enclosing route's direct effect.
-    let (mode, _) = for_target(
+    let (mode, _latch) = for_target(
         hasura_transaction,
         scope.tenant_id,
         scope.election_event_id,
@@ -457,6 +457,9 @@ pub async fn guard_at(
             &waiting,
         )));
     };
+    #[cfg(feature = "comelec-demo-direct-hsm")]
+    super::direct_multi_event::bind(hasura_transaction, &created, _latch).await?;
+
     stage_request_step(
         hasura_transaction,
         &created,

@@ -234,6 +234,10 @@ pub(crate) async fn direct_schedule_post(
         "Signing policy is busy; retry scheduled configuration check"
     );
     let Some(latch) = local_scope::action_latch(tx, tenant, event).await? else {
+        #[cfg(feature = "comelec-demo-direct-hsm")]
+        if let Some(post) = super::direct_multi_event::scheduled_post(tx, tenant, event).await? {
+            return Ok(Some(post));
+        }
         anyhow::ensure!(
             !direct_hsm_approval_build(),
             "Scheduled approvals need a verified direct HSM installation"
