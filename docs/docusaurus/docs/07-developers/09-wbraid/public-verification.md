@@ -98,6 +98,31 @@ For DKG-only verification, omit `tallyBoard` and set `tally_id` to `null`.
 messages obtained from a trusted platform record; deriving pins from the board
 being audited defeats the independent trust anchor.
 
+## Admin portal
+
+The Results step of a finished electoral tally has a **Cryptographic
+verification** section for users with `tally-results-read`. Its button runs the
+browser verifier over every tally board of the tally session, one after another,
+and lists each batch's status, ballot count and detail.
+
+The anchors come from the Hasura action `get_tally_public_verification_boards`
+(Harvest `POST /tally-public-verification-boards`, `tally-results-read`). For each
+tally board of the session in the caller's tenant, it returns the DKG and tally
+board names, the batch with the election, contest and area that own it, and the
+platform's stored `protocol_board.manager_message` of both boards in padded
+base64: the DKG board's `Configuration` and the tally board's `Ballots`. The page
+derives `configuration_hash`, `tally_id` and `ballots_hash` from those messages
+with `configurationHash`, `tallyIdentifier` and `ballotsHash`, fetches each
+transcript from `WBRAID_BOARD_URL` (the portal's `/b4` by default) and calls
+`verifyTranscript`. It checks no ballot inclusion.
+
+The anchors are the platform's records, so the page is a self-check of the
+platform against its boards, not an independent audit. **Download evidence**
+saves the run as JSON: each batch's `anchors`, `report` and the `transcript`
+that `trustee verify --transcript` reads, for example after
+`jq '.batches[0].transcript' evidence.json > transcript.json`. An independent
+auditor obtains the anchors from the signed configuration package instead.
+
 ## Checks and interpretation
 
 Verification checks configuration validity and the independent pin; canonical

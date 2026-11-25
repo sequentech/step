@@ -3191,6 +3191,46 @@ const tagalogTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "Nagkaroon ng error sa pag-upload ng pirma",
             downloadTransmissionPackage: "I-download ang pakete",
+            publicVerification: {
+                sectionTitle: "Kriptograpikong beripikasyon",
+                description:
+                    "I-verify sa iyong browser ang bulletin board ng tally na ito: ang zero-knowledge proof ng bawat naka-encrypt na balota, ang shuffle proof ng bawat mix, at ang decryption proof ng bawat tagapangasiwa. Nakabatay ang mga pagsusuri sa mga talaan ng platapormang ito tungkol sa mga board. Para sa malayang audit, patakbuhin ang command na trustee verify gamit ang mga anchor mula sa nilagdaang configuration package.",
+                verify: "I-verify ang bulletin board",
+                verifyAgain: "I-verify muli",
+                unavailable: "Magagamit kapag tapos na ang tally.",
+                loading: "Binabasa ang mga board ng tally…",
+                progress: "Bine-verify ang batch {{current}} ng {{total}}…",
+                empty: "Walang batch sa bulletin board ang tally na ito na mabe-verify.",
+                failed: "Hindi naisagawa ang beripikasyon: {{message}}",
+                summary: {
+                    verified: "Na-verify ang lahat ng batch: {{count}} ng {{total}}.",
+                    invalid: "Mga batch na hindi pumasa sa beripikasyon: {{count}} ng {{total}}.",
+                    error: "Mga batch na hindi na-verify: {{count}} ng {{total}}.",
+                    incomplete:
+                        "Mga hindi kumpletong batch: {{count}} ng {{total}}. Kulang ang mga kinakailangang publikasyon, kaya hindi sila na-verify.",
+                },
+                checks: {
+                    title: "Na-verify sa bawat batch:",
+                    ballots: "Ang zero-knowledge proof ng bawat naka-encrypt na balota",
+                    mixing: "Ang shuffle proof ng bawat mix, nang sunud-sunod, na inendorso ng ibang tagapangasiwa",
+                    decryption:
+                        "Ang decryption proof ng bawat tagapangasiwa, na muling kinalkula at tumugma ang mga resulta",
+                },
+                columns: {
+                    batch: "Batch",
+                    ballots: "Mga balota",
+                    result: "Resulta",
+                    detail: "Detalye",
+                },
+                batch: "Batch {{batch}}",
+                status: {
+                    verified: "Na-verify",
+                    incomplete: "Hindi kumpleto",
+                    invalid: "Hindi wasto",
+                    error: "Hindi na-verify",
+                },
+                download: "I-download ang ebidensya",
+            },
             resultsPublication: {
                 sectionTitle: "I-publish sa website ng mga resulta",
                 policyTitle: "Website ng mga resulta",

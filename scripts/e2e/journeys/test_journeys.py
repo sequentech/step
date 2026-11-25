@@ -97,7 +97,7 @@ class BackendJourneys(unittest.TestCase):
         boards = self.admin.query(
             """query ($event: uuid!) {
               sequent_backend_protocol_board(where: {election_event_id: {_eq: $event}}) {
-                id name parent_id manager_message tally_session_id
+                id name parent_id manager_message tally_session_id batch
               }
             }""",
             {"event": event_id},
@@ -112,8 +112,40 @@ class BackendJourneys(unittest.TestCase):
             self.assertTrue(message.startswith("\\x"))
             return base64.b64encode(bytes.fromhex(message[2:])).decode()
 
+        # The admin portal's verification reads its anchors through Harvest:
+        # every tally board of each session, with the stored messages.
+        published = {}
+        for session in {child["tally_session_id"] for child in children}:
+            listed = Hasura(token=self.admin_token(), role="tally-results-read").query(
+                """query ($event: String!, $session: String!) {
+                  get_tally_public_verification_boards(
+                    election_event_id: $event, tally_session_id: $session
+                  ) {
+                    boards {
+                      dkg_board tally_board batch configuration_message ballots_message
+                    }
+                  }
+                }""",
+                {"event": event_id, "session": session},
+            )["get_tally_public_verification_boards"]["boards"]
+            batches = [board["batch"] for board in listed]
+            self.assertEqual(batches, sorted(batches))
+            published.update({board["tally_board"]: board for board in listed})
+        self.assertEqual(set(published), {child["name"] for child in children})
+
         for child in children:
             parent = parents[child["parent_id"]]
+            board = published[child["name"]]
+            self.assertEqual(
+                board,
+                {
+                    "dkg_board": parent["name"],
+                    "tally_board": child["name"],
+                    "batch": child["batch"],
+                    "configuration_message": encoded(parent["manager_message"]),
+                    "ballots_message": encoded(child["manager_message"]),
+                },
+            )
             anchors = {
                 "ballot_ciphertexts": [],
             }
@@ -124,8 +156,8 @@ class BackendJourneys(unittest.TestCase):
                     "boardUrl": B4_URL,
                     "dkgBoard": parent["name"],
                     "tallyBoard": child["name"],
-                    "configurationMessage": encoded(parent["manager_message"]),
-                    "ballotsMessage": encoded(child["manager_message"]),
+                    "configurationMessage": board["configuration_message"],
+                    "ballotsMessage": board["ballots_message"],
                     "anchors": anchors,
                 },
             )
@@ -154,8 +186,8 @@ class BackendJourneys(unittest.TestCase):
                         "boardUrl": B4_URL,
                         "dkgBoard": parent["name"],
                         "tallyBoard": child["name"],
-                        "configurationMessage": encoded(parent["manager_message"]),
-                        "ballotsMessage": encoded(child["manager_message"]),
+                        "configurationMessage": board["configuration_message"],
+                        "ballotsMessage": board["ballots_message"],
                         "anchors": anchors,
                     },
                 )

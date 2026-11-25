@@ -89,6 +89,7 @@ pub mod serialize_tasks_logs;
 pub mod signing;
 pub mod sql_utils;
 pub mod support_materials;
+pub mod tally_public_verification;
 pub mod tally_sheet_import;
 pub mod tally_sheets;
 pub mod task_audit;

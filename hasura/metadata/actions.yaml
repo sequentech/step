@@ -1328,6 +1328,20 @@ actions:
               version: 2
       permissions:
           - role: tally-results-read
+    - name: get_tally_public_verification_boards
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/tally-public-verification-boards
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tally-results-read
+      comment: A tally session's bulletin boards and the manager messages their public verification is anchored to
     - name: export_tasks_execution
       definition:
           kind: synchronous
@@ -3417,6 +3431,8 @@ custom_types:
         - name: BallotPrivacyPayload
         - name: TrusteeBoard
         - name: TrusteeBoardsOutput
+        - name: TallyVerificationBoard
+        - name: TallyVerificationBoardsOutput
         - name: TrusteeReportOutput
         - name: MonitoringSnapshot
         - name: MonitoringDashboardSummary

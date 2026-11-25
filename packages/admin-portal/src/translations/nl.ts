@@ -3178,6 +3178,47 @@ const dutchTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "Er was een fout bij het uploaden van de handtekening",
             downloadTransmissionPackage: "Transmissiepakket Downloaden",
+            publicVerification: {
+                sectionTitle: "Cryptografische verificatie",
+                description:
+                    "Verifieer in je browser het prikbord van deze telling: het zero-knowledge-bewijs van elk versleuteld stembiljet, het shufflebewijs van elke mix en het ontsleutelingsbewijs van elke trustee. De controles zijn verankerd in de gegevens die dit platform over de prikborden bewaart. Voer voor een onafhankelijke audit de opdracht trustee verify uit met ankers uit het ondertekende configuratiepakket.",
+                verify: "Prikbord verifiëren",
+                verifyAgain: "Opnieuw verifiëren",
+                unavailable: "Beschikbaar zodra de telling is afgerond.",
+                loading: "De prikborden van de telling worden gelezen…",
+                progress: "Batch {{current}} van {{total}} wordt geverifieerd…",
+                empty: "Deze telling heeft geen prikbordbatches om te verifiëren.",
+                failed: "De verificatie kon niet worden uitgevoerd: {{message}}",
+                summary: {
+                    verified: "Alle batches geverifieerd: {{count}} van {{total}}.",
+                    invalid:
+                        "Batches die de verificatie niet doorstonden: {{count}} van {{total}}.",
+                    error: "Batches die niet konden worden geverifieerd: {{count}} van {{total}}.",
+                    incomplete:
+                        "Onvolledige batches: {{count}} van {{total}}. Vereiste publicaties ontbreken, dus ze zijn niet geverifieerd.",
+                },
+                checks: {
+                    title: "Geverifieerd in elke batch:",
+                    ballots: "Het zero-knowledge-bewijs van elk versleuteld stembiljet",
+                    mixing: "Het shufflebewijs van elke mix, op volgorde, onderschreven door de andere trustees",
+                    decryption:
+                        "Het ontsleutelingsbewijs van elke trustee, met de uitslag opnieuw berekend en gelijk",
+                },
+                columns: {
+                    batch: "Batch",
+                    ballots: "Stembiljetten",
+                    result: "Resultaat",
+                    detail: "Details",
+                },
+                batch: "Batch {{batch}}",
+                status: {
+                    verified: "Geverifieerd",
+                    incomplete: "Onvolledig",
+                    invalid: "Ongeldig",
+                    error: "Niet geverifieerd",
+                },
+                download: "Bewijs downloaden",
+            },
             resultsPublication: {
                 sectionTitle: "Publiceren op de resultatenwebsite",
                 policyTitle: "Resultatenwebsite",

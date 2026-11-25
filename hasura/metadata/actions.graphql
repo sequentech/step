@@ -36,6 +36,28 @@ type TrusteeBoardsOutput {
     boards: [TrusteeBoard!]!
 }
 
+type Query {
+    get_tally_public_verification_boards(
+        election_event_id: String!
+        tally_session_id: String!
+    ): TallyVerificationBoardsOutput!
+}
+
+type TallyVerificationBoard {
+    dkg_board: String!
+    tally_board: String!
+    batch: Int!
+    election_presentation: jsonb
+    contest_presentation: jsonb
+    area_name: String
+    configuration_message: String!
+    ballots_message: String!
+}
+
+type TallyVerificationBoardsOutput {
+    boards: [TallyVerificationBoard!]!
+}
+
 type TrusteeReportOutput {
     accepted: Boolean!
 }

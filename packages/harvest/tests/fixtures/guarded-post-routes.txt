@@ -187,6 +187,7 @@
 /staff-certificates
 /staff-certificates/<id>/revoke
 /submit-tally-resolution
+/tally-public-verification-boards
 /trustee/action-result
 /trustee/boards/report
 /trustee/request-server-custody

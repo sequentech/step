@@ -3167,6 +3167,46 @@ const galegoTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "Houbo un erro ao cargar a sinatura",
             downloadTransmissionPackage: "Descargar Paquete de Transmisión",
+            publicVerification: {
+                sectionTitle: "Verificación criptográfica",
+                description:
+                    "Verifica no teu navegador o taboleiro de anuncios deste reconto: a proba de coñecemento cero de cada papeleta cifrada, a proba de baralladura de cada mestura e a proba de descifrado de cada fideicomisario. As comprobacións baséanse nos rexistros dos taboleiros desta plataforma. Para unha auditoría independente, executa o comando trustee verify con áncoras tomadas do paquete de configuración asinado.",
+                verify: "Verificar o taboleiro de anuncios",
+                verifyAgain: "Verificar de novo",
+                unavailable: "Dispoñible cando remate o reconto.",
+                loading: "Lendo os taboleiros do reconto…",
+                progress: "Verificando o lote {{current}} de {{total}}…",
+                empty: "Este reconto non ten lotes no taboleiro de anuncios que verificar.",
+                failed: "Non se puido realizar a verificación: {{message}}",
+                summary: {
+                    verified: "Todos os lotes verificados: {{count}} de {{total}}.",
+                    invalid: "Lotes que non superaron a verificación: {{count}} de {{total}}.",
+                    error: "Lotes que non se puideron verificar: {{count}} de {{total}}.",
+                    incomplete:
+                        "Lotes incompletos: {{count}} de {{total}}. Faltan publicacións necesarias, polo que non están verificados.",
+                },
+                checks: {
+                    title: "Verificado en cada lote:",
+                    ballots: "A proba de coñecemento cero de cada papeleta cifrada",
+                    mixing: "A proba de baralladura de cada mestura, en orde, avalada polos demais fideicomisarios",
+                    decryption:
+                        "A proba de descifrado de cada fideicomisario, cos resultados recalculados e coincidentes",
+                },
+                columns: {
+                    batch: "Lote",
+                    ballots: "Papeletas",
+                    result: "Resultado",
+                    detail: "Detalle",
+                },
+                batch: "Lote {{batch}}",
+                status: {
+                    verified: "Verificado",
+                    incomplete: "Incompleto",
+                    invalid: "Non válido",
+                    error: "Sen verificar",
+                },
+                download: "Descargar as evidencias",
+            },
             resultsPublication: {
                 sectionTitle: "Publicar no sitio web de resultados",
                 policyTitle: "Sitio web de resultados",

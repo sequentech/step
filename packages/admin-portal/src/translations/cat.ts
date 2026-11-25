@@ -3186,6 +3186,46 @@ const catalanTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "S'ha produït un error en carregar la signatura",
             downloadTransmissionPackage: "Descarregar paquet",
+            publicVerification: {
+                sectionTitle: "Verificació criptogràfica",
+                description:
+                    "Verifica al navegador el tauler d'anuncis d'aquest recompte: la prova de coneixement zero de cada papereta xifrada, la prova de barreja de cada mescla i la prova de desxifratge de cada autoritat. Les comprovacions es basen en els registres dels taulers d'aquesta plataforma. Per a una auditoria independent, executa l'ordre trustee verify amb ancoratges presos del paquet de configuració signat.",
+                verify: "Verificar el tauler d'anuncis",
+                verifyAgain: "Tornar a verificar",
+                unavailable: "Disponible quan el recompte hagi acabat.",
+                loading: "Llegint els taulers del recompte…",
+                progress: "Verificant el lot {{current}} de {{total}}…",
+                empty: "Aquest recompte no té lots al tauler d'anuncis per verificar.",
+                failed: "No s'ha pogut fer la verificació: {{message}}",
+                summary: {
+                    verified: "Tots els lots verificats: {{count}} de {{total}}.",
+                    invalid: "Lots que no han superat la verificació: {{count}} de {{total}}.",
+                    error: "Lots que no s'han pogut verificar: {{count}} de {{total}}.",
+                    incomplete:
+                        "Lots incomplets: {{count}} de {{total}}. Hi falten publicacions necessàries, per tant no estan verificats.",
+                },
+                checks: {
+                    title: "Verificat a cada lot:",
+                    ballots: "La prova de coneixement zero de cada papereta xifrada",
+                    mixing: "La prova de barreja de cada mescla, en ordre, avalada per les altres autoritats",
+                    decryption:
+                        "La prova de desxifratge de cada autoritat, amb els resultats recalculats i coincidents",
+                },
+                columns: {
+                    batch: "Lot",
+                    ballots: "Paperetes",
+                    result: "Resultat",
+                    detail: "Detall",
+                },
+                batch: "Lot {{batch}}",
+                status: {
+                    verified: "Verificat",
+                    incomplete: "Incomplet",
+                    invalid: "No vàlid",
+                    error: "Sense verificar",
+                },
+                download: "Descarregar les evidències",
+            },
             resultsPublication: {
                 sectionTitle: "Publicar al lloc web de resultats",
                 policyTitle: "Lloc web de resultats",
