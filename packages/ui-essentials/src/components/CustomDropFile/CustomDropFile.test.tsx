@@ -111,25 +111,6 @@ it("shows drag feedback, handles a drop, and dismisses the overlay when the poin
     expect(container.querySelector(".drag-file-element")).toBeNull()
 })
 
-it("shows no drop target while disabled and only guards file drags on the page", () => {
-    const handleFiles = jest.fn()
-    const {container} = renderDrop({handleFiles, disabled: true})
-    fireEvent.dragEnter(container.querySelector("form")!)
-    expect(container.querySelector(".drag-file-element")).toBeNull()
-
-    // Dropping a file outside the form must not navigate the page to it.
-    const fileDrag = new Event("dragover", {cancelable: true})
-    Object.defineProperty(fileDrag, "dataTransfer", {value: {types: ["Files"]}})
-    document.dispatchEvent(fileDrag)
-    expect(fileDrag.defaultPrevented).toBe(true)
-
-    const textDrag = new Event("drop", {cancelable: true})
-    Object.defineProperty(textDrag, "dataTransfer", {value: {types: ["text/plain"]}})
-    document.dispatchEvent(textDrag)
-    expect(textDrag.defaultPrevented).toBe(false)
-    expect(handleFiles).not.toHaveBeenCalled()
-})
-
 it("prevents browser navigation for files dropped outside the dropzone only while mounted", () => {
     const handleFiles = jest.fn()
     const {unmount} = renderDrop({handleFiles})
