@@ -1,0 +1,17 @@
+actions:
+    - name: signingApproveInitializeDirect
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-requests/direct-initialize
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
+custom_types:
+    objects:
+        - name: DirectInitializeApprovalResult

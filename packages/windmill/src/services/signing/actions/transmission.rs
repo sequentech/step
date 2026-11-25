@@ -296,7 +296,7 @@ pub fn package_members(
             )
         })?;
         let signature = BASE64.encode(document_signature);
-        let publickey = public_key_pem(&approval.certificate_pem)?;
+        let publickey = public_key_pem(approval.certificate_pem.as_deref().context("EML approval has no certificate")?)?;
         let (id, name) = match sbeis {
             Some(sbeis) => {
                 let identity = sbeis.get(&approval.username).ok_or_else(|| {
@@ -328,7 +328,7 @@ pub fn package_members(
             sbei_miru_id: id,
             pub_key: publickey,
             signature,
-            certificate_fingerprint: approval.fingerprint_sha256.clone(),
+            certificate_fingerprint: approval.fingerprint_sha256.clone().context("EML approval has no certificate fingerprint")?,
         });
     }
     Ok((members, signatures))
@@ -711,7 +711,7 @@ pub async fn transmission_send_check_bound(
             };
             expected.push((
                 BASE64.encode(signature),
-                public_key_pem(&approval.certificate_pem)?,
+                public_key_pem(approval.certificate_pem.as_deref().context("EML approval has no certificate")?)?,
             ));
         }
         expected.sort();

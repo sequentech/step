@@ -39,8 +39,9 @@ pub mod voter;
 pub mod voting;
 
 use super::executors::{ExecutionOutcome, PostCommit, PostCommitTask, SigningExecutor};
-use super::guard::{effective_rule, guard, GuardOutcome, GuardRequest};
-use super::operational_policy::{signing_mode, OperationalSigningMode};
+use super::guard::{effective_rule, effective_rule_in_mode, guard, GuardOutcome, GuardRequest};
+use super::operational_policy::local_scope::request_mode_and_latch;
+use super::operational_policy::{lock_signing_policy, OperationalSigningMode};
 use super::operational_quorum::has_operational_quorum;
 use super::requests::{claim_dispatched, finish_dispatched, DispatchedResult};
 use super::{SigningCaller, SigningError, SigningResult};
@@ -112,9 +113,36 @@ where
     F: FnOnce() -> Fut,
     Fut: Future<Output = SigningResult<GuardRequest>>,
 {
+    // Initialize's early Proceed decision must see *all* selected Posts.
+    if action == SigningAction::InitializeVoting {
+        return Err(SigningError::bad_input(
+            "Initialize requires a Post selection.",
+        ));
+    }
     if !is_required(hasura_transaction, tenant_id, election_event_id, action).await? {
         return Ok(GuardOutcome::Proceed);
     }
+    gate_required(
+        hasura_transaction,
+        caller,
+        tenant_id,
+        election_event_id,
+        build,
+    )
+    .await
+}
+
+async fn gate_required<F, Fut>(
+    hasura_transaction: &Transaction<'_>,
+    caller: &SigningCaller,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    build: F,
+) -> SigningResult<GuardOutcome>
+where
+    F: FnOnce() -> Fut,
+    Fut: Future<Output = SigningResult<GuardRequest>>,
+{
     let request = build().await?;
     if let Some(election_id) = request.scope.election_id {
         let post = get_signing_post(
@@ -558,7 +586,7 @@ pub async fn run_claimed(
 
     // The effect: the request's row lock, not the event's signing lock.
     let transaction = client.transaction().await?;
-    let mode = signing_mode(&transaction, tenant_id).await?;
+    lock_signing_policy(&transaction).await?;
     let Some(request) =
         lock_signing_request(&transaction, tenant_id, election_event_id, request_id).await?
     else {
@@ -569,6 +597,7 @@ pub async fn run_claimed(
         transaction.rollback().await?;
         return Ok(RunOutcome::NotClaimed);
     }
+    let (mode, direct) = request_mode_and_latch(&transaction, &request).await?;
     let result =
         match request.execution_result.clone() {
             // The effect committed before; only its report is missing.
@@ -581,10 +610,22 @@ pub async fn run_claimed(
                     list_signing_approvals(&transaction, tenant_id, election_event_id, request_id)
                         .await?;
                 let progress = EffectProgress::default();
+                if direct.is_none() && approvals.iter().any(|a| a.initialize_direct_proof.is_some()) {
+                    transaction.rollback().await?;
+                    return settle_failure(client, task,
+                        refuse("scope-unavailable", "The stored proof has no active direct Initialize scope."),
+                        &progress,
+                    ).await;
+                }
                 if mode == OperationalSigningMode::HsmRequired {
-                    let current =
-                        effective_rule(&transaction, tenant_id, election_event_id, request.action)
-                            .await?;
+                    let current = effective_rule_in_mode(
+                        &transaction,
+                        tenant_id,
+                        election_event_id,
+                        request.action,
+                        mode,
+                    )
+                    .await?;
                     if !has_operational_quorum(
                         &transaction,
                         &request,
@@ -641,9 +682,8 @@ pub async fn run_claimed(
             }
         };
 
-    // The report, under the event's signing lock.
+    // finish_dispatched takes the policy lock first, then the event/row lock.
     let transaction = client.transaction().await?;
-    lock_signing_event(&transaction, tenant_id, election_event_id).await?;
     if !finish_dispatched(
         &transaction,
         tenant_id,

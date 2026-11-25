@@ -35,6 +35,7 @@ import {validatePanel, type ISigningApi, type ISigningPanelData} from "@/lib/sig
 import {SignBlock, isViewer, signBlock, signerCertificate, signerName} from "@/lib/signing/request"
 import {requestStatusKey, shownRequestStatus} from "@/lib/signing/status"
 import {SigningRequestStatus} from "@/lib/signing/types"
+import {DirectInitializeApprove} from "./DirectInitializeApprove"
 import {SigningDialog} from "./SigningDialog"
 import {OperationalApprovalDialog} from "./OperationalApprovalDialog"
 import {signingExperience} from "@/lib/signing/operationalApprovalPolicy"
@@ -300,7 +301,7 @@ export const SigningRequestPanel: React.FC<ISigningRequestPanelProps> = ({
         autoSignDone.current = true
         if (
             (restoreManagedDialog && signing === "managed") ||
-            (autoSign && block === SignBlock.None && signing !== "unavailable")
+            (autoSign && block === SignBlock.None && (signing === "legacy" || signing === "managed"))
         )
             setDialogOpen(true)
     }, [autoSign, data, block, restoreManagedDialog, signing])
@@ -447,7 +448,15 @@ export const SigningRequestPanel: React.FC<ISigningRequestPanelProps> = ({
                     ) : null}
                     {waiting ? (
                         <Stack direction="row" spacing={1.5} sx={{flexWrap: "wrap", rowGap: 1.5}}>
-                            {block === SignBlock.None && signing !== "unavailable" ? (
+                            {block === SignBlock.None && signing === "direct" ? (
+                                <DirectInitializeApprove
+                                    key={data.request.id + data.request.payload_sha256}
+                                    data={data}
+                                    api={api}
+                                    onRefresh={refresh}
+                                />
+                            ) : null}
+                            {block === SignBlock.None && (signing === "legacy" || signing === "managed") ? (
                                 <Button
                                     variant="contained"
                                     startIcon={<DrawIcon />}

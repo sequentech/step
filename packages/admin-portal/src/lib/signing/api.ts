@@ -140,6 +140,7 @@ export interface ISigningClosingBallotBox {
 
 export interface ISigningApi {
     getRequest(requestId: string): Promise<ISigningPanelData>
+    approveDirectInitialize?(requestId: string, payloadSha256: string): Promise<void>
     /** A dry run of every server check for the chain; nothing is recorded. */
     checkCertificate(
         requestId: string,
@@ -317,6 +318,14 @@ export const validatePanel = (value: unknown): ISigningPanelData => {
     return value as ISigningPanelData
 }
 
+export const DIRECT_INITIALIZE_APPROVE = gql`
+    mutation SigningApproveInitializeDirect($request_id: uuid!, $payload_sha256: String!) {
+        signingApproveInitializeDirect(request_id: $request_id, payload_sha256: $payload_sha256) {
+            request_id
+        }
+    }
+`
+
 export const SIGNING_REQUEST = gql`
     query SigningGetRequest($request_id: uuid!) {
         signingGetRequest(request_id: $request_id) {
@@ -452,6 +461,17 @@ export const createSigningApi = (
                 return panel
             } catch (error) {
                 throw toSigningApiError(error)
+            }
+        },
+        approveDirectInitialize: async (requestId, payloadSha256) => {
+            const output = await mutate<{request_id: string}>(
+                SigningOperation.Sign,
+                DIRECT_INITIALIZE_APPROVE,
+                "signingApproveInitializeDirect",
+                {request_id: requestId, payload_sha256: payloadSha256}
+            )
+            if (output?.request_id !== requestId) {
+                throw new SigningApiError(SigningApiErrorKind.Other, "could not confirm approval", {})
             }
         },
         checkCertificate: (requestId, input) =>

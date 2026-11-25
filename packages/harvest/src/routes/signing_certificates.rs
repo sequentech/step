@@ -41,7 +41,9 @@ use windmill::services::signing::issuers::{
     import_staff_issuers, remove_staff_issuer, update_signing_checks,
 };
 use windmill::services::signing::log::Actor;
-use windmill::services::signing::operational_policy::require_legacy_signing;
+use windmill::services::signing::operational_policy::{
+    require_legacy_request, require_legacy_signing,
+};
 
 use windmill::services::signing::staff_certificates::{
     check_certificate, register_staff_certificate, revoke_registration,
@@ -556,27 +558,33 @@ pub async fn check_signing_certificate(
     let request = {
         let transaction =
             client.transaction().await.map_err(SigningError::internal)?;
+        // Retain the pre-existing uniform refusal for already-HSM tenants.
         require_legacy_signing(&transaction, tenant_id)
             .await
             .map_err(|error| SigningError::forbidden(error.to_string()))?;
-        get_signing_request_in_tenant(&transaction, tenant_id, id)
+        let request = get_signing_request_in_tenant(&transaction, tenant_id, id)
             .await
             .map_err(SigningError::internal)?
-            .ok_or_else(|| SigningError::not_found("No such signing request"))?
+            .ok_or_else(|| SigningError::not_found("No such signing request"))?;
+        authorize_403(
+            &claims,
+            own_tenant(&claims),
+            vec![request.action.sign_permission()],
+        )?;
+        if !sees_post(
+            &decode_permission_labels(&claims),
+            request.permission_label.as_deref(),
+        ) {
+            return Err(SigningError::forbidden("The request is outside your Posts"));
+        }
+        // Refuse the legacy dry run before parsing certificates or fetching a CRL.
+        // This preflight does not authorize approval; the signing transaction
+        // separately holds the current request-specific policy through commit.
+        require_legacy_request(&transaction, &request)
+            .await
+            .map_err(|error| SigningError::forbidden(error.to_string()))?;
+        request
     };
-    authorize_403(
-        &claims,
-        own_tenant(&claims),
-        vec![request.action.sign_permission()],
-    )?;
-    if !sees_post(
-        &decode_permission_labels(&claims),
-        request.permission_label.as_deref(),
-    ) {
-        return Err(SigningError::forbidden(
-            "The request is outside your Posts",
-        ));
-    }
     let now = Utc::now();
     if request.status != SigningRequestStatus::Waiting {
         return Err(SigningError::request_closed(request.status));

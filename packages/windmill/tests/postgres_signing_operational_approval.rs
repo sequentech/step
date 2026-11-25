@@ -506,8 +506,8 @@ async fn two_device_receipts_complete_the_request_and_its_action_runs() {
     assert_eq!(approvals.len(), 1);
     assert_eq!(approvals[0].user_id, first.caller.user_id);
     assert_eq!(
-        approvals[0].fingerprint_sha256,
-        first.identity.fingerprint_sha256
+        approvals[0].fingerprint_sha256.as_deref(),
+        Some(first.identity.fingerprint_sha256.as_str())
     );
     assert!(dispatched.tasks().is_empty());
 

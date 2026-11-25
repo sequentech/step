@@ -20,9 +20,12 @@ use super::certificates::{
     register_first_use, CertificateIdentity, CertificateVerification, CertificateVerificationInput,
     CertificateVerifier, DocumentSignatureInput, RegistrationState, SignatureInputs,
 };
+#[cfg(feature = "comelec-demo-direct-hsm")]
+use super::direct_initialize::{self, VerifiedDirectProof};
 use super::executors::{ExecutionOutcome, PostCommit, SigningExecutorRegistry};
 use super::log::{Actor, SystemOutcome};
 use super::operational_approval::{OperationalApprovalInput, OperationalEvidence};
+use super::operational_policy::local_scope::request_mode_and_latch;
 use super::operational_policy::{signing_mode, OperationalSigningMode};
 use super::pdf::{PanelDocument, PdfPrepared};
 use super::requests::{
@@ -264,13 +267,26 @@ enum Ingress<'a> {
 }
 
 impl Ingress<'_> {
+    fn id(self) -> Uuid {
+        match self {
+            Self::Legacy(i) => i.request_id,
+            Self::Operational(i) => i.request_id,
+        }
+    }
+
+    fn is_operational(self) -> bool {
+        matches!(self, Self::Operational(_))
+    }
+
+    fn method_denied() -> SigningError {
+        SigningError::Forbidden("This signing method is not allowed for the tenant.".into())
+    }
+
     fn request_id(self, mode: OperationalSigningMode) -> SigningResult<Uuid> {
         match (self, mode) {
             (Self::Legacy(input), OperationalSigningMode::LegacyP12) => Ok(input.request_id),
             (Self::Operational(input), OperationalSigningMode::HsmRequired) => Ok(input.request_id),
-            _ => Err(SigningError::Forbidden(
-                "This signing method is not allowed for the tenant.".into(),
-            )),
+            _ => Err(Self::method_denied()),
         }
     }
 }
@@ -287,9 +303,17 @@ async fn approve_ingress(
         .transaction()
         .await
         .context("Error starting the approval")?;
+    attribute_approval(&transaction, caller, tenant_id).await?;
+    let step = approve_in(&mut transaction, services, caller, tenant_id, input, now).await?;
+    finish_approval(transaction, step).await
+}
+
+async fn attribute_approval(
+    transaction: &Transaction<'_>, caller: &SigningCaller, tenant_id: Uuid,
+) -> SigningResult<()> {
     // The action the last signature runs is logged as that signer's (SW-F-0364).
     act_for(
-        &transaction,
+        transaction,
         &AuditActor {
             user_id: Some(caller.user_id.clone()),
             username: Some(caller.username.clone()),
@@ -299,7 +323,11 @@ async fn approve_ingress(
         tenant_id,
     )
     .await?;
-    match approve_in(&mut transaction, services, caller, tenant_id, input, now).await? {
+    Ok(())
+}
+
+async fn finish_approval(transaction: Transaction<'_>, step: Step) -> SigningResult<ApproveOutcome> {
+    match step {
         Step::Signed(outcome, post_commit) => {
             transaction
                 .commit()
@@ -469,11 +497,11 @@ fn signed_identity(
     certificate: &CertificateIdentity,
 ) -> Option<&'static str> {
     approvals.iter().find_map(|approval| {
-        if approval.fingerprint_sha256 == certificate.fingerprint_sha256 {
+        if approval.fingerprint_sha256.as_deref() == Some(certificate.fingerprint_sha256.as_str()) {
             Some("This certificate already signed this request.")
         } else if approval.spki_sha256 == certificate.spki_sha256 {
             Some("A certificate with this key already signed this request.")
-        } else if approval.holder_sha256 == certificate.holder_sha256 {
+        } else if approval.holder_sha256.as_deref() == Some(certificate.holder_sha256.as_str()) {
             Some("The holder of this certificate already signed this request.")
         } else {
             None
@@ -562,15 +590,44 @@ async fn approve_in(
     ingress: Ingress<'_>,
     now: DateTime<Utc>,
 ) -> SigningResult<Step> {
-    let mode = signing_mode(transaction, tenant_id)
-        .await
-        .map_err(|error| SigningError::Forbidden(error.to_string()))?;
-    let request_id = ingress.request_id(mode)?;
-    let found = read_request(transaction, tenant_id, request_id).await?;
+    let blocked = |error: super::operational_policy::LegacySigningBlocked| {
+        SigningError::Forbidden(error.to_string())
+    };
+    let baseline = signing_mode(transaction, tenant_id).await.map_err(blocked)?;
+    if baseline == OperationalSigningMode::HsmRequired {
+        // Preserve tenant-wide refusal without revealing request existence.
+        ingress.request_id(OperationalSigningMode::HsmRequired)?;
+    }
+    let found = match read_request(transaction, tenant_id, ingress.id()).await {
+        Err(SigningError::NotFound(_))
+            if baseline == OperationalSigningMode::LegacyP12 && ingress.is_operational() =>
+        {
+            // A managed caller cannot distinguish an unknown request from
+            // an ordinary legacy request by guessing its UUID.
+            return Err(Ingress::method_denied());
+        }
+        result => result?,
+    };
+    let authorization = sign_refusal(transaction, caller, &found).await?;
+    if baseline == OperationalSigningMode::LegacyP12 && ingress.is_operational()
+        && authorization.is_some()
+    {
+        // Do not disclose that this actor guessed the one managed scope and
+        // do not write a refusal against a guessed legacy request.
+        return Err(Ingress::method_denied());
+    }
+    let checked_mode = request_mode_and_latch(transaction, &found).await;
+    let (mode, direct) = if baseline == OperationalSigningMode::LegacyP12 && ingress.is_operational() {
+        checked_mode.map_err(|_| Ingress::method_denied())?
+    } else {
+        checked_mode.map_err(blocked)?
+    };
+    if direct.is_some() { return Err(Ingress::method_denied()); }
+    ingress.request_id(mode)?;
 
-    // 1. Who may sign: decided before any lock, and before anything of
-    // the request's state is told. A refusal is logged.
-    if let Some((refused, message)) = sign_refusal(transaction, caller, &found).await? {
+    // 1. Who may sign: decided before any event/row lock and before
+    // revealing request state. Ordinary eligible legacy refusals are logged.
+    if let Some((refused, message)) = authorization {
         let request = relock(transaction, &found).await?;
         return refusal(
             transaction,
@@ -584,6 +641,9 @@ async fn approve_in(
         .await;
     }
     let request = relock(transaction, &found).await?;
+    let (mode, direct) = request_mode_and_latch(transaction, &request).await.map_err(blocked)?;
+    if direct.is_some() { return Err(Ingress::method_denied()); }
+    ingress.request_id(mode)?;
     let event_id = request.election_event_id;
 
     // 2. Only a waiting request within its time takes signatures.
@@ -628,6 +688,9 @@ async fn approve_in(
         }
     }
     let approvals = list_signing_approvals(transaction, tenant_id, event_id, request.id).await?;
+    if approvals.iter().any(|a| a.initialize_direct_proof.is_some()) {
+        return Err(Ingress::method_denied());
+    }
     if approvals
         .iter()
         .any(|approval| approval.user_id == caller.user_id)
@@ -790,7 +853,7 @@ async fn approve_in(
     // share-locked in id order, so a revocation waits for this step.
     let mut certificate_ids: Vec<Uuid> = approvals
         .iter()
-        .map(|approval| approval.certificate_id)
+        .filter_map(|approval| approval.certificate_id)
         .chain(std::iter::once(certificate_id))
         .collect();
     certificate_ids.sort();
@@ -929,6 +992,16 @@ async fn approve_in(
         }),
     )
     .await?;
+    advance_approval(transaction, services, &request, caller, count).await
+}
+
+async fn advance_approval(
+    transaction: &mut Transaction<'_>, services: &SigningServices,
+    request: &SigningRequestRow, caller: &SigningCaller, count: i64,
+) -> SigningResult<Step> {
+    let required = request.required;
+    let tenant_id = request.tenant_id;
+    let event_id = request.election_event_id;
     if count < i64::from(required) {
         return Ok(Step::Signed(
             ApproveOutcome {
@@ -982,6 +1055,59 @@ async fn approve_in(
         },
         post_commit,
     ))
+}
+
+// Deliberately separate from the old X.509/P12 routing. This is not a generic
+// certificate-verifier bypass: only the opaque exact Initialize proof enters.
+#[cfg(feature = "comelec-demo-direct-hsm")]
+pub(super) async fn approve_direct(
+    client: &mut Client, services: &SigningServices, caller: &SigningCaller,
+    proof: VerifiedDirectProof, now: DateTime<Utc>,
+) -> SigningResult<ApproveOutcome> {
+    let mut transaction = client.transaction().await.context("Start direct Initialize approval")?;
+    attribute_approval(&transaction, caller, proof.scope().tenant()).await?;
+    let request = direct_initialize::lock_authorized(&transaction, caller, proof.scope()).await?;
+    let approvals = list_signing_approvals(&transaction, request.tenant_id,
+        request.election_event_id, request.id).await?;
+    if !direct_initialize::verified_prior(&transaction, &request, &approvals).await? {
+        return Err(direct_initialize::unavailable());
+    }
+    if approvals.iter().any(|row| row.user_id == caller.user_id) {
+        // Lost response / simultaneous retry: the existing checked proof is
+        // the approval. Do not re-consume, emit another audit or dispatch.
+        return finish_approval(transaction, Step::Signed(ApproveOutcome {
+            status: request.status, count: approvals.len() as i64, required: request.required,
+        }, vec![])).await;
+    }
+    if request.status != SigningRequestStatus::Waiting
+        || request.created_at > now
+        || is_overdue(&transaction, &request).await?
+        || approvals.len() as i64 >= i64::from(request.required) {
+        return Err(direct_initialize::unavailable());
+    }
+    let signed = proof.consume_and_insert(&transaction, caller).await?;
+    let count = approvals.len() as i64 + 1;
+    stage_request_step(&transaction, &request, SigningStatementKind::SigningRequestSigned,
+        caller.actor(), SystemOutcome::Info,
+        format!("Direct demo HSM signature verified on {}: {} of {}", request.code, count, request.required),
+        json!({
+            "approval_id": signed.id,
+            "proof_kind": "initialize-voting-demo-pkcs11",
+            "device_profile": direct_initialize::DEVICE_PROFILE,
+            "installation_id": proof.scope().installation(),
+            "post_id": proof.scope().post(),
+            "publication_id": proof.scope().publication(),
+            "reservation_nonce": proof.nonce(),
+            "payload_sha256": proof.scope().payload_sha256(),
+            "spki_sha256": signed.spki_sha256,
+            "signature_der_b64": BASE64.encode(&signed.payload_signature),
+            "algorithm": signed.algorithm.to_string(),
+            "count": count,
+            "required": request.required,
+        }),
+    ).await?;
+    let step = advance_approval(&mut transaction, services, &request, caller, count).await?;
+    finish_approval(transaction, step).await
 }
 
 /// Records the approval, then keeps its document signature (a PDF

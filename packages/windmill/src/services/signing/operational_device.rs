@@ -76,8 +76,28 @@ pub(super) fn matches_canonical_request(row: &SigningRequestRow) -> bool {
     })
 }
 
-#[cfg(not(feature = "operational-signing-demo-fixture"))]
+/// An event-only caller cannot select a device for a latched event. A real
+/// canonical row can distinguish the other Posts and preserve their baseline.
 pub async fn installed_profile(
+    tx: &Transaction<'_>,
+    tenant: Uuid,
+    event: Uuid,
+    action: SigningAction,
+) -> Result<Option<InstalledDevice>> {
+    if action == SigningAction::InitializeVoting {
+        super::operational_policy::lock_signing_policy(tx).await?;
+        if super::operational_policy::local_scope::read_latch(tx, tenant, event)
+            .await?
+            .is_some()
+        {
+            return Ok(None);
+        }
+    }
+    baseline_profile(tx, tenant, event, action).await
+}
+
+#[cfg(not(feature = "operational-signing-demo-fixture"))]
+async fn baseline_profile(
     _tx: &Transaction<'_>,
     _tenant: Uuid,
     _event: Uuid,
@@ -97,6 +117,9 @@ pub(super) async fn profile_for_canonical_request(
     tx: &Transaction<'_>,
     row: &SigningRequestRow,
 ) -> Result<Option<InstalledDevice>> {
+    if row.action == SigningAction::InitializeVoting {
+        super::operational_policy::request_signing_mode(tx, row).await?;
+    }
     #[cfg(feature = "felix3-local-initialize")]
     {
         let installed = local_initialize::for_canonical_request(tx, row).await?;
@@ -106,12 +129,14 @@ pub(super) async fn profile_for_canonical_request(
     }
     #[cfg(not(feature = "felix3-local-initialize"))]
     {
-        installed_profile(tx, row.tenant_id, row.election_event_id, row.action).await
+        baseline_profile(tx, row.tenant_id, row.election_event_id, row.action).await
     }
 }
 
 #[cfg(feature = "operational-signing-demo-fixture")]
-pub use demo::{installed_demo, installed_profile, DemoInstallation};
+use demo::installed_profile as baseline_profile;
+#[cfg(feature = "operational-signing-demo-fixture")]
+pub use demo::{installed_demo, DemoInstallation};
 
 #[cfg(feature = "operational-signing-demo-fixture")]
 mod demo {

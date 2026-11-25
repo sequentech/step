@@ -6,6 +6,9 @@
 //! HSM-required denies legacy ingress. Receipt admission separately checks
 //! the device installed for the request.
 
+pub(super) mod local_scope;
+pub use local_scope::{request_signing_mode, require_legacy_request};
+
 use deadpool_postgres::{GenericClient, Transaction};
 use uuid::Uuid;
 
@@ -19,6 +22,8 @@ pub enum OperationalSigningMode {
 pub enum LegacySigningBlocked {
     HsmRequired,
     Unavailable,
+    ScopeUnavailable,
+    WholePostRequired,
     #[cfg(feature = "felix3-local-initialize")]
     LocalInstallationUnavailable,
 }
@@ -27,6 +32,10 @@ impl std::fmt::Display for LegacySigningBlocked {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             Self::HsmRequired => "This tenant requires a server-managed signing device.",
+            Self::WholePostRequired => {
+                "Initialize the selected Post by itself, without a country filter."
+            }
+            Self::ScopeUnavailable => "Device signing for this request is unavailable.",
             Self::Unavailable => "The official signing mode is unavailable.",
             #[cfg(feature = "felix3-local-initialize")]
             Self::LocalInstallationUnavailable => concat!(
@@ -56,13 +65,18 @@ pub async fn signing_mode(
     tx: &Transaction<'_>,
     tenant: Uuid,
 ) -> Result<OperationalSigningMode, LegacySigningBlocked> {
+    lock_signing_policy(tx).await?;
+    read_tenant_mode(tx, tenant).await
+}
+
+pub(super) async fn lock_signing_policy(tx: &Transaction<'_>) -> Result<(), LegacySigningBlocked> {
     tx.query_one(
         "SELECT pg_advisory_xact_lock_shared(hashtextextended('operational-signing-policy:deployment', 0))",
         &[],
     )
     .await
     .map_err(|_| LegacySigningBlocked::Unavailable)?;
-    read_tenant_mode(tx, tenant).await
+    Ok(())
 }
 
 // Startup also uses this read with its existing application login. Operations
@@ -127,6 +141,11 @@ pub async fn assert_startup_policy(
     if let Err(error) = super::operational_device::local_initialize::assert_startup(client).await {
         tracing::error!("Local Initialize installation verification failed: {error:#}");
         return Err(LegacySigningBlocked::LocalInstallationUnavailable);
+    }
+    #[cfg(feature = "comelec-demo-direct-hsm")]
+    if let Err(error) = super::direct_initialize::assert_startup(client).await {
+        tracing::error!("Direct Initialize installation verification failed: {error:#}");
+        return Err(LegacySigningBlocked::ScopeUnavailable);
     }
     let row = client
         .query_one(

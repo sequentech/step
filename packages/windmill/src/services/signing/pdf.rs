@@ -34,7 +34,7 @@ use super::directory::KeycloakUserDirectory;
 use super::guard::effective_rule;
 use super::log::Actor;
 use super::operational_cms::OperationalCms;
-use super::operational_policy::require_legacy_signing;
+use super::operational_policy::{require_legacy_request, require_legacy_signing};
 use super::pades::{
     append_signature_page, finalize, prepare_revision, rebuild_revision, signature_fields,
     CmsTrust, PadesError, SignatureAppearance, SignatureFieldSpec, SignaturePageTexts,
@@ -961,8 +961,11 @@ async fn prepare_in(
     chain_pem: &[String],
     now: DateTime<Utc>,
 ) -> SigningResult<PrepareStep> {
-    // Who may sign: decided before any lock, and logged when refused.
+    // Who may sign: decided before any event lock, and logged when refused.
     let found = read_request(hasura_transaction, tenant_id, request_id).await?;
+    require_legacy_request(hasura_transaction, &found)
+        .await
+        .map_err(|error| SigningError::Forbidden(error.to_string()))?;
     if let Some((refused, message)) = sign_refusal(hasura_transaction, caller, &found).await? {
         let request = relock(hasura_transaction, &found).await?;
         log_refusal(

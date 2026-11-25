@@ -13,6 +13,7 @@
 //! the trustee's route consumes the completed request ([`consume_gate`]).
 
 use super::log::SystemOutcome;
+use super::operational_policy::local_scope::{for_target, Target};
 use super::operational_policy::{signing_mode, OperationalSigningMode};
 use super::operational_quorum::has_operational_quorum;
 use super::requests::{
@@ -165,6 +166,24 @@ pub async fn effective_rule(
     action: SigningAction,
 ) -> anyhow::Result<SigningRule> {
     let mode = signing_mode(hasura_transaction, tenant_id).await?;
+    effective_rule_in_mode(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        action,
+        mode,
+    )
+    .await
+}
+
+// The rule remains event-wide; only its enforcement mode can be narrower.
+pub(super) async fn effective_rule_in_mode(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    action: SigningAction,
+    mode: OperationalSigningMode,
+) -> anyhow::Result<SigningRule> {
     let effective = get_signing_rule(hasura_transaction, tenant_id, election_event_id, action)
         .await?
         .map(|row| row.rule);
@@ -206,23 +225,34 @@ pub async fn guard_at(
 ) -> SigningResult<GuardOutcome> {
     let scope = &request.scope;
     scope.check(request.action)?;
-    // Most actions need no signatures: read the rule without the lock.
-    let rule = effective_rule(
+    // Hold policy through this guard AND the enclosing route's direct effect.
+    let (mode, _) = for_target(
         hasura_transaction,
         scope.tenant_id,
         scope.election_event_id,
         request.action,
+        Target::Intent(scope.election_id, scope.area_id, &request.subject),
+    )
+    .await
+    .context("Resolve action signing policy")?;
+    let rule = effective_rule_in_mode(
+        hasura_transaction,
+        scope.tenant_id,
+        scope.election_event_id,
+        request.action,
+        mode,
     )
     .await?;
     if !rule.is_required() {
         return Ok(GuardOutcome::Proceed);
     }
     lock_signing_event(hasura_transaction, scope.tenant_id, scope.election_event_id).await?;
-    let rule = effective_rule(
+    let rule = effective_rule_in_mode(
         hasura_transaction,
         scope.tenant_id,
         scope.election_event_id,
         request.action,
+        mode,
     )
     .await?;
     if !rule.is_required() {

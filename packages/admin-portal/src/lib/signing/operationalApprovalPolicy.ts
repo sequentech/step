@@ -25,8 +25,9 @@ export function reviewedInitializePost(
 export const signingExperience = (
     mode: unknown,
     action: string
-): "legacy" | "managed" | "unavailable" => {
+): "legacy" | "managed" | "direct" | "unavailable" => {
     if (mode === "legacy-p12") return "legacy"
+    if (mode === "hsm-demo-raw" && action === "initialize-voting") return "direct"
     return mode === "hsm-required" && action === "initialize-voting" ? "managed" : "unavailable"
 }
 

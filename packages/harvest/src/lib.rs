@@ -98,6 +98,9 @@ pub async fn rocket() -> rocket::Rocket<rocket::Build> {
     #[cfg(all(feature = "felix3-local-initialize", not(feature = "operational-signing-demo-fixture")))]
     let application = routes::operational_initialize::local::mount(application)
         .await.expect("Verify the installed local Harvest registration before launch");
+    #[cfg(feature = "comelec-demo-direct-hsm")]
+    let application = routes::signing::mount_direct_initialize(application)
+        .expect("Verify the registered private direct HSM peer before starting this demo build");
     application
 }
 

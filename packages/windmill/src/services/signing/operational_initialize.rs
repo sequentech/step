@@ -10,7 +10,8 @@ use super::approve::sign_refusal;
 #[cfg(feature = "felix3-local-initialize")]
 pub use super::operational_device::local_initialize::LocalInitializeInstallation;
 use super::operational_device::matches_canonical_request;
-use super::operational_policy::{signing_mode, OperationalSigningMode};
+use super::operational_policy::local_scope::request_mode_and_latch;
+use super::operational_policy::{lock_signing_policy, OperationalSigningMode};
 use super::operational_quorum::checked_approval_device;
 use super::requests::{is_overdue, lock_request, read_request};
 use super::{SigningCaller, SigningError, SigningResult};
@@ -73,13 +74,9 @@ async fn scope(
     request_id: Uuid,
     changes_state: bool,
 ) -> SigningResult<InitializeSigningScope> {
-    if signing_mode(tx, tenant)
+    lock_signing_policy(tx)
         .await
-        .context("Read signing mode")?
-        != OperationalSigningMode::HsmRequired
-    {
-        return Err(unavailable());
-    }
+        .context("Lock signing policy")?;
     let initial = read_request(tx, tenant, request_id).await?;
     if initial.action != SigningAction::InitializeVoting {
         return Err(unavailable());
@@ -92,6 +89,10 @@ async fn scope(
     } else {
         initial
     };
+    let (mode, direct) = request_mode_and_latch(tx, &request).await.map_err(|_| unavailable())?;
+    if direct.is_some() || mode != OperationalSigningMode::HsmRequired {
+        return Err(unavailable());
+    }
     let rule: SigningRule = serde_json::from_value(request.rule_snapshot.clone())
         .context("Read frozen signing rule")?;
     if request.election_id.is_none_or(|post| post.is_nil())

@@ -601,9 +601,10 @@ impl SealRecord {
         };
         let mut signatures: Vec<ClosingSignature> = approvals
             .iter()
-            .map(|approval| {
-                let (subject, common_name) = certificate_names(&approval.certificate_pem);
-                ClosingSignature {
+            .filter_map(|approval| {
+                let (subject, common_name) =
+                    approval.certificate_pem.as_deref().map(certificate_names).unwrap_or_default();
+                Some(ClosingSignature {
                     user_id: approval.user_id.clone(),
                     username: approval.username.clone(),
                     display_name: approval
@@ -611,10 +612,10 @@ impl SealRecord {
                         .clone()
                         .unwrap_or_else(|| approval.username.clone()),
                     signed_at: approval.signed_at,
-                    certificate_fingerprint: approval.fingerprint_sha256.clone(),
+                    certificate_fingerprint: approval.fingerprint_sha256.clone()?,
                     certificate_subject: subject,
                     certificate_cn: common_name,
-                }
+                })
             })
             .collect();
         signatures.sort_by(|a, b| {

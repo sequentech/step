@@ -5,6 +5,7 @@
 //! Consumption-side check for an already persisted operational quorum.
 //! The original approval transaction verified the receipts cryptographically.
 
+use super::operational_policy::local_scope::request_mode_and_latch;
 use super::operational_device::{
     matches_canonical_request, profile_for_canonical_request, InstalledDevice,
 };
@@ -19,6 +20,15 @@ pub(super) async fn has_operational_quorum(
     approvals: &[SigningApprovalRow],
     minimum: i64,
 ) -> Result<bool> {
+    if let (_, Some(latch)) = request_mode_and_latch(tx, request).await? {
+        #[cfg(feature = "comelec-demo-direct-hsm")]
+        return super::direct_initialize::has_quorum(tx, request, latch, approvals, minimum).await;
+        #[cfg(not(feature = "comelec-demo-direct-hsm"))]
+        {
+            let _ = latch;
+            return Ok(false);
+        }
+    }
     let snapshot: SigningRule = serde_json::from_value(request.rule_snapshot.clone())
         .context("Invalid frozen operational signing rule")?;
     if snapshot.action != request.action
@@ -46,7 +56,9 @@ pub(super) async fn checked_approval_device(
         .iter()
         .map(|approval| approval.user_id.as_str())
         .collect();
-    if distinct.len() != approvals.len() || !matches_canonical_request(request) {
+    if distinct.len() != approvals.len() || !matches_canonical_request(request)
+        || approvals.iter().any(|approval| approval.initialize_direct_proof.is_some()) {
+
         return Ok(None);
     }
     if !approvals.is_empty() {
@@ -76,6 +88,9 @@ pub(super) async fn checked_approval_device(
             "Operational signing key or event is changing; retry the check"
         );
     }
+    if request_mode_and_latch(tx, request).await?.1.is_some() {
+        return Ok(None);
+    }
     let Some(device) = profile_for_canonical_request(tx, request).await? else {
         return Ok(None);
     };
@@ -87,6 +102,9 @@ pub(super) async fn checked_approval_device(
     // Approval rows are unique per request and user. Validate every row, not
     // just a sufficient subset: mixed legacy approvals cannot dispatch.
     for approval in approvals {
+        let (Some(fingerprint), Some(certificate_id)) =
+            (approval.fingerprint_sha256.as_deref(), approval.certificate_id)
+        else { return Ok(None); };
         let matching: bool = tx
             .query_one(
                 include_str!("sql/operational_quorum.sql"),
@@ -97,7 +115,7 @@ pub(super) async fn checked_approval_device(
                     &approval.user_id,
                     &request.action.to_string(),
                     &request.payload_sha256,
-                    &approval.fingerprint_sha256,
+                    &fingerprint,
                     &approval.spki_sha256,
                     &approval.payload_signature,
                     &document_part,
@@ -105,7 +123,7 @@ pub(super) async fn checked_approval_device(
                     &approval.document_signature,
                     &approval.pdf_cms,
                     &device.as_str(),
-                    &approval.certificate_id,
+                    &certificate_id,
                 ],
             )
             .await

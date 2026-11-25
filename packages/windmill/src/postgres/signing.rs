@@ -18,7 +18,7 @@ use sequent_core::signing::{
     SigningChecks, SigningRequestStatus, SigningRequirement, SigningRule,
     StaffCertificateRegistration, StaffCertificateStatus,
 };
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::Display;
 use std::str::FromStr;
@@ -685,6 +685,18 @@ pub async fn list_waiting_signing_requests(
 
 // Approvals
 
+/// Stored evidence for the one optional raw Initialize demo format.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct InitializeDirectProofMetadata {
+    pub installation: Uuid,
+    pub post: Uuid,
+    pub publication: Uuid,
+    pub nonce: Uuid,
+    pub payload_sha256: String,
+    pub profile: String,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct SigningApprovalRow {
     pub id: Uuid,
@@ -695,17 +707,18 @@ pub struct SigningApprovalRow {
     pub username: String,
     pub display_name: Option<String>,
     pub auth_time: Option<DateTime<Utc>>,
-    pub certificate_id: Uuid,
-    pub certificate_pem: String,
-    pub chain_pem: String,
-    pub fingerprint_sha256: String,
+    pub certificate_id: Option<Uuid>,
+    pub certificate_pem: Option<String>,
+    pub chain_pem: Option<String>,
+    pub fingerprint_sha256: Option<String>,
     pub spki_sha256: String,
-    pub holder_sha256: String,
+    pub initialize_direct_proof: Option<InitializeDirectProofMetadata>,
+    pub holder_sha256: Option<String>,
     pub algorithm: SignatureAlgorithm,
     pub payload_signature: Vec<u8>,
     pub document_signature: Option<Vec<u8>>,
     pub pdf_cms: Option<Vec<u8>>,
-    pub revocation_status: RevocationStatus,
+    pub revocation_status: Option<RevocationStatus>,
     pub signed_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
 }
@@ -714,7 +727,13 @@ impl TryFrom<Row> for SigningApprovalRow {
     type Error = anyhow::Error;
 
     fn try_from(row: Row) -> Result<Self> {
-        Ok(SigningApprovalRow {
+        let initialize_direct_proof = if row.columns().iter().any(|c| c.name() == "initialize_direct_proof") {
+            row.try_get::<_, Option<Value>>("initialize_direct_proof")?
+                .map(serde_json::from_value).transpose()?
+        } else {
+            None // The optional synthetic migration has never been installed.
+        };
+        let approval = SigningApprovalRow {
             id: row.try_get("id")?,
             tenant_id: row.try_get("tenant_id")?,
             election_event_id: row.try_get("election_event_id")?,
@@ -728,15 +747,22 @@ impl TryFrom<Row> for SigningApprovalRow {
             chain_pem: row.try_get("chain_pem")?,
             fingerprint_sha256: row.try_get("fingerprint_sha256")?,
             spki_sha256: row.try_get("spki_sha256")?,
+            initialize_direct_proof,
             holder_sha256: row.try_get("holder_sha256")?,
             algorithm: text_enum(&row, "algorithm")?,
             payload_signature: row.try_get("payload_signature")?,
             document_signature: row.try_get("document_signature")?,
             pdf_cms: row.try_get("pdf_cms")?,
-            revocation_status: text_enum(&row, "revocation_status")?,
+            revocation_status: optional_text_enum(&row, "revocation_status")?,
             signed_at: row.try_get("signed_at")?,
             created_at: row.try_get("created_at")?,
-        })
+        };
+        let has_cert = [approval.certificate_id.is_some(), approval.certificate_pem.is_some(),
+            approval.chain_pem.is_some(), approval.fingerprint_sha256.is_some(),
+            approval.holder_sha256.is_some(), approval.revocation_status.is_some()];
+        anyhow::ensure!(has_cert.iter().all(|present| *present == approval.initialize_direct_proof.is_none()),
+            "Invalid mixed signing approval evidence");
+        Ok(approval)
     }
 }
 
