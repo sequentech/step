@@ -19,7 +19,8 @@
 //! primitive: SHA-256 and AES-256-GCM from `ring`, as `encrypted_delivery`.
 //!
 //! No type here derives `Debug` over key material, and no error carries a
-//! value: errors are fixed strings.
+//! value: errors are fixed strings. Key and secret buffers are cleared when
+//! dropped (`zeroize`); this does not reach copies a caller makes.
 
 use super::portable_messaging::{PortableMessagingAccounts, PortableSender};
 use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
@@ -28,6 +29,10 @@ use ring::rand::{SecureRandom, SystemRandom};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
+use uuid::Uuid;
+use zeroize::Zeroize;
+/// Part of this module's public types; re-exported for their callers.
+pub use zeroize::Zeroizing;
 
 pub const SIDECAR_FORMAT: &str = "sequent.messaging-credentials/1";
 const COMMITMENT_DOMAIN: &[u8] = b"sequent.messaging-credential-commitment/1\0";
@@ -38,7 +43,8 @@ const MAX_ACCOUNTS: usize = 32;
 pub const RECORD_KEY_VARIABLE: &str = "ARCHITECT_CREDENTIALS_KEY";
 const RECORD_MAGIC: &[u8; 9] = b"SEQ-MCRED";
 const RECORD_FORMAT: u8 = 1;
-/// Version of the deployment's derivation (`ems.sh`); a rotation adds one.
+/// The only record key version. Records naming any other are refused; no
+/// key rotation is implemented.
 pub const RECORD_KEY_VERSION: u8 = 1;
 const RECORD_HEADER_LEN: usize = RECORD_MAGIC.len() + 2 + 12;
 const TAG_LEN: usize = 16;
@@ -75,13 +81,13 @@ pub enum SidecarFormat {
     V1,
 }
 
-/// A long-term AWS key pair. Session (`ASIA…`) keys need a token and are
-/// refused: the pair is the whole credential.
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+/// A long-term AWS key pair, in memory only (never serialized). Session
+/// (`ASIA…`) keys need a token and are refused: the pair is the whole
+/// credential.
+#[derive(Clone, PartialEq, Eq)]
 pub struct AwsStaticKeyPair {
-    pub aws_access_key_id: String,
-    pub aws_secret_access_key: String,
+    pub aws_access_key_id: Zeroizing<String>,
+    pub aws_secret_access_key: Zeroizing<String>,
 }
 
 impl fmt::Debug for AwsStaticKeyPair {
@@ -92,16 +98,20 @@ impl fmt::Debug for AwsStaticKeyPair {
 
 impl AwsStaticKeyPair {
     pub fn valid(&self) -> bool {
-        let id = self.aws_access_key_id.as_bytes();
-        let secret = self.aws_secret_access_key.as_bytes();
-        id.len() == 20
-            && id.starts_with(b"AKIA")
-            && id.iter().all(|b| b.is_ascii_uppercase() || b.is_ascii_digit())
-            && secret.len() == 40
-            && secret
-                .iter()
-                .all(|b| b.is_ascii_alphanumeric() || *b == b'+' || *b == b'/')
+        valid_pair(&self.aws_access_key_id, &self.aws_secret_access_key)
     }
+}
+
+fn valid_pair(id: &str, secret: &str) -> bool {
+    let id = id.as_bytes();
+    let secret = secret.as_bytes();
+    id.len() == 20
+        && id.starts_with(b"AKIA")
+        && id.iter().all(|b| b.is_ascii_uppercase() || b.is_ascii_digit())
+        && secret.len() == 40
+        && secret
+            .iter()
+            .all(|b| b.is_ascii_alphanumeric() || *b == b'+' || *b == b'/')
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -118,9 +128,23 @@ pub struct SidecarEntry {
 impl SidecarEntry {
     pub fn pair(&self) -> AwsStaticKeyPair {
         AwsStaticKeyPair {
-            aws_access_key_id: self.aws_access_key_id.clone(),
-            aws_secret_access_key: self.aws_secret_access_key.clone(),
+            aws_access_key_id: Zeroizing::new(self.aws_access_key_id.clone()),
+            aws_secret_access_key: Zeroizing::new(self.aws_secret_access_key.clone()),
         }
+    }
+
+    fn valid(&self) -> bool {
+        reference(&self.reference)
+            && lower_hex(&self.nonce, 32)
+            && valid_pair(&self.aws_access_key_id, &self.aws_secret_access_key)
+    }
+}
+
+impl Drop for SidecarEntry {
+    fn drop(&mut self) {
+        self.nonce.zeroize();
+        self.aws_access_key_id.zeroize();
+        self.aws_secret_access_key.zeroize();
     }
 }
 
@@ -136,6 +160,7 @@ impl fmt::Debug for SidecarEntry {
 #[serde(deny_unknown_fields)]
 pub struct CredentialSidecar {
     pub format: SidecarFormat,
+    /// The destination tenant, as a canonical (lowercase, hyphenated) UUID.
     pub tenant_id: String,
     pub accounts: Vec<SidecarEntry>,
 }
@@ -175,25 +200,36 @@ impl CredentialSidecar {
 
     pub fn validate(&self) -> Result<(), CredentialError> {
         let mut seen = BTreeSet::new();
-        if self.tenant_id.is_empty()
-            || self.tenant_id.len() > 64
+        if canonical_tenant(&self.tenant_id).is_none()
             || !(1..=MAX_ACCOUNTS).contains(&self.accounts.len())
-            || !self.accounts.iter().all(|a| {
-                reference(&a.reference)
-                    && seen.insert(a.reference.as_str())
-                    && lower_hex(&a.nonce, 32)
-                    && a.pair().valid()
-            })
+            || !self
+                .accounts
+                .iter()
+                .all(|a| a.valid() && seen.insert(a.reference.as_str()))
         {
             return Err(CredentialError::InvalidSidecar);
         }
         Ok(())
     }
 
-    pub fn to_bytes(&self) -> Result<Vec<u8>, CredentialError> {
-        self.validate()?;
-        serde_json::to_vec(self).map_err(|_| CredentialError::InvalidSidecar)
+    /// The tenant this sidecar is for.
+    pub fn tenant(&self) -> Result<Uuid, CredentialError> {
+        canonical_tenant(&self.tenant_id).ok_or(CredentialError::InvalidSidecar)
     }
+
+    pub fn to_bytes(&self) -> Result<Zeroizing<Vec<u8>>, CredentialError> {
+        self.validate()?;
+        serde_json::to_vec(self)
+            .map(Zeroizing::new)
+            .map_err(|_| CredentialError::InvalidSidecar)
+    }
+}
+
+/// Only the canonical spelling: one tenant has exactly one sidecar form.
+fn canonical_tenant(s: &str) -> Option<Uuid> {
+    Uuid::parse_str(s)
+        .ok()
+        .filter(|t| !t.is_nil() && t.hyphenated().to_string() == s)
 }
 
 /// A fresh 32-byte commitment nonce, lowercase hex.
@@ -211,21 +247,21 @@ fn framed(context: &mut Context, part: &[u8]) {
     context.update(part);
 }
 
-/// SHA-256 over a fixed domain, the destination tenant, the reference, the
-/// random nonce and the exact pair, each length-prefixed. The 256-bit nonce
-/// hides the pair even if a secret were guessable; the tenant and reference
-/// stop a commitment being replayed for another destination or account.
-pub fn commitment(
-    tenant_id: &str,
-    entry: &SidecarEntry,
-) -> Result<String, CredentialError> {
-    if !lower_hex(&entry.nonce, 32) || !entry.pair().valid() {
+/// SHA-256 over a fixed domain, the destination tenant's 16 UUID bytes, the
+/// reference, the random nonce and the exact pair, each length-prefixed. The
+/// 256-bit nonce hides the pair even if a secret were guessable; the tenant
+/// and reference stop a commitment being replayed for another destination or
+/// account.
+pub fn commitment(tenant: &Uuid, entry: &SidecarEntry) -> Result<String, CredentialError> {
+    if tenant.is_nil() || !entry.valid() {
         return Err(CredentialError::InvalidSidecar);
     }
-    let nonce = hex::decode(&entry.nonce).map_err(|_| CredentialError::InvalidSidecar)?;
+    let nonce = Zeroizing::new(
+        hex::decode(&entry.nonce).map_err(|_| CredentialError::InvalidSidecar)?,
+    );
     let mut context = Context::new(&SHA256);
     context.update(COMMITMENT_DOMAIN);
-    framed(&mut context, tenant_id.as_bytes());
+    framed(&mut context, tenant.as_bytes());
     framed(&mut context, entry.reference.as_bytes());
     framed(&mut context, &nonce);
     framed(&mut context, entry.aws_access_key_id.as_bytes());
@@ -244,14 +280,14 @@ fn same(a: &str, b: &str) -> bool {
 /// account or tenant. Returns the pairs by package reference key.
 pub fn verify_sidecar(
     definitions: &PortableMessagingAccounts,
-    tenant_id: &str,
+    tenant: &Uuid,
     sidecar: &CredentialSidecar,
 ) -> Result<BTreeMap<String, AwsStaticKeyPair>, CredentialError> {
     sidecar.validate()?;
     definitions
         .validate()
         .map_err(|_| CredentialError::SidecarMismatch)?;
-    if sidecar.tenant_id != tenant_id {
+    if sidecar.tenant()? != *tenant {
         return Err(CredentialError::SidecarMismatch);
     }
     let committed: Vec<_> = definitions
@@ -275,7 +311,7 @@ pub fn verify_sidecar(
             .iter()
             .find(|e| e.reference == account.reference)
             .ok_or(CredentialError::SidecarMismatch)?;
-        if !same(&commitment(tenant_id, entry)?, signed) {
+        if !same(&commitment(tenant, entry)?, signed) {
             return Err(CredentialError::SidecarMismatch);
         }
         pairs.insert(account.reference_key(), entry.pair());
@@ -310,10 +346,11 @@ impl RecordKey {
             .and_then(|rest| rest.strip_prefix('='))
             .filter(|v| !v.contains('\n') && lower_hex(v, 32))
             .ok_or(CredentialError::InvalidRecordKey)?;
-        let mut bytes = hex::decode(value).map_err(|_| CredentialError::InvalidRecordKey)?;
-        let unbound = UnboundKey::new(&AES_256_GCM, &bytes);
-        bytes.iter_mut().for_each(|b| *b = 0);
-        let key = unbound.map_err(|_| CredentialError::InvalidRecordKey)?;
+        let bytes = Zeroizing::new(
+            hex::decode(value).map_err(|_| CredentialError::InvalidRecordKey)?,
+        );
+        let key = UnboundKey::new(&AES_256_GCM, &bytes)
+            .map_err(|_| CredentialError::InvalidRecordKey)?;
         Ok(Some(Self {
             version: RECORD_KEY_VERSION,
             key: LessSafeKey::new(key),
@@ -345,7 +382,11 @@ impl RecordKey {
             .fill(&mut nonce)
             .map_err(|_| CredentialError::RandomUnavailable)?;
         let header = self.header(&nonce);
-        let mut out = Vec::with_capacity(RECORD_HEADER_LEN + plaintext.len() + TAG_LEN);
+        // Allocated once at its final size and cleared on any early return,
+        // so no plaintext copy outlives sealing.
+        let mut out = Zeroizing::new(Vec::with_capacity(
+            RECORD_HEADER_LEN + plaintext.len() + TAG_LEN,
+        ));
         out.extend_from_slice(&header);
         out.extend_from_slice(plaintext);
         let tag = self
@@ -357,10 +398,15 @@ impl RecordKey {
             )
             .map_err(|_| CredentialError::SealFailed)?;
         out.extend_from_slice(tag.as_ref());
-        Ok(out)
+        // Ciphertext only from here.
+        Ok(std::mem::take(&mut *out))
     }
 
-    pub fn open(&self, context: &[u8], record: &[u8]) -> Result<Vec<u8>, CredentialError> {
+    pub fn open(
+        &self,
+        context: &[u8],
+        record: &[u8],
+    ) -> Result<Zeroizing<Vec<u8>>, CredentialError> {
         if record.len() <= RECORD_HEADER_LEN + TAG_LEN
             || !record.starts_with(RECORD_MAGIC)
             || record[RECORD_MAGIC.len()] != RECORD_FORMAT
@@ -372,13 +418,13 @@ impl RecordKey {
         let nonce: [u8; 12] = header[RECORD_MAGIC.len() + 2..]
             .try_into()
             .map_err(|_| CredentialError::RecordRejected)?;
-        let mut body = sealed.to_vec();
+        let mut body = Zeroizing::new(sealed.to_vec());
         let len = self
             .key
             .open_in_place(
                 Nonce::assume_unique_for_key(nonce),
                 Aad::from(Self::aad(header, context)),
-                &mut body,
+                &mut body[..],
             )
             .map_err(|_| CredentialError::RecordRejected)?
             .len();
@@ -396,6 +442,11 @@ mod tests {
     const KEY_ID: &str = "AKIASYNTHETICEXAMPLE";
     const SECRET: &str = "SyntheticSecretValueForTestsOnly00000000";
     const TENANT: &str = "11111111-1111-4111-8111-111111111111";
+    const OTHER_TENANT: &str = "22222222-2222-4222-8222-222222222222";
+
+    fn tenant(s: &str) -> Uuid {
+        Uuid::parse_str(s).unwrap()
+    }
 
     fn entry(reference: &str) -> SidecarEntry {
         SidecarEntry {
@@ -431,7 +482,10 @@ mod tests {
             (KEY_ID, &SECRET[..39]),
             (KEY_ID, "SyntheticSecretValueForTestsOnly0000000="),
         ] {
-            let pair = AwsStaticKeyPair { aws_access_key_id: id.into(), aws_secret_access_key: secret.into() };
+            let pair = AwsStaticKeyPair {
+                aws_access_key_id: Zeroizing::new(id.to_string()),
+                aws_secret_access_key: Zeroizing::new(secret.to_string()),
+            };
             assert!(!pair.valid());
         }
         let s = sidecar(vec![entry("email")]);
@@ -455,51 +509,76 @@ mod tests {
         doc["format"] = "sequent.messaging-credentials/2".into();
         assert!(CredentialSidecar::parse(&serde_json::to_vec(&doc).unwrap()).is_err());
         assert!(CredentialSidecar::parse(&vec![b' '; MAX_SIDECAR_BYTES + 1]).is_err());
+        // One tenant, one spelling: uppercase, braced, simple or nil are refused.
+        for spelled in [
+            "AAAAAAAA-1111-4111-8111-111111111111".to_string(),
+            format!("{{{TENANT}}}"),
+            TENANT.replace('-', ""),
+            Uuid::nil().to_string(),
+        ] {
+            let mut other = sidecar(vec![entry("email")]);
+            other.tenant_id = spelled;
+            assert_eq!(other.validate().unwrap_err(), CredentialError::InvalidSidecar);
+        }
+        assert_eq!(sidecar(vec![entry("email")]).tenant().unwrap(), tenant(TENANT));
     }
 
     #[test]
     fn commitment_binds_every_input() {
+        let t = tenant(TENANT);
         let base = entry("email");
-        let c = commitment(TENANT, &base).unwrap();
+        let c = commitment(&t, &base).unwrap();
         assert_eq!(c.len(), 64);
         assert!(!c.contains(SECRET));
-        assert_ne!(c, commitment("22222222-2222-4222-8222-222222222222", &base).unwrap());
+        assert_ne!(c, commitment(&tenant(OTHER_TENANT), &base).unwrap());
+        assert!(commitment(&Uuid::nil(), &base).is_err());
         let mut other = base.clone();
         other.reference = "sms".into();
-        assert_ne!(c, commitment(TENANT, &other).unwrap());
+        assert_ne!(c, commitment(&t, &other).unwrap());
         other = base.clone();
         other.nonce = "08".repeat(32);
-        assert_ne!(c, commitment(TENANT, &other).unwrap());
+        assert_ne!(c, commitment(&t, &other).unwrap());
         other = base.clone();
         other.aws_secret_access_key = "SyntheticSecretValueForTestsOnly00000001".into();
-        assert_ne!(c, commitment(TENANT, &other).unwrap());
-        other = base;
+        assert_ne!(c, commitment(&t, &other).unwrap());
+        other = base.clone();
         other.aws_access_key_id = "AKIASYNTHETI2EXAMPLE".into();
-        assert_ne!(c, commitment(TENANT, &other).unwrap());
+        assert_ne!(c, commitment(&t, &other).unwrap());
+        // Independent vector (Python hashlib/struct/uuid over the documented
+        // framing), so a changed encoding is a deliberate, versioned decision.
+        assert_eq!(c, "542174c09625ce95c4c8874c0376d043bb7437dfd8cd8e386151b28db401f4e3");
         assert_ne!(new_nonce().unwrap(), new_nonce().unwrap());
     }
 
     #[test]
     fn sidecar_must_match_exactly_the_signed_commitments_and_tenant() {
+        let t = tenant(TENANT);
         let email = entry("email");
         let sms = entry("sms");
-        let both = definitions(Some(commitment(TENANT, &email).unwrap()), Some(commitment(TENANT, &sms).unwrap()));
-        let pairs = verify_sidecar(&both, TENANT, &sidecar(vec![email.clone(), sms.clone()])).unwrap();
+        let both = definitions(Some(commitment(&t, &email).unwrap()), Some(commitment(&t, &sms).unwrap()));
+        let pairs = verify_sidecar(&both, &t, &sidecar(vec![email.clone(), sms.clone()])).unwrap();
         assert_eq!(pairs.keys().cloned().collect::<Vec<_>>(), ["package:email", "package:sms"]);
+        assert_eq!(pairs["package:email"].aws_access_key_id.as_str(), KEY_ID);
         // Missing, extra, foreign tenant, or a different pair: refused.
-        assert!(verify_sidecar(&both, TENANT, &sidecar(vec![email.clone()])).is_err());
-        let one = definitions(Some(commitment(TENANT, &email).unwrap()), None);
-        assert!(verify_sidecar(&one, TENANT, &sidecar(vec![email.clone(), sms.clone()])).is_err());
-        assert!(verify_sidecar(&one, "22222222-2222-4222-8222-222222222222", &sidecar(vec![email.clone()])).is_err());
+        assert!(verify_sidecar(&both, &t, &sidecar(vec![email.clone()])).is_err());
+        let one = definitions(Some(commitment(&t, &email).unwrap()), None);
+        assert!(verify_sidecar(&one, &t, &sidecar(vec![email.clone(), sms.clone()])).is_err());
+        assert!(verify_sidecar(&one, &tenant(OTHER_TENANT), &sidecar(vec![email.clone()])).is_err());
+        // A sidecar spelled for another tenant, against a commitment for this one.
+        let mut foreign = sidecar(vec![email.clone()]);
+        foreign.tenant_id = OTHER_TENANT.into();
+        assert!(verify_sidecar(&one, &t, &foreign).is_err());
         let mut swapped = email.clone();
         swapped.aws_secret_access_key = "SyntheticSecretValueForTestsOnly00000001".into();
-        assert!(verify_sidecar(&one, TENANT, &sidecar(vec![swapped])).is_err());
-        let mut renamed = email;
+        assert!(verify_sidecar(&one, &t, &sidecar(vec![swapped])).is_err());
+        let mut renamed = email.clone();
         renamed.reference = "sms".into();
-        assert!(verify_sidecar(&one, TENANT, &sidecar(vec![renamed])).is_err());
+        assert!(verify_sidecar(&one, &t, &sidecar(vec![renamed])).is_err());
         // Nothing committed: nothing may be delivered.
         let none = definitions(None, None);
-        assert!(verify_sidecar(&none, TENANT, &sidecar(vec![sms])).is_err());
+        assert!(verify_sidecar(&none, &t, &sidecar(vec![sms])).is_err());
+        let err = verify_sidecar(&both, &t, &sidecar(vec![email])).unwrap_err().to_string();
+        assert!(!err.contains(SECRET) && !err.contains(KEY_ID));
     }
 
     fn key(byte: &str) -> RecordKey {

@@ -9516,6 +9516,7 @@ dependencies = [
  "wasmtime-wasi",
  "web-sys",
  "x509-parser 0.18.1",
+ "zeroize",
  "zip 2.4.2",
 ]
 

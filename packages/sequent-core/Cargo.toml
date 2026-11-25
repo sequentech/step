@@ -167,6 +167,8 @@ x509-parser = { version = "0.18.1", default-features = false, optional = true }
 # Verifying browser FIDO2 (WebAuthn) assertions offline: ES256 and SHA-256,
 # the same ring rustls-webpki already brings (wasm32 has its own entry below).
 ring = { version = "0.17", optional = true }
+# Clearing messaging credential and record-key buffers (already in the lock).
+zeroize = { version = "1.8", optional = true }
 
 
 # WASM plugin management
@@ -214,7 +216,7 @@ election_config_templates = ["default_features", "areas", "dep:handlebars"]
 election_config_archive = ["election_config_templates", "dep:zip"]
 # Checking a signed configuration package: its signer, its approvals and
 # every file. Separate from the archive, which only writes and reads zips.
-election_config_signing = ["election_config_archive", "dep:rustls-webpki", "dep:rustls-pki-types", "dep:x509-parser", "dep:ring"]
+election_config_signing = ["election_config_archive", "dep:rustls-webpki", "dep:rustls-pki-types", "dep:x509-parser", "dep:ring", "dep:zeroize"]
 # Monitoring dashboards: their configuration, its policy and its presets. Pure,
 # like election_config, so the Admin Portal can check an edit before saving it.
 monitoring = ["dep:serde_yaml", "dep:indexmap", "dep:sha2"]
