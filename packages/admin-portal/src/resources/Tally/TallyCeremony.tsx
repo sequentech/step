@@ -38,6 +38,7 @@ import {TallyElectionsProgress} from "./TallyElectionsProgress"
 import {TallyElectionsResults} from "./TallyElectionsResults"
 import {TallyResults} from "./TallyResults"
 import {TallyLogs} from "./TallyLogs"
+import {TallyFailureAlert} from "./TallyFailureAlert"
 import {TallyResolutionPanel} from "./TallyResolutionPanel"
 import {ResultsWebsitePublication} from "./ResultsWebsitePublication"
 import {useGetList, useGetOne, useNotify, useRecordContext} from "react-admin"
@@ -938,6 +939,9 @@ export const TallyCeremony: React.FC = () => {
 
                     {page === WizardSteps.Tally && (
                         <>
+                            <TallyFailureAlert
+                                tallySessionExecution={tallySessionExecutions?.[0]}
+                            />
                             <Accordion
                                 sx={{width: "100%"}}
                                 expanded={expandedData["tally-data-progress"]}

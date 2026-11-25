@@ -3370,6 +3370,19 @@ const dutchTranslation: TranslationType = {
                 sealBallotBoxes:
                     "Een verkiezing kan worden geteld zodra elke stembus is verzegeld en het zegelrecord ervan is gepubliceerd.",
             },
+            failure: {
+                title: "De telling is mislukt",
+                detail: "Details",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "Een telbord komt niet overeen met de configuratie die bij de sleutelceremonie is vastgelegd.",
+                    INVALID_BOARD_CONTENT: "Een telbord bevat inhoud die niet kan worden gebruikt.",
+                    TRUSTEE_HALTED: "Een trustee heeft de telling gestopt en een fout gemeld.",
+                    SEALED_BALLOTS_REFUSED:
+                        "Sommige opgeslagen stembiljetten kunnen niet worden geteld: ze gaan niet open of komen niet overeen met hun records. Er zijn geen stembiljetten geteld. Los de oorzaak op en start daarna een nieuwe telling.",
+                    unknown: "De telling kon niet worden voltooid.",
+                },
+            },
             createTallySuccess: "Telling aangemaakt",
             createTallyError: "Kon telling niet aanmaken",
             startTallySuccess: "Telling gestart",

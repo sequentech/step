@@ -3380,6 +3380,20 @@ const catalanTranslation: TranslationType = {
                 sealBallotBoxes:
                     "Una elecció es pot incloure en el recompte quan totes les seves urnes estan segellades i les seves actes de segellat estan publicades.",
             },
+            failure: {
+                title: "El recompte ha fallat",
+                detail: "Detalls",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "Un tauler de recompte no coincideix amb la configuració registrada a la cerimònia de claus.",
+                    INVALID_BOARD_CONTENT:
+                        "Un tauler de recompte té contingut que no es pot fer servir.",
+                    TRUSTEE_HALTED: "Un trustee va aturar el recompte i va informar d'un error.",
+                    SEALED_BALLOTS_REFUSED:
+                        "Algunes paperetes emmagatzemades no es poden comptar: no s'obren o no coincideixen amb els seus registres. No s'ha comptat cap papereta. Resol la causa i després inicia un nou recompte.",
+                    unknown: "No s'ha pogut completar el recompte.",
+                },
+            },
             createTallySuccess: "Recompte creat",
             createTallyError: "Error creant recompte",
             startTallySuccess: "Recompte iniciat",

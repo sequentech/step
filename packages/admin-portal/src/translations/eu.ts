@@ -3353,6 +3353,20 @@ const basqueTranslation: TranslationType = {
                 sealBallotBoxes:
                     "Hauteskunde bat zenbatu daiteke hautestontzi guztiak zigilatuta daudenean eta haien zigiluen erregistroak argitaratuta daudenean.",
             },
+            failure: {
+                title: "Zenbaketak huts egin du",
+                detail: "Xehetasunak",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "Zenbaketa-taula bat ez dator bat gakoen zeremonian erregistratutako konfigurazioarekin.",
+                    INVALID_BOARD_CONTENT: "Zenbaketa-taula batek erabili ezin den edukia du.",
+                    TRUSTEE_HALTED:
+                        "Fideikomisario batek zenbaketa gelditu eta errore baten berri eman du.",
+                    SEALED_BALLOTS_REFUSED:
+                        "Gordetako boto-paper batzuk ezin dira zenbatu: ez dira irekitzen edo ez datoz bat beren erregistroekin. Ez da boto-paperik zenbatu. Konpondu arrazoia eta, ondoren, hasi zenbaketa berri bat.",
+                    unknown: "Ezin izan da zenbaketa osatu.",
+                },
+            },
             createTallySuccess: "Zenbaketa sortua",
             createTallyError: "Ezin izan da Zenbaketa sortu",
             startTallySuccess: "Zenbaketa hasita",

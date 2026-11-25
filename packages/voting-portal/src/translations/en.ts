@@ -705,6 +705,7 @@ const englishTranslation = {
             ambiguous:
                 "More than one of your ballots matches {{ballotId}}. Use the full ballot ID.",
             contentDesc: "This is your Ballot content: ",
+            contentSealed: "Your ballot is stored sealed, so its content is not shown here.",
             wrongFormatBallotId: "Invalid Ballot ID format",
             ballotIdNotFoundAtFilter:
                 "Not found, check that your Ballot ID is correct and belongs to this user.",

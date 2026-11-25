@@ -137,6 +137,7 @@ async fn cast_copies(
         ballot_hash: row.try_get(5)?,
         voting_channel: row.try_get(6)?,
     };
+    refuse_sealed_source(&source.format)?;
     let allowed_votes = get_allowed_votes(
         &hasura_transaction,
         tenant_id,
@@ -175,4 +176,29 @@ async fn cast_copies(
         }
     }
     Ok(accepted)
+}
+
+/// A sealed ballot is bound to its own row (election, area, Ballot ID): a
+/// copy under another Ballot ID would never open at the tally.
+fn refuse_sealed_source(format: &str) -> Result<()> {
+    if electoral_log::cast_vote_seal::is_sealed_format(format) {
+        return Err(anyhow!(
+            "The ballot to clone is sealed to its election event's HSM key and can't be duplicated"
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod sealed_source_tests {
+    use super::refuse_sealed_source;
+
+    #[test]
+    fn a_sealed_ballot_is_never_duplicated_and_an_unsealed_one_is() {
+        let sealed = electoral_log::cast_vote_seal::sealed_format("json");
+        let error = refuse_sealed_source(&sealed).unwrap_err().to_string();
+        assert!(error.contains("sealed to its election event's HSM key"));
+        assert!(refuse_sealed_source("json").is_ok());
+        assert!(refuse_sealed_source("").is_ok());
+    }
 }

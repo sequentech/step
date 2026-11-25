@@ -184,6 +184,45 @@ fn a_record_names_its_log_entry_by_delivery_id_and_leaf() {
 }
 
 #[test]
+fn a_sealed_cast_votes_record_v3_verifies_and_an_unknown_format_does_not() {
+    let sk = SigningKey::generate().unwrap();
+    let mut sealed_manifest = manifest(sample_entries());
+    sealed_manifest.format = SEAL_FORMAT_V3.to_string();
+    let built = build(sealed_manifest).unwrap();
+    let message = Message::ballot_box_sealed_message(
+        &built.manifest,
+        built.hash,
+        "Madrid PE",
+        "Spain",
+        &SigningData::new(sk.clone(), "", sk.clone()),
+    )
+    .unwrap();
+    let mut record = SealRecord::from_parts(
+        &built.bytes,
+        &message.record_serialize().unwrap(),
+        &VerificationKey::from_sk(&sk).unwrap(),
+        SealRecordNames {
+            election_event: "Overseas Voting".to_string(),
+            election: "Madrid PE".to_string(),
+            area: "Spain".to_string(),
+        },
+        Some(SealRecordCloseRequest {
+            id: "request".to_string(),
+            signing_code: None,
+            signers: vec![],
+        }),
+        log_entry(7),
+    )
+    .unwrap();
+    assert_eq!(record.format, SEAL_FORMAT_V3);
+    let check = verify_record(&record, None).unwrap();
+    assert_eq!(check.manifest.format, SEAL_FORMAT_V3);
+    assert_eq!(check.manifest.entries, built.manifest.entries);
+    record.format = "step/ballot-box-seal/v4".to_string();
+    assert_eq!(step_of(verify_record(&record, None)), SealCheckStep::Format);
+}
+
+#[test]
 fn a_changed_entry_is_refused() {
     let mut record = sealed().record;
     record.entries[0].weight = 7;
@@ -596,6 +635,22 @@ fn another_format_is_refused() {
         |manifest| manifest.format = "step/ballot-box-seal/v0".to_string(),
         SealCheckStep::Format,
     );
+    assert_rule(
+        |manifest| manifest.format = "step/ballot-box-seal/v4".to_string(),
+        SealCheckStep::Format,
+    );
+}
+
+#[test]
+fn a_sealed_cast_votes_manifest_is_v3_and_checks_as_v2_does() {
+    assert!(is_known_format(SEAL_FORMAT_V2) && is_known_format(SEAL_FORMAT_V3));
+    assert!(!is_known_format("step/ballot-box-seal/v1"));
+    let mut sealed = manifest(sample_entries());
+    sealed.format = SEAL_FORMAT_V3.to_string();
+    assert!(check_manifest(&sealed).is_ok());
+    // The same rules hold.
+    sealed.eligible_voters = 1;
+    assert!(check_manifest(&sealed).is_err());
 }
 
 #[test]

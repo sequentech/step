@@ -44,6 +44,8 @@ mod tests {
                 ("ballot-box seal: admitted before the box lock and signing; refused = pending (busy)", "ScopeAdmission::admit")),
             (("windmill/src/services/ballot_box_seal/seal.rs", "fail"),
                 ("seal's failure record: only called inside seal_prepared, under its admission", "ScopeAdmission::admit")),
+            (("windmill/src/services/cast_vote_seal/mod.rs", "publish_key"),
+                ("cast vote seal key pin: admitted on the event scope before signing the CastVoteSealKeyPublished entry", "ScopeAdmission::admit")),
             (("windmill/src/services/ceremonies/sealed_box_ballots.rs", "deliver_once"),
                 ("tally's sealed-box records: admitted before signing (post_verified / post_rejected)", "ScopeAdmission::admit")),
             (("windmill/src/tasks/electoral_log.rs", "store_batch_leased"),

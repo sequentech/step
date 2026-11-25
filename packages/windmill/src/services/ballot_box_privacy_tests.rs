@@ -372,6 +372,7 @@ async fn verify_private_acceptance(
         election_id: election.into(),
         system_public_key: VerificationKey::from_sk(authority_key)?.to_b64_string()?,
         ballot_box_key: published_key.clone(),
+        cast_vote_seal: sequent_core::ballot_privacy::CastVoteSealTrust::NotSealed,
     };
     let proof = BallotPrivacyProof {
         ballot_id: ballot_id.into(),

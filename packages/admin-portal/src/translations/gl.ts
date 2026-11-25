@@ -3361,6 +3361,20 @@ const galegoTranslation: TranslationType = {
                 sealBallotBoxes:
                     "Unha elección pódese escrutar cando todas as súas urnas están seladas e as súas actas de selado están publicadas.",
             },
+            failure: {
+                title: "O escrutinio fallou",
+                detail: "Detalles",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "Un taboleiro de escrutinio non coincide coa configuración rexistrada na cerimonia de claves.",
+                    INVALID_BOARD_CONTENT:
+                        "Un taboleiro de escrutinio ten contido que non se pode usar.",
+                    TRUSTEE_HALTED: "Un fiduciario detivo o escrutinio e informou dun erro.",
+                    SEALED_BALLOTS_REFUSED:
+                        "Algunhas papeletas almacenadas non se poden contar: non se abren ou non coinciden cos seus rexistros. Non se contou ningunha papeleta. Resolve a causa e despois inicia un novo escrutinio.",
+                    unknown: "Non se puido completar o escrutinio.",
+                },
+            },
             createTallySuccess: "Escrutinio creado",
             createTallyError: "Non se puido crear o Escrutinio",
             startTallySuccess: "Escrutinio iniciado",
