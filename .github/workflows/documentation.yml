@@ -23,6 +23,7 @@ on:
       - main
       - release/*
       - feat/use-arc-runner-java-test
+      - feat/meta-13795-admin-manual/release/10.0
 
 permissions:
   contents: write

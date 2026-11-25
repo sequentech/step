@@ -185,3 +185,9 @@ body.home .navbar__brand .navbar__title {
   outline: 2px solid var(--ifm-color-primary);
   outline-offset: -2px;
 }
+
+/* A table of names, such as file names: the names in the first column do not wrap.
+   Wrap the Markdown table in <div className="table-names">. */
+.table-names td:first-child code {
+  white-space: nowrap;
+}

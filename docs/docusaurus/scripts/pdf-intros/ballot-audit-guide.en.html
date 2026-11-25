@@ -1,0 +1,35 @@
+<!--
+SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+<!-- The first page of the Ballot Audit Guide. {{manual}} is the address
+     of the online manual. -->
+<h1>About This Guide</h1>
+<p>This guide contains two procedures of the Ballot Audit Manual: <strong>Prepare the
+Backups</strong> and <strong>Run the Audit</strong>. One <code>docker run</code> command restores
+the backups and audits all areas and contests of the tally.</p>
+<h2>Requirements</h2>
+<ul>
+  <li>A computer with Docker.</li>
+  <li>The audit image. To get or build it, see <a href="{{manual}}/procedures/workstation">Set
+  Up the Audit Workstation</a> in the online manual.</li>
+  <li>The backups and their digests from the system operator.</li>
+  <li>The tally ID, the public key hash and the electoral log system public key from the
+  election authority.</li>
+</ul>
+<h2>More information</h2>
+<p>For all other information, use the Ballot Audit Manual online:
+<a href="{{manual}}">{{manual}}</a></p>
+<p>For the evidence, checks and conclusions of the verification process, read
+<a href="{{manual}}/../ballot_audit_explanation">What the Ballot Audit Verifies</a>.</p>
+<table>
+  <tr><th>Topic</th><th>Page of the online manual</th></tr>
+  <tr><td>Roles, terms, versions and safety rules</td><td><a href="{{manual}}/before-you-start">before-you-start</a></td></tr>
+  <tr><td>Get or build the audit image</td><td><a href="{{manual}}/procedures/workstation">procedures/workstation</a></td></tr>
+  <tr><td>Report the results and remove the copies</td><td><a href="{{manual}}/procedures/close">procedures/close</a></td></tr>
+  <tr><td>What each status and result means</td><td><a href="{{manual}}/read-the-results">read-the-results</a></td></tr>
+  <tr><td>Each message, its cause and the action</td><td><a href="{{manual}}/troubleshooting">troubleshooting</a></td></tr>
+  <tr><td>All options of the audit image and of the commands</td><td><a href="{{manual}}/command-reference">command-reference</a></td></tr>
+  <tr><td>The files that the commands write</td><td><a href="{{manual}}/file-reference">file-reference</a></td></tr>
+  <tr><td>Run one step at a time, or work without the audit image</td><td><a href="{{manual}}/run-each-step/run_each_step">run-each-step/run_each_step</a></td></tr>
+</table>

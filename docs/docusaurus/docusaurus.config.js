@@ -27,6 +27,7 @@ const config = {
     docsVersion: docsVersion.name,
     docsSites: docsVersion.sites,
     manualHome: docsVersion.manualHome,
+    manuals: require('./manuals'),
   },
 
   onBrokenLinks: 'warn',

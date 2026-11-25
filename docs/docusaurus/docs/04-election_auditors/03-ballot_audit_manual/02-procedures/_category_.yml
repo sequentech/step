@@ -1,0 +1,8 @@
+label: 'Procedures'
+position: 2
+collapsed: false
+key: 'ballot-audit-procedures'
+link:
+  type: generated-index
+  slug: /election_auditors/ballot_audit_manual/procedures
+  description: 'The ballot audit, in order. Do these procedures from the first to the last.'

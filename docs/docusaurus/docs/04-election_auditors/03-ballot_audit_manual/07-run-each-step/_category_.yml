@@ -1,0 +1,7 @@
+label: 'Appendix: Run Each Step Separately'
+position: 7
+collapsed: true
+key: 'ballot-audit-run-each-step'
+link:
+  type: doc
+  id: run_each_step
