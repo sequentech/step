@@ -263,21 +263,25 @@ impl ChannelSender for InfobipViberSender {
                 ..Default::default()
             };
         };
-        let balance = exchange(
+        let sender = urlencoding::encode(&self.sender);
+        let templates = exchange(
             self.http
-                .get(format!("{}/account/1/balance", self.base_url))
+                .get(format!(
+                    "{}/viber/1/senders/{sender}/templates",
+                    self.base_url
+                ))
                 .header("Authorization", authorization),
         )
         .await;
-        let reason = match balance {
+        let reason = match templates {
             Ok((200, _)) => None,
             Ok((401 | 403, _)) => Some(PARTNER_LOGIN_REFUSED.to_string()),
             Ok((status, _)) => Some(provider_status_reason(status)),
             Err(_) => Some(PROVIDER_UNREACHABLE.to_string()),
         };
         let connected = reason.is_none();
-        // Infobip has no API for Viber template approval: the templates are
-        // the ones an administrator entered, and are shown as such.
+        // The request checks access to the configured sender. Template
+        // approval for each purpose and language comes from account settings.
         AccountCheck {
             connected,
             production_access: connected,
@@ -564,12 +568,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn the_check_reports_the_manually_approved_templates() {
-        let server = TestServer::start(vec![Reply::Json(200, json!({"balance": 10}))]).await;
+    async fn the_check_reads_the_senders_templates_and_reports_configured_approval() {
+        let server = TestServer::start(vec![Reply::Json(200, json!({"templates": []}))]).await;
         let sender =
             InfobipViberSender::new(account(&server.base_url), reqwest::Client::new()).unwrap();
         let check = sender.check().await;
         assert!(check.connected);
+        assert!(check.production_access);
         assert_eq!(
             check.approved_templates,
             BTreeMap::from([(MessagePurpose::OTP, vec!["en".to_string()])])
@@ -581,6 +586,11 @@ mod tests {
                 reason: None
             })
         );
+        let requests = server.requests();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0].method, "GET");
+        assert_eq!(requests[0].path, "/viber/1/senders/COMELEC/templates");
+        assert_eq!(requests[0].header("authorization"), Some("App key-1"));
     }
 
     #[tokio::test]
