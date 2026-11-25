@@ -21,6 +21,8 @@ use super::certificates::{
     CertificateVerifier, DocumentSignatureInput, RegistrationState, SignatureInputs,
 };
 #[cfg(feature = "comelec-demo-direct-hsm")]
+use super::direct_actions::{self, VerifiedActionProof};
+#[cfg(feature = "comelec-demo-direct-hsm")]
 use super::direct_initialize::{self, VerifiedDirectProof};
 use super::executors::{ExecutionOutcome, PostCommit, SigningExecutorRegistry};
 use super::log::{Actor, SystemOutcome};
@@ -309,7 +311,9 @@ async fn approve_ingress(
 }
 
 async fn attribute_approval(
-    transaction: &Transaction<'_>, caller: &SigningCaller, tenant_id: Uuid,
+    transaction: &Transaction<'_>,
+    caller: &SigningCaller,
+    tenant_id: Uuid,
 ) -> SigningResult<()> {
     // The action the last signature runs is logged as that signer's (SW-F-0364).
     act_for(
@@ -326,7 +330,10 @@ async fn attribute_approval(
     Ok(())
 }
 
-async fn finish_approval(transaction: Transaction<'_>, step: Step) -> SigningResult<ApproveOutcome> {
+async fn finish_approval(
+    transaction: Transaction<'_>,
+    step: Step,
+) -> SigningResult<ApproveOutcome> {
     match step {
         Step::Signed(outcome, post_commit) => {
             transaction
@@ -593,7 +600,9 @@ async fn approve_in(
     let blocked = |error: super::operational_policy::LegacySigningBlocked| {
         SigningError::Forbidden(error.to_string())
     };
-    let baseline = signing_mode(transaction, tenant_id).await.map_err(blocked)?;
+    let baseline = signing_mode(transaction, tenant_id)
+        .await
+        .map_err(blocked)?;
     if baseline == OperationalSigningMode::HsmRequired {
         // Preserve tenant-wide refusal without revealing request existence.
         ingress.request_id(OperationalSigningMode::HsmRequired)?;
@@ -609,7 +618,8 @@ async fn approve_in(
         result => result?,
     };
     let authorization = sign_refusal(transaction, caller, &found).await?;
-    if baseline == OperationalSigningMode::LegacyP12 && ingress.is_operational()
+    if baseline == OperationalSigningMode::LegacyP12
+        && ingress.is_operational()
         && authorization.is_some()
     {
         // Do not disclose that this actor guessed the one managed scope and
@@ -617,12 +627,15 @@ async fn approve_in(
         return Err(Ingress::method_denied());
     }
     let checked_mode = request_mode_and_latch(transaction, &found).await;
-    let (mode, direct) = if baseline == OperationalSigningMode::LegacyP12 && ingress.is_operational() {
-        checked_mode.map_err(|_| Ingress::method_denied())?
-    } else {
-        checked_mode.map_err(blocked)?
-    };
-    if direct.is_some() { return Err(Ingress::method_denied()); }
+    let (mode, direct) =
+        if baseline == OperationalSigningMode::LegacyP12 && ingress.is_operational() {
+            checked_mode.map_err(|_| Ingress::method_denied())?
+        } else {
+            checked_mode.map_err(blocked)?
+        };
+    if direct.is_some() {
+        return Err(Ingress::method_denied());
+    }
     ingress.request_id(mode)?;
 
     // 1. Who may sign: decided before any event/row lock and before
@@ -641,8 +654,12 @@ async fn approve_in(
         .await;
     }
     let request = relock(transaction, &found).await?;
-    let (mode, direct) = request_mode_and_latch(transaction, &request).await.map_err(blocked)?;
-    if direct.is_some() { return Err(Ingress::method_denied()); }
+    let (mode, direct) = request_mode_and_latch(transaction, &request)
+        .await
+        .map_err(blocked)?;
+    if direct.is_some() {
+        return Err(Ingress::method_denied());
+    }
     ingress.request_id(mode)?;
     let event_id = request.election_event_id;
 
@@ -688,7 +705,7 @@ async fn approve_in(
         }
     }
     let approvals = list_signing_approvals(transaction, tenant_id, event_id, request.id).await?;
-    if approvals.iter().any(|a| a.initialize_direct_proof.is_some()) {
+    if approvals.iter().any(SigningApprovalRow::is_direct_demo) {
         return Err(Ingress::method_denied());
     }
     if approvals
@@ -996,8 +1013,11 @@ async fn approve_in(
 }
 
 async fn advance_approval(
-    transaction: &mut Transaction<'_>, services: &SigningServices,
-    request: &SigningRequestRow, caller: &SigningCaller, count: i64,
+    transaction: &mut Transaction<'_>,
+    services: &SigningServices,
+    request: &SigningRequestRow,
+    caller: &SigningCaller,
+    count: i64,
 ) -> SigningResult<Step> {
     let required = request.required;
     let tenant_id = request.tenant_id;
@@ -1061,35 +1081,63 @@ async fn advance_approval(
 // certificate-verifier bypass: only the opaque exact Initialize proof enters.
 #[cfg(feature = "comelec-demo-direct-hsm")]
 pub(super) async fn approve_direct(
-    client: &mut Client, services: &SigningServices, caller: &SigningCaller,
-    proof: VerifiedDirectProof, now: DateTime<Utc>,
+    client: &mut Client,
+    services: &SigningServices,
+    caller: &SigningCaller,
+    proof: VerifiedDirectProof,
+    now: DateTime<Utc>,
 ) -> SigningResult<ApproveOutcome> {
-    let mut transaction = client.transaction().await.context("Start direct Initialize approval")?;
+    let mut transaction = client
+        .transaction()
+        .await
+        .context("Start direct Initialize approval")?;
     attribute_approval(&transaction, caller, proof.scope().tenant()).await?;
     let request = direct_initialize::lock_authorized(&transaction, caller, proof.scope()).await?;
-    let approvals = list_signing_approvals(&transaction, request.tenant_id,
-        request.election_event_id, request.id).await?;
+    let approvals = list_signing_approvals(
+        &transaction,
+        request.tenant_id,
+        request.election_event_id,
+        request.id,
+    )
+    .await?;
     if !direct_initialize::verified_prior(&transaction, &request, &approvals).await? {
         return Err(direct_initialize::unavailable());
     }
     if approvals.iter().any(|row| row.user_id == caller.user_id) {
         // Lost response / simultaneous retry: the existing checked proof is
         // the approval. Do not re-consume, emit another audit or dispatch.
-        return finish_approval(transaction, Step::Signed(ApproveOutcome {
-            status: request.status, count: approvals.len() as i64, required: request.required,
-        }, vec![])).await;
+        return finish_approval(
+            transaction,
+            Step::Signed(
+                ApproveOutcome {
+                    status: request.status,
+                    count: approvals.len() as i64,
+                    required: request.required,
+                },
+                vec![],
+            ),
+        )
+        .await;
     }
     if request.status != SigningRequestStatus::Waiting
         || request.created_at > now
         || is_overdue(&transaction, &request).await?
-        || approvals.len() as i64 >= i64::from(request.required) {
+        || approvals.len() as i64 >= i64::from(request.required)
+    {
         return Err(direct_initialize::unavailable());
     }
     let signed = proof.consume_and_insert(&transaction, caller).await?;
     let count = approvals.len() as i64 + 1;
-    stage_request_step(&transaction, &request, SigningStatementKind::SigningRequestSigned,
-        caller.actor(), SystemOutcome::Info,
-        format!("Direct demo HSM signature verified on {}: {} of {}", request.code, count, request.required),
+    stage_request_step(
+        &transaction,
+        &request,
+        SigningStatementKind::SigningRequestSigned,
+        caller.actor(),
+        SystemOutcome::Info,
+        format!(
+            "Direct demo HSM signature verified on {}: {} of {}",
+            request.code, count, request.required
+        ),
         json!({
             "approval_id": signed.id,
             "proof_kind": "initialize-voting-demo-pkcs11",
@@ -1105,7 +1153,90 @@ pub(super) async fn approve_direct(
             "count": count,
             "required": request.required,
         }),
-    ).await?;
+    )
+    .await?;
+    let step = advance_approval(&mut transaction, services, &request, caller, count).await?;
+    finish_approval(transaction, step).await
+}
+
+#[cfg(feature = "comelec-demo-direct-hsm")]
+pub(super) async fn approve_direct_action(
+    client: &mut Client,
+    services: &SigningServices,
+    caller: &SigningCaller,
+    proof: VerifiedActionProof,
+    now: DateTime<Utc>,
+) -> SigningResult<ApproveOutcome> {
+    let mut transaction = client
+        .transaction()
+        .await
+        .context("Start certificate-free action approval")?;
+    attribute_approval(&transaction, caller, proof.operation.anchor().tenant).await?;
+    let request = direct_actions::lock_authorized(&transaction, caller, &proof.operation).await?;
+    let approvals = list_signing_approvals(
+        &transaction,
+        request.tenant_id,
+        request.election_event_id,
+        request.id,
+    )
+    .await?;
+    if !direct_actions::verified_prior(&transaction, &request, &approvals).await? {
+        return Err(direct_actions::unavailable());
+    }
+    if approvals.iter().any(|row| row.user_id == caller.user_id) {
+        // Lost response / simultaneous retry: the existing checked proof is
+        // the approval. Do not re-consume, emit another audit or dispatch.
+        return finish_approval(
+            transaction,
+            Step::Signed(
+                ApproveOutcome {
+                    status: request.status,
+                    count: approvals.len() as i64,
+                    required: request.required,
+                },
+                vec![],
+            ),
+        )
+        .await;
+    }
+    if request.status != SigningRequestStatus::Waiting
+        || request.created_at > now
+        || is_overdue(&transaction, &request).await?
+        || approvals.len() as i64 >= i64::from(request.required)
+    {
+        return Err(direct_actions::unavailable());
+    }
+    let signed = proof.consume_and_insert(&transaction, caller).await?;
+    let count = approvals.len() as i64 + 1;
+    stage_request_step(
+        &transaction,
+        &request,
+        SigningStatementKind::SigningRequestSigned,
+        caller.actor(),
+        SystemOutcome::Info,
+        format!(
+            "Direct demo HSM signature verified on {}: {} of {}",
+            request.code, count, request.required
+        ),
+        json!({
+            "approval_id": signed.id,
+            "proof_kind": "direct-action-demo-pkcs11-v2",
+            "action": request.action.to_string(),
+            "document_sha256": request.document_sha256,
+            "device_profile": direct_initialize::DEVICE_PROFILE,
+            "installation_id": proof.operation.anchor().installation,
+            "post_id": proof.operation.anchor().post,
+            "publication_id": proof.operation.anchor().publication,
+            "reservation_nonce": proof.nonce,
+            "payload_sha256": hex::encode(proof.operation.payload_digest()),
+            "spki_sha256": signed.spki_sha256,
+            "signature_der_b64": BASE64.encode(&signed.payload_signature),
+            "algorithm": signed.algorithm.to_string(),
+            "count": count,
+            "required": request.required,
+        }),
+    )
+    .await?;
     let step = advance_approval(&mut transaction, services, &request, caller, count).await?;
     finish_approval(transaction, step).await
 }

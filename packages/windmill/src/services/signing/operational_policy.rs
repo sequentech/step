@@ -173,3 +173,93 @@ pub async fn assert_startup_policy(
     }
     Ok(())
 }
+
+/// Event policy includes the explicitly installed direct-demo marker, never
+/// the browser's selected mode. Other events keep the existing tenant policy.
+pub async fn signing_mode_for_event(
+    tx: &Transaction<'_>,
+    tenant: Uuid,
+    event: Uuid,
+) -> Result<OperationalSigningMode, LegacySigningBlocked> {
+    local_scope::event_action_mode(tx, tenant, event).await
+}
+
+/// Older MIRU upload/download surfaces already know their trusted event.
+pub async fn require_legacy_event(
+    tx: &Transaction<'_>,
+    tenant: Uuid,
+    event: Uuid,
+) -> Result<(), LegacySigningBlocked> {
+    match signing_mode_for_event(tx, tenant, event).await? {
+        OperationalSigningMode::LegacyP12 => Ok(()),
+        OperationalSigningMode::HsmRequired => Err(LegacySigningBlocked::HsmRequired),
+    }
+}
+
+/// The schedule service uses this only as a restrictive proof requirement.
+pub(crate) async fn direct_schedule_post(
+    tx: &Transaction<'_>,
+    tenant: Uuid,
+    event: Uuid,
+) -> anyhow::Result<Option<Uuid>> {
+    // The scheduler may already hold the event lock. Never wait for a
+    // policy writer that might wait on that event.
+    let held: bool = tx.query_one(
+        "SELECT pg_try_advisory_xact_lock_shared(hashtextextended('operational-signing-policy:deployment',0))",
+        &[],
+    ).await?.try_get(0)?;
+    anyhow::ensure!(
+        held,
+        "Signing policy is busy; retry scheduled configuration check"
+    );
+    let Some(latch) = local_scope::action_latch(tx, tenant, event).await? else {
+        return Ok(None);
+    };
+    local_scope::event_action_mode(tx, tenant, event).await?;
+    Ok(Some(latch.post))
+}
+
+/// An already executed configuration is not automatically authorizing the
+/// schedule of a newly latched event. Check its exact original HSM quorum.
+pub(crate) async fn verified_direct_scheduled_configuration(
+    tx: &Transaction<'_>,
+    tenant: Uuid,
+    event: Uuid,
+    id: Uuid,
+) -> anyhow::Result<bool> {
+    #[cfg(feature = "comelec-demo-direct-hsm")]
+    {
+        use crate::postgres::signing::{get_signing_request, list_signing_approvals};
+        use sequent_core::signing::{SigningAction, SigningRequestStatus};
+        let Some(request) = get_signing_request(tx, tenant, event, id).await? else {
+            return Ok(false);
+        };
+        if request.action != SigningAction::ApproveConfiguration
+            || request.status != SigningRequestStatus::Executed
+            || request.executed_at.is_none()
+        {
+            return Ok(false);
+        }
+        let approvals = list_signing_approvals(tx, tenant, event, id).await?;
+        if approvals.is_empty()
+            || approvals
+                .iter()
+                .any(|row| row.action_direct_proof.is_none())
+        {
+            // Historical certificate or V1 rows never become V2 evidence.
+            return Ok(false);
+        }
+        super::operational_quorum::has_operational_quorum(
+            tx,
+            &request,
+            &approvals,
+            i64::from(request.required),
+        )
+        .await
+    }
+    #[cfg(not(feature = "comelec-demo-direct-hsm"))]
+    {
+        let _ = (tx, tenant, event, id);
+        Ok(false)
+    }
+}

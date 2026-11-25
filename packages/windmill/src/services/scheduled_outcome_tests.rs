@@ -651,6 +651,7 @@ fn initialization_state(post: Uuid) -> EventState {
         },
     );
     EventState {
+        direct_schedule_proofs: None,
         tenant_id: Uuid::from_u128(1),
         election_event_id: Uuid::from_u128(2),
         policies: LifecyclePolicies::default(),
@@ -688,6 +689,49 @@ fn opening_row(post: Uuid) -> ScheduledRow {
         annotations: json!({}),
         written_now: false,
     }
+}
+
+#[test]
+fn direct_demo_schedule_cannot_use_old_proof_or_another_post() {
+    let post = Uuid::from_u128(3);
+    let other = Uuid::from_u128(4);
+    let mut state = initialization_state(post);
+    state.rules.close_voting = rule(true, 2);
+    state.rules.approve_configuration = true;
+    state.policies.unsigned_scheduled_close = RUN_AS_SYSTEM;
+    let old = Uuid::from_u128(5);
+    let newest = Uuid::from_u128(6);
+    let approval = |request_id| Approval {
+        request_id,
+        code: "exact".into(),
+        target: None,
+        executed_at: state.now,
+        schedule: vec![],
+        signers: vec![],
+        post_channels: BTreeMap::new(),
+        initialization_scope: InitializationScope::default(),
+        initialization_report_policies: BTreeMap::new(),
+    };
+    state.approvals = vec![approval(newest), approval(old)];
+    state.direct_schedule_proofs = Some((post, HashSet::from([old])));
+    assert!(state.approval(Some(post)).is_none());
+    state.direct_schedule_proofs = Some((post, HashSet::from([newest, old])));
+    assert_eq!(state.approval(Some(post)).unwrap().request_id, newest);
+    assert!(state.approval(Some(other)).is_none());
+    let row = ScheduledRow {
+        transition: transition_of(
+            "closing", "END_VOTING_PERIOD",
+            Some(&json!({"scheduled_date": "2028-05-08T10:00:00Z"})),
+            Some(&json!({"election_id": other})),
+        ).unwrap(),
+        annotations: json!({}),
+        written_now: false,
+    };
+    let outside = state.inputs(&row, Some(other), Moment::FireTime);
+    assert_eq!(outside.current.close_policy, REFUSE);
+    assert_eq!(evaluate(&outside).outcome, ScheduledOutcomeKind::Refused);
+    state.direct_schedule_proofs = None;
+    assert_eq!(state.approval(Some(other)).unwrap().request_id, newest);
 }
 
 #[test]

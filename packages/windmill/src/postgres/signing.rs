@@ -697,6 +697,20 @@ pub struct InitializeDirectProofMetadata {
     pub profile: String,
 }
 
+/// The distinct version-two certificate-free demo record. Never presented as
+/// a staff certificate, official PDF or EML document signature.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DirectActionProofMetadata {
+    pub installation: Uuid,
+    pub post: Uuid,
+    pub publication: Uuid,
+    pub nonce: Uuid,
+    pub payload_sha256: String,
+    pub profile: String,
+    pub action: SigningAction,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct SigningApprovalRow {
     pub id: Uuid,
@@ -713,6 +727,7 @@ pub struct SigningApprovalRow {
     pub fingerprint_sha256: Option<String>,
     pub spki_sha256: String,
     pub initialize_direct_proof: Option<InitializeDirectProofMetadata>,
+    pub action_direct_proof: Option<DirectActionProofMetadata>,
     pub holder_sha256: Option<String>,
     pub algorithm: SignatureAlgorithm,
     pub payload_signature: Vec<u8>,
@@ -723,15 +738,37 @@ pub struct SigningApprovalRow {
     pub created_at: DateTime<Utc>,
 }
 
+impl SigningApprovalRow {
+    pub fn is_direct_demo(&self) -> bool {
+        self.initialize_direct_proof.is_some() || self.action_direct_proof.is_some()
+    }
+}
+
 impl TryFrom<Row> for SigningApprovalRow {
     type Error = anyhow::Error;
 
     fn try_from(row: Row) -> Result<Self> {
-        let initialize_direct_proof = if row.columns().iter().any(|c| c.name() == "initialize_direct_proof") {
+        let initialize_direct_proof = if row
+            .columns()
+            .iter()
+            .any(|c| c.name() == "initialize_direct_proof")
+        {
             row.try_get::<_, Option<Value>>("initialize_direct_proof")?
-                .map(serde_json::from_value).transpose()?
+                .map(serde_json::from_value)
+                .transpose()?
         } else {
             None // The optional synthetic migration has never been installed.
+        };
+        let action_direct_proof = if row
+            .columns()
+            .iter()
+            .any(|c| c.name() == "action_direct_proof")
+        {
+            row.try_get::<_, Option<Value>>("action_direct_proof")?
+                .map(serde_json::from_value)
+                .transpose()?
+        } else {
+            None
         };
         let approval = SigningApprovalRow {
             id: row.try_get("id")?,
@@ -748,6 +785,7 @@ impl TryFrom<Row> for SigningApprovalRow {
             fingerprint_sha256: row.try_get("fingerprint_sha256")?,
             spki_sha256: row.try_get("spki_sha256")?,
             initialize_direct_proof,
+            action_direct_proof,
             holder_sha256: row.try_get("holder_sha256")?,
             algorithm: text_enum(&row, "algorithm")?,
             payload_signature: row.try_get("payload_signature")?,
@@ -757,11 +795,23 @@ impl TryFrom<Row> for SigningApprovalRow {
             signed_at: row.try_get("signed_at")?,
             created_at: row.try_get("created_at")?,
         };
-        let has_cert = [approval.certificate_id.is_some(), approval.certificate_pem.is_some(),
-            approval.chain_pem.is_some(), approval.fingerprint_sha256.is_some(),
-            approval.holder_sha256.is_some(), approval.revocation_status.is_some()];
-        anyhow::ensure!(has_cert.iter().all(|present| *present == approval.initialize_direct_proof.is_none()),
-            "Invalid mixed signing approval evidence");
+        let has_cert = [
+            approval.certificate_id.is_some(),
+            approval.certificate_pem.is_some(),
+            approval.chain_pem.is_some(),
+            approval.fingerprint_sha256.is_some(),
+            approval.holder_sha256.is_some(),
+            approval.revocation_status.is_some(),
+        ];
+        anyhow::ensure!(
+            !(approval.initialize_direct_proof.is_some() && approval.action_direct_proof.is_some())
+                && has_cert
+                    .iter()
+                    .all(|present| *present != approval.is_direct_demo())
+                && (!approval.is_direct_demo()
+                    || (approval.document_signature.is_none() && approval.pdf_cms.is_none())),
+            "Invalid mixed signing approval evidence"
+        );
         Ok(approval)
     }
 }

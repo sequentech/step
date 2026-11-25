@@ -7,7 +7,7 @@
 //! caller and talks to the installed private PKCS#11 signer.
 
 use super::approve::{approve_direct, sign_refusal, ApproveOutcome, SigningServices};
-use super::operational_policy::local_scope::{read_latch, request_latch, Latch};
+use super::operational_policy::local_scope::{action_latch, read_latch, request_latch, DirectProtocol, Latch};
 use super::operational_policy::lock_signing_policy;
 use super::requests::{is_overdue, read_request, relock};
 use super::{SigningCaller, SigningError, SigningResult};
@@ -16,7 +16,7 @@ use crate::postgres::signing::{
     SigningRequestRow,
 };
 use crate::postgres::signing_actions::published_publication_of_post;
-use anyhow::{ensure, Context, Result};
+use anyhow::{ensure, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client, GenericClient, Transaction};
 use openssl::{ecdsa::EcdsaSig, nid::Nid, pkey::PKey, sha::sha256};
@@ -165,13 +165,48 @@ pub(super) async fn verify_installation(
     Ok(())
 }
 
+/// Match the same immutable runtime anchor, without treating today's
+/// latest publication as the V2 trust root. Configuration may safely
+/// approve a new publication while V1 Initialize remains unchanged.
+pub(super) async fn verify_action_installation(
+    client: &impl GenericClient,
+    tenant: Uuid,
+    event: Uuid,
+    latch: Latch,
+) -> Result<()> {
+    ensure!(
+        installed()?.is_some_and(|i| i.identifies(tenant, event, latch)),
+        "No matching mounted direct HSM installation"
+    );
+    let approved: bool = client
+        .query_one(
+            "SELECT felix3_initialize_direct.action_scope_enabled($1,$2,$3,$4,$5) AND EXISTS (
+                SELECT 1 FROM pg_catalog.pg_attribute
+                WHERE attrelid = 'sequent_backend.signing_approval'::regclass
+                  AND attname = 'action_direct_proof' AND NOT attisdropped
+                  AND atttypid = 'pg_catalog.jsonb'::regtype)",
+            &[
+                &latch.installation,
+                &tenant,
+                &event,
+                &latch.post,
+                &latch.publication,
+            ],
+        )
+        .await?
+        .try_get(0)?;
+    ensure!(approved, "Direct HSM action scope is unavailable");
+    Ok(())
+}
+
 pub(super) async fn assert_startup(client: &impl GenericClient) -> Result<()> {
     if let Some(i) = installed()? {
-        // A validated descriptor may be staged before inserting its latch so
-        // the new ordinary services can be health-checked and rolled back.
-        // Every actual request independently requires that exact live latch;
-        // this does not suppress a malformed/mismatching activated scope.
-        if let Some(latch) = read_latch(client, i.tenant, i.event).await? {
+        // Retain staged-descriptor readiness before the original latch is
+        // inserted. Once active, prefer the sticky extended marker: a
+        // newly approved publication must not make a normal restart fail.
+        if let Some(latch) = action_latch(client, i.tenant, i.event).await? {
+            verify_action_installation(client, i.tenant, i.event, latch).await?;
+        } else if let Some(latch) = read_latch(client, i.tenant, i.event).await? {
             verify_installation(client, i.tenant, i.event, latch).await?;
         }
     }
@@ -300,7 +335,8 @@ async fn checked_request(
         .await
         .map_err(|_| unavailable())?
         .ok_or_else(unavailable)?;
-    if request.action != SigningAction::InitializeVoting
+    if latch.protocol != DirectProtocol::InitializeV1
+        || request.action != SigningAction::InitializeVoting
         || request.election_id != Some(latch.post)
         || request.area_id.is_some()
         || request.document_id.is_some()
@@ -396,6 +432,16 @@ pub fn verify_signature(
     spki_der: &[u8],
     signature_der: &[u8],
 ) -> SigningResult<()> {
+    verify_signature_bytes(&scope.message(nonce)?, spki_der, signature_der)
+}
+
+/// Shared canonical P-256 verification for the two domain-separated wire
+/// versions. Receipt validation still uses their independent request scopes.
+pub(super) fn verify_signature_bytes(
+    bytes: &[u8],
+    spki_der: &[u8],
+    signature_der: &[u8],
+) -> SigningResult<()> {
     if !(8..=72).contains(&signature_der.len()) || !(1..=160).contains(&spki_der.len()) {
         return Err(unavailable());
     }
@@ -413,7 +459,7 @@ pub fn verify_signature(
         if sig.to_der()?.as_slice() != signature_der {
             return Ok(false);
         }
-        Ok(sig.verify(&sha256(&scope.message(nonce)?), &key)?)
+        Ok(sig.verify(&sha256(bytes), &key)?)
     };
     if verify().unwrap_or(false) {
         Ok(())
@@ -549,6 +595,7 @@ async fn check_approval_rows(
             || signed.election_event_id != scope.event
             || signed.request_id != scope.request
             || signed.algorithm != SignatureAlgorithm::EcdsaP256Sha256
+            || signed.action_direct_proof.is_some()
             || signed.document_signature.is_some()
             || signed.pdf_cms.is_some()
             || !actors.insert(actor)

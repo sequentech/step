@@ -34,6 +34,9 @@ use crate::postgres::signing::{
     list_signing_posts, list_signing_rules, lock_signing_event, SigningPost,
 };
 use crate::services::election_event_status::TransitionRefusal;
+use crate::services::signing::operational_policy::{
+    direct_schedule_post, verified_direct_scheduled_configuration,
+};
 use crate::services::initialization_schedule::{effective_close, WaitReason};
 use crate::services::initialization_scope::{
     initialization_refusal, load_event_initialization, EventInitialization, ScopeCopies,
@@ -1103,6 +1106,9 @@ pub struct FiredEffect {
 pub struct EventState {
     pub tenant_id: Uuid,
     pub election_event_id: Uuid,
+    /// The optional demo's separately admitted Post and exact historical
+    /// V2 approval IDs. Keep unproved history to prevent older fallback.
+    pub direct_schedule_proofs: Option<(Uuid, HashSet<Uuid>)>,
     /// The current policies.
     pub policies: LifecyclePolicies,
     /// The current rules.
@@ -1176,6 +1182,10 @@ impl EventState {
         let presentation =
             read_presentation(hasura_transaction, tenant_id, election_event_id).await?;
         let rules = Rules::read(hasura_transaction, tenant_id, election_event_id).await?;
+        let direct_post = direct_schedule_post(hasura_transaction, tenant_id, election_event_id).await?;
+        if direct_post.is_some() && (!rules.of(action).required || !rules.approve_configuration) {
+            anyhow::bail!("A direct HSM schedule requires the configured transition and configuration rules");
+        }
         let mut snapshots = hasura_transaction
             .query(
                 "SELECT s.ballot_publication_id, s.election_id, s.approval_request_id, s.created_at,
@@ -1321,6 +1331,19 @@ impl EventState {
                 })
             })
             .collect::<Result<Vec<_>>>()?;
+        let direct_schedule_proofs = if let Some(post) = direct_post {
+            let mut verified = HashSet::new();
+            for approval in &approvals {
+                if verified_direct_scheduled_configuration(
+                    hasura_transaction, tenant_id, election_event_id, approval.request_id,
+                ).await? {
+                    verified.insert(approval.request_id);
+                }
+            }
+            Some((post, verified))
+        } else {
+            None
+        };
         let mut post_channels = HashMap::new();
         for row in hasura_transaction
             .query(
@@ -1427,6 +1450,7 @@ impl EventState {
             read_schedule_rows(hasura_transaction, tenant_id, election_event_id, None, true)
                 .await?;
         Ok(EventState {
+            direct_schedule_proofs,
             initialization,
             live_closes,
             live_rows,
@@ -1466,7 +1490,16 @@ impl EventState {
                     } else {
                         kept.snapshot.open_voting.clone()
                     },
-                    close_policy: kept.snapshot.policies.unsigned_scheduled_close.clone(),
+                    close_policy: if self.direct_post_unavailable(post)
+                        || self.direct_schedule_proofs.as_ref().is_some_and(|(_, verified)|
+                            kept.approval_request_id.is_none_or(|id| !verified.contains(&id)))
+                    {
+                        // Unproved history can keep stricter settings but
+                        // cannot grant a scheduled unsigned operation.
+                        UnsignedScheduledClosePolicy::REFUSE
+                    } else {
+                        kept.snapshot.policies.unsigned_scheduled_close.clone()
+                    },
                 },
             };
         }
@@ -1510,7 +1543,7 @@ impl EventState {
                     .and_then(|id| {
                         self.approvals
                             .iter()
-                            .find(|approval| approval.request_id == id)
+                            .find(|approval| approval.request_id == id && self.proof_accepted(approval))
                     })
                     .map(|approval| approval.initialization_scope.clone())
                     .unwrap_or_else(|| kept.snapshot.policies.initialization_scope.clone())
@@ -1531,7 +1564,7 @@ impl EventState {
             .and_then(|id| {
                 self.approvals
                     .iter()
-                    .find(|approval| approval.request_id == id)
+                    .find(|approval| approval.request_id == id && self.proof_accepted(approval))
             })
             .map(|approval| &approval.initialization_report_policies)
             .unwrap_or(&kept.snapshot.initialization_report_policies);
@@ -1686,12 +1719,26 @@ impl EventState {
         self.rules.of(action).required || self.published_copy(post, action).values().rule.required
     }
 
+    fn direct_post_unavailable(&self, post: Option<Uuid>) -> bool {
+        self.direct_schedule_proofs.as_ref().is_some_and(|(installed, _)|
+            post.is_some_and(|requested| requested != *installed))
+    }
+
+    fn proof_accepted(&self, approval: &Approval) -> bool {
+        self.direct_schedule_proofs.as_ref()
+            .is_none_or(|(_, verified)| verified.contains(&approval.request_id))
+    }
+
     /// The newest executed approval at a Post (its own or the event's), or
-    /// of the event.
+    /// of the event. A newer inadmissible proof cannot restore an older one.
     pub fn approval(&self, post: Option<Uuid>) -> Option<&Approval> {
+        if self.direct_post_unavailable(post) {
+            return None;
+        }
         self.approvals
             .iter()
             .find(|approval| applies_at(approval.target, post))
+            .filter(|approval| self.proof_accepted(approval))
     }
 
     pub fn post_name(&self, post: Option<Uuid>) -> String {
@@ -1762,7 +1809,11 @@ impl EventState {
             action,
             current: CopyValues {
                 rule: self.rules.of(action).clone(),
-                close_policy: self.policies.unsigned_scheduled_close.clone(),
+                close_policy: if self.direct_post_unavailable(post) {
+                    UnsignedScheduledClosePolicy::REFUSE
+                } else {
+                    self.policies.unsigned_scheduled_close.clone()
+                },
             },
             published: self.published_copy(post, action),
             coverage,

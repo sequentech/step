@@ -14,7 +14,7 @@
 
 use super::log::SystemOutcome;
 use super::operational_policy::local_scope::{for_target, Target};
-use super::operational_policy::{signing_mode, OperationalSigningMode};
+use super::operational_policy::OperationalSigningMode;
 use super::operational_quorum::has_operational_quorum;
 use super::requests::{
     cancel_request, expire_request, is_overdue, is_the_trustee, read_request, relock,
@@ -165,7 +165,12 @@ pub async fn effective_rule(
     election_event_id: Uuid,
     action: SigningAction,
 ) -> anyhow::Result<SigningRule> {
-    let mode = signing_mode(hasura_transaction, tenant_id).await?;
+    let mode = super::operational_policy::local_scope::event_action_mode(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
     effective_rule_in_mode(
         hasura_transaction,
         tenant_id,
@@ -492,10 +497,10 @@ pub async fn consume_gate(
     request_id: Uuid,
     expected_subject: &Value,
 ) -> SigningResult<SigningRequestRow> {
-    let mode = signing_mode(hasura_transaction, tenant_id)
+    let found = read_request(hasura_transaction, tenant_id, request_id).await?;
+    let mode = super::operational_policy::request_signing_mode(hasura_transaction, &found)
         .await
         .context("Operational signing policy unavailable")?;
-    let found = read_request(hasura_transaction, tenant_id, request_id).await?;
     if found.election_event_id != election_event_id || found.action != action {
         return Err(SigningError::NotFound(
             "There is no such signing request.".into(),
@@ -519,6 +524,13 @@ pub async fn consume_gate(
         request.id,
     )
     .await?;
+    if mode == OperationalSigningMode::LegacyP12
+        && approvals.iter().any(SigningApprovalRow::is_direct_demo)
+    {
+        return Err(SigningError::Forbidden(
+            "This trustee proof has no active direct HSM scope.".into(),
+        ));
+    }
     if !approvals
         .iter()
         .any(|approval| approval.user_id == caller.user_id)

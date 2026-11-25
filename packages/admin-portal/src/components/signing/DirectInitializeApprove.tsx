@@ -3,7 +3,7 @@ import React, {useRef, useState} from "react"
 import {Alert, Button, CircularProgress, Stack} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import type {ISigningApi, ISigningPanelData} from "@/lib/signing/api"
-import {reviewedInitializePost} from "@/lib/signing/operationalApprovalPolicy"
+import {reviewedDirectAction, reviewedInitializePost} from "@/lib/signing/operationalApprovalPolicy"
 import {useSignedView} from "./useSignedView"
 
 export const DirectInitializeApprove: React.FC<{
@@ -17,11 +17,13 @@ export const DirectInitializeApprove: React.FC<{
     const [busy, setBusy] = useState(false)
     const [notConfirmed, setNotConfirmed] = useState(false)
     const {request} = data
+    const extended = data.operational_signing_mode === "hsm-demo-direct-action"
+    const approve = extended ? api.approveDirectAction : api.approveDirectInitialize
     const available = Boolean(
-        api.approveDirectInitialize &&
+        approve &&
         window.location.origin === "http://localhost:3002" &&
         verified &&
-        reviewedInitializePost(request, view)
+        (extended ? reviewedDirectAction(request, view) : reviewedInitializePost(request, view))
     )
     return (
         <Stack spacing={1}>
@@ -32,12 +34,12 @@ export const DirectInitializeApprove: React.FC<{
                 disabled={!available || busy}
                 startIcon={busy ? <CircularProgress size={16} color="inherit" aria-hidden /> : undefined}
                 onClick={async () => {
-                    if (!available || !api.approveDirectInitialize || click.current) return
+                    if (!available || !approve || click.current) return
                     click.current = true
                     setBusy(true)
                     setNotConfirmed(false)
                     try {
-                        await api.approveDirectInitialize(request.id, request.payload_sha256)
+                        await approve(request.id, request.payload_sha256)
                         await onRefresh()
                     } catch {
                         setNotConfirmed(true)

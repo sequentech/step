@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {createHash, randomUUID, webcrypto} from "node:crypto"
-import {reviewedInitializePost} from "./operationalApprovalPolicy"
+import {reviewedDirectAction, reviewedInitializePost, signingExperience} from "./operationalApprovalPolicy"
 import {
     PayloadMismatchError,
     PayloadProblem,
@@ -232,6 +232,59 @@ describe("payloadToSign", () => {
             {subject: {publication_id: null}}, {subject: {publication_id: randomUUID()}},
         ]) expect(reviewedInitializePost({...data.request, ...patch}, view)).toBe(false)
     })
+    it.each(Object.values(SigningAction))("uses one direct reviewer for %s", async (action) => {
+        const post = randomUUID()
+        const publication = randomUUID()
+        const trustee = randomUUID()
+        const hash = "ab".repeat(32)
+        const isTrustee =
+            action === SigningAction.ConfirmCustodyProof || action === SigningAction.ContributeCustodyProof
+        const isPdf =
+            action === SigningAction.GenerateElectionReturns || action === SigningAction.GenerateReports
+        const isEml = action === SigningAction.TransmitResults
+        const electionId = isTrustee || action === SigningAction.ApproveConfiguration ? null : post
+        const subject =
+            action === SigningAction.ApproveConfiguration
+                ? {ballot_publication_id: publication}
+                : action === SigningAction.InitializeVoting
+                  ? {publication_id: publication}
+                  : isTrustee
+                    ? {trustee_id: trustee}
+                    : isPdf
+                      ? {document_sha256: hash}
+                      : isEml
+                        ? {eml_sha256: hash}
+                        : {reason: "Frozen review"}
+        const payload = {...JSON.parse(CANONICAL), action, election_id: electionId, subject}
+        const canonical = canonicalJson(payload)
+        const data = {...panel({
+            action,
+            election_id: electionId,
+            trustee_id: isTrustee ? trustee : null,
+            document_sha256: isPdf || isEml ? hash : null,
+            subject,
+            canonical_payload: canonical,
+            payload_sha256: sha256Hex(canonical),
+        }), details: []}
+        const {view} = await payloadToSign(data)
+        expect(signingExperience("hsm-demo-direct-action", action)).toBe("direct")
+        expect(signingExperience("hsm-demo-raw", action)).toBe(
+            action === SigningAction.InitializeVoting ? "direct" : "unavailable"
+        )
+        expect(reviewedDirectAction(data.request, view)).toBe(true)
+        expect(reviewedDirectAction(data.request, {...view, payload: {...view.payload, action: "other"}})).toBe(false)
+        if (isTrustee)
+            expect(reviewedDirectAction({...data.request, trustee_id: randomUUID()}, view)).toBe(false)
+        if (isPdf || isEml)
+            expect(reviewedDirectAction({...data.request, document_sha256: "00".repeat(32)}, view)).toBe(false)
+    })
+
+    it("cannot turn an unknown or unavailable action mode into P12 or direct signing", () => {
+        expect(signingExperience("hsm-demo-direct-action", "unregistered")).toBe("unavailable")
+        expect(signingExperience("unavailable", SigningAction.CloseVoting)).toBe("unavailable")
+        expect(signingExperience("legacy-p12", SigningAction.CloseVoting)).toBe("legacy")
+    })
+
     it("returns the canonical payload's UTF-8 bytes", async () => {
         const {bytes} = await payloadToSign(panel())
         expect(Buffer.from(bytes).equals(Buffer.from(CANONICAL, "utf8"))).toBe(true)

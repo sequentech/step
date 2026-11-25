@@ -14,7 +14,7 @@ use super::approve::{log_step_refusal, DocumentSigner, RefusedStep};
 use super::custody_proofs::{custody_proof_labels, CustodyProofLabels};
 use super::executors::SigningExecutorRegistry;
 use super::log::{stage, Actor, LogStep, SystemOutcome};
-use super::operational_policy::local_scope::request_mode_and_latch;
+use super::operational_policy::local_scope::{request_mode_and_latch, DirectProtocol};
 use super::operational_policy::{
     lock_signing_policy, require_legacy_request, LegacySigningBlocked,
     OperationalSigningMode,
@@ -650,7 +650,10 @@ pub async fn get_panel(
         ));
     }
     let operational_signing_mode = match request_mode_and_latch(hasura_transaction, &request).await {
-        Ok((_, Some(_))) => "hsm-demo-raw",
+        Ok((_, Some(latch))) => match latch.protocol {
+            DirectProtocol::InitializeV1 => "hsm-demo-raw",
+            DirectProtocol::ActionV2 => "hsm-demo-direct-action",
+        },
         Ok((OperationalSigningMode::LegacyP12, None)) => "legacy-p12",
         Ok((OperationalSigningMode::HsmRequired, None)) => "hsm-required",
         Err(LegacySigningBlocked::ScopeUnavailable) => "unavailable",

@@ -63,7 +63,7 @@ use windmill::services::signing::operational_policy::{
 };
 #[cfg(feature = "comelec-demo-direct-hsm")]
 use windmill::services::signing::operational_policy::{
-    signing_mode, OperationalSigningMode,
+    signing_mode, signing_mode_for_event, OperationalSigningMode,
 };
 use windmill::services::signing::pdf::PdfPrepared;
 use windmill::services::signing::requests::{
@@ -709,7 +709,7 @@ pub async fn signing_event_info(
     let keycloak_transaction =
         keycloak_client.transaction().await.map_err(internal)?;
     let operational_signing_mode =
-        match signing_mode(&hasura_transaction, tenant_id)
+        match signing_mode_for_event(&hasura_transaction, tenant_id, election_event_id)
             .await
             .map_err(internal)?
         {

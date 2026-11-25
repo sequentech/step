@@ -168,6 +168,14 @@ RETURNS timestamptz LANGUAGE sql VOLATILE STRICT SET search_path=pg_catalog,pg_t
                  SELECT FROM sequent_backend.signing_request cfg
                  WHERE (cfg.tenant_id,cfg.election_event_id,cfg.action,cfg.status)=
                        (p_tenant,p_event,'approve-configuration','executed')
+                   -- Match the Rust authority lookup before applying proof filters:
+                   -- a newer invalid execution must not uncover an older proof.
+                   AND cfg.id=(SELECT newest.id FROM sequent_backend.signing_request newest
+                     WHERE (newest.tenant_id,newest.election_event_id,newest.action,newest.status)=
+                           (p_tenant,p_event,'approve-configuration','executed')
+                       AND newest.executed_at IS NOT NULL
+                       AND newest.subject->>'ballot_publication_id'=p.id::text
+                     ORDER BY newest.executed_at DESC,newest.id LIMIT 1)
                    AND (cfg.election_id IS NULL OR cfg.election_id=p_post)
                    AND cfg.area_id IS NULL AND cfg.trustee_id IS NULL
                    AND cfg.required>0 AND cfg.created_at>=i.enabled_at
