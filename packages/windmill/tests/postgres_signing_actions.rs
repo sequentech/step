@@ -1008,6 +1008,34 @@ async fn approving_a_voter_signs_the_application_and_rejecting_it_cancels() {
 
         // Rejecting the application cancels the approval waiting for it.
         let tx = client.transaction().await.unwrap();
+        #[cfg(feature = "comelec-demo-direct-hsm")]
+        {
+            use windmill::services::signing::direct_actions::enrollment_scope;
+            let exact = enrollment_scope(&tx, &second_row).await.unwrap();
+            assert_eq!((exact.election, exact.area), (Some(w.post), Some(w.area)));
+            for wrong in [None, Some(Uuid::new_v4())] {
+                let mut changed = second_row.clone();
+                changed.area_id = wrong;
+                assert!(enrollment_scope(&tx, &changed).await.is_err());
+            }
+            let mut changed = second_row.clone();
+            changed.election_id = Some(Uuid::new_v4());
+            assert!(enrollment_scope(&tx, &changed).await.is_err());
+            // Even a genuine, unmodified request no longer authorizes a moved application.
+            tx.execute(
+                "UPDATE sequent_backend.applications SET area_id=NULL WHERE id=$1",
+                &[&application],
+            )
+            .await
+            .unwrap();
+            assert!(enrollment_scope(&tx, &second_row).await.is_err());
+            tx.execute(
+                "UPDATE sequent_backend.applications SET area_id=$2 WHERE id=$1",
+                &[&application, &w.area],
+            )
+            .await
+            .unwrap();
+        }
         let cancelled = cancel_for_rejection(
             &tx,
             &who,

@@ -76,6 +76,43 @@ test.describe("a configuration manager", () => {
         roles: [...READ, "signing-rules-read", "signing-rules-write", "role-read", "role-write"],
     })
 
+    test("distinguishes the two Enrollment actions and shows their independent rules", async ({
+        page,
+        portal,
+    }) => {
+        mockSigningEvent(portal)
+        mockSignaturesTab(
+            portal,
+            tabState({
+                rules: [
+                    rule("approve-voter", {signatures: 2}),
+                    rule("authorize-manual-verification", {requirement: "not-required" as never}),
+                ],
+            })
+        )
+        await openSignatures(page, portal)
+        const enrollment = page.locator('tr[data-action="approve-voter"]')
+        const manual = page.locator('tr[data-action="authorize-manual-verification"]')
+        await expect(
+            enrollment.getByText("Approve an enrollment application", {exact: true})
+        ).toBeVisible()
+        await expect(enrollment.getByRole("cell").nth(3)).toHaveText("2")
+        await expect(
+            manual.getByText("Authorize manual identity verification", {exact: true})
+        ).toBeVisible()
+        await expect(manual.getByRole("cell").nth(3)).toHaveText("Off")
+        await expect(enrollment.locator("xpath=following-sibling::tr[1]")).toHaveAttribute(
+            "data-action",
+            "authorize-manual-verification"
+        )
+        await expect(
+            manual.getByText(
+                "In the Voters list, this allows staff to issue a document with a verification link. It does not approve an enrollment application."
+            )
+        ).toBeVisible()
+        expect(mutations(portal)).toHaveLength(0)
+    })
+
     test("asks for 2 of 3 signatures to close voting and adds a role who can sign", async ({
         page,
         portal,

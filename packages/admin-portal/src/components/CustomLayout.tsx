@@ -19,6 +19,7 @@ import {CreateDataDrawer} from "./election-event/create/CreateElectionEventDrawe
 import {SigningProvider} from "./signing/SigningProvider"
 import {SigningAction} from "@/lib/signing/types"
 import type {ISigningPanelData} from "@/lib/signing/api"
+import {ManualVerificationCompletion} from "@/resources/User/ManualVerification"
 import {ClosedVotingCard} from "@/resources/Publish/ClosedVotingCard"
 import {
     ReportCompletionActions,
@@ -27,6 +28,9 @@ import {
 
 /** What a completed request of each protected action shows in its panel. */
 const signingCompletionActions = {
+    [SigningAction.AuthorizeManualVerification]: (data: ISigningPanelData) => (
+        <ManualVerificationCompletion key={data.request.id} data={data} />
+    ),
     [SigningAction.TransmitResults]: (data: ISigningPanelData) => (
         <TransmissionCompletionActions data={data} />
     ),

@@ -121,7 +121,16 @@ async fn fetch_document_url(
     .ok_or_else(|| (Status::NotFound, DOCUMENT_NOT_FOUND.to_string()))?;
     // Receipt UUIDs are delivered to the requesting voter. Administrative
     // document/task access must not turn them into an enumeration shortcut.
-    if document.is_ballot_receipt() {
+    let owner_access = !document.is_signed_manual_verification()
+        || windmill::services::signing::actions::manual_verification::may_download(
+            &hasura_transaction,
+            uuid::Uuid::parse_str(&document.id)
+                .map_err(|_| (Status::NotFound, DOCUMENT_NOT_FOUND.to_owned()))?,
+            &crate::services::signing_gate::caller(&claims),
+        )
+        .await
+        .map_err(|_| (Status::ServiceUnavailable, "Document access policy unavailable.".to_owned()))?;
+    if !owner_access || document.is_ballot_receipt() {
         return Err((Status::NotFound, DOCUMENT_NOT_FOUND.to_string()));
     }
     let legacy_voter_export = document.election_event_id.is_some()

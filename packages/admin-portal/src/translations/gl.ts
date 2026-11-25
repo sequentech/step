@@ -2235,11 +2235,13 @@ const galegoTranslation: TranslationType = {
                     subtitle: "Crear Votante",
                 },
                 manualVerification: {
-                    label: "Verificar Manualmente",
-                    verify: "Verificar manualmente este votante",
-                    body: "Verificar manualmente este votante. Obterás un PDF cunha ligazón de código QR que permite ao votante iniciar sesión omitindo o KYC en liña.",
+                    label: "Verificar a identidade manualmente",
+                    verify: "Solicitar o documento de verificación",
+                    body: "Solicita un PDF privado cun código QR para este votante. Se se requiren sinaturas, o documento só se emite tras a aprobación. Isto non aproba ningunha solicitude de inscrición.",
                     noEmailOrPhone:
                         "Este votante no puede ser verificado manualmente porque no tiene una dirección de correo electrónico o un número de teléfono asociado a él.",
+                    waiting: "O documento está pendente de sinaturas.",
+                    download: "Descargar o documento de verificación",
                 },
                 emptyHeader: "Aínda non hai votantes.",
                 askCreate: "¿Queres crear un?",
@@ -2286,9 +2288,10 @@ const galegoTranslation: TranslationType = {
                     deleteError: "Erro ao eliminar o votante",
                     deleteSuccess: "Votante eliminado",
                     multipleDeleteSuccess: "Votantes eliminados",
-                    manualVerificationError: "Erro ao verificar manualmente o votante",
+                    manualVerificationError:
+                        "Erro ao solicitar a verificación manual da identidade",
                     manualVerificationSuccess:
-                        "Votante verificado manualmente con éxito, descargando PDF...",
+                        "Descargando o documento de verificación manual da identidade.",
                 },
             },
             roles: {
@@ -2341,7 +2344,9 @@ const galegoTranslation: TranslationType = {
                 "sign-generate-election-returns": "Asinar: xerar actas electorais",
                 "sign-generate-reports": "Asinar: xerar outros informes electorais",
                 "sign-transmit-results": "Asinar: transmitir resultados",
-                "sign-approve-voter": "Asinar: aprobar manualmente un votante",
+                "sign-approve-voter": "Asinar: aprobar unha solicitude de inscrición",
+                "sign-authorize-manual-verification":
+                    "Asinar: autorizar a verificación manual da identidade",
                 "sign-approve-configuration": "Asinar: aprobar unha versión de configuración",
                 "sign-key-ceremony": "Asinar: confirmar un fragmento de chave",
                 "sign-tally-key": "Asinar: achegar un fragmento de chave",
@@ -5132,7 +5137,8 @@ const galegoTranslation: TranslationType = {
             tab: {
                 title: "Sinaturas",
                 intro: "As accións protexidas só se executan cando abondas persoas autorizadas as asinan cos seus certificados dixitais. Cada sinatura compróbase cos emisores de confianza e queda anotada no rexistro.",
-                hsmIntro: "As persoas autorizadas aproban as accións protexidas. Cada aprobación queda rexistrada no rexistro electoral.",
+                hsmIntro:
+                    "As persoas autorizadas aproban as accións protexidas. Cada aprobación queda rexistrada no rexistro electoral.",
                 protectedActions: "Accións protexidas",
                 certificates: "Certificados",
                 requests: "Solicitudes",
@@ -5220,13 +5226,22 @@ const galegoTranslation: TranslationType = {
                         "Iníciase en Escrutinio, Transmisión. Xera o paquete de resultados asinado para os seus destinos; as sinaturas completan a súa lista de sinaturas.",
                 },
                 "approve-voter": {
-                    label: "Aprobar manualmente un votante",
-                    short: "Aprobación de votante",
-                    permissionName: "aprobar manualmente un votante",
-                    object: "aprobación de votante",
+                    label: "Aprobar unha solicitude de inscrición",
+                    short: "Aprobación da inscrición",
+                    permissionName: "aprobar unha solicitude de inscrición",
+                    object: "aprobación da inscrición",
                     appliesTo: "O $t(signing.terms.post) do votante",
                     description:
-                        "Iníciase en Aprobacións. Aproba o votante e emite as súas credenciais.",
+                        "Na lapela Aprobacións, aproba a solicitude e emite as credenciais do votante.",
+                },
+                "authorize-manual-verification": {
+                    label: "Autorizar a verificación manual da identidade",
+                    short: "Verificación manual da identidade",
+                    permissionName: "autorizar a verificación manual da identidade",
+                    object: "verificación manual da identidade",
+                    appliesTo: "O $t(signing.terms.post) do votante",
+                    description:
+                        "Na lista de votantes, permite emitir un documento cunha ligazón de verificación. Non aproba ningunha solicitude de inscrición.",
                 },
                 "approve-configuration": {
                     label: "Aprobar unha versión de configuración",
@@ -5257,7 +5272,8 @@ const galegoTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Cada sinatura faise co certificado dixital do token de seguranza do asinante.",
-                hsmIntro: "Consulta quen pode aprobar cada acción e cantas aprobacións son necesarias.",
+                hsmIntro:
+                    "Consulta quen pode aprobar cada acción e cantas aprobacións son necesarias.",
                 columns: {
                     action: "Acción",
                     appliesTo: "Aplícase a",
@@ -5664,6 +5680,12 @@ const galegoTranslation: TranslationType = {
                 scheduled_events: "Novos eventos programados",
                 ballots_and_contests: "Papeletas e concursos",
                 application_id: "Solicitude de inscrición",
+                voter_id: "Conta do votante",
+                initiation_id: "Solicitude de verificación",
+                post_id: "$t(signing.terms.post)",
+                area_id: "Área do votante",
+                requester_id: "Conta do persoal solicitante",
+                secret_attributes: "Nomes dos atributos protexidos",
                 applicant_registry_id: "Conta do rexistro",
                 decision: "Decisión",
                 submitted_at: "Enviada",
@@ -5700,6 +5722,8 @@ const galegoTranslation: TranslationType = {
                     "generate-reports": "$t(signing.actions.generate-reports.label)",
                     "transmit-results": "$t(signing.actions.transmit-results.label)",
                     "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "authorize-manual-verification":
+                        "$t(signing.actions.authorize-manual-verification.label)",
                     "approve-configuration": "$t(signing.actions.approve-configuration.label)",
                     "key-ceremony": "$t(signing.actions.key-ceremony.label)",
                     "tally-key": "$t(signing.actions.tally-key.label)",

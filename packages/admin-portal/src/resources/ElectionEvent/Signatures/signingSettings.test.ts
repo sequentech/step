@@ -174,7 +174,7 @@ describe("rules", () => {
         expect(ruleOf(SigningAction.CloseVoting, [saved])).toBe(saved)
     })
 
-    it("groups the ten actions in catalog order", () => {
+    it("groups the protected actions in catalog order", () => {
         expect(actionGroups()).toEqual([
             {
                 group: SigningActionGroup.Voting,
@@ -192,7 +192,10 @@ describe("rules", () => {
                     SigningAction.TransmitResults,
                 ],
             },
-            {group: SigningActionGroup.Enrollment, actions: [SigningAction.ApproveVoter]},
+            {
+                group: SigningActionGroup.Enrollment,
+                actions: [SigningAction.ApproveVoter, SigningAction.AuthorizeManualVerification],
+            },
             {
                 group: SigningActionGroup.ConfigurationAndKeys,
                 actions: [

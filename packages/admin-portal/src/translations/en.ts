@@ -2521,11 +2521,13 @@ const englishTranslation = {
                     subtitle: "Create Voter",
                 },
                 manualVerification: {
-                    label: "Manually Verify",
-                    verify: "Manually Verify this voter",
-                    body: "Manually Verify this voter. You will obtain a PDF with a QR Code link that allows the voter to login skipping online KYC.",
+                    label: "Manually verify identity",
+                    verify: "Request verification document",
+                    body: "Request a private PDF with a QR code for this voter. If signatures are required, the document is issued only after approval. This does not approve an enrollment application.",
                     noEmailOrPhone:
                         "This voter can not be manually verified because they do not have an email address or phone number attributed to them.",
+                    waiting: "The document is waiting for signatures.",
+                    download: "Download verification document",
                 },
                 voterInformationLetter: {
                     label: "Voter Information Letter",
@@ -2584,9 +2586,9 @@ const englishTranslation = {
                     deleteError: "Error deleting voter",
                     deleteSuccess: "Voter deleted",
                     multipleDeleteSuccess: "Voters deleted",
-                    manualVerificationError: "Error manually verifying the voter",
+                    manualVerificationError: "Error requesting manual identity verification",
                     manualVerificationSuccess:
-                        "Sucessfully verified manually the voter, downloading PDF..",
+                        "Downloading the manual identity verification document.",
                 },
             },
             roles: {
@@ -2638,7 +2640,9 @@ const englishTranslation = {
                 "sign-generate-election-returns": "Sign: generate election returns",
                 "sign-generate-reports": "Sign: generate other election reports",
                 "sign-transmit-results": "Sign: transmit results",
-                "sign-approve-voter": "Sign: approve a voter manually",
+                "sign-approve-voter": "Sign: approve an enrollment application",
+                "sign-authorize-manual-verification":
+                    "Sign: authorize manual identity verification",
                 "sign-approve-configuration": "Sign: approve a configuration version",
                 "sign-key-ceremony": "Sign: confirm custody",
                 "sign-tally-key": "Sign: authorize tally custody",
@@ -5469,7 +5473,8 @@ const englishTranslation = {
             tab: {
                 title: "Signatures",
                 intro: "Protected actions run only after enough authorized people sign them with their digital certificates. Each signature is checked against the trusted issuers and recorded in the log.",
-                hsmIntro: "Authorized people approve protected actions. Each approval is recorded in the electoral log.",
+                hsmIntro:
+                    "Authorized people approve protected actions. Each approval is recorded in the electoral log.",
                 protectedActions: "Protected actions",
                 certificates: "Certificates",
                 requests: "Requests",
@@ -5555,13 +5560,22 @@ const englishTranslation = {
                         "Started in Tally, Transmission. Builds the signed results package for its destinations; the signatures fill its signature list.",
                 },
                 "approve-voter": {
-                    label: "Approve a voter manually",
-                    short: "Voter approval",
-                    permissionName: "approve a voter manually",
-                    object: "voter approval",
+                    label: "Approve an enrollment application",
+                    short: "Enrollment approval",
+                    permissionName: "approve an enrollment application",
+                    object: "enrollment approval",
                     appliesTo: "The voter's $t(signing.terms.post)",
                     description:
-                        "Started in Approvals. Approves the voter and issues their credentials.",
+                        "In the Approvals tab, this approves the application and issues the voter’s credentials.",
+                },
+                "authorize-manual-verification": {
+                    label: "Authorize manual identity verification",
+                    short: "Manual identity verification",
+                    permissionName: "authorize manual identity verification",
+                    object: "manual identity verification",
+                    appliesTo: "The voter's $t(signing.terms.post)",
+                    description:
+                        "In the Voters list, this allows staff to issue a document with a verification link. It does not approve an enrollment application.",
                 },
                 "approve-configuration": {
                     label: "Approve a configuration version",
@@ -5994,6 +6008,12 @@ const englishTranslation = {
                 scheduled_events: "New scheduled events",
                 ballots_and_contests: "Ballots and contests",
                 application_id: "Application",
+                voter_id: "Voter account",
+                initiation_id: "Verification request",
+                post_id: "$t(signing.terms.post)",
+                area_id: "Voter area",
+                requester_id: "Requesting staff account",
+                secret_attributes: "Protected attribute names",
                 applicant_registry_id: "Registry account",
                 decision: "Decision",
                 submitted_at: "Submitted",
@@ -6030,6 +6050,8 @@ const englishTranslation = {
                     "generate-reports": "$t(signing.actions.generate-reports.label)",
                     "transmit-results": "$t(signing.actions.transmit-results.label)",
                     "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "authorize-manual-verification":
+                        "$t(signing.actions.authorize-manual-verification.label)",
                     "approve-configuration": "$t(signing.actions.approve-configuration.label)",
                     "key-ceremony": "$t(signing.actions.key-ceremony.label)",
                     "tally-key": "$t(signing.actions.tally-key.label)",

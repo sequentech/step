@@ -21,6 +21,7 @@ use crate::postgres::signing::{
     get_signing_post, get_signing_request, list_signing_approvals, DirectActionProofMetadata,
     SigningApprovalRow, SigningRequestRow,
 };
+use crate::postgres::signing_actions::{get_application_for_signing, posts_of_area};
 use crate::services::consolidation::signed_transmission_package::AnnotatedSbeis;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client, GenericClient, Transaction};
@@ -51,10 +52,71 @@ fn valid_frozen_rule(request: &SigningRequestRow) -> bool {
     })
 }
 
+/// The Approvals route signs the application's own area and resolved Post. Check
+/// the live relationship and rebuild the signed payload rather than widening
+/// Post signing to an arbitrary country or accepting a browser-selected area.
+pub async fn enrollment_scope(
+    tx: &Transaction<'_>,
+    request: &SigningRequestRow,
+) -> SigningResult<DirectRequestScope> {
+    use super::actions::voter::{choose_post, VoterApprovalSubject};
+    use super::guard::RequestScope;
+
+    if request.action != SigningAction::ApproveVoter
+        || !super::operational_device::matches_canonical_request(request)
+    {
+        return Err(unavailable());
+    }
+    let subject: VoterApprovalSubject =
+        serde_json::from_value(request.subject.clone()).map_err(|_| unavailable())?;
+    let application_id = actor_uuid(&subject.application_id)?;
+    let application = get_application_for_signing(
+        tx,
+        request.tenant_id,
+        request.election_event_id,
+        application_id,
+    )
+    .await?
+    .ok_or_else(unavailable)?;
+    let application_area = application.area_id.ok_or_else(unavailable)?;
+    let posts = posts_of_area(
+        tx,
+        request.tenant_id,
+        request.election_event_id,
+        application_area,
+        application.permission_label.as_deref(),
+    )
+    .await?;
+    let resolved = choose_post(&posts).map_err(|_| unavailable())?;
+    let expected = RequestScope {
+        tenant_id: request.tenant_id,
+        election_event_id: request.election_event_id,
+        election_id: Some(resolved),
+        area_id: Some(application_area),
+        trustee_id: None,
+        subject_key: Some(application_id.to_string()),
+    };
+    if request.election_id != expected.election_id
+        || request.area_id != expected.area_id
+        || request.trustee_id.is_some()
+        || request.scope_key != expected.scope_key()
+    {
+        return Err(unavailable());
+    }
+    Ok(DirectRequestScope {
+        election: Some(resolved),
+        area: Some(application_area),
+        ..Default::default()
+    })
+}
+
 async fn request_scope(
     tx: &Transaction<'_>,
     request: &SigningRequestRow,
 ) -> SigningResult<DirectRequestScope> {
+    if request.action == SigningAction::ApproveVoter {
+        return enrollment_scope(tx, request).await;
+    }
     if request.action == SigningAction::InitializeVoting {
         let publication = request
             .subject

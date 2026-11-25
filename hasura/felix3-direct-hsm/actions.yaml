@@ -31,6 +31,7 @@ actions:
           - role: sign-generate-reports
           - role: sign-transmit-results
           - role: sign-approve-voter
+          - role: sign-authorize-manual-verification
           - role: sign-approve-configuration
           - role: sign-key-ceremony
           - role: sign-tally-key

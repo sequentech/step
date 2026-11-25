@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::postgres::reports::{Report, ReportType};
+use crate::services::signing::actions::manual_verification::RenderPermit;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -14,39 +15,64 @@ use sequent_core::services::s3::get_minio_url;
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use std::env;
-use tracing::{info, instrument};
+use tracing::instrument;
 
 /// Struct returned by the API call for manual verification URL
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize)]
 pub struct ManualVerificationOutput {
     pub link: String,
 }
 
 /// Struct for User Data
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct UserData {
     pub manual_verification_url: String,
     pub qrcode: String,
     pub logo: String,
 }
 
+impl std::fmt::Debug for UserData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ManualVerificationUserData([redacted])")
+    }
+}
+
 /// Struct for System Data
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct SystemData {
     pub rendered_user_template: String,
     pub file_logo: String,
     pub file_qrcode_lib: String,
 }
 
+impl std::fmt::Debug for SystemData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ManualVerificationSystemData([redacted])")
+    }
+}
+
 /// Implementation of TemplateRenderer for Manual Verification
-#[derive(Debug)]
 pub struct ManualVerificationTemplate {
     ids: ReportOrigins,
+    permit: Option<RenderPermit>,
+}
+
+impl std::fmt::Debug for ManualVerificationTemplate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ManualVerificationTemplate")
+    }
 }
 
 impl ManualVerificationTemplate {
     pub fn new(ids: ReportOrigins) -> Self {
-        ManualVerificationTemplate { ids }
+        ManualVerificationTemplate { ids, permit: None }
+    }
+
+    pub fn for_issuance(ids: ReportOrigins, permit: RenderPermit) -> Self {
+        Self {
+            ids,
+            permit: Some(permit),
+        }
     }
 }
 
@@ -54,6 +80,10 @@ impl ManualVerificationTemplate {
 impl TemplateRenderer for ManualVerificationTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
+
+    fn is_signed_manual_verification(&self) -> bool {
+        self.permit.as_ref().is_some_and(|p| p.signed)
+    }
 
     fn get_report_type(&self) -> ReportType {
         ReportType::MANUAL_VERIFICATION
@@ -98,7 +128,13 @@ impl TemplateRenderer for ManualVerificationTemplate {
         let manual_verification_url = get_manual_verification_url(
             &self.ids.tenant_id,
             &self.ids.election_event_id,
-            &self.ids.voter_id.clone().unwrap_or_default(),
+            self.ids
+                .voter_id
+                .as_deref()
+                .context("Missing verification target")?,
+            self.permit
+                .as_ref()
+                .context("Missing manual verification authorization")?,
         )
         .await
         .with_context(|| "Error getting manual verification URL")?;
@@ -146,11 +182,12 @@ impl TemplateRenderer for ManualVerificationTemplate {
 }
 
 /// Function to get the manual verification URL
-#[instrument(err)]
+#[instrument(skip_all, err)]
 async fn get_manual_verification_url(
     tenant_id: &str,
     election_event_id: &str,
     voter_id: &str,
+    permit: &RenderPermit,
 ) -> Result<String> {
     let keycloak_url =
         env::var("KEYCLOAK_URL").map_err(|_| anyhow!("KEYCLOAK_URL env var missing"))?;
@@ -168,13 +205,18 @@ async fn get_manual_verification_url(
     let service_token = keycloak.token_supplier.get(&keycloak_url).await?;
     let client = reqwest::Client::new();
 
-    info!("Requesting HTTP GET {:?}", generate_token_url);
     let response = client
         .get(generate_token_url)
         .query(&[("userId", voter_id), ("redirectUri", login_url.as_str())])
+        .header(
+            "X-Sequent-Verification-Initiation",
+            permit.initiation.to_string(),
+        )
+        .header("X-Sequent-Verification-Proof", permit.proof.to_string())
         .bearer_auth(service_token)
         .send()
-        .await?;
+        .await
+        .map_err(|_| anyhow!("Manual verification issuer unavailable"))?;
 
     if response.status() != reqwest::StatusCode::OK {
         return Err(anyhow!(
@@ -182,7 +224,10 @@ async fn get_manual_verification_url(
             response.status()
         ));
     }
-    let response_body: ManualVerificationOutput = response.json().await?;
+    let response_body: ManualVerificationOutput = response
+        .json()
+        .await
+        .map_err(|_| anyhow!("Invalid manual verification issuer response"))?;
 
     Ok(response_body.link)
 }

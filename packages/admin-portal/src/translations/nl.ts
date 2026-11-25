@@ -2244,11 +2244,13 @@ const dutchTranslation: TranslationType = {
                     subtitle: "Kiezer aanmaken",
                 },
                 manualVerification: {
-                    label: "Handmatig Verifiëren",
-                    verify: "Deze kiezer handmatig verifiëren",
-                    body: "Verifieer deze kiezer handmatig. U ontvangt een PDF met een QR-code link waarmee de kiezer kan inloggen zonder online KYC.",
+                    label: "Identiteit handmatig verifiëren",
+                    verify: "Verificatiedocument aanvragen",
+                    body: "Vraag een privé-pdf met een QR-code aan voor deze kiezer. Als er handtekeningen nodig zijn, wordt het document pas na goedkeuring uitgegeven. Dit keurt geen inschrijvingsaanvraag goed.",
                     noEmailOrPhone:
                         "Deze kiezer kan niet handmatig worden geverifieerd omdat er geen e-mailadres of telefoonnummer aan hen is toegewezen.",
+                    waiting: "Het document wacht op handtekeningen.",
+                    download: "Verificatiedocument downloaden",
                 },
                 emptyHeader: "Nog geen kiezers.",
                 askCreate: "Wilt u er een aanmaken?",
@@ -2295,10 +2297,11 @@ const dutchTranslation: TranslationType = {
                     deleteError: "Fout bij verwijderen kiezer",
                     deleteSuccess: "Kiezer verwijderd",
                     multipleDeleteSuccess: "Kiezers verwijderd",
-                    manualVerificationError: "Fout bij handmatig verifiëren van de kiezer",
+                    manualVerificationError:
+                        "Handmatige identiteitsverificatie aanvragen is niet gelukt",
 
                     manualVerificationSuccess:
-                        "Kiezer succesvol handmatig geverifieerd, PDF downloaden...",
+                        "Het document voor handmatige identiteitsverificatie wordt gedownload.",
                 },
             },
             roles: {
@@ -2352,7 +2355,9 @@ const dutchTranslation: TranslationType = {
                 "sign-generate-election-returns": "Ondertekenen: processen-verbaal genereren",
                 "sign-generate-reports": "Ondertekenen: andere verkiezingsrapporten genereren",
                 "sign-transmit-results": "Ondertekenen: resultaten verzenden",
-                "sign-approve-voter": "Ondertekenen: een kiezer handmatig goedkeuren",
+                "sign-approve-voter": "Ondertekenen: een inschrijvingsaanvraag goedkeuren",
+                "sign-authorize-manual-verification":
+                    "Ondertekenen: handmatige identiteitsverificatie toestaan",
                 "sign-approve-configuration": "Ondertekenen: een configuratieversie goedkeuren",
                 "sign-key-ceremony": "Ondertekenen: een sleutelfragment bevestigen",
                 "sign-tally-key": "Ondertekenen: een sleutelfragment bijdragen",
@@ -5166,7 +5171,8 @@ const dutchTranslation: TranslationType = {
             tab: {
                 title: "Handtekeningen",
                 intro: "Beschermde acties worden pas uitgevoerd nadat genoeg bevoegde personen ze met hun digitale certificaat hebben ondertekend. Elke handtekening wordt gecontroleerd tegen de vertrouwde uitgevers en vastgelegd in het logboek.",
-                hsmIntro: "Bevoegde personen keuren beschermde acties goed. Elke goedkeuring wordt vastgelegd in het verkiezingslogboek.",
+                hsmIntro:
+                    "Bevoegde personen keuren beschermde acties goed. Elke goedkeuring wordt vastgelegd in het verkiezingslogboek.",
                 protectedActions: "Beschermde acties",
                 certificates: "Certificaten",
                 requests: "Verzoeken",
@@ -5255,13 +5261,22 @@ const dutchTranslation: TranslationType = {
                         "Gestart in Telling, Verzending. Stelt het ondertekende resultatenpakket samen voor de bestemmingen; de handtekeningen vullen de handtekeningenlijst.",
                 },
                 "approve-voter": {
-                    label: "Een kiezer handmatig goedkeuren",
-                    short: "Goedkeuring kiezer",
-                    permissionName: "een kiezer handmatig goedkeuren",
-                    object: "goedkeuring van de kiezer",
+                    label: "Een inschrijvingsaanvraag goedkeuren",
+                    short: "Goedkeuring van inschrijving",
+                    permissionName: "een inschrijvingsaanvraag goedkeuren",
+                    object: "goedkeuring van inschrijving",
                     appliesTo: "De $t(signing.terms.post) van de kiezer",
                     description:
-                        "Gestart in Goedkeuringen. Keurt de kiezer goed en geeft de inloggegevens uit.",
+                        "Op het tabblad Goedkeuringen wordt de aanvraag goedgekeurd en krijgt de kiezer inloggegevens.",
+                },
+                "authorize-manual-verification": {
+                    label: "Handmatige identiteitsverificatie toestaan",
+                    short: "Handmatige identiteitsverificatie",
+                    permissionName: "handmatige identiteitsverificatie toestaan",
+                    object: "handmatige identiteitsverificatie",
+                    appliesTo: "De $t(signing.terms.post) van de kiezer",
+                    description:
+                        "In de kiezerslijst kan een medewerker hiermee een document met een verificatielink uitgeven. Dit keurt geen inschrijvingsaanvraag goed.",
                 },
                 "approve-configuration": {
                     label: "Een configuratieversie goedkeuren",
@@ -5292,7 +5307,8 @@ const dutchTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Elke handtekening wordt gezet met het digitale certificaat op het beveiligingstoken van de ondertekenaar.",
-                hsmIntro: "Bekijk wie elke actie kan goedkeuren en hoeveel goedkeuringen nodig zijn.",
+                hsmIntro:
+                    "Bekijk wie elke actie kan goedkeuren en hoeveel goedkeuringen nodig zijn.",
                 columns: {
                     action: "Actie",
                     appliesTo: "Geldt voor",
@@ -5704,6 +5720,12 @@ const dutchTranslation: TranslationType = {
                 scheduled_events: "Nieuwe geplande gebeurtenissen",
                 ballots_and_contests: "Stembiljetten en verkiezingen",
                 application_id: "Aanvraag",
+                voter_id: "Kiezersaccount",
+                initiation_id: "Verificatieverzoek",
+                post_id: "$t(signing.terms.post)",
+                area_id: "Kiesgebied van de kiezer",
+                requester_id: "Account van de aanvrager",
+                secret_attributes: "Namen van beschermde kenmerken",
                 applicant_registry_id: "Registeraccount",
                 decision: "Besluit",
                 submitted_at: "Ingediend",
@@ -5740,6 +5762,8 @@ const dutchTranslation: TranslationType = {
                     "generate-reports": "$t(signing.actions.generate-reports.label)",
                     "transmit-results": "$t(signing.actions.transmit-results.label)",
                     "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "authorize-manual-verification":
+                        "$t(signing.actions.authorize-manual-verification.label)",
                     "approve-configuration": "$t(signing.actions.approve-configuration.label)",
                     "key-ceremony": "$t(signing.actions.key-ceremony.label)",
                     "tally-key": "$t(signing.actions.tally-key.label)",

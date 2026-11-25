@@ -2254,11 +2254,13 @@ const frenchTranslation: TranslationType = {
                     subtitle: "Créer électeur",
                 },
                 manualVerification: {
-                    label: "Vérifier manuellement",
-                    verify: "Vérifier manuellement l'électeur",
-                    body: "Vérifiez manuellement cet électeur. Vous obtiendrez un PDF avec un lien de code QR qui permettra à l'électeur de se connecter en omettant le KYC en ligne.",
+                    label: "Vérifier l’identité manuellement",
+                    verify: "Demander le document de vérification",
+                    body: "Demandez un PDF privé contenant un code QR pour cet électeur. Si des signatures sont requises, le document n’est délivré qu’après approbation. Cette action n’approuve pas de demande d’inscription.",
                     noEmailOrPhone:
                         "Cet électeur ne peut pas être vérifié manuellement car il n'a pas d'adresse e-mail ou de numéro de téléphone attribué",
+                    waiting: "Le document est en attente de signatures.",
+                    download: "Télécharger le document de vérification",
                 },
                 errors: {
                     editError: "Erreur lors de l'édition de l'électeur",
@@ -2305,9 +2307,9 @@ const frenchTranslation: TranslationType = {
                     deleteSuccess: "Électeur supprimé",
                     multipleDeleteSuccess: "Électeurs supprimés",
                     manualVerificationError:
-                        "Erreur lors de la vérification manuelle de l'électeur",
+                        "Impossible de demander la vérification manuelle de l’identité",
                     manualVerificationSuccess:
-                        "Électeur vérifié manuellement avec succès, télécharger PDF..",
+                        "Téléchargement du document de vérification manuelle de l’identité.",
                 },
             },
             roles: {
@@ -2361,7 +2363,9 @@ const frenchTranslation: TranslationType = {
                 "sign-generate-election-returns": "Signer : générer les procès-verbaux électoraux",
                 "sign-generate-reports": "Signer : générer d'autres rapports électoraux",
                 "sign-transmit-results": "Signer : transmettre les résultats",
-                "sign-approve-voter": "Signer : approuver manuellement un électeur",
+                "sign-approve-voter": "Signer : approuver une demande d’inscription",
+                "sign-authorize-manual-verification":
+                    "Signer : autoriser la vérification manuelle de l’identité",
                 "sign-approve-configuration": "Signer : approuver une version de configuration",
                 "sign-key-ceremony": "Signer : confirmer un fragment de clé",
                 "sign-tally-key": "Signer : apporter un fragment de clé",
@@ -5192,7 +5196,8 @@ const frenchTranslation: TranslationType = {
             tab: {
                 title: "Signatures",
                 intro: "Les actions protégées ne s'exécutent qu'une fois signées par suffisamment de personnes autorisées avec leurs certificats numériques. Chaque signature est vérifiée auprès des émetteurs de confiance et consignée dans le journal.",
-                hsmIntro: "Les personnes autorisées approuvent les actions protégées. Chaque approbation est consignée dans le journal électoral.",
+                hsmIntro:
+                    "Les personnes autorisées approuvent les actions protégées. Chaque approbation est consignée dans le journal électoral.",
                 protectedActions: "Actions protégées",
                 certificates: "Certificats",
                 requests: "Demandes",
@@ -5280,13 +5285,22 @@ const frenchTranslation: TranslationType = {
                         "Lancée dans Comptage, Transmission. Construit le paquet de résultats signé pour ses destinations ; les signatures remplissent sa liste de signatures.",
                 },
                 "approve-voter": {
-                    label: "Approuver manuellement un électeur",
-                    short: "Approbation d'électeur",
-                    permissionName: "approuver manuellement un électeur",
-                    object: "approbation d'électeur",
+                    label: "Approuver une demande d’inscription",
+                    short: "Approbation d’inscription",
+                    permissionName: "approuver une demande d’inscription",
+                    object: "approbation d’inscription",
                     appliesTo: "Le $t(signing.terms.post) de l'électeur",
                     description:
-                        "Lancée dans Approvals. Approuve l'électeur et lui délivre ses identifiants.",
+                        "Dans l’onglet Approbations, approuve la demande et délivre les identifiants de l’électeur.",
+                },
+                "authorize-manual-verification": {
+                    label: "Autoriser la vérification manuelle de l’identité",
+                    short: "Vérification manuelle de l’identité",
+                    permissionName: "autoriser la vérification manuelle de l’identité",
+                    object: "vérification manuelle de l’identité",
+                    appliesTo: "Le $t(signing.terms.post) de l'électeur",
+                    description:
+                        "Dans la liste des électeurs, permet de délivrer un document contenant un lien de vérification. N’approuve pas de demande d’inscription.",
                 },
                 "approve-configuration": {
                     label: "Approuver une version de configuration",
@@ -5317,7 +5331,8 @@ const frenchTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Chaque signature est réalisée avec le certificat numérique du jeton de sécurité du signataire.",
-                hsmIntro: "Consultez qui peut approuver chaque action et combien d’approbations sont nécessaires.",
+                hsmIntro:
+                    "Consultez qui peut approuver chaque action et combien d’approbations sont nécessaires.",
                 columns: {
                     action: "Action",
                     appliesTo: "S'applique à",
@@ -5728,6 +5743,12 @@ const frenchTranslation: TranslationType = {
                 scheduled_events: "Nouveaux événements programmés",
                 ballots_and_contests: "Bulletins et concours",
                 application_id: "Demande d'inscription",
+                voter_id: "Compte électeur",
+                initiation_id: "Demande de vérification",
+                post_id: "$t(signing.terms.post)",
+                area_id: "Zone de l’électeur",
+                requester_id: "Compte de l’agent demandeur",
+                secret_attributes: "Noms des attributs protégés",
                 applicant_registry_id: "Compte du registre",
                 decision: "Décision",
                 submitted_at: "Soumise",
@@ -5764,6 +5785,8 @@ const frenchTranslation: TranslationType = {
                     "generate-reports": "$t(signing.actions.generate-reports.label)",
                     "transmit-results": "$t(signing.actions.transmit-results.label)",
                     "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "authorize-manual-verification":
+                        "$t(signing.actions.authorize-manual-verification.label)",
                     "approve-configuration": "$t(signing.actions.approve-configuration.label)",
                     "key-ceremony": "$t(signing.actions.key-ceremony.label)",
                     "tally-key": "$t(signing.actions.tally-key.label)",

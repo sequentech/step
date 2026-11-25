@@ -177,7 +177,9 @@ export const CheckWithDetails: Story = {
     parameters: {widgets: ["CheckStep", "LocalSigningNote"]},
     play: async () => {
         const view = await dialog()
-        await expect(view.getByRole("heading", {name: "Sign the voter approval"})).toBeVisible()
+        await expect(
+            view.getByRole("heading", {name: "Sign the enrollment approval"})
+        ).toBeVisible()
         const table = view.getByRole("table", {name: "Details"})
         // The rows are the payload's subject, labelled by the portal's
         // words (the server's label only where it has none), and coded

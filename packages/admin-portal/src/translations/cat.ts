@@ -2247,11 +2247,13 @@ const catalanTranslation: TranslationType = {
                     subtitle: "Crear votant",
                 },
                 manualVerification: {
-                    label: "Verificar manualment",
-                    verify: "Verificar manualment al votant",
-                    body: "Verifiqueu manualment a aquest votant. Obtindrà un PDF amb un enllaç de codi QR que permet al votant iniciar sessió ometent el KYC en línia.",
+                    label: "Verificar la identitat manualment",
+                    verify: "Sol·licitar el document de verificació",
+                    body: "Sol·licita un PDF privat amb un codi QR per a aquest votant. Si calen signatures, el document només s’emet després de l’aprovació. Això no aprova cap sol·licitud d’inscripció.",
                     noEmailOrPhone:
                         "Aquest votant no pot ser verificat manualment perquè no té una adreça de correu electrònic o un número de telèfon assignat.",
+                    waiting: "El document està pendent de signatures.",
+                    download: "Descarregar el document de verificació",
                 },
                 errors: {
                     editError: "Error editant votant",
@@ -2296,9 +2298,10 @@ const catalanTranslation: TranslationType = {
                     deleteError: "Error esborrant votant",
                     deleteSuccess: "Votant esborrat",
                     multipleDeleteSuccess: "Votants esborrats",
-                    manualVerificationError: "Error verificant manualment al votant",
+                    manualVerificationError:
+                        "No s’ha pogut sol·licitar la verificació manual de la identitat",
                     manualVerificationSuccess:
-                        "Verificat amb èxit manualment al votant, descarregar PDF..",
+                        "S’està descarregant el document de verificació manual de la identitat.",
                 },
             },
             roles: {
@@ -2351,7 +2354,9 @@ const catalanTranslation: TranslationType = {
                 "sign-generate-election-returns": "Signar: generar actes electorals",
                 "sign-generate-reports": "Signar: generar altres informes electorals",
                 "sign-transmit-results": "Signar: transmetre resultats",
-                "sign-approve-voter": "Signar: aprovar manualment un votant",
+                "sign-approve-voter": "Signar: aprovar una sol·licitud d’inscripció",
+                "sign-authorize-manual-verification":
+                    "Signar: autoritzar la verificació manual de la identitat",
                 "sign-approve-configuration": "Signar: aprovar una versió de configuració",
                 "sign-key-ceremony": "Signar: confirmar un fragment de clau",
                 "sign-tally-key": "Signar: aportar un fragment de clau",
@@ -5158,7 +5163,8 @@ const catalanTranslation: TranslationType = {
             tab: {
                 title: "Signatures",
                 intro: "Les accions protegides només s'executen quan prou persones autoritzades les signen amb els seus certificats digitals. Cada signatura es comprova amb els emissors de confiança i queda anotada al registre.",
-                hsmIntro: "Les persones autoritzades aproven les accions protegides. Cada aprovació es registra al registre electoral.",
+                hsmIntro:
+                    "Les persones autoritzades aproven les accions protegides. Cada aprovació es registra al registre electoral.",
                 protectedActions: "Accions protegides",
                 certificates: "Certificats",
                 requests: "Sol·licituds",
@@ -5247,13 +5253,22 @@ const catalanTranslation: TranslationType = {
                         "S'inicia a Recompte, Transmissió. Genera el paquet de resultats signat per als seus destins; les signatures completen la seva llista de signatures.",
                 },
                 "approve-voter": {
-                    label: "Aprovar manualment un votant",
-                    short: "Aprovació de votant",
-                    permissionName: "aprovar manualment un votant",
-                    object: "aprovació de votant",
+                    label: "Aprovar una sol·licitud d’inscripció",
+                    short: "Aprovació d’inscripció",
+                    permissionName: "aprovar una sol·licitud d’inscripció",
+                    object: "aprovació d’inscripció",
                     appliesTo: "El $t(signing.terms.post) del votant",
                     description:
-                        "S'inicia a Aprovacions. Aprova el votant i n'emet les credencials.",
+                        "A la pestanya Aprovacions, aprova la sol·licitud i emet les credencials del votant.",
+                },
+                "authorize-manual-verification": {
+                    label: "Autoritzar la verificació manual de la identitat",
+                    short: "Verificació manual de la identitat",
+                    permissionName: "autoritzar la verificació manual de la identitat",
+                    object: "verificació manual de la identitat",
+                    appliesTo: "El $t(signing.terms.post) del votant",
+                    description:
+                        "A la llista de votants, permet emetre un document amb un enllaç de verificació. No aprova cap sol·licitud d’inscripció.",
                 },
                 "approve-configuration": {
                     label: "Aprovar una versió de configuració",
@@ -5693,6 +5708,12 @@ const catalanTranslation: TranslationType = {
                 scheduled_events: "Nous esdeveniments programats",
                 ballots_and_contests: "Paperetes i concursos",
                 application_id: "Sol·licitud d'inscripció",
+                voter_id: "Compte del votant",
+                initiation_id: "Sol·licitud de verificació",
+                post_id: "$t(signing.terms.post)",
+                area_id: "Àrea del votant",
+                requester_id: "Compte del personal sol·licitant",
+                secret_attributes: "Noms dels atributs protegits",
                 applicant_registry_id: "Compte del registre",
                 decision: "Decisió",
                 submitted_at: "Enviada",
@@ -5729,6 +5750,8 @@ const catalanTranslation: TranslationType = {
                     "generate-reports": "$t(signing.actions.generate-reports.label)",
                     "transmit-results": "$t(signing.actions.transmit-results.label)",
                     "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "authorize-manual-verification":
+                        "$t(signing.actions.authorize-manual-verification.label)",
                     "approve-configuration": "$t(signing.actions.approve-configuration.label)",
                     "key-ceremony": "$t(signing.actions.key-ceremony.label)",
                     "tally-key": "$t(signing.actions.tally-key.label)",

@@ -255,9 +255,13 @@ fn scope_matches(
                         PublicationBinding::FrozenRequest => published == anchor.publication,
                     })
         }
-        OpenVoting | CloseVoting | GenerateReports | ApproveVoter => {
+        OpenVoting | CloseVoting | GenerateReports => {
             post && no_area && no_trustee && anchor_publication
         }
+        AuthorizeManualVerification => post && no_area && no_trustee && scope.publication.is_none(),
+        // The application approval route always resolves its Post *from* its area.
+        // Harvest re-reads that exact application before authorizing this transcript.
+        ApproveVoter => post && !no_area && no_trustee && scope.publication.is_none(),
         GenerateElectionReturns | TransmitResults => post && no_trustee && anchor_publication,
         // The request can authorize a new ballot publication. Its target is
         // checked by Harvest; it is not the installation's trust anchor.
@@ -335,7 +339,8 @@ mod tests {
             (GenerateElectionReturns, country),
             (GenerateReports, post),
             (TransmitResults, country),
-            (ApproveVoter, post),
+            (ApproveVoter, country),
+            (AuthorizeManualVerification, post),
             (ApproveConfiguration, configuration),
             (ConfirmCustodyProof, trustee),
             (ContributeCustodyProof, trustee),
@@ -364,6 +369,18 @@ mod tests {
         )
         .is_none());
         assert!(operation(OpenVoting, country).is_none());
+        assert!(operation(ApproveVoter, post).is_none());
+        assert!(operation(ApproveVoter, trustee).is_none());
+        assert!(operation(AuthorizeManualVerification, country).is_none());
+        assert!(operation(
+            AuthorizeManualVerification,
+            DirectRequestScope {
+                publication: Some(anchor().publication),
+                ..post
+            }
+        )
+        .is_none());
+        assert!(operation(AuthorizeManualVerification, trustee).is_none());
         assert!(operation(ApproveConfiguration, post).is_none());
         assert!(operation(ContributeCustodyProof, post).is_none());
         assert!(operation(

@@ -33,6 +33,7 @@
 pub mod configuration;
 pub mod eml;
 pub mod initialize;
+pub mod manual_verification;
 pub mod reports;
 pub mod transmission;
 pub mod voter;
@@ -71,12 +72,13 @@ use tracing::{error, instrument, warn};
 use uuid::Uuid;
 
 /// The actions this module runs.
-pub const ACTIONS: [SigningAction; 8] = [
+pub const ACTIONS: [SigningAction; 9] = [
     SigningAction::InitializeVoting,
     SigningAction::OpenVoting,
     SigningAction::CloseVoting,
     SigningAction::ApproveConfiguration,
     SigningAction::ApproveVoter,
+    SigningAction::AuthorizeManualVerification,
     SigningAction::TransmitResults,
     SigningAction::GenerateElectionReturns,
     SigningAction::GenerateReports,
@@ -411,6 +413,7 @@ impl SignedActionEffects for ProductionEffects {
             SigningAction::ApproveConfiguration => {
                 configuration::publish(hasura_transaction, request, progress).await
             }
+            SigningAction::AuthorizeManualVerification => manual_verification::settle(hasura_transaction, request).await,
             SigningAction::ApproveVoter => {
                 voter::approve(
                     hasura_transaction,

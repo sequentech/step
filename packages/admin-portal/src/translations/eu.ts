@@ -2228,11 +2228,13 @@ const basqueTranslation: TranslationType = {
                     subtitle: "Sortu Bozkatzailea",
                 },
                 manualVerification: {
-                    label: "Eskuz Egiaztatu",
-                    verify: "Eskuz egiaztatu bozkatzaile hau",
-                    body: "Eskuz egiaztatu bozkatzaile hau. Bozkatzaileari online KYC saltatzeko sartzen ahalbidetzen dion QR Kode esteka bat duen PDF bat lortuko duzu.",
+                    label: "Identitatea eskuz egiaztatu",
+                    verify: "Egiaztapen-dokumentua eskatu",
+                    body: "Eskatu hautesle honentzako QR kodea duen PDF pribatua. Sinadurak behar badira, dokumentua onartu ondoren bakarrik emango da. Horrek ez du inskripzio-eskaerarik onartzen.",
                     noEmailOrPhone:
                         "Bozkatzaile hau ezin da eskuz egiaztatu email helbiderik edo telefono zenbakirik ez duelako.",
+                    waiting: "Dokumentua sinaduren zain dago.",
+                    download: "Egiaztapen-dokumentua deskargatu",
                 },
                 emptyHeader: "Ez dago bozkatzailerik oraindik.",
                 askCreate: "Bat sortu nahi duzu?",
@@ -2279,9 +2281,9 @@ const basqueTranslation: TranslationType = {
                     deleteError: "Errorea bozkatzailea ezabatzerakoan",
                     deleteSuccess: "Bozkatzailea ezabatua",
                     multipleDeleteSuccess: "Bozkatzaileak ezabatuak",
-                    manualVerificationError: "Errorea bozkatzailea eskuz egiaztatzerakoan",
+                    manualVerificationError: "Errorea identitatea eskuz egiaztatzea eskatzean",
                     manualVerificationSuccess:
-                        "Arrakastaz egiaztatu da eskuz bozkatzailea, PDFa deskargatzen..",
+                        "Identitatea eskuz egiaztatzeko dokumentua deskargatzen.",
                 },
             },
             roles: {
@@ -2334,7 +2336,9 @@ const basqueTranslation: TranslationType = {
                 "sign-generate-election-returns": "Sinatu: hauteskunde-aktak sortu",
                 "sign-generate-reports": "Sinatu: beste hauteskunde-txosten batzuk sortu",
                 "sign-transmit-results": "Sinatu: emaitzak transmititu",
-                "sign-approve-voter": "Sinatu: hautesle bat eskuz onartu",
+                "sign-approve-voter": "Sinatu: inskripzio-eskaera bat onartu",
+                "sign-authorize-manual-verification":
+                    "Sinatu: identitatea eskuz egiaztatzea baimendu",
                 "sign-approve-configuration": "Sinatu: konfigurazio-bertsio bat onartu",
                 "sign-key-ceremony": "Sinatu: giltza-zati bat berretsi",
                 "sign-tally-key": "Sinatu: giltza-zati bat eman",
@@ -5132,7 +5136,8 @@ const basqueTranslation: TranslationType = {
             tab: {
                 title: "Sinadurak",
                 intro: "Ekintza babestuak behar adina pertsona baimendunek beren ziurtagiri digitalekin sinatu ondoren bakarrik exekutatzen dira. Sinadura bakoitza jaulkitzaile fidagarrien aurka egiaztatzen da eta erregistroan jasotzen da.",
-                hsmIntro: "Baimendutako pertsonek ekintza babestuak onartzen dituzte. Onarpen bakoitza hauteskunde-erregistroan jasotzen da.",
+                hsmIntro:
+                    "Baimendutako pertsonek ekintza babestuak onartzen dituzte. Onarpen bakoitza hauteskunde-erregistroan jasotzen da.",
                 protectedActions: "Ekintza babestuak",
                 certificates: "Ziurtagiriak",
                 requests: "Eskaerak",
@@ -5220,13 +5225,22 @@ const basqueTranslation: TranslationType = {
                         "Zenbaketa atalean hasten da, Transmisioa urratsean. Sinatutako emaitza-paketea sortzen du bere helburuetarako; sinadurek haren sinadura-zerrenda betetzen dute.",
                 },
                 "approve-voter": {
-                    label: "Hautesle bat eskuz onartu",
-                    short: "Hautesle-onarpena",
-                    permissionName: "hautesle bat eskuz onartu",
-                    object: "hautesle-onarpena",
+                    label: "Inskripzio-eskaera bat onartu",
+                    short: "Inskripzioaren onarpena",
+                    permissionName: "inskripzio-eskaera bat onartu",
+                    object: "inskripzioaren onarpena",
                     appliesTo: "Hauteslearen $t(signing.terms.post)a",
                     description:
-                        "Onespenak atalean hasten da. Hauteslea onartzen du eta haren kredentzialak igortzen ditu.",
+                        "Onarpenak fitxan, eskaera onartu eta hauteslearen kredentzialak ematen dira.",
+                },
+                "authorize-manual-verification": {
+                    label: "Identitatea eskuz egiaztatzea baimendu",
+                    short: "Identitatearen eskuzko egiaztapena",
+                    permissionName: "identitatea eskuz egiaztatzea baimendu",
+                    object: "identitatearen eskuzko egiaztapena",
+                    appliesTo: "Hauteslearen $t(signing.terms.post)a",
+                    description:
+                        "Hautesleen zerrendan, egiaztapen-esteka duen dokumentu bat ematea baimentzen du. Ez du inskripzio-eskaerarik onartzen.",
                 },
                 "approve-configuration": {
                     label: "Konfigurazio-bertsio bat onartu",
@@ -5258,7 +5272,8 @@ const basqueTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Sinadura bakoitza sinatzailearen segurtasun-tokeneko ziurtagiri digitalarekin egiten da.",
-                hsmIntro: "Ikusi nork onar dezakeen ekintza bakoitza eta zenbat onarpen behar diren.",
+                hsmIntro:
+                    "Ikusi nork onar dezakeen ekintza bakoitza eta zenbat onarpen behar diren.",
                 columns: {
                     action: "Ekintza",
                     appliesTo: "Honi aplikatzen zaio",
@@ -5669,6 +5684,12 @@ const basqueTranslation: TranslationType = {
                 scheduled_events: "Programatutako gertaera berriak",
                 ballots_and_contests: "Boto-txartelak eta lehiaketak",
                 application_id: "Izen-emate eskaera",
+                voter_id: "Hauteslearen kontua",
+                initiation_id: "Egiaztapen-eskaera",
+                post_id: "$t(signing.terms.post)",
+                area_id: "Hauteslearen eremua",
+                requester_id: "Eskaera egin duen langilearen kontua",
+                secret_attributes: "Babestutako atributuen izenak",
                 applicant_registry_id: "Erroldako kontua",
                 decision: "Erabakia",
                 submitted_at: "Bidalia",
@@ -5705,6 +5726,8 @@ const basqueTranslation: TranslationType = {
                     "generate-reports": "$t(signing.actions.generate-reports.label)",
                     "transmit-results": "$t(signing.actions.transmit-results.label)",
                     "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "authorize-manual-verification":
+                        "$t(signing.actions.authorize-manual-verification.label)",
                     "approve-configuration": "$t(signing.actions.approve-configuration.label)",
                     "key-ceremony": "$t(signing.actions.key-ceremony.label)",
                     "tally-key": "$t(signing.actions.tally-key.label)",

@@ -196,10 +196,15 @@ signer signs the package's results. When everyone has signed, the package carrie
 signatures, and **Send to *n* destinations** becomes available: sending stays a separate
 step. With the rule off, transmission works as before.
 
-**Approve a voter manually.** In **Approvals**, approving an application starts a request
+**Approve an enrollment application.** In **Approvals**, approving an application starts a request
 whose details table shows the application, why it needs a person, and the registry
 record. When enough people have signed, the voter is approved and receives their
 credentials. Rejecting an application doesn't ask for signatures.
+
+**Authorize manual identity verification.** In **Voters**, **Manually verify identity**
+starts a separate request for the selected voter. When signatures are required the document
+and link are not issued until this action is authorized. Signing does not approve an
+enrollment application or mark the voter verified. The voter must use the link.
 
 **Approve a configuration version.** In **Publish**, publishing starts a request whose
 details list the changes in the version: its digest, the signing rules changed since the

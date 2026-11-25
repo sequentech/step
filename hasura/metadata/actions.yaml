@@ -1668,6 +1668,7 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+          - role: voter-manually-verify
     - name: get_permissions
       definition:
           kind: ""
@@ -2858,6 +2859,7 @@ actions:
           - role: sign-generate-reports
           - role: sign-transmit-results
           - role: sign-approve-voter
+          - role: sign-authorize-manual-verification
           - role: sign-approve-configuration
           - role: sign-key-ceremony
           - role: sign-tally-key
@@ -2955,6 +2957,7 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+          - role: voter-manually-verify
           - role: sign-initialize-voting
           - role: sign-open-voting
           - role: sign-close-voting
@@ -2962,6 +2965,7 @@ actions:
           - role: sign-generate-reports
           - role: sign-transmit-results
           - role: sign-approve-voter
+          - role: sign-authorize-manual-verification
           - role: sign-approve-configuration
           - role: sign-key-ceremony
           - role: sign-tally-key
@@ -2987,6 +2991,7 @@ actions:
           - role: sign-generate-reports
           - role: sign-transmit-results
           - role: sign-approve-voter
+          - role: sign-authorize-manual-verification
           - role: sign-approve-configuration
           - role: sign-key-ceremony
           - role: sign-tally-key
@@ -3011,6 +3016,7 @@ actions:
           - role: sign-generate-reports
           - role: sign-transmit-results
           - role: sign-approve-voter
+          - role: sign-authorize-manual-verification
           - role: sign-approve-configuration
           - role: sign-key-ceremony
           - role: sign-tally-key
@@ -3028,6 +3034,7 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+          - role: voter-manually-verify
           - role: sign-initialize-voting
           - role: sign-open-voting
           - role: sign-close-voting
@@ -3035,6 +3042,7 @@ actions:
           - role: sign-generate-reports
           - role: sign-transmit-results
           - role: sign-approve-voter
+          - role: sign-authorize-manual-verification
           - role: sign-approve-configuration
           - role: sign-key-ceremony
           - role: sign-tally-key
@@ -3060,6 +3068,7 @@ actions:
           - role: sign-generate-reports
           - role: sign-transmit-results
           - role: sign-approve-voter
+          - role: sign-authorize-manual-verification
           - role: sign-approve-configuration
           - role: sign-key-ceremony
           - role: sign-tally-key
@@ -3068,6 +3077,7 @@ actions:
           - role: report-read
           - role: miru-create
           - role: application-write
+          - role: voter-manually-verify
           - role: publish-write
           - role: trustee-ceremony
       comment: Cancel a waiting signing request
@@ -3138,6 +3148,7 @@ actions:
           - role: sign-generate-reports
           - role: sign-transmit-results
           - role: sign-approve-voter
+          - role: sign-authorize-manual-verification
           - role: sign-approve-configuration
           - role: sign-key-ceremony
           - role: sign-tally-key

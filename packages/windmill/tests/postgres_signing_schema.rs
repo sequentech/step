@@ -932,6 +932,56 @@ async fn an_outbox_entry_is_a_user_or_a_system_entry() {
     }
 }
 
+/// Putting either Enrollment rule neither creates nor changes the other one.
+#[tokio::test]
+async fn enrollment_and_manual_verification_have_independent_rules() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let s = scope(&tx, line!()).await;
+    let application = SigningAction::ApproveVoter;
+    let manual = SigningAction::AuthorizeManualVerification;
+    let required = |action, signatures| SigningRule {
+        requirement: SigningRequirement::Required,
+        signatures,
+        ..SigningRule::default_for(action)
+    };
+    upsert_signing_rule(
+        &tx,
+        s.tenant,
+        s.event,
+        &required(application, 2),
+        0,
+        "officer",
+        None,
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(get_signing_rule(&tx, s.tenant, s.event, manual)
+        .await
+        .unwrap()
+        .is_none());
+    upsert_signing_rule(
+        &tx,
+        s.tenant,
+        s.event,
+        &required(manual, 3),
+        0,
+        "officer",
+        None,
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    for (action, expected) in [(application, 2), (manual, 3)] {
+        let saved = get_signing_rule(&tx, s.tenant, s.event, action)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(saved.rule.required(), expected);
+    }
+}
+
 #[tokio::test]
 async fn rules_and_checks_are_saved_from_the_revision_read() {
     let mut client = schema::pool().await.get().await.unwrap();

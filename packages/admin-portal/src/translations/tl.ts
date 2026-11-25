@@ -2251,11 +2251,13 @@ const tagalogTranslation: TranslationType = {
                     subtitle: "Lumikha ng Botante",
                 },
                 manualVerification: {
-                    label: "Manwal na I-verify",
-                    verify: "Manu-manong i-verify ang botante",
-                    body: "Manu-manong i-verify ang botante. Makakakuha ka ng PDF na may QR Code link na nagpapahintulot sa botante na mag-login na hindi dumaan sa online KYC.",
+                    label: "Manwal na patunayan ang pagkakakilanlan",
+                    verify: "Hilingin ang dokumento ng pagpapatunay",
+                    body: "Humiling ng pribadong PDF na may QR code para sa botanteng ito. Kung kailangan ng mga lagda, ibibigay lamang ang dokumento pagkatapos ng pag-apruba. Hindi nito inaaprubahan ang aplikasyon sa pagpaparehistro.",
                     noEmailOrPhone:
                         "Ang botanteng ito ay hindi maaaring mano-manong ma-verify dahil wala silang nakatalagang email address o numero ng telepono.",
+                    waiting: "Hinihintay pa ang mga lagda para sa dokumento.",
+                    download: "I-download ang dokumento ng pagpapatunay",
                 },
                 emptyHeader: "Wala pang mga botante.",
                 askCreate: "Gusto mo bang lumikha ng isa?",
@@ -2302,9 +2304,10 @@ const tagalogTranslation: TranslationType = {
                     deleteError: "Error sa pagtanggal ng botante",
                     deleteSuccess: "Natanggal na ang botante",
                     multipleDeleteSuccess: "Natanggal na ang mga botante",
-                    manualVerificationError: "Error sa manu-manong pag-verify ng botante",
+                    manualVerificationError:
+                        "Hindi nahiling ang manwal na pagpapatunay ng pagkakakilanlan",
                     manualVerificationSuccess:
-                        "Matagumpay na na-verify nang manu-mano ang botante, nagda-download ng PDF..",
+                        "Dina-download ang dokumento ng manwal na pagpapatunay ng pagkakakilanlan.",
                 },
             },
             roles: {
@@ -2358,7 +2361,9 @@ const tagalogTranslation: TranslationType = {
                 "sign-generate-election-returns": "Pirmahan: bumuo ng election returns",
                 "sign-generate-reports": "Pirmahan: bumuo ng iba pang ulat ng halalan",
                 "sign-transmit-results": "Pirmahan: i-transmit ang mga resulta",
-                "sign-approve-voter": "Pirmahan: manwal na aprubahan ang isang botante",
+                "sign-approve-voter": "Pirmahan: aprubahan ang aplikasyon sa pagpaparehistro",
+                "sign-authorize-manual-verification":
+                    "Pirmahan: pahintulutan ang manwal na pagpapatunay ng pagkakakilanlan",
                 "sign-approve-configuration":
                     "Pirmahan: aprubahan ang isang bersyon ng configuration",
                 "sign-key-ceremony": "Pirmahan: kumpirmahin ang isang piraso ng susi",
@@ -5218,7 +5223,8 @@ const tagalogTranslation: TranslationType = {
             tab: {
                 title: "Mga Pirma",
                 intro: "Tumatakbo lamang ang mga protektadong aksyon kapag sapat na awtorisadong tao ang pumirma sa mga ito gamit ang kanilang digital na sertipiko. Sinusuri ang bawat pirma laban sa mga pinagkakatiwalaang issuer at itinatala sa log.",
-                hsmIntro: "Ang mga awtorisadong tao ang nag-aapruba ng mga protektadong aksyon. Itinatala ang bawat pag-apruba sa talaan ng halalan.",
+                hsmIntro:
+                    "Ang mga awtorisadong tao ang nag-aapruba ng mga protektadong aksyon. Itinatala ang bawat pag-apruba sa talaan ng halalan.",
                 protectedActions: "Mga protektadong aksyon",
                 certificates: "Mga Sertipiko",
                 requests: "Mga Kahilingan",
@@ -5307,13 +5313,22 @@ const tagalogTranslation: TranslationType = {
                         "Sinisimulan sa Tally, Transmisyon. Binubuo ang pinirmahang results package para sa mga destinasyon nito; pinupunan ng mga pirma ang listahan ng pirma nito.",
                 },
                 "approve-voter": {
-                    label: "Manwal na aprubahan ang isang botante",
-                    short: "Pag-apruba ng botante",
-                    permissionName: "manwal na aprubahan ang isang botante",
-                    object: "pag-apruba ng botante",
+                    label: "Aprubahan ang aplikasyon sa pagpaparehistro",
+                    short: "Pag-apruba ng pagpaparehistro",
+                    permissionName: "aprubahan ang aplikasyon sa pagpaparehistro",
+                    object: "pag-apruba ng pagpaparehistro",
                     appliesTo: "Ang $t(signing.terms.post) ng botante",
                     description:
-                        "Sinisimulan sa Approvals. Inaaprubahan ang botante at ibinibigay ang kanyang mga credential.",
+                        "Sa tab na Mga Pag-apruba, inaaprubahan nito ang aplikasyon at ibinibigay ang mga kredensyal ng botante.",
+                },
+                "authorize-manual-verification": {
+                    label: "Pahintulutan ang manwal na pagpapatunay ng pagkakakilanlan",
+                    short: "Manwal na pagpapatunay ng pagkakakilanlan",
+                    permissionName: "pahintulutan ang manwal na pagpapatunay ng pagkakakilanlan",
+                    object: "manwal na pagpapatunay ng pagkakakilanlan",
+                    appliesTo: "Ang $t(signing.terms.post) ng botante",
+                    description:
+                        "Sa listahan ng mga botante, pinapayagan nitong mag-isyu ng dokumentong may link para sa pagpapatunay. Hindi nito inaaprubahan ang aplikasyon sa pagpaparehistro.",
                 },
                 "approve-configuration": {
                     label: "Aprubahan ang isang bersyon ng configuration",
@@ -5345,7 +5360,8 @@ const tagalogTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Ginagawa ang bawat pirma gamit ang digital na sertipiko sa security token ng pumipirma.",
-                hsmIntro: "Tingnan kung sino ang maaaring mag-apruba ng bawat aksyon at kung ilang pag-apruba ang kailangan.",
+                hsmIntro:
+                    "Tingnan kung sino ang maaaring mag-apruba ng bawat aksyon at kung ilang pag-apruba ang kailangan.",
                 columns: {
                     action: "Aksyon",
                     appliesTo: "Para sa",
@@ -5758,6 +5774,12 @@ const tagalogTranslation: TranslationType = {
                 scheduled_events: "Mga bagong nakaiskedyul na kaganapan",
                 ballots_and_contests: "Mga balota at paligsahan",
                 application_id: "Aplikasyon",
+                voter_id: "Account ng botante",
+                initiation_id: "Kahilingan sa pagpapatunay",
+                post_id: "$t(signing.terms.post)",
+                area_id: "Lugar ng botante",
+                requester_id: "Account ng kawani na humiling",
+                secret_attributes: "Mga pangalan ng protektadong katangian",
                 applicant_registry_id: "Account sa registry",
                 decision: "Desisyon",
                 submitted_at: "Isinumite",
@@ -5794,6 +5816,8 @@ const tagalogTranslation: TranslationType = {
                     "generate-reports": "$t(signing.actions.generate-reports.label)",
                     "transmit-results": "$t(signing.actions.transmit-results.label)",
                     "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "authorize-manual-verification":
+                        "$t(signing.actions.authorize-manual-verification.label)",
                     "approve-configuration": "$t(signing.actions.approve-configuration.label)",
                     "key-ceremony": "$t(signing.actions.key-ceremony.label)",
                     "tally-key": "$t(signing.actions.tally-key.label)",

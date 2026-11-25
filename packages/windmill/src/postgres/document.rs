@@ -56,6 +56,13 @@ pub async fn get_exportable_document_ids(
         let access = annotations
             .map(serde_json::from_value::<DocumentAnnotations>)
             .transpose()?;
+        // A signed manual-verification document contains a bearer credential for
+        // the initiating operator. Not even a secret-inclusive archive transfers it.
+        if access.as_ref().and_then(|a| a.purpose)
+            == Some(sequent_core::types::hasura::core::DocumentPurpose::SignedManualVerification)
+        {
+            continue;
+        }
         // An archive carrying integration secrets never travels inside
         // another export: its download is gated by `integration-secret-read`.
         if access

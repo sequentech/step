@@ -409,7 +409,7 @@ async fn hsm_capacity_can_read_all_actions_before_their_first_rule() {
         .await;
     }
 
-    // The portal requires all ten capacity aliases at once. It must be
+    // The portal requires all action capacity aliases at once. It must be
     // possible to see candidate roles before a rule is first saved.
     let mut read_count = 0;
     for action in SigningAction::iter() {
@@ -802,7 +802,7 @@ async fn a_rule_save_is_checked_against_the_posts_and_cancels_waiting_requests()
             assert_eq!(details["allowed_by"], json!(["signing-rules-write"]));
         }
         let rules = list_rules(&htx, w.tenant, w.event).await.unwrap();
-        assert_eq!(rules.len(), 10);
+        assert_eq!(rules.len(), SigningAction::iter().count());
         let close = rules.iter().find(|r| r.rule.action == ACTION).unwrap();
         assert_eq!(
             (

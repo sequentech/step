@@ -66,4 +66,4 @@ CRUD endpoints for:
 - signing-issuers-write
 - signing-checks-write
 - signing-requests-read|cancel|export
-- sign-initialize-voting|open-voting|close-voting|generate-election-returns|generate-reports|transmit-results|approve-voter|approve-configuration|key-ceremony|tally-key (one per protected action: `sign-<action id>`)
+- sign-initialize-voting|open-voting|close-voting|generate-election-returns|generate-reports|transmit-results|approve-voter|authorize-manual-verification|approve-configuration|key-ceremony|tally-key (one per protected action: `sign-<action id>`)

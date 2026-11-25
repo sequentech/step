@@ -513,6 +513,8 @@ pub enum Permissions {
     SIGN_TRANSMIT_RESULTS,
     #[strum(serialize = "sign-approve-voter")]
     SIGN_APPROVE_VOTER,
+    #[strum(serialize = "sign-authorize-manual-verification")]
+    SIGN_AUTHORIZE_MANUAL_VERIFICATION,
     #[strum(serialize = "sign-approve-configuration")]
     SIGN_APPROVE_CONFIGURATION,
     #[strum(serialize = "sign-key-ceremony")]

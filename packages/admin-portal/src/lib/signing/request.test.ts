@@ -254,8 +254,10 @@ describe("payloadToSign", () => {
                       ? {document_sha256: hash}
                       : isEml
                         ? {eml_sha256: hash}
-                        : {reason: "Frozen review"}
-        const payload = {...JSON.parse(CANONICAL), action, election_id: electionId, subject}
+                        : action === SigningAction.AuthorizeManualVerification
+                          ? {voter_id: randomUUID(), initiation_id: randomUUID(), area_id: randomUUID(), post_id: post, requester_id: "u-maria"}
+                          : {reason: "Frozen review"}
+        const payload = {...JSON.parse(CANONICAL), action, requested_by: "u-maria", election_id: electionId, subject}
         const canonical = canonicalJson(payload)
         const data = {...panel({
             action,

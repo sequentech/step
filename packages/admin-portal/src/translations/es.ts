@@ -2408,11 +2408,13 @@ const spanishTranslation: TranslationType = {
                     subtitle: "Crear votante",
                 },
                 manualVerification: {
-                    label: "Verificar manualmente",
-                    verify: "Verificar manualmente al votante",
-                    body: "Verifique manualmente a este votante. Obtendrá un PDF con un enlace de código QR que le permite al votante iniciar sesión omitiendo el KYC en línea.",
+                    label: "Verificar la identidad manualmente",
+                    verify: "Solicitar documento de verificación",
+                    body: "Solicita un PDF privado con un código QR para este votante. Si se requieren firmas, el documento solo se emite tras la aprobación. Esto no aprueba una solicitud de inscripción.",
                     noEmailOrPhone:
                         "Este votante no puede ser verificado manualmente porque no tiene una dirección de correo electrónico o un número de teléfono asociado a él.",
+                    waiting: "El documento está pendiente de firmas.",
+                    download: "Descargar documento de verificación",
                 },
                 errors: {
                     editError: "Error editando votante",
@@ -2456,9 +2458,10 @@ const spanishTranslation: TranslationType = {
                     deleteError: "Error borrando votante",
                     deleteSuccess: "Votante borrado",
                     multipleDeleteSuccess: "Votantes borrado",
-                    manualVerificationError: "Error verificando manualmente al votante",
+                    manualVerificationError:
+                        "Error al solicitar la verificación manual de identidad",
                     manualVerificationSuccess:
-                        "Verificado exitosamente manualmente al votante, descargar PDF..",
+                        "Descargando el documento de verificación manual de identidad.",
                 },
             },
             roles: {
@@ -2511,7 +2514,9 @@ const spanishTranslation: TranslationType = {
                 "sign-generate-election-returns": "Firmar: generar actas electorales",
                 "sign-generate-reports": "Firmar: generar otros informes electorales",
                 "sign-transmit-results": "Firmar: transmitir resultados",
-                "sign-approve-voter": "Firmar: aprobar manualmente a un votante",
+                "sign-approve-voter": "Firmar: aprobar una solicitud de inscripción",
+                "sign-authorize-manual-verification":
+                    "Firmar: autorizar la verificación manual de identidad",
                 "sign-approve-configuration": "Firmar: aprobar una versión de configuración",
                 "sign-key-ceremony": "Firmar: confirmar un fragmento de clave",
                 "sign-tally-key": "Firmar: aportar un fragmento de clave",
@@ -5350,7 +5355,8 @@ const spanishTranslation: TranslationType = {
             tab: {
                 title: "Firmas",
                 intro: "Las acciones protegidas solo se ejecutan cuando suficientes personas autorizadas las firman con sus certificados digitales. Cada firma se comprueba con los emisores de confianza y queda registrada en el registro.",
-                hsmIntro: "Las personas autorizadas aprueban las acciones protegidas. Cada aprobación queda registrada en el registro electoral.",
+                hsmIntro:
+                    "Las personas autorizadas aprueban las acciones protegidas. Cada aprobación queda registrada en el registro electoral.",
                 protectedActions: "Acciones protegidas",
                 certificates: "Certificados",
                 requests: "Solicitudes",
@@ -5438,13 +5444,22 @@ const spanishTranslation: TranslationType = {
                         "Se inicia en Recuento, Transmisión. Genera el paquete de resultados firmado para sus destinos; las firmas completan su lista de firmas.",
                 },
                 "approve-voter": {
-                    label: "Aprobar manualmente a un votante",
-                    short: "Aprobación de votante",
-                    permissionName: "aprobar manualmente a un votante",
-                    object: "aprobación de votante",
+                    label: "Aprobar una solicitud de inscripción",
+                    short: "Aprobación de inscripción",
+                    permissionName: "aprobar una solicitud de inscripción",
+                    object: "aprobación de inscripción",
                     appliesTo: "El $t(signing.terms.post) del votante",
                     description:
-                        "Se inicia en Aprobaciones. Aprueba al votante y emite sus credenciales.",
+                        "En la pestaña Aprobaciones, aprueba la solicitud y emite las credenciales del votante.",
+                },
+                "authorize-manual-verification": {
+                    label: "Autorizar la verificación manual de identidad",
+                    short: "Verificación manual de identidad",
+                    permissionName: "autorizar la verificación manual de identidad",
+                    object: "verificación manual de identidad",
+                    appliesTo: "El $t(signing.terms.post) del votante",
+                    description:
+                        "En la lista de votantes, permite emitir un documento con un enlace de verificación. No aprueba ninguna solicitud de inscripción.",
                 },
                 "approve-configuration": {
                     label: "Aprobar una versión de configuración",
@@ -5475,7 +5490,8 @@ const spanishTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Cada firma se realiza con el certificado digital del token de seguridad del firmante.",
-                hsmIntro: "Consulta quién puede aprobar cada acción y cuántas aprobaciones se requieren.",
+                hsmIntro:
+                    "Consulta quién puede aprobar cada acción y cuántas aprobaciones se requieren.",
                 columns: {
                     action: "Acción",
                     appliesTo: "Se aplica a",
@@ -5885,6 +5901,12 @@ const spanishTranslation: TranslationType = {
                 scheduled_events: "Nuevos eventos programados",
                 ballots_and_contests: "Papeletas y concursos",
                 application_id: "Solicitud de inscripción",
+                voter_id: "Cuenta del votante",
+                initiation_id: "Solicitud de verificación",
+                post_id: "$t(signing.terms.post)",
+                area_id: "Área del votante",
+                requester_id: "Cuenta del personal solicitante",
+                secret_attributes: "Nombres de los atributos protegidos",
                 applicant_registry_id: "Cuenta del registro",
                 decision: "Decisión",
                 submitted_at: "Enviada",
@@ -5921,6 +5943,8 @@ const spanishTranslation: TranslationType = {
                     "generate-reports": "$t(signing.actions.generate-reports.label)",
                     "transmit-results": "$t(signing.actions.transmit-results.label)",
                     "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "authorize-manual-verification":
+                        "$t(signing.actions.authorize-manual-verification.label)",
                     "approve-configuration": "$t(signing.actions.approve-configuration.label)",
                     "key-ceremony": "$t(signing.actions.key-ceremony.label)",
                     "tally-key": "$t(signing.actions.tally-key.label)",

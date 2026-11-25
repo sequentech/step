@@ -536,6 +536,20 @@ async fn approving_a_voter_answers_its_signing_request() {
     assert_eq!(subject["application_id"], json!(application));
     assert_eq!(subject["applicant_registry_id"], json!(registry));
     assert_eq!(subject["registry_record"], json!("ramon"));
+    // The actual Approvals route binds the resolved Post AND its application area,
+    // not the Post-only scope of Voters -> manual identity verification.
+    let bound: bool = rows::query(
+        &services.hasura,
+        "SELECT r.tenant_id=a.tenant_id AND r.election_event_id=a.election_event_id
+             AND r.area_id IS NOT NULL AND r.area_id=a.area_id AND r.election_id=$3
+             AND r.canonical_payload::jsonb->>'area_id'=a.area_id::text
+             AND r.canonical_payload::jsonb->>'election_id'=r.election_id::text
+         FROM sequent_backend.signing_request r, sequent_backend.applications a
+         WHERE r.id=$1 AND a.id=$2",
+        &[&Uuid::parse_str(id.as_str().unwrap()).unwrap(),
+          &Uuid::parse_str(&application).unwrap(), &Uuid::parse_str(&election).unwrap()],
+    ).await.remove(0).get(0);
+    assert!(bound);
     let application_status: String = rows::query(
         &services.hasura,
         "SELECT status FROM sequent_backend.applications WHERE id = $1",

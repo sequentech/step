@@ -242,6 +242,7 @@ pub struct DocumentParticipationScope {
 #[serde(rename_all = "kebab-case")]
 pub enum DocumentPurpose {
     BallotReceipt,
+    SignedManualVerification,
 }
 
 /// A report's `report-manifest.json`, stored as a document of its own.
@@ -334,6 +335,13 @@ pub struct Document {
 }
 
 impl Document {
+    /// The private bearer document issued to one initiating operator.
+    pub fn is_signed_manual_verification(&self) -> bool {
+        self.annotations.as_ref()
+            .and_then(|a| a.get("purpose"))
+            .and_then(Value::as_str) == Some("signed-manual-verification")
+    }
+
     /// Legacy names remain protected; new documents carry an immutable purpose.
     pub fn is_ballot_receipt(&self) -> bool {
         self.name.as_deref().is_some_and(|name| {

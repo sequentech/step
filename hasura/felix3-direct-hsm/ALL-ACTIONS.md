@@ -21,8 +21,11 @@ Before any future review of activation:
 2. Apply the optional 1794700002295_direct_action_evidence migration only
    in the isolated approved demo lineage, after the original optional
    migrations. It does not install or enable a marker.
-3. Validate the imported event, anchor Post and publication and all ten
-   current required rules. Reconcile pending legacy requests before any
+3. On lineages using manual identity verification, apply the matching standard
+   catalog migration 1794700002320 and optional migration 1794700002322 after
+   2302, before admitting the new clients. This registers one additional action
+   without changing any rule, enabling direct mode or granting account privileges.
+   Validate the imported event, anchor Post, publication and its required rules. Reconcile pending legacy requests before any
    operator enables the new marker. The exact existing V1 Initialize on
    the anchor is not reclassified.
 4. Verify the genuine isolated actor-key enrollment, separate actors meeting
@@ -81,7 +84,7 @@ when the mounted signer or exact saved scope is unavailable.
 This is a migration-owner maintenance operation, not an approval-mode switch.
 Before traffic is admitted, drain Harvest, Windmill, the scheduler and all
 other database writers. To back out the unused staging marker, run the
-`2302` and then `2295` down SQL in one explicit read-committed transaction
+`2322` (if applied), `2302` and then `2295` down SQL in one explicit read-committed transaction
 with stop-on-error and a bounded lock timeout. Leave the original installation,
 R2 V1 evidence and prior migrations in place. The transaction refuses dynamic
 request or generation history, any V2 reservation or proof, activity or

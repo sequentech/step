@@ -480,7 +480,11 @@ export const createSigningApi = (
                 {request_id: requestId, payload_sha256: payloadSha256}
             )
             if (output?.request_id !== requestId) {
-                throw new SigningApiError(SigningApiErrorKind.Other, "could not confirm approval", {})
+                throw new SigningApiError(
+                    SigningApiErrorKind.Other,
+                    "could not confirm approval",
+                    {}
+                )
             }
         },
         approveDirectAction: async (requestId, payloadSha256) => {
@@ -491,7 +495,11 @@ export const createSigningApi = (
                 {request_id: requestId, payload_sha256: payloadSha256}
             )
             if (output?.request_id !== requestId) {
-                throw new SigningApiError(SigningApiErrorKind.Other, "could not confirm approval", {})
+                throw new SigningApiError(
+                    SigningApiErrorKind.Other,
+                    "could not confirm approval",
+                    {}
+                )
             }
         },
         checkCertificate: (requestId, input) =>
@@ -516,7 +524,9 @@ export const createSigningApi = (
             })
         },
         handover: async (requestId) => {
-            await sign(SIGNING_HANDOVER, "signingHandover", {request_id: requestId})
+            await mutate(SigningOperation.Handover, SIGNING_HANDOVER, "signingHandover", {
+                request_id: requestId,
+            })
         },
         cancel: async (requestId, input) => {
             await mutate(SigningOperation.Cancel, SIGNING_CANCEL, "signingCancel", {
