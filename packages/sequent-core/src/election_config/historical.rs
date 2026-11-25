@@ -546,6 +546,34 @@ impl<'a> Data<'a> {
         }
         Ok(Self { name, table })
     }
+    /// A PICTURE BLOB bypasses the connection charset entirely. Absence is
+    /// normal in older schemas and in reconstructed demo dumps.
+    fn picture(
+        &self,
+        row: usize,
+        index: Option<usize>,
+        budget: &mut super::workbook_photo::SqlBudget,
+    ) -> Result<Option<super::workbook_photo::PreparedPhoto>, Problem> {
+        let Some(SqlValue::Bytes(raw)) =
+            index.and_then(|i| self.table.rows[row].get(i))
+        else {
+            return Ok(None);
+        };
+        if raw.is_empty() {
+            return Ok(None);
+        }
+        let invalid = |why: &str| {
+            problem(self.name, row, "PICTURE", Code::InvalidValue, why)
+                .id("candidate.sql-photo")
+        };
+        if !matches!(
+            self.table.column_types.get("PICTURE").map(String::as_str),
+            Some("tinyblob" | "blob" | "mediumblob" | "longblob")
+        ) {
+            return Err(invalid("nonempty PICTURE must be declared as a BLOB"));
+        }
+        budget.decode(raw).map(Some).map_err(invalid)
+    }
     /// A name as the ballot shows it, unchanged; a blank one is refused rather
     /// than shown as `-`.
     fn name(&self, row: usize, column: &str) -> Result<String, Problem> {
@@ -1005,8 +1033,10 @@ fn apply_contest_rows(
 fn apply_candidate_rows(
     given: &[Row],
     candidates: &mut BTreeMap<String, Row>,
+    placement_budget: &mut super::workbook_photo::Budget,
 ) -> Result<(), Problem> {
     let mut seen = BTreeSet::new();
+    let mut source_budget = super::workbook_photo::Budget::default();
     for given in given {
         let id = text(given, "source_candidate_id")?;
         if !seen.insert(id.clone()) {
@@ -1029,12 +1059,32 @@ fn apply_candidate_rows(
                     "candidate supplements may only set presentation, description, labels or image_data_url"));
             }
         }
+        let mut prepared = None;
         let mut matched = false;
         for candidate in candidates.values_mut().filter(|candidate| {
             candidate.text("annotations.miru:candidate-id") == Some(id.as_str())
         }) {
             matched = true;
             for (column, value) in &given.cells {
+                if column == super::workbook_photo::COLUMN {
+                    if !super::workbook_photo::present(value) {
+                        continue;
+                    }
+                    if candidate.get(column).is_some() {
+                        let origin = given.origin(Some(column));
+                        return Err(Problem::error(Code::ConflictingColumns, origin.to_string(), "both SQL PICTURE and Excel image_data_url are populated; leave exactly one photo source for this candidate").at(&origin).id("candidate.photo-source-conflict"));
+                    }
+                    if prepared.is_none() {
+                        prepared = source_budget.prepare_cell(given)?;
+                    }
+                    if let Some(photo) = &prepared {
+                        placement_budget.charge_picture(photo).map_err(
+                            |why| super::workbook_photo::problem(given, why),
+                        )?;
+                        set(candidate, column, json!(photo.url));
+                    }
+                    continue;
+                }
                 if column != "source_candidate_id" {
                     set(candidate, column, value.clone());
                 }
@@ -1611,6 +1661,14 @@ fn map(
     let mut output_candidates = BTreeMap::new();
     let mut output_links = BTreeMap::new();
     let mut used_candidates = BTreeSet::new();
+    let picture_index = candidates
+        .table
+        .columns
+        .iter()
+        .position(|column| column == "PICTURE");
+    let mut sql_pictures = BTreeMap::new();
+    let mut source_photo_budget = super::workbook_photo::SqlBudget::default();
+    let mut placement_budget = super::workbook_photo::Budget::default();
     let mut unresolved_affiliations = BTreeSet::new();
     // (PROV_CODE, MUN_CODE, PRECINCT) -> area external_id for an in-scope pop row,
     // or None for an out-of-scope one, recorded from the same crosswalk the areas
@@ -1935,7 +1993,30 @@ fn map(
                         continue;
                     }
                     let code = candidates.text(candidate, "CAND_CODE")?;
-                    used_candidates.insert(code.clone());
+                    if used_candidates.insert(code.clone()) {
+                        if let Some(photo) = candidates.picture(
+                            candidate,
+                            picture_index,
+                            &mut source_photo_budget,
+                        )? {
+                            sql_pictures.insert(code.clone(), photo);
+                        }
+                    }
+                    let photo = sql_pictures.get(&code);
+                    if let Some(photo) = photo {
+                        placement_budget.charge_picture(photo).map_err(
+                            |why| {
+                                problem(
+                                    "candidate",
+                                    candidate,
+                                    "PICTURE",
+                                    Code::InvalidValue,
+                                    why,
+                                )
+                                .id("candidate.sql-photo")
+                            },
+                        )?;
+                    }
                     candidate_order += 1;
                     let mut candidate_row = row(
                         "Candidates",
@@ -1964,6 +2045,13 @@ fn map(
                             ),
                         ],
                     );
+                    if let Some(photo) = photo {
+                        set(
+                            &mut candidate_row,
+                            super::workbook_photo::COLUMN,
+                            json!(photo.url),
+                        );
+                    }
                     if let Some(party) = candidates
                         .optional(candidate, "NOMINATEDBY")?
                         .filter(|s| !s.is_empty())
@@ -2123,7 +2211,11 @@ fn map(
         );
     }
     apply_contest_rows(workbook.rows("contests"), &mut output_contests)?;
-    apply_candidate_rows(workbook.rows("candidates"), &mut output_candidates)?;
+    apply_candidate_rows(
+        workbook.rows("candidates"),
+        &mut output_candidates,
+        &mut placement_budget,
+    )?;
     let aliases: BTreeMap<String, String> = output_elections
         .values()
         .filter_map(|r| {

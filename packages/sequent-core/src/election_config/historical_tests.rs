@@ -6,6 +6,17 @@ use crate::election_config::{
     TemplateSet,
 };
 
+fn apply_test_candidate_rows(
+    rows: &[Row],
+    candidates: &mut BTreeMap<String, Row>,
+) -> Result<(), Problem> {
+    apply_candidate_rows(
+        rows,
+        candidates,
+        &mut super::super::workbook_photo::Budget::default(),
+    )
+}
+
 fn fixture() -> (Vec<u8>, Vec<u8>) {
     let mut sql=String::from("CREATE TABLE `allbgy` (`ID_BARANGAY` text, `AREANAME` text); INSERT INTO `allbgy` VALUES ('B01','Area One');\nCREATE TABLE `allmun` (`ID_CITY` text, `AREANAME` text); INSERT INTO `allmun` VALUES ('001002','City One');\nCREATE TABLE `polling_centers` (`ID` text, `POLLING_PLACE` text); INSERT INTO `polling_centers` VALUES ('P01','Post One');\nCREATE TABLE `pop` (`CLUSTERPOLLCENTER` text, `POLLCENTER_CODE` text, `PROV_CODE` text, `MUN_CODE` text, `BRGY_CODE` text); INSERT INTO `pop` VALUES ('B01','P01','001','002','003');\nCREATE TABLE `trans_route` (`TRANS_SOURCE_ID` text, `TRANS_DEST_ID` text); INSERT INTO `trans_route` VALUES ('0010020003','DEST01');\nCREATE TABLE `seat` (`DISTRICTCODE` text, `CONTEST` text, `ELIGIBLEAMOUNT` int, `GEOCODE` text); INSERT INTO `seat` VALUES ('S01','Example Seat',1,'G01');\nCREATE TABLE `contest` (`POSTCODE` text, `POSTNAME` text, `SORT_ORDER` int); INSERT INTO `contest` VALUES ('C01','Example Seat',1);\nCREATE TABLE `candidate` (`CAND_CODE` text, `NAMEONBALLOT` text, `POST_CODE` text, `DISTRICTCODE` text, `NOMINATEDBY` text); INSERT INTO `candidate` VALUES ('0007','Example Candidate','C01','S01','PR01');\nCREATE TABLE `party_list` (`CODE_PARTY` text, `SHORT_NAME` text, `NAME_PARTY` text); INSERT INTO `party_list` VALUES ('PR01','EP','Example Party');\nCREATE TABLE `geographical` (`GEOCODE` text); INSERT INTO `geographical` VALUES ('G01');\nCREATE TABLE `voters` (`ID` text); INSERT INTO `voters` VALUES ('private-voter-id');\n");
     for name in [
@@ -4015,7 +4026,7 @@ fn candidate_supplements_preserve_localization_and_zero_order() {
             ("presentation.i18n.tl.name", json!("Pangalan")),
         ],
     );
-    apply_candidate_rows(&[supplement], &mut candidates).unwrap();
+    apply_test_candidate_rows(&[supplement], &mut candidates).unwrap();
     let candidate = &candidates["candidate-1"];
     assert_eq!(candidate.get("presentation.sort_order"), Some(&json!(0)));
     assert_eq!(
@@ -4047,15 +4058,17 @@ fn candidate_supplements_reject_unknown_duplicate_and_source_overrides() {
             ],
         )
     };
-    assert!(apply_candidate_rows(&[row_for("missing")], &mut make()).is_err());
-    assert!(apply_candidate_rows(
+    assert!(
+        apply_test_candidate_rows(&[row_for("missing")], &mut make()).is_err()
+    );
+    assert!(apply_test_candidate_rows(
         &[row_for("0007"), row_for("0007")],
         &mut make()
     )
     .is_err());
     let mut forbidden = row_for("0007");
     set(&mut forbidden, "external_id", json!("replacement"));
-    assert!(apply_candidate_rows(&[forbidden], &mut make()).is_err());
+    assert!(apply_test_candidate_rows(&[forbidden], &mut make()).is_err());
 }
 
 #[test]
@@ -4470,4 +4483,213 @@ fn workbook_tenant_parameter(xlsx: &[u8], document: Value) -> Vec<u8> {
             )],
         ));
     })
+}
+
+#[test]
+fn sql_picture_reaches_architect_and_native_bundle() {
+    use crate::election_config::{
+        plan_from_workbook::plan_from_workbook, workbook_photo::test_png_url,
+    };
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let (sql, xlsx) = fixture();
+    let url = test_png_url(5, 4);
+    let raw = STANDARD.decode(url.split_once(',').unwrap().1).unwrap();
+    let sql = with_sql_picture(&sql, &format!("X'{}'", hex::encode(raw)));
+    let sql = post_qualification(sql.as_bytes());
+    let adapted = adapt(sql.as_bytes(), &xlsx, &reviewed()).unwrap();
+    let plan = plan_from_workbook(&adapted.workbook).unwrap().plan;
+    let candidate = &plan.elections[0].contests[0].candidates[0];
+    let image = candidate
+        .image
+        .as_ref()
+        .expect("SQL PICTURE must reach the Architect plan");
+    assert!(image.bytes.starts_with(b"\x89PNG\r\n\x1a\n"));
+    assert!(!candidate.columns.contains_key("PICTURE"));
+    assert!(!candidate.columns.contains_key("image_data_url"));
+    let bundle = build(
+        &adapted.workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap();
+    assert_eq!(bundle.images.len(), 1);
+    assert_eq!(bundle.images[0].bytes, image.bytes);
+}
+
+fn with_sql_picture(sql: &[u8], literal: &str) -> String {
+    String::from_utf8(sql.to_vec())
+        .unwrap()
+        .replace(
+            "`NOMINATEDBY` text);",
+            "`NOMINATEDBY` text, `PICTURE` longblob);",
+        )
+        .replace("'S01','PR01');", &format!("'S01','PR01',{literal});"))
+}
+
+#[test]
+fn sql_photo_absence_invalid_bytes_and_competing_excel_source_are_explicit() {
+    use crate::election_config::{
+        plan_from_workbook::plan_from_workbook, workbook_photo::test_png_url,
+    };
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let (sql, xlsx) = fixture();
+    for blank in ["NULL", "X''", "_binary ''"] {
+        let s = with_sql_picture(&sql, blank);
+        let adapted = adapt(s.as_bytes(), &xlsx, &reviewed()).unwrap();
+        assert!(plan_from_workbook(&adapted.workbook)
+            .unwrap()
+            .plan
+            .elections[0]
+            .contests[0]
+            .candidates[0]
+            .image
+            .is_none());
+    }
+    for invalid in [
+        "X'474946383961'",
+        "'https://invalid.example/photo'",
+        "X'ffd8ffe0ffd9'",
+    ] {
+        let s = with_sql_picture(&sql, invalid);
+        let refused = adapt(s.as_bytes(), &xlsx, &reviewed()).unwrap_err();
+        assert!(refused
+            .report
+            .errors()
+            .any(|p| p.path == "SQL table candidate row 1 column PICTURE"
+                && p.id.as_deref() == Some("candidate.sql-photo")));
+    }
+    let url = test_png_url(4, 3);
+    let raw = STANDARD.decode(url.split_once(',').unwrap().1).unwrap();
+    let s = with_sql_picture(&sql, &format!("0x{}", hex::encode(raw)));
+    let adapted = adapt(s.as_bytes(), &xlsx, &reviewed()).unwrap();
+    let exported = write_xlsx(&adapted.workbook).unwrap();
+    let reopened = plan_from_workbook(&read_xlsx(&exported).unwrap()).unwrap();
+    assert_eq!(
+        reopened.plan.elections[0].contests[0].candidates[0].image,
+        plan_from_workbook(&adapted.workbook)
+            .unwrap()
+            .plan
+            .elections[0]
+            .contests[0]
+            .candidates[0]
+            .image
+    );
+    let sheet = changed_workbook(&xlsx, |s| {
+        s.push(rows_sheet(
+            "Candidates",
+            vec![row(
+                "Candidates",
+                0,
+                vec![
+                    ("source_candidate_id", json!("0007")),
+                    ("image_data_url", json!(url)),
+                ],
+            )],
+        ))
+    });
+    let dual = adapt(s.as_bytes(), &sheet, &reviewed()).unwrap_err();
+    assert!(dual.report.errors().any(|p| p.id.as_deref()
+        == Some("candidate.photo-source-conflict")
+        && p.at
+            .as_ref()
+            .is_some_and(|o| o.column.as_deref() == Some("image_data_url"))));
+}
+
+#[test]
+fn large_escaped_sql_photo_roundtrips_through_real_xlsx_continuations() {
+    use crate::election_config::plan_from_workbook::plan_from_workbook;
+    // Incompressible deterministic synthetic pixels, no photographs of people.
+    let mut seed = 7u32;
+    let rgb: Vec<u8> = (0..160 * 160 * 3)
+        .map(|_| {
+            seed ^= seed << 13;
+            seed ^= seed >> 17;
+            seed ^= seed << 5;
+            seed as u8
+        })
+        .collect();
+    let mut raw = Vec::new();
+    let mut encoder = png::Encoder::new(&mut raw, 160, 160);
+    encoder.set_color(png::ColorType::Rgb);
+    let mut writer = encoder.write_header().unwrap();
+    writer.write_image_data(&rgb).unwrap();
+    writer.finish().unwrap();
+    assert!(raw.len() > 32_767);
+    let (sql, xlsx) = fixture();
+    let template = with_sql_picture(&sql, "BLOB_GOES_HERE");
+    let (prefix, suffix) = template.split_once("BLOB_GOES_HERE").unwrap();
+    let mut escaped = [prefix.as_bytes(), b"_binary '"].concat();
+    for byte in raw.iter().copied() {
+        match byte {
+            0 => escaped.extend(b"\\0"),
+            0x1a => escaped.extend(b"\\Z"),
+            b'\'' | b'\\' => escaped.extend([b'\\', byte]),
+            _ => escaped.push(byte),
+        }
+    }
+    escaped.push(b'\'');
+    escaped.extend(suffix.bytes());
+    let adapted = adapt(&escaped, &xlsx, &reviewed()).unwrap();
+    let read = plan_from_workbook(&adapted.workbook).unwrap();
+    let typed = read.plan.elections[0].contests[0].candidates[0]
+        .image
+        .as_ref()
+        .unwrap();
+    let reexport = read_xlsx(&write_xlsx(&adapted.workbook).unwrap()).unwrap();
+    // The reader rejoins the physical cells and clears continuation headers.
+    // A single physical cell this large would have been rejected above.
+    assert!(
+        reexport.rows("candidates")[0]
+            .text("image_data_url")
+            .unwrap()
+            .len()
+            > 32_767
+    );
+    let reopened = plan_from_workbook(&reexport).unwrap();
+    assert_eq!(
+        reopened.plan.elections[0].contests[0].candidates[0]
+            .image
+            .as_ref(),
+        Some(typed)
+    );
+}
+
+#[test]
+fn duplicate_source_code_precedes_photo_selection_and_blank_supplement_preserves_sql(
+) {
+    use crate::election_config::workbook_photo::test_png_url;
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let (sql, xlsx) = fixture();
+    let raw = STANDARD
+        .decode(test_png_url(1, 1).split_once(',').unwrap().1)
+        .unwrap();
+    let s = with_sql_picture(&sql, &format!("0x{}", hex::encode(raw)));
+    let shadow=format!("{s}\nINSERT INTO candidate VALUES ('0007','Other','C01','S01','PR01',NULL);");
+    let refused = adapt(shadow.as_bytes(), &xlsx, &reviewed()).unwrap_err();
+    assert!(refused
+        .report
+        .errors()
+        .any(|p| p.code == Code::DuplicateId && p.path.contains("CAND_CODE")));
+    let mut made = BTreeMap::from([(
+        "context".to_string(),
+        row(
+            "Candidates",
+            0,
+            vec![
+                ("annotations.miru:candidate-id", json!("0007")),
+                ("image_data_url", json!("sql-photo")),
+            ],
+        ),
+    )]);
+    let blank = row(
+        "Candidates",
+        0,
+        vec![
+            ("source_candidate_id", json!("0007")),
+            ("image_data_url", json!("   ")),
+        ],
+    );
+    apply_test_candidate_rows(&[blank], &mut made).unwrap();
+    assert_eq!(made["context"].text("image_data_url"), Some("sql-photo"));
 }

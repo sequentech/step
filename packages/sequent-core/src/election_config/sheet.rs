@@ -377,10 +377,54 @@ impl Sheet {
         let (headers, continues) = read_headers(&name, header_cells)?;
         let multi_value = multi_value_columns(&key);
 
+        // A historical portrait may continue across adjacent image_data_url+
+        // columns. Each physical Excel cell, including a hand-written XLSX,
+        // must still fit the format's string limit before they are joined.
+        let photo_columns: Vec<usize> = if key == "candidates" {
+            headers
+                .iter()
+                .enumerate()
+                .filter(|(i, header)| {
+                    header.as_str() == "image_data_url"
+                        || continues[*i].is_some_and(|base| {
+                            headers[base] == "image_data_url"
+                        })
+                })
+                .map(|(i, _)| i)
+                .collect()
+        } else {
+            Vec::new()
+        };
         let mut rows = Vec::new();
         for (offset, cells) in grid.iter().skip(1).enumerate() {
             // +1 for the header row, +1 because spreadsheets count from one.
             let number = offset + 2;
+            let mut joined_photo_bytes = 0usize;
+            for &i in &photo_columns {
+                if let Some(Cell::Text(s)) = cells.get(i) {
+                    joined_photo_bytes =
+                        joined_photo_bytes.saturating_add(s.len());
+                    let reason = if s.len() > 32_767 {
+                        "each photo cell may contain at most 32,767 ASCII characters; use adjacent image_data_url+ continuation columns"
+                    } else if joined_photo_bytes > MAX_PHOTO_URL {
+                        "continued photo cells exceed the 128 KiB decoded input limit"
+                    } else {
+                        continue;
+                    };
+                    let origin = Origin {
+                        sheet: name.clone(),
+                        row: number,
+                        column: Some("image_data_url".into()),
+                    };
+                    return Err(Problem::error(
+                        Code::InvalidValue,
+                        origin.to_string(),
+                        reason,
+                    )
+                    .at(&origin)
+                    .id("candidate.inline-photo"));
+                }
+            }
             if let Some(row) = read_row(
                 &name,
                 number,
@@ -418,6 +462,10 @@ impl Sheet {
         self.rows.len()
     }
 }
+
+// Longest permitted joined portrait data URL (128 KiB, canonical base64).
+pub(super) const MAX_PHOTO_URL: usize =
+    "data:image/jpeg;base64,".len() + (128_usize * 1024).div_ceil(3) * 4;
 
 /// The headers, and for each one the column it continues, if any.
 ///

@@ -9518,6 +9518,8 @@ dependencies = [
  "web-sys",
  "x509-parser 0.18.1",
  "zip 2.4.2",
+ "zune-core",
+ "zune-jpeg",
 ]
 
 [[package]]
