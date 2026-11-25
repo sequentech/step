@@ -1,7 +1,10 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React from "react"
+import React, {useContext} from "react"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {localOfficerSettings} from "@/lib/signing/localInitializeOfficerApi"
 import {useTranslation} from "react-i18next"
 import {useRecordContext} from "react-admin"
 import {Box, Typography} from "@mui/material"
@@ -21,12 +24,17 @@ export const EditElectionEventSignatures: React.FC = () => {
     const {t} = useTranslation()
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const access = useSignaturesAccess()
+    const auth = useContext(AuthContext)
+    const {globalSettings} = useContext(SettingsContext)
+    const localOfficerReturn = access.certificatesRegister &&
+        Boolean(localOfficerSettings(window.location.origin, auth.tenantId, globalSettings))
     if (!record?.id) {
         return null
     }
     const lockedDown = record.presentation?.locked_down === EElectionEventLockedDown.LOCKED_DOWN
     const props = {electionEventId: record.id, access, lockedDown}
     const tabs: Array<{
+        id?: string
         label: string
         component: React.ComponentType<typeof props>
         props: typeof props
@@ -39,7 +47,8 @@ export const EditElectionEventSignatures: React.FC = () => {
         })
     }
     if (access.certificatesRead) {
-        tabs.push({label: t("signing.tab.certificates"), component: CertificatesTab, props})
+        tabs.push({id: localOfficerReturn ? "local-initialize-officer" : undefined,
+            label: t("signing.tab.certificates"), component: CertificatesTab, props})
     }
     if (access.requestsRead) {
         tabs.push({label: t("signing.tab.requests"), component: RequestsTab, props})

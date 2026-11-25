@@ -43,6 +43,8 @@ import {
 } from "@/lib/signing/operationalGoldReturn"
 import {signBlock, SignBlock} from "@/lib/signing/request"
 import {SigningSubject, SigningSubjectVariant} from "./SigningSubject"
+import {createLocalInitializeOfficerApi, localOfficerSettings} from "@/lib/signing/localInitializeOfficerApi"
+import {LocalNomineePresence} from "./LocalInitializeEnrollment"
 import {useSignedView} from "./useSignedView"
 
 type Phase =
@@ -102,6 +104,12 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
     const localSetup = useMemo(
         () => createLocalInitializeSetupApi(apollo, localOrigin, registration),
         [apollo, localOrigin, registration]
+    )
+    const officerOrigin = localOrigin && localOfficerSettings(localOrigin, tenantId, globalSettings)
+        ? localOrigin : undefined
+    const localOfficer = useMemo(
+        () => createLocalInitializeOfficerApi(apollo, officerOrigin, registration),
+        [apollo, officerOrigin, registration]
     )
     const scope = useMemo(
         () => ({
@@ -450,6 +458,13 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
                             {t("signing.operational.confirmCancelUnused")}
                         </Alert>
                     )}
+                    {localOfficer && eligible && usable && scopeHasStatus &&
+                        canApproveReviewed && phase === "setup-pending" && (
+                            <LocalNomineePresence
+                                key={scope.request + "/" + scope.official + "/" + request.payload_sha256}
+                                api={localOfficer} request={scope.request} digest={request.payload_sha256}
+                            />
+                        )}
                     {failed && <Alert severity="error">{t("signing.operational.error")}</Alert>}
                 </Stack>
             </DialogContent>
