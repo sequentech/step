@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-import type {PublicVerificationReport} from "./BrowserTrustee"
+import type {PublicVerificationReport, VerificationAnchors} from "./BrowserTrustee"
 import type {Verifier} from "./VerifierWorker"
 import {
     batchStatus,
@@ -56,7 +56,9 @@ function fakeVerifier(): jest.Mocked<Verifier> {
             ballots_hash: `ballots(${board.ballots_message})`,
             ballot_ciphertexts: [],
         })),
-        verify: jest.fn(async () => report("verified")),
+        verify: jest.fn(async (_transcript: string, _anchors: VerificationAnchors) =>
+            report("verified")
+        ),
         close: jest.fn(),
     }
 }

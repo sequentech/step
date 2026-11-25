@@ -4,7 +4,7 @@
 import React from "react"
 import {fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {TallyPublicVerification} from "./TallyPublicVerification"
-import type {PublicVerificationReport} from "@/services/BrowserTrustee"
+import type {PublicVerificationReport, VerificationAnchors} from "@/services/BrowserTrustee"
 import type {TallyVerificationBoard} from "@/services/TallyPublicVerification"
 import {workerVerifier, type Verifier} from "@/services/VerifierWorker"
 import {GET_TALLY_PUBLIC_VERIFICATION_BOARDS} from "@/queries/GetTallyPublicVerificationBoards"
@@ -112,13 +112,15 @@ beforeEach(() => {
     jest.clearAllMocks()
     verifier = {
         ready: jest.fn(async () => undefined),
-        anchors: jest.fn(async () => ({
+        anchors: jest.fn(async (_board: TallyVerificationBoard) => ({
             configuration_hash: "configuration-hash",
             tally_id: "42",
             ballots_hash: "ballots-hash",
             ballot_ciphertexts: [],
         })),
-        verify: jest.fn(async () => report("verified")),
+        verify: jest.fn(async (_transcript: string, _anchors: VerificationAnchors) =>
+            report("verified")
+        ),
         close: jest.fn(),
     }
     jest.mocked(workerVerifier).mockReturnValue(verifier)
