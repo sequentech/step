@@ -568,6 +568,12 @@ pub fn read_mysql_dump(bytes: &[u8]) -> Result<SqlDump, DumpError> {
     Ok(dump)
 }
 
+fn hex_bytes(token: &Token, hex: &[u8]) -> Result<SqlValue, DumpError> {
+    hex::decode(hex)
+        .map(SqlValue::Bytes)
+        .map_err(|_| token.error("sql.value"))
+}
+
 fn literal(tokens: &[Token]) -> Result<SqlValue, DumpError> {
     let first = tokens.first().ok_or(DumpError {
         line: 1,
@@ -577,6 +583,10 @@ fn literal(tokens: &[Token]) -> Result<SqlValue, DumpError> {
         match &first.kind {
             Kind::Literal(b) => return Ok(SqlValue::Bytes(b.clone())),
             Kind::Word(_) if first.word("NULL") => return Ok(SqlValue::Null),
+            // mysqldump --hex-blob writes 0x followed by full byte pairs.
+            Kind::Word(b) if b.starts_with(b"0x") => {
+                return hex_bytes(first, &b[2..])
+            }
             Kind::Word(b)
                 if b.iter().all(|c| {
                     c.is_ascii_digit()
@@ -596,19 +606,7 @@ fn literal(tokens: &[Token]) -> Result<SqlValue, DumpError> {
         }
         if first.word("x") {
             if let Kind::Literal(b) = &tokens[1].kind {
-                if b.len() % 2 != 0 {
-                    return Err(first.error("sql.value"));
-                }
-                let mut value = Vec::with_capacity(b.len() / 2);
-                for pair in b.chunks_exact(2) {
-                    let digit = |b: u8| {
-                        (b as char)
-                            .to_digit(16)
-                            .ok_or_else(|| first.error("sql.value"))
-                    };
-                    value.push((digit(pair[0])? * 16 + digit(pair[1])?) as u8);
-                }
-                return Ok(SqlValue::Bytes(value));
+                return hex_bytes(first, b);
             }
         }
     }

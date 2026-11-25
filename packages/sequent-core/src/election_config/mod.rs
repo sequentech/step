@@ -220,6 +220,9 @@ pub mod xlsx_write;
 #[cfg(feature = "election_config_templates")]
 pub mod plan_from_workbook;
 
+#[cfg(feature = "election_config_templates")]
+mod workbook_photo;
+
 /// Reading an election event exported from the Admin Portal back as a plan — the
 /// inverse of what `build` writes. Gated with the emitter it inverts, and no
 /// higher: reading one JSON document needs neither a zip nor a spreadsheet.

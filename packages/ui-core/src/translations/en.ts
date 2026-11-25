@@ -322,6 +322,18 @@ const englishTranslation = {
                     },
                 },
                 "candidate": {
+                    "inline-photo": {
+                        lead: "Invalid candidate photo",
+                        text: "Invalid candidate photo — Use one static PNG or JPEG per candidate, except for write-ins. Check the file and workbook limits.",
+                    },
+                    "sql-photo": {
+                        lead: "Invalid SQL photo",
+                        text: "Invalid SQL photo — PICTURE must be a BLOB with a static PNG, JPEG, WebP or AVIF within the import limits. Export it without EXIF rotation or AVIF display transforms.",
+                    },
+                    "photo-source-conflict": {
+                        lead: "Two candidate photo sources",
+                        text: "Two candidate photo sources — Keep the photo in SQL PICTURE or Excel image_data_url, not both.",
+                    },
                     "contest-missing": {
                         lead: "Candidate's contest missing",
                         text: "Candidate's contest missing — the candidate belongs to a contest that is not in this file.",
