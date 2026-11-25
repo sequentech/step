@@ -907,6 +907,17 @@ const basqueTranslation: TranslationType = {
                 statementTimestampTo: "Adierazpenaren denbora-zigilua noiz arte",
                 timeZone: "Ordu-eremua",
             },
+            signingActivity: {
+                filter: "Sinadura-jarduera",
+                help: "Idatzi erregistro mota bat edo aukeratu sinadura-gertaera bat.",
+                created: "Eskaera sortu da",
+                approved: "Onarpena erregistratu da",
+                quorum: "Onarpen-atalasea lortu da",
+                actionResult: "Ekintza amaitu da edo huts egin du",
+                cancelled: "Eskaera ezeztatu da",
+                expired: "Eskaera iraungi da",
+                refused: "Sinadura baztertu da",
+            },
             scheduledOutcome: {
                 outcome: {
                     "waiting-for-initialization": "Hasieratzearen zain",

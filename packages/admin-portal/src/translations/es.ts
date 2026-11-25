@@ -1082,6 +1082,17 @@ const spanishTranslation: TranslationType = {
                 statementTimestampTo: "Marca de tiempo de la declaración hasta",
                 timeZone: "Zona horaria",
             },
+            signingActivity: {
+                filter: "Actividad de firmas",
+                help: "Introduce un tipo de registro o elige un evento de firma.",
+                created: "Solicitud creada",
+                approved: "Aprobación registrada",
+                quorum: "Se alcanzó el umbral de aprobaciones",
+                actionResult: "Acción finalizada o fallida",
+                cancelled: "Solicitud cancelada",
+                expired: "Solicitud caducada",
+                refused: "Firma rechazada",
+            },
             scheduledOutcome: {
                 outcome: {
                     "waiting-for-initialization": "Esperando la inicialización",

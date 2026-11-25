@@ -988,6 +988,17 @@ const catalanTranslation: TranslationType = {
                 statementTimestampTo: "Marca de temps de la declaració fins a",
                 timeZone: "Fus horari",
             },
+            signingActivity: {
+                filter: "Activitat de signatures",
+                help: "Introduïu un tipus de registre o trieu un esdeveniment de signatura.",
+                created: "Sol·licitud creada",
+                approved: "Aprovació registrada",
+                quorum: "S’ha assolit el llindar d’aprovacions",
+                actionResult: "Acció finalitzada o fallida",
+                cancelled: "Sol·licitud cancel·lada",
+                expired: "Sol·licitud caducada",
+                refused: "Signatura rebutjada",
+            },
             scheduledOutcome: {
                 outcome: {
                     "waiting-for-initialization": "Esperant la inicialització",

@@ -915,6 +915,17 @@ const tagalogTranslation: TranslationType = {
                 statementTimestampTo: "Timestamp ng pahayag hanggang",
                 timeZone: "Timezone",
             },
+            signingActivity: {
+                filter: "Aktibidad sa pagpirma",
+                help: "Maglagay ng uri ng tala o pumili ng kaganapan sa pagpirma.",
+                created: "Nilikha ang kahilingan",
+                approved: "Naitala ang pag-apruba",
+                quorum: "Naabot ang kailangang bilang ng mga pag-apruba",
+                actionResult: "Natapos o nabigo ang aksiyon",
+                cancelled: "Kinansela ang kahilingan",
+                expired: "Nag-expire ang kahilingan",
+                refused: "Tinanggihan ang lagda",
+            },
             scheduledOutcome: {
                 outcome: {
                     "waiting-for-initialization": "Naghihintay ng inisyalisasyon",
