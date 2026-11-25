@@ -1092,6 +1092,17 @@ const spanishTranslation: TranslationType = {
                 cancelled: "Solicitud cancelada",
                 expired: "Solicitud caducada",
                 refused: "Firma rechazada",
+                row: {
+                    created: "Se creó la solicitud de firma para {{action}}",
+                    approved: "Se firmó la aprobación para {{action}}",
+                    quorum: "Se reunieron las aprobaciones necesarias para {{action}}",
+                    completed: "Acción completada: {{action}}",
+                    failed: "Error al ejecutar la acción: {{action}}",
+                    cancelled: "Se canceló la solicitud de firma para {{action}}",
+                    expired: "La solicitud de firma para {{action}} ha caducado",
+                    rejected: "Firma rechazada",
+                    progress: "({{approved}} de {{required}})",
+                },
             },
             scheduledOutcome: {
                 outcome: {

@@ -1232,6 +1232,17 @@ const englishTranslation = {
                 cancelled: "Request cancelled",
                 expired: "Request expired",
                 refused: "Signature refused",
+                row: {
+                    created: "Signature request created for {{action}}",
+                    approved: "Approval signed for {{action}}",
+                    quorum: "Required approvals collected for {{action}}",
+                    completed: "{{action}} completed",
+                    failed: "{{action}} failed",
+                    cancelled: "Signature request cancelled for {{action}}",
+                    expired: "Signature request expired for {{action}}",
+                    rejected: "Signature rejected",
+                    progress: "({{approved}} of {{required}})",
+                },
             },
             scheduledOutcome: {
                 outcome: {

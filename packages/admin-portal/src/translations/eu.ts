@@ -917,6 +917,17 @@ const basqueTranslation: TranslationType = {
                 cancelled: "Eskaera ezeztatu da",
                 expired: "Eskaera iraungi da",
                 refused: "Sinadura baztertu da",
+                row: {
+                    created: "Sinadura-eskaera sortu da: {{action}}",
+                    approved: "Onarpena sinatu da: {{action}}",
+                    quorum: "Beharrezko onarpenak bildu dira: {{action}}",
+                    completed: "Ekintza osatu da: {{action}}",
+                    failed: "Ekintzak huts egin du: {{action}}",
+                    cancelled: "Sinadura-eskaera bertan behera utzi da: {{action}}",
+                    expired: "Sinadura-eskaera iraungi da: {{action}}",
+                    rejected: "Sinadura baztertu da",
+                    progress: "({{approved}} / {{required}})",
+                },
             },
             scheduledOutcome: {
                 outcome: {

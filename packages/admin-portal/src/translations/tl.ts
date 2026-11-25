@@ -925,6 +925,17 @@ const tagalogTranslation: TranslationType = {
                 cancelled: "Kinansela ang kahilingan",
                 expired: "Nag-expire ang kahilingan",
                 refused: "Tinanggihan ang lagda",
+                row: {
+                    created: "Ginawa ang kahilingan sa paglagda para sa {{action}}",
+                    approved: "Nilagdaan ang pag-apruba para sa {{action}}",
+                    quorum: "Nakuha ang mga kinakailangang pag-apruba para sa {{action}}",
+                    completed: "Natapos ang aksyon: {{action}}",
+                    failed: "Nabigo ang aksyon: {{action}}",
+                    cancelled: "Kinansela ang kahilingan sa paglagda para sa {{action}}",
+                    expired: "Nag-expire ang kahilingan sa paglagda para sa {{action}}",
+                    rejected: "Tinanggihan ang lagda",
+                    progress: "({{approved}} sa {{required}})",
+                },
             },
             scheduledOutcome: {
                 outcome: {

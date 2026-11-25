@@ -998,6 +998,17 @@ const catalanTranslation: TranslationType = {
                 cancelled: "Sol·licitud cancel·lada",
                 expired: "Sol·licitud caducada",
                 refused: "Signatura rebutjada",
+                row: {
+                    created: "S’ha creat una sol·licitud de signatura per a {{action}}",
+                    approved: "S’ha signat l’aprovació per a {{action}}",
+                    quorum: "S’han recollit les aprovacions necessàries per a {{action}}",
+                    completed: "Acció completada: {{action}}",
+                    failed: "L’acció ha fallat: {{action}}",
+                    cancelled: "S’ha cancel·lat la sol·licitud de signatura per a {{action}}",
+                    expired: "La sol·licitud de signatura per a {{action}} ha caducat",
+                    rejected: "S’ha rebutjat la signatura",
+                    progress: "({{approved}} de {{required}})",
+                },
             },
             scheduledOutcome: {
                 outcome: {

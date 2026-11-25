@@ -52,7 +52,7 @@ const logRow = (
     id: number,
     kind: string,
     user: {id: string; name: string} | null,
-    head: {event_type: string; log_type: string; description: string},
+    head: {kind?: string; event_type: string; log_type: string; description: string},
     body: Record<string, unknown> = {}
 ): StoryRecord<ElectoralLogRow> & {election_event_id: string} => ({
     id,
@@ -136,14 +136,56 @@ const logs = [
 ]
 
 const signingActivity = [
-    ["SigningRequestCreated", "Started request Q-010"],
-    ["SigningRequestSigned", "Approval recorded for Q-010"],
-    ["SigningRequestCompleted", "Quorum reached for Q-010"],
-    ["SigningActionExecuted", "Ran Close Voting for Q-010"],
-    ["SigningRequestCancelled", "Cancelled request Q-011"],
-].map(([kind, description], index) =>
-    logRow(index + 20, kind, null, {event_type: "SYSTEM", log_type: "INFO", description})
-)
+    {kind: "SigningRequestCreated", description: "Started request Q-010", actor: true},
+    {
+        kind: "SigningRequestSigned",
+        description: "Approval recorded for Q-010",
+        details: {count: 1, required: 2},
+    },
+    {
+        kind: "SigningRequestCompleted",
+        description: "Quorum reached for Q-010",
+        details: {count: 2, required: 2},
+    },
+    {
+        kind: "SigningActionExecuted",
+        description: "Ran Close Voting for Q-010",
+        details: {status: "executed"},
+    },
+    {
+        kind: "SigningActionExecuted",
+        description: "Close Voting could not run for Q-011",
+        details: {status: "failed"},
+        error: true,
+    },
+    {kind: "SigningRequestCancelled", description: "Cancelled request Q-011"},
+    {kind: "SigningRequestExpired", description: "Expired request Q-012"},
+    {
+        kind: "SigningSignatureRefused",
+        description: "Signature refused on Q-012",
+        details: {step: "sign", check: "custom-check", detail: "raw detail excluded from list"},
+        error: true,
+    },
+    {
+        kind: "SigningSignatureRefused",
+        description: "Cancelling Q-013 refused",
+        details: {step: "cancel"},
+        error: true,
+    },
+].map(({kind, description, details, error, actor}, index) => {
+    const head = {
+        kind,
+        event_type: actor ? "USER" : "SYSTEM",
+        log_type: error ? "ERROR" : "INFO",
+        description,
+    }
+    return logRow(index + 20, kind, actor ? {id: STORY_IDS.user, name: "alice"} : null, head, {
+        Signing: {
+            ...head,
+            details_json: JSON.stringify({action: "close-voting", ...details}),
+        },
+    })
+})
 
 const historicalRequester = logRow(
     6,
@@ -453,10 +495,26 @@ export const SigningActivity: Story = {
     args: {logs: "approval-activity"},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(await canvas.findByText("Started request Q-010")).toBeVisible()
-        await expect(canvas.getByText("Approval recorded for Q-010")).toBeVisible()
-        await expect(canvas.getByText("Ran Close Voting for Q-010")).toBeVisible()
-        await expect(canvas.getByText("Cancelled request Q-011")).toBeVisible()
+        const created = await canvas.findByText("Signature request created for Close voting")
+        await expect(created).toBeVisible()
+        for (const text of [
+            "Approval signed for Close voting (1 of 2)",
+            "Required approvals collected for Close voting (2 of 2)",
+            "Close voting completed",
+            "Close voting failed",
+            "Signature request cancelled for Close voting",
+            "Signature request expired for Close voting",
+            "Signature rejected",
+            "Cancelling Q-013 refused",
+        ]) {
+            await expect(canvas.getByText(text, {exact: true})).toBeVisible()
+        }
+        expect(canvas.queryByText("raw detail excluded from list")).toBeNull()
+        expect(canvas.queryByText("Started request Q-010")).toBeNull()
+        await userEvent.click(created)
+        const entry = await within(document.body).findByRole("dialog", {name: "Log entry 20"})
+        await expect(within(entry).getByText("Started request Q-010")).toBeVisible()
+        await userEvent.keyboard("{Escape}")
         await userEvent.click(canvas.getByRole("button", {name: "Signing activity"}))
         const input = await canvas.findByLabelText("Statement kind")
         const choices = document.getElementById(input.getAttribute("list") ?? "")

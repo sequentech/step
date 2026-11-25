@@ -915,6 +915,17 @@ const galegoTranslation: TranslationType = {
                 cancelled: "Solicitude cancelada",
                 expired: "Solicitude caducada",
                 refused: "Sinatura rexeitada",
+                row: {
+                    created: "Creouse a solicitude de sinatura para {{action}}",
+                    approved: "Asinouse a aprobación para {{action}}",
+                    quorum: "Reuníronse as aprobacións necesarias para {{action}}",
+                    completed: "Acción completada: {{action}}",
+                    failed: "Produciuse un erro ao executar a acción: {{action}}",
+                    cancelled: "Cancelouse a solicitude de sinatura para {{action}}",
+                    expired: "Caducou a solicitude de sinatura para {{action}}",
+                    rejected: "Rexeitouse a sinatura",
+                    progress: "({{approved}} de {{required}})",
+                },
             },
             scheduledOutcome: {
                 outcome: {

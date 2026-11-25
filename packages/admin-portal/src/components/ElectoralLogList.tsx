@@ -42,6 +42,7 @@ import {
 import type {TFunction} from "i18next"
 import {readinessDescription} from "./logs/readinessLog"
 import {configurationPackageDescription} from "./logs/configurationPackageLog"
+import {signingActivityDescription} from "./logs/signingActivityDescription"
 import {ballotLogDetails} from "./logs/ballotLogDetails"
 import {logMessage} from "./logs/logMessage"
 import {LogTime} from "./logs/LogTime"
@@ -188,10 +189,15 @@ const messageUser = (record: ILogRow, field: "user_id" | "username"): string | n
     return !projected || projected === "null" ? null : projected
 }
 
-const description = (t: TFunction, record: ILogRow): string =>
-    readinessDescription(t, record.statement_kind) ??
-    configurationPackageDescription(t, record.statement_kind, logMessage(record)) ??
-    (logMessage(record)?.statement?.head?.description || "-")
+const description = (t: TFunction, record: ILogRow): string => {
+    const message = logMessage(record)
+    return (
+        signingActivityDescription(t, record.statement_kind, message) ??
+        readinessDescription(t, record.statement_kind) ??
+        configurationPackageDescription(t, record.statement_kind, message) ??
+        (message?.statement?.head?.description || "-")
+    )
+}
 
 /** Use the timestamp's existing height; the description never adds another line to the row. */
 const LogRowDescription: React.FC<{

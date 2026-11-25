@@ -923,6 +923,17 @@ const frenchTranslation: TranslationType = {
                 cancelled: "Demande annulée",
                 expired: "Demande expirée",
                 refused: "Signature refusée",
+                row: {
+                    created: "Demande de signature créée pour {{action}}",
+                    approved: "Approbation signée pour {{action}}",
+                    quorum: "Approbations requises recueillies pour {{action}}",
+                    completed: "Action terminée : {{action}}",
+                    failed: "Échec de l’action : {{action}}",
+                    cancelled: "Demande de signature annulée pour {{action}}",
+                    expired: "Demande de signature expirée pour {{action}}",
+                    rejected: "Signature rejetée",
+                    progress: "({{approved}} sur {{required}})",
+                },
             },
             scheduledOutcome: {
                 outcome: {

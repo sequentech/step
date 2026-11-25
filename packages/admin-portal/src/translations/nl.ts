@@ -924,6 +924,17 @@ const dutchTranslation: TranslationType = {
                 cancelled: "Verzoek geannuleerd",
                 expired: "Verzoek verlopen",
                 refused: "Handtekening geweigerd",
+                row: {
+                    created: "Handtekeningverzoek aangemaakt voor {{action}}",
+                    approved: "Goedkeuring ondertekend voor {{action}}",
+                    quorum: "Vereiste goedkeuringen verzameld voor {{action}}",
+                    completed: "Actie voltooid: {{action}}",
+                    failed: "Actie mislukt: {{action}}",
+                    cancelled: "Handtekeningverzoek geannuleerd voor {{action}}",
+                    expired: "Handtekeningverzoek verlopen voor {{action}}",
+                    rejected: "Handtekening geweigerd",
+                    progress: "({{approved}} van {{required}})",
+                },
             },
             scheduledOutcome: {
                 outcome: {
