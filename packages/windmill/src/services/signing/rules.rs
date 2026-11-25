@@ -17,7 +17,6 @@
 //! only in [`commit_rule`], last, right before the commit, and is put back
 //! when it or the commit fails.
 
-use super::guard::effective_rule;
 use super::log::{stage, LogStep, SystemOutcome};
 use super::requests::cancel_request;
 use super::signers::{groups_by_id, list_signers, list_signing_groups, GroupChange, SigningGroup};
@@ -187,7 +186,13 @@ pub async fn capacity(
         }
         SigningScope::Event | SigningScope::Trustee => (signers.len(), vec![]),
     };
-    let saved = effective_rule(hasura_transaction, tenant_id, election_event_id, action).await?;
+    // Capacity is configuration, not authorization. The setup UI reads
+    // every action's roles before its first required rule is saved. The
+    // execution guard must still refuse a missing or off HSM rule.
+    let saved = get_signing_rule(hasura_transaction, tenant_id, election_event_id, action)
+        .await?
+        .map(|row| row.rule)
+        .unwrap_or_else(|| SigningRule::default_for(action));
     let signatures = usize::from(signatures.unwrap_or_else(|| saved.required()));
     let requester_out = requester_signing.unwrap_or(saved.requester_signing_effective())
         == RequesterSigning::NotAllowed

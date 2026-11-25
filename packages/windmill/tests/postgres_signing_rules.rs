@@ -24,6 +24,7 @@ use serde_json::json;
 use signing::*;
 use std::collections::BTreeMap;
 use std::sync::Mutex;
+use strum::IntoEnumIterator;
 use uuid::Uuid;
 use windmill::postgres::signing::*;
 use windmill::postgres::signing_actions::count_published_configuration_versions;
@@ -31,7 +32,7 @@ use windmill::services::monitoring::config_store::{
     reset_to_preset, Author, EventRef, MonitoringConfigAudit, RecordedChange,
 };
 use windmill::services::signing::approve::NoDocumentSigner;
-use windmill::services::signing::guard::{guard_at, GuardOutcome, GuardRequest};
+use windmill::services::signing::guard::{effective_rule, guard_at, GuardOutcome, GuardRequest};
 use windmill::services::signing::requests::{event_info, get_panel};
 use windmill::services::signing::rules::{
     capacity, commit_rule, list_rules, save_rule, RuleWarning, SaveRuleInput, SigningRoleAdmin,
@@ -365,6 +366,107 @@ async fn capacity_of(
     )
     .await
     .unwrap()
+}
+
+#[tokio::test]
+async fn hsm_capacity_can_read_all_actions_before_their_first_rule() {
+    let (post, other) = LABELS[0];
+    let w = world(post).await;
+    w.rule(SigningAction::ApproveConfiguration, 1, RequesterSigning::Allowed, None)
+        .await;
+    w.rule(SigningAction::InitializeVoting, 2, RequesterSigning::NotAllowed, None)
+        .await;
+
+    let mut hasura = w.pool.get().await.unwrap();
+    let htx = hasura.transaction().await.unwrap();
+    // This is the stock mandatory HSM tenant floor, not a mounted device
+    // or an effect authorization. Only two rules were saved above.
+    htx.execute(
+        "INSERT INTO sequent_backend.operational_signing_required_tenant (tenant_id) VALUES ($1)",
+        &[&w.tenant],
+    )
+    .await
+    .unwrap();
+    let other_post = second_post(&htx, &w, other).await;
+    let mut keycloak = w.pool.get().await.unwrap();
+    let ktx = keycloak.transaction().await.unwrap();
+    directory(&ktx, &realm(w.tenant), post, other).await;
+    for (id, action) in [
+        ("init-role", SigningAction::InitializeVoting),
+        ("config-role", SigningAction::ApproveConfiguration),
+    ] {
+        run(
+            &ktx,
+            "INSERT INTO keycloak_role VALUES ($1, $2, 'r1')",
+            &[id, &action.sign_permission().to_string()],
+        )
+        .await;
+        run(
+            &ktx,
+            "INSERT INTO group_role_mapping VALUES ($1, 'g-sbei')",
+            &[id],
+        )
+        .await;
+    }
+
+    // The portal requires all ten capacity aliases at once. It must be
+    // possible to see candidate roles before a rule is first saved.
+    let mut read_count = 0;
+    for action in SigningAction::iter() {
+        let found = capacity_of(&htx, &ktx, &w, action, None, None).await;
+        read_count += 1;
+        let strict = effective_rule(&htx, w.tenant, w.event, action).await;
+        match action {
+            SigningAction::ApproveConfiguration => {
+                assert_eq!(strict.unwrap().required(), 1);
+                assert_eq!(found.max, 2);
+                assert_eq!(found.roles.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(), ["g-sbei"]);
+                assert!(found.posts_short_without_requester.is_empty());
+            }
+            SigningAction::InitializeVoting => {
+                assert_eq!(strict.unwrap().required(), 2);
+                assert_eq!(found.max, 2);
+                assert_eq!(found.posts_short.iter().map(|p| p.election_id).collect::<Vec<_>>(), [other_post]);
+                assert_eq!(found.posts_short_without_requester.len(), 2);
+            }
+            SigningAction::CloseVoting => {
+                assert!(strict.is_err(), "A capacity default must not authorize editing or executing an action");
+                assert_eq!(found.max, 2);
+                assert!(found.posts_short.is_empty());
+                assert_eq!(found.posts_short_without_requester.iter().map(|p| p.election_id).collect::<Vec<_>>(), [other_post]);
+            }
+            _ => {
+                assert!(strict.is_err(), "Capacity is readable; execution still needs a required rule");
+                assert!(found.roles.is_empty());
+            }
+        }
+    }
+    assert_eq!(read_count, 10);
+
+    // Actual manual custody still uses the strict shared tally gate, not
+    // the zero-report worker's separately authenticated automated case.
+    assert!(
+        windmill::services::signing::custody_proofs::tally_trustee_signatures(
+            &htx, &w.tenant.to_string(), &w.event.to_string(), &Uuid::new_v4().to_string(),
+        )
+        .await
+        .is_err()
+    );
+
+    // Saving a first rule uses the same projection with the proposed count
+    // and requester choice; it must not need an already-required old rule.
+    let proposed = capacity_of(
+        &htx,
+        &ktx,
+        &w,
+        SigningAction::CloseVoting,
+        Some(2),
+        Some(RequesterSigning::Allowed),
+    )
+    .await;
+    assert_eq!(proposed.posts_short.iter().map(|p| p.election_id).collect::<Vec<_>>(), [other_post]);
+    assert!(proposed.posts_short_without_requester.is_empty());
+    assert!(effective_rule(&htx, w.tenant, w.event, SigningAction::CloseVoting).await.is_err());
 }
 
 #[tokio::test]
