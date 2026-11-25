@@ -10,6 +10,9 @@ import {
     unwrapOnServer,
 } from "./SignedDeliveryWorkerClient"
 
+/** fetch's options, derived from fetch itself (no DOM global for lint). */
+type FetchInit = NonNullable<Parameters<typeof globalThis.fetch>[1]>
+
 const PASSWORD = "synthetic transfer password"
 const SHA = "ab".repeat(32)
 const DOCUMENT = "00000000-0000-4000-8000-000000000007"
@@ -87,7 +90,7 @@ describe("server unwrap of packages with messaging credentials", () => {
             "https://admin.example.invalid:8443"
         )
         expect(reply).toEqual({ok: true, sha256: SHA})
-        const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit]
+        const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, FetchInit]
         expect(url).toBe(`https://admin.example.invalid:8443${SERVER_UNWRAP_PATH}`)
         expect(init).toMatchObject({
             method: "POST",
@@ -114,7 +117,7 @@ describe("server unwrap of packages with messaging credentials", () => {
             "https://admin.example.invalid",
             SHA
         )
-        const [, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit]
+        const [, init] = fetchImpl.mock.calls[0] as unknown as [string, FetchInit]
         expect(init.redirect).toBe("error")
         expect(JSON.parse(init.body as string)).toEqual({
             document_id: DOCUMENT,
@@ -125,7 +128,7 @@ describe("server unwrap of packages with messaging credentials", () => {
 
     it("treats a redirect as a failure rather than following it", async () => {
         // fetch rejects when redirect is "error" and the server redirects.
-        const fetchImpl = jest.fn(async (_url: string, init?: RequestInit) => {
+        const fetchImpl = jest.fn(async (_url: string, init?: FetchInit) => {
             if (init?.redirect === "error") throw new TypeError("redirect")
             return answer(302, {})
         })

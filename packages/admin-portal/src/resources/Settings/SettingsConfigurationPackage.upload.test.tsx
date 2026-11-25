@@ -80,9 +80,16 @@ jest.mock("react-admin", () => ({
     SimpleForm: ({children}: React.PropsWithChildren) => children,
 }))
 jest.mock("@/providers/TenantContextProvider", () => ({useTenantStore: () => ["t1"]}))
+const mockToken = jest.fn()
 jest.mock("@/providers/AuthContextProvider", () => {
     const React = require("react")
-    return {AuthContext: React.createContext({isAuthorized: () => true, userId: "operator"})}
+    return {
+        AuthContext: React.createContext({
+            isAuthorized: () => true,
+            userId: "operator",
+            getAccessToken: () => mockToken(),
+        }),
+    }
 })
 jest.mock("@/providers/SettingsContextProvider", () => ({
     SettingsContext: require("react").createContext({globalSettings: {}}),
@@ -248,8 +255,20 @@ describe("the SHA-256 typed for the upload", () => {
     })
 })
 
+/** An envelope's first bytes: magic, the version byte, then opaque ciphertext. */
+const envelope = (version: number) =>
+    new Uint8Array([
+        ...Array.from("SEQUENT-EZIP", (c) => c.charCodeAt(0)),
+        version,
+        ...Array.from(" encrypted-only", (c) => c.charCodeAt(0)),
+    ])
+
 describe("password-encrypted signed delivery in the real upload drawer", () => {
-    const uploadEncrypted = async (name = "do-not-upload-this-name.ezip", sha = "") => {
+    const uploadEncrypted = async (
+        name = "do-not-upload-this-name.ezip",
+        sha = "",
+        version = 1
+    ) => {
         const view = render(<SettingsConfigurationPackage />)
         fireEvent.click(screen.getByText("configurationPackage.upload"))
         if (sha) {
@@ -257,7 +276,8 @@ describe("password-encrypted signed delivery in the real upload drawer", () => {
                 target: {value: sha},
             })
         }
-        const file = new File(["SEQUENT-EZIP encrypted-only"], name)
+        // V1 by default: the browser unwraps it, exactly as before.
+        const file = new File([envelope(version)], name)
         fireEvent.change(screen.getByLabelText("Import file"), {target: {files: [file]}})
         await screen.findByRole("dialog", {name: "electionEventScreen.import.passwordDialog.title"})
         expect(mockGetUploadUrl).not.toHaveBeenCalled()
@@ -516,6 +536,113 @@ describe("password-encrypted signed delivery in the real upload drawer", () => {
         render(<SettingsConfigurationPackage />)
         const apply = screen.getByTestId("package-apply") as HTMLButtonElement
         expect(apply.disabled).toBe(true)
+        expect(mockApply).not.toHaveBeenCalled()
+    })
+})
+
+describe("an encrypted package carrying messaging credentials (V2)", () => {
+    const UNWRAP = "http://localhost/configuration-package-intake/unwrap"
+    const PASSWORD = "synthetic-v2-transfer-password"
+    let secure: PropertyDescriptor | undefined
+
+    beforeEach(() => {
+        secure = Object.getOwnPropertyDescriptor(window, "isSecureContext")
+        Object.defineProperty(window, "isSecureContext", {value: true, configurable: true})
+        mockToken.mockReturnValue("synthetic-bearer")
+        mockFetch.mockImplementation(async (url: string) =>
+            url === UNWRAP
+                ? {ok: true, status: 200, json: async () => ({sha256: SHA})}
+                : {ok: true}
+        )
+    })
+    afterEach(() => {
+        if (secure) Object.defineProperty(window, "isSecureContext", secure)
+        else delete (window as {isSecureContext?: boolean}).isSecureContext
+        mockToken.mockReset()
+        mockFetch.mockReset()
+    })
+
+    const selectV2 = async () => {
+        const view = render(<SettingsConfigurationPackage />)
+        fireEvent.click(screen.getByText("configurationPackage.upload"))
+        const file = new File([envelope(2)], "with-credentials.ezip")
+        fireEvent.change(screen.getByLabelText("Import file"), {target: {files: [file]}})
+        await screen.findByRole("dialog", {name: "electionEventScreen.import.passwordDialog.title"})
+        fireEvent.change(screen.getByLabelText("electionEventScreen.import.passwordDialog.label"), {
+            target: {value: PASSWORD},
+        })
+        await act(async () => {
+            fireEvent.click(screen.getByRole("button", {name: "configurationPackage.encrypted.unlock"}))
+        })
+        return {file, view}
+    }
+
+    it("uploads the ciphertext unchanged, unwraps it on the server only, and previews its hash", async () => {
+        const {file} = await selectV2()
+        await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2))
+        // Never decrypted in this browser.
+        expect(mockUnlock).not.toHaveBeenCalled()
+        // The encrypted file itself goes to protected staging.
+        expect(mockGetUploadUrl.mock.calls[0][0].variables).toMatchObject({
+            configuration_package: true,
+            size: file.size,
+        })
+        expect(mockFetch.mock.calls[0][1].body).toBe(file)
+        // Then the direct same-origin unwrap, with the bearer and the password.
+        const [url, init] = mockFetch.mock.calls[1]
+        expect(url).toBe(UNWRAP)
+        expect(init).toMatchObject({method: "POST", redirect: "error", credentials: "omit"})
+        expect(init.headers.Authorization).toBe("Bearer synthetic-bearer")
+        expect(JSON.parse(init.body)).toEqual({document_id: DOCUMENT_ID, password: PASSWORD})
+        // The password reaches only that request: never GraphQL or storage.
+        expect(JSON.stringify(mockGetUploadUrl.mock.calls)).not.toContain(PASSWORD)
+        const preview = await screen.findByRole("button", {
+            name: "electionEventScreen.import.import",
+        })
+        await waitFor(() => expect((preview as HTMLButtonElement).disabled).toBe(false))
+        await act(async () => {
+            fireEvent.click(preview)
+        })
+        expect(mockApply.mock.calls[0][0].variables).toMatchObject({
+            documentId: DOCUMENT_ID,
+            mode: "preview",
+            encryptedPayloadSha256: SHA,
+        })
+        expect(JSON.stringify(mockApply.mock.calls)).not.toContain(PASSWORD)
+    })
+
+    const nothingSent = () => {
+        expect(mockGetUploadUrl).not.toHaveBeenCalled()
+        expect(mockFetch).not.toHaveBeenCalled()
+        expect(mockUnlock).not.toHaveBeenCalled()
+        expect(mockApply).not.toHaveBeenCalled()
+    }
+
+    it("refuses before any upload without a session token", async () => {
+        mockToken.mockReturnValue(undefined)
+        await selectV2()
+        expect(screen.getByText("configurationPackage.encrypted.serverRefused")).toBeTruthy()
+        nothingSent()
+    })
+
+    it("refuses before any upload outside a secure context", async () => {
+        Object.defineProperty(window, "isSecureContext", {value: false, configurable: true})
+        await selectV2()
+        expect(screen.getByText("configurationPackage.encrypted.serverInsecure")).toBeTruthy()
+        nothingSent()
+    })
+
+    it("shows a server refusal and previews nothing", async () => {
+        mockFetch.mockImplementation(async (url: string) =>
+            url === UNWRAP ? {ok: false, status: 400, json: async () => ({})} : {ok: true}
+        )
+        await selectV2()
+        await waitFor(() =>
+            expect(
+                screen.getByText("configurationPackage.encrypted.serverDecryptFailed")
+            ).toBeTruthy()
+        )
+        expect(mockUnlock).not.toHaveBeenCalled()
         expect(mockApply).not.toHaveBeenCalled()
     })
 })

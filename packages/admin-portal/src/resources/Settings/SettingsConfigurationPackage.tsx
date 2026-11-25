@@ -759,6 +759,9 @@ const SettingsConfigurationPackageForScope: React.FC<{
                             key={JSON.stringify([tenantId, authContext.userId])}
                             refresh="configurationPackage.upload"
                             signedDeliveryUpload
+                            // The signed-in session's own token, for the direct
+                            // same-origin unwrap of packages with credentials.
+                            getAccessToken={authContext.getAccessToken}
                             formatLabel="ZIP / EZIP"
                             doCancel={() => setOpenUpload(false)}
                             onSourceChange={() => {

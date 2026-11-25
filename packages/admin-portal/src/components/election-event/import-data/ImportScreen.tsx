@@ -39,7 +39,6 @@ import {
     type ServerUnwrapReply,
 } from "@/services/SignedDeliveryWorkerClient"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {AuthContext} from "@/providers/AuthContextProvider"
 
 const DOWNLOAD_URL_LIFETIME_MS = 1000
 
@@ -52,6 +51,12 @@ interface ImportScreenProps {
     ) => Promise<void>
     /** Only the complete configuration package drawer supports the new signed envelope. */
     signedDeliveryUpload?: boolean
+    /**
+     * The signed-in session's access token, from the authenticated caller.
+     * Only for the direct same-origin unwrap of encrypted packages that carry
+     * messaging credentials; without it that unwrap is refused, never tried.
+     */
+    getAccessToken?: () => string | undefined
     uploadCallback?: (documentId: string, password?: string, shaField?: string) => Promise<void>
     doCancel: () => void
     onSourceChange?: () => void
@@ -127,10 +132,10 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             allowHistoricalSource,
             formatLabel,
             signedDeliveryUpload,
+            getAccessToken,
         } = props
         const requiresSha = props.fileIntegrityPolicy === EFileIntegrityPolicy.REQUIRED_SHA256
         const {globalSettings} = React.useContext(SettingsContext)
-        const authContext = React.useContext(AuthContext)
         const configuredUrl = globalSettings.ELECTION_EVENT_IMPORT_CONVERTER_BASE_URL
         const converterUrl = typeof configuredUrl === "string" ? configuredUrl.trim() : undefined
         const historicalEnabled = !!allowHistoricalSource && !!converterUrl
@@ -152,6 +157,9 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         const [unlocking, setUnlocking] = useState(false)
         const [passwordError, setPasswordError] = useState("")
         const signedRequest = useRef<AbortController | null>(null)
+        // The selected encrypted package's envelope version, read once when it
+        // is chosen: V2 (messaging credentials) is unwrapped only by the server.
+        const deliveryVersion = useRef<number | undefined>(undefined)
         useEffect(() => () => signedRequest.current?.abort(), [])
         const [theFile, setTheFile] = useState<File | undefined>()
         const [generatedHash, setGeneratedHash] = useState<string | null>(null)
@@ -360,6 +368,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             setHistoricalFiles([])
             const theFile = selected[0]
             setTheFile(theFile)
+            deliveryVersion.current = undefined
             let isEncrypted = theFile?.name.endsWith(".ezip") || false
             if (signedDeliveryUpload && theFile) {
                 const request = new AbortController()
@@ -367,6 +376,10 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 setUnlocking(true)
                 try {
                     isEncrypted = await isEncryptedSignedDeliveryFile(theFile)
+                    if (request.signal.aborted) return
+                    deliveryVersion.current = isEncrypted
+                        ? await signedDeliveryVersion(theFile)
+                        : undefined
                     if (request.signal.aborted) return
                 } catch {
                     if (!request.signal.aborted) {
@@ -429,10 +442,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 setUnlocking(true)
                 setPasswordError("")
                 try {
-                    if (
-                        (await signedDeliveryVersion(theFile)) === CREDENTIALS_DELIVERY_VERSION
-                    ) {
-                        if (request.signal.aborted) return
+                    if (deliveryVersion.current === CREDENTIALS_DELIVERY_VERSION) {
                         // Messaging credentials are unwrapped by the server only:
                         // check the transport before anything is uploaded.
                         let target: URL | undefined
@@ -451,6 +461,17 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                                     t("configurationPackage.encrypted.serverInsecure", {
                                         defaultValue:
                                             "This package carries messaging credentials. Open the Admin Portal over HTTPS (or on this computer) to upload it. Nothing was uploaded.",
+                                    })
+                                )
+                            )
+                            return
+                        }
+                        if (!getAccessToken?.()) {
+                            setPasswordError(
+                                String(
+                                    t("configurationPackage.encrypted.serverRefused", {
+                                        defaultValue:
+                                            "The server could not accept this package's messaging credentials. Upload it again over HTTPS.",
                                     })
                                 )
                             )
@@ -476,7 +497,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                                 const reply = await unwrapOnServer(
                                     documentId,
                                     transfer,
-                                    authContext.getAccessToken(),
+                                    getAccessToken?.(),
                                     request.signal,
                                     undefined,
                                     undefined,

@@ -56,8 +56,9 @@ async fn delivered_keys_install_once_for_the_uploader_and_keep_the_account_prist
     std::env::set_var("MASTER_SECRET", MASTER_SECRET);
     let pool = schema::pool().await;
     let mut client = pool.get().await.unwrap();
-    let tenant = Uuid::from_u128(301);
-    let document = Uuid::from_u128(302);
+    // Deterministic RFC 4122 version-4 IDs: the vault accepts only v4 tenants.
+    let tenant = Uuid::parse_str("00000000-0000-4000-8000-00000000012d").unwrap();
+    let document = Uuid::parse_str("00000000-0000-4000-8000-00000000012e").unwrap();
     let definitions = definitions(&tenant);
 
     // A staging row recorded for its uploader, as get_upload_url makes it.
