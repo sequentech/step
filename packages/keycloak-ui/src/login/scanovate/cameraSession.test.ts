@@ -11,6 +11,7 @@ import {
     canSwitch,
     facingOf,
     fallbackRequests,
+    holdingCamera,
     mirrorsPreview,
     switchRequests,
     usableCameras,
@@ -36,6 +37,14 @@ describe("the camera policy of the holding photo", () => {
             preferred: CameraFacing.Front,
             switching: CameraSwitching.Allowed,
         })
+    })
+
+    it("starts with the camera last chosen on the device, and still lets the voter switch", () => {
+        expect(holdingCamera(CameraFacing.Rear)).toEqual({
+            preferred: CameraFacing.Rear,
+            switching: CameraSwitching.Allowed,
+        })
+        expect(holdingCamera(CameraFacing.Front)).toEqual(HOLDING_CAMERA)
     })
 })
 

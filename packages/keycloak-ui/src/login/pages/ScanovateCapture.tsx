@@ -21,6 +21,7 @@ import {
     canChooseCamera,
     otherFacing,
     startingFacing,
+    deviceStorage,
     storeFacing,
     storedFacing,
     watchFrame,
@@ -221,15 +222,6 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
             )}
         </CaptureWindow>
     )
-}
-
-/** The browser's storage for this site, where there is one. */
-function deviceStorage(): Storage | undefined {
-    try {
-        return window.localStorage
-    } catch {
-        return undefined
-    }
 }
 
 /**

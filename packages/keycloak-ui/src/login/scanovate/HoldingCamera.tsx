@@ -6,11 +6,13 @@ import Button from "@mui/material/Button"
 import type {ScanovateHolding} from "../KcContext"
 import {ArrowIcon, SwitchCameraIcon, CloseIcon} from "../icons"
 import type {CaptureEvent} from "./capture"
+import {CameraChoice, deviceStorage, storeFacing, storedFacing} from "./camera"
 import {
     CameraSession,
     HOLDING_CAMERA,
     SwitchOutcome,
     canSwitch,
+    holdingCamera,
     mirrorsPreview,
     type Camera,
     type OpenedCamera,
@@ -79,8 +81,10 @@ const SAMPLE_INTERVAL_MS = 100
  *
  * It looks like Scanovate's own pages, which come before it: the camera over
  * the whole capture window, a close button, and the instruction over the image.
- * When the browser gives more than one camera, a button switches between them,
- * front first (HOLDING_CAMERA); switching starts the holding time again.
+ * When the browser gives more than one camera, a button switches between them;
+ * switching starts the holding time again. The camera is the one last chosen
+ * here on this device, and the front one (HOLDING_CAMERA) until one is: a
+ * tablet whose operator turned to the rear camera opens it for the next voter.
  */
 export function HoldingCamera(props: {
     text: Text
@@ -139,7 +143,12 @@ export function HoldingCamera(props: {
             dispatch({type: "problem", problem: CaptureProblem.Camera})
             return
         }
-        const session = new CameraSession(devices, HOLDING_CAMERA)
+        const session = new CameraSession(
+            devices,
+            holdingCamera(
+                storedFacing(deviceStorage(), HOLDING_CAMERA.preferred, CameraChoice.Holding)
+            )
+        )
         sessionRef.current = session
         // A webcam plugged in or out changes the cameras to switch between.
         const changed = () => refreshCameras(session)
@@ -174,7 +183,15 @@ export function HoldingCamera(props: {
         setSwitching(false)
         switch (result.outcome) {
             case SwitchOutcome.Switched:
-                if (result.opened !== null) show(session, result.opened)
+                if (result.opened !== null) {
+                    // Kept for the next voter on this device. A camera that tells no
+                    // side (a computer's webcam) leaves what is remembered as it is.
+                    const chosen = result.opened.camera.facing
+                    if (chosen !== null) {
+                        storeFacing(deviceStorage(), chosen, CameraChoice.Holding)
+                    }
+                    show(session, result.opened)
+                }
                 return
             case SwitchOutcome.Kept:
                 if (result.opened === null) {

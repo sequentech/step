@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {describe, expect, it, vi} from "vitest"
 import {
+    CameraChoice,
     CameraFacing,
     cameraCount,
     canChooseCamera,
@@ -91,6 +92,24 @@ describe("the remembered choice", () => {
         expect(storedFacing(storage, CameraFacing.Front)).toBe(CameraFacing.Rear)
         storeFacing(storage, CameraFacing.Front)
         expect(storedFacing(storage, CameraFacing.Rear)).toBe(CameraFacing.Front)
+    })
+
+    it("keeps the holding photo's camera apart from the document scan's", () => {
+        const storage = memory()
+        // A selfie: the front camera until one is chosen on the device.
+        expect(storedFacing(storage, CameraFacing.Front, CameraChoice.Holding)).toBe(
+            CameraFacing.Front
+        )
+        storeFacing(storage, CameraFacing.Rear, CameraChoice.Holding)
+        expect(storedFacing(storage, CameraFacing.Front, CameraChoice.Holding)).toBe(
+            CameraFacing.Rear
+        )
+        // The document scan's choice is its own.
+        expect(storedFacing(storage, CameraFacing.Front)).toBe(CameraFacing.Front)
+        storeFacing(storage, CameraFacing.Front)
+        expect(storedFacing(storage, CameraFacing.Front, CameraChoice.Holding)).toBe(
+            CameraFacing.Rear
+        )
     })
 
     it("is kept on the device", () => {
