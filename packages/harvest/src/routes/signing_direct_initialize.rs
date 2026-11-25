@@ -3,7 +3,8 @@
 //! PKCS#11 device accepts a reservation, not a browser-supplied sign message.
 use super::{hasura, internal, require, signing_failure, tenant_of, uuid_of, writer, HarvestServices, RequestIdOutput, SigningFailure, SigningReply};
 use anyhow::{ensure, Context, Result};
-use chrono::Utc;
+use chrono::{DateTime, Utc};
+use openssl::{pkey::{Id, PKey, Private}, sign::Signer};
 use openssl::x509::X509;
 use reqwest::{Certificate, Client, Identity, StatusCode, Url};
 use rocket::{routes, Build, Rocket, State};
@@ -12,9 +13,10 @@ use sequent_core::{services::jwt::JwtClaims, types::permissions::Permissions};
 use serde::{Deserialize, Serialize};
 use std::{fs, io::Read, net::SocketAddrV4, os::unix::fs::MetadataExt, path::Path, time::Duration};
 use uuid::Uuid;
-use windmill::services::signing::direct_initialize::{approved, authorize, commit, verify_proof, verify_signature};
+use windmill::services::signing::direct_initialize::{approved, authorize, commit, verify_proof, verify_signature, DirectScope};
 
 const ROOT: &str = "/run/sequent-comelec-demo-direct-hsm/harvest";
+const AUTHORITY_DOMAIN: &[u8] = b"sequent.local.initialize.authorization/v1\0";
 const DEVICE_ROUTE: &str = "private/v1/operational-signing/initialize/direct";
 
 #[derive(Deserialize)]
@@ -26,12 +28,14 @@ struct Registration {
     device_peer: SocketAddrV4,
     device_ca_sha256: String,
     harvest_client_spki_sha256: String,
+    authorization_public_key_hex: String,
 }
 
 pub(crate) struct DirectDevice {
     registration: Registration,
     client: Client,
     url: Url,
+    authorization_key: PKey<Private>,
 }
 
 fn protected(name: &str, private: bool) -> Option<Vec<u8>> {
@@ -84,7 +88,15 @@ impl DirectDevice {
             .connect_timeout(Duration::from_secs(3)).timeout(Duration::from_secs(12))
             .pool_max_idle_per_host(0).min_tls_version(reqwest::tls::Version::TLS_1_2).build()?;
         let url=Url::parse(&format!("https://{addr}/"))?.join(DEVICE_ROUTE)?;
-        Ok(Self { registration,client,url })
+        let mut key = protected("authorization-key.pem",true)
+            .context("Missing private direct HSM authorization key")?;
+        let authorization_key = PKey::private_key_from_pem(&key);
+        key.fill(0);
+        let authorization_key = authorization_key?;
+        ensure!(authorization_key.id()==Id::ED25519
+            && hex::encode(authorization_key.raw_public_key()?)==registration.authorization_public_key_hex,
+            "Unexpected direct HSM authority key");
+        Ok(Self { registration,client,url,authorization_key })
     }
 
     fn portal_actor(&self, claims: &JwtClaims, tenant: Uuid) -> bool {
@@ -96,13 +108,38 @@ impl DirectDevice {
                 && claims.sub==claims.hasura_claims.user_id)
     }
 
-    async fn sign(&self,reservation_id:Uuid)->std::result::Result<(Vec<u8>,Vec<u8>),SigningFailure> {
+    async fn sign(
+        &self, reservation_id: Uuid, nonce: Uuid, deadline: DateTime<Utc>,
+        scope: &DirectScope, digest: &str,
+    )->std::result::Result<(Vec<u8>,Vec<u8>),SigningFailure> {
+        let expires_at_unix=deadline.timestamp();
+        let now=Utc::now().timestamp();
+        if expires_at_unix<=now || expires_at_unix>now+45 {
+            return Err(unavailable());
+        }
+        let proof_message=scope.message(nonce).map_err(signing_failure)?;
+        let mut envelope=Vec::with_capacity(AUTHORITY_DOMAIN.len()+24+proof_message.len());
+        envelope.extend_from_slice(AUTHORITY_DOMAIN);
+        envelope.extend_from_slice(reservation_id.as_bytes());
+        envelope.extend_from_slice(&expires_at_unix.to_be_bytes());
+        envelope.extend_from_slice(&proof_message);
+        let signature=Signer::new_without_digest(&self.authorization_key)
+            .and_then(|mut signer| signer.sign_oneshot_to_vec(&envelope)).map_err(internal)?;
         #[derive(Serialize)]
-        struct Input { reservation_id:Uuid }
+        struct Input<'a> {
+            reservation_id:Uuid,installation:Uuid,tenant:Uuid,event:Uuid,post:Uuid,publication:Uuid,
+            request:Uuid,actor:Uuid,nonce:Uuid,payload_sha256:&'a str,expires_at_unix:i64,
+            authorization_sig_hex:String,
+        }
         #[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
         struct Proof { reservation_id:Uuid, profile:String, spki_der_hex:String, signature_der_hex:String }
-        let mut reply=self.client.post(self.url.clone()).json(&Input{reservation_id}).send().await.map_err(|_| unavailable())?;
+        let input=Input {
+            reservation_id, installation:scope.installation(),tenant:scope.tenant(),event:scope.event(),
+            post:scope.post(),publication:scope.publication(),request:scope.request(),actor:scope.actor(),
+            nonce,payload_sha256:digest,expires_at_unix,authorization_sig_hex:hex::encode(signature),
+        };
+        let mut reply=self.client.post(self.url.clone()).json(&input).send().await.map_err(|_| unavailable())?;
         if reply.status()!=StatusCode::OK || reply.content_length().is_some_and(|n|n>1024) {
             return Err(unavailable());
         }
@@ -149,15 +186,16 @@ pub(crate) async fn direct_initialize_approval(
         return Ok(Json(RequestIdOutput{request_id:request}));
     }
     let held=tx.query_opt(
-        "SELECT id,nonce FROM felix3_initialize_direct.reserve($1,$2,$3,$4,$5,$6,$7,$8)",
+        "SELECT id,nonce,expires_at FROM felix3_initialize_direct.reserve($1,$2,$3,$4,$5,$6,$7,$8)",
         &[&scope.installation(),&scope.tenant(),&scope.event(),&scope.post(),&scope.publication(),
           &scope.request(),&scope.actor(),&digest],
     ).await.map_err(internal)?.ok_or_else(unavailable)?;
     let reservation:Uuid=held.try_get("id").map_err(internal)?;
     let nonce:Uuid=held.try_get("nonce").map_err(internal)?;
+    let deadline:DateTime<Utc>=held.try_get("expires_at").map_err(internal)?;
     tx.commit().await.map_err(internal)?;
 
-    let (spki,signature)=device.sign(reservation).await?;
+    let (spki,signature)=device.sign(reservation,nonce,deadline,&scope,&body.payload_sha256).await?;
     verify_signature(&scope,nonce,&spki,&signature).map_err(signing_failure)?;
     let tx=client.transaction().await.map_err(internal)?;
     let recorded:bool=tx.query_one(

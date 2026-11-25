@@ -139,7 +139,7 @@ CREATE TRIGGER direct_initialize_immutable BEFORE UPDATE OR DELETE OR TRUNCATE O
 
 CREATE FUNCTION felix3_initialize_direct.reserve(
     p_install uuid,p_tenant uuid,p_event uuid,p_post uuid,p_publication uuid,p_request uuid,p_actor uuid,p_sha bytea
-) RETURNS TABLE(id uuid,nonce uuid) LANGUAGE plpgsql SECURITY DEFINER STRICT SET search_path=pg_catalog,pg_temp AS $$
+) RETURNS TABLE(id uuid,nonce uuid,expires_at timestamptz) LANGUAGE plpgsql SECURITY DEFINER STRICT SET search_path=pg_catalog,pg_temp AS $$
 DECLARE end_at timestamptz; started timestamptz; prior felix3_initialize_direct.reservation%ROWTYPE;
 BEGIN
  IF current_setting('transaction_isolation')<>'read committed' OR octet_length(p_sha)<>32 THEN RETURN; END IF;
@@ -155,67 +155,22 @@ BEGIN
  WHERE (r.installation,r.tenant,r.event,r.post,r.publication,r.request,r.actor,r.payload_sha256)=
        (p_install,p_tenant,p_event,p_post,p_publication,p_request,p_actor,p_sha)
    AND r.expires_at>started ORDER BY r.created_at DESC LIMIT 1;
- IF FOUND THEN
-   IF prior.claimed_at IS NULL THEN RETURN QUERY SELECT prior.id,prior.nonce; END IF;
-   RETURN;
- END IF;
+ -- Only Harvest prepares the attempt. A lost HTTP reply never
+ -- redelivers a live attempt; after the original deadline a new explicit
+ -- approval can reserve with the same stable key, and never count twice.
+ IF FOUND THEN RETURN; END IF;
  RETURN QUERY INSERT INTO felix3_initialize_direct.reservation
-   (installation,tenant,event,post,publication,request,actor,payload_sha256,created_at,expires_at)
-   VALUES(p_install,p_tenant,p_event,p_post,p_publication,p_request,p_actor,p_sha,started,least(end_at,started+interval '45 seconds'))
-   RETURNING reservation.id,reservation.nonce;
+   (installation,tenant,event,post,publication,request,actor,payload_sha256,created_at,expires_at,claimed_at)
+   VALUES(p_install,p_tenant,p_event,p_post,p_publication,p_request,p_actor,p_sha,started,
+          least(end_at,started+interval '45 seconds'),started)
+   RETURNING reservation.id,reservation.nonce,reservation.expires_at;
 END;
 $$;
 REVOKE ALL ON FUNCTION felix3_initialize_direct.reserve(uuid,uuid,uuid,uuid,uuid,uuid,uuid,bytea) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION felix3_initialize_direct.reserve(uuid,uuid,uuid,uuid,uuid,uuid,uuid,bytea) TO sequent_os_approve;
 
-CREATE FUNCTION felix3_initialize_direct.device_principal()
-RETURNS boolean LANGUAGE sql STABLE SET search_path=pg_catalog,pg_temp AS $$
- SELECT inet_client_addr() IS NULL AND EXISTS (SELECT FROM pg_roles r
-  WHERE r.rolname=session_user AND r.rolname='felix3_local_direct_hsm_device' AND r.rolcanlogin
-    AND NOT (r.rolsuper OR r.rolcreatedb OR r.rolcreaterole OR r.rolreplication OR r.rolbypassrls)
-    AND NOT EXISTS (SELECT FROM pg_auth_members m WHERE m.member=r.oid)
-    AND NOT has_database_privilege(r.oid,current_database(),'CREATE')
-    AND NOT has_schema_privilege(r.oid,'felix3_initialize_direct','USAGE,CREATE'));
-$$;
-REVOKE ALL ON FUNCTION felix3_initialize_direct.device_principal() FROM PUBLIC;
-
--- The installer grants these two functions to the exact dedicated socket
--- login; it never receives raw tables, approval/amend rights or other APIs.
-CREATE FUNCTION sequent_backend.local_initialize_direct_ready(
- p_install uuid,p_tenant uuid,p_event uuid,p_post uuid,p_publication uuid,p_profile text)
-RETURNS boolean LANGUAGE sql STABLE STRICT SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $$
- SELECT p_profile COLLATE "C"='softhsm-test' AND felix3_initialize_direct.device_principal()
-     AND felix3_initialize_direct.scope_enabled(p_install,p_tenant,p_event,p_post,p_publication);
-$$;
-REVOKE ALL ON FUNCTION sequent_backend.local_initialize_direct_ready(uuid,uuid,uuid,uuid,uuid,text) FROM PUBLIC;
-
-CREATE FUNCTION sequent_backend.claim_local_initialize_direct(p_id uuid)
-RETURNS TABLE(installation uuid,tenant uuid,event uuid,post uuid,publication uuid,request uuid,actor uuid,
-              nonce uuid,payload_sha256 text,expires_at timestamptz)
-LANGUAGE plpgsql SECURITY DEFINER STRICT SET search_path=pg_catalog,pg_temp AS $$
-DECLARE a felix3_initialize_direct.reservation%ROWTYPE; claimed timestamptz;
-BEGIN
- IF NOT felix3_initialize_direct.device_principal()
-   OR current_setting('transaction_isolation')<>'read committed' THEN RETURN; END IF;
- SELECT r.* INTO a FROM felix3_initialize_direct.reservation r WHERE r.id=p_id;
- IF NOT FOUND THEN RETURN; END IF;
- PERFORM pg_advisory_xact_lock_shared(hashtextextended('operational-signing-policy:deployment',0));
- PERFORM pg_advisory_xact_lock(hashtextextended('signing-event:'||a.tenant::text||':'||a.event::text,0));
- claimed:=clock_timestamp();
- IF felix3_initialize_direct.is_waiting(a.installation,a.tenant,a.event,a.post,a.publication,a.request,a.payload_sha256) IS NULL
- OR EXISTS (SELECT FROM felix3_initialize_direct.per_actor_key k
-            WHERE (k.installation,k.actor)=(a.installation,a.actor) AND k.revoked_at IS NOT NULL)
- OR EXISTS (SELECT FROM sequent_backend.signing_approval x WHERE
-           (x.tenant_id,x.election_event_id,x.request_id,x.user_id)=(a.tenant,a.event,a.request,a.actor::text))
- THEN RETURN; END IF;
- RETURN QUERY UPDATE felix3_initialize_direct.reservation r SET claimed_at=claimed
-    WHERE r.id=p_id AND r.claimed_at IS NULL AND r.expires_at>claimed
-    RETURNING r.installation,r.tenant,r.event,r.post,r.publication,r.request,r.actor,r.nonce,
-        encode(r.payload_sha256,'hex'),r.expires_at;
-END;
-$$;
-REVOKE ALL ON FUNCTION sequent_backend.claim_local_initialize_direct(uuid) FROM PUBLIC;
-
+-- Device has no database connection, credential, installer role, or
+-- EXECUTE API. Only Harvest can obtain or consume the private reservation.
 CREATE FUNCTION sequent_backend.record_local_initialize_direct_key(p_id uuid,p_key bytea)
 RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER STRICT SET search_path=pg_catalog,pg_temp AS $$
 DECLARE a felix3_initialize_direct.reservation%ROWTYPE;

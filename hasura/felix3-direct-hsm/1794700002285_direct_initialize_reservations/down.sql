@@ -11,12 +11,9 @@ BEGIN
 END;
 $$;
 DROP FUNCTION sequent_backend.record_local_initialize_direct_key(uuid,bytea);
-DROP FUNCTION sequent_backend.claim_local_initialize_direct(uuid);
-DROP FUNCTION sequent_backend.local_initialize_direct_ready(uuid,uuid,uuid,uuid,uuid,text);
 DROP FUNCTION sequent_backend.operational_signing_local_initialize_scope(uuid,uuid);
 DROP FUNCTION felix3_initialize_direct.consume(uuid,uuid,uuid,uuid,uuid,uuid,uuid,uuid,bytea);
 DROP FUNCTION felix3_initialize_direct.proof_key(uuid,uuid,uuid,uuid,uuid,uuid,uuid,uuid,bytea);
-DROP FUNCTION felix3_initialize_direct.device_principal();
 DROP FUNCTION felix3_initialize_direct.reserve(uuid,uuid,uuid,uuid,uuid,uuid,uuid,bytea);
 DROP TRIGGER direct_initialize_immutable ON felix3_initialize_direct.installation;
 DROP TRIGGER direct_initialize_install ON felix3_initialize_direct.installation;
