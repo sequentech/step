@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">public-verification | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4397/docs/developers/wbraid/public-verification"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="public-verification | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4397/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4397/docs/developers/wbraid/public-verification"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4397/docs/developers/wbraid/public-verification" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4397/docs/developers/wbraid/public-verification" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"public-verification","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4397/docs/developers/wbraid/public-verification"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4397/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4397/assets/js/runtime~main.d7dab7c4.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4397/assets/js/runtime~main.4b4f2cd3.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4397/assets/js/main.996944cd.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -68,15 +68,18 @@ board names, the batch with the election, contest and area that own it, and the
 platform&#x27;s stored <code>protocol_board.manager_message</code> of both boards in padded
 base64: the DKG board&#x27;s <code>Configuration</code> and the tally board&#x27;s <code>Ballots</code>. The page
 derives <code>configuration_hash</code>, <code>tally_id</code> and <code>ballots_hash</code> from those messages
-with <code>configurationHash</code>, <code>tallyIdentifier</code> and <code>ballotsHash</code>, fetches each
-transcript from <code>WBRAID_BOARD_URL</code> (the portal&#x27;s <code>/b4</code> by default) and calls
-<code>verifyTranscript</code>. It checks no ballot inclusion.</p>
-<p>The board answers with presigned storage URLs, and the browser downloads each
-message body from them, so the page must reach that storage too. A batch whose
-board or storage cannot be read shows <strong>Not verified</strong> with the browser&#x27;s error,
-for example <code>TypeError: Failed to fetch</code>. In the devcontainer the storage is
-LocalStack at <code>http://localhost.localstack.cloud:4566</code>, which reaches the
-developer&#x27;s machine through the forwarded port 4566 (<strong>Wbraid storage</strong>).</p>
+with <code>configurationHash</code>, <code>tallyIdentifier</code> and <code>ballotsHash</code>. It checks no
+ballot inclusion.</p>
+<p>Each batch&#x27;s transcript comes from the Hasura action
+<code>get_tally_public_verification_transcript</code> (Harvest
+<code>POST /tally-public-verification-transcript</code>, <code>tally-results-read</code>, a 600 second
+action timeout). Harvest checks that the board belongs to the caller&#x27;s tally
+session, reads the DKG and tally boards from <code>WBRAID_B4_URL</code> and their storage
+as <code>BoardHandle::export_messages</code> does for event exports, and returns every
+message in padded base64. The page passes <code>{version: 1, dkg_messages, tally_messages}</code> to <code>verifyTranscript</code>. The browser never reads the board
+service or its storage, so neither <code>WBRAID_BOARD_URL</code>, cross-origin access to the
+board and its storage, nor a forwarded storage port in the devcontainer affects
+the verification.</p>
 <p>The anchors are the platform&#x27;s records, so the page is a self-check of the
 platform against its boards, not an independent audit. <strong>Download evidence</strong>
 saves the run as JSON: each batch&#x27;s <code>anchors</code>, <code>report</code> and the <code>transcript</code>
