@@ -22,7 +22,7 @@ export type SafePanel = "publish" | "signatures-requests"
 export type IReturnPage =
     | {path: EventPageKind; panel: SafePanel; election_id?: undefined}
     | {path: ElectionPageKind; panel: "publish"; election_id: string}
-export interface ITabMarker {
+interface TabScope {
     tenant: string
     event: string
     request: string
@@ -30,6 +30,12 @@ export interface ITabMarker {
     attempt: string
     page: IReturnPage
 }
+export type ITabMarker = TabScope & (
+    | {purpose?: undefined; payloadSha256?: undefined}
+    | {purpose: "initialize-setup"; payloadSha256: string}
+)
+export const isReviewedDigest = (v: unknown): v is string =>
+    typeof v === "string" && v.length === 64 && !/[^0-9a-f]/.test(v)
 export type ReturnSecret = {state: string; code: string; issuer?: string}
 
 export function parsePage(value: unknown): IReturnPage | undefined {
@@ -97,7 +103,9 @@ export function decodeTabMarker(raw: unknown): ITabMarker | undefined {
     const m = object(raw)
     const page = parsePage(m.page)
     if (
-        Object.keys(m).length !== 6 ||
+        (m.purpose === "initialize-setup"
+            ? Object.keys(m).length !== 8 || !isReviewedDigest(m.payloadSha256)
+            : m.purpose !== undefined || Object.keys(m).length !== 6) ||
         !page ||
         !isId(m.tenant) ||
         !isId(m.event) ||
@@ -106,7 +114,7 @@ export function decodeTabMarker(raw: unknown): ITabMarker | undefined {
         !isId(m.attempt)
     )
         return undefined
-    return {
+    const scope = {
         tenant: m.tenant,
         event: m.event,
         request: m.request,
@@ -114,6 +122,9 @@ export function decodeTabMarker(raw: unknown): ITabMarker | undefined {
         attempt: m.attempt,
         page,
     }
+    return m.purpose === "initialize-setup" && isReviewedDigest(m.payloadSha256)
+        ? {...scope, purpose: "initialize-setup", payloadSha256: m.payloadSha256}
+        : scope
 }
 export function markBeforeFullRedirect(storage: Storage, marker: ITabMarker): boolean {
     if (!decodeTabMarker(marker)) return false

@@ -227,6 +227,8 @@ fn load(application: &Rocket<Build>, root: &Path) -> Option<Installation> {
     if [descriptor.installation_id, descriptor.tenant_id, descriptor.election_event_id, descriptor.election_id, descriptor.publication_id]
         .contains(&Uuid::nil())
         || descriptor.device_profile != profile
+        || pins.portal_client == super::local_setup::SETUP_CLIENT
+        || pins.approval_client == super::local_setup::SETUP_CLIENT
         || pins.registered_audience != pins.registered_portal_client
         || !pins.listen.ip().is_private() || pins.listen.port() == 0 || !pins.hasura_peer.is_private()
         || pins.hasura_peer == *pins.listen.ip()
@@ -284,6 +286,8 @@ fn installation_present(root: &Path) -> std::io::Result<bool> {
 }
 
 pub(crate) async fn mount(application: Rocket<Build>) -> anyhow::Result<Rocket<Build>> {
+    use super::local_setup::{ingress, transport::SetupServices};
+
     let root = Path::new(ROOT);
     if !installation_present(root)? {
         return Ok(application);
@@ -294,13 +298,24 @@ pub(crate) async fn mount(application: Rocket<Build>) -> anyhow::Result<Rocket<B
     let tx = db.transaction().await?;
     ensure!(install.post.present(&tx).await?, "local Harvest installation marker mismatch");
     drop(tx);
-    Ok(application
+    let setup = if root.join("harvest/setup/registration.json").try_exists()? {
+        let database: String = db.query_one("SELECT current_database()::text", &[]).await?.try_get(0)?;
+        SetupServices::load(root, &install.auth, &install.post, &database).await
+    } else {
+        None
+    };
+    let application = application
         .manage(install.auth)
         .manage(install.ingress)
         .manage(install.post)
         .manage(super::InitializeBroker(Box::new(install.broker)))
         .mount("/", rocket::routes![super::status, super::start, super::finish,
-            super::cancel_unused, super::reconcile]))
+            super::cancel_unused, super::reconcile]);
+    Ok(match setup {
+        Some(setup) => application.manage(setup).mount("/", rocket::routes![
+            ingress::status, ingress::start, ingress::confirm, ingress::register]),
+        None => application,
+    })
 }
 
 #[cfg(test)]

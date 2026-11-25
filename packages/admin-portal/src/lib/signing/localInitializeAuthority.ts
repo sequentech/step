@@ -4,11 +4,12 @@
 import buildProfile from "./localInitializeProfile.json"
 
 export const INITIALIZE_RETURN_PATH = "/operational-signing/return"
+export const LOCAL_SETUP_CLIENT = "felix3-local-initialize-setup"
 const PORTAL = "http://localhost:3002"
 const KEYCLOAK = "http://localhost:18090/"
 const GRAPHQL = "http://localhost:18080/v1/graphql"
 const registrationFields = new Set([
-    "profile", "deviceProfile", "issuer", "callback", "graphql", "portalClient", "approvalClient",
+    "profile", "deviceProfile", "issuer", "callback", "graphql", "portalClient", "approvalClient", "setupClient",
 ])
 const clientId = (s: unknown): s is string =>
     typeof s === "string" && /^[A-Za-z0-9_.-]{1,150}$/.test(s) && !/\s/.test(s)
@@ -37,6 +38,9 @@ export function localInitializeRegistration(origin: string | undefined, registra
         p.portalClient.startsWith("sequent-operational-") ||
         !clientId(p.approvalClient) ||
         p.portalClient === p.approvalClient ||
+        p.portalClient === LOCAL_SETUP_CLIENT ||
+        p.approvalClient === LOCAL_SETUP_CLIENT ||
+        (p.setupClient !== undefined && (p.setupClient !== LOCAL_SETUP_CLIENT || deviceProfile !== "softhsm-test")) ||
         p.approvalClient === "sequent-operational-demo-14990" ||
         typeof p.issuer !== "string" ||
         p.issuer.length > 1024 ||
@@ -60,6 +64,7 @@ export function localInitializeRegistration(origin: string | undefined, registra
         graphql: GRAPHQL,
         portalClient: p.portalClient,
         approvalClient: p.approvalClient,
+        setupClient: p.setupClient === LOCAL_SETUP_CLIENT ? LOCAL_SETUP_CLIENT : undefined,
     }
 }
 

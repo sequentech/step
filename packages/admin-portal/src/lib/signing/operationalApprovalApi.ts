@@ -166,7 +166,8 @@ export function trustedSigningRedirect(
     keycloakBase: string,
     tenant: string,
     portalOrigin?: string,
-    registration?: unknown
+    registration?: unknown,
+    purpose: "approval" | "initialize-setup" = "approval"
 ) {
     if (!isId(tenant) || value.length > 2048) throw new Error("Invalid verification redirect")
     const base = new URL(keycloakBase)
@@ -176,12 +177,17 @@ export function trustedSigningRedirect(
     const client = target.searchParams.get("client_id")
     const request = target.searchParams.get("request_uri")
     const local = localInitializeRegistration(portalOrigin, registration)
+    if (purpose === "initialize-setup" && !local?.setupClient)
+        throw new Error("Setup verification unavailable")
     if (local) {
         // Beyond emits this two-field form. Compare its raw spelling so URL
         // normalization cannot turn a different destination into the pin.
-        const query = new URLSearchParams({client_id: local.approvalClient, request_uri: request ?? ""})
+        const expected = purpose === "initialize-setup" ? local.setupClient : local.approvalClient
+        if (!expected) throw new Error("Invalid verification client")
+        const query = new URLSearchParams({client_id: expected, request_uri: request ?? ""})
         if (
             tenant !== local.tenant ||
+            request !== request?.trim() ||
             keycloakBase + "realms/tenant-" + tenant !== local.issuer ||
             value !== local.issuer + "/protocol/openid-connect/auth?" + query.toString()
         )

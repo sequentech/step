@@ -124,7 +124,7 @@ class SetupBoundary(unittest.TestCase):
         ordered(self, PORTAL, "caller(&claims.0)", "prepare_initialize_signing(", "pin.verify(",
                 "current.payload_sha256() != reviewed_digest", "tx.commit()")
         for name, operation in [("begin", "begin_setup"), ("release", "release"), ("status", "status")]:
-            ordered(self, PORTAL.split("pub(crate) async fn " + name + "(", 1)[1],
+            ordered(self, PORTAL.split("async fn " + name + "(", 1)[1].split("\n}", 1)[0],
                     "checked_scope(", "felix3_initialize_setup." + operation + "(")
         ordered(self, GOLD, "pub(crate) async fn confirm(", "validate_return(",
                 "self.challenge(scope, attempt, &nonce, true)", "self.par.exchange(",

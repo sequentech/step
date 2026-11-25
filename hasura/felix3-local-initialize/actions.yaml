@@ -64,6 +64,58 @@ actions:
               version: 2
       permissions:
           - role: sign-initialize-voting
+    - name: operationalInitializeSelfSetupStatus
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/self-setup/status
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
+    - name: operationalInitializeSelfSetupStart
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/self-setup/start
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
+    - name: operationalInitializeSelfSetupConfirm
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/self-setup/confirm
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
+    - name: operationalInitializeSelfSetupRegister
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/self-setup/register
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
 custom_types:
     input_objects:
         - name: OperationalInitializeReturnPageInput
@@ -74,3 +126,5 @@ custom_types:
         - name: OperationalInitializeStart
         - name: OperationalInitializeReturn
         - name: OperationalInitializeOutcome
+        - name: OperationalInitializeSelfSetupStatus
+        - name: OperationalInitializeSelfSetupStart

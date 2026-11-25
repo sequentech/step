@@ -307,7 +307,7 @@ fn fixed_par(value: &str) -> Result<Url, BrokerFailure> {
     Url::parse(value).map_err(|_| BrokerFailure::Unavailable)
 }
 
-async fn exact_body<T: DeserializeOwned>(
+pub(super) async fn exact_body<T: DeserializeOwned>(
     mut response: Response,
     may_have_started_device: bool,
 ) -> Result<T, BrokerFailure> {

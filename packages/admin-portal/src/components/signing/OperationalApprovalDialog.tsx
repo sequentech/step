@@ -31,6 +31,9 @@ import {
 } from "@/lib/signing/operationalApprovalPolicy"
 import {matchLocalInitializeSettings} from "@/lib/signing/localInitializeAuthority"
 import {
+    createLocalInitializeSetupApi, localDialogPhase, localSetupControl, type LocalSetupPhase, type LocalSetupStatus,
+} from "@/lib/signing/localInitializeSetupApi"
+import {
     isId,
     markBeforeFullRedirect,
     observedPage,
@@ -44,13 +47,25 @@ import {useSignedView} from "./useSignedView"
 
 type Phase =
     | ApprovalPhase
+    | LocalSetupPhase
     | "loading"
     | "setup-required"
     | "setup-pending"
     | "setup-retry-available"
     | "setup-recovery-required"
 const pending = (phase: Phase) =>
-    phase === "pending" || phase === "waiting-for-identity" || phase === "setup-pending"
+    phase === "pending" || phase === "waiting-for-identity" || phase === "setup-pending" ||
+    phase === "waiting-for-setup-gold" || phase === "setup-confirmation-required"
+
+const localSetupText: Partial<Record<Phase, string>> = {
+    "setup-available": "Set up your signing key for this Post. Start setup to verify your password and one-time code.",
+    "waiting-for-setup-gold": "Your setup attempt is open. Continue sign-in to verify your identity for this request.",
+    "setup-confirmation-required": "Identity verified for this request. Select Register my signing key to register the key for this Post.",
+    "setup-retry-available": "Registration was requested. The device has not claimed this attempt. You can send the same request again.",
+    "setup-pending": "Setup is pending. A signing key and a registered staff certificate are required before you can approve.",
+    "setup-recovery-required": "Setup needs operator review. Check with your administrator before continuing.",
+    "certificate-on-file": "A staff certificate is on file. Approval is waiting for the signing service.",
+}
 
 interface Props {
     data: ISigningPanelData
@@ -84,6 +99,10 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
         () => createOperationalApprovalApi(apollo, localOrigin, registration),
         [apollo, localOrigin, registration]
     )
+    const localSetup = useMemo(
+        () => createLocalInitializeSetupApi(apollo, localOrigin, registration),
+        [apollo, localOrigin, registration]
+    )
     const scope = useMemo(
         () => ({
             tenant: request.tenant_id,
@@ -108,6 +127,7 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
     const titleId = useId()
     const [phase, setPhase] = useState<Phase>("loading")
     const [cancellableAttempt, setCancellableAttempt] = useState<string>()
+    const [setupState, setSetupState] = useState<LocalSetupStatus>()
     const [confirmCancel, setConfirmCancel] = useState<string>()
     const [device, setDevice] = useState<{view: object; softwareDemo: boolean} | null>(null)
     const [activeView, setActiveView] = useState<object | null>(null)
@@ -128,8 +148,23 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
             return
         }
         try {
-            const status = await client.status(scope)
-            let current: Phase = status.phase
+            const setup = localSetup && latest.current.eligible
+                ? await localSetup.status(scope, request.payload_sha256).catch(() => undefined)
+                : undefined
+            let current: Phase
+            let unused: string | undefined
+            let software: boolean
+            if (setup && setup.phase !== "unavailable" && setup.phase !== "certificate-on-file") {
+                // This scoped response has already matched the installed softhsm-test profile.
+                // First use can proceed while the ordinary approval device has no enrolled keys.
+                current = setup.phase
+                software = true
+            } else {
+                const status = await client.status(scope)
+                current = localSetup ? localDialogPhase(status.phase, setup?.phase ?? "unavailable") : status.phase
+                unused = status.cancellableAttempt
+                software = status.softwareDemo
+            }
             if (
                 (current === "unavailable" || current === "challenge-available") &&
                 !localOrigin &&
@@ -146,11 +181,10 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
             }
             if (ticket !== epoch.current || latest.current.view !== view) return
             setPhase(current)
-            setCancellableAttempt(status.cancellableAttempt)
-            setConfirmCancel((confirmed) =>
-                confirmed === status.cancellableAttempt ? confirmed : undefined
-            )
-            setDevice(current === "unavailable" ? null : {view, softwareDemo: status.softwareDemo})
+            setSetupState(setup)
+            setCancellableAttempt(unused)
+            setConfirmCancel((confirmed) => confirmed === unused ? confirmed : undefined)
+            setDevice(current === "unavailable" ? null : {view, softwareDemo: software})
             if (current === "approval-recorded" && !reported.current) {
                 reported.current = true
                 latest.current.onRefresh()
@@ -161,10 +195,11 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
                 setDevice(null)
                 setPhase("unavailable")
                 setCancellableAttempt(undefined)
+                setSetupState(undefined)
                 setConfirmCancel(undefined)
             }
         }
-    }, [client, scope, usable, view, localOrigin])
+    }, [client, scope, usable, view, localOrigin, localSetup, request.payload_sha256])
 
     useEffect(() => {
         reported.current = false
@@ -172,6 +207,7 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
         setFailed(false)
         setPhase("loading")
         setCancellableAttempt(undefined)
+        setSetupState(undefined)
         setConfirmCancel(undefined)
         void read()
         return () => {
@@ -198,9 +234,9 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
         }
     }, [phase, busy, read, view])
 
-    const run = async (action: "set-up" | "approve" | "check" | "cancel-unused") => {
+    const run = async (action: "set-up" | "start-setup" | "register-key" | "approve" | "check" | "cancel-unused") => {
         if (operation.current?.view === view || !usable) return
-        if (action === "approve" && !canApproveReviewed) return
+        if ((action === "approve" || action === "start-setup" || action === "register-key") && !canApproveReviewed) return
         const owner = {view}
         operation.current = owner
         const ticket = ++epoch.current
@@ -268,7 +304,33 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
                 ) {
                     throw new Error("Request no longer open or does not match")
                 }
-                if (action === "set-up") {
+                if (action === "start-setup" || action === "register-key") {
+                    if (!localSetup) return
+                    const digest = request.payload_sha256
+                    const original = await localSetup.status(scope, digest)
+                    if (!stillReviewed() || original.phase !== phase || original.attempt !== setupState?.attempt ||
+                        original.revision !== setupState?.revision ||
+                        localSetupControl(original.phase, true, original.attempt) !== action) {
+                        throw new Error("Signing setup state changed")
+                    }
+                    if (action === "register-key") {
+                        if (!original.attempt || original.revision === undefined) throw new Error("Original setup attempt unavailable")
+                        await localSetup.register(scope, digest, original.attempt, original.revision)
+                    } else {
+                        const opened = await localSetup.start(scope, digest, originPage(), original.attempt)
+                        if (!stillReviewed()) return
+                        if (opened.page.election_id && opened.page.election_id !== request.election_id)
+                            throw new Error("Setup return page changed")
+                        const redirect = trustedSigningRedirect(opened.redirect, globalSettings.KEYCLOAK_URL,
+                            scope.tenant, localOrigin, registration, "initialize-setup")
+                        if (!markBeforeFullRedirect(window.sessionStorage, {
+                            ...scope, page: opened.page, attempt: opened.attempt, purpose: "initialize-setup",
+                            payloadSha256: digest,
+                        })) throw new Error("Setup return unavailable")
+                        window.location.replace(redirect)
+                        leaving = true
+                    }
+                } else if (action === "set-up") {
                     if (localOrigin) return
                     const setup = await client.setupStatus(scope)
                     if (
@@ -283,7 +345,8 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
                     await client.setup(scope)
                 } else {
                     const ready = localOrigin
-                        ? (await client.status(scope)).phase === "challenge-available"
+                        ? (await client.status(scope)).phase === "challenge-available" &&
+                          (!localSetup || (await localSetup.status(scope, request.payload_sha256)).phase === "certificate-on-file")
                         : (await client.setupStatus(scope)) === "certificate-on-file"
                     if (!stillReviewed() || !ready) throw new Error("Signing unavailable")
                     const page = originPage()
@@ -344,8 +407,10 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
     }
 
     const scopeHasStatus = device?.view === view
-    const control =
-        eligible && usable && scopeHasStatus ? approvalControl(phase, canApproveReviewed) : null
+    const control = eligible && usable && scopeHasStatus
+        ? localSetup ? localSetupControl(phase, canApproveReviewed, setupState?.attempt) : approvalControl(phase, canApproveReviewed)
+        : null
+    const setupText = localSetup && localSetupText[phase]
     const canCancelUnused =
         usable &&
         eligible &&
@@ -371,7 +436,8 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
                         <Alert severity="warning">{t("signing.operational.softwareDemo")}</Alert>
                     )}
                     <Typography role="status" aria-live="polite">
-                        {t(`signing.operational.phase.${phase}`)}
+                        {setupText ? t(`signing.localSetup.phase.${phase}`, {defaultValue: setupText})
+                            : t(`signing.operational.phase.${phase}`)}
                     </Typography>
                     <Typography variant="body2">
                         {t("signing.operational.quorum", {
@@ -423,7 +489,13 @@ export const OperationalApprovalDialog: React.FC<Props> = ({
                     )}
                 {control && (
                     <Button variant="contained" disabled={busy} onClick={() => void run(control)}>
-                        {t(
+                        {control === "start-setup" ? (
+                            phase === "waiting-for-setup-gold"
+                                ? t("signing.localSetup.continue", {defaultValue: "Continue setup sign-in"})
+                                : t("signing.localSetup.start", {defaultValue: "Start Setup"})
+                        ) : control === "register-key" ? (
+                            t("signing.localSetup.register", {defaultValue: "Register my signing key"})
+                        ) : t(
                             control === "set-up"
                                 ? phase === "setup-retry-available"
                                     ? "signing.operational.retrySetup"

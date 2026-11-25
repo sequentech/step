@@ -199,6 +199,49 @@ describe("authenticated Gold return", () => {
         expect(mockAdapter.init).not.toHaveBeenCalled()
     })
 
+    it("uses the shared return only to confirm the local setup attempt and then restores its dialog", async () => {
+        const portal = "http://localhost:3002"
+        const base = "http://localhost:18090/"
+        const graph = "http://localhost:18080/v1/graphql"
+        const realm = base + "realms/tenant-" + tab.tenant
+        const b = browser(portal)
+        const digest = "ab".repeat(32)
+        const marker = {...tab, purpose: "initialize-setup" as const, payloadSha256: digest}
+        const registration = {
+            profile: "felix3-local-initialize", deviceProfile: "softhsm-test", issuer: realm,
+            portalClient: client, approvalClient: "approval-client", setupClient: "felix3-local-initialize-setup",
+            callback: b.location.href, graphql: graph,
+        }
+        localProfile.profile = "felix3-local-initialize"
+        try {
+            mockAdapter.tokenParsed = {...claims, iss: realm}
+            for (const phase of ["setup-confirmation-required", "approval-recorded"]) {
+                expect(markBeforeFullRedirect(b.storage, marker)).toBe(true)
+                fetchStub.mockResolvedValueOnce(response({...settings, KEYCLOAK_URL: base, HASURA_URL: graph,
+                    FELIX3_LOCAL_INITIALIZE: registration}, portal + "/global-settings.json"))
+                fetchStub.mockResolvedValueOnce(response({data: {operationalInitializeSelfSetupConfirm: {...tab, phase}}}, graph))
+                expect(await finishOperationalApproval(b.candidate, {...proof, issuer: realm})).toBe(true)
+                const calls = fetchStub.mock.calls
+                const body = JSON.parse(calls[calls.length - 1][1].body)
+                expect(body.operationName).toBe("LocalInitializeSetupReturn")
+                expect(body.query).not.toMatch(/SelfSetupRegister|operationalInitializeFinish/)
+                expect(body.variables).toEqual({request: tab.request, digest, attempt: tab.attempt, ...proof})
+                expect(readDisplayReturn(b.storage, path)?.result).toBe(
+                    phase === "setup-confirmation-required" ? "setup-returned" : "reconcile"
+                )
+                expect(readTabMarker(b.storage)).toBeUndefined()
+                expect(await finishOperationalApproval(b.candidate, {...proof, issuer: realm})).toBe(false)
+                for (const saved of Array.from(b.store.values())) {
+                    expect(saved).not.toContain(proof.state)
+                    expect(saved).not.toContain(proof.code)
+                }
+            }
+            expect(fetchStub).toHaveBeenCalledTimes(4)
+        } finally {
+            localProfile.profile = "disabled"
+        }
+    })
+
     it("won't exchange the proof from a normal session for a different official", async () => {
         const b = install()
         mockAdapter.tokenParsed = {...claims, sub: id(7)}

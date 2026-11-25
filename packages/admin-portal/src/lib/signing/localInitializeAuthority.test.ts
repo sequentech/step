@@ -6,6 +6,7 @@ import profile from "./localInitializeProfile.json"
 import {localInitializeRegistration, matchLocalInitializeSettings} from "./localInitializeAuthority"
 import {createOperationalApprovalApi, trustedSigningRedirect} from "./operationalApprovalApi"
 import {captureGoldReturn} from "./operationalGoldReturn"
+import {createLocalInitializeSetupApi, localSetupStatus, localDialogPhase} from "./localInitializeSetupApi"
 
 jest.mock("./localInitializeProfile.json", () => ({profile: "disabled"}))
 
@@ -74,6 +75,39 @@ describe("ordinary local Initialize registration", () => {
             redirect.replace(install.approvalClient, install.portalClient), redirect + "#",
             redirect + "&client_id=" + install.approvalClient, redirect + "&redirect_uri=x",
         ]) expect(() => trustedSigningRedirect(raw, base, tenant, origin, install)).toThrow()
+    })
+
+    it("requires the separate installed software setup client and its exact PAR redirect", () => {
+        const setupClient = "felix3-local-initialize-setup"
+        const software = {...install, deviceProfile: "softhsm-test", setupClient}
+        const par = redirect.replace(install.approvalClient, setupClient)
+        const call = (url: string, reg: unknown) => trustedSigningRedirect(url, base, tenant, origin, reg, "initialize-setup")
+        expect(call(par, software)).toBe(par)
+        for (const reg of [install, {...software, setupClient: install.portalClient},
+            {...software, approvalClient: setupClient}, {...software, deviceProfile: "yubihsm"}]) {
+            expect(createLocalInitializeSetupApi({query: jest.fn(), mutate: jest.fn()}, origin, reg)).toBeUndefined()
+            expect(() => call(par, reg)).toThrow()
+        }
+        for (const url of [redirect, par.replace("localhost:18090", "keycloak:8090"), par + "&code=test", par + "%0A"]) {
+            expect(() => call(url, software)).toThrow()
+        }
+        expect(() => trustedSigningRedirect(par, base, tenant, origin, software)).toThrow()
+        profile.profile = "disabled"
+        expect(() => call(par, software)).toThrow()
+    })
+
+    it("requires an owned attempt and delivery revision for registration and separate approval eligibility", () => {
+        const scope = {tenant, event: randomUUID(), request: randomUUID(), official: randomUUID()}
+        const attempt = randomUUID()
+        const result = {scope, device_profile: "softhsm-test", phase: "setup-confirmation-required", attempt, delivery_revision: 0}
+        expect(localSetupStatus(result, scope)).toEqual({phase: result.phase, attempt, revision: 0})
+        for (const change of [{attempt: null}, {delivery_revision: -1}, {delivery_revision: null},
+            {device_profile: "yubihsm"}, {phase: "setup-pending"}, {scope: {...scope, official: randomUUID()}}]) {
+            expect(() => localSetupStatus({...result, ...change}, scope)).toThrow()
+        }
+        expect(localDialogPhase("challenge-available", "setup-pending")).toBe("setup-pending")
+        expect(localDialogPhase("unavailable", "certificate-on-file")).toBe("certificate-on-file")
+        expect(localDialogPhase("challenge-available", "certificate-on-file")).toBe("challenge-available")
     })
 
     it("scrubs a return even when its destination or response issuer is refused", () => {

@@ -1,8 +1,18 @@
 type Query {
     operationalInitializeStatus(request_id: uuid!): OperationalInitializeStatus!
+    operationalInitializeSelfSetupStatus(request_id: uuid!, payload_sha256: String!): OperationalInitializeSelfSetupStatus!
 }
 
 type Mutation {
+    operationalInitializeSelfSetupStart(
+        request_id: uuid!, payload_sha256: String!, page: OperationalInitializeReturnPageInput!, attempt: uuid
+    ): OperationalInitializeSelfSetupStart!
+    operationalInitializeSelfSetupConfirm(
+        request_id: uuid!, payload_sha256: String!, attempt: uuid!, state: String!, code: String!
+    ): OperationalInitializeReturn!
+    operationalInitializeSelfSetupRegister(
+        request_id: uuid!, payload_sha256: String!, attempt: uuid!, delivery_revision: Int!
+    ): OperationalInitializeSelfSetupStatus!
     operationalInitializeStart(
         request_id: uuid!
         payload_sha256: String!
@@ -61,4 +71,18 @@ type OperationalInitializeReturn {
 
 type OperationalInitializeOutcome {
     phase: String!
+}
+
+type OperationalInitializeSelfSetupStatus {
+    scope: OperationalInitializeScope!
+    device_profile: String!
+    phase: String!
+    attempt: uuid
+    delivery_revision: Int
+}
+
+type OperationalInitializeSelfSetupStart {
+    attempt: uuid!
+    redirect: String!
+    page: OperationalInitializePage!
 }
