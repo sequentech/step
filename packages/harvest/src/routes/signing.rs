@@ -61,6 +61,10 @@ use windmill::services::signing::directory::KeycloakUserDirectory;
 use windmill::services::signing::operational_policy::{
     require_legacy_request, require_legacy_signing,
 };
+#[cfg(feature = "comelec-demo-direct-hsm")]
+use windmill::services::signing::operational_policy::{
+    signing_mode, OperationalSigningMode,
+};
 use windmill::services::signing::pdf::PdfPrepared;
 use windmill::services::signing::requests::{
     cancel, event_info, export_requests, get_panel, handover, reads_event_info,
