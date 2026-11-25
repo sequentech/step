@@ -387,6 +387,9 @@ async fn seal_prepared(client: &mut DbClient, prepared: Prepared) -> Result<Seal
         sealing,
     } = prepared;
     let ballot_box = ids.ballot_box();
+    let pre_opened = pre_open(&store, &ids, &sealing, &seal.tenant_id.to_string())
+        .await
+        .map_err(|reason| anyhow!(reason).context(SealErrorCategory::Ballots))?;
     // Admitted for the electoral log's order before anything is locked or
     // signed (lock order: H, lease, Q, then the event database's box lock):
     // not while the log has entries waiting or a batch is processing it. One
@@ -504,14 +507,20 @@ async fn seal_prepared(client: &mut DbClient, prepared: Prepared) -> Result<Seal
     }
     // A sealed event's ballots are opened through the HSM opener, each
     // checked against its hashes; the manifest records the stored sealed
-    // bytes' hash and that Ballot ID (format v3).
-    let opened = open_box(
-        &sealing,
-        &seal.tenant_id.to_string(),
-        &ids.ballot_box(),
-        &ballots,
-    )
-    .await;
+    // bytes' hash and that Ballot ID (format v3). They were opened before
+    // the lock; only a box that changed since is opened again under it.
+    let opened = match pre_opened {
+        Some(pre_opened) if pre_opened.is_of(&ballots) => pre_opened.opened,
+        _ => {
+            open_box(
+                &sealing,
+                &seal.tenant_id.to_string(),
+                &ids.ballot_box(),
+                &ballots,
+            )
+            .await
+        }
+    };
     let built_entries = opened.and_then(|opened| match &opened {
         Some(opened) => sealed_entries(&ballots, opened, &census).map(|e| (e, SEAL_FORMAT_V3)),
         None => entries(&ballots, &census).map(|e| (e, SEAL_FORMAT_V2)),
@@ -964,6 +973,86 @@ pub async fn open_box(
             OpenError::Unavailable(error) => EntriesError::Retry(format!("{error:#}")),
             OpenError::Ballots(failures) => EntriesError::Incident(failures.to_string()),
         })
+}
+
+/// A sealed event's box as read and opened before its seal lock was taken.
+struct PreOpened {
+    ballots: Vec<BoxBallot>,
+    opened: std::result::Result<Option<Vec<String>>, EntriesError>,
+}
+
+impl PreOpened {
+    /// Whether `ballots`, read under the lock, are the ones opened: the same
+    /// rows with the same stored bytes. A status may have changed since,
+    /// which opening doesn't depend on.
+    fn is_of(&self, ballots: &[BoxBallot]) -> bool {
+        self.ballots.len() == ballots.len()
+            && self.ballots.iter().zip(ballots).all(|(before, now)| {
+                before.seq == now.seq
+                    && before.ballot_id == now.ballot_id
+                    && before.format == now.format
+                    && before.content == now.content
+            })
+    }
+}
+
+/// Reads and opens a sealed event's box without its seal lock, so writes of
+/// the box never wait on the HSM. `None` for an event that doesn't seal its
+/// cast votes. `Err` is a failure to retry (the opener can't answer now, or
+/// the box can't be read); an incident is kept, to be confirmed against the
+/// ballots read under the lock.
+async fn pre_open(
+    store: &PostgresStore,
+    ids: &BoxIds,
+    sealing: &crate::services::cast_vote_seal::Sealing,
+    tenant_id: &str,
+) -> std::result::Result<Option<PreOpened>, String> {
+    if *sealing == crate::services::cast_vote_seal::Sealing::Legacy {
+        return Ok(None);
+    }
+    // A box that is sealed already, or still has votes to sequence or
+    // resolve, isn't opened by this attempt.
+    let read = async {
+        if store
+            .unsequenced_count(&ids.election_event_id, &ids.election_id, &ids.area_id)
+            .await?
+            > 0
+            || store
+                .pending_status_count(&ids.election_event_id, &ids.election_id, &ids.area_id)
+                .await?
+                > 0
+        {
+            return anyhow::Ok(None);
+        }
+        let mut client = store.client().await?;
+        let tx = client
+            .build_transaction()
+            .isolation_level(IsolationLevel::ReadCommitted)
+            .read_only(true)
+            .start()
+            .await?;
+        if ballot_box_seal_in(&tx, ids.ballot_box()).await?.is_some() {
+            return Ok(None);
+        }
+        let mut ballots = Vec::new();
+        box_ballots(&tx, ids.ballot_box(), |ballot| {
+            ballots.push(ballot);
+            Ok(())
+        })
+        .await?;
+        tx.commit().await?;
+        Ok(Some(ballots))
+    };
+    let Some(ballots) = read
+        .await
+        .map_err(|error| format!("Error reading the ballots of the box: {error:#}"))?
+    else {
+        return Ok(None);
+    };
+    match open_box(sealing, tenant_id, &ids.ballot_box(), &ballots).await {
+        Err(EntriesError::Retry(reason)) => Err(reason),
+        opened => Ok(Some(PreOpened { ballots, opened })),
+    }
 }
 
 fn entries_with(
@@ -1632,5 +1721,31 @@ mod tests {
             unrecorded_reason(2),
             "2 ballot(s) of the ballot box have no cast-vote record on the bulletin board"
         );
+    }
+
+    #[test]
+    fn a_box_opened_before_the_lock_is_used_only_if_unchanged() {
+        let ballots = vec![
+            row("alice", BallotStatus::Valid, "a1", 1),
+            row("bob", BallotStatus::Valid, "b1", 2),
+        ];
+        let pre_opened = PreOpened {
+            ballots: ballots.clone(),
+            opened: Ok(Some(Vec::new())),
+        };
+        assert!(pre_opened.is_of(&ballots));
+        let mut resolved = ballots.clone();
+        resolved[1].status = BallotStatus::Rejected;
+        assert!(pre_opened.is_of(&resolved), "a status isn't opened");
+        let mut added = ballots.clone();
+        added.push(row("carol", BallotStatus::Valid, "c1", 3));
+        assert!(!pre_opened.is_of(&added));
+        assert!(!pre_opened.is_of(&ballots[..1]));
+        let mut changed = ballots.clone();
+        changed[0].content = row("alice", BallotStatus::Valid, "a2", 1).content;
+        assert!(!pre_opened.is_of(&changed));
+        let mut renumbered = ballots;
+        renumbered[1].seq = 4;
+        assert!(!pre_opened.is_of(&renumbered));
     }
 }
