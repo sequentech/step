@@ -167,10 +167,13 @@ pub(super) async fn verify_installation(
 
 pub(super) async fn assert_startup(client: &impl GenericClient) -> Result<()> {
     if let Some(i) = installed()? {
-        let latch = read_latch(client, i.tenant, i.event)
-            .await?
-            .context("Direct scope not installed")?;
-        verify_installation(client, i.tenant, i.event, latch).await?;
+        // A validated descriptor may be staged before inserting its latch so
+        // the new ordinary services can be health-checked and rolled back.
+        // Every actual request independently requires that exact live latch;
+        // this does not suppress a malformed/mismatching activated scope.
+        if let Some(latch) = read_latch(client, i.tenant, i.event).await? {
+            verify_installation(client, i.tenant, i.event, latch).await?;
+        }
     }
     Ok(())
 }
