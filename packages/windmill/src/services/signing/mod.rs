@@ -23,6 +23,11 @@ pub mod operational_cms;
 pub mod operational_device;
 #[cfg(feature = "operational-signing-candidate")]
 pub mod operational_initialize;
+#[cfg(all(
+    feature = "felix3-local-initialize",
+    not(feature = "operational-signing-demo-fixture")
+))]
+pub mod local_initialize_attachment;
 pub mod operational_policy;
 mod operational_quorum;
 pub mod pades;
