@@ -94,12 +94,18 @@ fn read_installation() -> Result<Option<Installation>> {
             && dir.metadata()?.mode() & 0o022 == 0,
         "Unsafe direct Initialize directory"
     );
-    let file = File::from(openat(
+    let file = match openat(
         &dir,
         "installation.json",
         OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
         Mode::empty(),
-    )?);
+    ) {
+        Ok(fd) => File::from(fd),
+        // Harvest's private registration can exist before the frozen event
+        // descriptor is staged. This is setup-only, not a legacy startup.
+        Err(Errno::NOENT) => return Ok(None),
+        Err(error) => return Err(error.into()),
+    };
     let meta = file.metadata()?;
     ensure!(
         meta.is_file()

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import buildProfile from "./localInitializeProfile.json"
 import {isId} from "./operationalGoldReturn"
 import type {ISignedView} from "./request"
 import {DocumentKind, SIGNING_ACTIONS, SigningAction, type ISigningRequest} from "./types"
@@ -47,15 +48,21 @@ export function reviewedDirectAction(request: ISigningRequest, review: ISignedVi
     )
 }
 
+/** Baked into the independently built demo Portal, not a setting or API value. */
+export const directHsmApprovalBuild = () => buildProfile.profile === "comelec-demo-direct-hsm"
+
 export const signingExperience = (
     mode: unknown,
     action: string
 ): "legacy" | "managed" | "direct" | "unavailable" => {
-    if (mode === "legacy-p12") return "legacy"
     if (mode === "hsm-demo-raw" && action === SigningAction.InitializeVoting) return "direct"
     if (mode === "hsm-demo-direct-action" && Object.values(SigningAction).some((id) => id === action))
         return "direct"
-    return mode === "hsm-required" && action === "initialize-voting" ? "managed" : "unavailable"
+    if (directHsmApprovalBuild()) return "unavailable"
+    if (mode === "legacy-p12") return "legacy"
+    return mode === "hsm-required" && action === SigningAction.InitializeVoting
+        ? "managed"
+        : "unavailable"
 }
 
 export const approvalControl = (phase: string, reviewed: boolean): "set-up" | "approve" | null => {

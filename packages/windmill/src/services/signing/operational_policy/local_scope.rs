@@ -6,7 +6,10 @@
 //! credential: the exact immutable local installation and its separately
 //! checked database approval are both required, in the caller's transaction.
 
-use super::{signing_mode, LegacySigningBlocked as Blocked, OperationalSigningMode as Mode};
+use super::{
+    direct_hsm_approval_build, lock_signing_policy, signing_mode,
+    LegacySigningBlocked as Blocked, OperationalSigningMode as Mode,
+};
 use crate::postgres::signing::SigningRequestRow;
 use crate::postgres::signing_actions::published_publication_of_post;
 use deadpool_postgres::{GenericClient, Transaction};
@@ -155,7 +158,7 @@ pub(in crate::services::signing) async fn action_latch(
 }
 
 #[cfg(feature = "comelec-demo-direct-hsm")]
-async fn verify_action_scope(
+pub(in crate::services::signing) async fn verify_action_scope(
     tx: &Transaction<'_>,
     tenant: Uuid,
     event: Uuid,
@@ -169,7 +172,12 @@ async fn verify_action_scope(
 }
 
 #[cfg(not(feature = "comelec-demo-direct-hsm"))]
-async fn verify_action_scope(_: &Transaction<'_>, _: Uuid, _: Uuid, _: Latch) -> Result<()> {
+pub(in crate::services::signing) async fn verify_action_scope(
+    _: &Transaction<'_>,
+    _: Uuid,
+    _: Uuid,
+    _: Latch,
+) -> Result<()> {
     Err(Blocked::ScopeUnavailable)
 }
 
@@ -180,6 +188,10 @@ pub(in crate::services::signing) async fn event_action_mode(
     tenant: Uuid,
     event: Uuid,
 ) -> Result<Mode> {
+    if direct_hsm_approval_build() {
+        lock_signing_policy(tx).await?;
+        return Ok(Mode::HsmRequired);
+    }
     let baseline = signing_mode(tx, tenant).await?;
     if let Some(latch) = action_latch(tx, tenant, event).await? {
         if baseline != Mode::LegacyP12 {
@@ -343,6 +355,11 @@ pub(in crate::services::signing) async fn for_target(
                 return Ok((Mode::HsmRequired, Some(latch)));
             }
         }
+    }
+    if direct_hsm_approval_build() {
+        // No matching identity is a setup/scope failure, not permission to
+        // use a certificate, a different HSM provider, or no approval.
+        return Err(Blocked::ScopeUnavailable);
     }
     Ok((baseline, None))
 }

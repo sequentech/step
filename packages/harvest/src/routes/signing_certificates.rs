@@ -42,7 +42,7 @@ use windmill::services::signing::issuers::{
 };
 use windmill::services::signing::log::Actor;
 use windmill::services::signing::operational_policy::{
-    require_legacy_request, require_legacy_signing,
+    direct_hsm_approval_build, require_legacy_request, require_legacy_signing,
 };
 
 use windmill::services::signing::staff_certificates::{
@@ -54,6 +54,15 @@ use windmill::services::signing::Allowance;
 use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 
 type RouteResult<T> = SigningResult<Json<T>>;
+
+fn allow_approval_certificate_settings() -> SigningResult<()> {
+    if direct_hsm_approval_build() {
+        return Err(SigningError::forbidden(
+            "Certificate-based approval settings are unavailable on this installation.",
+        ));
+    }
+    Ok(())
+}
 
 fn parse_id(id: &str, what: &str) -> SigningResult<Uuid> {
     Uuid::parse_str(id)
@@ -126,6 +135,7 @@ pub async fn import_signing_issuers(
         own_tenant(&claims),
         vec![Permissions::SIGNING_ISSUERS_WRITE],
     )?;
+    allow_approval_certificate_settings()?;
     let input = input.into_inner();
     let tenant_id = tenant_of(&claims)?;
     let certificates =
@@ -178,6 +188,7 @@ pub async fn remove_signing_issuer(
         own_tenant(&claims),
         vec![Permissions::SIGNING_ISSUERS_WRITE],
     )?;
+    allow_approval_certificate_settings()?;
     let tenant_id = tenant_of(&claims)?;
     let id = parse_id(id, "issuer id")?;
     let mut client = hasura(services).await?;
@@ -231,6 +242,7 @@ pub async fn put_signing_checks(
         own_tenant(&claims),
         vec![Permissions::SIGNING_CHECKS_WRITE],
     )?;
+    allow_approval_certificate_settings()?;
     let input = input.into_inner();
     let tenant_id = tenant_of(&claims)?;
     let checks = SigningChecks {

@@ -657,6 +657,9 @@ pub async fn get_panel(
         Ok((OperationalSigningMode::LegacyP12, None)) => "legacy-p12",
         Ok((OperationalSigningMode::HsmRequired, None)) => "hsm-required",
         Err(LegacySigningBlocked::ScopeUnavailable) => "unavailable",
+        // Evidence remains readable even when this dedicated installation
+        // cannot accept new approvals or release a waiting request.
+        Err(_) if super::operational_policy::direct_hsm_approval_build() => "unavailable",
         Err(error) => return Err(anyhow!(error).into()),
     };
     let rule: SigningRule = serde_json::from_value(request.rule_snapshot.clone())

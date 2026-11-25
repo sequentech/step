@@ -7,6 +7,7 @@
 // number of signatures is possible, what a drawer save sends, and how
 // certificates and requests are shown and filtered.
 
+import {directHsmApprovalBuild} from "@/lib/signing/operationalApprovalPolicy"
 import {shownRequestStatus} from "@/lib/signing/status"
 import {IPermissions} from "@/types/keycloak"
 import {
@@ -58,9 +59,11 @@ export function signaturesAccess(has: (permission: IPermissions) => boolean): IS
     const certificatesRead = has(IPermissions.SIGNING_CERTIFICATES_READ)
     const requestsRead = has(IPermissions.SIGNING_REQUESTS_READ)
     const rulesWrite = has(IPermissions.SIGNING_RULES_WRITE)
-    const issuersWrite = has(IPermissions.SIGNING_ISSUERS_WRITE)
-    const checksWrite = has(IPermissions.SIGNING_CHECKS_WRITE)
-    const certificatesRegister = has(IPermissions.SIGNING_CERTIFICATES_REGISTER)
+    const certificateSettings = !directHsmApprovalBuild()
+    const issuersWrite = certificateSettings && has(IPermissions.SIGNING_ISSUERS_WRITE)
+    const checksWrite = certificateSettings && has(IPermissions.SIGNING_CHECKS_WRITE)
+    const certificatesRegister =
+        certificateSettings && has(IPermissions.SIGNING_CERTIFICATES_REGISTER)
     const certificatesRevoke = has(IPermissions.SIGNING_CERTIFICATES_REVOKE)
     return {
         tab:

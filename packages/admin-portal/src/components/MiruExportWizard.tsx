@@ -15,6 +15,7 @@ import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} fr
 import {WizardStyles} from "./styles/WizardStyles"
 import {TallyStyles} from "./styles/TallyStyles"
 import {MiruServers} from "./MiruServers"
+import {directHsmApprovalBuild} from "@/lib/signing/operationalApprovalPolicy"
 import {MiruSignatures} from "./MiruSignatures"
 import {theme, DropFile, Dialog} from "@sequentech/ui-essentials"
 import {Logs} from "./Logs"
@@ -824,7 +825,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
                     {t("signing.results.transmission.ended")}
                 </WizardStyles.AccordionSubTitle>
             ) : null}
-            {!signingRequest && !recreateToSign && isTrustee && canSignMiru && (
+            {!directHsmApprovalBuild() && !signingRequest && !recreateToSign && isTrustee && canSignMiru && (
                 <Accordion
                     sx={{width: "100%"}}
                     expanded={expandedExports["tally-miru-upload"]}

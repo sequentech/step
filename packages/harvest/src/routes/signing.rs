@@ -59,7 +59,7 @@ use windmill::services::signing::approve::{
 use windmill::services::signing::crl::{refresh_chain_crls, HttpCrlFetcher};
 use windmill::services::signing::directory::KeycloakUserDirectory;
 use windmill::services::signing::operational_policy::{
-    require_legacy_request, require_legacy_signing, signing_mode,
+    approval_signing_mode, require_legacy_request, require_legacy_signing,
     signing_mode_for_event, OperationalSigningMode,
 };
 use windmill::services::signing::pdf::PdfPrepared;
@@ -757,7 +757,7 @@ pub async fn miru_operational_signing_mode(
     }
     let mut client = hasura(services).await?;
     let tx = client.transaction().await.map_err(internal)?;
-    let mode = match signing_mode(&tx, tenant).await.map_err(internal)? {
+    let mode = match approval_signing_mode(&tx, tenant).await.map_err(internal)? {
         OperationalSigningMode::LegacyP12 => "legacy-p12",
         OperationalSigningMode::HsmRequired => "hsm-required",
     };

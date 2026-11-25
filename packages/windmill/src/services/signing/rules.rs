@@ -461,6 +461,11 @@ pub async fn save_rule(
         revision: input.expected_revision,
     };
     validate(&rule)?;
+    if super::operational_policy::direct_hsm_approval_build() && !rule.is_required() {
+        return Err(SigningError::Forbidden(
+            "This installation requires HSM approval for protected actions.".into(),
+        ));
+    }
     let realm = get_tenant_realm(&tenant_id.to_string());
     let added = resolve_groups(keycloak_transaction, &realm, action, &requested.add, false).await?;
     let removed = resolve_groups(

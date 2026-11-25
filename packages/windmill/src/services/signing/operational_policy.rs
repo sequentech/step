@@ -109,11 +109,31 @@ pub(super) async fn read_tenant_mode(
     })
 }
 
+/// Fixed by the dedicated application build, not by a tenant/event setting,
+/// an imported value, or the availability of an installed signer.
+pub const fn direct_hsm_approval_build() -> bool {
+    cfg!(feature = "comelec-demo-direct-hsm")
+}
+
+/// Keep the ordinary DB policy available for installation admission and
+/// existing non-approval output classification. The demo floor is not a claim
+/// that a production managed device or official output signer is installed.
+pub async fn approval_signing_mode(
+    tx: &Transaction<'_>,
+    tenant: Uuid,
+) -> Result<OperationalSigningMode, LegacySigningBlocked> {
+    if direct_hsm_approval_build() {
+        lock_signing_policy(tx).await?;
+        return Ok(OperationalSigningMode::HsmRequired);
+    }
+    signing_mode(tx, tenant).await
+}
+
 pub async fn require_legacy_signing(
     tx: &Transaction<'_>,
     tenant: Uuid,
 ) -> Result<(), LegacySigningBlocked> {
-    match signing_mode(tx, tenant).await? {
+    match approval_signing_mode(tx, tenant).await? {
         OperationalSigningMode::LegacyP12 => Ok(()),
         OperationalSigningMode::HsmRequired => Err(LegacySigningBlocked::HsmRequired),
     }
@@ -129,6 +149,7 @@ pub async fn assert_startup_policy(
     const PROFILE: &str = "OPERATIONAL_SIGNING_INSTALLATION_PROFILE";
     if std::env::var_os("OPERATIONAL_SIGNING_MODE").is_some()
         || std::env::var_os("OPERATIONAL_SIGNING_HSM_REQUIRED_TENANTS").is_some()
+        || (direct_hsm_approval_build() && std::env::var_os(PROFILE).is_some())
     {
         return Err(LegacySigningBlocked::Unavailable);
     }
@@ -174,8 +195,8 @@ pub async fn assert_startup_policy(
     Ok(())
 }
 
-/// Event policy includes the explicitly installed direct-demo marker, never
-/// the browser's selected mode. Other events keep the existing tenant policy.
+/// Read-only effective approval policy. The genuine installation is required
+/// to sign, never to select or opt out of the provider.
 pub async fn signing_mode_for_event(
     tx: &Transaction<'_>,
     tenant: Uuid,
@@ -213,9 +234,18 @@ pub(crate) async fn direct_schedule_post(
         "Signing policy is busy; retry scheduled configuration check"
     );
     let Some(latch) = local_scope::action_latch(tx, tenant, event).await? else {
+        anyhow::ensure!(
+            !direct_hsm_approval_build(),
+            "Scheduled approvals need a verified direct HSM installation"
+        );
         return Ok(None);
     };
-    local_scope::event_action_mode(tx, tenant, event).await?;
+    // Never let a synthetic installation answer the production hardware
+    // policy, even if a mounted descriptor is still present.
+    if read_tenant_mode(tx, tenant).await? != OperationalSigningMode::LegacyP12 {
+        return Err(LegacySigningBlocked::ScopeUnavailable.into());
+    }
+    local_scope::verify_action_scope(tx, tenant, event, latch).await?;
     Ok(Some(latch.post))
 }
 

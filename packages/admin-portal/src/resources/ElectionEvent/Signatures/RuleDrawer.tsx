@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {directHsmApprovalBuild} from "@/lib/signing/operationalApprovalPolicy"
 import React, {useCallback, useId, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {useGetList, useNotify} from "react-admin"
@@ -97,7 +98,10 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
     // The draft holds group ids; the capacity and the role list give their names.
     const initialRoles = useMemo(() => (capacity?.roles ?? []).map(({id}) => id), [capacity])
     const initial = useMemo(() => draftOf(rule, initialRoles), [rule, initialRoles])
-    const [draft, setDraft] = useState<IRuleDraft>(initial)
+    const hsmOnly = directHsmApprovalBuild()
+    const [draft, setDraft] = useState<IRuleDraft>(() =>
+        hsmOnly && !readOnly ? {...initial, requirement: SigningRequirement.Required} : initial
+    )
     const [saveError, setSaveError] = useState<string | null>(null)
     const titleId = useId()
     const [putRule, {loading: saving}] = usePutRule()
@@ -251,24 +255,26 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
                 {readOnly && <Alert severity="info">{t("signing.readOnly.rules")}</Alert>}
 
                 <Box>
-                    <FormControlLabel
-                        control={
-                            <Switch
-                                checked={required}
-                                disabled={readOnly}
-                                onChange={(event) =>
-                                    update({
-                                        requirement: event.target.checked
-                                            ? SigningRequirement.Required
-                                            : SigningRequirement.NotRequired,
-                                    })
-                                }
-                            />
-                        }
-                        label={t(
-                            trustee ? "signing.rule.trusteesSign" : "signing.rule.needsSignatures"
-                        )}
-                    />
+                    {!hsmOnly && (
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={required}
+                                    disabled={readOnly}
+                                    onChange={(event) =>
+                                        update({
+                                            requirement: event.target.checked
+                                                ? SigningRequirement.Required
+                                                : SigningRequirement.NotRequired,
+                                        })
+                                    }
+                                />
+                            }
+                            label={t(
+                                trustee ? "signing.rule.trusteesSign" : "signing.rule.needsSignatures"
+                            )}
+                        />
+                    )}
                     {trustee && (
                         <Typography variant="body2" color="text.secondary">
                             {t("signing.rule.trusteesHelp")}

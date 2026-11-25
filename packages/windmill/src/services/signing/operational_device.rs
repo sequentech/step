@@ -85,6 +85,9 @@ pub async fn installed_profile(
     action: SigningAction,
 ) -> Result<Option<InstalledDevice>> {
     super::operational_policy::lock_signing_policy(tx).await?;
+    if super::operational_policy::direct_hsm_approval_build() {
+        return Ok(None);
+    }
     if super::operational_policy::local_scope::action_latch(tx, tenant, event)
         .await?
         .is_some()

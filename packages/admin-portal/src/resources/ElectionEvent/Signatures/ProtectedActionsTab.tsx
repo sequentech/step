@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {directHsmApprovalBuild} from "@/lib/signing/operationalApprovalPolicy"
 import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
 import {useEventZonedFormat} from "@/hooks/useZonedFormat"
@@ -101,7 +102,9 @@ export const ProtectedActionsTab: React.FC<ISignaturesSubTabProps> = ({
 
     const signaturesText = (rule: ISigningRule) => {
         if (rule.requirement === SigningRequirement.NotRequired) {
-            return t("signing.protectedActions.off")
+            return directHsmApprovalBuild()
+                ? t("signing.operational.phase.unavailable")
+                : t("signing.protectedActions.off")
         }
         return isTrusteeAction(rule.action)
             ? t("signing.protectedActions.eachTrustee")

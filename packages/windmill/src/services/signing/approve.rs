@@ -600,9 +600,12 @@ async fn approve_in(
     let blocked = |error: super::operational_policy::LegacySigningBlocked| {
         SigningError::Forbidden(error.to_string())
     };
-    let baseline = signing_mode(transaction, tenant_id)
-        .await
-        .map_err(blocked)?;
+    // The dedicated path has its own verified and audited ingress. Neither
+    // ordinary browser certificates nor an ordinary managed receipt qualify.
+    if super::operational_policy::direct_hsm_approval_build() {
+        return Err(Ingress::method_denied());
+    }
+    let baseline = signing_mode(transaction, tenant_id).await.map_err(blocked)?;
     if baseline == OperationalSigningMode::HsmRequired {
         // Preserve tenant-wide refusal without revealing request existence.
         ingress.request_id(OperationalSigningMode::HsmRequired)?;
