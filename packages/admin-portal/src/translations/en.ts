@@ -5430,6 +5430,11 @@ const englishTranslation = {
                 },
             },
             operational: {
+                signingAs: "Signing with your HSM key as {{name}}",
+                review: "Review",
+                rule_one: "Approval from {{count}} authorized signer is required.",
+                rule_other: "Approvals from {{count}} authorized signers are required.",
+                retryApproval: "Your approval could not be confirmed. You can try signing again.",
                 title: "Review approval",
                 setup: "Set up signing",
                 approve: "Approve",

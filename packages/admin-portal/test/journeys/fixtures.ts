@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {expect} from "@playwright/test"
 import {test as base} from "@sequentech/ui-test-kit/coverage/fixture"
+import {readFileSync} from "node:fs"
+import {extendSchema, parse} from "graphql"
 import {resolve, dirname} from "node:path"
 import {fileURLToPath} from "node:url"
 import {serveDist} from "@sequentech/ui-test-kit/server/static"
@@ -29,6 +31,7 @@ export const test = base.extend<
         roles: string[]
         trustee: string | undefined
         configurationPackageActions: boolean
+        directHsm: boolean
     },
     {dist: Awaited<ReturnType<typeof serveDist>>}
 >({
@@ -45,6 +48,7 @@ export const test = base.extend<
     /** The `trustee` claim Keycloak adds for a user with the trustee attribute. */
     trustee: [undefined, {option: true}],
     configurationPackageActions: [false, {option: true}],
+    directHsm: [false, {option: true}],
     dist: [
         // Playwright requires an object pattern for a fixture without dependencies.
         // eslint-disable-next-line no-empty-pattern
@@ -58,17 +62,34 @@ export const test = base.extend<
         },
         {scope: "worker"},
     ],
-    portal: async ({context, page, dist, roles, trustee, configurationPackageActions}, use) => {
-        const {origin} = dist
+    portal: async (
+        {context, page, dist, roles, trustee, configurationPackageActions, directHsm},
+        use
+    ) => {
+        const origin = directHsm ? "http://localhost:3002" : dist.origin
         const violations = new ViolationLog()
         const s3 = new S3Mock({origin, violations})
         const baseline = loadClientSchema(resolve(directory, "graphql.schema.json"))
+        const schema = withConfigurationPackageActions(
+            baseline,
+            resolve(directory, "../../hasura/metadata/actions.graphql"),
+            configurationPackageActions
+        )
         const graphql = new GraphQLMock({
-            schema: withConfigurationPackageActions(
-                baseline,
-                resolve(directory, "../../hasura/metadata/actions.graphql"),
-                configurationPackageActions
-            ),
+            schema: directHsm
+                ? extendSchema(
+                      schema,
+                      parse(
+                          readFileSync(
+                              resolve(directory, "../../hasura/felix3-direct-hsm/actions.graphql"),
+                              "utf8"
+                          ).replace(
+                              "type Mutation {",
+                              `extend type ${schema.getMutationType()?.name} {`
+                          )
+                      )
+                  )
+                : schema,
             violations,
         })
         const oidc = new OidcMock({
@@ -233,10 +254,10 @@ export const test = base.extend<
         const errors: string[] = []
         page.on("pageerror", (error) => errors.push(error.message))
         await page.clock.install({time: Date.parse(FIXED_TIME)})
-        const unroute = await routePortal(context, portal)
+        const unroute = await routePortal(context, portal, dist.origin)
         // React-admin's known telemetry image is answered locally; it never leaves the browser.
         await context.route(
-            "https://react-admin-telemetry.marmelab.com/react-admin-telemetry?domain=127.0.0.1",
+            `https://react-admin-telemetry.marmelab.com/react-admin-telemetry?domain=${new URL(origin).hostname}`,
             (route) => {
                 const request = route.request()
                 if (request.method() !== "GET" || request.resourceType() !== "image") {

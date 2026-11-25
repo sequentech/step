@@ -5312,6 +5312,11 @@ const spanishTranslation: TranslationType = {
                 },
             },
             operational: {
+                signingAs: "Firmas con tu clave del HSM como {{name}}",
+                review: "Revisar",
+                rule_one: "Se necesita la aprobación de {{count}} firmante autorizado.",
+                rule_other: "Se necesita la aprobación de {{count}} firmantes autorizados.",
+                retryApproval: "No se pudo confirmar tu aprobación. Puedes volver a firmar.",
                 title: "Revisar la aprobación",
                 setup: "Configurar la firma",
                 approve: "Aprobar",

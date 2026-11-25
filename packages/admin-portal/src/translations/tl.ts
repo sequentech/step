@@ -5179,6 +5179,12 @@ const tagalogTranslation: TranslationType = {
                 },
             },
             operational: {
+                signingAs: "Pipirma ka gamit ang iyong HSM key bilang {{name}}",
+                review: "Suriin",
+                rule_one: "Kailangan ang pag-apruba ng {{count}} awtorisadong tagapirma.",
+                rule_other: "Kailangan ang pag-apruba ng {{count}} awtorisadong tagapirma.",
+                retryApproval:
+                    "Hindi makumpirma ang iyong pag-apruba. Maaari mong subukang pumirma muli.",
                 title: "Suriin ang pag-apruba",
                 setup: "I-set up ang pagpirma",
                 approve: "Aprubahan",
