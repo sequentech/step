@@ -1563,36 +1563,58 @@ pub struct SigningLogOutboxUser {
     pub area_id: Option<Uuid>,
 }
 
-/// The people of the event's unposted USER entries up to `up_to_id`. It
-/// locks nothing.
+/// The last row and people in the first batch of the event's unposted
+/// entries up to `up_to_id`. Count SYSTEM entries toward the bound, as
+/// delivery does. The bound and keys share one snapshot; another posting
+/// worker can only shrink this batch, not move its upper bound. Locks nothing.
 #[instrument(skip(hasura_transaction), err)]
-pub async fn unposted_signing_log_outbox_users(
+pub async fn unposted_signing_log_outbox_batch(
     hasura_transaction: &Transaction<'_>,
     tenant_id: Uuid,
     election_event_id: Uuid,
     up_to_id: i64,
-) -> Result<Vec<SigningLogOutboxUser>> {
-    hasura_transaction
+    rows: i64,
+) -> Result<Option<(i64, Vec<SigningLogOutboxUser>)>> {
+    let batch = hasura_transaction
         .query(
-            "SELECT DISTINCT ON (user_id) user_id, username, election_id, area_id
-             FROM sequent_backend.signing_log_outbox
-             WHERE tenant_id = $1 AND election_event_id = $2 AND posted_at IS NULL
-                 AND id <= $3 AND user_id IS NOT NULL
-             ORDER BY user_id, id",
-            &[&tenant_id, &election_event_id, &up_to_id],
+            "WITH batch AS (
+                 SELECT id, user_id, username, election_id, area_id
+                 FROM sequent_backend.signing_log_outbox
+                 WHERE tenant_id = $1 AND election_event_id = $2 AND posted_at IS NULL
+                     AND id <= $3
+                 ORDER BY id LIMIT $4
+             )
+             SELECT bounds.last_id, people.user_id, people.username,
+                    people.election_id, people.area_id
+             FROM (SELECT max(id) AS last_id FROM batch) bounds
+             LEFT JOIN (
+                 SELECT DISTINCT ON (user_id) user_id, username, election_id, area_id
+                 FROM batch WHERE user_id IS NOT NULL ORDER BY user_id, id
+             ) people ON true",
+            &[&tenant_id, &election_event_id, &up_to_id, &rows],
         )
         .await
-        .context("Error reading the people of the unposted signing log entries")?
-        .into_iter()
-        .map(|row| {
-            Ok(SigningLogOutboxUser {
-                user_id: row.try_get("user_id")?,
+        .context("Error reading the first batch of unposted signing log entries")?;
+    let last_id = batch
+        .first()
+        .map(|row| row.try_get::<_, Option<i64>>("last_id"))
+        .transpose()?
+        .flatten();
+    let Some(last_id) = last_id else {
+        return Ok(None);
+    };
+    let mut users = Vec::new();
+    for row in batch {
+        if let Some(user_id) = row.try_get("user_id")? {
+            users.push(SigningLogOutboxUser {
+                user_id,
                 username: row.try_get("username")?,
                 election_id: row.try_get("election_id")?,
                 area_id: row.try_get("area_id")?,
-            })
-        })
-        .collect()
+            });
+        }
+    }
+    Ok(Some((last_id, users)))
 }
 
 // Rules (lists)

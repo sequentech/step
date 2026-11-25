@@ -27,7 +27,7 @@ use crate::postgres::signing::{
     fetch_unposted_signing_log_outbox_rows, insert_signing_log_outbox,
     list_signing_log_outbox_events, lock_signing_event, mark_signing_log_outbox_failed,
     mark_signing_log_outbox_posted, try_lock_signing_log_worker, unposted_signing_log_outbox_span,
-    unposted_signing_log_outbox_users, NewSigningLogOutboxEntry, SigningLogOutboxRow,
+    unposted_signing_log_outbox_batch, NewSigningLogOutboxEntry, SigningLogOutboxRow,
     SigningLogOutboxUser,
 };
 use crate::services::election_event_board::get_election_event_board;
@@ -675,7 +675,7 @@ pub async fn post_event_outbox<K: SigningLogKeys, B: SigningLogBoard>(
     keys: &mut K,
     board: &mut B,
 ) -> Result<PassOutcome> {
-    let up_to_id =
+    let snapshot_end =
         match take_outbox_snapshot(client, tenant_id, election_event_id, SNAPSHOT_LOCK_TIMEOUT)
             .await?
         {
@@ -684,13 +684,21 @@ pub async fn post_event_outbox<K: SigningLogKeys, B: SigningLogBoard>(
             OutboxSnapshot::Backoff(until) => return Ok(PassOutcome::Backoff(until)),
             OutboxSnapshot::Ready(up_to_id) => up_to_id,
         };
-    let users = {
+    let batch = {
         let transaction = client.transaction().await?;
-        let users =
-            unposted_signing_log_outbox_users(&transaction, tenant_id, election_event_id, up_to_id)
-                .await?;
+        let batch = unposted_signing_log_outbox_batch(
+            &transaction,
+            tenant_id,
+            election_event_id,
+            snapshot_end,
+            OUTBOX_BATCH,
+        )
+        .await?;
         transaction.commit().await?;
-        users
+        batch
+    };
+    let Some((batch_end, users)) = batch else {
+        return Ok(PassOutcome::Empty);
     };
     let board_name = keys
         .prepare(client, tenant_id, election_event_id, &users)
@@ -707,7 +715,7 @@ pub async fn post_event_outbox<K: SigningLogKeys, B: SigningLogBoard>(
         board,
         &board_name,
         OutboxBatch {
-            up_to_id,
+            up_to_id: batch_end,
             rows: OUTBOX_BATCH,
         },
     )
@@ -787,6 +795,7 @@ where
 pub struct ElectoralLogKeys {
     system: Option<ElectoralLog>,
     admins: HashMap<String, ElectoralLog>,
+    unavailable_admins: HashSet<String>,
 }
 
 impl ElectoralLogKeys {
@@ -805,12 +814,16 @@ impl SigningLogKeys for ElectoralLogKeys {
     ) -> Result<String> {
         let (tenant, event) = (tenant_id.to_string(), election_event_id.to_string());
         let transaction = client.transaction().await?;
-        let election_event = get_election_event_by_id(&transaction, &tenant, &event).await?;
+        let election_event =
+            get_election_event_by_id(&transaction, &tenant, &event).await?;
         let board = get_election_event_board(election_event.bulletin_board_reference)
-            .ok_or_else(|| anyhow!("The election event has no electoral-log board"))?;
+            .ok_or_else(|| {
+            anyhow!("The election event has no electoral-log board")
+        })?;
         if self.system.is_none() {
-            self.system =
-                Some(ElectoralLog::new(&transaction, &tenant, Some(&event), &board).await?);
+            self.system = Some(
+                ElectoralLog::new(&transaction, &tenant, Some(&event), &board).await?,
+            );
         }
         transaction.commit().await?;
         for user in users {
@@ -819,33 +832,59 @@ impl SigningLogKeys for ElectoralLogKeys {
             }
             // Its own transaction: a key made here is kept even if the
             // posting transaction rolls back.
-            let transaction = client.transaction().await?;
-            let electoral_log = ElectoralLog::for_admin_user(
-                &transaction,
-                &board,
-                &tenant,
-                &event,
-                &user.user_id,
-                user.username.clone(),
-                user.election_id.map(|id| vec![id.to_string()]),
-                user.area_id.map(|id| id.to_string()),
-            )
-            .await?;
-            transaction.commit().await?;
-            self.admins.insert(user.user_id.clone(), electoral_log);
+            let admin = async {
+                let transaction = client.transaction().await?;
+                let electoral_log = ElectoralLog::for_admin_user(
+                    &transaction,
+                    &board,
+                    &tenant,
+                    &event,
+                    &user.user_id,
+                    user.username.clone(),
+                    user.election_id.map(|id| vec![id.to_string()]),
+                    user.area_id.map(|id| id.to_string()),
+                )
+                .await?;
+                transaction.commit().await?;
+                Ok::<_, anyhow::Error>(electoral_log)
+            }
+            .await;
+            match admin {
+                Ok(electoral_log) => {
+                    self.unavailable_admins.remove(&user.user_id);
+                    self.admins.insert(user.user_id.clone(), electoral_log);
+                }
+                Err(error) => {
+                    warn!(%tenant_id, %election_event_id,
+                        "Could not prepare a signing log actor's key: {error:#}");
+                    self.unavailable_admins.insert(user.user_id.clone());
+                }
+            }
         }
         Ok(board)
     }
 
     fn signing_data(&self, row: &SigningLogOutboxRow) -> Result<&SigningData> {
         let electoral_log = match (&row.event_type, &row.user_id) {
-            (StatementEventType::USER, Some(user_id)) => self.admins.get(user_id),
+            (StatementEventType::USER, Some(user_id)) => {
+                if self.unavailable_admins.contains(user_id) {
+                    // The ordered posting pass appends any healthy prefix,
+                    // then backs off at this row. Never use a substitute key.
+                    return Err(anyhow!(
+                        "Could not prepare the actor's key for signing log row {}",
+                        row.id
+                    ));
+                }
+                self.admins.get(user_id)
+            }
             (StatementEventType::USER, None) => None,
             (StatementEventType::SYSTEM, _) => self.system.as_ref(),
         };
         electoral_log
             .map(|electoral_log| &electoral_log.sd)
-            .ok_or_else(|| anyhow!("No signing key loaded for signing log row {}", row.id))
+            .ok_or_else(|| {
+                anyhow!("No signing key loaded for signing log row {}", row.id)
+            })
     }
 }
 
