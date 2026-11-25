@@ -29,9 +29,10 @@ Before any future review of activation:
    each threshold, expiration and replay defenses, the new exact publication
    after a configuration approval, and all deferred effects and trustee
    consumptions. Keep report/artifact and transport evidence separate.
-5. Roll back staging before activation if needed. The migration refuses to
-   remove an active latch; do not try to restore a weaker provider or remove
-   recorded proof.
+5. If operator-only staging must roll back before any direct action
+   activity, use the drained maintenance procedure below. An installation
+   used by the action workflow is not reversible; preserve the marker and
+   recorded authority and roll forward with matching HSM-only binaries.
 
 A detached approval covers the signed payload, including the immutable
 reviewed document digest when the action has a document. It is not a
@@ -71,7 +72,19 @@ when the mounted signer or exact saved scope is unavailable.
    operation only selects a Post when that choice is unambiguous. Multiple
    Post selections never become a silent “first Post” proof. When an
    authorized next publication is missing, the scoped forms fail closed.
-5. Confirm the exact two-event paths and full artifact closure in an isolated
-   fixture before rollout. Do not remove this migration or restart older
-   approval code over newly bound/delivered evidence. The Down migration
-   refuses to remove newly persisted authority/evidence.
+5. Confirm both exact event paths and the matched artifacts in an isolated
+   fixture before rollout. Do not remove these migrations or restart older
+   approval code over new requests, generation, reservations, or proof.
+
+### Roll back unused staging only
+
+This is a migration-owner maintenance operation, not an approval-mode switch.
+Before traffic is admitted, drain Harvest, Windmill, the scheduler and all
+other database writers. To back out the unused staging marker, run the
+`2302` and then `2295` down SQL in one explicit read-committed transaction
+with stop-on-error and a bounded lock timeout. Leave the original installation,
+R2 V1 evidence and prior migrations in place. The transaction refuses dynamic
+request or generation history, any V2 reservation or proof, activity or
+ambiguous history on the anchor event, or a busy write barrier. If it refuses,
+leave the existing evidence and schema intact and roll forward; do not
+force the removal or revert to certificate approval.
