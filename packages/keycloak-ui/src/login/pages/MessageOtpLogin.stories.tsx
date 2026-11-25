@@ -437,9 +437,7 @@ export const FailedDelivery: Story = {
             "We could not send the code to your WhatsApp."
         )
         // Nothing was sent: the page says what to do next, not where to find the code.
-        await expect(
-            canvas.getByText(/problem on our side, not with your details/)
-        ).toBeVisible()
+        await expect(canvas.getByText(/problem on our side, not with your details/)).toBeVisible()
         await expect(canvas.queryByText(/Open WhatsApp/)).not.toBeInTheDocument()
         await expect(canvas.getByRole("button", {name: /Resend code/})).toBeVisible()
         await expectOneChannel(canvas)
