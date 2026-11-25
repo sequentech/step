@@ -141,7 +141,7 @@ jobs:
     # Harvest's route tests create their own database on this server.
     services:
       postgres:
-        image: ${{ matrix.service == 'harvest' && 'postgres:18' || '' }}
+        image: ${{ matrix.service == 'harvest' && 'postgres:18.6-bookworm' || '' }}
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
@@ -276,7 +276,7 @@ jobs:
       QUEUE_DB__URL: postgres://test:test@127.0.0.1:3322/pgmq_test
     services:
       postgres:
-        image: postgres:18
+        image: postgres:18.6-bookworm
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
@@ -315,7 +315,7 @@ jobs:
       - name: Prepare the Hasura and task-queue test databases
         run: |
           docker run --rm --network host --user "$(id -u):$(id -g)" --env HOME=/tmp \
-            --volume "$PWD:/step:ro" --workdir /step postgres:18 \
+            --volume "$PWD:/step:ro" --workdir /step postgres:18.6-bookworm \
             scripts/postgres/hasura_test_database.sh "$HASURA_TEST_DATABASE_URL"
           docker exec "${{ job.services.postgres.id }}" createdb -U test pgmq_test
 
@@ -422,7 +422,7 @@ jobs:
       # The ballot box seal tests post to boards of their own on this server.
     services:
       postgres:
-        image: postgres:18
+        image: postgres:18.6-bookworm
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
