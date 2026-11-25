@@ -10,6 +10,7 @@
 use crate::postgres::area::get_area_by_id;
 use crate::postgres::ballot_style::get_published_ballot_eml;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::services::ballot_box::BallotFormat;
 use crate::services::ballot_box_key::{get_ballot_box_signing_key, published_key};
 use crate::services::database::get_hasura_pool;
 use crate::services::electoral_log_board::get_event_store;
@@ -405,21 +406,21 @@ pub async fn try_receive_ballot_with_network(
         &input.election_id.to_string(),
     )
     .await?;
-    if is_multi_contest {
+    let (_, cast_vote_hash, _) = if is_multi_contest {
         deserialize_and_check_multi_ballot(
             &input,
             voter_id,
             &ballot_tracker_policy,
             &published_ballot_styles,
-        )?;
+        )?
     } else {
         deserialize_and_check_ballot(
             &input,
             voter_id,
             &ballot_tracker_policy,
             &published_ballot_styles,
-        )?;
-    }
+        )?
+    };
     let envelope: BallotEnvelope = deserialize_str(&input.content)
         .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
     let (voter_signing_pk, voter_ballot_signature) = voter_signature(&envelope)?;
@@ -474,6 +475,12 @@ pub async fn try_receive_ballot_with_network(
                 "The election event has no ballot box key; publish its ballots".to_string(),
             )
         })?;
+    // An event that requires sealed cast votes stores the received ballot
+    // sealed to its HSM key too.
+    let seal_key =
+        crate::services::cast_vote_seal::cast_key(&hasura_transaction, tenant_id, &election_event)
+            .await
+            .map_err(|error| CastVoteError::BallotSealFailed(format!("{error:#}")))?;
     hasura_transaction
         .commit()
         .await
@@ -507,6 +514,31 @@ pub async fn try_receive_ballot_with_network(
         })?,
         is_multi_contest,
     )?;
+    let stored_content = match &seal_key {
+        None => stored_content,
+        Some(key) => {
+            let format = if is_multi_contest {
+                BallotFormat::HashableMultiBallot
+            } else {
+                BallotFormat::HashableBallot
+            };
+            crate::services::cast_vote_seal::seal_ballot(
+                key,
+                crate::services::cast_vote_seal::RowScope {
+                    tenant_id,
+                    election_event_id: &election_event.id,
+                    election_id: &election_id,
+                    area_id,
+                },
+                &format.to_string(),
+                &input.ballot_id,
+                &cast_vote_hash.0.clone().to_inner(),
+                &stored_content,
+            )
+            .and_then(|envelope| envelope.to_content())
+            .map_err(|error| CastVoteError::BallotSealFailed(format!("{error:#}")))?
+        }
+    };
     let network = if presentation.ballot_identity
         == Some(sequent_core::types::vote_privacy::BallotIdentity::Pseudonym)
         && presentation.network_data_policy

@@ -331,6 +331,8 @@ fn build_application_with(
                 routes::voter_information_letter::generate_voter_information_letter,
                 routes::set_voter_authentication::set_voter_authentication,
                 routes::export_tally_results::export_tally_results_route,
+                routes::tally_public_verification::tally_public_verification_boards,
+                routes::tally_public_verification::tally_public_verification_transcript,
                 routes::google_meet::generate_google_meeting,
                 routes::google_meet::set_google_service_account_key,
                 routes::architect_approval_policy::get_architect_approval_policy,

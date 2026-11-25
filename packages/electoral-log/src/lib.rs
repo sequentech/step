@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #[cfg(feature = "native")]
 pub mod adapters;
+pub mod cast_vote_seal;
 pub mod domain;
 pub mod messages;
 #[cfg(feature = "native")]

@@ -500,6 +500,11 @@ fn authorized_resolution_is_private_durable_and_unavailable_after_purge() {
         assert!(!keys.to_string().contains(voter));
         let trust: sequent_core::ballot_privacy::BallotPrivacyTrust =
             serde_json::from_value(keys["payload"].clone()).unwrap();
+        // The event's log pins no cast-vote seal key.
+        assert_eq!(
+            keys["payload"]["cast_vote_seal"],
+            serde_json::json!({"policy": "NOT_SEALED"})
+        );
         assert_eq!(
             trust.system_public_key,
             VerificationKey::from_sk(&key)

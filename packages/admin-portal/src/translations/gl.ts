@@ -3167,6 +3167,51 @@ const galegoTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "Houbo un erro ao cargar a sinatura",
             downloadTransmissionPackage: "Descargar Paquete de Transmisión",
+            publicVerification: {
+                sectionTitle: "Verificación criptográfica",
+                description:
+                    "Verifica no teu navegador o taboleiro de anuncios deste reconto: a proba de coñecemento cero de cada papeleta cifrada, a proba de baralladura de cada mestura e a proba de descifrado de cada fideicomisario. As comprobacións baséanse nos rexistros dos taboleiros desta plataforma. Para unha auditoría independente, executa o comando trustee verify con áncoras tomadas do paquete de configuración asinado.",
+                verify: "Verificar o taboleiro de anuncios",
+                verifyAgain: "Verificar de novo",
+                unavailable: "Dispoñible cando remate o reconto.",
+                loading: "Lendo os taboleiros do reconto…",
+                progress: "Verificando o lote {{current}} de {{total}}…",
+                empty: "Este reconto non ten lotes no taboleiro de anuncios que verificar.",
+                failed: "Non se puido realizar a verificación: {{message}}",
+                verifierUnavailable: "Este navegador non puido iniciar o verificador: {{message}}",
+                summary: {
+                    verified: "Todos os lotes verificados: {{count}} de {{total}}.",
+                    invalid: "Lotes que non superaron a verificación: {{count}} de {{total}}.",
+                    error: "Lotes que non se puideron verificar: {{count}} de {{total}}. Cada fila indica o motivo.",
+                    incomplete:
+                        "Lotes incompletos: {{count}} de {{total}}. Faltan publicacións necesarias, polo que non están verificados.",
+                },
+                checks: {
+                    title: "Verificado en cada lote:",
+                    ballots: "A proba de coñecemento cero de cada papeleta cifrada",
+                    mixing: "A proba de baralladura de cada mestura, en orde, avalada polos demais fideicomisarios",
+                    decryption:
+                        "A proba de descifrado de cada fideicomisario, cos resultados recalculados e coincidentes",
+                },
+                columns: {
+                    batch: "Lote",
+                    ballots: "Papeletas",
+                    result: "Resultado",
+                    detail: "Detalle",
+                },
+                batch: "Lote {{batch}}",
+                status: {
+                    verified: "Verificado",
+                    incomplete: "Incompleto",
+                    invalid: "Non válido",
+                    error: "Sen verificar",
+                },
+                detail: {
+                    verified: "Comprobáronse todas as probas e publicacións do lote.",
+                    incomplete: "Faltan publicacións necesarias no taboleiro.",
+                },
+                download: "Descargar as evidencias",
+            },
             resultsPublication: {
                 sectionTitle: "Publicar no sitio web de resultados",
                 policyTitle: "Sitio web de resultados",
@@ -3360,6 +3405,20 @@ const galegoTranslation: TranslationType = {
                     "Finaliza a votación de cada elección seleccionada e detén as súas canles activas antes de crear o escrutinio.",
                 sealBallotBoxes:
                     "Unha elección pódese escrutar cando todas as súas urnas están seladas e as súas actas de selado están publicadas.",
+            },
+            failure: {
+                title: "O escrutinio fallou",
+                detail: "Detalles",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "Un taboleiro de escrutinio non coincide coa configuración rexistrada na cerimonia de claves.",
+                    INVALID_BOARD_CONTENT:
+                        "Un taboleiro de escrutinio ten contido que non se pode usar.",
+                    TRUSTEE_HALTED: "Un fiduciario detivo o escrutinio e informou dun erro.",
+                    SEALED_BALLOTS_REFUSED:
+                        "Algunhas papeletas almacenadas non se poden contar: non se abren ou non coinciden cos seus rexistros. Non se contou ningunha papeleta. Resolve a causa e despois inicia un novo escrutinio.",
+                    unknown: "Non se puido completar o escrutinio.",
+                },
             },
             createTallySuccess: "Escrutinio creado",
             createTallyError: "Non se puido crear o Escrutinio",

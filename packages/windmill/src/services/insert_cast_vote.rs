@@ -387,6 +387,11 @@ pub enum CastVoteError {
     BallotIdMismatch(String),
     #[serde(rename = "get_ballot_style_failed")]
     GetBallotStyleFailed(String),
+    /// The election event requires sealed cast votes and the ballot could
+    /// not be sealed to its key (or its key is missing or not the pinned
+    /// one): nothing is stored.
+    #[serde(rename = "ballot_seal_failed")]
+    BallotSealFailed(String),
     #[serde(rename = "unknown_error")]
     UnknownError(String),
 }
@@ -539,43 +544,71 @@ pub(crate) async fn try_cast(
         username
     };
 
-    crate::services::receive_ballot::check_published_ballot(
-        &hasura_transaction,
-        tenant_id,
-        election_event_id,
-        area_id,
-        &input,
-        presentation
-            .contest_encryption_policy
-            .clone()
-            .unwrap_or_default(),
-    )
-    .await?;
-
-    let (ballot_tracker_policy, published_ballot_styles) = ballot_tracker_context(
-        &hasura_transaction,
-        Some(&presentation),
-        tenant_id,
-        election_event_id,
-        area_id,
-        &input.election_id.to_string(),
-    )
-    .await?;
-
-    let hash_result = if is_multi_contest {
-        deserialize_and_check_multi_ballot(
-            &input,
-            voter_id,
-            &ballot_tracker_policy,
-            &published_ballot_styles,
-        )
+    // An event that requires sealed cast votes stores them sealed to its
+    // HSM key; an event without the flag stores plaintext, as always.
+    let seal_key =
+        crate::services::cast_vote_seal::cast_key(&hasura_transaction, tenant_id, &election_event)
+            .await
+            .map_err(|error| CastVoteError::BallotSealFailed(format!("{error:#}")))?;
+    let format = if is_multi_contest {
+        BallotFormat::HashableMultiBallot
     } else {
-        deserialize_and_check_ballot(
-            &input,
-            voter_id,
-            &ballot_tracker_policy,
-            &published_ballot_styles,
-        )
+        BallotFormat::HashableBallot
+    };
+    let election_id_text = input.election_id.to_string();
+    let row_scope = crate::services::cast_vote_seal::RowScope {
+        tenant_id,
+        election_event_id,
+        election_id: &election_id_text,
+        area_id,
+    };
+
+    let hash_result = match (&seal_key, received_cast.as_ref()) {
+        // The ballot box checked the ballot when it received it, and stored it
+        // sealed: casting it takes the sealed ballot as it is.
+        (Some(key), Some(received)) => {
+            sealed_received_hashes(key, &row_scope, format, &received.received_ballot, voter_id)
+        }
+        _ => {
+            crate::services::receive_ballot::check_published_ballot(
+                &hasura_transaction,
+                tenant_id,
+                election_event_id,
+                area_id,
+                &input,
+                presentation
+                    .contest_encryption_policy
+                    .clone()
+                    .unwrap_or_default(),
+            )
+            .await?;
+
+            let (ballot_tracker_policy, published_ballot_styles) = ballot_tracker_context(
+                &hasura_transaction,
+                Some(&presentation),
+                tenant_id,
+                election_event_id,
+                area_id,
+                &input.election_id.to_string(),
+            )
+            .await?;
+
+            if is_multi_contest {
+                deserialize_and_check_multi_ballot(
+                    &input,
+                    voter_id,
+                    &ballot_tracker_policy,
+                    &published_ballot_styles,
+                )
+            } else {
+                deserialize_and_check_ballot(
+                    &input,
+                    voter_id,
+                    &ballot_tracker_policy,
+                    &published_ballot_styles,
+                )
+            }
+        }
     };
 
     let (mut pseudonym_h, vote_h, voter_signature_data) = match hash_result {
@@ -626,17 +659,48 @@ pub(crate) async fn try_cast(
     // votes reuse this read transaction directly. Either way the connection is
     // released before a refusal is logged below. The sequencer appends an accepted
     // ballot's record to the log.
-    let format = if is_multi_contest {
-        BallotFormat::HashableMultiBallot
-    } else {
-        BallotFormat::HashableBallot
-    };
+    // What the ballot box stores: the voter's ballot, or, in an event that
+    // requires sealing, the ballot sealed to the event's key (a received
+    // ballot is already sealed).
+    let (stored_format, stored_content, returned_content) =
+        match (&seal_key, received_cast.as_ref()) {
+            (None, _) => (
+                format.to_string(),
+                input.content.clone(),
+                Some(input.content.clone()),
+            ),
+            (Some(_), Some(_)) => (
+                electoral_log::cast_vote_seal::sealed_format(&format.to_string()),
+                input.content.clone(),
+                None,
+            ),
+            (Some(key), None) => {
+                let envelope = crate::services::cast_vote_seal::seal_ballot(
+                    key,
+                    row_scope,
+                    &format.to_string(),
+                    &input.ballot_id,
+                    &vote_h.0.clone().to_inner(),
+                    &input.content,
+                )
+                .map_err(|error| CastVoteError::BallotSealFailed(format!("{error:#}")))?;
+                (
+                    electoral_log::cast_vote_seal::sealed_format(&format.to_string()),
+                    envelope
+                        .to_content()
+                        .map_err(|error| CastVoteError::BallotSealFailed(error.to_string()))?,
+                    Some(input.content.clone()),
+                )
+            }
+        };
     let ballot = BallotToAccept {
         input: &input,
         election_event: &election_event,
         voting_channel,
         ids,
-        format,
+        format: &stored_format,
+        content: &stored_content,
+        returned_content: returned_content.as_deref(),
         status: initial_status,
         auth_time,
         voter_ip,
@@ -933,13 +997,81 @@ pub fn deserialize_and_check_multi_ballot(
     Ok((pseudonym_h, vote_h, voter_signature_opt))
 }
 
+/// The hashes and voter signature of a received ballot the ballot box stored
+/// sealed, as casting it needs them. The ballot box checked the ballot (its
+/// Ballot ID, ballot style, proofs and voter signature) when it received it;
+/// the sealed ballot carries that Ballot ID and cast-vote hash, which must be
+/// the received ballot's, under the event's key, for this election and area.
+fn sealed_received_hashes(
+    key: &crate::services::cast_vote_seal::SealKey,
+    row: &crate::services::cast_vote_seal::RowScope<'_>,
+    format: BallotFormat,
+    received: &electoral_log::adapters::ballot_box_received::ReceivedBallot,
+    voter_id: &str,
+) -> Result<
+    (
+        PseudonymHash,
+        CastVoteHash,
+        Option<(VerificationKey, Signature)>,
+    ),
+    CastVoteError,
+> {
+    let refused = |reason: &str| CastVoteError::BallotSealFailed(reason.to_string());
+    let envelope = electoral_log::cast_vote_seal::SealedBallot::from_content(&received.content)
+        .map_err(|_| {
+            refused("The received ballot is not sealed in an event that requires sealing")
+        })?;
+    if envelope.key_id != key.key_id || envelope.key_version != key.key_version {
+        return Err(refused("The received ballot is sealed to another key"));
+    }
+    if envelope.inner_format != format.to_string() {
+        return Err(refused("The received ballot has another format"));
+    }
+    if envelope.ballot_id != received.ballot_hash {
+        return Err(CastVoteError::BallotIdMismatch(format!(
+            "Expected {} but got {}",
+            received.ballot_hash, envelope.ballot_id
+        )));
+    }
+    // The sealed ballot is bound to the election and area it was received in.
+    if received.election_id != row.election_id
+        || !received.area_id.eq_ignore_ascii_case(row.area_id)
+    {
+        return Err(CastVoteError::CheckStatusFailed(
+            "The ballot was received in another election or area".to_string(),
+        ));
+    }
+    let cast_vote_hash: Hash = envelope
+        .cast_vote_hash_bytes()
+        .map_err(|error| refused(&error.to_string()))?
+        .try_into()
+        .map_err(|_| refused("The sealed cast-vote hash is not a hash"))?;
+    let pseudonym = hash_voter_id(voter_id)
+        .map_err(|error| CastVoteError::SerializeVoterIdFailed(error.to_string()))?;
+    let verification_key = VerificationKey::from_b64_string(&received.voter_signing_pk)
+        .map_err(|error| CastVoteError::BallotVoterSignatureFailed(error.to_string()))?;
+    let signature = Signature::from_b64_string(&received.voter_ballot_signature)
+        .map_err(|error| CastVoteError::BallotVoterSignatureFailed(error.to_string()))?;
+    Ok((
+        PseudonymHash(HashWrapper::new(pseudonym)),
+        CastVoteHash(HashWrapper::new(cast_vote_hash)),
+        Some((verification_key, signature)),
+    ))
+}
+
 /// A vote to accept into the ballot box, once its ballot has been checked.
 struct BallotToAccept<'a> {
     input: &'a InsertCastVoteInput,
     election_event: &'a ElectionEvent,
     voting_channel: VotingStatusChannel,
     ids: CastVoteIds<'a>,
-    format: BallotFormat,
+    /// The stored row's format and content: the voter's ballot, or the
+    /// sealed ballot (`hsm-seal-v1+<format>`).
+    format: &'a str,
+    content: &'a str,
+    /// What the cast vote answers with: the voter's own ballot, never a
+    /// sealed one.
+    returned_content: Option<&'a str>,
     status: BallotStatus,
     auth_time: &'a Option<i64>,
     voter_ip: &'a Option<String>,
@@ -968,6 +1100,8 @@ async fn accept_into_ballot_box(
         voting_channel,
         ids,
         format,
+        content,
+        returned_content,
         status,
         auth_time,
         voter_ip,
@@ -995,6 +1129,18 @@ async fn accept_into_ballot_box(
         is_early_voting_area,
     )
     .await?;
+    // Read again now that voting was seen open: sealing can only have been
+    // required before voting opened, so a requirement that committed since
+    // the stored form was chosen is visible here.
+    let sealing = crate::services::cast_vote_seal::sealing(
+        &hasura_transaction,
+        ids.tenant_id,
+        ids.election_event_id,
+    )
+    .await
+    .map_err(|error| CastVoteError::BallotSealFailed(format!("{error:#}")))?;
+    crate::services::cast_vote_seal::check_row_format(&sealing, format, &input.ballot_id)
+        .map_err(|error| CastVoteError::BallotSealFailed(format!("{error:#}")))?;
     let allowed_votes = get_allowed_votes(
         &hasura_transaction,
         ids.tenant_id,
@@ -1013,7 +1159,6 @@ async fn accept_into_ballot_box(
         .map(|(_, signature)| signature.to_bytes().to_vec());
     let pseudonym_hash = pseudonym_hash.0.clone().to_inner();
     let ballot_hash = ballot_hash.0.clone().to_inner();
-    let format = format.to_string();
     let channel = effective_voting_channel.to_string();
     let accept = AcceptBallot {
         election_event_id: ids.election_event_id,
@@ -1021,8 +1166,8 @@ async fn accept_into_ballot_box(
         area_id: ids.area_id,
         voter_id: ids.voter_id,
         ballot_id: &input.ballot_id,
-        format: &format,
-        content: &input.content,
+        format,
+        content,
         voter_signature: voter_signature.as_deref(),
         pseudonym_hash: &pseudonym_hash,
         ballot_hash: &ballot_hash,
@@ -1081,7 +1226,7 @@ async fn accept_into_ballot_box(
                     area_id: Some(ids.area_id.to_string()),
                     created_at: Some(accepted_at),
                     last_updated_at: Some(accepted_at),
-                    content: Some(input.content.clone()),
+                    content: returned_content.map(str::to_string),
                     voter_id_string: Some(ids.voter_id.to_string()),
                     election_event_id: ids.election_event_id.to_string(),
                     ballot_id: Some(input.ballot_id.clone()),

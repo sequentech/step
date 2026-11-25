@@ -3201,6 +3201,53 @@ const frenchTranslation: TranslationType = {
             errorUploadingSignature:
                 "Une erreur s'est produite lors du téléchargement de la signature",
             downloadTransmissionPackage: "Télécharger le paquet",
+            publicVerification: {
+                sectionTitle: "Vérification cryptographique",
+                description:
+                    "Vérifiez dans votre navigateur le tableau d'affichage de ce dépouillement : la preuve à divulgation nulle de connaissance de chaque bulletin chiffré, la preuve de mélange de chaque brassage et la preuve de déchiffrement de chaque dépositaire. Les vérifications s'appuient sur les enregistrements des tableaux de cette plateforme. Pour un audit indépendant, exécutez la commande trustee verify avec des ancres issues du paquet de configuration signé.",
+                verify: "Vérifier le tableau d'affichage",
+                verifyAgain: "Vérifier à nouveau",
+                unavailable: "Disponible une fois le dépouillement terminé.",
+                loading: "Lecture des tableaux du dépouillement…",
+                progress: "Vérification du lot {{current}} sur {{total}}…",
+                empty: "Ce dépouillement n'a aucun lot du tableau d'affichage à vérifier.",
+                failed: "La vérification n'a pas pu être effectuée : {{message}}",
+                verifierUnavailable:
+                    "Ce navigateur n'a pas pu démarrer le vérificateur : {{message}}",
+                summary: {
+                    verified: "Tous les lots vérifiés : {{count}} sur {{total}}.",
+                    invalid: "Lots dont la vérification a échoué : {{count}} sur {{total}}.",
+                    error: "Lots qui n'ont pas pu être vérifiés : {{count}} sur {{total}}. Chaque ligne en donne la raison.",
+                    incomplete:
+                        "Lots incomplets : {{count}} sur {{total}}. Des publications requises manquent, ils ne sont donc pas vérifiés.",
+                },
+                checks: {
+                    title: "Vérifié dans chaque lot :",
+                    ballots:
+                        "La preuve à divulgation nulle de connaissance de chaque bulletin chiffré",
+                    mixing: "La preuve de mélange de chaque brassage, dans l'ordre, approuvée par les autres dépositaires",
+                    decryption:
+                        "La preuve de déchiffrement de chaque dépositaire, avec les résultats recalculés et concordants",
+                },
+                columns: {
+                    batch: "Lot",
+                    ballots: "Bulletins",
+                    result: "Résultat",
+                    detail: "Détail",
+                },
+                batch: "Lot {{batch}}",
+                status: {
+                    verified: "Vérifié",
+                    incomplete: "Incomplet",
+                    invalid: "Non valide",
+                    error: "Non vérifié",
+                },
+                detail: {
+                    verified: "Toutes les preuves et publications du lot ont été vérifiées.",
+                    incomplete: "Des publications requises manquent sur le tableau.",
+                },
+                download: "Télécharger les preuves",
+            },
             resultsPublication: {
                 sectionTitle: "Publier sur le site web des résultats",
                 policyTitle: "Site web des résultats",
@@ -3396,6 +3443,20 @@ const frenchTranslation: TranslationType = {
                     "Terminez le vote de chaque élection sélectionnée et arrêtez ses canaux actifs avant de créer le dépouillement.",
                 sealBallotBoxes:
                     "Une élection peut être dépouillée une fois que chaque urne est scellée et que son procès-verbal de scellement est publié.",
+            },
+            failure: {
+                title: "Le comptage a échoué",
+                detail: "Détails",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "Un tableau de comptage ne correspond pas à la configuration enregistrée lors de la cérémonie des clés.",
+                    INVALID_BOARD_CONTENT:
+                        "Un tableau de comptage contient des données inutilisables.",
+                    TRUSTEE_HALTED: "Un trustee a arrêté le comptage et a signalé une erreur.",
+                    SEALED_BALLOTS_REFUSED:
+                        "Certains bulletins enregistrés ne peuvent pas être comptés : ils ne s'ouvrent pas ou ne correspondent pas à leurs enregistrements. Aucun bulletin n'a été compté. Corrigez la cause, puis lancez un nouveau comptage.",
+                    unknown: "Le comptage n'a pas pu être terminé.",
+                },
             },
             createTallySuccess: "Comptage créé",
             createTallyError: "Erreur lors de la création du comptage",

@@ -3191,6 +3191,51 @@ const tagalogTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "Nagkaroon ng error sa pag-upload ng pirma",
             downloadTransmissionPackage: "I-download ang pakete",
+            publicVerification: {
+                sectionTitle: "Kriptograpikong beripikasyon",
+                description:
+                    "I-verify sa iyong browser ang bulletin board ng tally na ito: ang zero-knowledge proof ng bawat naka-encrypt na balota, ang shuffle proof ng bawat mix, at ang decryption proof ng bawat tagapangasiwa. Nakabatay ang mga pagsusuri sa mga talaan ng platapormang ito tungkol sa mga board. Para sa malayang audit, patakbuhin ang command na trustee verify gamit ang mga anchor mula sa nilagdaang configuration package.",
+                verify: "I-verify ang bulletin board",
+                verifyAgain: "I-verify muli",
+                unavailable: "Magagamit kapag tapos na ang tally.",
+                loading: "Binabasa ang mga board ng tally…",
+                progress: "Bine-verify ang batch {{current}} ng {{total}}…",
+                empty: "Walang batch sa bulletin board ang tally na ito na mabe-verify.",
+                failed: "Hindi naisagawa ang beripikasyon: {{message}}",
+                verifierUnavailable: "Hindi masimulan ng browser na ito ang verifier: {{message}}",
+                summary: {
+                    verified: "Na-verify ang lahat ng batch: {{count}} ng {{total}}.",
+                    invalid: "Mga batch na hindi pumasa sa beripikasyon: {{count}} ng {{total}}.",
+                    error: "Mga batch na hindi na-verify: {{count}} ng {{total}}. Sinasabi ng bawat hilera ang dahilan.",
+                    incomplete:
+                        "Mga hindi kumpletong batch: {{count}} ng {{total}}. Kulang ang mga kinakailangang publikasyon, kaya hindi sila na-verify.",
+                },
+                checks: {
+                    title: "Na-verify sa bawat batch:",
+                    ballots: "Ang zero-knowledge proof ng bawat naka-encrypt na balota",
+                    mixing: "Ang shuffle proof ng bawat mix, nang sunud-sunod, na inendorso ng ibang tagapangasiwa",
+                    decryption:
+                        "Ang decryption proof ng bawat tagapangasiwa, na muling kinalkula at tumugma ang mga resulta",
+                },
+                columns: {
+                    batch: "Batch",
+                    ballots: "Mga balota",
+                    result: "Resulta",
+                    detail: "Detalye",
+                },
+                batch: "Batch {{batch}}",
+                status: {
+                    verified: "Na-verify",
+                    incomplete: "Hindi kumpleto",
+                    invalid: "Hindi wasto",
+                    error: "Hindi na-verify",
+                },
+                detail: {
+                    verified: "Nasuri ang lahat ng proof at publikasyon ng batch.",
+                    incomplete: "Kulang sa board ang mga kinakailangang publikasyon.",
+                },
+                download: "I-download ang ebidensya",
+            },
             resultsPublication: {
                 sectionTitle: "I-publish sa website ng mga resulta",
                 policyTitle: "Website ng mga resulta",
@@ -3385,6 +3430,20 @@ const tagalogTranslation: TranslationType = {
                     "Tapusin ang pagboto sa bawat napiling halalan at ihinto ang mga aktibong channel bago gumawa ng pagbibilang.",
                 sealBallotBoxes:
                     "Maaaring i-tally ang isang halalan kapag naka-seal na ang bawat ballot box nito at naipaskil na ang seal record nito.",
+            },
+            failure: {
+                title: "Nabigo ang pagbibilang",
+                detail: "Mga detalye",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "May tally board na hindi tugma sa configuration na naitala sa seremonya ng mga susi.",
+                    INVALID_BOARD_CONTENT: "May tally board na may nilalamang hindi magagamit.",
+                    TRUSTEE_HALTED:
+                        "Itinigil ng isang tagapagtiwala ang pagbibilang at nag-ulat ito ng error.",
+                    SEALED_BALLOTS_REFUSED:
+                        "May mga nakaimbak na balotang hindi mabibilang: hindi nabubuksan o hindi tugma sa kanilang mga record. Walang balotang nabilang. Lutasin ang sanhi, saka magsimula ng bagong pagbibilang.",
+                    unknown: "Hindi natapos ang pagbibilang.",
+                },
             },
             createTallySuccess: "Pagbibilang na ginawa",
             createTallyError: "Error sa paggawa ng pagbibilang",

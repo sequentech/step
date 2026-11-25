@@ -3348,6 +3348,51 @@ const spanishTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "Hubo un error al subir la firma",
             downloadTransmissionPackage: "Descargar paquete",
+            publicVerification: {
+                sectionTitle: "Verificación criptográfica",
+                description:
+                    "Verifica en tu navegador el tablón de anuncios de este recuento: la prueba de conocimiento cero de cada papeleta cifrada, la prueba de barajado de cada mezcla y la prueba de descifrado de cada autoridad. Las comprobaciones se basan en los registros de los tablones de esta plataforma. Para una auditoría independiente, ejecuta el comando trustee verify con anclas tomadas del paquete de configuración firmado.",
+                verify: "Verificar el tablón de anuncios",
+                verifyAgain: "Verificar de nuevo",
+                unavailable: "Disponible cuando el recuento haya terminado.",
+                loading: "Leyendo los tablones del recuento…",
+                progress: "Verificando el lote {{current}} de {{total}}…",
+                empty: "Este recuento no tiene lotes en el tablón de anuncios que verificar.",
+                failed: "No se pudo realizar la verificación: {{message}}",
+                verifierUnavailable: "Este navegador no pudo iniciar el verificador: {{message}}",
+                summary: {
+                    verified: "Todos los lotes verificados: {{count}} de {{total}}.",
+                    invalid: "Lotes que no superaron la verificación: {{count}} de {{total}}.",
+                    error: "Lotes que no se pudieron verificar: {{count}} de {{total}}. Cada fila indica el motivo.",
+                    incomplete:
+                        "Lotes incompletos: {{count}} de {{total}}. Faltan publicaciones necesarias, por lo que no están verificados.",
+                },
+                checks: {
+                    title: "Verificado en cada lote:",
+                    ballots: "La prueba de conocimiento cero de cada papeleta cifrada",
+                    mixing: "La prueba de barajado de cada mezcla, en orden, avalada por las demás autoridades",
+                    decryption:
+                        "La prueba de descifrado de cada autoridad, con los resultados recalculados y coincidentes",
+                },
+                columns: {
+                    batch: "Lote",
+                    ballots: "Papeletas",
+                    result: "Resultado",
+                    detail: "Detalle",
+                },
+                batch: "Lote {{batch}}",
+                status: {
+                    verified: "Verificado",
+                    incomplete: "Incompleto",
+                    invalid: "No válido",
+                    error: "Sin verificar",
+                },
+                detail: {
+                    verified: "Se comprobaron todas las pruebas y publicaciones del lote.",
+                    incomplete: "Faltan publicaciones necesarias en el tablón.",
+                },
+                download: "Descargar las evidencias",
+            },
             resultsPublication: {
                 sectionTitle: "Publicar en el sitio web de resultados",
                 policyTitle: "Sitio web de resultados",
@@ -3541,6 +3586,20 @@ const spanishTranslation: TranslationType = {
                     "Finaliza la votación en cada elección seleccionada y detén sus canales activos antes de crear el recuento.",
                 sealBallotBoxes:
                     "Se puede hacer el recuento de una elección cuando todas sus urnas están selladas y sus actas de sellado están publicadas.",
+            },
+            failure: {
+                title: "El recuento ha fallado",
+                detail: "Detalles",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "Un tablón de recuento no coincide con la configuración registrada en la ceremonia de claves.",
+                    INVALID_BOARD_CONTENT:
+                        "Un tablón de recuento tiene contenido que no se puede usar.",
+                    TRUSTEE_HALTED: "Un trustee detuvo el recuento e informó de un error.",
+                    SEALED_BALLOTS_REFUSED:
+                        "Algunas papeletas almacenadas no se pueden contar: no se abren o no coinciden con sus registros. No se ha contado ninguna papeleta. Resuelve la causa y después inicia un nuevo recuento.",
+                    unknown: "No se ha podido completar el recuento.",
+                },
             },
             createTallySuccess: "Recuento creado",
             createTallyError: "Error creando recuento",

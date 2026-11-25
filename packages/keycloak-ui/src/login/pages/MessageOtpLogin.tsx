@@ -462,10 +462,13 @@ export default function MessageOtpLogin(props: OtpPageProps) {
                 </Typography>
             )
         }
-        if (failed && channel) {
+        if (failed) {
+            // A step that names no channel (email, SMS or both) says the failure too.
             return (
                 <Typography id="otp-delivery" role="alert" className="auth-address">
-                    {msg("messageOtp.delivery.failed", channelLabel)}
+                    {channel
+                        ? msg("messageOtp.delivery.failed", channelLabel)
+                        : msg("messageOtp.delivery.failedCode")}
                 </Typography>
             )
         }
@@ -554,7 +557,16 @@ export default function MessageOtpLogin(props: OtpPageProps) {
                     {msgStr(codeNote.key, ...codeNote.args)}
                 </Typography>
             )}
-            {appInstruction ? (
+            {failed ? (
+                // Nothing was sent: no "enter the code we sent", but what to do next.
+                <Typography
+                    id="otp-instructions"
+                    className="auth-instructions"
+                    lang={messageLanguage(kcContext, i18n, "messageOtp.delivery.retry")}
+                >
+                    {msg("messageOtp.delivery.retry")}
+                </Typography>
+            ) : appInstruction ? (
                 <Typography
                     id="otp-instructions"
                     className="auth-instructions"
