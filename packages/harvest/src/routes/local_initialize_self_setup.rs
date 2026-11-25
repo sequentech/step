@@ -11,9 +11,10 @@ use super::{
 use crate::services::dependencies::HarvestServices;
 use crate::services::operational_portal_auth::OperationalPortalClaims;
 use crate::services::signing_http::{SigningError, SigningErrorCode};
-use deadpool_postgres::Pool;
+use deadpool_postgres::{Pool, Transaction};
 use tokio_postgres::types::ToSql;
 use uuid::Uuid;
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 
 #[path = "local_officer_bridge.rs"]
 pub(super) mod attachment;
@@ -76,7 +77,7 @@ pub(crate) async fn checked_scope(
     }
     let scope = BrokerScope::from(&current);
     // Release app locks before the distinct SQL principal acquires them.
-    tx.commit().await.map_err(storage_error)?;
+    tx.rollback().await.map_err(storage_error)?;
     Ok(scope)
 }
 
@@ -121,6 +122,30 @@ async fn status(
     ingress::Snapshot::from_row(scope, pin, &row)
 }
 
+/// Do not make a portal write if the optional migration is missing or its
+/// same-transaction audit trigger is disabled. No extra capability or audit
+/// table access is granted to this narrowly scoped SQL login.
+async fn require_setup_browser_audit(
+    tx: &Transaction<'_>,
+) -> Result<(), SigningError> {
+    let audited: bool = tx.query_one(
+        "SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_trigger t
+         JOIN pg_catalog.pg_class c ON c.oid=t.tgrelid
+         JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+         JOIN pg_catalog.pg_proc p ON p.oid=t.tgfoid
+         JOIN pg_catalog.pg_namespace f ON f.oid=p.pronamespace
+         WHERE (n.nspname,c.relname,t.tgname)=('felix3_initialize_setup','attempt','local_setup_browser_audit')
+           AND t.tgenabled='A' AND t.tgtype=17 AND NOT t.tgisinternal
+           AND (f.nspname,p.proname)=('sequent_backend','audit_local_setup_browser_transition')
+           AND p.prosecdef)",
+        &[],
+    ).await.and_then(|row| row.try_get(0)).map_err(storage_error)?;
+    if !audited {
+        return Err(storage_error("local setup browser audit is unavailable"));
+    }
+    Ok(())
+}
+
 /// Call after an explicit user click and the private setup broker's nonce
 /// commitment. A successful write allows only the dedicated Gold ceremony.
 pub(crate) async fn begin(
@@ -142,6 +167,7 @@ pub(crate) async fn begin(
     }
     let mut db = pool.get().await.map_err(storage_error)?;
     let tx = db.transaction().await.map_err(storage_error)?;
+    require_setup_browser_audit(&tx).await?;
     let sql =
         format!("SELECT felix3_initialize_setup.begin_setup({BINDING},$9,$10)");
     let mut args = params(pin, &scope);
@@ -169,7 +195,10 @@ pub(crate) async fn begin(
     if !bound {
         return Err(refused());
     }
+    // The successful table write now holds a relation lock through commit.
+    require_setup_browser_audit(&tx).await?;
     tx.commit().await.map_err(storage_error)?;
+    kick_audit_log_outbox();
     Ok(scope)
 }
 
@@ -196,6 +225,7 @@ pub(crate) async fn release(
         checked_scope(services, pin, claims, request, reviewed_digest).await?;
     let mut db = pool.get().await.map_err(storage_error)?;
     let tx = db.transaction().await.map_err(storage_error)?;
+    require_setup_browser_audit(&tx).await?;
     let sql = format!("SELECT felix3_initialize_setup.release({BINDING},$9)");
     let mut args = params(pin, &scope);
     args.push(&attempt);
@@ -219,6 +249,9 @@ pub(crate) async fn release(
     if !taken {
         return Err(refused());
     }
+    // The successful table write now holds a relation lock through commit.
+    require_setup_browser_audit(&tx).await?;
     tx.commit().await.map_err(storage_error)?;
+    kick_audit_log_outbox();
     Ok(ReleasedAttempt { scope, attempt })
 }

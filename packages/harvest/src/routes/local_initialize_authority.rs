@@ -154,7 +154,7 @@ impl LocalInitializePost {
         {
             return Err(refused());
         }
-        directory.commit().await.map_err(SigningError::internal)?;
+        directory.rollback().await.map_err(SigningError::internal)?;
         Ok(())
     }
 }

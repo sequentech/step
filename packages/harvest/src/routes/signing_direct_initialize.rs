@@ -6,8 +6,10 @@ use super::{
     hasura, internal, require, signing_failure, tenant_of, uuid_of, writer,
     HarvestServices, RequestIdOutput, SigningFailure, SigningReply,
 };
+use crate::services::audit;
 use anyhow::{ensure, Context, Result};
 use chrono::{DateTime, Utc};
+use deadpool_postgres::Transaction;
 use openssl::x509::X509;
 use openssl::{
     pkey::{Id, PKey, Private},
@@ -18,11 +20,14 @@ use rocket::serde::json::Json;
 use rocket::{routes, Build, Rocket, State};
 use sequent_core::{services::jwt::JwtClaims, types::permissions::Permissions};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::{
     fs, io::Read, net::SocketAddrV4, os::unix::fs::MetadataExt, path::Path,
     time::Duration,
 };
 use uuid::Uuid;
+use windmill::postgres::audit_log_outbox::AuditLogTarget;
+use windmill::services::audit_log::{self, AdminAction, AuditObject};
 use windmill::services::signing::direct_actions::{self, DirectReservation};
 use windmill::services::signing::direct_initialize::{
     approved, authorize, commit, verify_proof, verify_signature, DirectScope,
@@ -30,6 +35,7 @@ use windmill::services::signing::direct_initialize::{
 use windmill::services::signing::direct_protocol::{
     DirectOperation, DirectPurpose, DirectRequestScope,
 };
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 
 const ROOT: &str = "/run/sequent-comelec-demo-direct-hsm/harvest";
 const AUTHORITY_DOMAIN: &[u8] = b"sequent.local.initialize.authorization/v1\0";
@@ -354,6 +360,77 @@ fn unavailable() -> SigningFailure {
     SigningFailure::conflict("Device approval is unavailable or not yet confirmed. Check the request before trying again.")
 }
 
+#[derive(Clone, Copy)]
+enum DirectLifecycle {
+    Reserved,
+    VerifiedBinding,
+}
+
+struct DirectAuditScope {
+    tenant: Uuid,
+    event: Uuid,
+    election: Option<Uuid>,
+    request: Uuid,
+}
+
+impl From<&DirectScope> for DirectAuditScope {
+    fn from(scope: &DirectScope) -> Self {
+        Self {
+            tenant: scope.tenant(),
+            event: scope.event(),
+            election: Some(scope.post()),
+            request: scope.request(),
+        }
+    }
+}
+
+impl From<&DirectOperation> for DirectAuditScope {
+    fn from(operation: &DirectOperation) -> Self {
+        let anchor = operation.anchor();
+        Self {
+            tenant: anchor.tenant,
+            event: anchor.event,
+            election: operation.scope().election,
+            request: operation.request(),
+        }
+    }
+}
+
+async fn stage_direct_change(
+    tx: &Transaction<'_>,
+    claims: &JwtClaims,
+    scope: DirectAuditScope,
+    reservation: Uuid,
+    phase: DirectLifecycle,
+) -> std::result::Result<(), SigningFailure> {
+    let (action, phase, description) = match phase {
+        DirectLifecycle::Reserved => (
+            AdminAction::Create,
+            "reserved",
+            "Reserved a direct signing attempt",
+        ),
+        DirectLifecycle::VerifiedBinding => (
+            AdminAction::Update,
+            "binding_verified",
+            "Verified the device key binding for a direct signing attempt",
+        ),
+    };
+    let mut change = audit::change(
+        claims,
+        AuditLogTarget {
+            tenant_id: scope.tenant,
+            election_event_id: Some(scope.event),
+        },
+        AuditObject::new("direct_signing_attempt", reservation, None),
+        action,
+    )
+    .with_extra(json!({"signing_request_id": scope.request, "phase": phase}))
+    .with_description(description);
+    change.election_id = scope.election;
+    audit_log::stage(tx, &change).await.map_err(internal)?;
+    Ok(())
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct DirectApprovalBody {
@@ -411,7 +488,16 @@ pub(crate) async fn direct_initialize_approval(
     let nonce: Uuid = held.try_get("nonce").map_err(internal)?;
     let deadline: DateTime<Utc> =
         held.try_get("expires_at").map_err(internal)?;
+    stage_direct_change(
+        &tx,
+        &claims,
+        (&scope).into(),
+        reservation,
+        DirectLifecycle::Reserved,
+    )
+    .await?;
     tx.commit().await.map_err(internal)?;
+    kick_audit_log_outbox();
 
     let (spki, signature) = device
         .sign(reservation, nonce, deadline, &scope, &body.payload_sha256)
@@ -434,7 +520,16 @@ pub(crate) async fn direct_initialize_approval(
     let proof = verify_proof(&tx, &scope, nonce, &signature)
         .await
         .map_err(signing_failure)?;
+    stage_direct_change(
+        &tx,
+        &claims,
+        (&scope).into(),
+        reservation,
+        DirectLifecycle::VerifiedBinding,
+    )
+    .await?;
     tx.commit().await.map_err(internal)?;
+    kick_audit_log_outbox();
     commit(&mut client, &services.signing, &caller, proof, Utc::now())
         .await
         .map_err(signing_failure)?;
@@ -494,16 +589,35 @@ pub(crate) async fn direct_action_approval(
     let held = direct_actions::reserve(&tx, &operation)
         .await
         .map_err(signing_failure)?;
+    stage_direct_change(
+        &tx,
+        &claims,
+        (&operation).into(),
+        held.id,
+        DirectLifecycle::Reserved,
+    )
+    .await?;
     tx.commit().await.map_err(internal)?;
+    kick_audit_log_outbox();
 
     let (spki, signature) = device.sign_action(&held, &operation).await?;
     let tx = client.transaction().await.map_err(internal)?;
+    let reservation = held.id;
     let proof = direct_actions::verify_and_pin(
         &tx, &operation, held, &spki, &signature,
     )
     .await
     .map_err(signing_failure)?;
+    stage_direct_change(
+        &tx,
+        &claims,
+        (&operation).into(),
+        reservation,
+        DirectLifecycle::VerifiedBinding,
+    )
+    .await?;
     tx.commit().await.map_err(internal)?;
+    kick_audit_log_outbox();
     direct_actions::commit(
         &mut client,
         &services.signing,

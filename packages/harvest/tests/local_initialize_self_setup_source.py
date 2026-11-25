@@ -122,7 +122,7 @@ class SetupBoundary(unittest.TestCase):
 
     def test_actual_authorizer_and_server_owned_exchange(self):
         ordered(self, PORTAL, "caller(&claims.0)", "prepare_initialize_signing(", "pin.verify(",
-                "current.payload_sha256() != reviewed_digest", "tx.commit()")
+                "current.payload_sha256() != reviewed_digest", "tx.rollback()")
         for name, operation in [("begin", "begin_setup"), ("release", "release"), ("status", "status")]:
             ordered(self, PORTAL.split("async fn " + name + "(", 1)[1].split("\n}", 1)[0],
                     "checked_scope(", "felix3_initialize_setup." + operation + "(")

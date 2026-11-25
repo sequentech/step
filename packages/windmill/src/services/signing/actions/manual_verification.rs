@@ -5,10 +5,14 @@
 //! Two separate authorities: the quorum authorizes a private document for one
 //! initiation; only the voter redeeming its Keycloak action token changes identity.
 use super::{gate, is_required, refuse, subject_of};
+use crate::postgres::audit_log_outbox::AuditLogTarget;
 use crate::postgres::signing::{
     get_signing_post, get_signing_request, lock_signing_event, SigningRequestRow,
 };
 use crate::postgres::signing_actions::posts_of_area;
+use crate::services::audit_log::{
+    self, AdminAction, AdminChange, AuditActor, AuditObject, AuditOrigin,
+};
 use crate::services::database::get_keycloak_pool;
 use crate::services::signing::guard::{
     GuardOutcome, GuardRequest, RequestScope, SigningRequestSummary,
@@ -43,6 +47,66 @@ pub enum Delivery {
     Failed,
     Waiting(SigningRequestSummary),
     Document { id: Uuid, dispatch: bool },
+}
+
+#[derive(Clone, Copy)]
+enum IssuanceChange {
+    Created,
+    Recovered,
+    StaleRenderSettled,
+    DocumentAllocated,
+}
+
+async fn stage_issuance_change(
+    tx: &Transaction<'_>,
+    caller: &SigningCaller,
+    tenant: Uuid,
+    event: Uuid,
+    initiation: Uuid,
+    request: Option<Uuid>,
+    phase: IssuanceChange,
+) -> Result<()> {
+    let (action, phase, description) = match phase {
+        IssuanceChange::Created => (
+            AdminAction::Create,
+            "created",
+            "Created a manual-verification document issuance",
+        ),
+        IssuanceChange::Recovered => (
+            AdminAction::Update,
+            "recovered",
+            "Recovered an existing manual-verification document",
+        ),
+        IssuanceChange::StaleRenderSettled => (
+            AdminAction::Update,
+            "stale_render_settled",
+            "Settled stale manual-verification render state",
+        ),
+        IssuanceChange::DocumentAllocated => (
+            AdminAction::Update,
+            "document_allocated",
+            "Allocated a private manual-verification document",
+        ),
+    };
+    let actor = AuditActor {
+        user_id: Some(caller.user_id.clone()),
+        username: Some(caller.username.clone()),
+        role: None,
+    };
+    let change = AdminChange::new(
+        AuditLogTarget {
+            tenant_id: tenant,
+            election_event_id: Some(event),
+        },
+        AuditObject::new("manual_verification_issuance", initiation, None),
+        action,
+        actor,
+        AuditOrigin::Harvest,
+    )
+    .with_extra(json!({"phase": phase, "signing_request_id": request}))
+    .with_description(description);
+    audit_log::stage(tx, &change).await?;
+    Ok(())
 }
 
 async fn lock(tx: &Transaction<'_>, tenant: Uuid, event: Uuid) -> Result<()> {
@@ -115,20 +179,44 @@ pub async fn initiate(
     // A lost worker cannot strand an unminted claim or mint a second token.
     // If it committed the document but died before recording readiness, recover
     // that same document. Never repeat a mint that may have already happened.
-    tx.execute("UPDATE sequent_backend.manual_verification_issuance i SET ready_at=clock_timestamp()
+    let recovered = tx.query_opt("UPDATE sequent_backend.manual_verification_issuance i SET ready_at=clock_timestamp()
         WHERE initiation_id=$1 AND tenant_id=$2 AND election_event_id=$3 AND requester_id=$4 AND voter_id=$5
           AND minted_at IS NOT NULL AND ready_at IS NULL AND failed_at IS NULL
           AND EXISTS(SELECT FROM sequent_backend.document d WHERE d.id=i.document_id AND d.tenant_id=i.tenant_id
                      AND d.election_event_id=i.election_event_id AND d.is_public IS FALSE
-                     AND (i.request_id IS NULL OR d.annotations->>'purpose'='signed-manual-verification'))",
+                     AND (i.request_id IS NULL OR d.annotations->>'purpose'='signed-manual-verification')) RETURNING i.request_id",
          &[&initiation,&tenant,&event,&caller.user_id,&voter]).await?;
-    tx.execute("UPDATE sequent_backend.manual_verification_issuance SET
+    if let Some(row) = recovered {
+        stage_issuance_change(
+            tx,
+            caller,
+            tenant,
+            event,
+            initiation,
+            row.try_get(0)?,
+            IssuanceChange::Recovered,
+        )
+        .await?;
+    }
+    let settled = tx.query_opt("UPDATE sequent_backend.manual_verification_issuance SET
           render_started_at=CASE WHEN minted_at IS NULL THEN NULL ELSE render_started_at END,
           proof_sha256=CASE WHEN minted_at IS NULL THEN NULL ELSE proof_sha256 END,
           failed_at=CASE WHEN minted_at IS NOT NULL THEN clock_timestamp() END
         WHERE initiation_id=$1 AND tenant_id=$2 AND election_event_id=$3 AND requester_id=$4 AND voter_id=$5
-          AND render_started_at < clock_timestamp()-interval '30 minutes' AND ready_at IS NULL AND failed_at IS NULL",
+          AND render_started_at < clock_timestamp()-interval '30 minutes' AND ready_at IS NULL AND failed_at IS NULL RETURNING request_id",
          &[&initiation,&tenant,&event,&caller.user_id,&voter]).await?;
+    if let Some(row) = settled {
+        stage_issuance_change(
+            tx,
+            caller,
+            tenant,
+            event,
+            initiation,
+            row.try_get(0)?,
+            IssuanceChange::StaleRenderSettled,
+        )
+        .await?;
+    }
     let saved = tx
         .query_opt(
             "SELECT tenant_id, election_event_id, requester_id, voter_id, request_id, document_id,
@@ -240,24 +328,44 @@ pub async fn initiate(
         tx.execute("INSERT INTO sequent_backend.manual_verification_issuance
                 (initiation_id, tenant_id, election_event_id, requester_id, voter_id, post_id, request_id, authorized_at, secret_attributes)
              VALUES ($1,$2,$3,$4,$5,$6,$7,CASE WHEN $7::uuid IS NULL THEN clock_timestamp() END,$8)",&[&initiation,&tenant,&event,&caller.user_id,&voter,&post,&request,&names]).await.map_err(anyhow::Error::from)?;
+        stage_issuance_change(
+            tx,
+            caller,
+            tenant,
+            event,
+            initiation,
+            request,
+            IssuanceChange::Created,
+        )
+        .await?;
         if let GuardOutcome::SigningRequired(s) = outcome {
             return Ok(Delivery::Waiting(s));
         }
     }
     let id = Uuid::new_v4();
-    let count = tx
-        .execute(
+    let allocated = tx
+        .query_opt(
             "UPDATE sequent_backend.manual_verification_issuance SET document_id=$2
-          WHERE initiation_id=$1 AND authorized_at IS NOT NULL AND document_id IS NULL",
+          WHERE initiation_id=$1 AND authorized_at IS NOT NULL AND document_id IS NULL RETURNING request_id",
             &[&initiation, &id],
         )
         .await
         .map_err(anyhow::Error::from)?;
-    if count != 1 {
+    let Some(row) = allocated else {
         return Err(SigningError::Conflict(
             "Authorization has not settled.".into(),
         ));
-    }
+    };
+    stage_issuance_change(
+        tx,
+        caller,
+        tenant,
+        event,
+        initiation,
+        row.try_get(0)?,
+        IssuanceChange::DocumentAllocated,
+    )
+    .await?;
     Ok(Delivery::Document { id, dispatch: true })
 }
 
@@ -485,7 +593,7 @@ pub async fn finish_render(
     Ok(())
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Phase {
     Issue,
@@ -503,7 +611,7 @@ pub async fn authorize_token(
     phase: Phase,
     init: Option<Uuid>,
     proof: Option<Uuid>,
-) -> Result<()> {
+) -> Result<Option<(Uuid, Option<Uuid>)>> {
     lock(tx, tenant, event).await?;
     ensure!(
         tx.query_opt(
@@ -521,14 +629,15 @@ pub async fn authorize_token(
                 !is_required(tx, tenant, event, ACTION).await?,
                 "Signed authorization required"
             );
-            return Ok(());
+            return Ok(None);
         }
         _ => return Err(anyhow!("Incomplete authorization")),
     };
     let digest = Sha256::digest(proof.as_bytes()).to_vec();
     let row=tx.query_opt("SELECT request_id FROM sequent_backend.manual_verification_issuance WHERE initiation_id=$1 AND tenant_id=$2 AND election_event_id=$3 AND voter_id=$4
           AND proof_sha256=$5 AND failed_at IS NULL AND authorized_at IS NOT NULL FOR UPDATE",&[&init,&tenant,&event,&voter,&digest]).await?.context("Issuance not authorized")?;
-    check_requirement(tx, tenant, event, init, row.get(0)).await?;
+    let request_id = row.try_get(0)?;
+    check_requirement(tx, tenant, event, init, request_id).await?;
     let transition=match phase {
         Phase::Issue=>"UPDATE sequent_backend.manual_verification_issuance SET minted_at=clock_timestamp() WHERE initiation_id=$1 AND minted_at IS NULL
               AND render_started_at > clock_timestamp()-interval '10 minutes'",
@@ -539,7 +648,7 @@ pub async fn authorize_token(
         tx.execute(transition, &[&init]).await? == 1,
         "Issuance is not in the required state"
     );
-    Ok(())
+    Ok(Some((init, request_id)))
 }
 
 /// A signed manual-verification PDF is a private handoff for the initiating

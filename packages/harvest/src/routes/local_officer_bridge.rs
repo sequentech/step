@@ -566,7 +566,7 @@ pub(crate) async fn presence(
         })
         .await
         .map_err(failed)?;
-    tx.commit().await.map_err(failed)?;
+    tx.rollback().await.map_err(failed)?;
     if !presentation_is_current(bridge, &k, sid, &origin)? {
         return Err(refused());
     }

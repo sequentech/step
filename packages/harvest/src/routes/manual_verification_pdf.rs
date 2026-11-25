@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::audit;
 use crate::services::authorization::authorize;
 use crate::services::signing_gate::{caller, Guarded};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
@@ -10,9 +11,12 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tracing::instrument;
 use uuid::Uuid;
+use windmill::postgres::audit_log_outbox::AuditLogTarget;
 use windmill::postgres::reports::ReportType;
+use windmill::services::audit_log::{self, AdminAction, AuditObject};
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::electoral_log::{
@@ -24,6 +28,7 @@ use windmill::services::signing::actions::manual_verification::{
     authorize_token, initiate, Delivery, Phase,
 };
 use windmill::services::signing::guard::SigningRequestSummary;
+use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 use windmill::tasks::signing_log_outbox::kick_signing_log_outbox;
 
 #[derive(Deserialize)]
@@ -138,6 +143,7 @@ pub async fn get_manual_verification_pdf(
     )
     .await?;
     tx.commit().await.map_err(pdf_unavailable)?;
+    kick_audit_log_outbox();
     drop(client);
     match outcome {
         // Hasura must get the typed 409 (not a plain-text webhook error).
@@ -211,7 +217,7 @@ pub async fn manual_verification_authority(
     let mut client =
         get_hasura_pool().await.get().await.map_err(unavailable)?;
     let tx = client.transaction().await.map_err(unavailable)?;
-    authorize_token(
+    let transitioned = authorize_token(
         &tx,
         b.tenant_id,
         b.election_event_id,
@@ -227,7 +233,34 @@ pub async fn manual_verification_authority(
             "Manual verification not authorized.".into(),
         )
     })?;
-    tx.commit().await.map_err(unavailable)?;
+    if let Some((initiation, request)) = transitioned {
+        let (phase, description) = match b.phase {
+            Phase::Issue => (
+                "issue_claimed",
+                "Claimed a manual-verification one-use link for issuance",
+            ),
+            Phase::Redeem => (
+                "redeem_claimed",
+                "Claimed a manual-verification one-use link for redemption",
+            ),
+        };
+        let change = audit::change(
+            &claims,
+            AuditLogTarget {
+                tenant_id: b.tenant_id,
+                election_event_id: Some(b.election_event_id),
+            },
+            AuditObject::new("manual_verification_issuance", initiation, None),
+            AdminAction::Update,
+        )
+        .with_extra(json!({"phase": phase, "signing_request_id": request}))
+        .with_description(description);
+        audit_log::stage(&tx, &change).await.map_err(unavailable)?;
+        tx.commit().await.map_err(unavailable)?;
+        kick_audit_log_outbox();
+    } else {
+        tx.rollback().await.map_err(unavailable)?;
+    }
     Ok(Status::NoContent)
 }
 
