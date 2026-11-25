@@ -3386,6 +3386,20 @@ const tagalogTranslation: TranslationType = {
                 sealBallotBoxes:
                     "Maaaring i-tally ang isang halalan kapag naka-seal na ang bawat ballot box nito at naipaskil na ang seal record nito.",
             },
+            failure: {
+                title: "Nabigo ang pagbibilang",
+                detail: "Mga detalye",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "May tally board na hindi tugma sa configuration na naitala sa seremonya ng mga susi.",
+                    INVALID_BOARD_CONTENT: "May tally board na may nilalamang hindi magagamit.",
+                    TRUSTEE_HALTED:
+                        "Itinigil ng isang tagapagtiwala ang pagbibilang at nag-ulat ito ng error.",
+                    SEALED_BALLOTS_REFUSED:
+                        "May mga nakaimbak na balotang hindi mabibilang: hindi nabubuksan o hindi tugma sa kanilang mga record. Walang balotang nabilang. Lutasin ang sanhi, saka magsimula ng bagong pagbibilang.",
+                    unknown: "Hindi natapos ang pagbibilang.",
+                },
+            },
             createTallySuccess: "Pagbibilang na ginawa",
             createTallyError: "Error sa paggawa ng pagbibilang",
             startTallySuccess: "Nagsimula ang pagbibilang",

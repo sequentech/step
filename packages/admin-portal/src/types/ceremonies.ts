@@ -75,8 +75,22 @@ export interface ITallyElection {
     progress: number
 }
 
+export enum ETallyFailureReason {
+    BOARD_CONFIGURATION_MISMATCH = "BOARD_CONFIGURATION_MISMATCH",
+    INVALID_BOARD_CONTENT = "INVALID_BOARD_CONTENT",
+    TRUSTEE_HALTED = "TRUSTEE_HALTED",
+    SEALED_BALLOTS_REFUSED = "SEALED_BALLOTS_REFUSED",
+}
+
+export interface ITallyFailure {
+    reason: ETallyFailureReason
+    detail: string
+    failed_at: string
+}
+
 export interface ITallyCeremonyStatus {
     stop_date?: string
+    failure?: ITallyFailure | null
     logs: Array<ILog>
     trustees: Array<ITallyTrustee>
     quorum?: string[] | null

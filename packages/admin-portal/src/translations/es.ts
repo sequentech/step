@@ -3534,6 +3534,20 @@ const spanishTranslation: TranslationType = {
                 sealBallotBoxes:
                     "Se puede hacer el recuento de una elección cuando todas sus urnas están selladas y sus actas de sellado están publicadas.",
             },
+            failure: {
+                title: "El recuento ha fallado",
+                detail: "Detalles",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "Un tablón de recuento no coincide con la configuración registrada en la ceremonia de claves.",
+                    INVALID_BOARD_CONTENT:
+                        "Un tablón de recuento tiene contenido que no se puede usar.",
+                    TRUSTEE_HALTED: "Un trustee detuvo el recuento e informó de un error.",
+                    SEALED_BALLOTS_REFUSED:
+                        "Algunas papeletas almacenadas no se pueden contar: no se abren o no coinciden con sus registros. No se ha contado ninguna papeleta. Resuelve la causa y después inicia un nuevo recuento.",
+                    unknown: "No se ha podido completar el recuento.",
+                },
+            },
             createTallySuccess: "Recuento creado",
             createTallyError: "Error creando recuento",
             startTallySuccess: "Recuento iniciado",

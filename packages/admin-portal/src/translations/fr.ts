@@ -3397,6 +3397,20 @@ const frenchTranslation: TranslationType = {
                 sealBallotBoxes:
                     "Une élection peut être dépouillée une fois que chaque urne est scellée et que son procès-verbal de scellement est publié.",
             },
+            failure: {
+                title: "Le comptage a échoué",
+                detail: "Détails",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "Un tableau de comptage ne correspond pas à la configuration enregistrée lors de la cérémonie des clés.",
+                    INVALID_BOARD_CONTENT:
+                        "Un tableau de comptage contient des données inutilisables.",
+                    TRUSTEE_HALTED: "Un trustee a arrêté le comptage et a signalé une erreur.",
+                    SEALED_BALLOTS_REFUSED:
+                        "Certains bulletins enregistrés ne peuvent pas être comptés : ils ne s'ouvrent pas ou ne correspondent pas à leurs enregistrements. Aucun bulletin n'a été compté. Corrigez la cause, puis lancez un nouveau comptage.",
+                    unknown: "Le comptage n'a pas pu être terminé.",
+                },
+            },
             createTallySuccess: "Comptage créé",
             createTallyError: "Erreur lors de la création du comptage",
             startTallySuccess: "Comptage commencé",

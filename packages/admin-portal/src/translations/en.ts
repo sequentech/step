@@ -3672,6 +3672,19 @@ const englishTranslation = {
                 sealBallotBoxes:
                     "An election can be tallied once every ballot box is sealed and its seal record is published.",
             },
+            failure: {
+                title: "The tally failed",
+                detail: "Details",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "A tally board doesn't match the configuration recorded at the keys ceremony.",
+                    INVALID_BOARD_CONTENT: "A tally board holds content that can't be used.",
+                    TRUSTEE_HALTED: "A trustee stopped the tally and reported an error.",
+                    SEALED_BALLOTS_REFUSED:
+                        "Some stored ballots can't be counted: they don't open, or they don't match their records. No ballots were counted. Resolve the cause, then start a new tally.",
+                    unknown: "The tally couldn't be completed.",
+                },
+            },
             createTallySuccess: "Tally created",
             createTallyError: "Could not create Tally",
             startTallySuccess: "Tally started",
