@@ -64,7 +64,15 @@ export const anchorsOf = (
     ballot_ciphertexts: [],
 })
 
-const message = (error: unknown) => (error instanceof Error ? error.message : String(error))
+/**
+ * An error's first line. The WASM verifier reports a browser error as
+ * `JsValue(<error>\n<its stack>)`, so a failed request keeps just `<error>`.
+ */
+function message(error: unknown): string {
+    const text = error instanceof Error ? error.message : String(error)
+    const wrapped = /^JsValue\(([^\n]*)/.exec(text)
+    return wrapped ? wrapped[1].replace(/\)$/, "") : text.split("\n")[0]
+}
 
 async function verifyBoard(
     verifier: TallyVerifier,

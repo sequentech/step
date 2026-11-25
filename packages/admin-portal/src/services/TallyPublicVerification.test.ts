@@ -142,6 +142,28 @@ describe("verifyTallyBoards", () => {
             batches.map((batch) => ("error" in batch ? batch.error : batchStatus(batch)))
         ).toEqual(["board unreachable", "invalid configuration", "verified"])
     })
+
+    it("reports only the first line of an error, without the WASM wrapper", async () => {
+        const verifier = fakeVerifier()
+        verifier.fetchTranscript
+            // A browser request failure, as the WASM verifier rethrows it.
+            .mockRejectedValueOnce(
+                "JsValue(TypeError: Failed to fetch\nTypeError: Failed to fetch\n    at __wbg_fetch (index.js:814:30))"
+            )
+            .mockRejectedValueOnce("JsValue(board refused)")
+            .mockRejectedValueOnce(new Error("first line\nsecond line"))
+        const batches = await verifyTallyBoards(
+            verifier,
+            "https://admin.example/b4",
+            [board(0), board(1), board(2)],
+            () => undefined
+        )
+        expect(batches.map((batch) => ("error" in batch ? batch.error : null))).toEqual([
+            "TypeError: Failed to fetch",
+            "board refused",
+            "first line",
+        ])
+    })
 })
 
 describe("evidenceOf", () => {

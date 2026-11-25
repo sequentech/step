@@ -3497,7 +3497,7 @@ const englishTranslation = {
                 summary: {
                     verified: "All batches verified: {{count}} of {{total}}.",
                     invalid: "Batches that failed verification: {{count}} of {{total}}.",
-                    error: "Batches that could not be verified: {{count}} of {{total}}.",
+                    error: "Batches that could not be verified: {{count}} of {{total}}. This browser could not read their boards, or the storage that holds the boards' messages.",
                     incomplete:
                         "Incomplete batches: {{count}} of {{total}}. Their required publications are missing, so they are not verified.",
                 },

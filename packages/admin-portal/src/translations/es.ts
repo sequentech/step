@@ -3354,7 +3354,7 @@ const spanishTranslation: TranslationType = {
                 summary: {
                     verified: "Todos los lotes verificados: {{count}} de {{total}}.",
                     invalid: "Lotes que no superaron la verificación: {{count}} de {{total}}.",
-                    error: "Lotes que no se pudieron verificar: {{count}} de {{total}}.",
+                    error: "Lotes que no se pudieron verificar: {{count}} de {{total}}. Este navegador no pudo leer sus tablones ni el almacenamiento que guarda sus mensajes.",
                     incomplete:
                         "Lotes incompletos: {{count}} de {{total}}. Faltan publicaciones necesarias, por lo que no están verificados.",
                 },

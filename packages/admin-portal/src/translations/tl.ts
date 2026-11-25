@@ -3205,7 +3205,7 @@ const tagalogTranslation: TranslationType = {
                 summary: {
                     verified: "Na-verify ang lahat ng batch: {{count}} ng {{total}}.",
                     invalid: "Mga batch na hindi pumasa sa beripikasyon: {{count}} ng {{total}}.",
-                    error: "Mga batch na hindi na-verify: {{count}} ng {{total}}.",
+                    error: "Mga batch na hindi na-verify: {{count}} ng {{total}}. Hindi nabasa ng browser na ito ang kanilang mga board o ang storage na nag-iimbak ng kanilang mga mensahe.",
                     incomplete:
                         "Mga hindi kumpletong batch: {{count}} ng {{total}}. Kulang ang mga kinakailangang publikasyon, kaya hindi sila na-verify.",
                 },

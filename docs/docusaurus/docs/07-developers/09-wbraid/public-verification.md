@@ -116,6 +116,13 @@ with `configurationHash`, `tallyIdentifier` and `ballotsHash`, fetches each
 transcript from `WBRAID_BOARD_URL` (the portal's `/b4` by default) and calls
 `verifyTranscript`. It checks no ballot inclusion.
 
+The board answers with presigned storage URLs, and the browser downloads each
+message body from them, so the page must reach that storage too. A batch whose
+board or storage cannot be read shows **Not verified** with the browser's error,
+for example `TypeError: Failed to fetch`. In the devcontainer the storage is
+LocalStack at `http://localhost.localstack.cloud:4566`, which reaches the
+developer's machine through the forwarded port 4566 (**Wbraid storage**).
+
 The anchors are the platform's records, so the page is a self-check of the
 platform against its boards, not an independent audit. **Download evidence**
 saves the run as JSON: each batch's `anchors`, `report` and the `transcript`

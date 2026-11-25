@@ -3174,7 +3174,7 @@ const basqueTranslation: TranslationType = {
                 summary: {
                     verified: "Sorta guztiak egiaztatuta: {{count}} / {{total}}.",
                     invalid: "Egiaztapena gainditu ez duten sortak: {{count}} / {{total}}.",
-                    error: "Egiaztatu ezin izan diren sortak: {{count}} / {{total}}.",
+                    error: "Egiaztatu ezin izan diren sortak: {{count}} / {{total}}. Nabigatzaile honek ezin izan ditu haien taulak edo mezuak gordetzen dituen biltegia irakurri.",
                     incomplete:
                         "Sorta osatugabeak: {{count}} / {{total}}. Beharrezko argitalpenak falta dira, beraz ez daude egiaztatuta.",
                 },
