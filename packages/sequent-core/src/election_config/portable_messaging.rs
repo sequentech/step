@@ -138,7 +138,9 @@ impl PortableMessagingAccount {
                     PortableSender::AWS_SES { .. }
                         | PortableSender::AWS_SNS { .. }
                 ) && c.len() == 64
-                    && c.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                    && c.bytes().all(|b| {
+                        b.is_ascii_digit() || (b'a'..=b'f').contains(&b)
+                    })
             }
         }
     }
@@ -647,22 +649,42 @@ mod tests {
             serde_json::json!({"format":FORMAT,"accounts":[account]})
         };
         for provider in ["AWS_SES", "AWS_SNS"] {
-            let absent = parse(&serde_json::to_vec(&aws(provider, serde_json::json!({}))).unwrap()).unwrap();
+            let absent = parse(
+                &serde_json::to_vec(&aws(provider, serde_json::json!({})))
+                    .unwrap(),
+            )
+            .unwrap();
             assert_eq!(absent.accounts[0].credential_commitment, None);
             // Omitted stays omitted: older receivers' signed bytes are unchanged.
-            assert!(!serde_json::to_string(&absent).unwrap().contains("credential_commitment"));
-            let present = aws(provider, serde_json::json!({"credential_commitment": commitment}));
+            assert!(!serde_json::to_string(&absent)
+                .unwrap()
+                .contains("credential_commitment"));
+            let present = aws(
+                provider,
+                serde_json::json!({"credential_commitment": commitment}),
+            );
             assert!(parse(&serde_json::to_vec(&present).unwrap()).is_ok());
-            for bad in ["AB".repeat(32), "ab".repeat(31), "zz".repeat(32), String::new()] {
-                let doc = aws(provider, serde_json::json!({"credential_commitment": bad}));
+            for bad in [
+                "AB".repeat(32),
+                "ab".repeat(31),
+                "zz".repeat(32),
+                String::new(),
+            ] {
+                let doc = aws(
+                    provider,
+                    serde_json::json!({"credential_commitment": bad}),
+                );
                 assert!(parse(&serde_json::to_vec(&doc).unwrap()).is_err());
             }
             // The pair itself has no field in the signed declaration.
-            for field in ["aws_access_key_id", "aws_secret_access_key", "credentials"] {
+            for field in
+                ["aws_access_key_id", "aws_secret_access_key", "credentials"]
+            {
                 let mut extra = serde_json::Map::new();
                 extra.insert(field.to_string(), "SYNTHETIC-CANARY".into());
                 let doc = aws(provider, serde_json::Value::Object(extra));
-                let err = parse(&serde_json::to_vec(&doc).unwrap()).unwrap_err();
+                let err =
+                    parse(&serde_json::to_vec(&doc).unwrap()).unwrap_err();
                 assert!(!err.to_string().contains("CANARY"));
             }
         }

@@ -252,7 +252,10 @@ mod tests {
     }
 }
 
-#[cfg(all(feature = "election_config_signing", not(target_arch = "wasm32")))]
+#[cfg(all(
+    feature = "election_config_signing",
+    not(target_arch = "wasm32")
+))]
 pub use credentials_envelope::{
     decrypt_signed_delivery_parts, encrypt_signed_delivery_with_credentials,
     DeliveryParts, MAX_CREDENTIALS_SIDECAR_BYTES,
@@ -393,7 +396,11 @@ mod credentials_envelope {
         let mut body = Zeroizing::new(ciphertext.to_vec());
         let len = key(password, header)
             .and_then(|cipher| {
-                cipher.open_in_place(nonce(header), Aad::from(header), &mut body[..])
+                cipher.open_in_place(
+                    nonce(header),
+                    Aad::from(header),
+                    &mut body[..],
+                )
             })
             .map_err(|_| EncryptedDeliveryError::AuthenticationFailed)?
             .len();
@@ -421,9 +428,10 @@ mod credentials_envelope {
                 MAX_ENCRYPTED_SIGNED_DELIVERY_BYTES,
                 MAX_SIGNED_DELIVERY_BYTES + HEADER_LEN + TAG_LEN
             );
-            let wire =
-                encrypt_signed_delivery_with_credentials(&PAYLOAD, SIDECAR, PASSWORD)
-                    .unwrap();
+            let wire = encrypt_signed_delivery_with_credentials(
+                &PAYLOAD, SIDECAR, PASSWORD,
+            )
+            .unwrap();
             assert_eq!(wire[MAGIC.len()], VERSION_WITH_CREDENTIALS);
             assert_eq!(
                 decrypt_signed_delivery(&wire, PASSWORD).unwrap_err(),
@@ -437,13 +445,17 @@ mod credentials_envelope {
 
         #[test]
         fn v2_carries_the_sidecar_beside_the_zip_under_one_password() {
-            let wire =
-                encrypt_signed_delivery_with_credentials(&PAYLOAD, SIDECAR, PASSWORD)
-                    .unwrap();
+            let wire = encrypt_signed_delivery_with_credentials(
+                &PAYLOAD, SIDECAR, PASSWORD,
+            )
+            .unwrap();
             assert!(!wire.windows(SIDECAR.len()).any(|w| w == SIDECAR));
             let parts = decrypt_signed_delivery_parts(&wire, PASSWORD).unwrap();
             assert_eq!(parts.signed_zip, PAYLOAD);
-            assert_eq!(parts.credentials.as_deref().map(Vec::as_slice), Some(SIDECAR));
+            assert_eq!(
+                parts.credentials.as_deref().map(Vec::as_slice),
+                Some(SIDECAR)
+            );
             assert!(!format!("{parts:?}").contains("canary"));
             assert_eq!(
                 decrypt_signed_delivery_parts(&wire, "wrong").unwrap_err(),
@@ -453,9 +465,10 @@ mod credentials_envelope {
 
         #[test]
         fn v2_framing_is_authenticated_and_bounded() {
-            let wire =
-                encrypt_signed_delivery_with_credentials(&PAYLOAD, SIDECAR, PASSWORD)
-                    .unwrap();
+            let wire = encrypt_signed_delivery_with_credentials(
+                &PAYLOAD, SIDECAR, PASSWORD,
+            )
+            .unwrap();
             // The version byte is in the AAD: a downgrade fails to open.
             let mut downgraded = wire.clone();
             downgraded[MAGIC.len()] = VERSION;
@@ -463,11 +476,14 @@ mod credentials_envelope {
                 decrypt_signed_delivery(&downgraded, PASSWORD).unwrap_err(),
                 EncryptedDeliveryError::AuthenticationFailed
             );
-            for index in [SALT_START, HEADER_LEN, HEADER_LEN + 3, wire.len() - 1] {
+            for index in
+                [SALT_START, HEADER_LEN, HEADER_LEN + 3, wire.len() - 1]
+            {
                 let mut corrupt = wire.clone();
                 corrupt[index] ^= 0x01;
                 assert_eq!(
-                    decrypt_signed_delivery_parts(&corrupt, PASSWORD).unwrap_err(),
+                    decrypt_signed_delivery_parts(&corrupt, PASSWORD)
+                        .unwrap_err(),
                     EncryptedDeliveryError::AuthenticationFailed
                 );
             }
@@ -478,8 +494,10 @@ mod credentials_envelope {
                 (&[][..], SIDECAR),
             ] {
                 assert_eq!(
-                    encrypt_signed_delivery_with_credentials(zip, sidecar, PASSWORD)
-                        .unwrap_err(),
+                    encrypt_signed_delivery_with_credentials(
+                        zip, sidecar, PASSWORD
+                    )
+                    .unwrap_err(),
                     EncryptedDeliveryError::InvalidEnvelope
                 );
             }
@@ -492,7 +510,8 @@ mod credentials_envelope {
             ] {
                 let sealed = seal(&[body.as_slice()], PASSWORD).unwrap();
                 assert_eq!(
-                    decrypt_signed_delivery_parts(&sealed, PASSWORD).unwrap_err(),
+                    decrypt_signed_delivery_parts(&sealed, PASSWORD)
+                        .unwrap_err(),
                     EncryptedDeliveryError::InvalidEnvelope
                 );
             }
@@ -502,10 +521,14 @@ mod credentials_envelope {
                 decrypt_signed_delivery_parts(&future, PASSWORD).unwrap_err(),
                 EncryptedDeliveryError::InvalidEnvelope
             );
-            let oversized =
-                vec![0_u8; MAX_ENCRYPTED_SIGNED_DELIVERY_WITH_CREDENTIALS_BYTES + 1];
+            let oversized = vec![
+                0_u8;
+                MAX_ENCRYPTED_SIGNED_DELIVERY_WITH_CREDENTIALS_BYTES
+                    + 1
+            ];
             assert_eq!(
-                decrypt_signed_delivery_parts(&oversized, PASSWORD).unwrap_err(),
+                decrypt_signed_delivery_parts(&oversized, PASSWORD)
+                    .unwrap_err(),
                 EncryptedDeliveryError::TooLarge
             );
         }
