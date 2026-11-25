@@ -25,7 +25,7 @@ use base64::Engine;
 use chrono::Utc;
 use sequent_core::types::messaging::{
     AccountCheck, AccountCheckDetails, AccountSender, CredentialName, MessageAttemptState,
-    MessageChannel, MessagePurpose, MessagingProvider, PartnerLogin, ProviderCapabilities,
+    MessageChannel, MessagePurpose, PartnerLogin, ProviderCapabilities, ViberContentMode,
 };
 
 /// Why a Viber account isn't connected: Infobip refused its API key.
@@ -117,6 +117,7 @@ pub struct InfobipViberSender {
     base_url: String,
     sender: String,
     approved_templates: BTreeMap<MessagePurpose, BTreeMap<String, String>>,
+    content_mode: ViberContentMode,
 }
 
 impl InfobipViberSender {
@@ -125,6 +126,7 @@ impl InfobipViberSender {
             base_url,
             sender,
             approved_templates,
+            content_mode,
         } = &account.sender
         else {
             return Err(anyhow!("not an Infobip Viber account"));
@@ -133,6 +135,7 @@ impl InfobipViberSender {
             base_url: base_url.trim_end_matches('/').to_string(),
             sender: sender.clone(),
             approved_templates: approved_templates.clone(),
+            content_mode: *content_mode,
             account,
             http,
         })
@@ -145,7 +148,7 @@ impl InfobipViberSender {
         ))
     }
 
-    fn content(message: &OutboundMessage, template: &str) -> Value {
+    fn template_content(message: &OutboundMessage, template: &str) -> Value {
         let parameters: Map<String, Value> = if message.purpose == MessagePurpose::OTP {
             Map::from_iter([(
                 "pin".to_string(),
@@ -187,15 +190,24 @@ fn status_state(group: &str) -> Option<MessageAttemptState> {
 #[async_trait]
 impl ChannelSender for InfobipViberSender {
     fn capabilities(&self) -> ProviderCapabilities {
-        MessagingProvider::VIBER_INFOBIP
+        self.account
+            .sender
             .capabilities(MessageChannel::VIBER)
             .unwrap_or_else(|| unreachable!("Infobip Viber declares its own channel"))
     }
 
     async fn send(&self, message: &OutboundMessage) -> SendOutcome {
-        let (Ok(authorization), Some(template)) =
-            (self.authorization(), message.provider_template.as_deref())
-        else {
+        let content = match self.content_mode {
+            ViberContentMode::FREE_TEXT => Some(json!({
+                "type": "TEXT",
+                "text": message.content.text,
+            })),
+            ViberContentMode::APPROVED_TEMPLATES => message
+                .provider_template
+                .as_deref()
+                .map(|template| Self::template_content(message, template)),
+        };
+        let (Ok(authorization), Some(content)) = (self.authorization(), content) else {
             return SendOutcome::Rejected(ProviderFailure {
                 kind: FailureKind::PERMANENT,
                 code: None,
@@ -210,7 +222,7 @@ impl ChannelSender for InfobipViberSender {
                 "to": message.destination.as_str().trim_start_matches('+'),
                 "messageId": message.idempotency_key,
             }],
-            "content": Self::content(message, template),
+            "content": content,
         });
         let request = self
             .http
@@ -320,6 +332,7 @@ mod tests {
             sender: AccountSender::VIBER_INFOBIP {
                 base_url: base_url.to_string(),
                 sender: "COMELEC".to_string(),
+                content_mode: Default::default(),
                 approved_templates: BTreeMap::from([(
                     MessagePurpose::OTP,
                     BTreeMap::from([("en".to_string(), "tpl-otp-en".to_string())]),
@@ -380,6 +393,79 @@ mod tests {
         // one: reports come through the subscription's Basic auth only.
         assert!(sender.account.callback_url.is_some());
         assert_eq!(entry.get("webhooks"), None, "{body}");
+    }
+
+    fn free_text_account(base_url: &str) -> Account {
+        let mut account = account(base_url);
+        if let AccountSender::VIBER_INFOBIP { content_mode, .. } = &mut account.sender {
+            *content_mode = ViberContentMode::FREE_TEXT;
+        }
+        account
+    }
+
+    #[tokio::test]
+    async fn a_free_text_account_sends_the_rendered_text_without_a_template() {
+        let server = TestServer::start(vec![
+            Reply::Json(
+                200,
+                json!({"messages": [{"messageId": "logical-1:1", "status": {"groupName": "PENDING"}}]}),
+            ),
+            Reply::Json(
+                200,
+                json!({"messages": [{"messageId": "logical-2:1", "status": {"groupName": "PENDING"}}]}),
+            ),
+        ])
+        .await;
+        let sender =
+            InfobipViberSender::new(free_text_account(&server.base_url), reqwest::Client::new())
+                .unwrap();
+        assert!(sender.capabilities().template_required_for.is_empty());
+        let mut untemplated = code();
+        untemplated.provider_template = None;
+        let mut notice = code();
+        notice.purpose = MessagePurpose::NOTICE;
+        notice.idempotency_key = "logical-2:1".to_string();
+        notice.content.code = None;
+        notice.content.text = "Polls close at 8 pm".to_string();
+        // A template resolved for the message is not used either.
+        for message in [&untemplated, &notice] {
+            assert_eq!(
+                sender.send(message).await,
+                SendOutcome::Accepted {
+                    provider_message_id: Some(message.idempotency_key.clone())
+                }
+            );
+        }
+        let requests = server.requests();
+        for (request, text) in requests
+            .iter()
+            .zip(["Your code is 123456", "Polls close at 8 pm"])
+        {
+            let body = request.json();
+            assert_eq!(
+                body["messages"][0]["content"],
+                json!({"type": "TEXT", "text": text}),
+                "{body}"
+            );
+            assert_eq!(body["messages"][0]["sender"], "COMELEC");
+        }
+    }
+
+    #[tokio::test]
+    async fn a_template_account_still_refuses_a_message_without_a_template() {
+        let server = TestServer::start(vec![]).await;
+        let sender =
+            InfobipViberSender::new(account(&server.base_url), reqwest::Client::new()).unwrap();
+        let mut untemplated = code();
+        untemplated.provider_template = None;
+        assert!(matches!(
+            sender.send(&untemplated).await,
+            SendOutcome::Rejected(ProviderFailure {
+                kind: FailureKind::PERMANENT,
+                ..
+            })
+        ));
+        assert!(server.requests().is_empty());
     }
 
     fn basic(user_and_password: &str) -> String {

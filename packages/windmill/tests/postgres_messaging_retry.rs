@@ -76,6 +76,7 @@ async fn viber_account(client: &mut Client, world: &World, base_url: &str, key: 
     let sender = AccountSender::VIBER_INFOBIP {
         base_url: base_url.to_string(),
         sender: "Elections".to_string(),
+        content_mode: Default::default(),
         approved_templates: BTreeMap::from([(
             MessagePurpose::NOTICE,
             BTreeMap::from([("en".to_string(), "tpl-notice".to_string())]),

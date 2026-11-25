@@ -8,7 +8,7 @@ import {
     IInstantMessageConfig,
     IMessagingAccount,
 } from "@/types/messaging"
-import {enabledChannels} from "@/services/messaging"
+import {accountCapabilities, enabledChannels} from "@/services/messaging"
 import {IEmail, IMethods, ISmsConfig, MESSAGE_TEMPLATE_METHODS} from "@/types/templates"
 import {templateOffersMethod} from "@/services/templateMethods"
 
@@ -172,4 +172,20 @@ export const sendingAccountFor = (
         : accounts.find((candidate) => candidate.channel === channel && candidate.is_default)
     if (account) return account
     return !chosen && UNCONFIGURED_CHANNELS.includes(channel) ? "ENVIRONMENT" : null
+}
+
+/**
+ * Whether a notice on `channel` is sent as the text written here, so the send
+ * can edit it, rather than as an approved template whose wording is fixed.
+ * Without an account, only Messenger sends its text.
+ */
+export const sendsWrittenText = (
+    channel: EMessageChannel,
+    account: IMessagingAccount | "ENVIRONMENT" | null
+): boolean => {
+    if (!account || account === "ENVIRONMENT") {
+        return channel === EMessageChannel.MESSENGER
+    }
+    const capabilities = accountCapabilities(account)
+    return !!capabilities && !capabilities.template_required_for.includes(EMessagePurpose.NOTICE)
 }

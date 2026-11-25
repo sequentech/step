@@ -17,6 +17,7 @@ import {
     EReadinessBlocker,
     ERecipientKind,
     EVENT_MESSAGING_CONFIG_VERSION,
+    EViberContentMode,
     GENERATED_CREDENTIALS,
     IAccountCallbackStatus,
     IAccountCheck,
@@ -122,6 +123,7 @@ export const providerCapabilities = (
 /**
  * What an account can do on `channel`. SES reports deliveries only when a
  * notification topic is set; without one, delivery is unavailable, never 0.
+ * A free-text Viber account needs no template.
  */
 export const senderCapabilities = (
     sender: IAccountSender,
@@ -134,6 +136,13 @@ export const senderCapabilities = (
         sender.notification_topic_arn?.trim()
     ) {
         return {...capabilities, delivery_feedback: EDeliveryFeedback.PROVIDER_RECEIPTS}
+    }
+    if (
+        capabilities &&
+        sender.provider === EMessagingProvider.VIBER_INFOBIP &&
+        sender.content_mode === EViberContentMode.FREE_TEXT
+    ) {
+        return {...capabilities, template_required_for: []}
     }
     return capabilities
 }

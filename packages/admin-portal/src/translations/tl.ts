@@ -6461,11 +6461,16 @@ const tagalogTranslation: TranslationType = {
                 intro: {
                     WHATSAPP:
                         "Nagpapadala lamang ang WhatsApp ng mga template na inaprubahan ng Meta para sa WhatsApp Business Account. Dapat tumugma ang mensahe sa aprubadong template; piliin kung ano ang pupuno sa mga parameter nito.",
-                    VIBER: "Nagpapadala lamang ang Viber ng mga code at transactional na mensahe gamit ang mga template na inaprubahan ng Viber partner. Dapat tumugma ang mensahe sa aprubadong template; piliin kung ano ang pupuno sa mga parameter nito.",
+                    VIBER: "Nagpapadala ang isang Viber account ng mga template na inaprubahan ng Viber partner o ng malayang teksto. Sa mga aprubadong template, dapat tumugma ang mensahe sa template; piliin kung ano ang pupuno sa mga parameter nito. Sa malayang teksto, ipinapadala nang eksakto ang teksto sa ibaba.",
                 },
                 approvedWording: "Aprubadong teksto",
                 approvedWordingHelp:
                     "Kopya ng aprubadong template, ginagamit bilang preview. Hindi nito binabago ang ipinapadala ng provider.",
+                viberWording: "Teksto",
+                viberWordingHelp:
+                    "Ipinapadala ng account na nagpapadala ng malayang teksto ang tekstong ito nang eksakto. Sa mga aprubadong template, kopya ito ng template na ginagamit bilang preview, at hindi nito binabago ang ipinapadala.",
+                sendsWrittenText:
+                    "Nagpapadala ng malayang teksto ang account na ito: ipinapadala nang eksakto ang teksto sa itaas at hindi nito kailangan ng aprubadong template.",
                 providerTemplateTitle: "Template ng provider",
                 providerTemplateHelp:
                     "Opsyonal. Ang pangalan o ID ng aprubadong template sa provider. Kapag walang laman, ginagamit ang template ng election event na nakaugnay sa alias ng template na ito, o ang default ng event para sa layunin.",
@@ -6886,6 +6891,19 @@ const tagalogTranslation: TranslationType = {
                 templateId: "Template ID ng partner",
                 add: "Magdagdag ng template",
                 remove: "Alisin ang template",
+                contentMode: {
+                    title: "Nilalaman ng mensahe",
+                    APPROVED_TEMPLATES: "Mga aprubadong template",
+                    FREE_TEXT: "Malayang teksto",
+                },
+                contentModeHelp: {
+                    APPROVED_TEMPLATES:
+                        "Ipinapadala ang mga code at mensahe gamit ang mga template na inaprubahan ng Viber partner, na nakalagay sa ibaba.",
+                    FREE_TEXT:
+                        "Ipinapadala ang mga code at mensahe bilang sarili nilang teksto, tulad ng SMS. Hindi kailangan ng aprubadong template.",
+                },
+                freeTextWarning:
+                    "Sinisingil ng Viber sa promotional na rate ang mga transactional na mensaheng ipinadala nang walang aprubadong template, at maaari nitong tanggihan ang promotional na nilalaman bilang unang mensahe sa isang botante. Kumpirmahin sa partner na maaaring magpadala ang account na ito ng mga code bilang malayang teksto.",
             },
             limits: {
                 title: "Mga limitasyon sa pagpapadala",

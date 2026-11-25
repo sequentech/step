@@ -7,6 +7,7 @@ import {
     EMessagePurpose,
     EMessagingProvider,
     EProviderApproval,
+    EViberContentMode,
     IAccountLimits,
     IAccountSender,
     IMessagingAccount,
@@ -98,6 +99,7 @@ export interface IAccountFormValues {
     name: string
     sender: Record<string, string>
     viberTemplates: IViberTemplateRow[]
+    viberContentMode: EViberContentMode
     limits: IAccountFormLimits
     providerApproval: EProviderApproval
     isDefault: boolean
@@ -121,6 +123,7 @@ export const emptyAccountForm = (
     name: "",
     sender: initialSender(provider),
     viberTemplates: [],
+    viberContentMode: EViberContentMode.APPROVED_TEMPLATES,
     limits: {
         messagesPerSecond: "",
         otpReservedPerSecond: "",
@@ -141,6 +144,7 @@ export const withProvider = (
     provider,
     sender: initialSender(provider),
     viberTemplates: [],
+    viberContentMode: EViberContentMode.APPROVED_TEMPLATES,
     credentials: {},
 })
 
@@ -188,6 +192,10 @@ export const formFromAccount = (account: IMessagingAccount): IAccountFormValues 
         account.sender.provider === EMessagingProvider.VIBER_INFOBIP
             ? viberRows(account.sender.approved_templates)
             : [],
+    viberContentMode:
+        (account.sender.provider === EMessagingProvider.VIBER_INFOBIP &&
+            account.sender.content_mode) ||
+        EViberContentMode.APPROVED_TEMPLATES,
     limits: {
         messagesPerSecond: countText(account.limits?.messages_per_second),
         otpReservedPerSecond: countText(account.limits?.otp_reserved_per_second),
@@ -284,6 +292,7 @@ export const senderFromForm = (values: IAccountFormValues): IAccountSender => {
                 base_url: required(values, "base_url"),
                 sender: required(values, "sender"),
                 approved_templates: viberTemplates(values.viberTemplates),
+                content_mode: values.viberContentMode,
             }
         case EMessagingProvider.HTTP_API:
             return {provider: EMessagingProvider.HTTP_API}
@@ -413,7 +422,10 @@ export const validateAccountForm = (
     if (parseCallingCodes(allowedCallingCodes).invalid.length) {
         errors["limits.allowedCallingCodes"] = EAccountFormError.INVALID_CALLING_CODE
     }
-    if (values.provider === EMessagingProvider.VIBER_INFOBIP) {
+    if (
+        values.provider === EMessagingProvider.VIBER_INFOBIP &&
+        values.viberContentMode === EViberContentMode.APPROVED_TEMPLATES
+    ) {
         const seen = new Set<string>()
         values.viberTemplates.forEach((row, index) => {
             const language = row.language.trim()

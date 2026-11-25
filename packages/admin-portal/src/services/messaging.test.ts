@@ -5,6 +5,7 @@ import {
     EDeliveryFeedback,
     EMessageChannel,
     EMessagePurpose,
+    EViberContentMode,
     EMessagingProvider,
     EOutOfWindowPolicy,
     EProviderApproval,
@@ -196,6 +197,32 @@ describe("provider capabilities", () => {
             EMessagingProvider.WHATSAPP_CLOUD_API,
             EMessagingProvider.MESSENGER_SEND_API,
             EMessagingProvider.VIBER_INFOBIP,
+        ])
+    })
+
+    it("a free-text Viber account needs no template; a stored one still does", () => {
+        const viber = (content_mode?: EViberContentMode) =>
+            senderCapabilities(
+                {
+                    provider: EMessagingProvider.VIBER_INFOBIP,
+                    base_url: "https://x.api.infobip.com",
+                    sender: "COMELEC",
+                    ...(content_mode ? {content_mode} : {}),
+                },
+                EMessageChannel.VIBER
+            )
+        expect(viber()?.template_required_for).toEqual([
+            EMessagePurpose.OTP,
+            EMessagePurpose.NOTICE,
+        ])
+        expect(viber(EViberContentMode.APPROVED_TEMPLATES)?.template_required_for).toEqual([
+            EMessagePurpose.OTP,
+            EMessagePurpose.NOTICE,
+        ])
+        expect(viber(EViberContentMode.FREE_TEXT)?.template_required_for).toEqual([])
+        expect(viber(EViberContentMode.FREE_TEXT)?.purposes).toEqual([
+            EMessagePurpose.OTP,
+            EMessagePurpose.NOTICE,
         ])
     })
 
