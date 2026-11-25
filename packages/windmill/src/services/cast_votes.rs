@@ -152,7 +152,7 @@ async fn write_opened_ballots(
     output_file: &PathBuf,
 ) -> Result<()> {
     use crate::services::cast_vote_seal::{
-        check_row_format, OpenFailures, Sealing, MAX_OPEN_BATCH,
+        check_row_format, OpenFailures, SealedBallotsRefused, Sealing, MAX_OPEN_BATCH,
     };
     let sealing = Sealing::Required(Some(area.key.clone()));
     let query =
@@ -196,11 +196,11 @@ async fn write_opened_ballots(
         written += write_opened_batch(&mut writer, area, &batch, &mut failures).await?;
     }
     if !failures.is_empty() {
-        return Err(anyhow!(
+        return Err(SealedBallotsRefused(format!(
             "Refusing to extract ballots for election {} area {}: {failures}",
-            area.election_id,
-            area.area_id
-        ));
+            area.election_id, area.area_id
+        ))
+        .into());
     }
     writer.flush().await?;
     info!("opened and wrote {written} sealed ballots");

@@ -590,3 +590,36 @@ mod sealed_cast_votes {
         .is_err());
     }
 }
+
+#[test]
+fn a_rejected_box_fails_the_tally_only_in_an_event_that_seals_its_cast_votes() {
+    use crate::services::cast_vote_seal::{SealKey, SealedBallotsRefused, Sealing};
+    let ballot_box = SealedBox {
+        tenant_id: "tenant",
+        election_event_id: "event",
+        election_id: "election",
+        area_id: "area",
+        election_name: "Madrid PE",
+        area_name: "Spain",
+        tally_session_id: "session",
+    };
+    let legacy = rejected_box_error(&Sealing::Legacy, &ballot_box, "a ballot differs");
+    assert_eq!(SealedBallotsRefused::of(&legacy), None);
+    assert_eq!(
+        legacy.to_string(),
+        "The ballot box of Madrid PE, Spain does not match its seal"
+    );
+    for sealing in [
+        Sealing::Required(None),
+        Sealing::Required(Some(SealKey::new("key".into(), 1, vec![4]))),
+    ] {
+        let refused = rejected_box_error(&sealing, &ballot_box, "a ballot differs");
+        assert_eq!(
+            SealedBallotsRefused::of(&refused).map(ToString::to_string),
+            Some(
+                "The ballot box of Madrid PE, Spain does not match its seal: a ballot differs"
+                    .to_string()
+            )
+        );
+    }
+}

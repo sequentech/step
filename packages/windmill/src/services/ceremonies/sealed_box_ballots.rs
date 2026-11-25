@@ -198,28 +198,6 @@ pub async fn sealed_box_ballots(
     weighted_voting_policy: WeightedVotingPolicy,
 ) -> Result<SealedBoxBallots> {
     check_recorded(log, ballot_box).await?;
-    let verified = match verify_box(hasura_transaction, log, ballot_box).await? {
-        Ok(verified) => verified,
-        Err(Rejection(what_differs)) => {
-            error!(
-                election_id = ballot_box.election_id,
-                area_id = ballot_box.area_id,
-                "The ballot box does not match its seal: {what_differs}"
-            );
-            post_rejected(log, ballot_box, what_differs).await?;
-            return Err(anyhow!(
-                "The ballot box of {}, {} does not match its seal",
-                ballot_box.election_name,
-                ballot_box.area_name
-            ));
-        }
-    };
-    let VerifiedBox {
-        manifest,
-        seal_hash,
-        contents,
-        formats,
-    } = verified;
     // A sealed event's counted ballots are opened through the HSM opener and
     // checked against their Ballot IDs before they are counted; its seal must
     // be a sealed-ballot (v3) manifest, and any other event's a v2 one.
@@ -229,21 +207,19 @@ pub async fn sealed_box_ballots(
         ballot_box.election_event_id,
     )
     .await?;
+    let verified = match verify_box(hasura_transaction, log, ballot_box).await? {
+        Ok(verified) => verified,
+        Err(rejection) => return Err(reject(log, ballot_box, &sealing, rejection).await),
+    };
+    let VerifiedBox {
+        manifest,
+        seal_hash,
+        contents,
+        formats,
+    } = verified;
     let contents = match open_counted(&sealing, ballot_box, &manifest, contents, &formats).await? {
         Ok(contents) => contents,
-        Err(Rejection(what_differs)) => {
-            error!(
-                election_id = ballot_box.election_id,
-                area_id = ballot_box.area_id,
-                "The ballot box does not match its seal: {what_differs}"
-            );
-            post_rejected(log, ballot_box, what_differs).await?;
-            return Err(anyhow!(
-                "The ballot box of {}, {} does not match its seal",
-                ballot_box.election_name,
-                ballot_box.area_name
-            ));
-        }
+        Err(rejection) => return Err(reject(log, ballot_box, &sealing, rejection).await),
     };
     let merge_result = count_manifest(&manifest, contents, weighted_voting_policy)?;
     post_verified(log, ballot_box, seal_hash, manifest.ballots_counted()).await?;
@@ -256,6 +232,48 @@ pub async fn sealed_box_ballots(
         merge_result,
         seal_hash: hex::encode(seal_hash),
     })
+}
+
+/// Posts the box's rejection and returns the error its tally ends with.
+async fn reject(
+    log: &SealedBoxLog,
+    ballot_box: &SealedBox<'_>,
+    sealing: &crate::services::cast_vote_seal::Sealing,
+    Rejection(what_differs): Rejection,
+) -> anyhow::Error {
+    error!(
+        election_id = ballot_box.election_id,
+        area_id = ballot_box.area_id,
+        "The ballot box does not match its seal: {what_differs}"
+    );
+    let error = rejected_box_error(sealing, ballot_box, &what_differs);
+    match post_rejected(log, ballot_box, what_differs).await {
+        Ok(()) => error,
+        Err(post_error) => post_error,
+    }
+}
+
+/// The error a box that doesn't match its seal ends its tally with. In an
+/// event that seals its cast votes it is a [`SealedBallotsRefused`] that
+/// fails the tally session, since every retry would open the event's other
+/// boxes through the HSM again; in any other event, an error the next beat
+/// retries.
+///
+/// [`SealedBallotsRefused`]: crate::services::cast_vote_seal::SealedBallotsRefused
+fn rejected_box_error(
+    sealing: &crate::services::cast_vote_seal::Sealing,
+    ballot_box: &SealedBox<'_>,
+    what_differs: &str,
+) -> anyhow::Error {
+    use crate::services::cast_vote_seal::{SealedBallotsRefused, Sealing};
+    let rejected = format!(
+        "The ballot box of {}, {} does not match its seal",
+        ballot_box.election_name, ballot_box.area_name
+    );
+    match sealing {
+        Sealing::Legacy => anyhow!(rejected),
+        Sealing::Required(_) => SealedBallotsRefused(format!("{rejected}: {what_differs}")).into(),
+    }
 }
 
 /// The counted ballots' voter ballots: as stored for an event that doesn't

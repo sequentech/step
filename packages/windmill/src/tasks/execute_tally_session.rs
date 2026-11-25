@@ -21,6 +21,7 @@ use crate::postgres::tally_session_resolution::get_resolution_by_tally_session;
 use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
 use crate::services::ballot_box_reads::count_unresolved_votes;
+use crate::services::cast_vote_seal::SealedBallotsRefused;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::celery_app::get_celery_app;
 use crate::services::ceremonies::results::populate_results_tables;
@@ -39,7 +40,9 @@ use crate::services::ceremonies::tally_execution::{
 use crate::services::ceremonies::tally_resolution::{
     build_tie_resolutions_map, handle_pending_irv_resolutions,
 };
-use crate::services::ceremonies::tally_session_error::handle_tally_session_error;
+use crate::services::ceremonies::tally_session_error::{
+    fail_tally_session_over_sealed_ballots, handle_tally_session_error,
+};
 use crate::services::ceremonies::velvet_tally::run_velvet_tally;
 use crate::services::ceremonies::velvet_tally::AreaContestDataType;
 use crate::services::database::get_hasura_pool;
@@ -1640,13 +1643,30 @@ pub async fn transactions_wrapper(
         Err(err) => {
             tracing::error!("Error in transactions_wrapper: {:?}", err);
             let hasura_rollback = hasura_transaction.rollback().await;
-            handle_tally_session_error(
-                &err.to_string(),
-                &tenant_id,
-                &election_event_id,
-                &tally_session_id,
-            )
-            .await?;
+            let refused = match &err {
+                Error::Anyhow(error) => SealedBallotsRefused::of(error),
+                _ => None,
+            };
+            match refused {
+                Some(refused) => {
+                    fail_tally_session_over_sealed_ballots(
+                        &refused.to_string(),
+                        &tenant_id,
+                        &election_event_id,
+                        &tally_session_id,
+                    )
+                    .await?
+                }
+                None => {
+                    handle_tally_session_error(
+                        &err.to_string(),
+                        &tenant_id,
+                        &election_event_id,
+                        &tally_session_id,
+                    )
+                    .await?
+                }
+            }
             hasura_rollback?;
             Err(err)
         }

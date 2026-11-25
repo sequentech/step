@@ -47,6 +47,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, RwLock};
+use std::time::{Duration, Instant};
 use tokio_postgres::error::SqlState;
 use voting_crypto::signing::VerificationKey;
 use voting_crypto::RecordDeserialize;
@@ -99,6 +100,7 @@ pub fn install(opener: Arc<dyn CastVoteOpener>) -> Result<()> {
         return Err(anyhow!("a cast vote opener is installed already"));
     }
     *installed = Some(opener);
+    BACKOFF.clear();
     Ok(())
 }
 
@@ -113,6 +115,115 @@ pub fn installed() -> Result<Arc<dyn CastVoteOpener>> {
             )
         })
 }
+
+/// The first wait after the opener failed for a key; it doubles with each
+/// failure in a row, up to [`OPENER_MAX_BACKOFF`].
+pub const OPENER_BACKOFF: Duration = Duration::from_secs(30);
+/// The longest wait between calls of an opener that keeps failing.
+pub const OPENER_MAX_BACKOFF: Duration = Duration::from_secs(15 * 60);
+
+/// How long the opener is left alone after `failures` failures in a row.
+pub fn backoff_after(failures: u32) -> Duration {
+    let doublings = failures.saturating_sub(1).min(u32::BITS - 1);
+    OPENER_BACKOFF
+        .saturating_mul(1u32 << doublings)
+        .min(OPENER_MAX_BACKOFF)
+}
+
+#[derive(Debug, Clone, Copy)]
+struct OpenerFailures {
+    in_a_row: u32,
+    retry_at: Instant,
+}
+
+/// When the opener may be asked again for each key after it failed (or
+/// wasn't installed): a tally session is retried at every beat, and an
+/// opener that can't answer is not called at that rate. Any answer, even one
+/// where ballots don't open, resets the key.
+#[derive(Debug, Default)]
+pub struct OpenerBackoff {
+    keys: DashMap<(String, u32), OpenerFailures>,
+}
+
+impl OpenerBackoff {
+    /// Refuses a call for `key` while its wait lasts.
+    pub fn admit(&self, key: &SealKey, now: Instant) -> Result<()> {
+        let Some(failures) = self.keys.get(&(key.key_id.clone(), key.key_version)) else {
+            return Ok(());
+        };
+        if now >= failures.retry_at {
+            return Ok(());
+        }
+        Err(anyhow!(
+            "The cast vote opener failed for key {} version {} {} time(s) in a row: not asked \
+             again for {} s",
+            key.key_id,
+            key.key_version,
+            failures.in_a_row,
+            (failures.retry_at - now).as_secs().max(1)
+        ))
+    }
+
+    pub fn failed(&self, key: &SealKey, now: Instant) {
+        let mut entry = self
+            .keys
+            .entry((key.key_id.clone(), key.key_version))
+            .or_insert(OpenerFailures {
+                in_a_row: 0,
+                retry_at: now,
+            });
+        entry.in_a_row = entry.in_a_row.saturating_add(1);
+        entry.retry_at = now + backoff_after(entry.in_a_row);
+    }
+
+    pub fn answered(&self, key: &SealKey) {
+        self.keys.remove(&(key.key_id.clone(), key.key_version));
+    }
+
+    fn clear(&self) {
+        self.keys.clear();
+    }
+}
+
+/// The installation's back-off, which [`open_rows`] and [`open_each`] keep.
+static BACKOFF: Lazy<OpenerBackoff> = Lazy::new(OpenerBackoff::default);
+
+/// Stored ballots of an event that seals its cast votes that a tally can't
+/// count as they are: they don't open, don't match their hashes or their
+/// box's seal, or are stored in plaintext. Reading the rows again gives the
+/// same answer, so the tally session fails with it instead of retrying.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SealedBallotsRefused(pub String);
+
+impl SealedBallotsRefused {
+    /// The refusal `error` carries, under any context.
+    pub fn of(error: &anyhow::Error) -> Option<&Self> {
+        error.chain().find_map(|cause| cause.downcast_ref::<Self>())
+    }
+
+    /// One refusal naming each distinct one of `refusals` (contests of one
+    /// area refuse its ballots alike); `None` without any.
+    pub fn joined(refusals: Vec<Self>) -> Option<Self> {
+        let mut details: Vec<String> = Vec::with_capacity(refusals.len());
+        for refusal in refusals {
+            if !details.contains(&refusal.0) {
+                details.push(refusal.0);
+            }
+        }
+        if details.is_empty() {
+            return None;
+        }
+        Some(Self(details.join("; ")))
+    }
+}
+
+impl std::fmt::Display for SealedBallotsRefused {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for SealedBallotsRefused {}
 
 /// An election event's published key.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -406,8 +517,8 @@ pub async fn open_rows(
     key: &SealKey,
     rows: &[SealedRow],
 ) -> std::result::Result<Vec<String>, OpenError> {
-    let opener = installed().map_err(OpenError::Unavailable)?;
-    open_rows_with(opener.as_ref(), tenant_id, election_event_id, key, rows).await
+    let outcomes = open_each(tenant_id, election_event_id, key, rows).await?;
+    opened_or_failures(rows, outcomes).map_err(OpenError::Ballots)
 }
 
 /// The envelope of a sealed row and what opening it takes.
@@ -467,10 +578,47 @@ pub async fn open_each(
     key: &SealKey,
     rows: &[SealedRow],
 ) -> std::result::Result<Vec<RowOutcome>, OpenError> {
-    let opener = installed().map_err(OpenError::Unavailable)?;
-    open_each_with(opener.as_ref(), tenant_id, election_event_id, key, rows)
-        .await
-        .map_err(OpenError::Unavailable)
+    open_each_backed_off(
+        &BACKOFF,
+        installed,
+        Instant::now(),
+        tenant_id,
+        election_event_id,
+        key,
+        rows,
+    )
+    .await
+}
+
+/// [`open_each`] through `backoff`, with the opener `opener` gives: not
+/// called while the key's wait lasts, and a failure (no opener, or one that
+/// can't answer) starts or lengthens the wait.
+pub async fn open_each_backed_off(
+    backoff: &OpenerBackoff,
+    opener: impl FnOnce() -> Result<Arc<dyn CastVoteOpener>>,
+    now: Instant,
+    tenant_id: &str,
+    election_event_id: &str,
+    key: &SealKey,
+    rows: &[SealedRow],
+) -> std::result::Result<Vec<RowOutcome>, OpenError> {
+    backoff.admit(key, now).map_err(OpenError::Unavailable)?;
+    let outcomes = match opener() {
+        Ok(opener) => {
+            open_each_with(opener.as_ref(), tenant_id, election_event_id, key, rows).await
+        }
+        Err(error) => Err(error),
+    };
+    match outcomes {
+        Ok(outcomes) => {
+            backoff.answered(key);
+            Ok(outcomes)
+        }
+        Err(error) => {
+            backoff.failed(key, now);
+            Err(OpenError::Unavailable(error))
+        }
+    }
 }
 
 /// [`open_each`] with a given opener. A row whose envelope doesn't fit it

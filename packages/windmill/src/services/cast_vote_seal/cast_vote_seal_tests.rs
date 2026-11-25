@@ -408,3 +408,152 @@ async fn the_installed_opener_opens_and_is_installed_once() {
         vec![content]
     );
 }
+
+/// An opener that fails every call, as an HSM that is down does.
+#[derive(Default)]
+struct DownOpener {
+    calls: std::sync::atomic::AtomicUsize,
+}
+
+impl CastVoteOpener for DownOpener {
+    fn open_batch<'a>(
+        &'a self,
+        _key_id: &'a str,
+        _key_version: u32,
+        _items: Vec<OpenItem>,
+    ) -> OpenFuture<'a> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        Box::pin(async { Err(anyhow!("the HSM does not answer")) })
+    }
+}
+
+#[test]
+fn the_opener_backoff_doubles_up_to_its_cap() {
+    assert_eq!(backoff_after(0), OPENER_BACKOFF);
+    assert_eq!(backoff_after(1), OPENER_BACKOFF);
+    assert_eq!(backoff_after(2), OPENER_BACKOFF * 2);
+    assert_eq!(backoff_after(3), OPENER_BACKOFF * 4);
+    assert_eq!(backoff_after(6), OPENER_MAX_BACKOFF);
+    assert_eq!(backoff_after(u32::MAX), OPENER_MAX_BACKOFF);
+}
+
+/// A failing opener is not asked again until its wait is over, and each
+/// failure in a row doubles the wait; one key's wait doesn't hold another's.
+#[tokio::test]
+async fn a_failing_opener_is_asked_again_only_after_its_backoff() {
+    let (_, point) = SoftwareOpener::generate();
+    let key = event_key(point);
+    let (row, _) = sealed_row(&key, "alice");
+    let rows = [row];
+    let down = Arc::new(DownOpener::default());
+    let backoff = OpenerBackoff::default();
+    let start = Instant::now();
+    let attempt = |now: Instant| {
+        let down = down.clone();
+        let backoff = &backoff;
+        let key = &key;
+        let rows = &rows;
+        async move {
+            open_each_backed_off(
+                backoff,
+                move || Ok(down as Arc<dyn CastVoteOpener>),
+                now,
+                TENANT,
+                EVENT,
+                key,
+                rows,
+            )
+            .await
+        }
+    };
+    for (now, calls) in [
+        (start, 1),
+        // Refused without a call while the first wait lasts.
+        (start + OPENER_BACKOFF / 2, 1),
+        (start + OPENER_BACKOFF, 2),
+        // The second wait is twice as long.
+        (start + OPENER_BACKOFF * 2, 2),
+        (start + OPENER_BACKOFF * 3, 3),
+    ] {
+        let error = attempt(now).await.unwrap_err();
+        assert!(matches!(error, OpenError::Unavailable(_)), "{error}");
+        assert_eq!(down.calls.load(Ordering::SeqCst), calls);
+    }
+    let waiting = attempt(start + OPENER_BACKOFF * 4).await.unwrap_err();
+    assert!(
+        waiting.to_string().contains("3 time(s) in a row"),
+        "{waiting}"
+    );
+
+    let (_, other_point) = SoftwareOpener::generate();
+    let other = SealKey::new("another-key".into(), 1, other_point);
+    assert!(backoff.admit(&other, start).is_ok());
+    assert!(backoff.admit(&key, start).is_err());
+}
+
+/// No opener installed waits as a failing one does; an answer, even one
+/// where ballots don't open, ends the wait.
+#[tokio::test]
+async fn a_missing_opener_waits_and_any_answer_resets_the_wait() {
+    let (opener, point) = SoftwareOpener::generate();
+    let opener: Arc<dyn CastVoteOpener> = Arc::new(opener);
+    let key = event_key(point);
+    let (good, ballot) = sealed_row(&key, "alice");
+    let mut moved = good.clone();
+    moved.area_id = ELECTION.into();
+    let backoff = OpenerBackoff::default();
+    let start = Instant::now();
+    let missing = open_each_backed_off(
+        &backoff,
+        || Err(anyhow!("no opener")),
+        start,
+        TENANT,
+        EVENT,
+        &key,
+        &[good.clone()],
+    )
+    .await
+    .unwrap_err();
+    assert!(matches!(missing, OpenError::Unavailable(_)), "{missing}");
+    assert!(backoff.admit(&key, start + OPENER_BACKOFF / 2).is_err());
+
+    let later = start + OPENER_BACKOFF;
+    let outcomes = open_each_backed_off(
+        &backoff,
+        || Ok(opener.clone()),
+        later,
+        TENANT,
+        EVENT,
+        &key,
+        &[good, moved],
+    )
+    .await
+    .unwrap();
+    assert_eq!(outcomes[0], Ok(ballot));
+    assert!(outcomes[1].is_err());
+    assert!(backoff.admit(&key, later).is_ok());
+}
+
+#[test]
+fn a_sealed_ballots_refusal_is_found_under_context_and_joined() {
+    let refusal = SealedBallotsRefused("area 1: 1 sealed ballot(s) don't open".into());
+    let error = anyhow::Error::new(refusal.clone())
+        .context("contest area")
+        .context("Error extracting the ballots");
+    assert_eq!(SealedBallotsRefused::of(&error), Some(&refusal));
+    assert_eq!(
+        SealedBallotsRefused::of(&anyhow!("the HSM does not answer")),
+        None
+    );
+    assert_eq!(SealedBallotsRefused::joined(vec![]), None);
+    let joined = SealedBallotsRefused::joined(vec![
+        refusal.clone(),
+        SealedBallotsRefused("area 2: plaintext".into()),
+        refusal.clone(),
+    ])
+    .unwrap();
+    assert_eq!(
+        joined.to_string(),
+        "area 1: 1 sealed ballot(s) don't open; area 2: plaintext"
+    );
+}

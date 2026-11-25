@@ -105,6 +105,13 @@ pub enum TallyEvent {
         /// braid's error, as the trustee reported it.
         detail: String,
     },
+    /// Extracting the ballots found stored sealed cast votes that can't be
+    /// counted as they are. Reading the same rows again gives the same
+    /// answer, so the session fails rather than being retried.
+    SealedBallotsRefused {
+        /// The areas and ballots refused, and why.
+        detail: String,
+    },
 }
 
 /// Apply one event to a tally session.
@@ -133,7 +140,9 @@ pub fn transition(
             TallyEvent::TrusteeHalted { trustee, detail } => {
                 halt(&mut next, &trustee, detail, now)
             }
-            TallyEvent::BoardsCreated(_) | TallyEvent::ReadBoards(_) => {}
+            TallyEvent::BoardsCreated(_)
+            | TallyEvent::ReadBoards(_)
+            | TallyEvent::SealedBallotsRefused { .. } => {}
         },
 
         TallyExecutionStatus::IN_PROGRESS => match event {
@@ -149,6 +158,12 @@ pub fn transition(
             TallyEvent::TrusteeHalted { trustee, detail } => {
                 halt(&mut next, &trustee, detail, now)
             }
+            TallyEvent::SealedBallotsRefused { detail } => fail(
+                &mut next,
+                TallyFailureReason::SEALED_BALLOTS_REFUSED,
+                detail,
+                now,
+            ),
         },
     }
 
@@ -567,7 +582,45 @@ mod tests {
             ]),
             every_board(TallyBoardPhase::DECRYPTED),
             read(vec![unusable(2, TallyFailureReason::INVALID_BOARD_CONTENT)]),
+            refused(),
         ]
+    }
+
+    const REFUSED_DETAIL: &str = "1 sealed ballot(s) don't open";
+
+    fn refused() -> TallyEvent {
+        TallyEvent::SealedBallotsRefused {
+            detail: REFUSED_DETAIL.to_string(),
+        }
+    }
+
+    #[test]
+    fn refused_sealed_ballots_fail_a_session_in_progress_only() {
+        let start = in_progress();
+        let failed = transition(&start, refused(), &later());
+        assert_eq!(failed.execution, TallyExecutionStatus::FAILED);
+        assert_eq!(
+            failed.status.failure,
+            Some(TallyFailure {
+                reason: TallyFailureReason::SEALED_BALLOTS_REFUSED,
+                detail: REFUSED_DETAIL.to_string(),
+                failed_at: LATER_ISO.to_string(),
+            })
+        );
+        assert_eq!(failed.status.stop_date, Some(LATER_UNIX_MS.to_string()));
+        assert_eq!(failed.status.logs.len(), start.status.logs.len() + 1);
+        assert_eq!(failed.status.trustees, start.status.trustees);
+
+        for execution in [
+            TallyExecutionStatus::STARTED,
+            TallyExecutionStatus::CONNECTED,
+            TallyExecutionStatus::CANCELLED,
+        ] {
+            let other = state(execution.clone());
+            assert_eq!(apply(&other, refused()), other, "{execution}");
+        }
+        let finished = completed(TallyExecutionStatus::SUCCESS);
+        assert_eq!(apply(&finished, refused()), finished);
     }
 
     fn every_event() -> Vec<TallyEvent> {
